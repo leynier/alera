@@ -99,6 +99,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(credentials.savedTokens, <String>['test-token']);
+    expect(credentials.savedBaseUrls, <String>['https://api.openai.com/v1']);
     expect(find.text('Replace Token'), findsOneWidget);
   });
 
@@ -114,6 +115,29 @@ void main() {
     );
     expect(find.text('Enable AI Dictation before testing.'), findsOneWidget);
   });
+
+  testWidgets('disables remote engines for an older running sidecar', (
+    tester,
+  ) async {
+    await _pumpPane(
+      tester,
+      _FakeAiDictationModelStore(),
+      remoteSupported: false,
+      settings: AiDictationSettings.defaults.copyWith(
+        enabled: true,
+        transcriptionEngine: AiDictationTranscriptionEngine.openAiCompatible,
+        remoteConsentVersion: 1,
+      ),
+    );
+
+    expect(find.text('Runtime Update Required'), findsOneWidget);
+    expect(
+      find.text(
+        'Restart Alera to update the runtime before testing remote transcription.',
+      ),
+      findsOneWidget,
+    );
+  });
 }
 
 Future<void> _pumpPane(
@@ -121,6 +145,7 @@ Future<void> _pumpPane(
   AiDictationModelStore store, {
   AiDictationCredentialStore? credentials,
   AiDictationSettings settings = AiDictationSettings.defaults,
+  bool remoteSupported = true,
 }) async {
   await tester.pumpWidget(
     ProviderScope(
@@ -128,6 +153,9 @@ Future<void> _pumpPane(
         aiDictationModelStoreProvider.overrideWithValue(store),
         aiDictationCredentialStoreProvider.overrideWithValue(
           credentials ?? _FakeAiDictationCredentialStore(),
+        ),
+        remoteAiDictationSupportedProvider.overrideWith(
+          (ref) async => remoteSupported,
         ),
       ],
       child: MaterialApp(
@@ -174,13 +202,20 @@ Future<void> _tapVisible(WidgetTester tester, Finder finder) async {
 class _FakeAiDictationCredentialStore implements AiDictationCredentialStore {
   bool configured = false;
   final List<String> savedTokens = <String>[];
+  final List<String> savedBaseUrls = <String>[];
 
   @override
-  Future<bool> hasToken() async => configured;
+  Future<AiDictationCredentialStatus> status(String? baseUrl) async =>
+      AiDictationCredentialStatus(
+        supported: true,
+        configured: configured,
+        matchesBaseUrl: configured,
+      );
 
   @override
-  Future<void> saveToken(String token) async {
+  Future<void> saveToken(String token, {required String baseUrl}) async {
     savedTokens.add(token);
+    savedBaseUrls.add(baseUrl);
     configured = true;
   }
 

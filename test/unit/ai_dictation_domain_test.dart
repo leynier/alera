@@ -2,6 +2,7 @@ import 'package:alera/src/features/ai_dictation/domain/ai_dictation_error.dart';
 import 'package:alera/src/features/ai_dictation/domain/ai_dictation_request.dart';
 import 'package:alera/src/features/ai_dictation/domain/ai_dictation_result.dart';
 import 'package:alera/src/features/ai_dictation/domain/ai_dictation_settings.dart';
+import 'package:alera/src/features/ai_dictation/application/ai_dictation_service.dart';
 import 'package:alera/src/features/ai_dictation/infra/ai_dictation_model_store.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -47,6 +48,46 @@ void main() {
     expect(settings.codexRealtimeModel, 'realtime-model');
     expect(settings.remoteConsentVersion, 1);
     expect(settings.toJson(), isNot(contains('providerApiKey')));
+  });
+
+  test('recording plan keeps the engine selected when recording started', () {
+    final plan = AiDictationRecordingPlan(
+      AiDictationSettings.defaults.copyWith(
+        transcriptionEngine: AiDictationTranscriptionEngine.localWhisper,
+      ),
+    );
+
+    plan.validateBeforeTranscription(
+      AiDictationSettings.defaults.copyWith(
+        transcriptionEngine: AiDictationTranscriptionEngine.openAiCompatible,
+        remoteConsentVersion: 1,
+      ),
+    );
+
+    expect(
+      plan.settings.transcriptionEngine,
+      AiDictationTranscriptionEngine.localWhisper,
+    );
+  });
+
+  test('recording plan rejects remote upload after consent is revoked', () {
+    final plan = AiDictationRecordingPlan(
+      AiDictationSettings.defaults.copyWith(
+        transcriptionEngine: AiDictationTranscriptionEngine.openAiCompatible,
+        remoteConsentVersion: 1,
+      ),
+    );
+
+    expect(
+      () => plan.validateBeforeTranscription(AiDictationSettings.defaults),
+      throwsA(
+        isA<AiDictationException>().having(
+          (error) => error.kind,
+          'kind',
+          AiDictationErrorKind.permissionDenied,
+        ),
+      ),
+    );
   });
 
   test('exposes selectable verified local Whisper models', () {

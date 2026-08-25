@@ -17,11 +17,13 @@ class AiDictationRemoteSettings extends ConsumerStatefulWidget {
     super.key,
     required this.settings,
     required this.onChanged,
+    required this.supported,
     this.groupKey,
   });
 
   final AiDictationSettings settings;
   final ValueChanged<AiDictationSettings> onChanged;
+  final bool supported;
   final GlobalKey? groupKey;
 
   @override
@@ -35,6 +37,7 @@ class _AiDictationRemoteSettingsState
   bool _loadingToken = true;
   bool _savingToken = false;
   bool _tokenConfigured = false;
+  bool _tokenMatchesBaseUrl = false;
   String? _tokenError;
 
   @override
@@ -51,19 +54,29 @@ class _AiDictationRemoteSettingsState
     super.dispose();
   }
 
+  @override
+  void didUpdateWidget(covariant AiDictationRemoteSettings oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.settings.remoteBaseUrl != widget.settings.remoteBaseUrl ||
+        oldWidget.supported != widget.supported) {
+      unawaited(_loadTokenStatus());
+    }
+  }
+
   void _handleTokenChanged() {
     if (mounted) setState(() {});
   }
 
   Future<void> _loadTokenStatus() async {
     try {
-      final configured = await ref
+      final status = await ref
           .read(aiDictationCredentialStoreProvider)
-          .hasToken();
+          .status(widget.settings.remoteBaseUrl);
       if (mounted) {
         setState(() {
           _loadingToken = false;
-          _tokenConfigured = configured;
+          _tokenConfigured = status.configured;
+          _tokenMatchesBaseUrl = status.matchesBaseUrl;
           _tokenError = null;
         });
       }
@@ -85,12 +98,18 @@ class _AiDictationRemoteSettingsState
       _tokenError = null;
     });
     try {
-      await ref.read(aiDictationCredentialStoreProvider).saveToken(token);
+      await ref
+          .read(aiDictationCredentialStoreProvider)
+          .saveToken(
+            token,
+            baseUrl: widget.settings.remoteBaseUrl?.trim() ?? '',
+          );
       _tokenController.clear();
       if (mounted) {
         setState(() {
           _savingToken = false;
           _tokenConfigured = true;
+          _tokenMatchesBaseUrl = true;
         });
       }
     } on Object catch (error) {
@@ -115,6 +134,7 @@ class _AiDictationRemoteSettingsState
         setState(() {
           _savingToken = false;
           _tokenConfigured = false;
+          _tokenMatchesBaseUrl = false;
         });
       }
     } on Object catch (error) {
@@ -142,69 +162,80 @@ class _AiDictationRemoteSettingsState
         description:
             'Send recordings to Codex or an OpenAI-compatible speech API. Transcription endpoints do not use reasoning effort.',
         children: <Widget>[
-          SettingsSwitchRow(
-            title: 'Allow Remote Audio Processing',
-            description:
-                'Recordings may leave this device and are deleted locally after transcription.',
-            value:
-                settings.remoteConsentVersion ==
-                aiDictationRemoteConsentVersion,
-            onChanged: (value) => widget.onChanged(
-              settings.copyWith(
-                remoteConsentVersion: value
-                    ? aiDictationRemoteConsentVersion
-                    : null,
-              ),
-            ),
-          ),
-          if (usesCodex)
-            SettingsTextRow(
-              title: 'Realtime Model',
+          if (!widget.supported)
+            const AleraSettingRow(
+              title: 'Runtime Update Required',
               description:
-                  'Optional Codex realtime model override. Leave blank to use the subscription default. This Codex API is experimental.',
-              value: settings.codexRealtimeModel ?? '',
-              hintText: 'Subscription default',
+                  'Restart Alera to replace the running sidecar before configuring remote transcription.',
+              child: SizedBox.shrink(),
+            ),
+          if (widget.supported) ...<Widget>[
+            SettingsSwitchRow(
+              title: 'Allow Remote Audio Processing',
+              description:
+                  'Recordings may leave this device and are deleted locally after transcription.',
+              value:
+                  settings.remoteConsentVersion ==
+                  aiDictationRemoteConsentVersion,
               onChanged: (value) => widget.onChanged(
                 settings.copyWith(
-                  codexRealtimeModel: value.isEmpty ? null : value,
+                  remoteConsentVersion: value
+                      ? aiDictationRemoteConsentVersion
+                      : null,
                 ),
               ),
             ),
-          if (usesOpenAi) ...<Widget>[
-            SettingsTextRow(
-              title: 'Base URL',
-              description:
-                  'Base API URL. Alera appends /v1/audio/transcriptions when needed.',
-              value: settings.remoteBaseUrl ?? '',
-              hintText: 'https://api.openai.com/v1',
-              onChanged: (value) => widget.onChanged(
-                settings.copyWith(remoteBaseUrl: value.isEmpty ? null : value),
+            if (usesCodex)
+              SettingsTextRow(
+                title: 'Realtime Model',
+                description:
+                    'Optional Codex realtime model override. Leave blank to use the subscription default. This Codex API is experimental.',
+                value: settings.codexRealtimeModel ?? '',
+                hintText: 'Subscription default',
+                onChanged: (value) => widget.onChanged(
+                  settings.copyWith(
+                    codexRealtimeModel: value.isEmpty ? null : value,
+                  ),
+                ),
               ),
-            ),
-            SettingsTextRow(
-              title: 'Model',
-              description:
-                  'Speech-to-text model accepted by the configured API.',
-              value: settings.remoteModel ?? '',
-              hintText: 'gpt-4o-mini-transcribe',
-              onChanged: (value) => widget.onChanged(
-                settings.copyWith(remoteModel: value.isEmpty ? null : value),
+            if (usesOpenAi) ...<Widget>[
+              SettingsTextRow(
+                title: 'Base URL',
+                description:
+                    'Base API URL. Alera appends /audio/transcriptions when needed and preserves query parameters.',
+                value: settings.remoteBaseUrl ?? '',
+                hintText: 'https://api.openai.com/v1',
+                onChanged: (value) => widget.onChanged(
+                  settings.copyWith(
+                    remoteBaseUrl: value.isEmpty ? null : value,
+                  ),
+                ),
               ),
-            ),
-            _tokenRow(context),
+              SettingsTextRow(
+                title: 'Model',
+                description:
+                    'Speech-to-text model accepted by the configured API.',
+                value: settings.remoteModel ?? '',
+                hintText: 'gpt-4o-mini-transcribe',
+                onChanged: (value) => widget.onChanged(
+                  settings.copyWith(remoteModel: value.isEmpty ? null : value),
+                ),
+              ),
+              _tokenRow(context),
+            ],
+            if (usesOpenAi || usesCodex)
+              SettingsIntegerRow(
+                title: 'Request Timeout',
+                description: 'Maximum time allowed for remote transcription.',
+                value: settings.timeoutSeconds,
+                min: 5,
+                max: 300,
+                step: 5,
+                suffix: 's',
+                onChanged: (value) =>
+                    widget.onChanged(settings.copyWith(timeoutSeconds: value)),
+              ),
           ],
-          if (usesOpenAi || usesCodex)
-            SettingsIntegerRow(
-              title: 'Request Timeout',
-              description: 'Maximum time allowed for remote transcription.',
-              value: settings.timeoutSeconds,
-              min: 5,
-              max: 300,
-              step: 5,
-              suffix: 's',
-              onChanged: (value) =>
-                  widget.onChanged(settings.copyWith(timeoutSeconds: value)),
-            ),
         ],
       ),
     );
@@ -214,13 +245,15 @@ class _AiDictationRemoteSettingsState
     final status = _loadingToken
         ? 'Checking saved token...'
         : _tokenError ??
-              (_tokenConfigured
-                  ? 'A token is stored securely for this runtime.'
+              (_tokenConfigured && !_tokenMatchesBaseUrl
+                  ? 'The saved token belongs to another API origin. Replace it before transcribing.'
+                  : _tokenConfigured
+                  ? 'A token is stored for this API origin.'
                   : 'No token is stored. Tokenless local APIs are also supported.');
     return AleraSettingRow(
       title: 'API Token',
       description:
-          'Optional Bearer token. It is stored in the system credential store, never in Settings.',
+          'Optional Bearer token. It uses the system credential store, with a private 0600 file fallback on Linux, and is never stored in Settings.',
       controlWidth: 360,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,

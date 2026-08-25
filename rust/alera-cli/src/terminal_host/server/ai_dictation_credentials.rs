@@ -3,12 +3,20 @@ use std::path::{Path, PathBuf};
 use alera_core::runtime::{
     create_private_runtime_file, prepare_private_runtime_directory, set_private_file_permissions,
 };
+use serde::{Deserialize, Serialize};
 
 use crate::terminal_host::diagnostics::redaction::register_secret;
 use crate::terminal_host::host_error::{HostError, HostResult};
 
 const KEYRING_SERVICE: &str = "dev.leynier.alera.ai-dictation";
 const FALLBACK_FILE_NAME: &str = "ai-dictation.credentials";
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub(super) struct StoredAiDictationCredential {
+    pub(super) token: String,
+    pub(super) origin: Option<String>,
+}
 
 #[derive(Clone)]
 pub(super) struct AiDictationCredentialStore {
@@ -24,21 +32,21 @@ impl AiDictationCredentialStore {
         }
     }
 
-    pub(super) async fn load(&self) -> HostResult<Option<String>> {
+    pub(super) async fn load(&self) -> HostResult<Option<StoredAiDictationCredential>> {
         let this = self.clone();
         let token = tokio::task::spawn_blocking(move || this.load_blocking())
             .await
             .map_err(|error| HostError::state(format!("credential read task failed: {error}")))??;
-        if let Some(token) = token.as_deref() {
-            register_secret(token);
+        if let Some(credential) = token.as_ref() {
+            register_secret(&credential.token);
         }
         Ok(token)
     }
 
-    pub(super) async fn save(&self, token: String) -> HostResult<()> {
-        register_secret(&token);
+    pub(super) async fn save(&self, credential: StoredAiDictationCredential) -> HostResult<()> {
+        register_secret(&credential.token);
         let this = self.clone();
-        tokio::task::spawn_blocking(move || this.save_blocking(&token))
+        tokio::task::spawn_blocking(move || this.save_blocking(&credential))
             .await
             .map_err(|error| HostError::state(format!("credential write task failed: {error}")))?
     }
@@ -50,9 +58,9 @@ impl AiDictationCredentialStore {
             .map_err(|error| HostError::state(format!("credential delete task failed: {error}")))?
     }
 
-    fn load_blocking(&self) -> HostResult<Option<String>> {
+    fn load_blocking(&self) -> HostResult<Option<StoredAiDictationCredential>> {
         match self.keyring_entry().and_then(|entry| entry.get_password()) {
-            Ok(token) => Ok(Some(token)),
+            Ok(value) => Ok(Some(decode_credential(&value))),
             Err(keyring::Error::NoEntry) => self.load_fallback(),
             Err(error) if cfg!(target_os = "linux") => {
                 tracing::warn!(
@@ -66,17 +74,19 @@ impl AiDictationCredentialStore {
         }
     }
 
-    fn save_blocking(&self, token: &str) -> HostResult<()> {
+    fn save_blocking(&self, credential: &StoredAiDictationCredential) -> HostResult<()> {
+        let value = serde_json::to_string(credential)
+            .map_err(|error| HostError::state(format!("credential encoding failed: {error}")))?;
         match self
             .keyring_entry()
-            .and_then(|entry| entry.set_password(token))
+            .and_then(|entry| entry.set_password(&value))
         {
             Ok(()) => remove_fallback(&self.fallback_path()),
             Err(error) if cfg!(target_os = "linux") => {
                 tracing::warn!(
                     "AI Dictation keyring unavailable; using private file fallback: {error}"
                 );
-                write_fallback(&self.fallback_path(), token.as_bytes())
+                write_fallback(&self.fallback_path(), value.as_bytes())
             }
             Err(error) => Err(HostError::state(format!(
                 "AI Dictation credentials could not be saved: {error}"
@@ -98,9 +108,9 @@ impl AiDictationCredentialStore {
         remove_fallback(&self.fallback_path())
     }
 
-    fn load_fallback(&self) -> HostResult<Option<String>> {
+    fn load_fallback(&self) -> HostResult<Option<StoredAiDictationCredential>> {
         match std::fs::read_to_string(self.fallback_path()) {
-            Ok(token) => Ok(Some(token)),
+            Ok(value) => Ok(Some(decode_credential(&value))),
             Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(None),
             Err(error) => Err(HostError::state(format!(
                 "AI Dictation credentials could not be read: {error}"
@@ -115,6 +125,13 @@ impl AiDictationCredentialStore {
     fn fallback_path(&self) -> PathBuf {
         self.runtime_dir.join(FALLBACK_FILE_NAME)
     }
+}
+
+fn decode_credential(value: &str) -> StoredAiDictationCredential {
+    serde_json::from_str(value).unwrap_or_else(|_| StoredAiDictationCredential {
+        token: value.to_string(),
+        origin: None,
+    })
 }
 
 fn write_fallback(path: &Path, contents: &[u8]) -> HostResult<()> {
@@ -146,7 +163,7 @@ fn remove_fallback(path: &Path) -> HostResult<()> {
 mod tests {
     use std::os::unix::fs::PermissionsExt as _;
 
-    use super::write_fallback;
+    use super::{decode_credential, write_fallback};
 
     #[test]
     fn fallback_file_is_private() {
@@ -158,5 +175,12 @@ mod tests {
             std::fs::metadata(path).unwrap().permissions().mode() & 0o777,
             0o600
         );
+    }
+
+    #[test]
+    fn legacy_raw_tokens_decode_without_an_origin() {
+        let credential = decode_credential("legacy-secret");
+        assert_eq!(credential.token, "legacy-secret");
+        assert_eq!(credential.origin, None);
     }
 }

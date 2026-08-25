@@ -32,6 +32,12 @@ impl ServerActor {
                 self.start_ai_text_model_discovery(client_id, request_id, payload)?;
                 Ok(true)
             }
+            "aiDictation.transcribe" => {
+                self.require_authenticated_local_request(client_id, request_type)?;
+                self.start_ai_dictation(client_id, request_id, payload)
+                    .await?;
+                Ok(true)
+            }
             "aiText.workspaceIdentity.generate" => {
                 self.require_auth(client_id)?;
                 self.require_request_allowed(client_id, request_type)?;

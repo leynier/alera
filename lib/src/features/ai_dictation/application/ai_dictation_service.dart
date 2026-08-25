@@ -19,6 +19,26 @@ import 'package:record/record.dart';
 
 enum AiDictationStage { idle, recording, transcribing, improving }
 
+class AiDictationRecordingPlan {
+  const AiDictationRecordingPlan(this.settings);
+
+  final AiDictationSettings settings;
+
+  void validateBeforeTranscription(AiDictationSettings currentSettings) {
+    final remote =
+        settings.transcriptionEngine ==
+            AiDictationTranscriptionEngine.codexSubscription ||
+        settings.transcriptionEngine ==
+            AiDictationTranscriptionEngine.openAiCompatible;
+    if (remote && currentSettings.remoteConsentVersion != 1) {
+      throw const AiDictationException(
+        AiDictationErrorKind.permissionDenied,
+        'Remote audio processing was disabled before transcription.',
+      );
+    }
+  }
+}
+
 class AiDictationService extends ChangeNotifier {
   AiDictationService({
     required AiDictationSettings Function() settings,
@@ -52,6 +72,7 @@ class AiDictationService extends ChangeNotifier {
   String? _requestId;
   String? _processingOperationId;
   AiDictationProvider? _activeProvider;
+  AiDictationRecordingPlan? _recordingPlan;
   String? _lastWarning;
   AiDictationStage _stage = AiDictationStage.idle;
   Future<AiDictationResult?>? _systemFinalization;
@@ -132,6 +153,7 @@ class AiDictationService extends ChangeNotifier {
       ),
       path: path,
     );
+    _recordingPlan = AiDictationRecordingPlan(settings);
     _audioPath = path;
     _stage = AiDictationStage.recording;
     notifyListeners();
@@ -217,7 +239,9 @@ class AiDictationService extends ChangeNotifier {
     final requestId = 'dictation-${DateTime.now().microsecondsSinceEpoch}';
     _requestId = requestId;
     try {
-      final settings = _settings();
+      final plan = _recordingPlan ?? AiDictationRecordingPlan(_settings());
+      plan.validateBeforeTranscription(_settings());
+      final settings = plan.settings;
       final provider =
           settings.transcriptionEngine ==
               AiDictationTranscriptionEngine.localWhisper
@@ -354,6 +378,7 @@ class AiDictationService extends ChangeNotifier {
     _requestId = null;
     _processingOperationId = null;
     _activeProvider = null;
+    _recordingPlan = null;
     _systemFinalization = null;
     _stage = AiDictationStage.idle;
     notifyListeners();

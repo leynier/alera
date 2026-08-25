@@ -85,19 +85,12 @@ pub(super) async fn transcribe(request: OpenAiDictationRequest<'_>) -> HostResul
 }
 
 pub(super) fn transcription_endpoint(base_url: &str, sends_token: bool) -> HostResult<Url> {
-    let mut url = Url::parse(base_url.trim())
-        .map_err(|_| HostError::format("speech provider base URL is invalid"))?;
-    if !matches!(url.scheme(), "http" | "https") || url.host_str().is_none() {
-        return Err(HostError::format(
-            "speech provider base URL must use HTTP or HTTPS",
-        ));
-    }
+    let mut url = parse_provider_url(base_url)?;
     if sends_token && url.scheme() != "https" && !url.host_str().is_some_and(is_loopback_host) {
         return Err(HostError::format(
             "a token can only be sent over HTTPS or to a loopback address",
         ));
     }
-    url.set_query(None);
     url.set_fragment(None);
     let path = url.path().trim_end_matches('/');
     let endpoint_path = if path.ends_with("/audio/transcriptions") {
@@ -107,9 +100,24 @@ pub(super) fn transcription_endpoint(base_url: &str, sends_token: bool) -> HostR
     } else if path.is_empty() || path == "/" {
         "/v1/audio/transcriptions".to_string()
     } else {
-        format!("{path}/v1/audio/transcriptions")
+        format!("{path}/audio/transcriptions")
     };
     url.set_path(&endpoint_path);
+    Ok(url)
+}
+
+pub(super) fn provider_origin(base_url: &str) -> HostResult<String> {
+    Ok(parse_provider_url(base_url)?.origin().ascii_serialization())
+}
+
+fn parse_provider_url(base_url: &str) -> HostResult<Url> {
+    let url = Url::parse(base_url.trim())
+        .map_err(|_| HostError::format("speech provider base URL is invalid"))?;
+    if !matches!(url.scheme(), "http" | "https") || url.host_str().is_none() {
+        return Err(HostError::format(
+            "speech provider base URL must use HTTP or HTTPS",
+        ));
+    }
     Ok(url)
 }
 
@@ -139,7 +147,7 @@ fn provider_error_suffix(body: &[u8]) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::transcription_endpoint;
+    use super::{provider_origin, transcribe, transcription_endpoint, OpenAiDictationRequest};
 
     #[test]
     fn builds_openai_transcription_endpoints() {
@@ -157,12 +165,18 @@ mod tests {
         );
         assert_eq!(
             transcription_endpoint(
-                "https://example.test/custom/audio/transcriptions?ignored=true",
+                "https://example.test/custom/audio/transcriptions?api-version=1",
                 false,
             )
             .unwrap()
             .as_str(),
-            "https://example.test/custom/audio/transcriptions"
+            "https://example.test/custom/audio/transcriptions?api-version=1"
+        );
+        assert_eq!(
+            transcription_endpoint("https://example.test/custom/v2", false)
+                .unwrap()
+                .as_str(),
+            "https://example.test/custom/v2/audio/transcriptions"
         );
     }
 
@@ -171,5 +185,66 @@ mod tests {
         let error = transcription_endpoint("http://example.test/v1", true).unwrap_err();
         assert!(error.to_string().contains("HTTPS"));
         assert!(transcription_endpoint("http://example.test/v1", false).is_ok());
+    }
+
+    #[test]
+    fn canonical_origin_excludes_paths_and_queries() {
+        assert_eq!(
+            provider_origin("https://example.test:8443/openai/v1?tenant=one").unwrap(),
+            "https://example.test:8443"
+        );
+    }
+
+    #[tokio::test]
+    async fn sends_openai_compatible_multipart_fields_and_bearer_token() {
+        async fn handler(
+            headers: axum::http::HeaderMap,
+            body: axum::body::Bytes,
+        ) -> axum::Json<serde_json::Value> {
+            assert_eq!(
+                headers
+                    .get(axum::http::header::AUTHORIZATION)
+                    .unwrap()
+                    .to_str()
+                    .unwrap(),
+                "Bearer secret-token"
+            );
+            let body = String::from_utf8_lossy(&body);
+            assert!(body.contains("name=\"model\""));
+            assert!(body.contains("speech-model"));
+            assert!(body.contains("name=\"language\""));
+            assert!(body.contains("es"));
+            assert!(body.contains("name=\"file\"; filename=\"dictation.wav\""));
+            axum::Json(serde_json::json!({"text": " hola "}))
+        }
+
+        let listener = tokio::net::TcpListener::bind(("127.0.0.1", 0))
+            .await
+            .unwrap();
+        let address = listener.local_addr().unwrap();
+        let app =
+            axum::Router::new().route("/v1/audio/transcriptions", axum::routing::post(handler));
+        let server = tokio::spawn(async move {
+            axum::serve(listener, app).await.unwrap();
+        });
+        let dir = tempfile::tempdir().unwrap();
+        let audio_path = dir.path().join("dictation.wav");
+        std::fs::write(&audio_path, b"audio").unwrap();
+        let base_url = format!("http://{address}");
+
+        let response = transcribe(OpenAiDictationRequest {
+            audio_path: &audio_path,
+            base_url: &base_url,
+            model: "speech-model",
+            token: Some("secret-token"),
+            language: Some("es"),
+            prompt: None,
+            timeout: std::time::Duration::from_secs(5),
+        })
+        .await
+        .unwrap();
+
+        assert_eq!(response["text"], "hola");
+        server.abort();
     }
 }

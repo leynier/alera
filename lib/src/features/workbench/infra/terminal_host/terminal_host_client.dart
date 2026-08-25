@@ -38,7 +38,11 @@ final class SocketTerminalHostClient
         _TerminalHostClientSessionEvents,
         _TerminalPulseHostClientSupport,
         _GuardedRuntimeHostClientSupport
-    implements TerminalHostClient, TerminalPulseHostClient, RuntimeHostClient {
+    implements
+        TerminalHostClient,
+        TerminalPulseHostClient,
+        RuntimeHostClient,
+        RuntimeHostCapabilityClient {
   factory SocketTerminalHostClient({
     TerminalHostProcessLauncher? launcher,
     Future<Directory> Function()? applicationSupportDirectory,
@@ -311,6 +315,16 @@ final class SocketTerminalHostClient
     Duration? timeout,
   ]) {
     return _runtimeRequest(type, payload, timeout);
+  }
+
+  @override
+  Future<bool> supportsRuntimeCapability(String capability) async {
+    final connection = await _connectRuntime();
+    return switch (capability) {
+      aleraRuntimeHostRemoteAiDictationCapability =>
+        connection.supportsRemoteAiDictation,
+      _ => false,
+    };
   }
 
   Future<_TerminalHostConnection> _connectTerminal() {

@@ -154,6 +154,41 @@ final class AiDictationCredentialStoreProvider
 String _$aiDictationCredentialStoreHash() =>
     r'c066178e704125decc9c8a926d5bb6382510a3b4';
 
+@ProviderFor(remoteAiDictationSupported)
+final remoteAiDictationSupportedProvider =
+    RemoteAiDictationSupportedProvider._();
+
+final class RemoteAiDictationSupportedProvider
+    extends $FunctionalProvider<AsyncValue<bool>, bool, FutureOr<bool>>
+    with $FutureModifier<bool>, $FutureProvider<bool> {
+  RemoteAiDictationSupportedProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'remoteAiDictationSupportedProvider',
+        isAutoDispose: true,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$remoteAiDictationSupportedHash();
+
+  @$internal
+  @override
+  $FutureProviderElement<bool> $createElement($ProviderPointer pointer) =>
+      $FutureProviderElement(pointer);
+
+  @override
+  FutureOr<bool> create(Ref ref) {
+    return remoteAiDictationSupported(ref);
+  }
+}
+
+String _$remoteAiDictationSupportedHash() =>
+    r'23f6355e6724a5d5ed728ebbf3709fe1b25d0f0f';
+
 @ProviderFor(aiDictationService)
 final aiDictationServiceProvider = AiDictationServiceProvider._();
 

@@ -62,6 +62,7 @@ mod agent_profile_persona_discovery;
 mod ai_text_commit_message;
 mod ai_dictation_credentials;
 mod ai_dictation_openai;
+mod ai_dictation_remote_requests;
 mod ai_dictation_requests;
 mod ai_text_failure_detail;
 mod ai_text_fx_plan;
@@ -539,6 +540,11 @@ impl ServerActor {
                 request_id,
                 result,
             } => self.handle_ai_text_generation_finished(client_id, request_id, result),
+            ServerCommand::AiDictationFinished {
+                client_id,
+                request_id,
+                result,
+            } => self.handle_ai_dictation_finished(client_id, request_id, result),
             ServerCommand::MobileWorkspaceFileFinished {
                 client_id,
                 request_id,

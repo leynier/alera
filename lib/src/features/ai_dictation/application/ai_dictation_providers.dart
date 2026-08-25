@@ -6,6 +6,7 @@ import 'package:alera/src/features/ai_dictation/infra/runtime_ai_dictation_crede
 import 'package:alera/src/features/ai_dictation/infra/runtime_ai_dictation_provider.dart';
 import 'package:alera/src/features/ai_dictation/infra/runtime_ai_dictation_speech_processor.dart';
 import 'package:alera/src/features/settings/application/settings_controller.dart';
+import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_protocol.dart';
 import 'package:alera/src/shared/infra/runtime/runtime_host_providers.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
@@ -26,6 +27,17 @@ AiDictationModelStore aiDictationModelStore(Ref ref) {
 @Riverpod(keepAlive: true)
 AiDictationCredentialStore aiDictationCredentialStore(Ref ref) {
   return RuntimeAiDictationCredentialStore(ref.read(runtimeHostClientProvider));
+}
+
+@riverpod
+Future<bool> remoteAiDictationSupported(Ref ref) async {
+  final client = ref.read(runtimeHostClientProvider);
+  if (client case final RuntimeHostCapabilityClient capabilities) {
+    return capabilities.supportsRuntimeCapability(
+      aleraRuntimeHostRemoteAiDictationCapability,
+    );
+  }
+  return true;
 }
 
 @Riverpod(keepAlive: true)
