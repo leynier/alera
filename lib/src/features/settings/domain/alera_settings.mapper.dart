@@ -58,6 +58,61 @@ extension TerminalCursorShapeMapperExtension on TerminalCursorShape {
   }
 }
 
+class TerminalToolbarCornerMapper extends EnumMapper<TerminalToolbarCorner> {
+  TerminalToolbarCornerMapper._();
+
+  static TerminalToolbarCornerMapper? _instance;
+  static TerminalToolbarCornerMapper ensureInitialized() {
+    if (_instance == null) {
+      MapperContainer.globals.use(_instance = TerminalToolbarCornerMapper._());
+    }
+    return _instance!;
+  }
+
+  static TerminalToolbarCorner fromValue(dynamic value) {
+    ensureInitialized();
+    return MapperContainer.globals.fromValue(value);
+  }
+
+  @override
+  TerminalToolbarCorner decode(dynamic value) {
+    switch (value) {
+      case r'topLeft':
+        return TerminalToolbarCorner.topLeft;
+      case r'topRight':
+        return TerminalToolbarCorner.topRight;
+      case r'bottomLeft':
+        return TerminalToolbarCorner.bottomLeft;
+      case r'bottomRight':
+        return TerminalToolbarCorner.bottomRight;
+      default:
+        throw MapperException.unknownEnumValue(value);
+    }
+  }
+
+  @override
+  dynamic encode(TerminalToolbarCorner self) {
+    switch (self) {
+      case TerminalToolbarCorner.topLeft:
+        return r'topLeft';
+      case TerminalToolbarCorner.topRight:
+        return r'topRight';
+      case TerminalToolbarCorner.bottomLeft:
+        return r'bottomLeft';
+      case TerminalToolbarCorner.bottomRight:
+        return r'bottomRight';
+    }
+  }
+}
+
+extension TerminalToolbarCornerMapperExtension on TerminalToolbarCorner {
+  String toValue() {
+    TerminalToolbarCornerMapper.ensureInitialized();
+    return MapperContainer.globals.toValue<TerminalToolbarCorner>(this)
+        as String;
+  }
+}
+
 class DiagnosticsLogLevelMapper extends EnumMapper<DiagnosticsLogLevel> {
   DiagnosticsLogLevelMapper._();
 
@@ -371,6 +426,7 @@ class TerminalSettingsMapper extends ClassMapperBase<TerminalSettings> {
       MapperContainer.globals.use(_instance = TerminalSettingsMapper._());
       TerminalCursorShapeMapper.ensureInitialized();
       TerminalColorOverridesMapper.ensureInitialized();
+      TerminalToolbarCornerMapper.ensureInitialized();
     }
     return _instance!;
   }
@@ -496,6 +552,15 @@ class TerminalSettingsMapper extends ClassMapperBase<TerminalSettings> {
     opt: true,
     def: false,
   );
+  static TerminalToolbarCorner _$toolbarCorner(TerminalSettings v) =>
+      v.toolbarCorner;
+  static const Field<TerminalSettings, TerminalToolbarCorner> _f$toolbarCorner =
+      Field(
+        'toolbarCorner',
+        _$toolbarCorner,
+        opt: true,
+        def: TerminalToolbarCorner.topRight,
+      );
   static int _$hostEmptyShutdownDelaySeconds(TerminalSettings v) =>
       v.hostEmptyShutdownDelaySeconds;
   static const Field<TerminalSettings, int> _f$hostEmptyShutdownDelaySeconds =
@@ -565,6 +630,7 @@ class TerminalSettingsMapper extends ClassMapperBase<TerminalSettings> {
     #clipboardOnSelect: _f$clipboardOnSelect,
     #allowOsc52Clipboard: _f$allowOsc52Clipboard,
     #showComposerByDefault: _f$showComposerByDefault,
+    #toolbarCorner: _f$toolbarCorner,
     #hostEmptyShutdownDelaySeconds: _f$hostEmptyShutdownDelaySeconds,
     #hostDetachedSessionShutdownDelaySeconds:
         _f$hostDetachedSessionShutdownDelaySeconds,
@@ -596,6 +662,7 @@ class TerminalSettingsMapper extends ClassMapperBase<TerminalSettings> {
       clipboardOnSelect: data.dec(_f$clipboardOnSelect),
       allowOsc52Clipboard: data.dec(_f$allowOsc52Clipboard),
       showComposerByDefault: data.dec(_f$showComposerByDefault),
+      toolbarCorner: data.dec(_f$toolbarCorner),
       hostEmptyShutdownDelaySeconds: data.dec(_f$hostEmptyShutdownDelaySeconds),
       hostDetachedSessionShutdownDelaySeconds: data.dec(
         _f$hostDetachedSessionShutdownDelaySeconds,
@@ -694,6 +761,7 @@ abstract class TerminalSettingsCopyWith<$R, $In extends TerminalSettings, $Out>
     bool? clipboardOnSelect,
     bool? allowOsc52Clipboard,
     bool? showComposerByDefault,
+    TerminalToolbarCorner? toolbarCorner,
     int? hostEmptyShutdownDelaySeconds,
     int? hostDetachedSessionShutdownDelaySeconds,
     int? hostScrollbackBytes,
@@ -742,6 +810,7 @@ class _TerminalSettingsCopyWithImpl<$R, $Out>
     bool? clipboardOnSelect,
     bool? allowOsc52Clipboard,
     bool? showComposerByDefault,
+    TerminalToolbarCorner? toolbarCorner,
     int? hostEmptyShutdownDelaySeconds,
     int? hostDetachedSessionShutdownDelaySeconds,
     int? hostScrollbackBytes,
@@ -771,6 +840,7 @@ class _TerminalSettingsCopyWithImpl<$R, $Out>
         #allowOsc52Clipboard: allowOsc52Clipboard,
       if (showComposerByDefault != null)
         #showComposerByDefault: showComposerByDefault,
+      if (toolbarCorner != null) #toolbarCorner: toolbarCorner,
       if (hostEmptyShutdownDelaySeconds != null)
         #hostEmptyShutdownDelaySeconds: hostEmptyShutdownDelaySeconds,
       if (hostDetachedSessionShutdownDelaySeconds != null)
@@ -820,6 +890,7 @@ class _TerminalSettingsCopyWithImpl<$R, $Out>
       #showComposerByDefault,
       or: $value.showComposerByDefault,
     ),
+    toolbarCorner: data.get(#toolbarCorner, or: $value.toolbarCorner),
     hostEmptyShutdownDelaySeconds: data.get(
       #hostEmptyShutdownDelaySeconds,
       or: $value.hostEmptyShutdownDelaySeconds,
