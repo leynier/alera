@@ -49,6 +49,7 @@ part 'workbench_controller_sleep_test_cases.dart';
 part 'workbench_controller_layout_persistence_test_cases.dart';
 part 'workbench_controller_mobile_emulator_test_cases.dart';
 part 'workbench_controller_view_prefs_test_cases.dart';
+part 'workbench_controller_explorer_reveal_test_cases.dart';
 part 'workbench_controller_active_filter_test_cases.dart';
 part 'workbench_controller_failure_test_cases.dart';
 part 'workbench_controller_create_workspace_test_cases.dart';
@@ -81,6 +82,7 @@ void main() {
     _registerWorkbenchControllerLayoutPersistenceTests();
     _registerWorkbenchControllerMobileEmulatorTests();
     _registerWorkbenchControllerViewPrefsTests();
+    _registerWorkbenchControllerExplorerRevealTests();
     _registerWorkbenchControllerActiveFilterTests();
     _registerWorkbenchControllerFailureTests();
     _registerWorkbenchControllerCreateWorkspaceTests();
