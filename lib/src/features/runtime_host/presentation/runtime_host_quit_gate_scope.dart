@@ -25,22 +25,32 @@ class _RuntimeHostQuitGateScopeState
   bool _bound = false;
 
   Future<bool> _closeGate() async {
-    final keepRuntimeOpen = ref
-        .read(settingsControllerProvider)
-        .terminal
-        .keepRuntimeOpenOnAppQuit;
-    final allowed = await ref
-        .read(runtimeHostLifecycleServiceProvider)
-        .prepareAppQuit(
-          keepRuntimeOpen: keepRuntimeOpen,
-          confirmBusyQuit: _confirmBusyQuit,
-        );
-    if (!allowed) {
-      return false;
+    final client = ref.read(runtimeHostClientProvider);
+    client.beginAppQuit();
+    var closeCommitted = false;
+    try {
+      final keepRuntimeOpen = ref
+          .read(settingsControllerProvider)
+          .terminal
+          .keepRuntimeOpenOnAppQuit;
+      final allowed = await ref
+          .read(runtimeHostLifecycleServiceProvider)
+          .prepareAppQuit(
+            keepRuntimeOpen: keepRuntimeOpen,
+            confirmBusyQuit: _confirmBusyQuit,
+          );
+      if (!allowed) {
+        return false;
+      }
+      // Mirror the Linux detach path for all platforms when quitting.
+      client.dispose();
+      closeCommitted = true;
+      return true;
+    } finally {
+      if (!closeCommitted) {
+        client.cancelAppQuit();
+      }
     }
-    // Mirror the Linux detach path for all platforms when quitting.
-    ref.read(runtimeHostClientProvider).dispose();
-    return true;
   }
 
   Future<RuntimeHostQuitDecision> _confirmBusyQuit({
