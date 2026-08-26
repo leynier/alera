@@ -306,10 +306,12 @@ List<AiDictationTranscriptionEngine> _availableEngines(
   bool onDeviceAvailable,
   bool remoteSupported,
 ) {
-  final remoteEngines = <AiDictationTranscriptionEngine>[
-    if (remoteSupported) AiDictationTranscriptionEngine.codexSubscription,
-    AiDictationTranscriptionEngine.openAiCompatible,
-  ];
+  final remoteEngines = remoteSupported
+      ? const <AiDictationTranscriptionEngine>[
+          AiDictationTranscriptionEngine.codexSubscription,
+          AiDictationTranscriptionEngine.openAiCompatible,
+        ]
+      : const <AiDictationTranscriptionEngine>[];
   if (Platform.isMacOS && onDeviceAvailable) {
     return <AiDictationTranscriptionEngine>[
       AiDictationTranscriptionEngine.localWhisper,

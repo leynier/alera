@@ -106,57 +106,6 @@ extension AiDictationFallbackProviderMapperExtension
   }
 }
 
-class AiDictationRemoteExecutionMapper
-    extends EnumMapper<AiDictationRemoteExecution> {
-  AiDictationRemoteExecutionMapper._();
-
-  static AiDictationRemoteExecutionMapper? _instance;
-  static AiDictationRemoteExecutionMapper ensureInitialized() {
-    if (_instance == null) {
-      MapperContainer.globals.use(
-        _instance = AiDictationRemoteExecutionMapper._(),
-      );
-    }
-    return _instance!;
-  }
-
-  static AiDictationRemoteExecution fromValue(dynamic value) {
-    ensureInitialized();
-    return MapperContainer.globals.fromValue(value);
-  }
-
-  @override
-  AiDictationRemoteExecution decode(dynamic value) {
-    switch (value) {
-      case r'runtime':
-        return AiDictationRemoteExecution.runtime;
-      case r'thisDevice':
-        return AiDictationRemoteExecution.thisDevice;
-      default:
-        throw MapperException.unknownEnumValue(value);
-    }
-  }
-
-  @override
-  dynamic encode(AiDictationRemoteExecution self) {
-    switch (self) {
-      case AiDictationRemoteExecution.runtime:
-        return r'runtime';
-      case AiDictationRemoteExecution.thisDevice:
-        return r'thisDevice';
-    }
-  }
-}
-
-extension AiDictationRemoteExecutionMapperExtension
-    on AiDictationRemoteExecution {
-  String toValue() {
-    AiDictationRemoteExecutionMapper.ensureInitialized();
-    return MapperContainer.globals.toValue<AiDictationRemoteExecution>(this)
-        as String;
-  }
-}
-
 class AiDictationTranscriptionEngineMapper
     extends EnumMapper<AiDictationTranscriptionEngine> {
   AiDictationTranscriptionEngineMapper._();
@@ -281,7 +230,6 @@ class AiDictationSettingsMapper extends ClassMapperBase<AiDictationSettings> {
       AiDictationTranscriptionEngineMapper.ensureInitialized();
       AiDictationRewriteModeMapper.ensureInitialized();
       AiDictationProviderPolicyMapper.ensureInitialized();
-      AiDictationRemoteExecutionMapper.ensureInitialized();
       AiDictationFallbackProviderMapper.ensureInitialized();
     }
     return _instance!;
@@ -369,15 +317,6 @@ class AiDictationSettingsMapper extends ClassMapperBase<AiDictationSettings> {
     opt: true,
     def: 'gpt-4o-mini-transcribe',
   );
-  static AiDictationRemoteExecution _$remoteExecution(AiDictationSettings v) =>
-      v.remoteExecution;
-  static const Field<AiDictationSettings, AiDictationRemoteExecution>
-  _f$remoteExecution = Field(
-    'remoteExecution',
-    _$remoteExecution,
-    opt: true,
-    def: AiDictationRemoteExecution.runtime,
-  );
   static String? _$codexRealtimeModel(AiDictationSettings v) =>
       v.codexRealtimeModel;
   static const Field<AiDictationSettings, String> _f$codexRealtimeModel = Field(
@@ -429,7 +368,6 @@ class AiDictationSettingsMapper extends ClassMapperBase<AiDictationSettings> {
     #providerFallbackEnabled: _f$providerFallbackEnabled,
     #remoteBaseUrl: _f$remoteBaseUrl,
     #remoteModel: _f$remoteModel,
-    #remoteExecution: _f$remoteExecution,
     #codexRealtimeModel: _f$codexRealtimeModel,
     #remoteProvider: _f$remoteProvider,
     #timeoutSeconds: _f$timeoutSeconds,
@@ -449,7 +387,6 @@ class AiDictationSettingsMapper extends ClassMapperBase<AiDictationSettings> {
       providerFallbackEnabled: data.dec(_f$providerFallbackEnabled),
       remoteBaseUrl: data.dec(_f$remoteBaseUrl),
       remoteModel: data.dec(_f$remoteModel),
-      remoteExecution: data.dec(_f$remoteExecution),
       codexRealtimeModel: data.dec(_f$codexRealtimeModel),
       remoteProvider: data.dec(_f$remoteProvider),
       timeoutSeconds: data.dec(_f$timeoutSeconds),
@@ -541,7 +478,6 @@ abstract class AiDictationSettingsCopyWith<
     bool? providerFallbackEnabled,
     String? remoteBaseUrl,
     String? remoteModel,
-    AiDictationRemoteExecution? remoteExecution,
     String? codexRealtimeModel,
     AiDictationFallbackProvider? remoteProvider,
     int? timeoutSeconds,
@@ -573,7 +509,6 @@ class _AiDictationSettingsCopyWithImpl<$R, $Out>
     bool? providerFallbackEnabled,
     Object? remoteBaseUrl = $none,
     Object? remoteModel = $none,
-    AiDictationRemoteExecution? remoteExecution,
     Object? codexRealtimeModel = $none,
     AiDictationFallbackProvider? remoteProvider,
     int? timeoutSeconds,
@@ -594,7 +529,6 @@ class _AiDictationSettingsCopyWithImpl<$R, $Out>
         #providerFallbackEnabled: providerFallbackEnabled,
       if (remoteBaseUrl != $none) #remoteBaseUrl: remoteBaseUrl,
       if (remoteModel != $none) #remoteModel: remoteModel,
-      if (remoteExecution != null) #remoteExecution: remoteExecution,
       if (codexRealtimeModel != $none) #codexRealtimeModel: codexRealtimeModel,
       if (remoteProvider != null) #remoteProvider: remoteProvider,
       if (timeoutSeconds != null) #timeoutSeconds: timeoutSeconds,
@@ -625,7 +559,6 @@ class _AiDictationSettingsCopyWithImpl<$R, $Out>
     ),
     remoteBaseUrl: data.get(#remoteBaseUrl, or: $value.remoteBaseUrl),
     remoteModel: data.get(#remoteModel, or: $value.remoteModel),
-    remoteExecution: data.get(#remoteExecution, or: $value.remoteExecution),
     codexRealtimeModel: data.get(
       #codexRealtimeModel,
       or: $value.codexRealtimeModel,

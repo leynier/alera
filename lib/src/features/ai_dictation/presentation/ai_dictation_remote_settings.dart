@@ -1,13 +1,11 @@
 import 'dart:async';
 
 import 'package:alera/src/app/theme/alera_tokens.dart';
-import 'package:alera/src/design_system/forms/alera_dropdown_field.dart';
 import 'package:alera/src/design_system/forms/alera_setting_row.dart';
 import 'package:alera/src/design_system/forms/alera_text_field.dart';
 import 'package:alera/src/design_system/layout/alera_settings_group.dart';
 import 'package:alera/src/features/ai_dictation/application/ai_dictation_providers.dart';
 import 'package:alera/src/features/ai_dictation/domain/ai_dictation_settings.dart';
-import 'package:alera/src/features/ai_dictation/infra/runtime_ai_dictation_credential_store.dart';
 import 'package:alera/src/features/settings/presentation/rows/settings_rows.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -60,7 +58,6 @@ class _AiDictationRemoteSettingsState
   void didUpdateWidget(covariant AiDictationRemoteSettings oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.settings.remoteBaseUrl != widget.settings.remoteBaseUrl ||
-        oldWidget.settings.remoteExecution != widget.settings.remoteExecution ||
         oldWidget.supported != widget.supported) {
       unawaited(_loadTokenStatus());
     }
@@ -72,9 +69,9 @@ class _AiDictationRemoteSettingsState
 
   Future<void> _loadTokenStatus() async {
     try {
-      final status = await _credentialStore().status(
-        widget.settings.remoteBaseUrl,
-      );
+      final status = await ref
+          .read(aiDictationCredentialStoreProvider)
+          .status(widget.settings.remoteBaseUrl);
       if (mounted) {
         setState(() {
           _loadingToken = false;
@@ -101,10 +98,12 @@ class _AiDictationRemoteSettingsState
       _tokenError = null;
     });
     try {
-      await _credentialStore().saveToken(
-        token,
-        baseUrl: widget.settings.remoteBaseUrl?.trim() ?? '',
-      );
+      await ref
+          .read(aiDictationCredentialStoreProvider)
+          .saveToken(
+            token,
+            baseUrl: widget.settings.remoteBaseUrl?.trim() ?? '',
+          );
       _tokenController.clear();
       if (mounted) {
         setState(() {
@@ -130,7 +129,7 @@ class _AiDictationRemoteSettingsState
       _tokenError = null;
     });
     try {
-      await _credentialStore().clearToken();
+      await ref.read(aiDictationCredentialStoreProvider).clearToken();
       if (mounted) {
         setState(() {
           _savingToken = false;
@@ -156,10 +155,6 @@ class _AiDictationRemoteSettingsState
         engine == AiDictationTranscriptionEngine.openAiCompatible;
     final usesCodex =
         engine == AiDictationTranscriptionEngine.codexSubscription;
-    final usesRuntime =
-        usesCodex ||
-        (usesOpenAi &&
-            settings.remoteExecution == AiDictationRemoteExecution.runtime);
     return KeyedSubtree(
       key: widget.groupKey,
       child: AleraSettingsGroup(
@@ -167,46 +162,14 @@ class _AiDictationRemoteSettingsState
         description:
             'Send recordings to Codex or an OpenAI-compatible speech API. Transcription endpoints do not use reasoning effort.',
         children: <Widget>[
-          if (usesOpenAi)
-            AleraSettingRow(
-              title: 'Processing Location',
-              description:
-                  'Run OpenAI-compatible transcription in the runtime or directly in this app.',
-              child: AleraDropdownField<AiDictationRemoteExecution>(
-                value: settings.remoteExecution,
-                entries:
-                    const <AleraDropdownFieldEntry<AiDictationRemoteExecution>>[
-                      AleraDropdownFieldEntry<AiDictationRemoteExecution>(
-                        value: AiDictationRemoteExecution.runtime,
-                        label: 'Runtime',
-                      ),
-                      AleraDropdownFieldEntry<AiDictationRemoteExecution>(
-                        value: AiDictationRemoteExecution.thisDevice,
-                        label: 'This Device',
-                      ),
-                    ],
-                onChanged: (value) =>
-                    widget.onChanged(settings.copyWith(remoteExecution: value)),
-              ),
-            ),
-          if (usesCodex)
-            const AleraSettingRow(
-              title: 'Processing Location',
-              description:
-                  'Codex subscription dictation runs through the authenticated Codex app-server in the runtime.',
-              child: Align(
-                alignment: Alignment.centerRight,
-                child: Text('Runtime'),
-              ),
-            ),
-          if (!widget.supported && usesRuntime)
+          if (!widget.supported)
             const AleraSettingRow(
               title: 'Runtime Update Required',
               description:
                   'Restart Alera to replace the running sidecar before configuring remote transcription.',
               child: SizedBox.shrink(),
             ),
-          if (widget.supported || !usesRuntime) ...<Widget>[
+          if (widget.supported) ...<Widget>[
             SettingsSwitchRow(
               title: 'Allow Remote Audio Processing',
               description:
@@ -279,9 +242,6 @@ class _AiDictationRemoteSettingsState
   }
 
   Widget _tokenRow(BuildContext context) {
-    final direct =
-        widget.settings.remoteExecution ==
-        AiDictationRemoteExecution.thisDevice;
     final status = _loadingToken
         ? 'Checking saved token...'
         : _tokenError ??
@@ -291,10 +251,9 @@ class _AiDictationRemoteSettingsState
                   ? 'A token is stored for this API origin.'
                   : 'No token is stored. Tokenless local APIs are also supported.');
     return AleraSettingRow(
-      title: direct ? 'This Device API Token' : 'Runtime API Token',
-      description: direct
-          ? 'Optional Bearer token stored by this app in the operating system secure storage.'
-          : 'Optional Bearer token stored by the runtime keyring, with a private 0600 file fallback on Linux.',
+      title: 'API Token',
+      description:
+          'Optional Bearer token. It uses the system credential store, with a private 0600 file fallback on Linux, and is never stored in Settings.',
       controlWidth: 360,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -340,13 +299,5 @@ class _AiDictationRemoteSettingsState
         ],
       ),
     );
-  }
-
-  AiDictationCredentialStore _credentialStore() {
-    if (widget.settings.remoteExecution ==
-        AiDictationRemoteExecution.thisDevice) {
-      return ref.read(directAiDictationCredentialStoreProvider);
-    }
-    return ref.read(aiDictationCredentialStoreProvider);
   }
 }
