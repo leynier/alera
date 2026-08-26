@@ -5,6 +5,13 @@ mixin _TerminalPulsePtySessionSupport implements TerminalPulsePtySession {
 
   String get _sessionId;
 
+  Future<T> _enqueueAttachmentOperation<T>(Future<T> Function() operation);
+
+  Future<T> _withReattach<T>(
+    Future<T> Function() operation, {
+    required bool Function(Object error) shouldRecover,
+  });
+
   @override
   bool get supportsTerminalPulse =>
       _client is TerminalPulseHostClient &&
@@ -20,7 +27,12 @@ mixin _TerminalPulsePtySessionSupport implements TerminalPulsePtySession {
         'The running terminal host does not support Terminal Pulse.',
       );
     }
-    return client.terminalPulseStatus(_sessionId);
+    return _enqueueAttachmentOperation(
+      () => _withReattach(
+        () => client.terminalPulseStatus(_sessionId),
+        shouldRecover: _shouldRecoverFromTerminalHostError,
+      ),
+    );
   }
 
   @override
@@ -36,10 +48,15 @@ mixin _TerminalPulsePtySessionSupport implements TerminalPulsePtySession {
         'The running terminal host does not support Terminal Pulse.',
       );
     }
-    return client.configureTerminalPulse(
-      sessionId: _sessionId,
-      configuration: configuration,
-      armed: armed,
+    return _enqueueAttachmentOperation(
+      () => _withReattach(
+        () => client.configureTerminalPulse(
+          sessionId: _sessionId,
+          configuration: configuration,
+          armed: armed,
+        ),
+        shouldRecover: _shouldRecoverFromTerminalHostError,
+      ),
     );
   }
 }

@@ -86,7 +86,9 @@ final class TerminalHostPtySession
   bool _startedNewProcess = false;
   bool _outputPaused = false;
   Future<void>? _startFuture;
-  Future<void> _resizeOperations = Future<void>.value();
+  // Resize and output resync can both observe a lost attachment. Keep their
+  // retries in one lane so no request races the createOrAttach response.
+  Future<void> _attachmentOperations = Future<void>.value();
   Future<void> Function()? _onProcessCreated;
 
   @override
@@ -236,7 +238,11 @@ final class TerminalHostPtySession
     if (!_started) {
       return;
     }
-    unawaited(_enqueueResize(() => _resize(cols: cols, rows: rows)));
+    unawaited(
+      _enqueueAttachmentOperation(
+        () => _resize(cols: cols, rows: rows),
+      ).catchError(_emitHostError),
+    );
   }
 
   @override
@@ -252,85 +258,82 @@ final class TerminalHostPtySession
     _cols = cols;
     _rows = rows;
     final pulseCols = cols > 1 ? cols - 1 : cols + 1;
-    return _enqueueResize(() async {
+    return _enqueueAttachmentOperation<void>(() async {
       try {
         await _resize(cols: pulseCols, rows: rows);
       } finally {
         await _resize(cols: cols, rows: rows);
       }
-    });
+    }).catchError(_emitHostError);
   }
 
-  Future<void> _enqueueResize(Future<void> Function() operation) {
-    final next = _resizeOperations
-        .then((_) => _disposed ? null : operation())
-        .catchError(_emitHostError);
-    _resizeOperations = next;
-    return next;
+  @override
+  Future<T> _enqueueAttachmentOperation<T>(Future<T> Function() operation) {
+    final previous = _attachmentOperations;
+    final gate = Completer<void>();
+    _attachmentOperations = gate.future;
+    return previous.then((_) async {
+      try {
+        return await operation();
+      } finally {
+        gate.complete();
+      }
+    });
   }
 
   Future<void> _writeBytes(
     List<int> bytes, {
     bool deferredEnter = false,
   }) async {
-    try {
-      await _client.write(
+    await _withReattach(
+      () => _client.write(
         sessionId: _sessionId,
         bytes: bytes,
         deferredEnter: deferredEnter,
-      );
-    } catch (error) {
-      if (!_isDefinitivelyNotAttached(error)) {
-        rethrow;
-      }
-      await _reattach();
-      await _client.write(
-        sessionId: _sessionId,
-        bytes: bytes,
-        deferredEnter: deferredEnter,
-      );
-    }
+      ),
+      shouldRecover: _isDefinitivelyNotAttached,
+    );
   }
 
   Future<void> _resize({required int cols, required int rows}) async {
-    try {
-      await _client.resize(sessionId: _sessionId, cols: cols, rows: rows);
-    } catch (error) {
-      if (!_shouldRecoverFromHostError(error)) {
-        rethrow;
-      }
-      await _reattach();
-      await _client.resize(sessionId: _sessionId, cols: cols, rows: rows);
-    }
+    await _withReattach(
+      () => _client.resize(sessionId: _sessionId, cols: cols, rows: rows),
+      shouldRecover: _shouldRecoverFromHostError,
+    );
   }
 
   @override
-  Future<void> setOutputPaused(bool paused) async {
+  Future<void> setOutputPaused(bool paused) {
     if (_disposed || !_started) {
-      return;
+      return Future<void>.value();
     }
     _outputPaused = paused;
-    try {
-      final resume = await _client.setOutputPaused(
-        sessionId: _sessionId,
-        paused: paused,
-      );
-      _emitResume(paused: paused, resume: resume);
-    } catch (error) {
-      if (!_shouldRecoverFromHostError(error)) {
-        _emitHostError(error);
-        return;
-      }
+    return _enqueueAttachmentOperation<void>(() async {
       try {
-        await _reattach();
-        final resume = await _client.setOutputPaused(
-          sessionId: _sessionId,
-          paused: paused,
+        final resume = await _withReattach(
+          () => _client.setOutputPaused(sessionId: _sessionId, paused: paused),
+          shouldRecover: _shouldRecoverFromHostError,
         );
         _emitResume(paused: paused, resume: resume);
-      } catch (retryError) {
-        _emitHostError(retryError);
+      } catch (error) {
+        _emitHostError(error);
       }
+    });
+  }
+
+  @override
+  Future<T> _withReattach<T>(
+    Future<T> Function() operation, {
+    required bool Function(Object error) shouldRecover,
+  }) async {
+    try {
+      return await operation();
+    } catch (error) {
+      if (!shouldRecover(error)) {
+        rethrow;
+      }
+      await _reattach();
+      return operation();
     }
   }
 
@@ -349,9 +352,8 @@ final class TerminalHostPtySession
   }
 
   @override
-  Future<void> reconnect() async {
-    await _reattach();
-  }
+  Future<void> reconnect() =>
+      _enqueueAttachmentOperation<void>(() => _reattach().then((_) {}));
 
   @override
   Future<void> restartProcess() async {
