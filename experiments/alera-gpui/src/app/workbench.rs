@@ -32,9 +32,10 @@ impl AleraApp {
             self.render_welcome_dashboard(cx)
         } else if let Some(tab) = selected_tab.filter(|tab| tab.kind == "gitDiff") {
             self.render_git_diff_surface(tab, cx)
-        } else if self.opened_file_path.is_some()
-            && selected_tab
-                .is_some_and(|tab| matches!(tab.kind.as_str(), "editor" | "markdownViewer" | "pdf"))
+        } else if selected_tab.is_some_and(|tab| {
+            matches!(tab.kind.as_str(), "editor" | "markdownViewer" | "pdf")
+                && tab.payload.get("filePath").and_then(|value| value.as_str()).is_some()
+        })
         {
             self.render_editor(window, cx)
         } else if selected_tab.is_some_and(|tab| tab.kind == "terminal") {

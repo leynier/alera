@@ -126,6 +126,7 @@ dependencies = [
  "libloading",
  "qrcode",
  "regex",
+ "reqwest",
  "rust-embed",
  "sentry",
  "serde",

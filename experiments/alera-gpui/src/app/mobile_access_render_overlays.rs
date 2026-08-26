@@ -52,6 +52,7 @@ impl AleraApp {
                                 AleraIcon::Close,
                                 theme::text_muted(),
                             )
+                            .tooltip(|_, cx| cx.new(|_| Tooltip::new("Cancel Offer")).into())
                             .on_mouse_down(
                                 MouseButton::Left,
                                 cx.listener(move |this, _, _, cx| {
@@ -66,7 +67,7 @@ impl AleraApp {
         };
         mobile_settings_group(
             "Active Pairing Offers",
-            "Pending Offers Waiting To Be Claimed. The QR For An Existing Offer Cannot Be Shown Again - Cancel It And Generate A New One.",
+            "Pending offers waiting to be claimed. The QR for an existing offer cannot be shown again - cancel it and generate a new one.",
             rows,
         )
         .id(("settings-group-anchor", 2usize))
@@ -166,6 +167,9 @@ impl AleraApp {
                                     AleraIcon::Edit,
                                     theme::text_muted(),
                                 )
+                                .tooltip(|_, cx| {
+                                    cx.new(|_| Tooltip::new("Rename Device")).into()
+                                })
                                 .on_mouse_down(
                                     MouseButton::Left,
                                     cx.listener(move |this, _, window, cx| {
@@ -184,6 +188,9 @@ impl AleraApp {
                                     AleraIcon::Delete,
                                     theme::danger(),
                                 )
+                                .tooltip(|_, cx| {
+                                    cx.new(|_| Tooltip::new("Revoke Device")).into()
+                                })
                                 .on_mouse_down(
                                     MouseButton::Left,
                                     cx.listener(move |this, _, _, cx| {
@@ -204,6 +211,9 @@ impl AleraApp {
                                     AleraIcon::Delete,
                                     theme::danger(),
                                 )
+                                .tooltip(|_, cx| {
+                                    cx.new(|_| Tooltip::new("Delete Device")).into()
+                                })
                                 .on_mouse_down(
                                     MouseButton::Left,
                                     cx.listener(move |this, _, _, cx| {
@@ -222,7 +232,7 @@ impl AleraApp {
         };
         mobile_settings_group(
             "Paired Devices",
-            "Devices That Can Connect To This Runtime.",
+            "Devices that can connect to this runtime.",
             rows,
         )
         .id(("settings-group-anchor", 3usize))
@@ -243,19 +253,19 @@ impl AleraApp {
             MobileOverlay::RenameDevice { .. } => self.render_mobile_rename(cx),
             MobileOverlay::CancelOffer(_) => self.render_mobile_confirmation(
                 "Cancel Pairing Offer",
-                "The Offer Becomes Unusable Immediately.",
+                "The offer becomes unusable immediately.",
                 "Cancel Offer",
                 cx,
             ),
             MobileOverlay::RevokeDevice { display_name, .. } => self.render_mobile_confirmation(
                 format!("Revoke {display_name}"),
-                "The Device Loses Access And Active Sessions Disconnect Immediately. This Cannot Be Undone.",
+                "The device loses access and active sessions disconnect immediately. This cannot be undone.",
                 "Revoke",
                 cx,
             ),
             MobileOverlay::DeleteDevice { display_name, .. } => self.render_mobile_confirmation(
                 format!("Delete {display_name}"),
-                "Permanently Removes This Revoked Device Record From The List. This Cannot Be Undone.",
+                "Permanently removes this revoked device record from the list. This cannot be undone.",
                 "Delete",
                 cx,
             ),

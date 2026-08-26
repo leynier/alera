@@ -5,7 +5,7 @@ use gpui_component::select::SearchableVec;
 use serde_json::{json, Value};
 
 use super::settings_select_option::SettingsSelectOption;
-use super::settings_state::{AiTextPromptSettings, SettingsState};
+use super::settings_state::{AiTextPromptSettings, GitHubStarState, SettingsState};
 use super::AleraApp;
 
 impl AleraApp {
@@ -250,6 +250,10 @@ impl AleraApp {
                 .to_string();
                 crate::app_log::set_level(&self.settings_state.diagnostics_log_level);
                 self.persist_settings();
+                self.persist_shared_flutter_settings(
+                    self.settings_state.shared_flutter_local_payload(),
+                    cx,
+                );
                 cx.notify();
             }
             "ai-agent" => {
@@ -469,3 +473,4 @@ include!("settings_actions/runtime_tools.rs");
 include!("settings_actions/diagnostics_actions.rs");
 include!("settings_actions/ai_select_sync.rs");
 include!("settings_actions/ai_model_discovery.rs");
+include!("settings_actions/update_actions.rs");

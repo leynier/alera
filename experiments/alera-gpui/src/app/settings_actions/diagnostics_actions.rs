@@ -60,13 +60,12 @@ impl AleraApp {
         let directory = crate::app_log::directory()
             .map(Path::to_path_buf)
             .unwrap_or_else(crate::app_log_directory);
-        if let Err(error) = fs::create_dir_all(&directory) {
-            self.settings_state.error = Some(format!("Could Not Open The Logs Folder: {error}"));
+        if fs::create_dir_all(&directory).is_err() {
+            self.local_message = Some("Could not open the logs folder.".into());
             cx.notify();
             return;
         }
         cx.open_with_system(&directory);
-        self.settings_state.toast = Some("Logs Folder Opened".to_string());
         cx.notify();
     }
 
@@ -90,8 +89,10 @@ impl AleraApp {
             .as_deref()
             .map(PathBuf::from);
         let metadata = diagnostics_metadata(&self.settings_state);
-        self.settings_state.loading = true;
+        self.diagnostics_export_busy = true;
         self.settings_state.error = None;
+        self.settings_state.toast = None;
+        self.local_message = None;
         let this = cx.entity().downgrade();
         window
             .spawn(cx, async move |cx| {
@@ -99,23 +100,23 @@ impl AleraApp {
                     Ok(Ok(Some(path))) => path,
                     Ok(Ok(None)) => {
                         let _ = this.update(cx, |this, cx| {
-                            this.settings_state.loading = false;
+                            this.diagnostics_export_busy = false;
                             cx.notify();
                         });
                         return;
                     }
                     Ok(Err(error)) => {
                         let _ = this.update(cx, |this, cx| {
-                            this.settings_state.loading = false;
-                            this.settings_state.error = Some(error.to_string());
+                            this.diagnostics_export_busy = false;
+                            this.local_message = Some(error.to_string().into());
                             cx.notify();
                         });
                         return;
                     }
                     Err(error) => {
                         let _ = this.update(cx, |this, cx| {
-                            this.settings_state.loading = false;
-                            this.settings_state.error = Some(error.to_string());
+                            this.diagnostics_export_busy = false;
+                            this.local_message = Some(error.to_string().into());
                             cx.notify();
                         });
                         return;
@@ -135,12 +136,10 @@ impl AleraApp {
                     .expect("failed to start diagnostics exporter");
                 let result = receiver.recv().await.unwrap_or_else(|error| Err(error.to_string()));
                 let _ = this.update(cx, |this, cx| {
-                    this.settings_state.loading = false;
+                    this.diagnostics_export_busy = false;
                     match result {
-                        Ok(()) => {
-                            this.settings_state.toast = Some("Diagnostics Exported".to_string())
-                        }
-                        Err(error) => this.settings_state.error = Some(error),
+                        Ok(()) => this.local_message = Some("Diagnostics exported.".into()),
+                        Err(error) => this.local_message = Some(error.into()),
                     }
                     cx.notify();
                 });

@@ -7,11 +7,11 @@ use gpui_component::input::Input;
 use gpui_component::tooltip::Tooltip;
 
 use super::context_source_control_actions::{
-    source_action_icon, source_action_label, source_icon_button, source_summary,
+    source_action_icon, source_action_label, source_icon_button_with_enabled, source_summary,
     SourceControlAction,
 };
 use super::AleraApp;
-use crate::icons::{icon, AleraIcon};
+use crate::icons::{icon, loading_indicator, AleraIcon};
 use crate::theme;
 
 impl AleraApp {
@@ -39,6 +39,8 @@ impl AleraApp {
         let all_collapsed = ["staged", "unstaged", "untracked"]
             .into_iter()
             .all(|area| self.source_control_collapsed_sections.contains(area));
+        let source_busy = self.local_busy || self.git_snapshot_loading;
+        let primary_enabled = !source_busy && self.git_snapshot_error.is_none();
 
         div()
             .relative()
@@ -78,7 +80,11 @@ impl AleraApp {
                                     toolbar.child(self.source_toolbar_button(
                                         "source-ai-message",
                                         if self.source_commit_ai_busy {
-                                            AleraIcon::Loading
+                                            if self.source_commit_ai_hovered {
+                                                AleraIcon::Stop
+                                            } else {
+                                                AleraIcon::Loading
+                                            }
                                         } else {
                                             AleraIcon::Ai
                                         },
@@ -196,14 +202,23 @@ impl AleraApp {
                                     .items_center()
                                     .justify_center()
                                     .gap(px(6.0))
-                                    .cursor(CursorStyle::PointingHand)
-                                    .hover(|style| style.bg(theme::accent_hover()))
-                                    .on_mouse_down(
-                                        gpui::MouseButton::Left,
-                                        cx.listener(move |this, _, window, cx| {
-                                            this.run_source_control_action(primary, window, cx);
-                                        }),
-                                    )
+                                    .cursor(if primary_enabled {
+                                        CursorStyle::PointingHand
+                                    } else {
+                                        CursorStyle::Arrow
+                                    })
+                                    .when(primary_enabled, |button| {
+                                        button
+                                            .hover(|style| style.bg(theme::accent_hover()))
+                                            .on_mouse_down(
+                                                gpui::MouseButton::Left,
+                                                cx.listener(move |this, _, window, cx| {
+                                                    this.run_source_control_action(
+                                                        primary, window, cx,
+                                                    );
+                                                }),
+                                            )
+                                    })
                                     .child(icon(
                                         source_action_icon(primary),
                                         13.0,
@@ -220,19 +235,29 @@ impl AleraApp {
                                     .justify_center()
                                     .w(px(34.0))
                                     .h_full()
-                                    .cursor(CursorStyle::PointingHand)
-                                    .hover(|style| style.bg(theme::accent_hover()))
-                                    .tooltip(|_, cx| {
-                                        cx.new(|_| Tooltip::new("Source Control Actions")).into()
+                                    .cursor(if source_busy {
+                                        CursorStyle::Arrow
+                                    } else {
+                                        CursorStyle::PointingHand
                                     })
-                                    .on_mouse_down(
-                                        gpui::MouseButton::Left,
-                                        cx.listener(|this, _, _, cx| {
-                                            this.source_control_menu_open =
-                                                !this.source_control_menu_open;
-                                            cx.notify();
-                                        }),
-                                    )
+                                    .when(!source_busy, |button| {
+                                        button.hover(|style| style.bg(theme::accent_hover()))
+                                    })
+                                    .when(!self.source_control_menu_open, |button| {
+                                        button.tooltip(|_, cx| {
+                                            cx.new(|_| Tooltip::new("Source Control Actions")).into()
+                                        })
+                                    })
+                                    .when(!source_busy, |button| {
+                                        button.on_mouse_down(
+                                            gpui::MouseButton::Left,
+                                            cx.listener(|this, _, _, cx| {
+                                                this.source_control_menu_open =
+                                                    !this.source_control_menu_open;
+                                                cx.notify();
+                                            }),
+                                        )
+                                    })
                                     .child(icon(AleraIcon::ChevronDown, 12.0, theme::on_accent())),
                             ),
                     )
@@ -263,25 +288,65 @@ impl AleraApp {
                     .flex_1()
                     .min_h_0()
                     .overflow_y_scroll()
-                    .when(filtered_changes.is_empty(), |content| {
+                    .when(self.git_snapshot_loading, |content| {
                         content
                             .items_center()
                             .justify_center()
+                            .gap_2()
                             .text_sm()
                             .text_color(theme::text_muted())
-                            .child(empty_message)
+                            .child(loading_indicator(20.0, theme::text_muted()))
                     })
-                    .when(!filtered_changes.is_empty(), |content| {
-                        content.children(
-                            ["staged", "unstaged", "untracked"]
-                                .into_iter()
-                                .enumerate()
-                                .filter_map(|(index, area)| {
-                                    self.source_change_group(index, area, &filtered_changes, cx)
-                                }),
-                        )
-                    }),
+                    .when(
+                        !self.git_snapshot_loading && self.git_snapshot_error.is_some(),
+                        |content| {
+                            content
+                                .items_center()
+                                .justify_center()
+                                .gap_2()
+                                .text_sm()
+                                .text_color(theme::text_muted())
+                                .child(icon(AleraIcon::Error, 15.0, theme::text_muted()))
+                                .child(
+                                    self.git_snapshot_error
+                                        .as_ref()
+                                        .cloned()
+                                        .unwrap_or_else(|| "Git operation failed.".into()),
+                                )
+                        },
+                    )
+                    .when(
+                        !self.git_snapshot_loading
+                            && self.git_snapshot_error.is_none()
+                            && filtered_changes.is_empty(),
+                        |content| {
+                            content
+                                .items_center()
+                                .justify_center()
+                                .text_sm()
+                                .text_color(theme::text_muted())
+                                .child(empty_message)
+                        },
+                    )
+                    .when(
+                        !self.git_snapshot_loading
+                            && self.git_snapshot_error.is_none()
+                            && !filtered_changes.is_empty(),
+                        |content| {
+                            content.children(
+                                ["staged", "unstaged", "untracked"]
+                                    .into_iter()
+                                    .enumerate()
+                                    .filter_map(|(index, area)| {
+                                        self.source_change_group(index, area, &filtered_changes, cx)
+                                    }),
+                            )
+                        },
+                    ),
             )
+            .when(self.git_history_expanded, |panel| {
+                panel.child(self.source_history_resize_handle(cx))
+            })
             .child(self.source_history_footer(cx))
             .when(self.git_history_expanded, |panel| {
                 panel.child(self.source_history_panel(cx))
@@ -296,6 +361,9 @@ impl AleraApp {
     }
 
     fn source_control_primary_action(&self, cx: &Context<Self>) -> SourceControlAction {
+        if self.git_snapshot_loading || self.git_snapshot_error.is_some() {
+            return SourceControlAction::Fetch;
+        }
         let has_staged = self
             .git_snapshot
             .changes
@@ -332,85 +400,98 @@ impl AleraApp {
         selected: bool,
         cx: &mut Context<Self>,
     ) -> AnyElement {
-        let button = source_icon_button(id, kind, selected);
-        let tooltip = match id {
-            "source-clear-root" => "Clear Source Control Root",
-            "source-ai-message" => "Generate Commit Message",
-            "source-open-all" => "Open All Changes",
-            "source-view-mode" => "Toggle Tree/List View",
-            "source-filter" => "Filter Changes",
-            "source-collapse" => "Collapse All",
-            "source-refresh" => "Refresh",
-            _ => "Source Control",
-        };
-        let button = button.tooltip(move |_, cx| cx.new(|_| Tooltip::new(tooltip)).into());
+        let enabled = self.source_toolbar_button_enabled(id);
+        let button = source_icon_button_with_enabled(id, kind, selected, enabled);
+        let ai_busy = self.source_commit_ai_busy;
+        let tooltip = source_toolbar_tooltip(id, ai_busy);
+        let button = button.when(!self.source_control_menu_open, |button| {
+            button.tooltip(move |_, cx| cx.new(|_| Tooltip::new(tooltip)).into())
+        });
         match id {
             "source-view-mode" => button
-                .on_mouse_down(
-                    gpui::MouseButton::Left,
-                    cx.listener(|this, _, _, cx| {
-                        this.source_control_tree_mode = !this.source_control_tree_mode;
-                        cx.notify();
-                    }),
-                )
-                .into_any_element(),
-            "source-filter" => button
-                .on_mouse_down(
-                    gpui::MouseButton::Left,
-                    cx.listener(|this, _, _, cx| {
-                        this.source_control_filter_visible = !this.source_control_filter_visible;
-                        cx.notify();
-                    }),
-                )
-                .into_any_element(),
-            "source-collapse" => button
-                .on_mouse_down(
-                    gpui::MouseButton::Left,
-                    cx.listener(|this, _, _, cx| {
-                        let all_collapsed = ["staged", "unstaged", "untracked"]
-                            .into_iter()
-                            .all(|area| this.source_control_collapsed_sections.contains(area));
-                        if all_collapsed {
-                            this.source_control_collapsed_sections.clear();
-                        } else {
-                            this.source_control_collapsed_sections =
-                                ["staged", "unstaged", "untracked"]
-                                    .into_iter()
-                                    .map(str::to_owned)
-                                    .collect();
-                        }
-                        cx.notify();
-                    }),
-                )
-                .into_any_element(),
-            "source-refresh" => button
-                .when(!self.local_busy, |button| {
+                .when(enabled, |button| {
                     button.on_mouse_down(
                         gpui::MouseButton::Left,
-                        cx.listener(|this, _, _, cx| this.refresh_git(cx)),
+                        cx.listener(|this, _, _, cx| {
+                            this.source_control_tree_mode = !this.source_control_tree_mode;
+                            cx.notify();
+                        }),
+                    )
+                })
+                .into_any_element(),
+            "source-filter" => button
+                .when(enabled, |button| {
+                    button.on_mouse_down(
+                        gpui::MouseButton::Left,
+                        cx.listener(|this, _, _, cx| {
+                            this.source_control_filter_visible =
+                                !this.source_control_filter_visible;
+                            cx.notify();
+                        }),
+                    )
+                })
+                .into_any_element(),
+            "source-collapse" => button
+                .when(enabled, |button| {
+                    button.on_mouse_down(
+                        gpui::MouseButton::Left,
+                        cx.listener(|this, _, _, cx| {
+                            let all_collapsed = ["staged", "unstaged", "untracked"]
+                                .into_iter()
+                                .all(|area| this.source_control_collapsed_sections.contains(area));
+                            if all_collapsed {
+                                this.source_control_collapsed_sections.clear();
+                            } else {
+                                this.source_control_collapsed_sections =
+                                    ["staged", "unstaged", "untracked"]
+                                        .into_iter()
+                                        .map(str::to_owned)
+                                        .collect();
+                            }
+                            cx.notify();
+                        }),
+                    )
+                })
+                .into_any_element(),
+            "source-refresh" => button
+                .when(enabled, |button| {
+                    button.on_mouse_down(
+                        gpui::MouseButton::Left,
+                        cx.listener(|this, _, _, cx| this.refresh_git_with_feedback(cx)),
                     )
                 })
                 .into_any_element(),
             "source-open-all" => button
-                .on_mouse_down(
-                    gpui::MouseButton::Left,
-                    cx.listener(|this, _, _, cx| this.open_git_diff_tab(None, None, cx)),
-                )
+                .when(enabled, |button| {
+                    button.on_mouse_down(
+                        gpui::MouseButton::Left,
+                        cx.listener(|this, _, _, cx| this.open_git_diff_tab(None, None, cx)),
+                    )
+                })
                 .into_any_element(),
             "source-ai-message" => button
-                .on_mouse_down(
-                    gpui::MouseButton::Left,
-                    cx.listener(|this, _, window, cx| {
-                        if this.source_commit_ai_busy {
-                            this.cancel_commit_message_generation(cx);
-                        } else {
-                            this.generate_commit_message(window, cx);
-                        }
-                    }),
-                )
+                .when(enabled, |button| {
+                    button
+                        .on_hover(cx.listener(|this, hovered: &bool, _, cx| {
+                            if this.source_commit_ai_hovered != *hovered {
+                                this.source_commit_ai_hovered = *hovered;
+                                cx.notify();
+                            }
+                        }))
+                        .on_mouse_down(
+                            gpui::MouseButton::Left,
+                            cx.listener(|this, _, window, cx| {
+                                if this.source_commit_ai_busy {
+                                    this.cancel_commit_message_generation(cx);
+                                } else {
+                                    this.generate_commit_message(window, cx);
+                                }
+                            }),
+                        )
+                })
                 .into_any_element(),
             "source-clear-root" => button
-                .when(!self.local_busy, |button| {
+                .when(enabled, |button| {
                     button.on_mouse_down(
                         gpui::MouseButton::Left,
                         cx.listener(|this, _, _, cx| this.clear_source_control_root(cx)),
@@ -419,5 +500,56 @@ impl AleraApp {
                 .into_any_element(),
             _ => button.into_any_element(),
         }
+    }
+
+    fn source_toolbar_button_enabled(&self, id: &str) -> bool {
+        if id == "source-ai-message" {
+            if self.source_commit_ai_busy {
+                return true;
+            }
+            let has_staged_changes = self
+                .git_snapshot
+                .changes
+                .iter()
+                .any(|change| change.area.eq_ignore_ascii_case("staged"));
+            return self.settings_state.ai_text_enabled
+                && !self.local_busy
+                && !self.git_snapshot_loading
+                && self.git_snapshot_error.is_none()
+                && !self.git_snapshot.has_conflicts
+                && has_staged_changes;
+        }
+        !(self.local_busy || self.git_snapshot_loading)
+    }
+}
+
+fn source_toolbar_tooltip(id: &str, ai_busy: bool) -> &'static str {
+    match id {
+        "source-clear-root" => "Clear Source Control Root",
+        "source-ai-message" if ai_busy => "Stop Generating Commit Message",
+        "source-ai-message" => "Generate Commit Message With AI",
+        "source-open-all" => "Open All Changes",
+        "source-view-mode" => "Toggle Tree/List View",
+        "source-filter" => "Filter Changes",
+        "source-collapse" => "Collapse All",
+        "source-refresh" => "Refresh",
+        _ => "Source Control",
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::source_toolbar_tooltip;
+
+    #[test]
+    fn ai_toolbar_tooltip_has_one_stateful_owner() {
+        assert_eq!(
+            source_toolbar_tooltip("source-ai-message", false),
+            "Generate Commit Message With AI"
+        );
+        assert_eq!(
+            source_toolbar_tooltip("source-ai-message", true),
+            "Stop Generating Commit Message"
+        );
     }
 }

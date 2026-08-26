@@ -1,11 +1,12 @@
 use std::collections::BTreeMap;
 
 use gpui::{
-    div, prelude::FluentBuilder as _, px, AnyElement, Context, CursorStyle,
+    div, prelude::FluentBuilder as _, px, AnyElement, AppContext as _, Context, CursorStyle,
     InteractiveElement as _, IntoElement, ParentElement as _, StatefulInteractiveElement as _,
     Styled as _,
 };
 use gpui_component::scroll::ScrollableElement as _;
+use gpui_component::tooltip::Tooltip;
 use serde_json::Value;
 
 use super::status_resource_components::*;
@@ -164,9 +165,10 @@ impl AleraApp {
             .id("resource-popover")
             .absolute()
             .right(px(8.0))
-            .bottom(theme::status_bar_height())
+            .bottom(theme::status_bar_height() + px(4.0))
             .w(px(417.0))
-            .h(px(420.0))
+            .h_auto()
+            .max_h(px(420.0))
             .flex()
             .flex_col()
             .min_h_0()
@@ -217,7 +219,7 @@ impl AleraApp {
                 .unwrap_or_default()
                 .to_owned();
             let tab_id = string_at_value(session, "tabId").unwrap_or_default();
-            let tab = self.snapshot.tabs.iter().find(|tab| {
+            let tab = self.snapshot.all_tabs.iter().find(|tab| {
                 tab.kind == "terminal"
                     && tab
                         .payload
@@ -367,21 +369,18 @@ impl AleraApp {
             for (workspace_index, workspace) in project.workspaces.into_iter().enumerate() {
                 let (workspace_cpu, workspace_memory) = aggregate_sessions(&workspace.sessions);
                 child_rows.push(
-                    metric_row(
+                    metric_row_with_suffix(
                         gpui::SharedString::from(format!(
                             "resource-workspace-{index}-{workspace_index}"
                         )),
                         1,
-                        &if workspace.remote {
-                            format!("{}  remote", workspace.name)
-                        } else {
-                            workspace.name.clone()
-                        },
+                        &workspace.name,
                         workspace_cpu,
                         workspace_memory,
                         false,
                         None,
                         None,
+                        workspace.remote.then(|| "remote".to_owned()),
                     )
                     .into_any_element(),
                 );
@@ -445,6 +444,11 @@ impl AleraApp {
         let close_tab_id = session.tab_id.clone();
         let close_label = session.label.clone();
         let orphan = session.orphan;
+        let action_tooltip = if orphan {
+            "Kill Orphan Terminal"
+        } else {
+            "Close Terminal Session"
+        };
         metric_row(
             gpui::SharedString::from(format!(
                 "resource-session-{project_index}-{workspace_index}-{session_index}"
@@ -477,10 +481,11 @@ impl AleraApp {
                 .items_center()
                 .justify_center()
                 .w(px(17.0))
-                .h(px(26.0))
+                .h(px(22.0))
                 .rounded_sm()
                 .text_color(theme::text_faint())
                 .cursor(CursorStyle::PointingHand)
+                .tooltip(move |_, cx| cx.new(|_| Tooltip::new(action_tooltip)).into())
                 .hover(|style| style.bg(theme::surface_selected()))
                 .on_mouse_down(
                     gpui::MouseButton::Left,

@@ -1,5 +1,7 @@
 use base64::prelude::*;
 use serde_json::{json, Value};
+use std::collections::BTreeMap;
+use std::time::Duration;
 
 use crate::runtime_bridge::RuntimeBridge;
 pub use crate::workspace_git::{GitAction, GitCommitChange, GitDiffResult, GitSnapshot};
@@ -8,6 +10,8 @@ pub use crate::workspace_git::{GitAction, GitCommitChange, GitDiffResult, GitSna
 pub struct WorkspaceService {
     bridge: RuntimeBridge,
 }
+
+const GIT_SNAPSHOT_TIMEOUT: Duration = Duration::from_secs(20);
 
 #[derive(Clone, Debug)]
 pub struct FileEntry {
@@ -20,13 +24,23 @@ pub struct FileEntry {
     pub git_status: Option<String>,
 }
 
+#[derive(Clone, Debug, Default)]
+pub struct ExplorerGitStatusSnapshot {
+    statuses: BTreeMap<String, String>,
+}
+
+impl ExplorerGitStatusSnapshot {
+    pub fn status_for(&self, relative_path: &str) -> Option<&str> {
+        self.statuses.get(relative_path).map(String::as_str)
+    }
+}
+
 #[derive(Clone, Debug)]
 pub struct EditorDocument {
     pub relative_path: String,
     pub raw_content: String,
     pub display_content: String,
     pub content_token: String,
-    pub modified_millis: i64,
 }
 
 #[derive(Clone, Debug)]
@@ -102,6 +116,20 @@ impl WorkspaceService {
             )
             .await
             .and_then(parse_file_entries)
+    }
+
+    pub async fn explorer_status_snapshot(
+        &self,
+        workspace_path: String,
+    ) -> Result<ExplorerGitStatusSnapshot, String> {
+        let value = self
+            .bridge
+            .request(
+                "workspaceGit.explorerStatus",
+                json!({"workspacePath": workspace_path}),
+            )
+            .await?;
+        parse_explorer_git_status_snapshot(value)
     }
 
     pub async fn read(
@@ -385,9 +413,10 @@ impl WorkspaceService {
     pub async fn git_snapshot(&self, workspace_path: String) -> Result<GitSnapshot, String> {
         let value = self
             .bridge
-            .request(
+            .request_with_timeout(
                 "workspaceGit.snapshot",
                 json!({ "workspacePath": workspace_path }),
+                GIT_SNAPSHOT_TIMEOUT,
             )
             .await?;
         parse_git_snapshot(value)
@@ -495,6 +524,21 @@ impl WorkspaceService {
     }
 }
 
+pub fn apply_explorer_git_status(
+    entries: Vec<FileEntry>,
+    snapshot: &ExplorerGitStatusSnapshot,
+) -> Vec<FileEntry> {
+    entries
+        .into_iter()
+        .map(|mut entry| {
+            if let Some(status) = snapshot.status_for(&entry.relative_path) {
+                entry.git_status = Some(status.to_owned());
+            }
+            entry
+        })
+        .collect()
+}
+
 fn parse_file_entries(value: Value) -> Result<Vec<FileEntry>, String> {
     value
         .as_array()
@@ -502,6 +546,31 @@ fn parse_file_entries(value: Value) -> Result<Vec<FileEntry>, String> {
         .iter()
         .map(parse_file_entry)
         .collect()
+}
+
+fn parse_explorer_git_status_snapshot(value: Value) -> Result<ExplorerGitStatusSnapshot, String> {
+    let entries = value
+        .get("entries")
+        .and_then(Value::as_array)
+        .ok_or_else(|| "Workspace Git Explorer Response Omitted Entries.".to_string())?;
+    let mut statuses = BTreeMap::new();
+    for entry in entries {
+        let path = required_string(entry, "path")?;
+        let status = match entry
+            .get("status")
+            .and_then(Value::as_str)
+            .unwrap_or_default()
+            .to_ascii_lowercase()
+            .as_str()
+        {
+            "untracked" => "U",
+            "added" => "A",
+            "modified" => "M",
+            _ => continue,
+        };
+        statuses.insert(path.replace('\\', "/"), status.to_owned());
+    }
+    Ok(ExplorerGitStatusSnapshot { statuses })
 }
 
 fn parse_file_entry(entry: &Value) -> Result<FileEntry, String> {
@@ -536,10 +605,6 @@ fn parse_editor_document(value: Value, relative_path: String) -> Result<EditorDo
         raw_content: required_string(&value, "rawContent")?,
         display_content: required_string(&value, "displayContent")?,
         content_token: required_string(&value, "contentToken")?,
-        modified_millis: value
-            .get("modifiedMillis")
-            .and_then(Value::as_i64)
-            .unwrap_or_default(),
     })
 }
 
@@ -921,4 +986,47 @@ fn parse_git_diff(value: Value) -> Result<GitDiffResult, String> {
             .and_then(Value::as_bool)
             .unwrap_or(false),
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn explorer_git_status_snapshot_applies_ancestor_statuses() {
+        let snapshot = parse_explorer_git_status_snapshot(json!({
+            "entries": [
+                {"path": "src/components/stats/top-languages-stat.astro", "status": "Modified"},
+                {"path": "src/components/stats", "status": "Modified"},
+                {"path": "src", "status": "Modified"},
+            ],
+        }))
+        .unwrap();
+        let entries = apply_explorer_git_status(
+            vec![FileEntry {
+                relative_path: "src".to_owned(),
+                name: "src".to_owned(),
+                is_directory: true,
+                is_hidden: false,
+                is_symlink: false,
+                is_protected: false,
+                git_status: None,
+            }],
+            &snapshot,
+        );
+
+        assert_eq!(entries[0].git_status.as_deref(), Some("M"));
+    }
+
+    #[test]
+    fn explorer_git_status_snapshot_normalizes_windows_paths() {
+        let snapshot = parse_explorer_git_status_snapshot(json!({
+            "entries": [
+                {"path": "src\\main.dart", "status": "Untracked"},
+            ],
+        }))
+        .unwrap();
+
+        assert_eq!(snapshot.status_for("src/main.dart"), Some("U"));
+    }
 }

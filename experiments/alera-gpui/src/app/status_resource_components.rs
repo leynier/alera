@@ -1,9 +1,11 @@
 use std::cmp::Ordering;
 
 use gpui::{
-    div, prelude::FluentBuilder as _, px, AnyElement, Context, CursorStyle,
-    InteractiveElement as _, IntoElement, ParentElement as _, Styled as _,
+    canvas, div, point, prelude::FluentBuilder as _, px, AnyElement, AppContext as _, Bounds,
+    Context, CursorStyle, InteractiveElement as _, IntoElement, ParentElement as _, PathBuilder,
+    Pixels, StatefulInteractiveElement as _, Styled as _, Window,
 };
+use gpui_component::{tooltip::Tooltip, PixelsExt};
 use serde_json::Value;
 
 use super::status_bar::format_resource_memory;
@@ -47,7 +49,7 @@ pub(super) fn resource_host_unreachable_notice() -> gpui::Div {
         })
         .text_sm()
         .text_color(theme::warning())
-        .child(icon(AleraIcon::Error, 13.0, theme::warning()))
+        .child(icon(AleraIcon::Warning, 13.0, theme::warning()))
         .child(
             div()
                 .flex_1()
@@ -69,8 +71,9 @@ pub(super) fn resource_totals(
         .flex()
         .flex_shrink_0()
         .items_center()
-        .h(px(36.0))
+        .h_auto()
         .px_3()
+        .py_2()
         .gap_4()
         .border_b_1()
         .border_color(theme::border_subtle())
@@ -85,8 +88,15 @@ pub(super) fn resource_totals(
         )
 }
 
-fn totals_value(label: &'static str, value: String) -> gpui::Div {
+fn totals_value(label: &'static str, value: String) -> gpui::Stateful<gpui::Div> {
+    let tooltip = match label {
+        "CPU" => "Total CPU across Alera and every terminal it spawned, as a share of everything this machine can run at once.",
+        "Memory" => "Resident memory of Alera, the runtime host, and every terminal process.",
+        _ => "Resource Total",
+    };
     div()
+        .id(label)
+        .tooltip(move |_, cx| cx.new(|_| Tooltip::new(tooltip)).into())
         .flex()
         .items_center()
         .gap(px(6.0))
@@ -107,14 +117,17 @@ pub(super) fn resource_sort_button(
     flex: bool,
     cx: &mut Context<AleraApp>,
 ) -> gpui::Stateful<gpui::Div> {
+    let tooltip = format!("Sort By {label}");
     div()
         .id(id)
         .when(flex, |button| button.flex_1())
         .when(!flex, |button| button.w(px(68.0)).justify_end())
         .flex()
         .items_center()
-        .h_full()
+        .h_auto()
+        .py_1()
         .cursor(CursorStyle::PointingHand)
+        .tooltip(move |_, cx| cx.new(|_| Tooltip::new(tooltip.clone())).into())
         .text_color(if column == selected {
             theme::text()
         } else {
@@ -141,15 +154,35 @@ pub(super) fn metric_row(
     leading: Option<AleraIcon>,
     session: Option<(bool, Vec<u64>)>,
 ) -> gpui::Stateful<gpui::Div> {
+    metric_row_with_suffix(id, indent, label, cpu, memory, bold, leading, session, None)
+}
+
+#[allow(clippy::too_many_arguments)]
+pub(super) fn metric_row_with_suffix(
+    id: impl Into<gpui::ElementId>,
+    indent: usize,
+    label: &str,
+    cpu: Option<f64>,
+    memory: Option<u64>,
+    bold: bool,
+    leading: Option<AleraIcon>,
+    session: Option<(bool, Vec<u64>)>,
+    suffix: Option<String>,
+) -> gpui::Stateful<gpui::Div> {
     div()
         .id(id)
         .relative()
         .flex()
         .items_center()
-        .min_h(px(26.0))
+        // Flutter's metric rows resolve to roughly 22 logical pixels from
+        // their 4px vertical padding and body-small line height.  Use an
+        // explicit height so GPUI keeps the same tree rhythm instead of
+        // letting the default text line box expand each row.
+        .h(px(22.0))
         .pl(px(12.0 + indent as f32 * 12.0))
         .pr(px(12.0))
-        .text_sm()
+        .text_size(px(12.0))
+        .line_height(px(16.0))
         .when_some(leading, |row, leading| {
             row.child(icon(leading, 12.0, theme::text_faint()))
                 .gap(px(6.0))
@@ -165,13 +198,31 @@ pub(super) fn metric_row(
         .child(
             div()
                 .flex_1()
+                .flex()
+                .items_center()
                 .overflow_hidden()
-                .text_ellipsis()
-                .when(bold, |text| text.font_weight(gpui::FontWeight::SEMIBOLD))
-                .child(label.to_owned()),
+                .child(
+                    div()
+                        .flex_1()
+                        .overflow_hidden()
+                        .text_ellipsis()
+                        .when(bold, |text| text.font_weight(gpui::FontWeight::SEMIBOLD))
+                        .child(label.to_owned()),
+                )
+                .when_some(suffix, |text, suffix| {
+                    text.child(
+                        div()
+                            .ml(px(6.0))
+                            .flex_shrink_0()
+                            .text_color(theme::text_faint())
+                            .child(suffix),
+                    )
+                }),
         )
         .when_some(session, |row, (_, history)| {
-            row.child(sparkline(history)).child(div().w(px(8.0)))
+            row.when(history.len() > 1, |row| {
+                row.child(sparkline(history)).child(div().w(px(8.0)))
+            })
         })
         .child(metric_cell(format_cpu(cpu)))
         .child(metric_cell(format_memory(memory)))
@@ -188,20 +239,46 @@ fn metric_cell(value: String) -> gpui::Div {
 }
 
 fn sparkline(history: Vec<u64>) -> gpui::Div {
-    let samples = history.into_iter().rev().take(16).collect::<Vec<_>>();
-    let max = samples.iter().copied().max().unwrap_or(1).max(1);
-    div()
-        .flex()
-        .items_end()
-        .gap(px(1.0))
-        .w(px(38.0))
-        .h(px(14.0))
-        .children(samples.into_iter().rev().map(|sample| {
-            div()
-                .w(px(1.0))
-                .h(px(2.0 + sample as f32 / max as f32 * 10.0))
-                .bg(theme::text_faint())
-        }))
+    let mut samples = history.into_iter().rev().take(16).collect::<Vec<_>>();
+    samples.reverse();
+    div().w(px(48.0)).h(px(14.0)).child(
+        canvas(
+            |_, _, _| {},
+            move |bounds, _, window, _| paint_sparkline(window, bounds, &samples),
+        )
+        .size_full(),
+    )
+}
+
+fn paint_sparkline(window: &mut Window, bounds: Bounds<Pixels>, samples: &[u64]) {
+    if samples.len() < 2 || bounds.size.width <= px(0.0) || bounds.size.height <= px(0.0) {
+        return;
+    }
+    let lowest = samples.iter().copied().min().unwrap_or_default();
+    let highest = samples.iter().copied().max().unwrap_or(lowest);
+    let span = highest.saturating_sub(lowest);
+    let width = bounds.size.width.as_f32();
+    let height = bounds.size.height.as_f32();
+    let step_x = width / (samples.len() - 1) as f32;
+    let mut path = PathBuilder::stroke(px(1.0));
+    for (index, sample) in samples.iter().enumerate() {
+        let normalized = if span == 0 {
+            0.5
+        } else {
+            (*sample - lowest) as f32 / span as f32
+        };
+        let x = step_x * index as f32;
+        let y = height - normalized * height;
+        let position = point(bounds.origin.x + px(x), bounds.origin.y + px(y));
+        if index == 0 {
+            path.move_to(position);
+        } else {
+            path.line_to(position);
+        }
+    }
+    if let Ok(path) = path.build() {
+        window.paint_path(path, theme::text_faint());
+    }
 }
 
 pub(super) fn process_row(
@@ -378,4 +455,60 @@ fn format_memory(value: Option<u64>) -> String {
     value
         .map(format_resource_memory)
         .unwrap_or_else(|| "-".to_owned())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn session(label: &str, cpu: Option<f64>, memory: Option<u64>) -> ResourceSession {
+        ResourceSession {
+            session_id: label.to_owned(),
+            workspace_id: "workspace".to_owned(),
+            tab_id: label.to_owned(),
+            label: label.to_owned(),
+            cpu,
+            memory,
+            running: true,
+            orphan: false,
+            history: Vec::new(),
+        }
+    }
+
+    #[test]
+    fn resource_sorting_keeps_missing_metrics_last() {
+        let mut sessions = vec![
+            session("unmeasured", None, None),
+            session("low", Some(4.0), Some(8)),
+            session("high", Some(12.0), Some(2)),
+        ];
+
+        sort_sessions(&mut sessions, "cpu");
+
+        assert_eq!(
+            sessions
+                .iter()
+                .map(|session| session.label.as_str())
+                .collect::<Vec<_>>(),
+            ["high", "low", "unmeasured"]
+        );
+    }
+
+    #[test]
+    fn resource_aggregation_preserves_absent_values() {
+        let sessions = vec![session("remote", None, None)];
+
+        assert_eq!(aggregate_sessions(&sessions), (None, None));
+        assert_eq!(
+            aggregate_sessions(&[session("a", Some(2.0), None)]),
+            (Some(2.0), None)
+        );
+        assert_eq!(
+            aggregate_sessions(&[
+                session("a", Some(2.0), Some(10)),
+                session("b", Some(3.0), Some(20)),
+            ]),
+            (Some(5.0), Some(30))
+        );
+    }
 }

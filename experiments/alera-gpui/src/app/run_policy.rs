@@ -49,7 +49,8 @@ impl RunPolicyStage {
     pub(super) fn label(&self) -> &str {
         self.title
             .as_deref()
-            .filter(|title| !title.trim().is_empty())
+            .map(str::trim)
+            .filter(|title| !title.is_empty())
             .unwrap_or(&self.id)
     }
 }
@@ -149,9 +150,6 @@ impl AleraApp {
     }
 
     pub(super) fn close_execution_plans(&mut self, cx: &mut Context<Self>) {
-        if self.run_policy_busy_id.is_some() {
-            return;
-        }
         self.show_execution_plans = false;
         self.run_policy_error = None;
         cx.notify();
@@ -193,7 +191,13 @@ impl AleraApp {
                 this.run_policies_loading = false;
                 match result {
                     Ok(policies) => this.run_policies = policies,
-                    Err(error) => self::set_policy_error(this, error),
+                    Err(error) => {
+                        // Flutter's AsyncError has no stale data. Clearing the
+                        // previous list keeps a failed refresh from showing an
+                        // obsolete plan underneath the error state.
+                        this.run_policies.clear();
+                        self::set_policy_error(this, error);
+                    }
                 }
                 cx.notify();
             });
@@ -218,7 +222,7 @@ impl AleraApp {
             .trim()
             .to_owned();
         if !approve && reason.is_empty() {
-            self.run_policy_error = Some("A Rejection Needs A Reason.".into());
+            self.run_policy_error = Some("A rejection needs a reason.".into());
             cx.notify();
             return;
         }
@@ -266,4 +270,56 @@ impl AleraApp {
 
 fn set_policy_error(app: &mut AleraApp, error: String) {
     app.run_policy_error = Some(error.into());
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{RunExecutionPolicy, RunPolicyStage, RunPolicyStatus};
+    use serde_json::json;
+
+    #[test]
+    fn parses_flutter_policy_metadata_and_trims_stage_titles() {
+        let policy = RunExecutionPolicy::parse(&json!({
+            "runId": "run-1",
+            "workspaceId": "workspace-1",
+            "status": "draft",
+            "blocksDispatch": true,
+            "updatedAt": "2026-08-25T13:00:00Z",
+            "policy": {
+                "stallPolicy": "auto-failover",
+                "stages": [{
+                    "id": "implement",
+                    "title": "  Implement  ",
+                    "profile": "Codex",
+                    "fallbacks": ["Claude"]
+                }]
+            }
+        }));
+
+        assert_eq!(policy.run_id, "run-1");
+        assert_eq!(policy.status, RunPolicyStatus::Draft);
+        assert!(policy.blocks_dispatch);
+        assert_eq!(policy.stall_policy, "auto-failover");
+        assert_eq!(policy.stages[0].label(), "Implement");
+        assert_eq!(policy.stages[0].fallbacks, ["Claude"]);
+    }
+
+    #[test]
+    fn stage_without_title_uses_id_and_rejects_blank_title() {
+        let blank = RunPolicyStage {
+            id: "review".to_string(),
+            profile: "Codex".to_string(),
+            title: Some("  ".to_string()),
+            fallbacks: Vec::new(),
+        };
+        let absent = RunPolicyStage {
+            id: "test".to_string(),
+            profile: "Codex".to_string(),
+            title: None,
+            fallbacks: Vec::new(),
+        };
+
+        assert_eq!(blank.label(), "review");
+        assert_eq!(absent.label(), "test");
+    }
 }

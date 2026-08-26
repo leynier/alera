@@ -1,4 +1,4 @@
-use super::{AleraApp, ResizeDrag, SidebarGroupBy};
+use super::{AleraApp, PanelResizeTarget, ResizeDrag, SidebarGroupBy};
 use crate::{
     design_system,
     icons::{alera_logo, icon, AleraIcon},
@@ -10,6 +10,7 @@ use gpui::{
     MouseDownEvent, MouseMoveEvent, MouseUpEvent, ParentElement as _, Render,
     StatefulInteractiveElement as _, Styled as _, Window,
 };
+use gpui_component::tooltip::Tooltip;
 
 impl AleraApp {
     fn render_sidebar(&self, cx: &mut Context<Self>) -> impl IntoElement {
@@ -51,6 +52,12 @@ impl AleraApp {
                 })
                 .sum::<usize>();
         let rows = self.render_sidebar_rows(&filter, cx);
+        let has_git_projects = self
+            .snapshot
+            .projects
+            .iter()
+            .any(|project| project.kind == "gitRepository");
+        let all_project_sections_collapsed = self.all_project_sections_collapsed();
 
         div()
             .relative()
@@ -104,6 +111,7 @@ impl AleraApp {
                             .text_sm()
                             .text_color(theme::text_muted())
                             .cursor(CursorStyle::PointingHand)
+                            .tooltip(|_, cx| cx.new(|_| Tooltip::new("Collapse Sidebar")).into())
                             .hover(|style| style.bg(theme::surface_raised()))
                             .on_mouse_down(
                                 MouseButton::Left,
@@ -117,7 +125,7 @@ impl AleraApp {
             )
             .child(
                 div()
-                    .h(px(56.0))
+                    .h(px(48.0))
                     .p_2()
                     .border_b_1()
                     .border_color(theme::border_subtle())
@@ -130,7 +138,10 @@ impl AleraApp {
                 div()
                     .flex()
                     .items_center()
-                    .h(px(32.0))
+                    // Flutter's toolbar has 4 px vertical padding around its
+                    // 32 px controls, for a 40 px band between search and the
+                    // first sidebar section.
+                    .h(px(40.0))
                     .px_3()
                     .text_xs()
                     .font_weight(gpui::FontWeight::SEMIBOLD)
@@ -162,6 +173,11 @@ impl AleraApp {
                                     .h(px(28.0))
                                     .rounded_md()
                                     .cursor(CursorStyle::PointingHand)
+                                    .when(!self.show_sidebar_view_options, |button| {
+                                        button.tooltip(|_, cx| {
+                                            cx.new(|_| Tooltip::new("View Options")).into()
+                                        })
+                                    })
                                     .hover(|style| style.bg(theme::surface_raised()))
                                     .on_mouse_down(
                                         MouseButton::Left,
@@ -181,6 +197,16 @@ impl AleraApp {
                                     .h(px(28.0))
                                     .rounded_md()
                                     .cursor(CursorStyle::PointingHand)
+                                    .tooltip(move |_, cx| {
+                                        cx.new(move |_| {
+                                            Tooltip::new(if all_project_sections_collapsed {
+                                                "Expand All"
+                                            } else {
+                                                "Collapse All"
+                                            })
+                                        })
+                                        .into()
+                                    })
                                     .hover(|style| style.bg(theme::surface_raised()))
                                     .on_mouse_down(
                                         MouseButton::Left,
@@ -207,14 +233,31 @@ impl AleraApp {
                                     .w(px(28.0))
                                     .h(px(28.0))
                                     .rounded_md()
-                                    .cursor(CursorStyle::PointingHand)
+                                    .cursor(if has_git_projects {
+                                        CursorStyle::PointingHand
+                                    } else {
+                                        CursorStyle::Arrow
+                                    })
+                                    .tooltip(move |_, cx| {
+                                        cx.new(move |_| {
+                                            Tooltip::new(if has_git_projects {
+                                                "New Workspace"
+                                            } else {
+                                                "Add A Git Project First"
+                                            })
+                                        })
+                                        .into()
+                                    })
+                                    .opacity(if has_git_projects { 1.0 } else { 0.4 })
                                     .hover(|style| style.bg(theme::surface_raised()))
-                                    .on_mouse_down(
-                                        MouseButton::Left,
-                                        cx.listener(|this, _, _, cx| {
-                                            this.open_new_workspace_dialog(cx);
-                                        }),
-                                    )
+                                    .when(has_git_projects, |button| {
+                                        button.on_mouse_down(
+                                            MouseButton::Left,
+                                            cx.listener(|this, _, window, cx| {
+                                                this.open_new_workspace_dialog(window, cx);
+                                            }),
+                                        )
+                                    })
                                     .child(icon(AleraIcon::Add, 14.0, theme::text_muted())),
                             ),
                     ),
@@ -279,6 +322,11 @@ impl AleraApp {
     }
 
     fn render_project_sidebar_resize_overlay(&self, cx: &mut Context<Self>) -> AnyElement {
+        let emphasised = self.panel_resize_hovered == Some(PanelResizeTarget::ProjectSidebar)
+            || self
+                .panel_resize
+                .as_ref()
+                .is_some_and(|state| state.target == PanelResizeTarget::ProjectSidebar);
         div()
             .id("project-sidebar-resize")
             .absolute()
@@ -287,10 +335,19 @@ impl AleraApp {
             .bottom(theme::status_bar_height())
             .w(px(12.0))
             .cursor(CursorStyle::ResizeLeftRight)
+            .on_hover(cx.listener(|this, hovered: &bool, _, cx| {
+                this.panel_resize_hovered = if *hovered {
+                    Some(PanelResizeTarget::ProjectSidebar)
+                } else {
+                    None
+                };
+                cx.notify();
+            }))
             .on_mouse_down(
                 MouseButton::Left,
-                cx.listener(|this, event: &MouseDownEvent, window, _| {
+                cx.listener(|this, event: &MouseDownEvent, window, cx| {
                     this.begin_panel_resize(event, window);
+                    cx.notify();
                 }),
             )
             .on_drag(ResizeDrag, |_, _, _, cx| cx.new(|_| Empty))
@@ -302,10 +359,28 @@ impl AleraApp {
             )
             .on_mouse_up(MouseButton::Left, cx.listener(Self::finish_panel_resize))
             .on_mouse_up_out(MouseButton::Left, cx.listener(Self::finish_panel_resize))
+            .child(
+                div()
+                    .absolute()
+                    .top_0()
+                    .bottom_0()
+                    .left(px(if emphasised { 5.0 } else { 5.5 }))
+                    .w(px(if emphasised { 2.0 } else { 1.0 }))
+                    .bg(if emphasised {
+                        theme::border()
+                    } else {
+                        theme::border_subtle()
+                    }),
+            )
             .into_any_element()
     }
 
     fn render_context_sidebar_resize_overlay(&self, cx: &mut Context<Self>) -> AnyElement {
+        let emphasised = self.panel_resize_hovered == Some(PanelResizeTarget::ContextSidebar)
+            || self
+                .panel_resize
+                .as_ref()
+                .is_some_and(|state| state.target == PanelResizeTarget::ContextSidebar);
         div()
             .id("context-sidebar-resize")
             .absolute()
@@ -314,10 +389,19 @@ impl AleraApp {
             .bottom(theme::status_bar_height())
             .w(px(12.0))
             .cursor(CursorStyle::ResizeLeftRight)
+            .on_hover(cx.listener(|this, hovered: &bool, _, cx| {
+                this.panel_resize_hovered = if *hovered {
+                    Some(PanelResizeTarget::ContextSidebar)
+                } else {
+                    None
+                };
+                cx.notify();
+            }))
             .on_mouse_down(
                 MouseButton::Left,
-                cx.listener(|this, event: &MouseDownEvent, window, _| {
+                cx.listener(|this, event: &MouseDownEvent, window, cx| {
                     this.begin_panel_resize(event, window);
+                    cx.notify();
                 }),
             )
             .on_drag(ResizeDrag, |_, _, _, cx| cx.new(|_| Empty))
@@ -329,6 +413,19 @@ impl AleraApp {
             )
             .on_mouse_up(MouseButton::Left, cx.listener(Self::finish_panel_resize))
             .on_mouse_up_out(MouseButton::Left, cx.listener(Self::finish_panel_resize))
+            .child(
+                div()
+                    .absolute()
+                    .top_0()
+                    .bottom_0()
+                    .left(px(if emphasised { 5.0 } else { 5.5 }))
+                    .w(px(if emphasised { 2.0 } else { 1.0 }))
+                    .bg(if emphasised {
+                        theme::border()
+                    } else {
+                        theme::border_subtle()
+                    }),
+            )
             .into_any_element()
     }
 
@@ -383,6 +480,7 @@ impl AleraApp {
                             this.finish_panel_resize(event, window, cx);
                             this.finish_split_resize(event, window, cx);
                             this.drop_pointer_tab_at_position(event.position, cx);
+                            this.clear_explorer_drop_target(cx);
                         });
                     });
                 },
@@ -404,9 +502,10 @@ impl AleraApp {
                 let label = project
                     .name
                     .chars()
-                    .find(|character| character.is_alphanumeric())
+                    .next()
                     .map(|character| character.to_uppercase().to_string())
-                    .unwrap_or_else(|| "P".to_string());
+                    .unwrap_or_else(|| "?".to_string());
+                let project_tooltip = project.name.clone();
                 let selected = self
                     .selected_workspace_id
                     .as_deref()
@@ -440,6 +539,10 @@ impl AleraApp {
                     .text_xs()
                     .font_weight(gpui::FontWeight::SEMIBOLD)
                     .cursor(CursorStyle::PointingHand)
+                    .tooltip(move |_, cx| {
+                        let label = project_tooltip.clone();
+                        cx.new(move |_| Tooltip::new(label)).into()
+                    })
                     .hover(|style| style.bg(theme::surface_raised()))
                     .on_mouse_down(
                         MouseButton::Left,
@@ -476,6 +579,7 @@ impl AleraApp {
                     .border_b_1()
                     .border_color(theme::border_subtle())
                     .cursor(CursorStyle::PointingHand)
+                    .tooltip(|_, cx| cx.new(|_| Tooltip::new("Expand Sidebar")).into())
                     .on_mouse_down(
                         MouseButton::Left,
                         cx.listener(|this, _, _, cx| {
@@ -509,6 +613,7 @@ impl AleraApp {
                     .border_1()
                     .border_color(theme::border_subtle())
                     .cursor(CursorStyle::PointingHand)
+                    .tooltip(|_, cx| cx.new(|_| Tooltip::new("Add Project")).into())
                     .hover(|style| style.bg(theme::surface_raised()))
                     .on_mouse_down(
                         MouseButton::Left,
@@ -530,6 +635,7 @@ impl AleraApp {
                     .border_color(theme::border_subtle())
                     .text_color(theme::text_muted())
                     .cursor(CursorStyle::PointingHand)
+                    .tooltip(|_, cx| cx.new(|_| Tooltip::new("Settings")).into())
                     .on_mouse_down(
                         MouseButton::Left,
                         cx.listener(|this, _, window, cx| {
@@ -545,6 +651,7 @@ impl Render for AleraApp {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         self.ensure_selected_editor_loaded(window, cx);
         self.sync_terminal_size(window, cx);
+        let toast_messages = self.visible_toast_messages();
         div()
             .relative()
             .on_action(cx.listener(Self::on_open_settings))
@@ -685,9 +792,15 @@ impl Render for AleraApp {
             .when(self.forge_review_confirmation.is_some(), |root| {
                 root.child(self.render_pull_request_confirmation(cx))
             })
-            .when_some(self.local_message.clone(), |root, message| {
-                root.child(super::toast::render_toast(message))
-            })
+            .children(
+                toast_messages
+                    .into_iter()
+                    .rev()
+                    .enumerate()
+                    .map(|(stack_index, message)| {
+                        super::toast::render_toast(message, stack_index)
+                    }),
+            )
             .when(self.explorer_menu.is_some(), |root| {
                 root.child(self.render_explorer_menu(window, cx))
             })

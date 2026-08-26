@@ -3,12 +3,12 @@ use std::collections::BTreeMap;
 use gpui::{
     div, prelude::FluentBuilder as _, px, AnyElement, Context, CursorStyle, FontWeight,
     HighlightStyle, InteractiveElement as _, IntoElement as _, MouseButton, ParentElement as _,
-    SharedString, StatefulInteractiveElement as _, Styled as _, StyledText,
+    SharedString, StatefulInteractiveElement as _, StrikethroughStyle, Styled as _, StyledText,
 };
 
 use super::AleraApp;
 use crate::file_icons::file_icon;
-use crate::icons::{icon, AleraIcon};
+use crate::icons::{icon, loading_indicator, AleraIcon};
 use crate::theme;
 use crate::workspace_service::{SearchFile, SearchMatch};
 
@@ -40,6 +40,7 @@ enum SearchRenderRow {
 
 impl AleraApp {
     pub(super) fn render_search_results(&self, cx: &mut Context<Self>) -> AnyElement {
+        let has_query = !self.search_input.read(cx).value().trim().is_empty();
         let rows = search_rows(
             &self.search_results.files,
             self.search_view_as_tree,
@@ -47,6 +48,8 @@ impl AleraApp {
         );
         div()
             .id("search-results")
+            .flex()
+            .flex_col()
             .flex_1()
             .min_h_0()
             .overflow_y_scroll()
@@ -57,6 +60,35 @@ impl AleraApp {
                         .text_size(px(12.0))
                         .text_color(theme::warning())
                         .child("Results Truncated By The Runtime Limit"),
+                )
+            })
+            .when(
+                has_query && self.search_results.files.is_empty() && !self.local_busy,
+                |results| {
+                    results.child(
+                        div()
+                            .flex()
+                            .items_center()
+                            .justify_center()
+                            .flex_1()
+                            .min_h_0()
+                            .w_full()
+                            .text_size(px(12.0))
+                            .text_color(theme::text_muted())
+                            .child("No results"),
+                    )
+                },
+            )
+            .when(self.local_busy && rows.is_empty(), |results| {
+                results.child(
+                    div()
+                        .flex()
+                        .flex_1()
+                        .min_h(px(160.0))
+                        .w_full()
+                        .items_center()
+                        .justify_center()
+                        .child(loading_indicator(20.0, theme::text_muted())),
                 )
             })
             .children(rows.into_iter().enumerate().map(|(index, row)| match row {
@@ -481,17 +513,45 @@ fn styled_match_preview(item: &SearchMatch, show_replacement: bool) -> StyledTex
     )];
     if show_replacement {
         if let Some(replacement) = item.replacement_preview.as_ref() {
-            let mut preview = text.clone();
-            preview.replace_range(start..end, replacement);
-            let replacement_end = start + replacement.len();
-            highlights = vec![(
-                start..replacement_end,
-                HighlightStyle {
-                    color: Some(theme::success().into()),
-                    font_weight: Some(FontWeight::BOLD),
-                    ..HighlightStyle::default()
-                },
-            )];
+            // Flutter keeps the original match visible with a red
+            // strikethrough and appends the replacement in green. Replacing
+            // the range outright hides the data-loss preview the user needs
+            // before confirming Replace All.
+            let mut preview = String::with_capacity(
+                text.len()
+                    .saturating_sub(end.saturating_sub(start))
+                    .saturating_add(replacement.len())
+                    .saturating_add(end.saturating_sub(start)),
+            );
+            preview.push_str(&text[..start]);
+            let old_start = preview.len();
+            preview.push_str(&text[start..end]);
+            let old_end = preview.len();
+            let replacement_start = preview.len();
+            preview.push_str(replacement);
+            let replacement_end = preview.len();
+            preview.push_str(&text[end..]);
+            highlights = vec![
+                (
+                    old_start..old_end,
+                    HighlightStyle {
+                        color: Some(theme::danger().into()),
+                        strikethrough: Some(StrikethroughStyle {
+                            thickness: px(1.0),
+                            color: Some(theme::danger().into()),
+                        }),
+                        ..HighlightStyle::default()
+                    },
+                ),
+                (
+                    replacement_start..replacement_end,
+                    HighlightStyle {
+                        color: Some(theme::success().into()),
+                        font_weight: Some(FontWeight::BOLD),
+                        ..HighlightStyle::default()
+                    },
+                ),
+            ];
             return StyledText::new(SharedString::from(preview)).with_highlights(highlights);
         }
     }

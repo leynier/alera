@@ -230,14 +230,20 @@ impl AleraApp {
                             .w(px(34.0))
                             .h(px(34.0))
                             .rounded_md()
-                            .cursor(CursorStyle::PointingHand)
-                            .hover(|style| style.bg(theme::surface_raised()))
-                            .on_mouse_down(
-                                MouseButton::Left,
-                                cx.listener(move |this, _, window, cx| {
-                                    on_refresh(this, window, cx);
-                                }),
-                            )
+                            .when(!self.agent_profile_settings.saving, |button| {
+                                button
+                                    .cursor(CursorStyle::PointingHand)
+                                    .hover(|style| style.bg(theme::surface_raised()))
+                                    .on_mouse_down(
+                                        MouseButton::Left,
+                                        cx.listener(move |this, _, window, cx| {
+                                            on_refresh(this, window, cx);
+                                        }),
+                                    )
+                            })
+                            .when(self.agent_profile_settings.saving, |button| {
+                                button.opacity(0.5)
+                            })
                             .child(icon(
                                 if choice.busy {
                                     AleraIcon::Loading

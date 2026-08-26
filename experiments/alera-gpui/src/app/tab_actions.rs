@@ -12,11 +12,30 @@ use crate::model::{
 };
 
 impl AleraApp {
+    /// Open a file from a navigation surface using Flutter's default tab kind.
+    /// Markdown files open in the rendered viewer; search and explicit source
+    /// actions continue to call `open_editor_tab` directly.
+    pub(super) fn open_file_tab(&mut self, relative_path: String, cx: &mut Context<Self>) {
+        let is_markdown = matches!(
+            Path::new(&relative_path)
+                .extension()
+                .and_then(|extension| extension.to_str()),
+            Some("md" | "mdx")
+        );
+        if is_markdown {
+            self.open_markdown_viewer_tab(relative_path, cx);
+        } else {
+            self.open_editor_tab(relative_path, cx);
+        }
+    }
+
     pub(super) fn open_editor_tab(&mut self, relative_path: String, cx: &mut Context<Self>) {
         if let Some(tab) = self.snapshot.tabs.iter().find(|tab| {
             tab.kind == "editor"
                 && tab.payload.get("filePath").and_then(|value| value.as_str())
                     == Some(relative_path.as_str())
+                && tab.payload.get("fileRole").and_then(|value| value.as_str())
+                    != Some("mermanPreview")
         }) {
             self.activate_workspace_tab(tab.id.clone(), cx);
             return;
@@ -53,6 +72,167 @@ impl AleraApp {
                         "createdAt": timestamp.to_rfc3339(),
                         "updatedAt": timestamp.to_rfc3339(),
                         "payload": {"filePath": relative_path},
+                    }),
+                )
+                .await;
+            let result = match result {
+                Ok(tab) => persist_layout(&bridge, layout).await.map(|_| tab),
+                Err(error) => Err(error),
+            };
+            let _ = this.update(cx, |this, cx| {
+                this.tab_mutation_busy = false;
+                match result {
+                    Ok(tab) => {
+                        this.selected_tab_id =
+                            tab.get("id").and_then(|id| id.as_str()).map(str::to_string);
+                        this.refresh(cx);
+                    }
+                    Err(error) => {
+                        this.local_message = Some(error.into());
+                        cx.notify();
+                    }
+                }
+            });
+        })
+        .detach();
+    }
+
+    pub(super) fn open_markdown_viewer_tab(
+        &mut self,
+        relative_path: String,
+        cx: &mut Context<Self>,
+    ) {
+        if !matches!(
+            Path::new(&relative_path)
+                .extension()
+                .and_then(|extension| extension.to_str()),
+            Some("md" | "mdx")
+        ) {
+            return;
+        }
+        if let Some(tab) = self.snapshot.tabs.iter().find(|tab| {
+            tab.kind == "markdownViewer"
+                && tab.payload.get("filePath").and_then(|value| value.as_str())
+                    == Some(relative_path.as_str())
+        }) {
+            self.activate_workspace_tab(tab.id.clone(), cx);
+            return;
+        }
+        let Some(workspace_id) = self.selected_workspace_id.clone() else {
+            return;
+        };
+        let timestamp = chrono::Utc::now();
+        let tab_id = format!(
+            "gpui-markdown-viewer-{}-{}",
+            std::process::id(),
+            timestamp.timestamp_millis()
+        );
+        let title = Path::new(&relative_path)
+            .file_name()
+            .and_then(|name| name.to_str())
+            .unwrap_or("Markdown Preview")
+            .to_string();
+        let bridge = self.bridge.clone();
+        let mut layout = self.snapshot.layout.clone();
+        if let Some(layout) = layout.as_mut() {
+            layout.add_tab_to_active_group(tab_id.clone());
+        }
+        self.tab_mutation_busy = true;
+        cx.spawn(async move |this, cx| {
+            let result = bridge
+                .request(
+                    "tab.upsert",
+                    json!({
+                        "id": tab_id,
+                        "workspaceId": workspace_id,
+                        "kind": "markdownViewer",
+                        "title": title,
+                        "createdAt": timestamp.to_rfc3339(),
+                        "updatedAt": timestamp.to_rfc3339(),
+                        "payload": {"filePath": relative_path},
+                    }),
+                )
+                .await;
+            let result = match result {
+                Ok(tab) => persist_layout(&bridge, layout).await.map(|_| tab),
+                Err(error) => Err(error),
+            };
+            let _ = this.update(cx, |this, cx| {
+                this.tab_mutation_busy = false;
+                match result {
+                    Ok(tab) => {
+                        this.selected_tab_id =
+                            tab.get("id").and_then(|id| id.as_str()).map(str::to_string);
+                        this.refresh(cx);
+                    }
+                    Err(error) => {
+                        this.local_message = Some(error.into());
+                        cx.notify();
+                    }
+                }
+            });
+        })
+        .detach();
+    }
+
+    pub(super) fn open_merman_preview_tab(
+        &mut self,
+        relative_path: String,
+        cx: &mut Context<Self>,
+    ) {
+        if !matches!(
+            Path::new(&relative_path)
+                .extension()
+                .and_then(|extension| extension.to_str()),
+            Some("mmd" | "mermain" | "mermaid")
+        ) {
+            return;
+        }
+        if let Some(tab) = self.snapshot.tabs.iter().find(|tab| {
+            tab.kind == "editor"
+                && tab.payload.get("fileRole").and_then(|value| value.as_str())
+                    == Some("mermanPreview")
+                && tab.payload.get("filePath").and_then(|value| value.as_str())
+                    == Some(relative_path.as_str())
+        }) {
+            self.activate_workspace_tab(tab.id.clone(), cx);
+            return;
+        }
+        let Some(workspace_id) = self.selected_workspace_id.clone() else {
+            return;
+        };
+        let timestamp = chrono::Utc::now();
+        let tab_id = format!(
+            "gpui-merman-preview-{}-{}",
+            std::process::id(),
+            timestamp.timestamp_millis()
+        );
+        let title = Path::new(&relative_path)
+            .file_name()
+            .and_then(|name| name.to_str())
+            .unwrap_or("Diagram Preview")
+            .to_string();
+        let bridge = self.bridge.clone();
+        let mut layout = self.snapshot.layout.clone();
+        if let Some(layout) = layout.as_mut() {
+            layout.add_tab_to_active_group(tab_id.clone());
+        }
+        self.tab_mutation_busy = true;
+        cx.spawn(async move |this, cx| {
+            let result = bridge
+                .request(
+                    "tab.upsert",
+                    json!({
+                        "id": tab_id,
+                        "workspaceId": workspace_id,
+                        "kind": "editor",
+                        "title": title,
+                        "createdAt": timestamp.to_rfc3339(),
+                        "updatedAt": timestamp.to_rfc3339(),
+                        "payload": {
+                            "filePath": relative_path,
+                            "fileRole": "mermanPreview",
+                        },
                     }),
                 )
                 .await;
@@ -427,6 +607,20 @@ impl AleraApp {
         // terminated the matching terminal sessions so the sidebar cannot
         // retain a closed agent until the next presence notification.
         self.prune_presence_for_tabs(&tab_ids);
+        for tab in self
+            .snapshot
+            .tabs
+            .iter()
+            .filter(|tab| tab_ids.iter().any(|id| id == &tab.id))
+        {
+            let session_id = tab
+                .payload
+                .get("terminalSessionId")
+                .and_then(|value| value.as_str())
+                .filter(|value| !value.trim().is_empty())
+                .unwrap_or(tab.id.as_str());
+            self.tab_completion_acknowledged.remove(session_id);
+        }
         self.tab_close_armed = None;
         self.tab_mutation_busy = true;
         let bridge = self.bridge.clone();
@@ -458,7 +652,12 @@ impl AleraApp {
                         this.selected_tab_id = next_selected_tab_id;
                         if closing_open_editor {
                             this.editor_document = None;
+                            this.editor_documents.clear();
+                            this.editor_buffer_text.clear();
+                            this.editor_dirty_paths.clear();
+                            this.editor_cursor_positions.clear();
                             this.opened_file_path = None;
+                            this.editor_preview_assets.clear();
                             this.editor_dirty = false;
                         }
                         this.refresh_presence_status(cx);
@@ -564,7 +763,8 @@ impl AleraApp {
             .unwrap_or_default();
         self.selected_tab_id = Some(tab_id);
         self.tab_rename_input
-            .update(cx, |input, cx| input.set_value(title, window, cx));
+            .update(cx, |input, cx| input.set_value(title.clone(), window, cx));
+        self.tab_rename_replace_pending = Some(title);
         self.show_tab_rename_dialog = true;
         self.tab_rename_input.focus_handle(cx).focus(window);
         cx.notify();
@@ -573,11 +773,86 @@ impl AleraApp {
     pub(super) fn close_tab_rename_dialog(&mut self, cx: &mut Context<Self>) {
         if !self.tab_mutation_busy {
             self.show_tab_rename_dialog = false;
+            self.tab_rename_replace_pending = None;
             cx.notify();
         }
     }
 
     pub(super) fn activate_workspace_tab(&mut self, tab_id: String, cx: &mut Context<Self>) {
+        if let Some(path) = self
+            .opened_file_path
+            .clone()
+            .filter(|_| self.editor_document.is_some())
+        {
+            let text = self.editor_input.read(cx).value().to_string();
+            self.editor_buffer_text.insert(path.clone(), text);
+            let cursor = self.editor_input.read(cx).cursor_position();
+            self.editor_cursor_positions
+                .insert(path.clone(), (cursor.line, cursor.character));
+            if self.editor_dirty {
+                self.editor_dirty_paths.insert(path.clone());
+            } else {
+                self.editor_dirty_paths.remove(&path);
+            }
+        }
+        let completion_acknowledgement =
+            self.snapshot
+                .tabs
+                .iter()
+                .find(|tab| tab.id == tab_id)
+                .and_then(|tab| {
+                    let session_id = tab
+                        .payload
+                        .get("terminalSessionId")
+                        .and_then(|value| value.as_str())
+                        .filter(|value| !value.trim().is_empty())
+                        .unwrap_or(tab.id.as_str());
+                    self.matching_presence_for_tab(tab).and_then(|entry| {
+                        (entry.get("agentState").and_then(|value| value.as_str()) == Some("done"))
+                            .then(|| {
+                                (
+                                    session_id.to_owned(),
+                                    entry
+                                        .get("stateStartedAt")
+                                        .and_then(|value| value.as_str())
+                                        .unwrap_or_default()
+                                        .to_owned(),
+                                )
+                            })
+                    })
+                });
+        if let Some((session_id, state_started_at)) = completion_acknowledgement {
+            self.tab_completion_acknowledged
+                .insert(session_id, state_started_at);
+        }
+        let selected_kind = self
+            .snapshot
+            .tabs
+            .iter()
+            .find(|tab| tab.id == tab_id)
+            .map(|tab| tab.kind.as_str());
+        let cached_visual_preview = self
+            .snapshot
+            .tabs
+            .iter()
+            .find(|tab| tab.id == tab_id)
+            .and_then(|tab| {
+                let path = tab.payload.get("filePath").and_then(|value| value.as_str())?;
+                let file_role = tab.payload.get("fileRole").and_then(|value| value.as_str());
+                let is_merman_preview = file_role == Some("mermanPreview");
+                let is_cached_visual = self
+                    .editor_preview_assets
+                    .get(path)
+                    .is_some_and(|asset| {
+                        matches!(
+                            asset,
+                            super::workspace_surface::PreviewAsset::Image(_)
+                                | super::workspace_surface::PreviewAsset::Mermaid(_)
+                        )
+                    });
+                Some(is_merman_preview || is_cached_visual)
+            })
+            .unwrap_or(false);
         let diff_payload = self
             .snapshot
             .tabs
@@ -585,6 +860,14 @@ impl AleraApp {
             .find(|tab| tab.id == tab_id && tab.kind == "gitDiff")
             .map(|tab| tab.payload.clone());
         self.selected_tab_id = Some(tab_id.clone());
+        if matches!(selected_kind, Some("editor")) {
+            // Image/Mermaid editor tabs are viewers in Flutter. Restore the
+            // cached visual mode when revisiting an existing tab instead of
+            // leaving the previous source document underneath its new title.
+            self.show_preview = cached_visual_preview;
+        } else if matches!(selected_kind, Some("markdownViewer")) {
+            self.show_preview = true;
+        }
         self.ensure_selected_terminal(cx);
         if let Some(payload) = diff_payload {
             self.load_git_diff_tab(tab_id.clone(), payload, cx);
@@ -702,6 +985,7 @@ impl AleraApp {
                 match result {
                     Ok(_) => {
                         this.show_tab_rename_dialog = false;
+                        this.tab_rename_replace_pending = None;
                         this.refresh(cx);
                     }
                     Err(error) => {

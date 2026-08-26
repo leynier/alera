@@ -17,6 +17,7 @@ pub(super) struct StatusData {
     pub resource_error: Option<String>,
     pub resource_generation: u64,
     pub runtime: Option<Value>,
+    pub runtime_loading: bool,
     pub runtime_error: Option<String>,
     pub runtime_generation: u64,
     pub presence: Vec<Value>,
@@ -134,6 +135,7 @@ impl AleraApp {
     pub(super) fn refresh_runtime_status(&mut self, cx: &mut Context<Self>) {
         self.status_data.runtime_generation += 1;
         let generation = self.status_data.runtime_generation;
+        self.status_data.runtime_loading = true;
         let bridge = self.bridge.clone();
         cx.spawn(async move |this, cx| {
             let result = bridge.request("status.get", json!({})).await;
@@ -144,6 +146,7 @@ impl AleraApp {
                 if generation != this.status_data.runtime_generation {
                     return;
                 }
+                this.status_data.runtime_loading = false;
                 match result {
                     Ok(value) => {
                         this.status_data.runtime = Some(value);
@@ -297,7 +300,52 @@ fn compact_reading_label(provider: &str, label: &str) -> String {
     if provider == "claude" && lower.contains("fable") {
         return "F".to_owned();
     }
+    if provider == "minimax" {
+        let model = label
+            .strip_suffix(" Weekly")
+            .or_else(|| label.strip_suffix(" weekly"))
+            .unwrap_or(label)
+            .strip_prefix("MiniMax-")
+            .or_else(|| label.strip_prefix("Minimax-"))
+            .unwrap_or(label)
+            .trim();
+        let compact_model = match model.to_lowercase().as_str() {
+            "general" => "G".to_owned(),
+            "video" => "V".to_owned(),
+            _ => compact_model_label(model),
+        };
+        return format!("{compact_model}·{}", short_window_label(&lower));
+    }
     short_window_label(&lower).to_owned()
+}
+
+fn compact_model_label(model: &str) -> String {
+    let trimmed = model.trim();
+    if trimmed.chars().count() <= 6 {
+        return trimmed.to_owned();
+    }
+    let chars = trimmed.char_indices().collect::<Vec<_>>();
+    for (index, (offset, character)) in chars.iter().enumerate() {
+        if !character.eq_ignore_ascii_case(&'m') {
+            continue;
+        }
+        let mut end = *offset + character.len_utf8();
+        let mut saw_digit = false;
+        for (_, next) in chars.iter().skip(index + 1) {
+            if next.is_ascii_digit() {
+                saw_digit = true;
+                end += next.len_utf8();
+            } else if *next == '.' && saw_digit {
+                end += next.len_utf8();
+            } else {
+                break;
+            }
+        }
+        if saw_digit {
+            return trimmed[*offset..end].to_owned();
+        }
+    }
+    trimmed.chars().take(6).collect()
 }
 
 fn short_window_label(label: &str) -> &str {
@@ -370,6 +418,22 @@ mod tests {
             ["G·5H", "G·W", "C/G·5H", "C/G·W"]
         );
         assert_eq!(readings[0].remaining_percent, 90.0);
+    }
+
+    #[test]
+    fn compacts_minimax_model_bucket_labels_like_flutter() {
+        assert_eq!(
+            compact_reading_label("minimax", "MiniMax-M2.5 Weekly"),
+            "M2.5·W"
+        );
+        assert_eq!(
+            compact_reading_label("minimax", "MiniMax-General Weekly"),
+            "G·W"
+        );
+        assert_eq!(
+            compact_reading_label("minimax", "MiniMax-Video Weekly"),
+            "V·W"
+        );
     }
 
     #[test]

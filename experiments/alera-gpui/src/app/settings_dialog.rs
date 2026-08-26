@@ -1,5 +1,5 @@
 use gpui::{
-    div, prelude::FluentBuilder as _, px, Context, CursorStyle, InteractiveElement as _,
+    div, prelude::FluentBuilder as _, px, relative, Context, CursorStyle, InteractiveElement as _,
     IntoElement, MouseButton, MouseDownEvent, ParentElement as _, StatefulInteractiveElement as _,
     Styled as _,
 };
@@ -15,12 +15,17 @@ impl AleraApp {
         window: &mut gpui::Window,
         cx: &mut Context<Self>,
     ) {
-        if !self.show_settings_dialog {
+        let was_open = self.show_settings_dialog;
+        if !was_open {
             self.settings_previous_focus = window.focused(cx);
         }
         self.show_settings_dialog = true;
         self.dismiss_status_popover(cx);
         self.refresh_settings_values(cx);
+        self.refresh_github_star_state(cx);
+        if !was_open {
+            self.check_for_updates(cx);
+        }
         if self.settings_pane == SettingsPane::Agents {
             self.load_cli_registration_status(cx);
         }
@@ -31,6 +36,8 @@ impl AleraApp {
         self.show_settings_dialog = true;
         self.dismiss_status_popover(cx);
         self.refresh_settings_values(cx);
+        self.refresh_github_star_state(cx);
+        self.check_for_updates(cx);
         if self.settings_pane == SettingsPane::Agents {
             self.load_cli_registration_status(cx);
         }
@@ -106,11 +113,14 @@ impl AleraApp {
             .bg(theme::overlay_scrim())
             .child(
                 div()
+                    // Flutter sizes this dialog to 92% of the viewport. Use
+                    // relative 4% insets so Settings and its scroll viewport
+                    // keep the same proportions on every desktop size.
                     .absolute()
-                    .top(px(39.0))
-                    .right(px(68.0))
-                    .bottom(px(39.0))
-                    .left(px(68.0))
+                    .top(relative(0.04))
+                    .right(relative(0.04))
+                    .bottom(relative(0.04))
+                    .left(relative(0.04))
                     .flex()
                     .min_w_0()
                     .min_h_0()
@@ -425,19 +435,26 @@ fn settings_pane_description(pane: SettingsPane) -> &'static str {
         SettingsPane::Application => "Storage, safety, runtime, diagnostics and updates.",
         SettingsPane::Agents => "Agent Hooks, Notifications And Alera Skills.",
         SettingsPane::Quotas => "Provider Usage, Claude Profiles And Credential Environment.",
-        SettingsPane::AiText => "AI-Generated Source Control Text.",
-        SettingsPane::Editor => "Code Editor Defaults.",
-        SettingsPane::Terminal => "Appearance Defaults For New Terminal Sessions.",
-        SettingsPane::Keyboard => "Shortcuts And Key Bindings.",
+        SettingsPane::AiText => "AI-generated source control text.",
+        SettingsPane::Editor => "Code editor defaults.",
+        SettingsPane::Terminal => "Appearance defaults for new terminal sessions.",
+        SettingsPane::Keyboard => "Shortcuts and key bindings.",
         SettingsPane::Projects => "Per-Project Workspace Setup.",
-        SettingsPane::MobileDevices => "Pair And Manage The Mobile Companion App.",
-        SettingsPane::AgentProfiles => "Launch Configurations Orchestration Can Dispatch To.",
+        SettingsPane::MobileDevices => "Pair and manage the mobile companion app.",
+        SettingsPane::AgentProfiles => "Launch configurations orchestration can dispatch to.",
     }
 }
 
 pub(super) fn settings_pane_groups(pane: SettingsPane) -> &'static [&'static str] {
     match pane {
-        SettingsPane::Application => &["Storage", "Safety", "Runtime", "Diagnostics"],
+        SettingsPane::Application => &[
+            "Storage",
+            "Safety",
+            "Runtime",
+            "Diagnostics",
+            "Updates",
+            "Support",
+        ],
         SettingsPane::Agents => &["CLI And Skills", "Status Hooks", "Behavior"],
         SettingsPane::Quotas => &["Providers", "Claude", "Credentials"],
         SettingsPane::AiText => &["Generation", "Prompt Overrides", "Instructions"],

@@ -5,7 +5,7 @@ fn application_workspace_panel(
     settings_panel(vec![
         div()
             .px_4()
-            .py(px(18.0))
+            .py(px(16.0))
             .child(
                 div()
                     .text_size(px(13.0))
@@ -27,7 +27,15 @@ fn application_workspace_panel(
                     .items_center()
                     .gap_2()
                     .mt_3()
-                    .child(div().flex_1().child(design_system::text_field(input)))
+                    // The directory row is the compact Flutter workspace
+                    // control. Keep its field at the same 40 px rhythm as
+                    // the adjacent Browse button without changing the
+                    // regular text-field height used by other settings.
+                    .child(
+                        div()
+                            .flex_1()
+                            .child(design_system::text_field(input).height(px(40.0))),
+                    )
                     .child(
                         div()
                             .id("browse-workspace-directory")
@@ -83,6 +91,22 @@ fn exact_settings_group(
         .child(settings_panel(rows))
 }
 
+fn settings_title_only_group(title: &'static str, rows: Vec<gpui::Div>) -> gpui::Div {
+    div()
+        .child(
+            div()
+                .ml_1()
+                .mb_2()
+                .child(
+                    div()
+                        .text_size(px(13.0))
+                        .font_weight(gpui::FontWeight::SEMIBOLD)
+                        .child(title),
+                ),
+        )
+        .child(settings_panel(rows))
+}
+
 fn settings_group_anchor(
     anchors: &SettingsGroupAnchors,
     pane: SettingsPane,
@@ -119,7 +143,11 @@ fn exact_settings_row_width(
     div()
         .flex()
         .items_center()
-        .min_h(px(70.0))
+        // AleraSettingRow is content-sized: two single-line labels plus
+        // 16 px vertical padding plus the Flutter body text metrics settle at
+        // roughly 69 px. Keeping the same floor prevents long settings groups
+        // from drifting vertically after several rows.
+        .min_h(px(69.0))
         .p_4()
         .border_b_1()
         .border_color(theme::border_subtle())
@@ -146,6 +174,112 @@ fn exact_settings_row_width(
                 .flex()
                 .justify_end()
                 .child(control),
+        )
+}
+
+fn settings_title_only_row(
+    title: &'static str,
+    control: impl IntoElement,
+) -> gpui::Div {
+    div()
+        .flex()
+        .items_center()
+        .min_h(px(52.0))
+        .p_4()
+        .child(
+            div()
+                .flex_1()
+                .text_size(px(13.0))
+                .font_weight(gpui::FontWeight::MEDIUM)
+                .child(title),
+        )
+        .child(
+            div()
+                .w(px(220.0))
+                .flex()
+                .justify_end()
+                .child(control),
+        )
+}
+
+fn update_settings_row(settings: &SettingsState, cx: &mut Context<AleraApp>) -> gpui::Div {
+    let (status_icon, status_color) = match settings.update_status.as_str() {
+        "Update Failed" => (AleraIcon::Error, theme::danger()),
+        "No Update Available" => (AleraIcon::Check, theme::success()),
+        "Checking for Updates" => (AleraIcon::Loading, theme::text_muted()),
+        "Update Available" => (AleraIcon::Download, theme::info()),
+        _ => (AleraIcon::Info, theme::text_muted()),
+    };
+    let message = settings
+        .update_message
+        .clone()
+        .unwrap_or_else(|| "Check the Alera release channel for a newer desktop build.".into());
+    let button_label = if settings.update_busy {
+        "Checking"
+    } else {
+        "Check for Updates"
+    };
+    let button_icon = if settings.update_busy {
+        loading_indicator(14.0, theme::text_muted())
+    } else {
+        icon(AleraIcon::Refresh, 14.0, theme::text_muted())
+    };
+    div()
+        .flex()
+        .items_center()
+        .min_h(px(70.0))
+        .p_4()
+        .border_b_1()
+        .border_color(theme::border_subtle())
+        .child(icon(status_icon, 18.0, status_color))
+        .child(
+            div()
+                .ml_3()
+                .flex_1()
+                .child(
+                    div()
+                        .text_size(px(13.0))
+                        .font_weight(gpui::FontWeight::MEDIUM)
+                        .child(settings.update_status.clone()),
+                )
+                .child(
+                    div()
+                        .mt_1()
+                        .text_size(px(12.0))
+                        .text_color(theme::text_muted())
+                        .child(message),
+                ),
+        )
+        .child(
+            div()
+                .w(px(220.0))
+                .flex()
+                .justify_end()
+                .child(
+                    div()
+                        .id("check-for-updates")
+                        .flex()
+                        .items_center()
+                        .justify_center()
+                        .h(px(34.0))
+                        .px_3()
+                        .gap_2()
+                        .rounded_md()
+                        .border_1()
+                        .border_color(theme::border())
+                        .bg(theme::surface_selected())
+                        .cursor(CursorStyle::PointingHand)
+                        .hover(|style| style.bg(theme::surface_raised()))
+                        .on_mouse_down(
+                            MouseButton::Left,
+                            cx.listener(|this, _: &MouseDownEvent, _, cx| {
+                                this.check_for_updates(cx);
+                                cx.stop_propagation();
+                            }),
+                        )
+                        .child(button_icon)
+                        .child(button_label),
+                ),
         )
 }
 

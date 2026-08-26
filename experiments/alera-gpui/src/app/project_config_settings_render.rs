@@ -16,7 +16,7 @@ impl AleraApp {
     ) -> AnyElement {
         if self.snapshot.projects.is_empty() {
             return project_config_empty_state(
-                AleraIcon::Folder,
+                AleraIcon::FolderOff,
                 "No Projects",
                 "Add A Project Before Configuring Workspace Setup.",
             )

@@ -811,6 +811,10 @@ impl ServerActor {
                 self.require_auth(client_id)?;
                 super::workspace_git_requests::snapshot(payload).await
             }
+            "workspaceGit.explorerStatus" => {
+                self.require_auth(client_id)?;
+                super::workspace_git_requests::explorer_status(payload).await
+            }
             "workspaceGit.action" => {
                 self.require_auth(client_id)?;
                 super::workspace_git_requests::action(payload).await

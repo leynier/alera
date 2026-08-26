@@ -9,6 +9,14 @@ fn settings_button(
     id: impl Into<gpui::ElementId>,
     label: impl Into<SharedString>,
 ) -> gpui::Stateful<gpui::Div> {
+    settings_button_with_loading(id, label, false)
+}
+
+fn settings_button_with_loading(
+    id: impl Into<gpui::ElementId>,
+    label: impl Into<SharedString>,
+    loading: bool,
+) -> gpui::Stateful<gpui::Div> {
     div()
         .id(id)
         .flex()
@@ -20,20 +28,32 @@ fn settings_button(
         .border_1()
         .border_color(theme::border())
         .bg(theme::surface_selected())
-        .cursor(CursorStyle::PointingHand)
-        .hover(|style| style.bg(theme::surface_raised()))
-        .child(label.into())
+        .cursor(if loading {
+            CursorStyle::Arrow
+        } else {
+            CursorStyle::PointingHand
+        })
+        .when(!loading, |button| {
+            button.hover(|style| style.bg(theme::surface_raised()))
+        })
+        .when(loading, |button| {
+            button.child(loading_indicator(16.0, theme::text_muted()))
+        })
+        .when(!loading, |button| button.child(label.into()))
 }
 
 fn settings_select_control(
     select: &SettingsSelect,
     wide: bool,
-    compact: bool,
+    _compact: bool,
 ) -> gpui::Div {
     div()
         .relative()
         .w(px(if wide { 260.0 } else { 220.0 }))
-        .h(px(if compact { 40.0 } else { 48.0 }))
+        // Flutter's AleraDropdownField uses a fixed 34 px trigger for both
+        // compact and regular settings rows. The previous 40/48 px variants
+        // made every select row grow the pane and shifted the scrollbar.
+        .h(px(34.0))
         .rounded_md()
         .border_1()
         .border_color(theme::border())
@@ -48,6 +68,67 @@ fn settings_select_control(
                 .bottom_0()
                 .flex()
                 .items_center()
+                .child(icon(AleraIcon::ChevronDown, 14.0, theme::text_muted())),
+        )
+}
+
+fn settings_font_select_control(
+    select: &SettingsSelect,
+    cx: &mut Context<AleraApp>,
+) -> gpui::Div {
+    let has_value = select.read(cx).selected_value().is_some();
+    let select_for_clear = select.clone();
+    div()
+        .relative()
+        .w(px(260.0))
+        .h(px(40.0))
+        .rounded_md()
+        .border_1()
+        .border_color(theme::border())
+        .bg(theme::surface_selected())
+        .cursor(CursorStyle::PointingHand)
+        .child(
+            Select::new(select)
+                .w_full()
+                .h_full()
+                .placeholder("SF Mono")
+                .appearance(false),
+        )
+        .when(has_value, |this| {
+            this.child(
+                div()
+                    .id("settings-terminal-font-clear")
+                    .absolute()
+                    .top_0()
+                    .right(px(30.0))
+                    .bottom_0()
+                    .w(px(24.0))
+                    .flex()
+                    .items_center()
+                    .justify_center()
+                    .cursor(CursorStyle::PointingHand)
+                    .child(icon(AleraIcon::Cancel, 14.0, theme::text_muted()))
+                    .on_mouse_down(
+                        MouseButton::Left,
+                        cx.listener(move |_, _: &MouseDownEvent, window, cx| {
+                            select_for_clear.update(cx, |select, cx| {
+                                select.set_selected_index(None, window, cx);
+                                cx.emit(SelectEvent::Confirm(None));
+                            });
+                        }),
+                    ),
+            )
+        })
+        .child(
+            div()
+                .absolute()
+                .top_0()
+                .right(px(8.0))
+                .bottom_0()
+                .w(px(18.0))
+                .flex()
+                .items_center()
+                .justify_center()
                 .child(icon(AleraIcon::ChevronDown, 14.0, theme::text_muted())),
         )
 }

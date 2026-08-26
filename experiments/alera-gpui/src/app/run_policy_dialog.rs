@@ -7,11 +7,69 @@ use gpui_component::scroll::ScrollableElement as _;
 use super::run_policy::{RunExecutionPolicy, RunPolicyStage};
 use super::AleraApp;
 use crate::design_system::{self, ButtonKind};
-use crate::icons::{icon, AleraIcon};
+use crate::icons::{icon, loading_indicator, AleraIcon};
 use crate::theme;
 
 impl AleraApp {
     pub(super) fn render_execution_plans_dialog(&self, cx: &mut Context<Self>) -> AnyElement {
+        let compact = !self.run_policies_loading
+            && self.run_policy_error.is_none()
+            && !self.run_policies.is_empty();
+        let content: AnyElement = if self.run_policies_loading {
+            div()
+                .mt_3()
+                .flex_1()
+                .min_h(px(150.0))
+                .flex()
+                .items_center()
+                .justify_center()
+                .child(loading_indicator(24.0, theme::text_muted()))
+                .into_any_element()
+        } else if let Some(error) = self.run_policy_error.clone() {
+            div()
+                .mt_3()
+                .flex_1()
+                .min_h(px(150.0))
+                .flex()
+                .flex_col()
+                .items_center()
+                .justify_center()
+                .child(empty_state(AleraIcon::Workflow, "Plans Unavailable", error))
+                .into_any_element()
+        } else if self.run_policies.is_empty() {
+            div()
+                .mt_3()
+                .flex_1()
+                .min_h(px(150.0))
+                .flex()
+                .flex_col()
+                .items_center()
+                .justify_center()
+                .child(empty_state(
+                    AleraIcon::Workflow,
+                    "No Execution Plans",
+                    "A Coordinator Proposes A Plan Before It Starts Dispatching.",
+                ))
+                .into_any_element()
+        } else {
+            let content = div().mt_4().flex_shrink_0().children(
+                self.run_policies
+                    .iter()
+                    .map(|policy| self.render_run_policy_panel(policy, cx)),
+            );
+            // Keep the common one-plan review compact like Flutter's
+            // mainAxisSize.min dialog. Add a viewport only when several
+            // plans actually need one.
+            if self.run_policies.len() > 2 {
+                content
+                    .max_h(px(480.0))
+                    .overflow_y_scrollbar()
+                    .into_any_element()
+            } else {
+                content.into_any_element()
+            }
+        };
+
         div()
             .absolute()
             .top_0()
@@ -25,14 +83,25 @@ impl AleraApp {
             .bg(theme::overlay_scrim())
             .child(
                 div()
-                    .w(px(720.0))
-                    .h(px(640.0))
+                    // Flutter's dialog is max-constrained, not fixed-size:
+                    // a loaded plan hugs its content while loading/error and
+                    // the empty state retain the roomy review surface.
+                    .when(compact, |dialog| {
+                        // GPUI pixels are rendered at the native window scale;
+                        // this maps the Flutter 720 logical-pixel cap to the
+                        // same on-screen width on the desktop client.
+                        dialog.w(px(740.0)).h_auto().max_h(px(640.0))
+                    })
+                    .when(!compact, |dialog| dialog.w(px(720.0)).h(px(640.0)))
                     .rounded_xl()
                     .border_1()
                     .border_color(theme::border_subtle())
                     .bg(theme::surface())
                     .shadow_lg()
                     .p_4()
+                    // Flutter's Dialog keeps a larger bottom inset below
+                    // the trailing Close action than GPUI's default padding.
+                    .pb(px(18.0))
                     .flex()
                     .flex_col()
                     .child(
@@ -41,54 +110,7 @@ impl AleraApp {
                             .font_weight(gpui::FontWeight::SEMIBOLD)
                             .child("Execution Plans"),
                     )
-                    .child(
-                        div()
-                            .mt_3()
-                            .flex_1()
-                            .min_h(px(150.0))
-                            .overflow_y_scrollbar()
-                            .when(self.run_policies_loading, |content| {
-                                content.child(empty_state(
-                                    AleraIcon::Loading,
-                                    "Loading Execution Plans",
-                                    "Reading Proposed Coordinator Plans.",
-                                ))
-                            })
-                            .when(
-                                !self.run_policies_loading && self.run_policy_error.is_some(),
-                                |content| {
-                                    content.child(empty_state(
-                                        AleraIcon::Error,
-                                        "Plans Unavailable",
-                                        self.run_policy_error
-                                            .clone()
-                                            .unwrap_or_else(|| "Unknown Runtime Error".into()),
-                                    ))
-                                },
-                            )
-                            .when(
-                                !self.run_policies_loading
-                                    && self.run_policy_error.is_none()
-                                    && self.run_policies.is_empty(),
-                                |content| {
-                                    content.child(empty_state(
-                                        AleraIcon::Workflow,
-                                        "No Execution Plans",
-                                        "A Coordinator Proposes A Plan Before It Starts Dispatching.",
-                                    ))
-                                },
-                            )
-                            .when(
-                                !self.run_policies_loading
-                                    && self.run_policy_error.is_none()
-                                    && !self.run_policies.is_empty(),
-                                |content| {
-                                    content.children(self.run_policies.iter().map(|policy| {
-                                        self.render_run_policy_panel(policy, cx)
-                                    }))
-                                },
-                            ),
-                    )
+                    .child(content)
                     .when_some(self.run_policy_error.clone(), |dialog, error| {
                         if self.run_policies_loading || self.run_policies.is_empty() {
                             dialog
@@ -103,24 +125,20 @@ impl AleraApp {
                         }
                     })
                     .child(
-                        div()
-                            .mt_3()
-                            .flex()
-                            .justify_end()
-                            .child(
-                                design_system::button(
-                                    "close-execution-plans",
-                                    "Close",
-                                    ButtonKind::Text,
-                                    self.run_policy_busy_id.is_some(),
-                                )
-                                .on_mouse_down(
-                                    gpui::MouseButton::Left,
-                                    cx.listener(|this, _, _, cx| {
-                                        this.close_execution_plans(cx);
-                                    }),
-                                ),
+                        div().mt_3().flex().justify_end().child(
+                            design_system::button(
+                                "close-execution-plans",
+                                "Close",
+                                ButtonKind::Text,
+                                false,
+                            )
+                            .on_mouse_down(
+                                gpui::MouseButton::Left,
+                                cx.listener(|this, _, _, cx| {
+                                    this.close_execution_plans(cx);
+                                }),
                             ),
+                        ),
                     ),
             )
             .into_any_element()
@@ -142,6 +160,7 @@ impl AleraApp {
             .border_color(theme::border_subtle())
             .bg(theme::surface_raised())
             .p_3()
+            .pb(px(16.0))
             .child(
                 div()
                     .flex()
@@ -190,7 +209,7 @@ impl AleraApp {
             .when(policy.status.is_pending(), |panel| {
                 panel
                     .child(
-                        div().mt_3().child(
+                        div().mt_4().child(
                             design_system::text_field(&self.run_policy_reason_input)
                                 .label("Rejection Reason")
                                 .prefix(icon(AleraIcon::Text, 15.0, theme::text_faint()))
@@ -199,18 +218,19 @@ impl AleraApp {
                     )
                     .child(
                         div()
-                            .mt_2()
+                            .mt_3()
                             .flex()
                             .gap_2()
                             .child(
-                                design_system::button_with_loading(
+                                design_system::button_with_loading_and_leading_icon(
                                     gpui::SharedString::from(format!(
                                         "approve-run-policy-{approve_run_id}"
                                     )),
-                                    if busy { "Working" } else { "Approve" },
-                                    ButtonKind::Filled,
+                                    "Approve",
+                                    ButtonKind::Elevated,
                                     busy,
                                     busy,
+                                    Some(icon(AleraIcon::Check, 14.0, theme::text())),
                                 )
                                 .on_mouse_down(
                                     gpui::MouseButton::Left,
@@ -225,13 +245,14 @@ impl AleraApp {
                                 ),
                             )
                             .child(
-                                design_system::button(
+                                design_system::button_with_leading_icon(
                                     gpui::SharedString::from(format!(
                                         "reject-run-policy-{reject_run_id}"
                                     )),
                                     "Reject",
                                     ButtonKind::Outlined,
                                     busy,
+                                    icon(AleraIcon::Cancel, 14.0, theme::text()),
                                 )
                                 .on_mouse_down(
                                     gpui::MouseButton::Left,
@@ -252,16 +273,27 @@ impl AleraApp {
 }
 
 fn render_policy_stage(stage: &RunPolicyStage) -> gpui::Div {
-    let mut text = format!("{}  {}", stage.label(), stage.profile);
-    if !stage.fallbacks.is_empty() {
-        text.push_str("  fallback: ");
-        text.push_str(&stage.fallbacks.join(", "));
-    }
     div()
         .mb_1()
+        .flex()
         .text_size(px(12.0))
-        .text_color(theme::text())
-        .child(text)
+        .child(
+            div()
+                .text_color(theme::text())
+                .child(stage.label().to_owned()),
+        )
+        .child(
+            div()
+                .text_color(theme::text_muted())
+                .child(format!("  {}", stage.profile)),
+        )
+        .when(!stage.fallbacks.is_empty(), |row| {
+            row.child(
+                div()
+                    .text_color(theme::text_muted())
+                    .child(format!("  fallback: {}", stage.fallbacks.join(", "))),
+            )
+        })
 }
 
 fn empty_state(

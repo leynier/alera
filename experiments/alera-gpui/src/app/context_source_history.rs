@@ -1,19 +1,22 @@
 use chrono::{DateTime, Local};
 use gpui::{
-    div, prelude::FluentBuilder as _, px, AnyElement, ClipboardItem, Context, CursorStyle,
-    InteractiveElement as _, IntoElement, MouseDownEvent, ParentElement as _,
+    div, prelude::FluentBuilder as _, px, AnyElement, AppContext as _, ClipboardItem, Context,
+    CursorStyle, DragMoveEvent, Empty, InteractiveElement as _, IntoElement, MouseButton,
+    MouseDownEvent, MouseMoveEvent, MouseUpEvent, ParentElement as _,
     StatefulInteractiveElement as _, Styled as _,
 };
 
-use super::context_source_control_actions::source_icon_button;
+use super::context_source_control_actions::source_icon_button_with_enabled;
 use super::source_history_graph::{
     build_history_graph_view_models, history_graph, HistoryGraphKind, HistoryGraphRow,
 };
+use super::state_types::{GitHistoryResizeDrag, GitHistoryResizeState};
 use super::AleraApp;
 use crate::file_icons::file_icon;
 use crate::icons::{icon, AleraIcon};
 use crate::theme;
 use crate::workspace_git::{GitCommitChange, GitHistoryItem, GitHistoryRef};
+use gpui_component::tooltip::Tooltip;
 
 #[derive(Clone, Debug)]
 pub(super) struct SourceHistoryActionMenu {
@@ -21,6 +24,65 @@ pub(super) struct SourceHistoryActionMenu {
 }
 
 impl AleraApp {
+    pub(super) fn source_history_resize_handle(&self, cx: &mut Context<Self>) -> AnyElement {
+        div()
+            .id("source-history-resize")
+            .flex_shrink_0()
+            .h(px(4.0))
+            .cursor(CursorStyle::ResizeUpDown)
+            .bg(theme::border_subtle())
+            .hover(|style| style.bg(theme::border()))
+            .on_mouse_down(
+                MouseButton::Left,
+                cx.listener(|this, event: &MouseDownEvent, _, cx| {
+                    this.git_history_resize = Some(GitHistoryResizeState {
+                        start_y: event.position.y,
+                        initial_height: this.git_history_height,
+                    });
+                    cx.notify();
+                    cx.stop_propagation();
+                }),
+            )
+            .on_drag(GitHistoryResizeDrag, |_, _, _, cx| cx.new(|_| Empty))
+            .on_drag_move(cx.listener(
+                |this, event: &DragMoveEvent<GitHistoryResizeDrag>, _, cx| {
+                    this.update_source_history_resize(&event.event, cx);
+                },
+            ))
+            .on_mouse_up(
+                MouseButton::Left,
+                cx.listener(Self::finish_source_history_resize),
+            )
+            .on_mouse_up_out(
+                MouseButton::Left,
+                cx.listener(Self::finish_source_history_resize),
+            )
+            .into_any_element()
+    }
+
+    fn update_source_history_resize(&mut self, event: &MouseMoveEvent, cx: &mut Context<Self>) {
+        let Some(state) = self.git_history_resize else {
+            return;
+        };
+        if !event.dragging() {
+            return;
+        }
+        let delta = (event.position.y - state.start_y) / px(1.0);
+        self.git_history_height = (state.initial_height - delta).clamp(96.0, 520.0);
+        cx.notify();
+    }
+
+    fn finish_source_history_resize(
+        &mut self,
+        _: &MouseUpEvent,
+        _: &mut gpui::Window,
+        cx: &mut Context<Self>,
+    ) {
+        if self.git_history_resize.take().is_some() {
+            cx.notify();
+        }
+    }
+
     pub(super) fn source_history_footer(&self, cx: &mut Context<Self>) -> AnyElement {
         div()
             .id("toggle-git-history")
@@ -72,36 +134,105 @@ impl AleraApp {
             .when(self.git_snapshot.history.is_empty(), |footer| {
                 footer.child(div().flex_1())
             })
-            .child(
-                source_icon_button("source-history-refresh", AleraIcon::GitRefresh, false)
-                    .on_mouse_down(
+            .child({
+                let loading = self.git_snapshot_loading;
+                source_icon_button_with_enabled(
+                    "source-history-refresh",
+                    if loading {
+                        AleraIcon::Loading
+                    } else {
+                        AleraIcon::GitRefresh
+                    },
+                    false,
+                    !loading && !self.local_busy,
+                )
+                .tooltip(|_, cx| cx.new(|_| Tooltip::new("Refresh Commits")).into())
+                .when(!loading && !self.local_busy, |button| {
+                    button.on_mouse_down(
                         gpui::MouseButton::Left,
-                        cx.listener(|this, _, _, cx| this.refresh_git(cx)),
-                    ),
-            )
+                        cx.listener(|this, _, _, cx| {
+                            // The refresh icon lives inside the expandable footer. Keep the
+                            // action from bubbling into the footer toggle, matching Flutter's
+                            // independent refresh button behavior.
+                            cx.stop_propagation();
+                            this.refresh_git(cx);
+                        }),
+                    )
+                })
+            })
             .into_any_element()
     }
 
     pub(super) fn source_history_panel(&self, cx: &mut Context<Self>) -> AnyElement {
         let view_models = build_history_graph_view_models(&self.git_snapshot);
+        let empty_message = self
+            .git_snapshot_error
+            .as_ref()
+            .cloned()
+            .unwrap_or_else(|| "No Commits Yet".into());
         div()
             .id("source-history-list")
+            .relative()
             .flex()
             .flex_col()
             .flex_shrink_0()
-            .h(px(264.0))
+            .h(px(self.git_history_height))
             .overflow_y_scroll()
             .border_b_1()
             .border_color(theme::border_subtle())
-            .children(view_models.iter().enumerate().map(|(index, view_model)| {
-                self.source_history_item(
-                    index,
-                    &view_model.item,
-                    &view_model.graph,
-                    view_model.kind,
-                    cx,
-                )
-            }))
+            .when(
+                view_models.is_empty() && self.git_snapshot_loading,
+                |panel| {
+                    panel.child(
+                        div()
+                            .flex()
+                            .flex_1()
+                            .items_center()
+                            .justify_center()
+                            .child(icon(AleraIcon::Loading, 18.0, theme::text_muted())),
+                    )
+                },
+            )
+            .when(
+                view_models.is_empty() && !self.git_snapshot_loading,
+                |panel| {
+                    panel.child(
+                        div()
+                            .flex()
+                            .flex_1()
+                            .items_center()
+                            .justify_center()
+                            .gap_2()
+                            .text_sm()
+                            .text_color(theme::text_muted())
+                            .when(self.git_snapshot_error.is_some(), |message| {
+                                message.child(icon(AleraIcon::Error, 15.0, theme::text_muted()))
+                            })
+                            .child(empty_message),
+                    )
+                },
+            )
+            .when(!view_models.is_empty(), |panel| {
+                panel.children(view_models.iter().enumerate().map(|(index, view_model)| {
+                    self.source_history_item(
+                        index,
+                        &view_model.item,
+                        &view_model.graph,
+                        view_model.kind,
+                        cx,
+                    )
+                }))
+            })
+            .when(
+                !view_models.is_empty() && self.git_snapshot_loading,
+                |panel| {
+                    panel.child(div().absolute().top(px(8.0)).right(px(8.0)).child(icon(
+                        AleraIcon::Loading,
+                        12.0,
+                        theme::text_muted(),
+                    )))
+                },
+            )
             .into_any_element()
     }
 
@@ -244,11 +375,9 @@ impl AleraApp {
                         .h(px(26.0))
                         .flex()
                         .items_center()
-                        .gap_2()
                         .text_xs()
                         .text_color(theme::text_muted())
-                        .child(icon(AleraIcon::Loading, 13.0, theme::text_muted()))
-                        .child("Loading Changes"),
+                        .child("Loading Files..."),
                 )
             })
             .when_some(files, |details, files| {

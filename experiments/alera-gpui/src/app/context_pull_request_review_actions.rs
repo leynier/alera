@@ -22,9 +22,9 @@ pub(super) enum PullRequestReviewAction {
 impl PullRequestReviewAction {
     pub(super) fn label(self) -> &'static str {
         match self {
-            Self::Merge => "Merge Pull Request",
-            Self::Squash => "Squash And Merge",
-            Self::Rebase => "Rebase And Merge",
+            Self::Merge => "Create Merge Commit",
+            Self::Squash => "Squash and Merge",
+            Self::Rebase => "Rebase and Merge",
             Self::MarkReady => "Mark Ready For Review",
             Self::ConvertToDraft => "Convert To Draft",
             Self::Close => "Close Pull Request",

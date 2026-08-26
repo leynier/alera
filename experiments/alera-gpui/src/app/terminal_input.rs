@@ -1,9 +1,8 @@
-use std::ops::Range;
-
 use gpui::{
     actions, App, Bounds, ClipboardItem, Context, EntityInputHandler, KeyBinding, Pixels, Point,
     UTF16Selection, Window,
 };
+use std::ops::Range;
 
 use super::AleraApp;
 use crate::terminal::KeyModifiers;
@@ -58,17 +57,14 @@ pub(super) fn register(cx: &mut App) {
 impl EntityInputHandler for AleraApp {
     fn text_for_range(
         &mut self,
-        range: Range<usize>,
-        adjusted_range: &mut Option<Range<usize>>,
+        _: std::ops::Range<usize>,
+        _: &mut Option<std::ops::Range<usize>>,
         _: &mut Window,
         _: &mut Context<Self>,
     ) -> Option<String> {
-        let start = byte_index_for_utf16(&self.terminal_input_text, range.start);
-        let end = byte_index_for_utf16(&self.terminal_input_text, range.end);
-        let actual_start = self.terminal_input_text[..start].encode_utf16().count();
-        let actual_end = self.terminal_input_text[..end].encode_utf16().count();
-        adjusted_range.replace(actual_start..actual_end);
-        Some(self.terminal_input_text[start..end].to_owned())
+        // A terminal has no editable backing document. Returning no text keeps
+        // macOS from applying an IME replacement to a stale shadow buffer.
+        None
     }
 
     fn selected_text_range(
@@ -77,9 +73,8 @@ impl EntityInputHandler for AleraApp {
         _: &mut Window,
         _: &mut Context<Self>,
     ) -> Option<UTF16Selection> {
-        let end = self.terminal_input_text.encode_utf16().count();
         Some(UTF16Selection {
-            range: end..end,
+            range: 0..0,
             reversed: false,
         })
     }
@@ -91,25 +86,24 @@ impl EntityInputHandler for AleraApp {
     }
 
     fn unmark_text(&mut self, _: &mut Window, cx: &mut Context<Self>) {
-        if let Some(text) = self.terminal_marked_text.take() {
-            self.apply_terminal_text_replacement(None, &text, cx);
-        }
+        self.terminal_marked_text = None;
+        cx.notify();
     }
 
     fn replace_text_in_range(
         &mut self,
-        range: Option<Range<usize>>,
+        _: Option<std::ops::Range<usize>>,
         text: &str,
         _: &mut Window,
         cx: &mut Context<Self>,
     ) {
         self.terminal_marked_text = None;
-        self.apply_terminal_text_replacement(range, text, cx);
+        self.commit_terminal_text(text, cx);
     }
 
     fn replace_and_mark_text_in_range(
         &mut self,
-        _: Option<Range<usize>>,
+        _: Option<std::ops::Range<usize>>,
         new_text: &str,
         _: Option<Range<usize>>,
         _: &mut Window,
@@ -143,34 +137,8 @@ impl EntityInputHandler for AleraApp {
 }
 
 impl AleraApp {
-    fn apply_terminal_text_replacement(
-        &mut self,
-        range_utf16: Option<Range<usize>>,
-        replacement: &str,
-        cx: &mut Context<Self>,
-    ) {
-        let range_utf16 = range_utf16.unwrap_or_else(|| {
-            let end = self.terminal_input_text.encode_utf16().count();
-            end..end
-        });
-        let start = byte_index_for_utf16(&self.terminal_input_text, range_utf16.start);
-        let end = byte_index_for_utf16(&self.terminal_input_text, range_utf16.end);
-        let mut next = self.terminal_input_text.clone();
-        next.replace_range(start..end, replacement);
-        let common_bytes = self
-            .terminal_input_text
-            .char_indices()
-            .zip(next.chars())
-            .take_while(|((_, old), new)| old == new)
-            .last()
-            .map(|((index, character), _)| index + character.len_utf8())
-            .unwrap_or(0);
-        let removed = self.terminal_input_text[common_bytes..].chars().count();
-        let added = &next[common_bytes..];
-        let mut bytes = vec![0x7f; removed];
-        bytes.extend_from_slice(added.as_bytes());
-        self.terminal_input_text = next;
-        if bytes.is_empty() {
+    fn commit_terminal_text(&mut self, text: &str, cx: &mut Context<Self>) {
+        if text.is_empty() {
             cx.notify();
             return;
         }
@@ -178,7 +146,6 @@ impl AleraApp {
             return;
         };
         if self.is_terminal_mobile_driven(&session_id) {
-            self.terminal_input_text.clear();
             self.terminal_marked_text = None;
             cx.stop_propagation();
             cx.notify();
@@ -188,7 +155,7 @@ impl AleraApp {
             session.emulator.clear_selection();
         }
         self.reset_terminal_cursor_blink();
-        self.write_terminal_bytes_for(&session_id, bytes);
+        self.write_terminal_bytes_for(&session_id, text.as_bytes().to_vec());
         cx.notify();
     }
 
@@ -212,12 +179,6 @@ impl AleraApp {
         let bytes = session.emulator.encode_key(key, None, modifiers);
         if bytes.is_empty() {
             return;
-        }
-        match key {
-            "backspace" => {
-                self.terminal_input_text.pop();
-            }
-            _ => self.terminal_input_text.clear(),
         }
         self.terminal_marked_text = None;
         self.reset_terminal_cursor_blink();
@@ -274,26 +235,11 @@ impl AleraApp {
         };
         session.emulator.clear_selection();
         let bytes = session.emulator.encode_paste(&text);
-        self.terminal_input_text.clear();
         self.terminal_marked_text = None;
         self.reset_terminal_cursor_blink();
         self.write_terminal_bytes_for(&session_id, bytes);
         cx.stop_propagation();
     }
-}
-
-fn byte_index_for_utf16(text: &str, utf16_offset: usize) -> usize {
-    let mut current = 0;
-    for (index, character) in text.char_indices() {
-        if current >= utf16_offset {
-            return index;
-        }
-        current += character.len_utf16();
-        if current > utf16_offset {
-            return index;
-        }
-    }
-    text.len()
 }
 
 macro_rules! terminal_key_action {

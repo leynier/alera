@@ -2,7 +2,8 @@ use alera_native::api::workspace_files::{
     copy_workspace_entry, create_workspace_directory, create_workspace_file,
     delete_workspace_entry, list_workspace_children, move_workspace_entry,
     read_workspace_editor_text_file, rename_workspace_entry, write_workspace_editor_text_file,
-    WorkspaceEditorTextFile, WorkspaceFileEntry, WorkspaceFileGitStatus, WorkspaceFileKind,
+    WorkspaceEditorTextFile, WorkspaceFileEntry, WorkspaceFileError, WorkspaceFileErrorKind,
+    WorkspaceFileGitStatus, WorkspaceFileKind,
 };
 use serde::Deserialize;
 use serde_json::{json, Value};
@@ -125,7 +126,7 @@ pub(super) async fn write_workspace_file(payload: &Value) -> HostResult<Value> {
 
 pub(super) async fn create_workspace_file_request(payload: &Value) -> HostResult<Value> {
     let request: WorkspaceFileCreateRequest = parse(payload)?;
-    let entry = run(move || {
+    let entry = run_explorer(move || {
         create_workspace_file(
             request.workspace_path,
             request.parent_relative_path,
@@ -138,7 +139,7 @@ pub(super) async fn create_workspace_file_request(payload: &Value) -> HostResult
 
 pub(super) async fn create_workspace_directory_request(payload: &Value) -> HostResult<Value> {
     let request: WorkspaceFileCreateRequest = parse(payload)?;
-    let entry = run(move || {
+    let entry = run_explorer(move || {
         create_workspace_directory(
             request.workspace_path,
             request.parent_relative_path,
@@ -151,7 +152,7 @@ pub(super) async fn create_workspace_directory_request(payload: &Value) -> HostR
 
 pub(super) async fn rename_workspace_file(payload: &Value) -> HostResult<Value> {
     let request: WorkspaceFileRenameRequest = parse(payload)?;
-    let entry = run(move || {
+    let entry = run_explorer(move || {
         rename_workspace_entry(
             request.workspace_path,
             request.relative_path,
@@ -164,7 +165,7 @@ pub(super) async fn rename_workspace_file(payload: &Value) -> HostResult<Value> 
 
 pub(super) async fn copy_workspace_file(payload: &Value) -> HostResult<Value> {
     let request: WorkspaceFileTransferRequest = parse(payload)?;
-    let entry = run(move || {
+    let entry = run_explorer(move || {
         copy_workspace_entry(
             request.workspace_path,
             request.relative_path,
@@ -177,7 +178,7 @@ pub(super) async fn copy_workspace_file(payload: &Value) -> HostResult<Value> {
 
 pub(super) async fn move_workspace_file(payload: &Value) -> HostResult<Value> {
     let request: WorkspaceFileTransferRequest = parse(payload)?;
-    let entry = run(move || {
+    let entry = run_explorer(move || {
         move_workspace_entry(
             request.workspace_path,
             request.relative_path,
@@ -190,7 +191,7 @@ pub(super) async fn move_workspace_file(payload: &Value) -> HostResult<Value> {
 
 pub(super) async fn delete_workspace_file(payload: &Value) -> HostResult<Value> {
     let request: WorkspaceFileDeleteRequest = parse(payload)?;
-    run(move || {
+    run_explorer(move || {
         delete_workspace_entry(
             request.workspace_path,
             request.relative_path,
@@ -237,6 +238,31 @@ async fn run<T: Send + 'static>(
         })
 }
 
+/// Keep explorer action failures aligned with the Flutter workbench copy.
+/// These operations are user-facing file actions, so leaking a platform IO
+/// description here would make the two clients diverge and expose paths or
+/// errno details that Flutter intentionally hides.
+async fn run_explorer<T: Send + 'static>(
+    operation: impl FnOnce() -> Result<T, WorkspaceFileError> + Send + 'static,
+) -> HostResult<T> {
+    tokio::task::spawn_blocking(operation)
+        .await
+        .map_err(|error| HostError::state(format!("Workspace File Task Failed: {error}")))?
+        .map_err(|error| HostError::state(explorer_error_message(error.kind)))
+}
+
+fn explorer_error_message(kind: WorkspaceFileErrorKind) -> &'static str {
+    match kind {
+        WorkspaceFileErrorKind::AlreadyExists => "Item already exists",
+        WorkspaceFileErrorKind::ProtectedPath => "Path is protected",
+        WorkspaceFileErrorKind::OutsideWorkspace => "Path is outside the workspace",
+        WorkspaceFileErrorKind::Unsupported => "Operation is unsupported",
+        WorkspaceFileErrorKind::NotFound => "Item not found",
+        WorkspaceFileErrorKind::Conflict => "File changed on disk",
+        WorkspaceFileErrorKind::InvalidPath | WorkspaceFileErrorKind::Io => "File operation failed",
+    }
+}
+
 fn parse<T: for<'de> Deserialize<'de>>(payload: &Value) -> HostResult<T> {
     serde_json::from_value(payload.clone())
         .map_err(|error| HostError::format(format!("Invalid Workspace File Request: {error}")))
@@ -281,6 +307,29 @@ fn entry_value(entry: WorkspaceFileEntry) -> Value {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn explorer_errors_use_flutter_copy() {
+        let cases = [
+            (WorkspaceFileErrorKind::AlreadyExists, "Item already exists"),
+            (WorkspaceFileErrorKind::ProtectedPath, "Path is protected"),
+            (
+                WorkspaceFileErrorKind::OutsideWorkspace,
+                "Path is outside the workspace",
+            ),
+            (
+                WorkspaceFileErrorKind::Unsupported,
+                "Operation is unsupported",
+            ),
+            (WorkspaceFileErrorKind::NotFound, "Item not found"),
+            (WorkspaceFileErrorKind::Conflict, "File changed on disk"),
+            (WorkspaceFileErrorKind::InvalidPath, "File operation failed"),
+            (WorkspaceFileErrorKind::Io, "File operation failed"),
+        ];
+        for (kind, expected) in cases {
+            assert_eq!(explorer_error_message(kind), expected);
+        }
+    }
 
     #[tokio::test]
     async fn lists_workspace_files_with_desktop_metadata() {

@@ -31,6 +31,21 @@ pub(super) struct PanelResizeState {
 #[derive(Clone, Copy, Debug)]
 pub(super) struct ResizeDrag;
 
+#[derive(Clone, Copy, Debug)]
+pub(super) struct GitHistoryResizeState {
+    pub(super) start_y: Pixels,
+    pub(super) initial_height: f32,
+}
+
+#[derive(Clone, Copy, Debug)]
+pub(super) struct GitHistoryResizeDrag;
+
+#[derive(Clone, Copy, Debug)]
+pub(super) struct PreviewDragState {
+    pub(super) start: Point<Pixels>,
+    pub(super) initial_offset: Point<Pixels>,
+}
+
 #[derive(Clone, Debug)]
 pub(super) enum WorkbenchMenu {
     NewTab {
@@ -145,6 +160,13 @@ pub(super) enum ExplorerMenuTarget {
 pub(super) struct ExplorerClipboard {
     pub(super) relative_path: String,
     pub(super) cut: bool,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(super) struct ExplorerDragData {
+    pub(super) relative_path: String,
+    pub(super) name: String,
+    pub(super) is_directory: bool,
 }
 
 #[derive(Clone, Debug)]

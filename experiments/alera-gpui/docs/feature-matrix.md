@@ -2,6 +2,8 @@
 
 Status meanings: `Real` uses production Alera boundaries and live state, `Partial` proves the core path but lacks daily-driver UX or edge cases, `Excluded` was explicitly outside this POC.
 
+Audit note (2026-08-24): this matrix describes implementation scope and runtime boundaries. It does not by itself prove visual or interaction parity. The live status, evidence and remaining gaps are tracked in `/Volumes/ExternalStorage/Projects/alera/todo.md`; a row remains `parcial` there until Flutter and GPUI are compared across the relevant states.
+
 | Area | Status | Implemented | Remaining Before Daily Use |
 | --- | --- | --- | --- |
 | GPUI shell | Real | Flutter-aligned dark shell, welcome dashboard, activity navigation, project/workspace sidebar, tabs, status and connection state, native app menu and keyboard actions | Packaging and cross-platform release audit |
@@ -14,8 +16,8 @@ Status meanings: `Real` uses production Alera boundaries and live state, `Partia
 | Search and replace | Real | Workspace search, clickable grouped results, regex/case/whole-word/ignored/include/exclude toggles and confirmed replace-all | Packaging and cross-platform release audit |
 | Editor | Real | Multiline code editor, Tree-sitter highlighting, dirty state, safe write, external conflict confirmation, preview/source toolbar and editor tabs | LSP remains excluded |
 | Markdown preview | Real | Native Markdown rendering with source/preview toggle | Link routing and full style parity |
-| Mermaid preview | Real | In-process SVG generation and GPUI display | Interactive pan/zoom and diagnostic details |
-| Image preview | Real | Safe local raster/SVG resolution and rendering | Zoom, pan, metadata and very-large-image policy |
+| Mermaid preview | Real | In-process SVG generation, themed SVG display, contained viewport, zoom and pan | Diagnostic details, link routing and very-large-document policy |
+| Image preview | Real | Safe local raster/SVG resolution, contained viewport, zoom, pan and bounded drag | Metadata and very-large-image policy |
 | Git status and diff | Real | Status, staged/unstaged files, current branch, diff, history, tree/list modes and conflict editor | Packaging and cross-platform release audit |
 | Git mutations | Real | Stage/unstage/discard all or path, commit/amend, fetch, pull, push, stash and pop | Dedicated credential/error remediation and granular hunk staging |
 | Pull requests and CI | Real | GitHub authentication state, current-branch PR, checks, comments/reviews, create/update, ready/draft, comment, close and merge methods | GitLab/Azure providers and browser links remain excluded |

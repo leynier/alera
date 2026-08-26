@@ -2,6 +2,7 @@ use gpui::{
     div, prelude::FluentBuilder as _, px, AnyElement, CursorStyle, InteractiveElement as _,
     IntoElement as _, MouseButton, MouseDownEvent, ParentElement as _, Styled as _,
 };
+use gpui_component::tooltip::Tooltip;
 use qrcode::{Color, QrCode};
 
 use crate::{
@@ -40,7 +41,7 @@ impl AleraApp {
         let mut gateway_rows = vec![
             mobile_settings_row(
                 "Enable Mobile Access",
-                "Accept Connections From Paired Mobile Devices.",
+                "Accept connections from paired mobile devices.",
                 self.mobile_switch(settings.enabled, cx),
             ),
             mobile_settings_row_width(
@@ -64,7 +65,7 @@ impl AleraApp {
         if mode == MobileEndpointMode::Manual {
             gateway_rows.push(mobile_settings_row(
                 "Bind Host",
-                "Interface The Gateway Listens On.",
+                "Interface the gateway listens on.",
                 mobile_text_input(&self.mobile_access.bind_host_input, 220.0),
             ));
             if let Some(hint) = mobile_bind_host_hint(
@@ -80,12 +81,12 @@ impl AleraApp {
         }
         gateway_rows.push(mobile_settings_row(
             "Port",
-            "Gateway Listener Port.",
+            "Gateway listener port.",
             self.mobile_number_control(true, &self.mobile_access.gateway_port_input, "", cx),
         ));
         gateway_rows.push(mobile_settings_row(
             "Apply Gateway Settings",
-            "Persist Gateway Changes.",
+            "Persist gateway changes.",
             self.mobile_button(
                 "mobile-apply-gateway",
                 None,
@@ -105,18 +106,18 @@ impl AleraApp {
         if mode != MobileEndpointMode::Tailscale {
             pairing_rows.push(mobile_settings_row(
                 "Endpoint",
-                "Optional wss://host:port The Phone Connects To. Leave Empty To Use The Bind Host.",
+                "Optional wss://host:port the phone connects to. Leave empty to use the bind host.",
                 mobile_text_input(&self.mobile_access.endpoint_input, 320.0),
             ));
         }
         pairing_rows.push(mobile_settings_row(
             "Device Name",
-            "Optional Expected Name For The New Device.",
+            "Optional expected name for the new device.",
             mobile_text_input(&self.mobile_access.device_name_input, 220.0),
         ));
         pairing_rows.push(mobile_settings_row(
             "Expires In",
-            "Minutes Before The Offer Expires.",
+            "Minutes before the offer expires.",
             self.mobile_number_control(
                 false,
                 &self.mobile_access.expires_minutes_input,
@@ -126,7 +127,7 @@ impl AleraApp {
         ));
         pairing_rows.push(mobile_settings_row(
             "Generate Pairing QR",
-            "Enables The Gateway If It Is Disabled.",
+            "Enables the gateway if it is disabled.",
             self.mobile_button(
                 "mobile-generate-pairing",
                 Some(AleraIcon::MobileDevice),
@@ -149,7 +150,7 @@ impl AleraApp {
             .child(
                 mobile_settings_group(
                     "Mobile Gateway",
-                    "WebSocket Listener The Mobile Companion App Connects To. Applying Changes Restarts The Gateway And Disconnects Connected Devices.",
+                    "WebSocket listener the mobile companion app connects to. Applying changes restarts the gateway and disconnects connected devices.",
                     gateway_rows,
                 )
                 .id(("settings-group-anchor", 0usize))
@@ -162,7 +163,7 @@ impl AleraApp {
             .child(
                 mobile_settings_group(
                     "Link A Device",
-                    "Generates A One-Time QR Offer For The Alera Mobile App. The QR Is Only Shown At Creation Time.",
+                    "Generates a one-time QR offer for the Alera mobile app. The QR is only shown at creation time.",
                     pairing_rows,
                 )
                 .id(("settings-group-anchor", 1usize))

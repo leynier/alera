@@ -228,7 +228,7 @@ impl AleraApp {
             cx.propagate();
             return;
         }
-        self.open_new_workspace_dialog(cx);
+        self.open_new_workspace_dialog(window, cx);
     }
 
     pub(super) fn on_find_in_files(

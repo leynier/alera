@@ -1,6 +1,7 @@
 
 fn terminal_color_row(
     title: &'static str,
+    description: &'static str,
     fallback: &'static str,
     input: &Entity<InputState>,
 ) -> gpui::Div {
@@ -12,7 +13,7 @@ fn terminal_color_row(
     };
     exact_settings_row(
         title,
-        "Override The Terminal Color. Leave Empty To Use The Theme.",
+        description,
         div().w(px(220.0)).h(px(48.0)).child(
             design_system::text_field(input)
                 .height(px(48.0))

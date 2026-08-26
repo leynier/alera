@@ -1,5 +1,6 @@
 use std::sync::OnceLock;
 use std::sync::{Arc, Mutex};
+use std::time::Instant;
 
 use alacritty_terminal::event::{Event, EventListener};
 use alacritty_terminal::grid::{Dimensions, Scroll};
@@ -86,11 +87,28 @@ const DEFAULT_WORD_SEPARATORS: &[char] = &['\0', ' ', '.', ':', '-', '\\', '"', 
 pub struct TerminalSession {
     pub session_id: String,
     pub attaching: bool,
+    /// Prevent duplicate resume requests while the host is sending a full
+    /// snapshot or a delta on the terminal lane.
+    pub output_resync_in_flight: bool,
+    pub operation: Option<TerminalSessionOperation>,
+    pub operation_started_at: Option<Instant>,
     pub running: bool,
     pub error: Option<String>,
     pub columns: usize,
     pub rows: usize,
     pub emulator: TerminalEmulator,
+    restore_generation: u64,
+    restore_pending: Option<Vec<u8>>,
+    restore_offset: usize,
+    restore_total_bytes: usize,
+    restore_output_pending: Vec<u8>,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum TerminalSessionOperation {
+    Starting,
+    Reconnecting,
+    Restarting,
 }
 
 impl TerminalEmulator {
@@ -533,11 +551,78 @@ impl TerminalSession {
         Self {
             session_id,
             attaching: true,
+            output_resync_in_flight: false,
+            operation: Some(TerminalSessionOperation::Starting),
+            operation_started_at: Some(Instant::now()),
             running: true,
             error: None,
             columns: DEFAULT_COLUMNS,
             rows: DEFAULT_ROWS,
             emulator: TerminalEmulator::default(),
+            restore_generation: 0,
+            restore_pending: None,
+            restore_offset: 0,
+            restore_total_bytes: 0,
+            restore_output_pending: Vec::new(),
+        }
+    }
+
+    /// Queue a host snapshot for incremental replay so a large scrollback does
+    /// not block the first useful frame of a restored terminal.
+    pub fn begin_restore(&mut self, bytes: Vec<u8>) -> u64 {
+        self.restore_generation = self.restore_generation.wrapping_add(1);
+        self.restore_total_bytes = bytes.len();
+        self.restore_offset = 0;
+        self.restore_output_pending.clear();
+        self.restore_pending = (!bytes.is_empty()).then_some(bytes);
+        self.restore_generation
+    }
+
+    /// Preserve live PTY bytes until the snapshot has been replayed. The host
+    /// can send output immediately after an attach or full resync response;
+    /// applying it before the batched snapshot would reorder the terminal.
+    pub fn write_output(&mut self, bytes: &[u8]) {
+        if self.restore_pending.is_some() {
+            self.restore_output_pending.extend_from_slice(bytes);
+        } else {
+            self.emulator.write(bytes);
+        }
+    }
+
+    pub fn restore_generation(&self) -> u64 {
+        self.restore_generation
+    }
+
+    pub fn restore_progress(&self) -> Option<(usize, usize)> {
+        (self.restore_pending.is_some() && self.restore_total_bytes > 0)
+            .then_some((self.restore_offset, self.restore_total_bytes))
+    }
+
+    pub fn restore_in_progress(&self) -> bool {
+        self.restore_pending.is_some()
+    }
+
+    /// Apply one bounded batch. The caller schedules another batch on the
+    /// next frame while this returns `true`.
+    pub fn restore_next_chunk(&mut self, max_bytes: usize) -> bool {
+        let Some(bytes) = self.restore_pending.as_ref() else {
+            return false;
+        };
+        let chunk_size = max_bytes.max(1);
+        let end = (self.restore_offset + chunk_size).min(bytes.len());
+        self.emulator.write(&bytes[self.restore_offset..end]);
+        self.restore_offset = end;
+        if self.restore_offset >= bytes.len() {
+            self.restore_pending = None;
+            self.restore_offset = 0;
+            self.restore_total_bytes = 0;
+            if !self.restore_output_pending.is_empty() {
+                let queued = std::mem::take(&mut self.restore_output_pending);
+                self.emulator.write(&queued);
+            }
+            false
+        } else {
+            true
         }
     }
 }
@@ -644,6 +729,34 @@ mod tests {
     }
 
     #[test]
+    fn terminal_session_replays_restore_in_bounded_batches() {
+        let mut session = TerminalSession::new("restore".to_owned());
+        let generation = session.begin_restore(b"alpha beta".to_vec());
+        assert_eq!(session.restore_generation(), generation);
+        assert_eq!(session.restore_progress(), Some((0, 10)));
+        assert!(session.restore_next_chunk(5));
+        assert_eq!(session.restore_progress(), Some((5, 10)));
+        assert!(!session.restore_next_chunk(5));
+        assert_eq!(session.restore_progress(), None);
+        assert!(session.emulator.visible_text().contains("alpha"));
+    }
+
+    #[test]
+    fn terminal_output_waits_until_restore_snapshot_is_replayed() {
+        let mut session = TerminalSession::new("restore-order".to_owned());
+        session.begin_restore(b"snapshot".to_vec());
+        session.write_output(b" live");
+
+        assert!(!session.emulator.visible_text().contains("live"));
+        assert!(!session.restore_next_chunk(1024));
+
+        let visible = session.emulator.visible_text();
+        assert!(visible.contains("snapshot"));
+        assert!(visible.contains("live"));
+        assert!(visible.find("snapshot") < visible.find("live"));
+    }
+
+    #[test]
     fn terminal_selection_trims_row_padding_and_selects_words_like_xterm() {
         let mut terminal = TerminalEmulator::new(20, 3);
         terminal.write(b"hello-world\r\nsecond row");
@@ -689,6 +802,26 @@ mod tests {
             .collect::<Vec<_>>();
         assert_eq!(text, ["two", "three", "four"]);
         assert!(lines.iter().all(|line| line.cursor_column.is_none()));
+    }
+
+    #[test]
+    fn redraw_sequence_keeps_prompt_on_one_row() {
+        let mut terminal = TerminalEmulator::new(100, 30);
+        let prompt =
+            b"leynier in leynier-website on main\r\n\x1b[1;32m\xE2\x9D\xAF\x1b[0m \x1b]133;B\x07";
+        let redraw = b"\r\r\x1b[A\x1b[A\x1b[0m\x1b[27m\x1b[24m\x1b[J\x1b]133;A\x07leynier in leynier-website on main\r\n\x1b[1;32m\xE2\x9D\xAF\x1b[0m \x1b]133;B\x07";
+        terminal.write(prompt);
+        for _ in 0..8 {
+            terminal.write(redraw);
+        }
+        let lines = terminal.visible_lines("default");
+        assert_eq!(
+            lines
+                .iter()
+                .filter(|line| line.plain_text.contains("leynier in leynier-website"))
+                .count(),
+            1
+        );
     }
 
     #[test]

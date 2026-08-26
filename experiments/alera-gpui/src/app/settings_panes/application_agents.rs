@@ -3,9 +3,96 @@ fn application_pane(
     settings: &SettingsState,
     inputs: &SettingsInputs,
     anchors: &SettingsGroupAnchors,
+    diagnostics_export_busy: bool,
     diagnostics_log_level_select: &SettingsSelect,
     cx: &mut Context<AleraApp>,
 ) -> AnyElement {
+    let github_star_state = settings.github_star_state;
+    let support_control: AnyElement = match github_star_state {
+        GitHubStarState::Loading => div()
+            .w(px(110.0))
+            .h(px(34.0))
+            .rounded_lg()
+            .bg(theme::surface_raised())
+            .into_any_element(),
+        GitHubStarState::NotStarred => div()
+            .id("support-alera-star")
+            .flex()
+            .items_center()
+            .justify_center()
+            .h(px(34.0))
+            .px_3()
+            .gap_2()
+            .rounded_md()
+            .border_1()
+            .border_color(theme::border())
+            .bg(theme::surface_selected())
+            .cursor(CursorStyle::PointingHand)
+            .hover(|style| style.bg(theme::surface_raised()))
+            .on_mouse_down(
+                MouseButton::Left,
+                cx.listener(|this, _: &MouseDownEvent, _, cx| {
+                    this.star_github(cx);
+                    cx.stop_propagation();
+                }),
+            )
+            .child(icon(AleraIcon::Star, 16.0, theme::text_muted()))
+            .child("Star")
+            .into_any_element(),
+        GitHubStarState::Starring => div()
+            .flex()
+            .items_center()
+            .justify_center()
+            .h(px(34.0))
+            .px_3()
+            .gap_2()
+            .rounded_md()
+            .border_1()
+            .border_color(theme::border())
+            .bg(theme::surface_selected())
+            .child(loading_indicator(14.0, theme::text_muted()))
+            .child("Starring…")
+            .into_any_element(),
+        GitHubStarState::Starred => div()
+            .flex()
+            .items_center()
+            .h(px(34.0))
+            .gap_2()
+            .child(icon(AleraIcon::Star, 16.0, theme::warning()))
+            .child(
+                div()
+                    .text_size(px(13.0))
+                    .font_weight(gpui::FontWeight::MEDIUM)
+                    .text_color(theme::warning())
+                    .child("Thanks for the support!"),
+            )
+            .into_any_element(),
+        GitHubStarState::Error => div()
+            .id("support-alera-retry")
+            .flex()
+            .items_center()
+            .justify_center()
+            .h(px(34.0))
+            .px_3()
+            .gap_2()
+            .rounded_md()
+            .border_1()
+            .border_color(theme::border())
+            .bg(theme::surface_selected())
+            .cursor(CursorStyle::PointingHand)
+            .hover(|style| style.bg(theme::surface_raised()))
+            .on_mouse_down(
+                MouseButton::Left,
+                cx.listener(|this, _: &MouseDownEvent, _, cx| {
+                    this.star_github(cx);
+                    cx.stop_propagation();
+                }),
+            )
+            .child(icon(AleraIcon::Star, 16.0, theme::text_muted()))
+            .child("Try Again")
+            .into_any_element(),
+        GitHubStarState::Hidden => div().into_any_element(),
+    };
     div()
         .child(
             application_workspace_panel(workspace_directory_input, cx)
@@ -153,14 +240,21 @@ fn application_pane(
                         ),
                         exact_settings_row(
                             "Export Diagnostics",
-                            "Save app and runtime logs with version details as a zip. Secrets such as tokens are masked before anything is written.",
-                            settings_button("export-diagnostics", "Export").on_mouse_down(
-                                MouseButton::Left,
-                                cx.listener(|this, _: &MouseDownEvent, window, cx| {
-                                    this.export_diagnostics(window, cx);
-                                    cx.stop_propagation();
-                                }),
-                            ),
+                            "Save a zip with app and runtime logs plus version details. Secrets such as tokens are masked before anything is written.",
+                            settings_button_with_loading(
+                                "export-diagnostics",
+                                "Export",
+                                diagnostics_export_busy,
+                            )
+                            .when(!diagnostics_export_busy, |button| {
+                                button.on_mouse_down(
+                                    MouseButton::Left,
+                                    cx.listener(|this, _: &MouseDownEvent, window, cx| {
+                                        this.export_diagnostics(window, cx);
+                                        cx.stop_propagation();
+                                    }),
+                                )
+                            }),
                         ),
                         exact_settings_row(
                             "Log Level",
@@ -199,6 +293,44 @@ fn application_pane(
                     )),
                 ),
         )
+        .child(
+            div()
+                .mt_6()
+                .child(
+                    exact_settings_group(
+                        "Updates",
+                        "Check the Alera release channel for a newer desktop build.",
+                        vec![update_settings_row(settings, cx)]
+                    )
+                    .id(("settings-group-anchor", 4usize))
+                    .anchor_scroll(settings_group_anchor(
+                        anchors,
+                        SettingsPane::Application,
+                        4,
+                    )),
+                ),
+        )
+        .when(github_star_state != GitHubStarState::Hidden, |pane| {
+            pane.child(
+                div()
+                    .mt_6()
+                    .child(
+                        settings_title_only_group(
+                            "Support Alera",
+                            vec![settings_title_only_row(
+                                "Star Alera on GitHub",
+                                support_control,
+                            )],
+                        )
+                        .id(("settings-group-anchor", 5usize))
+                        .anchor_scroll(settings_group_anchor(
+                            anchors,
+                            SettingsPane::Application,
+                            5,
+                        )),
+                    ),
+            )
+        })
         .into_any_element()
 }
 
@@ -408,68 +540,68 @@ fn agents_pane(
                 .child(
                     exact_settings_group(
                         "Status Hooks",
-                        "Managed Hooks Let Terminal Tabs Show Agent State.",
+                        "Managed hooks let terminal tabs show agent state.",
                         vec![
                         agent_hook_row(
                             "codex",
                             "Codex Hooks",
-                            "Use An Alera-Managed Codex Runtime Home With Status Hooks.",
+                            "Use an Alera-managed Codex runtime home with status hooks.",
                             settings,
                             cx,
                         ),
                         agent_hook_row(
                             "claude",
                             "Claude Code Hooks",
-                            "Use An Alera-Managed Claude Code Config With Status Hooks.",
+                            "Use an Alera-managed Claude Code config with status hooks.",
                             settings,
                             cx,
                         ),
                         agent_hook_row(
                             "copilot",
                             "GitHub Copilot Hooks",
-                            "Use An Alera-Managed GitHub Copilot Home Overlay.",
+                            "Use an Alera-managed GitHub Copilot home overlay.",
                             settings,
                             cx,
                         ),
                         agent_hook_row(
                             "cursor",
                             "Cursor Hooks",
-                            "Use An Alera-Managed Cursor Agent Plugin Wrapper.",
+                            "Use an Alera-managed Cursor Agent plugin wrapper.",
                             settings,
                             cx,
                         ),
                         agent_hook_row(
                             "agy",
                             "Antigravity Hooks",
-                            "Install Alera-Managed Antigravity Hooks For The Agy CLI.",
+                            "Install Alera-managed Antigravity hooks for the agy CLI. Disable to remove only Alera-managed hook entries.",
                             settings,
                             cx,
                         ),
                         agent_hook_row(
                             "opencode",
                             "OpenCode Hooks",
-                            "Use An Alera-Managed OpenCode Config Overlay With Status Plugin.",
+                            "Use an Alera-managed OpenCode config overlay with status plugin.",
                             settings,
                             cx,
                         ),
                         agent_hook_row(
                             "pi",
                             "Pi Hooks",
-                            "Use An Alera-Managed Pi Agent Overlay With Status Extension.",
+                            "Use an Alera-managed Pi agent overlay with status extension.",
                             settings,
                             cx,
                         ),
                         agent_hook_row(
                             "amp",
                             "Amp Hooks",
-                            "Use An Alera-Managed Amp Config Overlay.",
+                            "Use an Alera-managed Amp config overlay.",
                             settings,
                             cx,
                         ),
                         agent_hook_row(
                             "grok",
                             "Grok Build Hooks",
-                            "Install Alera-Managed Grok Build Hooks In A Dedicated Global File.",
+                            "Install Alera-managed Grok Build hooks in a dedicated global file.",
                             settings,
                             cx,
                         ),
@@ -485,11 +617,11 @@ fn agents_pane(
                 .child(
                     exact_settings_group(
                         "Behavior",
-                        "How Alera Reacts While Agents Are Running.",
+                        "How Alera reacts while agents are running.",
                         vec![
                         exact_settings_row(
                             "Agent Status Notifications",
-                            "Show Native Notifications When An Agent Needs Attention. Bursts Are Grouped Into One Notification.",
+                            "Show native notifications when an agent needs attention. Bursts are grouped into one notification.",
                             settings_switch(
                                 "agent-status-notifications",
                                 settings.agent_status_notifications_enabled,
@@ -510,7 +642,7 @@ fn agents_pane(
                         ),
                         exact_settings_row(
                             "Agent Finished Notifications",
-                            "Also Notify When An Agent Finishes. Most Agents Report The End Of A Turn, Not The End Of A Task.",
+                            "Also notify when an agent finishes. Most agents report the end of a turn, not the end of a task, so this notifies on every reply.",
                             settings_switch(
                                 "agent-finished-notifications",
                                 settings.agent_status_finished_notifications_enabled,
@@ -531,7 +663,7 @@ fn agents_pane(
                         ),
                         exact_settings_row(
                             "Keep Computer Awake While Agents Are Working",
-                            "Keep This Computer And Display Awake While Agents Are Working.",
+                            agent_awake_description(),
                             settings_switch(
                                 "keep-computer-awake",
                                 settings.keep_computer_awake_while_agents_work,
@@ -557,4 +689,12 @@ fn agents_pane(
                 ),
         )
         .into_any_element()
+}
+
+fn agent_awake_description() -> &'static str {
+    if cfg!(target_os = "windows") {
+        "Keeps this computer and display awake while agents are working. Lid-close behavior follows this device's power settings."
+    } else {
+        "Keeps this computer and display awake while agents are working. Alera also asks this device to stay awake when the lid is closed, subject to its power policy."
+    }
 }

@@ -2,6 +2,8 @@
 
 This matrix is the completion contract for the GPUI implementation scope agreed in `context.md`. `Done` means the GPUI surface matches the Flutter structure, visual hierarchy, interactive controls, live data and relevant loading, empty, error and confirmation states. A live runtime call without the corresponding product UI is not parity.
 
+Audit note (2026-08-24): the `Done` labels below are historical implementation claims and are not a substitute for live evidence. The current authoritative status is the complete domain inventory in `/Volumes/ExternalStorage/Projects/alera/todo.md`, which downgrades rows to `parcial` or `sin validar` until the corresponding Computer Use scenario is demonstrated.
+
 Explicit POC exclusions remain out of scope: Browser, Updater, PDF preview, Account and OAuth, SSH, LSP, emulator embedding and the final license audit.
 
 ## Design System And Interaction Contract

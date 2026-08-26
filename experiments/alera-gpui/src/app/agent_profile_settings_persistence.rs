@@ -38,13 +38,13 @@ impl AleraApp {
         }
         let name = profile_input_value(&self.agent_profile_settings.name_input, cx);
         if name.is_empty() {
-            self.agent_profile_settings.error = Some("Name Is Required".into());
+            self.agent_profile_settings.error = Some("Name is required.".into());
             cx.notify();
             return;
         }
         let command = profile_input_value(&self.agent_profile_settings.command_input, cx);
         if self.agent_profile_settings.launch_mode == "command" && command.is_empty() {
-            self.agent_profile_settings.error = Some("Command Is Required".into());
+            self.agent_profile_settings.error = Some("Command is required.".into());
             cx.notify();
             return;
         }
@@ -128,12 +128,6 @@ impl AleraApp {
         let Some(id) = self.agent_profile_settings.selected_id.clone() else {
             return;
         };
-        if !self.agent_profile_settings.remove_armed {
-            self.agent_profile_settings.remove_armed = true;
-            self.agent_profile_settings.error = Some("Press Remove Again To Confirm".into());
-            cx.notify();
-            return;
-        }
         self.agent_profile_settings.saving = true;
         self.agent_profile_settings.error = None;
         let bridge = self.bridge.clone();

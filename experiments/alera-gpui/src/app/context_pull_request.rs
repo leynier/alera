@@ -11,7 +11,7 @@ use gpui_component::text::TextView;
 use super::context_pull_request_review_actions::PullRequestReviewAction;
 use super::AleraApp;
 use crate::forge_service::{ForgeAuthStatus, ForgeCheck, ForgeUnavailableReason};
-use crate::icons::{icon, AleraIcon};
+use crate::icons::{icon, loading_indicator, AleraIcon};
 use crate::theme;
 
 impl AleraApp {
@@ -21,27 +21,27 @@ impl AleraApp {
         cx: &mut Context<Self>,
     ) -> AnyElement {
         if self.forge_busy && self.forge_snapshot.auth_status == ForgeAuthStatus::Unknown {
-            return pull_request_message(
-                AleraIcon::Loading,
-                None,
-                "Loading Pull Request",
-                None,
-                cx,
-            );
+            return div()
+                .flex()
+                .flex_1()
+                .items_center()
+                .justify_center()
+                .child(loading_indicator(20.0, theme::text_muted()))
+                .into_any_element();
         }
         if let Some(reason) = self.forge_snapshot.unavailable_reason {
             let (title, message) = match reason {
                 ForgeUnavailableReason::NoRemote => (
                     "No Remote",
-                    "This Repository Has No Remote To Detect A Provider From.",
+                    "This repository has no remote to detect a provider from.",
                 ),
                 ForgeUnavailableReason::ProviderNotDetected => (
                     "Provider Not Detected",
-                    "Could Not Detect The Git Hosting Provider. Set It In Project Settings.",
+                    "Could not detect the git hosting provider. Set it in Project settings.",
                 ),
                 ForgeUnavailableReason::UnsupportedProvider => (
                     "Unsupported Provider",
-                    "This Hosting Provider Is Not Supported Yet.",
+                    "This hosting provider is not supported yet.",
                 ),
             };
             return pull_request_message(AleraIcon::GitPullRequest, Some(title), message, None, cx);
@@ -51,7 +51,7 @@ impl AleraApp {
                 return pull_request_message(
                     AleraIcon::Error,
                     Some("CLI Not Found"),
-                    "Install `gh` And Ensure It Is On Your PATH.",
+                    "Install `gh` and ensure it is on your PATH.",
                     None,
                     cx,
                 );
@@ -60,7 +60,7 @@ impl AleraApp {
                 return pull_request_message(
                     AleraIcon::Error,
                     Some("Not Authenticated"),
-                    "Run `gh auth login` To Sign In, Then Refresh.",
+                    "Run `gh auth login` to sign in, then refresh.",
                     Some("Refresh"),
                     cx,
                 );
@@ -162,6 +162,9 @@ impl AleraApp {
                             }),
                     ),
             )
+            .when_some(self.forge_error.clone(), |panel, error| {
+                panel.child(pull_request_error_banner(error))
+            })
             .child(
                 div()
                     .id("pull-request-review-scroll")
@@ -322,6 +325,7 @@ impl AleraApp {
         div()
             .mt_4()
             .child(section_label("Checks", self.forge_snapshot.checks.len()))
+            .child(div().h(px(8.0)))
             .when(self.forge_snapshot.checks.is_empty(), |section| {
                 section.child(empty_label("No Checks Reported"))
             })
@@ -460,7 +464,18 @@ impl AleraApp {
             .when(expanded, |row| {
                 let details = [
                     check.workflow.map(|value| ("Workflow", value)),
+                    check.event.map(|value| ("Event", value)),
                     check.description.map(|value| ("Description", value)),
+                    check
+                        .started_at
+                        .as_deref()
+                        .and_then(format_check_timestamp)
+                        .map(|value| ("Started", value)),
+                    check
+                        .completed_at
+                        .as_deref()
+                        .and_then(format_check_timestamp)
+                        .map(|value| ("Completed", value)),
                 ];
                 let details = details.into_iter().flatten().collect::<Vec<_>>();
                 row.child(
@@ -498,12 +513,92 @@ impl AleraApp {
             .review
             .as_ref()
             .is_some_and(|review| review.state.eq_ignore_ascii_case("open"));
+        let composing = self.forge_comment_composing;
         div()
             .mt_4()
-            .child(section_label(
-                "Comments",
-                self.forge_snapshot.comments.len(),
-            ))
+            .child(
+                div()
+                    .flex()
+                    .items_center()
+                    .child(section_label(
+                        "Comments",
+                        self.forge_snapshot.comments.len(),
+                    ))
+                    .child(div().flex_1())
+                    .when(review_open && !composing, |header| {
+                        header.child(
+                            pr_icon_button("context-pr-comment-start", AleraIcon::Add)
+                                .on_mouse_down(
+                                    gpui::MouseButton::Left,
+                                    cx.listener(|this, _, window, cx| {
+                                        if this.forge_busy {
+                                            return;
+                                        }
+                                        this.forge_comment_composing = true;
+                                        this.forge_comment_input.update(cx, |input, cx| {
+                                            input.set_value("", window, cx);
+                                            input.focus(window, cx);
+                                        });
+                                        cx.notify();
+                                    }),
+                                ),
+                        )
+                    }),
+            )
+            .when(composing, |section| {
+                section
+                    .child(
+                        Input::new(&self.forge_comment_input)
+                            .disabled(self.forge_busy)
+                            .h(px(72.0)),
+                    )
+                    .child(
+                        div()
+                            .flex()
+                            .justify_end()
+                            .items_center()
+                            .gap_2()
+                            .mt_2()
+                            .child(
+                                pr_button(
+                                    "context-pr-comment-cancel",
+                                    AleraIcon::Close,
+                                    "Cancel",
+                                    false,
+                                )
+                                .when(!self.forge_busy, |button| {
+                                    button.on_mouse_down(
+                                        gpui::MouseButton::Left,
+                                        cx.listener(|this, _, _, cx| {
+                                            this.forge_comment_composing = false;
+                                            cx.notify();
+                                        }),
+                                    )
+                                }),
+                            )
+                            .child(
+                                pr_button(
+                                    "context-pr-comment-post",
+                                    if self.forge_busy {
+                                        AleraIcon::Loading
+                                    } else {
+                                        AleraIcon::Send
+                                    },
+                                    "Post Comment",
+                                    true,
+                                )
+                                .when(!self.forge_busy, |button| {
+                                    button.on_mouse_down(
+                                        gpui::MouseButton::Left,
+                                        cx.listener(|this, _, _, cx| {
+                                            this.add_review_comment(cx);
+                                        }),
+                                    )
+                                }),
+                            ),
+                    )
+                    .child(div().h(px(12.0)))
+            })
             .when(self.forge_snapshot.comments.is_empty(), |section| {
                 section.child(empty_label("No Comments Yet"))
             })
@@ -603,32 +698,6 @@ impl AleraApp {
                             )
                     }),
             )
-            .when(review_open, |section| {
-                section.child(
-                    div()
-                        .mt_3()
-                        .child(Input::new(&self.forge_comment_input).disabled(self.forge_busy))
-                        .child(
-                            pr_button(
-                                "context-pr-comment-add",
-                                if self.forge_busy {
-                                    AleraIcon::Loading
-                                } else {
-                                    AleraIcon::Add
-                                },
-                                "Add Comment",
-                                true,
-                            )
-                            .mt_2()
-                            .when(!self.forge_busy, |button| {
-                                button.on_mouse_down(
-                                    gpui::MouseButton::Left,
-                                    cx.listener(|this, _, _, cx| this.add_review_comment(cx)),
-                                )
-                            }),
-                        ),
-                )
-            })
             .into_any_element()
     }
 
@@ -859,6 +928,20 @@ fn pull_request_message(
         .into_any_element()
 }
 
+pub(super) fn pull_request_error_banner(error: SharedString) -> gpui::Div {
+    div()
+        .w_full()
+        .px_3()
+        .py_2()
+        .bg(gpui::Rgba {
+            a: 0.12,
+            ..theme::danger()
+        })
+        .text_sm()
+        .text_color(theme::danger())
+        .child(error)
+}
+
 fn state_chip(label: &'static str, color: gpui::Rgba) -> gpui::Div {
     div()
         .px_2()
@@ -900,19 +983,32 @@ fn field_label(label: &'static str) -> gpui::Div {
 
 fn check_group(check: &ForgeCheck) -> &'static str {
     match check.bucket.to_ascii_lowercase().as_str() {
-        "fail" | "failure" | "cancel" | "cancelled" | "timed_out" => "Failing",
-        "pass" | "success" | "skipped" | "neutral" => "Successful",
+        "fail" | "failure" | "cancel" | "cancelled" | "timed_out" | "timedout"
+        | "action_required" | "manual" => "Failing",
+        "pass" | "success" | "skipped" | "skipping" | "neutral" => "Successful",
         _ => "In Progress",
     }
 }
 
 fn check_status_icon(bucket: &str) -> AnyElement {
-    let (kind, color) = match bucket.to_ascii_lowercase().as_str() {
-        "pass" | "success" => (AleraIcon::Success, theme::success()),
-        "fail" | "failure" | "cancel" | "cancelled" => (AleraIcon::Cancel, theme::danger()),
-        _ => (AleraIcon::Loading, theme::warning()),
+    let kind = check_status_icon_kind(bucket);
+    let color = match kind {
+        AleraIcon::Success => theme::success(),
+        AleraIcon::Cancel => theme::danger(),
+        AleraIcon::Circle => theme::text_muted(),
+        _ => theme::warning(),
     };
     icon(kind, 15.0, color)
+}
+
+fn check_status_icon_kind(bucket: &str) -> AleraIcon {
+    match bucket.to_ascii_lowercase().as_str() {
+        "pass" | "success" => AleraIcon::Success,
+        "fail" | "failure" | "cancel" | "cancelled" | "timed_out" | "timedout"
+        | "action_required" | "manual" => AleraIcon::Cancel,
+        "skipped" | "skipping" | "neutral" | "not_applicable" => AleraIcon::Circle,
+        _ => AleraIcon::Loading,
+    }
 }
 
 fn format_review_timestamp(value: &str) -> Option<String> {
@@ -922,6 +1018,17 @@ fn format_review_timestamp(value: &str) -> Option<String> {
             timestamp
                 .with_timezone(&chrono::Local)
                 .format("%a, %b %-d · %-I:%M %p")
+                .to_string()
+        })
+}
+
+fn format_check_timestamp(value: &str) -> Option<String> {
+    chrono::DateTime::parse_from_rfc3339(value)
+        .ok()
+        .map(|timestamp| {
+            timestamp
+                .with_timezone(&chrono::Local)
+                .format("%Y-%m-%d %H:%M")
                 .to_string()
         })
 }
@@ -940,11 +1047,11 @@ fn action_icon(action: PullRequestReviewAction) -> AleraIcon {
     match action {
         PullRequestReviewAction::Merge
         | PullRequestReviewAction::Squash
-        | PullRequestReviewAction::Rebase => AleraIcon::GitSync,
-        PullRequestReviewAction::MarkReady => AleraIcon::Check,
+        | PullRequestReviewAction::Rebase => AleraIcon::GitMerge,
+        PullRequestReviewAction::MarkReady => AleraIcon::Success,
         PullRequestReviewAction::ConvertToDraft => AleraIcon::Edit,
-        PullRequestReviewAction::Close => AleraIcon::Close,
-        PullRequestReviewAction::Unlink => AleraIcon::Link,
+        PullRequestReviewAction::Close => AleraIcon::GitPullRequestClosed,
+        PullRequestReviewAction::Unlink => AleraIcon::Unlink,
     }
 }
 
@@ -1010,4 +1117,64 @@ fn pr_icon_button_owned(id: String, kind: AleraIcon) -> gpui::Stateful<gpui::Div
         .cursor(CursorStyle::PointingHand)
         .hover(|style| style.bg(theme::surface_selected()))
         .child(icon(kind, 14.0, theme::text_muted()))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{action_icon, check_group, check_status_icon_kind};
+    use crate::app::context_pull_request_review_actions::PullRequestReviewAction;
+    use crate::forge_api::ForgeCheck;
+    use crate::icons::AleraIcon;
+
+    fn check(bucket: &str) -> ForgeCheck {
+        ForgeCheck {
+            name: "check".to_owned(),
+            _state: String::new(),
+            bucket: bucket.to_owned(),
+            link: None,
+            description: None,
+            workflow: None,
+            event: None,
+            started_at: None,
+            completed_at: None,
+        }
+    }
+
+    #[test]
+    fn check_status_icons_match_flutter_conclusions() {
+        assert_eq!(check_status_icon_kind("pass"), AleraIcon::Success);
+        assert_eq!(check_status_icon_kind("timed_out"), AleraIcon::Cancel);
+        assert_eq!(check_status_icon_kind("action_required"), AleraIcon::Cancel);
+        assert_eq!(check_status_icon_kind("skipping"), AleraIcon::Circle);
+        assert_eq!(check_status_icon_kind("neutral"), AleraIcon::Circle);
+        assert_eq!(check_status_icon_kind("pending"), AleraIcon::Loading);
+    }
+
+    #[test]
+    fn check_groups_match_flutter_conclusion_buckets() {
+        assert_eq!(check_group(&check("timed_out")), "Failing");
+        assert_eq!(check_group(&check("action_required")), "Failing");
+        assert_eq!(check_group(&check("skipping")), "Successful");
+        assert_eq!(check_group(&check("pending")), "In Progress");
+    }
+
+    #[test]
+    fn review_action_icons_match_flutter() {
+        assert_eq!(
+            action_icon(PullRequestReviewAction::Rebase),
+            AleraIcon::GitMerge
+        );
+        assert_eq!(
+            action_icon(PullRequestReviewAction::MarkReady),
+            AleraIcon::Success
+        );
+        assert_eq!(
+            action_icon(PullRequestReviewAction::Close),
+            AleraIcon::GitPullRequestClosed
+        );
+        assert_eq!(
+            action_icon(PullRequestReviewAction::Unlink),
+            AleraIcon::Unlink
+        );
+    }
 }

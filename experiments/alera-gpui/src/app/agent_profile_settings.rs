@@ -31,6 +31,7 @@ pub(super) struct AgentProfileSettingsState {
     pub(super) selected_id: Option<String>,
     pub(super) creating_new: bool,
     pub(super) loading: bool,
+    pub(super) load_error: Option<SharedString>,
     pub(super) saving: bool,
     pub(super) error: Option<SharedString>,
     pub(super) toast: Option<SharedString>,
@@ -38,7 +39,6 @@ pub(super) struct AgentProfileSettingsState {
     pub(super) dropdown_focus: FocusHandle,
     pub(super) dropdown_highlighted_index: usize,
     pub(super) dropdown_filter_input: Entity<InputState>,
-    pub(super) remove_armed: bool,
     pub(super) risk_confirmation_open: bool,
     pub(super) original_risk_markers: BTreeSet<String>,
     pub(super) discovered_personas: BTreeMap<String, Vec<String>>,
@@ -65,6 +65,7 @@ impl AgentProfileSettingsState {
             selected_id: None,
             creating_new: false,
             loading: false,
+            load_error: None,
             saving: false,
             error: None,
             toast: None,
@@ -76,7 +77,6 @@ impl AgentProfileSettingsState {
                     .placeholder("Search")
                     .clean_on_escape()
             }),
-            remove_armed: false,
             risk_confirmation_open: false,
             original_risk_markers: BTreeSet::new(),
             discovered_personas: BTreeMap::new(),

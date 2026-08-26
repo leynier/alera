@@ -19,6 +19,7 @@ pub use controls::{
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum ButtonKind {
     Filled,
+    Elevated,
     Text,
     Outlined,
     Destructive,
@@ -274,13 +275,37 @@ pub fn button_with_loading(
     disabled: bool,
     loading: bool,
 ) -> gpui::Stateful<gpui::Div> {
+    button_with_loading_and_leading_icon(id, label, kind, disabled, loading, None)
+}
+
+pub fn button_with_leading_icon(
+    id: impl Into<ElementId>,
+    label: impl Into<SharedString>,
+    kind: ButtonKind,
+    disabled: bool,
+    leading: AnyElement,
+) -> gpui::Stateful<gpui::Div> {
+    button_with_loading_and_leading_icon(id, label, kind, disabled, false, Some(leading))
+}
+
+pub fn button_with_loading_and_leading_icon(
+    id: impl Into<ElementId>,
+    label: impl Into<SharedString>,
+    kind: ButtonKind,
+    disabled: bool,
+    loading: bool,
+    leading: Option<AnyElement>,
+) -> gpui::Stateful<gpui::Div> {
     let filled = matches!(kind, ButtonKind::Filled | ButtonKind::Destructive);
+    let elevated = kind == ButtonKind::Elevated;
     let destructive = kind == ButtonKind::Destructive;
     let outlined = kind == ButtonKind::Outlined;
     let background = if destructive {
         theme::danger()
     } else if filled {
         theme::accent()
+    } else if elevated {
+        theme::surface()
     } else {
         theme::transparent()
     };
@@ -292,7 +317,7 @@ pub fn button_with_loading(
         theme::text()
     };
 
-    div()
+    let mut button = div()
         .id(id)
         .flex()
         .items_center()
@@ -302,7 +327,7 @@ pub fn button_with_loading(
         .px(px(match kind {
             ButtonKind::Outlined => 24.0,
             ButtonKind::Text => 12.0,
-            ButtonKind::Filled | ButtonKind::Destructive => 14.0,
+            ButtonKind::Filled | ButtonKind::Elevated | ButtonKind::Destructive => 14.0,
         }))
         .rounded_lg()
         .text_size(px(13.0))
@@ -325,14 +350,17 @@ pub fn button_with_loading(
                 .cursor(CursorStyle::PointingHand)
                 .hover(move |style| match kind {
                     ButtonKind::Filled => style.bg(theme::accent_hover()),
+                    ButtonKind::Elevated => style.bg(theme::surface_selected()),
                     ButtonKind::Destructive => style.bg(theme::danger_hover()),
                     ButtonKind::Text | ButtonKind::Outlined => style.bg(theme::surface_selected()),
                 })
-        })
-        .when(loading, |button| {
-            button.child(loading_indicator(14.0, theme::text_faint()))
-        })
-        .child(label.into())
+        });
+    if loading {
+        button = button.child(loading_indicator(14.0, theme::text_faint()));
+    } else if let Some(leading) = leading {
+        button = button.child(div().mr(px(6.0)).child(leading));
+    }
+    button.child(label.into())
 }
 
 pub fn dialog_shell(width: f32) -> gpui::Div {

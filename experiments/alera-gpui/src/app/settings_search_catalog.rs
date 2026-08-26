@@ -11,6 +11,8 @@ const APPLICATION: &[&str] = &[
     "Export Diagnostics logs bundle report zip",
     "Log Level verbose debug diagnostics",
     "Send Crash Reports sentry telemetry error",
+    "Updates check release version download",
+    "Support Alera GitHub star community",
 ];
 const AGENTS: &[&str] = &[
     "All Alera Skills install update computer use emulator orchestration",
@@ -113,6 +115,65 @@ pub(super) fn pane_match_count(pane: SettingsPane, query: &str) -> usize {
         .count()
 }
 
+/// Returns the first group that contains a matching setting. Flutter keeps
+/// the complete pane mounted while searching and scrolls the first matching
+/// group into view; GPUI mirrors that behavior instead of hiding unrelated
+/// controls.
+pub(super) fn first_matching_group(pane: SettingsPane, query: &str) -> Option<usize> {
+    if query.is_empty() {
+        return None;
+    }
+    let groups: &[&[&str]] = match pane {
+        SettingsPane::Terminal => &[
+            &[
+                "Typography",
+                "Font Family",
+                "Font Size",
+                "Font Weight",
+                "Line Height",
+            ],
+            &[
+                "Cursor",
+                "Cursor Shape",
+                "Blinking Cursor",
+                "Cursor Opacity",
+            ],
+            &[
+                "Appearance",
+                "Theme Preset",
+                "Background Opacity",
+                "Horizontal Padding",
+                "Vertical Padding",
+                "Foreground Color",
+                "Background Color",
+                "Cursor Color",
+                "Selection Color",
+            ],
+            &[
+                "Interaction",
+                "TUI Scroll Speed",
+                "Copy On Select",
+                "Allow OSC 52 Clipboard Writes",
+            ],
+            &[
+                "Advanced",
+                "Use Login Shell",
+                "Reload Shell Environment",
+                "Scrollback Lines",
+                "Host Scrollback Size",
+                "Terminal Memory Budget",
+                "Word Separators",
+            ],
+        ],
+        _ => return None,
+    };
+    groups.iter().position(|group| {
+        group
+            .iter()
+            .any(|entry| entry.to_lowercase().contains(query))
+    })
+}
+
 fn pane_entries(pane: SettingsPane) -> &'static [&'static str] {
     match pane {
         SettingsPane::Application => APPLICATION,
@@ -139,5 +200,17 @@ mod tests {
         assert_eq!(pane_match_count(SettingsPane::Terminal, "clipboard"), 2);
         assert!(pane_matches(SettingsPane::Projects, "alera.toml"));
         assert!(!pane_matches(SettingsPane::AiText, "scrollback"));
+    }
+
+    #[test]
+    fn search_scrolls_terminal_clipboard_matches_into_view() {
+        assert_eq!(
+            super::first_matching_group(SettingsPane::Terminal, "clipboard"),
+            Some(3)
+        );
+        assert_eq!(
+            super::first_matching_group(SettingsPane::Terminal, "font"),
+            Some(0)
+        );
     }
 }

@@ -1,9 +1,40 @@
 use std::path::PathBuf;
 
-use super::{AleraApp, ExplorerClipboard, ExplorerMenuTarget};
+use super::workspace_surface::PreviewAsset;
+use super::{AleraApp, ExplorerClipboard, ExplorerDragData, ExplorerMenuTarget};
 use gpui::{ClipboardItem, Context, Pixels, Point, Window};
 
 impl AleraApp {
+    pub(super) fn can_drop_explorer_entry(&self, source: &str, target: &str) -> bool {
+        if source.is_empty() || source == target || target.starts_with(&format!("{source}/")) {
+            return false;
+        }
+        self.explorer_rows
+            .iter()
+            .any(|row| row.entry.relative_path == target && row.entry.is_directory)
+    }
+
+    pub(super) fn drop_explorer_entry(
+        &mut self,
+        drag: &ExplorerDragData,
+        target: String,
+        cx: &mut Context<Self>,
+    ) {
+        let source = drag.relative_path.clone();
+        self.explorer_drop_target = None;
+        if !self.can_drop_explorer_entry(&source, &target) {
+            cx.notify();
+            return;
+        }
+        self.transfer_explorer_entry(source, target, true, cx);
+    }
+
+    pub(super) fn clear_explorer_drop_target(&mut self, cx: &mut Context<Self>) {
+        if self.explorer_drop_target.take().is_some() {
+            cx.notify();
+        }
+    }
+
     pub(super) fn begin_create_explorer_entry(
         &mut self,
         directory: bool,
@@ -105,7 +136,10 @@ impl AleraApp {
         };
         let name = self.explorer_name_input.read(cx).value().trim().to_owned();
         if name.is_empty() {
-            self.local_message = Some("Name Is Required".into());
+            // Flutter closes the name prompt when the submitted value is empty.
+            // Do not turn an empty dismissal into an inline validation error.
+            self.explorer_create_directory = None;
+            self.local_message = None;
             cx.notify();
             return;
         }
@@ -129,6 +163,10 @@ impl AleraApp {
                         this.load_root_directory(cx);
                     }
                     Err(error) => {
+                        // The Flutter prompt has already been dismissed when the
+                        // filesystem request returns. Keep only the global toast;
+                        // rendering the error inside the dialog duplicates it.
+                        this.explorer_create_directory = None;
                         this.local_message = Some(error.into());
                         cx.notify();
                     }
@@ -144,7 +182,8 @@ impl AleraApp {
         };
         let new_name = self.explorer_name_input.read(cx).value().trim().to_owned();
         if new_name.is_empty() {
-            self.local_message = Some("Name Is Required".into());
+            self.explorer_rename_path = None;
+            self.local_message = None;
             cx.notify();
             return;
         }
@@ -175,6 +214,7 @@ impl AleraApp {
                         this.load_root_directory(cx);
                     }
                     Err(error) => {
+                        this.explorer_rename_path = None;
                         this.local_message = Some(error.into());
                         cx.notify();
                     }
@@ -212,6 +252,16 @@ impl AleraApp {
                             this.preview_asset = None;
                             this.editor_dirty = false;
                         }
+                        this.editor_documents
+                            .retain(|path, _| !path_is_same_or_child(path, &relative_path));
+                        this.editor_preview_assets
+                            .retain(|path, _| !path_is_same_or_child(path, &relative_path));
+                        this.editor_buffer_text
+                            .retain(|path, _| !path_is_same_or_child(path, &relative_path));
+                        this.editor_dirty_paths
+                            .retain(|path| !path_is_same_or_child(path, &relative_path));
+                        this.editor_cursor_positions
+                            .retain(|path, _| !path_is_same_or_child(path, &relative_path));
                         this.clear_source_control_root_if_deleted(&relative_path, cx);
                         this.local_message = Some("Moved To Trash".into());
                         this.load_root_directory(cx);
@@ -413,7 +463,7 @@ impl AleraApp {
             )
     }
 
-    fn absolute_explorer_path(&self, relative_path: &str) -> String {
+    pub(super) fn absolute_explorer_path(&self, relative_path: &str) -> String {
         let Some(workspace_path) = self.selected_workspace_path() else {
             return relative_path.to_owned();
         };
@@ -436,6 +486,11 @@ impl AleraApp {
         if let Some(document) = &mut self.editor_document {
             document.relative_path = next_path;
         }
+        rewrite_cached_editor_paths(&mut self.editor_documents, previous, next);
+        rewrite_cached_preview_paths(&mut self.editor_preview_assets, previous, next);
+        rewrite_cached_text_paths(&mut self.editor_buffer_text, previous, next);
+        rewrite_dirty_paths(&mut self.editor_dirty_paths, previous, next);
+        rewrite_cursor_paths(&mut self.editor_cursor_positions, previous, next);
         cx.notify();
     }
 }
@@ -451,4 +506,99 @@ fn path_is_same_or_child(path: &str, parent: &str) -> bool {
         || path
             .strip_prefix(parent)
             .is_some_and(|suffix| suffix.starts_with('/'))
+}
+
+fn rewrite_cached_editor_paths(
+    documents: &mut std::collections::BTreeMap<String, crate::workspace_service::EditorDocument>,
+    previous: &str,
+    next: &str,
+) {
+    let paths = documents
+        .keys()
+        .filter(|path| path_is_same_or_child(path, previous))
+        .cloned()
+        .collect::<Vec<_>>();
+    for path in paths {
+        let Some(mut document) = documents.remove(&path) else {
+            continue;
+        };
+        let suffix = path.strip_prefix(previous).unwrap_or_default();
+        let updated = format!("{next}{suffix}");
+        document.relative_path = updated.clone();
+        documents.insert(updated, document);
+    }
+}
+
+fn rewrite_cached_preview_paths(
+    previews: &mut std::collections::BTreeMap<String, PreviewAsset>,
+    previous: &str,
+    next: &str,
+) {
+    let paths = previews
+        .keys()
+        .filter(|path| path_is_same_or_child(path, previous))
+        .cloned()
+        .collect::<Vec<_>>();
+    for path in paths {
+        let Some(asset) = previews.remove(&path) else {
+            continue;
+        };
+        let suffix = path.strip_prefix(previous).unwrap_or_default();
+        previews.insert(format!("{next}{suffix}"), asset);
+    }
+}
+
+fn rewrite_cached_text_paths(
+    buffers: &mut std::collections::BTreeMap<String, String>,
+    previous: &str,
+    next: &str,
+) {
+    let paths = buffers
+        .keys()
+        .filter(|path| path_is_same_or_child(path, previous))
+        .cloned()
+        .collect::<Vec<_>>();
+    for path in paths {
+        let Some(text) = buffers.remove(&path) else {
+            continue;
+        };
+        let suffix = path.strip_prefix(previous).unwrap_or_default();
+        buffers.insert(format!("{next}{suffix}"), text);
+    }
+}
+
+fn rewrite_dirty_paths(
+    paths: &mut std::collections::BTreeSet<String>,
+    previous: &str,
+    next: &str,
+) {
+    let matching = paths
+        .iter()
+        .filter(|path| path_is_same_or_child(path, previous))
+        .cloned()
+        .collect::<Vec<_>>();
+    for path in matching {
+        paths.remove(&path);
+        let suffix = path.strip_prefix(previous).unwrap_or_default();
+        paths.insert(format!("{next}{suffix}"));
+    }
+}
+
+fn rewrite_cursor_paths(
+    positions: &mut std::collections::BTreeMap<String, (u32, u32)>,
+    previous: &str,
+    next: &str,
+) {
+    let matching = positions
+        .keys()
+        .filter(|path| path_is_same_or_child(path, previous))
+        .cloned()
+        .collect::<Vec<_>>();
+    for path in matching {
+        let Some(position) = positions.remove(&path) else {
+            continue;
+        };
+        let suffix = path.strip_prefix(previous).unwrap_or_default();
+        positions.insert(format!("{next}{suffix}"), position);
+    }
 }

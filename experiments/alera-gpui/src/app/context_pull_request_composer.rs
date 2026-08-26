@@ -1,9 +1,10 @@
 use gpui::{
-    div, prelude::FluentBuilder as _, px, AnyElement, Context, CursorStyle,
+    div, prelude::FluentBuilder as _, px, AnyElement, AppContext as _, Context, CursorStyle,
     InteractiveElement as _, IntoElement as _, ParentElement as _, StatefulInteractiveElement as _,
     Styled as _,
 };
 use gpui_component::input::Input;
+use gpui_component::tooltip::Tooltip;
 
 use super::AleraApp;
 use crate::icons::{icon, AleraIcon};
@@ -11,7 +12,10 @@ use crate::theme;
 
 impl AleraApp {
     pub(super) fn render_pull_request_composer(&self, cx: &mut Context<Self>) -> AnyElement {
-        if self.forge_link_form_open || self.forge_snapshot.suggested_review.is_some() {
+        // Flutter opens the create form whenever creation is possible, even
+        // when the provider reports an unlinked/suggested review. The
+        // suggested review is shown only after choosing the link flow.
+        if self.forge_link_form_open || self.forge_snapshot.branch.is_empty() {
             return self.render_pull_request_link_form(cx);
         }
         let base_value = self.forge_base_input.read(cx).value().to_string();
@@ -20,6 +24,7 @@ impl AleraApp {
             && form_enabled
             && !self.forge_snapshot.branch.is_empty()
             && !base_value.trim().is_empty();
+        let forge_ai_busy = self.forge_ai_busy;
         let create_draft = self.forge_create_draft;
         div()
             .id("pull-request-composer")
@@ -28,8 +33,8 @@ impl AleraApp {
             .flex_col()
             .flex_1()
             .min_h_0()
-            .overflow_y_scroll()
-            .p_3()
+            .px(px(16.0))
+            .py(px(12.0))
             .gap_3()
             .child(
                 div()
@@ -53,7 +58,6 @@ impl AleraApp {
                                 AleraIcon::Refresh
                             },
                         )
-                        .bg(theme::surface())
                         .on_mouse_down(
                             gpui::MouseButton::Left,
                             cx.listener(|this, _, _, cx| {
@@ -64,7 +68,12 @@ impl AleraApp {
                         ),
                     ),
             )
-            .child(field_label("Base Branch"))
+            .when_some(self.forge_error.clone(), |panel, error| {
+                panel.child(super::context_pull_request::pull_request_error_banner(
+                    error,
+                ))
+            })
+            .child(field_label("Base Branch").mt(px(8.0)))
             .child(
                 div()
                     .id("context-base-branch-select")
@@ -121,6 +130,22 @@ impl AleraApp {
                                     })
                                     .when(can_generate || self.forge_ai_busy, |button| {
                                         button
+                                            .tooltip(move |_, cx| {
+                                                cx.new(|_| {
+                                                    Tooltip::new(if forge_ai_busy {
+                                                        "Stop Generating Pull Request Details"
+                                                    } else {
+                                                        "Generate Title And Description With AI"
+                                                    })
+                                                })
+                                                .into()
+                                            })
+                                            .on_hover(cx.listener(|this, hovered: &bool, _, cx| {
+                                                if this.forge_ai_hovered != *hovered {
+                                                    this.forge_ai_hovered = *hovered;
+                                                    cx.notify();
+                                                }
+                                            }))
                                             .hover(|style| style.bg(theme::surface_selected()))
                                             .on_mouse_down(
                                                 gpui::MouseButton::Left,
@@ -137,12 +162,20 @@ impl AleraApp {
                                     })
                                     .child(icon(
                                         if self.forge_ai_busy {
-                                            AleraIcon::Loading
+                                            if self.forge_ai_hovered {
+                                                AleraIcon::Stop
+                                            } else {
+                                                AleraIcon::Loading
+                                            }
                                         } else {
                                             AleraIcon::Ai
                                         },
                                         14.0,
-                                        theme::text_muted(),
+                                        if self.forge_ai_busy {
+                                            theme::danger()
+                                        } else {
+                                            theme::text_muted()
+                                        },
                                     )),
                             )
                         },
@@ -234,7 +267,9 @@ impl AleraApp {
                                 }),
                             )
                         })
-                        .when(!form_enabled, |button| button.cursor(CursorStyle::Arrow)),
+                        .when(!form_enabled, |button| button.cursor(CursorStyle::Arrow))
+                        .h(px(28.0))
+                        .min_h(px(28.0)),
                     )
                     .child(
                         pr_icon_button_with_style(
@@ -252,7 +287,11 @@ impl AleraApp {
                                 }),
                             )
                         })
-                        .when(!form_enabled, |button| button.cursor(CursorStyle::Arrow)),
+                        .when(!form_enabled, |button| button.cursor(CursorStyle::Arrow))
+                        .w(px(34.0))
+                        .h(px(28.0))
+                        .min_h(px(28.0))
+                        .px_0(),
                     ),
             )
             .child(div().flex_1())
@@ -263,8 +302,6 @@ impl AleraApp {
                     .items_center()
                     .justify_center()
                     .h(px(40.0))
-                    .border_t_1()
-                    .border_color(theme::border_subtle())
                     .text_sm()
                     .text_color(theme::text_muted())
                     .cursor(if form_enabled {
@@ -298,13 +335,18 @@ impl AleraApp {
                 {
                     options.push(self.forge_snapshot.branch.clone());
                 }
+                let menu_width = options
+                    .iter()
+                    .map(|branch| branch.chars().count() as f32 * 7.8 + 54.0)
+                    .fold(266.0_f32, f32::max)
+                    .min(520.0);
                 composer.child(
                     div()
                         .id("context-base-branch-menu")
                         .absolute()
-                        .top(px(76.0))
-                        .left(px(12.0))
+                        .top(px(113.0))
                         .right(px(12.0))
+                        .w(px(menu_width))
                         .occlude()
                         .rounded_md()
                         .border_1()
@@ -351,8 +393,8 @@ impl AleraApp {
                     div()
                         .id("context-create-pr-menu")
                         .absolute()
-                        .top(px(254.0))
-                        .right(px(12.0))
+                        .top(px(274.0))
+                        .right(px(16.0))
                         .w(px(210.0))
                         .occlude()
                         .rounded_md()
@@ -424,8 +466,9 @@ impl AleraApp {
 
     fn render_pull_request_link_form(&self, cx: &mut Context<Self>) -> AnyElement {
         let can_link = !self.forge_busy;
-        let can_create = self.forge_snapshot.suggested_review.is_none()
-            && !self.forge_snapshot.branch.is_empty();
+        // A suggested review does not disable creation in Flutter. It merely
+        // remains available as a candidate in the link form.
+        let can_create = !self.forge_snapshot.branch.is_empty();
         div()
             .id("pull-request-link-form")
             .flex()
@@ -454,7 +497,6 @@ impl AleraApp {
                                 AleraIcon::Refresh
                             },
                         )
-                        .bg(theme::surface())
                         .on_mouse_down(
                             gpui::MouseButton::Left,
                             cx.listener(|this, _, _, cx| {
@@ -530,7 +572,6 @@ impl AleraApp {
                             .bg(theme::surface_selected())
                             .text_color(theme::text_faint())
                             .cursor(CursorStyle::Arrow)
-                            .hover(|style| style.bg(theme::surface_selected()))
                     })
                     .when(can_link, |button| {
                         button.on_mouse_down(
@@ -587,7 +628,7 @@ fn pr_button_with_icon(
         .min_h(px(30.0))
         .px_3()
         .gap_2()
-        .rounded_md()
+        .rounded_lg()
         .bg(if filled {
             theme::accent()
         } else {
@@ -654,6 +695,7 @@ fn pr_icon_button_with_style(
                 theme::surface_selected()
             })
         })
+        .when(filled, |button| button.rounded_lg())
         .child(icon(
             kind,
             14.0,

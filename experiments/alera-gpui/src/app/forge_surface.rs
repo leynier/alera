@@ -15,16 +15,26 @@ impl AleraApp {
         let Some(workspace_id) = self.selected_workspace_id.clone() else {
             return;
         };
+        let project_id = self
+            .snapshot
+            .project_for_workspace(&workspace_id)
+            .map(|project| project.id.clone());
         self.forge_generation += 1;
         let generation = self.forge_generation;
         self.forge_busy = true;
+        self.forge_error = None;
         let service = self.forge_service.clone();
         let bridge = self.bridge.clone();
         let workspace_service = self.workspace_service.clone();
         cx.spawn(async move |weak, cx| {
-            let identity =
-                resolve_forge_identity(&bridge, &workspace_service, &workspace_id, &workspace_path)
-                    .await;
+            let identity = resolve_forge_identity(
+                &bridge,
+                &workspace_service,
+                &workspace_id,
+                &workspace_path,
+                project_id.as_deref(),
+            )
+            .await;
             let result = match identity.as_ref() {
                 Ok(identity) => {
                     service
@@ -44,9 +54,10 @@ impl AleraApp {
                 match result {
                     Ok(snapshot) => {
                         this.forge_snapshot = snapshot;
+                        this.forge_error = None;
                         this.local_message = None;
                     }
-                    Err(error) => this.local_message = Some(error.into()),
+                    Err(error) => this.forge_error = Some(error.into()),
                 }
                 cx.notify();
             });
@@ -83,8 +94,11 @@ impl AleraApp {
                     return;
                 }
                 match linked_result {
-                    Ok(snapshot) => this.forge_snapshot = snapshot,
-                    Err(error) => this.local_message = Some(error.into()),
+                    Ok(snapshot) => {
+                        this.forge_snapshot = snapshot;
+                        this.forge_error = None;
+                    }
+                    Err(error) => this.forge_error = Some(error.into()),
                 }
                 cx.notify();
             });
@@ -99,17 +113,27 @@ impl AleraApp {
         let Some(workspace_id) = self.selected_workspace_id.clone() else {
             return;
         };
+        let project_id = self
+            .snapshot
+            .project_for_workspace(&workspace_id)
+            .map(|project| project.id.clone());
         self.forge_generation += 1;
         let generation = self.forge_generation;
         self.forge_busy = true;
+        self.forge_error = None;
         self.forge_review_confirmation = None;
         let service = self.forge_service.clone();
         let bridge = self.bridge.clone();
         let workspace_service = self.workspace_service.clone();
         cx.spawn(async move |this, cx| {
-            let identity =
-                resolve_forge_identity(&bridge, &workspace_service, &workspace_id, &workspace_path)
-                    .await;
+            let identity = resolve_forge_identity(
+                &bridge,
+                &workspace_service,
+                &workspace_id,
+                &workspace_path,
+                project_id.as_deref(),
+            )
+            .await;
             let (result, snapshot) = match identity {
                 Ok(identity) => {
                     let result = service
@@ -158,12 +182,13 @@ impl AleraApp {
                 this.forge_busy = false;
                 match result {
                     Ok(message) => {
+                        this.forge_error = None;
                         this.local_message = Some(message.into());
                         if let Some(snapshot) = snapshot {
                             this.forge_snapshot = snapshot;
                         }
                     }
-                    Err(error) => this.local_message = Some(error.into()),
+                    Err(error) => this.forge_error = Some(error.into()),
                 }
                 cx.notify();
             });
@@ -222,6 +247,7 @@ async fn resolve_forge_identity(
     workspace_service: &crate::workspace_service::WorkspaceService,
     workspace_id: &str,
     workspace_path: &str,
+    project_id: Option<&str>,
 ) -> Result<ForgeIdentity, ForgeUnavailableReason> {
     let git_snapshot = workspace_service
         .git_snapshot(workspace_path.to_string())
@@ -242,11 +268,36 @@ async fn resolve_forge_identity(
         .filter(|remote| !remote.trim().is_empty())
         .map(str::to_string)
         .ok_or(ForgeUnavailableReason::NoRemote)?;
-    github_identity(
-        &remote,
-        git_snapshot.branch.clone(),
-        forge_base_branches(&git_snapshot),
-    )
+    let base_branches = if let Some(project_id) = project_id {
+        bridge
+            .request("project.branches.list", json!({"projectId": project_id}))
+            .await
+            .ok()
+            .and_then(|value| value.get("branches").cloned())
+            .and_then(|value| value.as_array().cloned())
+            .map(|branches| {
+                let mut branches = branches
+                    .into_iter()
+                    .filter_map(|branch| branch.as_str().map(short_branch_name))
+                    .filter(|branch| !branch.is_empty())
+                    .collect::<Vec<_>>();
+                branches.sort();
+                branches.dedup();
+                branches
+            })
+            .filter(|branches| !branches.is_empty())
+            .unwrap_or_else(|| forge_base_branches(&git_snapshot))
+    } else {
+        forge_base_branches(&git_snapshot)
+    };
+    github_identity(&remote, git_snapshot.branch.clone(), base_branches)
+}
+
+fn short_branch_name(name: &str) -> String {
+    let trimmed = name.trim();
+    trimmed
+        .split_once('/')
+        .map_or_else(|| trimmed.to_owned(), |(_, branch)| branch.to_owned())
 }
 
 fn forge_base_branches(snapshot: &GitSnapshot) -> Vec<String> {

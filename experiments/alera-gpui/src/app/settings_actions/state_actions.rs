@@ -1,4 +1,58 @@
 impl AleraApp {
+    pub(super) fn refresh_github_star_state(&mut self, cx: &mut Context<Self>) {
+        self.settings_state.github_star_state = GitHubStarState::Loading;
+        let (sender, receiver) = async_channel::bounded(1);
+        std::thread::Builder::new()
+            .name("alera-github-star-check".to_string())
+            .spawn(move || {
+                let _ = sender.send_blocking(crate::forge_service::github_starred());
+            })
+            .expect("failed to start GitHub star check");
+        cx.spawn(async move |this, cx| {
+            let result = receiver.recv().await.unwrap_or(None);
+            let _ = this.update(cx, |this, cx| {
+                this.settings_state.github_star_state = match result {
+                    Some(true) => GitHubStarState::Starred,
+                    Some(false) => GitHubStarState::NotStarred,
+                    None => GitHubStarState::Hidden,
+                };
+                cx.notify();
+            });
+        })
+        .detach();
+        cx.notify();
+    }
+
+    pub(super) fn star_github(&mut self, cx: &mut Context<Self>) {
+        if !matches!(
+            self.settings_state.github_star_state,
+            GitHubStarState::NotStarred | GitHubStarState::Error
+        ) {
+            return;
+        }
+        self.settings_state.github_star_state = GitHubStarState::Starring;
+        let (sender, receiver) = async_channel::bounded(1);
+        std::thread::Builder::new()
+            .name("alera-github-star".to_string())
+            .spawn(move || {
+                let _ = sender.send_blocking(crate::forge_service::star_github());
+            })
+            .expect("failed to start GitHub star request");
+        cx.spawn(async move |this, cx| {
+            let succeeded = receiver.recv().await.unwrap_or(false);
+            let _ = this.update(cx, |this, cx| {
+                this.settings_state.github_star_state = if succeeded {
+                    GitHubStarState::Starred
+                } else {
+                    GitHubStarState::Error
+                };
+                cx.notify();
+            });
+        })
+        .detach();
+        cx.notify();
+    }
+
     pub(super) fn refresh_settings_values(&mut self, cx: &mut Context<Self>) {
         self.settings_state.generation += 1;
         self.settings_state.loading = true;
@@ -6,8 +60,11 @@ impl AleraApp {
         let generation = self.settings_state.generation;
         let bridge = self.bridge.clone();
         cx.spawn(async move |this, cx| {
-            let runtime = bridge.request("runtimeSettings.get", json!({})).await;
-            let status = bridge.request("status.get", json!({})).await;
+            let (runtime, status, local) = tokio::join!(
+                bridge.request("runtimeSettings.get", json!({})),
+                bridge.request("status.get", json!({})),
+                super::settings_store::load_shared_flutter_settings(),
+            );
             let Some(this) = this.upgrade() else {
                 return;
             };
@@ -19,6 +76,9 @@ impl AleraApp {
                 match runtime {
                     Ok(value) => this.settings_state.apply_runtime_settings(&value),
                     Err(error) => this.settings_state.error = Some(error),
+                }
+                if let Some(value) = local {
+                    this.settings_state.apply_local_flutter_settings(&value);
                 }
                 if let Ok(value) = status {
                     this.settings_state.apply_host_status(&value);
@@ -32,6 +92,10 @@ impl AleraApp {
 
     pub(super) fn set_confirm_project_removal(&mut self, enabled: bool, cx: &mut Context<Self>) {
         self.settings_state.confirm_project_removal = enabled;
+        self.persist_shared_flutter_settings(
+            self.settings_state.shared_flutter_local_payload(),
+            cx,
+        );
         self.update_runtime_setting("confirmProjectRemoval", Value::Bool(enabled), cx);
     }
 
@@ -42,6 +106,10 @@ impl AleraApp {
         } else {
             trimmed.to_string()
         };
+        self.persist_shared_flutter_settings(
+            self.settings_state.shared_flutter_local_payload(),
+            cx,
+        );
         self.update_runtime_setting(
             "workspaceDirectory",
             if trimmed.is_empty() {
@@ -55,12 +123,20 @@ impl AleraApp {
 
     pub(super) fn set_confirm_workspace_removal(&mut self, enabled: bool, cx: &mut Context<Self>) {
         self.settings_state.confirm_workspace_removal = enabled;
+        self.persist_shared_flutter_settings(
+            self.settings_state.shared_flutter_local_payload(),
+            cx,
+        );
         self.update_runtime_setting("confirmWorkspaceRemoval", Value::Bool(enabled), cx);
     }
 
     pub(super) fn set_keep_runtime_open_on_quit(&mut self, enabled: bool, cx: &mut Context<Self>) {
         self.settings_state.keep_runtime_open_on_quit = enabled;
         self.persist_settings();
+        self.persist_shared_flutter_settings(
+            self.settings_state.shared_flutter_local_payload(),
+            cx,
+        );
         cx.notify();
     }
 
@@ -68,12 +144,20 @@ impl AleraApp {
         self.settings_state.crash_reporting_enabled = enabled;
         crate::app_log::set_crash_reporting_enabled(enabled);
         self.persist_settings();
+        self.persist_shared_flutter_settings(
+            self.settings_state.shared_flutter_local_payload(),
+            cx,
+        );
         self.configure_terminal_host(cx);
     }
 
     pub(super) fn set_editor_theme(&mut self, theme: String, cx: &mut Context<Self>) {
         self.settings_state.editor_theme = theme;
         self.persist_settings();
+        self.persist_shared_flutter_settings(
+            self.settings_state.shared_flutter_local_payload(),
+            cx,
+        );
         cx.notify();
     }
 
@@ -88,6 +172,10 @@ impl AleraApp {
     ) {
         update(&mut self.settings_state);
         self.persist_settings();
+        self.persist_shared_flutter_settings(
+            self.settings_state.shared_flutter_local_payload(),
+            cx,
+        );
         let hooks = serde_json::to_value(&self.settings_state.agent_status_hooks)
             .unwrap_or_else(|_| json!({}));
         self.update_runtime_setting("agentStatusHooks", hooks, cx);
@@ -101,7 +189,20 @@ impl AleraApp {
         update(&mut self.settings_state);
         self.persist_settings();
         let quotas = self.settings_state.runtime_quota_payload();
-        self.update_runtime_setting("agentQuotas", quotas, cx);
+        self.update_runtime_setting("agentQuotas", quotas.clone(), cx);
+        cx.spawn(async move |this, cx| {
+            let result = super::settings_store::save_shared_flutter_quota_settings(quotas).await;
+            let Some(this) = this.upgrade() else {
+                return;
+            };
+            let _ = this.update(cx, |this, cx| {
+                if let Err(error) = result {
+                    this.settings_state.error = Some(error);
+                    cx.notify();
+                }
+            });
+        })
+        .detach();
     }
 
     pub(super) fn update_ai_text_settings(
@@ -122,6 +223,10 @@ impl AleraApp {
     ) {
         update(&mut self.settings_state);
         self.persist_settings();
+        self.persist_shared_flutter_settings(
+            self.settings_state.shared_flutter_local_payload(),
+            cx,
+        );
         cx.notify();
     }
 
@@ -132,6 +237,10 @@ impl AleraApp {
     ) {
         update(&mut self.settings_state);
         self.persist_settings();
+        self.persist_shared_flutter_settings(
+            self.settings_state.shared_flutter_local_payload(),
+            cx,
+        );
         self.configure_terminal_host(cx);
     }
 

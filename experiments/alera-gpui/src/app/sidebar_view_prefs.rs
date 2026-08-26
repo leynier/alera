@@ -53,7 +53,7 @@ impl AleraApp {
                         .and_then(Value::as_bool)
                         .unwrap_or(true);
                     this.sidebar_width = number_field(prefs, "sidebarWidth", 300.0);
-                    this.context_sidebar_width = number_field(prefs, "rightSidebarWidth", 400.0);
+                    this.context_sidebar_width = number_field(prefs, "rightSidebarWidth", 280.0);
                     this.context_sidebar_collapsed = !prefs
                         .get("rightSidebarVisible")
                         .and_then(Value::as_bool)

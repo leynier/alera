@@ -4,28 +4,36 @@ use gpui::{
     Styled as _,
 };
 use serde_json::{json, Value};
+use std::cmp::Ordering;
 
 use super::AleraApp;
-use crate::{icons::loading_indicator, runtime_bridge::RuntimeHostStartConfig, theme};
+use crate::{
+    design_system::{button, dialog_shell, ButtonKind},
+    icons::loading_indicator,
+    runtime_bridge::RuntimeHostStartConfig,
+    theme,
+};
 
 impl AleraApp {
     pub(super) fn render_runtime_popover(&self, cx: &mut Context<Self>) -> AnyElement {
         let value = self.status_data.runtime.as_ref();
-        let running = value.is_some() && self.status_data.runtime_error.is_none();
+        let running = runtime_is_running(value, self.status_data.runtime_error.is_some());
+        let loading = self.status_data.runtime_loading;
         let version = version_label(string_at(value, "runtimeHostVersion"));
         let bundled_version = version_label(Some(env!("CARGO_PKG_VERSION")));
         let host_commit = string_at(value, "runtimeHostCommit");
         let bundled_commit = option_env!("ALERA_BUILD_COMMIT").unwrap_or("unknown");
-        let commit_mismatch = match (
-            known_commit(host_commit),
-            known_commit(Some(bundled_commit)),
-        ) {
-            (Some(host), Some(bundled)) => host != bundled,
-            _ => false,
-        };
-        let version_mismatch = running && version != bundled_version;
-        let build_mismatch = running && !version_mismatch && commit_mismatch;
-        let update_available = version_mismatch || build_mismatch;
+        // Flutter exposes build metadata only when the host and bundled
+        // versions are equal.  An older host is an update candidate, but it
+        // must not also render the build rows; a newer host is left alone.
+        let build_mismatch = runtime_has_build_mismatch(
+            value,
+            self.status_data.runtime_error.is_some(),
+            &bundled_version,
+            bundled_commit,
+        );
+        let update_available =
+            runtime_update_available(value, self.status_data.runtime_error.is_some());
         let sessions = integer_at(value, "activeSessions");
         let agents = integer_at(value, "activeAgents");
         let persistent = value
@@ -38,7 +46,7 @@ impl AleraApp {
             .id("runtime-popover")
             .absolute()
             .right(px(4.0))
-            .bottom(theme::status_bar_height())
+            .bottom(theme::status_bar_height() + px(4.0))
             .w(px(240.0))
             .max_h(px(360.0))
             .occlude()
@@ -57,21 +65,21 @@ impl AleraApp {
             )
             .child(
                 div()
-                    .text_base()
+                    .text_size(px(13.0))
                     .font_weight(gpui::FontWeight::SEMIBOLD)
                     .child("Runtime"),
             )
             .child(div().h(px(8.0)))
             .child(runtime_row(
                 "Status",
-                if self.status_data.runtime_error.is_some() {
-                    "Stopped".to_owned()
+                if loading {
+                    "Checking".to_owned()
                 } else if running {
                     "Running".to_owned()
                 } else {
-                    "Checking".to_owned()
+                    "Stopped".to_owned()
                 },
-                running.then(theme::success),
+                (!loading && running).then(theme::success),
             ))
             .child(runtime_row("Host Version", version, None))
             .child(runtime_row("Bundled Version", bundled_version, None))
@@ -177,7 +185,7 @@ impl AleraApp {
         let message = self
             .runtime_action_armed
             .as_deref()
-            .unwrap_or("The Runtime Still Has Active Work.");
+            .unwrap_or("The runtime still has active work.");
         div()
             .absolute()
             .top_0()
@@ -190,57 +198,50 @@ impl AleraApp {
             .justify_center()
             .bg(theme::overlay_scrim())
             .child(
-                div()
-                    .w(px(430.0))
-                    .rounded_lg()
-                    .border_1()
-                    .border_color(theme::border())
-                    .bg(theme::surface_raised())
-                    .shadow_lg()
-                    .p_4()
+                // Flutter's intrinsic confirm dialog resolves to roughly 350
+                // GPUI logical pixels on the macOS desktop scale; keeping the
+                // shell compact also preserves the same message wrapping.
+                dialog_shell(350.0)
                     .child(
                         div()
-                            .text_lg()
-                            .font_weight(gpui::FontWeight::SEMIBOLD)
+                            .text_size(px(14.0))
+                            .font_weight(gpui::FontWeight::MEDIUM)
                             .child("Force Stop Runtime"),
                     )
                     .child(
                         div()
-                            .mt_3()
+                            .mt(px(12.0))
                             .text_sm()
                             .text_color(theme::text_muted())
-                            .child(format!("{message} Force Stop Terminates Them.")),
+                            .child(format!("{message} Force stop terminates them.")),
                     )
                     .child(
                         div()
                             .flex()
-                            .justify_end()
-                            .gap_2()
-                            .mt_4()
+                            .gap(px(8.0))
+                            .mt(px(20.0))
                             .child(
-                                runtime_button(
-                                    "cancel-runtime-stop",
-                                    "Cancel",
-                                    RuntimeButtonStyle::Outline,
-                                )
-                                .on_mouse_down(
-                                    gpui::MouseButton::Left,
-                                    cx.listener(|this, _, _, cx| {
-                                        if !this.runtime_action_busy {
-                                            this.runtime_action_armed = None;
-                                            this.runtime_restart_after_stop = false;
-                                            cx.notify();
-                                        }
-                                    }),
-                                ),
+                                button("cancel-runtime-stop", "Cancel", ButtonKind::Text, false)
+                                    .flex_1()
+                                    .on_mouse_down(
+                                        gpui::MouseButton::Left,
+                                        cx.listener(|this, _, _, cx| {
+                                            if !this.runtime_action_busy {
+                                                this.runtime_action_armed = None;
+                                                this.runtime_restart_after_stop = false;
+                                                cx.notify();
+                                            }
+                                        }),
+                                    ),
                             )
                             .child(
-                                runtime_button_with_loading(
+                                button(
                                     "confirm-runtime-stop",
                                     "Force Stop",
-                                    RuntimeButtonStyle::Danger,
+                                    ButtonKind::Destructive,
                                     self.runtime_action_busy,
                                 )
+                                .flex_1()
                                 .on_mouse_down(
                                     gpui::MouseButton::Left,
                                     cx.listener(|this, _, _, cx| {
@@ -286,7 +287,13 @@ impl AleraApp {
                             this.request_runtime_start(cx);
                         }
                     }
-                    Err(error) if !force => this.runtime_action_armed = Some(error),
+                    Err(error) if !force => {
+                        if let Some(message) = runtime_busy_message(&error) {
+                            this.runtime_action_armed = Some(message);
+                        } else {
+                            this.local_message = Some(error.into());
+                        }
+                    }
                     Err(error) => {
                         this.runtime_action_armed = None;
                         this.runtime_restart_after_stop = false;
@@ -347,8 +354,12 @@ fn runtime_row(label: &'static str, value: String, value_color: Option<gpui::Rgb
     div()
         .flex()
         .items_center()
-        .min_h(px(20.0))
-        .text_sm()
+        // Flutter's status rows keep a four-pixel bottom gap under the
+        // twelve-pixel label line. A 21px minimum preserves that rhythm
+        // without making the values themselves taller, so the anchored card
+        // grows upward to the same top edge as the reference panel.
+        .min_h(px(21.0))
+        .text_size(px(12.0))
         .child(
             div()
                 .w(px(116.0))
@@ -444,6 +455,68 @@ fn build_label(value: Option<&str>) -> String {
         .unwrap_or_else(|| "-".to_owned())
 }
 
+/// Converts the host's shutdown-busy protocol error into the same concise
+/// explanation Flutter presents before asking whether to force-stop it.
+/// Non-busy errors return `None` so they remain ordinary error toasts.
+fn runtime_busy_message(error: &str) -> Option<String> {
+    let captures = regex::Regex::new(
+        r"Runtime host has (\d+) active agent\(s\), (\d+) active terminal session\(s\), (\d+) active background job\(s\), and (\d+) active push subscription\(s\)",
+    )
+    .ok()
+    .and_then(|pattern| pattern.captures(error));
+    let (agents, sessions, jobs, pushes) = if let Some(captures) = captures {
+        (
+            captures.get(1)?.as_str().parse::<u64>().ok()?,
+            captures.get(2)?.as_str().parse::<u64>().ok()?,
+            captures.get(3)?.as_str().parse::<u64>().ok()?,
+            captures.get(4)?.as_str().parse::<u64>().ok()?,
+        )
+    } else {
+        let legacy = regex::Regex::new(
+            r"Runtime host has (\d+) active terminal session\(s\) and (\d+) active background job\(s\)",
+        )
+        .ok()
+        .and_then(|pattern| pattern.captures(error));
+        let captures = legacy?;
+        (
+            0,
+            captures.get(1)?.as_str().parse::<u64>().ok()?,
+            captures.get(2)?.as_str().parse::<u64>().ok()?,
+            0,
+        )
+    };
+
+    let mut parts = Vec::new();
+    if agents > 0 {
+        parts.push(format!("{agents} open agent(s)"));
+    }
+    if sessions > 0 {
+        parts.push(format!("{sessions} active terminal session(s)"));
+    }
+    if jobs > 0 {
+        parts.push(format!("{jobs} active background job(s)"));
+    }
+    if pushes > 0 {
+        parts.push(format!("{pushes} active push subscription(s)"));
+    }
+    if parts.is_empty() {
+        return Some("The runtime still has active work.".to_owned());
+    }
+
+    let message = match parts.as_slice() {
+        [part] => format!("The runtime has {part}."),
+        [first, second] => format!("The runtime has {first} and {second}."),
+        [first, second, third] => {
+            format!("The runtime has {first}, {second}, and {third}.")
+        }
+        [first, second, third, fourth] => {
+            format!("The runtime has {first}, {second}, {third}, and {fourth}.")
+        }
+        _ => unreachable!("runtime busy message has at most four counters"),
+    };
+    Some(message)
+}
+
 fn positive_u64(value: i64, fallback: u64) -> u64 {
     u64::try_from(value)
         .ok()
@@ -459,6 +532,134 @@ fn version_label(value: Option<&str>) -> String {
     }
 }
 
+pub(super) fn runtime_is_running(value: Option<&Value>, has_error: bool) -> bool {
+    value.is_some() && !has_error
+}
+
+pub(super) fn runtime_update_available(value: Option<&Value>, has_error: bool) -> bool {
+    let running = runtime_is_running(value, has_error);
+    if !running {
+        return false;
+    }
+    let Some(raw_host_version) =
+        string_at(value, "runtimeHostVersion").filter(|version| !version.trim().is_empty())
+    else {
+        return false;
+    };
+    let host_version = version_label(Some(raw_host_version));
+    let bundled_version = version_label(Some(env!("CARGO_PKG_VERSION")));
+    let version_order = compare_runtime_versions(&bundled_version, &host_version);
+    if version_order == Ordering::Greater {
+        return true;
+    }
+    if version_order != Ordering::Equal {
+        return false;
+    }
+    let host_commit = string_at(value, "runtimeHostCommit");
+    let bundled_commit = option_env!("ALERA_BUILD_COMMIT").unwrap_or("unknown");
+    matches!(
+        (known_commit(host_commit), known_commit(Some(bundled_commit))),
+        (Some(host), Some(bundled)) if host != bundled
+    )
+}
+
+fn runtime_has_build_mismatch(
+    value: Option<&Value>,
+    has_error: bool,
+    bundled_version: &str,
+    bundled_commit: &str,
+) -> bool {
+    if !runtime_is_running(value, has_error) {
+        return false;
+    }
+    let Some(host_version) =
+        string_at(value, "runtimeHostVersion").filter(|version| !version.trim().is_empty())
+    else {
+        return false;
+    };
+    if compare_runtime_versions(bundled_version, &version_label(Some(host_version)))
+        != Ordering::Equal
+    {
+        return false;
+    }
+    matches!(
+        (
+            known_commit(string_at(value, "runtimeHostCommit")),
+            known_commit(Some(bundled_commit)),
+        ),
+        (Some(host), Some(bundled)) if host != bundled
+    )
+}
+
+fn compare_runtime_versions(left: &str, right: &str) -> Ordering {
+    match (parse_runtime_version(left), parse_runtime_version(right)) {
+        (None, None) => left.cmp(right),
+        (None, Some(_)) => Ordering::Less,
+        (Some(_), None) => Ordering::Greater,
+        (Some(left), Some(right)) => left.cmp(&right),
+    }
+}
+
+fn parse_runtime_version(value: &str) -> Option<[u64; 3]> {
+    let core = value
+        .trim()
+        .trim_start_matches(['v', 'V'])
+        .split(['-', '+'])
+        .next()?
+        .trim();
+    if core.is_empty() {
+        return None;
+    }
+    let mut numbers = core.split('.').map(str::parse::<u64>);
+    let first = numbers.next()?.ok()?;
+    let second = numbers.next().and_then(Result::ok).unwrap_or(0);
+    let third = numbers.next().and_then(Result::ok).unwrap_or(0);
+    if numbers.next().is_some() {
+        return None;
+    }
+    Some([first, second, third])
+}
+
+pub(super) fn runtime_chip_label(value: Option<&Value>, has_error: bool, loading: bool) -> String {
+    if loading && value.is_none() {
+        return "Runtime".to_owned();
+    }
+    if has_error && !runtime_is_running(value, has_error) {
+        return "Runtime Error".to_owned();
+    }
+    if runtime_update_available(value, has_error) {
+        return "Update Available".to_owned();
+    }
+    if runtime_is_running(value, has_error) {
+        let version = string_at(value, "runtimeHostVersion");
+        if version.is_some_and(|version| !version.trim().is_empty()) {
+            return format!("Runtime {}", version_label(version));
+        }
+        return "Runtime Running".to_owned();
+    }
+    "Runtime Stopped".to_owned()
+}
+
+pub(super) fn runtime_chip_color(
+    value: Option<&Value>,
+    has_error: bool,
+    loading: bool,
+) -> gpui::Rgba {
+    if has_error && !runtime_is_running(value, has_error) {
+        return theme::danger();
+    }
+    if runtime_update_available(value, has_error) {
+        return theme::warning();
+    }
+    if runtime_is_running(value, has_error) {
+        return theme::success();
+    }
+    if loading {
+        return theme::text_muted();
+    }
+    theme::text_faint()
+}
+
 fn string_at<'a>(value: Option<&'a Value>, key: &str) -> Option<&'a str> {
     value.and_then(|item| item.get(key)).and_then(Value::as_str)
 }
@@ -468,4 +669,99 @@ fn integer_at(value: Option<&Value>, key: &str) -> u64 {
         .and_then(|item| item.get(key))
         .and_then(Value::as_u64)
         .unwrap_or(0)
+}
+
+#[cfg(test)]
+mod tests {
+    use serde_json::json;
+
+    use super::{
+        compare_runtime_versions, runtime_busy_message, runtime_chip_label,
+        runtime_has_build_mismatch, runtime_is_running, runtime_update_available,
+    };
+
+    #[test]
+    fn runtime_chip_distinguishes_error_from_stopped() {
+        assert_eq!(runtime_chip_label(None, true, false), "Runtime Error");
+        assert_eq!(runtime_chip_label(None, false, false), "Runtime Stopped");
+        assert_eq!(runtime_chip_label(None, false, true), "Runtime");
+    }
+
+    #[test]
+    fn runtime_chip_uses_version_and_build_updates() {
+        let current = json!({
+            "runtimeHostVersion": env!("CARGO_PKG_VERSION"),
+            "runtimeHostCommit": option_env!("ALERA_BUILD_COMMIT").unwrap_or("unknown")
+        });
+        assert!(runtime_is_running(Some(&current), false));
+        assert!(!runtime_update_available(Some(&current), false));
+
+        let newer = json!({"runtimeHostVersion": "999.0.0"});
+        assert!(!runtime_update_available(Some(&newer), false));
+        assert_eq!(
+            runtime_chip_label(Some(&newer), false, false),
+            "Runtime v999.0.0"
+        );
+        assert!(!runtime_update_available(
+            Some(&json!({"runtimeHostVersion": "999.0.0"})),
+            false
+        ));
+        assert!(runtime_update_available(
+            Some(&json!({"runtimeHostVersion": "0.0.1"})),
+            false
+        ));
+        assert!(compare_runtime_versions("v1.2.10", "v1.2.9").is_gt());
+    }
+
+    #[test]
+    fn runtime_update_and_build_rows_follow_flutter_version_direction() {
+        let bundled_version = format!("v{}", env!("CARGO_PKG_VERSION"));
+        let bundled_commit = option_env!("ALERA_BUILD_COMMIT").unwrap_or("unknown");
+        let older = json!({
+            "runtimeHostVersion": "0.0.1",
+            "runtimeHostCommit": "older"
+        });
+        assert!(runtime_update_available(Some(&older), false));
+        assert!(!runtime_has_build_mismatch(
+            Some(&older),
+            false,
+            &bundled_version,
+            bundled_commit
+        ));
+
+        let newer = json!({
+            "runtimeHostVersion": "999.0.0",
+            "runtimeHostCommit": "newer"
+        });
+        assert!(!runtime_update_available(Some(&newer), false));
+        assert!(!runtime_has_build_mismatch(
+            Some(&newer),
+            false,
+            &bundled_version,
+            bundled_commit
+        ));
+    }
+
+    #[test]
+    fn runtime_busy_message_matches_flutter_wording_and_ignores_zero_counts() {
+        assert_eq!(
+            runtime_busy_message(
+                "Runtime host has 2 active agent(s), 3 active terminal session(s), 0 active background job(s), and 1 active push subscription(s). Retry with --force to stop it."
+            ),
+            Some(
+                "The runtime has 2 open agent(s), 3 active terminal session(s), and 1 active push subscription(s)."
+                    .to_owned()
+            )
+        );
+        assert_eq!(
+            runtime_busy_message(
+                "Runtime host has 0 active agent(s), 2 active terminal session(s), 1 active background job(s), and 0 active push subscription(s). Retry with --force to stop it."
+            ),
+            Some(
+                "The runtime has 2 active terminal session(s) and 1 active background job(s)."
+                    .to_owned()
+            )
+        );
+        assert_eq!(runtime_busy_message("connection refused"), None);
+    }
 }

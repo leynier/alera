@@ -18,6 +18,8 @@ use crate::{
 impl AleraApp {
     pub(super) fn render_keyboard_settings_pane(&self, cx: &mut Context<Self>) -> AnyElement {
         div()
+            .flex_col()
+            .flex_shrink_0()
             .relative()
             .track_focus(&self.keyboard_settings.focus)
             .on_key_down(cx.listener(Self::handle_keyboard_record_key))
@@ -41,10 +43,10 @@ impl AleraApp {
         let app_first = self.settings_state.keyboard_terminal_policy != "terminalFirst";
         keyboard_group(
             "Behavior",
-            Some("How Shortcuts Behave While A Terminal Is Focused."),
+            Some("How shortcuts behave while a terminal is focused."),
             vec![keyboard_setting_row(
-                "When A Terminal Is Focused",
-                "App First Lets Alera Capture Combinations The Shell Would Otherwise Receive. Terminal First Defers To The Shell.",
+                "When a Terminal Is Focused",
+                "App first lets Alera capture combinations the shell would otherwise receive. Terminal first defers to the shell.",
                 220.0,
                 div()
                     .flex()
@@ -268,6 +270,7 @@ fn keyboard_group(
     rows: Vec<gpui::Div>,
 ) -> gpui::Div {
     div()
+        .flex_shrink_0()
         .child(
             div()
                 .ml_1()
@@ -308,8 +311,12 @@ fn keyboard_setting_row(
     div()
         .flex()
         .items_center()
-        .min_h(px(72.0))
-        .px_3()
+        // Flutter's AleraSettingRow resolves to a 66 logical-pixel row on
+        // desktop. Keeping this height explicit prevents the cumulative
+        // scroll drift that otherwise becomes visible at the bottom of the
+        // Keyboard pane.
+        .min_h(px(66.0))
+        .px_4()
         .py_2()
         .border_b_1()
         .border_color(theme::border_subtle())
@@ -319,7 +326,7 @@ fn keyboard_setting_row(
                 .min_w_0()
                 .child(
                     div()
-                        .text_size(px(14.0))
+                        .text_size(px(13.0))
                         .font_weight(gpui::FontWeight::MEDIUM)
                         .child(title),
                 )
@@ -331,6 +338,7 @@ fn keyboard_setting_row(
                         .child(description),
                 ),
         )
+        .child(div().w(px(16.0)).flex_none())
         .child(div().w(px(control_width)).flex_none().child(control))
 }
 
@@ -362,7 +370,7 @@ fn keyboard_segment(
         .child(label)
 }
 
-fn keyboard_binding_chip(binding: String) -> gpui::Div {
+pub(super) fn keyboard_binding_chip(binding: String) -> gpui::Div {
     div()
         .h(px(22.0))
         .px_2()
@@ -449,7 +457,7 @@ fn keyboard_dialog_button(
         .child(label)
 }
 
-fn format_binding(binding: &str) -> String {
+pub(super) fn format_binding(binding: &str) -> String {
     let mut parts = binding.split('+').collect::<Vec<_>>();
     let trigger = parts.pop().unwrap_or_default();
     let trigger = match trigger {

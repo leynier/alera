@@ -1,3 +1,5 @@
+use std::path::Path;
+
 use alera_core::child_process::windowless_command;
 use serde_json::Value;
 
@@ -9,7 +11,8 @@ pub use crate::forge_api::{
 
 const REVIEW_FIELDS: &str =
     "number,title,body,state,url,isDraft,mergeable,headRefName,baseRefName,author";
-const CHECK_FIELDS: &str = "name,state,bucket,link,description,workflow,startedAt,completedAt";
+const CHECK_FIELDS: &str =
+    "name,state,bucket,link,description,event,workflow,startedAt,completedAt";
 const REVIEW_THREADS_QUERY: &str = r#"query($owner:String!,$repo:String!,$number:Int!){repository(owner:$owner,name:$repo){pullRequest(number:$number){reviewThreads(first:100){nodes{isResolved comments(first:100){nodes{id body url createdAt path line author{login}}}}}}}}"#;
 
 pub(crate) fn load_snapshot(
@@ -151,6 +154,9 @@ fn load_checks(repo_slug: &str, number: u64) -> Result<Vec<ForgeCheck>, String> 
             link: optional_string(item, "link"),
             description: optional_string(item, "description"),
             workflow: optional_string(item, "workflow"),
+            event: optional_string(item, "event"),
+            started_at: optional_string(item, "startedAt"),
+            completed_at: optional_string(item, "completedAt"),
         })
         .collect())
 }
@@ -261,7 +267,7 @@ fn load_review_thread_comments(repo_slug: &str, number: u64) -> Result<Vec<Forge
 }
 
 pub(crate) fn run_action(
-    _workspace_path: String,
+    workspace_path: String,
     identity: ForgeIdentity,
     action: ForgeAction,
 ) -> Result<String, String> {
@@ -273,6 +279,7 @@ pub(crate) fn run_action(
             base,
             draft,
         } => {
+            push_branch(&workspace_path, &identity.branch)?;
             arguments.extend([
                 "create".into(),
                 "--repo".into(),
@@ -367,6 +374,23 @@ pub(crate) fn run_action(
     Ok(success.to_string())
 }
 
+fn push_branch(workspace_path: &str, branch: &str) -> Result<(), String> {
+    let path = Path::new(workspace_path);
+    let has_upstream = alera_core::git_cli::git_in_dir(
+        path,
+        &["rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{u}"],
+    )
+    .is_ok();
+    let arguments = if has_upstream {
+        vec!["push"]
+    } else {
+        vec!["push", "-u", "origin", branch]
+    };
+    alera_core::git_cli::git_in_dir(path, &arguments)
+        .map(|_| ())
+        .map_err(|error| format!("Could not push the branch: {error}"))
+}
+
 pub fn github_identity(
     remote: &str,
     branch: String,
@@ -451,6 +475,39 @@ fn gh_auth_status(host: &str) -> ForgeAuthStatus {
         Ok(_) => ForgeAuthStatus::NotAuthenticated,
         Err(_) => ForgeAuthStatus::CliMissing,
     }
+}
+
+/// Returns whether the authenticated GitHub user has starred Alera.
+/// GitHub reports an unstarred repository as HTTP 404 for this endpoint.
+#[allow(dead_code)]
+pub(crate) fn github_starred() -> Option<bool> {
+    let result = windowless_command("gh")
+        .args(["api", "--silent", "-i", "user/starred/leynier/alera"])
+        .output()
+        .ok()?;
+    if result.status.success() {
+        return Some(true);
+    }
+    let output = format!(
+        "{}\n{}",
+        String::from_utf8_lossy(&result.stdout),
+        String::from_utf8_lossy(&result.stderr)
+    )
+    .to_ascii_lowercase();
+    if output.contains("http 404") || output.contains("status: 404") {
+        Some(false)
+    } else {
+        None
+    }
+}
+
+/// Stars Alera for the authenticated GitHub user.
+#[allow(dead_code)]
+pub(crate) fn star_github() -> bool {
+    windowless_command("gh")
+        .args(["api", "--silent", "-X", "PUT", "user/starred/leynier/alera"])
+        .output()
+        .is_ok_and(|result| result.status.success())
 }
 
 fn parse_review(value: &Value) -> Result<ForgeReview, String> {

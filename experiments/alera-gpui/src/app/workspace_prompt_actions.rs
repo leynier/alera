@@ -20,11 +20,12 @@ pub(super) struct PromptWorkspaceCreation {
 impl AleraApp {
     pub(super) fn render_workspace_prompt_actions(
         &self,
-        prompt_is_empty: bool,
+        _prompt_is_empty: bool,
         cx: &mut Context<Self>,
     ) -> gpui::Div {
-        let disabled = prompt_is_empty
-            || self.workspace_creation_busy
+        // Flutter keeps Create And Start Agent enabled with an empty prompt so
+        // submission can surface the inline validation message.
+        let disabled = self.workspace_creation_busy
             || self.workspace_profiles_loading
             || self.workspace_agent_profiles.is_empty();
         div()

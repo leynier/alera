@@ -101,6 +101,7 @@ pub fn error(logger: &str, message: &str) {
     write(LogLevel::Error, logger, message);
 }
 
+#[allow(dead_code)]
 pub fn warning(logger: &str, message: &str) {
     write(LogLevel::Warning, logger, message);
 }
@@ -109,6 +110,7 @@ pub fn info(logger: &str, message: &str) {
     write(LogLevel::Info, logger, message);
 }
 
+#[allow(dead_code)]
 pub fn debug(logger: &str, message: &str) {
     write(LogLevel::Debug, logger, message);
 }

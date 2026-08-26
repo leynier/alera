@@ -3,23 +3,67 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use gpui::{
-    div, prelude::FluentBuilder as _, AnyElement, Context, CursorStyle, Image, ImageFormat,
-    InteractiveElement as _, IntoElement as _, MouseButton, MouseDownEvent, ParentElement as _,
-    SharedString, StatefulInteractiveElement as _, Styled as _, Timer, Window,
+    div, prelude::FluentBuilder as _, AnyElement, AppContext as _, Context, CursorStyle,
+    DragMoveEvent, Image, ImageFormat, InteractiveElement as _, IntoElement, MouseButton,
+    MouseDownEvent, MouseUpEvent, ParentElement as _, Render, SharedString,
+    StatefulInteractiveElement as _, Styled as _, Timer, Window,
 };
+use gpui_component::scroll::{Scrollbar, ScrollbarShow};
+use regex::Regex;
+use serde_json::Value;
 
-use super::{AleraApp, ExplorerMenuTarget};
+use super::{AleraApp, ExplorerDragData, ExplorerMenuTarget};
 use crate::activity::ContextPanel;
 use crate::file_icons::file_icon;
 use crate::icons::{icon, loading_indicator, AleraIcon};
+use crate::model::WorkspaceTab;
 use crate::theme;
-use crate::workspace_service::FileEntry;
+use crate::workspace_service::{apply_explorer_git_status, ExplorerGitStatusSnapshot, FileEntry};
 
 #[derive(Clone, Debug)]
 pub(super) struct ExplorerRow {
     pub entry: FileEntry,
     pub depth: usize,
     pub expanded: bool,
+}
+
+struct DraggedExplorerFeedback {
+    name: String,
+    is_directory: bool,
+}
+
+impl Render for DraggedExplorerFeedback {
+    fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl IntoElement {
+        div()
+            .relative()
+            .flex()
+            .items_center()
+            .h(gpui::px(32.0))
+            .w(gpui::px(220.0))
+            .px_2()
+            .gap_2()
+            .rounded_md()
+            .border_1()
+            .border_color(theme::border())
+            .bg(theme::surface_raised())
+            .shadow_lg()
+            .text_sm()
+            .child(file_icon(
+                &self.name,
+                self.is_directory,
+                false,
+                false,
+                15.0,
+                theme::text(),
+            ))
+            .child(
+                div()
+                    .flex_1()
+                    .overflow_hidden()
+                    .text_ellipsis()
+                    .child(self.name.clone()),
+            )
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -38,6 +82,22 @@ enum OpenFileResult {
         relative_path: String,
         image: Arc<Image>,
     },
+}
+
+fn push_editor_tab_path(candidates: &mut Vec<String>, tab: &WorkspaceTab) {
+    if !matches!(tab.kind.as_str(), "editor" | "markdownViewer") {
+        return;
+    }
+    let Some(path) = tab
+        .payload
+        .get("filePath")
+        .and_then(serde_json::Value::as_str)
+    else {
+        return;
+    };
+    if !candidates.iter().any(|candidate| candidate == path) {
+        candidates.push(path.to_owned());
+    }
 }
 
 impl AleraApp {
@@ -85,23 +145,41 @@ impl AleraApp {
     pub(super) fn reset_local_workspace(&mut self, cx: &mut Context<Self>) {
         self.local_generation += 1;
         self.explorer_watch_generation = self.explorer_watch_generation.wrapping_add(1);
+        self.explorer_scroll_handle
+            .set_offset(gpui::point(gpui::px(0.0), gpui::px(0.0)));
         self.explorer_rows.clear();
+        self.explorer_expanded_paths.clear();
         self.explorer_menu = None;
         self.explorer_selected_path = None;
         self.explorer_clipboard = None;
+        self.explorer_drop_target = None;
         self.explorer_create_directory = None;
         self.explorer_rename_path = None;
         self.explorer_delete_path = None;
         self.editor_document = None;
+        self.editor_documents.clear();
+        self.editor_buffer_text.clear();
+        self.editor_dirty_paths.clear();
+        self.editor_cursor_positions.clear();
+        self.editor_input_syncing = false;
         self.opened_file_path = None;
         self.editor_loading_path = None;
         self.preview_asset = None;
+        self.editor_preview_assets.clear();
+        self.preview_scale = 1.0;
+        self.preview_offset = gpui::point(gpui::px(0.0), gpui::px(0.0));
+        self.preview_drag = None;
         self.show_preview = false;
         self.editor_dirty = false;
         self.editor_conflict = false;
         self.search_results = Default::default();
+        self.search_error = None;
+        self.search_error_is_query_failure = false;
         self.replace_confirmation = None;
         self.git_snapshot = Default::default();
+        self.explorer_git_status = ExplorerGitStatusSnapshot::default();
+        self.git_snapshot_loading = false;
+        self.git_snapshot_error = None;
         self.git_discard_armed = false;
         self.git_discard_path_armed = None;
         self.forge_snapshot = Default::default();
@@ -110,6 +188,7 @@ impl AleraApp {
         self.forge_review_confirmation = None;
         self.forge_review_editing = false;
         self.forge_review_base_menu_open = false;
+        self.forge_comment_composing = false;
         self.forge_expanded_checks.clear();
         self.forge_collapsed_check_groups.clear();
         self.local_message = None;
@@ -127,17 +206,138 @@ impl AleraApp {
         let Some(workspace_path) = self.selected_workspace_path() else {
             return;
         };
+        let explorer_scroll_offset = self.explorer_scroll_handle.offset();
         self.local_generation += 1;
         let generation = self.local_generation;
         self.local_busy = true;
         self.local_message = None;
         let service = self.workspace_service.clone();
         let hide_ignored = self.explorer_hide_ignored;
-        cx.spawn(async move |this, cx| {
+        let mut expanded_paths = self
+            .explorer_expanded_paths
+            .iter()
+            .cloned()
+            .collect::<Vec<_>>();
+        expanded_paths.sort_by(|left, right| {
+            left.split('/')
+                .count()
+                .cmp(&right.split('/').count())
+                .then_with(|| left.cmp(right))
+        });
+        cx.spawn(async move |weak_this, cx| {
+            let explorer_git_status = service
+                .explorer_status_snapshot(workspace_path.clone())
+                .await
+                .unwrap_or_default();
             let result = service
-                .list(workspace_path, String::new(), hide_ignored)
+                .list(workspace_path.clone(), String::new(), hide_ignored)
                 .await;
-            let Some(this) = this.upgrade() else {
+            let Some(this) = weak_this.upgrade() else {
+                return;
+            };
+            let root_applied = this
+                .update(cx, |this, cx| {
+                    if generation != this.local_generation {
+                        return false;
+                    }
+                    match result {
+                        Ok(entries) => {
+                            this.explorer_git_status = explorer_git_status.clone();
+                            this.explorer_rows =
+                                apply_explorer_git_status(entries, &this.explorer_git_status)
+                                    .into_iter()
+                                    .map(|entry| ExplorerRow {
+                                        entry,
+                                        depth: 0,
+                                        expanded: false,
+                                    })
+                                    .collect();
+                            this.local_message = None;
+                        }
+                        Err(error) => {
+                            // Flutter rebuilds an empty projection after a
+                            // root refresh failure instead of leaving stale
+                            // rows visible behind the error state.
+                            this.explorer_rows.clear();
+                            this.explorer_git_status = ExplorerGitStatusSnapshot::default();
+                            this.explorer_expanded_paths.clear();
+                            this.local_message = Some(error.into());
+                        }
+                    }
+                    cx.notify();
+                    true
+                })
+                .unwrap_or(false);
+            if !root_applied {
+                return;
+            }
+
+            for relative_path in expanded_paths {
+                let should_restore = this
+                    .update(cx, |this, _| {
+                        generation == this.local_generation
+                            && this.explorer_rows.iter().any(|row| {
+                                row.entry.relative_path == relative_path && row.entry.is_directory
+                            })
+                    })
+                    .unwrap_or(false);
+                if !should_restore {
+                    continue;
+                }
+                let result = service
+                    .list(workspace_path.clone(), relative_path.clone(), hide_ignored)
+                    .await;
+                let Some(this) = weak_this.upgrade() else {
+                    return;
+                };
+                let applied = this
+                    .update(cx, |this, cx| {
+                        if generation != this.local_generation {
+                            return false;
+                        }
+                        match result {
+                            Ok(entries) => {
+                                let entries =
+                                    apply_explorer_git_status(entries, &this.explorer_git_status);
+                                let Some(index) = this
+                                    .explorer_rows
+                                    .iter()
+                                    .position(|row| row.entry.relative_path == relative_path)
+                                else {
+                                    this.explorer_expanded_paths.remove(&relative_path);
+                                    return true;
+                                };
+                                let depth = this.explorer_rows[index].depth;
+                                let end = this.explorer_rows[index + 1..]
+                                    .iter()
+                                    .position(|row| row.depth <= depth)
+                                    .map(|offset| index + 1 + offset)
+                                    .unwrap_or(this.explorer_rows.len());
+                                this.explorer_rows.drain(index + 1..end);
+                                this.explorer_rows[index].expanded = true;
+                                let child_depth = depth + 1;
+                                this.explorer_rows.splice(
+                                    index + 1..index + 1,
+                                    entries.into_iter().map(|entry| ExplorerRow {
+                                        entry,
+                                        depth: child_depth,
+                                        expanded: false,
+                                    }),
+                                );
+                                this.local_message = None;
+                            }
+                            Err(error) => this.local_message = Some(error.into()),
+                        }
+                        cx.notify();
+                        true
+                    })
+                    .unwrap_or(false);
+                if !applied {
+                    return;
+                }
+            }
+
+            let Some(this) = weak_this.upgrade() else {
                 return;
             };
             let _ = this.update(cx, |this, cx| {
@@ -145,20 +345,11 @@ impl AleraApp {
                     return;
                 }
                 this.local_busy = false;
-                match result {
-                    Ok(entries) => {
-                        this.explorer_rows = entries
-                            .into_iter()
-                            .map(|entry| ExplorerRow {
-                                entry,
-                                depth: 0,
-                                expanded: false,
-                            })
-                            .collect();
-                        this.local_message = None;
-                    }
-                    Err(error) => this.local_message = Some(error.into()),
-                }
+                // File watchers refresh the rows every few seconds. Keep the
+                // user's viewport stable across that rebuild; switching the
+                // workspace explicitly resets it in `reset_local_workspace`.
+                this.explorer_scroll_handle
+                    .set_offset(explorer_scroll_offset);
                 cx.notify();
             });
         })
@@ -175,6 +366,8 @@ impl AleraApp {
         };
         let depth = self.explorer_rows[index].depth;
         if self.explorer_rows[index].expanded {
+            self.local_generation += 1;
+            self.explorer_expanded_paths.remove(&relative_path);
             self.explorer_rows[index].expanded = false;
             let end = self.explorer_rows[index + 1..]
                 .iter()
@@ -215,7 +408,9 @@ impl AleraApp {
                         else {
                             return;
                         };
+                        let entries = apply_explorer_git_status(entries, &this.explorer_git_status);
                         this.explorer_rows[index].expanded = true;
+                        this.explorer_expanded_paths.insert(relative_path.clone());
                         let child_depth = this.explorer_rows[index].depth + 1;
                         this.explorer_rows.splice(
                             index + 1..index + 1,
@@ -236,6 +431,8 @@ impl AleraApp {
     }
 
     pub(super) fn collapse_all_explorer_directories(&mut self, cx: &mut Context<Self>) {
+        self.local_generation += 1;
+        self.explorer_expanded_paths.clear();
         self.explorer_rows.retain(|row| row.depth == 0);
         for row in &mut self.explorer_rows {
             row.expanded = false;
@@ -264,33 +461,62 @@ impl AleraApp {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        let Some(tab) = self
+        if self.editor_loading_path.is_some() {
+            return;
+        }
+        let selected_tab = self
             .selected_tab_id
             .as_ref()
-            .and_then(|selected| self.snapshot.tabs.iter().find(|tab| &tab.id == selected))
-        else {
-            return;
-        };
-        if tab.kind != "editor" && tab.kind != "markdownViewer" {
-            return;
+            .and_then(|selected| self.snapshot.tabs.iter().find(|tab| &tab.id == selected));
+        let mut candidates = Vec::new();
+
+        if let Some(tab) = selected_tab {
+            push_editor_tab_path(&mut candidates, tab);
         }
-        let Some(relative_path) = tab
-            .payload
-            .get("filePath")
-            .and_then(serde_json::Value::as_str)
-            .map(str::to_owned)
-        else {
-            return;
-        };
-        if self.opened_file_path.as_deref() == Some(relative_path.as_str())
-            || self.editor_loading_path.as_deref() == Some(relative_path.as_str())
-        {
-            return;
+        if let Some(layout) = self.snapshot.layout.as_ref() {
+            for group in layout
+                .groups
+                .values()
+                .filter(|group| group.id != layout.active_group_id)
+            {
+                if let Some(active_tab_id) = group.active_tab_id.as_deref() {
+                    if let Some(tab) = self.snapshot.tabs.iter().find(|tab| tab.id == active_tab_id)
+                    {
+                        push_editor_tab_path(&mut candidates, tab);
+                    }
+                }
+                for tab_id in &group.tab_ids {
+                    if let Some(tab) = self.snapshot.tabs.iter().find(|tab| &tab.id == tab_id) {
+                        push_editor_tab_path(&mut candidates, tab);
+                    }
+                }
+            }
         }
-        self.load_workspace_file(relative_path, window, cx);
+        if candidates.is_empty() {
+            for tab in &self.snapshot.tabs {
+                push_editor_tab_path(&mut candidates, tab);
+            }
+        }
+
+        for path in candidates {
+            let is_selected = selected_tab
+                .and_then(|tab| tab.payload.get("filePath"))
+                .and_then(serde_json::Value::as_str)
+                == Some(path.as_str());
+            if is_selected && self.opened_file_path.as_deref() != Some(path.as_str()) {
+                self.load_workspace_file(path, window, cx);
+                return;
+            }
+            if !self.editor_documents.contains_key(&path)
+                && !self.editor_preview_assets.contains_key(&path)
+            {
+                self.load_workspace_file(path, window, cx);
+                return;
+            }
+        }
     }
 
-    fn load_workspace_file(
+    pub(super) fn load_workspace_file(
         &mut self,
         relative_path: String,
         window: &mut Window,
@@ -303,12 +529,18 @@ impl AleraApp {
         let generation = self.local_generation;
         self.local_busy = true;
         self.editor_loading_path = Some(relative_path.clone());
-        self.local_message = Some(format!("Opening {relative_path}").into());
+        // Flutter keeps file-opening feedback inside the editor/image loading
+        // surface. Do not leak an `Opening ...` global toast over a different
+        // tab when the user switches panes before the read completes.
+        self.local_message = None;
+        self.preview_scale = 1.0;
+        self.preview_offset = gpui::point(gpui::px(0.0), gpui::px(0.0));
+        self.preview_drag = None;
         let service = self.workspace_service.clone();
         let requested_path = relative_path.clone();
         cx.spawn_in(window, async move |this, cx| {
-            let extension = extension_for_path(&relative_path);
-            let result = if is_image_extension(extension) {
+            let extension = extension_for_path(&relative_path).to_owned();
+            let result = if is_image_extension(&extension) {
                 service
                     .image(workspace_path, relative_path.clone())
                     .await
@@ -323,14 +555,14 @@ impl AleraApp {
                     .read(workspace_path.clone(), relative_path.clone())
                     .await
                 {
-                    Ok(document) if is_mermaid_extension(extension) => service
+                    Ok(document) if is_mermaid_extension(&extension) => service
                         .mermaid(workspace_path, relative_path)
                         .await
                         .map(|svg| OpenFileResult::Text {
                             document,
                             preview: Some(PreviewAsset::Mermaid(Arc::new(Image::from_bytes(
                                 ImageFormat::Svg,
-                                svg.into_bytes(),
+                                prepare_merman_svg_for_gpui(&svg).into_bytes(),
                             )))),
                         }),
                     Ok(document) => Ok(OpenFileResult::Text {
@@ -351,9 +583,22 @@ impl AleraApp {
                 this.local_busy = false;
                 match result {
                     Ok(OpenFileResult::Text { document, preview }) => {
-                        this.editor_loading_path = None;
                         let language = language_for_path(&document.relative_path);
-                        let display_content = document.display_content.clone();
+                        let cached_path = document.relative_path.clone();
+                        let display_content = this
+                            .editor_buffer_text
+                            .get(&cached_path)
+                            .cloned()
+                            .unwrap_or_else(|| document.display_content.clone());
+                        this.editor_documents
+                            .insert(cached_path.clone(), document.clone());
+                        if let Some(asset) = preview.clone() {
+                            this.editor_preview_assets
+                                .insert(cached_path.clone(), asset);
+                        } else {
+                            this.editor_preview_assets.remove(&cached_path);
+                        }
+                        this.editor_input_syncing = true;
                         this.editor_input.update(cx, |input, cx| {
                             input.set_highlighter(language, cx);
                             input.set_value(display_content, window, cx);
@@ -370,8 +615,18 @@ impl AleraApp {
                                     window,
                                     cx,
                                 );
+                            } else if let Some((line, column)) =
+                                this.editor_cursor_positions.get(&cached_path).copied()
+                            {
+                                input.set_cursor_position(
+                                    gpui_component::input::Position::new(line, column),
+                                    window,
+                                    cx,
+                                );
                             }
                         });
+                        this.editor_input_syncing = false;
+                        this.editor_loading_path = None;
                         if this
                             .pending_editor_cursor
                             .as_ref()
@@ -386,16 +641,46 @@ impl AleraApp {
                             let editor_input = this.editor_input.clone();
                             window.on_next_frame(move |window, cx| {
                                 editor_input.update(cx, |input, cx| input.focus(window, cx));
-                                for _ in 0..selection_length {
-                                    window.dispatch_keystroke(select_right.clone(), cx);
-                                }
+                                // The input needs one paint cycle to become the focused
+                                // key context before selection keystrokes can reach it.
+                                // Dispatching in this same callback moves the caret but
+                                // drops the selection, so copy after opening a search match
+                                // returns the user's previous clipboard contents.
+                                window.on_next_frame(move |window, cx| {
+                                    for _ in 0..selection_length {
+                                        window.dispatch_keystroke(select_right.clone(), cx);
+                                    }
+                                });
                             });
                         }
+                        let loaded_relative_path = document.relative_path.clone();
                         this.opened_file_path = Some(document.relative_path.clone());
                         this.editor_document = Some(document);
-                        this.show_preview = false;
+                        this.show_preview = this
+                            .selected_tab_id
+                            .as_ref()
+                            .and_then(|selected| {
+                                this.snapshot.tabs.iter().find(|tab| &tab.id == selected)
+                            })
+                            .is_some_and(|tab| tab.kind == "markdownViewer")
+                            || this
+                                .selected_tab_id
+                                .as_ref()
+                                .and_then(|selected| {
+                                    this.snapshot.tabs.iter().find(|tab| &tab.id == selected)
+                                })
+                                .is_some_and(|tab| {
+                                    tab.kind == "editor"
+                                        && tab.payload.get("fileRole").and_then(Value::as_str)
+                                            == Some("mermanPreview")
+                                })
+                            || this.snapshot.tabs.iter().any(|tab| {
+                                tab.kind == "markdownViewer"
+                                    && tab.payload.get("filePath").and_then(Value::as_str)
+                                        == Some(loaded_relative_path.as_str())
+                            });
                         this.preview_asset = preview;
-                        this.editor_dirty = false;
+                        this.editor_dirty = this.editor_dirty_paths.contains(&loaded_relative_path);
                         this.editor_conflict = false;
                         this.local_message = None;
                     }
@@ -404,6 +689,10 @@ impl AleraApp {
                         image,
                     }) => {
                         this.editor_loading_path = None;
+                        this.editor_buffer_text.remove(&relative_path);
+                        this.editor_dirty_paths.remove(&relative_path);
+                        this.editor_preview_assets
+                            .insert(relative_path.clone(), PreviewAsset::Image(image.clone()));
                         this.opened_file_path = Some(relative_path);
                         this.editor_document = None;
                         this.preview_asset = Some(PreviewAsset::Image(image));
@@ -414,7 +703,12 @@ impl AleraApp {
                     }
                     Err(error) => {
                         this.editor_loading_path = Some(requested_path);
-                        this.local_message = Some(error.into());
+                        let message = if is_image_extension(&extension) {
+                            image_preview_error_message(&error)
+                        } else {
+                            editor_file_error_message(&error)
+                        };
+                        this.local_message = Some(message.into());
                     }
                 }
                 cx.notify();
@@ -449,10 +743,21 @@ impl AleraApp {
                 this.local_busy = false;
                 match result {
                     Ok(document) => {
+                        let path = document.relative_path.clone();
+                        this.editor_documents.insert(path.clone(), document.clone());
+                        this.editor_buffer_text.remove(&path);
+                        this.editor_dirty_paths.remove(&path);
                         this.editor_document = Some(document);
                         this.editor_dirty = false;
                         this.editor_conflict = false;
-                        this.local_message = Some("Saved".into());
+                        this.local_message = Some(
+                            if overwrite {
+                                "File overwritten"
+                            } else {
+                                "File saved"
+                            }
+                            .into(),
+                        );
                     }
                     Err(error) if super::editor_actions::is_editor_conflict(&error) => {
                         this.editor_conflict = true;
@@ -486,8 +791,15 @@ impl AleraApp {
                 let selected = self.explorer_selected_path.as_deref() == Some(path.as_str());
                 let source_control_root = self.is_focused_source_control_root(&path);
                 let click_path = path.clone();
-                let menu_path = path;
-                div()
+                let menu_path = path.clone();
+                let drop_path = path.clone();
+                let drag_data = ExplorerDragData {
+                    relative_path: path.clone(),
+                    name: name.clone(),
+                    is_directory,
+                };
+                let drop_target = self.explorer_drop_target.as_deref() == Some(path.as_str());
+                let mut item = div()
                     .id(("explorer-row", index))
                     .flex()
                     .items_center()
@@ -499,14 +811,28 @@ impl AleraApp {
                     .cursor(CursorStyle::PointingHand)
                     .hover(|style| style.bg(theme::surface()))
                     .when(selected, |item| item.bg(theme::surface_raised()))
-                    .on_mouse_down(
+                    .when(drop_target, |item| {
+                        item.bg(theme::surface_selected())
+                            .border_l_1()
+                            .border_color(theme::border())
+                    })
+                    .on_mouse_up(
                         gpui::MouseButton::Left,
-                        cx.listener(move |this, _, window, cx| {
+                        cx.listener(move |this, event: &MouseUpEvent, window, cx| {
+                            // The scrollbar is layered above the rows. GPUI's
+                            // pointer-up can still bubble to the row when a
+                            // thumb drag ends, so reserve the final 12 px of
+                            // the window for scrollbar interaction and never
+                            // open a file as a side effect of scrolling.
+                            if event.position.x >= window.bounds().right() - gpui::px(12.0) {
+                                cx.stop_propagation();
+                                return;
+                            }
                             this.select_explorer_entry(click_path.clone());
                             if is_directory {
                                 this.toggle_directory(click_path.clone(), cx);
                             } else {
-                                this.open_workspace_file(click_path.clone(), window, cx);
+                                this.open_file_tab(click_path.clone(), cx);
                             }
                         }),
                     )
@@ -521,6 +847,12 @@ impl AleraApp {
                             cx.stop_propagation();
                         }),
                     )
+                    .on_drag(drag_data, |drag, _, _, cx| {
+                        cx.new(|_| DraggedExplorerFeedback {
+                            name: drag.name.clone(),
+                            is_directory: drag.is_directory,
+                        })
+                    })
                     .child(
                         div()
                             .flex()
@@ -573,21 +905,61 @@ impl AleraApp {
                         item.child(div().ml_2().text_xs().text_color(color).child(status))
                     })
                     .when(source_control_root, |item| {
-                        item.child(div().ml_2().child(icon(
-                            AleraIcon::GitBranch,
-                            14.0,
-                            theme::text_muted(),
-                        )))
-                    })
+                        item.child(
+                            div()
+                                .id(("explorer-source-root", index))
+                                .ml_2()
+                                .tooltip(|_, cx| {
+                                    cx.new(|_| {
+                                        gpui_component::tooltip::Tooltip::new("Source Control Root")
+                                    })
+                                    .into()
+                                })
+                                .child(icon(AleraIcon::GitBranch, 14.0, theme::text_muted())),
+                        )
+                    });
+                if is_directory {
+                    let drag_target_path = drop_path.clone();
+                    let drop_target_path = drop_path.clone();
+                    item = item
+                        .drag_over::<ExplorerDragData>(|style, _, _, _| {
+                            style.bg(theme::surface_selected())
+                        })
+                        .on_drag_move(cx.listener(
+                            move |this, event: &DragMoveEvent<ExplorerDragData>, _, cx| {
+                                let drag = event.drag(cx);
+                                if this
+                                    .can_drop_explorer_entry(&drag.relative_path, &drag_target_path)
+                                {
+                                    if this.explorer_drop_target.as_deref()
+                                        != Some(drag_target_path.as_str())
+                                    {
+                                        this.explorer_drop_target = Some(drag_target_path.clone());
+                                        cx.notify();
+                                    }
+                                } else if this.explorer_drop_target.as_deref()
+                                    == Some(drag_target_path.as_str())
+                                {
+                                    this.explorer_drop_target = None;
+                                    cx.notify();
+                                }
+                            },
+                        ))
+                        .on_drop(cx.listener(move |this, drag: &ExplorerDragData, _, cx| {
+                            this.drop_explorer_entry(drag, drop_target_path.clone(), cx);
+                        }));
+                }
+                item
             })
             .collect::<Vec<_>>();
         let empty_state = if self.local_busy && rows.is_empty() {
             Some(
                 div()
+                    .absolute()
+                    .inset_0()
                     .flex()
                     .items_center()
                     .justify_center()
-                    .flex_1()
                     .text_sm()
                     .text_color(theme::text_muted())
                     .child(
@@ -603,11 +975,12 @@ impl AleraApp {
         } else if rows.is_empty() {
             self.local_message.as_ref().map(|message| {
                 div()
+                    .absolute()
+                    .inset_0()
                     .flex()
                     .flex_col()
                     .items_center()
                     .justify_center()
-                    .flex_1()
                     .gap_2()
                     .text_sm()
                     .text_color(theme::text_muted())
@@ -620,6 +993,7 @@ impl AleraApp {
         };
 
         div()
+            .relative()
             .flex()
             .flex_col()
             .flex_1()
@@ -628,8 +1002,10 @@ impl AleraApp {
             .child(
                 div()
                     .id("explorer-tree")
+                    .relative()
                     .flex_1()
                     .min_h_0()
+                    .track_scroll(&self.explorer_scroll_handle)
                     .overflow_y_scroll()
                     .bg(theme::surface())
                     .py_1()
@@ -644,8 +1020,25 @@ impl AleraApp {
                             cx.stop_propagation();
                         }),
                     )
+                    .on_mouse_up(
+                        MouseButton::Left,
+                        cx.listener(|this, _, _, cx| this.clear_explorer_drop_target(cx)),
+                    )
+                    .on_mouse_up_out(
+                        MouseButton::Left,
+                        cx.listener(|this, _, _, cx| this.clear_explorer_drop_target(cx)),
+                    )
                     .children(rows),
             )
+            .child(
+                Scrollbar::vertical(&self.explorer_scroll_handle)
+                    .id("explorer-scrollbar")
+                    .scrollbar_show(ScrollbarShow::Always),
+            )
+            // Flutter replaces the tree with a centered loader/error when no
+            // rows are available. Keep the tree's background hit target, but
+            // overlay the state across the full panel instead of allocating a
+            // second flex child and vertically halving the empty surface.
             .when_some(empty_state, |panel, state| panel.child(state))
             .into_any_element()
     }
@@ -680,7 +1073,7 @@ fn extension_for_path(path: &str) -> &str {
 }
 
 fn is_mermaid_extension(extension: &str) -> bool {
-    extension == "mmd" || extension == "mermaid"
+    extension == "mmd" || extension == "mermain" || extension == "mermaid"
 }
 
 fn is_image_extension(extension: &str) -> bool {
@@ -721,5 +1114,203 @@ fn image_format(format: &str) -> Result<ImageFormat, String> {
         "bmp" => Ok(ImageFormat::Bmp),
         "tiff" => Ok(ImageFormat::Tiff),
         _ => Err(format!("Unsupported Workspace Image Format: {format}")),
+    }
+}
+
+fn prepare_merman_svg_for_gpui(svg: &str) -> String {
+    let mut next = svg
+        .replace("background-color:white", "background-color:#101010")
+        .replace(
+            "background-color:rgba(255, 255, 255, 0.5)",
+            "background-color:#242424",
+        )
+        .replace("fill:#eee;", "fill:#242424;")
+        .replace("stroke:#999;", "stroke:#323232;")
+        .replace("fill:#666", "fill:#A1A1A1")
+        .replace("stroke:#666", "stroke:#A1A1A1")
+        .replace("fill:#333333;", "fill:#A1A1A1;")
+        .replace("stroke:#333333;", "stroke:#A1A1A1;")
+        .replace("fill:#333;", "fill:#F5F5F5;")
+        .replace("color:#333;", "color:#F5F5F5;")
+        .replace("fill:white", "fill:#242424")
+        .replace("color:#000000", "color:#F5F5F5")
+        .replace("fill:#000000", "fill:#F5F5F5")
+        .replace("fill=\"#333\"", "fill=\"#F5F5F5\"")
+        .replace("fill=\"#333333\"", "fill=\"#F5F5F5\"")
+        .replace("stroke=\"#333333\"", "stroke=\"#A1A1A1\"")
+        .replace("fill=\"#000\"", "fill=\"#A1A1A1\"")
+        .replace("fill=\"#000000\"", "fill=\"#A1A1A1\"")
+        .replace("stroke=\"#000\"", "stroke=\"#A1A1A1\"")
+        .replace("stroke=\"#000000\"", "stroke=\"#A1A1A1\"");
+    for tag in ["rect", "circle", "ellipse", "polygon", "path"] {
+        next = replace_merman_class_attributes(
+            &next,
+            tag,
+            "basic label-container",
+            Some("#242424"),
+            Some("#323232"),
+        );
+    }
+    next = replace_merman_class_attributes(
+        &next,
+        "path",
+        "flowchart-link",
+        Some("none"),
+        Some("#A1A1A1"),
+    );
+    for tag in ["path", "polygon", "circle"] {
+        next = replace_merman_class_attributes(
+            &next,
+            tag,
+            "arrowMarkerPath",
+            Some("#A1A1A1"),
+            Some("#A1A1A1"),
+        );
+    }
+    next
+}
+
+fn replace_merman_class_attributes(
+    svg: &str,
+    tag_name: &str,
+    class_name: &str,
+    fill: Option<&str>,
+    stroke: Option<&str>,
+) -> String {
+    let pattern = format!(
+        r#"<{tag}\b[^>]*class="[^"]*\b{class}\b[^"]*"[^>]*>"#,
+        tag = regex::escape(tag_name),
+        class = regex::escape(class_name),
+    );
+    let matcher = Regex::new(&pattern).expect("Merman SVG class pattern is valid");
+    matcher
+        .replace_all(svg, |captures: &regex::Captures<'_>| {
+            let mut tag = captures[0].to_owned();
+            if let Some(fill) = fill {
+                tag = replace_merman_attribute(&tag, "fill", fill);
+            }
+            if let Some(stroke) = stroke {
+                tag = replace_merman_attribute(&tag, "stroke", stroke);
+            }
+            tag
+        })
+        .into_owned()
+}
+
+fn replace_merman_attribute(tag: &str, name: &str, value: &str) -> String {
+    let pattern = format!(r#"\s{name}="[^"]*""#, name = regex::escape(name));
+    let matcher = Regex::new(&pattern).expect("Merman SVG attribute pattern is valid");
+    if matcher.is_match(tag) {
+        matcher
+            .replace(tag, format!(" {name}=\"{value}\""))
+            .into_owned()
+    } else {
+        let insert_at = if tag.ends_with("/>") {
+            tag.len() - 2
+        } else {
+            tag.len() - 1
+        };
+        format!(
+            "{} {name}=\"{value}\"{}",
+            &tag[..insert_at],
+            &tag[insert_at..]
+        )
+    }
+}
+
+fn image_preview_error_message(error: &str) -> String {
+    let normalized = error.to_ascii_lowercase();
+    if normalized.contains("outside") {
+        "Image is outside the workspace".to_owned()
+    } else if normalized.contains("invalid") {
+        "Image path is invalid".to_owned()
+    } else if normalized.contains("not found") || normalized.contains("no such file") {
+        "Image not found".to_owned()
+    } else {
+        "Image cannot be opened".to_owned()
+    }
+}
+
+fn editor_file_error_message(error: &str) -> String {
+    let normalized = error.to_ascii_lowercase();
+    if normalized.contains("unsupported") {
+        "File cannot be edited".to_owned()
+    } else if normalized.contains("not found") || normalized.contains("no such file") {
+        "File not found".to_owned()
+    } else if normalized.contains("outside") {
+        "File is outside the workspace".to_owned()
+    } else if normalized.contains("protected") {
+        "File is protected".to_owned()
+    } else if normalized.contains("conflict") || normalized.contains("changed on disk") {
+        "File changed on disk".to_owned()
+    } else {
+        "File operation failed".to_owned()
+    }
+}
+
+#[cfg(test)]
+mod merman_svg_tests {
+    use super::prepare_merman_svg_for_gpui;
+
+    #[test]
+    fn prepares_merman_svg_for_flutter_dark_theme() {
+        let svg = r##"<svg><rect class="basic label-container" fill="#000000"/><path class="flowchart-link"/><path class="arrowMarkerPath" fill="#000000"/><text fill="#333333">Preview</text></svg>"##;
+        let prepared = prepare_merman_svg_for_gpui(svg);
+        assert!(prepared.contains("class=\"basic label-container\" fill=\"#242424\""));
+        assert!(prepared.contains("class=\"flowchart-link\" fill=\"none\" stroke=\"#A1A1A1\""));
+        assert!(prepared.contains("class=\"arrowMarkerPath\" fill=\"#A1A1A1\" stroke=\"#A1A1A1\""));
+        assert!(prepared.contains("<text fill=\"#F5F5F5\">"));
+    }
+}
+
+#[cfg(test)]
+mod image_preview_tests {
+    use super::image_preview_error_message;
+
+    #[test]
+    fn image_preview_errors_match_flutter_copy() {
+        assert_eq!(
+            image_preview_error_message("Workspace Image Is Outside The Workspace."),
+            "Image is outside the workspace"
+        );
+        assert_eq!(
+            image_preview_error_message("Invalid Workspace Image Path."),
+            "Image path is invalid"
+        );
+        assert_eq!(
+            image_preview_error_message(
+                "Workspace Image Is Unavailable: No such file or directory"
+            ),
+            "Image not found"
+        );
+        assert_eq!(
+            image_preview_error_message("Workspace Image Is Unsupported."),
+            "Image cannot be opened"
+        );
+    }
+}
+
+#[cfg(test)]
+mod editor_file_error_tests {
+    use super::editor_file_error_message;
+
+    #[test]
+    fn editor_errors_use_flutter_copy() {
+        assert_eq!(
+            editor_file_error_message("readme.md: No such file or directory (os error 2)"),
+            "File not found"
+        );
+        assert_eq!(
+            editor_file_error_message("Workspace File Conflict: File changed on disk"),
+            "File changed on disk"
+        );
+        assert_eq!(
+            editor_file_error_message("workspace path is outside the workspace"),
+            "File is outside the workspace"
+        );
+        assert_eq!(
+            editor_file_error_message("unexpected filesystem failure"),
+            "File operation failed"
+        );
     }
 }

@@ -2,19 +2,21 @@ use std::collections::BTreeSet;
 
 use base64::prelude::{Engine as _, BASE64_STANDARD};
 use gpui::{
-    canvas, div, prelude::FluentBuilder as _, AnyElement, ClipboardItem, Context, CursorStyle,
-    ElementInputHandler, ExternalPaths, FontWeight, InteractiveElement as _, IntoElement as _,
-    KeyDownEvent, Modifiers, MouseButton, MouseDownEvent, MouseMoveEvent, MouseUpEvent,
-    ParentElement as _, Point, Rgba, ScrollWheelEvent, SharedString, Styled as _, Window,
+    canvas, div, font, prelude::FluentBuilder as _, AnyElement, ClipboardItem, Context,
+    CursorStyle, ElementInputHandler, ExternalPaths, FontWeight, InteractiveElement as _,
+    IntoElement as _, KeyDownEvent, Modifiers, MouseButton, MouseDownEvent, MouseMoveEvent,
+    MouseUpEvent, ParentElement as _, Point, Rgba, ScrollWheelEvent, SharedString, Styled as _,
+    Window,
 };
 use serde_json::{json, Value};
 
-use super::AleraApp;
+use super::{AleraApp, ExplorerDragData};
 use crate::design_system::{self, ButtonKind};
 use crate::icons::{icon, AleraIcon};
 use crate::model::WorkspaceTab;
 use crate::terminal::{
     KeyModifiers, TerminalEmulator, TerminalPoint, TerminalSelectionKind, TerminalSession,
+    TerminalSessionOperation,
 };
 use crate::terminal_theme_catalog::terminal_theme_palette;
 use crate::theme;
@@ -37,6 +39,8 @@ impl AleraApp {
             .collect::<Vec<_>>();
         for session_id in stale {
             self.terminal_sessions.remove(&session_id);
+            self.terminal_resize_pending.remove(&session_id);
+            self.terminal_resize_generation.remove(&session_id);
             let bridge = self.bridge.clone();
             cx.spawn(async move |_, _| {
                 let _ = bridge
@@ -85,6 +89,9 @@ impl AleraApp {
                         return;
                     };
                     session.attaching = false;
+                    session.operation = None;
+                    session.operation_started_at = None;
+                    let mut restore_generation = None;
                     match result {
                         Ok(payload) => {
                             let columns = payload
@@ -97,24 +104,40 @@ impl AleraApp {
                                 .and_then(Value::as_u64)
                                 .map(|value| value as usize)
                                 .unwrap_or(TERMINAL_ROWS);
-                            let mut emulator = TerminalEmulator::new(columns, rows);
+                            let emulator = TerminalEmulator::new(columns, rows);
                             session.running = payload
                                 .get("running")
                                 .and_then(Value::as_bool)
                                 .unwrap_or(true);
-                            if let Some(encoded) =
-                                payload.get("snapshotBase64").and_then(Value::as_str)
+                            let restored_bytes = payload
+                                .get("snapshotBase64")
+                                .and_then(Value::as_str)
+                                .map(|encoded| BASE64_STANDARD.decode(encoded))
+                                .transpose();
+                            let restored_bytes = match restored_bytes {
+                                Ok(bytes) => bytes,
+                                Err(error) => {
+                                    session.error = Some(error.to_string());
+                                    None
+                                }
+                            };
+                            session.emulator = emulator;
+                            if payload
+                                .get("snapshotBase64")
+                                .and_then(Value::as_str)
+                                .is_some()
                             {
-                                match BASE64_STANDARD.decode(encoded) {
-                                    Ok(bytes) => emulator.write(&bytes),
-                                    Err(error) => session.error = Some(error.to_string()),
+                                if let Some(bytes) = restored_bytes {
+                                    restore_generation = Some(session.begin_restore(bytes));
                                 }
                             }
                             session.columns = columns;
                             session.rows = rows;
-                            session.emulator = emulator;
                         }
                         Err(error) => session.error = Some(error),
+                    }
+                    if let Some(generation) = restore_generation {
+                        this.schedule_terminal_restore(session_id.clone(), generation, cx);
                     }
                     cx.notify();
                 });
@@ -155,7 +178,7 @@ impl AleraApp {
             let Some(session) = self.terminal_sessions.get_mut(session_id) else {
                 return;
             };
-            session.emulator.write(data);
+            session.write_output(data);
             session.emulator.take_pty_writes()
         };
         for response in responses {
@@ -184,24 +207,117 @@ impl AleraApp {
         match name {
             "exit" => {
                 session.running = false;
+                session.operation = None;
+                session.operation_started_at = None;
                 session.error = Some("The Terminal Process Exited.".to_owned());
             }
             "outputResyncRequired" => {
-                let bridge = self.bridge.clone();
-                let session_id = session_id.to_string();
-                cx.spawn(async move |_, _| {
-                    let _ = bridge
-                        .request(
-                            "setOutputPaused",
-                            json!({ "sessionId": session_id, "paused": false }),
-                        )
-                        .await;
-                })
-                .detach();
+                self.request_terminal_output_resync(session_id, cx);
             }
             _ => return,
         }
         cx.notify();
+    }
+
+    /// Resume a client whose bounded output lane fell behind. A delta resume
+    /// arrives on the terminal lane and is already handled by
+    /// `handle_terminal_output`; a full resume carries a snapshot in the
+    /// request response and must replace the emulator before new output is
+    /// accepted. Ignoring that response leaves stale/duplicated scrollback in
+    /// GPUI after reconnects or a long background pause.
+    fn request_terminal_output_resync(&mut self, session_id: &str, cx: &mut Context<Self>) {
+        let Some(session) = self.terminal_sessions.get_mut(session_id) else {
+            return;
+        };
+        if session.output_resync_in_flight {
+            return;
+        }
+        session.output_resync_in_flight = true;
+        let bridge = self.bridge.clone();
+        let session_id = session_id.to_owned();
+        cx.spawn(async move |this, cx| {
+            let result = bridge
+                .request(
+                    "setOutputPaused",
+                    json!({ "sessionId": session_id, "paused": false }),
+                )
+                .await;
+            let Some(this) = this.upgrade() else {
+                return;
+            };
+            let _ = this.update(cx, |this, cx| {
+                let Some(session) = this.terminal_sessions.get_mut(&session_id) else {
+                    return;
+                };
+                session.output_resync_in_flight = false;
+                let mut restore_generation = None;
+                match result {
+                    Ok(payload)
+                        if payload
+                            .get("delta")
+                            .and_then(Value::as_bool)
+                            .unwrap_or(false) =>
+                    {
+                        // The host queued the missed bytes ahead of the
+                        // resume response. No emulator replacement is needed.
+                    }
+                    Ok(payload) => {
+                        let columns = payload
+                            .get("cols")
+                            .and_then(Value::as_u64)
+                            .map(|value| value as usize)
+                            .unwrap_or(session.columns);
+                        let rows = payload
+                            .get("rows")
+                            .and_then(Value::as_u64)
+                            .map(|value| value as usize)
+                            .unwrap_or(session.rows);
+                        let snapshot = payload
+                            .get("snapshotBase64")
+                            .and_then(Value::as_str)
+                            .map(|encoded| BASE64_STANDARD.decode(encoded))
+                            .transpose();
+                        match snapshot {
+                            Ok(Some(bytes)) => {
+                                session.columns = columns;
+                                session.rows = rows;
+                                session.emulator = TerminalEmulator::new(columns, rows);
+                                if payload
+                                    .get("resetInteractionModes")
+                                    .and_then(Value::as_bool)
+                                    .unwrap_or(false)
+                                {
+                                    session.emulator.clear_selection();
+                                }
+                                restore_generation = Some(session.begin_restore(bytes));
+                                session.error = None;
+                            }
+                            Ok(None) => {
+                                session.error =
+                                    Some("Runtime returned an empty terminal snapshot.".into());
+                            }
+                            Err(error) => {
+                                session.error =
+                                    Some(format!("Terminal snapshot decode failed: {error}"));
+                            }
+                        }
+                    }
+                    Err(error) => session.error = Some(error),
+                }
+                if let Some(generation) = restore_generation {
+                    this.schedule_terminal_restore(session_id.clone(), generation, cx);
+                }
+                if this
+                    .terminal_hovered_link
+                    .as_ref()
+                    .is_some_and(|(hovered_session, _)| hovered_session == &session_id)
+                {
+                    this.terminal_hovered_link = None;
+                }
+                cx.notify();
+            });
+        })
+        .detach();
     }
 
     fn recover_terminal_session(
@@ -224,6 +340,12 @@ impl AleraApp {
             return;
         }
         session.attaching = true;
+        session.operation = Some(if restart {
+            TerminalSessionOperation::Restarting
+        } else {
+            TerminalSessionOperation::Reconnecting
+        });
+        session.operation_started_at = Some(std::time::Instant::now());
         session.error = None;
         let columns = session.columns;
         let rows = session.rows;
@@ -265,6 +387,9 @@ impl AleraApp {
                     return;
                 };
                 session.attaching = false;
+                session.operation = None;
+                session.operation_started_at = None;
+                let mut restore_generation = None;
                 match result {
                     Ok(payload) => {
                         let columns = payload
@@ -277,21 +402,31 @@ impl AleraApp {
                             .and_then(Value::as_u64)
                             .map(|value| value as usize)
                             .unwrap_or(rows);
-                        let mut emulator = TerminalEmulator::new(columns, rows);
-                        if let Some(encoded) = payload.get("snapshotBase64").and_then(Value::as_str)
+                        let emulator = TerminalEmulator::new(columns, rows);
+                        let restored_bytes = payload
+                            .get("snapshotBase64")
+                            .and_then(Value::as_str)
+                            .map(|encoded| BASE64_STANDARD.decode(encoded))
+                            .transpose();
+                        let restored_bytes = match restored_bytes {
+                            Ok(bytes) => bytes,
+                            Err(error) => {
+                                session.error = Some(error.to_string());
+                                None
+                            }
+                        };
+                        session.emulator = emulator;
+                        if payload
+                            .get("snapshotBase64")
+                            .and_then(Value::as_str)
+                            .is_some()
                         {
-                            match BASE64_STANDARD.decode(encoded) {
-                                Ok(bytes) => emulator.write(&bytes),
-                                Err(error) => {
-                                    session.error = Some(error.to_string());
-                                    cx.notify();
-                                    return;
-                                }
+                            if let Some(bytes) = restored_bytes {
+                                restore_generation = Some(session.begin_restore(bytes));
                             }
                         }
                         session.columns = columns;
                         session.rows = rows;
-                        session.emulator = emulator;
                         session.running = payload
                             .get("running")
                             .and_then(Value::as_bool)
@@ -301,12 +436,47 @@ impl AleraApp {
                     }
                     Err(error) => session.error = Some(error),
                 }
+                if let Some(generation) = restore_generation {
+                    this.schedule_terminal_restore(session_id.clone(), generation, cx);
+                }
                 this.reset_terminal_cursor_blink();
                 cx.notify();
             });
         })
         .detach();
         cx.notify();
+    }
+
+    fn schedule_terminal_restore(
+        &mut self,
+        session_id: String,
+        generation: u64,
+        cx: &mut Context<Self>,
+    ) {
+        let batch_session_id = session_id.clone();
+        cx.spawn(async move |this, cx| loop {
+            gpui::Timer::after(std::time::Duration::from_millis(16)).await;
+            let Some(this) = this.upgrade() else {
+                break;
+            };
+            let finished = this
+                .update(cx, |this, cx| {
+                    let Some(session) = this.terminal_sessions.get_mut(&batch_session_id) else {
+                        return true;
+                    };
+                    if session.restore_generation() != generation {
+                        return true;
+                    }
+                    let active = session.restore_next_chunk(32 * 1024);
+                    cx.notify();
+                    !active
+                })
+                .unwrap_or(true);
+            if finished {
+                break;
+            }
+        })
+        .detach();
     }
 
     fn refresh_terminal_viewport(&self, session_id: String, cx: &mut Context<Self>) {
@@ -380,7 +550,6 @@ impl AleraApp {
         if modifiers.control && modifiers.shift && event.keystroke.key.eq_ignore_ascii_case("v") {
             if let Some(text) = cx.read_from_clipboard().and_then(|item| item.text()) {
                 let bytes = session.emulator.encode_paste(&text);
-                self.terminal_input_text.clear();
                 self.terminal_marked_text = None;
                 self.write_terminal_bytes_for(&session_id, bytes);
                 cx.stop_propagation();
@@ -436,6 +605,7 @@ impl AleraApp {
         };
         let line_height = self.terminal_line_height();
         let sensitivity = self.settings_state.terminal_tui_scroll_sensitivity as i32;
+        self.terminal_scrollbar_last_activity = std::time::Instant::now();
         let Some(session) = self.terminal_sessions.get_mut(&session_id) else {
             return;
         };
@@ -456,8 +626,7 @@ impl AleraApp {
     ) -> Option<TerminalPoint> {
         let bounds = self.terminal_surface_bounds.get(session_id)?;
         let session = self.terminal_sessions.get(session_id)?;
-        let character_width =
-            gpui::px((self.settings_state.terminal_font_size * 0.6).max(1.0) as f32);
+        let character_width = gpui::px(self.terminal_character_width.max(1.0));
         let line_height = self.terminal_line_height();
         let x =
             position.x - bounds.origin.x - gpui::px(self.settings_state.terminal_padding_x as f32);
@@ -499,6 +668,10 @@ impl AleraApp {
                 kind,
                 self.settings_state.terminal_word_separators.as_deref(),
             );
+            // Keep an explicit drag owner. Some platform mouse bridges do not
+            // set `MouseMoveEvent::dragging` for every intermediate move, but
+            // Flutter continues extending the selection until pointer-up.
+            self.terminal_selection_drag = Some(session_id.to_owned());
             cx.notify();
         }
     }
@@ -557,7 +730,7 @@ impl AleraApp {
         event: &MouseMoveEvent,
         cx: &mut Context<Self>,
     ) {
-        if !event.dragging() {
+        if !event.dragging() && self.terminal_selection_drag.as_deref() != Some(session_id) {
             return;
         }
         let Some(point) = self.terminal_point_at(session_id, event.position) else {
@@ -576,6 +749,7 @@ impl AleraApp {
         _: &MouseUpEvent,
         cx: &mut Context<Self>,
     ) {
+        self.terminal_selection_drag = None;
         if !self.settings_state.terminal_clipboard_on_select {
             return;
         }
@@ -591,42 +765,42 @@ impl AleraApp {
     }
 
     pub(super) fn sync_terminal_size(&mut self, window: &Window, cx: &mut Context<Self>) {
-        let viewport = window.viewport_size();
-        let left_sidebar_width = if self.sidebar_collapsed {
-            gpui::px(52.0)
-        } else {
-            gpui::px(self.sidebar_width)
-        };
-        let right_sidebar_width = if self.context_sidebar_collapsed {
-            gpui::px(42.0)
-        } else {
-            gpui::px(self.context_sidebar_width)
-        };
-        let fallback_width = viewport.width
-            - left_sidebar_width
-            - right_sidebar_width
-            - gpui::px((self.settings_state.terminal_padding_x * 2.0) as f32);
-        let fallback_height = viewport.height
-            - theme::tab_bar_height()
-            - theme::status_bar_height()
-            - gpui::px((self.settings_state.terminal_padding_y * 2.0) as f32);
-        let character_width =
-            gpui::px((self.settings_state.terminal_font_size * 0.6).max(1.0) as f32);
         let line_height = self.terminal_line_height();
+        let family = if self.settings_state.terminal_font_family.trim().is_empty() {
+            "monospace"
+        } else {
+            self.settings_state.terminal_font_family.trim()
+        };
+        let font_id = window.text_system().resolve_font(&font(family.to_owned()));
+        self.terminal_character_width = window
+            .text_system()
+            .ch_advance(
+                font_id,
+                gpui::px(self.settings_state.terminal_font_size as f32),
+            )
+            .map(|width| f32::from(width).max(1.0))
+            .unwrap_or_else(|_| (self.settings_state.terminal_font_size * 0.6).max(1.0) as f32);
+        let character_width = gpui::px(self.terminal_character_width);
         let mut resized = Vec::new();
         for session in self.terminal_sessions.values_mut() {
-            let (content_width, content_height) = self
-                .terminal_surface_bounds
-                .get(&session.session_id)
-                .map(|bounds| {
-                    (
-                        bounds.size.width
-                            - gpui::px((self.settings_state.terminal_padding_x * 2.0) as f32),
-                        bounds.size.height
-                            - gpui::px((self.settings_state.terminal_padding_y * 2.0) as f32),
-                    )
-                })
-                .unwrap_or((fallback_width, fallback_height));
+            // Replay the host snapshot at the dimensions it was produced
+            // with. Resizing an emulator halfway through restore makes zsh's
+            // cursor-up prompt redraws become visible scrollback rows when a
+            // window is zoomed during startup.
+            if session.restore_in_progress() {
+                continue;
+            }
+            // Wait for the rendered surface to report its real bounds. A
+            // provisional window fallback can alternate with the measured
+            // split bounds while GPUI is laying out, producing repeated PTY
+            // SIGWINCH redraws and duplicated prompts in the host scrollback.
+            let Some(bounds) = self.terminal_surface_bounds.get(&session.session_id) else {
+                continue;
+            };
+            let content_width =
+                bounds.size.width - gpui::px((self.settings_state.terminal_padding_x * 2.0) as f32);
+            let content_height = bounds.size.height
+                - gpui::px((self.settings_state.terminal_padding_y * 2.0) as f32);
             let columns = ((content_width / character_width).floor() as usize).max(2);
             let rows = ((content_height / line_height).floor() as usize).max(2);
             if session.columns == columns && session.rows == rows {
@@ -638,21 +812,67 @@ impl AleraApp {
             resized.push((session.session_id.clone(), columns, rows));
         }
         for (session_id, columns, rows) in resized {
-            let bridge = self.bridge.clone();
-            cx.spawn(async move |_, _| {
-                let _ = bridge
-                    .request(
-                        "resize",
-                        json!({
-                            "sessionId": session_id,
-                            "cols": columns,
-                            "rows": rows,
-                        }),
-                    )
-                    .await;
-            })
-            .detach();
+            self.schedule_terminal_resize(session_id, columns, rows, cx);
         }
+    }
+
+    fn schedule_terminal_resize(
+        &mut self,
+        session_id: String,
+        columns: usize,
+        rows: usize,
+        cx: &mut Context<Self>,
+    ) {
+        self.terminal_resize_pending
+            .insert(session_id.clone(), (columns, rows));
+        // A zoom animation can continue emitting bounds after an earlier
+        // debounce timer fires. Incrementing the generation on every update
+        // makes older timers inert, so only the final settled bounds reach the
+        // PTY and zsh cannot redraw its prompt into the shared scrollback.
+        let generation = self
+            .terminal_resize_generation
+            .entry(session_id.clone())
+            .and_modify(|value| *value = value.wrapping_add(1))
+            .or_insert(1)
+            .to_owned();
+        let bridge = self.bridge.clone();
+        cx.spawn(async move |this, cx| {
+            // Window zoom emits several intermediate bounds in GPUI. Give the
+            // animation time to settle before forwarding the final PTY size;
+            // stale generations are discarded if another bounds event arrives.
+            gpui::Timer::after(std::time::Duration::from_millis(650)).await;
+            let Some(this) = this.upgrade() else {
+                return;
+            };
+            let request = this
+                .update(cx, |this, _| {
+                    if this
+                        .terminal_resize_generation
+                        .get(&session_id)
+                        .copied()
+                        != Some(generation)
+                    {
+                        return None;
+                    }
+                    this.terminal_resize_pending.remove(&session_id)
+                })
+                .ok()
+                .flatten();
+            let Some((columns, rows)) = request else {
+                return;
+            };
+            let _ = bridge
+                .request(
+                    "resize",
+                    json!({
+                        "sessionId": session_id,
+                        "cols": columns,
+                        "rows": rows,
+                    }),
+                )
+                .await;
+        })
+        .detach();
     }
 
     pub(super) fn selected_terminal_session_id(&self) -> Option<String> {
@@ -692,8 +912,7 @@ impl AleraApp {
     ) -> AnyElement {
         let session_id = tab.map(terminal_session_id);
         let line_height = self.terminal_line_height();
-        let character_width =
-            gpui::px((self.settings_state.terminal_font_size * 0.6).max(1.0) as f32);
+        let character_width = gpui::px(self.terminal_character_width.max(1.0));
         let cursor_color = self.terminal_cursor_color();
         let cursor_shape = self.settings_state.terminal_cursor_shape.clone();
         let cursor_opacity = self.settings_state.terminal_cursor_opacity as f32;
@@ -797,6 +1016,8 @@ impl AleraApp {
         let focus = self.terminal_focus.clone();
         let drop_focus = self.terminal_focus.clone();
         let drop_session_id = owned_session_id.clone();
+        let explorer_drop_focus = self.terminal_focus.clone();
+        let explorer_drop_session_id = owned_session_id.clone();
         let background = self.terminal_background();
         let hovering_link = self
             .terminal_hovered_link
@@ -804,6 +1025,11 @@ impl AleraApp {
             .is_some_and(|(hovered_session_id, _)| hovered_session_id == &owned_session_id);
         let scrollbar = session_id
             .and_then(|session_id| self.terminal_sessions.get(session_id))
+            .filter(|_| {
+                self.terminal_scrollbar_drag.is_some()
+                    || self.terminal_scrollbar_last_activity.elapsed()
+                        < std::time::Duration::from_millis(800)
+            })
             .and_then(|session| {
                 self.render_terminal_scrollbar(
                     &owned_session_id,
@@ -816,18 +1042,29 @@ impl AleraApp {
             .map(|session| {
                 (
                     session.attaching,
+                    session.operation,
                     session.error.clone().or_else(|| {
                         (!session.running).then(|| "The Terminal Process Exited.".to_owned())
                     }),
                 )
             });
+        let restore_progress = session_id
+            .and_then(|session_id| self.terminal_sessions.get(session_id))
+            .and_then(TerminalSession::restore_progress);
         let operation = terminal_state
             .as_ref()
-            .is_some_and(|(attaching, error)| *attaching && error.is_none())
-            .then(|| self.render_terminal_operation_state());
+            .and_then(|(_, operation, error)| error.is_none().then_some(*operation))
+            .flatten()
+            .map(|operation| {
+                let elapsed = session_id
+                    .and_then(|id| self.terminal_sessions.get(id))
+                    .and_then(|session| session.operation_started_at)
+                    .map(|started| started.elapsed().as_secs());
+                self.render_terminal_operation_state(operation, elapsed)
+            });
         let recovery = terminal_state
             .as_ref()
-            .and_then(|(_, error)| error.as_deref())
+            .and_then(|(_, _, error)| error.as_deref())
             .map(|error| {
                 self.render_terminal_recovery_state(&owned_session_id, error.to_owned(), cx)
             });
@@ -838,6 +1075,7 @@ impl AleraApp {
             .is_some()
             .then(|| self.render_terminal_refresh_button(&owned_session_id, cx));
         let mobile_driver_overlay = self.render_mobile_driver_overlay(&owned_session_id, cx);
+        let terminal_font_family = self.settings_state.terminal_font_family.clone();
         div()
             .id(SharedString::from(format!(
                 "terminal-surface-{}",
@@ -849,7 +1087,9 @@ impl AleraApp {
             .bg(background)
             .px(gpui::px(self.settings_state.terminal_padding_x as f32))
             .py(gpui::px(self.settings_state.terminal_padding_y as f32))
-            .font_family(self.settings_state.terminal_font_family.clone())
+            .when(!terminal_font_family.trim().is_empty(), |surface| {
+                surface.font_family(terminal_font_family)
+            })
             .font_weight(FontWeight(self.settings_state.terminal_font_weight as f32))
             .text_size(gpui::px(self.settings_state.terminal_font_size as f32))
             .when(hovering_link, |surface| {
@@ -906,6 +1146,29 @@ impl AleraApp {
                     cx.notify();
                 }
             }))
+            .on_drop(
+                cx.listener(move |this, drag: &ExplorerDragData, window, cx| {
+                    if this.is_terminal_mobile_driven(&explorer_drop_session_id) {
+                        cx.stop_propagation();
+                        return;
+                    }
+                    let path = this.absolute_explorer_path(&drag.relative_path);
+                    let text = format_terminal_path_for_paste(&path);
+                    if text.is_empty() {
+                        return;
+                    }
+                    let bytes = this
+                        .terminal_sessions
+                        .get(&explorer_drop_session_id)
+                        .map(|session| session.emulator.encode_paste(&text));
+                    if let Some(bytes) = bytes {
+                        this.write_terminal_bytes_for(&explorer_drop_session_id, bytes);
+                        this.reset_terminal_cursor_blink();
+                        window.focus(&explorer_drop_focus);
+                        cx.notify();
+                    }
+                }),
+            )
             .child(
                 div()
                     .flex_1()
@@ -923,6 +1186,9 @@ impl AleraApp {
             .when_some(refresh_button, |surface, button| surface.child(button))
             .when_some(recovery, |surface, recovery| surface.child(recovery))
             .when_some(operation, |surface, operation| surface.child(operation))
+            .when_some(restore_progress, |surface, (written, total)| {
+                surface.child(self.render_terminal_restore_state(written, total))
+            })
             .when_some(restart_confirmation, |surface, confirmation| {
                 surface.child(confirmation)
             })
@@ -983,7 +1249,16 @@ impl AleraApp {
         .into_any_element()
     }
 
-    fn render_terminal_operation_state(&self) -> AnyElement {
+    fn render_terminal_operation_state(
+        &self,
+        operation: TerminalSessionOperation,
+        elapsed: Option<u64>,
+    ) -> AnyElement {
+        let label = match operation {
+            TerminalSessionOperation::Starting => "Starting Terminal",
+            TerminalSessionOperation::Reconnecting => "Reconnecting Terminal",
+            TerminalSessionOperation::Restarting => "Restarting Terminal",
+        };
         div()
             .absolute()
             .top_0()
@@ -997,10 +1272,50 @@ impl AleraApp {
             .gap_3()
             .bg(self.terminal_background())
             .child(icon(AleraIcon::Loading, 20.0, theme::text_muted()))
+            .child(div().text_size(gpui::px(13.0)).child(label))
+            .when_some(
+                elapsed.filter(|seconds| *seconds >= 3),
+                |column, seconds| {
+                    column.child(
+                        div()
+                            .text_size(gpui::px(12.0))
+                            .text_color(theme::text_muted())
+                            .child(format!("Elapsed: {seconds}s")),
+                    )
+                },
+            )
+            .into_any_element()
+    }
+
+    fn render_terminal_restore_state(&self, written: usize, total: usize) -> AnyElement {
+        let fraction = (written as f32 / total.max(1) as f32).clamp(0.0, 1.0);
+        let progress_width = 180.0 * fraction;
+        div()
+            .absolute()
+            .top_0()
+            .right_0()
+            .bottom_0()
+            .left_0()
+            .flex()
+            .flex_col()
+            .items_center()
+            .justify_center()
+            .gap_3()
+            .bg(self.terminal_background())
+            .child(div().text_size(gpui::px(13.0)).child("Restoring Terminal"))
             .child(
                 div()
-                    .text_size(gpui::px(13.0))
-                    .child("Reconnecting Terminal"),
+                    .w(gpui::px(180.0))
+                    .h(gpui::px(4.0))
+                    .rounded(gpui::px(2.0))
+                    .bg(theme::surface_raised())
+                    .child(
+                        div()
+                            .h_full()
+                            .w(gpui::px(progress_width))
+                            .rounded(gpui::px(2.0))
+                            .bg(theme::accent()),
+                    ),
             )
             .into_any_element()
     }
@@ -1224,6 +1539,7 @@ impl AleraApp {
     pub(super) fn reset_terminal_cursor_blink(&mut self) {
         self.terminal_cursor_visible = true;
         self.terminal_cursor_last_activity = std::time::Instant::now();
+        self.terminal_scrollbar_last_activity = std::time::Instant::now();
     }
 
     fn render_terminal_scrollbar(
@@ -1257,6 +1573,7 @@ impl AleraApp {
                     MouseButton::Left,
                     cx.listener(move |this, event: &MouseDownEvent, _, cx| {
                         this.terminal_scrollbar_drag = Some(down_session_id.clone());
+                        this.terminal_scrollbar_last_activity = std::time::Instant::now();
                         this.scroll_terminal_to_pointer(&down_session_id, event.position.y, cx);
                         cx.stop_propagation();
                     }),
@@ -1265,6 +1582,7 @@ impl AleraApp {
                     if event.dragging()
                         && this.terminal_scrollbar_drag.as_deref() == Some(move_session_id.as_str())
                     {
+                        this.terminal_scrollbar_last_activity = std::time::Instant::now();
                         this.scroll_terminal_to_pointer(&move_session_id, event.position.y, cx);
                         cx.stop_propagation();
                     }
@@ -1452,6 +1770,18 @@ fn format_paths_for_terminal_paste(paths: &ExternalPaths) -> String {
             }
         })
         .collect()
+}
+
+fn format_terminal_path_for_paste(path: &str) -> String {
+    let value = path.trim().replace('\u{1b}', "\u{241b}");
+    if value.is_empty() {
+        return String::new();
+    }
+    if value.chars().any(char::is_whitespace) {
+        format!("'{}' ", value.replace('\'', "'\\''"))
+    } else {
+        format!("{value} ")
+    }
 }
 
 fn terminal_session_id(tab: &WorkspaceTab) -> &str {

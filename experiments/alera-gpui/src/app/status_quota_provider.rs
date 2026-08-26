@@ -9,7 +9,9 @@ use serde_json::json;
 
 use super::status_bar::quota_pin_key;
 use super::status_data::{QuotaReading, QuotaSnapshot};
-use super::status_quota::{codex_reset_expiry, provider_agent_icon, provider_label, quota_color};
+use super::status_quota::{
+    codex_reset_expiry, provider_agent_icon, provider_base_label, quota_color,
+};
 use super::AleraApp;
 use crate::activity::StatusPopover;
 use crate::icons::{agent_icon, loading_indicator};
@@ -116,7 +118,7 @@ impl AleraApp {
             .id(("quota-provider-popover", index))
             .absolute()
             .left(px(left))
-            .bottom(theme::status_bar_height())
+            .bottom(theme::status_bar_height() + px(4.0))
             .w(px(360.0))
             .max_h(px(480.0))
             .occlude()
@@ -150,10 +152,10 @@ impl AleraApp {
                             .flex_1()
                             .child(
                                 div()
-                                    .text_sm()
+                                    .text_size(px(13.0))
                                     .font_weight(gpui::FontWeight::SEMIBOLD)
                                     .text_color(theme::text())
-                                    .child(provider_label(snapshot)),
+                                    .child(provider_base_label(&snapshot.provider)),
                             )
                             .when_some(profile_label, |header, label| {
                                 header.child(
@@ -168,13 +170,13 @@ impl AleraApp {
                     .child(
                         div()
                             .rounded_full()
-                            .px_2()
+                            .px(px(6.0))
                             .py(px(2.0))
                             .bg(gpui::Rgba {
                                 a: 0.11,
                                 ..status_color
                             })
-                            .text_xs()
+                            .text_size(px(10.0))
                             .text_color(status_color)
                             .child(quota_status_label(&snapshot.status)),
                     ),
@@ -183,7 +185,7 @@ impl AleraApp {
                 panel.child(
                     div()
                         .mt_3()
-                        .text_sm()
+                        .text_size(px(12.0))
                         .text_color(theme::text_muted())
                         .child(
                             snapshot
@@ -204,7 +206,7 @@ impl AleraApp {
                             .child(
                                 div()
                                     .flex_1()
-                                    .text_sm()
+                                    .text_size(px(12.0))
                                     .font_weight(gpui::FontWeight::MEDIUM)
                                     .text_color(theme::text_muted())
                                     .child(reading.full_label.clone()),
@@ -325,7 +327,7 @@ impl AleraApp {
                             .mt_3()
                             .flex()
                             .justify_end()
-                            .text_sm()
+                            .text_size(px(11.0))
                             .font_weight(gpui::FontWeight::SEMIBOLD)
                             .text_color(if tui_busy {
                                 theme::text_faint()

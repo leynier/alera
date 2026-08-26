@@ -52,6 +52,8 @@ impl AleraApp {
     pub(super) fn search_workspace(&mut self, cx: &mut Context<Self>) {
         let Some(options) = self.current_search_options(cx) else {
             self.search_results = Default::default();
+            self.search_error = None;
+            self.search_error_is_query_failure = false;
             self.local_message = None;
             cx.notify();
             return;
@@ -59,6 +61,8 @@ impl AleraApp {
         self.local_generation += 1;
         let generation = self.local_generation;
         self.local_busy = true;
+        self.search_error = None;
+        self.search_error_is_query_failure = false;
         self.replace_confirmation = None;
         let service = self.workspace_service.clone();
         let replacement = self.replace_input.read(cx).value().to_string();
@@ -83,9 +87,18 @@ impl AleraApp {
                     Ok(results) => {
                         this.search_collapsed_result_paths.clear();
                         this.search_results = results;
+                        this.search_error = None;
+                        this.search_error_is_query_failure = false;
                         this.local_message = None;
                     }
-                    Err(error) => this.local_message = Some(error.into()),
+                    Err(error) => {
+                        // Flutter discards stale/partial matches when the search request fails.
+                        this.search_results = Default::default();
+                        this.search_collapsed_result_paths.clear();
+                        this.search_error = Some(error.into());
+                        this.search_error_is_query_failure = true;
+                        this.local_message = None;
+                    }
                 }
                 cx.notify();
             });
@@ -95,18 +108,45 @@ impl AleraApp {
 
     pub(super) fn request_replace(&mut self, match_ids: Vec<String>, cx: &mut Context<Self>) {
         let Some(options) = self.current_search_options(cx) else {
-            self.local_message = Some("Enter A Search Query".into());
+            self.search_error = Some("Enter A Search Query".into());
+            self.search_error_is_query_failure = false;
             cx.notify();
             return;
         };
         if match_ids.is_empty() && self.search_results.truncated {
-            self.local_message =
+            self.search_error =
                 Some("Replace All Is Unavailable While Results Are Truncated".into());
+            self.search_error_is_query_failure = false;
             cx.notify();
             return;
         }
         let replacement = self.replace_input.read(cx).value().to_string();
         let replace_all = match_ids.is_empty();
+
+        // Flutter refuses a replace before the confirmation step when one of the
+        // affected files is already dirty in an editor. GPUI currently keeps one
+        // active editor document, so use that document as the same guard rather
+        // than allowing the confirmation toast to hide the data-loss warning.
+        if self.editor_dirty {
+            if let Some(opened_path) = self.opened_file_path.as_ref() {
+                let affects_dirty_file = self.search_results.files.iter().any(|file| {
+                    file.relative_path == *opened_path
+                        && (replace_all
+                            || file.matches.iter().any(|item| match_ids.contains(&item.id)))
+                });
+                if affects_dirty_file {
+                    self.replace_confirmation = None;
+                    let message: SharedString =
+                        format!("Save or discard {opened_path} before replacing.").into();
+                    self.local_message = Some(message.clone());
+                    self.search_error = Some(message);
+                    self.search_error_is_query_failure = false;
+                    cx.notify();
+                    return;
+                }
+            }
+        }
+
         let confirmation = (
             options.query.clone(),
             replacement.clone(),
@@ -114,6 +154,7 @@ impl AleraApp {
         );
         if replace_all && self.replace_confirmation.as_ref() != Some(&confirmation) {
             self.replace_confirmation = Some(confirmation);
+            self.search_error_is_query_failure = false;
             self.local_message = Some(
                 format!(
                     "Confirm Replacing {} Matches By Clicking Replace All Again",
@@ -182,7 +223,8 @@ impl AleraApp {
                         this.search_workspace(cx);
                     }
                     Err(error) => {
-                        this.local_message = Some(error.into());
+                        this.search_error = Some(error.into());
+                        this.search_error_is_query_failure = false;
                         cx.notify();
                     }
                 }
@@ -201,6 +243,8 @@ impl AleraApp {
             input.update(cx, |input, cx| input.set_value("", window, cx));
         }
         self.search_results = Default::default();
+        self.search_error = None;
+        self.search_error_is_query_failure = false;
         self.search_collapsed_result_paths.clear();
         self.replace_confirmation = None;
         self.local_message = None;
@@ -278,6 +322,10 @@ impl AleraApp {
                         })
                         .child(if self.local_busy {
                             SharedString::from("Searching...")
+                        } else if self.search_error_is_query_failure {
+                            // Flutter keeps the summary row neutral when the query cannot be
+                            // parsed, instead of exposing a misleading zero-match count.
+                            SharedString::from("No results")
                         } else {
                             let match_word = if self.search_results.total_matches == 1 {
                                 "match"
@@ -305,6 +353,17 @@ impl AleraApp {
                 )
             })
             .child(div().flex_shrink_0().h(px(1.0)).bg(theme::border_subtle()))
+            .when_some(self.search_error.clone(), |panel, error| {
+                panel.child(
+                    div()
+                        .flex_shrink_0()
+                        .px_2()
+                        .pb_2()
+                        .text_size(px(12.0))
+                        .text_color(theme::danger())
+                        .child(error),
+                )
+            })
             .child(self.render_search_results(cx))
             .into_any_element()
     }

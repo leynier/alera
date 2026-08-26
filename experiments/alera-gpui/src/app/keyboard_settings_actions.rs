@@ -16,6 +16,10 @@ impl AleraApp {
     ) {
         self.settings_state.keyboard_terminal_policy = policy.to_string();
         self.settings_store.save(&self.settings_state);
+        self.persist_shared_flutter_settings(
+            self.settings_state.shared_flutter_local_payload(),
+            cx,
+        );
         cx.notify();
     }
 
@@ -115,6 +119,10 @@ impl AleraApp {
         }
         self.settings_state.keyboard_terminal_policy = "appFirst".to_string();
         self.settings_store.save(&self.settings_state);
+        self.persist_shared_flutter_settings(
+            self.settings_state.shared_flutter_local_payload(),
+            cx,
+        );
         self.keyboard_settings.recording_id = None;
         self.keyboard_settings.error = None;
         self.keyboard_settings.conflict = None;
@@ -186,6 +194,10 @@ impl AleraApp {
             }
         }
         self.settings_store.save(&self.settings_state);
+        self.persist_shared_flutter_settings(
+            self.settings_state.shared_flutter_local_payload(),
+            cx,
+        );
         self.install_keyboard_binding_change(id, old, cx);
         cx.notify();
     }

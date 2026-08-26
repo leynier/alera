@@ -8,7 +8,11 @@ use super::workspace_prompt_dropdown::AgentProfileOption;
 use super::{AleraApp, NewWorkspaceMode, NewWorkspaceStep};
 
 impl AleraApp {
-    pub(super) fn open_new_workspace_dialog(&mut self, cx: &mut Context<Self>) {
+    pub(super) fn open_new_workspace_dialog(
+        &mut self,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
         if !self
             .snapshot
             .projects
@@ -49,6 +53,10 @@ impl AleraApp {
         if let Some(project_id) = self.selected_workspace_project_id.clone() {
             self.load_workspace_branches(project_id, cx);
         }
+        let prompt_input = self.workspace_prompt_input.clone();
+        window.on_next_frame(move |window, cx| {
+            prompt_input.update(cx, |input, cx| input.focus(window, cx));
+        });
         cx.notify();
     }
 

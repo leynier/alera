@@ -84,6 +84,7 @@ impl AleraApp {
         options: impl IntoIterator<Item = (String, String)>,
         cx: &mut Context<Self>,
     ) -> gpui::Div {
+        let enabled = !self.agent_profile_settings.saving;
         let value = value.into();
         let expanded = self.agent_profile_settings.dropdown == Some(dropdown);
         let selected = selected_value(self, dropdown).to_owned();
@@ -120,7 +121,7 @@ impl AleraApp {
             .child(
                 div()
                     .id(SharedString::from(format!("profile-dropdown-{dropdown:?}")))
-                    .when(expanded, |trigger| {
+                    .when(expanded && enabled, |trigger| {
                         trigger
                             .track_focus(&self.agent_profile_settings.dropdown_focus)
                             .on_key_down(cx.listener(Self::handle_agent_profile_dropdown_key))
@@ -138,13 +139,16 @@ impl AleraApp {
                         theme::border()
                     })
                     .bg(theme::surface_selected())
-                    .cursor(CursorStyle::PointingHand)
-                    .on_mouse_down(
-                        MouseButton::Left,
-                        cx.listener(move |this, _, window, cx| {
-                            this.toggle_agent_profile_dropdown(dropdown, window, cx);
-                        }),
-                    )
+                    .when(enabled, |trigger| {
+                        trigger
+                            .cursor(CursorStyle::PointingHand)
+                            .on_mouse_down(
+                                MouseButton::Left,
+                                cx.listener(move |this, _, window, cx| {
+                                    this.toggle_agent_profile_dropdown(dropdown, window, cx);
+                                }),
+                            )
+                    })
                     .child(value)
                     .child(div().flex_1())
                     .child(icon(
@@ -157,7 +161,7 @@ impl AleraApp {
                         theme::text_muted(),
                     )),
             )
-            .when(expanded, |field| {
+            .when(expanded && enabled, |field| {
                 field.child(
                     deferred(
                         div()
@@ -218,19 +222,25 @@ impl AleraApp {
                                                             .dropdown_highlighted_index,
                                                     |row| row.bg(theme::surface_raised()),
                                                 )
-                                                .cursor(CursorStyle::PointingHand)
-                                                .hover(|style| style.bg(theme::surface_raised()))
-                                                .on_mouse_down(
-                                                    MouseButton::Left,
-                                                    cx.listener(move |this, _, window, cx| {
-                                                        this.select_agent_profile_dropdown_value(
-                                                            dropdown,
-                                                            selected_option.clone(),
-                                                            window,
-                                                            cx,
-                                                        );
-                                                    }),
-                                                )
+                                                .when(enabled, |row| {
+                                                    row.cursor(CursorStyle::PointingHand)
+                                                        .hover(|style| {
+                                                            style.bg(theme::surface_raised())
+                                                        })
+                                                        .on_mouse_down(
+                                                            MouseButton::Left,
+                                                            cx.listener(
+                                                                move |this, _, window, cx| {
+                                                                    this.select_agent_profile_dropdown_value(
+                                                                        dropdown,
+                                                                        selected_option.clone(),
+                                                                        window,
+                                                                        cx,
+                                                                    );
+                                                                },
+                                                            ),
+                                                        )
+                                                })
                                                 .child(div().w(px(18.0)).when(
                                                     selected == option,
                                                     |slot| {
@@ -351,36 +361,12 @@ pub(super) fn settings_row_width(
         .child(div().w(px(control_width)).child(control))
 }
 
-pub(super) fn settings_switch(
+pub(super) fn settings_checkbox(
     id: impl Into<gpui::ElementId>,
     enabled: bool,
+    interactive: bool,
 ) -> gpui::Stateful<gpui::Div> {
-    div()
-        .id(id)
-        .flex()
-        .items_center()
-        .w(px(52.0))
-        .h(px(32.0))
-        .p(px(4.0))
-        .rounded_full()
-        .bg(if enabled {
-            theme::accent()
-        } else {
-            theme::surface_raised()
-        })
-        .cursor(CursorStyle::PointingHand)
-        .child(
-            div()
-                .w(px(24.0))
-                .h(px(24.0))
-                .rounded_full()
-                .bg(if enabled {
-                    theme::app_background()
-                } else {
-                    theme::text_muted()
-                })
-                .when(enabled, |thumb| thumb.ml_auto()),
-        )
+    design_system::checkbox(enabled, interactive, None).id(id)
 }
 
 pub(super) fn profile_action_button(

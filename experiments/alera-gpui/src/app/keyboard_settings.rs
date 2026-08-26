@@ -64,7 +64,7 @@ pub(super) const KEYBOARD_BINDINGS: &[KeyboardBindingDefinition] = &[
         "openSettings",
         "Open Settings",
         Global,
-        "Open The Settings Dialog.",
+        "Open the settings dialog.",
         &["Mod+Comma"],
         true
     ),
@@ -72,7 +72,7 @@ pub(super) const KEYBOARD_BINDINGS: &[KeyboardBindingDefinition] = &[
         "addProject",
         "Add Project",
         Global,
-        "Open The Add-Project Dialog.",
+        "Open the add-project dialog.",
         &["Mod+Shift+O"],
         true
     ),
@@ -80,7 +80,7 @@ pub(super) const KEYBOARD_BINDINGS: &[KeyboardBindingDefinition] = &[
         "toggleSidebar",
         "Toggle Sidebar",
         Global,
-        "Collapse Or Expand The Project Sidebar.",
+        "Collapse or expand the project sidebar.",
         &["Mod+B"],
         true
     ),
@@ -88,23 +88,23 @@ pub(super) const KEYBOARD_BINDINGS: &[KeyboardBindingDefinition] = &[
         "createWorkspace",
         "New Workspace",
         Workspace,
-        "Create A Linked Workspace For The Active Git Project.",
+        "Create a linked workspace for the active Git project.",
         &["Mod+Shift+N"],
         true
     ),
     binding!(
         "findInFiles",
-        "Find In Files",
+        "Find in Files",
         Workspace,
-        "Open Workspace Search.",
+        "Open workspace search.",
         &["Mod+Shift+F"],
         true
     ),
     binding!(
         "replaceInFiles",
-        "Replace In Files",
+        "Replace in Files",
         Workspace,
-        "Open Workspace Search And Replace.",
+        "Open workspace search and replace.",
         &["Mod+Shift+H"],
         true
     ),
@@ -112,7 +112,7 @@ pub(super) const KEYBOARD_BINDINGS: &[KeyboardBindingDefinition] = &[
         "saveFile",
         "Save File",
         Workspace,
-        "Save The Active Editor File.",
+        "Save the active editor file.",
         &["Mod+S"],
         false
     ),
@@ -120,7 +120,7 @@ pub(super) const KEYBOARD_BINDINGS: &[KeyboardBindingDefinition] = &[
         "newTerminalTab",
         "New Terminal Tab",
         Tabs,
-        "Open A Terminal Tab In The Active Workspace.",
+        "Open a terminal tab in the active workspace.",
         &["Mod+T"],
         false
     ),
@@ -128,7 +128,7 @@ pub(super) const KEYBOARD_BINDINGS: &[KeyboardBindingDefinition] = &[
         "closeTab",
         "Close Tab",
         Tabs,
-        "Close The Active Terminal Tab.",
+        "Close the active terminal tab.",
         &["Mod+W"],
         false
     ),
@@ -136,7 +136,7 @@ pub(super) const KEYBOARD_BINDINGS: &[KeyboardBindingDefinition] = &[
         "nextTab",
         "Next Tab",
         Tabs,
-        "Select The Next Tab In The Active Pane.",
+        "Select the next tab in the active pane.",
         &["Mod+Shift+BracketRight", "Ctrl+Tab"],
         &["Ctrl+Tab"],
         false
@@ -145,80 +145,80 @@ pub(super) const KEYBOARD_BINDINGS: &[KeyboardBindingDefinition] = &[
         "previousTab",
         "Previous Tab",
         Tabs,
-        "Select The Previous Tab In The Active Pane.",
+        "Select the previous tab in the active pane.",
         &["Mod+Shift+BracketLeft", "Ctrl+Shift+Tab"],
         &["Ctrl+Shift+Tab"],
         false
     ),
     binding!(
         "goToTab1",
-        "Go To Tab 1",
+        "Go to Tab 1",
         Tabs,
-        "Select The First Tab In The Active Pane.",
+        "Select the first tab in the active pane.",
         &["Mod+1"],
         false
     ),
     binding!(
         "goToTab2",
-        "Go To Tab 2",
+        "Go to Tab 2",
         Tabs,
-        "Select The Second Tab In The Active Pane.",
+        "Select the second tab in the active pane.",
         &["Mod+2"],
         false
     ),
     binding!(
         "goToTab3",
-        "Go To Tab 3",
+        "Go to Tab 3",
         Tabs,
-        "Select The Third Tab In The Active Pane.",
+        "Select the third tab in the active pane.",
         &["Mod+3"],
         false
     ),
     binding!(
         "goToTab4",
-        "Go To Tab 4",
+        "Go to Tab 4",
         Tabs,
-        "Select The Fourth Tab In The Active Pane.",
+        "Select the fourth tab in the active pane.",
         &["Mod+4"],
         false
     ),
     binding!(
         "goToTab5",
-        "Go To Tab 5",
+        "Go to Tab 5",
         Tabs,
-        "Select The Fifth Tab In The Active Pane.",
+        "Select the fifth tab in the active pane.",
         &["Mod+5"],
         false
     ),
     binding!(
         "goToTab6",
-        "Go To Tab 6",
+        "Go to Tab 6",
         Tabs,
-        "Select The Sixth Tab In The Active Pane.",
+        "Select the sixth tab in the active pane.",
         &["Mod+6"],
         false
     ),
     binding!(
         "goToTab7",
-        "Go To Tab 7",
+        "Go to Tab 7",
         Tabs,
-        "Select The Seventh Tab In The Active Pane.",
+        "Select the seventh tab in the active pane.",
         &["Mod+7"],
         false
     ),
     binding!(
         "goToTab8",
-        "Go To Tab 8",
+        "Go to Tab 8",
         Tabs,
-        "Select The Eighth Tab In The Active Pane.",
+        "Select the eighth tab in the active pane.",
         &["Mod+8"],
         false
     ),
     binding!(
         "goToTab9",
-        "Go To Last Tab",
+        "Go to Last Tab",
         Tabs,
-        "Select The Last Tab In The Active Pane.",
+        "Select the last tab in the active pane.",
         &["Mod+9"],
         false
     ),
@@ -226,7 +226,7 @@ pub(super) const KEYBOARD_BINDINGS: &[KeyboardBindingDefinition] = &[
         "splitRight",
         "Split Right",
         Panes,
-        "Split The Active Pane To The Right With A New Terminal.",
+        "Split the active pane to the right with a new terminal.",
         &["Mod+D"],
         &["Mod+Shift+D"],
         false
@@ -235,7 +235,7 @@ pub(super) const KEYBOARD_BINDINGS: &[KeyboardBindingDefinition] = &[
         "splitDown",
         "Split Down",
         Panes,
-        "Split The Active Pane Downward With A New Terminal.",
+        "Split the active pane downward with a new terminal.",
         &["Mod+Shift+D"],
         &["Mod+Alt+D"],
         false
@@ -244,7 +244,7 @@ pub(super) const KEYBOARD_BINDINGS: &[KeyboardBindingDefinition] = &[
         "closeSplit",
         "Close Split",
         Panes,
-        "Merge The Active Pane Back Into Its Sibling.",
+        "Merge the active pane back into its sibling.",
         &["Mod+Shift+W"],
         false
     ),

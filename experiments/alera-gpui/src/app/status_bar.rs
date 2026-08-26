@@ -1,13 +1,15 @@
 use std::time::Duration;
 
 use gpui::{
-    div, prelude::FluentBuilder as _, px, AnyElement, Context, CursorStyle,
+    div, prelude::FluentBuilder as _, px, AnyElement, AppContext as _, Context, CursorStyle,
     InteractiveElement as _, IntoElement, ParentElement as _, StatefulInteractiveElement as _,
     Styled as _, Timer,
 };
+use gpui_component::tooltip::Tooltip;
 use serde_json::Value;
 
 use super::status_data::QuotaSnapshot;
+use super::status_runtime::{runtime_chip_color, runtime_chip_label, runtime_is_running};
 use super::AleraApp;
 use crate::activity::StatusPopover;
 use crate::{
@@ -216,7 +218,11 @@ impl AleraApp {
                             .get("sessionId")
                             .and_then(Value::as_str)
                             .unwrap_or_default();
-                        !self.snapshot.tabs.iter().any(|tab| {
+                        // Resource snapshots include every workspace, not
+                        // just the mounted workbench.  Join against the same
+                        // global tab projection so sessions from another
+                        // workspace are not falsely reported as orphans.
+                        !self.snapshot.all_tabs.iter().any(|tab| {
                             tab.kind == "terminal"
                                 && tab
                                     .payload
@@ -229,26 +235,35 @@ impl AleraApp {
                     })
                     .count()
             });
-        let runtime_version = self
-            .status_data
-            .runtime
-            .as_ref()
-            .and_then(|value| value.get("runtimeHostVersion"))
-            .and_then(Value::as_str)
-            .map(|version| {
-                if version.starts_with(['v', 'V']) {
-                    format!("Runtime {version}")
-                } else {
-                    format!("Runtime v{version}")
-                }
+        let runtime_error = self.status_data.runtime_error.is_some();
+        let runtime_value = self.status_data.runtime.as_ref();
+        let runtime_running = runtime_is_running(runtime_value, runtime_error);
+        let runtime_loading = self.status_data.runtime_loading
+            || (matches!(
+                self.connection_label.as_ref(),
+                "Runtime Connecting" | "Runtime Starting" | "Runtime Reconnecting"
+            ) && !runtime_running
+                && !runtime_error);
+        let runtime_label = runtime_chip_label(runtime_value, runtime_error, runtime_loading);
+        let runtime_color = runtime_chip_color(runtime_value, runtime_error, runtime_loading);
+        let host_label = self
+            .selected_workspace_id
+            .as_deref()
+            .and_then(|workspace_id| {
+                self.snapshot
+                    .projects
+                    .iter()
+                    .flat_map(|project| project.workspaces.iter())
+                    .find(|workspace| workspace.id == workspace_id)
             })
-            .unwrap_or_else(|| self.connection_label.to_string());
-        let runtime_connected = self.status_data.runtime.is_some()
-            || self.connection_label.as_ref() == "Runtime Connected";
-        let runtime_loading = matches!(
-            self.connection_label.as_ref(),
-            "Runtime Connecting" | "Runtime Starting" | "Runtime Reconnecting"
-        );
+            .map(|workspace| workspace.host_id.clone())
+            .filter(|host_id| !host_id.trim().is_empty())
+            .unwrap_or_else(|| "local".to_owned());
+        let host_label = if host_label == "local" {
+            "Local".to_owned()
+        } else {
+            host_label
+        };
 
         div()
             .flex()
@@ -274,7 +289,7 @@ impl AleraApp {
                     .border_r_1()
                     .border_color(theme::border_subtle())
                     .child(icon(AleraIcon::Server, 13.0, theme::text_muted()))
-                    .child("Local"),
+                    .child(host_label),
             )
             .child(
                 div()
@@ -370,6 +385,7 @@ impl AleraApp {
                     .border_l_1()
                     .border_color(theme::border_subtle())
                     .cursor(CursorStyle::PointingHand)
+                    .tooltip(|_, cx| cx.new(|_| Tooltip::new("Resource Manager")).into())
                     .hover(|style| style.bg(theme::surface_raised()))
                     .on_hover(cx.listener(|this, hovered: &bool, _, cx| {
                         this.set_status_popover_trigger_hovered(
@@ -409,11 +425,8 @@ impl AleraApp {
                     .border_l_1()
                     .border_color(theme::border_subtle())
                     .cursor(CursorStyle::PointingHand)
-                    .text_color(if runtime_connected {
-                        theme::success()
-                    } else {
-                        theme::warning()
-                    })
+                    .text_color(runtime_color)
+                    .tooltip(|_, cx| cx.new(|_| Tooltip::new("Runtime Host")).into())
                     .hover(|style| style.bg(theme::surface_raised()))
                     .on_hover(cx.listener(|this, hovered: &bool, _, cx| {
                         this.set_status_popover_trigger_hovered(
@@ -430,23 +443,11 @@ impl AleraApp {
                         }),
                     )
                     .child(if runtime_loading {
-                        loading_indicator(13.0, theme::warning())
+                        loading_indicator(13.0, runtime_color)
                     } else {
-                        icon(
-                            AleraIcon::Server,
-                            13.0,
-                            if runtime_connected {
-                                theme::success()
-                            } else {
-                                theme::warning()
-                            },
-                        )
+                        icon(AleraIcon::Server, 13.0, runtime_color)
                     })
-                    .child(if runtime_connected {
-                        gpui::SharedString::from(runtime_version)
-                    } else {
-                        self.connection_label.clone()
-                    }),
+                    .child(gpui::SharedString::from(runtime_label)),
             )
     }
 

@@ -10,16 +10,16 @@ fn terminal_pane(
         .child(
             exact_settings_group(
                 "Typography",
-                "Default Terminal Typography For New Sessions.",
+                "Default terminal typography for new sessions.",
                 vec![
                 exact_settings_row(
                     "Font Family",
-                    "Typeface Used In New Terminal Sessions.",
-                    settings_select_control(font_select, true, true),
+                    "Typeface used in new terminal sessions.",
+                    settings_font_select_control(font_select, cx),
                 ),
                 exact_settings_row(
                     "Font Size",
-                    "Text Size Used In New Terminal Sessions.",
+                    "Text size used in new terminal sessions.",
                     number_input_control(
                         "terminal-font-size",
                         settings_input(inputs, "terminal-font-size"),
@@ -32,7 +32,7 @@ fn terminal_pane(
                 ),
                 exact_settings_row(
                     "Font Weight",
-                    "Weight Used For Terminal Text.",
+                    "Weight used for terminal text.",
                     number_input_control(
                         "terminal-font-weight",
                         settings_input(inputs, "terminal-font-weight"),
@@ -45,7 +45,7 @@ fn terminal_pane(
                 ),
                 exact_settings_row(
                     "Line Height",
-                    "Vertical Spacing For Terminal Rows.",
+                    "Vertical spacing for terminal rows.",
                     number_input_control(
                         "terminal-line-height",
                         settings_input(inputs, "terminal-line-height"),
@@ -69,16 +69,16 @@ fn terminal_pane(
             div().mt_4().child(
                 exact_settings_group(
                     "Cursor",
-                    "Default Cursor Appearance For Terminal Sessions.",
+                    "Default cursor appearance for terminal sessions.",
                     vec![
                 exact_settings_row(
                     "Cursor Shape",
-                    "Cursor Style For New Terminal Sessions.",
+                    "Cursor style for new terminal sessions.",
                     terminal_cursor_shape_control(settings, cx),
                 ),
                 exact_settings_row(
                     "Blinking Cursor",
-                    "Blink The Cursor While The Terminal Has Focus.",
+                    "Blink the cursor while the terminal has focus.",
                     settings_switch("terminal-cursor-blink", settings.terminal_cursor_blink)
                         .on_mouse_down(
                             MouseButton::Left,
@@ -96,7 +96,7 @@ fn terminal_pane(
                 ),
                 exact_settings_row(
                     "Cursor Opacity",
-                    "Opacity Of The Terminal Cursor.",
+                    "Opacity of the terminal cursor.",
                     number_input_control(
                         "terminal-cursor-opacity",
                         settings_input(inputs, "terminal-cursor-opacity"),
@@ -121,12 +121,12 @@ fn terminal_pane(
             div().mt_4().child(
                 exact_settings_group(
                     "Appearance",
-                    "Terminal Colors, Theme And Spacing.",
+                    "Terminal colors, theme and spacing.",
                     vec![
                 terminal_theme_picker(theme_search_input, settings, cx),
                 exact_settings_row(
                     "Background Opacity",
-                    "Opacity Of The Terminal Background.",
+                    "Opacity of the terminal background.",
                     number_input_control(
                         "terminal-background-opacity",
                         settings_input(inputs, "terminal-background-opacity"),
@@ -139,7 +139,7 @@ fn terminal_pane(
                 ),
                 exact_settings_row(
                     "Horizontal Padding",
-                    "Horizontal Spacing Around The Terminal Grid.",
+                    "Horizontal spacing around the terminal grid.",
                     number_input_control(
                         "terminal-padding-x",
                         settings_input(inputs, "terminal-padding-x"),
@@ -152,7 +152,7 @@ fn terminal_pane(
                 ),
                 exact_settings_row(
                     "Vertical Padding",
-                    "Vertical Spacing Around The Terminal Grid.",
+                    "Vertical spacing around the terminal grid.",
                     number_input_control(
                         "terminal-padding-y",
                         settings_input(inputs, "terminal-padding-y"),
@@ -165,21 +165,25 @@ fn terminal_pane(
                 ),
                 terminal_color_row(
                     "Foreground Color",
+                    "Override the terminal text color.",
                     "#f5f5f5",
                     settings_input(inputs, "terminal-color-foreground"),
                 ),
                 terminal_color_row(
                     "Background Color",
+                    "Override the terminal background color.",
                     "#101010",
                     settings_input(inputs, "terminal-color-background"),
                 ),
                 terminal_color_row(
                     "Cursor Color",
+                    "Override the terminal cursor color.",
                     "#e0e0e0",
                     settings_input(inputs, "terminal-color-cursor"),
                 ),
                 terminal_color_row(
                     "Selection Color",
+                    "Override the terminal selection color.",
                     "#3e4451",
                     settings_input(inputs, "terminal-color-selection"),
                 ),
@@ -197,11 +201,11 @@ fn terminal_pane(
             div().mt_4().child(
                 exact_settings_group(
                     "Interaction",
-                    "Mouse, Scrolling And Clipboard Behavior For TUIs.",
+                    "Mouse, scrolling and clipboard behavior for TUIs.",
                     vec![
                 exact_settings_row(
                     "TUI Scroll Speed",
-                    "Mouse Reports Sent Per Wheel Step While A TUI Owns Scrolling.",
+                    "Mouse reports sent per wheel step while a TUI owns scrolling.",
                     number_input_control(
                         "terminal-tui-scroll",
                         settings_input(inputs, "terminal-tui-scroll"),
@@ -214,7 +218,7 @@ fn terminal_pane(
                 ),
                 exact_settings_row(
                     "Copy On Select",
-                    "Copy Local Terminal Selections To The System Clipboard.",
+                    "Copy local terminal selections to the system clipboard.",
                     settings_switch(
                         "terminal-copy-on-select",
                         settings.terminal_clipboard_on_select,
@@ -235,7 +239,7 @@ fn terminal_pane(
                 ),
                 exact_settings_row(
                     "Allow OSC 52 Clipboard Writes",
-                    "Let Terminal Applications Replace The System Clipboard.",
+                    "Let terminal applications replace the system clipboard.",
                     settings_switch(
                         "terminal-osc52",
                         settings.terminal_allow_osc52_clipboard,
@@ -268,11 +272,11 @@ fn terminal_pane(
             div().mt_4().child(
                 exact_settings_group(
                     "Advanced",
-                    "History, Shell Startup And Double-Click Selection Behavior.",
+                    "History, shell startup and double-click selection behavior.",
                     vec![
                 exact_settings_row(
                     "Use Login Shell",
-                    "Start Shells As Login Shells So Profile Files Are Loaded.",
+                    "Start shells as login shells so profile files such as ~/.zprofile and ~/.profile are loaded.",
                     settings_switch("terminal-login-shell", settings.terminal_login_shell)
                         .on_mouse_down(
                             MouseButton::Left,
@@ -290,7 +294,7 @@ fn terminal_pane(
                 ),
                 exact_settings_row(
                     "Reload Shell Environment",
-                    "Re-Read The Login Shell PATH For New Terminals.",
+                    "Re-read the login shell PATH so tools installed since the runtime started resolve in new terminals.",
                     settings_button("terminal-reload-shell", "Reload").on_mouse_down(
                         MouseButton::Left,
                         cx.listener(|this, _: &MouseDownEvent, _, cx| {
@@ -301,7 +305,7 @@ fn terminal_pane(
                 ),
                 exact_settings_row(
                     "Scrollback Lines",
-                    "Maximum Terminal History Retained Per Session.",
+                    "Maximum terminal history retained per session.",
                     number_input_control(
                         "terminal-scrollback-lines",
                         settings_input(inputs, "terminal-scrollback-lines"),
@@ -314,7 +318,7 @@ fn terminal_pane(
                 ),
                 exact_settings_row(
                     "Host Scrollback Size",
-                    "Maximum Host-Side Terminal Output Retained Per Session.",
+                    "Maximum host-side terminal output retained per session.",
                     number_input_control(
                         "terminal-host-scrollback-mb",
                         settings_input(inputs, "terminal-host-scrollback-mb"),
@@ -327,7 +331,7 @@ fn terminal_pane(
                 ),
                 exact_settings_row(
                     "Terminal Memory Budget",
-                    "Ceiling For Terminal Scrollback Held In The App. Use 0 For No Limit.",
+                    "Ceiling for terminal scrollback held in the app. Over it, terminals you have not looked at recently are unloaded and restored when you return. Their agents keep running. Use 0 for no limit.",
                     number_input_control(
                         "terminal-buffer-budget-mb",
                         settings_input(inputs, "terminal-buffer-budget-mb"),
@@ -340,7 +344,7 @@ fn terminal_pane(
                 ),
                 exact_settings_row(
                     "Word Separators",
-                    "Characters That Break Double-Click Word Selection.",
+                    "Characters that break double-click word selection.",
                     settings_text_input(
                         settings_input(inputs, "terminal-word-separators"),
                         220.0,
@@ -439,7 +443,7 @@ fn terminal_theme_picker(
                                                     .items_center()
                                                     .justify_center()
                                                     .text_color(theme::text_muted())
-                                                    .child("No Themes Found."),
+                                                    .child("No themes found."),
                                             )
                                         })
                                         .children(themes.iter().enumerate().map(|(index, name)| {

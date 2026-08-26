@@ -3,6 +3,7 @@ use std::path::{Path, PathBuf};
 use gpui::{Context, SharedString};
 use serde_json::{json, Map, Value};
 
+use super::git_surface::friendly_git_error;
 use super::AleraApp;
 use crate::activity::ContextPanel;
 
@@ -146,6 +147,8 @@ impl AleraApp {
         self.explorer_menu = None;
         self.local_busy = true;
         self.local_message = None;
+        self.git_snapshot_loading = true;
+        self.git_snapshot_error = None;
         let service = self.workspace_service.clone();
         let candidate_path = candidate.to_string_lossy().into_owned();
         cx.spawn(async move |this, cx| {
@@ -155,6 +158,7 @@ impl AleraApp {
             };
             let _ = this.update(cx, |this, cx| {
                 this.local_busy = false;
+                this.git_snapshot_loading = false;
                 match result {
                     Ok(snapshot) => {
                         this.set_source_control_root_for_workspace(
@@ -162,14 +166,17 @@ impl AleraApp {
                             Some(normalized.clone()),
                         );
                         this.git_snapshot = snapshot;
+                        this.git_snapshot_error = None;
                         this.context_panel = ContextPanel::SourceControl;
                         this.context_sidebar_collapsed = false;
                         this.local_message = None;
                         this.persist_sidebar_view_prefs(cx);
                         this.refresh_forge(cx);
                     }
-                    Err(_) => {
-                        this.local_message = Some("Folder Is Not A Git Repository".into());
+                    Err(error) => {
+                        let message = friendly_git_error(&error);
+                        this.git_snapshot_error = Some(message.clone().into());
+                        this.local_message = Some(message.into());
                     }
                 }
                 cx.notify();

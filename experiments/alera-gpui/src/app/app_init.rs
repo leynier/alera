@@ -73,7 +73,7 @@ impl AleraApp {
         });
         let editor_theme_search_input = cx.new(|cx| {
             InputState::new(window, cx)
-                .placeholder("Search Syntax Themes")
+                .placeholder("Search syntax themes")
                 .clean_on_escape()
         });
         let terminal_theme_search_input = cx.new(|cx| {
@@ -272,7 +272,10 @@ impl AleraApp {
         let editor_input = cx.new(|cx| {
             InputState::new(window, cx)
                 .code_editor("text")
-                .soft_wrap(false)
+                // Flutter's CodeForge editor keeps soft wrapping enabled. The
+                // same setting is important for long Markdown/code lines so
+                // the editor surface and vertical rhythm stay comparable.
+                .soft_wrap(true)
         });
         let search_input = cx.new(|cx| {
             InputState::new(window, cx)
@@ -302,13 +305,17 @@ impl AleraApp {
             cx.new(|cx| InputState::new(window, cx).placeholder("Pull Request Title"));
         let forge_body_input = cx.new(|cx| {
             InputState::new(window, cx)
-                .placeholder("Pull Request Description")
+                .placeholder("Description")
                 .multi_line(true)
                 .soft_wrap(true)
         });
         let forge_base_input = cx.new(|cx| InputState::new(window, cx).placeholder("Base Branch"));
-        let forge_comment_input =
-            cx.new(|cx| InputState::new(window, cx).placeholder("Add A Comment"));
+        let forge_comment_input = cx.new(|cx| {
+            InputState::new(window, cx)
+                .placeholder("Add A Comment")
+                .multi_line(true)
+                .soft_wrap(true)
+        });
         let forge_link_input =
             cx.new(|cx| InputState::new(window, cx).placeholder("#123 Or Pull Request URL"));
         let run_policy_reason_input =
@@ -323,11 +330,44 @@ impl AleraApp {
             cx.subscribe_in(
                 &editor_input,
                 window,
-                |this, _, event: &InputEvent, _, cx| {
-                    if matches!(event, InputEvent::Change) && this.editor_document.is_some() {
+                |this, input, event: &InputEvent, _, cx| {
+                    if !matches!(event, InputEvent::Change)
+                        || this.editor_input_syncing
+                        || this.editor_document.is_none()
+                    {
+                        return;
+                    }
+                    if let Some(path) = this.opened_file_path.clone() {
+                        this.editor_buffer_text
+                            .insert(path.clone(), input.read(cx).value().to_string());
+                        this.editor_dirty_paths.insert(path);
                         this.editor_dirty = true;
                         cx.notify();
                     }
+                },
+            ),
+            cx.subscribe_in(
+                &tab_rename_input,
+                window,
+                |this, input, event: &InputEvent, window, cx| {
+                    if !matches!(event, InputEvent::Change) || !this.show_tab_rename_dialog {
+                        return;
+                    }
+                    let Some(original) = this.tab_rename_replace_pending.as_deref() else {
+                        return;
+                    };
+                    let value = input.read(cx).value().to_string();
+                    let Some(replacement) = value
+                        .strip_prefix(original)
+                        .filter(|suffix| !suffix.is_empty())
+                        .map(str::to_owned)
+                    else {
+                        return;
+                    };
+                    this.tab_rename_replace_pending = None;
+                    input.update(cx, |input, cx| {
+                        input.set_value(replacement, window, cx);
+                    });
                 },
             ),
             cx.subscribe_in(
@@ -431,6 +471,8 @@ impl AleraApp {
                     if !matches!(event, InputEvent::Change) {
                         return;
                     }
+                    this.settings_search_generation += 1;
+                    let generation = this.settings_search_generation;
                     let query = input.read(cx).value().trim().to_lowercase();
                     if !settings_search_catalog::pane_matches(this.settings_pane, &query) {
                         if let Some(pane) = SettingsPane::ALL
@@ -447,6 +489,29 @@ impl AleraApp {
                             if pane == SettingsPane::AiText {
                                 this.auto_discover_configured_ai_models(window, cx);
                             }
+                        }
+                    }
+                    if query.is_empty() {
+                        this.settings_scroll_handle
+                            .set_offset(gpui::point(gpui::px(0.0), gpui::px(0.0)));
+                    } else if let Some(group_index) =
+                        settings_search_catalog::first_matching_group(this.settings_pane, &query)
+                    {
+                        if let Some(anchor) = this
+                            .settings_group_anchors
+                            .get(&(this.settings_pane, group_index))
+                            .cloned()
+                        {
+                            // Flutter uses `Scrollable.ensureVisible` after the
+                            // settings pane has rebuilt. GPUI's equivalent must
+                            // be queued on the next frame so the anchor has a
+                            // fresh origin; a timer races pane selection and
+                            // can leave the viewport at the old top offset.
+                            cx.on_next_frame(window, move |this, window, cx| {
+                                if generation == this.settings_search_generation {
+                                    anchor.scroll_to(window, cx);
+                                }
+                            });
                         }
                     }
                     cx.notify();
@@ -667,8 +732,14 @@ impl AleraApp {
                       event: &SelectEvent<SearchableVec<SettingsSelectOption>>,
                       window,
                       cx| {
-                    if let SelectEvent::Confirm(Some(value)) = event {
-                        this.apply_settings_select(&key, value.to_string(), window, cx);
+                    match event {
+                        SelectEvent::Confirm(Some(value)) => {
+                            this.apply_settings_select(&key, value.to_string(), window, cx);
+                        }
+                        SelectEvent::Confirm(None) if key == "terminal-font" => {
+                            this.apply_settings_select(&key, String::new(), window, cx);
+                        }
+                        _ => {}
                     }
                 },
             ));
@@ -696,6 +767,7 @@ impl AleraApp {
         });
         let workspace_service = WorkspaceService::start(bridge.clone());
         let settings_scroll_handle = ScrollHandle::new();
+        let explorer_scroll_handle = ScrollHandle::new();
         let settings_group_anchors = SettingsPane::ALL
             .into_iter()
             .flat_map(|pane| {
@@ -720,6 +792,7 @@ impl AleraApp {
             pending_workspace_terminal_id: None,
             selected_tab_id: None,
             tab_rename_input,
+            tab_rename_replace_pending: None,
             show_tab_rename_dialog: false,
             tab_mutation_busy: false,
             tab_close_armed: None,
@@ -741,17 +814,22 @@ impl AleraApp {
             terminal_drivers: BTreeMap::new(),
             terminal_driver_collapsed: BTreeSet::new(),
             terminal_driver_reclaiming: BTreeSet::new(),
+            terminal_character_width: 7.8,
             terminal_surface_bounds: BTreeMap::new(),
+            terminal_resize_pending: BTreeMap::new(),
+            terminal_resize_generation: BTreeMap::new(),
             terminal_focus,
-            terminal_input_text: String::new(),
+            terminal_selection_drag: None,
             terminal_marked_text: None,
             terminal_scrollbar_drag: None,
+            terminal_scrollbar_last_activity: Instant::now(),
             terminal_hovered_link: None,
             terminal_restart_confirmation: None,
             terminal_cursor_visible: true,
             terminal_cursor_last_activity: Instant::now(),
             sidebar_collapsed: false,
             sidebar_width: 300.0,
+            panel_resize_hovered: None,
             collapsed_project_ids: BTreeSet::new(),
             sidebar_collapsed_parent_workspace_ids: BTreeSet::new(),
             sidebar_expanded_workspace_ids: BTreeSet::new(),
@@ -773,13 +851,17 @@ impl AleraApp {
             sidebar_tag_input,
             sidebar_parent_filter_input,
             sidebar_action_busy: false,
+            sidebar_hovered_agent_run_id: None,
             sidebar_selected_tag_ids: BTreeSet::new(),
             sidebar_selected_parent_id: None,
             sidebar_tag_delete_armed: None,
             sidebar_parent_dropdown_open: false,
             context_panel: ContextPanel::Explorer,
             context_sidebar_collapsed: false,
-            context_sidebar_width: 400.0,
+            // Flutter's WorkbenchViewPrefs defaults the right/context sidebar
+            // to 280 px. Keep the first render identical before persisted
+            // preferences are loaded.
+            context_sidebar_width: 280.0,
             workbench_view_prefs_raw: serde_json::json!({}),
             status_popover: StatusPopover::None,
             status_popover_pinned: false,
@@ -789,6 +871,7 @@ impl AleraApp {
             status_popover_transition_generation: 0,
             status_popover_anchor_x: 8.0,
             status_data: StatusData::default(),
+            tab_completion_acknowledged: BTreeMap::new(),
             codex_reset_offer_revision: None,
             codex_reset_busy: false,
             quota_tui_busy_key: None,
@@ -799,8 +882,10 @@ impl AleraApp {
             settings_previous_focus: None,
             settings_pane: SettingsPane::Application,
             settings_scroll_handle,
+            explorer_scroll_handle,
             settings_group_anchors,
             settings_state,
+            diagnostics_export_busy: false,
             settings_store,
             keyboard_settings,
             mobile_access,
@@ -810,6 +895,7 @@ impl AleraApp {
             ai_model_auto_discovered: BTreeSet::new(),
             workspace_service,
             explorer_rows: Vec::new(),
+            explorer_expanded_paths: BTreeSet::new(),
             explorer_hide_ignored: true,
             explorer_name_input,
             explorer_create_directory: None,
@@ -820,13 +906,22 @@ impl AleraApp {
             explorer_menu_position: gpui::point(px(820.0), px(120.0)),
             explorer_selected_path: None,
             explorer_clipboard: None,
+            explorer_drop_target: None,
             explorer_action_busy: false,
             explorer_watch_generation: 0,
             editor_document: None,
+            editor_documents: BTreeMap::new(),
+            editor_buffer_text: BTreeMap::new(),
+            editor_dirty_paths: BTreeSet::new(),
+            editor_cursor_positions: BTreeMap::new(),
             opened_file_path: None,
             editor_loading_path: None,
             pending_editor_cursor: None,
             preview_asset: None,
+            editor_preview_assets: BTreeMap::new(),
+            preview_scale: 1.0,
+            preview_offset: gpui::point(px(0.0), px(0.0)),
+            preview_drag: None,
             show_preview: false,
             sidebar_filter_input,
             sidebar_project_filter_input,
@@ -878,6 +973,7 @@ impl AleraApp {
             workspace_prompt_active_operation_id: None,
             workspace_prompt_created: None,
             editor_input,
+            editor_input_syncing: false,
             editor_dirty: false,
             editor_conflict: false,
             search_input,
@@ -886,6 +982,7 @@ impl AleraApp {
             search_exclude_input,
             search_replace_expanded: false,
             search_details_expanded: false,
+            search_error_is_query_failure: false,
             search_case_sensitive: false,
             search_whole_word: false,
             search_use_regex: false,
@@ -894,6 +991,7 @@ impl AleraApp {
             search_view_as_tree: false,
             search_collapsed_result_paths: BTreeSet::new(),
             search_input_generation: 0,
+            settings_search_generation: 0,
             commit_input,
             source_amend_input,
             source_control_filter_input,
@@ -914,12 +1012,18 @@ impl AleraApp {
             run_policy_busy_id: None,
             run_policy_error: None,
             search_results: SearchResults::default(),
+            search_error: None,
             replace_confirmation: None,
             git_snapshot: GitSnapshot::default(),
+            explorer_git_status: ExplorerGitStatusSnapshot::default(),
+            git_snapshot_loading: false,
+            git_snapshot_error: None,
             git_diff: GitDiffResult::default(),
             git_diff_loading_tab: None,
             git_diff_loaded_tab: None,
             git_history_expanded: false,
+            git_history_height: 256.0,
+            git_history_resize: None,
             source_history_expanded_ids: BTreeSet::new(),
             source_history_loading_ids: BTreeSet::new(),
             source_history_action_menu: None,
@@ -929,17 +1033,20 @@ impl AleraApp {
             git_discard_path_armed: None,
             source_commit_ai_operation_id: None,
             source_commit_ai_busy: false,
+            source_commit_ai_hovered: false,
             forge_service: ForgeService::start(),
             forge_snapshot: ForgeSnapshot::default(),
             forge_generation: 0,
             forge_busy: false,
             forge_ai_operation_id: None,
             forge_ai_busy: false,
+            forge_ai_hovered: false,
             forge_review_action: None,
             forge_review_action_menu_open: false,
             forge_review_confirmation: None,
             forge_review_editing: false,
             forge_review_base_menu_open: false,
+            forge_comment_composing: false,
             forge_expanded_checks: BTreeSet::new(),
             forge_collapsed_check_groups: BTreeSet::new(),
             forge_base_menu_open: false,
@@ -947,12 +1054,16 @@ impl AleraApp {
             forge_create_draft: false,
             forge_link_form_open: false,
             forge_form_error: None,
+            forge_error: None,
             runtime_action_busy: false,
             runtime_action_armed: None,
             runtime_restart_after_stop: false,
             local_generation: 0,
             local_busy: false,
             local_message: None,
+            local_message_started_at: None,
+            local_message_timer_message: None,
+            toast_entries: std::collections::VecDeque::new(),
             _subscriptions: subscriptions,
             _event_task: Task::ready(()),
             _cursor_blink_task: Task::ready(()),

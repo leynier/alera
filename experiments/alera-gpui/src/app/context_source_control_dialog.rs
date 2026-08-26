@@ -42,16 +42,16 @@ impl AleraApp {
         let (title, message) = match dialog {
             SourceControlDialog::DiscardAll => (
                 "Discard All Changes?",
-                "This Permanently Discards Unstaged And Untracked Changes In This Workspace."
+                "This permanently discards unstaged and untracked changes in this workspace."
                     .to_owned(),
             ),
             SourceControlDialog::DiscardPath { path } => (
                 "Discard Changes?",
-                format!("This Permanently Discards Unstaged And Untracked Changes In \"{path}\"."),
+                format!("This permanently discards unstaged and untracked changes in \"{path}\"."),
             ),
             SourceControlDialog::DiscardPaths { target, .. } => (
                 "Discard Changes?",
-                format!("This Permanently Discards Changes In \"{target}\"."),
+                format!("This permanently discards changes in \"{target}\"."),
             ),
             SourceControlDialog::StashPicker => unreachable!(),
             SourceControlDialog::Amend => unreachable!(),

@@ -8,6 +8,7 @@ use super::AleraApp;
 use crate::icons::{icon, AleraIcon};
 use crate::theme;
 use crate::workspace_git::GitAction;
+use super::git_surface::friendly_git_error;
 
 #[derive(Clone, Copy)]
 pub(super) enum SourceControlAction {
@@ -129,43 +130,55 @@ impl AleraApp {
         let has_upstream = self.git_snapshot.upstream.is_some();
         let has_conflicts = self.git_snapshot.has_conflicts;
         let can_publish = !has_upstream && self.git_snapshot.branch != "HEAD";
+        let has_snapshot = self.git_snapshot_error.is_none();
         [
             (
                 SourceControlAction::Commit,
-                has_staged && !has_conflicts,
+                has_snapshot && has_staged && !has_conflicts,
                 false,
             ),
             (
                 SourceControlAction::CommitPush,
-                has_staged && !has_conflicts,
+                has_snapshot && has_staged && !has_conflicts,
                 false,
             ),
             (
                 SourceControlAction::CommitSync,
-                has_staged && !has_conflicts && has_upstream,
+                has_snapshot && has_staged && !has_conflicts && has_upstream,
                 false,
             ),
             (
                 SourceControlAction::Amend,
-                has_staged && !has_conflicts && !self.git_snapshot.history.is_empty(),
+                has_snapshot
+                    && has_staged
+                    && !has_conflicts
+                    && !self.git_snapshot.history.is_empty(),
                 false,
             ),
-            (SourceControlAction::StageAll, has_stageable, true),
-            (SourceControlAction::UnstageAll, has_staged, false),
-            (SourceControlAction::DiscardAll, has_discardable, false),
-            (SourceControlAction::Fetch, true, true),
-            (SourceControlAction::Pull, true, false),
-            (SourceControlAction::Push, !has_conflicts, false),
+            (SourceControlAction::StageAll, has_snapshot && has_stageable, true),
+            (SourceControlAction::UnstageAll, has_snapshot && has_staged, false),
+            (SourceControlAction::DiscardAll, has_snapshot && has_discardable, false),
+            (SourceControlAction::Fetch, has_snapshot, true),
+            (SourceControlAction::Pull, has_snapshot, false),
+            (SourceControlAction::Push, has_snapshot && !has_conflicts, false),
             (
                 SourceControlAction::Sync,
-                !has_conflicts && has_upstream,
+                has_snapshot && !has_conflicts && has_upstream,
                 false,
             ),
-            (SourceControlAction::PublishBranch, can_publish, false),
-            (SourceControlAction::Stash, has_discardable, true),
+            (
+                SourceControlAction::PublishBranch,
+                has_snapshot && can_publish,
+                false,
+            ),
+            (
+                SourceControlAction::Stash,
+                has_snapshot && has_discardable,
+                true,
+            ),
             (
                 SourceControlAction::StashPop,
-                !self.git_snapshot.stashes.is_empty(),
+                has_snapshot && !self.git_snapshot.stashes.is_empty(),
                 false,
             ),
         ]
@@ -265,7 +278,9 @@ impl AleraApp {
                             this.git_snapshot = snapshot;
                         }
                     }
-                    Err(error) => this.local_message = Some(error.into()),
+                    Err(error) => {
+                        this.local_message = Some(friendly_git_error(&error).into())
+                    }
                 }
                 cx.notify();
             });
@@ -279,6 +294,20 @@ pub(super) fn source_icon_button(
     kind: AleraIcon,
     selected: bool,
 ) -> gpui::Stateful<gpui::Div> {
+    source_icon_button_with_enabled(id, kind, selected, true)
+}
+
+pub(super) fn source_icon_button_with_enabled(
+    id: impl Into<gpui::ElementId>,
+    kind: AleraIcon,
+    selected: bool,
+    enabled: bool,
+) -> gpui::Stateful<gpui::Div> {
+    let color = if kind == AleraIcon::Stop {
+        theme::danger()
+    } else {
+        theme::text_muted()
+    };
     div()
         .id(id)
         .flex()
@@ -287,10 +316,16 @@ pub(super) fn source_icon_button(
         .w(px(24.0))
         .h(px(24.0))
         .rounded_md()
-        .cursor(CursorStyle::PointingHand)
+        .cursor(if enabled {
+            CursorStyle::PointingHand
+        } else {
+            CursorStyle::Arrow
+        })
         .when(selected, |button| button.bg(theme::surface_selected()))
-        .hover(|style| style.bg(theme::surface_selected()))
-        .child(icon(kind, 14.0, theme::text_muted()))
+        .when(enabled, |button| {
+            button.hover(|style| style.bg(theme::surface_selected()))
+        })
+        .child(icon(kind, 14.0, color))
 }
 
 pub(super) fn source_row_action(

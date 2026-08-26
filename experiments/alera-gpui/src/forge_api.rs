@@ -88,6 +88,9 @@ pub struct ForgeCheck {
     pub link: Option<String>,
     pub description: Option<String>,
     pub workflow: Option<String>,
+    pub event: Option<String>,
+    pub started_at: Option<String>,
+    pub completed_at: Option<String>,
 }
 
 #[derive(Clone, Debug)]

@@ -1,9 +1,11 @@
 use gpui::{
     canvas, div, prelude::FluentBuilder as _, px, AnyElement, AppContext as _, Bounds, Context,
     CursorStyle, DragMoveEvent, InteractiveElement as _, IntoElement, MouseButton, MouseDownEvent,
-    MouseUpEvent, ParentElement as _, Pixels, Point, Render, SharedString,
+    MouseUpEvent, ParentElement as _, Pixels, Point, Render, Rgba, SharedString,
     StatefulInteractiveElement as _, Styled as _, Timer, Window,
 };
+use gpui_component::tooltip::Tooltip;
+use serde_json::Value;
 use std::time::Duration;
 
 use super::{AleraApp, PaneDropTarget, TabDropTarget};
@@ -318,6 +320,26 @@ impl AleraApp {
         let show_trailing = self.tab_drop_target.as_ref().is_some_and(|target| {
             drag_active && target.group_id == group_id && target.gap_index == index + 1
         });
+        // Flutter always reserves this six-pixel slot. It is empty when a
+        // tab has no agent run, but keeping it in the layout preserves the
+        // same chip rhythm and lets the live state appear without shifting
+        // the title when a hook event arrives.
+        let tab_status = self.tab_status_visual(tab);
+        let status_dot = div()
+            .id(SharedString::from(format!(
+                "layout-status-{group_id}-{}",
+                tab.id
+            )))
+            .w(px(6.0))
+            .h(px(6.0))
+            .flex_shrink_0()
+            .rounded_full()
+            .when_some(tab_status, |dot, status| {
+                dot.bg(status.color).tooltip(move |_, cx| {
+                    let tooltip = status.tooltip.clone();
+                    cx.new(move |_| Tooltip::new(tooltip)).into()
+                })
+            });
         div()
             .id(SharedString::from(format!(
                 "layout-tab-{group_id}-{}",
@@ -418,6 +440,7 @@ impl AleraApp {
                     theme::text_muted()
                 },
             ))
+            .child(status_dot)
             .child(
                 div()
                     .max_w(px(tab_title_max_width(&tab.kind)))
@@ -463,6 +486,50 @@ impl AleraApp {
             .into_any_element()
     }
 
+    fn tab_status_visual(&self, tab: &WorkspaceTab) -> Option<TabStatusVisual> {
+        let entry = self.matching_presence_for_tab(tab)?;
+        let state = entry.get("agentState").and_then(Value::as_str)?;
+        let session_id = tab
+            .payload
+            .get("terminalSessionId")
+            .and_then(Value::as_str)
+            .filter(|value| !value.trim().is_empty())
+            .unwrap_or(tab.id.as_str());
+        let state_started_at = entry
+            .get("stateStartedAt")
+            .and_then(Value::as_str)
+            .unwrap_or_default();
+        let completion_acknowledged = state == "done"
+            && self
+                .tab_completion_acknowledged
+                .get(session_id)
+                .is_some_and(|value| value == state_started_at);
+        let agent = entry
+            .get("agentType")
+            .and_then(Value::as_str)
+            .map(tab_agent_display_name)
+            .unwrap_or("Agent");
+        let state_label = tab_agent_state_label_for_entry(
+            state,
+            entry
+                .get("interrupted")
+                .and_then(Value::as_bool)
+                .unwrap_or(false),
+        );
+        let mut tooltip = format!("{agent} {state_label}");
+        if state == "done" && !completion_acknowledged {
+            tooltip.push_str(" (unacked)");
+        }
+        Some(TabStatusVisual {
+            color: if state == "done" && !completion_acknowledged {
+                theme::warning()
+            } else {
+                tab_agent_state_color(state)
+            },
+            tooltip,
+        })
+    }
+
     fn set_tab_drop_target(
         &mut self,
         drag: &TabDragData,
@@ -470,10 +537,19 @@ impl AleraApp {
         gap_index: usize,
         cx: &mut Context<Self>,
     ) {
+        // A native drag can deliver one final move after pointer-up. Once the
+        // optimistic layout mutation starts, that late event must not repaint
+        // a preview over the newly committed workbench.
+        if self.tab_mutation_busy {
+            self.clear_pointer_tab_drag_state(cx);
+            return;
+        }
         let Some(layout) = self.snapshot.layout.as_ref() else {
+            self.clear_pointer_tab_drag_state(cx);
             return;
         };
         let Some(group) = layout.groups.get(&group_id) else {
+            self.clear_pointer_tab_drag_state(cx);
             return;
         };
         let Some(insert_index) = resolve_tab_drop_index(
@@ -514,7 +590,15 @@ impl AleraApp {
         bounds: Bounds<Pixels>,
         cx: &mut Context<Self>,
     ) {
+        // See `set_tab_drop_target`: GPUI may report a trailing drag move
+        // after the drop callback. Do not allow it to resurrect the overlay
+        // while the layout request is in flight.
+        if self.tab_mutation_busy {
+            self.clear_pointer_tab_drag_state(cx);
+            return;
+        }
         let Some(layout) = self.snapshot.layout.as_ref() else {
+            self.clear_pointer_tab_drag_state(cx);
             return;
         };
         // The tab strip has its own insertion targets. GPUI bubbles drag
@@ -531,6 +615,7 @@ impl AleraApp {
             return;
         }
         let Some(group) = layout.groups.get(&group_id) else {
+            self.clear_pointer_tab_drag_state(cx);
             return;
         };
         let zone = resolve_pane_drop_zone(bounds, position);
@@ -576,7 +661,7 @@ impl AleraApp {
             // A native drop can arrive without a preview target when the pointer
             // leaves the workbench between the last drag update and release.
             // Never leave a stale directional overlay behind in that case.
-            self.pane_drop_target = None;
+            self.clear_pointer_tab_drag_state(cx);
         }
     }
 
@@ -595,6 +680,9 @@ impl AleraApp {
         tab_id: String,
         cx: &mut Context<Self>,
     ) {
+        if self.tab_mutation_busy {
+            return;
+        }
         self.tab_pointer_drag = Some((source_group_id, tab_id));
         self.tab_drop_target = None;
         self.pane_drop_target = None;
@@ -655,7 +743,7 @@ impl AleraApp {
             .as_ref()
             .and_then(|layout| layout.groups.get(&target_group_id))
         else {
-            self.tab_drop_target = None;
+            self.clear_pointer_tab_drag_state(cx);
             return;
         };
         let Some(insert_index) = resolve_tab_drop_index(
@@ -665,9 +753,14 @@ impl AleraApp {
             &tab_id,
             gap_index,
         ) else {
-            self.tab_drop_target = None;
+            self.clear_pointer_tab_drag_state(cx);
             return;
         };
+        // Consume the preview before starting the async persistence request.
+        // If another tab mutation is already busy, the mutation helper is
+        // allowed to reject the request; the visual preview must still end on
+        // pointer-up instead of remaining painted indefinitely.
+        self.clear_pointer_tab_drag_state(cx);
         self.move_workspace_tab(tab_id, target_group_id, insert_index, cx);
     }
 
@@ -688,7 +781,7 @@ impl AleraApp {
             .as_ref()
             .and_then(|layout| layout.groups.get(&target_group_id))
         else {
-            self.pane_drop_target = None;
+            self.clear_pointer_tab_drag_state(cx);
             return;
         };
         let zone = resolve_pane_drop_zone(bounds, position);
@@ -698,10 +791,12 @@ impl AleraApp {
             group.tab_ids.len(),
             zone,
         ) {
-            self.pane_drop_target = None;
+            self.clear_pointer_tab_drag_state(cx);
             return;
         }
-        self.pane_drop_target = None;
+        // See the center-drop path above: the preview lifecycle ends with the
+        // pointer gesture, independently of whether persistence is accepted.
+        self.clear_pointer_tab_drag_state(cx);
         self.move_workspace_tab_to_drop(tab_id, target_group_id, zone, None, cx);
     }
 
@@ -737,6 +832,7 @@ impl AleraApp {
             .map(|(group_id, _)| group_id.clone())
         {
             let Some(group) = layout.groups.get(&target_group_id) else {
+                self.clear_pointer_tab_drag_state(cx);
                 return;
             };
             let gap_index = group
@@ -797,6 +893,7 @@ impl AleraApp {
             .map(|(group_id, _)| group_id.clone())
         {
             let Some(group) = layout.groups.get(&target_group_id) else {
+                self.clear_pointer_tab_drag_state(cx);
                 return;
             };
             let gap_index = group
@@ -829,10 +926,57 @@ impl AleraApp {
         {
             self.drop_pointer_tab_at_pane(target_group_id, position, bounds, cx);
         } else {
-            self.tab_pointer_drag = None;
-            self.tab_drop_target = None;
-            self.pane_drop_target = None;
+            self.clear_pointer_tab_drag_state(cx);
         }
+    }
+}
+
+#[derive(Clone)]
+struct TabStatusVisual {
+    color: Rgba,
+    tooltip: String,
+}
+
+fn tab_agent_state_color(state: &str) -> Rgba {
+    match state {
+        "waiting" => theme::warning(),
+        "blocked" => theme::danger(),
+        "done" => theme::success(),
+        _ => theme::info(),
+    }
+}
+
+fn tab_agent_state_label(state: &str) -> &'static str {
+    match state {
+        "waiting" => "waiting",
+        "blocked" => "blocked",
+        "done" => "done",
+        _ => "working",
+    }
+}
+
+fn tab_agent_state_label_for_entry(state: &str, interrupted: bool) -> &'static str {
+    if interrupted {
+        "interrupted"
+    } else {
+        tab_agent_state_label(state)
+    }
+}
+
+fn tab_agent_display_name(agent: &str) -> &'static str {
+    match agent {
+        "claude" => "Claude Code",
+        "copilot" => "GitHub Copilot",
+        "cursor" => "Cursor",
+        "agy" | "antigravity" => "Antigravity",
+        "opencode" => "OpenCode",
+        "pi" => "Pi",
+        "amp" => "Amp",
+        "grok" => "Grok Build",
+        "kimi" => "Kimi",
+        "minimax" | "miniMax" => "MiniMax",
+        "zai" => "Z.ai",
+        _ => "Codex",
     }
 }
 
@@ -967,7 +1111,10 @@ fn resolve_tab_drop_index(
 mod tests {
     use gpui::{px, Bounds, Point, Size};
 
-    use super::{is_pane_drop_action_enabled, resolve_pane_drop_zone, resolve_tab_drop_index};
+    use super::{
+        is_pane_drop_action_enabled, resolve_pane_drop_zone, resolve_tab_drop_index,
+        tab_agent_display_name, tab_agent_state_label, tab_agent_state_label_for_entry,
+    };
     use crate::model::WorkbenchDropZone;
 
     #[test]
@@ -1032,5 +1179,24 @@ mod tests {
             1,
             WorkbenchDropZone::Center
         ));
+    }
+
+    #[test]
+    fn tab_agent_labels_match_flutter_tooltips() {
+        assert_eq!(tab_agent_display_name("claude"), "Claude Code");
+        assert_eq!(tab_agent_display_name("miniMax"), "MiniMax");
+        assert_eq!(tab_agent_display_name("unknown"), "Codex");
+        assert_eq!(tab_agent_state_label("waiting"), "waiting");
+        assert_eq!(tab_agent_state_label("blocked"), "blocked");
+        assert_eq!(tab_agent_state_label("done"), "done");
+        assert_eq!(tab_agent_state_label("working"), "working");
+        assert_eq!(
+            tab_agent_state_label_for_entry("working", true),
+            "interrupted"
+        );
+        assert_eq!(
+            tab_agent_state_label_for_entry("waiting", true),
+            "interrupted"
+        );
     }
 }

@@ -5,12 +5,12 @@ use gpui::{
 };
 use gpui_component::input::InputState;
 use gpui_component::scroll::{ScrollableElement as _, Scrollbar};
-use gpui_component::select::{SearchableVec, Select, SelectState};
+use gpui_component::select::{SearchableVec, Select, SelectEvent, SelectState};
 use gpui_component::tooltip::Tooltip;
 use std::collections::{BTreeMap, BTreeSet};
 
 use super::settings_select_option::SettingsSelectOption;
-use super::settings_state::SettingsState;
+use super::settings_state::{GitHubStarState, SettingsState};
 use super::{AleraApp, SettingsGroupAnchors};
 use crate::activity::SettingsPane;
 use crate::{
@@ -31,6 +31,7 @@ impl AleraApp {
                 &self.settings_state,
                 &self.settings_inputs,
                 &self.settings_group_anchors,
+                self.diagnostics_export_busy,
                 self.settings_selects
                     .get("diagnostics-log-level")
                     .expect("diagnostics select should exist"),
@@ -87,6 +88,10 @@ impl AleraApp {
             .flex_col()
             .min_w_0()
             .px_6()
+            // Flutter's non-resource SettingsContent uses a 24 px ListView
+            // inset around every pane. Keep that inset outside the pane
+            // groups so group anchors and the scrollbar share the same
+            // viewport geometry.
             .py_6()
             .child(content)
             .when(self.settings_state.loading, |pane| {
@@ -144,20 +149,25 @@ impl AleraApp {
             div()
                 .id("settings-scroll-container")
                 .relative()
-                .flex()
-                .flex_col()
                 .flex_1()
                 .min_w_0()
                 .min_h_0()
+                .flex()
+                .flex_col()
                 .child(
                     div()
                         .id("settings-scroll-area")
-                        .flex()
-                        .flex_col()
-                        .size_full()
+                        .flex_1()
+                        .min_w_0()
+                        .min_h_0()
                         .track_scroll(&scroll_handle)
+                        .flex_col()
                         .overflow_y_scroll()
-                        .child(pane),
+                        // Keep the scroll content intrinsic. Forcing the pane
+                        // to flex to the viewport hides the final rows from
+                        // the scroll range when a settings section is taller
+                        // than the window.
+                        .child(pane.flex_shrink_0()),
                 )
                 .child(Scrollbar::vertical(&scroll_handle).id("settings-scrollbar"))
                 .into_any_element()

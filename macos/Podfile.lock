@@ -103,7 +103,7 @@ SPEC CHECKSUMS:
   media_kit_video: c75b07f14d59706c775778e4dd47dd027de8d1e5
   package_info_plus: 12f1c5c2cfe8727ca46cbd0b26677728972d9a5b
   path_provider_foundation: 0b743cbb62d8e47eab856f09262bb8c1ddcfe6ba
-  pdfium_flutter: 814416ae1e24618fc80353aacbf17c7229373559
+  pdfium_flutter: 9e8e72bdbed9498f7b87a9e01eb8899fb36955b3
   screen_retriever_macos: 038d3f7b34a779b06f536842003e41e8ec1fb4b7
   url_launcher_macos: 175a54c831f4375a6cf895875f716ee5af3888ce
   wakelock_plus: 9d63063ffb7af1c215209769067c57103bde719d

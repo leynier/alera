@@ -18,9 +18,9 @@ impl AleraApp {
         let title = if is_rename {
             "Rename"
         } else if directory {
-            "New Folder"
+            "New folder"
         } else {
-            "New File"
+            "New file"
         };
 
         explorer_dialog_overlay()
@@ -44,9 +44,9 @@ impl AleraApp {
                         design_system::text_field(&self.explorer_name_input).label(if is_rename {
                             "Name"
                         } else if directory {
-                            "Folder Name"
+                            "Folder name"
                         } else {
-                            "File Name"
+                            "File name"
                         }),
                     ))
                     .when_some(self.local_message.clone(), |dialog, message| {

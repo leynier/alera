@@ -9,10 +9,19 @@ const SNAPSHOT_REQUEST_TIMEOUT: Duration = Duration::from_secs(30);
 #[derive(Clone, Debug, Default)]
 pub struct WorkbenchSnapshot {
     pub projects: Vec<Project>,
+    /// Tabs for the mounted workspace. The workbench must never render tabs
+    /// from another workspace, even though status surfaces need their labels.
     pub tabs: Vec<WorkspaceTab>,
+    /// All tabs visible to this client, used by status projections such as
+    /// Resource Manager to join host sessions across every workspace.
+    pub all_tabs: Vec<WorkspaceTab>,
     pub layout: Option<WorkbenchLayout>,
     pub tags: Vec<WorkspaceTag>,
     pub relations: Vec<WorkspaceRelation>,
+    /// Persisted activity timestamps used as the idle fallback for Flutter's
+    /// Agent Activity ordering. Keep this separate from workspace.updatedAt:
+    /// renaming a workspace must not make it outrank a recently active agent.
+    pub activity: BTreeMap<String, String>,
     /// Workspace scope used for the tab/layout request. `None` identifies the
     /// sidebar-only snapshot and must never be applied to a mounted workbench.
     pub selected_workspace_id: Option<String>,
@@ -352,7 +361,7 @@ impl WorkbenchSnapshot {
         bridge: &RuntimeBridge,
         selected_workspace_id: Option<&str>,
     ) -> Result<Self, String> {
-        let (projects_value, tags_value, relations_value) = tokio::join!(
+        let (projects_value, tags_value, relations_value, activity_value) = tokio::join!(
             bridge.request_with_timeout("project.list", json!({}), SNAPSHOT_REQUEST_TIMEOUT,),
             bridge.request_with_timeout("workspaceTag.list", json!({}), SNAPSHOT_REQUEST_TIMEOUT,),
             bridge.request_with_timeout(
@@ -360,9 +369,18 @@ impl WorkbenchSnapshot {
                 json!({}),
                 SNAPSHOT_REQUEST_TIMEOUT,
             ),
+            bridge.request_with_timeout(
+                "workspaceActivity.list",
+                json!({}),
+                SNAPSHOT_REQUEST_TIMEOUT
+            ),
         );
+        let activity = activity_value
+            .ok()
+            .and_then(parse_activity)
+            .unwrap_or_default();
         let project_values = as_array(projects_value?);
-        let tags = as_array(tags_value?)
+        let mut tags = as_array(tags_value?)
             .into_iter()
             .map(parse_tag)
             .collect::<Result<Vec<_>, _>>()?;
@@ -395,21 +413,81 @@ impl WorkbenchSnapshot {
             });
         }
 
-        let mut tabs = Vec::new();
-        let mut layout = None;
-        if let Some(workspace_id) = selected_workspace_id {
-            tabs = as_array(
-                bridge
+        // Older hosts can return the workspace records with their assigned
+        // tags while the standalone workspaceTag.list request is still
+        // empty during startup. Prefer the atomic sidebar snapshot before
+        // deriving the same tag identities from workspace payloads.
+        if tags.is_empty() {
+            if let Ok(sidebar_value) = bridge
+                .request_with_timeout(
+                    "workspaceSidebar.snapshot",
+                    json!({}),
+                    SNAPSHOT_REQUEST_TIMEOUT,
+                )
+                .await
+            {
+                if let Some(sidebar_tags) = sidebar_value.get("tags").and_then(Value::as_array) {
+                    tags = sidebar_tags
+                        .iter()
+                        .cloned()
+                        .filter_map(|value| parse_tag(value).ok())
+                        .collect();
+                }
+            }
+        }
+        if tags.is_empty() {
+            let mut fallback_tags = BTreeMap::<String, String>::new();
+            for workspace in projects.iter().flat_map(|project| &project.workspaces) {
+                for (index, name) in workspace.tag_names.iter().enumerate() {
+                    let id = workspace
+                        .tag_ids
+                        .get(index)
+                        .filter(|id| !id.trim().is_empty())
+                        .cloned()
+                        .unwrap_or_else(|| format!("tag-name:{name}"));
+                    if !name.trim().is_empty() {
+                        fallback_tags.entry(id).or_insert_with(|| name.clone());
+                    }
+                }
+            }
+            tags = fallback_tags
+                .into_iter()
+                .map(|(id, name)| WorkspaceTag { id, name })
+                .collect();
+        }
+
+        let all_tabs = if selected_workspace_id.is_some() {
+            let mut all_tabs = Vec::new();
+            for workspace in projects.iter().flat_map(|project| &project.workspaces) {
+                let values = bridge
                     .request_with_timeout(
                         "tab.list",
-                        json!({ "workspaceId": workspace_id }),
+                        json!({ "workspaceId": workspace.id }),
                         SNAPSHOT_REQUEST_TIMEOUT,
                     )
-                    .await?,
-            )
-            .into_iter()
-            .map(parse_tab)
-            .collect::<Result<Vec<_>, _>>()?;
+                    .await?;
+                all_tabs.extend(
+                    as_array(values)
+                        .into_iter()
+                        .map(parse_tab)
+                        .collect::<Result<Vec<_>, _>>()?,
+                );
+            }
+            all_tabs
+        } else {
+            Vec::new()
+        };
+        let tabs = selected_workspace_id
+            .map(|workspace_id| {
+                all_tabs
+                    .iter()
+                    .filter(|tab| tab.workspace_id == workspace_id)
+                    .cloned()
+                    .collect::<Vec<_>>()
+            })
+            .unwrap_or_default();
+        let mut layout = None;
+        if let Some(workspace_id) = selected_workspace_id {
             layout = bridge
                 .request_with_timeout(
                     "layout.find",
@@ -432,9 +510,11 @@ impl WorkbenchSnapshot {
         Ok(Self {
             projects,
             tabs,
+            all_tabs,
             layout,
             tags,
             relations,
+            activity,
             selected_workspace_id: selected_workspace_id.map(str::to_string),
         })
     }
@@ -454,6 +534,20 @@ impl WorkbenchSnapshot {
             .flat_map(|project| &project.workspaces)
             .find(|workspace| workspace.id == workspace_id)
     }
+}
+
+fn parse_activity(value: Value) -> Option<BTreeMap<String, String>> {
+    value.as_object().map(|entries| {
+        entries
+            .iter()
+            .filter_map(|(workspace_id, timestamp)| {
+                timestamp
+                    .as_str()
+                    .filter(|timestamp| !timestamp.trim().is_empty())
+                    .map(|timestamp| (workspace_id.clone(), timestamp.to_owned()))
+            })
+            .collect()
+    })
 }
 
 /// Older GPUI builds persisted temporary numeric tab ids while the runtime
@@ -662,6 +756,20 @@ mod tests {
         assert_eq!(workspace.branch.as_deref(), Some("feat/gpui"));
         assert_eq!(workspace.tag_names, ["POC", "Rust"]);
         assert!(workspace.is_pinned);
+    }
+
+    #[test]
+    fn activity_parser_keeps_only_non_empty_timestamp_strings() {
+        let activity = parse_activity(json!({
+            "w1": "2026-08-24T12:34:56.000Z",
+            "w2": "",
+            "w3": 42,
+        }))
+        .unwrap();
+        assert_eq!(
+            activity,
+            BTreeMap::from([("w1".to_string(), "2026-08-24T12:34:56.000Z".to_string(),)])
+        );
     }
 
     #[test]

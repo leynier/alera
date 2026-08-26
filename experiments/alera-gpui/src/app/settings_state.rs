@@ -77,6 +77,16 @@ impl CliRegistrationStatus {
     }
 }
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(super) enum GitHubStarState {
+    Loading,
+    NotStarred,
+    Starring,
+    Starred,
+    Error,
+    Hidden,
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(default)]
 pub(super) struct SettingsState {
@@ -160,6 +170,14 @@ pub(super) struct SettingsState {
     pub runtime_capabilities: Vec<String>,
     #[serde(skip)]
     pub cli_registration_status: Option<CliRegistrationStatus>,
+    #[serde(skip)]
+    pub update_status: String,
+    #[serde(skip)]
+    pub update_message: Option<String>,
+    #[serde(skip)]
+    pub update_busy: bool,
+    #[serde(skip)]
+    pub github_star_state: GitHubStarState,
 }
 
 impl Default for SettingsState {
@@ -243,6 +261,10 @@ impl Default for SettingsState {
             runtime_protocol_version: None,
             runtime_capabilities: Vec::new(),
             cli_registration_status: None,
+            update_status: "Update Status".to_string(),
+            update_message: None,
+            update_busy: false,
+            github_star_state: GitHubStarState::Loading,
         }
     }
 }
@@ -278,6 +300,279 @@ impl SettingsState {
         if let Some(ai_text) = value.get("aiTextGeneration").and_then(Value::as_object) {
             self.apply_runtime_ai_text(ai_text);
         }
+    }
+
+    /// Merge the UI-only settings stored by Flutter's local repository.
+    ///
+    /// The runtime deliberately stores only the quota fields needed by the
+    /// host. Flutter therefore loads this record first and overlays the local
+    /// values after `runtimeSettings.get`; GPUI must do the same or provider
+    /// pinning and profile selection drift between the two clients.
+    pub fn apply_local_flutter_settings(&mut self, value: &Value) {
+        if let Some(general) = value.get("general").and_then(Value::as_object) {
+            if let Some(directory) = general.get("workspaceDirectory") {
+                self.workspace_directory = directory
+                    .as_str()
+                    .filter(|directory| !directory.trim().is_empty())
+                    .unwrap_or("~/.alera/workspaces")
+                    .to_string();
+            }
+            if let Some(enabled) = general
+                .get("confirmProjectRemoval")
+                .and_then(Value::as_bool)
+            {
+                self.confirm_project_removal = enabled;
+            }
+            if let Some(enabled) = general
+                .get("confirmWorkspaceRemoval")
+                .and_then(Value::as_bool)
+            {
+                self.confirm_workspace_removal = enabled;
+            }
+        }
+
+        if let Some(editor) = value.get("editor").and_then(Value::as_object) {
+            if let Some(theme) = editor.get("themeName").and_then(Value::as_str) {
+                self.editor_theme = theme.to_string();
+            }
+            if let Some(tab_size) = editor.get("tabSize").and_then(Value::as_i64) {
+                self.editor_tab_size = tab_size;
+            }
+        }
+
+        if let Some(diagnostics) = value.get("diagnostics").and_then(Value::as_object) {
+            if let Some(level) = diagnostics.get("logLevel").and_then(Value::as_str) {
+                self.diagnostics_log_level = match level {
+                    "error" | "Error" => "Error",
+                    "warning" | "Warning" => "Warning",
+                    "info" | "Info" => "Info",
+                    "debug" | "Debug" => "Debug",
+                    _ => self.diagnostics_log_level.as_str(),
+                }
+                .to_string();
+            }
+            if let Some(enabled) = diagnostics
+                .get("crashReportingEnabled")
+                .and_then(Value::as_bool)
+            {
+                self.crash_reporting_enabled = enabled;
+            }
+        }
+
+        if let Some(keyboard) = value.get("keyboard").and_then(Value::as_object) {
+            if let Some(policy) = keyboard.get("terminalPolicy").and_then(Value::as_str) {
+                if matches!(policy, "appFirst" | "terminalFirst") {
+                    self.keyboard_terminal_policy = policy.to_string();
+                }
+            }
+            if let Some(overrides) = keyboard.get("overrides").and_then(Value::as_object) {
+                self.keyboard_overrides = overrides
+                    .iter()
+                    .filter_map(|(id, chords)| {
+                        let chords = chords
+                            .as_array()?
+                            .iter()
+                            .map(Value::as_str)
+                            .collect::<Option<Vec<_>>>()?;
+                        Some((id.clone(), chords.into_iter().map(str::to_owned).collect()))
+                    })
+                    .collect();
+            }
+        }
+
+        if let Some(terminal) = value.get("terminal").and_then(Value::as_object) {
+            if let Some(font_family) = terminal.get("fontFamily").and_then(Value::as_str) {
+                self.terminal_font_family = font_family.to_string();
+            }
+            apply_f64(terminal.get("fontSize"), &mut self.terminal_font_size);
+            apply_i64(terminal.get("fontWeight"), &mut self.terminal_font_weight);
+            apply_f64(terminal.get("lineHeight"), &mut self.terminal_line_height);
+            apply_f64(terminal.get("paddingX"), &mut self.terminal_padding_x);
+            apply_f64(terminal.get("paddingY"), &mut self.terminal_padding_y);
+            if let Some(shape) = terminal.get("cursorShape").and_then(Value::as_str) {
+                if matches!(shape, "block" | "bar" | "underline") {
+                    self.terminal_cursor_shape = shape.to_string();
+                }
+            }
+            if let Some(blink) = terminal.get("cursorBlink").and_then(Value::as_bool) {
+                self.terminal_cursor_blink = blink;
+            }
+            apply_f64(
+                terminal.get("cursorOpacity"),
+                &mut self.terminal_cursor_opacity,
+            );
+            if let Some(theme) = terminal.get("themeName").and_then(Value::as_str) {
+                self.terminal_theme_name = theme.to_string();
+            }
+            apply_f64(
+                terminal.get("backgroundOpacity"),
+                &mut self.terminal_background_opacity,
+            );
+            if let Some(word_separators) = terminal.get("wordSeparators") {
+                self.terminal_word_separators = word_separators
+                    .as_str()
+                    .filter(|value| !value.is_empty())
+                    .map(str::to_owned);
+            }
+            if let Some(overrides) = terminal.get("colorOverrides").and_then(Value::as_object) {
+                for key in ["foreground", "background", "cursor", "selection"] {
+                    match overrides.get(key).and_then(Value::as_str) {
+                        Some(value) if is_terminal_color(value) => {
+                            self.terminal_color_overrides
+                                .insert(key.to_string(), normalize_terminal_color(value));
+                        }
+                        _ if overrides.contains_key(key) => {
+                            self.terminal_color_overrides.remove(key);
+                        }
+                        _ => {}
+                    }
+                }
+            }
+            apply_i64(
+                terminal.get("scrollbackLines"),
+                &mut self.terminal_scrollback_lines,
+            );
+            apply_i64(
+                terminal.get("tuiScrollSensitivity"),
+                &mut self.terminal_tui_scroll_sensitivity,
+            );
+            if let Some(enabled) = terminal.get("clipboardOnSelect").and_then(Value::as_bool) {
+                self.terminal_clipboard_on_select = enabled;
+            }
+            if let Some(enabled) = terminal.get("allowOsc52Clipboard").and_then(Value::as_bool) {
+                self.terminal_allow_osc52_clipboard = enabled;
+            }
+            apply_i64(
+                terminal.get("hostEmptyShutdownDelaySeconds"),
+                &mut self.host_empty_shutdown_delay_seconds,
+            );
+            apply_i64(
+                terminal.get("hostDetachedSessionShutdownDelaySeconds"),
+                &mut self.host_detached_shutdown_delay_seconds,
+            );
+            apply_i64(
+                terminal.get("hostScrollbackBytes"),
+                &mut self.terminal_host_scrollback_bytes,
+            );
+            apply_i64(
+                terminal.get("bufferBudgetMegabytes"),
+                &mut self.terminal_buffer_budget_megabytes,
+            );
+            if let Some(enabled) = terminal
+                .get("keepRuntimeOpenOnAppQuit")
+                .and_then(Value::as_bool)
+            {
+                self.keep_runtime_open_on_quit = enabled;
+            }
+            if let Some(login_shell) = terminal.get("loginShell") {
+                self.terminal_login_shell =
+                    login_shell.as_bool().unwrap_or(cfg!(target_os = "macos"));
+            }
+        }
+
+        if let Some(agents) = value.get("agents").and_then(Value::as_object) {
+            if let Some(hooks) = agents.get("agentStatusHooks").and_then(Value::as_object) {
+                for (agent, enabled) in hooks {
+                    if let Some(enabled) = enabled.as_bool() {
+                        self.agent_status_hooks.insert(agent.clone(), enabled);
+                    }
+                }
+            }
+            if let Some(enabled) = agents
+                .get("agentStatusNotificationsEnabled")
+                .and_then(Value::as_bool)
+            {
+                self.agent_status_notifications_enabled = enabled;
+            }
+            if let Some(enabled) = agents
+                .get("agentStatusFinishedNotificationsEnabled")
+                .and_then(Value::as_bool)
+            {
+                self.agent_status_finished_notifications_enabled = enabled;
+            }
+            if let Some(enabled) = agents
+                .get("keepComputerAwakeWhileAgentsWork")
+                .and_then(Value::as_bool)
+            {
+                self.keep_computer_awake_while_agents_work = enabled;
+            }
+            if let Some(quotas) = agents
+                .get("quotas")
+                .and_then(Value::as_object)
+                .and_then(|quotas| quotas.get("hosts"))
+                .and_then(Value::as_object)
+                .and_then(|hosts| hosts.get("local"))
+                .and_then(Value::as_object)
+            {
+                self.apply_runtime_quotas(quotas);
+            }
+        }
+    }
+
+    /// Build the local sections shared with Flutter's settings repository.
+    /// Each section is complete so a GPUI edit can be merged without losing
+    /// values that are not represented by the runtime settings API.
+    pub fn shared_flutter_local_payload(&self) -> Value {
+        let color_overrides = serde_json::json!({
+            "foreground": self.terminal_color_overrides.get("foreground"),
+            "background": self.terminal_color_overrides.get("background"),
+            "cursor": self.terminal_color_overrides.get("cursor"),
+            "selection": self.terminal_color_overrides.get("selection"),
+        });
+        serde_json::json!({
+            "general": {
+                "workspaceDirectory": if self.workspace_directory == "~/.alera/workspaces" {
+                    Value::Null
+                } else {
+                    Value::String(self.workspace_directory.clone())
+                },
+                "confirmProjectRemoval": self.confirm_project_removal,
+                "confirmWorkspaceRemoval": self.confirm_workspace_removal,
+            },
+            "editor": {
+                "tabSize": self.editor_tab_size,
+                "themeName": self.editor_theme,
+            },
+            "terminal": {
+                "fontFamily": self.terminal_font_family,
+                "fontSize": self.terminal_font_size,
+                "fontWeight": self.terminal_font_weight,
+                "lineHeight": self.terminal_line_height,
+                "paddingX": self.terminal_padding_x,
+                "paddingY": self.terminal_padding_y,
+                "cursorShape": self.terminal_cursor_shape,
+                "cursorBlink": self.terminal_cursor_blink,
+                "cursorOpacity": self.terminal_cursor_opacity,
+                "themeName": self.terminal_theme_name,
+                "backgroundOpacity": self.terminal_background_opacity,
+                "wordSeparators": self.terminal_word_separators,
+                "colorOverrides": color_overrides,
+                "scrollbackLines": self.terminal_scrollback_lines,
+                "tuiScrollSensitivity": self.terminal_tui_scroll_sensitivity,
+                "clipboardOnSelect": self.terminal_clipboard_on_select,
+                "allowOsc52Clipboard": self.terminal_allow_osc52_clipboard,
+                "hostEmptyShutdownDelaySeconds": self.host_empty_shutdown_delay_seconds,
+                "hostDetachedSessionShutdownDelaySeconds":
+                    self.host_detached_shutdown_delay_seconds,
+                "hostScrollbackBytes": self.terminal_host_scrollback_bytes,
+                "bufferBudgetMegabytes": self.terminal_buffer_budget_megabytes,
+                "keepRuntimeOpenOnAppQuit": self.keep_runtime_open_on_quit,
+                "loginShell": self.terminal_login_shell,
+            },
+            "diagnostics": {
+                "logLevel": match self.diagnostics_log_level.as_str() {
+                    "Error" => "error",
+                    "Warning" => "warning",
+                    "Debug" => "debug",
+                    _ => "info",
+                },
+                "crashReportingEnabled": self.crash_reporting_enabled,
+            },
+            "keyboard": {
+                "overrides": self.keyboard_overrides,
+                "terminalPolicy": self.keyboard_terminal_policy,
+            },
+        })
     }
 
     pub fn apply_host_status(&mut self, value: &Value) {
@@ -433,6 +728,33 @@ impl SettingsState {
     }
 }
 
+fn apply_f64(value: Option<&Value>, target: &mut f64) {
+    if let Some(value) = value
+        .and_then(Value::as_f64)
+        .filter(|value| value.is_finite())
+    {
+        *target = value;
+    }
+}
+
+fn apply_i64(value: Option<&Value>, target: &mut i64) {
+    if let Some(value) = value.and_then(Value::as_i64) {
+        *target = value;
+    }
+}
+
+fn is_terminal_color(value: &str) -> bool {
+    let value = value.trim().strip_prefix('#').unwrap_or(value.trim());
+    value.len() == 6 && value.chars().all(|character| character.is_ascii_hexdigit())
+}
+
+fn normalize_terminal_color(value: &str) -> String {
+    format!(
+        "#{}",
+        value.trim().trim_start_matches('#').to_ascii_lowercase()
+    )
+}
+
 fn apply_string_map(value: Option<&Value>, target: &mut BTreeMap<String, String>) {
     let Some(values) = value.and_then(Value::as_object) else {
         return;
@@ -521,6 +843,133 @@ mod tests {
                 .get("codex")
                 .map(String::as_str),
             Some("gpt-5.3-codex-spark")
+        );
+    }
+
+    #[test]
+    fn local_flutter_settings_restore_quota_pins_and_profiles() {
+        let mut state = SettingsState {
+            quota_unpinned_keys: ["kimi".to_string()].into_iter().collect(),
+            selected_claude_profile: "default".to_string(),
+            ..SettingsState::default()
+        };
+
+        state.apply_local_flutter_settings(&json!({
+            "agents": {
+                "agentStatusNotificationsEnabled": true,
+                "quotas": {
+                    "hosts": {
+                        "local": {
+                            "enabledProviders": ["claude", "codex", "kimi"],
+                            "claudeProfiles": [{"alias": "dev", "profile": "leynierdev"}],
+                            "selectedClaudeProfile": "leynierdev",
+                            "unpinnedQuotaKeys": []
+                        }
+                    }
+                }
+            }
+        }));
+
+        assert!(state.agent_status_notifications_enabled);
+        assert_eq!(state.quota_enabled_providers, ["claude", "codex", "kimi"]);
+        assert!(state.quota_unpinned_keys.is_empty());
+        assert_eq!(state.selected_claude_profile, "leynierdev");
+        assert_eq!(state.claude_profiles[0].profile, "leynierdev");
+    }
+
+    #[test]
+    fn local_flutter_settings_restore_all_client_sections() {
+        let mut state = SettingsState::default();
+        state.apply_local_flutter_settings(&json!({
+            "general": {
+                "workspaceDirectory": "/tmp/alera-workspaces",
+                "confirmProjectRemoval": false,
+                "confirmWorkspaceRemoval": false
+            },
+            "editor": {"themeName": "GitHub Dark", "tabSize": 2},
+            "terminal": {
+                "fontFamily": "Iosevka",
+                "fontSize": 15.0,
+                "fontWeight": 500,
+                "lineHeight": 1.4,
+                "paddingX": 8.0,
+                "paddingY": 10.0,
+                "cursorShape": "bar",
+                "cursorBlink": true,
+                "cursorOpacity": 0.8,
+                "themeName": "Alera Dark",
+                "backgroundOpacity": 0.9,
+                "wordSeparators": " /",
+                "colorOverrides": {"cursor": "ABCDEF", "foreground": null},
+                "scrollbackLines": 2000,
+                "tuiScrollSensitivity": 2,
+                "clipboardOnSelect": true,
+                "allowOsc52Clipboard": true,
+                "hostEmptyShutdownDelaySeconds": 45,
+                "hostDetachedSessionShutdownDelaySeconds": 7200,
+                "hostScrollbackBytes": 2000000,
+                "bufferBudgetMegabytes": 128,
+                "keepRuntimeOpenOnAppQuit": true,
+                "loginShell": false
+            },
+            "diagnostics": {"logLevel": "debug", "crashReportingEnabled": true},
+            "keyboard": {
+                "terminalPolicy": "terminalFirst",
+                "overrides": {"openSettings": ["Mod+Shift+P"], "newTab": []}
+            }
+        }));
+
+        assert_eq!(state.workspace_directory, "/tmp/alera-workspaces");
+        assert!(!state.confirm_project_removal);
+        assert_eq!(state.editor_theme, "GitHub Dark");
+        assert_eq!(state.editor_tab_size, 2);
+        assert_eq!(state.terminal_font_family, "Iosevka");
+        assert_eq!(state.terminal_font_size, 15.0);
+        assert_eq!(state.terminal_cursor_shape, "bar");
+        assert!(state.terminal_cursor_blink);
+        assert_eq!(state.terminal_word_separators.as_deref(), Some(" /"));
+        assert_eq!(
+            state.terminal_color_overrides.get("cursor"),
+            Some(&"#abcdef".to_string())
+        );
+        assert!(!state.terminal_color_overrides.contains_key("foreground"));
+        assert_eq!(state.diagnostics_log_level, "Debug");
+        assert!(state.crash_reporting_enabled);
+        assert_eq!(state.keyboard_terminal_policy, "terminalFirst");
+        assert_eq!(
+            state.keyboard_overrides.get("openSettings"),
+            Some(&vec!["Mod+Shift+P".to_string()])
+        );
+        assert_eq!(state.keyboard_overrides.get("newTab"), Some(&Vec::new()));
+    }
+
+    #[test]
+    fn shared_flutter_payload_uses_flutter_field_names() {
+        let state = SettingsState {
+            editor_theme: "GitHub Dark".to_string(),
+            terminal_cursor_shape: "bar".to_string(),
+            terminal_cursor_blink: true,
+            diagnostics_log_level: "Warning".to_string(),
+            keyboard_terminal_policy: "terminalFirst".to_string(),
+            ..SettingsState::default()
+        };
+        let payload = state.shared_flutter_local_payload();
+        assert_eq!(
+            payload.pointer("/editor/themeName"),
+            Some(&json!("GitHub Dark"))
+        );
+        assert_eq!(
+            payload.pointer("/terminal/cursorShape"),
+            Some(&json!("bar"))
+        );
+        assert_eq!(payload.pointer("/terminal/cursorBlink"), Some(&json!(true)));
+        assert_eq!(
+            payload.pointer("/diagnostics/logLevel"),
+            Some(&json!("warning"))
+        );
+        assert_eq!(
+            payload.pointer("/keyboard/terminalPolicy"),
+            Some(&json!("terminalFirst"))
         );
     }
 }

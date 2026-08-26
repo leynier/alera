@@ -1,4 +1,4 @@
-use alera_native::api::git;
+use alera_native::api::{git, git_explorer_status};
 use serde::Deserialize;
 use serde_json::{json, Value};
 
@@ -7,6 +7,14 @@ use crate::terminal_host::host_error::{HostError, HostResult};
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct WorkspaceGitSnapshotRequest {
+    workspace_path: String,
+    #[serde(default)]
+    include_patch: bool,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct WorkspaceGitExplorerStatusRequest {
     workspace_path: String,
 }
 
@@ -40,9 +48,27 @@ struct WorkspaceGitDiffRequest {
 
 pub(super) async fn snapshot(payload: &Value) -> HostResult<Value> {
     let request: WorkspaceGitSnapshotRequest = parse(payload)?;
-    tokio::task::spawn_blocking(move || snapshot_sync(request.workspace_path))
-        .await
-        .map_err(|error| HostError::state(format!("Workspace Git Task Failed: {error}")))?
+    tokio::task::spawn_blocking(move || {
+        snapshot_sync(request.workspace_path, request.include_patch)
+    })
+    .await
+    .map_err(|error| HostError::state(format!("Workspace Git Task Failed: {error}")))?
+}
+
+pub(super) async fn explorer_status(payload: &Value) -> HostResult<Value> {
+    let request: WorkspaceGitExplorerStatusRequest = parse(payload)?;
+    tokio::task::spawn_blocking(move || {
+        let snapshot = git_explorer_status::git_explorer_status_snapshot(request.workspace_path)
+            .map_err(git_error)?;
+        Ok(json!({
+            "entries": snapshot.entries.into_iter().map(|entry| json!({
+                "path": entry.path,
+                "status": format!("{:?}", entry.status),
+            })).collect::<Vec<_>>(),
+        }))
+    })
+    .await
+    .map_err(|error| HostError::state(format!("Workspace Git Task Failed: {error}")))?
 }
 
 pub(super) async fn action(payload: &Value) -> HostResult<Value> {
@@ -96,10 +122,25 @@ pub(super) async fn diff(payload: &Value) -> HostResult<Value> {
     .map_err(|error| HostError::state(format!("Workspace Git Task Failed: {error}")))?
 }
 
-fn snapshot_sync(workspace_path: String) -> HostResult<Value> {
+fn snapshot_sync(workspace_path: String, include_patch: bool) -> HostResult<Value> {
     let state = git::git_repository_state(workspace_path.clone()).map_err(git_error)?;
     let status = git::git_status(workspace_path.clone()).map_err(git_error)?;
-    let diff = git::git_diff_all(workspace_path.clone(), None).map_err(git_error)?;
+    let patch = if include_patch {
+        git::git_diff_all(workspace_path.clone(), None)
+            .map_err(git_error)?
+            .files
+            .into_iter()
+            .flat_map(|file| {
+                let path = file.path;
+                file.lines
+                    .into_iter()
+                    .map(move |line| format!("{path}: {}", line.text))
+            })
+            .take(2_000)
+            .collect::<Vec<_>>()
+    } else {
+        Vec::new()
+    };
     let history = git::git_history(workspace_path.clone(), Some(50), None).map_err(git_error)?;
     let stashes = git::git_list_stashes(workspace_path).map_err(git_error)?;
     let current_ref = history.current_ref.as_ref().map(serialize_history_ref);
@@ -125,10 +166,7 @@ fn snapshot_sync(workspace_path: String) -> HostResult<Value> {
             "added": entry.added,
             "removed": entry.removed,
         })).collect::<Vec<_>>(),
-        "patch": diff.files.into_iter().flat_map(|file| {
-            let path = file.path;
-            file.lines.into_iter().map(move |line| format!("{path}: {}", line.text))
-        }).take(2_000).collect::<Vec<_>>(),
+        "patch": patch,
         "history": history.items.into_iter().map(|item| {
             let full_id = item.id;
             json!({
@@ -276,4 +314,36 @@ fn serialize_diff(result: git::GitDiffResult) -> Value {
 fn parse<T: for<'de> Deserialize<'de>>(payload: &Value) -> HostResult<T> {
     serde_json::from_value(payload.clone())
         .map_err(|error| HostError::format(format!("Invalid Workspace Git Request: {error}")))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn snapshot_patch_is_opt_in_for_legacy_callers() {
+        let request: WorkspaceGitSnapshotRequest =
+            serde_json::from_value(json!({"workspacePath": "/tmp/workspace"})).unwrap();
+
+        assert!(!request.include_patch);
+    }
+
+    #[test]
+    fn snapshot_accepts_explicit_patch_requests() {
+        let request: WorkspaceGitSnapshotRequest = serde_json::from_value(json!({
+            "workspacePath": "/tmp/workspace",
+            "includePatch": true,
+        }))
+        .unwrap();
+
+        assert!(request.include_patch);
+    }
+
+    #[test]
+    fn explorer_status_request_requires_only_workspace_path() {
+        let request: WorkspaceGitExplorerStatusRequest =
+            serde_json::from_value(json!({"workspacePath": "/tmp/workspace"})).unwrap();
+
+        assert_eq!(request.workspace_path, "/tmp/workspace");
+    }
 }

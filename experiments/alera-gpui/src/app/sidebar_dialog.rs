@@ -52,6 +52,12 @@ impl AleraApp {
         let rename_id = project_id.clone();
         let workspace_id = project_id.clone();
         let remove_id = project_id;
+        let can_create_workspace = self
+            .snapshot
+            .projects
+            .iter()
+            .find(|project| project.id == workspace_id)
+            .is_some_and(|project| project.kind == "gitRepository");
         sidebar_menu_shell(
             "project-context-menu",
             self.sidebar_menu_position,
@@ -74,15 +80,22 @@ impl AleraApp {
         )
         .child(
             sidebar_menu_button("project-menu-workspace", AleraIcon::Add, "New Workspace")
-                .on_mouse_down(
-                    MouseButton::Left,
-                    cx.listener(move |this, _, _, cx| {
-                        cx.stop_propagation();
-                        this.selected_workspace_project_id = Some(workspace_id.clone());
-                        this.open_new_workspace_dialog(cx);
-                        this.sidebar_menu = None;
-                    }),
-                ),
+                .when(can_create_workspace, |button| {
+                    button.on_mouse_down(
+                        MouseButton::Left,
+                        cx.listener(move |this, _, window, cx| {
+                            cx.stop_propagation();
+                            this.selected_workspace_project_id = Some(workspace_id.clone());
+                            this.open_new_workspace_dialog(window, cx);
+                            this.sidebar_menu = None;
+                        }),
+                    )
+                })
+                .when(!can_create_workspace, |button| {
+                    button
+                        .text_color(theme::text_faint())
+                        .cursor(CursorStyle::Arrow)
+                }),
         )
         .child(sidebar_menu_divider())
         .child(

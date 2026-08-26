@@ -50,7 +50,9 @@ fn mobile_settings_row_width(
     div()
         .flex()
         .items_center()
-        .min_h(px(72.0))
+        // Match Flutter's AleraSettingRow: two body lines plus 16 px vertical
+        // padding settle at the same 66 px floor as the shared settings rows.
+        .min_h(px(66.0))
         .p_4()
         .border_b_1()
         .border_color(theme::border_subtle())

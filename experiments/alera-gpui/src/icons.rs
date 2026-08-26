@@ -26,6 +26,7 @@ pub enum AleraIcon {
     Check,
     CheckCheck,
     Cancel,
+    Circle,
     CloseFullscreen,
     CollapseAll,
     ChevronDown,
@@ -49,6 +50,7 @@ pub enum AleraIcon {
     File,
     Files,
     Folder,
+    FolderOff,
     FolderOpen,
     FolderSpecial,
     GitBranch,
@@ -57,8 +59,10 @@ pub enum AleraIcon {
     GitDiscard,
     GitFetch,
     GitFork,
+    GitMerge,
     GitPull,
     GitPullRequest,
+    GitPullRequestClosed,
     GitPublish,
     GitPush,
     GitRefresh,
@@ -90,8 +94,11 @@ pub enum AleraIcon {
     Restore,
     Save,
     Search,
+    Send,
     Server,
     Settings,
+    Star,
+    Stop,
     Success,
     SidebarToggle,
     Tag,
@@ -100,7 +107,9 @@ pub enum AleraIcon {
     TextSearch,
     Theme,
     Tune,
+    Unlink,
     Visible,
+    Warning,
     Workflow,
 }
 
@@ -125,16 +134,16 @@ impl AgentIcon {
         match self {
             Self::Agy => ("agents/agy.png", true, false),
             Self::Amp => ("agents/amp.png", true, false),
-            Self::Claude => ("agents/claude.svg", true, false),
+            Self::Claude => ("agents/claude.svg", false, false),
             Self::Codex => ("agents/codex.svg", false, true),
             Self::Copilot => ("agents/copilot.svg", false, true),
             Self::Cursor => ("agents/cursor.png", true, false),
             Self::Grok => ("agents/grok.svg", false, true),
-            Self::Kimi => ("agents/kimi.svg", true, false),
-            Self::MiniMax => ("agents/minimax.svg", true, false),
+            Self::Kimi => ("agents/kimi.svg", false, false),
+            Self::MiniMax => ("agents/minimax.svg", false, false),
             Self::OpenCode => ("agents/opencode.png", true, false),
             Self::Pi => ("agents/pi.svg", false, true),
-            Self::Zai => ("agents/zai.svg", true, false),
+            Self::Zai => ("agents/zai.svg", false, false),
         }
     }
 }
@@ -142,6 +151,7 @@ impl AgentIcon {
 impl AleraIcon {
     fn codicon_asset(self) -> Option<&'static str> {
         match self {
+            Self::Circle => Some("lucide/circle.svg"),
             Self::CloseFullscreen => Some("google-material-icons/close-fullscreen.svg"),
             Self::GitCommit => Some("codicons/check.svg"),
             Self::GitDiscard => Some("codicons/discard.svg"),
@@ -172,6 +182,7 @@ impl AleraIcon {
             Self::Check => ("lucide", 57452),
             Self::CheckCheck => ("lucide", 58254),
             Self::Cancel => ("lucide", 57476),
+            Self::Circle => unreachable!("SVG-backed icon"),
             Self::CloseFullscreen => unreachable!("SVG-backed icon"),
             Self::CollapseAll => ("lucide", 57896),
             Self::ChevronDown => ("lucide", 57453),
@@ -195,6 +206,7 @@ impl AleraIcon {
             Self::File => ("lucide", 57548),
             Self::Files => ("lucide", 57551),
             Self::Folder => ("lucide", 57559),
+            Self::FolderOff => ("lucide", 58174),
             Self::FolderOpen => ("lucide", 57927),
             Self::FolderSpecial => ("lucide", 58378),
             Self::GitBranch => ("lucide", 57570),
@@ -203,8 +215,10 @@ impl AleraIcon {
             Self::GitDiscard => ("codicon", 0xeae2),
             Self::GitFetch => ("codicon", 0xecb2),
             Self::GitFork => ("lucide", 57997),
+            Self::GitMerge => ("lucide", 57572),
             Self::GitPull => ("codicon", 0xeb40),
             Self::GitPullRequest => ("lucide", 57573),
+            Self::GitPullRequestClosed => ("lucide", 58202),
             Self::GitPublish => ("codicon", 0xeac3),
             Self::GitPush => ("codicon", 0xeb41),
             Self::GitRefresh => ("codicon", 0xeb37),
@@ -236,8 +250,11 @@ impl AleraIcon {
             Self::Restore => ("lucide", 57845),
             Self::Save => ("lucide", 57677),
             Self::Search => ("lucide", 57681),
+            Self::Send => ("lucide", 57682),
             Self::Server => ("lucide", 57683),
             Self::Settings => ("lucide", 57684),
+            Self::Star => ("lucide", 57718),
+            Self::Stop => ("lucide", 57475),
             Self::SidebarToggle => ("lucide", 57642),
             Self::Success => ("lucide", 57894),
             Self::Tag => ("lucide", 57727),
@@ -246,7 +263,9 @@ impl AleraIcon {
             Self::TextSearch => ("lucide", 58797),
             Self::Theme => ("lucide", 57630),
             Self::Tune => ("lucide", 58010),
+            Self::Unlink => ("lucide", 57756),
             Self::Visible => ("lucide", 57530),
+            Self::Warning => ("lucide", 57747),
             Self::Workflow => ("lucide", 58405),
         }
     }
@@ -311,8 +330,12 @@ pub fn loading_indicator(size: f32, color: Rgba) -> AnyElement {
 /// The sidebar agent spinner uses the same slower cadence as Flutter's
 /// shared `AgentRunSpinner` while keeping the Lucide loader-circle geometry.
 pub fn agent_loading_indicator(size: f32, color: Rgba) -> AnyElement {
+    // Flutter's AgentRunSpinnerPainter draws a 4.7-radian arc with round
+    // caps, rather than the complete Lucide loader path used by generic
+    // loading controls. Keep that geometry in a dedicated SVG and only use
+    // this helper for agent presence indicators.
     svg()
-        .path("lucide/loader-circle.svg")
+        .path("lucide/agent-spinner.svg")
         .w(px(size))
         .h(px(size))
         .text_color(color)
@@ -357,9 +380,16 @@ mod tests {
             AleraIcon::GitCommit,
             AleraIcon::GitFetch,
             AleraIcon::GitFork,
+            AleraIcon::GitMerge,
+            AleraIcon::GitPullRequestClosed,
+            AleraIcon::FolderOff,
             AleraIcon::Notifications,
+            AleraIcon::Send,
+            AleraIcon::Stop,
             AleraIcon::Success,
             AleraIcon::Tag,
+            AleraIcon::Unlink,
+            AleraIcon::Warning,
         ] {
             let (_, codepoint) = icon.font_and_codepoint();
             assert!(char::from_u32(codepoint).is_some());
@@ -373,5 +403,30 @@ mod tests {
         assert_eq!(AleraIcon::Cancel.font_and_codepoint().1, 57476);
         assert_eq!(AleraIcon::Notifications.font_and_codepoint().1, 57892);
         assert_eq!(AleraIcon::Success.font_and_codepoint().1, 57894);
+        assert_eq!(AleraIcon::GitMerge.font_and_codepoint().1, 57572);
+        assert_eq!(
+            AleraIcon::GitPullRequestClosed.font_and_codepoint().1,
+            58202
+        );
+        assert_eq!(AleraIcon::FolderOff.font_and_codepoint().1, 58174);
+        assert_eq!(AleraIcon::Send.font_and_codepoint().1, 57682);
+        assert_eq!(AleraIcon::Stop.font_and_codepoint().1, 57475);
+        assert_eq!(AleraIcon::Unlink.font_and_codepoint().1, 57756);
+        assert_eq!(AleraIcon::Warning.font_and_codepoint().1, 57747);
+    }
+
+    #[test]
+    fn colored_provider_svgs_use_the_svg_renderer() {
+        for provider in [
+            AgentIcon::Claude,
+            AgentIcon::Kimi,
+            AgentIcon::MiniMax,
+            AgentIcon::Zai,
+        ] {
+            let (path, raster, tintable) = provider.asset();
+            assert!(path.ends_with(".svg"));
+            assert!(!raster);
+            assert!(!tintable);
+        }
     }
 }

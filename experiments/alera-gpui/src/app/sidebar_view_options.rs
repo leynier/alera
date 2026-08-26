@@ -1,3 +1,5 @@
+use std::cmp::Ordering;
+
 use gpui::{
     div, prelude::FluentBuilder as _, px, Context, CursorStyle, InteractiveElement as _,
     IntoElement, MouseButton, ParentElement as _, SharedString, Styled as _,
@@ -12,7 +14,7 @@ use super::{AleraApp, SidebarGroupBy, SidebarSortTarget, SidebarWorkspaceKind};
 use crate::{
     design_system,
     icons::{icon, AleraIcon},
-    model::Workspace,
+    model::{Project, Workspace},
     theme,
 };
 
@@ -28,7 +30,11 @@ impl AleraApp {
                 || workspace
                     .tag_ids
                     .iter()
-                    .any(|tag| self.sidebar_view_selected_tag_ids.contains(tag)))
+                    .any(|tag| self.sidebar_view_selected_tag_ids.contains(tag))
+                || workspace.tag_names.iter().any(|name| {
+                    self.sidebar_view_selected_tag_ids
+                        .contains(&format!("tag-name:{name}"))
+                }))
     }
 
     pub(super) fn render_sidebar_view_options(&self, cx: &mut Context<Self>) -> impl IntoElement {
@@ -48,13 +54,13 @@ impl AleraApp {
             .value()
             .trim()
             .to_lowercase();
-        let selected_projects = self
+        let mut selected_projects = self
             .snapshot
             .projects
             .iter()
             .filter(|project| self.sidebar_selected_project_ids.contains(&project.id))
             .collect::<Vec<_>>();
-        let available_projects = self
+        let mut available_projects = self
             .snapshot
             .projects
             .iter()
@@ -63,6 +69,10 @@ impl AleraApp {
                 project_query.is_empty() || project.name.to_lowercase().contains(&project_query)
             })
             .collect::<Vec<_>>();
+        // Flutter keeps project selection deterministic and alphabetic even
+        // when the sidebar itself is sorted by recency or activity.
+        selected_projects.sort_by(compare_project_selection);
+        available_projects.sort_by(compare_project_selection);
         let selected_tags = self
             .snapshot
             .tags
@@ -76,6 +86,22 @@ impl AleraApp {
             .filter(|tag| !self.sidebar_view_selected_tag_ids.contains(&tag.id))
             .filter(|tag| tag_query.is_empty() || tag.name.to_lowercase().contains(&tag_query))
             .collect::<Vec<_>>();
+        // Flutter's intrinsic panel replaces selected rows with one chip
+        // wrap (chip + spacing) and removes those entries from the available
+        // list. Mirror that net height change instead of adding space for a
+        // selection, which would make the dialog visibly too tall.
+        // The Project grouping has one additional sort row. Flutter's
+        // intrinsic dialog grows by about 34 logical pixels for that row;
+        // keeping the same height here preserves the centered bounds instead
+        // of forcing the extra content into a shorter scroll viewport.
+        let dialog_height = 562.0
+            + if self.sidebar_group_by == SidebarGroupBy::Project {
+                34.0
+            } else {
+                0.0
+            }
+            + selected_filter_height_delta(selected_project_count, available_projects.len())
+            + selected_filter_height_delta(selected_tag_count, available_tags.len());
 
         div()
             .absolute()
@@ -97,8 +123,8 @@ impl AleraApp {
             .child(
                 div()
                     .id("sidebar-view-options-dialog")
-                    .w(px(476.0))
-                    .h(px(562.0))
+                    .w(px(460.0))
+                    .h(px(dialog_height))
                     .rounded_lg()
                     .border_1()
                     .border_color(theme::border())
@@ -143,7 +169,7 @@ impl AleraApp {
                     .child(
                         div()
                             .mt_2()
-                            .max_h(px(486.0))
+                            .max_h(px(dialog_height - 12.0))
                             .overflow_y_scrollbar()
                             .child(section_label("Group By"))
                             .child(
@@ -359,7 +385,7 @@ impl AleraApp {
                                     }),
                                 ),
                             )
-                            .child(div().h(px(1.0)).my_3().bg(theme::border_subtle()))
+                            .child(div().h(px(1.0)).my_2().bg(theme::border_subtle()))
                             .child(
                                 filter_header("Projects", selected_project_count).child(
                                     clear_button(
@@ -504,5 +530,23 @@ impl AleraApp {
                             })),
                     ),
             )
+    }
+}
+
+fn compare_project_selection(left: &&Project, right: &&Project) -> Ordering {
+    left.name
+        .to_lowercase()
+        .cmp(&right.name.to_lowercase())
+        .then_with(|| left.name.cmp(&right.name))
+        .then_with(|| left.id.cmp(&right.id))
+}
+
+fn selected_filter_height_delta(selected_count: usize, available_count: usize) -> f32 {
+    if selected_count == 0 {
+        0.0
+    } else {
+        // One 26px chip row plus the 8px gap replaces one 30px available row
+        // for each selected item.
+        34.0 - selected_count as f32 * 30.0 + if available_count == 0 { 34.0 } else { 0.0 }
     }
 }

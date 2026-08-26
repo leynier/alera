@@ -13,23 +13,69 @@ use super::agent_profile_settings_catalog::{
     controls_for, supports_model, supports_persona, ManagedControl, ADAPTERS, LAUNCH_MODES,
 };
 use super::agent_profile_settings_controls::{
-    launch_mode_label, profile_action_button, settings_group, settings_row, settings_row_width,
-    settings_switch,
+    launch_mode_label, profile_action_button, settings_checkbox, settings_group, settings_row,
+    settings_row_width,
 };
 use super::AleraApp;
 use crate::design_system;
-use crate::icons::{agent_icon, icon, AleraIcon};
+use crate::icons::{agent_icon, icon, loading_indicator, AleraIcon};
 use crate::theme;
 
 impl AleraApp {
     pub(super) fn render_agent_profiles_settings_pane(&self, cx: &mut Context<Self>) -> AnyElement {
+        if self.agent_profile_settings.loading && self.agent_profile_settings.profiles.is_empty() {
+            return div()
+                .flex()
+                .flex_1()
+                .items_center()
+                .justify_center()
+                .child(loading_indicator(18.0, theme::text_muted()))
+                .into_any_element();
+        }
+        if let Some(error) = self.agent_profile_settings.load_error.clone() {
+            return div()
+                .flex()
+                .flex_1()
+                .flex_col()
+                .items_center()
+                .justify_center()
+                .gap_2()
+                .child(icon(AleraIcon::Agent, 24.0, theme::text_faint()))
+                .child(
+                    div()
+                        .text_size(px(14.0))
+                        .font_weight(gpui::FontWeight::SEMIBOLD)
+                        .child("Agent Profiles Unavailable"),
+                )
+                .child(
+                    div()
+                        .max_w(px(420.0))
+                        .text_center()
+                        .text_size(px(12.0))
+                        .text_color(theme::text_muted())
+                        .child(error),
+                )
+                .into_any_element();
+        }
         div()
             .relative()
             .flex()
             .flex_1()
             .min_h_0()
             .child(self.render_agent_profiles_master(cx))
-            .child(div().mx_4().w(px(1.0)).h_full().bg(theme::border_subtle()))
+            // AleraMasterDetail reserves 16 px on both sides of its divider;
+            // the GPUI master column starts 8 px earlier because its title
+            // padding is local to the header. Keep the divider and detail
+            // column on Flutter's exact x-coordinate without changing the
+            // fixed 240 px master width.
+            .child(
+                div()
+                    .ml(px(21.0))
+                    .mr(px(16.0))
+                    .w(px(1.0))
+                    .h_full()
+                    .bg(theme::border_subtle()),
+            )
             .child(self.render_agent_profile_editor(cx))
             .when(self.agent_profile_settings.risk_confirmation_open, |pane| {
                 pane.child(self.render_agent_profile_risk_confirmation(cx))
@@ -44,12 +90,16 @@ impl AleraApp {
             .flex_col()
             .flex_shrink_0()
             .min_h_0()
-            .w(px(260.0))
+            // Flutter's AleraMasterDetail uses a 240 logical-pixel master.
+            // Keeping the same width prevents the editor column from drifting
+            // right when Settings is rendered on a Retina display.
+            .w(px(240.0))
             .child(
                 div()
                     .flex()
                     .items_center()
                     .h(px(34.0))
+                    .pl_4()
                     .child(
                         div()
                             .text_size(px(13.0))
@@ -248,11 +298,7 @@ impl AleraApp {
                     .child(
                         profile_action_button(
                             "remove-agent-profile",
-                            if state.remove_armed {
-                                "Confirm Remove"
-                            } else {
-                                "Remove"
-                            },
+                            "Remove",
                             AleraIcon::Delete,
                             false,
                             state.selected_id.is_none() || state.saving,
@@ -292,11 +338,12 @@ impl AleraApp {
             vec![
                 div()
                     .p_3()
-                    .child(design_system::text_field(&state.name_input).prefix(icon(
-                        AleraIcon::Text,
-                        15.0,
-                        theme::text_faint(),
-                    ))),
+                    .child(
+                        design_system::text_field(&state.name_input)
+                            .disabled(state.saving)
+                            .label("Name")
+                            .prefix(icon(AleraIcon::Text, 15.0, theme::text_faint())),
+                    ),
                 div().px_3().pb_3().child(
                     self.render_agent_profile_dropdown(
                         "Adapter Type",
@@ -324,11 +371,14 @@ impl AleraApp {
                         .px_3()
                         .pb_3()
                         .child(
-                            design_system::text_field(&state.command_input).prefix(icon(
-                                AleraIcon::Terminal,
-                                15.0,
-                                theme::text_faint(),
-                            )),
+                            design_system::text_field(&state.command_input)
+                                .disabled(state.saving)
+                                .label("Command")
+                                .prefix(icon(
+                                    AleraIcon::Terminal,
+                                    15.0,
+                                    theme::text_faint(),
+                                )),
                         )
                         .child(
                             div()
@@ -365,7 +415,10 @@ impl AleraApp {
                 "Use A Model ID That Is Not In The Discovered List.",
                 div()
                     .w(px(220.0))
-                    .child(design_system::text_field(&state.model_input)),
+                    .child(
+                        design_system::text_field(&state.model_input)
+                            .disabled(state.saving),
+                    ),
             ));
         }
         if supports_persona(&state.adapter) {
@@ -375,7 +428,10 @@ impl AleraApp {
                 "Use A Persona Name That Is Not In The Discovered List.",
                 div()
                     .w(px(220.0))
-                    .child(design_system::text_field(&state.persona_input)),
+                    .child(
+                        design_system::text_field(&state.persona_input)
+                            .disabled(state.saving),
+                    ),
             ));
         }
         for control in controls_for(&state.adapter) {
@@ -399,13 +455,17 @@ impl AleraApp {
                     settings_row(
                         title,
                         description,
-                        settings_switch(SharedString::from(format!("profile-flag-{key}")), enabled)
-                            .on_mouse_down(
-                                MouseButton::Left,
-                                cx.listener(move |this, _, _, cx| {
-                                    this.toggle_agent_profile_flag(key, cx);
-                                }),
-                            ),
+                        settings_checkbox(
+                            SharedString::from(format!("profile-flag-{key}")),
+                            enabled,
+                            !state.saving,
+                        )
+                        .on_mouse_down(
+                            MouseButton::Left,
+                            cx.listener(move |this, _, _, cx| {
+                                this.toggle_agent_profile_flag(key, cx);
+                            }),
+                        ),
                     )
                 }
                 ManagedControl::Number {
@@ -421,7 +481,9 @@ impl AleraApp {
                     settings_row(
                         title,
                         description,
-                        div().w(px(220.0)).child(design_system::text_field(input)),
+                        div().w(px(220.0)).child(
+                            design_system::text_field(input).disabled(state.saving),
+                        ),
                     )
                 }
             });
@@ -449,18 +511,16 @@ impl AleraApp {
             "Signals The Orchestrator Reads When Planning A Run.",
             vec![
                 div().p_3().child(
-                    design_system::text_field(&state.description_input).prefix(icon(
-                        AleraIcon::Info,
-                        15.0,
-                        theme::text_faint(),
-                    )),
+                    design_system::text_field(&state.description_input)
+                        .disabled(state.saving)
+                        .label("Description")
+                        .prefix(icon(AleraIcon::Info, 15.0, theme::text_faint())),
                 ),
                 div().px_3().pb_3().child(
-                    design_system::text_field(&state.quota_group_input).prefix(icon(
-                        AleraIcon::Tag,
-                        15.0,
-                        theme::text_faint(),
-                    )),
+                    design_system::text_field(&state.quota_group_input)
+                        .disabled(state.saving)
+                        .label("Quota Group")
+                        .prefix(icon(AleraIcon::Tag, 15.0, theme::text_faint())),
                 ),
                 div()
                     .px_3()

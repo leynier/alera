@@ -24,7 +24,7 @@ fn editor_pane(
     div()
         .child(exact_settings_group(
             "Appearance",
-            "Syntax Highlighting Defaults For Editor Tabs.",
+            "Syntax highlighting defaults for editor tabs.",
             vec![div()
                 .p_4()
                 .child(
@@ -86,6 +86,15 @@ fn editor_pane(
                                                 .max_h(px(220.0))
                                                 .overflow_y_scrollbar()
                                                 .py_1()
+                                                .when(filtered.is_empty(), |list| {
+                                                    list.child(
+                                                        div()
+                                                            .p_3()
+                                                            .text_size(px(12.0))
+                                                            .text_color(theme::text_muted())
+                                                            .child("No themes found."),
+                                                    )
+                                                })
                                                 .children(filtered.iter().enumerate().map(
                                                     |(index, name)| {
                                                         let selected =
@@ -128,10 +137,10 @@ fn editor_pane(
         ))
         .child(div().mt_4().child(exact_settings_group(
             "Indentation",
-            "Defaults Used By Editor Tabs.",
+            "Defaults used by editor tabs.",
             vec![exact_settings_row(
                 "Tab Size",
-                "Spaces Inserted When Pressing Tab.",
+                "Spaces inserted when pressing Tab.",
                 number_input_control(
                     "editor-tab-size",
                     settings_input(inputs, "editor-tab-size"),

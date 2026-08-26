@@ -295,26 +295,10 @@ impl AleraApp {
     ) -> AnyElement {
         match tab.map(|tab| tab.kind.as_str()) {
             Some("terminal") => self.render_terminal_surface_for(tab, active, cx),
-            Some("gitDiff") if active => self.render_git_diff_surface(tab.unwrap(), cx),
-            Some("gitDiff") => div()
-                .flex_1()
-                .flex()
-                .items_center()
-                .justify_center()
-                .text_sm()
-                .text_color(theme::text_muted())
-                .child("Select This Pane To Load The Git Diff")
-                .into_any_element(),
-            Some("editor") | Some("markdownViewer") if active => self.render_editor(window, cx),
-            Some("editor") | Some("markdownViewer") => div()
-                .flex_1()
-                .flex()
-                .items_center()
-                .justify_center()
-                .text_sm()
-                .text_color(theme::text_muted())
-                .child("Select This Pane To Load The Editor")
-                .into_any_element(),
+            Some("gitDiff") => self.render_git_diff_surface(tab.unwrap(), cx),
+            Some("editor") | Some("markdownViewer") => {
+                self.render_editor_for_tab(tab.unwrap(), active, window, cx)
+            }
             Some(kind) => div()
                 .flex_1()
                 .flex()

@@ -26,14 +26,14 @@ impl AleraApp {
                         div()
                             .text_lg()
                             .font_weight(gpui::FontWeight::SEMIBOLD)
-                            .child("File Changed On Disk"),
+                            .child("File changed on disk"),
                     )
                     .child(
                         div()
                             .mt_2()
                             .text_sm()
                             .text_color(theme::text_muted())
-                            .child("Overwrite The File With The Editor Contents?"),
+                            .child("Overwrite the file with the editor contents?"),
                     )
                     .child(
                         div()

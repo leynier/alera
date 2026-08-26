@@ -14,6 +14,7 @@ impl AleraApp {
         }
         self.agent_profile_settings.loading = true;
         self.agent_profile_settings.error = None;
+        self.agent_profile_settings.load_error = None;
         let bridge = self.bridge.clone();
         cx.notify();
         cx.spawn_in(window, async move |this, cx| {
@@ -22,6 +23,13 @@ impl AleraApp {
                 this.agent_profile_settings.loading = false;
                 match result.and_then(parse_agent_profiles) {
                     Ok(profiles) => {
+                        let mut profiles = profiles;
+                        profiles.sort_by(|left, right| {
+                            left.name
+                                .to_ascii_lowercase()
+                                .cmp(&right.name.to_ascii_lowercase())
+                                .then_with(|| left.id.cmp(&right.id))
+                        });
                         let selected = this
                             .agent_profile_settings
                             .selected_id
@@ -37,8 +45,16 @@ impl AleraApp {
                                 this.agent_profile_settings.creating_new = false;
                             }
                         }
+                        this.agent_profile_settings.load_error = None;
                     }
-                    Err(error) => this.agent_profile_settings.error = Some(error.into()),
+                    Err(error) => {
+                        // Flutter's AsyncError replaces the pane with an unavailable state;
+                        // do not leave stale profiles visible after a failed refresh.
+                        this.agent_profile_settings.profiles.clear();
+                        this.agent_profile_settings.selected_id = None;
+                        this.agent_profile_settings.creating_new = false;
+                        this.agent_profile_settings.load_error = Some(error.into());
+                    }
                 }
                 cx.notify();
             });
@@ -53,7 +69,6 @@ impl AleraApp {
         self.agent_profile_settings.launch_mode = "managed".to_owned();
         self.agent_profile_settings.managed_config.clear();
         self.agent_profile_settings.dropdown = None;
-        self.agent_profile_settings.remove_armed = false;
         self.agent_profile_settings.risk_confirmation_open = false;
         self.agent_profile_settings.original_risk_markers.clear();
         self.agent_profile_settings.error = None;
@@ -109,7 +124,6 @@ impl AleraApp {
         self.agent_profile_settings.launch_mode = profile.launch_mode.clone();
         self.agent_profile_settings.managed_config = profile.managed_config.clone();
         self.agent_profile_settings.dropdown = None;
-        self.agent_profile_settings.remove_armed = false;
         self.agent_profile_settings.risk_confirmation_open = false;
         self.agent_profile_settings.original_risk_markers =
             managed_risk_markers(&profile.agent_type, &profile.managed_config);

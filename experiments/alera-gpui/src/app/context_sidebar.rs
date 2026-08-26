@@ -17,6 +17,7 @@ impl AleraApp {
         cx: &mut Context<Self>,
     ) -> AnyElement {
         if self.context_sidebar_collapsed {
+            let source_control_available = self.selected_source_control_scope().is_some();
             return div()
                 .flex()
                 .flex_col()
@@ -32,6 +33,10 @@ impl AleraApp {
                     ContextPanel::ALL
                         .into_iter()
                         .enumerate()
+                        .filter(|(_, panel)| {
+                            source_control_available
+                                || matches!(panel, ContextPanel::Explorer | ContextPanel::Search)
+                        })
                         .map(|(index, panel)| self.context_panel_button(index, panel, true, cx)),
                 )
                 .child(div().flex_1())
@@ -65,6 +70,7 @@ impl AleraApp {
             ContextPanel::SourceControl => self.render_source_control_panel(cx),
             ContextPanel::PullRequest => self.render_pull_request_panel(window, cx),
         };
+        let source_control_available = self.selected_source_control_scope().is_some();
 
         div()
             .relative()
@@ -82,12 +88,20 @@ impl AleraApp {
                     .items_center()
                     .h(theme::header_height())
                     .px_2()
+                    .gap(px(6.0))
                     .border_b_1()
                     .border_color(theme::border_subtle())
                     .children(
                         ContextPanel::ALL
                             .into_iter()
                             .enumerate()
+                            .filter(|(_, panel)| {
+                                source_control_available
+                                    || matches!(
+                                        panel,
+                                        ContextPanel::Explorer | ContextPanel::Search
+                                    )
+                            })
                             .map(|(index, panel)| {
                                 self.context_panel_button(index, panel, false, cx)
                             }),
@@ -134,6 +148,7 @@ impl AleraApp {
         cx: &mut Context<Self>,
     ) -> impl IntoElement {
         let selected = self.context_panel == panel;
+        let show_tooltip = !selected;
         let enabled = !matches!(
             panel,
             ContextPanel::SourceControl | ContextPanel::PullRequest
@@ -170,7 +185,9 @@ impl AleraApp {
                     )
             })
             .when(selected, |button| button.bg(theme::surface_raised()))
-            .tooltip(move |_, cx| cx.new(|_| Tooltip::new(panel.label())).into())
+            .when(show_tooltip, |button| {
+                button.tooltip(move |_, cx| cx.new(|_| Tooltip::new(panel.label())).into())
+            })
             .child(icon(
                 panel.icon(),
                 16.0,

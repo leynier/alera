@@ -1,5 +1,6 @@
 use super::app_helpers::is_snapshot_event;
 use super::*;
+use std::path::Path;
 
 impl AleraApp {
     pub fn start(&mut self, window: &mut Window, cx: &mut Context<Self>) {
@@ -25,18 +26,29 @@ impl AleraApp {
                 break;
             };
             let result = this.update(cx, |this, cx| {
+                this.expire_local_message();
+                let operation_active = this
+                    .terminal_sessions
+                    .values()
+                    .any(|session| session.operation.is_some());
                 if !this.settings_state.terminal_cursor_blink
                     || this.selected_terminal_session_id().is_none()
                 {
+                    let cursor_was_hidden = !this.terminal_cursor_visible;
                     if !this.terminal_cursor_visible {
                         this.terminal_cursor_visible = true;
+                    }
+                    if operation_active || cursor_was_hidden {
                         cx.notify();
                     }
                     return;
                 }
                 if this.terminal_cursor_last_activity.elapsed() < Duration::from_millis(530) {
+                    let cursor_was_hidden = !this.terminal_cursor_visible;
                     if !this.terminal_cursor_visible {
                         this.terminal_cursor_visible = true;
+                    }
+                    if operation_active || cursor_was_hidden {
                         cx.notify();
                     }
                     return;
@@ -96,6 +108,12 @@ impl AleraApp {
                             this.connection_label = "Runtime Connected".into();
                             this.error = None;
                             this.refresh_terminal_drivers(cx);
+                            // Quota visibility, provider ordering and agent
+                            // hooks are shared runtime preferences. Hydrate
+                            // them on every connection so a GPUI client
+                            // opened beside Flutter renders the same state
+                            // before the user visits Settings.
+                            this.refresh_settings_values(cx);
                         }
                         BridgeEvent::Unavailable => {
                             this.connection_label = "Runtime Unavailable".into();
@@ -154,6 +172,58 @@ impl AleraApp {
         self.ensure_explorer_watcher(cx);
     }
 
+    /// Keep transient feedback aligned with Flutter's toast host. Every
+    /// global `local_message` assignment is observed here, so call sites keep
+    /// their existing success/error semantics while stale toasts disappear
+    /// after the same four-second duration. The host keeps the latest three
+    /// entries instead of replacing a visible toast when another action
+    /// completes immediately afterwards.
+    fn expire_local_message(&mut self) {
+        const TOAST_DURATION: Duration = Duration::from_secs(4);
+        if let Some(message) = self.local_message.clone() {
+            if self.local_message_timer_message.as_ref() != Some(&message) {
+                self.local_message_timer_message = Some(message.clone());
+                self.local_message_started_at = Some(Instant::now());
+                self.toast_entries.push_back((message, Instant::now()));
+            }
+        } else {
+            self.local_message_started_at = None;
+            self.local_message_timer_message = None;
+        }
+
+        self.toast_entries
+            .retain(|(_, shown_at)| shown_at.elapsed() < TOAST_DURATION);
+        while self.toast_entries.len() > 3 {
+            self.toast_entries.pop_front();
+        }
+
+        if self.local_message_started_at.is_some_and(|started_at| {
+            started_at.elapsed() >= TOAST_DURATION
+        }) {
+            self.local_message = None;
+            self.local_message_started_at = None;
+            self.local_message_timer_message = None;
+        }
+    }
+
+    pub(super) fn visible_toast_messages(&self) -> Vec<SharedString> {
+        let mut messages = self
+            .toast_entries
+            .iter()
+            .map(|(message, _)| message.clone())
+            .collect::<Vec<_>>();
+        if let Some(message) = self.local_message.clone() {
+            if messages.last() != Some(&message) {
+                messages.push(message);
+            }
+        }
+        if messages.len() > 3 {
+            messages.split_off(messages.len() - 3)
+        } else {
+            messages
+        }
+    }
+
     pub(super) fn refresh(&mut self, cx: &mut Context<Self>) {
         self.refresh_generation += 1;
         let generation = self.refresh_generation;
@@ -174,14 +244,7 @@ impl AleraApp {
                             .selected_workspace_id
                             .clone()
                             .filter(|id| snapshot.workspace(id).is_some())
-                            .or_else(|| {
-                                snapshot
-                                    .projects
-                                    .iter()
-                                    .flat_map(|project| &project.workspaces)
-                                    .next()
-                                    .map(|workspace| workspace.id.clone())
-                            });
+                            .or_else(|| fallback_workspace_id(&snapshot));
                         if this.selected_workspace_id != next_workspace_id {
                             this.selected_workspace_id = next_workspace_id;
                             this.selected_tab_id = None;
@@ -214,6 +277,12 @@ impl AleraApp {
                             this.pending_workspace_terminal_id = None;
                         }
                         this.snapshot = snapshot;
+                        // The selected workspace can change while the
+                        // snapshot request is in flight. Rehydrate the
+                        // contextual surface from the new workspace path so
+                        // Explorer/Git/PR never retain rows or errors from the
+                        // previous workspace.
+                        this.refresh_local_activity(cx);
                         this.ensure_selected_terminal(cx);
                         if create_terminal_for_selection {
                             this.create_terminal_tab(cx);
@@ -286,4 +355,30 @@ impl AleraApp {
         self.ensure_explorer_watcher(cx);
         cx.notify();
     }
+}
+
+fn fallback_workspace_id(snapshot: &WorkbenchSnapshot) -> Option<String> {
+    let mut workspaces = snapshot
+        .projects
+        .iter()
+        .flat_map(|project| &project.workspaces);
+    workspaces
+        .clone()
+        .find(|workspace| workspace.is_pinned && workspace_is_available(workspace))
+        .or_else(|| {
+            workspaces.clone().find(|workspace| {
+                workspace.kind.eq_ignore_ascii_case("main") && workspace_is_available(workspace)
+            })
+        })
+        .or_else(|| {
+            workspaces
+                .clone()
+                .find(|workspace| workspace_is_available(workspace))
+        })
+        .or_else(|| workspaces.next())
+        .map(|workspace| workspace.id.clone())
+}
+
+fn workspace_is_available(workspace: &crate::model::Workspace) -> bool {
+    workspace.host_id != "local" || Path::new(&workspace.path).exists()
 }

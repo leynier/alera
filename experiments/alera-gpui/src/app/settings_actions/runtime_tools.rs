@@ -122,6 +122,19 @@ impl AleraApp {
         self.settings_store.save(&self.settings_state);
     }
 
+    pub(super) fn persist_shared_flutter_settings(&self, updates: Value, cx: &mut Context<Self>) {
+        cx.spawn(async move |this, cx| {
+            let result = super::settings_store::save_shared_flutter_settings(updates).await;
+            if let Err(error) = result {
+                let _ = this.update(cx, |this, cx| {
+                    this.settings_state.error = Some(error);
+                    cx.notify();
+                });
+            }
+        })
+        .detach();
+    }
+
     fn update_terminal_f64(
         &mut self,
         value: &str,

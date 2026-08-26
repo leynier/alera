@@ -1,14 +1,15 @@
 use std::time::Duration;
 
 use gpui::{
-    div, prelude::FluentBuilder as _, px, AnyElement, Context, CursorStyle,
-    InteractiveElement as _, IntoElement, ParentElement as _, StatefulInteractiveElement as _,
-    Styled as _,
+    div, prelude::FluentBuilder as _, px, AnyElement, AppContext as _, Context, CursorStyle,
+    InteractiveElement as _, IntoElement, ParentElement as _, SharedString,
+    StatefulInteractiveElement as _, Styled as _,
 };
+use gpui_component::tooltip::Tooltip;
 use serde_json::json;
 
 use super::status_bar::quota_pin_key;
-use super::status_data::QuotaSnapshot;
+use super::status_data::{QuotaReading, QuotaSnapshot};
 use super::AleraApp;
 use crate::{
     icons::{agent_icon, icon, loading_indicator, AgentIcon, AleraIcon},
@@ -27,7 +28,9 @@ impl AleraApp {
             .id("quota-popover")
             .absolute()
             .left(px(8.0))
-            .bottom(theme::status_bar_height())
+            // Flutter's hover-card layout keeps a 4px gap above the status
+            // bar; match that gap for the GPUI overlay anchor.
+            .bottom(theme::status_bar_height() + px(4.0))
             .w(px(380.0))
             .max_h(px(480.0))
             .occlude()
@@ -36,7 +39,8 @@ impl AleraApp {
             .border_color(theme::border())
             .bg(theme::surface_raised())
             .shadow_lg()
-            .py_1()
+            .pt_1()
+            .pb(px(16.0))
             .on_hover(cx.listener(|this, hovered: &bool, _, cx| {
                 this.set_status_popover_panel_hovered(*hovered, cx);
             }))
@@ -84,6 +88,10 @@ impl AleraApp {
         let can_consume = credits
             .as_ref()
             .is_some_and(|credits| credits.available_count > 0 && credits.can_consume);
+        let overview_tooltip = quota_tooltip(
+            snapshot,
+            (snapshot.provider == "claude").then_some(snapshot.display_name.as_str()),
+        );
 
         div()
             .id(("quota-overview-row", index))
@@ -95,7 +103,8 @@ impl AleraApp {
                 div()
                     .flex()
                     .items_center()
-                    .min_h(px(22.0))
+                    .h(px(14.0))
+                    .line_height(px(14.0))
                     .gap(px(6.0))
                     .child(agent_icon(
                         provider_agent_icon(&snapshot.provider),
@@ -104,9 +113,17 @@ impl AleraApp {
                     ))
                     .child(
                         div()
+                            .id(SharedString::from(format!("quota-overview-name-{index}")))
                             .flex_1()
                             .overflow_hidden()
                             .text_ellipsis()
+                            .tooltip({
+                                let label = overview_tooltip.clone();
+                                move |_, cx| {
+                                    let tooltip = label.clone();
+                                    cx.new(move |_| Tooltip::new(tooltip)).into()
+                                }
+                            })
                             .font_family("JetBrains Mono")
                             .text_size(px(10.0))
                             .font_weight(gpui::FontWeight::SEMIBOLD)
@@ -122,30 +139,40 @@ impl AleraApp {
                                 .child("-"),
                         )
                     })
-                    .children(snapshot.readings.iter().map(|reading| {
-                        div()
-                            .flex()
-                            .items_center()
-                            .gap(px(2.0))
-                            .font_family("JetBrains Mono")
-                            .child(
-                                div()
-                                    .text_size(px(8.0))
-                                    .font_weight(gpui::FontWeight::MEDIUM)
-                                    .text_color(theme::text_faint())
-                                    .child(reading.label.clone()),
-                            )
-                            .child(
-                                div()
-                                    .text_size(px(10.0))
-                                    .font_weight(gpui::FontWeight::SEMIBOLD)
-                                    .text_color(quota_color(
-                                        &snapshot.status,
-                                        Some(reading.remaining_percent),
-                                    ))
-                                    .child(format!("{:.0}%", reading.remaining_percent)),
-                            )
-                    }))
+                    .children(snapshot.readings.iter().enumerate().map(
+                        |(reading_index, reading)| {
+                            let tooltip = quota_tooltip_line(reading);
+                            div()
+                                .id(SharedString::from(format!(
+                                    "quota-overview-reading-{index}-{reading_index}"
+                                )))
+                                .flex()
+                                .items_center()
+                                .gap(px(2.0))
+                                .tooltip(move |_, cx| {
+                                    let label = tooltip.clone();
+                                    cx.new(move |_| Tooltip::new(label)).into()
+                                })
+                                .font_family("JetBrains Mono")
+                                .child(
+                                    div()
+                                        .text_size(px(8.0))
+                                        .font_weight(gpui::FontWeight::MEDIUM)
+                                        .text_color(theme::text_faint())
+                                        .child(reading.label.clone()),
+                                )
+                                .child(
+                                    div()
+                                        .text_size(px(10.0))
+                                        .font_weight(gpui::FontWeight::SEMIBOLD)
+                                        .text_color(quota_color(
+                                            &snapshot.status,
+                                            Some(reading.remaining_percent),
+                                        ))
+                                        .child(format!("{:.0}%", reading.remaining_percent)),
+                                )
+                        },
+                    ))
                     .child(
                         div()
                             .id(("quota-pin", index))
@@ -156,6 +183,16 @@ impl AleraApp {
                             .h(px(22.0))
                             .rounded_md()
                             .cursor(CursorStyle::PointingHand)
+                            .tooltip(move |_, cx| {
+                                cx.new(move |_| {
+                                    Tooltip::new(if pinned {
+                                        "Unpin From Status Bar"
+                                    } else {
+                                        "Pin To Status Bar"
+                                    })
+                                })
+                                .into()
+                            })
                             .hover(|style| style.bg(theme::surface_selected()))
                             .on_mouse_down(
                                 gpui::MouseButton::Left,
@@ -384,7 +421,16 @@ pub(super) fn provider_agent_icon(provider: &str) -> AgentIcon {
 }
 
 pub(super) fn provider_label(snapshot: &QuotaSnapshot) -> String {
-    let provider = match snapshot.provider.as_str() {
+    let provider = provider_base_label(&snapshot.provider);
+    if snapshot.provider == "claude" {
+        format!("{provider} {}", snapshot.display_name)
+    } else {
+        provider.to_owned()
+    }
+}
+
+pub(super) fn provider_base_label(provider: &str) -> String {
+    match provider {
         "antigravity" => "Antigravity",
         "claude" => "Claude Code",
         "codex" => "Codex",
@@ -393,12 +439,60 @@ pub(super) fn provider_label(snapshot: &QuotaSnapshot) -> String {
         "kimi" => "Kimi",
         "minimax" => "MiniMax",
         "zai" => "Z.ai",
-        _ => snapshot.provider.as_str(),
+        _ => provider,
+    }
+    .to_owned()
+}
+
+pub(super) fn quota_tooltip(snapshot: &QuotaSnapshot, profile_label: Option<&str>) -> String {
+    let title = profile_label
+        .map(|label| format!("{} - {label}", provider_base_label(&snapshot.provider)))
+        .unwrap_or_else(|| provider_label(snapshot));
+    let mut lines = vec![title];
+    lines.extend(snapshot.readings.iter().map(quota_tooltip_line));
+    if let Some(error) = snapshot.error.as_deref() {
+        lines.push(format!("Error: {error}"));
+    } else if snapshot.readings.is_empty() {
+        lines.push("Quota Data Unavailable".to_owned());
+    }
+    lines.join("\n")
+}
+
+pub(super) fn quota_tooltip_line(reading: &QuotaReading) -> String {
+    format!(
+        "{}: {:.0}% Left - {}",
+        reading.full_label,
+        reading.remaining_percent,
+        quota_reset_text_for_tooltip(reading),
+    )
+}
+
+fn quota_reset_text_for_tooltip(reading: &QuotaReading) -> String {
+    if let Some(description) = reading
+        .reset_description
+        .as_deref()
+        .map(str::trim)
+        .filter(|description| !description.is_empty())
+    {
+        return description.to_owned();
+    }
+    let Some(resets_at) = reading.resets_at else {
+        return "Reset Time Unavailable".to_owned();
     };
-    if snapshot.provider == "claude" {
-        format!("{provider} {}", snapshot.display_name)
+    let remaining_ms = resets_at - chrono::Utc::now().timestamp_millis();
+    if remaining_ms <= 0 {
+        return "Reset Available".to_owned();
+    }
+    let minutes = remaining_ms / 60_000;
+    let days = minutes / (24 * 60);
+    let hours = (minutes % (24 * 60)) / 60;
+    let minutes = minutes % 60;
+    if days > 0 {
+        format!("Resets In {days}d {hours}h")
+    } else if hours > 0 {
+        format!("Resets In {hours}h {minutes}m")
     } else {
-        provider.to_owned()
+        format!("Resets In {}m", minutes.clamp(1, 59))
     }
 }
 
