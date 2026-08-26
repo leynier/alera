@@ -50,6 +50,10 @@ pub(super) fn current_process_identity() -> Result<ProcessIdentity, String> {
     }
 }
 
+pub(super) fn terminate_process(identity: ProcessIdentity) -> Result<(), String> {
+    platform::terminate(identity)
+}
+
 pub(super) const PLATFORM: &str = std::env::consts::OS;
 
 #[cfg(target_os = "linux")]
@@ -71,6 +75,37 @@ mod platform {
             Some(("Z" | "X", _)) => ProcessLookup::Exited,
             Some((_, start_marker)) => ProcessLookup::Live(ProcessIdentity { pid, start_marker }),
             None => ProcessLookup::Unknown(format!("{path} had an invalid process record")),
+        }
+    }
+
+    pub(super) fn terminate(identity: ProcessIdentity) -> Result<(), String> {
+        terminate_unix(identity)
+    }
+
+    fn terminate_unix(identity: ProcessIdentity) -> Result<(), String> {
+        match lookup(identity.pid) {
+            ProcessLookup::Live(actual) if actual == identity => {}
+            ProcessLookup::Live(actual) => {
+                return Err(format!(
+                    "runtime owner process {} was replaced before termination; expected start marker {}, found {}",
+                    identity.pid, identity.start_marker, actual.start_marker
+                ));
+            }
+            ProcessLookup::Exited => return Ok(()),
+            ProcessLookup::Unknown(reason) => return Err(reason),
+        }
+        let result = unsafe { libc::kill(identity.pid as libc::pid_t, libc::SIGTERM) };
+        if result == 0 {
+            return Ok(());
+        }
+        let error = std::io::Error::last_os_error();
+        if error.raw_os_error() == Some(libc::ESRCH) {
+            Ok(())
+        } else {
+            Err(format!(
+                "failed terminating runtime owner process {}: {error}",
+                identity.pid
+            ))
         }
     }
 
@@ -153,6 +188,37 @@ mod platform {
             ))
         }
     }
+
+    pub(super) fn terminate(identity: ProcessIdentity) -> Result<(), String> {
+        terminate_unix(identity)
+    }
+
+    fn terminate_unix(identity: ProcessIdentity) -> Result<(), String> {
+        match lookup(identity.pid) {
+            ProcessLookup::Live(actual) if actual == identity => {}
+            ProcessLookup::Live(actual) => {
+                return Err(format!(
+                    "runtime owner process {} was replaced before termination; expected start marker {}, found {}",
+                    identity.pid, identity.start_marker, actual.start_marker
+                ));
+            }
+            ProcessLookup::Exited => return Ok(()),
+            ProcessLookup::Unknown(reason) => return Err(reason),
+        }
+        let result = unsafe { libc::kill(identity.pid as libc::pid_t, libc::SIGTERM) };
+        if result == 0 {
+            return Ok(());
+        }
+        let error = std::io::Error::last_os_error();
+        if error.raw_os_error() == Some(libc::ESRCH) {
+            Ok(())
+        } else {
+            Err(format!(
+                "failed terminating runtime owner process {}: {error}",
+                identity.pid
+            ))
+        }
+    }
 }
 
 #[cfg(target_os = "windows")]
@@ -161,7 +227,8 @@ mod platform {
         CloseHandle, GetLastError, ERROR_INVALID_PARAMETER, FILETIME,
     };
     use windows::Win32::System::Threading::{
-        GetExitCodeProcess, GetProcessTimes, OpenProcess, PROCESS_QUERY_LIMITED_INFORMATION,
+        GetExitCodeProcess, GetProcessTimes, OpenProcess, TerminateProcess,
+        PROCESS_QUERY_LIMITED_INFORMATION, PROCESS_TERMINATE,
     };
 
     use super::{ProcessIdentity, ProcessLookup};
@@ -206,16 +273,83 @@ mod platform {
             }
         }
     }
+
+    pub(super) fn terminate(identity: ProcessIdentity) -> Result<(), String> {
+        let handle = unsafe {
+            OpenProcess(
+                PROCESS_QUERY_LIMITED_INFORMATION | PROCESS_TERMINATE,
+                false,
+                identity.pid,
+            )
+        }
+        .map_err(|error| {
+            format!(
+                "OpenProcess failed for runtime owner process {}: {error}",
+                identity.pid
+            )
+        })?;
+        let mut created = FILETIME::default();
+        let mut exited = FILETIME::default();
+        let mut kernel = FILETIME::default();
+        let mut user = FILETIME::default();
+        let mut exit_code = 0;
+        let exit_result = unsafe { GetExitCodeProcess(handle, &mut exit_code) };
+        let time_result =
+            unsafe { GetProcessTimes(handle, &mut created, &mut exited, &mut kernel, &mut user) };
+        if let Err(error) = exit_result {
+            let _ = unsafe { CloseHandle(handle) };
+            return Err(format!(
+                "GetExitCodeProcess failed for runtime owner process {}: {error}",
+                identity.pid
+            ));
+        }
+        if exit_code != windows::Win32::Foundation::STILL_ACTIVE.0 as u32 {
+            let _ = unsafe { CloseHandle(handle) };
+            return Ok(());
+        }
+        if let Err(error) = time_result {
+            let _ = unsafe { CloseHandle(handle) };
+            return Err(format!(
+                "GetProcessTimes failed for runtime owner process {}: {error}",
+                identity.pid
+            ));
+        }
+        let actual_start_marker =
+            (u64::from(created.dwHighDateTime) << 32) | u64::from(created.dwLowDateTime);
+        if actual_start_marker != identity.start_marker {
+            let _ = unsafe { CloseHandle(handle) };
+            return Err(format!(
+                "runtime owner process {} was replaced before termination; expected start marker {}, found {}",
+                identity.pid, identity.start_marker, actual_start_marker
+            ));
+        }
+        let result = unsafe { TerminateProcess(handle, 1) };
+        let _ = unsafe { CloseHandle(handle) };
+        result.map_err(|error| {
+            format!(
+                "failed terminating runtime owner process {}: {error}",
+                identity.pid
+            )
+        })
+    }
 }
 
 #[cfg(not(any(target_os = "linux", target_os = "macos", target_os = "windows")))]
 mod platform {
-    use super::ProcessLookup;
+    use super::{ProcessIdentity, ProcessLookup};
 
     pub(super) fn lookup(pid: u32) -> ProcessLookup {
         ProcessLookup::Unknown(format!(
             "process identity is unsupported on {} for process {pid}",
             std::env::consts::OS
+        ))
+    }
+
+    pub(super) fn terminate(identity: ProcessIdentity) -> Result<(), String> {
+        Err(format!(
+            "process termination is unsupported on {} for process {}",
+            std::env::consts::OS,
+            identity.pid
         ))
     }
 }

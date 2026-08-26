@@ -89,6 +89,8 @@ alera runtime agents enable codex claude
 alera runtime agents status
 alera runtime stop
 alera runtime stop --force
+alera runtime clear
+alera runtime clear --force
 ```
 
-`runtime start` launches a persistent detached host for the selected runtime directory. `runtime stop` refuses active terminal sessions and host jobs unless `--force` is present. This lifecycle is portable and intentionally does not install a system service. Mobile gateway, pairing, workspace state, terminals, enabled agent integrations, `spawnOnCreate` tabs, and coordinator-created workers continue to operate directly against that host. Pairing can be completed entirely from the CLI with `alera mobile --json pairing create`; the desktop pairing dialog is optional.
+`runtime start` launches a persistent detached host for the selected runtime directory. `runtime stop` refuses active terminal sessions and host jobs unless `--force` is present. `runtime clear` deletes the selected runtime profile only while its host is stopped; `--force` first stops a live host and can recover when its control file is missing. Clear removes runtime databases, credentials, logs, retained terminal history, and runtime metadata without deleting repositories, project folders, or worktrees. This lifecycle is portable and intentionally does not install a system service. Mobile gateway, pairing, workspace state, terminals, enabled agent integrations, `spawnOnCreate` tabs, and coordinator-created workers continue to operate directly against that host. Pairing can be completed entirely from the CLI with `alera mobile --json pairing create`; the desktop pairing dialog is optional.
