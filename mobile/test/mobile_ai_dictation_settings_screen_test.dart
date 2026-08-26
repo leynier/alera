@@ -151,6 +151,28 @@ void main() {
       findsNothing,
     );
   });
+
+  testWidgets('paired Codex exposes runtime realtime configuration', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(390, 844));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await tester.pumpWidget(
+      _settingsApp(
+        const MobileAiDictationSettings(
+          enabled: true,
+          location: MobileAiDictationLocation.pairedDevice,
+          engine: MobileAiDictationEngine.codexSubscription,
+          remoteAudioConsentVersion: 1,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Realtime Model'), findsOneWidget);
+    expect(find.text('Subscription default'), findsOneWidget);
+    expect(find.text('API Token'), findsNothing);
+  });
 }
 
 Widget _settingsApp(MobileAiDictationSettings settings) {
