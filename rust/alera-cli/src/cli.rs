@@ -276,6 +276,8 @@ pub enum RuntimeAction {
     Start,
     /// Stop the running runtime host.
     Stop(RuntimeStopArgs),
+    /// Delete runtime state so the next start creates a clean profile.
+    Clear(RuntimeClearArgs),
     /// Inspect or change runtime-owned agent integrations.
     Agents(RuntimeAgentsCommand),
 }
@@ -283,6 +285,13 @@ pub enum RuntimeAction {
 #[derive(Debug, Args)]
 pub struct RuntimeStopArgs {
     /// Stop even when terminals or background jobs are active.
+    #[arg(long)]
+    pub force: bool,
+}
+
+#[derive(Debug, Args)]
+pub struct RuntimeClearArgs {
+    /// Stop a live host and terminate active terminals, agents, and jobs before clearing.
     #[arg(long)]
     pub force: bool,
 }

@@ -39,6 +39,7 @@ pub async fn run_terminal_host_server(
     control_file::write_control_file(&control_file_path, port, &token, config.persistent)?;
 
     let (inbox, mut rx) = mpsc::unbounded_channel::<ServerCommand>();
+    let shutdown_signal = spawn_termination_listener(inbox.clone());
     let automation_wake = Arc::new(Notify::new());
     let automation_ticker = automation_scheduler::spawn(
         runtime_store.clone(),
@@ -169,5 +170,34 @@ pub async fn run_terminal_host_server(
     }
     automation_ticker.abort();
     let _ = automation_ticker.await;
+    if let Some(shutdown_signal) = shutdown_signal {
+        shutdown_signal.abort();
+    }
     Ok(exit)
+}
+
+#[cfg(unix)]
+fn spawn_termination_listener(
+    inbox: mpsc::UnboundedSender<ServerCommand>,
+) -> Option<tokio::task::JoinHandle<()>> {
+    use tokio::signal::unix::{signal, SignalKind};
+
+    let mut terminate = match signal(SignalKind::terminate()) {
+        Ok(signal) => signal,
+        Err(error) => {
+            tracing::warn!("alera runtime host could not listen for SIGTERM: {error}");
+            return None;
+        }
+    };
+    Some(tokio::spawn(async move {
+        terminate.recv().await;
+        let _ = inbox.send(ServerCommand::RequestedShutdown);
+    }))
+}
+
+#[cfg(not(unix))]
+fn spawn_termination_listener(
+    _inbox: mpsc::UnboundedSender<ServerCommand>,
+) -> Option<tokio::task::JoinHandle<()>> {
+    None
 }

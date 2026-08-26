@@ -12,8 +12,8 @@ use serde::{Deserialize, Serialize};
 mod process_identity;
 
 use process_identity::{
-    current_process_identity, ProcessIdentity, ProcessIdentityProbe, ProcessLookup,
-    SystemProcessIdentityProbe, PLATFORM,
+    current_process_identity, terminate_process, ProcessIdentity, ProcessIdentityProbe,
+    ProcessLookup, SystemProcessIdentityProbe, PLATFORM,
 };
 
 const LOCK_FILE_NAME: &str = "runtime-owner.lock";
@@ -28,6 +28,11 @@ const OWNER_EXIT_RETRY_DELAY: Duration = Duration::from_millis(10);
 /// a second inode on Unix, letting another process lock the new inode while the
 /// original owner is still running.
 pub(crate) struct RuntimeOwnerGuard {
+    _lock: File,
+}
+
+/// Holds the stable ownership inode while a stopped runtime profile is cleared.
+pub(crate) struct RuntimeClearGuard {
     _lock: File,
 }
 
@@ -218,15 +223,16 @@ fn wait_for_owner_exit(owner: ProcessIdentity, probe: &impl ProcessIdentityProbe
 }
 
 pub(crate) fn ensure_no_live_owner(runtime_dir: &Path) -> Result<()> {
-    if let Some(pid) = live_owner_pid(runtime_dir)? {
+    if let Some(owner) = live_owner_identity(runtime_dir)? {
         bail!(
-            "A live Alera runtime host process {pid} owns this runtime directory, but its control metadata is unavailable or incompatible. Refusing to start a duplicate host."
+            "A live Alera runtime host process {} owns this runtime directory, but its control metadata is unavailable or incompatible. Refusing to start a duplicate host.",
+            owner.pid
         );
     }
     Ok(())
 }
 
-fn live_owner_pid(runtime_dir: &Path) -> Result<Option<u32>> {
+pub(crate) fn live_owner_identity(runtime_dir: &Path) -> Result<Option<RuntimeOwnerIdentity>> {
     let Some(record) = read_owner_record(runtime_dir)? else {
         return Ok(None);
     };
@@ -241,10 +247,96 @@ fn live_owner_pid(runtime_dir: &Path) -> Result<Option<u32>> {
     }
     let recorded = record.identity();
     match SystemProcessIdentityProbe.lookup(recorded.pid) {
-        ProcessLookup::Live(actual) if actual == recorded => Ok(Some(recorded.pid)),
+        ProcessLookup::Live(actual) if actual == recorded => {
+            Ok(Some(RuntimeOwnerIdentity::from(recorded)))
+        }
         ProcessLookup::Live(_) | ProcessLookup::Exited => Ok(None),
         ProcessLookup::Unknown(reason) => bail!(
             "runtime owner process {} could not be validated: {}",
+            recorded.pid,
+            reason
+        ),
+    }
+}
+
+pub(crate) fn terminate_live_owner(runtime_dir: &Path) -> Result<Option<RuntimeOwnerIdentity>> {
+    let Some(owner) = live_owner_identity(runtime_dir)? else {
+        return Ok(None);
+    };
+    terminate_process(owner.into()).map_err(anyhow::Error::msg)?;
+    Ok(Some(owner))
+}
+
+impl RuntimeClearGuard {
+    pub(crate) fn acquire(runtime_dir: &Path) -> Result<Self> {
+        prepare_private_runtime_directory(runtime_dir)?;
+        let lock_path = runtime_dir.join(LOCK_FILE_NAME);
+        let lock = open_lock_file(&lock_path)?;
+        match lock.try_lock() {
+            Ok(()) => validate_clear_owner(runtime_dir, &SystemProcessIdentityProbe)?,
+            Err(std::fs::TryLockError::WouldBlock) => {
+                bail!("runtime ownership lock is still held; refusing to clear a live profile")
+            }
+            Err(std::fs::TryLockError::Error(error)) => {
+                return Err(error).with_context(|| {
+                    format!(
+                        "failed locking runtime ownership for clear at {}",
+                        lock_path.display()
+                    )
+                });
+            }
+        }
+        Ok(Self { _lock: lock })
+    }
+
+    pub(crate) fn clear_profile(&self, runtime_dir: &Path) -> Result<usize> {
+        let mut removed = 0;
+        for entry in std::fs::read_dir(runtime_dir).with_context(|| {
+            format!("failed reading runtime directory {}", runtime_dir.display())
+        })? {
+            let entry = entry?;
+            if entry.file_name() == LOCK_FILE_NAME {
+                continue;
+            }
+            let path = entry.path();
+            let metadata = std::fs::symlink_metadata(&path)
+                .with_context(|| format!("failed inspecting runtime entry {}", path.display()))?;
+            if metadata.is_dir() && !metadata.file_type().is_symlink() {
+                std::fs::remove_dir_all(&path).with_context(|| {
+                    format!("failed removing runtime directory {}", path.display())
+                })?;
+            } else {
+                std::fs::remove_file(&path)
+                    .with_context(|| format!("failed removing runtime file {}", path.display()))?;
+            }
+            removed += 1;
+        }
+        Ok(removed)
+    }
+}
+
+fn validate_clear_owner(runtime_dir: &Path, probe: &impl ProcessIdentityProbe) -> Result<()> {
+    let Some(record) = read_owner_record(runtime_dir)? else {
+        return Ok(());
+    };
+    if record.schema_version != OWNER_SCHEMA_VERSION || record.platform != PLATFORM {
+        bail!(
+            "runtime ownership metadata cannot be validated safely; expected schema {} on {}, found schema {} on {}",
+            OWNER_SCHEMA_VERSION,
+            PLATFORM,
+            record.schema_version,
+            record.platform
+        );
+    }
+    let recorded = record.identity();
+    match probe.lookup(recorded.pid) {
+        ProcessLookup::Live(actual) if actual == recorded => bail!(
+            "runtime directory is still owned by live runtime host process {}; refusing to clear",
+            actual.pid
+        ),
+        ProcessLookup::Live(_) | ProcessLookup::Exited => Ok(()),
+        ProcessLookup::Unknown(reason) => bail!(
+            "runtime owner process {} could not be validated; refusing to clear: {}",
             recorded.pid,
             reason
         ),
