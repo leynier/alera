@@ -16,7 +16,14 @@ class AgentQuotaController extends _$AgentQuotaController {
     if (!client.supportsAgentQuotas) {
       throw UnsupportedError('Update the runtime to view quotas.');
     }
-    final timer = Timer(mobileQuotaRefreshInterval, ref.invalidateSelf);
+    if (!ref.mounted) {
+      return client.fetchAgentQuotas();
+    }
+    final timer = Timer(mobileQuotaRefreshInterval, () {
+      if (ref.mounted) {
+        ref.invalidateSelf();
+      }
+    });
     ref.onDispose(timer.cancel);
     return client.fetchAgentQuotas();
   }
@@ -25,10 +32,16 @@ class AgentQuotaController extends _$AgentQuotaController {
     final client = await ref.read(
       hostConnectionControllerProvider(hostId).future,
     );
+    if (!ref.mounted) {
+      return;
+    }
     state = const AsyncLoading<QuotaSnapshotState>();
-    state = await AsyncValue.guard(
+    final nextState = await AsyncValue.guard(
       () => client.fetchAgentQuotas(forceRefresh: true),
     );
+    if (ref.mounted) {
+      state = nextState;
+    }
   }
 
   Future<void> tryClaudeWithTui(QuotaSnapshot snapshot) async {
@@ -42,6 +55,9 @@ class AgentQuotaController extends _$AgentQuotaController {
       accountId: snapshot.accountId,
       displayName: snapshot.displayName,
     );
+    if (!ref.mounted) {
+      return;
+    }
     final previous = state.value;
     if (previous == null) {
       ref.invalidateSelf();
@@ -85,6 +101,9 @@ class AgentQuotaController extends _$AgentQuotaController {
       throw UnsupportedError('Update the runtime to use Codex resets.');
     }
     final result = await client.consumeCodexResetCredit(credits.offerRevision);
+    if (!ref.mounted) {
+      return result;
+    }
     final previous = state.value;
     if (previous == null) {
       ref.invalidateSelf();
