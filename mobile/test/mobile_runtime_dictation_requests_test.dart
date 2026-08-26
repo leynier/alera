@@ -23,10 +23,7 @@ void main() {
     expect(client.lastType, 'mobile.aiDictation.transcribe');
     expect(client.lastPayload?['engine'], 'openAiCompatible');
     expect(client.lastPayload?['modelId'], 'speech-model');
-    expect(
-      client.lastPayload?['baseUrl'],
-      'https://speech.example.test/v1',
-    );
+    expect(client.lastPayload?['baseUrl'], 'https://speech.example.test/v1');
     expect(client.lastPayload, isNot(contains('token')));
   });
 
@@ -48,8 +45,7 @@ void main() {
   });
 }
 
-class _FakeMobileRuntimeDictationClient
-    with MobileRuntimeDictationRequests {
+class _FakeMobileRuntimeDictationClient with MobileRuntimeDictationRequests {
   _FakeMobileRuntimeDictationClient(this.runtimeCapabilities);
 
   @override
