@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:alera_mobile/src/features/ai_dictation/application/mobile_ai_dictation_model_transfers.dart';
+import 'package:alera_mobile/src/features/ai_dictation/application/mobile_ai_dictation_provider_credentials.dart';
 import 'package:alera_mobile/src/features/ai_dictation/application/mobile_ai_dictation_settings_controller.dart';
 import 'package:alera_mobile/src/features/ai_dictation/application/mobile_ai_dictation_state.dart';
 import 'package:alera_mobile/src/features/ai_dictation/domain/mobile_ai_dictation_operation.dart';
@@ -127,7 +128,8 @@ class MobileAiDictationController extends _$MobileAiDictationController {
       _systemStopRequested = false;
       _finalizing = false;
       if (settings.location == MobileAiDictationLocation.thisDevice &&
-          settings.engine != MobileAiDictationEngine.whisper) {
+          (settings.engine == MobileAiDictationEngine.systemOnDevice ||
+              settings.engine == MobileAiDictationEngine.systemRecognition)) {
         await _startSystemRecognition(settings, generation);
       } else {
         await _startRecording(generation);
@@ -143,16 +145,23 @@ class MobileAiDictationController extends _$MobileAiDictationController {
     if (!settings.enabled) {
       throw StateError('Enable AI Dictation in Settings before recording.');
     }
-    if (settings.location == MobileAiDictationLocation.pairedDevice &&
+    if (settings.requiresRemoteAudioConsent &&
         settings.remoteAudioConsentVersion != _remoteConsentVersion) {
       throw StateError(
-        'Allow paired-device audio processing in AI Dictation settings first.',
+        'Allow remote audio processing in AI Dictation settings first.',
       );
     }
     if (settings.location == MobileAiDictationLocation.pairedDevice &&
-        settings.engine != MobileAiDictationEngine.whisper) {
+        (settings.engine == MobileAiDictationEngine.systemOnDevice ||
+            settings.engine == MobileAiDictationEngine.systemRecognition)) {
       throw StateError(
-        'Paired-device transcription requires the Whisper engine.',
+        'The selected system recognition engine only runs on this device.',
+      );
+    }
+    if (settings.location == MobileAiDictationLocation.thisDevice &&
+        settings.engine == MobileAiDictationEngine.codexSubscription) {
+      throw StateError(
+        'Codex subscription dictation requires a paired runtime.',
       );
     }
     if (settings.engine == MobileAiDictationEngine.systemRecognition &&

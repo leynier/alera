@@ -19,18 +19,39 @@ class SpeechProviderProfile {
   final List<String> configuredModels;
   final int timeoutSeconds;
 
-  Uri transcriptionUri() {
+  Uri transcriptionUri({bool sendsToken = false}) {
     final uri = Uri.parse(baseUrl.trim());
-    if (!uri.hasScheme || uri.host.isEmpty) {
-      throw const FormatException('Speech provider URL must include a host.');
+    if (!uri.hasAuthority || (uri.scheme != 'http' && uri.scheme != 'https')) {
+      throw const FormatException(
+        'Speech provider URL must use HTTP or HTTPS.',
+      );
     }
-    final segments = <String>[...uri.pathSegments];
-    while (segments.isNotEmpty && segments.last.isEmpty) {
-      segments.removeLast();
+    if (sendsToken && uri.scheme != 'https' && !_isLoopback(uri.host)) {
+      throw const FormatException(
+        'A token can only be sent over HTTPS or to a loopback address.',
+      );
     }
-    if (segments.isEmpty || segments.last != 'v1') segments.add('v1');
-    segments.add('audio');
-    segments.add('transcriptions');
-    return uri.replace(pathSegments: segments);
+    final path = uri.path.replaceFirst(RegExp(r'/+$'), '');
+    final endpointPath = path.endsWith('/audio/transcriptions')
+        ? path
+        : path.isEmpty
+        ? '/v1/audio/transcriptions'
+        : '$path/audio/transcriptions';
+    return uri.replace(path: endpointPath, fragment: null);
   }
+
+  String providerOrigin() {
+    final uri = transcriptionUri();
+    final defaultPort =
+        (uri.scheme == 'https' && uri.port == 443) ||
+        (uri.scheme == 'http' && uri.port == 80);
+    return '${uri.scheme}://${uri.host}${defaultPort ? '' : ':${uri.port}'}';
+  }
+}
+
+bool _isLoopback(String host) {
+  final normalized = host.toLowerCase();
+  return normalized == 'localhost' ||
+      normalized == '127.0.0.1' ||
+      normalized == '::1';
 }

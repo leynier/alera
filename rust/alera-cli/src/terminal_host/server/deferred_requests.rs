@@ -26,6 +26,12 @@ impl ServerActor {
                     .await?;
                 Ok(true)
             }
+            "mobile.aiDictation.transcribe" => {
+                self.require_auth(client_id)?;
+                self.require_request_allowed(client_id, request_type)?;
+                self.try_start_mobile_ai_dictation(client_id, request_id, payload)
+                    .await
+            }
             "aiText.workspaceIdentity.generate" => {
                 self.require_auth(client_id)?;
                 self.require_request_allowed(client_id, request_type)?;

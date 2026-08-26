@@ -14,6 +14,8 @@ void main() {
       expect(settings.localModelId, 'whisper-base');
       expect(settings.remoteAudioConsentVersion, isNull);
       expect(settings.systemRecognitionConsentVersion, isNull);
+      expect(settings.providerBaseUrl, 'https://api.openai.com/v1');
+      expect(settings.providerModel, 'gpt-4o-mini-transcribe');
     },
   );
 
@@ -58,6 +60,36 @@ void main() {
     });
 
     expect(settings.location, MobileAiDictationLocation.pairedDevice);
+    expect(settings.engine, MobileAiDictationEngine.whisper);
+  });
+
+  test('preserves remote providers on the paired runtime', () {
+    final openAi = MobileAiDictationSettings.fromJson(<String, Object?>{
+      'location': 'pairedDevice',
+      'engine': 'openAiCompatible',
+      'providerBaseUrl': 'https://speech.example.test/v1',
+      'providerModel': 'speech-model',
+      'providerTimeoutSeconds': 120,
+    });
+    final codex = MobileAiDictationSettings.fromJson(<String, Object?>{
+      'location': 'pairedDevice',
+      'engine': 'codexSubscription',
+      'codexRealtimeModel': 'realtime-model',
+    });
+
+    expect(openAi.engine, MobileAiDictationEngine.openAiCompatible);
+    expect(openAi.providerModel, 'speech-model');
+    expect(openAi.providerTimeoutSeconds, 120);
+    expect(codex.engine, MobileAiDictationEngine.codexSubscription);
+    expect(codex.codexRealtimeModel, 'realtime-model');
+  });
+
+  test('normalizes direct Codex to local Whisper', () {
+    final settings = MobileAiDictationSettings.fromJson(<String, Object?>{
+      'location': 'thisDevice',
+      'engine': 'codexSubscription',
+    });
+
     expect(settings.engine, MobileAiDictationEngine.whisper);
   });
 }

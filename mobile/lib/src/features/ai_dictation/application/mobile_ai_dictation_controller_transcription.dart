@@ -34,12 +34,8 @@ extension MobileAiDictationTranscription on MobileAiDictationController {
         'mobile-dictation-${DateTime.now().microsecondsSinceEpoch}';
     try {
       final assembler = MobileAiDictationTranscriptAssembler();
-      if (settings.location == MobileAiDictationLocation.thisDevice) {
-        if (settings.engine != MobileAiDictationEngine.whisper) {
-          throw StateError(
-            'System recognition must record directly on this device.',
-          );
-        }
+      if (settings.location == MobileAiDictationLocation.thisDevice &&
+          settings.engine == MobileAiDictationEngine.whisper) {
         final transfers = ref.read(
           mobileAiDictationModelTransfersProvider.notifier,
         );
@@ -74,6 +70,34 @@ extension MobileAiDictationTranscription on MobileAiDictationController {
             _clearActiveRequest(segmentRequestId);
           }
         }
+      } else if (settings.location == MobileAiDictationLocation.thisDevice &&
+          settings.engine == MobileAiDictationEngine.openAiCompatible) {
+        final provider = ref.read(mobileOpenAiDictationProviderProvider);
+        for (var index = 0; index < _audioPaths.length; index++) {
+          final segmentRequestId = '$requestId-$index';
+          _trackActiveRequest(
+            segmentRequestId,
+            () => provider.cancel(segmentRequestId),
+          );
+          try {
+            final result = await provider.transcribe(
+              requestId: segmentRequestId,
+              audioPath: _audioPaths[index],
+              baseUrl: settings.providerBaseUrl,
+              model: settings.providerModel,
+              timeout: Duration(seconds: settings.providerTimeoutSeconds),
+              language: _whisperLanguage(settings.language),
+              initialPrompt: assembler.prompt,
+            );
+            if (!_isCurrentGeneration(generation)) return;
+            assembler.add(result.text);
+          } on Object catch (error) {
+            if (!_isCurrentGeneration(generation)) return;
+            if (!_isSilentSegmentError(error)) rethrow;
+          } finally {
+            _clearActiveRequest(segmentRequestId);
+          }
+        }
       } else {
         final client = await ref.read(
           hostConnectionControllerProvider(hostId).future,
@@ -92,7 +116,19 @@ extension MobileAiDictationTranscription on MobileAiDictationController {
               requestId: segmentRequestId,
               audio: audio,
               engine: settings.engine.name,
-              modelId: settings.remoteModelId,
+              modelId: switch (settings.engine) {
+                MobileAiDictationEngine.whisper => settings.remoteModelId,
+                MobileAiDictationEngine.openAiCompatible =>
+                  settings.providerModel,
+                MobileAiDictationEngine.codexSubscription =>
+                  settings.codexRealtimeModel ?? '',
+                _ => '',
+              },
+              baseUrl:
+                  settings.engine == MobileAiDictationEngine.openAiCompatible
+                  ? settings.providerBaseUrl
+                  : null,
+              timeoutSeconds: settings.providerTimeoutSeconds,
               language: _whisperLanguage(settings.language),
               initialPrompt: assembler.prompt,
             );
