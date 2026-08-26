@@ -3,8 +3,15 @@ import 'dart:async';
 import 'package:alera/src/features/agent_quota/application/agent_quota_providers.dart';
 import 'package:alera/src/features/agent_quota/domain/agent_quota.dart';
 import 'package:alera/src/features/agent_quota/infra/runtime_proxy_client.dart';
+import 'package:alera/src/features/remote_hosts/application/ssh_target_providers.dart';
+import 'package:alera/src/features/remote_hosts/domain/ssh_target.dart';
+import 'package:alera/src/features/settings/application/settings_controller.dart';
 import 'package:alera/src/features/settings/domain/alera_settings.dart';
+import 'package:alera/src/features/workbench/application/workbench_controller.dart';
+import 'package:alera/src/features/workbench/application/workbench_state.dart';
 import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_protocol.dart';
+import 'package:fake_async/fake_async.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'fake_recording_process_runner.dart';
@@ -33,6 +40,45 @@ void main() {
     );
 
     expect(agentQuotaRequestKey(first), agentQuotaRequestKey(reordered));
+  });
+
+  test('does not invalidate the quota provider after disposal', () {
+    fakeAsync((async) {
+      final container = ProviderContainer(
+        overrides: [
+          workbenchControllerProvider.overrideWithValue(const WorkbenchState()),
+          settingsControllerProvider.overrideWithValue(AleraSettings.defaults),
+          sshTargetsProvider.overrideWith(
+            (ref) => Stream<List<SshTarget>>.value(const <SshTarget>[]),
+          ),
+          agentQuotaServiceProvider.overrideWithValue(
+            AgentQuotaService(
+              RuntimeProxyClient(
+                processRunner: FakeRecordingProcessRunner(<Object>[]),
+              ),
+              _FixedQuotaRuntimeHostClient(<String, Object?>{
+                'snapshots': const <Object?>[],
+                'environment': const <String, bool>{},
+              }),
+            ),
+          ),
+        ],
+      );
+      final providerSubscription = container.listen(
+        agentQuotaStateProvider,
+        (_, _) {},
+        fireImmediately: true,
+      );
+      async.flushMicrotasks();
+      async.elapse(Duration.zero);
+      async.flushMicrotasks();
+      expect(container.read(agentQuotaStateProvider).hasValue, isTrue);
+
+      providerSubscription.close();
+      container.dispose();
+      async.elapse(agentQuotaRefreshInterval);
+      async.flushMicrotasks();
+    });
   });
 
   test('parses quota windows and reports the lowest remaining percentage', () {
