@@ -313,7 +313,7 @@ async fn read_frame(
     let length = u32::from_be_bytes([header[1], header[2], header[3], header[4]]) as usize;
     if length > MAX_FRAME_BYTES {
         return Err(anyhow!(
-            "runtime frame exceeds the {MAX_FRAME_BYTES}-byte client limit"
+            "runtime frame exceeds the {MAX_FRAME_BYTES}-byte client limit (kind={kind}, length={length})"
         ));
     }
     let mut payload = vec![0_u8; length];

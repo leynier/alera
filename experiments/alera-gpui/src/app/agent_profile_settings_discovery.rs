@@ -1,9 +1,12 @@
 use std::time::Duration;
 
 use gpui::{
-    div, prelude::FluentBuilder as _, px, Context, CursorStyle, InteractiveElement as _,
-    MouseButton, ParentElement as _, SharedString, Styled as _, Window,
+    div, prelude::FluentBuilder as _, px, AppContext as _, Context, CursorStyle,
+    InteractiveElement as _,
+    MouseButton, ParentElement as _, SharedString, StatefulInteractiveElement as _, Styled as _,
+    Window,
 };
+use gpui_component::tooltip::Tooltip;
 use serde_json::{json, Value};
 
 use super::agent_profile_settings::AgentProfileDropdown;
@@ -17,6 +20,7 @@ struct DiscoverableChoice {
     title: &'static str,
     description: &'static str,
     key: &'static str,
+    refresh_tooltip: &'static str,
     choices: Vec<(String, String)>,
     can_refresh: bool,
     busy: bool,
@@ -124,6 +128,7 @@ impl AleraApp {
                 title: "Model",
                 description: "Leave As Default To Use The Agent Configuration.",
                 key: "model",
+                refresh_tooltip: "Refresh Models",
                 choices,
                 can_refresh: super::settings_actions::supports_ai_model_discovery(&adapter),
                 busy,
@@ -165,6 +170,7 @@ impl AleraApp {
                 title: "Persona",
                 description: "Select A Known Agent Persona Or Enter An Exact Name.",
                 key: "agent",
+                refresh_tooltip: "Refresh Personas",
                 choices: personas,
                 can_refresh: supports_persona_discovery(&adapter),
                 busy,
@@ -224,26 +230,35 @@ impl AleraApp {
                     row.child(
                         div()
                             .id(choice.refresh_id)
+                            .tooltip(move |_, cx| {
+                                cx.new(|_| Tooltip::new(choice.refresh_tooltip)).into()
+                            })
                             .flex()
                             .items_center()
                             .justify_center()
-                            .w(px(34.0))
-                            .h(px(34.0))
+                            .w(px(30.0))
+                            .h(px(30.0))
                             .rounded_md()
-                            .when(!self.agent_profile_settings.saving, |button| {
-                                button
-                                    .cursor(CursorStyle::PointingHand)
-                                    .hover(|style| style.bg(theme::surface_raised()))
+                            .when(
+                                !self.agent_profile_settings.saving && !choice.busy,
+                                |button| {
+                                    button
+                                        .cursor(CursorStyle::PointingHand)
+                                        .hover(|style| style.bg(theme::surface_raised()))
                                     .on_mouse_down(
                                         MouseButton::Left,
                                         cx.listener(move |this, _, window, cx| {
                                             on_refresh(this, window, cx);
                                         }),
                                     )
-                            })
-                            .when(self.agent_profile_settings.saving, |button| {
+                                },
+                            )
+                            .when(
+                                self.agent_profile_settings.saving || choice.busy,
+                                |button| {
                                 button.opacity(0.5)
-                            })
+                                },
+                            )
                             .child(icon(
                                 if choice.busy {
                                     AleraIcon::Loading

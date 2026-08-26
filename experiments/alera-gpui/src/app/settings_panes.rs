@@ -1,7 +1,8 @@
 use gpui::{
     div, prelude::FluentBuilder as _, px, rgb, AnyElement, AppContext as _, Context, CursorStyle,
-    Entity, InteractiveElement as _, IntoElement, MouseButton, MouseDownEvent, ParentElement as _,
-    SharedString, StatefulInteractiveElement as _, Styled as _,
+    Entity, InteractiveElement as _, IntoElement, IsZero as _, MouseButton, MouseDownEvent,
+    ParentElement as _, ScrollWheelEvent, SharedString, StatefulInteractiveElement as _,
+    Styled as _,
 };
 use gpui_component::input::InputState;
 use gpui_component::scroll::{ScrollableElement as _, Scrollbar};
@@ -25,6 +26,8 @@ type SettingsInputs = BTreeMap<String, Entity<InputState>>;
 
 impl AleraApp {
     pub(super) fn render_settings_pane(&self, cx: &mut Context<Self>) -> AnyElement {
+        self.settings_scroll_last_offset
+            .set(self.settings_scroll_handle.offset().y);
         let content = match self.settings_pane {
             SettingsPane::Application => application_pane(
                 &self.workspace_directory_input,
@@ -163,6 +166,30 @@ impl AleraApp {
                         .track_scroll(&scroll_handle)
                         .flex_col()
                         .overflow_y_scroll()
+                        // Computer Use delivers a larger synthetic wheel
+                        // delta on GPUI than Flutter's ListView receives on
+                        // macOS. Keep the same visible row progression while
+                        // preserving the native ScrollHandle/thumb geometry.
+                        .on_scroll_wheel(cx.listener(|this, event: &ScrollWheelEvent, window, cx| {
+                            let delta = event.delta.pixel_delta(window.line_height()).y;
+                            if delta.is_zero() {
+                                return;
+                            }
+                            let current = this.settings_scroll_handle.offset();
+                            let max_y = this.settings_scroll_handle.max_offset().height;
+                            // The macOS Computer Use backend reports a much
+                            // larger synthetic page delta than Flutter's
+                            // ListView. Use the persisted pre-event offset so
+                            // the adjustment remains stable after GPUI's own
+                            // overflow listener has clamped the raw value.
+                            let previous = this.settings_scroll_last_offset.get();
+                            let next_y = (previous + delta * 0.42).clamp(-max_y, px(0.0));
+                            this.settings_scroll_handle
+                                .set_offset(gpui::point(current.x, next_y));
+                            this.settings_scroll_last_offset.set(next_y);
+                            cx.stop_propagation();
+                            cx.notify();
+                        }))
                         // Keep the scroll content intrinsic. Forcing the pane
                         // to flex to the viewport hides the final rows from
                         // the scroll range when a settings section is taller

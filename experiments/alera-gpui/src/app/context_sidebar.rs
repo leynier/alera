@@ -287,14 +287,14 @@ impl AleraApp {
             .child(
                 panel_toolbar_button(
                     "explorer-refresh",
-                    if self.local_busy {
+                    if self.explorer_busy {
                         AleraIcon::Loading
                     } else {
                         AleraIcon::Refresh
                     },
                     "Refresh",
                 )
-                .when(!self.local_busy, |button| {
+                .when(!self.explorer_busy, |button| {
                     button.on_mouse_down(
                         gpui::MouseButton::Left,
                         cx.listener(|this, _, _, cx| {
@@ -315,9 +315,12 @@ fn panel_toolbar_button(
     div()
         .id(id)
         .flex()
+        .flex_shrink_0()
         .items_center()
         .justify_center()
-        .w(px(24.0))
+        // Flutter's AleraIconButton keeps a 30 px compact hitbox. Do not let
+        // a narrow context sidebar shrink these controls below that contract.
+        .w(px(30.0))
         .h(px(30.0))
         .rounded_md()
         .cursor(CursorStyle::PointingHand)

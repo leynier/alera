@@ -1,3 +1,5 @@
+use std::path::Path;
+
 use gpui::{
     div, img, prelude::FluentBuilder as _, px, rems, AnyElement, AppContext as _, ClipboardItem,
     Context, CursorStyle, InteractiveElement as _, IntoElement as _, MouseButton, MouseDownEvent,
@@ -81,8 +83,11 @@ impl AleraApp {
                     .text_color(title_color)
                     .child(path.clone()),
             );
+        let is_markdown_viewer = tab.kind == "markdownViewer";
+        let is_merman_viewer = tab.kind == "editor"
+            && tab.payload.get("fileRole").and_then(Value::as_str) == Some("mermanPreview");
         let body = match self.editor_preview_assets.get(&path) {
-            Some(PreviewAsset::Image(image)) | Some(PreviewAsset::Mermaid(image)) => div()
+            Some(PreviewAsset::Image(image)) => div()
                 .flex_1()
                 .flex()
                 .items_center()
@@ -90,7 +95,15 @@ impl AleraApp {
                 .overflow_hidden()
                 .child(img(image.clone()))
                 .into_any_element(),
-            Some(PreviewAsset::Markdown) => self
+            Some(PreviewAsset::Mermaid(image)) if is_merman_viewer => div()
+                .flex_1()
+                .flex()
+                .items_center()
+                .justify_center()
+                .overflow_hidden()
+                .child(img(image.clone()))
+                .into_any_element(),
+            Some(PreviewAsset::Markdown) if is_markdown_viewer => self
                 .editor_documents
                 .get(&path)
                 .map(|document| {
@@ -119,7 +132,10 @@ impl AleraApp {
                         self.editor_buffer_text.get(&path),
                     )
                 }),
-            None => inactive_editor_text(
+            _ if tab.kind == "editor" && self.editor_documents.contains_key(&path) => {
+                self.render_inactive_editor_input(&path, cx)
+            }
+            _ => inactive_editor_text(
                 self.editor_documents.get(&path),
                 self.editor_buffer_text.get(&path),
             ),
@@ -141,6 +157,37 @@ impl AleraApp {
             .into_any_element()
     }
 
+    fn render_inactive_editor_input(&self, path: &str, cx: &mut Context<Self>) -> AnyElement {
+        let input = self.editor_input_for_path(path);
+        div()
+            .flex_1()
+            .relative()
+            .overflow_hidden()
+            .font_family("JetBrains Mono")
+            .child(
+                Input::new(&input)
+                    .h_full()
+                    .p_0()
+                    .bordered(false)
+                    .focus_bordered(false)
+                    .text_size(px(13.0))
+                    .line_height(px(17.55))
+                    .disabled(true),
+            )
+            // Keep the inactive pane's scrollbar rail transparent just like
+            // the active Flutter editor surface.
+            .child(
+                div()
+                    .absolute()
+                    .top_0()
+                    .right_0()
+                    .bottom_0()
+                    .w(px(10.0))
+                    .bg(theme::app_background()),
+            )
+            .into_any_element()
+    }
+
     /// Keep an editor document visible after its pane becomes inactive. The
     /// shared GPUI editor state is read-only until that pane is selected again.
     fn render_active_editor(
@@ -156,10 +203,9 @@ impl AleraApp {
             .and_then(|tab| tab.payload.get("filePath"))
             .and_then(Value::as_str)
             .map(str::to_owned);
-        let opened_path = self
-            .opened_file_path
+        let opened_path = selected_file_path
             .as_ref()
-            .or(selected_file_path.as_ref());
+            .or(self.opened_file_path.as_ref());
         let Some(opened_path) = opened_path else {
             return div()
                 .flex_1()
@@ -170,9 +216,14 @@ impl AleraApp {
                 .child("This editor tab has no file.")
                 .into_any_element();
         };
+        let editor_input = self.editor_input_for_path(opened_path);
+        let editor_error = selected_file_path
+            .as_ref()
+            .and_then(|path| self.editor_error_messages.get(path))
+            .cloned();
         let preview_available = self.preview_asset.is_some();
         let source_available = self.editor_document.is_some();
-        let save_tooltip = if self.local_busy {
+        let save_tooltip = if self.editor_busy {
             "Saving File"
         } else {
             "Save File"
@@ -190,12 +241,42 @@ impl AleraApp {
                 tab.kind == "editor"
                     && tab.payload.get("fileRole").and_then(Value::as_str) == Some("mermanPreview")
             });
+        let is_markdown_editor = self
+            .selected_tab_id
+            .as_ref()
+            .and_then(|selected| self.snapshot.tabs.iter().find(|tab| &tab.id == selected))
+            .is_some_and(|tab| {
+                tab.kind == "editor"
+                    && tab
+                        .payload
+                        .get("filePath")
+                        .and_then(Value::as_str)
+                        .is_some_and(|path| {
+                            matches!(
+                                Path::new(path)
+                                    .extension()
+                                    .and_then(|extension| extension.to_str()),
+                                Some("md" | "mdx")
+                            )
+                        })
+            });
         let file_color = if self.editor_dirty {
             theme::text()
         } else {
             theme::text_muted()
         };
-        let content = if self.editor_loading_path.is_some() && self.local_busy {
+        let content = if let Some(message) = editor_error {
+            div()
+                .flex_1()
+                .flex()
+                .items_center()
+                .justify_center()
+                .font_family("Inter")
+                .text_size(px(13.0))
+                .text_color(theme::text_muted())
+                .child(message)
+                .into_any_element()
+        } else if self.editor_loading_path.is_some() && self.editor_busy {
             div()
                 .flex_1()
                 .flex()
@@ -203,24 +284,26 @@ impl AleraApp {
                 .justify_center()
                 .child(loading_indicator(20.0, theme::text_muted()))
                 .into_any_element()
-        } else if self.editor_loading_path.is_some() && !self.local_busy {
+        } else if self.editor_loading_path.is_some() && !self.editor_busy {
             div()
                 .flex_1()
                 .flex()
                 .flex_col()
                 .items_center()
                 .justify_center()
-                .gap_2()
-                .text_sm()
+                .font_family("Inter")
+                .text_size(px(13.0))
                 .text_color(theme::text_muted())
-                .child(icon(AleraIcon::Error, 24.0, theme::danger()))
                 .child(
                     self.local_message
                         .clone()
                         .unwrap_or_else(|| "File operation failed".into()),
                 )
                 .into_any_element()
-        } else if self.show_preview || is_markdown_viewer || is_merman_viewer {
+        } else if (self.show_preview && !is_markdown_editor)
+            || is_markdown_viewer
+            || is_merman_viewer
+        {
             self.render_preview(window, cx)
         } else {
             div()
@@ -229,8 +312,9 @@ impl AleraApp {
                 .overflow_hidden()
                 .font_family("JetBrains Mono")
                 .child(
-                    Input::new(&self.editor_input)
+                    Input::new(&editor_input)
                         .h_full()
+                        .p_0()
                         .bordered(false)
                         .focus_bordered(false)
                         // Match Flutter's bodyMedium (13 px) and 1.35 line
@@ -331,12 +415,12 @@ impl AleraApp {
                                         .child(
                                             editor_toolbar_button(
                                                 "save-editor",
-                                                if self.local_busy {
+                                                if self.editor_busy {
                                                     AleraIcon::Loading
                                                 } else {
                                                     AleraIcon::Save
                                                 },
-                                                active && !self.local_busy && self.editor_dirty,
+                                                active && !self.editor_busy && self.editor_dirty,
                                             )
                                             .tooltip(move |_, cx| {
                                                 cx.new(|_| Tooltip::new(save_tooltip)).into()
@@ -345,14 +429,14 @@ impl AleraApp {
                                                 button.on_mouse_down(
                                                     gpui::MouseButton::Left,
                                                     cx.listener(|this, _, _, cx| {
-                                                        if this.editor_dirty && !this.local_busy {
+                                                        if this.editor_dirty && !this.editor_busy {
                                                             this.save_editor(false, cx);
                                                         }
                                                     }),
                                                 )
                                             })
                                             .when(
-                                                self.local_busy,
+                                                self.editor_busy,
                                                 |button| {
                                                     button.child(loading_indicator(
                                                         14.0,
@@ -365,7 +449,7 @@ impl AleraApp {
                                             editor_toolbar_button(
                                                 "discard-editor",
                                                 AleraIcon::Restore,
-                                                active && !self.local_busy && self.editor_dirty,
+                                                active && !self.editor_busy && self.editor_dirty,
                                             )
                                             .tooltip(|_, cx| {
                                                 cx.new(|_| Tooltip::new("Discard Changes")).into()
@@ -376,7 +460,7 @@ impl AleraApp {
                                                     button.on_mouse_down(
                                                         gpui::MouseButton::Left,
                                                         cx.listener(|this, _, window, cx| {
-                                                            if this.editor_dirty && !this.local_busy
+                                                            if this.editor_dirty && !this.editor_busy
                                                             {
                                                                 this.discard_editor_changes(
                                                                     window, cx,
@@ -410,7 +494,7 @@ impl AleraApp {
                                 },
                             )
                             .when(is_markdown_viewer, |toolbar| {
-                                let refresh_enabled = active && !self.local_busy;
+                                let refresh_enabled = active && !self.editor_busy;
                                 let refresh_button = editor_toolbar_button(
                                     "refresh-markdown-preview",
                                     if refresh_enabled {
@@ -430,7 +514,7 @@ impl AleraApp {
                                     })
                                     .into()
                                 })
-                                .when(self.local_busy, |button| {
+                                .when(self.editor_busy, |button| {
                                     button.child(loading_indicator(14.0, theme::text_muted()))
                                 })
                                 .when(active, |button| {
@@ -464,7 +548,7 @@ impl AleraApp {
                                 toolbar.child(refresh_button).child(open_source_button)
                             })
                             .when(is_merman_viewer, |toolbar| {
-                                let refresh_enabled = active && !self.local_busy;
+                                let refresh_enabled = active && !self.editor_busy;
                                 let refresh_button = editor_toolbar_button(
                                     "refresh-merman-preview",
                                     if refresh_enabled {
@@ -484,7 +568,7 @@ impl AleraApp {
                                     })
                                     .into()
                                 })
-                                .when(self.local_busy, |button| {
+                                .when(self.editor_busy, |button| {
                                     button.child(loading_indicator(14.0, theme::text_muted()))
                                 })
                                 .when(active, |button| {

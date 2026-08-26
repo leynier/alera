@@ -35,14 +35,14 @@ impl AleraApp {
                     .p(px(20.0))
                     .child(
                         div()
-                            .text_lg()
-                            .font_weight(gpui::FontWeight::SEMIBOLD)
+                            .text_size(px(14.0))
+                            .font_weight(gpui::FontWeight::MEDIUM)
                             .child("Close Terminal Session"),
                     )
                     .child(
                         div()
                             .mt(px(12.0))
-                            .text_base()
+                            .text_size(px(13.0))
                             .text_color(theme::text_muted())
                             .child(format!(
                                 "Force-quits {label}. Anything running in that terminal is lost."

@@ -89,7 +89,7 @@ pub(super) async fn list_workspace_files(payload: &Value) -> HostResult<Value> {
     })
     .await
     .map_err(|error| HostError::state(format!("Workspace File Task Failed: {error}")))?
-    .map_err(|error| HostError::state(error.context))?;
+    .map_err(|error| HostError::state(explorer_error_message(error.kind)))?;
     Ok(Value::Array(entries.into_iter().map(entry_value).collect()))
 }
 

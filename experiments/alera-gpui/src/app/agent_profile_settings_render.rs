@@ -127,19 +127,11 @@ impl AleraApp {
                             .child(icon(AleraIcon::Add, 16.0, theme::text_muted())),
                     ),
             )
-            .child(if state.loading {
-                div()
-                    .flex_1()
-                    .flex()
-                    .items_center()
-                    .justify_center()
-                    .gap_2()
-                    .text_size(px(12.0))
-                    .text_color(theme::text_muted())
-                    .child(icon(AleraIcon::Loading, 16.0, theme::text_muted()))
-                    .child("Loading Agent Profiles")
-                    .into_any_element()
-            } else if state.profiles.is_empty() {
+            // Flutter keeps the last AsyncData mounted during a refresh
+            // (`skipLoadingOnRefresh`), so a live list must not be replaced by
+            // a loading banner. The full-pane spinner above covers the first
+            // load when there is no snapshot yet.
+            .child(if state.profiles.is_empty() {
                 div()
                     .flex_1()
                     .flex()

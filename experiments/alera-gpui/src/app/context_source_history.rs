@@ -144,10 +144,10 @@ impl AleraApp {
                         AleraIcon::GitRefresh
                     },
                     false,
-                    !loading && !self.local_busy,
+                    !loading && !self.git_busy,
                 )
                 .tooltip(|_, cx| cx.new(|_| Tooltip::new("Refresh Commits")).into())
-                .when(!loading && !self.local_busy, |button| {
+                .when(!loading && !self.git_busy, |button| {
                     button.on_mouse_down(
                         gpui::MouseButton::Left,
                         cx.listener(|this, _, _, cx| {
@@ -202,12 +202,8 @@ impl AleraApp {
                             .flex_1()
                             .items_center()
                             .justify_center()
-                            .gap_2()
                             .text_sm()
                             .text_color(theme::text_muted())
-                            .when(self.git_snapshot_error.is_some(), |message| {
-                                message.child(icon(AleraIcon::Error, 15.0, theme::text_muted()))
-                            })
                             .child(empty_message),
                     )
                 },

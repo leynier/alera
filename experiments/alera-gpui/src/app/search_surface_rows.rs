@@ -63,7 +63,7 @@ impl AleraApp {
                 )
             })
             .when(
-                has_query && self.search_results.files.is_empty() && !self.local_busy,
+                has_query && self.search_results.files.is_empty() && !self.search_busy,
                 |results| {
                     results.child(
                         div()
@@ -79,7 +79,7 @@ impl AleraApp {
                     )
                 },
             )
-            .when(self.local_busy && rows.is_empty(), |results| {
+            .when(self.search_busy && rows.is_empty(), |results| {
                 results.child(
                     div()
                         .flex()
@@ -194,7 +194,7 @@ impl AleraApp {
             .map(|item| item.id.clone())
             .collect::<Vec<_>>();
         let (name, directory) = split_path(&file.relative_path);
-        let can_replace = self.search_replace_expanded && !self.local_busy;
+        let can_replace = self.search_replace_expanded && !self.search_busy;
         div()
             .id(("search-file", index))
             .flex()
@@ -299,7 +299,7 @@ impl AleraApp {
         let column = item.column;
         let match_length = item.match_length;
         let match_id = item.id.clone();
-        let can_replace = self.search_replace_expanded && !self.local_busy;
+        let can_replace = self.search_replace_expanded && !self.search_busy;
         let preview = styled_match_preview(&item, self.search_replace_expanded);
         div()
             .id(("search-match", index))

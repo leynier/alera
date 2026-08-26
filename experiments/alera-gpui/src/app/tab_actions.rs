@@ -784,9 +784,10 @@ impl AleraApp {
             .clone()
             .filter(|_| self.editor_document.is_some())
         {
-            let text = self.editor_input.read(cx).value().to_string();
+            let editor_input = self.editor_input_for_path(&path);
+            let text = editor_input.read(cx).value().to_string();
             self.editor_buffer_text.insert(path.clone(), text);
-            let cursor = self.editor_input.read(cx).cursor_position();
+            let cursor = editor_input.read(cx).cursor_position();
             self.editor_cursor_positions
                 .insert(path.clone(), (cursor.line, cursor.character));
             if self.editor_dirty {
@@ -794,6 +795,20 @@ impl AleraApp {
             } else {
                 self.editor_dirty_paths.remove(&path);
             }
+        }
+        if let Some(path) = self
+            .snapshot
+            .tabs
+            .iter()
+            .find(|tab| tab.id == tab_id)
+            .and_then(|tab| tab.payload.get("filePath"))
+            .and_then(|value| value.as_str())
+        {
+            // Retrying a failed file load is an explicit user action. This
+            // also prevents the render loop from repeatedly hitting a bad
+            // path while preserving a retry path from the tab itself.
+            self.editor_load_error_paths.remove(path);
+            self.editor_error_messages.remove(path);
         }
         let completion_acknowledgement =
             self.snapshot

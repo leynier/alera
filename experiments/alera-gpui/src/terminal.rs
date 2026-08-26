@@ -90,6 +90,11 @@ pub struct TerminalSession {
     /// Prevent duplicate resume requests while the host is sending a full
     /// snapshot or a delta on the terminal lane.
     pub output_resync_in_flight: bool,
+    /// A bounded terminal lane can request another resync while the previous
+    /// full snapshot is still being replayed. Defer that request until the
+    /// current restore reaches the emulator, otherwise large scrollback can
+    /// restart the restore loop indefinitely.
+    pub output_resync_deferred: bool,
     pub operation: Option<TerminalSessionOperation>,
     pub operation_started_at: Option<Instant>,
     pub running: bool,
@@ -346,7 +351,59 @@ impl TerminalEmulator {
             }
         }
         let text = text.into_iter().collect::<String>();
-        visible_http_link_at(&text, point)
+        self.visible_http_link_at_wrapped(point)
+            .or_else(|| visible_http_link_at(&text, point))
+    }
+
+    /// Resolve visible HTTP links across rows that the terminal wrapped. The
+    /// Flutter xterm resolver works on logical lines, while a naive per-row
+    /// regex loses a URL exactly at the viewport width.
+    fn visible_http_link_at_wrapped(&self, point: TerminalPoint) -> Option<TerminalLink> {
+        let content = self.terminal.renderable_content();
+        let display_offset = content.display_offset as i32;
+        let rows = self.terminal.screen_lines();
+        let columns = self.terminal.columns();
+        let mut cells = vec![vec![Cell::default(); columns]; rows];
+        for indexed in content.display_iter {
+            let row = indexed.point.line.0 + display_offset;
+            let column = indexed.point.column.0;
+            if row >= 0 && (row as usize) < rows && column < columns {
+                cells[row as usize][column] = indexed.cell.clone();
+            }
+        }
+
+        let mut logical_text = String::new();
+        let mut spans = Vec::new();
+        for (row, cells) in cells.iter().enumerate() {
+            for (column, cell) in cells.iter().enumerate() {
+                let character = if cell.flags.contains(Flags::HIDDEN) {
+                    ' '
+                } else {
+                    cell.c
+                };
+                let start = logical_text.len();
+                logical_text.push(character);
+                spans.push((start, logical_text.len(), row, column));
+                if let Some(zerowidth) = cell.zerowidth() {
+                    for &character in zerowidth {
+                        logical_text.push(character);
+                        spans.push((start, logical_text.len(), row, column));
+                    }
+                }
+            }
+
+            let wrapped = cells
+                .last()
+                .is_some_and(|cell| cell.flags.contains(Flags::WRAPLINE));
+            if !wrapped || row + 1 == rows {
+                if let Some(link) = visible_http_link_in_spans(&logical_text, &spans, point) {
+                    return Some(link);
+                }
+                logical_text.clear();
+                spans.clear();
+            }
+        }
+        None
     }
 
     pub fn begin_selection(
@@ -491,6 +548,51 @@ fn visible_http_link_at(text: &str, point: TerminalPoint) -> Option<TerminalLink
     None
 }
 
+fn visible_http_link_in_spans(
+    text: &str,
+    spans: &[(usize, usize, usize, usize)],
+    point: TerminalPoint,
+) -> Option<TerminalLink> {
+    static URL_PATTERN: OnceLock<Regex> = OnceLock::new();
+    let pattern =
+        URL_PATTERN.get_or_init(|| Regex::new(r"(?i)https?://[^\s]+").expect("valid URL regex"));
+    for matched in pattern.find_iter(text) {
+        let end = trim_visible_url_end(text, matched.start(), matched.end());
+        if end <= matched.start() {
+            continue;
+        }
+        let matching_spans = spans.iter().filter(|(start, _, _, _)| {
+            *start >= matched.start() && *start < end
+        });
+        let matching_spans = matching_spans.collect::<Vec<_>>();
+        if !matching_spans.iter().any(|(_, _, row, column)| {
+            *row == point.row && *column == point.column
+        }) {
+            continue;
+        }
+        let row_spans = matching_spans
+            .iter()
+            .filter(|(_, _, row, _)| *row == point.row)
+            .collect::<Vec<_>>();
+        let start_column = row_spans.iter().map(|(_, _, _, column)| *column).min()?;
+        let end_column = row_spans
+            .iter()
+            .map(|(_, _, _, column)| column + 1)
+            .max()?;
+        let uri = &text[matched.start()..end];
+        if !supports_web_uri(uri) {
+            continue;
+        }
+        return Some(TerminalLink {
+            uri: uri.to_owned(),
+            row: point.row,
+            start_column,
+            end_column,
+        });
+    }
+    None
+}
+
 fn supports_web_uri(uri: &str) -> bool {
     let authority = uri
         .strip_prefix("https://")
@@ -552,6 +654,7 @@ impl TerminalSession {
             session_id,
             attaching: true,
             output_resync_in_flight: false,
+            output_resync_deferred: false,
             operation: Some(TerminalSessionOperation::Starting),
             operation_started_at: Some(Instant::now()),
             running: true,
@@ -869,6 +972,24 @@ mod tests {
         assert_eq!(link.uri, "https://example.com/docs?q=1");
         assert_eq!(link.start_column, 5);
         assert_eq!(link.end_column, 33);
+    }
+
+    #[test]
+    fn visible_http_links_continue_across_wrapped_rows() {
+        let mut terminal = TerminalEmulator::new(12, 3);
+        terminal.write(b"https://example.com");
+
+        let first_row = terminal
+            .link_at(TerminalPoint { row: 0, column: 5 })
+            .expect("wrapped link on first row");
+        let second_row = terminal
+            .link_at(TerminalPoint { row: 1, column: 2 })
+            .expect("wrapped link on second row");
+
+        assert_eq!(first_row.uri, "https://example.com");
+        assert_eq!(second_row.uri, first_row.uri);
+        assert_eq!(second_row.start_column, 0);
+        assert_eq!(second_row.end_column, 7);
     }
 
     #[test]

@@ -88,12 +88,12 @@ impl AgentProfileSettingsState {
             managed_config: Map::new(),
             name_input: cx.new(|cx| InputState::new(window, cx).placeholder("Name")),
             command_input: cx.new(|cx| InputState::new(window, cx).placeholder("Command")),
-            model_input: cx.new(|cx| InputState::new(window, cx).placeholder("Exact Model ID")),
-            persona_input: cx.new(|cx| InputState::new(window, cx).placeholder("Exact Persona")),
+            model_input: cx.new(|cx| InputState::new(window, cx)),
+            persona_input: cx.new(|cx| InputState::new(window, cx)),
             max_ai_credits_input: cx
-                .new(|cx| InputState::new(window, cx).placeholder("Agent Default")),
+                .new(|cx| InputState::new(window, cx)),
             max_autopilot_continues_input: cx
-                .new(|cx| InputState::new(window, cx).placeholder("Agent Default")),
+                .new(|cx| InputState::new(window, cx)),
             description_input: cx.new(|cx| InputState::new(window, cx).placeholder("Description")),
             quota_group_input: cx.new(|cx| InputState::new(window, cx).placeholder("Quota Group")),
         }

@@ -3,6 +3,15 @@ use super::*;
 use std::path::Path;
 
 impl AleraApp {
+    fn mark_terminal_sessions_unavailable(&mut self, message: String) {
+        for session in self.terminal_sessions.values_mut() {
+            session.attaching = false;
+            session.operation = None;
+            session.operation_started_at = None;
+            session.error = Some(message.clone());
+        }
+    }
+
     pub fn start(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         self.connection_label = "Runtime Starting".into();
         self.apply_saved_keyboard_overrides(cx);
@@ -26,7 +35,7 @@ impl AleraApp {
                 break;
             };
             let result = this.update(cx, |this, cx| {
-                this.expire_local_message();
+                let toast_changed = this.expire_local_message();
                 let operation_active = this
                     .terminal_sessions
                     .values()
@@ -38,7 +47,7 @@ impl AleraApp {
                     if !this.terminal_cursor_visible {
                         this.terminal_cursor_visible = true;
                     }
-                    if operation_active || cursor_was_hidden {
+                    if operation_active || cursor_was_hidden || toast_changed {
                         cx.notify();
                     }
                     return;
@@ -48,7 +57,7 @@ impl AleraApp {
                     if !this.terminal_cursor_visible {
                         this.terminal_cursor_visible = true;
                     }
-                    if operation_active || cursor_was_hidden {
+                    if operation_active || cursor_was_hidden || toast_changed {
                         cx.notify();
                     }
                     return;
@@ -117,9 +126,15 @@ impl AleraApp {
                         }
                         BridgeEvent::Unavailable => {
                             this.connection_label = "Runtime Unavailable".into();
+                            this.mark_terminal_sessions_unavailable(
+                                "Terminal host unavailable: Alera Runtime Is Unavailable.".into(),
+                            );
                         }
                         BridgeEvent::Disconnected { reason } => {
                             this.connection_label = "Runtime Reconnecting".into();
+                            this.mark_terminal_sessions_unavailable(format!(
+                                "Terminal host unavailable: {reason}"
+                            ));
                             this.error = Some(reason.into());
                         }
                         BridgeEvent::Notification { name, payload } => {
@@ -169,6 +184,12 @@ impl AleraApp {
             }
         });
         self.refresh(cx);
+        // The bridge can finish connecting before the window subscribes to its
+        // event stream. Hydrate shared/local view preferences explicitly so a
+        // relaunch cannot fall back to GPUI defaults while Flutter restores
+        // the persisted sidebar widths and grouping immediately.
+        self.load_sidebar_view_prefs(cx);
+        self.refresh_status_data(cx);
         self.ensure_explorer_watcher(cx);
     }
 
@@ -178,24 +199,40 @@ impl AleraApp {
     /// after the same four-second duration. The host keeps the latest three
     /// entries instead of replacing a visible toast when another action
     /// completes immediately afterwards.
-    fn expire_local_message(&mut self) {
+    fn expire_local_message(&mut self) -> bool {
         const TOAST_DURATION: Duration = Duration::from_secs(4);
+        const TOAST_EXIT_DURATION: Duration = Duration::from_millis(180);
+        let mut changed = false;
         if let Some(message) = self.local_message.clone() {
             if self.local_message_timer_message.as_ref() != Some(&message) {
                 self.local_message_timer_message = Some(message.clone());
                 self.local_message_started_at = Some(Instant::now());
                 self.toast_entries.push_back((message, Instant::now()));
+                changed = true;
             }
         } else {
+            changed = self.local_message_started_at.is_some()
+                || self.local_message_timer_message.is_some();
             self.local_message_started_at = None;
             self.local_message_timer_message = None;
         }
 
+        let was_exiting = self
+            .toast_entries
+            .iter()
+            .any(|(_, shown_at)| shown_at.elapsed() >= TOAST_DURATION);
+        let previous_len = self.toast_entries.len();
         self.toast_entries
-            .retain(|(_, shown_at)| shown_at.elapsed() < TOAST_DURATION);
+            .retain(|(_, shown_at)| shown_at.elapsed() < TOAST_DURATION + TOAST_EXIT_DURATION);
         while self.toast_entries.len() > 3 {
             self.toast_entries.pop_front();
+            changed = true;
         }
+        let is_exiting = self
+            .toast_entries
+            .iter()
+            .any(|(_, shown_at)| shown_at.elapsed() >= TOAST_DURATION);
+        changed |= previous_len != self.toast_entries.len() || was_exiting != is_exiting;
 
         if self.local_message_started_at.is_some_and(|started_at| {
             started_at.elapsed() >= TOAST_DURATION
@@ -203,18 +240,26 @@ impl AleraApp {
             self.local_message = None;
             self.local_message_started_at = None;
             self.local_message_timer_message = None;
+            changed = true;
         }
+        changed
     }
 
-    pub(super) fn visible_toast_messages(&self) -> Vec<SharedString> {
+    pub(super) fn visible_toast_entries(&self) -> Vec<(SharedString, bool)> {
+        const TOAST_DURATION: Duration = Duration::from_secs(4);
+        const TOAST_EXIT_DURATION: Duration = Duration::from_millis(180);
         let mut messages = self
             .toast_entries
             .iter()
-            .map(|(message, _)| message.clone())
+            .filter_map(|(message, shown_at)| {
+                let elapsed = shown_at.elapsed();
+                (elapsed < TOAST_DURATION + TOAST_EXIT_DURATION)
+                    .then_some((message.clone(), elapsed >= TOAST_DURATION))
+            })
             .collect::<Vec<_>>();
         if let Some(message) = self.local_message.clone() {
-            if messages.last() != Some(&message) {
-                messages.push(message);
+            if messages.last().is_none_or(|(current, _)| current != &message) {
+                messages.push((message, false));
             }
         }
         if messages.len() > 3 {
@@ -276,13 +321,32 @@ impl AleraApp {
                         if create_terminal_for_selection {
                             this.pending_workspace_terminal_id = None;
                         }
+                        let workspace_scope_changed = this
+                            .selected_workspace_id
+                            .as_deref()
+                            .map(|workspace_id| {
+                                this.snapshot.workspace(workspace_id).map(|workspace| {
+                                    workspace.path.as_str()
+                                }) != snapshot.workspace(workspace_id).map(|workspace| {
+                                    workspace.path.as_str()
+                                })
+                            })
+                            .unwrap_or(true);
                         this.snapshot = snapshot;
                         // The selected workspace can change while the
                         // snapshot request is in flight. Rehydrate the
                         // contextual surface from the new workspace path so
                         // Explorer/Git/PR never retain rows or errors from the
                         // previous workspace.
-                        this.refresh_local_activity(cx);
+                        if workspace_scope_changed
+                            || (this.context_panel != ContextPanel::Search
+                                && this
+                                    .explorer_loaded_workspace_id
+                                    .as_deref()
+                                    != this.selected_workspace_id.as_deref())
+                        {
+                            this.refresh_local_activity(cx);
+                        }
                         this.ensure_selected_terminal(cx);
                         if create_terminal_for_selection {
                             this.create_terminal_tab(cx);
@@ -333,6 +397,8 @@ impl AleraApp {
         self.ensure_explorer_watcher(cx);
         if !already_selected {
             self.refresh(cx);
+        } else {
+            self.refresh_local_activity(cx);
         }
         cx.notify();
     }

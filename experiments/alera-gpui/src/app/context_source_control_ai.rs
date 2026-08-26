@@ -20,7 +20,7 @@ impl AleraApp {
             cx.notify();
             return;
         }
-        if self.git_snapshot.has_conflicts || self.local_busy || self.source_commit_ai_busy {
+        if self.git_snapshot.has_conflicts || self.git_busy || self.source_commit_ai_busy {
             return;
         }
         let Some(workspace_path) = self.selected_source_control_path() else {

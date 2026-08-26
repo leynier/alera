@@ -145,7 +145,9 @@ impl AleraApp {
         }
 
         self.explorer_menu = None;
-        self.local_busy = true;
+        self.git_generation += 1;
+        let generation = self.git_generation;
+        self.git_busy = true;
         self.local_message = None;
         self.git_snapshot_loading = true;
         self.git_snapshot_error = None;
@@ -157,7 +159,10 @@ impl AleraApp {
                 return;
             };
             let _ = this.update(cx, |this, cx| {
-                this.local_busy = false;
+                if generation != this.git_generation {
+                    return;
+                }
+                this.git_busy = false;
                 this.git_snapshot_loading = false;
                 match result {
                     Ok(snapshot) => {

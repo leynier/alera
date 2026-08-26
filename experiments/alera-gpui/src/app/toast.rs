@@ -1,16 +1,25 @@
-use gpui::{div, px, AnyElement, IntoElement as _, ParentElement as _, SharedString, Styled as _};
+use std::time::Duration;
+
+use gpui::{
+    div, px, Animation, AnimationExt as _, AnyElement, IntoElement as _, ParentElement as _,
+    SharedString, Styled as _,
+};
 
 use crate::icons::{icon, AleraIcon};
 use crate::theme;
 
-pub(super) fn render_toast(message: SharedString, stack_index: usize) -> AnyElement {
+pub(super) fn render_toast(
+    message: SharedString,
+    stack_index: usize,
+    exiting: bool,
+) -> AnyElement {
     let kind = toast_icon(&message);
     let color = match kind {
         AleraIcon::Error => theme::danger(),
         AleraIcon::Success => theme::success(),
         _ => theme::accent(),
     };
-    div()
+    let toast = div()
         .absolute()
         .right(px(16.0))
         .bottom(px(40.0 + stack_index as f32 * 58.0))
@@ -27,8 +36,18 @@ pub(super) fn render_toast(message: SharedString, stack_index: usize) -> AnyElem
         .shadow_lg()
         .text_sm()
         .child(icon(kind, 16.0, color))
-        .child(div().flex_1().child(message))
-        .into_any_element()
+        .child(div().flex_1().child(message.clone()));
+    if exiting {
+        toast
+            .with_animation(
+                SharedString::from(format!("alera-toast-exit-{stack_index}-{message}")),
+                Animation::new(Duration::from_millis(180)),
+                |toast, delta| toast.opacity(1.0 - delta),
+            )
+            .into_any_element()
+    } else {
+        toast.into_any_element()
+    }
 }
 
 fn toast_icon(message: &str) -> AleraIcon {

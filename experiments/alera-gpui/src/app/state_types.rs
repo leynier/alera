@@ -167,6 +167,11 @@ pub(super) struct ExplorerDragData {
     pub(super) relative_path: String,
     pub(super) name: String,
     pub(super) is_directory: bool,
+    pub(super) is_symlink: bool,
+    pub(super) depth: usize,
+    pub(super) expanded: bool,
+    pub(super) git_status: Option<String>,
+    pub(super) source_control_root: bool,
 }
 
 #[derive(Clone, Debug)]

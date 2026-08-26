@@ -41,6 +41,21 @@ impl AleraApp {
             self.terminal_sessions.remove(&session_id);
             self.terminal_resize_pending.remove(&session_id);
             self.terminal_resize_generation.remove(&session_id);
+            self.terminal_scrollbar_last_activity.remove(&session_id);
+            if self
+                .terminal_scrollbar_drag
+                .as_deref()
+                .is_some_and(|active| active == session_id)
+            {
+                self.terminal_scrollbar_drag = None;
+            }
+            if self
+                .terminal_hovered_link
+                .as_ref()
+                .is_some_and(|(active, _)| active == &session_id)
+            {
+                self.terminal_hovered_link = None;
+            }
             let bridge = self.bridge.clone();
             cx.spawn(async move |_, _| {
                 let _ = bridge
@@ -185,7 +200,29 @@ impl AleraApp {
             self.write_terminal_bytes_for(session_id, response);
         }
         self.reset_terminal_cursor_blink();
-        cx.notify();
+        self.schedule_terminal_output_frame(cx);
+    }
+
+    /// PTY output can arrive in many small chunks during a command burst or a
+    /// scrollback restore. Keep parser state current for every chunk, but
+    /// publish at most one UI invalidation per frame so layout/text shaping
+    /// cannot starve control requests and other panes.
+    fn schedule_terminal_output_frame(&mut self, cx: &mut Context<Self>) {
+        if self.terminal_output_frame_scheduled {
+            return;
+        }
+        self.terminal_output_frame_scheduled = true;
+        cx.spawn(async move |this, cx| {
+            gpui::Timer::after(std::time::Duration::from_millis(16)).await;
+            let Some(this) = this.upgrade() else {
+                return;
+            };
+            let _ = this.update(cx, |this, cx| {
+                this.terminal_output_frame_scheduled = false;
+                cx.notify();
+            });
+        })
+        .detach();
     }
 
     pub(super) fn handle_terminal_notification(
@@ -212,6 +249,11 @@ impl AleraApp {
                 session.error = Some("The Terminal Process Exited.".to_owned());
             }
             "outputResyncRequired" => {
+                if session.restore_in_progress() {
+                    session.output_resync_deferred = true;
+                    cx.notify();
+                    return;
+                }
                 self.request_terminal_output_resync(session_id, cx);
             }
             _ => return,
@@ -302,7 +344,9 @@ impl AleraApp {
                             }
                         }
                     }
-                    Err(error) => session.error = Some(error),
+                    Err(error) => {
+                        session.error = Some(format!("Terminal host unavailable: {error}"));
+                    }
                 }
                 if let Some(generation) = restore_generation {
                     this.schedule_terminal_restore(session_id.clone(), generation, cx);
@@ -434,7 +478,9 @@ impl AleraApp {
                         session.error =
                             (!session.running).then(|| "The Terminal Process Exited.".to_owned());
                     }
-                    Err(error) => session.error = Some(error),
+                    Err(error) => {
+                        session.error = Some(format!("Terminal host unavailable: {error}"));
+                    }
                 }
                 if let Some(generation) = restore_generation {
                     this.schedule_terminal_restore(session_id.clone(), generation, cx);
@@ -459,19 +505,29 @@ impl AleraApp {
             let Some(this) = this.upgrade() else {
                 break;
             };
-            let finished = this
+            let (finished, deferred_resync) = this
                 .update(cx, |this, cx| {
                     let Some(session) = this.terminal_sessions.get_mut(&batch_session_id) else {
-                        return true;
+                        return (true, false);
                     };
                     if session.restore_generation() != generation {
-                        return true;
+                        return (true, false);
                     }
                     let active = session.restore_next_chunk(32 * 1024);
+                    let deferred_resync = !active && session.output_resync_deferred;
+                    if deferred_resync {
+                        session.output_resync_deferred = false;
+                    }
                     cx.notify();
-                    !active
+                    (!active, deferred_resync)
                 })
-                .unwrap_or(true);
+                .unwrap_or((true, false));
+            if deferred_resync {
+                let session_id = batch_session_id.clone();
+                let _ = this.update(cx, |this, cx| {
+                    this.request_terminal_output_resync(&session_id, cx);
+                });
+            }
             if finished {
                 break;
             }
@@ -596,17 +652,16 @@ impl AleraApp {
 
     fn handle_terminal_scroll(
         &mut self,
+        session_id: &str,
         event: &ScrollWheelEvent,
         _: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        let Some(session_id) = self.selected_terminal_session_id() else {
-            return;
-        };
         let line_height = self.terminal_line_height();
         let sensitivity = self.settings_state.terminal_tui_scroll_sensitivity as i32;
-        self.terminal_scrollbar_last_activity = std::time::Instant::now();
-        let Some(session) = self.terminal_sessions.get_mut(&session_id) else {
+        self.terminal_scrollbar_last_activity
+            .insert(session_id.to_owned(), std::time::Instant::now());
+        let Some(session) = self.terminal_sessions.get_mut(session_id) else {
             return;
         };
         let lines =
@@ -682,9 +737,12 @@ impl AleraApp {
         event: &MouseMoveEvent,
         cx: &mut Context<Self>,
     ) {
-        let next = terminal_link_modifier(event.modifiers)
-            .then(|| self.terminal_point_at(session_id, event.position))
-            .flatten()
+        // Flutter resolves the link on every hover so the cursor and
+        // underline are visible before the user presses Cmd/Ctrl. The
+        // modifier is required only by the activation path in
+        // `activate_terminal_link`.
+        let next = self
+            .terminal_point_at(session_id, event.position)
             .and_then(|point| {
                 self.terminal_sessions
                     .get(session_id)
@@ -1016,6 +1074,7 @@ impl AleraApp {
         let focus = self.terminal_focus.clone();
         let drop_focus = self.terminal_focus.clone();
         let drop_session_id = owned_session_id.clone();
+        let scroll_session_id = owned_session_id.clone();
         let explorer_drop_focus = self.terminal_focus.clone();
         let explorer_drop_session_id = owned_session_id.clone();
         let background = self.terminal_background();
@@ -1026,9 +1085,13 @@ impl AleraApp {
         let scrollbar = session_id
             .and_then(|session_id| self.terminal_sessions.get(session_id))
             .filter(|_| {
-                self.terminal_scrollbar_drag.is_some()
-                    || self.terminal_scrollbar_last_activity.elapsed()
-                        < std::time::Duration::from_millis(800)
+                self.terminal_scrollbar_drag.as_deref() == Some(owned_session_id.as_str())
+                    || self
+                        .terminal_scrollbar_last_activity
+                        .get(&owned_session_id)
+                        .is_some_and(|last| {
+                            last.elapsed() < std::time::Duration::from_millis(800)
+                        })
             })
             .and_then(|session| {
                 self.render_terminal_scrollbar(
@@ -1092,8 +1155,12 @@ impl AleraApp {
             })
             .font_weight(FontWeight(self.settings_state.terminal_font_weight as f32))
             .text_size(gpui::px(self.settings_state.terminal_font_size as f32))
-            .when(hovering_link, |surface| {
-                surface.cursor(CursorStyle::PointingHand)
+            // Flutter's terminal view exposes a text cursor over the whole
+            // surface and switches to a hand only for a resolved link.
+            .cursor(if hovering_link {
+                CursorStyle::PointingHand
+            } else {
+                CursorStyle::IBeam
             })
             .on_mouse_down(
                 MouseButton::Left,
@@ -1175,10 +1242,17 @@ impl AleraApp {
                     .overflow_hidden()
                     .track_focus(&self.terminal_focus)
                     .key_context("terminal")
-                    .when(active, |terminal| {
+                    .when(active, move |terminal| {
                         terminal
                             .on_key_down(cx.listener(Self::handle_terminal_key))
-                            .on_scroll_wheel(cx.listener(Self::handle_terminal_scroll))
+                            .on_scroll_wheel(cx.listener(move |this, event, window, cx| {
+                                this.handle_terminal_scroll(
+                                    &scroll_session_id,
+                                    event,
+                                    window,
+                                    cx,
+                                );
+                            }))
                     })
                     .child(body),
             )
@@ -1270,6 +1344,7 @@ impl AleraApp {
             .items_center()
             .justify_center()
             .gap_3()
+            .font_family("Inter")
             .bg(self.terminal_background())
             .child(icon(AleraIcon::Loading, 20.0, theme::text_muted()))
             .child(div().text_size(gpui::px(13.0)).child(label))
@@ -1301,6 +1376,7 @@ impl AleraApp {
             .items_center()
             .justify_center()
             .gap_3()
+            .font_family("Inter")
             .bg(self.terminal_background())
             .child(div().text_size(gpui::px(13.0)).child("Restoring Terminal"))
             .child(
@@ -1337,6 +1413,7 @@ impl AleraApp {
             .flex()
             .items_center()
             .justify_center()
+            .font_family("Inter")
             .bg(self.terminal_background())
             .child(
                 div()
@@ -1348,7 +1425,7 @@ impl AleraApp {
                     .bg(theme::surface())
                     .child(
                         div()
-                            .text_size(gpui::px(16.0))
+                            .text_size(gpui::px(14.0))
                             .font_weight(FontWeight::SEMIBOLD)
                             .child("Terminal Unavailable"),
                     )
@@ -1539,7 +1616,6 @@ impl AleraApp {
     pub(super) fn reset_terminal_cursor_blink(&mut self) {
         self.terminal_cursor_visible = true;
         self.terminal_cursor_last_activity = std::time::Instant::now();
-        self.terminal_scrollbar_last_activity = std::time::Instant::now();
     }
 
     fn render_terminal_scrollbar(
@@ -1573,7 +1649,8 @@ impl AleraApp {
                     MouseButton::Left,
                     cx.listener(move |this, event: &MouseDownEvent, _, cx| {
                         this.terminal_scrollbar_drag = Some(down_session_id.clone());
-                        this.terminal_scrollbar_last_activity = std::time::Instant::now();
+                        this.terminal_scrollbar_last_activity
+                            .insert(down_session_id.clone(), std::time::Instant::now());
                         this.scroll_terminal_to_pointer(&down_session_id, event.position.y, cx);
                         cx.stop_propagation();
                     }),
@@ -1582,7 +1659,8 @@ impl AleraApp {
                     if event.dragging()
                         && this.terminal_scrollbar_drag.as_deref() == Some(move_session_id.as_str())
                     {
-                        this.terminal_scrollbar_last_activity = std::time::Instant::now();
+                        this.terminal_scrollbar_last_activity
+                            .insert(move_session_id.clone(), std::time::Instant::now());
                         this.scroll_terminal_to_pointer(&move_session_id, event.position.y, cx);
                         cx.stop_propagation();
                     }

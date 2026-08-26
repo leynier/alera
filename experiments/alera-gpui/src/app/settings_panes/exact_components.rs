@@ -91,6 +91,36 @@ fn exact_settings_group(
         .child(settings_panel(rows))
 }
 
+fn agent_settings_group(
+    title: &'static str,
+    description: &'static str,
+    rows: Vec<gpui::Div>,
+) -> gpui::Div {
+    // Flutter's Agents pane uses the regular SettingsGroup header inset. The
+    // wider GPUI settings groups keep an extra 8 px bottom margin for other
+    // panes, which made this first card start visibly too low.
+    div()
+        .child(
+            div()
+                .ml_1()
+                .mb(px(10.0))
+                .child(
+                    div()
+                        .text_size(px(13.0))
+                        .font_weight(gpui::FontWeight::SEMIBOLD)
+                        .child(title),
+                )
+                .child(
+                    div()
+                        .mt_1()
+                        .text_size(px(12.0))
+                        .text_color(theme::text_muted())
+                        .child(description),
+                ),
+        )
+        .child(settings_panel(rows))
+}
+
 fn settings_title_only_group(title: &'static str, rows: Vec<gpui::Div>) -> gpui::Div {
     div()
         .child(
@@ -139,6 +169,27 @@ fn exact_settings_row_width(
     control_width: f32,
     control: impl IntoElement,
 ) -> gpui::Div {
+    exact_settings_row_width_with_min_height(title, description, control_width, control, 69.0)
+}
+
+fn agent_registration_row_width(
+    title: &'static str,
+    description: impl Into<SharedString>,
+    control_width: f32,
+    control: impl IntoElement,
+) -> gpui::Div {
+    // The registration control has a button row plus status/detail copy. Its
+    // Flutter AleraSettingRow is 16 px taller than the regular skill rows.
+    exact_settings_row_width_with_min_height(title, description, control_width, control, 85.0)
+}
+
+fn exact_settings_row_width_with_min_height(
+    title: &'static str,
+    description: impl Into<SharedString>,
+    control_width: f32,
+    control: impl IntoElement,
+    min_height: f32,
+) -> gpui::Div {
     let description = description.into();
     div()
         .flex()
@@ -147,7 +198,7 @@ fn exact_settings_row_width(
         // 16 px vertical padding plus the Flutter body text metrics settle at
         // roughly 69 px. Keeping the same floor prevents long settings groups
         // from drifting vertically after several rows.
-        .min_h(px(69.0))
+        .min_h(px(min_height))
         .p_4()
         .border_b_1()
         .border_color(theme::border_subtle())
@@ -226,33 +277,41 @@ fn update_settings_row(settings: &SettingsState, cx: &mut Context<AleraApp>) -> 
     };
     div()
         .flex()
-        .items_center()
-        .min_h(px(70.0))
+        .flex_col()
         .p_4()
         .border_b_1()
         .border_color(theme::border_subtle())
-        .child(icon(status_icon, 18.0, status_color))
+        // Flutter's update panel keeps the status copy in its own row and
+        // places the action Wrap below it. Keeping that vertical rhythm is
+        // important because this is the last tall group in Application
+        // Settings and determines the scroll range.
         .child(
             div()
-                .ml_3()
-                .flex_1()
+                .flex()
+                .items_start()
+                .child(icon(status_icon, 18.0, status_color))
                 .child(
                     div()
-                        .text_size(px(13.0))
-                        .font_weight(gpui::FontWeight::MEDIUM)
-                        .child(settings.update_status.clone()),
-                )
-                .child(
-                    div()
-                        .mt_1()
-                        .text_size(px(12.0))
-                        .text_color(theme::text_muted())
-                        .child(message),
+                        .ml_3()
+                        .flex_1()
+                        .child(
+                            div()
+                                .text_size(px(13.0))
+                                .font_weight(gpui::FontWeight::MEDIUM)
+                                .child(settings.update_status.clone()),
+                        )
+                        .child(
+                            div()
+                                .mt_1()
+                                .text_size(px(12.0))
+                                .text_color(theme::text_muted())
+                                .child(message),
+                        ),
                 ),
         )
         .child(
             div()
-                .w(px(220.0))
+                .mt_4()
                 .flex()
                 .justify_end()
                 .child(
@@ -268,15 +327,22 @@ fn update_settings_row(settings: &SettingsState, cx: &mut Context<AleraApp>) -> 
                         .border_1()
                         .border_color(theme::border())
                         .bg(theme::surface_selected())
-                        .cursor(CursorStyle::PointingHand)
-                        .hover(|style| style.bg(theme::surface_raised()))
-                        .on_mouse_down(
-                            MouseButton::Left,
-                            cx.listener(|this, _: &MouseDownEvent, _, cx| {
-                                this.check_for_updates(cx);
-                                cx.stop_propagation();
-                            }),
-                        )
+                        .cursor(if settings.update_busy {
+                            CursorStyle::Arrow
+                        } else {
+                            CursorStyle::PointingHand
+                        })
+                        .when(!settings.update_busy, |button| {
+                            button
+                                .hover(|style| style.bg(theme::surface_raised()))
+                                .on_mouse_down(
+                                    MouseButton::Left,
+                                    cx.listener(|this, _: &MouseDownEvent, _, cx| {
+                                        this.check_for_updates(cx);
+                                        cx.stop_propagation();
+                                    }),
+                                )
+                        })
                         .child(button_icon)
                         .child(button_label),
                 ),

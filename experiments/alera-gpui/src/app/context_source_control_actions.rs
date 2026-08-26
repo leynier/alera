@@ -130,7 +130,13 @@ impl AleraApp {
         let has_upstream = self.git_snapshot.upstream.is_some();
         let has_conflicts = self.git_snapshot.has_conflicts;
         let can_publish = !has_upstream && self.git_snapshot.branch != "HEAD";
-        let has_snapshot = self.git_snapshot_error.is_none();
+        // Flutter keeps every action disabled until the async provider has
+        // produced data. GPUI's default snapshot is empty and has no error,
+        // so checking only the error flag briefly enabled Fetch/Pull while a
+        // refresh was still in flight.
+        let has_snapshot = !self.git_busy
+            && !self.git_snapshot_loading
+            && self.git_snapshot_error.is_none();
         [
             (
                 SourceControlAction::Commit,
@@ -152,7 +158,7 @@ impl AleraApp {
                 has_snapshot
                     && has_staged
                     && !has_conflicts
-                    && !self.git_snapshot.history.is_empty(),
+                    && self.git_snapshot.head_message.is_some(),
                 false,
             ),
             (SourceControlAction::StageAll, has_snapshot && has_stageable, true),
@@ -250,9 +256,9 @@ impl AleraApp {
         let Some(workspace_path) = self.selected_source_control_path() else {
             return;
         };
-        self.local_generation += 1;
-        let generation = self.local_generation;
-        self.local_busy = true;
+        self.git_generation += 1;
+        let generation = self.git_generation;
+        self.git_busy = true;
         let service = self.workspace_service.clone();
         cx.spawn(async move |this, cx| {
             let result = match service
@@ -267,10 +273,10 @@ impl AleraApp {
                 return;
             };
             let _ = this.update(cx, |this, cx| {
-                if generation != this.local_generation {
+                if generation != this.git_generation {
                     return;
                 }
-                this.local_busy = false;
+                this.git_busy = false;
                 match result {
                     Ok(message) => {
                         this.local_message = Some(message.into());

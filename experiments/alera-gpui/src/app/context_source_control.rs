@@ -39,7 +39,7 @@ impl AleraApp {
         let all_collapsed = ["staged", "unstaged", "untracked"]
             .into_iter()
             .all(|area| self.source_control_collapsed_sections.contains(area));
-        let source_busy = self.local_busy || self.git_snapshot_loading;
+        let source_busy = self.git_busy || self.git_snapshot_loading;
         let primary_enabled = !source_busy && self.git_snapshot_error.is_none();
 
         div()
@@ -127,7 +127,7 @@ impl AleraApp {
                             ))
                             .child(self.source_toolbar_button(
                                 "source-refresh",
-                                if self.local_busy {
+                                if self.git_busy {
                                     AleraIcon::Loading
                                 } else {
                                     AleraIcon::GitRefresh
@@ -202,6 +202,12 @@ impl AleraApp {
                                     .items_center()
                                     .justify_center()
                                     .gap(px(6.0))
+                                    // Keep the hover fill clipped to the
+                                    // outer radius even when GPUI paints the
+                                    // child background after the split
+                                    // button's overflow pass.
+                                    .rounded_tl(px(8.0))
+                                    .rounded_bl(px(8.0))
                                     .cursor(if primary_enabled {
                                         CursorStyle::PointingHand
                                     } else {
@@ -235,6 +241,8 @@ impl AleraApp {
                                     .justify_center()
                                     .w(px(34.0))
                                     .h_full()
+                                    .rounded_tr(px(8.0))
+                                    .rounded_br(px(8.0))
                                     .cursor(if source_busy {
                                         CursorStyle::Arrow
                                     } else {
@@ -303,10 +311,9 @@ impl AleraApp {
                             content
                                 .items_center()
                                 .justify_center()
-                                .gap_2()
+                                .p_4()
                                 .text_sm()
                                 .text_color(theme::text_muted())
-                                .child(icon(AleraIcon::Error, 15.0, theme::text_muted()))
                                 .child(
                                     self.git_snapshot_error
                                         .as_ref()
@@ -513,13 +520,13 @@ impl AleraApp {
                 .iter()
                 .any(|change| change.area.eq_ignore_ascii_case("staged"));
             return self.settings_state.ai_text_enabled
-                && !self.local_busy
+                && !self.git_busy
                 && !self.git_snapshot_loading
                 && self.git_snapshot_error.is_none()
                 && !self.git_snapshot.has_conflicts
                 && has_staged_changes;
         }
-        !(self.local_busy || self.git_snapshot_loading)
+        !(self.git_busy || self.git_snapshot_loading)
     }
 }
 

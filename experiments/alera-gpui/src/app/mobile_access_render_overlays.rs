@@ -427,11 +427,16 @@ impl AleraApp {
         confirm_label: &'static str,
         cx: &mut Context<Self>,
     ) -> AnyElement {
-        mobile_dialog(440.0)
-            .child(mobile_dialog_header(title, cx))
+        design_system::dialog_shell(420.0)
             .child(
                 div()
-                    .mt_4()
+                    .text_size(px(14.0))
+                    .font_weight(gpui::FontWeight::MEDIUM)
+                    .child(title.into()),
+            )
+            .child(
+                div()
+                    .mt_3()
                     .text_size(px(13.0))
                     .text_color(theme::text_muted())
                     .child(message),
@@ -439,16 +444,17 @@ impl AleraApp {
             .child(
                 div()
                     .flex()
-                    .justify_end()
+                    .w_full()
                     .gap_2()
                     .mt_5()
                     .child(
-                        mobile_dialog_button(
+                        design_system::button(
                             "mobile-confirm-cancel",
-                            AleraIcon::Close,
                             "Cancel",
+                            design_system::ButtonKind::Text,
                             false,
                         )
+                        .flex_1()
                         .on_mouse_down(
                             MouseButton::Left,
                             cx.listener(|this, _, _, cx| {
@@ -457,12 +463,13 @@ impl AleraApp {
                         ),
                     )
                     .child(
-                        mobile_dialog_button(
+                        design_system::button(
                             "mobile-confirm-action",
-                            AleraIcon::Delete,
                             confirm_label,
-                            true,
+                            design_system::ButtonKind::Destructive,
+                            false,
                         )
+                        .flex_1()
                         .on_mouse_down(
                             MouseButton::Left,
                             cx.listener(|this, _, window, cx| {

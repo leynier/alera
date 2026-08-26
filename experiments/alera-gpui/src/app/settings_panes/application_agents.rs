@@ -345,11 +345,11 @@ fn agents_pane(
     let cli_registration_blocked = cli_registration.is_some_and(|status| status.blocks_install());
     div()
         .child(
-            exact_settings_group(
+            agent_settings_group(
                 "Alera CLI And Skills",
                 "Register The CLI Command And Install Agent Instructions.",
                 vec![
-                exact_settings_row_width(
+                agent_registration_row_width(
                     "Alera CLI Command",
                     "Register The Alera Command On PATH For Terminals And Agents.",
                     360.0,
@@ -432,6 +432,10 @@ fn agents_pane(
                                             }),
                                     ),
                             )
+                            // The Flutter registration control keeps a
+                            // little more breathing room below its status
+                            // detail than the compact GPUI text stack.
+                            .child(div().h(px(13.0)))
                         }),
                 ),
                 exact_settings_row_width(

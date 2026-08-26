@@ -4,11 +4,12 @@ use std::time::Duration;
 
 use gpui::{
     div, prelude::FluentBuilder as _, AnyElement, AppContext as _, Context, CursorStyle,
-    DragMoveEvent, Image, ImageFormat, InteractiveElement as _, IntoElement, MouseButton,
+    DragMoveEvent, Entity, Image, ImageFormat, InteractiveElement as _, IntoElement, MouseButton,
     MouseDownEvent, MouseUpEvent, ParentElement as _, Render, SharedString,
     StatefulInteractiveElement as _, Styled as _, Timer, Window,
 };
 use gpui_component::scroll::{Scrollbar, ScrollbarShow};
+use gpui_component::input::{InputEvent, InputState};
 use regex::Regex;
 use serde_json::Value;
 
@@ -30,6 +31,11 @@ pub(super) struct ExplorerRow {
 struct DraggedExplorerFeedback {
     name: String,
     is_directory: bool,
+    is_symlink: bool,
+    depth: usize,
+    expanded: bool,
+    git_status: Option<String>,
+    source_control_root: bool,
 }
 
 impl Render for DraggedExplorerFeedback {
@@ -39,30 +45,59 @@ impl Render for DraggedExplorerFeedback {
             .flex()
             .items_center()
             .h(gpui::px(32.0))
-            .w(gpui::px(220.0))
-            .px_2()
-            .gap_2()
-            .rounded_md()
-            .border_1()
-            .border_color(theme::border())
-            .bg(theme::surface_raised())
-            .shadow_lg()
-            .text_sm()
+            .w(gpui::px(300.0))
+            .pr_2()
+            .text_size(gpui::px(12.0))
+            .child(
+                div()
+                    .flex()
+                    .items_center()
+                    .justify_center()
+                    .w(gpui::px(24.0 + self.depth as f32 * 16.0))
+                    .h(gpui::px(24.0))
+                    .when(self.is_directory, |expander| {
+                        expander.child(icon(
+                            if self.expanded {
+                                AleraIcon::ChevronDown
+                            } else {
+                                AleraIcon::ChevronRight
+                            },
+                            16.0,
+                            theme::text_muted(),
+                        ))
+                    }),
+            )
             .child(file_icon(
                 &self.name,
                 self.is_directory,
-                false,
-                false,
+                self.expanded,
+                self.is_symlink,
                 15.0,
-                theme::text(),
+                theme::text_muted(),
             ))
             .child(
                 div()
+                    .ml(gpui::px(6.0))
                     .flex_1()
                     .overflow_hidden()
                     .text_ellipsis()
                     .child(self.name.clone()),
             )
+            .when_some(self.git_status.clone(), |item, status| {
+                let color = if matches!(status.as_str(), "U" | "A") {
+                    theme::success()
+                } else {
+                    theme::warning()
+                };
+                item.child(div().ml_2().text_xs().text_color(color).child(status))
+            })
+            .when(self.source_control_root, |item| {
+                item.child(
+                    div()
+                        .ml_2()
+                        .child(icon(AleraIcon::GitBranch, 14.0, theme::text_muted())),
+                )
+            })
     }
 }
 
@@ -101,6 +136,56 @@ fn push_editor_tab_path(candidates: &mut Vec<String>, tab: &WorkspaceTab) {
 }
 
 impl AleraApp {
+    pub(super) fn editor_input_for_path(&self, path: &str) -> Entity<InputState> {
+        self.editor_inputs
+            .get(path)
+            .cloned()
+            .unwrap_or_else(|| self.editor_input.clone())
+    }
+
+    fn ensure_editor_input(
+        &mut self,
+        path: &str,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) -> Entity<InputState> {
+        if let Some(input) = self.editor_inputs.get(path) {
+            return input.clone();
+        }
+        let input = if self.editor_inputs.is_empty() {
+            self.editor_input.clone()
+        } else {
+            cx.new(|cx| {
+                InputState::new(window, cx)
+                    .code_editor("text")
+                    .soft_wrap(true)
+            })
+        };
+        if !self.editor_inputs.is_empty() {
+            let path = path.to_owned();
+            self._subscriptions.push(cx.subscribe_in(
+                &input,
+                window,
+                move |this, input, event: &InputEvent, _, cx| {
+                    if !matches!(event, InputEvent::Change)
+                        || this.editor_input_syncing
+                        || this.editor_document.is_none()
+                        || this.opened_file_path.as_deref() != Some(path.as_str())
+                    {
+                        return;
+                    }
+                    this.editor_buffer_text
+                        .insert(path.clone(), input.read(cx).value().to_string());
+                    this.editor_dirty_paths.insert(path.clone());
+                    this.editor_dirty = true;
+                    cx.notify();
+                },
+            ));
+        }
+        self.editor_inputs.insert(path.to_owned(), input.clone());
+        input
+    }
+
     pub(super) fn refresh_local_activity(&mut self, cx: &mut Context<Self>) {
         match self.context_panel {
             ContextPanel::Explorer => self.load_root_directory(cx),
@@ -129,7 +214,7 @@ impl AleraApp {
                     {
                         return false;
                     }
-                    if !this.local_busy {
+                    if !this.explorer_busy {
                         this.load_root_directory(cx);
                     }
                     true
@@ -142,12 +227,21 @@ impl AleraApp {
         .detach();
     }
 
-    pub(super) fn reset_local_workspace(&mut self, cx: &mut Context<Self>) {
-        self.local_generation += 1;
+    pub(super) fn reset_local_workspace(&mut self, _cx: &mut Context<Self>) {
+        self.search_generation += 1;
+        self.git_generation += 1;
+        self.explorer_generation += 1;
+        self.editor_generation += 1;
+        self.search_busy = false;
+        self.search_replacing = false;
+        self.git_busy = false;
+        self.explorer_busy = false;
+        self.editor_busy = false;
         self.explorer_watch_generation = self.explorer_watch_generation.wrapping_add(1);
         self.explorer_scroll_handle
             .set_offset(gpui::point(gpui::px(0.0), gpui::px(0.0)));
         self.explorer_rows.clear();
+        self.explorer_loaded_workspace_id = None;
         self.explorer_expanded_paths.clear();
         self.explorer_menu = None;
         self.explorer_selected_path = None;
@@ -156,8 +250,13 @@ impl AleraApp {
         self.explorer_create_directory = None;
         self.explorer_rename_path = None;
         self.explorer_delete_path = None;
+        self.terminal_scrollbar_drag = None;
+        self.terminal_scrollbar_last_activity.clear();
         self.editor_document = None;
+        self.editor_inputs.clear();
         self.editor_documents.clear();
+        self.editor_load_error_paths.clear();
+        self.editor_error_messages.clear();
         self.editor_buffer_text.clear();
         self.editor_dirty_paths.clear();
         self.editor_cursor_positions.clear();
@@ -192,7 +291,12 @@ impl AleraApp {
         self.forge_expanded_checks.clear();
         self.forge_collapsed_check_groups.clear();
         self.local_message = None;
-        self.refresh_local_activity(cx);
+        // Toasts are scoped to the workspace interaction that produced them.
+        // Do not carry a stale filesystem error into the next workspace while
+        // its contextual surface is being rehydrated.
+        self.local_message_started_at = None;
+        self.local_message_timer_message = None;
+        self.toast_entries.clear();
     }
 
     pub(super) fn selected_workspace_path(&self) -> Option<String> {
@@ -206,10 +310,13 @@ impl AleraApp {
         let Some(workspace_path) = self.selected_workspace_path() else {
             return;
         };
+        let Some(workspace_id) = self.selected_workspace_id.clone() else {
+            return;
+        };
         let explorer_scroll_offset = self.explorer_scroll_handle.offset();
-        self.local_generation += 1;
-        let generation = self.local_generation;
-        self.local_busy = true;
+        self.explorer_generation += 1;
+        let generation = self.explorer_generation;
+        self.explorer_busy = true;
         self.local_message = None;
         let service = self.workspace_service.clone();
         let hide_ignored = self.explorer_hide_ignored;
@@ -237,11 +344,14 @@ impl AleraApp {
             };
             let root_applied = this
                 .update(cx, |this, cx| {
-                    if generation != this.local_generation {
+                    if generation != this.explorer_generation {
                         return false;
                     }
                     match result {
                         Ok(entries) => {
+                            this.explorer_loaded_workspace_id = Some(workspace_id.clone());
+                            this.toast_entries
+                                .retain(|(message, _)| !is_workspace_file_error(message));
                             this.explorer_git_status = explorer_git_status.clone();
                             this.explorer_rows =
                                 apply_explorer_git_status(entries, &this.explorer_git_status)
@@ -259,6 +369,7 @@ impl AleraApp {
                             // root refresh failure instead of leaving stale
                             // rows visible behind the error state.
                             this.explorer_rows.clear();
+                            this.explorer_loaded_workspace_id = Some(workspace_id.clone());
                             this.explorer_git_status = ExplorerGitStatusSnapshot::default();
                             this.explorer_expanded_paths.clear();
                             this.local_message = Some(error.into());
@@ -275,7 +386,7 @@ impl AleraApp {
             for relative_path in expanded_paths {
                 let should_restore = this
                     .update(cx, |this, _| {
-                        generation == this.local_generation
+                        generation == this.explorer_generation
                             && this.explorer_rows.iter().any(|row| {
                                 row.entry.relative_path == relative_path && row.entry.is_directory
                             })
@@ -292,7 +403,7 @@ impl AleraApp {
                 };
                 let applied = this
                     .update(cx, |this, cx| {
-                        if generation != this.local_generation {
+                        if generation != this.explorer_generation {
                             return false;
                         }
                         match result {
@@ -341,10 +452,10 @@ impl AleraApp {
                 return;
             };
             let _ = this.update(cx, |this, cx| {
-                if generation != this.local_generation {
+                if generation != this.explorer_generation {
                     return;
                 }
-                this.local_busy = false;
+                this.explorer_busy = false;
                 // File watchers refresh the rows every few seconds. Keep the
                 // user's viewport stable across that rebuild; switching the
                 // workspace explicitly resets it in `reset_local_workspace`.
@@ -366,7 +477,7 @@ impl AleraApp {
         };
         let depth = self.explorer_rows[index].depth;
         if self.explorer_rows[index].expanded {
-            self.local_generation += 1;
+            self.explorer_generation += 1;
             self.explorer_expanded_paths.remove(&relative_path);
             self.explorer_rows[index].expanded = false;
             let end = self.explorer_rows[index + 1..]
@@ -382,9 +493,9 @@ impl AleraApp {
         let Some(workspace_path) = self.selected_workspace_path() else {
             return;
         };
-        self.local_generation += 1;
-        let generation = self.local_generation;
-        self.local_busy = true;
+        self.explorer_generation += 1;
+        let generation = self.explorer_generation;
+        self.explorer_busy = true;
         let service = self.workspace_service.clone();
         let hide_ignored = self.explorer_hide_ignored;
         cx.spawn(async move |this, cx| {
@@ -395,10 +506,10 @@ impl AleraApp {
                 return;
             };
             let _ = this.update(cx, |this, cx| {
-                if generation != this.local_generation {
+                if generation != this.explorer_generation {
                     return;
                 }
-                this.local_busy = false;
+                this.explorer_busy = false;
                 match result {
                     Ok(entries) => {
                         let Some(index) = this
@@ -431,7 +542,7 @@ impl AleraApp {
     }
 
     pub(super) fn collapse_all_explorer_directories(&mut self, cx: &mut Context<Self>) {
-        self.local_generation += 1;
+        self.explorer_generation += 1;
         self.explorer_expanded_paths.clear();
         self.explorer_rows.retain(|row| row.depth == 0);
         for row in &mut self.explorer_rows {
@@ -461,7 +572,21 @@ impl AleraApp {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        if self.editor_loading_path.is_some() {
+        let selected_file_path = self
+            .selected_tab_id
+            .as_ref()
+            .and_then(|selected| self.snapshot.tabs.iter().find(|tab| &tab.id == selected))
+            .and_then(|tab| tab.payload.get("filePath"))
+            .and_then(Value::as_str);
+        if self
+            .editor_loading_path
+            .as_deref()
+            .is_some_and(|loading| Some(loading) == selected_file_path)
+        {
+            // Keep the current request alive while the selected tab still
+            // points at the same path. A different tab must be allowed to
+            // supersede it; load_workspace_file bumps editor_generation and
+            // safely discards the old response.
             return;
         }
         let selected_tab = self
@@ -503,6 +628,11 @@ impl AleraApp {
                 .and_then(|tab| tab.payload.get("filePath"))
                 .and_then(serde_json::Value::as_str)
                 == Some(path.as_str());
+            // A failed read must not be retried on every render. Keep the
+            // error visible until an explicit tab activation/open retries it.
+            if self.editor_load_error_paths.contains(&path) {
+                continue;
+            }
             if is_selected && self.opened_file_path.as_deref() != Some(path.as_str()) {
                 self.load_workspace_file(path, window, cx);
                 return;
@@ -525,9 +655,11 @@ impl AleraApp {
         let Some(workspace_path) = self.selected_workspace_path() else {
             return;
         };
-        self.local_generation += 1;
-        let generation = self.local_generation;
-        self.local_busy = true;
+        self.editor_load_error_paths.remove(&relative_path);
+        self.editor_error_messages.remove(&relative_path);
+        self.editor_generation += 1;
+        let generation = self.editor_generation;
+        self.editor_busy = true;
         self.editor_loading_path = Some(relative_path.clone());
         // Flutter keeps file-opening feedback inside the editor/image loading
         // surface. Do not leak an `Opening ...` global toast over a different
@@ -577,14 +709,18 @@ impl AleraApp {
                 return;
             };
             let _ = this.update_in(cx, |this, window, cx| {
-                if generation != this.local_generation {
+                if generation != this.editor_generation {
                     return;
                 }
-                this.local_busy = false;
+                this.editor_busy = false;
                 match result {
-                    Ok(OpenFileResult::Text { document, preview }) => {
-                        let language = language_for_path(&document.relative_path);
-                        let cached_path = document.relative_path.clone();
+                        Ok(OpenFileResult::Text { document, preview }) => {
+                            let language = language_for_path(&document.relative_path);
+                            let cached_path = document.relative_path.clone();
+                            this.editor_load_error_paths.remove(&cached_path);
+                            this.editor_error_messages.remove(&cached_path);
+                        let editor_input =
+                            this.ensure_editor_input(&cached_path, window, cx);
                         let display_content = this
                             .editor_buffer_text
                             .get(&cached_path)
@@ -599,7 +735,7 @@ impl AleraApp {
                             this.editor_preview_assets.remove(&cached_path);
                         }
                         this.editor_input_syncing = true;
-                        this.editor_input.update(cx, |input, cx| {
+                        editor_input.update(cx, |input, cx| {
                             input.set_highlighter(language, cx);
                             input.set_value(display_content, window, cx);
                             if let Some((_, line, column, _)) = this
@@ -638,7 +774,7 @@ impl AleraApp {
                                 .map_or(0, |(_, _, _, length)| length);
                             let select_right = gpui::Keystroke::parse("shift-right")
                                 .expect("shift-right must be a valid GPUI keystroke");
-                            let editor_input = this.editor_input.clone();
+                            let editor_input = editor_input.clone();
                             window.on_next_frame(move |window, cx| {
                                 editor_input.update(cx, |input, cx| input.focus(window, cx));
                                 // The input needs one paint cycle to become the focused
@@ -669,15 +805,10 @@ impl AleraApp {
                                 .and_then(|selected| {
                                     this.snapshot.tabs.iter().find(|tab| &tab.id == selected)
                                 })
-                                .is_some_and(|tab| {
-                                    tab.kind == "editor"
-                                        && tab.payload.get("fileRole").and_then(Value::as_str)
-                                            == Some("mermanPreview")
-                                })
-                            || this.snapshot.tabs.iter().any(|tab| {
-                                tab.kind == "markdownViewer"
-                                    && tab.payload.get("filePath").and_then(Value::as_str)
-                                        == Some(loaded_relative_path.as_str())
+                            .is_some_and(|tab| {
+                                tab.kind == "editor"
+                                    && tab.payload.get("fileRole").and_then(Value::as_str)
+                                        == Some("mermanPreview")
                             });
                         this.preview_asset = preview;
                         this.editor_dirty = this.editor_dirty_paths.contains(&loaded_relative_path);
@@ -688,6 +819,8 @@ impl AleraApp {
                         relative_path,
                         image,
                     }) => {
+                        this.editor_load_error_paths.remove(&relative_path);
+                        this.editor_error_messages.remove(&relative_path);
                         this.editor_loading_path = None;
                         this.editor_buffer_text.remove(&relative_path);
                         this.editor_dirty_paths.remove(&relative_path);
@@ -702,13 +835,17 @@ impl AleraApp {
                         this.local_message = None;
                     }
                     Err(error) => {
-                        this.editor_loading_path = Some(requested_path);
-                        let message = if is_image_extension(&extension) {
+                        this.editor_load_error_paths.insert(requested_path.clone());
+                        this.editor_loading_path = None;
+                        let message: SharedString = if is_image_extension(&extension) {
                             image_preview_error_message(&error)
                         } else {
                             editor_file_error_message(&error)
-                        };
-                        this.local_message = Some(message.into());
+                        }
+                        .into();
+                        this.editor_error_messages
+                            .insert(requested_path.clone(), message.clone());
+                        this.local_message = Some(message);
                     }
                 }
                 cx.notify();
@@ -724,10 +861,11 @@ impl AleraApp {
         let Some(document) = self.editor_document.clone() else {
             return;
         };
-        let display_content = self.editor_input.read(cx).value().to_string();
-        self.local_generation += 1;
-        let generation = self.local_generation;
-        self.local_busy = true;
+        let editor_input = self.editor_input_for_path(&document.relative_path);
+        let display_content = editor_input.read(cx).value().to_string();
+        self.editor_generation += 1;
+        let generation = self.editor_generation;
+        self.editor_busy = true;
         let service = self.workspace_service.clone();
         cx.spawn(async move |this, cx| {
             let result = service
@@ -737,10 +875,10 @@ impl AleraApp {
                 return;
             };
             let _ = this.update(cx, |this, cx| {
-                if generation != this.local_generation {
+                if generation != this.editor_generation {
                     return;
                 }
-                this.local_busy = false;
+                this.editor_busy = false;
                 match result {
                     Ok(document) => {
                         let path = document.relative_path.clone();
@@ -797,6 +935,11 @@ impl AleraApp {
                     relative_path: path.clone(),
                     name: name.clone(),
                     is_directory,
+                    is_symlink,
+                    depth: row.depth,
+                    expanded,
+                    git_status: status.clone(),
+                    source_control_root,
                 };
                 let drop_target = self.explorer_drop_target.as_deref() == Some(path.as_str());
                 let mut item = div()
@@ -851,6 +994,11 @@ impl AleraApp {
                         cx.new(|_| DraggedExplorerFeedback {
                             name: drag.name.clone(),
                             is_directory: drag.is_directory,
+                            is_symlink: drag.is_symlink,
+                            depth: drag.depth,
+                            expanded: drag.expanded,
+                            git_status: drag.git_status.clone(),
+                            source_control_root: drag.source_control_root,
                         })
                     })
                     .child(
@@ -952,7 +1100,7 @@ impl AleraApp {
                 item
             })
             .collect::<Vec<_>>();
-        let empty_state = if self.local_busy && rows.is_empty() {
+        let empty_state = if self.explorer_busy && rows.is_empty() {
             Some(
                 div()
                     .absolute()
@@ -972,23 +1120,12 @@ impl AleraApp {
                     )
                     .into_any_element(),
             )
-        } else if rows.is_empty() {
-            self.local_message.as_ref().map(|message| {
-                div()
-                    .absolute()
-                    .inset_0()
-                    .flex()
-                    .flex_col()
-                    .items_center()
-                    .justify_center()
-                    .gap_2()
-                    .text_sm()
-                    .text_color(theme::text_muted())
-                    .child(icon(AleraIcon::Error, 24.0, theme::danger()))
-                    .child(message.clone())
-                    .into_any_element()
-            })
         } else {
+            // Flutter leaves a successfully empty tree, and also leaves the
+            // tree blank after a root read fails while the normalized error is
+            // shown by the global toast. Rendering a second centered error
+            // card here diverges from that contract and exposes filesystem
+            // details in the panel.
             None
         };
 
@@ -1229,6 +1366,22 @@ fn image_preview_error_message(error: &str) -> String {
     } else {
         "Image cannot be opened".to_owned()
     }
+}
+
+fn is_workspace_file_error(message: &str) -> bool {
+    matches!(
+        message.trim().to_ascii_lowercase().as_str(),
+        "file not found"
+            | "file operation failed"
+            | "file is outside the workspace"
+            | "file cannot be edited"
+            | "item not found"
+            | "item already exists"
+            | "path is protected"
+            | "path is outside the workspace"
+            | "operation is unsupported"
+            | "file changed on disk"
+    )
 }
 
 fn editor_file_error_message(error: &str) -> String {

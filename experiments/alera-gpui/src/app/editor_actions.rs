@@ -13,14 +13,15 @@ pub(super) fn is_editor_conflict(error: &str) -> bool {
 
 impl AleraApp {
     pub(super) fn discard_editor_changes(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        if self.local_busy {
+        if self.editor_busy {
             return;
         }
         let Some(document) = self.editor_document.clone() else {
             return;
         };
+        let editor_input = self.editor_input_for_path(&document.relative_path);
         self.editor_input_syncing = true;
-        self.editor_input.update(cx, |input, cx| {
+        editor_input.update(cx, |input, cx| {
             input.set_value(document.display_content.clone(), window, cx);
         });
         self.editor_input_syncing = false;
@@ -86,7 +87,7 @@ impl AleraApp {
     }
 
     pub(super) fn confirm_editor_overwrite(&mut self, cx: &mut Context<Self>) {
-        if self.local_busy {
+        if self.editor_busy {
             return;
         }
         self.editor_conflict = false;

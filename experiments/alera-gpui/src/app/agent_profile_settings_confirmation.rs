@@ -38,8 +38,8 @@ impl AleraApp {
                     .shadow_lg()
                     .child(
                         div()
-                            .text_size(px(16.0))
-                            .font_weight(gpui::FontWeight::SEMIBOLD)
+                            .text_size(px(14.0))
+                            .font_weight(gpui::FontWeight::MEDIUM)
                             .child("Confirm Reduced Protections"),
                     )
                     .child(
@@ -92,21 +92,15 @@ fn confirmation_button(
         .flex()
         .items_center()
         .justify_center()
-        .h(px(36.0))
+        .h(px(34.0))
         .rounded_lg()
-        .border_1()
-        .border_color(if destructive {
-            theme::danger()
-        } else {
-            theme::border()
-        })
         .bg(if destructive {
             theme::danger()
         } else {
             theme::transparent()
         })
         .text_color(if destructive {
-            theme::on_accent()
+            theme::on_danger()
         } else {
             theme::text()
         })

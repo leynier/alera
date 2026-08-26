@@ -51,6 +51,9 @@ impl AleraApp {
 
     pub(super) fn search_workspace(&mut self, cx: &mut Context<Self>) {
         let Some(options) = self.current_search_options(cx) else {
+            self.search_generation += 1;
+            self.search_busy = false;
+            self.search_replacing = false;
             self.search_results = Default::default();
             self.search_error = None;
             self.search_error_is_query_failure = false;
@@ -58,9 +61,10 @@ impl AleraApp {
             cx.notify();
             return;
         };
-        self.local_generation += 1;
-        let generation = self.local_generation;
-        self.local_busy = true;
+        self.search_generation += 1;
+        let generation = self.search_generation;
+        self.search_busy = true;
+        self.search_replacing = false;
         self.search_error = None;
         self.search_error_is_query_failure = false;
         self.replace_confirmation = None;
@@ -79,10 +83,11 @@ impl AleraApp {
                 return;
             };
             let _ = this.update(cx, |this, cx| {
-                if generation != this.local_generation {
+                if generation != this.search_generation {
                     return;
                 }
-                this.local_busy = false;
+                this.search_busy = false;
+                this.search_replacing = false;
                 match result {
                     Ok(results) => {
                         this.search_collapsed_result_paths.clear();
@@ -175,9 +180,10 @@ impl AleraApp {
             })
             .map(|file| (file.relative_path.clone(), file.content_token.clone()))
             .collect::<Vec<_>>();
-        self.local_generation += 1;
-        let generation = self.local_generation;
-        self.local_busy = true;
+        self.search_generation += 1;
+        let generation = self.search_generation;
+        self.search_busy = true;
+        self.search_replacing = true;
         let service = self.workspace_service.clone();
         let preserve_case = self.search_preserve_case;
         cx.spawn(async move |this, cx| {
@@ -200,10 +206,11 @@ impl AleraApp {
                 return;
             };
             let _ = this.update(cx, |this, cx| {
-                if generation != this.local_generation {
+                if generation != this.search_generation {
                     return;
                 }
-                this.local_busy = false;
+                this.search_busy = false;
+                this.search_replacing = false;
                 this.replace_confirmation = None;
                 match result {
                     Ok(summary) => {
@@ -243,6 +250,7 @@ impl AleraApp {
             input.update(cx, |input, cx| input.set_value("", window, cx));
         }
         self.search_results = Default::default();
+        self.search_replacing = false;
         self.search_error = None;
         self.search_error_is_query_failure = false;
         self.search_collapsed_result_paths.clear();
@@ -281,7 +289,7 @@ impl AleraApp {
             || !self.search_include_input.read(cx).value().is_empty()
             || !self.search_exclude_input.read(cx).value().is_empty()
             || has_results
-            || self.local_busy;
+            || self.search_busy;
         let collapsible_keys = super::search_surface_rows::search_collapsible_keys(
             &self.search_results.files,
             self.search_view_as_tree,
@@ -306,7 +314,7 @@ impl AleraApp {
                 cx,
             ))
             .child(self.render_search_inputs(cx))
-            .when(has_query || self.local_busy || has_results, |panel| {
+            .when(has_query || self.search_busy || has_results, |panel| {
                 panel.child(div().flex_shrink_0().h(px(16.0))).child(
                     div()
                         .flex()
@@ -317,11 +325,36 @@ impl AleraApp {
                         .pb_2()
                         .text_size(px(12.0))
                         .text_color(theme::text_muted())
-                        .when(self.local_busy, |row| {
+                        .when(self.search_busy && !self.search_replacing, |row| {
                             row.child(loading_indicator(13.0, theme::text_muted()))
                         })
-                        .child(if self.local_busy {
-                            SharedString::from("Searching...")
+                        .child(if self.search_busy {
+                            if self.search_replacing {
+                                let match_word = if self.search_results.total_matches == 1 {
+                                    "match"
+                                } else {
+                                    "matches"
+                                };
+                                let file_word = if self.search_results.files.len() == 1 {
+                                    "file"
+                                } else {
+                                    "files"
+                                };
+                                SharedString::from(format!(
+                                    "{} {} in {} {}{}",
+                                    self.search_results.total_matches,
+                                    match_word,
+                                    self.search_results.files.len(),
+                                    file_word,
+                                    if self.search_results.truncated {
+                                        " shown"
+                                    } else {
+                                        ""
+                                    }
+                                ))
+                            } else {
+                                SharedString::from("Searching...")
+                            }
                         } else if self.search_error_is_query_failure {
                             // Flutter keeps the summary row neutral when the query cannot be
                             // parsed, instead of exposing a misleading zero-match count.
@@ -349,6 +382,10 @@ impl AleraApp {
                                     ""
                                 }
                             ))
+                        })
+                        .when(self.search_replacing, |row| {
+                            row.child(div().flex_1())
+                                .child(loading_indicator(16.0, theme::text_muted()))
                         }),
                 )
             })
@@ -430,7 +467,7 @@ impl AleraApp {
                         } else {
                             cx.notify();
                         }
-                    }),
+                        }),
                 ),
             )
             .child(toolbar_gap())
@@ -492,17 +529,17 @@ impl AleraApp {
             .child(
                 design_system::icon_button(
                     "refresh-search",
-                    if self.local_busy {
+                    if self.search_busy {
                         AleraIcon::Loading
                     } else {
                         AleraIcon::Refresh
                     },
-                    has_query && !self.local_busy,
+                    has_query && !self.search_busy,
                     24.0,
                     None,
                     None,
                 )
-                .when(has_query && !self.local_busy, |button| {
+                .when(has_query && !self.search_busy, |button| {
                     button.on_mouse_down(
                         MouseButton::Left,
                         cx.listener(|this, _, _, cx| this.search_workspace(cx)),
@@ -612,7 +649,7 @@ impl AleraApp {
                             )
                             .when(self.search_replace_expanded, |inputs| {
                                 let can_replace = self.search_results.total_matches > 0
-                                    && !self.local_busy
+                                    && !self.search_busy
                                     && !self.search_results.truncated;
                                 inputs.child(div().h(px(4.0))).child(
                                     design_system::dense_text_field(&self.replace_input, None)

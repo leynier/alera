@@ -233,8 +233,8 @@ impl AleraApp {
                     })
                     .child(
                         div()
-                            .text_size(px(16.0))
-                            .font_weight(gpui::FontWeight::SEMIBOLD)
+                            .text_size(px(14.0))
+                            .font_weight(gpui::FontWeight::MEDIUM)
                             .child(title),
                     )
                     .child(
@@ -301,7 +301,7 @@ fn confirmation_button(
         } else if primary {
             theme::accent()
         } else {
-            theme::surface_raised()
+            theme::transparent()
         })
         .text_color(if destructive {
             theme::on_danger()

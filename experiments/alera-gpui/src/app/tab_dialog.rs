@@ -24,25 +24,31 @@ impl AleraApp {
                 design_system::dialog_shell(420.0)
                     .child(
                         div()
-                            .text_lg()
-                            .font_weight(gpui::FontWeight::SEMIBOLD)
+                            .text_size(px(14.0))
+                            .font_weight(gpui::FontWeight::MEDIUM)
                             .child("File changed on disk"),
                     )
                     .child(
                         div()
-                            .mt_2()
-                            .text_sm()
+                            .mt_3()
+                            .text_size(px(13.0))
                             .text_color(theme::text_muted())
                             .child("Overwrite the file with the editor contents?"),
                     )
                     .child(
                         div()
-                            .mt_4()
+                            .mt_5()
                             .flex()
-                            .justify_end()
+                            .w_full()
                             .gap_2()
                             .child(
-                                dialog_action("cancel-editor-conflict", "Cancel", false)
+                                design_system::button(
+                                    "cancel-editor-conflict",
+                                    "Cancel",
+                                    ButtonKind::Text,
+                                    false,
+                                )
+                                    .flex_1()
                                     .on_mouse_down(
                                         MouseButton::Left,
                                         cx.listener(|this, _, _, cx| {
@@ -51,7 +57,13 @@ impl AleraApp {
                                     ),
                             )
                             .child(
-                                dialog_action("overwrite-editor-conflict", "Overwrite", true)
+                                design_system::button(
+                                    "overwrite-editor-conflict",
+                                    "Overwrite",
+                                    ButtonKind::Destructive,
+                                    false,
+                                )
+                                    .flex_1()
                                     .on_mouse_down(
                                         MouseButton::Left,
                                         cx.listener(|this, _, _, cx| {

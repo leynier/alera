@@ -71,8 +71,10 @@ impl AleraApp {
         cx: &mut Context<Self>,
     ) {
         self.settings_pane = pane;
-        self.settings_scroll_handle
-            .set_offset(gpui::point(px(0.0), px(0.0)));
+        // Flutter reuses the SettingsContent/ListView state when the active
+        // section changes, so its pixel offset carries across panes. Keep the
+        // shared GPUI handle intact; search group anchors can still move it
+        // explicitly on the following frame.
         if pane != SettingsPane::Keyboard {
             self.keyboard_settings.recording_id = None;
             self.keyboard_settings.conflict = None;

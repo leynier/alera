@@ -42,9 +42,9 @@ impl AleraApp {
         let Some(workspace_path) = self.selected_source_control_path() else {
             return;
         };
-        self.local_generation += 1;
-        let generation = self.local_generation;
-        self.local_busy = true;
+        self.git_generation += 1;
+        let generation = self.git_generation;
+        self.git_busy = true;
         self.git_snapshot_loading = true;
         self.git_snapshot_error = None;
         let service = self.workspace_service.clone();
@@ -54,10 +54,10 @@ impl AleraApp {
                 return;
             };
             let _ = this.update(cx, |this, cx| {
-                if generation != this.local_generation {
+                if generation != this.git_generation {
                     return;
                 }
-                this.local_busy = false;
+                this.git_busy = false;
                 this.git_snapshot_loading = false;
                 match result {
                     Ok(snapshot) => {
@@ -81,9 +81,9 @@ impl AleraApp {
         let Some(workspace_path) = self.selected_source_control_path() else {
             return;
         };
-        self.local_generation += 1;
-        let generation = self.local_generation;
-        self.local_busy = true;
+        self.git_generation += 1;
+        let generation = self.git_generation;
+        self.git_busy = true;
         self.git_discard_armed = false;
         self.git_discard_path_armed = None;
         let service = self.workspace_service.clone();
@@ -98,10 +98,10 @@ impl AleraApp {
                 return;
             };
             let _ = this.update(cx, |this, cx| {
-                if generation != this.local_generation {
+                if generation != this.git_generation {
                     return;
                 }
-                this.local_busy = false;
+                this.git_busy = false;
                 match result {
                     Ok(message) => {
                         this.local_message = Some(message.into());
@@ -124,9 +124,9 @@ impl AleraApp {
         let Some(workspace_path) = self.selected_source_control_path() else {
             return;
         };
-        self.local_generation += 1;
-        let generation = self.local_generation;
-        self.local_busy = true;
+        self.git_generation += 1;
+        let generation = self.git_generation;
+        self.git_busy = true;
         self.git_discard_armed = false;
         self.git_discard_path_armed = None;
         let service = self.workspace_service.clone();
@@ -147,10 +147,10 @@ impl AleraApp {
                 return;
             };
             let _ = this.update(cx, |this, cx| {
-                if generation != this.local_generation {
+                if generation != this.git_generation {
                     return;
                 }
-                this.local_busy = false;
+                this.git_busy = false;
                 match result {
                     Ok(message) => {
                         this.local_message = Some(message.into());

@@ -431,6 +431,16 @@ impl AleraApp {
 
     fn render_resize_event_observer(&self, cx: &mut Context<Self>) -> AnyElement {
         let app = cx.entity();
+        let workbench_left = if self.sidebar_collapsed {
+            px(52.0)
+        } else {
+            px(self.sidebar_width)
+        };
+        let context_sidebar_width = if self.context_sidebar_collapsed {
+            px(52.0)
+        } else {
+            px(self.context_sidebar_width)
+        };
         div()
             .absolute()
             .top_0()
@@ -441,8 +451,22 @@ impl AleraApp {
                 |_, _, _| (),
                 move |_, _, window, _| {
                     let app_on_down = app.clone();
-                    window.on_mouse_event(move |event: &MouseDownEvent, _, _, cx| {
+                    window.on_mouse_event(move |event: &MouseDownEvent, _, window, cx| {
                         if event.button != MouseButton::Left {
+                            return;
+                        }
+                        // This observer is installed at the window level so a
+                        // pointer-up can finish tab drags even when a child
+                        // surface consumes the event. It must still ignore
+                        // clicks outside the workbench itself: otherwise a
+                        // Context Sidebar button can be mistaken for a stale
+                        // tab chip and activate a terminal while switching
+                        // panels.
+                        let viewport_width = window.viewport_size().width;
+                        let workbench_right = viewport_width - context_sidebar_width;
+                        if event.position.x < workbench_left
+                            || event.position.x >= workbench_right
+                        {
                             return;
                         }
                         app_on_down.update(cx, |this, cx| {
@@ -651,7 +675,7 @@ impl Render for AleraApp {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         self.ensure_selected_editor_loaded(window, cx);
         self.sync_terminal_size(window, cx);
-        let toast_messages = self.visible_toast_messages();
+        let toast_entries = self.visible_toast_entries();
         div()
             .relative()
             .on_action(cx.listener(Self::on_open_settings))
@@ -793,12 +817,12 @@ impl Render for AleraApp {
                 root.child(self.render_pull_request_confirmation(cx))
             })
             .children(
-                toast_messages
+                toast_entries
                     .into_iter()
                     .rev()
                     .enumerate()
-                    .map(|(stack_index, message)| {
-                        super::toast::render_toast(message, stack_index)
+                    .map(|(stack_index, (message, exiting))| {
+                        super::toast::render_toast(message, stack_index, exiting)
                     }),
             )
             .when(self.explorer_menu.is_some(), |root| {

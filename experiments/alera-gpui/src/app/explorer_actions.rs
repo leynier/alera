@@ -254,6 +254,8 @@ impl AleraApp {
                         }
                         this.editor_documents
                             .retain(|path, _| !path_is_same_or_child(path, &relative_path));
+                        this.editor_error_messages
+                            .retain(|path, _| !path_is_same_or_child(path, &relative_path));
                         this.editor_preview_assets
                             .retain(|path, _| !path_is_same_or_child(path, &relative_path));
                         this.editor_buffer_text

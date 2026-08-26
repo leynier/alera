@@ -352,6 +352,16 @@ pub fn agent_icon(kind: AgentIcon, size: f32, color: Rgba) -> AnyElement {
     if raster {
         return img(path).w(px(size)).h(px(size)).into_any_element();
     }
+    // Claude's multistroke mark uses the warm provider color rather than the
+    // generic foreground tint used by the other agent icons.
+    if kind == AgentIcon::Claude {
+        return svg()
+            .path(path)
+            .w(px(size))
+            .h(px(size))
+            .text_color(gpui::rgb(0xd97757))
+            .into_any_element();
+    }
     svg()
         .path(path)
         .w(px(size))
