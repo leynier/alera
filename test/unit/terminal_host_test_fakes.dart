@@ -1,15 +1,18 @@
 import 'dart:async';
 import 'dart:typed_data';
 
+import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
 import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_client.dart';
 import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_protocol.dart';
 import 'package:ghostty_vte_flutter/ghostty_vte_flutter.dart';
 
-final class FakeTerminalHostClient implements TerminalHostClient {
+final class FakeTerminalHostClient
+    implements TerminalHostClient, TerminalPulseHostClient {
   FakeTerminalHostClient({
     required TerminalHostAttachment attachment,
     List<TerminalHostAttachment>? attachments,
     this.attachCompleter,
+    this.pulseEnabled = false,
   }) : _attachments = attachments ?? <TerminalHostAttachment>[attachment];
 
   final List<TerminalHostAttachment> _attachments;
@@ -49,8 +52,19 @@ final class FakeTerminalHostClient implements TerminalHostClient {
       <String, TerminalSessionDriver>{};
   final List<Object> writeErrors = <Object>[];
   final List<Object> resizeErrors = <Object>[];
+  final List<Object> outputPausedErrors = <Object>[];
+  final List<Object> pulseStatusErrors = <Object>[];
+  final List<Object> pulseConfigurationErrors = <Object>[];
+  final List<TerminalPulseConfiguration> pulseConfigurations =
+      <TerminalPulseConfiguration>[];
   String? attachedWorkingDirectory;
   Object? writeError;
+  final bool pulseEnabled;
+  Completer<void>? reattachCompleter;
+  TerminalPulseState pulseState = const TerminalPulseState(
+    configuration: TerminalPulseConfiguration(),
+    armed: false,
+  );
 
   /// What `setOutputPaused(false)` answers with. A host that can still place
   /// the client in the output stream answers with a delta and pushes the
@@ -99,7 +113,8 @@ final class FakeTerminalHostClient implements TerminalHostClient {
       rows: rows,
     ));
     attachedWorkingDirectory = workingDirectory;
-    if (attachCompleter case final completer?) {
+    final gate = attachCalls.length == 1 ? attachCompleter : reattachCompleter;
+    if (gate case final completer?) {
       await completer.future;
     }
     final index = attachCalls.length - 1;
@@ -155,8 +170,36 @@ final class FakeTerminalHostClient implements TerminalHostClient {
     required String sessionId,
     required bool paused,
   }) async {
+    if (outputPausedErrors.isNotEmpty) {
+      throw outputPausedErrors.removeAt(0);
+    }
     outputPaused.add((sessionId, paused));
     return resume ?? TerminalHostResume(isDelta: true, snapshot: Uint8List(0));
+  }
+
+  @override
+  bool get supportsTerminalPulse => pulseEnabled;
+
+  @override
+  Future<TerminalPulseState> terminalPulseStatus(String sessionId) async {
+    if (pulseStatusErrors.isNotEmpty) {
+      throw pulseStatusErrors.removeAt(0);
+    }
+    return pulseState;
+  }
+
+  @override
+  Future<TerminalPulseState> configureTerminalPulse({
+    required String sessionId,
+    required TerminalPulseConfiguration configuration,
+    required bool armed,
+  }) async {
+    if (pulseConfigurationErrors.isNotEmpty) {
+      throw pulseConfigurationErrors.removeAt(0);
+    }
+    pulseConfigurations.add(configuration);
+    pulseState = TerminalPulseState(configuration: configuration, armed: armed);
+    return pulseState;
   }
 
   @override

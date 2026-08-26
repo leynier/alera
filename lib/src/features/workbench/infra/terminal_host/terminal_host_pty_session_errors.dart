@@ -1,23 +1,27 @@
 part of 'terminal_host_pty_session.dart';
 
+bool _shouldRecoverFromTerminalHostError(Object error) {
+  final message = _terminalHostErrorMessage(error);
+  return message.contains('Terminal session is not attached') ||
+      message.contains('Terminal host connection closed');
+}
+
+String _terminalHostErrorMessage(Object error) {
+  if (error is StateError) {
+    return error.message;
+  }
+  return error.toString();
+}
+
 extension _TerminalHostPtySessionErrors on TerminalHostPtySession {
   bool _shouldRecoverFromHostError(Object error) {
-    final message = _hostErrorMessage(error);
-    return message.contains('Terminal session is not attached') ||
-        message.contains('Terminal host connection closed');
+    return _shouldRecoverFromTerminalHostError(error);
   }
 
   bool _isDefinitivelyNotAttached(Object error) {
-    return _hostErrorMessage(
+    return _terminalHostErrorMessage(
       error,
     ).contains('Terminal session is not attached');
-  }
-
-  String _hostErrorMessage(Object error) {
-    if (error is StateError) {
-      return error.message;
-    }
-    return error.toString();
   }
 
   void _emitHostError(Object error) {
@@ -27,6 +31,8 @@ extension _TerminalHostPtySessionErrors on TerminalHostPtySession {
   }
 
   bool _isInputBackpressure(Object error) {
-    return _hostErrorMessage(error).contains('terminal_input_backpressure');
+    return _terminalHostErrorMessage(
+      error,
+    ).contains('terminal_input_backpressure');
   }
 }

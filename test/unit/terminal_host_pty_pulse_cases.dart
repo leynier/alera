@@ -37,4 +37,49 @@ void _registerTerminalHostPtyPulseTests() {
 
     expect((await pulseEvent).state.error, 'watcher stopped');
   });
+
+  test('host PTY session reattaches before Terminal Pulse requests', () async {
+    final initial = TerminalHostAttachment(
+      sessionId: 'session-1',
+      created: true,
+      running: true,
+      snapshot: Uint8List(0),
+    );
+    final client = FakeTerminalHostClient(
+      attachment: initial,
+      attachments: <TerminalHostAttachment>[
+        initial,
+        TerminalHostAttachment(
+          sessionId: 'session-1',
+          created: false,
+          running: true,
+          snapshot: Uint8List(0),
+        ),
+      ],
+      pulseEnabled: true,
+    );
+    client.pulseStatusErrors.add(
+      StateError('Terminal session is not attached: session-1'),
+    );
+    final session = TerminalHostPtySession(
+      client: client,
+      sessionId: 'session-1',
+      workspaceId: 'workspace-1',
+      tabId: 'tab-1',
+    );
+    addTearDown(session.dispose);
+
+    await session.start(
+      launch: _launch(),
+      workingDirectory: '/repo',
+      cols: 80,
+      rows: 24,
+    );
+
+    final state = await session.terminalPulseStatus();
+
+    expect(state.armed, isFalse);
+    expect(client.attachCalls, hasLength(2));
+    expect(client.pulseStatusErrors, isEmpty);
+  });
 }
