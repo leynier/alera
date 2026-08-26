@@ -58,7 +58,7 @@ Use setup commands when the workspace needs to install dependencies, generate fi
 
 ## New Workspace Prompt Append
 
-`new_workspace.prompt_append` is optional project-specific text added last to the prompt before Alera starts the selected agent profile from the **New Workspace** flow. When the profile has a Custom Prompt, the delivered order is the user prompt, the profile prompt, then this project prompt, with blank lines between non-empty sections. Alera does not send this append text through AI Text and does not use it to generate the workspace name or branch.
+`new_workspace.prompt_append` is optional project-specific text added last to the prompt before Alera starts the selected agent profile from the **New Workspace** flow. When the profile has a Custom Prompt, the delivered order is the user prompt, the profile prompt, then this project prompt, with blank lines between non-empty sections. Alera does not send this append text through AI Assist and does not use it to generate the workspace name or branch.
 
 Like the worktree settings, this value can be stored in `alera.toml` or edited under **Settings > Projects**. A UI override replaces the complete repository `alera.toml` config for that project, including this value. It does not disable `.worktreeinclude`.
 

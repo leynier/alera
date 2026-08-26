@@ -1,6 +1,20 @@
 use std::collections::HashMap;
 
-use super::{RuntimeStore, RuntimeTextAction, RuntimeTextActionsSettings};
+use super::{
+    RuntimeAiAssistSettings, RuntimeSettings, RuntimeStore, RuntimeTextAction,
+    RuntimeTextActionsSettings,
+};
+
+#[test]
+fn ai_assist_settings_keep_historical_json_key() {
+    let settings = RuntimeSettings {
+        ai_assist: Some(RuntimeAiAssistSettings::default()),
+        ..RuntimeSettings::default()
+    };
+    let value = serde_json::to_value(&settings).unwrap();
+    assert!(value.get("aiTextGeneration").is_some());
+    assert!(value.get("aiAssist").is_none());
+}
 
 #[tokio::test]
 async fn text_actions_are_optional_and_round_trip_through_runtime_metadata() {

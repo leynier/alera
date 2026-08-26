@@ -45,10 +45,8 @@ class _MutableSettingsController extends SettingsController {
   @override
   AleraSettings build() => _settings;
 
-  void setAiTextEnabled(bool enabled) {
-    state = state.copyWith(
-      aiTextGeneration: state.aiTextGeneration.copyWith(enabled: enabled),
-    );
+  void setAiAssistEnabled(bool enabled) {
+    state = state.copyWith(aiAssist: state.aiAssist.copyWith(enabled: enabled));
   }
 }
 

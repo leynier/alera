@@ -2,11 +2,36 @@ use std::path::{Path, PathBuf};
 
 use serde_json::{Map, Value};
 
-use super::{clean_managed_definitions, object_field, write_json_object};
+use super::{
+    clean_managed_definitions, install_claude_hooks_into, object_field, write_json_object,
+};
 
-/// Older Alera versions wrote Claude hooks into the user's settings.json.
-/// Grok scans that file by default, so leftover Alera commands still fire as
-/// `/hook/claude` for a Grok turn. Strip only Alera-managed definitions.
+/// Installs the managed Claude hooks into the user's own `settings.json`.
+///
+/// That file is the only settings source every Claude Code session reads: CCS
+/// overrides `CLAUDE_CONFIG_DIR` to `$CCS_DIR/instances/<account>`, whose
+/// `settings.json` symlinks back here, and Claude reads no other file from a
+/// config directory. Writing anywhere inside CCS instead is not an option -
+/// CCS reconciles those paths on every launch and adopts a diverged copy back
+/// into this same file.
+///
+/// Grok scans this file for Claude Code compatibility, so the managed command
+/// carries its own `CLAUDECODE` guard (see `integration_hook_scripts`).
+pub(super) fn install_claude_user_hooks(home: &Path, script: &Path) -> anyhow::Result<()> {
+    let path = home.join(".claude/settings.json");
+    let settings = read_jsonc_object(&path)?.unwrap_or_default();
+    let mut updated = settings.clone();
+    install_claude_hooks_into(&mut updated, script);
+    // The file belongs to the user and this runs on every reconcile, so leave
+    // it byte-identical when nothing changed rather than reformatting it.
+    if updated == settings {
+        return Ok(());
+    }
+    write_json_object(&path, &updated)
+}
+
+/// Removes the managed Claude hooks from the user's settings.json. Used when
+/// the Claude toggle is off, and to clear what an older Alera left behind.
 pub(super) fn cleanup_claude_user_hooks(home: &Path) -> anyhow::Result<()> {
     let mut errors = Vec::new();
     for path in claude_settings_cleanup_paths(home) {
@@ -22,14 +47,24 @@ pub(super) fn cleanup_claude_user_hooks(home: &Path) -> anyhow::Result<()> {
 }
 
 fn claude_settings_cleanup_paths(home: &Path) -> Vec<PathBuf> {
-    // Grok scans ~/.claude/settings.json by default. CCS instance
-    // settings.json usually symlinks there, so leftover cleanup must not
-    // walk CCS files: that would strip (or write through to) the user file
-    // and would also undo instance settings.local.json while Claude is on.
+    // CCS instance settings.json symlinks here, so cleaning this one file also
+    // clears every CCS account. `settings.local.json` is not a config-directory
+    // settings source for Claude at all; it is cleaned only to drop leftovers.
     vec![
         home.join(".claude/settings.json"),
         home.join(".claude/settings.local.json"),
     ]
+}
+
+fn read_jsonc_object(path: &Path) -> anyhow::Result<Option<Map<String, Value>>> {
+    let contents = match std::fs::read_to_string(path) {
+        Ok(contents) => contents,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(None),
+        Err(error) => return Err(error.into()),
+    };
+    let parsed: Value = serde_json::from_str(&strip_jsonc_comments(&contents))
+        .map_err(|error| anyhow::anyhow!("Could not parse {}: {error}", path.display()))?;
+    Ok(parsed.as_object().cloned())
 }
 
 /// Strips Alera-managed hook definitions from a Claude- or Cursor-shaped JSON

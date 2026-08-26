@@ -84,7 +84,12 @@ pub enum ServerCommand {
         request_id: i64,
         result: HostResult<Value>,
     },
-    AiTextGenerationFinished {
+    AiAssistFinished {
+        client_id: u64,
+        request_id: i64,
+        result: HostResult<Value>,
+    },
+    AiDictationFinished {
         client_id: u64,
         request_id: i64,
         result: HostResult<Value>,

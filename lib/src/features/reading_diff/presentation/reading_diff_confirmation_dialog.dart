@@ -1,7 +1,7 @@
 import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/design_system/layout/alera_dialog.dart';
-import 'package:alera/src/features/ai_text_generation/application/ai_text_agent_runner.dart';
+import 'package:alera/src/features/ai_assist/application/ai_assist_agent_runner.dart';
 import 'package:alera/src/features/reading_diff/domain/reading_diff_models.dart';
 import 'package:flutter/material.dart';
 
@@ -41,7 +41,7 @@ class ReadingDiffConfirmationDialog extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: <Widget>[
                     Text(
-                      'This manually runs the configured AI Text agent and may consume subscription quota or other provider usage. The complete selected patch is provided, including portions hidden by preview truncation.',
+                      'This manually runs the configured AI Assist agent and may consume subscription quota or other provider usage. The complete selected patch is provided, including portions hidden by preview truncation.',
                       style: theme.textTheme.bodyMedium?.copyWith(
                         color: AleraTokens.foregroundMuted,
                       ),

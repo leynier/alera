@@ -23,7 +23,7 @@ void main() {
       'keyboard': keyboardSearchEntries,
       'browser': browserSearchEntries,
       'editor': editorSearchEntries,
-      'aiText': aiTextSearchEntries,
+      'aiAssist': aiAssistSearchEntries,
       'aiDictation': aiDictationSearchEntries,
       'textActions': textActionsSearchEntries,
       'quota': quotaSearchEntries,
@@ -31,7 +31,7 @@ void main() {
 
     expect(
       _catalogFingerprint(catalogs),
-      '58867d69694e3e27be1eaae1eb31c855774b9a86a41a437d87166cbd939cc368',
+      '5fc8943def91f434123ca47ec60687752b17d7eed86ce39bdd5a7597f21b79bf',
     );
   });
 
@@ -158,6 +158,16 @@ void main() {
     expect(entry.matches('opencode'), isTrue);
     expect(entry.matches('mouse wheel'), isTrue);
     expect(entry.groupId, 'interaction');
+  });
+
+  test('terminal toolbar corner is searchable in appearance', () {
+    final entry = terminalSearchEntries.singleWhere(
+      (candidate) => candidate.title == 'Toolbar Corner',
+    );
+
+    expect(entry.matches('overlay'), isTrue);
+    expect(entry.matches('move'), isTrue);
+    expect(entry.groupId, 'appearance');
   });
 }
 

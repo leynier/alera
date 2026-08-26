@@ -6,7 +6,7 @@ import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/design_system/buttons/alera_icon_button.dart';
 import 'package:alera/src/design_system/icons/alera_file_icon.dart';
 import 'package:alera/src/design_system/icons/alera_icons.dart';
-import 'package:alera/src/features/ai_text_generation/application/ai_text_generation_errors.dart';
+import 'package:alera/src/features/ai_assist/application/ai_assist_errors.dart';
 import 'package:alera/src/features/reading_diff/application/reading_diff_providers.dart';
 import 'package:alera/src/features/reading_diff/application/reading_diff_generation_progress.dart';
 import 'package:alera/src/features/reading_diff/domain/reading_diff_models.dart';
@@ -111,9 +111,9 @@ class _WorkspaceGitDiffSurfaceState
   @override
   Widget build(BuildContext context) {
     final filePath = widget.tab.filePath;
-    final aiTextEnabled = ref.watch(
+    final aiAssistEnabled = ref.watch(
       settingsControllerProvider.select(
-        (settings) => settings.aiTextGeneration.enabled,
+        (settings) => settings.aiAssist.enabled,
       ),
     );
     return DecoratedBox(
@@ -126,7 +126,7 @@ class _WorkspaceGitDiffSurfaceState
             filePath: filePath,
             onRefresh: _load,
             onOpenFile: _canOpenFile ? () => unawaited(_openFile()) : null,
-            aiTextEnabled: aiTextEnabled,
+            aiAssistEnabled: aiAssistEnabled,
             readingDiffReady: _readingDiffResult != null,
             showingReadingDiff: _showReadingDiff,
             readingDiffBusy: _readingDiffBusy,
@@ -253,7 +253,7 @@ class _WorkspaceGitDiffSurfaceState
     );
     return ReadingDiffRequest(
       workspacePath: sourceControlScope.path,
-      settings: ref.read(settingsControllerProvider).aiTextGeneration,
+      settings: ref.read(settingsControllerProvider).aiAssist,
       filePath: scope == WorkspaceGitDiffScope.all ? null : sourceFilePath,
       oldPath: scope == WorkspaceGitDiffScope.all ? null : sourceOldPath,
       area: scope == WorkspaceGitDiffScope.file ? widget.tab.gitDiffArea : null,
@@ -343,12 +343,12 @@ class _WorkspaceGitDiffSurfaceState
         _readingDiffProgress = null;
         _readingDiffError = null;
       });
-    } on AiTextGenerationCanceledException {
+    } on AiAssistCanceledException {
       return;
     } catch (error) {
       if (mounted && generation == _readingDiffGeneration) {
         setState(() {
-          _readingDiffError = error is AiTextGenerationException
+          _readingDiffError = error is AiAssistException
               ? error.message
               : 'Could not generate the reading diff.';
         });

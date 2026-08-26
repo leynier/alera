@@ -16,7 +16,13 @@ This document defines governance only. It does not change runtime APIs, schemas,
   - `src/pages/*.astro` for page composition: `index.astro` is the marketing home, `download.astro` is the install page, and the trust documents live at `privacy.astro`, `terms.astro`, and `account/delete.astro`.
   - `src/pages/blog/index.astro` is the blog index, and `src/pages/blog/[id].astro` renders individual posts from the `blog` content collection.
   - `src/pages/rss.xml.ts` emits the blog RSS feed at `/rss.xml`.
-  - `src/content.config.ts` defines the `blog` content collection (Zod schema + `glob` loader). Posts live as Markdown files under `src/content/blog/`.
+  - `src/content.config.ts` defines the `blog` content collection (Zod schema + `glob` loader) and the Starlight `docs` collection (`docsLoader` + `docsSchema`). Posts live as Markdown files under `src/content/blog/`.
+  - Product documentation is a Starlight section of the same Astro app, served at `/docs`. Doc pages live as MDX under `src/content/docs/docs/` so they do not take over `/`. Do not add a `src/content/docs/index.mdx` at the collection root; that route is the marketing home.
+  - `src/styles/docs.css` is Starlight's Tailwind v4 entry (`@astrojs/starlight-tailwind`) and the Alera token mapping. Marketing pages keep importing `src/styles/global.css`. Shared `@font-face` rules live in `src/styles/fonts.css`. On viewports wider than `86rem`, that file also caps the docs shell (`--alera-docs-max-width`) so the sidebar, article, and TOC stay in one column instead of pinning to the viewport edges.
+  - Docs fenced code uses only the `github-dark` Expressive Code theme. Do not add a light theme: an OS light color scheme would paint dark syntax tokens on the dark block background.
+  - `src/components/docs/` holds Starlight component overrides (`Head`, `SocialIcons`, `ThemeSelect`). Docs stay dark-mode-only; do not restore Starlight's theme toggle.
+  - These `/docs` pages are for people using Alera. Contributor internals stay in the repository `docs/` directory, not in the landing Starlight tree.
+  - `@astrojs/starlight` is registered in `astro.config.mjs` ahead of `@astrojs/sitemap`. Keep the explicit `sitemap()` integration so marketing, blog, and docs routes stay in the sitemap.
   - `src/lib/blog.ts` holds shared blog helpers (`getPublishedBlogPosts`, date formatting). Draft posts (`draft: true`) MUST be omitted from production builds and remain visible in local/dev builds.
   - `src/components/blog/` holds blog-specific presentational components (`BlogPostCard`, `BlogPostHeader`, `Prose`).
   - `src/components/TrustDocument.astro` for legal and policy pages, which carry their own navigation instead of the marketing navbar.
@@ -43,7 +49,7 @@ This document defines governance only. It does not change runtime APIs, schemas,
 
 - Landing UI values SHOULD come from the `@theme` tokens in `src/styles/global.css` before adding ad-hoc literals.
 - Keep the landing aligned with the app design direction: dark mode, grayscale-first palette, neutral accent emphasis, Inter for general text, and JetBrains Mono for terminal/code-adjacent text.
-- Visible UI copy (headings, labels, CTAs, tooltips, alt text, and messages) MUST use title case (e.g., "New Workspace", "AI Text").
+- Visible UI copy (headings, labels, CTAs, tooltips, alt text, and messages) MUST use title case (e.g., "New Workspace", "AI Assist").
 - New colors, spacing, radii, type sizes, animation durations, and shared effects SHOULD be added as Tailwind theme values or CSS variables before repeated use.
 - Existing token names and roles SHOULD remain consistent with the app baseline where practical: `bg`, `surface`, `surface-variant`, `surface-elevated`, `border`, `border-subtle`, `accent`, `on-accent`, `foreground`, `foreground-muted`, `foreground-faint`, `success`, `error`, `on-error`, and `warning`.
 - Do not introduce a second visual system, icon style, font stack, or unrelated palette for the landing page.

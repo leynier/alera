@@ -156,6 +156,11 @@ class TerminalSettingsPane extends StatelessWidget {
                 onChanged: (value) =>
                     onChanged(settings.copyWith(paddingY: value)),
               ),
+              ToolbarCornerRow(
+                value: settings.toolbarCorner,
+                onChanged: (value) =>
+                    onChanged(settings.copyWith(toolbarCorner: value)),
+              ),
               HexColorSettingRow(
                 title: 'Foreground Color',
                 description: 'Override the terminal text color.',

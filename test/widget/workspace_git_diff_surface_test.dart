@@ -4,9 +4,9 @@ import 'dart:typed_data';
 import 'package:alera/src/app/providers.dart'
     show WorkbenchController, workbenchControllerProvider;
 import 'package:alera/src/design_system/icons/alera_icons.dart';
-import 'package:alera/src/features/ai_text_generation/application/ai_text_agent_runner.dart';
-import 'package:alera/src/features/ai_text_generation/application/ai_text_generation_errors.dart';
-import 'package:alera/src/features/ai_text_generation/domain/ai_text_generation_settings.dart';
+import 'package:alera/src/features/ai_assist/application/ai_assist_agent_runner.dart';
+import 'package:alera/src/features/ai_assist/application/ai_assist_errors.dart';
+import 'package:alera/src/features/ai_assist/domain/ai_assist_settings.dart';
 import 'package:alera/src/features/reading_diff/application/reading_diff_cache.dart';
 import 'package:alera/src/features/reading_diff/application/reading_diff_generation_progress.dart';
 import 'package:alera/src/features/reading_diff/application/reading_diff_providers.dart';

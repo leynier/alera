@@ -1,4 +1,4 @@
-import 'package:alera/src/features/ai_text_generation/domain/ai_text_generation_settings.dart';
+import 'package:alera/src/features/ai_assist/domain/ai_assist_settings.dart';
 import 'package:alera/src/features/keyboard/domain/keyboard_action.dart';
 import 'package:alera/src/features/keyboard/domain/keyboard_shortcut_settings.dart';
 import 'package:alera/src/features/settings/domain/alera_settings.dart';
@@ -36,14 +36,13 @@ void main() {
           autosaveEnabled: true,
           autosaveDelaySeconds: 3,
         ),
-        aiTextGeneration: AiTextGenerationSettings(
-          agent: AiTextGenerationAgent.agy,
-          selectedModelByAgent: <AiTextGenerationAgent, String>{
-            AiTextGenerationAgent.agy: 'Gemini 3.5 Flash (Medium)',
+        aiAssist: AiAssistSettings(
+          agent: AiAssistAgent.agy,
+          selectedModelByAgent: <AiAssistAgent, String>{
+            AiAssistAgent.agy: 'Gemini 3.5 Flash (Medium)',
           },
-          instructionsByOperation: <AiTextGenerationOperation, String>{
-            AiTextGenerationOperation.commitMessage:
-                'Use conventional commits.',
+          instructionsByOperation: <AiAssistOperation, String>{
+            AiAssistOperation.commitMessage: 'Use conventional commits.',
           },
         ),
         codexChat: CodexChatSettings(
@@ -76,6 +75,7 @@ void main() {
           hostEmptyShutdownDelaySeconds: 5,
           hostDetachedSessionShutdownDelaySeconds: 120,
           hostScrollbackBytes: 24 * 1000 * 1000,
+          toolbarCorner: TerminalToolbarCorner.bottomRight,
         ),
         keyboard: KeyboardShortcutSettings(
           overrides: <KeyboardActionId, List<String>>{
@@ -84,8 +84,12 @@ void main() {
         ),
       );
 
+      final encoded = settings.toMap();
+      expect(encoded.containsKey('aiTextGeneration'), isTrue);
+      expect(encoded.containsKey('aiAssist'), isFalse);
+
       final restored = AleraSettings.fromJson(
-        Map<String, Object?>.from(settings.toMap()),
+        Map<String, Object?>.from(encoded),
       );
 
       expect(restored.general.confirmProjectRemoval, isFalse);
@@ -108,15 +112,13 @@ void main() {
       expect(restored.editor.themeName, EditorSyntaxThemeNames.nord);
       expect(restored.editor.autosaveEnabled, isTrue);
       expect(restored.editor.autosaveDelaySeconds, 3);
-      expect(restored.aiTextGeneration.agent, AiTextGenerationAgent.agy);
+      expect(restored.aiAssist.agent, AiAssistAgent.agy);
       expect(
-        restored.aiTextGeneration.modelFor(AiTextGenerationAgent.agy),
+        restored.aiAssist.modelFor(AiAssistAgent.agy),
         'Gemini 3.5 Flash (Medium)',
       );
       expect(
-        restored.aiTextGeneration.instructionsFor(
-          AiTextGenerationOperation.commitMessage,
-        ),
+        restored.aiAssist.instructionsFor(AiAssistOperation.commitMessage),
         'Use conventional commits.',
       );
       expect(restored.codexChat.selectedModel, 'gpt-current');
@@ -144,6 +146,10 @@ void main() {
       expect(restored.terminal.hostEmptyShutdownDelaySeconds, 5);
       expect(restored.terminal.hostDetachedSessionShutdownDelaySeconds, 120);
       expect(restored.terminal.hostScrollbackBytes, 24 * 1000 * 1000);
+      expect(
+        restored.terminal.toolbarCorner,
+        TerminalToolbarCorner.bottomRight,
+      );
       expect(restored.keyboard.overrides[KeyboardActionId.closeTab], <String>[
         'Mod+Shift+W',
       ]);

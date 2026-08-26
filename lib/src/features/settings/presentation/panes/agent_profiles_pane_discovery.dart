@@ -6,9 +6,9 @@ extension _AgentProfilesPaneDiscovery on _AgentProfilesSettingsPaneState {
     if (discovered != null) {
       return discovered;
     }
-    final spec = aiTextAgentSpecs[_aiTextAgent(adapter)];
+    final spec = aiAssistAgentSpecs[_aiAssistAgent(adapter)];
     return <ManagedAgentOption>[
-      for (final model in spec?.models ?? const <AiTextModel>[])
+      for (final model in spec?.models ?? const <AiAssistModel>[])
         ManagedAgentOption(model.id, model.label),
     ];
   }
@@ -27,7 +27,7 @@ extension _AgentProfilesPaneDiscovery on _AgentProfilesSettingsPaneState {
   }
 
   bool _canDiscoverModels(AgentType adapter) {
-    return aiTextAgentSpecs[_aiTextAgent(adapter)]?.modelsCommand != null;
+    return aiAssistAgentSpecs[_aiAssistAgent(adapter)]?.modelsCommand != null;
   }
 
   bool _canDiscoverPersonas(AgentType adapter) {
@@ -54,7 +54,7 @@ extension _AgentProfilesPaneDiscovery on _AgentProfilesSettingsPaneState {
   }
 
   Future<void> _discoverModels(AgentType adapter) async {
-    final agent = _aiTextAgent(adapter);
+    final agent = _aiAssistAgent(adapter);
     if (agent == null || !_loadingModels.add(adapter)) {
       return;
     }
@@ -63,7 +63,7 @@ extension _AgentProfilesPaneDiscovery on _AgentProfilesSettingsPaneState {
     });
     try {
       final result = await ref
-          .read(aiTextModelDiscoveryServiceProvider)
+          .read(aiAssistModelDiscoveryServiceProvider)
           .discover(agent);
       if (!mounted) {
         return;
@@ -128,8 +128,8 @@ extension _AgentProfilesPaneDiscovery on _AgentProfilesSettingsPaneState {
   }
 }
 
-AiTextGenerationAgent? _aiTextAgent(AgentType adapter) {
-  for (final agent in AiTextGenerationAgent.values) {
+AiAssistAgent? _aiAssistAgent(AgentType adapter) {
+  for (final agent in AiAssistAgent.values) {
     if (agent.agentType == adapter) {
       return agent;
     }

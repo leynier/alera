@@ -2,9 +2,9 @@ import 'dart:async';
 
 import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/design_system/icons/alera_icons.dart';
-import 'package:alera/src/features/ai_text_generation/application/ai_text_generation_providers.dart';
-import 'package:alera/src/features/ai_text_generation/application/ai_text_generation_service.dart';
-import 'package:alera/src/features/ai_text_generation/domain/ai_text_generation_settings.dart';
+import 'package:alera/src/features/ai_assist/application/ai_assist_providers.dart';
+import 'package:alera/src/features/ai_assist/application/ai_assist_service.dart';
+import 'package:alera/src/features/ai_assist/domain/ai_assist_settings.dart';
 import 'package:alera/src/features/settings/application/settings_controller.dart';
 import 'package:alera/src/features/settings/domain/alera_settings.dart';
 import 'package:alera/src/features/workbench/application/source_control_watcher.dart';
@@ -1068,7 +1068,7 @@ void main() {
           ),
         ],
       );
-    final service = _FakeAiTextGenerationService();
+    final service = _FakeAiAssistService();
 
     await _pumpPanel(
       tester,
@@ -1120,7 +1120,7 @@ void main() {
       'feat: workspace b message',
     );
     expect(service.canceled, <String>[
-      '/tmp/project-a::${AiTextGenerationOperation.commitMessage.key}',
+      '/tmp/project-a::${AiAssistOperation.commitMessage.key}',
     ]);
   });
 
@@ -1137,7 +1137,7 @@ void main() {
           ),
         ],
       );
-    final service = _FakeAiTextGenerationService();
+    final service = _FakeAiAssistService();
 
     await _pumpPanel(
       tester,
@@ -1154,11 +1154,11 @@ void main() {
     await tester.pump();
 
     expect(service.canceled, <String>[
-      '/tmp/project-a::${AiTextGenerationOperation.commitMessage.key}',
+      '/tmp/project-a::${AiAssistOperation.commitMessage.key}',
     ]);
   });
 
-  testWidgets('AI commit message action is hidden when AI text is disabled', (
+  testWidgets('AI commit message action is hidden when AI Assist is disabled', (
     tester,
   ) async {
     final backend = FakeGitBackend()
@@ -1176,9 +1176,7 @@ void main() {
       tester,
       backend: backend,
       settings: AleraSettings.defaults.copyWith(
-        aiTextGeneration: AiTextGenerationSettings.defaults.copyWith(
-          enabled: false,
-        ),
+        aiAssist: AiAssistSettings.defaults.copyWith(enabled: false),
       ),
     );
     await tester.pumpAndSettle();
@@ -1438,7 +1436,7 @@ Future<void> _pumpPanel(
   GitDiffGroupMode groupMode = GitDiffGroupMode.byArea,
   WorkspaceSourceControlScope? sourceControlScope,
   FakeSourceControlWatcher? watcher,
-  AiTextGenerationService? service,
+  AiAssistService? service,
   AleraSettings settings = AleraSettings.defaults,
   OpenGitDiffTabCallback? onOpenGitDiff,
   OpenGitCommitDiffTabCallback? onOpenGitCommitDiff,
@@ -1455,8 +1453,7 @@ Future<void> _pumpPanel(
         settingsControllerProvider.overrideWith(
           () => _PanelSettingsController(settings),
         ),
-        if (service != null)
-          aiTextGenerationServiceProvider.overrideWithValue(service),
+        if (service != null) aiAssistServiceProvider.overrideWithValue(service),
       ],
       child: MaterialApp(
         home: Scaffold(
@@ -1521,29 +1518,27 @@ class _PanelSettingsController extends SettingsController {
   AleraSettings build() => _settings;
 }
 
-class _FakeAiTextGenerationService implements AiTextGenerationService {
-  final List<AiTextGenerationRequest> requests = <AiTextGenerationRequest>[];
+class _FakeAiAssistService implements AiAssistService {
+  final List<AiAssistRequest> requests = <AiAssistRequest>[];
   final List<String> canceled = <String>[];
-  final List<Completer<AiTextGenerationResult>> _results =
-      <Completer<AiTextGenerationResult>>[];
+  final List<Completer<AiAssistResult>> _results =
+      <Completer<AiAssistResult>>[];
 
   @override
-  Future<AiTextGenerationResult> generate(AiTextGenerationRequest request) {
+  Future<AiAssistResult> generate(AiAssistRequest request) {
     requests.add(request);
-    final result = Completer<AiTextGenerationResult>();
+    final result = Completer<AiAssistResult>();
     _results.add(result);
     return result.future;
   }
 
   @override
-  void cancel(String workspacePath, AiTextGenerationOperation operation) {
+  void cancel(String workspacePath, AiAssistOperation operation) {
     canceled.add('$workspacePath::${operation.key}');
   }
 
   void completeAt(int index, String text) {
-    _results[index].complete(
-      AiTextGenerationResult(text: text, agentLabel: 'Codex'),
-    );
+    _results[index].complete(AiAssistResult(text: text, agentLabel: 'Codex'));
   }
 }
 

@@ -1,5 +1,5 @@
 use alera_core::runtime::{
-    RuntimeAgentQuotaSettings, RuntimeAiTextGenerationSettings, RuntimeAutomationSettings,
+    RuntimeAgentQuotaSettings, RuntimeAiAssistSettings, RuntimeAutomationSettings,
     RuntimeMobilePushSettings, RuntimeTextActionsSettings,
 };
 use serde::Serialize;
@@ -148,15 +148,10 @@ impl ServerActor {
             self.start_push_subscription_sync(None);
         }
         if let Some(value) = payload.get("aiTextGeneration") {
-            let settings: RuntimeAiTextGenerationSettings =
-                serde_json::from_value(value.clone())
-                    .map_err(|_| HostError::format("aiTextGeneration is invalid."))?;
-            validate_ai_text_generation_settings(&settings)?;
-            runtime_value(
-                self.runtime_store
-                    .set_ai_text_generation_settings(settings)
-                    .await,
-            )?;
+            let settings: RuntimeAiAssistSettings = serde_json::from_value(value.clone())
+                .map_err(|_| HostError::format("AI Assist settings are invalid."))?;
+            validate_ai_assist_settings(&settings)?;
+            runtime_value(self.runtime_store.set_ai_assist_settings(settings).await)?;
         }
         if let Some(value) = payload.get("textActions") {
             let settings: RuntimeTextActionsSettings = serde_json::from_value(value.clone())
@@ -294,7 +289,7 @@ impl ServerActor {
     }
 }
 
-const AI_TEXT_AGENTS: [&str; 12] = [
+const AI_ASSIST_AGENTS: [&str; 12] = [
     "codex",
     "claude",
     "copilot",
@@ -309,21 +304,17 @@ const AI_TEXT_AGENTS: [&str; 12] = [
     "custom",
 ];
 
-fn validate_ai_text_generation_settings(
-    settings: &RuntimeAiTextGenerationSettings,
-) -> HostResult<()> {
-    if !AI_TEXT_AGENTS.contains(&settings.agent.trim()) {
-        return Err(HostError::format("aiTextGeneration.agent is unsupported."));
+fn validate_ai_assist_settings(settings: &RuntimeAiAssistSettings) -> HostResult<()> {
+    if !AI_ASSIST_AGENTS.contains(&settings.agent.trim()) {
+        return Err(HostError::format("AI Assist agent is unsupported."));
     }
     if settings
         .prompt_settings_by_operation
         .values()
         .filter_map(|prompt| prompt.agent.as_deref())
-        .any(|agent| !AI_TEXT_AGENTS.contains(&agent.trim()))
+        .any(|agent| !AI_ASSIST_AGENTS.contains(&agent.trim()))
     {
-        return Err(HostError::format(
-            "aiTextGeneration prompt agent is unsupported.",
-        ));
+        return Err(HostError::format("AI Assist prompt agent is unsupported."));
     }
     let uses_custom_agent = settings.agent.trim() == "custom"
         || settings
@@ -337,12 +328,12 @@ fn validate_ai_text_generation_settings(
             });
     if uses_custom_agent && settings.custom_command.trim().is_empty() {
         return Err(HostError::format(
-            "aiTextGeneration.customCommand is required for the custom agent.",
+            "AI Assist custom command is required for the custom agent.",
         ));
     }
     if !(10..=600).contains(&settings.timeout_seconds) {
         return Err(HostError::format(
-            "aiTextGeneration.timeoutSeconds must be between 10 and 600.",
+            "AI Assist timeout must be between 10 and 600 seconds.",
         ));
     }
     Ok(())
@@ -371,7 +362,7 @@ fn validate_text_actions_settings(settings: &RuntimeTextActionsSettings) -> Host
         if action
             .agent_override
             .as_deref()
-            .is_some_and(|agent| !AI_TEXT_AGENTS.contains(&agent.trim()))
+            .is_some_and(|agent| !AI_ASSIST_AGENTS.contains(&agent.trim()))
         {
             return Err(HostError::format(
                 "textActions contains an unsupported agent.",

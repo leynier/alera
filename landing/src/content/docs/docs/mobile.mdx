@@ -1,0 +1,41 @@
+---
+title: Mobile Pairing
+description: Pair a phone with your Alera runtime to watch agents and attach to terminals away from the desk.
+---
+
+The mobile companion is a window into your runtime host, not a phone IDE. Pair it when a long agent run would otherwise chain you to the desk.
+
+## What ships today
+
+The companion is a separate Flutter app targeting Android (a universal APK; see [Install](/docs/install)). Pairing starts from **Settings → Mobile Devices** on the desktop, or through `alera mobile ...`.
+
+Once paired, the phone can:
+
+- Mirror the desktop sidebar: grouping, sorting, filters, tags, pins, activity, agent presence, terminal indicators
+- Browse the host filesystem and manage projects
+- Rename workspace tabs and use managed-workspace actions
+- Inspect and configure agent quotas
+- Stream terminals, with local Terminal Quick Keys for the keys phones lack
+- Install Alera agent skills and register the host CLI, with no desktop process required
+
+It cannot run host-admin RPCs or arbitrary runtime mutations. Computer-use verbs stay off the mobile allowlist, so a paired phone cannot drive the desktop. A lost phone should be an inconvenience, not an incident.
+
+The phone stores device tokens in platform secure storage and connects to the runtime host's mobile WebSocket gateway.
+
+## The desktop does not have to stay open
+
+Sessions belong to the [runtime host](/blog/how-alera-keeps-terminals-alive-after-you-quit), not to the Flutter window. You can quit the desktop UI, keep the host running (including `alera runtime start` on a workstation or VPS), and still attach from the phone.
+
+Your agents keep working on a machine that is awake. You keep an eye on them from a device that is in your pocket.
+
+## Cloud accounts and push
+
+Alera accounts are optional for every local feature. If you opt in, Firebase push can notify a subscribed phone when an agent waits, blocks, or reaches an orchestration decision, even after the desktop UI closes.
+
+Push payloads may include the selected agent state plus project and workspace names. They do not include prompts, commands, terminal output, or source code.
+
+## What is not in the companion yet
+
+Richer file review and non-terminal tab surfaces are on the roadmap. Treat the app as awareness and terminal access to a host you already trust.
+
+[Download Alera](/download) on desktop, enable **Mobile Devices**, and pair the next time a long run would otherwise keep you at the desk.

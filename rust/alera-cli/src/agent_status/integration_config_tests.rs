@@ -319,3 +319,130 @@ fn claude_cleanup_leaves_ccs_files_alone() {
         .to_string()
         .contains("alera-runtime-agent-hook"));
 }
+
+/// The install target is the file a CCS instance's `settings.json` resolves to,
+/// because CCS overrides `CLAUDE_CONFIG_DIR` and Claude reads only
+/// `settings.json` from a config directory.
+#[cfg(unix)]
+#[test]
+fn claude_user_hooks_reach_every_ccs_account_through_the_shared_symlink() {
+    let home = tempfile::tempdir().unwrap();
+    let user_settings = home.path().join(".claude/settings.json");
+    write_json_object(
+        &user_settings,
+        &Map::from_iter([("model".to_string(), json!("opus"))]),
+    )
+    .unwrap();
+    let shared = home.path().join(".ccs/shared/settings.json");
+    std::fs::create_dir_all(shared.parent().unwrap()).unwrap();
+    std::os::unix::fs::symlink(&user_settings, &shared).unwrap();
+    let instance = home.path().join(".ccs/instances/educup");
+    std::fs::create_dir_all(&instance).unwrap();
+    std::os::unix::fs::symlink(&shared, instance.join("settings.json")).unwrap();
+
+    user_hooks::install_claude_user_hooks(
+        home.path(),
+        Path::new("/home/user/.alera/agent-hooks/alera-runtime-agent-hook.sh"),
+    )
+    .unwrap();
+
+    let through_the_instance = read_json_object(&instance.join("settings.json"))
+        .unwrap()
+        .unwrap();
+    assert_eq!(through_the_instance["model"], json!("opus"));
+    for (event, _) in CLAUDE_HOOK_EVENTS {
+        assert!(
+            through_the_instance["hooks"][event]
+                .to_string()
+                .contains("alera-runtime-agent-hook"),
+            "{event} is missing from the CCS instance view"
+        );
+    }
+}
+
+#[test]
+fn claude_user_hooks_install_keeps_the_users_own_definitions() {
+    let home = tempfile::tempdir().unwrap();
+    let user_settings = home.path().join(".claude/settings.json");
+    write_json_object(
+        &user_settings,
+        &Map::from_iter([(
+            "hooks".to_string(),
+            json!({
+                "Stop": [
+                    {"hooks": [{"type": "command", "command": "echo user"}]}
+                ],
+                "SessionStart": [
+                    {"hooks": [{"type": "command", "command": "echo start"}]}
+                ]
+            }),
+        )]),
+    )
+    .unwrap();
+
+    user_hooks::install_claude_user_hooks(
+        home.path(),
+        Path::new("/home/user/.alera/agent-hooks/alera-runtime-agent-hook.sh"),
+    )
+    .unwrap();
+
+    let settings = read_json_object(&user_settings).unwrap().unwrap();
+    assert!(settings["hooks"]["Stop"].to_string().contains("echo user"));
+    assert!(settings["hooks"]["Stop"]
+        .to_string()
+        .contains("alera-runtime-agent-hook"));
+    assert!(settings["hooks"]["SessionStart"]
+        .to_string()
+        .contains("echo start"));
+    assert!(!settings["hooks"]["SessionStart"]
+        .to_string()
+        .contains("alera-runtime-agent-hook"));
+}
+
+/// The file belongs to the user and every reconcile passes through here, so a
+/// second install must not rewrite it.
+#[test]
+fn claude_user_hooks_install_leaves_an_up_to_date_file_untouched() {
+    let home = tempfile::tempdir().unwrap();
+    let user_settings = home.path().join(".claude/settings.json");
+    let script = Path::new("/home/user/.alera/agent-hooks/alera-runtime-agent-hook.sh");
+    user_hooks::install_claude_user_hooks(home.path(), script).unwrap();
+    let after_install = std::fs::read(&user_settings).unwrap();
+    std::fs::write(&user_settings, &after_install).unwrap();
+    let before = std::fs::metadata(&user_settings)
+        .unwrap()
+        .modified()
+        .unwrap();
+
+    user_hooks::install_claude_user_hooks(home.path(), script).unwrap();
+
+    assert_eq!(
+        std::fs::metadata(&user_settings)
+            .unwrap()
+            .modified()
+            .unwrap(),
+        before
+    );
+}
+
+#[test]
+fn claude_user_hooks_install_refreshes_a_stale_script_path() {
+    let home = tempfile::tempdir().unwrap();
+    let user_settings = home.path().join(".claude/settings.json");
+    user_hooks::install_claude_user_hooks(
+        home.path(),
+        Path::new("/old/alera-runtime-agent-hook.sh"),
+    )
+    .unwrap();
+
+    user_hooks::install_claude_user_hooks(
+        home.path(),
+        Path::new("/new/alera-runtime-agent-hook.sh"),
+    )
+    .unwrap();
+
+    let settings = read_json_object(&user_settings).unwrap().unwrap();
+    let hooks = settings["hooks"].to_string();
+    assert!(hooks.contains("/new/alera-runtime-agent-hook.sh"));
+    assert!(!hooks.contains("/old/alera-runtime-agent-hook.sh"));
+}

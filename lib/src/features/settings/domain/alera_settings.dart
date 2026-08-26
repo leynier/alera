@@ -1,5 +1,5 @@
 import 'package:alera/src/app/theme/alera_tokens.dart';
-import 'package:alera/src/features/ai_text_generation/domain/ai_text_generation_settings.dart';
+import 'package:alera/src/features/ai_assist/domain/ai_assist_settings.dart';
 import 'package:alera/src/features/ai_dictation/domain/ai_dictation_settings.dart';
 import 'package:alera/src/features/keyboard/domain/keyboard_shortcut_settings.dart';
 import 'package:alera/src/features/settings/domain/editor_syntax_theme_catalog.dart';
@@ -13,6 +13,21 @@ part 'alera_settings.mapper.dart';
 
 @MappableEnum()
 enum TerminalCursorShape { block, bar, underline }
+
+@MappableEnum()
+enum TerminalToolbarCorner {
+  topLeft,
+  topRight,
+  bottomLeft,
+  bottomRight;
+
+  String get label => switch (this) {
+    topLeft => 'Top Left',
+    topRight => 'Top Right',
+    bottomLeft => 'Bottom Left',
+    bottomRight => 'Bottom Right',
+  };
+}
 
 final _hexColorPattern = RegExp(r'^#?[0-9a-fA-F]{6}$');
 
@@ -73,6 +88,7 @@ class TerminalSettings with TerminalSettingsMappable {
     this.clipboardOnSelect = false,
     this.allowOsc52Clipboard = false,
     this.showComposerByDefault = false,
+    this.toolbarCorner = TerminalToolbarCorner.topRight,
     this.hostEmptyShutdownDelaySeconds = 30,
     this.hostDetachedSessionShutdownDelaySeconds = 60 * 60,
     this.hostScrollbackBytes = 10 * 1000 * 1000,
@@ -101,6 +117,9 @@ class TerminalSettings with TerminalSettingsMappable {
 
   /// Whether new terminal sessions open the prompt composer immediately.
   final bool showComposerByDefault;
+
+  /// Where the terminal action-button cluster sits inside the tab.
+  final TerminalToolbarCorner toolbarCorner;
   final int hostEmptyShutdownDelaySeconds;
   final int hostDetachedSessionShutdownDelaySeconds;
   final int hostScrollbackBytes;
@@ -143,6 +162,7 @@ class TerminalSettings with TerminalSettingsMappable {
     clipboardOnSelect: false,
     allowOsc52Clipboard: false,
     showComposerByDefault: false,
+    toolbarCorner: TerminalToolbarCorner.topRight,
     hostEmptyShutdownDelaySeconds: 30,
     hostDetachedSessionShutdownDelaySeconds: 60 * 60,
     hostScrollbackBytes: 10 * 1000 * 1000,
@@ -436,7 +456,7 @@ class AleraSettings with AleraSettingsMappable {
   const AleraSettings({
     required this.general,
     this.agents = AgentSettings.defaults,
-    this.aiTextGeneration = AiTextGenerationSettings.defaults,
+    this.aiAssist = AiAssistSettings.defaults,
     this.aiDictation = AiDictationSettings.defaults,
     this.textActions = TextActionsSettings.defaults,
     this.editor = EditorSettings.defaults,
@@ -448,7 +468,9 @@ class AleraSettings with AleraSettingsMappable {
 
   final GeneralSettings general;
   final AgentSettings agents;
-  final AiTextGenerationSettings aiTextGeneration;
+  // Wire and persisted key stays `aiTextGeneration` so older hosts and settings keep working.
+  @MappableField(key: 'aiTextGeneration')
+  final AiAssistSettings aiAssist;
   final AiDictationSettings aiDictation;
   final TextActionsSettings textActions;
   final EditorSettings editor;
@@ -460,7 +482,7 @@ class AleraSettings with AleraSettingsMappable {
   static const AleraSettings defaults = AleraSettings(
     general: GeneralSettings.defaults,
     agents: AgentSettings.defaults,
-    aiTextGeneration: AiTextGenerationSettings.defaults,
+    aiAssist: AiAssistSettings.defaults,
     aiDictation: AiDictationSettings.defaults,
     editor: EditorSettings.defaults,
     diagnostics: DiagnosticsSettings.defaults,

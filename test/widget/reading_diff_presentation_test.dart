@@ -1,7 +1,7 @@
 import 'dart:typed_data';
 
-import 'package:alera/src/features/ai_text_generation/application/ai_text_agent_runner.dart';
-import 'package:alera/src/features/ai_text_generation/domain/ai_text_generation_settings.dart';
+import 'package:alera/src/features/ai_assist/application/ai_assist_agent_runner.dart';
+import 'package:alera/src/features/ai_assist/domain/ai_assist_settings.dart';
 import 'package:alera/src/features/reading_diff/application/reading_diff_generation_progress.dart';
 import 'package:alera/src/features/reading_diff/domain/reading_diff_models.dart';
 import 'package:alera/src/features/reading_diff/presentation/reading_diff_confirmation_dialog.dart';
@@ -13,7 +13,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  testWidgets('confirmation discloses AI Text usage and diff-only access', (
+  testWidgets('confirmation discloses AI Assist usage and diff-only access', (
     tester,
   ) async {
     await tester.pumpWidget(
@@ -149,7 +149,7 @@ void main() {
 ReadingDiffPreparation _preparation() {
   final request = ReadingDiffRequest(
     workspacePath: '/repo',
-    settings: AiTextGenerationSettings.defaults,
+    settings: AiAssistSettings.defaults,
   );
   return ReadingDiffPreparation(
     request: request,
@@ -168,7 +168,7 @@ ReadingDiffPreparation _preparation() {
         ),
       ],
     ),
-    agent: AiTextGenerationAgent.agy,
+    agent: AiAssistAgent.agy,
     model: 'agent-model',
     effort: 'medium',
     accessPolicy: AgentTaskAccessPolicy.diffOnly,

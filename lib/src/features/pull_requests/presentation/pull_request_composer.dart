@@ -6,10 +6,10 @@ import 'package:alera/src/design_system/forms/alera_text_actions_scope.dart';
 import 'package:alera/src/design_system/forms/alera_dropdown_field.dart';
 import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/design_system/menus/alera_dropdown_entry.dart';
-import 'package:alera/src/features/ai_text_generation/application/ai_text_generation_prompt.dart';
-import 'package:alera/src/features/ai_text_generation/application/ai_text_generation_providers.dart';
-import 'package:alera/src/features/ai_text_generation/application/ai_text_generation_service.dart';
-import 'package:alera/src/features/ai_text_generation/domain/ai_text_generation_settings.dart';
+import 'package:alera/src/features/ai_assist/application/ai_assist_prompt.dart';
+import 'package:alera/src/features/ai_assist/application/ai_assist_providers.dart';
+import 'package:alera/src/features/ai_assist/application/ai_assist_service.dart';
+import 'package:alera/src/features/ai_assist/domain/ai_assist_settings.dart';
 import 'package:alera/src/features/ai_dictation/presentation/ai_dictation_field_overlay.dart';
 import 'package:alera/src/features/pull_requests/domain/hosted_review.dart';
 import 'package:alera/src/features/pull_requests/presentation/pull_request_field_decoration.dart';
@@ -90,12 +90,12 @@ class _PullRequestComposerState extends ConsumerState<PullRequestComposer> {
   String? _errorText;
   bool _generating = false;
   int _generationId = 0;
-  late final AiTextGenerationService _aiTextGenerationService;
+  late final AiAssistService _aiAssistService;
 
   @override
   void initState() {
     super.initState();
-    _aiTextGenerationService = ref.read(aiTextGenerationServiceProvider);
+    _aiAssistService = ref.read(aiAssistServiceProvider);
     _mode = widget.canCreate ? _ComposerMode.create : _ComposerMode.link;
     _titleController = TextEditingController(text: widget.headBranch ?? '');
     _bodyController = TextEditingController();
@@ -118,9 +118,9 @@ class _PullRequestComposerState extends ConsumerState<PullRequestComposer> {
       }
     }
     if (oldWidget.repoPath != widget.repoPath && _generating) {
-      _aiTextGenerationService.cancel(
+      _aiAssistService.cancel(
         oldWidget.repoPath,
-        AiTextGenerationOperation.pullRequestDetails,
+        AiAssistOperation.pullRequestDetails,
       );
       _generationId += 1;
       _generating = false;
@@ -130,9 +130,9 @@ class _PullRequestComposerState extends ConsumerState<PullRequestComposer> {
   @override
   void dispose() {
     if (_generating) {
-      _aiTextGenerationService.cancel(
+      _aiAssistService.cancel(
         widget.repoPath,
-        AiTextGenerationOperation.pullRequestDetails,
+        AiAssistOperation.pullRequestDetails,
       );
     }
     _titleController.dispose();
@@ -223,7 +223,7 @@ class _PullRequestComposerState extends ConsumerState<PullRequestComposer> {
   }
 
   Future<void> _generateDetails() async {
-    final settings = ref.read(settingsControllerProvider).aiTextGeneration;
+    final settings = ref.read(settingsControllerProvider).aiAssist;
     if (_generating ||
         !widget.canCreate ||
         widget.busy ||
@@ -241,9 +241,9 @@ class _PullRequestComposerState extends ConsumerState<PullRequestComposer> {
       _errorText = null;
     });
     try {
-      final result = await _aiTextGenerationService.generate(
-        AiTextGenerationRequest(
-          operation: AiTextGenerationOperation.pullRequestDetails,
+      final result = await _aiAssistService.generate(
+        AiAssistRequest(
+          operation: AiAssistOperation.pullRequestDetails,
           workspacePath: requestPath,
           settings: settings,
           baseBranch: _baseBranch,
@@ -279,7 +279,7 @@ class _PullRequestComposerState extends ConsumerState<PullRequestComposer> {
           tone: AleraToastTone.info,
         );
       }
-    } on AiTextGenerationCanceledException {
+    } on AiAssistCanceledException {
       return;
     } catch (error) {
       if (_isCurrentGeneration(
@@ -312,9 +312,9 @@ class _PullRequestComposerState extends ConsumerState<PullRequestComposer> {
   }
 
   void _cancelGenerate() {
-    _aiTextGenerationService.cancel(
+    _aiAssistService.cancel(
       widget.repoPath,
-      AiTextGenerationOperation.pullRequestDetails,
+      AiAssistOperation.pullRequestDetails,
     );
   }
 
@@ -325,7 +325,7 @@ class _PullRequestComposerState extends ConsumerState<PullRequestComposer> {
     final theme = Theme.of(context);
     final aiEnabled = ref.watch(
       settingsControllerProvider.select(
-        (settings) => settings.aiTextGeneration.enabled,
+        (settings) => settings.aiAssist.enabled,
       ),
     );
     return Padding(

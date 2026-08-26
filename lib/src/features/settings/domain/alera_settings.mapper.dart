@@ -58,6 +58,61 @@ extension TerminalCursorShapeMapperExtension on TerminalCursorShape {
   }
 }
 
+class TerminalToolbarCornerMapper extends EnumMapper<TerminalToolbarCorner> {
+  TerminalToolbarCornerMapper._();
+
+  static TerminalToolbarCornerMapper? _instance;
+  static TerminalToolbarCornerMapper ensureInitialized() {
+    if (_instance == null) {
+      MapperContainer.globals.use(_instance = TerminalToolbarCornerMapper._());
+    }
+    return _instance!;
+  }
+
+  static TerminalToolbarCorner fromValue(dynamic value) {
+    ensureInitialized();
+    return MapperContainer.globals.fromValue(value);
+  }
+
+  @override
+  TerminalToolbarCorner decode(dynamic value) {
+    switch (value) {
+      case r'topLeft':
+        return TerminalToolbarCorner.topLeft;
+      case r'topRight':
+        return TerminalToolbarCorner.topRight;
+      case r'bottomLeft':
+        return TerminalToolbarCorner.bottomLeft;
+      case r'bottomRight':
+        return TerminalToolbarCorner.bottomRight;
+      default:
+        throw MapperException.unknownEnumValue(value);
+    }
+  }
+
+  @override
+  dynamic encode(TerminalToolbarCorner self) {
+    switch (self) {
+      case TerminalToolbarCorner.topLeft:
+        return r'topLeft';
+      case TerminalToolbarCorner.topRight:
+        return r'topRight';
+      case TerminalToolbarCorner.bottomLeft:
+        return r'bottomLeft';
+      case TerminalToolbarCorner.bottomRight:
+        return r'bottomRight';
+    }
+  }
+}
+
+extension TerminalToolbarCornerMapperExtension on TerminalToolbarCorner {
+  String toValue() {
+    TerminalToolbarCornerMapper.ensureInitialized();
+    return MapperContainer.globals.toValue<TerminalToolbarCorner>(this)
+        as String;
+  }
+}
+
 class DiagnosticsLogLevelMapper extends EnumMapper<DiagnosticsLogLevel> {
   DiagnosticsLogLevelMapper._();
 
@@ -371,6 +426,7 @@ class TerminalSettingsMapper extends ClassMapperBase<TerminalSettings> {
       MapperContainer.globals.use(_instance = TerminalSettingsMapper._());
       TerminalCursorShapeMapper.ensureInitialized();
       TerminalColorOverridesMapper.ensureInitialized();
+      TerminalToolbarCornerMapper.ensureInitialized();
     }
     return _instance!;
   }
@@ -496,6 +552,15 @@ class TerminalSettingsMapper extends ClassMapperBase<TerminalSettings> {
     opt: true,
     def: false,
   );
+  static TerminalToolbarCorner _$toolbarCorner(TerminalSettings v) =>
+      v.toolbarCorner;
+  static const Field<TerminalSettings, TerminalToolbarCorner> _f$toolbarCorner =
+      Field(
+        'toolbarCorner',
+        _$toolbarCorner,
+        opt: true,
+        def: TerminalToolbarCorner.topRight,
+      );
   static int _$hostEmptyShutdownDelaySeconds(TerminalSettings v) =>
       v.hostEmptyShutdownDelaySeconds;
   static const Field<TerminalSettings, int> _f$hostEmptyShutdownDelaySeconds =
@@ -565,6 +630,7 @@ class TerminalSettingsMapper extends ClassMapperBase<TerminalSettings> {
     #clipboardOnSelect: _f$clipboardOnSelect,
     #allowOsc52Clipboard: _f$allowOsc52Clipboard,
     #showComposerByDefault: _f$showComposerByDefault,
+    #toolbarCorner: _f$toolbarCorner,
     #hostEmptyShutdownDelaySeconds: _f$hostEmptyShutdownDelaySeconds,
     #hostDetachedSessionShutdownDelaySeconds:
         _f$hostDetachedSessionShutdownDelaySeconds,
@@ -596,6 +662,7 @@ class TerminalSettingsMapper extends ClassMapperBase<TerminalSettings> {
       clipboardOnSelect: data.dec(_f$clipboardOnSelect),
       allowOsc52Clipboard: data.dec(_f$allowOsc52Clipboard),
       showComposerByDefault: data.dec(_f$showComposerByDefault),
+      toolbarCorner: data.dec(_f$toolbarCorner),
       hostEmptyShutdownDelaySeconds: data.dec(_f$hostEmptyShutdownDelaySeconds),
       hostDetachedSessionShutdownDelaySeconds: data.dec(
         _f$hostDetachedSessionShutdownDelaySeconds,
@@ -694,6 +761,7 @@ abstract class TerminalSettingsCopyWith<$R, $In extends TerminalSettings, $Out>
     bool? clipboardOnSelect,
     bool? allowOsc52Clipboard,
     bool? showComposerByDefault,
+    TerminalToolbarCorner? toolbarCorner,
     int? hostEmptyShutdownDelaySeconds,
     int? hostDetachedSessionShutdownDelaySeconds,
     int? hostScrollbackBytes,
@@ -742,6 +810,7 @@ class _TerminalSettingsCopyWithImpl<$R, $Out>
     bool? clipboardOnSelect,
     bool? allowOsc52Clipboard,
     bool? showComposerByDefault,
+    TerminalToolbarCorner? toolbarCorner,
     int? hostEmptyShutdownDelaySeconds,
     int? hostDetachedSessionShutdownDelaySeconds,
     int? hostScrollbackBytes,
@@ -771,6 +840,7 @@ class _TerminalSettingsCopyWithImpl<$R, $Out>
         #allowOsc52Clipboard: allowOsc52Clipboard,
       if (showComposerByDefault != null)
         #showComposerByDefault: showComposerByDefault,
+      if (toolbarCorner != null) #toolbarCorner: toolbarCorner,
       if (hostEmptyShutdownDelaySeconds != null)
         #hostEmptyShutdownDelaySeconds: hostEmptyShutdownDelaySeconds,
       if (hostDetachedSessionShutdownDelaySeconds != null)
@@ -820,6 +890,7 @@ class _TerminalSettingsCopyWithImpl<$R, $Out>
       #showComposerByDefault,
       or: $value.showComposerByDefault,
     ),
+    toolbarCorner: data.get(#toolbarCorner, or: $value.toolbarCorner),
     hostEmptyShutdownDelaySeconds: data.get(
       #hostEmptyShutdownDelaySeconds,
       or: $value.hostEmptyShutdownDelaySeconds,
@@ -2947,7 +3018,7 @@ class AleraSettingsMapper extends ClassMapperBase<AleraSettings> {
       MapperContainer.globals.use(_instance = AleraSettingsMapper._());
       GeneralSettingsMapper.ensureInitialized();
       AgentSettingsMapper.ensureInitialized();
-      AiTextGenerationSettingsMapper.ensureInitialized();
+      AiAssistSettingsMapper.ensureInitialized();
       AiDictationSettingsMapper.ensureInitialized();
       TextActionsSettingsMapper.ensureInitialized();
       EditorSettingsMapper.ensureInitialized();
@@ -2974,14 +3045,13 @@ class AleraSettingsMapper extends ClassMapperBase<AleraSettings> {
     opt: true,
     def: AgentSettings.defaults,
   );
-  static AiTextGenerationSettings _$aiTextGeneration(AleraSettings v) =>
-      v.aiTextGeneration;
-  static const Field<AleraSettings, AiTextGenerationSettings>
-  _f$aiTextGeneration = Field(
-    'aiTextGeneration',
-    _$aiTextGeneration,
+  static AiAssistSettings _$aiAssist(AleraSettings v) => v.aiAssist;
+  static const Field<AleraSettings, AiAssistSettings> _f$aiAssist = Field(
+    'aiAssist',
+    _$aiAssist,
+    key: r'aiTextGeneration',
     opt: true,
-    def: AiTextGenerationSettings.defaults,
+    def: AiAssistSettings.defaults,
   );
   static AiDictationSettings _$aiDictation(AleraSettings v) => v.aiDictation;
   static const Field<AleraSettings, AiDictationSettings> _f$aiDictation = Field(
@@ -3031,7 +3101,7 @@ class AleraSettingsMapper extends ClassMapperBase<AleraSettings> {
   final MappableFields<AleraSettings> fields = const {
     #general: _f$general,
     #agents: _f$agents,
-    #aiTextGeneration: _f$aiTextGeneration,
+    #aiAssist: _f$aiAssist,
     #aiDictation: _f$aiDictation,
     #textActions: _f$textActions,
     #editor: _f$editor,
@@ -3047,7 +3117,7 @@ class AleraSettingsMapper extends ClassMapperBase<AleraSettings> {
     return AleraSettings(
       general: data.dec(_f$general),
       agents: data.dec(_f$agents),
-      aiTextGeneration: data.dec(_f$aiTextGeneration),
+      aiAssist: data.dec(_f$aiAssist),
       aiDictation: data.dec(_f$aiDictation),
       textActions: data.dec(_f$textActions),
       editor: data.dec(_f$editor),
@@ -3122,12 +3192,7 @@ abstract class AleraSettingsCopyWith<$R, $In extends AleraSettings, $Out>
     implements ClassCopyWith<$R, $In, $Out> {
   GeneralSettingsCopyWith<$R, GeneralSettings, GeneralSettings> get general;
   AgentSettingsCopyWith<$R, AgentSettings, AgentSettings> get agents;
-  AiTextGenerationSettingsCopyWith<
-    $R,
-    AiTextGenerationSettings,
-    AiTextGenerationSettings
-  >
-  get aiTextGeneration;
+  AiAssistSettingsCopyWith<$R, AiAssistSettings, AiAssistSettings> get aiAssist;
   AiDictationSettingsCopyWith<$R, AiDictationSettings, AiDictationSettings>
   get aiDictation;
   TextActionsSettingsCopyWith<$R, TextActionsSettings, TextActionsSettings>
@@ -3147,7 +3212,7 @@ abstract class AleraSettingsCopyWith<$R, $In extends AleraSettings, $Out>
   $R call({
     GeneralSettings? general,
     AgentSettings? agents,
-    AiTextGenerationSettings? aiTextGeneration,
+    AiAssistSettings? aiAssist,
     AiDictationSettings? aiDictation,
     TextActionsSettings? textActions,
     EditorSettings? editor,
@@ -3174,13 +3239,8 @@ class _AleraSettingsCopyWithImpl<$R, $Out>
   AgentSettingsCopyWith<$R, AgentSettings, AgentSettings> get agents =>
       $value.agents.copyWith.$chain((v) => call(agents: v));
   @override
-  AiTextGenerationSettingsCopyWith<
-    $R,
-    AiTextGenerationSettings,
-    AiTextGenerationSettings
-  >
-  get aiTextGeneration =>
-      $value.aiTextGeneration.copyWith.$chain((v) => call(aiTextGeneration: v));
+  AiAssistSettingsCopyWith<$R, AiAssistSettings, AiAssistSettings>
+  get aiAssist => $value.aiAssist.copyWith.$chain((v) => call(aiAssist: v));
   @override
   AiDictationSettingsCopyWith<$R, AiDictationSettings, AiDictationSettings>
   get aiDictation =>
@@ -3213,7 +3273,7 @@ class _AleraSettingsCopyWithImpl<$R, $Out>
   $R call({
     GeneralSettings? general,
     AgentSettings? agents,
-    AiTextGenerationSettings? aiTextGeneration,
+    AiAssistSettings? aiAssist,
     AiDictationSettings? aiDictation,
     TextActionsSettings? textActions,
     EditorSettings? editor,
@@ -3225,7 +3285,7 @@ class _AleraSettingsCopyWithImpl<$R, $Out>
     FieldCopyWithData({
       if (general != null) #general: general,
       if (agents != null) #agents: agents,
-      if (aiTextGeneration != null) #aiTextGeneration: aiTextGeneration,
+      if (aiAssist != null) #aiAssist: aiAssist,
       if (aiDictation != null) #aiDictation: aiDictation,
       if (textActions != null) #textActions: textActions,
       if (editor != null) #editor: editor,
@@ -3239,7 +3299,7 @@ class _AleraSettingsCopyWithImpl<$R, $Out>
   AleraSettings $make(CopyWithData data) => AleraSettings(
     general: data.get(#general, or: $value.general),
     agents: data.get(#agents, or: $value.agents),
-    aiTextGeneration: data.get(#aiTextGeneration, or: $value.aiTextGeneration),
+    aiAssist: data.get(#aiAssist, or: $value.aiAssist),
     aiDictation: data.get(#aiDictation, or: $value.aiDictation),
     textActions: data.get(#textActions, or: $value.textActions),
     editor: data.get(#editor, or: $value.editor),

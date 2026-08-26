@@ -1,7 +1,9 @@
+mod agent_integration_home_isolation;
+
 #[allow(dead_code)]
 mod terminal_host_test_platform;
 
-use alera_core::child_process::windowless_command;
+use agent_integration_home_isolation::alera_command_with_isolated_home;
 use std::io::{BufRead, BufReader, Write};
 use std::net::TcpStream;
 use std::process::Child;
@@ -62,7 +64,7 @@ fn read_response(reader: &mut BufReader<TcpStream>, id: i64) -> Value {
 }
 
 fn spawn_host(runtime_dir: &std::path::Path, control_path: &std::path::Path) -> HostGuard {
-    let child = windowless_command(env!("CARGO_BIN_EXE_alera"))
+    let child = alera_command_with_isolated_home(runtime_dir)
         .args([
             "terminal-host",
             "--runtime-dir",
