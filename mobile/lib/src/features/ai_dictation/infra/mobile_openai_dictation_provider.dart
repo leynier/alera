@@ -86,7 +86,7 @@ class MobileOpenAiDictationProvider {
       return MobileOpenAiDictationResult(text.trim());
     } on TimeoutException {
       throw TimeoutException('Speech provider timed out.', timeout);
-    } on Object catch (error) {
+    } on Object {
       if (_cancelled.contains(requestId)) {
         throw StateError('Dictation cancelled.');
       }
