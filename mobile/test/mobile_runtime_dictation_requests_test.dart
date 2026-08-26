@@ -43,6 +43,27 @@ void main() {
       throwsA(isA<UnsupportedError>()),
     );
   });
+
+  test('paired Codex sends only its realtime model override', () async {
+    final client = _FakeMobileRuntimeDictationClient(<String>{
+      aiDictationCapability,
+      aiDictationModelsCapability,
+      remoteAiDictationCapability,
+    });
+
+    await client.transcribeMobileAudio(
+      requestId: 'runtime-codex-1',
+      audio: <int>[1, 2],
+      engine: 'codexSubscription',
+      modelId: 'realtime-model',
+      timeoutSeconds: 120,
+    );
+
+    expect(client.lastPayload?['engine'], 'codexSubscription');
+    expect(client.lastPayload?['modelId'], 'realtime-model');
+    expect(client.lastPayload?['baseUrl'], isNull);
+    expect(client.lastPayload, isNot(contains('token')));
+  });
 }
 
 class _FakeMobileRuntimeDictationClient with MobileRuntimeDictationRequests {
