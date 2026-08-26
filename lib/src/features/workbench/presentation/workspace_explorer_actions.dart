@@ -195,6 +195,58 @@ extension _WorkspaceExplorerActions on _WorkspaceExplorerState {
     }
   }
 
+  Future<void> _revealPendingPath({String? relativePath}) async {
+    final request = ref.read(workspaceExplorerRevealControllerProvider);
+    final targetPath = normalizeWorkspaceRelativePath(
+      relativePath ??
+          (request?.workspaceId == widget.workspace.id
+              ? request?.relativePath
+              : null),
+    );
+    if (targetPath == null) {
+      return;
+    }
+    await _ensureAncestorsLoaded(targetPath);
+    if (!mounted) {
+      return;
+    }
+    _rebuildTree();
+    final nodeId = _nodeIdForRelativePath(targetPath);
+    await _controller.reveal(nodeId: nodeId, select: true);
+    if (request != null &&
+        request.workspaceId == widget.workspace.id &&
+        request.relativePath == targetPath) {
+      ref
+          .read(workspaceExplorerRevealControllerProvider.notifier)
+          .consume(request);
+    }
+  }
+
+  Future<void> _ensureAncestorsLoaded(String relativePath) async {
+    var ancestor = '';
+    for (final part in relativePath.split('/')) {
+      if (part.isEmpty) {
+        continue;
+      }
+      if (!_childrenByDirectory.containsKey(ancestor)) {
+        await _loadDirectory(ancestor);
+        if (!mounted) {
+          return;
+        }
+      }
+      ancestor = ancestor.isEmpty ? part : '$ancestor/$part';
+    }
+  }
+
+  String? _nodeIdForRelativePath(String relativePath) {
+    for (final binding in _entryByNodeId.entries) {
+      if (binding.value.relativePath == relativePath) {
+        return binding.key;
+      }
+    }
+    return 'path:$relativePath';
+  }
+
   Future<void> _reveal(native.WorkspaceFileEntry entry) async {
     final result = await _folderOpener.reveal(
       _absolutePath(entry.relativePath),

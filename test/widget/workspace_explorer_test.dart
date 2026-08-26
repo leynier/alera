@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/features/projects/application/project_providers.dart';
 import 'package:alera/src/features/workbench/application/workbench_providers.dart';
+import 'package:alera/src/features/workbench/application/workspace_explorer_reveal.dart';
 import 'package:alera/src/features/workbench/application/workspace_file_service.dart';
 import 'package:alera/src/features/workbench/application/workspace_folder_opener.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
@@ -27,10 +28,12 @@ import '../unit/fake_git_backend.dart';
 part 'workspace_explorer_cursor_cases.dart';
 part 'workspace_explorer_context_sidebar_cases.dart';
 part 'workspace_explorer_git_snapshot_cases.dart';
+part 'workspace_explorer_reveal_cases.dart';
 
 void main() {
   _registerWorkspaceExplorerContextSidebarTests();
   _registerWorkspaceExplorerGitSnapshotTests();
+  _registerWorkspaceExplorerRevealTests();
   _registerWorkspaceExplorerCursorTests();
 
   testWidgets('single click toggles folders and rows expose click cursors', (

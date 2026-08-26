@@ -11,6 +11,8 @@ class _GitDiffTree extends StatefulWidget {
     required this.onToggleTreeNode,
     required this.onToggleSubmodule,
     required this.onOpenGitDiff,
+    this.onOpenFile,
+    required this.onRevealInExplorer,
     required this.onStage,
     required this.onUnstage,
     required this.onDiscard,
@@ -33,6 +35,8 @@ class _GitDiffTree extends StatefulWidget {
   final ValueChanged<String> onToggleTreeNode;
   final ValueChanged<GitChangeEntry> onToggleSubmodule;
   final OpenGitDiffTabCallback onOpenGitDiff;
+  final ValueChanged<String>? onOpenFile;
+  final ValueChanged<String> onRevealInExplorer;
   final ValueChanged<GitChangeEntry> onStage;
   final ValueChanged<GitChangeEntry> onUnstage;
   final ValueChanged<GitChangeEntry> onDiscard;
@@ -122,6 +126,10 @@ class _GitDiffTreeState extends State<_GitDiffTree> {
           ),
           depth: row.depth,
           busy: widget.busy,
+          onOpenFile: widget.onOpenFile == null
+              ? null
+              : () => widget.onOpenFile!(entry.path),
+          onRevealInExplorer: () => widget.onRevealInExplorer(entry.path),
           onStage: widget.onStage,
           onUnstage: widget.onUnstage,
           onDiscard: widget.onDiscard,
@@ -146,6 +154,8 @@ class _GitDiffTreeState extends State<_GitDiffTree> {
             depth: row.depth + 1,
             busy: widget.busy,
             onOpenGitDiff: widget.onOpenGitDiff,
+            onOpenFile: widget.onOpenFile,
+            onRevealInExplorer: widget.onRevealInExplorer,
           ),
       ];
     }
@@ -163,6 +173,8 @@ class _GitDiffTreeState extends State<_GitDiffTree> {
         canUnstage: capabilities?.canUnstage ?? false,
         canDiscard: capabilities?.canDiscard ?? false,
         onTap: () => widget.onToggleTreeNode(_treeNodeKey(row.path)),
+        onOpenFile: null,
+        onRevealInExplorer: () => widget.onRevealInExplorer(row.path),
         onStage: () {
           if (widget.unified) {
             widget.onStagePath?.call(row.path);
@@ -220,6 +232,8 @@ class _GitDiffDirectoryRow extends StatelessWidget {
     required this.canUnstage,
     required this.canDiscard,
     required this.onTap,
+    this.onOpenFile,
+    required this.onRevealInExplorer,
     required this.onStage,
     required this.onUnstage,
     required this.onDiscard,
@@ -233,6 +247,8 @@ class _GitDiffDirectoryRow extends StatelessWidget {
   final bool canUnstage;
   final bool canDiscard;
   final VoidCallback onTap;
+  final VoidCallback? onOpenFile;
+  final VoidCallback onRevealInExplorer;
   final VoidCallback onStage;
   final VoidCallback onUnstage;
   final VoidCallback onDiscard;
@@ -242,6 +258,10 @@ class _GitDiffDirectoryRow extends StatelessWidget {
     return _GitDiffBaseRow(
       depth: row.depth,
       onTap: onTap,
+      onSecondaryTapDown: (details) =>
+          unawaited(_openMenu(context, details.globalPosition)),
+      onLongPressStart: (details) =>
+          unawaited(_openMenu(context, details.globalPosition)),
       child: Row(
         children: <Widget>[
           Icon(
@@ -298,6 +318,23 @@ class _GitDiffDirectoryRow extends StatelessWidget {
       ),
     );
   }
+
+  Future<void> _openMenu(BuildContext context, Offset position) {
+    return _showGitChangeContextMenu(
+      context,
+      position,
+      canOpenFile: onOpenFile != null,
+      canStage: canStage,
+      canUnstage: canUnstage,
+      canDiscard: canDiscard,
+      busy: busy,
+      onOpenFile: onOpenFile,
+      onRevealInExplorer: onRevealInExplorer,
+      onStage: onStage,
+      onUnstage: onUnstage,
+      onDiscard: onDiscard,
+    );
+  }
 }
 
 class _GitDiffFileRow extends StatelessWidget {
@@ -307,6 +344,8 @@ class _GitDiffFileRow extends StatelessWidget {
     required this.depth,
     required this.onTap,
     required this.busy,
+    this.onOpenFile,
+    required this.onRevealInExplorer,
     required this.onStage,
     required this.onUnstage,
     required this.onDiscard,
@@ -321,6 +360,8 @@ class _GitDiffFileRow extends StatelessWidget {
   final int depth;
   final VoidCallback onTap;
   final bool busy;
+  final VoidCallback? onOpenFile;
+  final VoidCallback onRevealInExplorer;
   final ValueChanged<GitChangeEntry> onStage;
   final ValueChanged<GitChangeEntry> onUnstage;
   final ValueChanged<GitChangeEntry> onDiscard;
@@ -334,6 +375,10 @@ class _GitDiffFileRow extends StatelessWidget {
     return _GitDiffBaseRow(
       depth: depth,
       onTap: onTap,
+      onSecondaryTapDown: (details) =>
+          unawaited(_openMenu(context, details.globalPosition)),
+      onLongPressStart: (details) =>
+          unawaited(_openMenu(context, details.globalPosition)),
       child: Row(
         children: <Widget>[
           if (entry.isExpandableSubmodule)
@@ -413,100 +458,22 @@ class _GitDiffFileRow extends StatelessWidget {
       ),
     );
   }
-}
 
-class _GitFileActions extends StatelessWidget {
-  const _GitFileActions({
-    required this.entry,
-    required this.busy,
-    required this.onStage,
-    required this.onUnstage,
-    required this.onDiscard,
-  });
-
-  final GitChangeEntry entry;
-  final bool busy;
-  final ValueChanged<GitChangeEntry> onStage;
-  final ValueChanged<GitChangeEntry> onUnstage;
-  final ValueChanged<GitChangeEntry> onDiscard;
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      width: 58,
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.end,
-        children: <Widget>[
-          if (entry.canUnstageFromParent)
-            AleraIconButton(
-              tooltip: 'Unstage',
-              icon: AleraIcons.gitUnstage,
-              onPressed: busy ? null : () => onUnstage(entry),
-            )
-          else if (entry.canStageFromParent)
-            AleraIconButton(
-              tooltip: 'Stage',
-              icon: AleraIcons.gitStage,
-              onPressed: busy ? null : () => onStage(entry),
-            ),
-          if (entry.canDiscardFromParent)
-            AleraIconButton(
-              tooltip: 'Discard',
-              icon: AleraIcons.gitDiscard,
-              onPressed: busy ? null : () => onDiscard(entry),
-            ),
-        ],
-      ),
-    );
-  }
-}
-
-class _AreaActions extends StatelessWidget {
-  const _AreaActions({
-    required this.busy,
-    required this.onStage,
-    required this.onUnstage,
-    required this.onDiscard,
-    required this.canStage,
-    required this.canUnstage,
-    required this.canDiscard,
-  });
-
-  final bool busy;
-  final VoidCallback onStage;
-  final VoidCallback onUnstage;
-  final VoidCallback onDiscard;
-  final bool canStage;
-  final bool canUnstage;
-  final bool canDiscard;
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      width: 58,
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.end,
-        children: <Widget>[
-          if (canUnstage)
-            AleraIconButton(
-              tooltip: 'Unstage',
-              icon: AleraIcons.gitUnstage,
-              onPressed: busy ? null : onUnstage,
-            )
-          else if (canStage)
-            AleraIconButton(
-              tooltip: 'Stage',
-              icon: AleraIcons.gitStage,
-              onPressed: busy ? null : onStage,
-            ),
-          if (canDiscard)
-            AleraIconButton(
-              tooltip: 'Discard',
-              icon: AleraIcons.gitDiscard,
-              onPressed: busy ? null : onDiscard,
-            ),
-        ],
-      ),
+  Future<void> _openMenu(BuildContext context, Offset position) {
+    return _showGitChangeContextMenu(
+      context,
+      position,
+      canOpenFile:
+          onOpenFile != null && entry.status != GitChangeStatus.deleted,
+      canStage: entry.canStageFromParent,
+      canUnstage: entry.canUnstageFromParent,
+      canDiscard: entry.canDiscardFromParent,
+      busy: busy,
+      onOpenFile: onOpenFile,
+      onRevealInExplorer: onRevealInExplorer,
+      onStage: () => onStage(entry),
+      onUnstage: () => onUnstage(entry),
+      onDiscard: () => onDiscard(entry),
     );
   }
 }

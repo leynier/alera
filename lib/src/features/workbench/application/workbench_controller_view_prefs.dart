@@ -252,6 +252,21 @@ mixin _WorkbenchControllerViewPrefs
     _updateViewPrefs(state.viewPrefs.copyWith(activeContextPanelTab: tab));
   }
 
+  void revealInExplorer({
+    required Workspace workspace,
+    required String relativePath,
+  }) {
+    final normalized = normalizeWorkspaceRelativePath(relativePath);
+    if (normalized == null) {
+      return;
+    }
+    ref
+        .read(workspaceExplorerRevealControllerProvider.notifier)
+        .reveal(workspaceId: workspace.id, relativePath: normalized);
+    setRightSidebarVisible(true);
+    setContextPanelTab(WorkbenchContextPanelTab.explorer);
+  }
+
   void setExplorerMode(WorkspaceExplorerMode mode) {
     if (state.viewPrefs.explorerMode == mode) {
       return;

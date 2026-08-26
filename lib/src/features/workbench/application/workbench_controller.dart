@@ -10,6 +10,7 @@ import 'package:alera/src/features/projects/application/project_providers.dart';
 import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/features/projects/application/projects_service.dart';
 import 'package:alera/src/features/projects/domain/project.dart';
+import 'package:alera/src/features/workbench/application/workspace_explorer_reveal.dart';
 import 'package:alera/src/features/workbench/application/workspace_tab_service.dart';
 import 'package:alera/src/features/workbench/application/workspace_browser_tab_service.dart';
 import 'package:alera/src/features/workbench/application/workbench_repository.dart';

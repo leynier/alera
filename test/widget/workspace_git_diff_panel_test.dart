@@ -27,9 +27,11 @@ import '../unit/fake_git_backend.dart';
 import '../unit/fake_source_control_watcher.dart';
 
 part 'workspace_git_diff_panel_preview_test_cases.dart';
+part 'workspace_git_diff_panel_context_menu_test_cases.dart';
 
 void main() {
   _registerWorkspaceGitDiffPanelPreviewTests();
+  _registerWorkspaceGitDiffPanelContextMenuTests();
   testWidgets('git diff panel hides zero-valued line counts', (tester) async {
     final backend = FakeGitBackend()
       ..gitStatusResult = const GitStatusResult(
@@ -1440,6 +1442,8 @@ Future<void> _pumpPanel(
   AleraSettings settings = AleraSettings.defaults,
   OpenGitDiffTabCallback? onOpenGitDiff,
   OpenGitCommitDiffTabCallback? onOpenGitCommitDiff,
+  ValueChanged<String>? onOpenFile,
+  ValueChanged<String>? onRevealInExplorer,
   VoidCallback? onClearSourceControlRoot,
 }) {
   final resolvedWorkspace = workspace ?? _workspace();
@@ -1491,6 +1495,8 @@ Future<void> _pumpPanel(
                     message,
                     bool preview = false,
                   }) async {},
+              onOpenFile: onOpenFile,
+              onRevealInExplorer: onRevealInExplorer,
               onClearSourceControlRoot: onClearSourceControlRoot,
             ),
           ),

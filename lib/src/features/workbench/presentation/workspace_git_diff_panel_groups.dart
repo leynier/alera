@@ -13,6 +13,8 @@ class _GitDiffGroups extends StatelessWidget {
     required this.onToggleTreeNode,
     required this.onToggleSubmodule,
     required this.onOpenGitDiff,
+    this.onOpenFile,
+    required this.onRevealInExplorer,
     required this.onStage,
     required this.onUnstage,
     required this.onDiscard,
@@ -35,6 +37,8 @@ class _GitDiffGroups extends StatelessWidget {
   final ValueChanged<String> onToggleTreeNode;
   final ValueChanged<GitChangeEntry> onToggleSubmodule;
   final OpenGitDiffTabCallback onOpenGitDiff;
+  final ValueChanged<String>? onOpenFile;
+  final ValueChanged<String> onRevealInExplorer;
   final ValueChanged<GitChangeEntry> onStage;
   final ValueChanged<GitChangeEntry> onUnstage;
   final ValueChanged<GitChangeEntry> onDiscard;
@@ -63,6 +67,8 @@ class _GitDiffGroups extends StatelessWidget {
             onToggleTreeNode: onToggleTreeNode,
             onToggleSubmodule: onToggleSubmodule,
             onOpenGitDiff: onOpenGitDiff,
+            onOpenFile: onOpenFile,
+            onRevealInExplorer: onRevealInExplorer,
             onStage: onStage,
             onUnstage: onUnstage,
             onDiscard: onDiscard,
@@ -91,6 +97,8 @@ class _GitDiffGroup extends StatelessWidget {
     required this.onToggleTreeNode,
     required this.onToggleSubmodule,
     required this.onOpenGitDiff,
+    this.onOpenFile,
+    required this.onRevealInExplorer,
     required this.onStage,
     required this.onUnstage,
     required this.onDiscard,
@@ -113,6 +121,8 @@ class _GitDiffGroup extends StatelessWidget {
   final ValueChanged<String> onToggleTreeNode;
   final ValueChanged<GitChangeEntry> onToggleSubmodule;
   final OpenGitDiffTabCallback onOpenGitDiff;
+  final ValueChanged<String>? onOpenFile;
+  final ValueChanged<String> onRevealInExplorer;
   final ValueChanged<GitChangeEntry> onStage;
   final ValueChanged<GitChangeEntry> onUnstage;
   final ValueChanged<GitChangeEntry> onDiscard;
@@ -169,6 +179,10 @@ class _GitDiffGroup extends StatelessWidget {
                   showRelativePath: true,
                   showAreaMarker: group.unified,
                   busy: busy,
+                  onOpenFile: onOpenFile == null
+                      ? null
+                      : () => onOpenFile!(entry.path),
+                  onRevealInExplorer: () => onRevealInExplorer(entry.path),
                   onStage: onStage,
                   onUnstage: onUnstage,
                   onDiscard: onDiscard,
@@ -193,6 +207,8 @@ class _GitDiffGroup extends StatelessWidget {
                     depth: 1,
                     busy: busy,
                     onOpenGitDiff: onOpenGitDiff,
+                    onOpenFile: onOpenFile,
+                    onRevealInExplorer: onRevealInExplorer,
                   ),
               ]
             else
@@ -206,6 +222,8 @@ class _GitDiffGroup extends StatelessWidget {
                 onToggleTreeNode: onToggleTreeNode,
                 onToggleSubmodule: onToggleSubmodule,
                 onOpenGitDiff: onOpenGitDiff,
+                onOpenFile: onOpenFile,
+                onRevealInExplorer: onRevealInExplorer,
                 onStage: onStage,
                 onUnstage: onUnstage,
                 onDiscard: onDiscard,

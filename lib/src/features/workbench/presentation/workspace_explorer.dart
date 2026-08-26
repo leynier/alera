@@ -9,10 +9,12 @@ import 'package:alera/src/design_system/icons/alera_file_icon.dart';
 import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/design_system/layout/alera_confirm_dialog.dart';
 import 'package:alera/src/design_system/menus/alera_dropdown_entry.dart';
+import 'package:alera/src/features/workbench/application/workspace_explorer_reveal.dart';
 import 'package:alera/src/features/workbench/application/workspace_file_service.dart';
 import 'package:alera/src/features/workbench/application/workspace_folder_opener.dart';
 import 'package:alera/src/features/workbench/domain/workbench_view_prefs.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
+import 'package:alera/src/features/workbench/domain/workspace_source_control_scope.dart';
 import 'package:alera/src/features/workbench/presentation/terminal_path_drop.dart';
 import 'package:alera/src/rust/api/workspace_files.dart' as native;
 import 'package:alera/src/shared/infra/git/git_backend.dart';
@@ -129,6 +131,7 @@ class _WorkspaceExplorerState extends ConsumerState<WorkspaceExplorer> {
 
   @override
   Widget build(BuildContext context) {
+    _listenForRevealRequest();
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: <Widget>[
