@@ -9,6 +9,8 @@ mixin MobileRuntimeDictationRequests {
       runtimeCapabilities.contains(aiDictationModelsCapability);
   bool get supportsAiDictationBackends =>
       runtimeCapabilities.contains(aiDictationBackendsCapability);
+  bool get supportsRemoteAiDictation =>
+      runtimeCapabilities.contains(remoteAiDictationCapability);
 
   Future<SpeechCapabilities> fetchAiDictationCapabilities() async {
     if (!supportsAiDictationBackends) {
@@ -32,6 +34,8 @@ mixin MobileRuntimeDictationRequests {
     required List<int> audio,
     required String engine,
     required String modelId,
+    String? baseUrl,
+    int timeoutSeconds = 60,
     String? language,
     String? initialPrompt,
   }) async {
@@ -40,10 +44,14 @@ mixin MobileRuntimeDictationRequests {
         'Update the paired runtime to select remote Dictation models.',
       );
     }
-    final timeout = _mobileDictationTimeout(
-      audioBytes: audio.length,
-      modelId: modelId,
-    );
+    if (engine != 'whisper' && !supportsRemoteAiDictation) {
+      throw UnsupportedError(
+        'Update the paired runtime to use remote AI Dictation providers.',
+      );
+    }
+    final timeout = engine == 'whisper'
+        ? _mobileDictationTimeout(audioBytes: audio.length, modelId: modelId)
+        : Duration(seconds: timeoutSeconds.clamp(5, 300));
     try {
       return await requestMap(
         'mobile.aiDictation.transcribe',
@@ -52,6 +60,8 @@ mixin MobileRuntimeDictationRequests {
           'audioBase64': base64Encode(audio),
           'engine': engine,
           'modelId': modelId,
+          'baseUrl': baseUrl,
+          'timeoutSeconds': timeout.inSeconds,
           'language': language,
           'initialPrompt': initialPrompt,
         },

@@ -9,6 +9,7 @@ use crate::terminal_host::ai_assist_capabilities::{
     RUNTIME_HOST_AI_ASSIST_SPEECH_MESSAGE_CAPABILITY,
     RUNTIME_HOST_AI_ASSIST_WORKSPACE_IDENTITY_CAPABILITY,
 };
+use crate::terminal_host::ai_dictation_capabilities::RUNTIME_HOST_REMOTE_AI_DICTATION_CAPABILITY;
 use crate::terminal_host::protocol::{
     RUNTIME_HOST_AGENT_PROFILES_CAPABILITY, RUNTIME_HOST_AGENT_PROFILE_PROMPT_LAUNCH_CAPABILITY,
     RUNTIME_HOST_AGENT_QUOTA_CLAUDE_TUI_CAPABILITY, RUNTIME_HOST_AGENT_STATUS_CAPABILITY,
@@ -81,6 +82,7 @@ pub(super) const MOBILE_HELLO_CAPABILITIES: &[&str] = &[
     RUNTIME_HOST_AI_DICTATION_CAPABILITY,
     RUNTIME_HOST_AI_DICTATION_MODELS_CAPABILITY,
     RUNTIME_HOST_AI_DICTATION_BACKENDS_CAPABILITY,
+    RUNTIME_HOST_REMOTE_AI_DICTATION_CAPABILITY,
 ];
 pub(super) fn mobile_request_allowed(request_type: &str) -> bool {
     matches!(
@@ -266,6 +268,7 @@ mod mobile_codex_file_surface_tests {
     #[test]
     fn advertises_and_allows_speech_capabilities() {
         assert!(MOBILE_HELLO_CAPABILITIES.contains(&RUNTIME_HOST_AI_DICTATION_BACKENDS_CAPABILITY));
+        assert!(MOBILE_HELLO_CAPABILITIES.contains(&RUNTIME_HOST_REMOTE_AI_DICTATION_CAPABILITY));
         assert!(mobile_request_allowed("mobile.aiDictation.capabilities"));
     }
 }

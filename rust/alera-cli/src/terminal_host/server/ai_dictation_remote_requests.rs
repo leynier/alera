@@ -3,6 +3,7 @@ use std::path::PathBuf;
 use std::sync::{Mutex, OnceLock};
 use std::time::Duration;
 
+use base64::Engine as _;
 use hound::WavReader;
 use serde_json::{json, Value};
 use tokio::sync::oneshot;
@@ -33,7 +34,7 @@ impl ServerActor {
             .and_then(Value::as_str)
             .unwrap_or("whisper");
         let timeout = request_timeout(payload);
-        let audio_path = PathBuf::from(required_string(payload, "audioPath")?);
+        let audio = RemoteAudioSource::Path(PathBuf::from(required_string(payload, "audioPath")?));
         let model = payload
             .get("modelId")
             .and_then(Value::as_str)
@@ -56,7 +57,7 @@ impl ServerActor {
                 let token =
                     token_for_origin(self.ai_dictation_credentials().load().await?, &origin)?;
                 RemoteDictationJob::OpenAi {
-                    audio_path,
+                    audio,
                     base_url,
                     model,
                     token,
@@ -71,7 +72,7 @@ impl ServerActor {
                 let server = self.ensure_codex_server(Some(&cwd)).await?;
                 RemoteDictationJob::Codex {
                     server,
-                    audio_path,
+                    audio,
                     runtime_dir,
                     model,
                     timeout,
@@ -83,6 +84,78 @@ impl ServerActor {
                 ));
             }
         };
+        self.enqueue_ai_dictation_job(client_id, response_id, request_id, job)
+    }
+
+    pub(super) async fn try_start_mobile_ai_dictation(
+        &mut self,
+        client_id: u64,
+        response_id: i64,
+        payload: &Value,
+    ) -> HostResult<bool> {
+        let engine = payload
+            .get("engine")
+            .and_then(Value::as_str)
+            .unwrap_or("whisper");
+        if !matches!(engine, "openAiCompatible" | "codexSubscription") {
+            return Ok(false);
+        }
+        let request_id = required_string(payload, "requestId")?;
+        let audio = RemoteAudioSource::Base64(required_string(payload, "audioBase64")?);
+        let timeout = request_timeout(payload);
+        let model = payload
+            .get("modelId")
+            .and_then(Value::as_str)
+            .map(str::to_string);
+        let job = match engine {
+            "openAiCompatible" => {
+                let base_url = required_string(payload, "baseUrl")?;
+                let model = model
+                    .filter(|value| !value.trim().is_empty())
+                    .ok_or_else(|| HostError::format("modelId is required"))?;
+                let origin = super::ai_dictation_openai::provider_origin(&base_url)?;
+                let token =
+                    token_for_origin(self.ai_dictation_credentials().load().await?, &origin)?;
+                RemoteDictationJob::OpenAi {
+                    audio,
+                    base_url,
+                    model,
+                    token,
+                    language: payload
+                        .get("language")
+                        .and_then(Value::as_str)
+                        .map(str::to_string),
+                    prompt: payload
+                        .get("initialPrompt")
+                        .and_then(Value::as_str)
+                        .map(str::to_string),
+                    timeout,
+                }
+            }
+            "codexSubscription" => {
+                let runtime_dir = self.runtime_dir.clone();
+                let cwd = runtime_dir.to_string_lossy().to_string();
+                RemoteDictationJob::Codex {
+                    server: self.ensure_codex_server(Some(&cwd)).await?,
+                    audio,
+                    runtime_dir,
+                    model,
+                    timeout,
+                }
+            }
+            _ => unreachable!(),
+        };
+        self.enqueue_ai_dictation_job(client_id, response_id, request_id, job)?;
+        Ok(true)
+    }
+
+    fn enqueue_ai_dictation_job(
+        &self,
+        client_id: u64,
+        response_id: i64,
+        request_id: String,
+        job: RemoteDictationJob,
+    ) -> HostResult<()> {
         let (cancel_tx, cancel_rx) = oneshot::channel();
         {
             let mut active = active_requests()
@@ -176,7 +249,7 @@ pub(super) fn cancel(request_id: &str) -> HostResult<bool> {
 
 enum RemoteDictationJob {
     OpenAi {
-        audio_path: PathBuf,
+        audio: RemoteAudioSource,
         base_url: String,
         model: String,
         token: Option<String>,
@@ -186,7 +259,7 @@ enum RemoteDictationJob {
     },
     Codex {
         server: super::codex_app_server::CodexAppServer,
-        audio_path: PathBuf,
+        audio: RemoteAudioSource,
         runtime_dir: PathBuf,
         model: Option<String>,
         timeout: Duration,
@@ -198,7 +271,7 @@ impl RemoteDictationJob {
         let started = std::time::Instant::now();
         match self {
             RemoteDictationJob::OpenAi {
-                audio_path,
+                audio,
                 base_url,
                 model,
                 token,
@@ -206,10 +279,11 @@ impl RemoteDictationJob {
                 prompt,
                 timeout,
             } => {
+                let audio = audio.prepare().await?;
                 let operation = async {
                     let mut response =
                         super::ai_dictation_openai::transcribe(OpenAiDictationRequest {
-                            audio_path: &audio_path,
+                            audio_path: &audio.path,
                             base_url: &base_url,
                             model: &model,
                             token: token.as_deref(),
@@ -218,7 +292,7 @@ impl RemoteDictationJob {
                             timeout,
                         })
                         .await?;
-                    let duration_millis = wav_duration_millis(&audio_path)?;
+                    let duration_millis = wav_duration_millis(&audio.path)?;
                     if let Some(response) = response.as_object_mut() {
                         response.insert("requestId".to_string(), json!(request_id));
                         response.insert("durationMillis".to_string(), json!(duration_millis));
@@ -236,14 +310,15 @@ impl RemoteDictationJob {
             }
             RemoteDictationJob::Codex {
                 server,
-                audio_path,
+                audio,
                 runtime_dir,
                 model,
                 timeout,
             } => {
+                let audio = audio.prepare().await?;
                 let result = super::codex_dictation::transcribe(
                     &server,
-                    &audio_path,
+                    &audio.path,
                     &runtime_dir,
                     model.as_deref(),
                     timeout,
@@ -258,6 +333,56 @@ impl RemoteDictationJob {
                     "elapsedMillis": started.elapsed().as_millis().min(i64::MAX as u128) as i64,
                 }))
             }
+        }
+    }
+}
+
+enum RemoteAudioSource {
+    Path(PathBuf),
+    Base64(String),
+}
+
+impl RemoteAudioSource {
+    async fn prepare(self) -> HostResult<PreparedAudio> {
+        match self {
+            RemoteAudioSource::Path(path) => Ok(PreparedAudio {
+                path,
+                temporary: false,
+            }),
+            RemoteAudioSource::Base64(encoded) => tokio::task::spawn_blocking(move || {
+                let bytes = base64::engine::general_purpose::STANDARD
+                    .decode(encoded)
+                    .map_err(|_| HostError::format("audioBase64 is invalid"))?;
+                if bytes.is_empty() || bytes.len() > 25 * 1024 * 1024 {
+                    return Err(HostError::format("audio recording size is invalid"));
+                }
+                let path = std::env::temp_dir().join(format!(
+                    "alera-mobile-dictation-{}.wav",
+                    uuid::Uuid::new_v4()
+                ));
+                std::fs::write(&path, bytes).map_err(|error| {
+                    HostError::state(format!("audio could not be stored: {error}"))
+                })?;
+                Ok(PreparedAudio {
+                    path,
+                    temporary: true,
+                })
+            })
+            .await
+            .map_err(|error| HostError::state(format!("audio decode task failed: {error}")))?,
+        }
+    }
+}
+
+struct PreparedAudio {
+    path: PathBuf,
+    temporary: bool,
+}
+
+impl Drop for PreparedAudio {
+    fn drop(&mut self) {
+        if self.temporary {
+            let _ = std::fs::remove_file(&self.path);
         }
     }
 }
@@ -307,92 +432,5 @@ fn required_string(payload: &Value, key: &str) -> HostResult<String> {
 }
 
 #[cfg(test)]
-mod tests {
-    use std::sync::Arc;
-
-    use super::*;
-
-    #[tokio::test]
-    async fn remote_cancellation_signals_the_running_job() {
-        let (sender, receiver) = oneshot::channel();
-        active_requests()
-            .lock()
-            .unwrap()
-            .insert("remote-1".to_string(), sender);
-
-        assert!(cancel("remote-1").unwrap());
-        receiver.await.unwrap();
-    }
-
-    #[tokio::test]
-    async fn cancelling_openai_job_aborts_in_flight_http_work() {
-        let listener = tokio::net::TcpListener::bind(("127.0.0.1", 0))
-            .await
-            .unwrap();
-        let address = listener.local_addr().unwrap();
-        let request_started = Arc::new(tokio::sync::Notify::new());
-        let handler_started = Arc::clone(&request_started);
-        let app = axum::Router::new().route(
-            "/v1/audio/transcriptions",
-            axum::routing::post(move || {
-                let handler_started = Arc::clone(&handler_started);
-                async move {
-                    handler_started.notify_one();
-                    tokio::time::sleep(Duration::from_secs(10)).await;
-                    axum::Json(json!({"text": "too late"}))
-                }
-            }),
-        );
-        let server = tokio::spawn(async move {
-            axum::serve(listener, app).await.unwrap();
-        });
-        let dir = tempfile::tempdir().unwrap();
-        let audio_path = dir.path().join("audio.wav");
-        std::fs::write(&audio_path, b"audio").unwrap();
-        let job = RemoteDictationJob::OpenAi {
-            audio_path,
-            base_url: format!("http://{address}"),
-            model: "speech-model".to_string(),
-            token: None,
-            language: None,
-            prompt: None,
-            timeout: Duration::from_secs(30),
-        };
-        let (cancel_tx, cancel_rx) = oneshot::channel();
-        let running = tokio::spawn(async move { job.run("remote-http", cancel_rx).await });
-        request_started.notified().await;
-
-        cancel_tx.send(()).unwrap();
-        let error = tokio::time::timeout(Duration::from_secs(1), running)
-            .await
-            .unwrap()
-            .unwrap()
-            .unwrap_err();
-
-        assert!(error.to_string().contains("cancelled"));
-        server.abort();
-    }
-
-    #[test]
-    fn saved_tokens_are_bound_to_the_provider_origin() {
-        let token = token_for_origin(
-            Some(StoredAiDictationCredential {
-                token: "secret".to_string(),
-                origin: Some("https://api.example.test".to_string()),
-            }),
-            "https://api.example.test",
-        )
-        .unwrap();
-        assert_eq!(token.as_deref(), Some("secret"));
-
-        let error = token_for_origin(
-            Some(StoredAiDictationCredential {
-                token: "secret".to_string(),
-                origin: Some("https://other.example.test".to_string()),
-            }),
-            "https://api.example.test",
-        )
-        .unwrap_err();
-        assert!(error.to_string().contains("different API origin"));
-    }
-}
+#[path = "ai_dictation_remote_requests_tests.rs"]
+mod tests;

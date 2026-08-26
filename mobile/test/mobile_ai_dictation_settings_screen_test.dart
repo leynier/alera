@@ -1,8 +1,10 @@
 import 'package:alera_mobile/src/app/theme/alera_theme.dart';
 import 'package:alera_mobile/src/features/ai_dictation/application/mobile_ai_dictation_controller.dart';
 import 'package:alera_mobile/src/features/ai_dictation/application/mobile_ai_dictation_model_transfers.dart';
+import 'package:alera_mobile/src/features/ai_dictation/application/mobile_ai_dictation_provider_credentials.dart';
 import 'package:alera_mobile/src/features/ai_dictation/application/mobile_ai_dictation_settings_controller.dart';
 import 'package:alera_mobile/src/features/ai_dictation/domain/mobile_ai_dictation_settings.dart';
+import 'package:alera_mobile/src/features/ai_dictation/infra/mobile_ai_dictation_credential_store.dart';
 import 'package:alera_mobile/src/features/ai_dictation/presentation/mobile_ai_dictation_settings_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -57,7 +59,7 @@ void main() {
     await tester.tap(find.text('Paired Device'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Allow Paired-Device Audio Processing'), findsOneWidget);
+    expect(find.text('Allow Remote Audio Processing'), findsOneWidget);
     expect(
       find.text('Paired-Device Whisper Model', skipOffstage: false),
       findsOneWidget,
@@ -96,6 +98,59 @@ void main() {
     await tester.pumpAndSettle();
     expect(tester.widget<Switch>(find.byType(Switch)).value, isTrue);
   });
+
+  testWidgets('direct OpenAI settings expose mobile token configuration', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(390, 844));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await tester.pumpWidget(
+      _settingsApp(
+        const MobileAiDictationSettings(
+          enabled: true,
+          engine: MobileAiDictationEngine.openAiCompatible,
+          remoteAudioConsentVersion: 1,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Remote Provider'), findsOneWidget);
+    expect(find.text('Base URL'), findsOneWidget);
+    expect(find.text('Model'), findsOneWidget);
+    expect(find.text('API Token'), findsOneWidget);
+    expect(
+      find.text('A token is stored securely on this mobile device.'),
+      findsNothing,
+    );
+  });
+
+  testWidgets('paired OpenAI uses runtime token configuration', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(390, 844));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await tester.pumpWidget(
+      _settingsApp(
+        const MobileAiDictationSettings(
+          enabled: true,
+          location: MobileAiDictationLocation.pairedDevice,
+          engine: MobileAiDictationEngine.openAiCompatible,
+          remoteAudioConsentVersion: 1,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      find.text(
+        'The runtime uses the API token configured in desktop AI Dictation settings.',
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey<String>('mobile-ai-dictation-api-token')),
+      findsNothing,
+    );
+  });
 }
 
 Widget _settingsApp(MobileAiDictationSettings settings) {
@@ -110,10 +165,30 @@ Widget _settingsApp(MobileAiDictationSettings settings) {
       mobileAiDictationModelTransfersProvider.overrideWith(
         FakeMobileAiDictationModelTransfers.new,
       ),
+      mobileAiDictationCredentialStoreProvider.overrideWithValue(
+        MobileAiDictationCredentialStore(store: _MemorySecureStore()),
+      ),
     ],
     child: MaterialApp(
       theme: buildAleraMobileDarkTheme(),
       home: const MobileAiDictationSettingsScreen(),
     ),
   );
+}
+
+class _MemorySecureStore implements MobileAiDictationSecureStore {
+  final Map<String, String> values = <String, String>{};
+
+  @override
+  Future<void> delete(String key) async {
+    values.remove(key);
+  }
+
+  @override
+  Future<String?> read(String key) async => values[key];
+
+  @override
+  Future<void> write(String key, String value) async {
+    values[key] = value;
+  }
 }
