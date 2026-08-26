@@ -8,6 +8,27 @@ use crate::cli::{
 use crate::cli_orchestration::{OrchestrationAction, OrchestrationCommand};
 
 #[test]
+fn runtime_clear_parses_force_as_an_explicit_live_host_override() {
+    let cli = Cli::try_parse_from([
+        "alera",
+        "runtime",
+        "--runtime-dir",
+        "/tmp/alera-runtime",
+        "clear",
+        "--force",
+    ])
+    .unwrap();
+
+    assert!(matches!(
+        cli.command,
+        Command::Runtime(crate::cli::RuntimeCommand {
+            action: crate::cli::RuntimeAction::Clear(crate::cli::RuntimeClearArgs { force: true }),
+            ..
+        })
+    ));
+}
+
+#[test]
 fn workspace_pin_commands_parse_workspace_ids() {
     let pin = Cli::try_parse_from(["alera", "workspace", "pin", "--id", "workspace-1"]).unwrap();
     let unpin =

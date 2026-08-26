@@ -34,6 +34,7 @@ mod project_management;
 #[cfg(windows)]
 mod pty_job_bootstrap;
 mod runtime_archive;
+mod runtime_clear;
 mod runtime_commands;
 mod runtime_host_client;
 mod runtime_host_command;

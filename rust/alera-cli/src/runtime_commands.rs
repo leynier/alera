@@ -79,6 +79,16 @@ pub(crate) async fn run_runtime_command(command: RuntimeCommand) -> i32 {
             }
             0
         }
+        RuntimeAction::Clear(args) => {
+            let runtime_dir = runtime_dir(&command.runtime);
+            match crate::runtime_clear::clear_runtime_profile(&runtime_dir, args.force).await {
+                Ok(value) => {
+                    print_value(&value, command.output.json, "runtime profile cleared");
+                    0
+                }
+                Err(error) => print_error(error),
+            }
+        }
         RuntimeAction::Agents(agents) => {
             run_runtime_agents_command(&command.runtime, command.output.json, agents.action).await
         }
