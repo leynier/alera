@@ -2,6 +2,10 @@ part of 'terminal_host_client.dart';
 
 mixin _RuntimeHostCapabilitySupport
     implements TerminalHostClient, RuntimeHostCapabilityClient {
+  bool get _disposed;
+
+  void _throwIfAppQuitInProgress();
+
   _TerminalHostConnection? get _terminalConnection;
   _TerminalHostConnection? get _runtimeConnection;
 
@@ -15,6 +19,10 @@ mixin _RuntimeHostCapabilitySupport
 
   @override
   Future<bool> supportsRuntimeCapability(String capability) async {
+    if (_disposed) {
+      throw StateError('Terminal host client is disposed.');
+    }
+    _throwIfAppQuitInProgress();
     final connection = await _connectRuntime();
     return switch (capability) {
       aleraRuntimeHostRemoteAiDictationCapability =>

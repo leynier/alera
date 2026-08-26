@@ -27,6 +27,102 @@ Future<SocketTerminalHostClient> _connectedClient(
 }
 
 void _registerTerminalHostClientTimeoutTests() {
+  test(
+    'quiesces pending tab mutations before an intentional app quit',
+    () async {
+      final releaseMutations = Completer<void>();
+      final server = await _TerminalHostTestServer.start(
+        beforeResponse: (type) async {
+          if (type == 'tab.upsert' || type == 'tab.remove') {
+            await releaseMutations.future;
+          }
+        },
+      );
+      addTearDown(server.dispose);
+      final client = await _connectedClient(server);
+
+      await client.runtimeRequest('project.list');
+      final upsert = client.runtimeRequest(
+        'tab.upsert',
+        const <String, Object?>{'id': 'tab-1'},
+      );
+      final remove = client.runtimeRequest(
+        'tab.remove',
+        const <String, Object?>{'id': 'tab-1'},
+      );
+      await _waitForServerRequestCount(server, 4);
+
+      client.beginAppQuit();
+
+      await expectLater(
+        upsert,
+        throwsA(isA<TerminalHostConnectionClosedException>()),
+      );
+      await expectLater(
+        remove,
+        throwsA(isA<TerminalHostConnectionClosedException>()),
+      );
+
+      // Lifecycle requests remain available to complete the quit gate while
+      // ordinary runtime traffic is rejected as an expected close.
+      final shutdown = client.shutdownRuntime();
+      final shutdownResult = await shutdown;
+      expect(shutdownResult.stopped, isFalse);
+      expect(server.requestTypes, contains('host.shutdown'));
+
+      releaseMutations.complete();
+    },
+  );
+
+  test('reopens runtime traffic when an app quit is cancelled', () async {
+    final server = await _TerminalHostTestServer.start();
+    addTearDown(server.dispose);
+    final client = await _connectedClient(server);
+
+    await client.runtimeRequest('project.list');
+    client.beginAppQuit();
+    await expectLater(
+      client.runtimeRequest('project.list'),
+      throwsA(isA<TerminalHostConnectionClosedException>()),
+    );
+
+    client.cancelAppQuit();
+    await client.runtimeRequest('project.list');
+    expect(server.requestTypes, <String>[
+      'hello',
+      'project.list',
+      'project.list',
+    ]);
+  });
+
+  test('disposal completes pending mutations as an expected close', () async {
+    final releaseMutation = Completer<void>();
+    final server = await _TerminalHostTestServer.start(
+      beforeResponse: (type) async {
+        if (type == 'tab.upsert') {
+          await releaseMutation.future;
+        }
+      },
+    );
+    addTearDown(server.dispose);
+    final client = await _connectedClient(server);
+
+    await client.runtimeRequest('project.list');
+    final mutation = client.runtimeRequest(
+      'tab.upsert',
+      const <String, Object?>{'id': 'tab-1'},
+    );
+    await _waitForServerRequestCount(server, 3);
+
+    client.dispose();
+
+    await expectLater(
+      mutation,
+      throwsA(isA<TerminalHostConnectionClosedException>()),
+    );
+    releaseMutation.complete();
+  });
+
   test('a sibling request still completes while another times out', () async {
     final server = await _TerminalHostTestServer.start(
       beforeResponse: (type) async {
