@@ -10,12 +10,14 @@ use super::sentry_reporting;
 use sentry::protocol::{Event as SentryEvent, Level as SentryLevel};
 use std::borrow::Cow;
 use std::sync::Arc;
+use tracing::field::{Field, Visit};
 use tracing::{Event, Level, Subscriber};
 use tracing_subscriber::layer::Context;
 use tracing_subscriber::Layer;
 
 const PANIC_TARGET: &str = "alera.panic";
 const FALLBACK_LOGGER: &str = "alera.runtime";
+const SENTRY_REPORT_FIELD: &str = "sentry_report";
 
 trait EventCapture: Send + Sync {
     fn capture(&self, event: SentryEvent<'static>);
@@ -79,11 +81,33 @@ fn mapped_event(target: &str) -> SentryEvent<'static> {
     }
 }
 
+#[derive(Default)]
+struct ReportingVisitor {
+    report: Option<bool>,
+}
+
+impl Visit for ReportingVisitor {
+    fn record_bool(&mut self, field: &Field, value: bool) {
+        if field.name() == SENTRY_REPORT_FIELD {
+            self.report = Some(value);
+        }
+    }
+
+    fn record_debug(&mut self, _field: &Field, _value: &dyn std::fmt::Debug) {}
+}
+
+fn should_report(event: &Event<'_>) -> bool {
+    let mut visitor = ReportingVisitor::default();
+    event.record(&mut visitor);
+    visitor.report.unwrap_or(true)
+}
+
 impl<S: Subscriber> Layer<S> for SentryErrorLayer {
     fn on_event(&self, event: &Event<'_>, _ctx: Context<'_, S>) {
         let metadata = event.metadata();
         if metadata.level() != &Level::ERROR
             || metadata.target() == PANIC_TARGET
+            || !should_report(event)
             || !sentry_reporting::is_enabled()
         {
             return;
@@ -178,6 +202,19 @@ mod tests {
         emit(layer, || {
             tracing::info!("ordinary runtime status");
             tracing::warn!("recoverable runtime warning");
+        });
+        assert!(transport.take_events().is_empty());
+    }
+
+    #[test]
+    fn explicitly_suppressed_error_is_not_sent() {
+        let _guard = sentry_reporting::test_serial_guard();
+        let (layer, transport, _) = test_layer(true);
+        emit(layer, || {
+            tracing::error!(
+                sentry_report = false,
+                "runtime directory is already owned by live runtime host process 2197858"
+            );
         });
         assert!(transport.take_events().is_empty());
     }

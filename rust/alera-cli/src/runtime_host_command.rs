@@ -7,6 +7,8 @@ use crate::terminal_host::protocol::TerminalHostConfig;
 use crate::terminal_host::server::{run_terminal_host_server, TerminalHostExit};
 
 const USAGE_EXIT_CODE: i32 = 64;
+const EXPECTED_OWNER_CONFLICT_PREFIX: &str =
+    "runtime directory is already owned by live runtime host process ";
 
 pub(crate) async fn run(args: TerminalHostArgs) -> i32 {
     let runtime_dir = args.runtime_dir.trim().to_string();
@@ -72,10 +74,35 @@ pub(crate) async fn run(args: TerminalHostArgs) -> i32 {
             }
         }
         Err(error) => {
-            tracing::error!(target: "alera.host", "runtime host exited with an error: {error}");
+            log_runtime_host_error(&error);
             eprintln!("{error}");
             1
         }
+    }
+}
+
+fn is_expected_owner_conflict(error: &anyhow::Error) -> bool {
+    error.chain().any(|cause| {
+        cause
+            .to_string()
+            .strip_prefix(EXPECTED_OWNER_CONFLICT_PREFIX)
+            .is_some_and(|pid| !pid.is_empty() && pid.bytes().all(|byte| byte.is_ascii_digit()))
+    })
+}
+
+fn log_runtime_host_error(error: &anyhow::Error) {
+    if is_expected_owner_conflict(error) {
+        // The ownership rejection is an expected coordination result while a
+        // live host is recovering its control metadata. Keep it as an ERROR
+        // in the local log, but do not turn each client retry into a Sentry
+        // event.
+        tracing::error!(
+            target: "alera.host",
+            sentry_report = false,
+            "runtime host exited with an error: {error}"
+        );
+    } else {
+        tracing::error!(target: "alera.host", "runtime host exited with an error: {error}");
     }
 }
 
@@ -130,5 +157,41 @@ fn required_option_error(value: &str, name: &str) -> bool {
         true
     } else {
         false
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn only_the_live_owner_conflict_is_expected() {
+        let error = anyhow::anyhow!(
+            "runtime directory is already owned by live runtime host process 2197858"
+        );
+        assert!(is_expected_owner_conflict(&error));
+    }
+
+    #[test]
+    fn an_unexpected_runtime_error_is_still_reportable() {
+        let error = anyhow::anyhow!("failed binding runtime host socket");
+        assert!(!is_expected_owner_conflict(&error));
+    }
+
+    #[test]
+    fn an_owner_conflict_in_an_error_chain_is_expected() {
+        let error = anyhow::anyhow!(
+            "runtime directory is already owned by live runtime host process 2197858"
+        )
+        .context("runtime host startup failed");
+        assert!(is_expected_owner_conflict(&error));
+    }
+
+    #[test]
+    fn a_malformed_owner_conflict_is_not_suppressed() {
+        let error = anyhow::anyhow!(
+            "runtime directory is already owned by live runtime host process unknown"
+        );
+        assert!(!is_expected_owner_conflict(&error));
     }
 }
