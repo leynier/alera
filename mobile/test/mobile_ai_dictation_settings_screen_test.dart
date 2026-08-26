@@ -173,6 +173,28 @@ void main() {
     expect(find.text('Subscription default'), findsOneWidget);
     expect(find.text('API Token'), findsNothing);
   });
+
+  testWidgets('direct OpenAI mobile settings golden', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(390, 844));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await tester.pumpWidget(
+      _settingsApp(
+        const MobileAiDictationSettings(
+          enabled: true,
+          engine: MobileAiDictationEngine.openAiCompatible,
+          remoteAudioConsentVersion: 1,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('Remote Provider'));
+    await tester.pumpAndSettle();
+
+    await expectLater(
+      find.byType(MobileAiDictationSettingsScreen),
+      matchesGoldenFile('goldens/ai_dictation_openai_direct.png'),
+    );
+  });
 }
 
 Widget _settingsApp(MobileAiDictationSettings settings) {
