@@ -56,7 +56,11 @@ Future<AgentQuotaState> agentQuotaState(Ref ref) async {
   final target = hostId == 'local'
       ? null
       : targets.where((candidate) => candidate.id == hostId).firstOrNull;
-  final timer = Timer(agentQuotaRefreshInterval, ref.invalidateSelf);
+  final timer = Timer(agentQuotaRefreshInterval, () {
+    if (ref.mounted) {
+      ref.invalidateSelf();
+    }
+  });
   ref.onDispose(timer.cancel);
   final service = ref.watch(agentQuotaServiceProvider);
   return service.fetch(

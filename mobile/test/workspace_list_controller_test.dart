@@ -35,6 +35,65 @@ void main() {
     expect(refreshed.workspaces, hasLength(2));
   });
 
+  test('ignores a runtime event delivered after controller disposal', () async {
+    final client = _FakeWorkspaceClient();
+    final container = _container(client);
+
+    await container.read(workspaceListControllerProvider('host-1').future);
+    container.dispose();
+    client.emitAfterDispose('workspacesChanged');
+  });
+
+  test(
+    'does not subscribe when the client resolves after controller disposal',
+    () async {
+      final client = _FakeWorkspaceClient();
+      final clientReady = Completer<MobileWorkspaceClient>();
+      final container = ProviderContainer(
+        overrides: [
+          workspaceClientProvider(
+            'host-disposed-build',
+          ).overrideWith((ref) => clientReady.future),
+        ],
+      );
+      final provider = workspaceListControllerProvider('host-disposed-build');
+      final subscription = container.listen(
+        provider,
+        (_, _) {},
+        fireImmediately: true,
+      );
+      final result = container.read(provider.future);
+      subscription.close();
+      container.dispose();
+
+      clientReady.complete(client);
+      await result;
+      expect(client.eventSubscriptionCount, 0);
+      await client.dispose();
+    },
+  );
+
+  test(
+    'does not invalidate after a mutation completes after disposal',
+    () async {
+      final client = _FakeWorkspaceClient();
+      final container = _container(client);
+      final notifier = container.read(
+        workspaceListControllerProvider('host-1').notifier,
+      );
+      await container.read(workspaceListControllerProvider('host-1').future);
+
+      final completion = Completer<void>();
+      client.pinCompletion = completion;
+      final operation = notifier.setPinned('a', true);
+      await Future<void>.delayed(Duration.zero);
+      container.dispose();
+
+      completion.complete();
+      await operation;
+    },
+  );
+
   test('Mutations call the runtime and refresh the list', () async {
     final client = _FakeWorkspaceClient();
     final container = _container(client);
@@ -108,10 +167,20 @@ WorkspaceSummary _workspace(String id, {String? parent}) {
 }
 
 class _FakeWorkspaceClient implements MobileWorkspaceClient {
-  final StreamController<MobileRuntimeEvent> _events =
-      StreamController<MobileRuntimeEvent>.broadcast();
+  _FakeWorkspaceClient() {
+    _events = StreamController<MobileRuntimeEvent>.broadcast(
+      onListen: () => eventSubscriptionCount += 1,
+      onCancel: () => eventSubscriptionCount -= 1,
+    );
+  }
+
+  late final StreamController<MobileRuntimeEvent> _events;
   final List<String> calls = <String>[];
+  final List<void Function(MobileRuntimeEvent)> _eventListeners =
+      <void Function(MobileRuntimeEvent)>[];
   Object? linkError;
+  Completer<void>? pinCompletion;
+  int eventSubscriptionCount = 0;
   List<WorkspaceSummary> workspaces = <WorkspaceSummary>[_workspace('a')];
   List<String> cascadeIds = <String>['a'];
 
@@ -119,10 +188,20 @@ class _FakeWorkspaceClient implements MobileWorkspaceClient {
     _events.add(MobileRuntimeEvent(name, const <String, Object?>{}));
   }
 
+  void emitAfterDispose(String name) {
+    final event = MobileRuntimeEvent(name, const <String, Object?>{});
+    for (final listener in List<void Function(MobileRuntimeEvent)>.of(
+      _eventListeners,
+    )) {
+      listener(event);
+    }
+  }
+
   Future<void> dispose() => _events.close();
 
   @override
-  Stream<MobileRuntimeEvent> get events => _events.stream;
+  Stream<MobileRuntimeEvent> get events =>
+      _CapturingEventStream(_events.stream, _eventListeners.add);
 
   @override
   bool get supportsWorkspaceMutations => true;
@@ -237,6 +316,7 @@ class _FakeWorkspaceClient implements MobileWorkspaceClient {
   @override
   Future<void> setWorkspacePinned(String workspaceId, bool isPinned) async {
     calls.add('setPinned $workspaceId $isPinned');
+    await pinCompletion?.future;
   }
 
   @override
@@ -339,4 +419,32 @@ class _FakeWorkspaceClient implements MobileWorkspaceClient {
     String workspaceId,
     List<String> tagIds,
   ) async => _workspace(workspaceId);
+}
+
+final class _CapturingEventStream extends Stream<MobileRuntimeEvent> {
+  _CapturingEventStream(this._source, this._capture);
+
+  final Stream<MobileRuntimeEvent> _source;
+  final void Function(void Function(MobileRuntimeEvent)) _capture;
+
+  @override
+  bool get isBroadcast => _source.isBroadcast;
+
+  @override
+  StreamSubscription<MobileRuntimeEvent> listen(
+    void Function(MobileRuntimeEvent)? onData, {
+    Function? onError,
+    void Function()? onDone,
+    bool? cancelOnError,
+  }) {
+    if (onData != null) {
+      _capture(onData);
+    }
+    return _source.listen(
+      onData,
+      onError: onError,
+      onDone: onDone,
+      cancelOnError: cancelOnError,
+    );
+  }
 }

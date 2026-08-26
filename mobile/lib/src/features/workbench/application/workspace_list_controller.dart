@@ -77,12 +77,14 @@ class WorkspaceListController extends _$WorkspaceListController {
         'Update Alera on this host to use mobile workspaces.',
       );
     }
-    final subscription = client.events.listen((event) {
-      if (_refreshEvents.contains(event.name)) {
-        ref.invalidateSelf();
-      }
-    });
-    ref.onDispose(subscription.cancel);
+    if (ref.mounted) {
+      final subscription = client.events.listen((event) {
+        if (ref.mounted && _refreshEvents.contains(event.name)) {
+          ref.invalidateSelf();
+        }
+      });
+      ref.onDispose(subscription.cancel);
+    }
     final snapshot = await client.workspaceSidebarSnapshot();
     return WorkspaceListData(
       workspaces: snapshot.workspaces,
@@ -110,7 +112,7 @@ class WorkspaceListController extends _$WorkspaceListController {
   Future<void> setPinned(String workspaceId, bool isPinned) async {
     final client = await ref.read(workspaceClientProvider(hostId).future);
     await client.setWorkspacePinned(workspaceId, isPinned);
-    ref.invalidateSelf();
+    _invalidateIfMounted();
   }
 
   Future<void> linkParent({
@@ -122,7 +124,7 @@ class WorkspaceListController extends _$WorkspaceListController {
       parentWorkspaceId: parentWorkspaceId,
       childWorkspaceId: childWorkspaceId,
     );
-    ref.invalidateSelf();
+    _invalidateIfMounted();
   }
 
   Future<void> unlinkParent(WorkspaceSummary workspace) async {
@@ -135,7 +137,7 @@ class WorkspaceListController extends _$WorkspaceListController {
       parentWorkspaceId: parentId,
       childWorkspaceId: workspace.id,
     );
-    ref.invalidateSelf();
+    _invalidateIfMounted();
   }
 
   Future<WorkspaceCreationResult> createWorkspace({
@@ -174,7 +176,7 @@ class WorkspaceListController extends _$WorkspaceListController {
           result = result.withParentLinkError(error);
         }
       }
-      ref.invalidateSelf();
+      _invalidateIfMounted();
       return result;
     } finally {
       keepAlive.close();
@@ -187,7 +189,7 @@ class WorkspaceListController extends _$WorkspaceListController {
       workspaceId,
       deleteBranch: deleteBranch,
     );
-    ref.invalidateSelf();
+    _invalidateIfMounted();
   }
 
   Future<List<String>> cascadePreview(String workspaceId) async {
@@ -198,13 +200,13 @@ class WorkspaceListController extends _$WorkspaceListController {
   Future<void> renameWorkspace(String workspaceId, String name) async {
     final client = await ref.read(workspaceClientProvider(hostId).future);
     await client.renameWorkspace(workspaceId, name);
-    ref.invalidateSelf();
+    _invalidateIfMounted();
   }
 
   Future<void> sleepWorkspace(String workspaceId) async {
     final client = await ref.read(workspaceClientProvider(hostId).future);
     await client.sleepWorkspace(workspaceId);
-    ref.invalidateSelf();
+    _invalidateIfMounted();
   }
 
   Future<String?> repositoryRemoteUrl(String workspaceId) async {
@@ -215,19 +217,25 @@ class WorkspaceListController extends _$WorkspaceListController {
   Future<WorkspaceTagSummary> createTag(String name, {String? color}) async {
     final client = await ref.read(workspaceClientProvider(hostId).future);
     final tag = await client.createWorkspaceTag(name, color: color);
-    ref.invalidateSelf();
+    _invalidateIfMounted();
     return tag;
   }
 
   Future<void> removeTag(String tagId) async {
     final client = await ref.read(workspaceClientProvider(hostId).future);
     await client.removeWorkspaceTag(tagId);
-    ref.invalidateSelf();
+    _invalidateIfMounted();
   }
 
   Future<void> setTags(String workspaceId, List<String> tagIds) async {
     final client = await ref.read(workspaceClientProvider(hostId).future);
     await client.setWorkspaceTags(workspaceId, tagIds);
-    ref.invalidateSelf();
+    _invalidateIfMounted();
+  }
+
+  void _invalidateIfMounted() {
+    if (ref.mounted) {
+      ref.invalidateSelf();
+    }
   }
 }
