@@ -14,6 +14,7 @@ extension SocketTerminalHostClientLifecycle on SocketTerminalHostClient {
         connection,
         'status.get',
         const <String, Object?>{},
+        allowDuringAppQuit: true,
       );
       final status = asTerminalHostMap(payload, 'runtime status');
       CrashReporting.updateRuntimeContext(status);
@@ -39,6 +40,7 @@ extension SocketTerminalHostClientLifecycle on SocketTerminalHostClient {
         connection,
         'host.shutdown',
         <String, Object?>{'force': force},
+        allowDuringAppQuit: true,
       );
       return RuntimeHostShutdownResult.fromJson(
         asTerminalHostMap(payload, 'runtime shutdown'),

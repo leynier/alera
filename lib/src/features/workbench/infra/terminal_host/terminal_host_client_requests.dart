@@ -18,12 +18,16 @@ Future<Object?> _sendTerminalHostRequestWithMutationRetry(
   String type,
   Map<String, Object?> payload, {
   Duration? timeout,
+  bool allowDuringAppQuit = false,
 }) async {
   final requestTimeout = timeout ?? _terminalHostRequestTimeout;
   final elapsed = Stopwatch()..start();
   while (true) {
     if (client._disposed) {
       throw StateError('Terminal host client is disposed.');
+    }
+    if (client._appQuitInProgress && !allowDuringAppQuit) {
+      throw const TerminalHostConnectionClosedException();
     }
     final remaining = requestTimeout - elapsed.elapsed;
     if (remaining <= Duration.zero) {
@@ -38,6 +42,7 @@ Future<Object?> _sendTerminalHostRequestWithMutationRetry(
         payload,
         timeout: remaining,
         reportedTimeout: requestTimeout,
+        allowDuringAppQuit: allowDuringAppQuit,
       );
     } on _RuntimeMutationInProgressError {
       final delayRemaining = requestTimeout - elapsed.elapsed;
@@ -58,7 +63,14 @@ Future<Object?> _sendTerminalHostRequest(
   Map<String, Object?> payload, {
   Duration? timeout,
   Duration? reportedTimeout,
+  bool allowDuringAppQuit = false,
 }) {
+  if (client._disposed) {
+    throw StateError('Terminal host client is disposed.');
+  }
+  if (client._appQuitInProgress && !allowDuringAppQuit) {
+    throw const TerminalHostConnectionClosedException();
+  }
   final id = client._nextRequestId++;
   final completer = Completer<Object?>();
   client._pending[id] = _PendingHostRequest(connection, completer);
@@ -95,7 +107,10 @@ Future<Object?> _sendTerminalHostRequest(
     client._pending.remove(id);
     client._handleConnectionClosed(connection, error);
     if (!completer.isCompleted) {
-      completer.completeError(error, stackTrace);
+      final requestError = client._disposed || client._appQuitInProgress
+          ? const TerminalHostConnectionClosedException()
+          : error;
+      completer.completeError(requestError, stackTrace);
     }
   }
   return response;
