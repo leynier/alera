@@ -31,10 +31,6 @@ void main() {
       'https://api.openai.com/v1',
     );
     expect(AiDictationSettings.defaults.remoteModel, 'gpt-4o-mini-transcribe');
-    expect(
-      AiDictationSettings.defaults.remoteExecution,
-      AiDictationRemoteExecution.runtime,
-    );
   });
 
   test('decodes remote transcription engine configuration', () {
@@ -92,23 +88,6 @@ void main() {
         ),
       ),
     );
-  });
-
-  test('routes OpenAI directly only when this device is selected', () {
-    final direct = AiDictationSettings.defaults.copyWith(
-      transcriptionEngine: AiDictationTranscriptionEngine.openAiCompatible,
-      remoteExecution: AiDictationRemoteExecution.thisDevice,
-    );
-    final runtime = direct.copyWith(
-      remoteExecution: AiDictationRemoteExecution.runtime,
-    );
-    final codex = direct.copyWith(
-      transcriptionEngine: AiDictationTranscriptionEngine.codexSubscription,
-    );
-
-    expect(aiDictationProviderRoute(direct), AiDictationProviderRoute.direct);
-    expect(aiDictationProviderRoute(runtime), AiDictationProviderRoute.runtime);
-    expect(aiDictationProviderRoute(codex), AiDictationProviderRoute.runtime);
   });
 
   test('exposes selectable verified local Whisper models', () {

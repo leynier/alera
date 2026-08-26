@@ -9,9 +9,6 @@ enum AiDictationProviderPolicy { localOnly, localPreferred }
 enum AiDictationFallbackProvider { openAiCompatible }
 
 @MappableEnum()
-enum AiDictationRemoteExecution { runtime, thisDevice }
-
-@MappableEnum()
 enum AiDictationTranscriptionEngine {
   localWhisper,
   codexSubscription,
@@ -36,7 +33,6 @@ class AiDictationSettings with AiDictationSettingsMappable {
     this.providerFallbackEnabled = false,
     this.remoteBaseUrl = 'https://api.openai.com/v1',
     this.remoteModel = 'gpt-4o-mini-transcribe',
-    this.remoteExecution = AiDictationRemoteExecution.runtime,
     this.codexRealtimeModel,
     this.remoteProvider = AiDictationFallbackProvider.openAiCompatible,
     this.timeoutSeconds = 60,
@@ -54,7 +50,6 @@ class AiDictationSettings with AiDictationSettingsMappable {
   final bool providerFallbackEnabled;
   final String? remoteBaseUrl;
   final String? remoteModel;
-  final AiDictationRemoteExecution remoteExecution;
   final String? codexRealtimeModel;
   final AiDictationFallbackProvider remoteProvider;
   final int timeoutSeconds;
