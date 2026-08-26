@@ -9,10 +9,12 @@ import 'package:alera_mobile/src/features/ai_dictation/application/mobile_ai_dic
 import 'package:alera_mobile/src/features/ai_dictation/application/mobile_ai_dictation_settings_controller.dart';
 import 'package:alera_mobile/src/features/ai_dictation/domain/mobile_ai_dictation_settings.dart';
 import 'package:alera_mobile/src/features/ai_dictation/infra/mobile_ai_dictation_model_store.dart';
+import 'package:alera_mobile/src/features/ai_dictation/presentation/mobile_ai_dictation_provider_settings.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 part 'mobile_ai_dictation_settings_models.dart';
+part 'mobile_ai_dictation_settings_controls.dart';
 
 const _onlineConsentVersion = 1;
 const _remoteConsentVersion = 1;
@@ -70,8 +72,17 @@ class _SettingsList extends ConsumerWidget {
             .value ??
         false;
     final engines = settings.location == MobileAiDictationLocation.pairedDevice
-        ? const <MobileAiDictationEngine>[MobileAiDictationEngine.whisper]
-        : MobileAiDictationEngine.values;
+        ? const <MobileAiDictationEngine>[
+            MobileAiDictationEngine.whisper,
+            MobileAiDictationEngine.openAiCompatible,
+            MobileAiDictationEngine.codexSubscription,
+          ]
+        : const <MobileAiDictationEngine>[
+            MobileAiDictationEngine.whisper,
+            MobileAiDictationEngine.openAiCompatible,
+            MobileAiDictationEngine.systemOnDevice,
+            MobileAiDictationEngine.systemRecognition,
+          ];
     final selectedEngine = engines.contains(settings.engine)
         ? settings.engine
         : MobileAiDictationEngine.whisper;
@@ -119,9 +130,7 @@ class _SettingsList extends ConsumerWidget {
                     controller.save(
                       settings.copyWith(
                         location: value,
-                        engine: value == MobileAiDictationLocation.pairedDevice
-                            ? MobileAiDictationEngine.whisper
-                            : settings.engine,
+                        engine: _engineForLocation(value, settings.engine),
                       ),
                     );
                   },
@@ -168,16 +177,17 @@ class _SettingsList extends ConsumerWidget {
             ),
           ),
         ),
-        if (settings.location ==
-            MobileAiDictationLocation.pairedDevice) ...<Widget>[
+        if (settings.requiresRemoteAudioConsent) ...<Widget>[
           const SizedBox(height: AleraTokens.spaceMd),
           Card(
             child: SwitchListTile(
               value:
                   settings.remoteAudioConsentVersion == _remoteConsentVersion,
-              title: const Text('Allow Paired-Device Audio Processing'),
-              subtitle: const Text(
-                'Send recordings through the authenticated connection to the paired runtime. Recordings are deleted after processing.',
+              title: const Text('Allow Remote Audio Processing'),
+              subtitle: Text(
+                settings.location == MobileAiDictationLocation.pairedDevice
+                    ? 'Send recordings through the authenticated connection to the paired runtime.'
+                    : 'Send recordings directly from this mobile app to the configured speech API.',
               ),
               onChanged: (value) => controller.save(
                 settings.copyWith(
@@ -213,6 +223,10 @@ class _SettingsList extends ConsumerWidget {
             ),
           ),
         ],
+        MobileAiDictationProviderSettings(
+          settings: settings,
+          onChanged: controller.save,
+        ),
         if (selectedEngine == MobileAiDictationEngine.whisper) ...<Widget>[
           const SizedBox(height: AleraTokens.spaceXl),
           _SectionTitle(
@@ -303,173 +317,11 @@ class _SettingsList extends ConsumerWidget {
   }
 }
 
-class _EnableCard extends StatelessWidget {
-  const _EnableCard({required this.enabled, required this.onChanged});
-
-  final bool enabled;
-  final ValueChanged<bool> onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Card(
-      child: Padding(
-        padding: AleraTokens.contentPadding,
-        child: Row(
-          children: <Widget>[
-            Container(
-              width: AleraTokens.minTapTarget,
-              height: AleraTokens.minTapTarget,
-              decoration: BoxDecoration(
-                color: enabled
-                    ? AleraTokens.accentSubtle
-                    : AleraTokens.surfaceElevated,
-                borderRadius: BorderRadius.circular(AleraTokens.radiusLg),
-                border: Border.all(color: AleraTokens.border),
-              ),
-              child: Icon(
-                AleraIcons.mic,
-                color: enabled
-                    ? AleraTokens.foreground
-                    : AleraTokens.foregroundMuted,
-              ),
-            ),
-            const SizedBox(width: AleraTokens.spaceMd),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: <Widget>[
-                  Text(
-                    'Enable AI Dictation',
-                    style: theme.textTheme.titleSmall,
-                  ),
-                  const SizedBox(height: AleraTokens.space4),
-                  Text(
-                    'Add microphone controls to composers and New Workspace From Prompt.',
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: AleraTokens.foregroundMuted,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(width: AleraTokens.spaceSm),
-            Switch(value: enabled, onChanged: onChanged),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _LanguageField extends StatefulWidget {
-  const _LanguageField({required this.language, required this.onChanged});
-
-  final String? language;
-  final ValueChanged<String?> onChanged;
-
-  @override
-  State<_LanguageField> createState() => _LanguageFieldState();
-}
-
-class _LanguageFieldState extends State<_LanguageField> {
-  late final TextEditingController _controller;
-  late final FocusNode _focus;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = TextEditingController(text: widget.language ?? '');
-    _focus = FocusNode()..addListener(_handleFocus);
-  }
-
-  @override
-  void didUpdateWidget(covariant _LanguageField oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    final next = widget.language ?? '';
-    if (!_focus.hasFocus && _controller.text != next) {
-      _controller.text = next;
-    }
-  }
-
-  @override
-  void dispose() {
-    _focus
-      ..removeListener(_handleFocus)
-      ..dispose();
-    _controller.dispose();
-    super.dispose();
-  }
-
-  void _handleFocus() {
-    if (!_focus.hasFocus) {
-      _save();
-    }
-  }
-
-  void _save() {
-    final value = _controller.text.trim();
-    widget.onChanged(value.isEmpty ? null : value);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return AleraTextField(
-      controller: _controller,
-      focusNode: _focus,
-      labelText: 'Language Or Locale',
-      hintText: 'en-US',
-      helperText: 'Leave blank to detect the language automatically.',
-      onSubmitted: (_) => _save(),
-    );
-  }
-}
-
-class _SectionTitle extends StatelessWidget {
-  const _SectionTitle({required this.title, required this.description});
-
-  final String title;
-  final String description;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: AleraTokens.spaceSm),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
-          Text(title, style: Theme.of(context).textTheme.titleMedium),
-          const SizedBox(height: AleraTokens.space4),
-          Text(
-            description,
-            style: Theme.of(
-              context,
-            ).textTheme.bodySmall?.copyWith(color: AleraTokens.foregroundMuted),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _HelperText extends StatelessWidget {
-  const _HelperText(this.text);
-
-  final String text;
-
-  @override
-  Widget build(BuildContext context) {
-    return Text(
-      text,
-      style: Theme.of(
-        context,
-      ).textTheme.bodySmall?.copyWith(color: AleraTokens.foregroundMuted),
-    );
-  }
-}
-
 String _engineLabel(MobileAiDictationEngine engine) => switch (engine) {
   MobileAiDictationEngine.whisper => 'Whisper',
+  MobileAiDictationEngine.openAiCompatible => 'OpenAI-Compatible API',
+  MobileAiDictationEngine.codexSubscription =>
+    'Codex Subscription (Experimental)',
   MobileAiDictationEngine.systemOnDevice => 'System On-Device',
   MobileAiDictationEngine.systemRecognition => 'System Recognition',
 };
@@ -482,8 +334,36 @@ String _engineDescription(
     'Record, review, and transcribe with a Whisper model stored on this device.',
   (MobileAiDictationLocation.pairedDevice, MobileAiDictationEngine.whisper) =>
     'Record and review here, then transcribe with Whisper on the paired device.',
+  (
+    MobileAiDictationLocation.thisDevice,
+    MobileAiDictationEngine.openAiCompatible,
+  ) =>
+    'Send the reviewed recording directly from this mobile app to the configured API.',
+  (
+    MobileAiDictationLocation.pairedDevice,
+    MobileAiDictationEngine.openAiCompatible,
+  ) =>
+    'Send the reviewed recording to the paired runtime, which calls the configured API.',
+  (_, MobileAiDictationEngine.codexSubscription) =>
+    'Transcribe through the authenticated experimental Codex app-server in the paired runtime.',
   (_, MobileAiDictationEngine.systemOnDevice) =>
     'Use the platform recognizer only when it guarantees offline processing.',
   (_, MobileAiDictationEngine.systemRecognition) =>
     'Use the platform speech service, which may process audio online.',
 };
+
+MobileAiDictationEngine _engineForLocation(
+  MobileAiDictationLocation location,
+  MobileAiDictationEngine current,
+) {
+  if (location == MobileAiDictationLocation.thisDevice &&
+      current == MobileAiDictationEngine.codexSubscription) {
+    return MobileAiDictationEngine.whisper;
+  }
+  if (location == MobileAiDictationLocation.pairedDevice &&
+      (current == MobileAiDictationEngine.systemOnDevice ||
+          current == MobileAiDictationEngine.systemRecognition)) {
+    return MobileAiDictationEngine.whisper;
+  }
+  return current;
+}

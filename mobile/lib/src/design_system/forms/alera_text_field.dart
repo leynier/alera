@@ -29,6 +29,9 @@ class AleraTextField extends StatelessWidget {
     this.dense = false,
     this.readOnly = false,
     this.enabled,
+    this.obscureText = false,
+    this.enableSuggestions = true,
+    this.autocorrect = true,
   });
 
   final TextEditingController? controller;
@@ -51,6 +54,9 @@ class AleraTextField extends StatelessWidget {
   final bool dense;
   final bool readOnly;
   final bool? enabled;
+  final bool obscureText;
+  final bool enableSuggestions;
+  final bool autocorrect;
 
   /// Fixed height of the dense variant: `space32 + space8`.
   static const double denseHeight = AleraTokens.space32 + AleraTokens.space8;
@@ -73,6 +79,9 @@ class AleraTextField extends StatelessWidget {
         onTap: onTap,
         readOnly: readOnly,
         enabled: enabled,
+        obscureText: obscureText,
+        enableSuggestions: enableSuggestions,
+        autocorrect: autocorrect,
         decoration: InputDecoration(
           labelText: labelText,
           hintText: hintText,
@@ -101,6 +110,9 @@ class AleraTextField extends StatelessWidget {
         onTap: onTap,
         readOnly: readOnly,
         enabled: enabled,
+        obscureText: obscureText,
+        enableSuggestions: enableSuggestions,
+        autocorrect: autocorrect,
         textAlignVertical: TextAlignVertical.center,
         style: theme.textTheme.bodySmall?.copyWith(
           color: AleraTokens.foreground,
