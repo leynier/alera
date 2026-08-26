@@ -22,6 +22,20 @@
   <a href="roadmap.md"><strong>Roadmap</strong></a>
 </p>
 
+<p align="center">
+  <video src="assets/product/alera-demo.mp4" poster="assets/product/desktop-workbench.webp" width="920" height="518" autoplay muted loop playsinline controls>
+    <a href="assets/product/desktop-workbench.webp"><img src="assets/product/desktop-workbench.webp" alt="Alera desktop workbench with terminals and file explorer" width="920" /></a>
+  </video>
+</p>
+
+<p align="center">
+  <img src="assets/product/desktop-welcome.webp" alt="Alera welcome dashboard" width="32%" />
+  &nbsp;
+  <img src="assets/product/desktop-workbench.webp" alt="Alera desktop workbench with terminals and file explorer" width="32%" />
+  &nbsp;
+  <img src="assets/product/mobile-pair.webp" alt="Alera mobile companion hosts and workspaces" width="32%" />
+</p>
+
 ---
 
 ## Why Alera

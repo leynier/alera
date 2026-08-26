@@ -173,6 +173,29 @@
     0 0 80px -20px rgba(224, 224, 224, 0.03);
 }
 
+@utility phone-shadow {
+  box-shadow:
+    0 0 0 1px rgba(50, 50, 50, 0.7),
+    0 18px 36px -14px rgba(0, 0, 0, 0.75),
+    0 0 40px -16px rgba(224, 224, 224, 0.04);
+}
+
+@utility product-spotlight {
+  background: radial-gradient(
+    ellipse 70% 55% at 50% 18%,
+    rgba(224, 224, 224, 0.05) 0%,
+    transparent 70%
+  );
+}
+
+@utility product-grid {
+  background-image:
+    linear-gradient(rgba(50, 50, 50, 0.22) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(50, 50, 50, 0.22) 1px, transparent 1px);
+  background-size: 48px 48px;
+  mask-image: radial-gradient(ellipse 75% 65% at 50% 35%, black 15%, transparent 78%);
+}
+
 @utility hero-caret {
   /* Blinking terminal caret at the end of the hero highlight. */
   display: inline-block;

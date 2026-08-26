@@ -1,0 +1,351 @@
+---
+const gallery = [
+  {
+    src: '/media/desktop-welcome.webp',
+    alt: 'Alera Welcome Dashboard',
+    label: 'Welcome',
+    caption: 'The empty desktop: add a project, then spin up worktrees and terminals.',
+    width: 1280,
+    height: 720,
+  },
+  {
+    src: '/media/desktop-workbench.webp',
+    alt: 'Alera Desktop Workbench With Terminals And Explorer',
+    label: 'Workbench',
+    caption: 'Projects on the left, a real PTY in the center, explorer on the right.',
+    width: 1920,
+    height: 1115,
+  },
+];
+---
+
+<section id="product" class="relative pt-6 pb-24 px-6 overflow-hidden">
+  <div class="product-spotlight absolute inset-0 pointer-events-none"></div>
+  <div class="product-grid absolute inset-0 pointer-events-none"></div>
+
+  <div class="relative z-10 max-w-6xl mx-auto">
+    <div class="text-center mb-12 md:mb-14">
+      <p class="text-label-md text-foreground-faint uppercase tracking-widest font-mono mb-4">Product</p>
+      <h2 class="text-headline-lg md:text-[32px] font-semibold tracking-tight text-foreground mb-4">
+        See Alera in action
+      </h2>
+      <p class="text-[15px] text-foreground-muted max-w-xl mx-auto text-balance">
+        The native desktop workbench for CLI agents, plus a mobile companion that keeps the same workspaces in your pocket.
+      </p>
+    </div>
+
+    <div class="max-w-5xl mx-auto mb-16 flex flex-col items-center gap-8 lg:mb-20 lg:flex-row lg:items-end lg:gap-8">
+      <div class="product-window mockup-shadow w-full min-w-0 flex-1 opacity-0-initial animate-fade-in-up">
+        <div class="product-window-bar">
+          <div class="flex items-center gap-1.5" aria-hidden="true">
+            <span class="size-2 rounded-full bg-border"></span>
+            <span class="size-2 rounded-full bg-foreground-faint/70"></span>
+            <span class="size-2 rounded-full bg-foreground-muted/50"></span>
+          </div>
+          <span class="absolute inset-x-0 text-center font-mono text-[11px] tracking-wide text-foreground-faint pointer-events-none">
+            Alera
+          </span>
+          <span class="ml-auto font-mono text-[10px] uppercase tracking-widest text-foreground-faint">Desktop</span>
+        </div>
+        <div class="relative bg-bg aspect-video">
+          <video
+            class="product-demo-video h-full w-full object-cover"
+            poster="/media/desktop-workbench.webp"
+            autoplay
+            muted
+            loop
+            playsinline
+            preload="metadata"
+            width="1920"
+            height="1080"
+            aria-label="Alera Product Demo"
+          >
+            <source src="/media/alera-demo.mp4" type="video/mp4" />
+          </video>
+          <img
+            class="product-demo-poster h-full w-full object-cover"
+            src="/media/desktop-workbench.webp"
+            alt="Alera Desktop Workbench With Terminals And Explorer"
+            width="1920"
+            height="1115"
+          />
+        </div>
+      </div>
+
+      <div class="shrink-0 opacity-0-initial animate-fade-in-up animation-delay-300">
+        <button
+          type="button"
+          class="product-phone-frame phone-shadow text-left"
+          data-lightbox
+          data-src="/media/mobile-workspaces.webp"
+          data-alt="Alera Mobile Companion Workspaces"
+          aria-label="Open Alera Mobile Companion Workspaces"
+        >
+          <span class="product-phone-island" aria-hidden="true"></span>
+          <img
+            src="/media/mobile-workspaces.webp"
+            alt="Alera Mobile Companion Workspaces"
+            width="390"
+            height="844"
+            class="product-phone-screen"
+          />
+          <span class="product-phone-home" aria-hidden="true"></span>
+        </button>
+        <p class="mt-3 text-center font-mono text-[10px] uppercase tracking-widest text-foreground-faint">Mobile</p>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
+      {gallery.map((shot, i) => (
+        <figure
+          class="opacity-0-initial animate-fade-in-up"
+          style={`animation-delay: ${200 + i * 90}ms`}
+        >
+          <button
+            type="button"
+            class="group block w-full overflow-hidden rounded-xl bg-surface border border-border text-left transition-all duration-mid hover:border-foreground-faint/30 hover:bg-surface-variant mockup-shadow"
+            data-lightbox
+            data-src={shot.src}
+            data-alt={shot.alt}
+            aria-label={`Open ${shot.label}`}
+          >
+            <img
+              src={shot.src}
+              alt={shot.alt}
+              width={shot.width}
+              height={shot.height}
+              loading="lazy"
+              decoding="async"
+              class="w-full aspect-video object-cover object-top transition-transform duration-slow group-hover:scale-[1.02]"
+            />
+          </button>
+          <figcaption class="mt-3 px-0.5">
+            <p class="text-title-md text-foreground">{shot.label}</p>
+            <p class="text-body-md text-foreground-muted mt-0.5">{shot.caption}</p>
+          </figcaption>
+        </figure>
+      ))}
+
+      <figure class="opacity-0-initial animate-fade-in-up animation-delay-400">
+        <div class="rounded-xl bg-surface border border-border px-5 py-6 mockup-shadow min-h-[220px] flex items-end justify-center gap-3">
+          <button
+            type="button"
+            class="product-phone-frame product-phone-frame-sm phone-shadow"
+            data-lightbox
+            data-src="/media/mobile-hosts.webp"
+            data-alt="Alera Mobile Companion Hosts"
+            aria-label="Open Alera Mobile Companion Hosts"
+          >
+            <span class="product-phone-island" aria-hidden="true"></span>
+            <img
+              src="/media/mobile-hosts.webp"
+              alt="Alera Mobile Companion Hosts"
+              width="390"
+              height="844"
+              loading="lazy"
+              decoding="async"
+              class="product-phone-screen"
+            />
+            <span class="product-phone-home" aria-hidden="true"></span>
+          </button>
+          <button
+            type="button"
+            class="product-phone-frame product-phone-frame-sm phone-shadow translate-y-3"
+            data-lightbox
+            data-src="/media/mobile-workspaces.webp"
+            data-alt="Alera Mobile Companion Workspaces"
+            aria-label="Open Alera Mobile Companion Workspaces"
+          >
+            <span class="product-phone-island" aria-hidden="true"></span>
+            <img
+              src="/media/mobile-workspaces.webp"
+              alt="Alera Mobile Companion Workspaces"
+              width="390"
+              height="844"
+              loading="lazy"
+              decoding="async"
+              class="product-phone-screen"
+            />
+            <span class="product-phone-home" aria-hidden="true"></span>
+          </button>
+        </div>
+        <figcaption class="mt-3 px-0.5">
+          <p class="text-title-md text-foreground">Mobile Companion</p>
+          <p class="text-body-md text-foreground-muted mt-0.5">
+            Pair a phone, then browse hosts and the same workspace list from anywhere.
+          </p>
+        </figcaption>
+      </figure>
+    </div>
+  </div>
+</section>
+
+<dialog
+  id="product-lightbox"
+  class="product-lightbox"
+  aria-label="Product Screenshot"
+>
+  <form method="dialog" class="product-lightbox-close">
+    <button type="submit" class="text-body-md text-foreground-muted hover:text-foreground transition-colors duration-fast">
+      Close
+    </button>
+  </form>
+  <img src="" alt="" width="1920" height="1115" />
+</dialog>
+
+<style>
+  .product-window {
+    position: relative;
+    overflow: hidden;
+    border-radius: var(--radius-xl);
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+  }
+
+  .product-window-bar {
+    position: relative;
+    display: flex;
+    align-items: center;
+    height: 36px;
+    padding: 0 14px;
+    background: var(--color-surface-variant);
+    border-bottom: 1px solid var(--color-border-subtle);
+  }
+
+  .product-phone-frame {
+    position: relative;
+    display: block;
+    width: 168px;
+    padding: 10px 8px 12px;
+    border-radius: 28px;
+    background: var(--color-bg);
+    border: 1px solid var(--color-border);
+    cursor: pointer;
+  }
+
+  .product-phone-frame-sm {
+    width: 118px;
+    padding: 8px 6px 10px;
+    border-radius: 22px;
+  }
+
+  @media (min-width: 768px) {
+    .product-phone-frame:not(.product-phone-frame-sm) {
+      width: 196px;
+    }
+  }
+
+  .product-demo-poster {
+    display: none;
+  }
+
+  .product-phone-island {
+    display: block;
+    width: 36%;
+    height: 10px;
+    margin: 0 auto 8px;
+    border-radius: 999px;
+    background: var(--color-surface-elevated);
+  }
+
+  .product-phone-frame-sm .product-phone-island {
+    height: 8px;
+    margin-bottom: 6px;
+  }
+
+  .product-phone-screen {
+    display: block;
+    width: 100%;
+    height: auto;
+    border-radius: 16px;
+    background: var(--color-bg);
+  }
+
+  .product-phone-frame-sm .product-phone-screen {
+    border-radius: 12px;
+  }
+
+  .product-phone-home {
+    display: block;
+    width: 34%;
+    height: 3px;
+    margin: 8px auto 0;
+    border-radius: 999px;
+    background: var(--color-border);
+  }
+
+  .product-phone-frame-sm .product-phone-home {
+    margin-top: 6px;
+  }
+
+  .product-lightbox {
+    padding: 0;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-xl);
+    background: var(--color-surface);
+    max-width: min(92vw, 1100px);
+    max-height: 90vh;
+  }
+
+  .product-lightbox::backdrop {
+    background: rgba(10, 10, 11, 0.78);
+    backdrop-filter: blur(8px);
+  }
+
+  .product-lightbox-close {
+    display: flex;
+    justify-content: flex-end;
+    padding: 10px 14px 0;
+  }
+
+  .product-lightbox img {
+    display: block;
+    width: 100%;
+    height: auto;
+    max-height: calc(90vh - 44px);
+    object-fit: contain;
+    background: var(--color-bg);
+    border-radius: 0 0 var(--radius-xl) var(--radius-xl);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .product-demo-video {
+      display: none;
+    }
+
+    .product-demo-poster {
+      display: block;
+    }
+  }
+</style>
+
+<script>
+  const dialog = document.getElementById('product-lightbox');
+  const dialogImage = dialog instanceof HTMLDialogElement ? dialog.querySelector('img') : null;
+
+  if (dialog instanceof HTMLDialogElement && dialogImage instanceof HTMLImageElement) {
+    document.querySelectorAll<HTMLElement>('[data-lightbox]').forEach((trigger) => {
+      trigger.addEventListener('click', () => {
+        dialogImage.src = trigger.dataset.src ?? '';
+        dialogImage.alt = trigger.dataset.alt ?? '';
+        dialog.showModal();
+      });
+    });
+
+    dialog.addEventListener('click', (event) => {
+      if (event.target === dialog) {
+        dialog.close();
+      }
+    });
+
+    dialog.addEventListener('close', () => {
+      dialogImage.src = '';
+    });
+  }
+
+  const video = document.querySelector<HTMLVideoElement>('.product-demo-video');
+  if (video && window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    video.removeAttribute('autoplay');
+    video.pause();
+  }
+</script>
