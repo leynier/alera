@@ -1,6 +1,18 @@
 part of 'workspace_explorer.dart';
 
 extension _WorkspaceExplorerRefresh on _WorkspaceExplorerState {
+  void _listenForRevealRequest() {
+    ref.listen<WorkspaceExplorerRevealRequest?>(
+      workspaceExplorerRevealControllerProvider,
+      (previous, next) {
+        if (next == null || next.workspaceId != widget.workspace.id) {
+          return;
+        }
+        unawaited(_revealPendingPath(relativePath: next.relativePath));
+      },
+    );
+  }
+
   Future<void> _bootstrapExplorer() async {
     await _startNativeWatcher();
     if (!mounted) {

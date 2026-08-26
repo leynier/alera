@@ -131,15 +131,7 @@ class _WorkspaceExplorerState extends ConsumerState<WorkspaceExplorer> {
 
   @override
   Widget build(BuildContext context) {
-    ref.listen<WorkspaceExplorerRevealRequest?>(
-      workspaceExplorerRevealControllerProvider,
-      (previous, next) {
-        if (next == null || next.workspaceId != widget.workspace.id) {
-          return;
-        }
-        unawaited(_revealPendingPath(relativePath: next.relativePath));
-      },
-    );
+    _listenForRevealRequest();
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: <Widget>[
