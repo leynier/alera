@@ -1,7 +1,6 @@
 use std::sync::Arc;
 
 use super::*;
-use base64::Engine as _;
 
 #[tokio::test]
 async fn remote_cancellation_signals_the_running_job() {
