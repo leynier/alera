@@ -7,6 +7,10 @@ extension _WorkspaceExplorerRefresh on _WorkspaceExplorerState {
       return;
     }
     await _reloadRoot();
+    if (!mounted) {
+      return;
+    }
+    await _revealPendingPath();
   }
 
   Future<void> _restartExplorer() async {

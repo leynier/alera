@@ -16,6 +16,7 @@ import 'package:alera/src/features/ai_assist/application/ai_assist_providers.dar
 import 'package:alera/src/features/ai_assist/application/ai_assist_service.dart';
 import 'package:alera/src/features/ai_assist/domain/ai_assist_settings.dart';
 import 'package:alera/src/features/settings/application/settings_controller.dart';
+import 'package:alera/src/features/workbench/application/workspace_explorer_reveal.dart';
 import 'package:alera/src/features/workbench/application/workspace_source_control_controller.dart';
 import 'package:alera/src/features/workbench/application/workspace_submodule_status_provider.dart';
 import 'package:alera/src/features/workbench/domain/workbench_view_prefs.dart';
@@ -46,6 +47,9 @@ part 'workspace_git_history_panel_graph.dart';
 part 'workspace_git_history_panel_row.dart';
 part 'workspace_git_history_panel_files.dart';
 part 'workspace_git_diff_panel_preview_opening.dart';
+part 'workspace_git_diff_panel_context_menu.dart';
+part 'workspace_git_diff_panel_inline_actions.dart';
+part 'workspace_git_diff_panel_navigation.dart';
 
 class WorkspaceGitDiffPanel extends ConsumerStatefulWidget {
   const WorkspaceGitDiffPanel({
@@ -58,6 +62,8 @@ class WorkspaceGitDiffPanel extends ConsumerStatefulWidget {
     required this.onGroupModeChanged,
     required this.onOpenGitDiff,
     required this.onOpenGitCommitDiff,
+    this.onOpenFile,
+    this.onRevealInExplorer,
     this.onClearSourceControlRoot,
   });
 
@@ -69,6 +75,8 @@ class WorkspaceGitDiffPanel extends ConsumerStatefulWidget {
   final ValueChanged<GitDiffGroupMode> onGroupModeChanged;
   final OpenGitDiffTabCallback onOpenGitDiff;
   final OpenGitCommitDiffTabCallback onOpenGitCommitDiff;
+  final ValueChanged<String>? onOpenFile;
+  final ValueChanged<String>? onRevealInExplorer;
   final VoidCallback? onClearSourceControlRoot;
 
   @override
@@ -229,6 +237,10 @@ class _WorkspaceGitDiffPanelState extends ConsumerState<WorkspaceGitDiffPanel> {
                       onToggleTreeNode: _toggleTreeNodeCollapsed,
                       onToggleSubmodule: _toggleSubmodule,
                       onOpenGitDiff: _openGitDiff,
+                      onOpenFile: widget.onOpenFile == null
+                          ? null
+                          : _openWorkspaceFile,
+                      onRevealInExplorer: _revealInExplorer,
                       onStage: _stageEntry,
                       onUnstage: _unstageEntry,
                       onDiscard: _discardEntry,

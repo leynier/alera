@@ -62,6 +62,24 @@ void main() {
     expect(opener.fileManagerLabel, 'Explorer');
   });
 
+  test('normalizes Windows open paths that use forward slashes', () async {
+    final processRunner = _FakeProcessRunner();
+    final opener = WorkspaceFolderOpener(
+      processRunner: processRunner,
+      platform: WorkspaceFolderPlatform.windows,
+      directoryExists: (_) async => true,
+    );
+
+    final result = await opener.open('C:/Users/me/My Documents/repo');
+
+    expect(result.ok, isTrue);
+    expect(processRunner.calls, <_ProcessCall>[
+      const _ProcessCall('explorer.exe', <String>[
+        r'C:\Users\me\My Documents\repo',
+      ]),
+    ]);
+  });
+
   test('reveals an item in Finder on macOS', () async {
     final processRunner = _FakeProcessRunner();
     final directory = await Directory.systemTemp.createTemp(
@@ -108,7 +126,38 @@ void main() {
 
     expect(result.ok, isTrue);
     expect(processRunner.calls, <_ProcessCall>[
-      _ProcessCall('explorer.exe', <String>['/select,${file.path}']),
+      _ProcessCall('explorer.exe', <String>[
+        '/select,',
+        file.path.replaceAll('/', r'\'),
+      ]),
+    ]);
+  });
+
+  test('normalizes Windows reveal paths that use forward slashes', () async {
+    final processRunner = _FakeProcessRunner();
+    final directory = await Directory.systemTemp.createTemp(
+      'alera-reveal-item-',
+    );
+    final file = File('${directory.path}/note.txt');
+    await file.writeAsString('note');
+    addTearDown(() async {
+      if (await directory.exists()) {
+        await directory.delete(recursive: true);
+      }
+    });
+    final opener = WorkspaceFolderOpener(
+      processRunner: processRunner,
+      platform: WorkspaceFolderPlatform.windows,
+    );
+
+    final result = await opener.reveal(file.path.replaceAll(r'\', '/'));
+
+    expect(result.ok, isTrue);
+    expect(processRunner.calls, <_ProcessCall>[
+      _ProcessCall('explorer.exe', <String>[
+        '/select,',
+        file.path.replaceAll('/', r'\'),
+      ]),
     ]);
   });
 
