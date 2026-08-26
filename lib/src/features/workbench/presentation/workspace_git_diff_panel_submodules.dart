@@ -7,6 +7,8 @@ class _SubmoduleChanges extends ConsumerWidget {
     required this.depth,
     required this.busy,
     required this.onOpenGitDiff,
+    this.onOpenFile,
+    required this.onRevealInExplorer,
   });
 
   final String workspacePath;
@@ -14,6 +16,8 @@ class _SubmoduleChanges extends ConsumerWidget {
   final int depth;
   final bool busy;
   final OpenGitDiffTabCallback onOpenGitDiff;
+  final ValueChanged<String>? onOpenFile;
+  final ValueChanged<String> onRevealInExplorer;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -54,6 +58,10 @@ class _SubmoduleChanges extends ConsumerWidget {
                 depth: depth,
                 showRelativePath: true,
                 busy: busy,
+                onOpenFile: onOpenFile == null
+                    ? null
+                    : () => onOpenFile!(child.path),
+                onRevealInExplorer: () => onRevealInExplorer(child.path),
                 onStage: (_) {},
                 onUnstage: (_) {},
                 onDiscard: (_) {},

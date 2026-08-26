@@ -92,11 +92,15 @@ class _GitDiffBaseRow extends StatelessWidget {
     required this.depth,
     required this.child,
     required this.onTap,
+    this.onSecondaryTapDown,
+    this.onLongPressStart,
   });
 
   final int depth;
   final Widget child;
   final VoidCallback onTap;
+  final GestureTapDownCallback? onSecondaryTapDown;
+  final GestureLongPressStartCallback? onLongPressStart;
 
   @override
   Widget build(BuildContext context) {
@@ -105,6 +109,8 @@ class _GitDiffBaseRow extends StatelessWidget {
       child: GestureDetector(
         behavior: HitTestBehavior.translucent,
         onTap: onTap,
+        onSecondaryTapDown: onSecondaryTapDown,
+        onLongPressStart: onLongPressStart,
         child: Padding(
           padding: EdgeInsets.only(
             left: AleraTokens.space8 + (depth * AleraTokens.space12),

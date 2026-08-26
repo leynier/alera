@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/features/projects/application/project_providers.dart';
 import 'package:alera/src/features/workbench/application/workbench_providers.dart';
+import 'package:alera/src/features/workbench/application/workspace_explorer_reveal.dart';
 import 'package:alera/src/features/workbench/application/workspace_file_service.dart';
 import 'package:alera/src/features/workbench/application/workspace_folder_opener.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
@@ -418,6 +419,54 @@ void main() {
 
     expect(service.writtenFiles, <String, String>{'note.txt': 'changed'});
     expect(registry.isDirty('tab-1'), isFalse);
+  });
+
+  testWidgets('queued reveal expands ancestors and selects the file', (
+    tester,
+  ) async {
+    final service = _FakeWorkspaceFileService()
+      ..childrenByDirectory[''] = <native.WorkspaceFileEntry>[
+        _directory('src', hasChildrenHint: true),
+      ]
+      ..childrenByDirectory['src'] = <native.WorkspaceFileEntry>[
+        _file('src/main.dart'),
+      ];
+    late ProviderContainer container;
+    await tester.pumpWidget(
+      _withWorkspaceFiles(
+        service,
+        child: MaterialApp(
+          home: Scaffold(
+            body: SizedBox(
+              width: 320,
+              height: 480,
+              child: Consumer(
+                builder: (context, ref, _) {
+                  container = ProviderScope.containerOf(context);
+                  return WorkspaceExplorer(
+                    workspace: _workspace(),
+                    mode: WorkspaceExplorerMode.hideIgnored,
+                    onModeChanged: (_) {},
+                    onOpenFile: (_) {},
+                    onPathMoved: (_, _) async {},
+                  );
+                },
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('main.dart'), findsNothing);
+
+    container
+        .read(workspaceExplorerRevealControllerProvider.notifier)
+        .reveal(workspaceId: 'workspace-1', relativePath: 'src/main.dart');
+    await tester.pumpAndSettle();
+
+    expect(find.text('main.dart'), findsOneWidget);
+    expect(container.read(workspaceExplorerRevealControllerProvider), isNull);
   });
 
   testWidgets('background context menu creates items at workspace root', (

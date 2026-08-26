@@ -111,7 +111,9 @@ class WorkspaceFolderOpener {
         ];
       case WorkspaceFolderPlatform.windows:
         return <_WorkspaceFolderOpenCommand>[
-          _WorkspaceFolderOpenCommand('explorer.exe', <String>[path]),
+          _WorkspaceFolderOpenCommand('explorer.exe', <String>[
+            _windowsExplorerPath(path),
+          ]),
         ];
       case WorkspaceFolderPlatform.linux:
         return <_WorkspaceFolderOpenCommand>[
@@ -132,9 +134,13 @@ class WorkspaceFolderOpener {
           _WorkspaceFolderOpenCommand('open', <String>['-R', path]),
         ];
       case WorkspaceFolderPlatform.windows:
+        // Explorer treats `/select,C:/foo` as one token and opens Documents
+        // when the path uses `/` or contains spaces. Keep `/select,` as its
+        // own argument and pass a backslash path separately.
         return <_WorkspaceFolderOpenCommand>[
           _WorkspaceFolderOpenCommand('explorer.exe', <String>[
-            '/select,$path',
+            '/select,',
+            _windowsExplorerPath(path),
           ]),
         ];
       case WorkspaceFolderPlatform.linux:
@@ -157,6 +163,10 @@ class WorkspaceFolderOpener {
         ? path
         : File(path).parent.path;
   }
+}
+
+String _windowsExplorerPath(String path) {
+  return path.replaceAll('/', r'\');
 }
 
 /// FreeDesktop FileManager1.ShowItems selects the path in the session file

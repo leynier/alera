@@ -30,6 +30,7 @@ class WorkspaceContextSidebar extends StatelessWidget {
     this.onClearSourceControlRoot,
     required this.onOpenFile,
     this.onOpenFilePermanently,
+    this.onRevealInExplorer,
     required this.onOpenGitDiff,
     required this.onOpenGitCommitDiff,
     required this.onOpenSearchMatch,
@@ -54,6 +55,7 @@ class WorkspaceContextSidebar extends StatelessWidget {
   final VoidCallback? onClearSourceControlRoot;
   final ValueChanged<String> onOpenFile;
   final ValueChanged<String>? onOpenFilePermanently;
+  final ValueChanged<String>? onRevealInExplorer;
   final OpenGitDiffTabCallback onOpenGitDiff;
   final OpenGitCommitDiffTabCallback onOpenGitCommitDiff;
   final ValueChanged<WorkspaceSearchMatchTarget> onOpenSearchMatch;
@@ -121,6 +123,8 @@ class WorkspaceContextSidebar extends StatelessWidget {
                                 onGroupModeChanged: onSetGitDiffGroupMode,
                                 onOpenGitDiff: onOpenGitDiff,
                                 onOpenGitCommitDiff: onOpenGitCommitDiff,
+                                onOpenFile: onOpenFilePermanently ?? onOpenFile,
+                                onRevealInExplorer: onRevealInExplorer,
                                 onClearSourceControlRoot:
                                     sourceControlScope.isWorkspaceRoot
                                     ? null

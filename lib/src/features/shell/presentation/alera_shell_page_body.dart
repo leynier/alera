@@ -158,6 +158,12 @@ class _AleraShellPageBodyState extends ConsumerState<_AleraShellPageBody> {
                                 ),
                               );
                             },
+                            onRevealInExplorer: (relativePath) {
+                              controller.revealInExplorer(
+                                workspace: workspace,
+                                relativePath: relativePath,
+                              );
+                            },
                             onOpenGitDiff:
                                 ({
                                   relativePath,
