@@ -210,6 +210,12 @@
     font-family: 'Inter', system-ui, sans-serif;
   }
 
+  /* Tailwind Preflight sets margin: 0 on *, which removes the UA
+     margin: auto that centers a modal dialog. Restore it. */
+  dialog {
+    margin: auto;
+  }
+
   [id] {
     scroll-margin-top: 5rem;
   }

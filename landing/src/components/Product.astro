@@ -1,4 +1,31 @@
 ---
+const slides = [
+  {
+    src: '/media/desktop-agents.webp',
+    alt: 'Alera Split Panes With A Claude Agent Waiting For Approval Beside A Terminal',
+  },
+  {
+    src: '/media/desktop-agents-codex.webp',
+    alt: 'Alera Split Panes With Codex Working Beside A Terminal',
+  },
+  {
+    src: '/media/desktop-agents-done.webp',
+    alt: 'Alera Workspace With Claude Done Drafting Release Notes',
+  },
+  {
+    src: '/media/desktop-new-workspace.webp',
+    alt: 'Alera New Workspace Dialog Starting A Claude Agent From A Prompt',
+  },
+  {
+    src: '/media/desktop-resources.webp',
+    alt: 'Alera Workbench With Workspace Search And Resource Manager',
+  },
+  {
+    src: '/media/mobile-pair.webp',
+    alt: 'Alera Mobile Companion Workspaces And Agent Waiting For Input',
+  },
+];
+
 const gallery = [
   {
     src: '/media/desktop-agents.webp',
@@ -55,28 +82,16 @@ const gallery = [
           </span>
           <span class="ml-auto font-mono text-[10px] uppercase tracking-widest text-foreground-faint">Desktop</span>
         </div>
-        <div class="relative bg-bg aspect-video">
-          <video
-            class="product-demo-video h-full w-full object-cover"
-            poster="/media/desktop-agents.webp"
-            autoplay
-            muted
-            loop
-            playsinline
-            preload="metadata"
-            width="1920"
-            height="1080"
-            aria-label="Alera Product Demo"
-          >
-            <source src="/media/alera-demo.mp4" type="video/mp4" />
-          </video>
-          <img
-            class="product-demo-poster h-full w-full object-cover"
-            src="/media/desktop-agents.webp"
-            alt="Alera Split Panes With A Claude Agent Waiting For Approval Beside A Terminal"
-            width="1280"
-            height="800"
-          />
+        <div class="product-slideshow" role="img" aria-label="Alera Product Demo">
+          {slides.map((slide, i) => (
+            <img
+              src={slide.src}
+              alt={i === 0 ? slide.alt : ''}
+              width="1280"
+              height="800"
+              decoding={i === 0 ? 'sync' : 'async'}
+            />
+          ))}
         </div>
       </div>
 
@@ -251,8 +266,49 @@ const gallery = [
     }
   }
 
-  .product-demo-poster {
-    display: none;
+  .product-slideshow {
+    position: relative;
+    aspect-ratio: 16 / 9;
+    overflow: hidden;
+    background: var(--color-bg);
+  }
+
+  .product-slideshow img {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center top;
+    opacity: 0;
+    animation: product-slide 18s infinite;
+  }
+
+  .product-slideshow img:nth-child(1) {
+    opacity: 1;
+    animation-name: product-slide-lead;
+  }
+
+  .product-slideshow img:nth-child(2) { animation-delay: 3s; }
+  .product-slideshow img:nth-child(3) { animation-delay: 6s; }
+  .product-slideshow img:nth-child(4) { animation-delay: 9s; }
+  .product-slideshow img:nth-child(5) { animation-delay: 12s; }
+  .product-slideshow img:nth-child(6) { animation-delay: 15s; }
+
+  @keyframes product-slide {
+    0% { opacity: 0; }
+    2.2% { opacity: 1; }
+    16.7% { opacity: 1; }
+    18.9% { opacity: 0; }
+    100% { opacity: 0; }
+  }
+
+  @keyframes product-slide-lead {
+    0%,
+    16.7% { opacity: 1; }
+    18.9%,
+    97.8% { opacity: 0; }
+    100% { opacity: 1; }
   }
 
   .product-phone-island {
@@ -285,12 +341,18 @@ const gallery = [
 
 
   .product-lightbox {
+    position: fixed;
+    inset: 0;
+    margin: auto;
+    width: min(92vw, 1100px);
+    height: max-content;
+    max-width: min(92vw, 1100px);
+    max-height: 90vh;
     padding: 0;
+    overflow: hidden;
     border: 1px solid var(--color-border);
     border-radius: var(--radius-xl);
     background: var(--color-surface);
-    max-width: min(92vw, 1100px);
-    max-height: 90vh;
   }
 
   .product-lightbox::backdrop {
@@ -315,12 +377,13 @@ const gallery = [
   }
 
   @media (prefers-reduced-motion: reduce) {
-    .product-demo-video {
-      display: none;
+    .product-slideshow img {
+      animation: none;
+      opacity: 0;
     }
 
-    .product-demo-poster {
-      display: block;
+    .product-slideshow img:first-child {
+      opacity: 1;
     }
   }
 </style>
@@ -347,11 +410,5 @@ const gallery = [
     dialog.addEventListener('close', () => {
       dialogImage.src = '';
     });
-  }
-
-  const video = document.querySelector<HTMLVideoElement>('.product-demo-video');
-  if (video && window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-    video.removeAttribute('autoplay');
-    video.pause();
   }
 </script>
