@@ -160,6 +160,14 @@ void main() {
         rendered['homebrew/Casks/alera.rb'],
         contains('depends_on arch: :arm64'),
       );
+      expect(
+        rendered['homebrew/Casks/alera.rb'],
+        contains('depends_on macos: :sonoma'),
+      );
+      expect(
+        rendered['homebrew/Casks/alera.rb'],
+        isNot(contains('depends_on macos: ">=')),
+      );
       final scoop =
           jsonDecode(rendered['scoop/bucket/alera.json']!)
               as Map<String, dynamic>;
