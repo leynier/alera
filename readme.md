@@ -23,15 +23,15 @@
 </p>
 
 <p align="center">
-  <video src="assets/product/alera-demo.mp4" poster="assets/product/desktop-new-workspace.webp" width="920" height="518" autoplay muted loop playsinline controls>
-    <a href="assets/product/desktop-new-workspace.webp"><img src="assets/product/desktop-new-workspace.webp" alt="Alera new workspace dialog starting an agent from a prompt" width="920" /></a>
+  <video src="assets/product/alera-demo.mp4" poster="assets/product/desktop-resources.webp" width="920" height="518" autoplay muted loop playsinline controls>
+    <a href="assets/product/desktop-resources.webp"><img src="assets/product/desktop-resources.webp" alt="Alera workbench with workspace search and resource manager" width="920" /></a>
   </video>
 </p>
 
 <p align="center">
   <img src="assets/product/desktop-new-workspace.webp" alt="Alera new workspace dialog starting an agent from a prompt" width="32%" />
   &nbsp;
-  <img src="assets/product/desktop-source-control.webp" alt="Alera source control with visual diff and commit" width="32%" />
+  <img src="assets/product/desktop-resources.webp" alt="Alera workbench with workspace search and resource manager" width="32%" />
   &nbsp;
   <img src="assets/product/mobile-pair.webp" alt="Alera mobile companion workspaces and agent waiting for input" width="32%" />
 </p>
