@@ -158,12 +158,14 @@ const gallery = [
   class="product-lightbox"
   aria-label="Product Screenshot"
 >
-  <form method="dialog" class="product-lightbox-close">
-    <button type="submit" class="text-body-md text-foreground-muted hover:text-foreground transition-colors duration-fast">
-      Close
-    </button>
-  </form>
-  <img src="" alt="" width="1920" height="1115" />
+  <div class="product-lightbox-panel">
+    <form method="dialog" class="product-lightbox-close">
+      <button type="submit" class="text-body-md text-foreground-muted hover:text-foreground transition-colors duration-fast">
+        Close
+      </button>
+    </form>
+    <img src="" alt="" width="1920" height="1115" />
+  </div>
 </dialog>
 
 <style>
@@ -340,24 +342,58 @@ const gallery = [
   }
 
 
+  @media (prefers-reduced-motion: reduce) {
+    .product-slideshow img {
+      animation: none;
+      opacity: 0;
+    }
+
+    .product-slideshow img:first-child {
+      opacity: 1;
+    }
+  }
+</style>
+
+<style is:global>
+  /* Unscoped: a modal dialog is promoted to the top layer, and Astro
+     :where() scoping is too weak against the UA dialog:modal rules. */
   .product-lightbox {
     position: fixed;
     inset: 0;
-    margin: auto;
-    width: min(92vw, 1100px);
-    height: max-content;
-    max-width: min(92vw, 1100px);
-    max-height: 90vh;
-    padding: 0;
-    overflow: hidden;
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius-xl);
-    background: var(--color-surface);
+    box-sizing: border-box;
+    width: 100%;
+    max-width: none;
+    height: 100%;
+    max-height: none;
+    margin: 0;
+    padding: 1.5rem;
+    overflow: auto;
+    border: none;
+    background: transparent;
+  }
+
+  .product-lightbox:not([open]) {
+    display: none;
+  }
+
+  .product-lightbox[open] {
+    display: flex;
+    align-items: center;
+    justify-content: center;
   }
 
   .product-lightbox::backdrop {
     background: rgba(10, 10, 11, 0.78);
     backdrop-filter: blur(8px);
+  }
+
+  .product-lightbox-panel {
+    width: min(92vw, 1100px);
+    max-height: 90vh;
+    overflow: hidden;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-xl);
+    background: var(--color-surface);
   }
 
   .product-lightbox-close {
@@ -375,17 +411,6 @@ const gallery = [
     background: var(--color-bg);
     border-radius: 0 0 var(--radius-xl) var(--radius-xl);
   }
-
-  @media (prefers-reduced-motion: reduce) {
-    .product-slideshow img {
-      animation: none;
-      opacity: 0;
-    }
-
-    .product-slideshow img:first-child {
-      opacity: 1;
-    }
-  }
 </style>
 
 <script>
@@ -394,9 +419,14 @@ const gallery = [
 
   if (dialog instanceof HTMLDialogElement && dialogImage instanceof HTMLImageElement) {
     document.querySelectorAll<HTMLElement>('[data-lightbox]').forEach((trigger) => {
-      trigger.addEventListener('click', () => {
+      trigger.addEventListener('click', async () => {
         dialogImage.src = trigger.dataset.src ?? '';
         dialogImage.alt = trigger.dataset.alt ?? '';
+        try {
+          await dialogImage.decode();
+        } catch {
+          // Open even if the still fails to decode so Close remains available.
+        }
         dialog.showModal();
       });
     });
