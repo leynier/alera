@@ -23,9 +23,7 @@
 </p>
 
 <p align="center">
-  <video src="assets/product/alera-demo.mp4" poster="assets/product/desktop-agents.webp" width="920" height="518" autoplay muted loop playsinline controls>
-    <a href="assets/product/desktop-agents.webp"><img src="assets/product/desktop-agents.webp" alt="Alera split panes with a Claude agent waiting for approval beside a terminal" width="920" /></a>
-  </video>
+  <img src="assets/product/desktop-agents.webp" alt="Alera split panes with a Claude agent waiting for approval beside a terminal" width="920" />
 </p>
 
 <p align="center">
