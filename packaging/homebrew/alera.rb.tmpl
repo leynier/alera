@@ -15,8 +15,10 @@ cask "alera" do
 
   # CI builds the macOS app on an Apple Silicon runner only, and the app targets
   # macOS 14. Claiming more would install a bundle that cannot run.
+  # Homebrew treats a symbol as "this version or newer"; the string comparison
+  # form (`">= :sonoma"`) is deprecated and warns on every brew command.
   depends_on arch: :arm64
-  depends_on macos: ">= :sonoma"
+  depends_on macos: :sonoma
 
   app "Alera.app"
 
