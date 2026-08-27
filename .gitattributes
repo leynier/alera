@@ -8,6 +8,8 @@
 *.ico binary
 *.jpg binary
 *.png binary
+*.webp binary
+*.mp4 binary
 *.ttf binary
 *.woff2 binary
 *.zip binary

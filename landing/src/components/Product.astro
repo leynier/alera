@@ -1,0 +1,444 @@
+---
+const slides = [
+  {
+    src: '/media/desktop-agents.webp',
+    alt: 'Alera Split Panes With A Claude Agent Waiting For Approval Beside A Terminal',
+  },
+  {
+    src: '/media/desktop-agents-codex.webp',
+    alt: 'Alera Split Panes With Codex Working Beside A Terminal',
+  },
+  {
+    src: '/media/desktop-agents-done.webp',
+    alt: 'Alera Workspace With Claude Done Drafting Release Notes',
+  },
+  {
+    src: '/media/desktop-new-workspace.webp',
+    alt: 'Alera New Workspace Dialog Starting A Claude Agent From A Prompt',
+  },
+  {
+    src: '/media/desktop-resources.webp',
+    alt: 'Alera Workbench With Workspace Search And Resource Manager',
+  },
+  {
+    src: '/media/mobile-pair.webp',
+    alt: 'Alera Mobile Companion Workspaces And Agent Waiting For Input',
+  },
+];
+
+const gallery = [
+  {
+    src: '/media/desktop-agents.webp',
+    alt: 'Alera Split Panes With A Claude Agent Waiting For Approval Beside A Terminal',
+    label: 'Agents In Split Panes',
+    caption: 'Claude asks for approval beside your terminal while Codex keeps working in its own worktree.',
+    width: 1280,
+    height: 800,
+  },
+  {
+    src: '/media/desktop-new-workspace.webp',
+    alt: 'Alera New Workspace Dialog Starting A Claude Agent From A Prompt',
+    label: 'New Workspace',
+    caption: 'Describe the task, pick an agent profile, and get an isolated Git worktree with the agent already running.',
+    width: 1280,
+    height: 800,
+  },
+  {
+    src: '/media/mobile-pair.webp',
+    alt: 'Alera Mobile Companion Workspaces And Agent Waiting For Input',
+    label: 'Mobile Companion',
+    caption: 'The same workspaces and agent attention states on a paired phone.',
+    width: 1280,
+    height: 800,
+  },
+];
+---
+
+<section id="product" class="relative pt-6 pb-24 px-6 overflow-hidden">
+  <div class="product-spotlight absolute inset-0 pointer-events-none"></div>
+  <div class="product-grid absolute inset-0 pointer-events-none"></div>
+
+  <div class="relative z-10 max-w-6xl mx-auto">
+    <div class="text-center mb-12 md:mb-14">
+      <p class="text-label-md text-foreground-faint uppercase tracking-widest font-mono mb-4">Product</p>
+      <h2 class="text-headline-lg md:text-[32px] font-semibold tracking-tight text-foreground mb-4">
+        See Alera in Action
+      </h2>
+      <p class="text-[15px] text-foreground-muted max-w-xl mx-auto text-balance">
+        Agents running side by side in split panes, one isolated Git worktree per task, live working and waiting states in the sidebar, and a companion that carries agent attention with you.
+      </p>
+    </div>
+
+    <div class="max-w-5xl mx-auto mb-16 flex flex-col items-center gap-8 lg:mb-20 lg:flex-row lg:items-end lg:gap-8">
+      <div class="product-window mockup-shadow w-full min-w-0 flex-1 opacity-0-initial animate-fade-in-up">
+        <div class="product-window-bar">
+          <div class="flex items-center gap-1.5" aria-hidden="true">
+            <span class="size-2 rounded-full bg-border"></span>
+            <span class="size-2 rounded-full bg-foreground-faint/70"></span>
+            <span class="size-2 rounded-full bg-foreground-muted/50"></span>
+          </div>
+          <span class="absolute inset-x-0 text-center font-mono text-[11px] tracking-wide text-foreground-faint pointer-events-none">
+            Alera
+          </span>
+          <span class="ml-auto font-mono text-[10px] uppercase tracking-widest text-foreground-faint">Desktop</span>
+        </div>
+        <div class="product-slideshow" role="img" aria-label="Alera Product Demo">
+          {slides.map((slide, i) => (
+            <img
+              src={slide.src}
+              alt={i === 0 ? slide.alt : ''}
+              width="1280"
+              height="800"
+              decoding={i === 0 ? 'sync' : 'async'}
+            />
+          ))}
+        </div>
+      </div>
+
+      <div class="shrink-0 opacity-0-initial animate-fade-in-up animation-delay-300">
+        <button
+          type="button"
+          class="product-phone-frame phone-shadow text-left"
+          data-lightbox
+          data-src="/media/mobile-workspaces.webp"
+          data-alt="Alera Mobile Companion Workspaces"
+          aria-label="Open Alera Mobile Companion Workspaces"
+        >
+          <span class="product-phone-island" aria-hidden="true"></span>
+          <img
+            src="/media/mobile-workspaces.webp"
+            alt="Alera Mobile Companion Workspaces"
+            width="390"
+            height="844"
+            class="product-phone-screen"
+          />
+          <span class="product-phone-home" aria-hidden="true"></span>
+        </button>
+        <p class="mt-3 text-center font-mono text-[10px] uppercase tracking-widest text-foreground-faint">Mobile</p>
+      </div>
+    </div>
+
+    <div class="product-gallery">
+      {gallery.map((shot, i) => (
+        <figure
+          class="product-gallery-item opacity-0-initial animate-fade-in-up"
+          style={`animation-delay: ${200 + i * 90}ms`}
+        >
+          <button
+            type="button"
+            class="product-gallery-card group mockup-shadow"
+            data-lightbox
+            data-src={shot.src}
+            data-alt={shot.alt}
+            aria-label={`Open ${shot.label}`}
+          >
+            <span class="product-gallery-shot">
+              <img
+                src={shot.src}
+                alt={shot.alt}
+                width={shot.width}
+                height={shot.height}
+                loading="lazy"
+                decoding="async"
+              />
+            </span>
+          </button>
+          <figcaption class="product-gallery-caption">
+            <p class="text-title-md text-foreground">{shot.label}</p>
+            <p class="text-body-md text-foreground-muted mt-0.5">{shot.caption}</p>
+          </figcaption>
+        </figure>
+      ))}
+    </div>
+  </div>
+</section>
+
+<dialog
+  id="product-lightbox"
+  class="product-lightbox"
+  aria-label="Product Screenshot"
+>
+  <div class="product-lightbox-panel">
+    <form method="dialog" class="product-lightbox-close">
+      <button type="submit" class="text-body-md text-foreground-muted hover:text-foreground transition-colors duration-fast">
+        Close
+      </button>
+    </form>
+    <img src="" alt="" width="1920" height="1115" />
+  </div>
+</dialog>
+
+<style>
+  .product-gallery {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 1.25rem;
+    align-items: stretch;
+  }
+
+  @media (min-width: 768px) {
+    .product-gallery {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+  }
+
+  .product-gallery-item {
+    display: flex;
+    height: 100%;
+    flex-direction: column;
+  }
+
+  .product-gallery-card {
+    display: block;
+    width: 100%;
+    padding: 0;
+    overflow: hidden;
+    border-radius: var(--radius-xl);
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    text-align: left;
+    transition-property: border-color, background-color;
+    transition-duration: var(--transition-duration-mid);
+  }
+
+  .product-gallery-card:hover {
+    border-color: color-mix(in srgb, var(--color-foreground-faint) 30%, transparent);
+    background: var(--color-surface-variant);
+  }
+
+  .product-gallery-shot {
+    display: block;
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    overflow: hidden;
+    background: var(--color-bg);
+  }
+
+  .product-gallery-shot img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center top;
+    transition: transform var(--transition-duration-slow);
+  }
+
+  .product-gallery-card:hover img {
+    transform: scale(1.02);
+  }
+
+  .product-gallery-caption {
+    min-height: 4.25rem;
+    margin-top: 0.75rem;
+    padding-inline: 0.125rem;
+  }
+
+  .product-window {
+    position: relative;
+    overflow: hidden;
+    border-radius: var(--radius-xl);
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+  }
+
+  .product-window-bar {
+    position: relative;
+    display: flex;
+    align-items: center;
+    height: 36px;
+    padding: 0 14px;
+    background: var(--color-surface-variant);
+    border-bottom: 1px solid var(--color-border-subtle);
+  }
+
+  .product-phone-frame {
+    position: relative;
+    display: block;
+    width: 168px;
+    padding: 10px 8px 12px;
+    border-radius: 28px;
+    background: var(--color-bg);
+    border: 1px solid var(--color-border);
+    cursor: pointer;
+  }
+
+  @media (min-width: 768px) {
+    .product-phone-frame {
+      width: 196px;
+    }
+  }
+
+  .product-slideshow {
+    position: relative;
+    aspect-ratio: 16 / 9;
+    overflow: hidden;
+    background: var(--color-bg);
+  }
+
+  .product-slideshow img {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center top;
+    opacity: 0;
+    animation: product-slide 18s infinite;
+  }
+
+  .product-slideshow img:nth-child(1) {
+    opacity: 1;
+    animation-name: product-slide-lead;
+  }
+
+  .product-slideshow img:nth-child(2) { animation-delay: 3s; }
+  .product-slideshow img:nth-child(3) { animation-delay: 6s; }
+  .product-slideshow img:nth-child(4) { animation-delay: 9s; }
+  .product-slideshow img:nth-child(5) { animation-delay: 12s; }
+  .product-slideshow img:nth-child(6) { animation-delay: 15s; }
+
+  @keyframes product-slide {
+    0% { opacity: 0; }
+    2.2% { opacity: 1; }
+    16.7% { opacity: 1; }
+    18.9% { opacity: 0; }
+    100% { opacity: 0; }
+  }
+
+  @keyframes product-slide-lead {
+    0%,
+    16.7% { opacity: 1; }
+    18.9%,
+    97.8% { opacity: 0; }
+    100% { opacity: 1; }
+  }
+
+  .product-phone-island {
+    display: block;
+    width: 36%;
+    height: 10px;
+    margin: 0 auto 8px;
+    border-radius: 999px;
+    background: var(--color-surface-elevated);
+  }
+
+
+  .product-phone-screen {
+    display: block;
+    width: 100%;
+    height: auto;
+    border-radius: 16px;
+    background: var(--color-bg);
+  }
+
+
+  .product-phone-home {
+    display: block;
+    width: 34%;
+    height: 3px;
+    margin: 8px auto 0;
+    border-radius: 999px;
+    background: var(--color-border);
+  }
+
+
+  @media (prefers-reduced-motion: reduce) {
+    .product-slideshow img {
+      animation: none;
+      opacity: 0;
+    }
+
+    .product-slideshow img:first-child {
+      opacity: 1;
+    }
+  }
+</style>
+
+<style is:global>
+  /* Unscoped: a modal dialog is promoted to the top layer, and Astro
+     :where() scoping is too weak against the UA dialog:modal rules. */
+  .product-lightbox {
+    position: fixed;
+    inset: 0;
+    box-sizing: border-box;
+    width: 100%;
+    max-width: none;
+    height: 100%;
+    max-height: none;
+    margin: 0;
+    padding: 1.5rem;
+    overflow: auto;
+    border: none;
+    background: transparent;
+  }
+
+  .product-lightbox:not([open]) {
+    display: none;
+  }
+
+  .product-lightbox[open] {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .product-lightbox::backdrop {
+    background: rgba(10, 10, 11, 0.78);
+    backdrop-filter: blur(8px);
+  }
+
+  .product-lightbox-panel {
+    width: min(92vw, 1100px);
+    max-height: 90vh;
+    overflow: hidden;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-xl);
+    background: var(--color-surface);
+  }
+
+  .product-lightbox-close {
+    display: flex;
+    justify-content: flex-end;
+    padding: 10px 14px 0;
+  }
+
+  .product-lightbox img {
+    display: block;
+    width: 100%;
+    height: auto;
+    max-height: calc(90vh - 44px);
+    object-fit: contain;
+    background: var(--color-bg);
+    border-radius: 0 0 var(--radius-xl) var(--radius-xl);
+  }
+</style>
+
+<script>
+  const dialog = document.getElementById('product-lightbox');
+  const dialogImage = dialog instanceof HTMLDialogElement ? dialog.querySelector('img') : null;
+
+  if (dialog instanceof HTMLDialogElement && dialogImage instanceof HTMLImageElement) {
+    document.querySelectorAll<HTMLElement>('[data-lightbox]').forEach((trigger) => {
+      trigger.addEventListener('click', async () => {
+        dialogImage.src = trigger.dataset.src ?? '';
+        dialogImage.alt = trigger.dataset.alt ?? '';
+        try {
+          await dialogImage.decode();
+        } catch {
+          // Open even if the still fails to decode so Close remains available.
+        }
+        dialog.showModal();
+      });
+    });
+
+    dialog.addEventListener('click', (event) => {
+      if (event.target === dialog) {
+        dialog.close();
+      }
+    });
+
+    dialog.addEventListener('close', () => {
+      dialogImage.src = '';
+    });
+  }
+</script>

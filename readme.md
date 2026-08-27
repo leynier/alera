@@ -22,6 +22,18 @@
   <a href="roadmap.md"><strong>Roadmap</strong></a>
 </p>
 
+<p align="center">
+  <img src="assets/product/desktop-agents.webp" alt="Alera split panes with a Claude agent waiting for approval beside a terminal" width="920" />
+</p>
+
+<p align="center">
+  <img src="assets/product/desktop-agents.webp" alt="Alera split panes with a Claude agent waiting for approval beside a terminal" width="32%" />
+  &nbsp;
+  <img src="assets/product/desktop-new-workspace.webp" alt="Alera new workspace dialog starting a Claude agent from a prompt" width="32%" />
+  &nbsp;
+  <img src="assets/product/mobile-pair.webp" alt="Alera mobile companion workspaces and agent waiting for input" width="32%" />
+</p>
+
 ---
 
 ## Why Alera
