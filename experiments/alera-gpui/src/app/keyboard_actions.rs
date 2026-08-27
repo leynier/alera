@@ -243,6 +243,10 @@ impl AleraApp {
         }
         self.context_sidebar_collapsed = false;
         self.select_context_panel(ContextPanel::Search, cx);
+        // Flutter's search TextField is autofocus when the panel is opened by
+        // Find in Files. Keep the first typed character in the query instead
+        // of leaving focus on the editor or terminal surface.
+        self.focus_search_input_next_frame(window);
     }
 
     pub(super) fn on_replace_in_files(
@@ -258,6 +262,19 @@ impl AleraApp {
         self.context_sidebar_collapsed = false;
         self.search_replace_expanded = true;
         self.select_context_panel(ContextPanel::Search, cx);
+        self.focus_search_input_next_frame(window);
+    }
+
+    fn focus_search_input_next_frame(&self, window: &mut Window) {
+        let search_input = self.search_input.clone();
+        window.on_next_frame(move |window, _cx| {
+            // The first frame mounts the context panel. Focus after that
+            // paint, otherwise GPUI can immediately return focus to the
+            // editor that dispatched the shortcut.
+            window.on_next_frame(move |window, cx| {
+                search_input.update(cx, |input, cx| input.focus(window, cx));
+            });
+        });
     }
 
     pub(super) fn on_save_file(

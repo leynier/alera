@@ -166,7 +166,7 @@ impl AleraApp {
                     .rounded_lg()
                     .border_1()
                     .border_color(theme::border_subtle())
-                    .children(state.profiles.iter().enumerate().map(|(index, profile)| {
+                    .children(state.profiles.iter().map(|profile| {
                         let id = profile.id.clone();
                         let selected = state.selected_id.as_deref() == Some(&profile.id);
                         let subtitle = if let Some(quota) = &profile.quota_group {
@@ -184,7 +184,10 @@ impl AleraApp {
                             )
                         };
                         div()
-                            .id(("agent-profile-row", index))
+                            .id(SharedString::from(format!(
+                                "agent-profile-row-{}",
+                                profile.id
+                            )))
                             .flex()
                             .items_center()
                             .gap_2()

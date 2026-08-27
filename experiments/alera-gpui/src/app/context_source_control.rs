@@ -58,13 +58,20 @@ impl AleraApp {
                         div()
                             .flex()
                             .items_center()
-                            .h(px(26.0))
+                            .min_h(px(30.0))
                             .child(
                                 div()
                                     .flex_1()
+                                    .min_w_0()
                                     .text_sm()
                                     .font_weight(gpui::FontWeight::SEMIBOLD)
-                                    .child("Source Control"),
+                                    .whitespace_normal()
+                                    .line_clamp(2)
+                                    .child(if self.context_sidebar_width < 220.0 {
+                                        "Source\nControl"
+                                    } else {
+                                        "Source Control"
+                                    }),
                             )
                             .when(self.selected_source_control_root().is_some(), |toolbar| {
                                 toolbar.child(self.source_toolbar_button(
@@ -139,7 +146,9 @@ impl AleraApp {
                     .child(
                         div()
                             .relative()
-                            .mt_2()
+                            // Flutter leaves a 12 px gap after the wrapped
+                            // toolbar row before the commit composer.
+                            .mt(px(12.0))
                             .h(px(64.0))
                             .rounded(px(8.0))
                             .border_1()
@@ -360,9 +369,6 @@ impl AleraApp {
             })
             .when(self.source_control_menu_open, |panel| {
                 panel.child(self.source_control_menu(cx))
-            })
-            .when(self.source_history_action_menu.is_some(), |panel| {
-                panel.child(self.source_history_action_menu(cx))
             })
             .into_any_element()
     }

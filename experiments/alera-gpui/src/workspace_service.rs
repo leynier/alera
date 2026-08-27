@@ -522,6 +522,41 @@ impl WorkspaceService {
             .await?;
         parse_git_diff(value)
     }
+
+    pub async fn git_diff_blob(
+        &self,
+        workspace_path: String,
+        file_path: String,
+        old_path: Option<String>,
+        area: Option<String>,
+        commit_id: Option<String>,
+        parent_id: Option<String>,
+        old_side: bool,
+    ) -> Result<Option<WorkspaceImage>, String> {
+        let value = self
+            .bridge
+            .request(
+                "workspaceGit.diffBlob",
+                json!({
+                    "workspacePath": workspace_path,
+                    "filePath": file_path,
+                    "oldPath": old_path,
+                    "area": area,
+                    "commitId": commit_id,
+                    "parentId": parent_id,
+                    "oldSide": old_side,
+                }),
+            )
+            .await?;
+        let format = required_string(&value, "format")?;
+        let Some(encoded) = value.get("bytesBase64").and_then(Value::as_str) else {
+            return Ok(None);
+        };
+        let bytes = BASE64_STANDARD
+            .decode(encoded)
+            .map_err(|error| format!("Workspace Git Diff Blob Is Invalid: {error}"))?;
+        Ok(Some(WorkspaceImage { format, bytes }))
+    }
 }
 
 pub fn apply_explorer_git_status(

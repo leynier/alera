@@ -282,11 +282,13 @@ impl AleraApp {
                             this.forge_review_base_menu_open = false;
                             cx.notify();
                         }))
-                        .children(options.into_iter().enumerate().map(|(index, branch)| {
+                        .children(options.into_iter().map(|branch| {
                             let value = branch.clone();
                             let checked = selected == branch;
                             div()
-                                .id(("context-pr-edit-base-option", index))
+                                .id(gpui::SharedString::from(format!(
+                                    "context-pr-edit-base-option-{branch}"
+                                )))
                                 .flex()
                                 .items_center()
                                 .h(px(30.0))
@@ -390,8 +392,7 @@ impl AleraApp {
                 section.children(
                     checks
                         .into_iter()
-                        .enumerate()
-                        .map(|(index, check)| self.render_check_row(index, check, cx)),
+                        .map(|check| self.render_check_row(check, cx)),
                 )
             })
             .into_any_element()
@@ -399,7 +400,6 @@ impl AleraApp {
 
     fn render_check_row(
         &self,
-        index: usize,
         check: ForgeCheck,
         cx: &mut Context<Self>,
     ) -> AnyElement {
@@ -411,7 +411,9 @@ impl AleraApp {
             .ml_2()
             .child(
                 div()
-                    .id(("context-pr-check", index))
+                    .id(gpui::SharedString::from(format!(
+                        "context-pr-check-{key}"
+                    )))
                     .flex()
                     .items_center()
                     .min_h(px(30.0))
@@ -439,7 +441,7 @@ impl AleraApp {
                     .when_some(link, |row, url| {
                         row.child(
                             pr_icon_button_owned(
-                                format!("context-pr-check-open-{index}"),
+                                format!("context-pr-check-open-{key}"),
                                 AleraIcon::External,
                             )
                             .on_mouse_down(
@@ -607,8 +609,17 @@ impl AleraApp {
                     .comments
                     .iter()
                     .cloned()
-                    .enumerate()
-                    .map(|(index, comment)| {
+                    .map(|comment| {
+                        let comment_id = if comment._id.trim().is_empty() {
+                            format!(
+                                "{}|{}|{}",
+                                comment.author,
+                                comment.created_at.as_deref().unwrap_or_default(),
+                                comment.body
+                            )
+                        } else {
+                            comment._id.clone()
+                        };
                         let url = comment.url.clone();
                         let created_at = comment
                             .created_at
@@ -622,7 +633,9 @@ impl AleraApp {
                         });
                         let resolved = comment.resolved;
                         div()
-                            .id(("context-pr-comment", index))
+                            .id(gpui::SharedString::from(format!(
+                                "context-pr-comment-{comment_id}"
+                            )))
                             .mt_2()
                             .p_3()
                             .rounded_lg()
@@ -651,7 +664,7 @@ impl AleraApp {
                                     .when_some(url, |header, url| {
                                         header.child(
                                             pr_icon_button_owned(
-                                                format!("context-pr-comment-open-{index}"),
+                                                format!("context-pr-comment-open-{comment_id}"),
                                                 AleraIcon::External,
                                             )
                                             .on_mouse_down(
@@ -688,7 +701,9 @@ impl AleraApp {
                                     .text_color(theme::text_muted())
                                     .child(
                                         TextView::markdown(
-                                            ("context-pr-comment-body", index),
+                                            gpui::SharedString::from(format!(
+                                                "context-pr-comment-body-{comment_id}"
+                                            )),
                                             normalize_review_comment_markdown(&comment.body),
                                             window,
                                             cx,
@@ -840,9 +855,12 @@ impl AleraApp {
                             this.forge_review_action_menu_open = false;
                             cx.notify();
                         }))
-                        .children(available.into_iter().enumerate().map(|(index, option)| {
+                        .children(available.into_iter().map(|option| {
                             div()
-                                .id(("context-pr-action-option", index))
+                                .id(gpui::SharedString::from(format!(
+                                    "context-pr-action-option-{}",
+                                    option.label()
+                                )))
                                 .flex()
                                 .items_center()
                                 .h(px(30.0))

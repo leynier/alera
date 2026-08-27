@@ -333,6 +333,8 @@ impl AleraApp {
         }
         self.tab_mutation_busy = true;
         self.git_diff_loading_tab = Some(tab_id.clone());
+        self.git_diff_errors.remove(&tab_id);
+        let preload_payload = payload.clone();
         let result_tab_id = tab_id.clone();
         cx.spawn(async move |this, cx| {
             let result = bridge
@@ -366,12 +368,21 @@ impl AleraApp {
                 match (result, diff) {
                     (Ok(_), Ok(diff)) => {
                         this.selected_tab_id = Some(result_tab_id.clone());
+                        let diff_for_images = diff.clone();
                         this.git_diff = diff;
                         this.git_diff_loaded_tab = Some(result_tab_id.clone());
+                        this.preload_git_diff_images(
+                            result_tab_id.clone(),
+                            preload_payload.clone(),
+                            &diff_for_images,
+                            cx,
+                        );
                         this.refresh(cx);
                     }
                     (Err(error), _) | (_, Err(error)) => {
-                        this.local_message = Some(error.into());
+                        this.git_diff_errors
+                            .insert(result_tab_id.clone(), "Could not load diff.".into());
+                        let _ = error;
                         cx.notify();
                     }
                 }
@@ -607,6 +618,13 @@ impl AleraApp {
         // terminated the matching terminal sessions so the sidebar cannot
         // retain a closed agent until the next presence notification.
         self.prune_presence_for_tabs(&tab_ids);
+        for tab_id in &tab_ids {
+            self.git_diff_errors.remove(tab_id);
+            self.git_diff_image_sides
+                .retain(|(owner, _), _| owner != tab_id);
+            self.git_diff_image_loading
+                .retain(|(owner, _)| owner != tab_id);
+        }
         for tab in self
             .snapshot
             .tabs
@@ -624,19 +642,28 @@ impl AleraApp {
         self.tab_close_armed = None;
         self.tab_mutation_busy = true;
         let bridge = self.bridge.clone();
-        let mut layout = self.snapshot.layout.clone();
+        let previous_layout = self.snapshot.layout.clone();
+        let mut layout = previous_layout.clone();
         if let Some(layout) = layout.as_mut() {
             for tab_id in &tab_ids {
                 layout.remove_tab(tab_id);
             }
         }
-        // Redraw immediately so closing an agent tab also removes its sidebar
-        // presence before the asynchronous host mutation completes.
-        cx.notify();
+        // Apply the same optimistic snapshot contract used by drag/drop. The
+        // sidebar derives presence from `all_tabs`, so waiting for the host
+        // round-trip leaves a just-closed workspace green and keeps its agent
+        // row mounted for the duration of the request.
+        self.snapshot.tabs.retain(|tab| !tab_ids.contains(&tab.id));
+        self.snapshot
+            .all_tabs
+            .retain(|tab| !tab_ids.contains(&tab.id));
+        self.snapshot.layout = layout.clone();
         let next_selected_tab_id = layout
             .as_ref()
             .and_then(|layout| layout.groups.get(&layout.active_group_id))
             .and_then(|group| group.active_tab_id.clone());
+        self.selected_tab_id = next_selected_tab_id.clone();
+        cx.notify();
         cx.spawn(async move |this, cx| {
             let result = async {
                 for tab_id in &tab_ids {
@@ -664,9 +691,14 @@ impl AleraApp {
                         this.refresh(cx);
                     }
                     Err(error) => {
+                        // A partial host mutation or a failed layout write is
+                        // reconciled from the durable snapshot. Restore the
+                        // optimistic layout immediately as well so a failed
+                        // close cannot leave the client with an empty pane.
+                        this.snapshot.layout = previous_layout;
                         this.local_message = Some(error.into());
                         this.refresh_presence_status(cx);
-                        cx.notify();
+                        this.refresh(cx);
                     }
                 }
             });
@@ -942,6 +974,8 @@ impl AleraApp {
             .and_then(|path| source_scope.to_source_relative_path(path));
         let workspace_path = source_scope.path;
         self.git_diff_loading_tab = Some(tab_id.clone());
+        self.git_diff_errors.remove(&tab_id);
+        let preload_payload = payload.clone();
         let service = self.workspace_service.clone();
         cx.spawn(async move |this, cx| {
             let result = service
@@ -961,10 +995,21 @@ impl AleraApp {
                 this.git_diff_loading_tab = None;
                 match result {
                     Ok(diff) => {
+                        let diff_for_images = diff.clone();
                         this.git_diff = diff;
                         this.git_diff_loaded_tab = Some(tab_id.clone());
+                        this.preload_git_diff_images(
+                            tab_id.clone(),
+                            preload_payload.clone(),
+                            &diff_for_images,
+                            cx,
+                        );
                     }
-                    Err(error) => this.local_message = Some(error.into()),
+                    Err(error) => {
+                        this.git_diff_errors
+                            .insert(tab_id.clone(), "Could not load diff.".into());
+                        let _ = error;
+                    }
                 }
                 cx.notify();
             });

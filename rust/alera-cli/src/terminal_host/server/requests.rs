@@ -827,6 +827,10 @@ impl ServerActor {
                 self.require_auth(client_id)?;
                 super::workspace_git_requests::diff(payload).await
             }
+            "workspaceGit.diffBlob" => {
+                self.require_auth(client_id)?;
+                super::workspace_git_requests::diff_blob(payload).await
+            }
             "workspaceSearch.search" => {
                 self.require_auth(client_id)?;
                 super::workspace_search_requests::search(payload).await

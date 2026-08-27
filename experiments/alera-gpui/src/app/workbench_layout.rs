@@ -50,6 +50,20 @@ impl AleraApp {
                 let ratio = *ratio as f32;
                 let resize_path = path.to_vec();
                 let resize_axis = *axis;
+                let resize_extent = self
+                    .split_content_extent(layout, path, *axis)
+                    .unwrap_or_else(|| {
+                        let size = window.viewport_size();
+                        match axis {
+                            WorkbenchSplitAxis::Horizontal => {
+                                f32::from(size.width / px(1.0))
+                            }
+                            WorkbenchSplitAxis::Vertical => {
+                                f32::from(size.height / px(1.0))
+                            }
+                        }
+                    })
+                    .max(1.0);
                 let resize_handle = div()
                     .id(SharedString::from(format!("split-handle-{path:?}")))
                     .bg(theme::border_subtle())
@@ -61,6 +75,7 @@ impl AleraApp {
                                 axis: resize_axis,
                                 start: event.position,
                                 initial_ratio: resize_ratio,
+                                content_extent: resize_extent,
                             });
                             cx.notify();
                             cx.stop_propagation();
@@ -152,15 +167,49 @@ impl AleraApp {
         if !event.dragging() {
             return;
         }
-        let viewport = window.viewport_size();
+        let _ = window;
         let delta = match state.axis {
-            WorkbenchSplitAxis::Horizontal => (event.position.x - state.start.x) / viewport.width,
-            WorkbenchSplitAxis::Vertical => (event.position.y - state.start.y) / viewport.height,
+            WorkbenchSplitAxis::Horizontal => {
+                f32::from(event.position.x - state.start.x) / state.content_extent
+            }
+            WorkbenchSplitAxis::Vertical => {
+                f32::from(event.position.y - state.start.y) / state.content_extent
+            }
         };
         if let Some(layout) = self.snapshot.layout.as_mut() {
             layout.update_split_ratio(&state.path, state.initial_ratio + f64::from(delta));
             cx.notify();
         }
+    }
+
+    fn split_content_extent(
+        &self,
+        layout: &WorkbenchLayout,
+        path: &[usize],
+        axis: WorkbenchSplitAxis,
+    ) -> Option<f32> {
+        let node = layout_node_at_path(&layout.root, path)?;
+        let mut groups = Vec::new();
+        collect_leaf_group_ids(node, &mut groups);
+        let mut min_edge = f32::INFINITY;
+        let mut max_edge = f32::NEG_INFINITY;
+        for group_id in groups {
+            let bounds = self.pane_bounds.get(group_id)?;
+            let (start, end) = match axis {
+                WorkbenchSplitAxis::Horizontal => (
+                    f32::from(bounds.origin.x / px(1.0)),
+                    f32::from((bounds.origin.x + bounds.size.width) / px(1.0)),
+                ),
+                WorkbenchSplitAxis::Vertical => (
+                    f32::from(bounds.origin.y / px(1.0)),
+                    f32::from((bounds.origin.y + bounds.size.height) / px(1.0)),
+                ),
+            };
+            min_edge = min_edge.min(start);
+            max_edge = max_edge.max(end);
+        }
+        let extent = max_edge - min_edge - 4.0;
+        (extent.is_finite() && extent > 1.0).then_some(extent)
     }
 
     pub(super) fn finish_split_resize(
@@ -318,6 +367,29 @@ impl AleraApp {
                 .text_color(theme::text_muted())
                 .child("Open Or Create A Tab To Begin")
                 .into_any_element(),
+        }
+    }
+}
+
+fn layout_node_at_path<'a>(
+    node: &'a WorkbenchLayoutNode,
+    path: &[usize],
+) -> Option<&'a WorkbenchLayoutNode> {
+    let Some((&step, rest)) = path.split_first() else {
+        return Some(node);
+    };
+    let WorkbenchLayoutNode::Split { first, second, .. } = node else {
+        return None;
+    };
+    layout_node_at_path(if step == 0 { first } else { second }, rest)
+}
+
+fn collect_leaf_group_ids<'a>(node: &'a WorkbenchLayoutNode, ids: &mut Vec<&'a str>) {
+    match node {
+        WorkbenchLayoutNode::Leaf { group_id } => ids.push(group_id.as_str()),
+        WorkbenchLayoutNode::Split { first, second, .. } => {
+            collect_leaf_group_ids(first, ids);
+            collect_leaf_group_ids(second, ids);
         }
     }
 }

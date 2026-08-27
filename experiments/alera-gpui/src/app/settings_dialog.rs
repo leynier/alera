@@ -1,8 +1,10 @@
 use gpui::{
-    div, prelude::FluentBuilder as _, px, relative, Context, CursorStyle, InteractiveElement as _,
+    div, prelude::FluentBuilder as _, px, relative, AppContext as _, Context, CursorStyle,
+    InteractiveElement as _,
     IntoElement, MouseButton, MouseDownEvent, ParentElement as _, StatefulInteractiveElement as _,
     Styled as _,
 };
+use gpui_component::tooltip::Tooltip;
 
 use super::AleraApp;
 use crate::activity::SettingsPane;
@@ -18,6 +20,17 @@ impl AleraApp {
         let was_open = self.show_settings_dialog;
         if !was_open {
             self.settings_previous_focus = window.focused(cx);
+            // Flutter creates a fresh SettingsDialog for every opening: it
+            // starts on Application, clears the search query and restores the
+            // ListView to its top instead of carrying a previous pane's
+            // selection or scroll offset into the next session.
+            self.settings_pane = SettingsPane::Application;
+            self.settings_search_input
+                .update(cx, |input, cx| input.set_value("", window, cx));
+            self.settings_scroll_handle
+                .set_offset(gpui::point(px(0.0), px(0.0)));
+            self.settings_scroll_last_offset.set(px(0.0));
+            self.project_config_settings.reset_selection();
         }
         self.show_settings_dialog = true;
         self.dismiss_status_popover(cx);
@@ -26,18 +39,6 @@ impl AleraApp {
         if !was_open {
             self.check_for_updates(cx);
         }
-        if self.settings_pane == SettingsPane::Agents {
-            self.load_cli_registration_status(cx);
-        }
-        cx.notify();
-    }
-
-    pub(crate) fn open_settings_dialog_from_menu(&mut self, cx: &mut Context<Self>) {
-        self.show_settings_dialog = true;
-        self.dismiss_status_popover(cx);
-        self.refresh_settings_values(cx);
-        self.refresh_github_star_state(cx);
-        self.check_for_updates(cx);
         if self.settings_pane == SettingsPane::Agents {
             self.load_cli_registration_status(cx);
         }
@@ -179,6 +180,7 @@ impl AleraApp {
                     .w(px(28.0))
                     .h(px(28.0))
                     .rounded_md()
+                    .tooltip(|_, cx| cx.new(|_| Tooltip::new("Close")).into())
                     .cursor(CursorStyle::PointingHand)
                     .hover(|style| style.bg(theme::surface_raised()))
                     .on_mouse_down(
@@ -252,6 +254,7 @@ impl AleraApp {
                             .w(px(34.0))
                             .h(px(34.0))
                             .rounded_md()
+                            .tooltip(|_, cx| cx.new(|_| Tooltip::new("Close")).into())
                             .cursor(CursorStyle::PointingHand)
                             .hover(|style| style.bg(theme::surface_raised()))
                             .on_mouse_down(

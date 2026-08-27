@@ -8,6 +8,8 @@ actions!(
     [
         MenuOpenSettings,
         MenuOpenExecutionPlans,
+        MenuShowAbout,
+        MenuCheckForUpdates,
         MenuMinimizeWindow,
         MenuZoomWindow,
         MenuToggleFullScreen,
@@ -27,8 +29,10 @@ pub fn install(
     let settings_app = app.downgrade();
     cx.on_action(move |_: &MenuOpenSettings, cx| {
         if let Some(app) = settings_app.upgrade() {
-            app.update(cx, |app, cx| {
-                app.open_settings_dialog_from_menu(cx);
+            let _ = window_handle.update(cx, |_, window, cx| {
+                let _ = app.update(cx, |app, cx| {
+                    app.open_settings_dialog(window, cx);
+                });
             });
         }
     });
@@ -37,6 +41,22 @@ pub fn install(
         if let Some(app) = plans_app.upgrade() {
             app.update(cx, |app, cx| {
                 app.open_execution_plans_from_menu(cx);
+            });
+        }
+    });
+    let updates_app = app.downgrade();
+    cx.on_action(move |_: &MenuCheckForUpdates, cx| {
+        if let Some(app) = updates_app.upgrade() {
+            app.update(cx, |app, cx| {
+                app.check_for_updates_from_menu(cx);
+            });
+        }
+    });
+    let about_app = app.downgrade();
+    cx.on_action(move |_: &MenuShowAbout, cx| {
+        if let Some(app) = about_app.upgrade() {
+            app.update(cx, |app, cx| {
+                app.open_about_dialog(cx);
             });
         }
     });
@@ -63,8 +83,11 @@ pub fn install(
         Menu {
             name: app_name.into(),
             items: vec![
+                MenuItem::action(format!("About {app_name}"), MenuShowAbout),
+                MenuItem::separator(),
                 MenuItem::action("Settings", MenuOpenSettings),
                 MenuItem::action("Execution Plans", MenuOpenExecutionPlans),
+                MenuItem::action("Check for Updates", MenuCheckForUpdates),
                 MenuItem::separator(),
                 MenuItem::os_submenu("Services", SystemMenuType::Services),
                 MenuItem::separator(),

@@ -195,7 +195,6 @@ impl AleraApp {
         cx: &mut Context<Self>,
     ) -> AnyElement {
         let append_group_id = group_id.to_string();
-        let pointer_append_group_id = group_id.to_string();
         let bounds_group_id = group_id.to_string();
         let bounds_app = cx.entity();
         let append_index = tabs.len();
@@ -243,12 +242,8 @@ impl AleraApp {
                             }))
                             .on_mouse_up(
                                 MouseButton::Left,
-                                cx.listener(move |this, _, _, cx| {
-                                    this.drop_pointer_tab_at_gap(
-                                        pointer_append_group_id.clone(),
-                                        append_index,
-                                        cx,
-                                    );
+                                cx.listener(|this, event: &MouseUpEvent, _, cx| {
+                                    this.drop_pointer_tab_at_position(event.position, cx);
                                 }),
                             )
                             .when(
@@ -295,7 +290,6 @@ impl AleraApp {
         let tab_id = tab.id.clone();
         let pointer_group_id = group_id.to_string();
         let pointer_tab_id = tab.id.clone();
-        let pointer_drop_group_id = group_id.to_string();
         let bounds_group_id = group_id.to_string();
         let bounds_tab_id = tab.id.clone();
         let bounds_app = cx.entity();
@@ -389,8 +383,8 @@ impl AleraApp {
             )
             .on_mouse_up(
                 MouseButton::Left,
-                cx.listener(move |this, _, _, cx| {
-                    this.drop_pointer_tab_at_gap(pointer_drop_group_id.clone(), index + 1, cx);
+                cx.listener(|this, event: &MouseUpEvent, _, cx| {
+                    this.drop_pointer_tab_at_position(event.position, cx);
                 }),
             )
             .on_mouse_down(
@@ -462,6 +456,7 @@ impl AleraApp {
                         gpui::MouseButton::Left,
                         cx.listener(move |this, _, _, cx| {
                             cx.stop_propagation();
+                            this.clear_pointer_tab_drag_state(cx);
                             this.request_close_tab(close_tab_id.clone(), cx);
                         }),
                     )

@@ -247,6 +247,8 @@ impl AleraApp {
         self.explorer_selected_path = None;
         self.explorer_clipboard = None;
         self.explorer_drop_target = None;
+        self.explorer_pointer_down = None;
+        self.explorer_pointer_dragged = false;
         self.explorer_create_directory = None;
         self.explorer_rename_path = None;
         self.explorer_delete_path = None;
@@ -279,6 +281,11 @@ impl AleraApp {
         self.explorer_git_status = ExplorerGitStatusSnapshot::default();
         self.git_snapshot_loading = false;
         self.git_snapshot_error = None;
+        self.git_diff_loading_tab = None;
+        self.git_diff_loaded_tab = None;
+        self.git_diff_errors.clear();
+        self.git_diff_image_sides.clear();
+        self.git_diff_image_loading.clear();
         self.git_discard_armed = false;
         self.git_discard_path_armed = None;
         self.forge_snapshot = Default::default();
@@ -918,7 +925,7 @@ impl AleraApp {
             .explorer_rows
             .iter()
             .enumerate()
-            .map(|(index, row)| {
+            .map(|(_, row)| {
                 let path = row.entry.relative_path.clone();
                 let is_directory = row.entry.is_directory;
                 let name = row.entry.name.clone();
@@ -929,6 +936,7 @@ impl AleraApp {
                 let selected = self.explorer_selected_path.as_deref() == Some(path.as_str());
                 let source_control_root = self.is_focused_source_control_root(&path);
                 let click_path = path.clone();
+                let pointer_path = path.clone();
                 let menu_path = path.clone();
                 let drop_path = path.clone();
                 let drag_data = ExplorerDragData {
@@ -943,7 +951,11 @@ impl AleraApp {
                 };
                 let drop_target = self.explorer_drop_target.as_deref() == Some(path.as_str());
                 let mut item = div()
-                    .id(("explorer-row", index))
+                    // Paths are the row identity. A watcher refresh can
+                    // insert/remove a sibling above this entry; an index id
+                    // would then make GPUI reuse the wrong row state and can
+                    // route the next click or drop to a different file.
+                    .id(SharedString::from(format!("explorer-row-{path}")))
                     .flex()
                     .items_center()
                     .justify_between()
@@ -959,9 +971,28 @@ impl AleraApp {
                             .border_l_1()
                             .border_color(theme::border())
                     })
+                    .on_mouse_down(
+                        gpui::MouseButton::Left,
+                        cx.listener(move |this, _: &MouseDownEvent, _, _| {
+                            this.explorer_pointer_down = Some(pointer_path.clone());
+                            this.explorer_pointer_dragged = false;
+                        }),
+                    )
                     .on_mouse_up(
                         gpui::MouseButton::Left,
                         cx.listener(move |this, event: &MouseUpEvent, window, cx| {
+                            // A drag ends with the same pointer-up event as a
+                            // click. Do not toggle/open the row after a
+                            // folder/file move, which is the behavior Flutter
+                            // gets from LongPressDraggable cancelling InkWell.
+                            let was_dragged =
+                                this.explorer_pointer_dragged || cx.has_active_drag();
+                            this.explorer_pointer_down = None;
+                            this.explorer_pointer_dragged = false;
+                            if was_dragged {
+                                cx.stop_propagation();
+                                return;
+                            }
                             // The scrollbar is layered above the rows. GPUI's
                             // pointer-up can still bubble to the row when a
                             // thumb drag ends, so reserve the final 12 px of
@@ -1055,7 +1086,7 @@ impl AleraApp {
                     .when(source_control_root, |item| {
                         item.child(
                             div()
-                                .id(("explorer-source-root", index))
+                                .id(SharedString::from(format!("explorer-source-root-{path}")))
                                 .ml_2()
                                 .tooltip(|_, cx| {
                                     cx.new(|_| {
@@ -1108,16 +1139,11 @@ impl AleraApp {
                     .flex()
                     .items_center()
                     .justify_center()
-                    .text_sm()
-                    .text_color(theme::text_muted())
-                    .child(
-                        div()
-                            .flex()
-                            .items_center()
-                            .gap_2()
-                            .child(loading_indicator(15.0, theme::text_muted()))
-                            .child("Loading..."),
-                    )
+                    // Flutter's explorer loading state is only the centered
+                    // animated progress indicator. A text label changes the
+                    // optical center and makes the empty tree denser than the
+                    // reference surface.
+                    .child(loading_indicator(15.0, theme::text_muted()))
                     .into_any_element(),
             )
         } else {

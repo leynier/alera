@@ -42,7 +42,11 @@ impl AleraApp {
         div()
             .id("source-action-menu")
             .absolute()
-            .top(px(112.0))
+            // Anchor the popup to the top edge of the primary action. The
+            // panel root starts above the toolbar, so 121 px aligns with
+            // Flutter's `showMenu` position instead of floating over the
+            // commit field.
+            .top(px(121.0))
             .right(px(8.0))
             .w(px(174.0))
             .occlude()

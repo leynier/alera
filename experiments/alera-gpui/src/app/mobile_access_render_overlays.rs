@@ -13,8 +13,7 @@ impl AleraApp {
             status
                 .active_pairings
                 .iter()
-                .enumerate()
-                .map(|(index, offer)| {
+                .map(|offer| {
                     let id = offer.id.clone();
                     let title = offer
                         .expected_device_name
@@ -48,7 +47,10 @@ impl AleraApp {
                         )
                         .child(
                             mobile_icon_button(
-                                ("mobile-offer-cancel", index),
+                                gpui::SharedString::from(format!(
+                                    "mobile-offer-cancel-{}",
+                                    offer.id
+                                )),
                                 AleraIcon::Close,
                                 theme::text_muted(),
                             )
@@ -94,8 +96,7 @@ impl AleraApp {
             status
                 .devices
                 .iter()
-                .enumerate()
-                .map(|(index, device)| {
+                .map(|device| {
                     let revoked = device.revoked_at.is_some();
                     let id = device.id.clone();
                     let name = device.display_name.clone();
@@ -163,7 +164,10 @@ impl AleraApp {
                             let rename_name = name_for_action.clone();
                             row.child(
                                 mobile_icon_button(
-                                    ("mobile-device-edit", index),
+                                    gpui::SharedString::from(format!(
+                                        "mobile-device-edit-{}",
+                                        device.id
+                                    )),
                                     AleraIcon::Edit,
                                     theme::text_muted(),
                                 )
@@ -184,7 +188,10 @@ impl AleraApp {
                             )
                             .child(
                                 mobile_icon_button(
-                                    ("mobile-device-revoke", index),
+                                    gpui::SharedString::from(format!(
+                                        "mobile-device-revoke-{}",
+                                        device.id
+                                    )),
                                     AleraIcon::Delete,
                                     theme::danger(),
                                 )
@@ -207,7 +214,10 @@ impl AleraApp {
                         .when(revoked, |row| {
                             row.child(
                                 mobile_icon_button(
-                                    ("mobile-device-delete", index),
+                                    gpui::SharedString::from(format!(
+                                        "mobile-device-delete-{}",
+                                        device.id
+                                    )),
                                     AleraIcon::Delete,
                                     theme::danger(),
                                 )

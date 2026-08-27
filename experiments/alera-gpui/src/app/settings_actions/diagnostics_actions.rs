@@ -76,7 +76,15 @@ impl AleraApp {
     ) {
         crate::app_log::flush();
         let suggested = format!("alera-diagnostics-{}.zip", Utc::now().format("%Y%m%dT%H%M%S"));
-        let directory = dirs::download_dir()
+        // Flutter's save picker starts in the active workspace when one is
+        // mounted. Keep that context for the native GPUI picker and only fall
+        // back to the platform download/documents directory without a local
+        // workspace.
+        let directory = self
+            .selected_workspace_path()
+            .map(PathBuf::from)
+            .filter(|path| path.is_dir())
+            .or_else(dirs::download_dir)
             .or_else(dirs::document_dir)
             .unwrap_or_else(|| PathBuf::from("."));
         let selection = cx.prompt_for_new_path(&directory, Some(&suggested));

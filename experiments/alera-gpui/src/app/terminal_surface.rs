@@ -6,7 +6,7 @@ use gpui::{
     CursorStyle, ElementInputHandler, ExternalPaths, FontWeight, InteractiveElement as _,
     IntoElement as _, KeyDownEvent, Modifiers, MouseButton, MouseDownEvent, MouseMoveEvent,
     MouseUpEvent, ParentElement as _, Point, Rgba, ScrollWheelEvent, SharedString, Styled as _,
-    Window,
+    StatefulInteractiveElement as _, Window,
 };
 use serde_json::{json, Value};
 
@@ -20,9 +20,6 @@ use crate::terminal::{
 };
 use crate::terminal_theme_catalog::terminal_theme_palette;
 use crate::theme;
-
-const TERMINAL_COLUMNS: usize = 100;
-const TERMINAL_ROWS: usize = 30;
 
 impl AleraApp {
     pub(super) fn ensure_selected_terminal(&mut self, cx: &mut Context<Self>) {
@@ -66,11 +63,31 @@ impl AleraApp {
         }
 
         for (session_id, workspace_id, tab_id, working_directory) in contexts {
-            if self.terminal_sessions.contains_key(&session_id) {
+            if !self.terminal_sessions.contains_key(&session_id) {
+                self.terminal_sessions
+                    .insert(session_id.clone(), TerminalSession::new(session_id.clone()));
+            }
+            let attach_pending = self
+                .terminal_sessions
+                .get(&session_id)
+                .is_some_and(|session| session.attaching && session.operation_started_at.is_none());
+            if !attach_pending {
                 continue;
             }
-            self.terminal_sessions
-                .insert(session_id.clone(), TerminalSession::new(session_id.clone()));
+            // Flutter starts a terminal only after its TerminalView has
+            // reported its measured cell dimensions. Do the same in GPUI so
+            // a restored prompt is parsed at the viewport width rather than
+            // the arbitrary 100-column fallback used during the first frame.
+            let Some((attach_columns, attach_rows)) = self.terminal_dimensions_for_tab(&tab_id)
+            else {
+                continue;
+            };
+            if let Some(session) = self.terminal_sessions.get_mut(&session_id) {
+                session.operation_started_at = Some(std::time::Instant::now());
+                session.columns = attach_columns;
+                session.rows = attach_rows;
+                session.emulator.resize(attach_columns, attach_rows);
+            }
             let bridge = self.bridge.clone();
             let shell = std::env::var("SHELL").unwrap_or_else(|_| "/bin/sh".to_string());
             cx.spawn(async move |this, cx| {
@@ -91,8 +108,8 @@ impl AleraApp {
                                     "COLORTERM": "truecolor",
                                 },
                             },
-                            "cols": TERMINAL_COLUMNS,
-                            "rows": TERMINAL_ROWS,
+                            "cols": attach_columns,
+                            "rows": attach_rows,
                         }),
                     )
                     .await;
@@ -109,17 +126,14 @@ impl AleraApp {
                     let mut restore_generation = None;
                     match result {
                         Ok(payload) => {
-                            let columns = payload
-                                .get("cols")
-                                .and_then(Value::as_u64)
-                                .map(|value| value as usize)
-                                .unwrap_or(TERMINAL_COLUMNS);
-                            let rows = payload
-                                .get("rows")
-                                .and_then(Value::as_u64)
-                                .map(|value| value as usize)
-                                .unwrap_or(TERMINAL_ROWS);
-                            let emulator = TerminalEmulator::new(columns, rows);
+                            // The Flutter client keeps the dimensions of its
+                            // measured TerminalView and uses the host payload
+                            // only for lifecycle/snapshot data. The host's
+                            // current dimensions can belong to another
+                            // attached client, so using them here makes a
+                            // prompt wrap differently in the two clients.
+                            let emulator =
+                                TerminalEmulator::new(attach_columns, attach_rows);
                             session.running = payload
                                 .get("running")
                                 .and_then(Value::as_bool)
@@ -146,8 +160,8 @@ impl AleraApp {
                                     restore_generation = Some(session.begin_restore(bytes));
                                 }
                             }
-                            session.columns = columns;
-                            session.rows = rows;
+                            session.columns = attach_columns;
+                            session.rows = attach_rows;
                         }
                         Err(error) => session.error = Some(error),
                     }
@@ -159,6 +173,38 @@ impl AleraApp {
             })
             .detach();
         }
+    }
+
+    /// Resolve the same measured cell viewport that Flutter passes to
+    /// `createOrAttach`. The terminal surface is not painted on the first
+    /// render, so fall back to the already measured pane and remove its tab
+    /// bar before deriving rows.
+    fn terminal_dimensions_for_tab(&self, tab_id: &str) -> Option<(usize, usize)> {
+        let tab = self.snapshot.tabs.iter().find(|tab| tab.id == tab_id)?;
+        let session_id = terminal_session_id(tab);
+        let (bounds, includes_tab_bar) = if let Some(bounds) =
+            self.terminal_surface_bounds.get(session_id)
+        {
+            (*bounds, false)
+        } else {
+            let group_id = self.snapshot.layout.as_ref()?.groups.values().find_map(|group| {
+                group
+                    .tab_ids
+                    .iter()
+                    .any(|candidate| candidate == tab_id)
+                    .then_some(group.id.as_str())
+            })?;
+            (*self.pane_bounds.get(group_id)?, true)
+        };
+        let width = bounds.size.width / gpui::px(1.0);
+        let tab_bar_height = includes_tab_bar.then(|| theme::tab_bar_height() / gpui::px(1.0));
+        let height = bounds.size.height / gpui::px(1.0) - tab_bar_height.unwrap_or(0.0);
+        let content_width = width - self.settings_state.terminal_padding_x as f32 * 2.0;
+        let content_height = height - self.settings_state.terminal_padding_y as f32 * 2.0;
+        let line_height = self.terminal_line_height() / gpui::px(1.0);
+        let columns = (content_width / self.terminal_character_width.max(1.0)).floor() as usize;
+        let rows = (content_height / line_height.max(1.0)).floor() as usize;
+        Some((columns.max(2), rows.max(2)))
     }
 
     fn terminal_contexts(&self) -> Vec<(String, String, String, String)> {
@@ -304,16 +350,12 @@ impl AleraApp {
                         // resume response. No emulator replacement is needed.
                     }
                     Ok(payload) => {
-                        let columns = payload
-                            .get("cols")
-                            .and_then(Value::as_u64)
-                            .map(|value| value as usize)
-                            .unwrap_or(session.columns);
-                        let rows = payload
-                            .get("rows")
-                            .and_then(Value::as_u64)
-                            .map(|value| value as usize)
-                            .unwrap_or(session.rows);
+                        // A full resume has the same contract as Flutter's
+                        // snapshot replacement: retain this client's current
+                        // viewport. Host dimensions can belong to another
+                        // attached client and are not the rendered width.
+                        let columns = session.columns;
+                        let rows = session.rows;
                         let snapshot = payload
                             .get("snapshotBase64")
                             .and_then(Value::as_str)
@@ -436,16 +478,10 @@ impl AleraApp {
                 let mut restore_generation = None;
                 match result {
                     Ok(payload) => {
-                        let columns = payload
-                            .get("cols")
-                            .and_then(Value::as_u64)
-                            .map(|value| value as usize)
-                            .unwrap_or(columns);
-                        let rows = payload
-                            .get("rows")
-                            .and_then(Value::as_u64)
-                            .map(|value| value as usize)
-                            .unwrap_or(rows);
+                        // Keep the dimensions requested for this client's
+                        // viewport; the response may report the host's
+                        // previous dimensions when another client is
+                        // attached to the same PTY.
                         let emulator = TerminalEmulator::new(columns, rows);
                         let restored_bytes = payload
                             .get("snapshotBase64")
@@ -606,6 +642,9 @@ impl AleraApp {
         if modifiers.control && modifiers.shift && event.keystroke.key.eq_ignore_ascii_case("v") {
             if let Some(text) = cx.read_from_clipboard().and_then(|item| item.text()) {
                 let bytes = session.emulator.encode_paste(&text);
+                if let Some(session) = self.terminal_sessions.get_mut(&session_id) {
+                    session.emulator.clear_restore_prompt_cleanup();
+                }
                 self.terminal_marked_text = None;
                 self.write_terminal_bytes_for(&session_id, bytes);
                 cx.stop_propagation();
@@ -644,6 +683,7 @@ impl AleraApp {
             return;
         }
         if let Some(session) = self.terminal_sessions.get_mut(&session_id) {
+            session.emulator.clear_restore_prompt_cleanup();
             session.emulator.clear_selection();
         }
         self.write_terminal_bytes_for(&session_id, bytes);
@@ -1065,6 +1105,7 @@ impl AleraApp {
         let selection_session_id = owned_session_id.clone();
         let move_session_id = owned_session_id.clone();
         let link_session_id = owned_session_id.clone();
+        let hover_session_id = owned_session_id.clone();
         let finish_session_id = owned_session_id.clone();
         let finish_out_session_id = owned_session_id.clone();
         let bounds_session_id = owned_session_id.clone();
@@ -1162,6 +1203,19 @@ impl AleraApp {
             } else {
                 CursorStyle::IBeam
             })
+            .on_hover(cx.listener(move |this, hovered: &bool, _, cx| {
+                if *hovered {
+                    return;
+                }
+                if this
+                    .terminal_hovered_link
+                    .as_ref()
+                    .is_some_and(|(session_id, _)| session_id == &hover_session_id)
+                {
+                    this.terminal_hovered_link = None;
+                    cx.notify();
+                }
+            }))
             .on_mouse_down(
                 MouseButton::Left,
                 cx.listener(move |this, event: &MouseDownEvent, window, cx| {
@@ -1207,6 +1261,9 @@ impl AleraApp {
                     .get(&drop_session_id)
                     .map(|session| session.emulator.encode_paste(&text));
                 if let Some(bytes) = bytes {
+                    if let Some(session) = this.terminal_sessions.get_mut(&drop_session_id) {
+                        session.emulator.clear_restore_prompt_cleanup();
+                    }
                     this.write_terminal_bytes_for(&drop_session_id, bytes);
                     this.reset_terminal_cursor_blink();
                     window.focus(&drop_focus);
@@ -1229,6 +1286,11 @@ impl AleraApp {
                         .get(&explorer_drop_session_id)
                         .map(|session| session.emulator.encode_paste(&text));
                     if let Some(bytes) = bytes {
+                        if let Some(session) =
+                            this.terminal_sessions.get_mut(&explorer_drop_session_id)
+                        {
+                            session.emulator.clear_restore_prompt_cleanup();
+                        }
                         this.write_terminal_bytes_for(&explorer_drop_session_id, bytes);
                         this.reset_terminal_cursor_blink();
                         window.focus(&explorer_drop_focus);
@@ -1269,9 +1331,16 @@ impl AleraApp {
             .child(
                 canvas(
                     move |bounds, _, cx| {
-                        let _ = bounds_app.update(cx, |this, _| {
+                        let _ = bounds_app.update(cx, |this, cx| {
+                            let changed = this
+                                .terminal_surface_bounds
+                                .get(&bounds_session_id)
+                                .is_none_or(|previous| *previous != bounds);
                             this.terminal_surface_bounds
                                 .insert(bounds_session_id.clone(), bounds);
+                            if changed {
+                                cx.notify();
+                            }
                         });
                     },
                     move |bounds, _, window, cx| {

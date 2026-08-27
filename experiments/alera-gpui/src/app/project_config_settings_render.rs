@@ -3,6 +3,7 @@ use gpui::{
     IntoElement as _, MouseButton, ParentElement as _, Styled as _,
 };
 
+use super::sidebar_view_options::compare_project_selection;
 use crate::{
     design_system,
     icons::{icon, AleraIcon},
@@ -22,13 +23,15 @@ impl AleraApp {
             )
             .into_any_element();
         }
+        let mut projects = self.snapshot.projects.iter().collect::<Vec<_>>();
+        projects.sort_by(compare_project_selection);
         let selected_id = self
             .project_config_settings
             .selected_project_id
             .as_deref()
-            .or_else(|| self.snapshot.projects.first().map(|project| project.id.as_str()));
+            .or_else(|| projects.first().map(|project| project.id.as_str()));
         let Some(project) = selected_id
-            .and_then(|id| self.snapshot.projects.iter().find(|project| project.id == id))
+            .and_then(|id| projects.iter().find(|project| project.id == id).copied())
         else {
             return project_config_empty_state(
                 AleraIcon::Folder,
@@ -58,7 +61,10 @@ impl AleraApp {
             .flex()
             .flex_1()
             .min_h_0()
-            .child(self.render_project_config_master(project.id.as_str(), cx))
+            // The Flutter resource panes keep an additional 8 px inset inside
+            // the shared SettingsContent padding.
+            .ml(px(8.0))
+            .child(self.render_project_config_master(project.id.as_str(), &projects, cx))
             .child(
                 div()
                     .mx_4()
@@ -123,10 +129,11 @@ impl AleraApp {
     fn render_project_config_master(
         &self,
         selected_id: &str,
+        projects: &[&crate::model::Project],
         cx: &mut Context<Self>,
     ) -> gpui::Div {
         div()
-            .w(px(260.0))
+            .w(px(244.0))
             .flex_shrink_0()
             .child(
                 div()
@@ -144,8 +151,7 @@ impl AleraApp {
                     .border_color(theme::border_subtle())
                     .bg(theme::surface_selected())
                     .children(
-                        self.snapshot
-                            .projects
+                        projects
                             .iter()
                             .enumerate()
                             .map(|(index, project)| {

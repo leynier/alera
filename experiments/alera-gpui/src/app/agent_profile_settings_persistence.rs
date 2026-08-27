@@ -153,7 +153,10 @@ impl AleraApp {
                             this.new_agent_profile(window, cx);
                             this.agent_profile_settings.creating_new = false;
                         }
-                        this.agent_profile_settings.toast = Some("Agent Profile Removed".into());
+                        // Flutter clears the editor after Remove without a
+                        // success toast; keep the list mutation quiet and
+                        // reserve feedback for Save and validation errors.
+                        this.agent_profile_settings.toast = None;
                         this.sync_workspace_agent_profile_options();
                     }
                     Err(error) => this.agent_profile_settings.error = Some(error.into()),

@@ -1,5 +1,5 @@
 use gpui::{
-    div, px, Context, CursorStyle, InteractiveElement as _, IntoElement, MouseButton,
+    div, px, Context, InteractiveElement as _, IntoElement, MouseButton,
     ParentElement as _, Styled as _,
 };
 
@@ -111,18 +111,11 @@ impl AleraApp {
             .justify_center()
             .bg(theme::overlay_scrim())
             .child(
-                div()
-                    .w(px(420.0))
-                    .rounded_lg()
-                    .border_1()
-                    .border_color(theme::border())
-                    .bg(theme::surface_raised())
-                    .shadow_lg()
-                    .p_4()
+                design_system::dialog_shell(420.0)
                     .child(
                         div()
-                            .text_lg()
-                            .font_weight(gpui::FontWeight::SEMIBOLD)
+                            .text_size(px(14.0))
+                            .font_weight(gpui::FontWeight::MEDIUM)
                             .child(if plural {
                                 "Close Unsaved Editors?"
                             } else {
@@ -131,19 +124,25 @@ impl AleraApp {
                     )
                     .child(
                         div()
-                            .mt_2()
-                            .text_sm()
+                            .mt_3()
+                            .text_size(px(13.0))
                             .text_color(theme::text_muted())
                             .child(message),
                     )
                     .child(
                         div()
+                            .w_full()
                             .flex()
-                            .justify_end()
                             .gap_2()
-                            .mt_4()
+                            .mt_5()
                             .child(
-                                dialog_action("cancel-dirty-tab-close", "Cancel", false)
+                                design_system::button(
+                                    "cancel-dirty-tab-close",
+                                    "Cancel",
+                                    ButtonKind::Text,
+                                    false,
+                                )
+                                    .flex_1()
                                     .on_mouse_down(
                                         gpui::MouseButton::Left,
                                         cx.listener(|this, _, _, cx| {
@@ -152,7 +151,13 @@ impl AleraApp {
                                     ),
                             )
                             .child(
-                                dialog_action("confirm-dirty-tab-close", "Close", true)
+                                design_system::button(
+                                    "confirm-dirty-tab-close",
+                                    "Close",
+                                    ButtonKind::Destructive,
+                                    false,
+                                )
+                                    .flex_1()
                                     .on_mouse_down(
                                         gpui::MouseButton::Left,
                                         cx.listener(|this, _, _, cx| {
@@ -239,38 +244,4 @@ impl AleraApp {
                     ),
             )
     }
-}
-
-fn dialog_action(
-    id: &'static str,
-    label: &'static str,
-    destructive: bool,
-) -> gpui::Stateful<gpui::Div> {
-    div()
-        .id(id)
-        .flex()
-        .items_center()
-        .justify_center()
-        .h(px(32.0))
-        .px_3()
-        .rounded_md()
-        .border_1()
-        .border_color(if destructive {
-            theme::danger()
-        } else {
-            theme::border()
-        })
-        .bg(if destructive {
-            theme::danger()
-        } else {
-            theme::surface()
-        })
-        .text_color(if destructive {
-            theme::on_danger()
-        } else {
-            theme::text()
-        })
-        .font_weight(gpui::FontWeight::SEMIBOLD)
-        .cursor(CursorStyle::PointingHand)
-        .child(label)
 }

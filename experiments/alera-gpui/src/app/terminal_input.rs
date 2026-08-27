@@ -152,6 +152,7 @@ impl AleraApp {
             return;
         }
         if let Some(session) = self.terminal_sessions.get_mut(&session_id) {
+            session.emulator.clear_restore_prompt_cleanup();
             session.emulator.clear_selection();
         }
         self.reset_terminal_cursor_blink();
@@ -175,6 +176,7 @@ impl AleraApp {
         let Some(session) = self.terminal_sessions.get_mut(&session_id) else {
             return;
         };
+        session.emulator.clear_restore_prompt_cleanup();
         session.emulator.clear_selection();
         let bytes = session.emulator.encode_key(key, None, modifiers);
         if bytes.is_empty() {
@@ -233,6 +235,7 @@ impl AleraApp {
         let Some(session) = self.terminal_sessions.get_mut(&session_id) else {
             return;
         };
+        session.emulator.clear_restore_prompt_cleanup();
         session.emulator.clear_selection();
         let bytes = session.emulator.encode_paste(&text);
         self.terminal_marked_text = None;

@@ -133,7 +133,7 @@ impl AleraApp {
                     )
                 }),
             _ if tab.kind == "editor" && self.editor_documents.contains_key(&path) => {
-                self.render_inactive_editor_input(&path, cx)
+                self.render_inactive_editor_input(&path)
             }
             _ => inactive_editor_text(
                 self.editor_documents.get(&path),
@@ -157,7 +157,7 @@ impl AleraApp {
             .into_any_element()
     }
 
-    fn render_inactive_editor_input(&self, path: &str, cx: &mut Context<Self>) -> AnyElement {
+    fn render_inactive_editor_input(&self, path: &str) -> AnyElement {
         let input = self.editor_input_for_path(path);
         div()
             .flex_1()

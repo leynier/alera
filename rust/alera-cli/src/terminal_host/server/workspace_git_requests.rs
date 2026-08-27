@@ -1,4 +1,5 @@
 use alera_native::api::{git, git_explorer_status};
+use base64::prelude::*;
 use serde::Deserialize;
 use serde_json::{json, Value};
 
@@ -44,6 +45,18 @@ struct WorkspaceGitDiffRequest {
     area: Option<String>,
     commit_id: Option<String>,
     parent_id: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct WorkspaceGitDiffBlobRequest {
+    workspace_path: String,
+    file_path: String,
+    old_path: Option<String>,
+    area: Option<String>,
+    commit_id: Option<String>,
+    parent_id: Option<String>,
+    old_side: bool,
 }
 
 pub(super) async fn snapshot(payload: &Value) -> HostResult<Value> {
@@ -117,6 +130,40 @@ pub(super) async fn diff(payload: &Value) -> HostResult<Value> {
         }
         .map_err(git_error)?;
         Ok(serialize_diff(result))
+    })
+    .await
+    .map_err(|error| HostError::state(format!("Workspace Git Task Failed: {error}")))?
+}
+
+pub(super) async fn diff_blob(payload: &Value) -> HostResult<Value> {
+    let request: WorkspaceGitDiffBlobRequest = parse(payload)?;
+    tokio::task::spawn_blocking(move || {
+        let format_path = if request.old_side {
+            request.old_path.as_deref().unwrap_or(&request.file_path)
+        } else {
+            &request.file_path
+        };
+        let format = image_format(format_path)
+            .ok_or_else(|| HostError::format("Unsupported Workspace Image Format."))?;
+        let area = request
+            .area
+            .as_deref()
+            .map(parse_change_area)
+            .transpose()?;
+        let bytes = alera_native::api::git_diff_blob::git_diff_blob_bytes(
+            request.workspace_path,
+            request.file_path,
+            request.old_path,
+            area,
+            request.commit_id,
+            request.parent_id,
+            request.old_side,
+        )
+        .map_err(git_error)?;
+        Ok(json!({
+            "format": format,
+            "bytesBase64": bytes.map(|bytes| BASE64_STANDARD.encode(bytes)),
+        }))
     })
     .await
     .map_err(|error| HostError::state(format!("Workspace Git Task Failed: {error}")))?
@@ -285,6 +332,24 @@ fn parse_change_area(area: &str) -> HostResult<git::GitChangeArea> {
         _ => Err(HostError::format(format!(
             "Unsupported Workspace Git Change Area: {area}"
         ))),
+    }
+}
+
+fn image_format(relative_path: &str) -> Option<&'static str> {
+    match std::path::Path::new(relative_path)
+        .extension()
+        .and_then(|extension| extension.to_str())?
+        .to_ascii_lowercase()
+        .as_str()
+    {
+        "png" => Some("png"),
+        "jpg" | "jpeg" => Some("jpeg"),
+        "webp" => Some("webp"),
+        "gif" => Some("gif"),
+        "svg" => Some("svg"),
+        "bmp" => Some("bmp"),
+        "tif" | "tiff" => Some("tiff"),
+        _ => None,
     }
 }
 

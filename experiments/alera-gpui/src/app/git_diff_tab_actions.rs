@@ -92,6 +92,8 @@ impl AleraApp {
         }
         self.tab_mutation_busy = true;
         self.git_diff_loading_tab = Some(tab_id.clone());
+        self.git_diff_errors.remove(&tab_id);
+        let preload_payload = payload.clone();
         let result_tab_id = tab_id.clone();
         cx.spawn(async move |this, cx| {
             let result = bridge
@@ -134,17 +136,117 @@ impl AleraApp {
                 match (result, diff) {
                     (Ok(_), Ok(diff)) => {
                         this.selected_tab_id = Some(result_tab_id.clone());
+                        let diff_for_images = diff.clone();
                         this.git_diff = diff;
                         this.git_diff_loaded_tab = Some(result_tab_id.clone());
+                        this.preload_git_diff_images(
+                            result_tab_id.clone(),
+                            preload_payload.clone(),
+                            &diff_for_images,
+                            cx,
+                        );
                         this.refresh(cx);
                     }
                     (Err(error), _) | (_, Err(error)) => {
-                        this.local_message = Some(error.into());
+                        this.git_diff_errors
+                            .insert(result_tab_id.clone(), "Could not load diff.".into());
+                        let _ = error;
                         cx.notify();
                     }
                 }
             });
         })
         .detach();
+    }
+
+    pub(super) fn preload_git_diff_images(
+        &mut self,
+        tab_id: String,
+        payload: serde_json::Value,
+        diff: &crate::workspace_git::GitDiffResult,
+        cx: &mut Context<Self>,
+    ) {
+        let source_root = payload
+            .get("gitDiffRoot")
+            .and_then(serde_json::Value::as_str);
+        let Some(source_scope) = self.source_control_scope_for_root(source_root) else {
+            return;
+        };
+        let area = payload
+            .get("gitDiffArea")
+            .and_then(serde_json::Value::as_str)
+            .map(str::to_owned);
+        let commit_id = payload
+            .get("gitDiffCommitOid")
+            .and_then(serde_json::Value::as_str)
+            .map(str::to_owned);
+        let parent_id = payload
+            .get("gitDiffParentOid")
+            .and_then(serde_json::Value::as_str)
+            .map(str::to_owned);
+        for file in diff
+            .files
+            .iter()
+            .filter(|file| file.is_binary && super::git_diff_surface::is_image_path(&file.path))
+        {
+            let key = (tab_id.clone(), file.path.clone());
+            if self.git_diff_image_sides.contains_key(&key)
+                || !self.git_diff_image_loading.insert(key.clone())
+            {
+                continue;
+            }
+            let service = self.workspace_service.clone();
+            let workspace_path = source_scope.path.clone();
+            let file_path = file.path.clone();
+            let old_path = file.old_path.clone();
+            // An "all changes" tab omits gitDiffArea, but each diff file still
+            // carries the area needed to read its index/worktree blob. Commit
+            // diffs intentionally keep area absent so the commit tree path is
+            // used by the native API.
+            let area = area.clone().or_else(|| {
+                commit_id.is_none().then_some(file.area.clone())
+            });
+            let commit_id = commit_id.clone();
+            let parent_id = parent_id.clone();
+            cx.spawn(async move |this, cx| {
+                let old = service
+                    .git_diff_blob(
+                        workspace_path.clone(),
+                        file_path.clone(),
+                        old_path.clone(),
+                        area.clone(),
+                        commit_id.clone(),
+                        parent_id.clone(),
+                        true,
+                    )
+                    .await
+                    .ok()
+                    .flatten()
+                    .and_then(super::git_diff_surface::to_git_diff_image_side);
+                let new = service
+                    .git_diff_blob(
+                        workspace_path,
+                        file_path,
+                        old_path,
+                        area,
+                        commit_id,
+                        parent_id,
+                        false,
+                    )
+                    .await
+                    .ok()
+                    .flatten()
+                    .and_then(super::git_diff_surface::to_git_diff_image_side);
+                let _ = this.update(cx, |this, cx| {
+                    this.git_diff_image_loading.remove(&key);
+                    this.git_diff_image_sides.insert(
+                        key,
+                        super::git_diff_surface::GitDiffImageSides { old, new },
+                    );
+                    cx.notify();
+                });
+            })
+            .detach();
+        }
     }
 }

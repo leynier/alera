@@ -52,7 +52,7 @@ impl AleraApp {
         let discard_paths = paths.clone();
         let staged = area == "staged";
         let header = div()
-            .id(("source-group", group_index))
+            .id(gpui::SharedString::from(format!("source-group-{area}")))
             .flex()
             .items_center()
             .h(px(28.0))
@@ -100,7 +100,7 @@ impl AleraApp {
                     .w(px(58.0))
                     .child(
                         source_row_action(
-                            ("source-group-stage", group_index),
+                            gpui::SharedString::from(format!("source-group-stage-{area}")),
                             if staged {
                                 AleraIcon::GitUnstage
                             } else {
@@ -131,7 +131,7 @@ impl AleraApp {
                     .when(!staged, |actions| {
                         actions.child(
                             source_row_action(
-                                ("source-group-discard", group_index),
+                                gpui::SharedString::from(format!("source-group-discard-{area}")),
                                 AleraIcon::GitDiscard,
                                 true,
                             )
@@ -192,7 +192,10 @@ impl AleraApp {
             let toggle_key = tree_key.clone();
             return Some(
                 div()
-                    .id(("source-tree-dir", group_index * 1000 + row_index))
+                    .id(gpui::SharedString::from(format!(
+                        "source-tree-dir-{area}-{}",
+                        row.path
+                    )))
                     .flex()
                     .items_center()
                     .h(px(30.0))
@@ -249,8 +252,8 @@ impl AleraApp {
 
     fn source_change_row(
         &self,
-        group_index: usize,
-        row_index: usize,
+        _group_index: usize,
+        _row_index: usize,
         depth: usize,
         area: &str,
         change: &GitChange,
@@ -262,7 +265,10 @@ impl AleraApp {
         let diff_path = change.path.clone();
         let diff_area = area.to_owned();
         div()
-            .id(("source-change", group_index * 1000 + row_index))
+            .id(gpui::SharedString::from(format!(
+                "source-change-{area}-{}",
+                change.path
+            )))
             .flex()
             .items_center()
             .h(px(30.0))
@@ -307,7 +313,10 @@ impl AleraApp {
                     .w(px(58.0))
                     .child(
                         source_row_action(
-                            ("source-stage", group_index * 1000 + row_index),
+                            gpui::SharedString::from(format!(
+                                "source-stage-{area}-{}",
+                                change.path
+                            )),
                             if staged {
                                 AleraIcon::GitUnstage
                             } else {
@@ -333,7 +342,10 @@ impl AleraApp {
                     .when(!staged, |actions| {
                         actions.child(
                             source_row_action(
-                                ("source-discard", group_index * 1000 + row_index),
+                                gpui::SharedString::from(format!(
+                                    "source-discard-{area}-{}",
+                                    change.path
+                                )),
                                 AleraIcon::GitDiscard,
                                 true,
                             )

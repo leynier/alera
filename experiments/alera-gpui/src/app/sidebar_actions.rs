@@ -436,6 +436,15 @@ impl AleraApp {
                 this.sidebar_action_busy = false;
                 match result {
                     Ok(_) => {
+                        let success_message = match dialog.kind {
+                            SidebarDialogKind::RenameProject => "Project Renamed",
+                            SidebarDialogKind::RemoveProject => "Project Removed",
+                            SidebarDialogKind::RenameWorkspace => "Workspace Renamed",
+                            SidebarDialogKind::ManageWorkspaceTags => "Workspace Tags Updated",
+                            SidebarDialogKind::SetWorkspaceParent => "Workspace Parent Updated",
+                            SidebarDialogKind::SleepWorkspace => "Workspace Slept",
+                            SidebarDialogKind::RemoveWorkspace => "Workspace Removed",
+                        };
                         if matches!(
                             dialog.kind,
                             SidebarDialogKind::SleepWorkspace | SidebarDialogKind::RemoveWorkspace
@@ -447,6 +456,7 @@ impl AleraApp {
                         }
                         this.sidebar_dialog = None;
                         this.error = None;
+                        this.local_message = Some(success_message.into());
                         this.refresh(cx);
                     }
                     Err(error) => {
@@ -594,9 +604,19 @@ impl AleraApp {
                 return;
             };
             let _ = this.update(cx, |this, cx| match result {
-                Ok(_) => this.refresh(cx),
+                Ok(_) => {
+                    this.local_message = Some(
+                        if pinned {
+                            "Workspace Pinned"
+                        } else {
+                            "Workspace Unpinned"
+                        }
+                        .into(),
+                    );
+                    this.refresh(cx);
+                }
                 Err(error) => {
-                    this.error = Some(error.into());
+                    this.local_message = Some(error.into());
                     cx.notify();
                 }
             });
@@ -636,7 +656,7 @@ impl AleraApp {
                     this.refresh(cx);
                 }
                 Err(error) => {
-                    this.error = Some(error.into());
+                    this.local_message = Some(error.into());
                     cx.notify();
                 }
             });
@@ -647,7 +667,7 @@ impl AleraApp {
     pub(super) fn copy_workspace_path(&mut self, workspace_id: String, cx: &mut Context<Self>) {
         if let Some(workspace) = self.snapshot.workspace(&workspace_id) {
             cx.write_to_clipboard(ClipboardItem::new_string(workspace.path.clone()));
-            self.local_message = Some("Workspace Path Copied".into());
+            self.local_message = Some("Workspace path copied".into());
         }
         self.sidebar_menu = None;
         cx.notify();
@@ -684,12 +704,13 @@ impl AleraApp {
                     if let Some(url) = repository_url(&value) {
                         cx.open_url(url);
                     } else {
-                        this.error = Some("No Git Remote Configured For This Workspace".into());
+                        this.local_message =
+                            Some("No Git Remote Configured For This Workspace".into());
                     }
                     cx.notify();
                 }
                 Err(error) => {
-                    this.error = Some(error.into());
+                    this.local_message = Some(error.into());
                     cx.notify();
                 }
             });

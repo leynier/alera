@@ -91,20 +91,20 @@ impl AleraApp {
                         .child(loading_indicator(20.0, theme::text_muted())),
                 )
             })
-            .children(rows.into_iter().enumerate().map(|(index, row)| match row {
+            .children(rows.into_iter().map(|row| match row {
                 SearchRenderRow::Directory {
                     name,
                     path,
                     depth,
                     match_count,
-                } => self.render_search_directory_row(index, name, path, depth, match_count, cx),
+                } => self.render_search_directory_row(name, path, depth, match_count, cx),
                 SearchRenderRow::File {
                     file,
                     depth,
                     show_directory,
-                } => self.render_search_file_row(index, file, depth, show_directory, cx),
+                } => self.render_search_file_row(file, depth, show_directory, cx),
                 SearchRenderRow::Match { path, item, depth } => {
-                    self.render_search_match_row(index, path, item, depth, cx)
+                    self.render_search_match_row(path, item, depth, cx)
                 }
             }))
             .into_any_element()
@@ -112,7 +112,6 @@ impl AleraApp {
 
     fn render_search_directory_row(
         &self,
-        index: usize,
         name: String,
         path: String,
         depth: usize,
@@ -122,7 +121,7 @@ impl AleraApp {
         let key = format!("dir:{path}");
         let collapsed = self.search_collapsed_result_paths.contains(&key);
         div()
-            .id(("search-directory", index))
+            .id(SharedString::from(format!("search-directory-{path}")))
             .flex()
             .items_center()
             .py(px(6.0))
@@ -180,7 +179,6 @@ impl AleraApp {
 
     fn render_search_file_row(
         &self,
-        index: usize,
         file: SearchFile,
         depth: usize,
         show_directory: bool,
@@ -196,7 +194,7 @@ impl AleraApp {
         let (name, directory) = split_path(&file.relative_path);
         let can_replace = self.search_replace_expanded && !self.search_busy;
         div()
-            .id(("search-file", index))
+            .id(SharedString::from(format!("search-file-{}", file.relative_path)))
             .flex()
             .items_center()
             .py(px(6.0))
@@ -268,7 +266,7 @@ impl AleraApp {
             .child(div().w(px(4.0)))
             .child(
                 super::search_surface::search_icon_button(
-                    ("replace-search-file", index),
+                    SharedString::from(format!("replace-search-file-{}", file.relative_path)),
                     AleraIcon::Replace,
                     can_replace,
                     false,
@@ -288,7 +286,6 @@ impl AleraApp {
 
     fn render_search_match_row(
         &self,
-        index: usize,
         path: String,
         item: SearchMatch,
         depth: usize,
@@ -302,7 +299,7 @@ impl AleraApp {
         let can_replace = self.search_replace_expanded && !self.search_busy;
         let preview = styled_match_preview(&item, self.search_replace_expanded);
         div()
-            .id(("search-match", index))
+            .id(SharedString::from(format!("search-match-{path}-{match_id}")))
             .flex()
             .items_start()
             .pt(px(4.0))
@@ -348,7 +345,7 @@ impl AleraApp {
             .child(div().w(px(4.0)))
             .child(
                 super::search_surface::search_icon_button(
-                    ("replace-search-match", index),
+                    SharedString::from(format!("replace-search-match-{path}-{match_id}")),
                     AleraIcon::Replace,
                     can_replace,
                     false,

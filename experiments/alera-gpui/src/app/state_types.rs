@@ -13,6 +13,11 @@ pub(super) struct SplitResizeState {
     pub(super) axis: crate::model::WorkbenchSplitAxis,
     pub(super) start: Point<Pixels>,
     pub(super) initial_ratio: f64,
+    /// Extent of this split's content, excluding the 4 px resize handle.
+    /// Flutter normalizes the drag delta against the local split, not the
+    /// whole window; keeping the measured value stable avoids nested/sidebar
+    /// geometry changing the ratio during a gesture.
+    pub(super) content_extent: f32,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]

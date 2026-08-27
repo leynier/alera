@@ -723,31 +723,30 @@ impl AleraApp {
     }
 
     fn sidebar_agent_runs(&self, workspace: &Workspace) -> Vec<Value> {
-        self.status_data
-            .presence
+        // Flutter's projection walks the workspace tabs in creation order and
+        // joins each terminal with its current presence entry. Iterating the
+        // host's presence list directly makes hook updates reshuffle rows as
+        // soon as a status changes, which is especially visible when several
+        // agents share one workspace.
+        self.snapshot
+            .all_tabs
             .iter()
-            .filter(|entry| {
-                if entry.get("workspaceId").and_then(Value::as_str) != Some(workspace.id.as_str()) {
-                    return false;
-                }
-                let Some(tab_id) = entry.get("tabId").and_then(Value::as_str) else {
-                    return false;
-                };
-                let handle = entry.get("handle").and_then(Value::as_str);
-                self.snapshot.all_tabs.iter().any(|tab| {
-                    if tab.workspace_id != workspace.id
-                        || tab.id != tab_id
-                        || tab.kind != "terminal"
-                    {
-                        return false;
-                    }
-                    let session_id = tab
-                        .payload
-                        .get("terminalSessionId")
-                        .and_then(Value::as_str)
-                        .filter(|value| !value.trim().is_empty())
-                        .unwrap_or(tab.id.as_str());
-                    handle.is_none_or(|handle| handle == session_id)
+            .filter(|tab| tab.workspace_id == workspace.id && tab.kind == "terminal")
+            .filter_map(|tab| {
+                let session_id = tab
+                    .payload
+                    .get("terminalSessionId")
+                    .and_then(Value::as_str)
+                    .filter(|value| !value.trim().is_empty())
+                    .unwrap_or(tab.id.as_str());
+                self.status_data.presence.iter().find(|entry| {
+                    entry.get("workspaceId").and_then(Value::as_str)
+                        == Some(workspace.id.as_str())
+                        && entry.get("tabId").and_then(Value::as_str) == Some(tab.id.as_str())
+                        && entry
+                            .get("handle")
+                            .and_then(Value::as_str)
+                            .is_none_or(|handle| handle == session_id)
                 })
             })
             .cloned()
@@ -857,7 +856,7 @@ impl AleraApp {
             .mb(px(2.0))
             .flex()
             .flex_col();
-        for (index, run) in runs.iter().enumerate() {
+        for run in runs {
             let tab_id = run
                 .get("tabId")
                 .and_then(Value::as_str)
@@ -880,15 +879,14 @@ impl AleraApp {
                 .and_then(Value::as_str)
                 .unwrap_or("working");
             let description = agent_run_description(run, agent, raw_state);
-            let tab_index = self
-                .snapshot
-                .tabs
-                .iter()
-                .position(|tab| tab.id == tab_id)
-                .unwrap_or(index);
+            // Presence can refresh while a row is being hovered. Keep every
+            // interactive identity tied to the terminal tab rather than its
+            // current render index so a later status update cannot retarget a
+            // different agent.
+            let row_key = tab_id.clone();
             list = list.child(
                 div()
-                    .id(SharedString::from(format!("sidebar-agent-run-{tab_index}")))
+                    .id(SharedString::from(format!("sidebar-agent-run-{row_key}")))
                     .flex()
                     .items_center()
                     .gap(px(6.0))
@@ -928,7 +926,7 @@ impl AleraApp {
                     .child(
                         div()
                             .id(SharedString::from(format!(
-                                "sidebar-agent-state-{tab_index}"
+                                "sidebar-agent-state-{row_key}"
                             )))
                             .tooltip({
                                 let label = agent_state_label(state).to_owned();
@@ -949,7 +947,7 @@ impl AleraApp {
                     .child(
                         div()
                             .id(SharedString::from(format!(
-                                "sidebar-agent-identity-{tab_index}"
+                                "sidebar-agent-identity-{row_key}"
                             )))
                             .tooltip({
                                 let label = agent_display_name(agent).to_owned();
@@ -990,7 +988,7 @@ impl AleraApp {
                     .child({
                         let close_button = div()
                             .id(SharedString::from(format!(
-                                "sidebar-agent-run-close-{tab_index}"
+                                "sidebar-agent-run-close-{row_key}"
                             )))
                             .flex()
                             .items_center()
@@ -1024,7 +1022,7 @@ impl AleraApp {
                             .child(icon(AleraIcon::Close, 12.0, theme::text_muted()));
                         close_button.with_animation(
                             SharedString::from(format!(
-                                "sidebar-agent-run-close-animation-{tab_index}-{actions_visible}"
+                                "sidebar-agent-run-close-animation-{row_key}-{actions_visible}"
                             )),
                             Animation::new(Duration::from_millis(100)),
                             move |button, delta| {
@@ -1117,18 +1115,24 @@ fn render_agent_group_cluster(workspace_id: &str, state: &str, state_runs: &[&Va
 
 fn agent_sort_key(agent: &str) -> usize {
     match agent {
-        "claude" => 0,
-        "codex" => 1,
+        // Keep the same stable order as Flutter's AgentType enum. The compact
+        // tray is rebuilt on every hook event, so this order must not depend on
+        // the arrival order of presence updates.
+        "codex" => 0,
+        "claude" => 1,
         "copilot" => 2,
         "cursor" => 3,
-        "grok" => 4,
-        "kimi" => 5,
-        "minimax" | "miniMax" => 6,
-        "zai" => 7,
-        "antigravity" | "agy" => 8,
-        "amp" => 9,
-        "opencode" => 10,
-        "pi" => 11,
+        "antigravity" | "agy" => 4,
+        "opencode" => 5,
+        "pi" => 6,
+        "amp" => 7,
+        "grok" => 8,
+        // These providers are quota-only in Flutter's AgentType enum but can
+        // still arrive in persisted GPUI presence data. Keep them deterministic
+        // after the shared agent types.
+        "kimi" => 9,
+        "minimax" | "miniMax" => 10,
+        "zai" => 11,
         _ => 100,
     }
 }
@@ -1185,7 +1189,13 @@ fn agent_indicator_state_key(run: &Value) -> &str {
     }
 }
 
-fn sidebar_aggregate_state(runs: &[Value]) -> Option<&'static str> {
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+struct SidebarAggregateState {
+    state: &'static str,
+    interrupted: bool,
+}
+
+fn sidebar_aggregate_state(runs: &[Value]) -> Option<SidebarAggregateState> {
     // Flutter chooses the aggregate from the same urgency projection used by
     // `aggregateWorkspaceAgentStatus`: blocked > waiting > working > done.
     // Interruption changes the glyph of an individual run, but must not jump
@@ -1221,16 +1231,26 @@ fn sidebar_aggregate_state(runs: &[Value]) -> Option<&'static str> {
         .get("agentState")
         .and_then(Value::as_str)
         .unwrap_or("working");
-    Some(match state {
-        "blocked" => "blocked",
-        "waiting" => "waiting",
-        "done" => "done",
-        _ => "working",
+    Some(SidebarAggregateState {
+        state: match state {
+            "blocked" => "blocked",
+            "waiting" => "waiting",
+            "done" => "done",
+            _ => "working",
+        },
+        // Flutter applies interruption to the selected aggregate status after
+        // choosing the most urgent base state. A cancelled working run still
+        // renders the working spinner, while cancelled waiting/done runs use
+        // the red cancel glyph.
+        interrupted: run
+            .get("interrupted")
+            .and_then(Value::as_bool)
+            .unwrap_or(false),
     })
 }
 
 fn render_workspace_status_indicator(
-    state: Option<&str>,
+    state: Option<SidebarAggregateState>,
     active: bool,
     workspace_id: &str,
 ) -> AnyElement {
@@ -1243,16 +1263,29 @@ fn render_workspace_status_indicator(
         .justify_center()
         .w(px(14.0))
         .h(px(14.0));
-    if let Some(state) = state {
-        let label = agent_state_label(state).to_owned();
+    if let Some(aggregate) = state {
+        let display_state = if aggregate.interrupted {
+            "interrupted"
+        } else {
+            aggregate.state
+        };
+        let label = agent_state_label(display_state).to_owned();
         indicator = indicator.tooltip(move |_, cx| {
             let tooltip = label.clone();
             cx.new(move |_| Tooltip::new(tooltip)).into()
         });
-        let content = if state == "working" {
-            crate::icons::agent_loading_indicator(11.0, agent_state_color(state))
+        let content = if aggregate.state == "working" {
+            crate::icons::agent_loading_indicator(11.0, agent_state_color(aggregate.state))
         } else {
-            icon(agent_state_icon(state), 12.0, agent_state_color(state))
+            icon(
+                agent_state_icon(display_state),
+                12.0,
+                if aggregate.interrupted {
+                    theme::danger()
+                } else {
+                    agent_state_color(aggregate.state)
+                },
+            )
         };
         indicator.child(content).into_any_element()
     } else {
@@ -1395,7 +1428,16 @@ fn agent_state_label(state: &str) -> &'static str {
 mod aggregate_tests {
     use serde_json::json;
 
-    use super::{agent_display_name, sidebar_aggregate_state};
+    use super::{agent_display_name, agent_sort_key, sidebar_aggregate_state};
+
+    #[test]
+    fn compact_agent_icon_order_matches_flutter_agent_type_enum() {
+        let ordered = [
+            "codex", "claude", "copilot", "cursor", "agy", "opencode", "pi", "amp", "grok",
+        ];
+        let keys = ordered.map(agent_sort_key);
+        assert_eq!(keys, [0, 1, 2, 3, 4, 5, 6, 7, 8]);
+    }
 
     #[test]
     fn aggregate_state_matches_flutter_priority_before_interruption() {
@@ -1412,7 +1454,13 @@ mod aggregate_tests {
             }),
         ];
 
-        assert_eq!(sidebar_aggregate_state(&runs), Some("blocked"));
+        assert_eq!(
+            sidebar_aggregate_state(&runs),
+            Some(super::SidebarAggregateState {
+                state: "blocked",
+                interrupted: false,
+            })
+        );
     }
 
     #[test]
@@ -1423,7 +1471,13 @@ mod aggregate_tests {
             "updatedAt": "2026-08-24T15:00:00Z"
         })];
 
-        assert_eq!(sidebar_aggregate_state(&runs), Some("blocked"));
+        assert_eq!(
+            sidebar_aggregate_state(&runs),
+            Some(super::SidebarAggregateState {
+                state: "blocked",
+                interrupted: true,
+            })
+        );
     }
 
     #[test]
@@ -1451,7 +1505,13 @@ mod aggregate_tests {
             }),
         ];
 
-        assert_eq!(sidebar_aggregate_state(&runs), Some("working"));
+        assert_eq!(
+            sidebar_aggregate_state(&runs),
+            Some(super::SidebarAggregateState {
+                state: "working",
+                interrupted: true,
+            })
+        );
     }
 
     #[test]

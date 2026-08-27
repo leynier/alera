@@ -209,14 +209,8 @@ impl AleraApp {
                 },
             )
             .when(!view_models.is_empty(), |panel| {
-                panel.children(view_models.iter().enumerate().map(|(index, view_model)| {
-                    self.source_history_item(
-                        index,
-                        &view_model.item,
-                        &view_model.graph,
-                        view_model.kind,
-                        cx,
-                    )
+                panel.children(view_models.iter().map(|view_model| {
+                    self.source_history_item(&view_model.item, &view_model.graph, view_model.kind, cx)
                 }))
             })
             .when(
@@ -234,7 +228,6 @@ impl AleraApp {
 
     fn source_history_item(
         &self,
-        index: usize,
         item: &GitHistoryItem,
         graph: &HistoryGraphRow,
         kind: HistoryGraphKind,
@@ -245,12 +238,20 @@ impl AleraApp {
         let loading = self.source_history_loading_ids.contains(&item.full_id);
         let full_id = item.full_id.clone();
         let menu_commit_id = item.full_id.clone();
+        let menu_open = self
+            .source_history_action_menu
+            .as_ref()
+            .is_some_and(|menu| menu.commit_id == item.full_id);
         div()
+            .relative()
             .flex()
             .flex_col()
             .child(
                 div()
-                    .id(("source-history-row", index))
+                    .id(gpui::SharedString::from(format!(
+                        "source-history-row-{}",
+                        item.full_id
+                    )))
                     .flex()
                     .items_center()
                     .h(px(28.0))
@@ -300,7 +301,10 @@ impl AleraApp {
                     .when(!boundary, |row| {
                         row.child(
                             div()
-                                .id(("source-history-actions", index))
+                                .id(gpui::SharedString::from(format!(
+                                    "source-history-actions-{}",
+                                    item.full_id
+                                )))
                                 .flex()
                                 .items_center()
                                 .justify_center()
@@ -325,14 +329,16 @@ impl AleraApp {
                     }),
             )
             .when(expanded, |container| {
-                container.child(self.source_history_details(index, item, loading, cx))
+                container.child(self.source_history_details(item, loading, cx))
+            })
+            .when(menu_open, |container| {
+                container.child(self.source_history_action_menu(cx))
             })
             .into_any_element()
     }
 
     fn source_history_details(
         &self,
-        index: usize,
         item: &GitHistoryItem,
         loading: bool,
         cx: &mut Context<Self>,
@@ -381,10 +387,7 @@ impl AleraApp {
                     files
                         .iter()
                         .take(12)
-                        .enumerate()
-                        .map(|(row_index, change)| {
-                            self.source_history_file_row(index, row_index, item, change, cx)
-                        }),
+                        .map(|change| self.source_history_file_row(item, change, cx)),
                 )
             })
             .when(
@@ -423,7 +426,10 @@ impl AleraApp {
                 |details| {
                     details.child(
                         div()
-                            .id(("source-history-open-all", index))
+                            .id(gpui::SharedString::from(format!(
+                                "source-history-open-all-{}",
+                                item.full_id
+                            )))
                             .flex()
                             .items_center()
                             .h(px(28.0))
@@ -455,8 +461,6 @@ impl AleraApp {
 
     fn source_history_file_row(
         &self,
-        group_index: usize,
-        row_index: usize,
         item: &GitHistoryItem,
         change: &GitCommitChange,
         cx: &mut Context<Self>,
@@ -465,7 +469,13 @@ impl AleraApp {
         let old_path = change.old_path.clone();
         let commit_id = item.full_id.clone();
         let subject = item.subject.clone();
-        history_file_row(group_index * 1000 + row_index, change)
+        history_file_row(
+            gpui::SharedString::from(format!(
+                "source-history-file-{}-{}",
+                item.full_id, change.path
+            )),
+            change,
+        )
             .cursor(CursorStyle::PointingHand)
             .on_mouse_down(
                 gpui::MouseButton::Left,
@@ -544,7 +554,10 @@ impl AleraApp {
             .id("source-history-action-menu")
             .absolute()
             .right(px(8.0))
-            .bottom(px(48.0))
+            // The menu is rendered inside the selected commit row. Anchor it
+            // to that row rather than to the history panel's bottom so it
+            // follows the clicked commit while the list is scrolled.
+            .top(px(-6.0))
             .w(px(190.0))
             .occlude()
             .rounded_lg()
@@ -635,9 +648,12 @@ fn history_ref_badge(item_ref: &GitHistoryRef) -> gpui::Div {
         .child(item_ref.name.clone())
 }
 
-fn history_file_row(index: usize, change: &GitCommitChange) -> gpui::Stateful<gpui::Div> {
+fn history_file_row(
+    id: gpui::SharedString,
+    change: &GitCommitChange,
+) -> gpui::Stateful<gpui::Div> {
     div()
-        .id(("source-history-file", index))
+        .id(id)
         .flex()
         .items_center()
         .h(px(25.0))

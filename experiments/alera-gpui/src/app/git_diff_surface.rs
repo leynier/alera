@@ -1,7 +1,10 @@
+use std::path::Path;
+use std::sync::Arc;
+
 use gpui::{
     div, prelude::FluentBuilder as _, px, AnyElement, Context, CursorStyle,
-    InteractiveElement as _, IntoElement, ParentElement as _, StatefulInteractiveElement as _,
-    Styled as _,
+    Image, ImageFormat, InteractiveElement as _, IntoElement, ParentElement as _, SharedString,
+    StatefulInteractiveElement as _, Styled as _,
 };
 
 use super::AleraApp;
@@ -11,6 +14,18 @@ use crate::model::WorkspaceTab;
 use crate::theme;
 use crate::workspace_git::{GitDiffFile, GitDiffLine};
 
+#[derive(Clone, Debug)]
+pub(super) struct GitDiffImageSide {
+    pub(super) image: Arc<Image>,
+    pub(super) bytes_len: usize,
+}
+
+#[derive(Clone, Debug, Default)]
+pub(super) struct GitDiffImageSides {
+    pub(super) old: Option<GitDiffImageSide>,
+    pub(super) new: Option<GitDiffImageSide>,
+}
+
 impl AleraApp {
     pub(super) fn render_git_diff_surface(
         &self,
@@ -19,6 +34,7 @@ impl AleraApp {
     ) -> AnyElement {
         let loading = self.git_diff_loading_tab.as_deref() == Some(tab.id.as_str());
         let loaded = self.git_diff_loaded_tab.as_deref() == Some(tab.id.as_str());
+        let error = self.git_diff_errors.get(&tab.id).cloned();
         let refresh_id = tab.id.clone();
         let refresh_payload = tab.payload.clone();
         let open_path = tab
@@ -169,51 +185,68 @@ impl AleraApp {
                         content
                             .items_center()
                             .justify_center()
+                            .text_color(theme::text_muted())
+                            .child(loading_indicator(20.0, theme::text_muted()))
+                    })
+                    .when(!loading && error.is_some(), |content| {
+                        content
+                            .items_center()
+                            .justify_center()
                             .text_sm()
                             .text_color(theme::text_muted())
-                            .child(
-                                div()
-                                    .flex()
-                                    .items_center()
-                                    .gap_2()
-                                    .child(loading_indicator(15.0, theme::text_muted()))
-                                    .child("Loading Diff"),
-                            )
+                            .child("Could not load diff.")
                     })
                     .when(
-                        !loading && loaded && self.git_diff.files.is_empty(),
+                        !loading && error.is_none() && loaded && self.git_diff.files.is_empty(),
                         |content| {
                             content
                                 .items_center()
                                 .justify_center()
                                 .text_sm()
                                 .text_color(theme::text_muted())
-                                .child("No Diff Available.")
+                                .child("No diff available.")
                         },
                     )
-                    .when(loaded && !self.git_diff.files.is_empty(), |content| {
+                    .when(
+                        !loading && error.is_none() && loaded && !self.git_diff.files.is_empty(),
+                        |content| {
                         content
                             .when(self.git_diff.truncated, |content| {
-                                content.child(diff_banner("Diff Truncated For Preview"))
+                                content.child(diff_banner("Diff truncated for preview."))
                             })
                             .children(
-                                self.git_diff.files.iter().enumerate().map(|(index, file)| {
-                                    render_diff_file(index, file, commit_diff)
-                                }),
+                                self.git_diff
+                                    .files
+                                    .iter()
+                                    .map(|file| self.render_diff_file(&tab.id, file, commit_diff)),
                             )
-                    }),
+                        },
+                    ),
             )
             .into_any_element()
     }
 }
 
-fn render_diff_file(index: usize, file: &GitDiffFile, commit_diff: bool) -> AnyElement {
-    div()
+impl AleraApp {
+    fn render_diff_file(
+        &self,
+        tab_id: &str,
+        file: &GitDiffFile,
+        commit_diff: bool,
+    ) -> AnyElement {
+        let image_key = (tab_id.to_owned(), file.path.clone());
+        let image_preview = file.is_binary && is_image_path(&file.path);
+        let image_sides = self.git_diff_image_sides.get(&image_key);
+        let image_loading = self.git_diff_image_loading.contains(&image_key);
+        div()
         .flex()
         .flex_col()
         .child(
             div()
-                .id(("git-diff-file", index))
+                .id(SharedString::from(format!(
+                    "git-diff-file-{}-{}",
+                    file.area, file.path
+                )))
                 .flex()
                 .items_center()
                 .h(px(32.0))
@@ -252,15 +285,22 @@ fn render_diff_file(index: usize, file: &GitDiffFile, commit_diff: bool) -> AnyE
                 )
                 .child(diff_stats(file)),
         )
-        .when(file.is_binary, |content| {
-            content.child(diff_banner("Binary File Diff Is Not Shown"))
+        .when(file.is_binary && !image_preview, |content| {
+            content.child(diff_banner("Binary file diff is not shown."))
+        })
+        .when(image_preview, |content| {
+            content.child(render_image_diff_row(
+                file,
+                image_sides,
+                image_loading,
+            ))
         })
         .when(!file.is_binary && file.is_large, |content| {
-            content.child(diff_banner("Large Untracked File Diff Is Not Shown"))
+            content.child(diff_banner("Large untracked file diff is not shown."))
         })
         .when(
             !file.is_binary && !file.is_large && file.lines.is_empty(),
-            |content| content.child(diff_banner("No Text Diff For This File")),
+            |content| content.child(diff_banner("No text diff for this file.")),
         )
         .when(!file.is_binary && !file.is_large, |content| {
             content.children(
@@ -271,12 +311,141 @@ fn render_diff_file(index: usize, file: &GitDiffFile, commit_diff: bool) -> AnyE
             )
         })
         .when(file.line_preview_truncated, |content| {
-            content.child(diff_banner("Diff Line Preview Truncated"))
+            content.child(diff_banner("Diff line preview truncated."))
         })
         .when(file.truncated, |content| {
-            content.child(diff_banner("File Diff Truncated For Preview"))
+            content.child(diff_banner("File diff truncated for preview."))
         })
         .into_any_element()
+    }
+}
+
+pub(super) fn is_image_path(path: &str) -> bool {
+    matches!(
+        Path::new(path)
+            .extension()
+            .and_then(|extension| extension.to_str())
+            .map(|extension| extension.to_ascii_lowercase())
+            .as_deref(),
+        Some("png" | "jpg" | "jpeg" | "webp" | "gif" | "svg" | "bmp" | "tif" | "tiff")
+    )
+}
+
+fn render_image_diff_row(
+    file: &GitDiffFile,
+    sides: Option<&GitDiffImageSides>,
+    loading: bool,
+) -> AnyElement {
+    let old_placeholder = if matches!(
+        file.status.to_ascii_lowercase().as_str(),
+        "added" | "untracked"
+    ) {
+        "Added"
+    } else {
+        "Preview Unavailable"
+    };
+    let new_placeholder = if file.status.eq_ignore_ascii_case("deleted") {
+        "Deleted"
+    } else {
+        "Preview Unavailable"
+    };
+    div()
+        .flex()
+        .gap(px(8.0))
+        .px_3()
+        .py_2()
+        .child(render_image_diff_side(
+            "Before",
+            sides.and_then(|sides| sides.old.as_ref()),
+            old_placeholder,
+            loading,
+        ))
+        .child(render_image_diff_side(
+            "After",
+            sides.and_then(|sides| sides.new.as_ref()),
+            new_placeholder,
+            loading,
+        ))
+        .into_any_element()
+}
+
+fn render_image_diff_side(
+    label: &'static str,
+    side: Option<&GitDiffImageSide>,
+    placeholder: &'static str,
+    loading: bool,
+) -> AnyElement {
+    let title = side.map_or_else(
+        || label.to_owned(),
+        |side| format!("{label} · {}", format_image_bytes(side.bytes_len)),
+    );
+    div()
+        .flex_1()
+        .min_w_0()
+        .child(
+            div()
+                .text_xs()
+                .text_color(theme::text_faint())
+                .child(title),
+        )
+        .child(
+            div()
+                .h(px(180.0))
+                .w_full()
+                .flex()
+                .items_center()
+                .justify_center()
+                .rounded_md()
+                .border_1()
+                .border_color(theme::border_subtle())
+                .bg(theme::surface_raised())
+                .overflow_hidden()
+                .when_some(side.map(|side| side.image.clone()), |cell, image| {
+                    cell.child(gpui::img(image).size_full())
+                })
+                .when(side.is_none() && loading, |cell| {
+                    cell.child(crate::icons::loading_indicator(18.0, theme::text_muted()))
+                })
+                .when(side.is_none() && !loading, |cell| {
+                    cell.child(
+                        div()
+                            .text_sm()
+                            .text_color(theme::text_faint())
+                            .child(placeholder),
+                    )
+                }),
+        )
+        .into_any_element()
+}
+
+fn format_image_bytes(bytes: usize) -> String {
+    if bytes < 1024 {
+        return format!("{bytes} B");
+    }
+    if bytes < 1024 * 1024 {
+        return format!("{:.1} KB", bytes as f64 / 1024.0);
+    }
+    format!("{:.1} MB", bytes as f64 / (1024.0 * 1024.0))
+}
+
+pub(super) fn to_git_diff_image_side(
+    image: crate::workspace_service::WorkspaceImage,
+) -> Option<GitDiffImageSide> {
+    let format = match image.format.to_ascii_lowercase().as_str() {
+        "png" => ImageFormat::Png,
+        "jpeg" | "jpg" => ImageFormat::Jpeg,
+        "webp" => ImageFormat::Webp,
+        "gif" => ImageFormat::Gif,
+        "svg" => ImageFormat::Svg,
+        "bmp" => ImageFormat::Bmp,
+        "tiff" | "tif" => ImageFormat::Tiff,
+        _ => return None,
+    };
+    let bytes_len = image.bytes.len();
+    Some(GitDiffImageSide {
+        image: Arc::new(Image::from_bytes(format, image.bytes)),
+        bytes_len,
+    })
 }
 
 fn render_diff_line(line: &GitDiffLine) -> AnyElement {

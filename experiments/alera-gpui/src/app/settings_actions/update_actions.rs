@@ -37,6 +37,18 @@ struct UpdateCheckResult {
 
 impl AleraApp {
     pub(super) fn check_for_updates(&mut self, cx: &mut Context<Self>) {
+        self.start_update_check(false, cx);
+    }
+
+    /// The application menu uses the same updater as Settings, but Flutter
+    /// surfaces the result as a toast when the request did not originate in
+    /// the Settings pane. Keep that presentation decision outside the worker
+    /// so opening Settings never emits an unexpected notification.
+    pub(crate) fn check_for_updates_from_menu(&mut self, cx: &mut Context<Self>) {
+        self.start_update_check(true, cx);
+    }
+
+    fn start_update_check(&mut self, show_feedback: bool, cx: &mut Context<Self>) {
         if self.settings_state.update_busy {
             return;
         }
@@ -60,7 +72,10 @@ impl AleraApp {
                 match result {
                     Ok(result) => {
                         this.settings_state.update_status = result.status;
-                        this.settings_state.update_message = Some(result.message);
+                        this.settings_state.update_message = Some(result.message.clone());
+                        if show_feedback {
+                            this.local_message = Some(result.message.into());
+                        }
                     }
                     Err(error) => {
                         this.settings_state.update_status = "Update Failed".to_string();
@@ -69,7 +84,10 @@ impl AleraApp {
                         } else {
                             format!("Update check failed: {error}")
                         };
-                        this.settings_state.update_message = Some(message);
+                        this.settings_state.update_message = Some(message.clone());
+                        if show_feedback {
+                            this.local_message = Some(message.into());
+                        }
                     }
                 }
                 cx.notify();

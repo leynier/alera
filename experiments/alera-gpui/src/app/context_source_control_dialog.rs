@@ -6,6 +6,7 @@ use gpui::{
 use gpui_component::input::Input;
 
 use super::AleraApp;
+use crate::design_system::{self, ButtonKind};
 use crate::theme;
 use crate::workspace_git::GitAction;
 
@@ -57,34 +58,35 @@ impl AleraApp {
             SourceControlDialog::Amend => unreachable!(),
         };
         modal_shell(
-            div()
-                .w(px(420.0))
-                .rounded_lg()
-                .border_1()
-                .border_color(theme::border())
-                .bg(theme::surface_raised())
-                .shadow_lg()
-                .p(px(20.0))
+            design_system::dialog_shell(420.0)
                 .child(
                     div()
-                        .text_size(px(16.0))
-                        .font_weight(gpui::FontWeight::SEMIBOLD)
+                        .text_size(px(14.0))
+                        .font_weight(gpui::FontWeight::MEDIUM)
                         .child(title),
                 )
                 .child(
                     div()
-                        .mt(px(12.0))
-                        .text_size(px(14.0))
+                        .mt_3()
+                        .text_size(px(13.0))
                         .text_color(theme::text_muted())
                         .child(message),
                 )
                 .child(
                     div()
                         .flex()
-                        .mt(px(20.0))
+                        .w_full()
+                        .mt_5()
                         .gap_2()
                         .child(
-                            dialog_button("cancel-source-discard", "Cancel", false).on_mouse_down(
+                            design_system::button(
+                                "cancel-source-discard",
+                                "Cancel",
+                                ButtonKind::Text,
+                                false,
+                            )
+                            .flex_1()
+                            .on_mouse_down(
                                 gpui::MouseButton::Left,
                                 cx.listener(|this, _, _, cx| {
                                     this.source_control_dialog = None;
@@ -93,7 +95,14 @@ impl AleraApp {
                             ),
                         )
                         .child(
-                            dialog_button("confirm-source-discard", "Discard", true).on_mouse_down(
+                            design_system::button(
+                                "confirm-source-discard",
+                                "Discard",
+                                ButtonKind::Destructive,
+                                false,
+                            )
+                            .flex_1()
+                            .on_mouse_down(
                                 gpui::MouseButton::Left,
                                 cx.listener(|this, _, _, cx| {
                                     this.confirm_source_control_dialog(cx);
@@ -327,38 +336,4 @@ fn modal_shell(content: gpui::Div) -> AnyElement {
         .bg(theme::overlay_scrim())
         .child(content)
         .into_any_element()
-}
-
-fn dialog_button(
-    id: &'static str,
-    label: &'static str,
-    destructive: bool,
-) -> gpui::Stateful<gpui::Div> {
-    div()
-        .id(id)
-        .flex()
-        .flex_1()
-        .h(px(36.0))
-        .items_center()
-        .justify_center()
-        .rounded_md()
-        .cursor(CursorStyle::PointingHand)
-        .bg(if destructive {
-            theme::danger()
-        } else {
-            theme::transparent()
-        })
-        .text_color(if destructive {
-            theme::on_danger()
-        } else {
-            theme::text()
-        })
-        .hover(move |style| {
-            style.bg(if destructive {
-                theme::danger_hover()
-            } else {
-                theme::surface_selected()
-            })
-        })
-        .child(label)
 }

@@ -25,6 +25,7 @@ mod ai_text_settings_catalog;
 mod app_helpers;
 mod app_init;
 mod app_lifecycle;
+mod app_menu_dialog;
 mod claude_profile_dialog;
 mod context_pull_request;
 mod context_pull_request_ai;
@@ -224,6 +225,7 @@ pub struct AleraApp {
     resource_collapsed_project_ids: BTreeSet<String>,
     resource_close_confirmation: Option<ResourceCloseConfirmation>,
     show_settings_dialog: bool,
+    show_about_dialog: bool,
     settings_previous_focus: Option<FocusHandle>,
     settings_pane: SettingsPane,
     settings_scroll_handle: ScrollHandle,
@@ -254,6 +256,8 @@ pub struct AleraApp {
     explorer_selected_path: Option<String>,
     explorer_clipboard: Option<ExplorerClipboard>,
     explorer_drop_target: Option<String>,
+    explorer_pointer_down: Option<String>,
+    explorer_pointer_dragged: bool,
     explorer_action_busy: bool,
     explorer_watch_generation: u64,
     editor_document: Option<EditorDocument>,
@@ -371,6 +375,9 @@ pub struct AleraApp {
     git_diff: GitDiffResult,
     git_diff_loading_tab: Option<String>,
     git_diff_loaded_tab: Option<String>,
+    git_diff_errors: BTreeMap<String, SharedString>,
+    git_diff_image_sides: BTreeMap<(String, String), git_diff_surface::GitDiffImageSides>,
+    git_diff_image_loading: BTreeSet<(String, String)>,
     git_history_expanded: bool,
     git_history_height: f32,
     git_history_resize: Option<GitHistoryResizeState>,

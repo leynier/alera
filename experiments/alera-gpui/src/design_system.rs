@@ -316,7 +316,6 @@ pub fn button_with_loading_and_leading_icon(
     } else {
         theme::text()
     };
-
     let mut button = div()
         .id(id)
         .flex()

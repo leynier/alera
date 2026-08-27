@@ -186,22 +186,6 @@ impl AleraApp {
                 }),
             ),
         )
-        .when(has_parent, |menu| {
-            menu.child(
-                sidebar_menu_button(
-                    "workspace-menu-clear-parent",
-                    AleraIcon::Close,
-                    "Clear Parent Workspace",
-                )
-                .on_mouse_down(
-                    MouseButton::Left,
-                    cx.listener(move |this, _, _, cx| {
-                        cx.stop_propagation();
-                        this.clear_workspace_parent(clear_parent_id.clone(), cx);
-                    }),
-                ),
-            )
-        })
         .child(
             sidebar_menu_button("workspace-menu-tags", AleraIcon::Tag, "Manage Tags")
                 .on_mouse_down(
@@ -236,6 +220,22 @@ impl AleraApp {
                 }),
             ),
         )
+        .when(has_parent, |menu| {
+            menu.child(
+                sidebar_menu_button(
+                    "workspace-menu-clear-parent",
+                    AleraIcon::Close,
+                    "Clear Parent Workspace",
+                )
+                .on_mouse_down(
+                    MouseButton::Left,
+                    cx.listener(move |this, _, _, cx| {
+                        cx.stop_propagation();
+                        this.clear_workspace_parent(clear_parent_id.clone(), cx);
+                    }),
+                ),
+            )
+        })
         .child(sidebar_menu_divider())
         .child(
             sidebar_menu_button(

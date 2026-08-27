@@ -533,7 +533,7 @@ impl AleraApp {
     }
 }
 
-fn compare_project_selection(left: &&Project, right: &&Project) -> Ordering {
+pub(super) fn compare_project_selection(left: &&Project, right: &&Project) -> Ordering {
     left.name
         .to_lowercase()
         .cmp(&right.name.to_lowercase())

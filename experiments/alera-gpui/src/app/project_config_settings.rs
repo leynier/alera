@@ -137,6 +137,11 @@ impl ProjectConfigSettingsState {
         self.git_hosting_provider = effective.config.git_hosting_provider;
         self.seed_signature = Some(signature);
     }
+
+    pub(super) fn reset_selection(&mut self) {
+        self.selected_project_id = None;
+        self.seed_signature = None;
+    }
 }
 
 impl AleraApp {
@@ -145,6 +150,8 @@ impl AleraApp {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
+        let mut projects = self.snapshot.projects.iter().collect::<Vec<_>>();
+        projects.sort_by(super::sidebar_view_options::compare_project_selection);
         let selected = self
             .project_config_settings
             .selected_project_id
@@ -155,12 +162,7 @@ impl AleraApp {
                     .iter()
                     .any(|project| &project.id == id)
             })
-            .or_else(|| {
-                self.snapshot
-                    .projects
-                    .first()
-                    .map(|project| project.id.clone())
-            });
+            .or_else(|| projects.first().map(|project| project.id.clone()));
         let Some(project_id) = selected else {
             self.project_config_settings.loading = false;
             self.project_config_settings.selected_project_id = None;

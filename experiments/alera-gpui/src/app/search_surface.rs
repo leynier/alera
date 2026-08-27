@@ -315,7 +315,7 @@ impl AleraApp {
             ))
             .child(self.render_search_inputs(cx))
             .when(has_query || self.search_busy || has_results, |panel| {
-                panel.child(div().flex_shrink_0().h(px(16.0))).child(
+                panel.child(
                     div()
                         .flex()
                         .flex_shrink_0()

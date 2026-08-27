@@ -10,7 +10,7 @@ use gpui::{
     MouseDownEvent, MouseMoveEvent, MouseUpEvent, ParentElement as _, Render,
     StatefulInteractiveElement as _, Styled as _, Window,
 };
-use gpui_component::tooltip::Tooltip;
+use gpui_component::{scroll::ScrollableElement as _, tooltip::Tooltip};
 
 impl AleraApp {
     fn render_sidebar(&self, cx: &mut Context<Self>) -> impl IntoElement {
@@ -262,7 +262,19 @@ impl AleraApp {
                             ),
                     ),
             )
-            .child(div().flex_1().overflow_hidden().py_1().children(rows))
+            // Flutter keeps the workspace tree in an independent ListView so
+            // a long project/workspace list can scroll without moving the
+            // search, toolbar, or footer. Use the same scroll boundary in
+            // GPUI instead of clipping rows at the available height.
+            .child(
+                div()
+                    .id("sidebar-workspaces")
+                    .flex_1()
+                    .min_h_0()
+                    .overflow_y_scrollbar()
+                    .py_1()
+                    .children(rows),
+            )
             .child(
                 div()
                     .flex()
@@ -479,6 +491,9 @@ impl AleraApp {
                             return;
                         }
                         app_on_move.update(cx, |this, cx| {
+                            if this.explorer_pointer_down.is_some() && cx.has_active_drag() {
+                                this.explorer_pointer_dragged = true;
+                            }
                             let resizing_panel = this.panel_resize.is_some();
                             let resizing_split = this.split_resize.is_some();
                             if resizing_panel {
@@ -505,6 +520,8 @@ impl AleraApp {
                             this.finish_split_resize(event, window, cx);
                             this.drop_pointer_tab_at_position(event.position, cx);
                             this.clear_explorer_drop_target(cx);
+                            this.explorer_pointer_down = None;
+                            this.explorer_pointer_dragged = false;
                         });
                     });
                 },
@@ -675,6 +692,10 @@ impl Render for AleraApp {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         self.ensure_selected_editor_loaded(window, cx);
         self.sync_terminal_size(window, cx);
+        // Terminal attachment waits for the first measured pane bounds, just
+        // like Flutter waits for TerminalView layout before creating its PTY.
+        // Re-run the pending attach check on every render after that measure.
+        self.ensure_selected_terminal(cx);
         let toast_entries = self.visible_toast_entries();
         div()
             .relative()
@@ -776,6 +797,9 @@ impl Render for AleraApp {
             })
             .when(self.show_settings_dialog, |root| {
                 root.child(self.render_settings_dialog(cx))
+            })
+            .when(self.show_about_dialog, |root| {
+                root.child(self.render_about_dialog(cx))
             })
             .when(self.show_execution_plans, |root| {
                 root.child(self.render_execution_plans_dialog(cx))
