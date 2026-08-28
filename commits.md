@@ -80,7 +80,7 @@ commit so this file remains useful after context compaction.
 | 59 | `057ad7fb62d49e2a0d7e4f78d0a63c63d8aa2dcb` | 2026-08-02 | release: v0.48.0 v0.17.0-mobile | merged | Cherry-picked release metadata for Flutter/mobile/landing; no desktop GPUI surface. |
 | 60 | `310a834ad9b62c74b066de372bda2000f0020bc4` | 2026-08-02 | feat: add terminal prompt composer (#345) | merged | Cherry-picked Flutter's terminal prompt composer and added GPUI per-session composer state, auto-growing multiline prompt, Enter/Shift+Enter/Escape keyboard behavior, send-to-PTY, focus restoration, Text Actions menu and Mod+Shift+Enter toggle. GPUI compiles. |
 | 61 | `093a15756a67ab09e0f281df10f75901c55f867b` | 2026-08-02 | feat: refine terminal composer controls | merged | Cherry-picked the dedicated composer icon and default-visibility settings, added the matching embedded message-square-plus SVG, placed GPUI composer/refresh controls together, and persisted the new terminal preference. GPUI compiles. |
-| 62 | `246168a804f871178ebcddec2fcf3edbaacefae5` | 2026-08-02 | fix: keep session handle under max-lines baseline | pending | - |
+| 62 | `246168a804f871178ebcddec2fcf3edbaacefae5` | 2026-08-02 | fix: keep session handle under max-lines baseline | merged | Cherry-picked the session-handle extraction and xterm runtime change; no desktop GPUI surface. |
 | 63 | `17a183f51debfc29114c0e682bc917ed4cdc58ae` | 2026-08-02 | Merge pull request #346 from leynier/feat/terminal-composer-defaults | pending | - |
 | 64 | `e60c96ec7522052e9af81ab15ae5d6da2443dac4` | 2026-08-02 | release: v0.49.0 | pending | - |
 | 65 | `a6221463b98d63de035873fe3139f1029632c1fb` | 2026-08-02 | feat: refine terminal composer actions and image paste | pending | - |
