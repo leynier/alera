@@ -17,8 +17,12 @@ impl AleraApp {
         self.apply_saved_keyboard_overrides(cx);
         self._subscriptions
             .push(cx.observe_window_activation(window, |this, window, cx| {
+                this.terminal_app_foreground = window.is_window_active();
                 if !window.is_window_active() {
                     this.cancel_window_pointer_gestures(cx);
+                } else {
+                    this.flush_terminal_output_frames(cx);
+                    this.refresh_terminal_frame_views(cx);
                 }
             }));
         let app = cx.entity().downgrade();

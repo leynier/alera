@@ -184,6 +184,7 @@ pub struct AleraApp {
     terminal_resize_generation: BTreeMap<String, u64>,
     terminal_output_frame_scheduled: bool,
     terminal_output_last_frame_at: Instant,
+    terminal_app_foreground: bool,
     terminal_focus: FocusHandle,
     terminal_selection_drag: Option<String>,
     terminal_marked_text: Option<String>,

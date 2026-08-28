@@ -730,7 +730,7 @@ impl AleraApp {
         }
     }
 
-    fn flush_terminal_output_frames(&mut self, cx: &mut Context<Self>) {
+    pub(super) fn flush_terminal_output_frames(&mut self, cx: &mut Context<Self>) {
         let dirty = std::mem::take(&mut self.terminal_output_dirty_sessions);
         for session_id in dirty {
             self.refresh_terminal_frame_view(&session_id, cx);
@@ -756,7 +756,9 @@ impl AleraApp {
         self.reset_terminal_cursor_blink();
         self.terminal_output_dirty_sessions
             .insert(session_id.to_owned());
-        self.schedule_terminal_output_frame(cx);
+        if self.terminal_app_foreground {
+            self.schedule_terminal_output_frame(cx);
+        }
     }
 
     /// PTY output can arrive in many small chunks during a command burst or a
@@ -768,7 +770,7 @@ impl AleraApp {
             return;
         }
         const TERMINAL_STREAM_FRAME_INTERVAL: std::time::Duration =
-            std::time::Duration::from_millis(84);
+            std::time::Duration::from_millis(50);
         let elapsed = self.terminal_output_last_frame_at.elapsed();
         if elapsed >= TERMINAL_STREAM_FRAME_INTERVAL {
             self.terminal_output_last_frame_at = std::time::Instant::now();
