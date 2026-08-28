@@ -3,14 +3,22 @@ use serde_json::{json, Number, Value};
 
 use super::command_terminal::CommandTerminalRequest;
 use super::agent_profile_settings::{
-    default_agent_command, managed_risk_markers, parse_agent_profiles, profile_input_value,
-    profile_number_text, set_profile_input, AgentProfileDropdown, AgentProfileRecord,
+    default_agent_command, managed_command_preview, managed_risk_markers, parse_agent_profiles,
+    profile_input_value, profile_number_text, set_profile_input, AgentProfileDropdown,
+    AgentProfileRecord,
 };
 use super::AleraApp;
 
 impl AleraApp {
     pub(super) fn test_agent_profile_command(&mut self, cx: &mut Context<Self>) {
-        let command = profile_input_value(&self.agent_profile_settings.command_input, cx);
+        let command = if self.agent_profile_settings.launch_mode == "managed" {
+            managed_command_preview(
+                &self.agent_profile_settings.adapter,
+                &self.agent_profile_settings.managed_config,
+            )
+        } else {
+            profile_input_value(&self.agent_profile_settings.command_input, cx)
+        };
         if command.is_empty() {
             self.agent_profile_settings.error = Some("Command Is Required".into());
             cx.notify();

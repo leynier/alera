@@ -479,15 +479,35 @@ impl AleraApp {
                             )
                         })
                 } else {
+                    let has_command_preview = !command_preview.trim().is_empty();
                     settings_row_width(
                         "Command Preview",
                         "The Host Quotes These Arguments For The Actual Platform Shell.",
                         320.0,
                         div()
-                            .w(px(320.0))
-                            .text_size(px(12.0))
-                            .text_color(theme::text_muted())
-                            .child(command_preview),
+                            .flex()
+                            .flex_col()
+                            .items_end()
+                            .gap_2()
+                            .child(
+                                div()
+                                    .w(px(320.0))
+                                    .text_size(px(12.0))
+                                    .text_color(theme::text_muted())
+                                    .child(command_preview),
+                            )
+                            .child(
+                                profile_action_button(
+                                    "test-agent-profile-managed-command",
+                                    "Test Command",
+                                    AleraIcon::Terminal,
+                                    false,
+                                    state.saving || !has_command_preview,
+                                )
+                                .on_click(cx.listener(|this, _, _, cx| {
+                                    this.test_agent_profile_command(cx);
+                                })),
+                            ),
                     )
                 },
             ],
