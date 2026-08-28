@@ -166,6 +166,7 @@ pub(super) struct SettingsState {
     pub terminal_tui_scroll_sensitivity: i64,
     pub terminal_clipboard_on_select: bool,
     pub terminal_allow_osc52_clipboard: bool,
+    pub terminal_show_composer_by_default: bool,
     pub terminal_host_scrollback_bytes: i64,
     pub terminal_buffer_budget_megabytes: i64,
     pub terminal_login_shell: bool,
@@ -289,6 +290,7 @@ impl Default for SettingsState {
             terminal_tui_scroll_sensitivity: 1,
             terminal_clipboard_on_select: false,
             terminal_allow_osc52_clipboard: false,
+            terminal_show_composer_by_default: false,
             terminal_host_scrollback_bytes: 10_000_000,
             terminal_buffer_budget_megabytes: 256,
             terminal_login_shell: cfg!(target_os = "macos"),
@@ -520,6 +522,12 @@ impl SettingsState {
             if let Some(enabled) = terminal.get("allowOsc52Clipboard").and_then(Value::as_bool) {
                 self.terminal_allow_osc52_clipboard = enabled;
             }
+            if let Some(enabled) = terminal
+                .get("showComposerByDefault")
+                .and_then(Value::as_bool)
+            {
+                self.terminal_show_composer_by_default = enabled;
+            }
             apply_i64(
                 terminal.get("hostEmptyShutdownDelaySeconds"),
                 &mut self.host_empty_shutdown_delay_seconds,
@@ -639,6 +647,7 @@ impl SettingsState {
                 "tuiScrollSensitivity": self.terminal_tui_scroll_sensitivity,
                 "clipboardOnSelect": self.terminal_clipboard_on_select,
                 "allowOsc52Clipboard": self.terminal_allow_osc52_clipboard,
+                "showComposerByDefault": self.terminal_show_composer_by_default,
                 "hostEmptyShutdownDelaySeconds": self.host_empty_shutdown_delay_seconds,
                 "hostDetachedSessionShutdownDelaySeconds":
                     self.host_detached_shutdown_delay_seconds,
