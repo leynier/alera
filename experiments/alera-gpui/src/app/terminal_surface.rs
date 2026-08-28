@@ -1713,6 +1713,9 @@ impl AleraApp {
         let refresh_button = session_id
             .is_some()
             .then(|| self.render_terminal_refresh_button(&owned_session_id, cx));
+        let composer_toggle = session_id
+            .filter(|_| active)
+            .map(|_| self.render_terminal_composer_toggle(&owned_session_id, cx));
         let mobile_driver_overlay = self.render_mobile_driver_overlay(&owned_session_id, cx);
         let search_overlay = session_id
             .as_deref()
@@ -1859,6 +1862,7 @@ impl AleraApp {
             )
             .when_some(scrollbar, |surface, scrollbar| surface.child(scrollbar))
             .when_some(refresh_button, |surface, button| surface.child(button))
+            .when_some(composer_toggle, |surface, button| surface.child(button))
             .when_some(recovery, |surface, recovery| surface.child(recovery))
             .when_some(operation, |surface, operation| surface.child(operation))
             .when_some(restore_progress, |surface, (written, total)| {
@@ -1928,6 +1932,40 @@ impl AleraApp {
         .right(gpui::px(4.0))
         .on_click(cx.listener(move |this, _, _, cx| {
             this.refresh_terminal_viewport(session_id.clone(), cx);
+            cx.stop_propagation();
+        }))
+        .into_any_element()
+    }
+
+    fn render_terminal_composer_toggle(
+        &self,
+        session_id: &str,
+        cx: &mut Context<Self>,
+    ) -> AnyElement {
+        let visible = self.terminal_composer_visible.contains(session_id);
+        let session_id = session_id.to_owned();
+        design_system::icon_button(
+            SharedString::from(format!("terminal-composer-toggle-{session_id}")),
+            if visible {
+                "Hide Terminal Composer"
+            } else {
+                "Show Terminal Composer"
+            },
+            AleraIcon::Composer,
+            true,
+            28.0,
+            Some(if visible {
+                theme::accent_subtle()
+            } else {
+                theme::surface_raised()
+            }),
+            Some(theme::border_subtle()),
+        )
+        .absolute()
+        .top(px(4.0))
+        .right(px(36.0))
+        .on_click(cx.listener(move |this, _, window, cx| {
+            this.toggle_terminal_composer(session_id.clone(), window, cx);
             cx.stop_propagation();
         }))
         .into_any_element()

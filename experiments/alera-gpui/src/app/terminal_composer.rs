@@ -59,6 +59,9 @@ impl AleraApp {
                     }
                 },
             ));
+            if self.settings_state.terminal_show_composer_by_default {
+                self.terminal_composer_visible.insert(session_id.clone());
+            }
             self.terminal_composer_inputs.insert(session_id, input);
         }
     }
@@ -76,7 +79,7 @@ impl AleraApp {
         self.toggle_terminal_composer(session_id, window, cx);
     }
 
-    fn toggle_terminal_composer(
+    pub(super) fn toggle_terminal_composer(
         &mut self,
         session_id: String,
         window: &mut Window,
@@ -227,7 +230,7 @@ impl AleraApp {
                                 cx.notify();
                             }
                         }))
-                        .child(icon(AleraIcon::Ai, 14.0, theme::text_muted()))
+                        .child(icon(AleraIcon::Composer, 14.0, theme::text_muted()))
                         .child("Text Actions")
                         .child(icon(AleraIcon::ChevronDown, 14.0, theme::text_faint())),
                     )

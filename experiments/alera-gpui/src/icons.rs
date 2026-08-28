@@ -36,6 +36,7 @@ pub enum AleraIcon {
     ChevronsRight,
     Close,
     Code,
+    Composer,
     Copy,
     Cut,
     Delete,
@@ -155,6 +156,7 @@ impl AleraIcon {
         match self {
             Self::Circle => Some("lucide/circle.svg"),
             Self::CloseFullscreen => Some("google-material-icons/close-fullscreen.svg"),
+            Self::Composer => Some("lucide/message-square-plus.svg"),
             Self::GitCommit => Some("codicons/check.svg"),
             Self::GitDiscard => Some("codicons/discard.svg"),
             Self::GitFetch => Some("codicons/git-fetch.svg"),
@@ -194,6 +196,7 @@ impl AleraIcon {
             Self::ChevronsRight => ("lucide", 57459),
             Self::Close => ("lucide", 57778),
             Self::Code => ("lucide", 57491),
+            Self::Composer => unreachable!("SVG-backed icon"),
             Self::Copy => ("lucide", 57502),
             Self::Cut => ("lucide", 57678),
             Self::Delete => ("lucide", 57742),

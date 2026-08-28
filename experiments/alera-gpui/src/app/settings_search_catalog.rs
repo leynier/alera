@@ -81,6 +81,7 @@ const TERMINAL: &[&str] = &[
     "TUI Scroll Speed mouse wheel opencode amp claude",
     "Copy On Select clipboard selection mouse",
     "Allow OSC 52 Clipboard Writes tui ssh tmux",
+    "Show Terminal Composer By Default prompt compose",
     "Scrollback Lines history buffer",
     "Host Scrollback Size memory host",
     "Word Separators boundary selection double click",

@@ -269,6 +269,25 @@ fn terminal_pane(
                         }),
                     ),
                 ),
+                exact_settings_row(
+                    "Show Terminal Composer By Default",
+                    "Open the prompt composer when a new terminal session starts.",
+                    settings_switch(
+                        "terminal-show-composer",
+                        "Show Terminal Composer By Default",
+                        settings.terminal_show_composer_by_default,
+                    )
+                    .on_click(cx.listener(|this, _, _, cx| {
+                        this.update_terminal_settings(
+                            |settings| {
+                                settings.terminal_show_composer_by_default =
+                                    !settings.terminal_show_composer_by_default;
+                            },
+                            cx,
+                        );
+                        cx.stop_propagation();
+                    })),
+                ),
                     ],
                 )
                 .id(("settings-group-anchor", 3usize))

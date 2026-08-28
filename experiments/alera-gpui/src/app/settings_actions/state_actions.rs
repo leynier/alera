@@ -324,6 +324,8 @@ impl AleraApp {
                 settings.terminal_tui_scroll_sensitivity = defaults.terminal_tui_scroll_sensitivity;
                 settings.terminal_clipboard_on_select = defaults.terminal_clipboard_on_select;
                 settings.terminal_allow_osc52_clipboard = defaults.terminal_allow_osc52_clipboard;
+                settings.terminal_show_composer_by_default =
+                    defaults.terminal_show_composer_by_default;
                 settings.terminal_host_scrollback_bytes = defaults.terminal_host_scrollback_bytes;
                 settings.terminal_buffer_budget_megabytes =
                     defaults.terminal_buffer_budget_megabytes;
