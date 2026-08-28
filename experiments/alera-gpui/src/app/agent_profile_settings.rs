@@ -210,6 +210,10 @@ pub(super) fn managed_command_preview(adapter: &str, config: &Map<String, Value>
                 args.push("--config".to_owned());
                 args.push(format!("model_reasoning_effort={effort}"));
             }
+            if let Some(effort) = config.get("planModeEffort").and_then(Value::as_str) {
+                args.push("--config".to_owned());
+                args.push(format!("plan_mode_reasoning_effort={effort}"));
+            }
             if config
                 .get("bypassApprovalsAndSandbox")
                 .and_then(Value::as_bool)

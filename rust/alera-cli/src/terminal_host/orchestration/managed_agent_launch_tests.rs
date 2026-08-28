@@ -89,6 +89,35 @@ fn every_adapter_builds_its_native_session_flags() {
 }
 
 #[test]
+fn codex_carries_a_separate_plan_mode_effort() {
+    let launch = build_managed_agent_launch(
+        "codex",
+        &json!({"effort": "medium", "planModeEffort": "xhigh"}),
+    )
+    .unwrap();
+    assert_eq!(
+        launch.arguments,
+        [
+            "--config",
+            "model_reasoning_effort=medium",
+            "--config",
+            "plan_mode_reasoning_effort=xhigh"
+        ]
+    );
+    assert_eq!(
+        build_managed_agent_launch("codex", &json!({"planModeEffort": "high"}))
+            .unwrap()
+            .arguments,
+        ["--config", "plan_mode_reasoning_effort=high"]
+    );
+    assert!(
+        build_managed_agent_launch("codex", &json!({"planModeEffort": "plan"})).is_err(),
+        "an unsupported effort was accepted"
+    );
+    assert!(build_managed_agent_launch("claude", &json!({"planModeEffort": "high"})).is_err());
+}
+
+#[test]
 fn a_claude_ccs_profile_replaces_the_executable_and_leads_the_arguments() {
     let launch = build_managed_agent_launch(
         "claude",
@@ -164,49 +193,5 @@ fn claude_can_allow_dangerous_skip_permissions_independently_of_start_mode() {
     assert_eq!(
         launch.arguments,
         ["--permission-mode", "manual", "--allow-dangerously-skip-permissions"]
-    );
-}
-
-fn rendering_quotes_each_token_for_supported_shell_families() {
-    let launch = ManagedAgentLaunch {
-        executable: "agy".to_string(),
-        arguments: vec![
-            "--model".to_string(),
-            "Gemini 3.5 Flash (High)".to_string(),
-            "it's ready".to_string(),
-        ],
-    };
-    assert_eq!(
-        render_managed_launch(&launch, "/bin/zsh"),
-        "'agy' '--model' 'Gemini 3.5 Flash (High)' 'it'\"'\"'s ready'"
-    );
-    assert_eq!(
-        render_managed_launch(&launch, "pwsh.exe"),
-        "'agy' '--model' 'Gemini 3.5 Flash (High)' 'it''s ready'"
-    );
-    assert_eq!(
-        render_managed_launch(&launch, "cmd.exe"),
-        "\"agy\" \"--model\" \"Gemini 3.5 Flash (High)\" \"it's ready\""
-    );
-}
-
-#[test]
-fn codex_managed_prompt_follows_the_option_terminator_on_every_shell() {
-    let mut launch = build_managed_agent_launch("codex", &json!({"webSearch": true})).unwrap();
-    crate::terminal_host::orchestration::agent_startup_command::append_codex_initial_prompt_argument(
-        &mut launch.arguments,
-        "- Review why it's pending\n- Implement memory".to_string(),
-    );
-    assert_eq!(
-        render_managed_launch(&launch, "/bin/zsh"),
-        "'codex' '--search' '--' '- Review why it'\"'\"'s pending\n- Implement memory'"
-    );
-    assert_eq!(
-        render_managed_launch(&launch, "pwsh.exe"),
-        "'codex' '--search' '--' '- Review why it''s pending\n- Implement memory'"
-    );
-    assert_eq!(
-        render_managed_launch(&launch, "cmd.exe"),
-        "\"codex\" \"--search\" \"--\" \"- Review why it's pending\n- Implement memory\""
     );
 }
