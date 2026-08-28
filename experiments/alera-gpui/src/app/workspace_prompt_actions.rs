@@ -2,9 +2,10 @@ use std::collections::BTreeSet;
 use std::time::Duration;
 
 use gpui::{
-    div, prelude::FluentBuilder as _, AppContext as _, Context, ParentElement as _,
+    div, prelude::FluentBuilder as _, AppContext as _, ClipboardEntry, Context, ParentElement as _,
     StatefulInteractiveElement as _, Styled as _, Window,
 };
+use gpui_component::input::Paste;
 use serde_json::{json, Value};
 
 use super::app_helpers::flutter_state_error;
@@ -21,6 +22,41 @@ pub(super) struct PromptWorkspaceCreation {
 }
 
 impl AleraApp {
+    /// Intercept image-only paste in the prompt field while preserving normal
+    /// text paste for the input component's built-in action.
+    pub(super) fn on_prompt_paste(
+        &mut self,
+        _: &Paste,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        let Some(clipboard) = cx.read_from_clipboard() else {
+            cx.propagate();
+            return;
+        };
+        if clipboard.text().is_some() {
+            cx.propagate();
+            return;
+        }
+        let Some(image) = clipboard.entries().iter().find_map(|entry| match entry {
+            ClipboardEntry::Image(image) => Some(image),
+            ClipboardEntry::String(_) | ClipboardEntry::ExternalPaths(_) => None,
+        }) else {
+            cx.propagate();
+            return;
+        };
+        match save_prompt_clipboard_image(image) {
+            Ok(path) => self.workspace_prompt_input.update(cx, |input, cx| {
+                input.insert(path, window, cx);
+            }),
+            Err(error) => {
+                self.error = Some(error.into());
+                cx.notify();
+            }
+        }
+        cx.stop_propagation();
+    }
+
     pub(super) fn render_workspace_prompt_actions(
         &self,
         _prompt_is_empty: bool,
@@ -464,6 +500,31 @@ fn input_value(
     cx: &Context<AleraApp>,
 ) -> String {
     input.read(cx).value().trim().to_owned()
+}
+
+fn save_prompt_clipboard_image(image: &gpui::Image) -> Result<String, String> {
+    use std::io::Write as _;
+
+    let decoded = image::load_from_memory(&image.bytes)
+        .map_err(|error| format!("Could Not Paste Clipboard Image: {error}"))?;
+    let nonce = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map_err(|error| format!("Could Not Paste Clipboard Image: {error}"))?
+        .as_nanos();
+    let path = std::env::temp_dir().join(format!("alera-paste-{}-{nonce}.png", std::process::id()));
+    let file = std::fs::OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(&path)
+        .map_err(|error| format!("Could Not Paste Clipboard Image: {error}"))?;
+    let mut writer = std::io::BufWriter::new(file);
+    decoded
+        .write_to(&mut writer, image::ImageFormat::Png)
+        .map_err(|error| format!("Could Not Paste Clipboard Image: {error}"))?;
+    writer
+        .flush()
+        .map_err(|error| format!("Could Not Paste Clipboard Image: {error}"))?;
+    Ok(path.to_string_lossy().replace('\x1b', "␛"))
 }
 
 fn workspace_id_from_payload(payload: &Value) -> Option<String> {

@@ -95,6 +95,7 @@ impl AleraApp {
                     .child(
                         div()
                             .h(px(94.0))
+                            .capture_action(cx.listener(Self::on_prompt_paste))
                             .child(
                                 Textarea::new(&self.workspace_prompt_input)
                                     .disabled(
