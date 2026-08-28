@@ -82,7 +82,7 @@ commit so this file remains useful after context compaction.
 | 61 | `093a15756a67ab09e0f281df10f75901c55f867b` | 2026-08-02 | feat: refine terminal composer controls | merged | Cherry-picked the dedicated composer icon and default-visibility settings, added the matching embedded message-square-plus SVG, placed GPUI composer/refresh controls together, and persisted the new terminal preference. GPUI compiles. |
 | 62 | `246168a804f871178ebcddec2fcf3edbaacefae5` | 2026-08-02 | fix: keep session handle under max-lines baseline | merged | Cherry-picked the session-handle extraction and xterm runtime change; no desktop GPUI surface. |
 | 63 | `17a183f51debfc29114c0e682bc917ed4cdc58ae` | 2026-08-02 | Merge pull request #346 from leynier/feat/terminal-composer-defaults | merged | Replayed the merge commit with first-parent semantics; terminal composer feature and max-lines extraction were already integrated in #60-62, so this preserves main's merge topology as an empty cherry-pick. |
-| 64 | `e60c96ec7522052e9af81ab15ae5d6da2443dac4` | 2026-08-02 | release: v0.49.0 | pending | - |
+| 64 | `e60c96ec7522052e9af81ab15ae5d6da2443dac4` | 2026-08-02 | release: v0.49.0 | merged | Cherry-picked release metadata; no desktop GPUI surface. |
 | 65 | `a6221463b98d63de035873fe3139f1029632c1fb` | 2026-08-02 | feat: refine terminal composer actions and image paste | pending | - |
 | 66 | `f9c3b09328ad9eef4a653b789766335b921db8a3` | 2026-08-02 | feat: add terminal composer attachments (#348) | pending | - |
 | 67 | `b25b9c8d28ba2ff9027aac38892772978f735b5c` | 2026-08-02 | feat: reorder agent profiles | pending | - |
