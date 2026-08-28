@@ -55,10 +55,12 @@ impl AleraApp {
                     Ok(profiles) => {
                         let mut profiles = profiles;
                         profiles.sort_by(|left, right| {
-                            left.name
+                            left.sort_order
+                                .cmp(&right.sort_order)
+                                .then_with(|| left.name
                                 .to_ascii_lowercase()
                                 .cmp(&right.name.to_ascii_lowercase())
-                                .then_with(|| left.id.cmp(&right.id))
+                                .then_with(|| left.id.cmp(&right.id)))
                         });
                         let selected = this
                             .agent_profile_settings

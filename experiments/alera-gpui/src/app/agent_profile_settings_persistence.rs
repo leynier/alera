@@ -4,12 +4,103 @@ use gpui::{Context, Window};
 use serde_json::{json, Value};
 
 use super::agent_profile_settings::{
-    managed_risk_markers, optional_profile_input_value, parse_agent_profile, profile_input_value,
+    managed_risk_markers, optional_profile_input_value, parse_agent_profile, parse_agent_profiles,
+    profile_input_value,
     set_profile_input,
 };
 use super::AleraApp;
 
 impl AleraApp {
+    pub(super) fn reorder_agent_profiles(
+        &mut self,
+        dragged_id: String,
+        target_id: String,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        if self.agent_profile_settings.saving || dragged_id == target_id {
+            return;
+        }
+        let mut reordered = self.agent_profile_settings.profiles.clone();
+        let Some(source_index) = reordered.iter().position(|profile| profile.id == dragged_id)
+        else {
+            return;
+        };
+        let Some(target_index) = reordered.iter().position(|profile| profile.id == target_id)
+        else {
+            return;
+        };
+        let profile = reordered.remove(source_index);
+        let insertion_index = if source_index < target_index {
+            target_index.saturating_sub(1)
+        } else {
+            target_index
+        }
+        .min(reordered.len());
+        reordered.insert(insertion_index, profile);
+        let ids = reordered
+            .iter()
+            .map(|profile| profile.id.clone())
+            .collect::<Vec<_>>();
+        self.agent_profile_settings.profiles = reordered;
+        self.agent_profile_settings.saving = true;
+        self.agent_profile_settings.error = None;
+        self.agent_profile_settings.toast = None;
+        let bridge = self.bridge.clone();
+        cx.notify();
+        cx.spawn_in(window, async move |this, cx| {
+            let result = bridge
+                .request_with_timeout(
+                    "agentProfile.reorder",
+                    json!({"ids": ids}),
+                    Duration::from_secs(10),
+                )
+                .await;
+            let _ = this.update_in(cx, |this, _, cx| {
+                this.agent_profile_settings.saving = false;
+                match result.and_then(parse_agent_profiles) {
+                    Ok(mut profiles) => {
+                        profiles.sort_by(|left, right| {
+                            left.sort_order
+                                .cmp(&right.sort_order)
+                                .then_with(|| left.name.to_ascii_lowercase().cmp(&right.name.to_ascii_lowercase()))
+                                .then_with(|| left.id.cmp(&right.id))
+                        });
+                        this.agent_profile_settings.profiles = profiles;
+                        this.sync_workspace_agent_profile_options();
+                    }
+                    Err(error) => {
+                        this.agent_profile_settings.error = Some(error.into());
+                        this.refresh_agent_profiles_without_window(cx);
+                    }
+                }
+                cx.notify();
+            });
+        })
+        .detach();
+    }
+
+    fn refresh_agent_profiles_without_window(&mut self, cx: &mut Context<Self>) {
+        let bridge = self.bridge.clone();
+        cx.spawn(async move |this, cx| {
+            let result = bridge.request("agentProfile.list", json!({})).await;
+            let _ = this.update(cx, |this, cx| {
+                if let Ok(mut profiles) = result.and_then(parse_agent_profiles) {
+                    profiles.sort_by(|left, right| {
+                        left.sort_order
+                            .cmp(&right.sort_order)
+                            .then_with(|| left.name.to_ascii_lowercase().cmp(&right.name.to_ascii_lowercase()))
+                            .then_with(|| left.id.cmp(&right.id))
+                    });
+                    this.agent_profile_settings.profiles = profiles;
+                    this.sync_workspace_agent_profile_options();
+                    cx.notify();
+                }
+            });
+        })
+        .detach();
+    }
+
     pub(super) fn set_default_agent_profile(
         &mut self,
         profile_id: Option<String>,

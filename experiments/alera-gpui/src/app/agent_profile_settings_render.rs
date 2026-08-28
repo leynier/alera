@@ -1,7 +1,7 @@
 use gpui::{
-    div, prelude::FluentBuilder as _, px, AnyElement, Context, CursorStyle,
+    div, prelude::FluentBuilder as _, px, AnyElement, AppContext as _, Context, CursorStyle,
     InteractiveElement as _, IntoElement, ParentElement as _, Role, SharedString,
-    StatefulInteractiveElement as _, Styled as _,
+    Render, StatefulInteractiveElement as _, Styled as _, Window,
 };
 use gpui_component::scroll::ScrollableElement as _;
 use gpui_component::input::Textarea;
@@ -23,6 +23,34 @@ use super::AleraApp;
 use crate::design_system;
 use crate::icons::{agent_icon, icon, loading_indicator, AleraIcon};
 use crate::theme;
+
+#[derive(Clone, Debug)]
+struct AgentProfileDragData {
+    id: String,
+    name: String,
+}
+
+struct AgentProfileDragPreview {
+    name: String,
+}
+
+impl Render for AgentProfileDragPreview {
+    fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl IntoElement {
+        div()
+            .flex()
+            .items_center()
+            .gap_2()
+            .px_3()
+            .py_2()
+            .rounded_md()
+            .border_1()
+            .border_color(theme::border())
+            .bg(theme::surface_raised())
+            .text_size(px(13.0))
+            .child(icon(AleraIcon::Agent, 15.0, theme::text_muted()))
+            .child(self.name.clone())
+    }
+}
 
 impl AleraApp {
     pub(super) fn render_agent_profiles_settings_pane(&self, cx: &mut Context<Self>) -> AnyElement {
@@ -172,6 +200,7 @@ impl AleraApp {
                         let id = profile.id.clone();
                         let set_default_id = profile.id.clone();
                         let clone_id = profile.id.clone();
+                        let reorder_target_id = profile.id.clone();
                         let selected = state.selected_id.as_deref() == Some(&profile.id);
                         let is_default = self.settings_state.default_agent_profile_id.as_deref()
                             == Some(profile.id.as_str());
@@ -210,6 +239,25 @@ impl AleraApp {
                             .hover(|style| style.bg(theme::surface_raised()))
                             .on_click(cx.listener(move |this, _, window, cx| {
                                 this.select_agent_profile(id.clone(), window, cx);
+                            }))
+                            .on_drag(
+                                AgentProfileDragData {
+                                    id: profile.id.clone(),
+                                    name: profile.name.clone(),
+                                },
+                                |drag, _, _, cx| {
+                                    cx.new(|_| AgentProfileDragPreview {
+                                        name: drag.name.clone(),
+                                    })
+                                },
+                            )
+                            .on_drop(cx.listener(move |this, drag: &AgentProfileDragData, window, cx| {
+                                this.reorder_agent_profiles(
+                                    drag.id.clone(),
+                                    reorder_target_id.clone(),
+                                    window,
+                                    cx,
+                                );
                             }))
                             .child(agent_icon(
                                 adapter_icon(&profile.agent_type),

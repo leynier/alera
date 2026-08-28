@@ -11,6 +11,7 @@ use crate::icons::AgentIcon;
 pub(super) struct AgentProfileRecord {
     pub(super) id: String,
     pub(super) name: String,
+    pub(super) sort_order: i64,
     pub(super) agent_type: String,
     pub(super) command: String,
     pub(super) launch_mode: String,
@@ -142,6 +143,10 @@ pub(super) fn parse_agent_profile(value: &Value) -> Result<AgentProfileRecord, S
     Ok(AgentProfileRecord {
         id: string("id")?,
         name: string("name")?,
+        sort_order: value
+            .get("sortOrder")
+            .and_then(Value::as_i64)
+            .unwrap_or(0),
         agent_type: string("agentType")?,
         command: string("command")?,
         launch_mode: value
