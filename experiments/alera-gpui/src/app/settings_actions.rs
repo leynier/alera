@@ -451,7 +451,9 @@ impl AleraApp {
                 self.update_ai_text_settings(
                     |settings| {
                         settings
-                            .ai_text_selected_thinking_by_model
+                            .ai_text_selected_thinking_by_operation
+                            .entry(operation)
+                            .or_default()
                             .insert(model, thinking);
                     },
                     cx,

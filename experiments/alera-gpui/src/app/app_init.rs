@@ -271,9 +271,16 @@ impl AleraApp {
             let selected_thinking_label = model
                 .and_then(|model| {
                     let thinking_id = settings_state
+                        .ai_text_selected_thinking_by_operation
+                        .get(operation)
+                        .and_then(|values| values.get(&inherited_model_id))
+                        .map(String::as_str)
+                        .or_else(|| {
+                            settings_state
                         .ai_text_selected_thinking_by_model
                         .get(&inherited_model_id)
                         .map(String::as_str)
+                        })
                         .or(model.default_thinking.as_deref())?;
                     model
                         .thinking_levels

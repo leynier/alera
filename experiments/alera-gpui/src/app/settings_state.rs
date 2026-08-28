@@ -118,6 +118,7 @@ pub(super) struct SettingsState {
     pub ai_text_agent: String,
     pub ai_text_selected_model_by_agent: BTreeMap<String, String>,
     pub ai_text_selected_thinking_by_model: BTreeMap<String, String>,
+    pub ai_text_selected_thinking_by_operation: BTreeMap<String, BTreeMap<String, String>>,
     pub ai_text_discovered_models_by_agent: BTreeMap<String, Vec<AiTextDiscoveredModel>>,
     pub ai_text_discovered_default_model_by_agent: BTreeMap<String, String>,
     pub ai_text_custom_command: String,
@@ -225,6 +226,7 @@ impl Default for SettingsState {
             ai_text_agent: "codex".to_string(),
             ai_text_selected_model_by_agent: BTreeMap::new(),
             ai_text_selected_thinking_by_model: BTreeMap::new(),
+            ai_text_selected_thinking_by_operation: BTreeMap::new(),
             ai_text_discovered_models_by_agent: BTreeMap::new(),
             ai_text_discovered_default_model_by_agent: BTreeMap::new(),
             ai_text_custom_command: String::new(),
@@ -646,6 +648,7 @@ impl SettingsState {
             "agent": self.ai_text_agent,
             "selectedModelByAgent": self.ai_text_selected_model_by_agent,
             "selectedThinkingByModel": self.ai_text_selected_thinking_by_model,
+            "selectedThinkingByOperation": self.ai_text_selected_thinking_by_operation,
             "discoveredModelsByAgent": self.ai_text_discovered_models_by_agent,
             "discoveredDefaultModelByAgent": self.ai_text_discovered_default_model_by_agent,
             "customCommand": self.ai_text_custom_command,
@@ -713,6 +716,24 @@ impl SettingsState {
             ai_text.get("selectedThinkingByModel"),
             &mut self.ai_text_selected_thinking_by_model,
         );
+        if let Some(by_operation) = ai_text
+            .get("selectedThinkingByOperation")
+            .and_then(Value::as_object)
+        {
+            self.ai_text_selected_thinking_by_operation = by_operation
+                .iter()
+                .filter_map(|(operation, values)| {
+                    let values = values
+                        .as_object()?
+                        .iter()
+                        .filter_map(|(model, value)| {
+                            value.as_str().map(|value| (model.clone(), value.to_owned()))
+                        })
+                        .collect::<BTreeMap<_, _>>();
+                    (!values.is_empty()).then_some((operation.clone(), values))
+                })
+                .collect();
+        }
         apply_string_map(
             ai_text.get("discoveredDefaultModelByAgent"),
             &mut self.ai_text_discovered_default_model_by_agent,

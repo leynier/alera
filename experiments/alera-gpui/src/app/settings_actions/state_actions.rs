@@ -263,6 +263,8 @@ impl AleraApp {
                 settings.ai_text_selected_model_by_agent = defaults.ai_text_selected_model_by_agent;
                 settings.ai_text_selected_thinking_by_model =
                     defaults.ai_text_selected_thinking_by_model;
+                settings.ai_text_selected_thinking_by_operation =
+                    defaults.ai_text_selected_thinking_by_operation;
                 settings.ai_text_custom_command = defaults.ai_text_custom_command;
                 settings.ai_text_instructions_by_operation =
                     defaults.ai_text_instructions_by_operation;
