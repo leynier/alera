@@ -45,6 +45,16 @@ impl AleraApp {
                 .placeholder("Search Terminal")
                 .clean_on_escape()
         });
+        let quick_open_input = cx.new(|cx| {
+            InputState::new(window, cx)
+                .placeholder("Search Files")
+                .clean_on_escape()
+        });
+        let command_palette_input = cx.new(|cx| {
+            InputState::new(window, cx)
+                .placeholder("Search Commands")
+                .clean_on_escape()
+        });
         let workspace_dropdown_search_input = cx.new(|cx| {
             InputState::new(window, cx)
                 .placeholder("Search")
@@ -406,6 +416,28 @@ impl AleraApp {
                         return;
                     }
                     this.update_terminal_search_query(input.read(cx).value().to_string(), cx);
+                },
+            ),
+            cx.subscribe_in(
+                &quick_open_input,
+                window,
+                |this, input, event: &InputEvent, _, cx| {
+                    if matches!(event, InputEvent::Change) && this.quick_open_open {
+                        this.update_quick_open_query(input.read(cx).value().to_string(), cx);
+                    }
+                },
+            ),
+            cx.subscribe_in(
+                &command_palette_input,
+                window,
+                |this, input, event: &InputEvent, _, cx| {
+                    if matches!(event, InputEvent::Change) && this.command_palette_open {
+                        this.command_palette_selected_index = 0;
+                        this.update_command_palette_query(
+                            input.read(cx).value().to_string(),
+                            cx,
+                        );
+                    }
                 },
             ),
             cx.subscribe_in(
@@ -905,6 +937,17 @@ impl AleraApp {
             terminal_frame_views: BTreeMap::new(),
             terminal_search_input,
             terminal_search: None,
+            quick_open_input,
+            quick_open_open: false,
+            quick_open_loading: false,
+            quick_open_error: None,
+            quick_open_paths: Vec::new(),
+            quick_open_matches: Vec::new(),
+            quick_open_selected_index: 0,
+            quick_open_generation: 0,
+            command_palette_input,
+            command_palette_open: false,
+            command_palette_selected_index: 0,
             command_terminal: None,
             terminal_output_dirty_sessions: BTreeSet::new(),
             terminal_drivers: BTreeMap::new(),

@@ -9,6 +9,8 @@ actions!(
     alera,
     [
         OpenSettings,
+        OpenQuickOpen,
+        OpenCommandPalette,
         OpenExecutionPlans,
         AddProject,
         ToggleSidebar,
@@ -82,6 +84,8 @@ pub(super) fn key_binding_for_action(id: &str, keystroke: &str) -> Option<KeyBin
 pub(super) fn action_for_id(id: &str) -> Option<Box<dyn Action>> {
     let action: Box<dyn Action> = match id {
         "openSettings" => Box::new(OpenSettings),
+        "openQuickOpen" => Box::new(OpenQuickOpen),
+        "openCommandPalette" => Box::new(OpenCommandPalette),
         "addProject" => Box::new(AddProject),
         "toggleSidebar" => Box::new(ToggleSidebar),
         "createWorkspace" => Box::new(CreateWorkspace),
@@ -205,6 +209,32 @@ impl AleraApp {
             return;
         }
         self.open_settings_dialog(window, cx);
+    }
+
+    pub(super) fn on_open_quick_open(
+        &mut self,
+        _: &OpenQuickOpen,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        if !self.keyboard_shortcut_allowed("openQuickOpen", window) {
+            cx.propagate();
+            return;
+        }
+        self.open_quick_open(window, cx);
+    }
+
+    pub(super) fn on_open_command_palette(
+        &mut self,
+        _: &OpenCommandPalette,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        if !self.keyboard_shortcut_allowed("openCommandPalette", window) {
+            cx.propagate();
+            return;
+        }
+        self.open_command_palette(window, cx);
     }
 
     pub(super) fn on_find_in_terminal(

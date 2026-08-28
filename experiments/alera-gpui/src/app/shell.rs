@@ -903,6 +903,12 @@ impl AleraApp {
         } else if self.terminal_search.is_some() {
             self.close_terminal_search(window, cx);
             true
+        } else if self.quick_open_open {
+            self.close_quick_open(cx);
+            true
+        } else if self.command_palette_open {
+            self.close_command_palette(cx);
+            true
         } else if self.command_terminal.is_some() {
             self.close_command_terminal(cx);
             true
@@ -991,6 +997,8 @@ impl Render for AleraApp {
             .on_key_down(cx.listener(Self::handle_shell_key_down))
             .relative()
             .on_action(cx.listener(Self::on_open_settings))
+            .on_action(cx.listener(Self::on_open_quick_open))
+            .on_action(cx.listener(Self::on_open_command_palette))
             .on_action(cx.listener(Self::on_open_execution_plans))
             .on_action(cx.listener(Self::on_minimize_window))
             .on_action(cx.listener(Self::on_zoom_window))
@@ -1085,6 +1093,12 @@ impl Render for AleraApp {
             )
             .when(self.show_new_workspace_dialog, |root| {
                 root.child(self.render_new_workspace_dialog(cx))
+            })
+            .when(self.quick_open_open, |root| {
+                root.child(self.render_quick_open_overlay(cx))
+            })
+            .when(self.command_palette_open, |root| {
+                root.child(self.render_command_palette_overlay(cx))
             })
             .when(self.show_add_project_dialog, |root| {
                 root.child(self.render_add_project_dialog(cx))

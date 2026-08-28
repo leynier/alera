@@ -60,6 +60,7 @@ mod mobile_driver;
 mod preview_surface;
 mod project_actions;
 mod project_config_settings;
+mod quick_open;
 mod run_policy;
 mod run_policy_dialog;
 mod search_surface;
@@ -176,6 +177,17 @@ pub struct AleraApp {
     terminal_frame_views: BTreeMap<String, Entity<TerminalFrameView>>,
     terminal_search_input: Entity<InputState>,
     terminal_search: Option<TerminalSearchState>,
+    quick_open_input: Entity<InputState>,
+    quick_open_open: bool,
+    quick_open_loading: bool,
+    quick_open_error: Option<SharedString>,
+    quick_open_paths: Vec<String>,
+    quick_open_matches: Vec<String>,
+    quick_open_selected_index: usize,
+    quick_open_generation: u64,
+    command_palette_input: Entity<InputState>,
+    command_palette_open: bool,
+    command_palette_selected_index: usize,
     command_terminal: Option<CommandTerminalState>,
     terminal_output_dirty_sessions: BTreeSet<String>,
     terminal_drivers: BTreeMap<String, mobile_driver::MobileTerminalDriver>,

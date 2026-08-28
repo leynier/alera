@@ -69,6 +69,22 @@ pub(super) const KEYBOARD_BINDINGS: &[KeyboardBindingDefinition] = &[
         true
     ),
     binding!(
+        "openQuickOpen",
+        "Quick Open",
+        Global,
+        "Search and open a file in the active workspace.",
+        &["Mod+P"],
+        true
+    ),
+    binding!(
+        "openCommandPalette",
+        "Command Palette",
+        Global,
+        "Search and run an Alera command.",
+        &["Mod+Shift+P"],
+        true
+    ),
+    binding!(
         "addProject",
         "Add Project",
         Global,
