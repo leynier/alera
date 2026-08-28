@@ -7,7 +7,8 @@ use gpui_component::scroll::ScrollableElement as _;
 use serde_json::Value;
 
 use super::agent_profile_settings::{
-    adapter_icon, adapter_label, managed_command_preview, AgentProfileDropdown,
+    adapter_icon, adapter_label, managed_command_preview, profile_input_value,
+    AgentProfileDropdown,
 };
 use super::agent_profile_settings_catalog::{
     controls_for, supports_model, supports_persona, ManagedControl, ADAPTERS, LAUNCH_MODES,
@@ -177,7 +178,11 @@ impl AleraApp {
                     .border_color(theme::border_subtle())
                     .children(state.profiles.iter().map(|profile| {
                         let id = profile.id.clone();
+                        let set_default_id = profile.id.clone();
+                        let clone_id = profile.id.clone();
                         let selected = state.selected_id.as_deref() == Some(&profile.id);
+                        let is_default = self.settings_state.default_agent_profile_id.as_deref()
+                            == Some(profile.id.as_str());
                         let subtitle = if let Some(quota) = &profile.quota_group {
                             format!(
                                 "{}  ·  {}  ·  {}",
@@ -242,6 +247,48 @@ impl AleraApp {
                                             .text_color(theme::text_muted())
                                             .child(subtitle),
                                     ),
+                            )
+                            .child(
+                                design_system::icon_button(
+                                    SharedString::from(format!(
+                                        "agent-profile-default-{}",
+                                        profile.id
+                                    )),
+                                    if is_default {
+                                        "Default Agent Profile"
+                                    } else {
+                                        "Set As Default"
+                                    },
+                                    AleraIcon::Star,
+                                    !state.saving && !is_default,
+                                    26.0,
+                                    None,
+                                    None,
+                                )
+                                .text_color(if is_default {
+                                    theme::accent()
+                                } else {
+                                    theme::text_faint()
+                                })
+                                .on_click(cx.listener(move |this, _, _, cx| {
+                                    this.set_default_agent_profile(Some(set_default_id.clone()), cx);
+                                    cx.stop_propagation();
+                                })),
+                            )
+                            .child(
+                                design_system::icon_button(
+                                    SharedString::from(format!("agent-profile-clone-{}", profile.id)),
+                                    "Clone Profile",
+                                    AleraIcon::Duplicate,
+                                    !state.saving,
+                                    26.0,
+                                    None,
+                                    None,
+                                )
+                                .on_click(cx.listener(move |this, _, window, cx| {
+                                    this.clone_agent_profile(clone_id.clone(), window, cx);
+                                    cx.stop_propagation();
+                                })),
                             )
                     }))
                     .into_any_element()
@@ -387,6 +434,41 @@ impl AleraApp {
                                     "Command Mode Is For Advanced Or Unsupported CLI Options. Use An Interactive Command That Can Accept A Dispatch And Report Completion.",
                                 ),
                         )
+                        .child(
+                            div()
+                                .mt_3()
+                                .flex()
+                                .items_start()
+                                .gap_2()
+                                .text_size(px(12.0))
+                                .text_color(theme::text_muted())
+                                .child(icon(AleraIcon::Info, 15.0, theme::text_faint()))
+                                .child(if state.adapter == "codex" {
+                                    "Alera Appends The Dispatch Prompt After -- As One Quoted Argument."
+                                } else {
+                                    "Alera Types The Dispatch Prompt After The Agent Reports Ready."
+                                }),
+                        )
+                        .when(state.adapter == "codex", |field| {
+                            let command = profile_input_value(&state.command_input, cx);
+                            let preview = if command.trim().is_empty() {
+                                String::new()
+                            } else {
+                                format!("{} -- 'Dispatched Prompt'", command.trim())
+                            };
+                            field.child(
+                                div()
+                                    .mt_2()
+                                    .p_2()
+                                    .rounded_md()
+                                    .border_1()
+                                    .border_color(theme::border_subtle())
+                                    .bg(theme::surface())
+                                    .font_family("JetBrains Mono")
+                                    .text_size(px(12.0))
+                                    .child(preview),
+                            )
+                        })
                 } else {
                     settings_row_width(
                         "Command Preview",
@@ -406,6 +488,18 @@ impl AleraApp {
     fn render_agent_profile_managed_group(&self, cx: &mut Context<Self>) -> gpui::Div {
         let state = &self.agent_profile_settings;
         let mut rows = Vec::new();
+        if state.adapter == "claude" {
+            rows.push(settings_row(
+                "CCS Profile",
+                "Leave Empty To Run Claude Directly. A Value Launches Ccs With The Profile First.",
+                div()
+                    .w(px(220.0))
+                    .child(
+                        design_system::text_field(&state.ccs_profile_input)
+                            .disabled(state.saving),
+                    ),
+            ));
+        }
         if supports_model(&state.adapter) {
             rows.push(self.render_agent_profile_model_choice(cx));
             rows.push(settings_row(

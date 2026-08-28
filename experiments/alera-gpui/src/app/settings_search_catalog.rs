@@ -165,6 +165,12 @@ pub(super) fn first_matching_group(pane: SettingsPane, query: &str) -> Option<us
                 "Word Separators",
             ],
         ],
+        SettingsPane::AiText => &[
+            &["Generation", "Enable AI Text", "Agent", "Model", "Thinking", "Custom Command"],
+            &["Commit Messages", "Agent", "Model", "Reasoning", "Instructions"],
+            &["Pull Request Details", "Agent", "Model", "Reasoning", "Instructions"],
+            &["Workspace Identity", "Agent", "Model", "Reasoning", "Instructions"],
+        ],
         _ => return None,
     };
     groups.iter().position(|group| {

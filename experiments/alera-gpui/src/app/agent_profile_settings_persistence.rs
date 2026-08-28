@@ -5,10 +5,71 @@ use serde_json::{json, Value};
 
 use super::agent_profile_settings::{
     managed_risk_markers, optional_profile_input_value, parse_agent_profile, profile_input_value,
+    set_profile_input,
 };
 use super::AleraApp;
 
 impl AleraApp {
+    pub(super) fn set_default_agent_profile(
+        &mut self,
+        profile_id: Option<String>,
+        cx: &mut Context<Self>,
+    ) {
+        let next = profile_id
+            .as_deref()
+            .map(str::trim)
+            .filter(|id| !id.is_empty())
+            .map(str::to_owned);
+        if self.settings_state.default_agent_profile_id == next {
+            return;
+        }
+        self.settings_state.default_agent_profile_id = next.clone();
+        self.persist_settings();
+        self.update_runtime_setting(
+            "defaultAgentProfileId",
+            next.map_or(Value::Null, Value::String),
+            cx,
+        );
+        self.workspace_selected_agent_profile_id = self
+            .settings_state
+            .default_agent_profile_id
+            .clone()
+            .filter(|id| {
+                self.workspace_agent_profiles
+                    .iter()
+                    .any(|profile| &profile.id == id)
+            });
+        cx.notify();
+    }
+
+    pub(super) fn clone_agent_profile(
+        &mut self,
+        profile_id: String,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        if self.agent_profile_settings.saving {
+            return;
+        }
+        let Some(source) = self
+            .agent_profile_settings
+            .profiles
+            .iter()
+            .find(|profile| profile.id == profile_id)
+            .cloned()
+        else {
+            return;
+        };
+        let name = next_clone_name(&source.name, &self.agent_profile_settings.profiles);
+        self.seed_agent_profile(&source, window, cx);
+        self.agent_profile_settings.selected_id = None;
+        self.agent_profile_settings.creating_new = true;
+        self.agent_profile_settings.original_risk_markers =
+            managed_risk_markers(&source.agent_type, &source.managed_config);
+        set_profile_input(&self.agent_profile_settings.name_input, name, window, cx);
+        self.begin_agent_profile_save(false, window, cx);
+    }
+
     pub(super) fn save_agent_profile(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         self.begin_agent_profile_save(false, window, cx);
     }
@@ -144,6 +205,12 @@ impl AleraApp {
                 this.agent_profile_settings.saving = false;
                 match result {
                     Ok(_) => {
+                        if this.settings_state.default_agent_profile_id.as_deref()
+                            == Some(id.as_str())
+                        {
+                            this.settings_state.default_agent_profile_id = None;
+                            this.persist_settings();
+                        }
                         this.agent_profile_settings
                             .profiles
                             .retain(|profile| profile.id != id);
@@ -190,9 +257,38 @@ impl AleraApp {
                     .any(|profile| &profile.id == id)
             })
             .or_else(|| {
+                self.settings_state
+                    .default_agent_profile_id
+                    .as_deref()
+                    .filter(|id| {
+                        self.workspace_agent_profiles
+                            .iter()
+                            .any(|profile| &profile.id == id)
+                    })
+                    .map(str::to_owned)
+            })
+            .or_else(|| {
                 self.workspace_agent_profiles
                     .first()
                     .map(|profile| profile.id.clone())
             });
     }
+}
+
+fn next_clone_name(source_name: &str, profiles: &[super::agent_profile_settings::AgentProfileRecord]) -> String {
+    let base = format!("{} Copy", source_name.trim());
+    let names = profiles
+        .iter()
+        .map(|profile| profile.name.trim().to_ascii_lowercase())
+        .collect::<std::collections::BTreeSet<_>>();
+    if !names.contains(&base.to_ascii_lowercase()) {
+        return base;
+    }
+    for suffix in 2.. {
+        let candidate = format!("{base} {suffix}");
+        if !names.contains(&candidate.to_ascii_lowercase()) {
+            return candidate;
+        }
+    }
+    unreachable!("profile clone suffix space is unbounded")
 }

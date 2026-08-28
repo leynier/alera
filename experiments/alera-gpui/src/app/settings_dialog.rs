@@ -474,7 +474,12 @@ pub(super) fn settings_pane_groups(pane: SettingsPane) -> &'static [&'static str
         ],
         SettingsPane::Agents => &["CLI And Skills", "Status Hooks", "Behavior"],
         SettingsPane::Quotas => &["Providers", "Claude", "Credentials"],
-        SettingsPane::AiText => &["Generation", "Prompt Overrides", "Instructions"],
+        SettingsPane::AiText => &[
+            "Generation",
+            "Commit Messages",
+            "Pull Request Details",
+            "Workspace Identity",
+        ],
         SettingsPane::Editor => &[],
         SettingsPane::Terminal => &[
             "Typography",

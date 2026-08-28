@@ -114,6 +114,15 @@ impl AleraApp {
                             .workspace_selected_agent_profile_id
                             .clone()
                             .filter(|id| profiles.iter().any(|profile| &profile.id == id))
+                            .or_else(|| {
+                                this.settings_state
+                                    .default_agent_profile_id
+                                    .as_deref()
+                                    .filter(|id| {
+                                        profiles.iter().any(|profile| &profile.id == id)
+                                    })
+                                    .map(str::to_owned)
+                            })
                             .or_else(|| profiles.first().map(|profile| profile.id.clone()));
                         this.workspace_agent_profiles = profiles;
                         this.workspace_selected_agent_profile_id = selected;

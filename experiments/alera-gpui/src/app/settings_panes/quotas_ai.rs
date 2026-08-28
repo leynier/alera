@@ -568,125 +568,119 @@ fn ai_text_pane(
             ),
         ));
     }
-    div()
-        .child(
-            exact_settings_group(
-                "Generation",
-                "Local agent CLIs generate text from source control context.",
-                generation_rows,
-            )
-            .id(("settings-group-anchor", 0usize))
-            .anchor_scroll(settings_group_anchor(anchors, SettingsPane::AiText, 0)),
+    let mut pane = div().child(
+        exact_settings_group(
+            "Generation",
+            "Local agent CLIs generate text from source control context.",
+            generation_rows,
         )
-        .child(
+        .id(("settings-group-anchor", 0usize))
+        .anchor_scroll(settings_group_anchor(anchors, SettingsPane::AiText, 0)),
+    );
+    for (index, (operation, title)) in [
+        ("commitMessage", "Commit Messages"),
+        ("pullRequestDetails", "Pull Request Details"),
+        ("workspaceIdentity", "Workspace Identity"),
+    ]
+    .into_iter()
+    .enumerate()
+    {
+        pane = pane.child(
             div().mt_4().child(
                 exact_settings_group(
-                    "Prompt Overrides",
-                    "Choose A Different Agent Or Model Per Prompt, Or Inherit The Global Selection.",
-                    prompt_override_rows(
+                    title,
+                    "Configure The Agent, Model, Reasoning And Instructions For This Prompt.",
+                    prompt_operation_rows(
                         settings,
+                        textareas,
                         selects,
+                        operation,
                         discovery_busy,
                         discovery_errors,
                         cx,
                     ),
                 )
-                .id(("settings-group-anchor", 1usize))
-                .anchor_scroll(settings_group_anchor(anchors, SettingsPane::AiText, 1)),
+                .id(("settings-group-anchor", index + 1))
+                .anchor_scroll(settings_group_anchor(
+                    anchors,
+                    SettingsPane::AiText,
+                    index + 1,
+                )),
             ),
-        )
-        .child(
-            div().mt_4().child(
-                exact_settings_group(
-                    "Instructions",
-                    "Extra guidance appended to generation prompts.",
-                    vec![
-                instruction_row(
-                    "Commit Messages",
-                    settings_textarea(textareas, "ai-instructions-commitMessage"),
-                ),
-                instruction_row(
-                    "Pull Request Details",
-                    settings_textarea(textareas, "ai-instructions-pullRequestDetails"),
-                ),
-                instruction_row(
-                    "Workspace Identity",
-                    settings_textarea(textareas, "ai-instructions-workspaceIdentity"),
-                ),
-                    ],
-                )
-                .id(("settings-group-anchor", 2usize))
-                .anchor_scroll(settings_group_anchor(anchors, SettingsPane::AiText, 2)),
-            ),
-        )
-        .into_any_element()
+        );
+    }
+    pane.into_any_element()
 }
 
-fn prompt_override_rows(
+fn prompt_operation_rows(
     settings: &SettingsState,
+    textareas: &SettingsTextareas,
     selects: &BTreeMap<String, SettingsSelect>,
+    operation: &str,
     discovery_busy: &BTreeSet<String>,
     discovery_errors: &BTreeMap<String, SharedString>,
     cx: &mut Context<AleraApp>,
 ) -> Vec<gpui::Div> {
     let mut rows = Vec::new();
-    for (operation, title) in [
-        ("commitMessage", "Commit Messages"),
-        ("pullRequestDetails", "Pull Request Details"),
-        ("workspaceIdentity", "Workspace Identity"),
-    ] {
-        let prompt = settings
-            .ai_text_prompt_settings_by_operation
-            .get(operation);
-        let effective_agent = prompt
-            .and_then(|prompt| prompt.agent.as_deref())
-            .unwrap_or(&settings.ai_text_agent);
-        let agent_select = selects
-            .get(&format!("ai-prompt-{operation}-agent"))
-            .expect("AI prompt agent select should exist");
+    let prompt = settings
+        .ai_text_prompt_settings_by_operation
+        .get(operation);
+    let effective_agent = prompt
+        .and_then(|prompt| prompt.agent.as_deref())
+        .unwrap_or(&settings.ai_text_agent);
+    let agent_select = selects
+        .get(&format!("ai-prompt-{operation}-agent"))
+        .expect("AI prompt agent select should exist");
+    rows.push(exact_settings_row(
+        "Agent",
+        "Override The Global Agent For This Prompt.",
+        settings_select_control("Agent", agent_select, false, true),
+    ));
+    if effective_agent != "custom" {
+        let model_select = selects
+            .get(&format!("ai-prompt-{operation}-model"))
+            .expect("AI prompt model select should exist");
         rows.push(exact_settings_row(
-            match operation {
-                "commitMessage" => "Commit Messages Agent",
-                "pullRequestDetails" => "Pull Request Details Agent",
-                _ => "Workspace Identity Agent",
-            },
-            "Override The Global Agent For This Prompt.",
-            settings_select_control(
-                match operation {
-                    "commitMessage" => "Commit Messages Agent",
-                    "pullRequestDetails" => "Pull Request Details Agent",
-                    _ => "Workspace Identity Agent",
-                },
-                agent_select,
-                false,
-                true,
+            "Model",
+            discovery_errors
+                .get(effective_agent)
+                .cloned()
+                .unwrap_or_else(|| "Override The Global Model For This Prompt.".into()),
+            ai_model_select_control(
+                model_select,
+                effective_agent,
+                operation,
+                discovery_busy,
+                cx,
             ),
         ));
-        if effective_agent != "custom" {
-            let model_select = selects
-                .get(&format!("ai-prompt-{operation}-model"))
-                .expect("AI prompt model select should exist");
-            rows.push(exact_settings_row(
-                match operation {
-                    "commitMessage" => "Commit Messages Model",
-                    "pullRequestDetails" => "Pull Request Details Model",
-                    _ => "Workspace Identity Model",
-                },
-                discovery_errors
-                    .get(effective_agent)
-                    .cloned()
-                    .unwrap_or_else(|| "Override The Global Model For This Prompt.".into()),
-                ai_model_select_control(
-                    model_select,
-                    effective_agent,
-                    operation,
-                    discovery_busy,
-                    cx,
-                ),
-            ));
+        if let Some(thinking_select) = selects.get(&format!("ai-prompt-{operation}-thinking")) {
+            let effective_model_id = prompt
+                .and_then(|prompt| prompt.model.as_deref())
+                .map(str::to_owned)
+                .unwrap_or_else(|| {
+                    super::ai_text_settings_catalog::selected_model_id(settings, effective_agent)
+                });
+            let has_thinking = super::ai_text_settings_catalog::model_choices(
+                settings,
+                effective_agent,
+            )
+            .into_iter()
+            .find(|model| model.id == effective_model_id)
+            .is_some_and(|model| !model.thinking_levels.is_empty());
+            if has_thinking {
+                rows.push(exact_settings_row(
+                    "Reasoning",
+                    "Reasoning Effort For Models That Support It.",
+                    settings_select_control("Reasoning", thinking_select, false, false),
+                ));
+            }
         }
-        let _ = title;
     }
+    rows.push(instruction_row(
+        "Instructions",
+        settings_textarea(textareas, &format!("ai-instructions-{operation}")),
+    ));
     rows
 }
 

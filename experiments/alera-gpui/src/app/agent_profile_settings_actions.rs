@@ -85,6 +85,7 @@ impl AleraApp {
             &self.agent_profile_settings.persona_input,
             &self.agent_profile_settings.max_ai_credits_input,
             &self.agent_profile_settings.max_autopilot_continues_input,
+            &self.agent_profile_settings.ccs_profile_input,
             &self.agent_profile_settings.description_input,
             &self.agent_profile_settings.quota_group_input,
         ] {
@@ -174,6 +175,16 @@ impl AleraApp {
             cx,
         );
         set_profile_input(
+            &self.agent_profile_settings.ccs_profile_input,
+            profile
+                .managed_config
+                .get("ccsProfile")
+                .and_then(Value::as_str)
+                .unwrap_or_default(),
+            window,
+            cx,
+        );
+        set_profile_input(
             &self.agent_profile_settings.description_input,
             &profile.description,
             window,
@@ -242,6 +253,7 @@ impl AleraApp {
                     &self.agent_profile_settings.persona_input,
                     &self.agent_profile_settings.max_ai_credits_input,
                     &self.agent_profile_settings.max_autopilot_continues_input,
+                    &self.agent_profile_settings.ccs_profile_input,
                 ] {
                     set_profile_input(input, "", window, cx);
                 }

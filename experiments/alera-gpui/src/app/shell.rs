@@ -872,6 +872,9 @@ impl AleraApp {
         {
             self.clear_pointer_tab_drag_state(cx);
             true
+        } else if self.command_terminal.is_some() {
+            self.close_command_terminal(cx);
+            true
         } else if self.workbench_menu.is_some() {
             self.dismiss_workbench_menu(window, cx);
             true
@@ -1093,6 +1096,9 @@ impl Render for AleraApp {
             })
             .when(self.source_control_dialog.is_some(), |root| {
                 root.child(self.render_source_control_dialog(cx))
+            })
+            .when(self.command_terminal.is_some(), |root| {
+                root.child(self.render_command_terminal_dialog(cx))
             })
             .when(self.forge_review_confirmation.is_some(), |root| {
                 root.child(self.render_pull_request_confirmation(cx))

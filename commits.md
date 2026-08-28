@@ -1,0 +1,421 @@
+# Main commit parity ledger
+
+This ledger tracks every commit on `main` after the last common commit with
+`feat/rust-desktop-migration`. Commits are processed in chronological order,
+one at a time. A commit is marked `in_progress` only while its diff and
+GPUI impact are being analyzed, `merged` after the relevant behavior has
+been replicated and validated, and `reviewed-no-gpui-change` when the commit
+has no applicable desktop GPUI surface. Evidence and notes stay beside the
+commit so this file remains useful after context compaction.
+
+- Base (last common commit): `04da54b2959578c49d737b835abe081337888cd2`
+- Main reference at ledger creation: `d29d279152f96d980a40e1bc77c99bda47b59991`
+- Pending commits: 400
+- Scope: replicate desktop behavior and UI in `experiments/alera-gpui`; keep
+  Flutter as the functional and visual reference.
+- Validation rule: maintain one Flutter instance and one GPUI instance; refresh
+  Computer Use accessibility state after every interaction and record relevant
+  screenshots/observations in the note column or linked evidence.
+
+| # | Commit | Date | Subject | Status | Evidence / notes |
+|---:|---|---|---|---|---|
+| 1 | `873c58e49f57dd617a3e223ff11ab7a2c6d71d36` | 2026-07-30 | fix: preserve dash-prefixed codex prompts | merged | Shared terminal host now inserts Codex `--` before initial prompts; targeted `alera-cli` tests pass. GPUI inherits the corrected launch contract. |
+| 2 | `127a3c84d53aec4e2535bb9d282896165aafe2c6` | 2026-07-31 | release: v0.41.0 v0.15.0-mobile | reviewed-no-gpui-change | Release metadata only (`landing`, `mobile/pubspec.yaml`, root `pubspec.yaml`); no desktop GPUI surface. |
+| 3 | `fec45a5b3e830a44ca0aa067a55c71dd6a1f01f5` | 2026-07-30 | perf(landing): defer offscreen rendering (#297) | reviewed-no-gpui-change | Landing-only rendering/font preload optimization; no desktop GPUI surface. |
+| 4 | `b0e7d5d5f41b243062b29d9384aedd9ab33fa225` | 2026-07-31 | feat: run update and skill commands in a terminal dialog (#298) | merged | Added GPUI command-terminal overlay backed by the existing runtime PTY, command copy action, workspace/home directory resolution, terminal input routing, and skill install actions. Flutter build and single-instance GPUI/Flutter captures were obtained; GPUI AX click delivery did not open Settings, so the settings action remains a runtime follow-up. |
+| 5 | `96ae34f3810b7604999a9e77e8816e172977de5e` | 2026-08-01 | release: v0.42.0 | reviewed-no-gpui-change | Release metadata only (`landing` and root `pubspec.yaml`); no desktop GPUI behavior. |
+| 6 | `f02518830610c08162f1640b37f156c951b77a33` | 2026-07-31 | feat: clone agent profiles and select a default (#301) | merged | Runtime persistence/cleanup and GPUI default/clone profile controls are implemented; focused runtime round-trip and GPUI profile tests pass. |
+| 7 | `b80a7ed9bfb0808b4db0c3faac21e77584e7da21` | 2026-07-31 | feat: optional ccs profile for managed claude agent profiles (#302) | merged | Added Claude CCS profile validation/launch routing, GPUI profile editor field and command-mode delivery note; focused launch and preview tests pass. |
+| 8 | `9b5ba6549dbcc672c1451c2ec7e5f1ed37ed9fca` | 2026-08-01 | fix: preserve prompt workspace selections (#299) | reviewed-no-gpui-change | Flutter-only retry-state reset; GPUI retry path already preserves parent/project selections. |
+| 9 | `05247e52ff8a03007554e06fc7506baa56e59d79` | 2026-08-01 | feat: allow skipping claude permissions as a managed option (#303) | merged | Added Claude `allowSkipPermissions` launch flag, catalog control, risk marker and focused host test. |
+| 10 | `9f751209667eaea84a272a593787720ba7c5d4d6` | 2026-08-01 | feat: group ai text settings by operation | merged | GPUI AI Text now groups each operation with Agent, Model, Reasoning and Instructions controls; per-operation selectors, anchors and search groups are wired and the crate compiles. |
+| 11 | `c4d5ade0e8d8ed3d28efa99e9010dddd029b3913` | 2026-08-01 | feat: codex plan mode reasoning effort as a managed option (#304) | in_progress | - |
+| 12 | `ecc1df7ab950cb43347a8386a825cf2fabfaba99` | 2026-08-01 | fix: prevent terminal erase range overflow | pending | - |
+| 13 | `b17c6edaf65dd665c19186cb4aa0be5fd5e71800` | 2026-08-01 | fix: guard terminal link row bounds (#306) | pending | - |
+| 14 | `6c5871d124b45ca33c4b6660e45afb43271722cc` | 2026-08-01 | fix: run all skill installs in embedded terminal | pending | - |
+| 15 | `36db4f1af7924cc8ce70a660520128cdfa98966e` | 2026-08-01 | fix: prevent terminal reflow buffer overflow (#307) | pending | - |
+| 16 | `62d6d4b13cbae93a72302a5d01a890cdf5260e07` | 2026-08-01 | fix: harden terminal host disconnect and buffer writes | pending | - |
+| 17 | `367ee036fca4a882c79db952c23bd48a94716c03` | 2026-08-01 | chore: update submodules to latest revisions | pending | - |
+| 18 | `6fca3e2a84def950a0cbd14c819dc20eb0cf9e97` | 2026-08-01 | fix: isolate ai text reasoning by operation | pending | - |
+| 19 | `defe6b5bcda15d35f5728409839a617be91bd94c` | 2026-08-01 | feat: test agent profile commands in terminal (#310) | pending | - |
+| 20 | `3708fb2ff4d92c7649961a1e712328fe642472d8` | 2026-08-01 | fix: show update versions and restart app (#313) | pending | - |
+| 21 | `1986d73ea618df2d82c4dfb265bb303d0f054ddb` | 2026-08-01 | fix: detect agy models dynamically (#314) | pending | - |
+| 22 | `c9bc16458fe040b2e639d86e855d9f38d5a4845b` | 2026-08-01 | fix: close setup terminal after successful workspace setup | pending | - |
+| 23 | `9588cfd2dd4540bf8470396493cb22612a99bb10` | 2026-08-01 | feat: align mobile prompt workspace creation | pending | - |
+| 24 | `54e389bc406126301b6fcbf938d680645f4b9897` | 2026-08-01 | release: v0.44.0 v0.16.0-mobile | pending | - |
+| 25 | `78e7780b0cb009c80b7dc88093242931a6266553` | 2026-08-01 | feat: open project settings from workspace menus | pending | - |
+| 26 | `e9955f23e831087c34ec59958426166db59dfd7c` | 2026-08-01 | feat: test managed agent profile commands | pending | - |
+| 27 | `162489cfeca7f816fbddf26e6fe8645adaf93728` | 2026-08-01 | fix: align remote host action buttons | pending | - |
+| 28 | `b98828808c73e479ef13dbe8f143300880d27616` | 2026-08-01 | fix: keep all skills actions on one row | pending | - |
+| 29 | `3bb9846919ad4be9566794c8f28af936c7f096e8` | 2026-08-01 | feat: resize settings master detail panes | pending | - |
+| 30 | `962f0bf1c0679fdcf65c764d33e556450daf20f3` | 2026-08-01 | fix: prevent ghostty source build crashes in git worktrees | pending | - |
+| 31 | `4ed2ffd7f3b8cfc5c3628b8e7a0b5280b07aaf31` | 2026-08-01 | feat: paste images into prompt workspaces | pending | - |
+| 32 | `253bbf98ed098d5e78ee2bcef353e6b74cdcdfb4` | 2026-08-01 | style: use sentence case for descriptive ui copy | pending | - |
+| 33 | `3bb986a1fa5649f50f1480af968410eafe47f152` | 2026-08-01 | release: v0.45.0 v0.16.1-mobile | pending | - |
+| 34 | `6c277d345e851fe063803bf3986f85f7a47c865b` | 2026-08-01 | fix: open mobile updates in external browser (#325) | pending | - |
+| 35 | `8001a9d420ba4b1d7fc3696fb29e3e7059ae03ad` | 2026-08-01 | fix: add card spacing to test command buttons | pending | - |
+| 36 | `37552eeaca6e6f17a3ac1536c1b1971ca7ac2b81` | 2026-08-01 | docs: refresh roadmap status | pending | - |
+| 37 | `6e10352faea0e474c4d047b1e69ae362688cf412` | 2026-08-01 | fix: reposition project settings action | pending | - |
+| 38 | `2d0295ec326712e6a85d9bb818c84984549af4c0` | 2026-08-01 | feat: add agent profile custom prompts | pending | - |
+| 39 | `5de0985274453fc03ac2f07790aa8590c2ab997d` | 2026-08-01 | fix: guard mobile terminal session state after dispose (#329) | pending | - |
+| 40 | `07c8b56723fd03ac357d4c180b535ebeaf5460d0` | 2026-08-01 | fix: stop terminal host connect failures from reporting as crashes (#330) | pending | - |
+| 41 | `f05063b5d97c32b89610b433bcc2d7be3499a0b9` | 2026-08-01 | feat: add editor autosave (#332) | pending | - |
+| 42 | `c54a311678116b038aa2d004b2c9a53ce848105a` | 2026-08-01 | feat: add terminal search | pending | - |
+| 43 | `8d07aa6bde514cb945bca5a2a043e39cfa9f128d` | 2026-08-01 | perf: reduce runtime host resource overhead | pending | - |
+| 44 | `cf50ed4d81a91e3386443e28d00b988080984324` | 2026-08-01 | perf: reduce mobile terminal resource usage (#334) | pending | - |
+| 45 | `e2693b69bb9528d5be01ae7acdcf4262f50e38cb` | 2026-08-01 | perf: reduce desktop terminal resource usage (#335) | pending | - |
+| 46 | `1793a7551480c1b4cedcdfdf81d363374b2aca85` | 2026-08-01 | fix: link landing author mentions | pending | - |
+| 47 | `7980d811213d5afa26c9a59573d96eba24926d2f` | 2026-08-01 | fix: use official landing brand icons | pending | - |
+| 48 | `f42b2aa523b896fbdd7ce57095c4cf5869b580fc` | 2026-08-01 | feat: add worktree navigation history | pending | - |
+| 49 | `e4a4260f11652f514869b5b9ac5e042675565737` | 2026-08-01 | docs: update beta messaging | pending | - |
+| 50 | `8cd4bfa12aa2dccdd2edd8e685ec3368903eb648` | 2026-08-01 | Merge pull request #339 from leynier/feat/update-beta-preview-messaging | pending | - |
+| 51 | `69a0a003a0a05f3ed140ebcc443675aa40ba9a84` | 2026-08-01 | feat: add quick open and command palette | pending | - |
+| 52 | `bef129b0e4e3e1584eaec3b078cab042ce7a07e5` | 2026-08-01 | test: cover quick open and command palette ranking | pending | - |
+| 53 | `2997375e6f22712f53b3e92ee7c0c58a02e9f4fe` | 2026-08-01 | Merge pull request #340 from leynier/feat/command-palette-quick-open | pending | - |
+| 54 | `d5f8cfadefa5f16a05efdd6f3e87c6af4bcaa670` | 2026-08-02 | release: v0.46.0 v0.16.2-mobile | pending | - |
+| 55 | `5467ad4e2385c33365cacb521c05ee46a75bcdb1` | 2026-08-02 | perf: move quick open search to rust | pending | - |
+| 56 | `45edffeeb2770aaddf5826e8a2127e886a1acfea` | 2026-08-02 | feat: add configurable text actions (#342) | pending | - |
+| 57 | `d5e01c76aca0d7408ab955669e20c5595297a499` | 2026-08-02 | release: v0.47.0 | pending | - |
+| 58 | `6419a738ed18719cdb14ea449f73d616357d5bed` | 2026-08-02 | feat: upload prompt images from mobile | pending | - |
+| 59 | `057ad7fb62d49e2a0d7e4f78d0a63c63d8aa2dcb` | 2026-08-02 | release: v0.48.0 v0.17.0-mobile | pending | - |
+| 60 | `310a834ad9b62c74b066de372bda2000f0020bc4` | 2026-08-02 | feat: add terminal prompt composer (#345) | pending | - |
+| 61 | `093a15756a67ab09e0f281df10f75901c55f867b` | 2026-08-02 | feat: refine terminal composer controls | pending | - |
+| 62 | `246168a804f871178ebcddec2fcf3edbaacefae5` | 2026-08-02 | fix: keep session handle under max-lines baseline | pending | - |
+| 63 | `17a183f51debfc29114c0e682bc917ed4cdc58ae` | 2026-08-02 | Merge pull request #346 from leynier/feat/terminal-composer-defaults | pending | - |
+| 64 | `e60c96ec7522052e9af81ab15ae5d6da2443dac4` | 2026-08-02 | release: v0.49.0 | pending | - |
+| 65 | `a6221463b98d63de035873fe3139f1029632c1fb` | 2026-08-02 | feat: refine terminal composer actions and image paste | pending | - |
+| 66 | `f9c3b09328ad9eef4a653b789766335b921db8a3` | 2026-08-02 | feat: add terminal composer attachments (#348) | pending | - |
+| 67 | `b25b9c8d28ba2ff9027aac38892772978f735b5c` | 2026-08-02 | feat: reorder agent profiles | pending | - |
+| 68 | `f1a235438a5803d8681679b6025abad740d7dfa1` | 2026-08-02 | feat: toggle pull request comment tasks (#350) | pending | - |
+| 69 | `3c38aa55162cfb705b4b31cc4e6fd92e2ec83a88` | 2026-08-02 | feat: add native codex chat tabs | pending | - |
+| 70 | `6be588ea39aad633db0b5d39940792ed62710f08` | 2026-08-02 | feat: unify text context menus (#351) | pending | - |
+| 71 | `2d8d26471f65bc94c8dbe806ab8af197fd5e01b7` | 2026-08-03 | feat: complete native codex chat parity | pending | - |
+| 72 | `baaf2cc3ac6394be626d8a8e24f6df9d002e4942` | 2026-08-03 | fix: complete codex protocol and mobile parity | pending | - |
+| 73 | `e41cd72181a2ae083163651e091f3d6adf1247d2` | 2026-08-03 | fix: defer terminal composer submit enter (#352) | pending | - |
+| 74 | `2a7d86e5b5e6ea9db7bee952c2f90fa8c2de212c` | 2026-08-03 | feat: add agent canvas (#353) | pending | - |
+| 75 | `bffe6b0745ecb0da32495957833b5d39c82935d2` | 2026-08-03 | feat: complete codex chat parity | pending | - |
+| 76 | `6a341f61c672eff36e6a4cae8b20d4f1100caf18` | 2026-08-03 | fix: complete codex chat parity | pending | - |
+| 77 | `12ca53cb18a608804233ae1aaed1ab40270f3f17` | 2026-08-03 | chore: merge latest main | pending | - |
+| 78 | `2dba06c8fd09c05681a788e5b74a529b428ac284` | 2026-08-03 | fix: satisfy max-lines ratchet | pending | - |
+| 79 | `dbfb3ad4a12cf44eaf0b886259a4d29a84064272` | 2026-08-03 | test: cover codex chat domain | pending | - |
+| 80 | `5e0735f1dc54649b0f186756af880012cc277b1b` | 2026-08-03 | Merge pull request #355 from leynier/feat/codex-chat-tab | pending | - |
+| 81 | `4acd3b7a842c18e08b236c84e5ca5e20b828a993` | 2026-08-03 | feat: add agent automations (#356) | pending | - |
+| 82 | `7fd10dcee75371f385e1a8d69be596745fc7725e` | 2026-08-03 | release: v0.50.0 v0.18.0-mobile | pending | - |
+| 83 | `9f5d9459794892829c7168b7c620347e85638911` | 2026-08-03 | feat: expose agent canvas skill installation | pending | - |
+| 84 | `84129124a38b86a8a184c9cc29cd9f6f91d1c049` | 2026-08-03 | Merge pull request #357 from leynier/feat/agent-canvas-skill-install | pending | - |
+| 85 | `bd7c6294c7133a1a0e7a4aa10d2386db2a55388b` | 2026-08-03 | fix: restore automation list loading | pending | - |
+| 86 | `cd337aaf3fbbc78ad05cf146db1da14eb9ba1b9e` | 2026-08-03 | feat: complete codex chat parity | pending | - |
+| 87 | `9dcc718ff6881292edead0e0f1e2ec137a627382` | 2026-08-03 | fix: align codex chat with current app server | pending | - |
+| 88 | `03ebd03738e5bdd411b2f09f106f1367c71a8560` | 2026-08-03 | Merge pull request #359 from leynier/feat/codex-chat-parity-followup | pending | - |
+| 89 | `24737648b3549d59cfd5bc06fc2d239912c6ba8d` | 2026-08-04 | fix: resolve host quota lookups and sampler cadence from client demand | pending | - |
+| 90 | `c2b701f626bb464585b07827bcd12bf71e51f900` | 2026-08-04 | docs: add netbird remote access plan | pending | - |
+| 91 | `4321eec4f63fddb383bcc10642971831a657f045` | 2026-08-04 | docs: move netbird plan into pr description | pending | - |
+| 92 | `6b2143df3e5120d1e5bfcdda432a265c46726ba1` | 2026-08-04 | feat: add netbird mobile remote access | pending | - |
+| 93 | `4c2927a2a691f914e5cbafaeda76467c2fd1a22c` | 2026-08-04 | feat: add netbird dns and interface endpoints | pending | - |
+| 94 | `3a1971573e4bf19d09f02b9cdc994859e8370903` | 2026-08-04 | merge: sync with main | pending | - |
+| 95 | `e73d64fe7d38b60758b6403f57b9036fe6a890d7` | 2026-08-05 | fix: address pr check failures | pending | - |
+| 96 | `30f6d943dff5ff707853b1c7125d718f54b51afc` | 2026-08-05 | fix: address follow-up ci failures | pending | - |
+| 97 | `8d9d2f7fdcee6b328bc7a1bffe26b67494455750` | 2026-08-05 | Merge pull request #363 from rmarticedeno/agent/netbird-remote-access-plan | pending | - |
+| 98 | `2b596e02901c68bd8a6fa89112a001c18d458a0c` | 2026-08-05 | release: v0.51.0 v0.19.0-mobile | pending | - |
+| 99 | `35696b2ab03e61ed530a7f87198e33bb2c05676d` | 2026-08-05 | perf: start explorer and scm path drags immediately | pending | - |
+| 100 | `dbe909a22a82a7d1b9ff7c0e0a5ef4aa354a5e06` | 2026-08-05 | Merge pull request #364 from leynier/perf/reduce-file-drag-time | pending | - |
+| 101 | `fc2958c5afb6ad86d55f7a10c7371953d3f03547` | 2026-08-05 | fix: keep path taps and scroll while dragging files | pending | - |
+| 102 | `56f04643ac59e06367e6accd31613f83f5117d1c` | 2026-08-05 | Merge pull request #365 from leynier/fix/path-drag-tap-scroll | pending | - |
+| 103 | `354e5a9dd7be46fe7ddbb1d7ff43743c6797f829` | 2026-08-06 | feat: add opencode models and quota tracking | pending | - |
+| 104 | `43b2d03c453b66376201d2116b9f51f652b372af` | 2026-08-06 | style: match hosted dart formatter | pending | - |
+| 105 | `3031dae503a390ecd0eb5f845ccfb3c03ada0680` | 2026-08-06 | fix: satisfy quality gates | pending | - |
+| 106 | `0e341790642499ae30d11c2026368e2a9b91feb1` | 2026-08-06 | fix: satisfy mobile analysis | pending | - |
+| 107 | `52fb0e6fa8b35724dc4e1911e44e5ef1d615c553` | 2026-08-06 | fix: satisfy mobile lint | pending | - |
+| 108 | `9d463eb5f993f1e1193e83fb6545b105a4b1061c` | 2026-08-06 | fix: scope mobile lint suppression | pending | - |
+| 109 | `c5f89526657e560362be15e33b653748882f70ec` | 2026-08-06 | fix: update opencode quality checks | pending | - |
+| 110 | `9066814fded893b8e29b56a6c8c4cd00dc8bf405` | 2026-08-06 | test: cover opencode quota payloads | pending | - |
+| 111 | `0e3e1db7a55092b45a0b7b2b836badfad9b9e394` | 2026-08-06 | Merge pull request #366 from rmarticedeno/agent/opencode-go-zen | pending | - |
+| 112 | `1cb9b8b848bbea903d36855df6bb5f8b6e45f4a2` | 2026-08-06 | release: v0.52.0 v0.20.0-mobile | pending | - |
+| 113 | `ccec4803e188e84ca2dee36d928c337307e9fadf` | 2026-08-07 | feat: paste workspace-relative paths on terminal drops (#367) | pending | - |
+| 114 | `ae11c13f2664cfa209b70bed2632a56c96c7199b` | 2026-08-07 | fix: align antigravity hooks with the documented contract (#368) | pending | - |
+| 115 | `b617e61916835cf81d9fea6c4dd13c69d0a06d9f` | 2026-08-07 | fix: align cursor hooks with the documented contract (#369) | pending | - |
+| 116 | `1af236b9eeccfe269010d6850f677dbd60e48b89` | 2026-08-07 | fix: deliver the initial prompt to every agent, not only codex (#370) | pending | - |
+| 117 | `963a9775988ac33633deb4d6b27b2c1b91cac976` | 2026-08-07 | fix: preserve context panel tabs across workspaces | pending | - |
+| 118 | `55cf8d5abb2795eed0221b6e14e5b1ddfc1064de` | 2026-08-07 | release: v0.53.0 | pending | - |
+| 119 | `e6832e6d14588f25bc98f28c66156a85742bcfca` | 2026-08-07 | ci: declare least-privilege workflow permissions (#372) | pending | - |
+| 120 | `e73fce51d8f60de15f82f687066cfcb791b4304e` | 2026-08-07 | feat: add unified source control grouping mode (#373) | pending | - |
+| 121 | `df0bea4397a00ac36d486ab6e74d4776ffe1be75` | 2026-08-08 | feat: add bounded codex workspace file transport | pending | - |
+| 122 | `17d540d1e9d1a8642e10a004b093aefce3023e32` | 2026-08-08 | feat: add durable codex thread state management | pending | - |
+| 123 | `78139cd31e002784c959bf65d6decd7e27360259` | 2026-08-08 | release: v0.54.0 | pending | - |
+| 124 | `bafbe063ba93ec887cf95cd26f83a5bee423e7ee` | 2026-08-08 | feat: add codex desktop session contracts | pending | - |
+| 125 | `7f41ccffff4392715382e317cdb2459b2c561fae` | 2026-08-08 | feat: refine codex desktop composer | pending | - |
+| 126 | `09b99d94f50c2f6d978a69f9b2d9cbaf2d103d90` | 2026-08-09 | feat: refine codex desktop timeline | pending | - |
+| 127 | `2c8e6392a2e5a32916702783463a1054cbde666c` | 2026-08-09 | feat: add codex mobile runtime state | pending | - |
+| 128 | `c33326066c2953d0afb724ddeb741336b8477867` | 2026-08-09 | feat: add OpenCode 2 agent support alongside v1 (#374) | pending | - |
+| 129 | `8b154c386e52a43725c39fa29f0f83a8d7b18b08` | 2026-08-09 | feat: add codex mobile chat experience | pending | - |
+| 130 | `ae5d478cfe697462009d4a2a3529274a3d9e9f08` | 2026-08-09 | perf: add codex timeline benchmark | pending | - |
+| 131 | `f553eb5b940427a1fb2395c8da1d0f5c6743d106` | 2026-08-09 | chore: reconcile codex integration | pending | - |
+| 132 | `f24b4186fa73059ef4f2d4c0e4a97e5c7867f973` | 2026-08-09 | fix: defer codex thread deletion | pending | - |
+| 133 | `8a766dfad6d287ed07fd024ee066274ee5509d5a` | 2026-08-09 | fix: harden codex cleanup and file access | pending | - |
+| 134 | `31051020dd8cdc7ac473bf7cf500f966c623462e` | 2026-08-09 | fix: pin workspace file roots | pending | - |
+| 135 | `2dd6c23285b0dcb7242f922e386d0d828bd455af` | 2026-08-09 | fix: scope quick open symlink policy | pending | - |
+| 136 | `8d3694fc4dff361b7a512a127233a8cb58ea25f3` | 2026-08-09 | fix: restore codex chat identity controls | pending | - |
+| 137 | `14819e58a331c2b78a40b8ff1a1ec8a61eec60d8` | 2026-08-09 | fix: restore codex timeline states | pending | - |
+| 138 | `93a8228f13123e2afb0bd6624fae9df14835a284` | 2026-08-09 | fix: dock codex question controls | pending | - |
+| 139 | `da1fac5dc9ac33601dac4ae595eaab99e6adf07e` | 2026-08-09 | fix: preserve codex tool expansion | pending | - |
+| 140 | `f99cd06f29ea239136e3c0a38f6b72056728dab3` | 2026-08-09 | fix: stabilize codex timeline scrolling | pending | - |
+| 141 | `c599db81a3cd14f97e04f825e5e9bfd307694fc9` | 2026-08-09 | fix: align codex composer controls | pending | - |
+| 142 | `53e9339435036f8059e3605fc231e1e7d4da4470` | 2026-08-09 | fix: align codex catalog metadata | pending | - |
+| 143 | `f8f6688f4fa399d1129f336958f9c8f60989d4db` | 2026-08-09 | fix: align codex context controls | pending | - |
+| 144 | `2e582b2b985b022625782bd9e5624b6d8e801ef5` | 2026-08-09 | fix: align codex catalog types | pending | - |
+| 145 | `170707fc75ab48c69b37ab5a3811a1b9edb2defb` | 2026-08-09 | fix: tighten codex context spacing | pending | - |
+| 146 | `144737020cc893f1f865c16a304c2425eb1137d7` | 2026-08-09 | fix: refine codex timeline details | pending | - |
+| 147 | `4667d5cac8b0edd55d4b206524a4aea623cfa7f6` | 2026-08-09 | fix: deduplicate resumed codex messages | pending | - |
+| 148 | `538ca217cc73d8ff0f60f8a3d17b6afb58abd2a5` | 2026-08-09 | fix: restore codex working timeline | pending | - |
+| 149 | `8724f6822ad29b20cddccc82045ba4f968abb467` | 2026-08-09 | fix: preserve codex timeline with prompts | pending | - |
+| 150 | `85de7bad8e323529d3d2094e19bffc903ed1f065` | 2026-08-09 | fix: keep declined plans in plan mode | pending | - |
+| 151 | `3b6d8708e93e28c20c3e47bcfc0c5e58a04427db` | 2026-08-09 | fix: scope codex question controls | pending | - |
+| 152 | `2b0c26389420ebc8a1a1793de7be7d0e1dcd4682` | 2026-08-09 | fix: refine codex review dialog | pending | - |
+| 153 | `7383d16c6e20dc27979dc1ec85faa3758aba4bde` | 2026-08-09 | refactor: split mobile codex files | pending | - |
+| 154 | `a16db33fe586b4c44c328ffc258694813c34f083` | 2026-08-09 | fix: stabilize codex plan transitions | pending | - |
+| 155 | `c999d6d49b5df99eee055817cdc6ad3a9a0515cf` | 2026-08-09 | fix: align mobile codex plan states | pending | - |
+| 156 | `b8ef4dd9e8a7117279a185b76d42a1e824375b11` | 2026-08-09 | fix: align mobile codex review flow | pending | - |
+| 157 | `275408b4df1d00681af62fe2568f4d6fc90ed5c5` | 2026-08-09 | fix: align mobile codex timeline parity | pending | - |
+| 158 | `88350519633b1a3318e4962ddaa084138458bd47` | 2026-08-09 | fix: refine codex recovery prompt | pending | - |
+| 159 | `d13e8547246108fa791af56f124d6fbb534e17ff` | 2026-08-09 | fix: refine codex compaction status | pending | - |
+| 160 | `cccb2b4994ae80595ef3337c3b1b4cd024dabdf6` | 2026-08-10 | fix: unblock windows app shutdown (#375) | pending | - |
+| 161 | `a2fefb15a7c4b54493f07bdd4d3072a532c7c30f` | 2026-08-09 | fix: package only alera.app in the macos release asset (#377) | pending | - |
+| 162 | `88f4205211e5c6ab2546e5733ec45a460aefd613` | 2026-08-09 | chore: drop the unused appindicator dependency from the deb (#378) | pending | - |
+| 163 | `1894f48189cf668869f8116ae3a3e111fb95d559` | 2026-08-09 | feat: build and ship macos for apple silicon only (#379) | pending | - |
+| 164 | `22b3f9ff5008c9621f6459434e4f3a5c04d48983` | 2026-08-09 | feat: attribute linux deb and rpm installs to their package manager (#380) | pending | - |
+| 165 | `785236121e3c0f2f46f271eef2bce23461733eab` | 2026-08-09 | feat: update linux installs that no package manager owns (#381) | pending | - |
+| 166 | `a262e00795b0bccdc5dc414676b12cb652677428` | 2026-08-09 | docs: record why the linux dependencies stay declared (#382) | pending | - |
+| 167 | `446821425ccd8774d3199be5b432078a33369fcc` | 2026-08-10 | release: v0.55.0 v0.21.0-mobile | pending | - |
+| 168 | `5e2b4aef5a73aba3530b90ddc1be9380504d7365` | 2026-08-10 | feat: add claude and codex usage dashboard | pending | - |
+| 169 | `002567a472fb0c30643dcad9cd504f33423403e6` | 2026-08-10 | fix: refine codex tool responses | pending | - |
+| 170 | `482c8ede0ca6ca1c24a6ee58b08b24852b29d84e` | 2026-08-10 | feat: polish usage chart and metrics | pending | - |
+| 171 | `7c50446f5be45db3145bebd9ad10d57a411ebcaf` | 2026-08-10 | fix: preserve codex timeline history | pending | - |
+| 172 | `cd8df4a482bf9853df98a6362fca36e8fcf5191a` | 2026-08-10 | feat: cache usage snapshots by period | pending | - |
+| 173 | `dd8781f9896069be3a7734a4e85a1bd72d24b27e` | 2026-08-10 | feat: configure claude usage profiles | pending | - |
+| 174 | `6d2289b8dd7e7c6058f38a705b8ee9f3d8530e06` | 2026-08-10 | refactor: split runtime quota settings models | pending | - |
+| 175 | `7211053846aed214b0407790893e1522f0d59ba0` | 2026-08-10 | feat: refine usage profile presentation | pending | - |
+| 176 | `648fa0094b6fb4e17daf4a1a3e99478268db16a8` | 2026-08-10 | test: cover grouped usage sessions | pending | - |
+| 177 | `fe40edb17462867a7f669a08cdc5cf4349c08843` | 2026-08-10 | fix: normalize codex review timeline | pending | - |
+| 178 | `37dc2ac5fa7d76ccbe4ca3475a54e9ce552e532e` | 2026-08-10 | chore: merge main into codex integration | pending | - |
+| 179 | `88ac8b10d542c0b4d33ba3f558deb7109d550a19` | 2026-08-10 | Merge pull request #384 from leynier/feat/claude-codex-usage | pending | - |
+| 180 | `9c0cf4c9b4297807f7c7165f230810248a92ce86` | 2026-08-10 | fix: restore integration quality gates | pending | - |
+| 181 | `1fc45835dab0b07641dec1127c1a6a7583588188` | 2026-08-10 | chore: merge latest main into codex integration | pending | - |
+| 182 | `de1941573c8e41cfc9f016af29cbf1b6aba3b94e` | 2026-08-10 | test: cover codex domain contracts | pending | - |
+| 183 | `50b5c077903ac319606973bdb33a4690490187bf` | 2026-08-10 | Merge pull request #386 from leynier/review/codex-integration | pending | - |
+| 184 | `9edf6a7536b357f7a6c75dab3eed4fa36bdf34e6` | 2026-08-10 | fix: align source control actions right (#387) | pending | - |
+| 185 | `db824e22621b201920d147604276a4beb6b5b0a9` | 2026-08-10 | release: v0.56.0 v0.22.0-mobile | pending | - |
+| 186 | `b302f8679b92ab2ae8c6a7004d4c42ea7d6490f9` | 2026-08-10 | fix: keep shutdown dialog on navigator route (#388) | pending | - |
+| 187 | `2d155304283ccc8b2644039bf31f17223ddd2dfc` | 2026-08-10 | fix: restore source control action layout (#389) | pending | - |
+| 188 | `7f44322513d4b3155f8c2c1c6c493430922253cd` | 2026-08-10 | feat: add offline ai dictation (#376) | pending | - |
+| 189 | `cc4986beb663073045be52a9ce52ccf3809b0439` | 2026-08-10 | fix: link native macOS dependencies for the Rust framework | pending | - |
+| 190 | `0db518fbfcb751c8abb7dedb71459c9584676a68` | 2026-08-10 | fix: make release asset uploads resilient | pending | - |
+| 191 | `e92fd010bfff26ce74f34c298c4736d1e91dd290` | 2026-08-11 | release: v0.57.0 | pending | - |
+| 192 | `acc4d772ba03b0f27ced65cc3c4180e8129582e0` | 2026-08-11 | fix: make windows development portable (#390) | pending | - |
+| 193 | `464d9cca9142a952e074d7f70f63b34a6072828b` | 2026-08-11 | fix: publish desktop packages without mobile release | pending | - |
+| 194 | `182eca088f548de8fff680bfb06e1db21b9053db` | 2026-08-11 | fix: stabilize codex tab timeline and activity (#391) | pending | - |
+| 195 | `bb8df29f619a677786ac939bdc758e28a6082a23` | 2026-08-11 | release: v0.57.1 v0.22.1-mobile | pending | - |
+| 196 | `7724590dcc59b4c6662455ae009e07eb06b3856f` | 2026-08-11 | feat: expand dictation controls (#392) | pending | - |
+| 197 | `5cda0ff8e6a1fc1b181454cbca8d9db8fa937941` | 2026-08-11 | release: v0.58.0 | pending | - |
+| 198 | `f2096c5b243139dc381ffae6ef4e18b92f4af519` | 2026-08-11 | fix: align terminal link utf-16 spans | pending | - |
+| 199 | `18ab6bb24586871707324035c56217b63b9e02df` | 2026-08-11 | fix: harden app logger sink failures | pending | - |
+| 200 | `af9453ba29225e2fc68cc762606e455908888899` | 2026-08-11 | fix: guard mobile skill installs after disposal | pending | - |
+| 201 | `54b89bbf0dc07ea1a8fa6cecb7aa8e2f8a4afec5` | 2026-08-11 | fix: refresh quota state after action disposal | pending | - |
+| 202 | `1410dee2f261afae9e12e91e65a5bcd9ba5e5bf3` | 2026-08-11 | fix: guard dictation model refresh after disposal | pending | - |
+| 203 | `2b1b0c248859f927ed7d4b724130b92a10273c57` | 2026-08-11 | fix: recover stale mobile terminal attachments | pending | - |
+| 204 | `3d93ff8a6ed9d9c405d937a5520a6fdc5b6b6676` | 2026-08-11 | fix: tolerate stale terminal reclaim requests | pending | - |
+| 205 | `7b5d2f1d98c4cf095e0ea436c183086b2e655ce5` | 2026-08-11 | fix: harden app window shutdown ordering | pending | - |
+| 206 | `593f4564acabf0fc953a4d8c693738d7e4dcad63` | 2026-08-11 | fix: target codex for global skill installs (#394) | pending | - |
+| 207 | `3ea98f63eb42cf98bb89088e2955a698908f97f7` | 2026-08-11 | Merge pull request #399 from leynier/fix/sentry-desktop-d-dictation-dispose | pending | - |
+| 208 | `75241085432cb477064dbe510c15537fe22cf994` | 2026-08-11 | fix: recover unreachable mobile hosts | pending | - |
+| 209 | `0a5d04bce7c1deac05a94d5891882f6fd835c84f` | 2026-08-11 | fix: acknowledge tab removal before codex cleanup | pending | - |
+| 210 | `7f3024bf7bd1b54543afe3f71c8d2887884c3578` | 2026-08-12 | fix: preserve pending close warnings | pending | - |
+| 211 | `8a74bc0cf19826354ba1815064cbe5583db6928a` | 2026-08-12 | fix: handle asynchronous stdout failures | pending | - |
+| 212 | `aff35e3d976b2f7ce46dfe0377c7893e430ef1dd` | 2026-08-12 | Merge pull request #395 from leynier/fix/sentry-desktop-a-terminal-link-range | pending | - |
+| 213 | `43656c28c0455f214319176987fe67dac511f440` | 2026-08-12 | Merge pull request #396 from leynier/fix/sentry-desktop-e-logger-handle | pending | - |
+| 214 | `a9e7a46f972c63fdd46175236d85097a95110b0d` | 2026-08-12 | Merge pull request #397 from leynier/fix/sentry-mobile-4-skill-install-dispose | pending | - |
+| 215 | `a52e3de404d4bd6fb53032a27db5256628701c14` | 2026-08-12 | Merge pull request #398 from leynier/fix/sentry-desktop-c-quota-dispose | pending | - |
+| 216 | `c04215d222dafbb9cf2090d83dd21da5b1c507dc` | 2026-08-12 | Merge pull request #400 from leynier/fix/sentry-mobile-5-terminal-attach | pending | - |
+| 217 | `9dc8036269e65d3b63ea98cb0040f7359de0eb7d` | 2026-08-12 | Merge pull request #401 from leynier/fix/sentry-desktop-8-terminal-attach | pending | - |
+| 218 | `1bbea9dde7a91d11f394165b0a5e9532e6106e78` | 2026-08-12 | Merge pull request #402 from leynier/fix/sentry-desktop-b-tab-remove-timeout | pending | - |
+| 219 | `b1e0c51e71c441427ff385d0444b5dbd34d728fe` | 2026-08-12 | Merge pull request #403 from leynier/fix/sentry-desktop-9-logger-shutdown | pending | - |
+| 220 | `3e7c71dd8fa007d568003f0055cea8256015326b` | 2026-08-12 | Merge pull request #404 from leynier/fix/sentry-mobile-3-host-connectivity | pending | - |
+| 221 | `22fe038184858ee43a4139536b2826d0564e1219` | 2026-08-12 | feat: add codex chat goal support (#405) | pending | - |
+| 222 | `73c079d071f64e60c4dbb6c3726f6d4a5270aaf6` | 2026-08-12 | feat: add dictation model and fallback providers (#393) | pending | - |
+| 223 | `33f824580ca9c774569ba8bf79bb18a6546e1070` | 2026-08-12 | feat: add terminal pulse file watcher (#406) | pending | - |
+| 224 | `5d8db4ff18f52d3e8eafd81d4df88b8162ed4501` | 2026-08-12 | fix: configure release arm64 toolchains (#408) | pending | - |
+| 225 | `a4861098880c83b5e0bee585fe823588371d3cc7` | 2026-08-12 | fix: enable windows arm64 c++ exceptions (#410) | pending | - |
+| 226 | `00ee39ab80937681bbc5de66162b37cbc174c263` | 2026-08-12 | fix: stabilize windows arm64 release builds (#411) | pending | - |
+| 227 | `5dd3c4279c79733c22369e9720becc92d9099b16` | 2026-08-12 | release: v0.59.0 v0.23.0-mobile | pending | - |
+| 228 | `8aa83da2e9730ee1f832e9af6e9979c996cfde45` | 2026-08-12 | fix: make mobile model downloads retryable (#413) | pending | - |
+| 229 | `fe8946b74ef8aacf2496f2d53414b01a33c6f289` | 2026-08-12 | fix: retry transient runtime mutation conflicts (#414) | pending | - |
+| 230 | `eea6d13bad30a2f3922fe3ffc642d4dd49ead481` | 2026-08-12 | fix: complete runtime update after force-stop disconnect (#412) | pending | - |
+| 231 | `0e067aba8789d64b2126da76e1e451b8f2e3abe0` | 2026-08-12 | fix: constrain restored terminal cursor (#415) | pending | - |
+| 232 | `0a790d4cd868e2b1e81ab02d0bd0fedb6c3df871` | 2026-08-13 | release: v0.59.1 v0.23.1-mobile | pending | - |
+| 233 | `266175ce63231c7c13c9eb386ff658cf11957bcc` | 2026-08-13 | fix: show workspace status from the most urgent agent (#416) | pending | - |
+| 234 | `ac69a7809f0cb66e4d5b0812a27ca975dc9d9e03` | 2026-08-14 | fix: use authoritative opencode go usage (#407) | pending | - |
+| 235 | `5391b7b6317fbbf5ae8992de01a5438adb663ac3` | 2026-08-14 | feat: add browser annotations to codex chat (#409) | pending | - |
+| 236 | `85508b6bab2fc6004b68351f902a57edf83f9bde` | 2026-08-14 | feat: expand ai dictation workflows (#417) | pending | - |
+| 237 | `2aa26947cca0361a96f45a10b72d66551ca9eec2` | 2026-08-14 | release: v0.60.0 v0.24.0-mobile | pending | - |
+| 238 | `ddf81f7afd0d34833433f1698bb6fbc7287ec7f5` | 2026-08-14 | fix: set file modes with a syscall instead of a chmod process (#419) | pending | - |
+| 239 | `2486e4259685c600988b7167f3d767b178cd9e1f` | 2026-08-14 | fix: hydrate the login shell through the rust process runner (#420) | pending | - |
+| 240 | `1134f8dce4638c88ebb83d1030d76e69b34747af` | 2026-08-14 | fix: read the macos keychain through the rust process runner (#421) | pending | - |
+| 241 | `29e9765f2641388d546c1274c37741f6c1cbb77f` | 2026-08-14 | test: forbid dart:io process spawns in the app (#422) | pending | - |
+| 242 | `1f43eef2a9685fac338d00c8261a66ba18d8ceaf` | 2026-08-15 | release: v0.60.1 | pending | - |
+| 243 | `abcfadf10b1bd95e5aa2999b37c5008935f23414` | 2026-08-16 | fix: cover the mobile terminal while its history restores (#423) | pending | - |
+| 244 | `d7c4423b42b5802b0dcc7bc0e9b29a91e6f58e0f` | 2026-08-16 | refactor: split the mobile terminal request and session files (#424) | pending | - |
+| 245 | `f17da6bc14654e63eff0ac0bda57a38733b988dd` | 2026-08-16 | fix: stop the mobile attach from resizing the pty to 80x24 (#425) | pending | - |
+| 246 | `7ee1af7aac51c3e1dbf8910780a3bf986335fe5c` | 2026-08-16 | fix: reflow restored terminal history with a hidden cursor (#426) | pending | - |
+| 247 | `03deeef59540d557ef2c22d5f1de17baa28202d8` | 2026-08-16 | feat: replay mobile terminal history at the size that produced it (#427) | pending | - |
+| 248 | `62eed78a912562d46daa7b7d84ed34f0a32606a0` | 2026-08-16 | fix: size the mobile terminal scrollback for a phone's width (#428) | pending | - |
+| 249 | `9e9eb0dae09f8dd0ec93abff755d428a99f6bd07` | 2026-08-16 | feat: rework the mobile terminal input, tab strip, and attachments | pending | - |
+| 250 | `44e3881883f1e4d7c3bd828206553885846c2ee4` | 2026-08-16 | release: v0.61.0 v0.25.0-mobile | pending | - |
+| 251 | `79193fd1df0bf8f6bcce33230effa85a87180738` | 2026-08-16 | feat: add files and workspace files to the new workspace prompt (#431) | pending | - |
+| 252 | `04a6bf45c898dc12d037f386bde8623e716ffa20` | 2026-08-16 | release: v0.26.0-mobile | pending | - |
+| 253 | `6393207855cfb9d0f34aae00846624d9036a5791` | 2026-08-16 | fix: stop the mobile terminal from reloading over an attachment pick (#433) | pending | - |
+| 254 | `1c086bae8a774e76dc2a29072ca4b91ed87c399f` | 2026-08-16 | release: v0.26.1-mobile | pending | - |
+| 255 | `bee044dd40c1232f7e72ef0d381550c40bb7eb43` | 2026-08-19 | feat: expand mobile ai dictation (#418) | pending | - |
+| 256 | `854bef76096dd76077481d2f7cc902369477fa13` | 2026-08-19 | fix: configure android cmake abi | pending | - |
+| 257 | `2dd7b9661015195d6c7b2e051f4c2f09234906b5` | 2026-08-19 | release: v0.62.0 v0.27.0-mobile | pending | - |
+| 258 | `5dcf8b6b6688d9c007f458864f42851f2ddf2c25` | 2026-08-19 | fix: keep grok and cursor agent identity in the sidebar (#436) | pending | - |
+| 259 | `f37cb8631217915776286e08cb42a1e83138e61c` | 2026-08-20 | release: v0.62.1 | pending | - |
+| 260 | `08b9d69c152e5987cdfddd508896084eeba552dd` | 2026-08-20 | feat: add grok build to managed agent profiles (#438) | pending | - |
+| 261 | `dbc8ef0250fb1e2f351f4b1ded0e40d0387fcc05` | 2026-08-20 | release: v0.63.0 | pending | - |
+| 262 | `760e120aa094aa9d735b57935623be5ad083c3a5` | 2026-08-21 | fix: bundle android whisper c++ runtime (#437) | pending | - |
+| 263 | `5fb60e612381b0297c2bdd0209237712e0377f1f` | 2026-08-21 | feat: accelerate desktop whisper inference (#439) | pending | - |
+| 264 | `d4b96fed2b8dcafe79d8c6b88dc517b3fcfdf4f9` | 2026-08-21 | fix: repair desktop whisper builds (#440) | pending | - |
+| 265 | `e32d5ffdaef9fc456426f686da5328324832aaa1` | 2026-08-21 | fix: shorten windows native scratch paths (#442) | pending | - |
+| 266 | `93516fac6b04d9a3b6c69b9bd97b1dae0e9ab521` | 2026-08-21 | docs: document ai dictation (#443) | pending | - |
+| 267 | `535a9dc8db798f7402294b8032c07671ecf7c372` | 2026-08-21 | fix: prevent windows msvc pdb contention (#444) | pending | - |
+| 268 | `7079b19988238e82b91b3b265028270a9fce583e` | 2026-08-21 | fix: pass /FS to nested windows cl.exe (#441) | pending | - |
+| 269 | `f6a81fa07b59c09ed30fe2752ca2eb1519185f12` | 2026-08-21 | fix: keep windows whisper vulkan cmake under max_path (#445) | pending | - |
+| 270 | `4e3cdc569a1d94daf534656adda97f4ef818d091` | 2026-08-21 | feat: filter active workspaces (#446) | pending | - |
+| 271 | `17c9a8c643b6e9304d7c1db671ca07815e69ac3a` | 2026-08-22 | feat: add fx agent support (#447) | pending | - |
+| 272 | `6d2982c6ab2b11c9c08aea98f0b2e778e4300b55` | 2026-08-22 | feat: surface fx across landing and mobile (#449) | pending | - |
+| 273 | `7cf2f9ed3d3ef1c545a01b525fafc38a5716f474` | 2026-08-22 | fix: stop ggml from wrapping windows cl.exe with sccache (#448) | pending | - |
+| 274 | `e9a5ed9a299ffc7eeb079868191564898adf5c0d` | 2026-08-22 | fix: keep windows vulkan trycompile objects under max_path (#450) | pending | - |
+| 275 | `6ca3583f89bad49ea4419c891c8ee90bf39fd5b8` | 2026-08-22 | fix: stage windows sidecar before cmake install (#451) | pending | - |
+| 276 | `8e84755b4d049c947dafe9b65174f39d19f8dd6e` | 2026-08-22 | feat: support github stacked pull requests (#434) | pending | - |
+| 277 | `964a6ea6ab438850941c6d395f8718298b652e5b` | 2026-08-22 | feat: add subscription-backed ai reading diffs (#385) | pending | - |
+| 278 | `fc92469ebfe39217452b099720268181204a3ead` | 2026-08-22 | ci: split rust pr checks and reuse the compiler cache (#454) | pending | - |
+| 279 | `02513b4c5efc76f04c39e44b5b08355fada61bd6` | 2026-08-22 | fix: verify android native dependencies without ndk readelf lookup (#455) | pending | - |
+| 280 | `6c2a7c59f3f8e827efd6c787251871b73c916236` | 2026-08-22 | release: v0.64.0 v0.28.0-mobile | pending | - |
+| 281 | `9cbdaf8de534bd338ea3cd63e0f425c7586d281b` | 2026-08-22 | feat: enable mobile ai dictation on new workspace from prompt (#456) | pending | - |
+| 282 | `341774f00b44e1e303713a03c3c818f7613eba5c` | 2026-08-22 | release: v0.29.0-mobile | pending | - |
+| 283 | `b02ff23291da03560b55624aff43a06dab1dd33c` | 2026-08-22 | ci: bootstrap cloud relay durable object (#457) | pending | - |
+| 284 | `8b6f5e2def3528172540c52485fda163d517555c` | 2026-08-22 | docs: document merge queue batching (#458) | pending | - |
+| 285 | `f629bb1e5964862b272275597a27e15a4d5aa610` | 2026-08-22 | fix: use project-scoped bucket viewer (#460) | pending | - |
+| 286 | `dc3862a5439d823c3e6dbd017e046ce9dc9247cf` | 2026-08-22 | fix: read cloud storage versioning status (#473) | pending | - |
+| 287 | `2e1f4ebe0df4e90032c489c099a3e52b5a718095` | 2026-08-22 | docs: document cloud state versioning check (#474) | pending | - |
+| 288 | `2e69bc83c4b4e28c8380e4449a804a577b5c12f7` | 2026-08-23 | docs: clarify relay probe contract (#479) | pending | - |
+| 289 | `74bffcc355652fe91008e19a63a2f3901f8fe016` | 2026-08-23 | feat: add account-scoped mobile cloud relay (#354) | pending | - |
+| 290 | `c755342915d6a064b35e006b3e879f6952850773` | 2026-08-23 | release: v0.65.0 v0.30.0-mobile | pending | - |
+| 291 | `08929324ee81b0d48eaaede0b1997c3abd73cbe3` | 2026-08-23 | fix: route relay control requests to cloud (#482) | pending | - |
+| 292 | `8db7272f82d7a2af7736b6efd4a8e4c825b0db95` | 2026-08-23 | docs: clarify relay control plane routing (#483) | pending | - |
+| 293 | `267623b6fbde349a43c99061e00bf04c84b0f486` | 2026-08-23 | fix: verify relay deployment routing (#487) | pending | - |
+| 294 | `ef3202d7267bf2a25c64ac017d68b99f8c26dc32` | 2026-08-23 | docs: clarify relay websocket transport (#491) | pending | - |
+| 295 | `d50801a555914c23c8e426dc6ef0198189594492` | 2026-08-23 | fix: restore relay websocket connectivity (#490) | pending | - |
+| 296 | `020e96fda8acca0f876074be27fdd639c964b640` | 2026-08-23 | chore: add Amp agent modes (#494) | pending | - |
+| 297 | `f9b464aaeda8e1fcf06200834902e1b2fcb1025a` | 2026-08-23 | fix: stabilize relay runtime presence and reconnects (#495) | pending | - |
+| 298 | `347aaac386403dc40285dc774f039fee19e28c1c` | 2026-08-23 | fix: reconnect relay mobiles after runtime restart (#496) | pending | - |
+| 299 | `64503058bf29fc141ef19073cd8864807bb3110c` | 2026-08-23 | fix: harden relay transport recovery (#497) | pending | - |
+| 300 | `24a8a5c13dfebe05db4cb4a2f4b5df54fc5376ac` | 2026-08-23 | fix: complete mobile relay fallback (#493) | pending | - |
+| 301 | `95f2d16432caa6d1f8fb22cde1d6a3194712e990` | 2026-08-23 | docs: document relay envelope fragmentation (#498) | pending | - |
+| 302 | `9c5e8fb5193cd08c7dc8580c14175b352cb3cbe3` | 2026-08-23 | release: v0.65.1 v0.30.1-mobile | pending | - |
+| 303 | `72a19aadf4b26acaf1168b8e1ba5f377cb07ce9f` | 2026-08-23 | fix: ignore browser visibility during page close (#461) | pending | - |
+| 304 | `1287770ee5784716e02cf029df3d26c1da42009b` | 2026-08-23 | fix: preserve emulator dependencies during disposal (#462) | pending | - |
+| 305 | `95430c7a64b4f3d95ed10b333ca6d4804cd521e0` | 2026-08-23 | fix: retry ambiguous tab removal requests (#466) | pending | - |
+| 306 | `9d5c152964ac88cea0b7a1c5e7ba67c49d498839` | 2026-08-23 | fix: preserve terminal attachment during replacement (#467) | pending | - |
+| 307 | `a7a79b31e0633842107d0f01599f0248bd1897e7` | 2026-08-23 | fix: harden mobile dictation lifecycle (#464) | pending | - |
+| 308 | `8a26061dea226d02f9037fea1f80c04f735bbbcf` | 2026-08-23 | fix: complete runtime sentry reporting (#468) | pending | - |
+| 309 | `ecae2c9233d5a9f79011291ad5856230cd6618a0` | 2026-08-23 | fix: contain windows pty process trees | pending | - |
+| 310 | `9b139418868093ea0fb6cdfc73bd629db364f7bf` | 2026-08-23 | feat: add safe workspace storage cleanup | pending | - |
+| 311 | `271ad10d19838c4e5db7638cfd464e2ee5c3b8ae` | 2026-08-23 | feat: add optimistic concurrency to agent profiles (#472) | pending | - |
+| 312 | `8bb20cc17a37e2c1e0002d85c107a698ea711603` | 2026-08-23 | feat(agent-profiles): gate removal on live references (#475) | pending | - |
+| 313 | `fd6152207250fddc719dba00f5f9da99a2f3a160` | 2026-08-23 | feat(agent-profiles): make launches durably idempotent | pending | - |
+| 314 | `29284e628bdc896e4ef50c4fd7dd335c0ba89676` | 2026-08-23 | feat: snapshot agent profile launches | pending | - |
+| 315 | `c415db8d0945246116ff5e058e5927be00867015` | 2026-08-23 | fix: open android update downloads in the standalone browser (#469) | pending | - |
+| 316 | `4dfbac31124c28ee1c4b9a38df291ec47b47549b` | 2026-08-23 | feat: add speech model capability foundation (#500) | pending | - |
+| 317 | `e64c424c8bb1f7d1fa39267f8b70c96bad920c4c` | 2026-08-23 | fix: capture android native crash tombstones (#501) | pending | - |
+| 318 | `1a82048feeecc88bd4119b4195cec5418074c77e` | 2026-08-23 | ci: route release cuts through version pull requests (#502) | pending | - |
+| 319 | `b7c54c68f51f3dcf05c1e45534764ebbdef779f7` | 2026-08-23 | fix: enforce runtime profile ownership (#503) | pending | - |
+| 320 | `e81f223bd0d47f96cd9c1862f62b959a11307b52` | 2026-08-23 | fix: honor automations declaration and advertise automationsv1 (#463) | pending | - |
+| 321 | `38be412b63c87778fe09d9a636abf5360d2f081f` | 2026-08-23 | ci: run windows pty job lifecycle tests (#504) | pending | - |
+| 322 | `7f49800b036c92461b221bcbbb42246518144bdc` | 2026-08-23 | test: add historical host conformance (#505) | pending | - |
+| 323 | `690b142fa19c5869eb2ab0e1914306f691c8767d` | 2026-08-23 | fix: remove release cache poisoning path (#506) | pending | - |
+| 324 | `b31167ea8e4d269be0070979999a77817cd5398c` | 2026-08-23 | refactor(mobile): remove unused terminal session helper | pending | - |
+| 325 | `24e453659e8741401e967518a38c0a79a53a5e0c` | 2026-08-23 | refactor: deduplicate terminal theme palettes (#507) | pending | - |
+| 326 | `8b66b9a4398f8a51191b9aa73f6a51e77b2dc604` | 2026-08-23 | refactor: simplify codex snapshot delta application | pending | - |
+| 327 | `e6b2549d87ebfc9c705dba01b0d4b993f8f0f82b` | 2026-08-23 | refactor: simplify sidebar row building (#510) | pending | - |
+| 328 | `c6044cd3325b9f42b4c4813fa440b59dcee8d344` | 2026-08-23 | refactor(mobile): simplify workspace row building (#512) | pending | - |
+| 329 | `059cfc6566bad7912839701a8848cf81a2c38860` | 2026-08-23 | refactor(mobile): simplify codex timeline reducer (#509) | pending | - |
+| 330 | `be5fb522009ae9a8f0536f322ab5fedf35b1efad` | 2026-08-23 | refactor: deduplicate sidebar action mutations (#514) | pending | - |
+| 331 | `f9766bae064e87ad70690654750c1f534c38c17c` | 2026-08-23 | refactor: simplify codex timeline reducer (#511) | pending | - |
+| 332 | `5cf510ba2b6b00249d5bfcd304860e0d46141203` | 2026-08-23 | refactor: deduplicate settings search entries (#513) | pending | - |
+| 333 | `3706f493a65f90670d5292725b5539b20147958d` | 2026-08-23 | refactor: simplify typed codex session commands (#517) | pending | - |
+| 334 | `bfd252c2bdd2aa51802d25b99cc709c237dde218` | 2026-08-23 | refactor(mobile): simplify model menu flow (#515) | pending | - |
+| 335 | `4ff690945edbcde7df016e4adc4efe15c70842dd` | 2026-08-23 | refactor: simplify terminal surface build (#518) | pending | - |
+| 336 | `901a2101635b6ded7bd79c2556f9683b6f6b5b2b` | 2026-08-23 | refactor(mobile): simplify workspace file viewer (#516) | pending | - |
+| 337 | `8096009065410ec5e6fb2a2fa51b7764be6ad06f` | 2026-08-23 | refactor: simplify create workspace dialog (#519) | pending | - |
+| 338 | `9d3b38a278f0b537c2aa186ce0f1b1765f2df9e8` | 2026-08-23 | release: v0.66.0 v0.31.0-mobile (#520) | pending | - |
+| 339 | `c19700597c01eb747efac005b09086a22ce8625f` | 2026-08-24 | fix: unblock cut release version apply and windows vulkan (#521) | pending | - |
+| 340 | `3e5ea8b520d50234ccdc9169b23e1b9f4646c144` | 2026-08-24 | fix: retry version pull request after a failed publish (#522) | pending | - |
+| 341 | `a8c80452437a585996f047e8881effb19155408e` | 2026-08-24 | release: v0.66.0 v0.31.0-mobile (#523) | pending | - |
+| 342 | `152465d87c35b4525820fb9e6745ce96102fe455` | 2026-08-24 | ci: let mergify start a single-pr batch (#524) | pending | - |
+| 343 | `fb65644521fa2bc9782470f3d152cdf7f8bf4fdc` | 2026-08-24 | fix: allow already-current landing pins on version inspect (#526) | pending | - |
+| 344 | `251d752824e38ca1aa9456d5e518e5103409ea5e` | 2026-08-24 | release: v0.66.0 v0.31.0-mobile (#527) | pending | - |
+| 345 | `b4662e03246d302b813a382d5726891a3ea1bb1e` | 2026-08-24 | fix: resolve dart packages before packaging runtimes (#528) | pending | - |
+| 346 | `bd740e85cbb7d3fffb740f272af293c34aa66de1` | 2026-08-24 | release: v0.66.0 v0.31.0-mobile (#529) | pending | - |
+| 347 | `ffd2a0bfbc1fc9ffd75a1fce4b3021ed2c3b50e6` | 2026-08-25 | feat: add preview file tabs from explorer (#530) | pending | - |
+| 348 | `44b78bb9e7d004a38d67f9c142d9aecd3c8e4c0b` | 2026-08-25 | fix: recognize ccs claude account profiles as running agents (#531) | pending | - |
+| 349 | `bccc7d4d788eaaa1840139b1b319549eba25f358` | 2026-08-24 | release: v0.67.0 (#533) | pending | - |
+| 350 | `09a90721309d777ae822ba6c7cf95999c95977d0` | 2026-08-25 | feat: add keep-alive toggle next to runtime (#534) | pending | - |
+| 351 | `37525f54139b24aef6feb9fd3d10aa27cbb4bc53` | 2026-08-24 | release: v0.68.0 (#535) | pending | - |
+| 352 | `ee8a5654ff10a522724c38884ce07e1a17381f51` | 2026-08-25 | feat: open preview tabs from source control search and quick open (#536) | pending | - |
+| 353 | `1ca96f693dc6a27c967b2205147a2774a2d4f32e` | 2026-08-25 | release: v0.69.0 (#537) | pending | - |
+| 354 | `77364b0155609a346f2680f138326173d751f0e1` | 2026-08-25 | feat: copy gitignored files from .worktreeinclude (#539) | pending | - |
+| 355 | `8e50fb54c57789f73f08cce0069214ea0fb23c60` | 2026-08-25 | refactor: rename computer-use and agent-canvas skills (#540) | pending | - |
+| 356 | `ba8c7dfb7e7fbefe49beb13911b663d4b7af7ec4` | 2026-08-25 | feat: move the terminal toolbar between tab corners (#538) | pending | - |
+| 357 | `b7ba8c0b8f412681e67cf0c3b78bf1f7a05578fa` | 2026-08-25 | feat(landing): link agent cards to official sites in new tab (#542) | pending | - |
+| 358 | `566b9724535350e81e7ef5ffcb432136121b33a5` | 2026-08-25 | feat: add remote ai dictation providers | pending | - |
+| 359 | `d94257c0c88c1ee1cbfb3b1b7a5fc58f98663c39` | 2026-08-25 | feat: add starlight developer docs on the landing site (#541) | pending | - |
+| 360 | `ea3516830f6434ed622d9e52416577546d195df7` | 2026-08-25 | [ImgBot] Optimize images (#544) | pending | - |
+| 361 | `d243d1b1a5bb0146c0ef1c6940e8ec17d30e8f6f` | 2026-08-25 | fix: center docs layout on wide screens (#545) | pending | - |
+| 362 | `49aa5abf136c96ee11606f05049da70e08af67e8` | 2026-08-25 | fix: route codex dictation model correctly | pending | - |
+| 363 | `c0cae8a5030898748c254774f5213aa9d69e275d` | 2026-08-25 | fix: deliver claude agent-status hooks to ccs account profiles (#546) | pending | - |
+| 364 | `b987f853234543d0d66570189104c0b3f713f848` | 2026-08-25 | fix: harden remote ai dictation | pending | - |
+| 365 | `92503038f671e4a91a7d4e54dc4725b4377d3a37` | 2026-08-25 | release: v0.70.0 v0.31.1-mobile (#547) | pending | - |
+| 366 | `c15b75afab60f1a128eac1b2d165f917cbd1af95` | 2026-08-25 | fix: remove unreachable capability fallback | pending | - |
+| 367 | `74f1393d7d1169d9ef28201ed05372035214791d` | 2026-08-25 | fix: satisfy pr quality checks | pending | - |
+| 368 | `740f0076e30a5cdd77e1b29628c0414de5d46f16` | 2026-08-25 | fix: define capability mixin contract | pending | - |
+| 369 | `5d16ad92bb4f5c7a4e3c9f3d77024f342ca01f01` | 2026-08-25 | fix: declare runtime capability interfaces | pending | - |
+| 370 | `b38d952de2082a0dd825b68622088b043fabadb4` | 2026-08-25 | feat: add remote ai dictation providers (#543) | pending | - |
+| 371 | `be240a6bb40180786ca058f06913b5e3b8cf798a` | 2026-08-25 | refactor: rename ai text to ai assist (#548) | pending | - |
+| 372 | `f484700334cdbb3a225748d5b909b84691b5bfd6` | 2026-08-25 | release: v0.71.0 v0.31.2-mobile (#549) | pending | - |
+| 373 | `a1a8c27e05bda4a03d03c57683bc85124a60657f` | 2026-08-25 | feat: add direct openai dictation | pending | - |
+| 374 | `1e6ccf5c3d7ca0f70113aebb50ca3489094eacc1` | 2026-08-25 | fix: satisfy direct provider analysis | pending | - |
+| 375 | `6ef96e39cf4598c59dc4fd48196d09d00248eecc` | 2026-08-25 | test: update dictation search snapshot | pending | - |
+| 376 | `06dab3f0e23bc9af5e523e07812d1f20b558a454` | 2026-08-26 | revert: remove desktop direct dictation | pending | - |
+| 377 | `2697aa919827a6e0cd5fcb1c7917c8cc3b45c0c8` | 2026-08-26 | chore: merge main into mobile dictation | pending | - |
+| 378 | `0f9a48ff038490213a510e2e6c6476333868ddbd` | 2026-08-26 | feat: add mobile remote dictation providers | pending | - |
+| 379 | `b37c0be2f6df53b81f561be3e5b7a4768bb9e646` | 2026-08-26 | fix: clean up merged dictation runtime | pending | - |
+| 380 | `3e28b428b7dc5220bc3ff18075b32931c24e5f92` | 2026-08-26 | test: cover mobile runtime dictation routing | pending | - |
+| 381 | `85aa6723777a7c21af72abffd3e3ff351fdd2cf9` | 2026-08-26 | style: format mobile dictation routing test | pending | - |
+| 382 | `658f2e5ecdd5a9a4ac24c178e0ff6522ba62dfdc` | 2026-08-26 | test: cover paired codex dictation | pending | - |
+| 383 | `36afe17e628ed3971c5d7c97348d69c23d8ad498` | 2026-08-26 | test: add direct mobile dictation golden | pending | - |
+| 384 | `ebab7ccaaf446cdcab3ac1cfef1b58b967773584` | 2026-08-26 | test: capture direct mobile dictation settings | pending | - |
+| 385 | `11018ecb62fe85218f33cb4655394548f15f14e4` | 2026-08-26 | Merge pull request #550 from leynier/cursor/openai-dictation-182f | pending | - |
+| 386 | `f46ecf44f4f65b32b150ac1db66a7ac39efc6dd4` | 2026-08-25 | release: v0.72.0 v0.32.0-mobile (#551) | pending | - |
+| 387 | `49040e7d1e5d609e40b2c2896d7c952945ecbd36` | 2026-08-26 | feat: add safe runtime clear command (#552) | pending | - |
+| 388 | `bd36e01d5c132476dba69c67271c7535794c6c50` | 2026-08-26 | fix: quiesce terminal host client during app quit (#553) | pending | - |
+| 389 | `d715ea72f946a96ee1d199f6d5bff6b66aa777d0` | 2026-08-26 | fix: serialize terminal attachment recovery (#554) | pending | - |
+| 390 | `3bf5746d01021821749fdaa75716e8e443ec6c34` | 2026-08-26 | fix: guard riverpod callbacks after disposal (#555) | pending | - |
+| 391 | `54c08f31b8fe2fb1b293b0e0bff249fc12746873` | 2026-08-26 | fix: suppress expected runtime owner sentry events (#556) | pending | - |
+| 392 | `0bda8c18cbba87ba4fb353be5e17b8b1123e6a09` | 2026-08-26 | release: v0.73.0 v0.32.1-mobile (#558) | pending | - |
+| 393 | `1073e87e36f5dd11a6e1fa979d063fced8ebc442` | 2026-08-26 | feat: add source control tree context actions | pending | - |
+| 394 | `14e883f8f699f1845f30cd1d4cee313c6c2af1ff` | 2026-08-26 | fix: keep source control reveal files under line limits | pending | - |
+| 395 | `a36fd2d85e5eb584bf457ee4b2c137ca7700a3b9` | 2026-08-26 | Merge pull request #559 from leynier/feat/source-control-tree-context-menu | pending | - |
+| 396 | `571b7efd9549c2c6a573e37847905c43c7556b0f` | 2026-08-26 | release: v0.74.0 | pending | - |
+| 397 | `df760e8e568c4360ae5ee66773e10cde89e8443d` | 2026-08-26 | Merge pull request #560 from leynier/release/version-v0.74.0 | pending | - |
+| 398 | `bbb452c3df5eb932802f250c60e42a0e0d5f586d` | 2026-08-26 | docs: add desktop and mobile product media (#561) | pending | - |
+| 399 | `20f15d4e956baab2d111bcff103dc04a762e29a4` | 2026-08-27 | fix: use Homebrew symbol form for macOS cask dependency | pending | - |
+| 400 | `d29d279152f96d980a40e1bc77c99bda47b59991` | 2026-08-27 | Merge pull request #562 from leynier/fix/homebrew-macos-depends-on | pending | - |

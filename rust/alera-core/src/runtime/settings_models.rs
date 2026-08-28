@@ -11,6 +11,8 @@ pub struct RuntimeSettings {
     #[serde(default = "default_true")]
     pub confirm_workspace_removal: bool,
     #[serde(default)]
+    pub default_agent_profile_id: Option<String>,
+    #[serde(default)]
     pub agent_status_hooks: RuntimeAgentStatusHookSettings,
     #[serde(default)]
     pub agent_quotas: RuntimeAgentQuotaSettings,
@@ -26,6 +28,7 @@ impl Default for RuntimeSettings {
             workspace_directory: None,
             confirm_project_removal: true,
             confirm_workspace_removal: true,
+            default_agent_profile_id: None,
             agent_status_hooks: RuntimeAgentStatusHookSettings::default(),
             agent_quotas: RuntimeAgentQuotaSettings::default(),
             mobile_push_notifications: RuntimeMobilePushSettings::default(),

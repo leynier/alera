@@ -234,6 +234,7 @@ impl AleraApp {
                 ai_text_settings_catalog::selected_model_id(&settings_state, effective_agent);
             let model_choices =
                 ai_text_settings_catalog::model_choices(&settings_state, effective_agent);
+            let model = model_choices.iter().find(|model| model.id == inherited_model_id);
             let inherited_model_label = model_choices
                 .iter()
                 .find(|model| model.id == inherited_model_id)
@@ -261,6 +262,35 @@ impl AleraApp {
             settings_selects.insert(
                 format!("ai-prompt-{operation}-model"),
                 settings_select_owned(window, cx, model_options, &selected_model_label, false),
+            );
+            let thinking_options = model
+                .into_iter()
+                .flat_map(|model| model.thinking_levels.iter())
+                .map(|(_, label)| label.clone())
+                .collect::<Vec<_>>();
+            let selected_thinking_label = model
+                .and_then(|model| {
+                    let thinking_id = settings_state
+                        .ai_text_selected_thinking_by_model
+                        .get(&inherited_model_id)
+                        .map(String::as_str)
+                        .or(model.default_thinking.as_deref())?;
+                    model
+                        .thinking_levels
+                        .iter()
+                        .find(|(id, _)| id == thinking_id)
+                        .map(|(_, label)| label.clone())
+                })
+                .unwrap_or_default();
+            settings_selects.insert(
+                format!("ai-prompt-{operation}-thinking"),
+                settings_select_owned(
+                    window,
+                    cx,
+                    thinking_options,
+                    &selected_thinking_label,
+                    false,
+                ),
             );
         }
         let tab_rename_input = cx.new(|cx| InputState::new(window, cx).placeholder("Tab Name"));
@@ -846,6 +876,7 @@ impl AleraApp {
             refresh_generation: 0,
             terminal_sessions: BTreeMap::new(),
             terminal_frame_views: BTreeMap::new(),
+            command_terminal: None,
             terminal_output_dirty_sessions: BTreeSet::new(),
             terminal_drivers: BTreeMap::new(),
             terminal_driver_collapsed: BTreeSet::new(),

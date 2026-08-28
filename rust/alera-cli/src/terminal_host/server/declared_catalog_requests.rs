@@ -97,6 +97,7 @@ impl ServerActor {
             .map_err(|error| HostError::state(error.to_string()))?;
         if removed {
             self.broadcast_authenticated(event("agentProfilesChanged", json!({})));
+            self.broadcast_authenticated(event("runtimeSettingsChanged", json!({})));
         }
         Ok(json!({ "removed": removed }))
     }

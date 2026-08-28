@@ -155,6 +155,43 @@ impl AleraApp {
                     );
                 });
             }
+            let effective_model_id = prompt
+                .and_then(|prompt| prompt.model.as_deref())
+                .unwrap_or(&inherited_model_id);
+            let effective_model = effective_models
+                .iter()
+                .find(|model| model.id == effective_model_id);
+            let selected_thinking = effective_model.and_then(|model| {
+                let thinking_id = self
+                    .settings_state
+                    .ai_text_selected_thinking_by_model
+                    .get(effective_model_id)
+                    .map(String::as_str)
+                    .or(model.default_thinking.as_deref())?;
+                model
+                    .thinking_levels
+                    .iter()
+                    .find(|(id, _)| id == thinking_id)
+                    .map(|(_, label)| label.clone())
+            });
+            if let Some(select) = self
+                .settings_selects
+                .get(&format!("ai-prompt-{operation}-thinking"))
+            {
+                let options = effective_model
+                    .into_iter()
+                    .flat_map(|model| model.thinking_levels.iter())
+                    .map(|(_, label)| SettingsSelectOption::new(label.clone()))
+                    .collect::<Vec<_>>();
+                select.update(cx, |select, cx| {
+                    select.set_items(SearchableVec::new(options), window, cx);
+                    if let Some(selected) = selected_thinking.clone() {
+                        select.set_selected_value(&SharedString::from(selected), window, cx);
+                    } else {
+                        select.set_selected_index(None, window, cx);
+                    }
+                });
+            }
         }
     }
 }

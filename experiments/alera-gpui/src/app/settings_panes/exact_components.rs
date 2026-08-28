@@ -484,7 +484,7 @@ fn skill_install_control(
                         cx.stop_propagation();
                     }),
                 )
-                .child(icon(AleraIcon::Download, 16.0, theme::text_muted()))
+                .child(icon(AleraIcon::Terminal, 16.0, theme::text_muted()))
                 .child(install_label),
         )
 }

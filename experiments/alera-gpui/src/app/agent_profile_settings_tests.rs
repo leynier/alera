@@ -86,6 +86,23 @@ fn command_preview_quotes_values_with_spaces() {
 }
 
 #[test]
+fn command_preview_routes_claude_through_ccs_profile() {
+    let config: Map<String, Value> = json!({
+        "ccsProfile": "work",
+        "model": "opus",
+        "permissionMode": "acceptEdits"
+    })
+    .as_object()
+    .expect("object")
+    .clone();
+
+    assert_eq!(
+        managed_command_preview("claude", &config),
+        "ccs work --model opus --permission-mode acceptEdits"
+    );
+}
+
+#[test]
 fn risk_markers_match_reduced_protection_options() {
     let config = json!({
         "sandbox": "danger-full-access",

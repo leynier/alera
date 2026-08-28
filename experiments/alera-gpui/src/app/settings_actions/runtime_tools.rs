@@ -34,21 +34,22 @@ impl AleraApp {
         runner: &str,
         cx: &mut Context<Self>,
     ) {
-        let operation_id = format!(
-            "gpui-{skill}-{}",
-            std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .map(|duration| duration.as_millis())
-                .unwrap_or_default()
-        );
-        self.run_settings_request(
-            "agentSkill.install",
-            json!({
-                "operationId": operation_id,
-                "skill": skill,
-                "runner": runner,
-            }),
-            "Skill Install Completed",
+        let skill_name = match skill {
+            "cli" => "Alera CLI",
+            "orchestration" => "Alera Orchestration",
+            "computer-use" => "Computer Use",
+            "emulator" => "Alera Emulator",
+            _ => skill,
+        };
+        self.open_command_terminal(
+            CommandTerminalRequest {
+                title: format!("Install {skill_name} Skill"),
+                command: agent_skill_install_command(skill, runner),
+                description: Some(
+                    "The Installer Runs Here. Answer Any Prompt In The Terminal.".to_owned(),
+                ),
+                working_directory: None,
+            },
             cx,
         );
     }
@@ -118,7 +119,7 @@ impl AleraApp {
         cx.notify();
     }
 
-    fn persist_settings(&self) {
+    pub(super) fn persist_settings(&self) {
         self.settings_store.save(&self.settings_state);
     }
 
@@ -246,7 +247,7 @@ impl AleraApp {
         cx.notify();
     }
 
-    fn update_runtime_setting(&mut self, key: &'static str, value: Value, cx: &mut Context<Self>) {
+    pub(super) fn update_runtime_setting(&mut self, key: &'static str, value: Value, cx: &mut Context<Self>) {
         self.persist_settings();
         self.settings_state.loading = true;
         self.settings_state.error = None;

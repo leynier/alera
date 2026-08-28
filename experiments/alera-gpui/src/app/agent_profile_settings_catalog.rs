@@ -358,6 +358,11 @@ pub(super) fn controls_for(adapter: &str) -> Vec<ManagedControl> {
         "claude" => vec![
             choice("effort", "Reasoning Effort", CLAUDE_EFFORT),
             choice("permissionMode", "Permission Mode", CLAUDE_PERMISSION),
+            flag(
+                "allowSkipPermissions",
+                "Allow Skip Permissions",
+                "Allow Claude To Bypass Permission Checks During The Session.",
+            ),
         ],
         "copilot" => vec![
             choice("effort", "Reasoning Effort", COPILOT_EFFORT),

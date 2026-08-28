@@ -105,6 +105,10 @@ impl AleraApp {
                     &event,
                     BridgeEvent::Notification { name, .. } if name == "agentProfilesChanged"
                 );
+                let runtime_settings_changed = matches!(
+                    &event,
+                    BridgeEvent::Notification { name, .. } if name == "runtimeSettingsChanged"
+                );
                 let mobile_access_changed = matches!(
                     &event,
                     BridgeEvent::Notification { name, .. }
@@ -202,6 +206,9 @@ impl AleraApp {
                         && this.settings_pane == SettingsPane::AgentProfiles
                     {
                         this.refresh_agent_profiles(window, cx);
+                    }
+                    if runtime_settings_changed {
+                        this.refresh_settings_values(cx);
                     }
                     if mobile_access_changed
                         && this.show_settings_dialog

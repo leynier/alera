@@ -205,6 +205,11 @@ impl AleraApp {
             }
             let bridge = self.bridge.clone();
             let shell = std::env::var("SHELL").unwrap_or_else(|_| "/bin/sh".to_string());
+            let command_startup = self
+                .command_terminal
+                .as_ref()
+                .filter(|command| command.session_id == session_id)
+                .map(|command| command.request.command.clone());
             cx.spawn(async move |this, cx| {
                 let result = bridge
                     .request_with_timeout(
@@ -232,6 +237,7 @@ impl AleraApp {
                 let Some(this) = this.upgrade() else {
                     return;
                 };
+                let attach_succeeded = result.is_ok();
                 this.update(cx, |this, cx| {
                     let Some(session) = this.terminal_sessions.get_mut(&session_id) else {
                         return;
@@ -283,6 +289,15 @@ impl AleraApp {
                     if let Some(generation) = restore_generation {
                         this.schedule_terminal_restore(session_id.clone(), generation, cx);
                     }
+                    if attach_succeeded {
+                        if let Some(command) = command_startup {
+                            this.schedule_command_terminal_startup(
+                                session_id.clone(),
+                                command,
+                                cx,
+                            );
+                        }
+                    }
                     cx.notify();
                 });
             })
@@ -295,6 +310,15 @@ impl AleraApp {
     /// render, so fall back to the already measured pane and remove its tab
     /// bar before deriving rows.
     fn terminal_dimensions_for_tab(&self, tab_id: &str) -> Option<(usize, usize)> {
+        if self
+            .command_terminal
+            .as_ref()
+            .is_some_and(|command| command.session_id == tab_id)
+        {
+            // The command dialog has a fixed 720 x 560 logical surface. Keep
+            // a conservative cell grid until its canvas reports real bounds.
+            return Some((88, 20));
+        }
         let tab = self.snapshot.tabs.iter().find(|tab| tab.id == tab_id)?;
         let session_id = terminal_session_id(tab);
         let (bounds, includes_tab_bar) =
@@ -328,13 +352,25 @@ impl AleraApp {
     }
 
     fn terminal_contexts(&self) -> Vec<(String, String, String, String)> {
+        let mut contexts = self
+            .command_terminal
+            .as_ref()
+            .map(|command| {
+                vec![(
+                    command.session_id.clone(),
+                    super::command_terminal::command_terminal_workspace_id().to_owned(),
+                    command.session_id.clone(),
+                    command.working_directory.clone(),
+                )]
+            })
+            .unwrap_or_default();
         let Some(workspace_id) = self.selected_workspace_id.as_deref() else {
-            return Vec::new();
+            return contexts;
         };
         let Some(workspace) = self.snapshot.workspace(workspace_id) else {
-            return Vec::new();
+            return contexts;
         };
-        self.snapshot
+        contexts.extend(self.snapshot
             .tabs
             .iter()
             .filter(|tab| tab.kind == "terminal")
@@ -346,7 +382,8 @@ impl AleraApp {
                     workspace.path.clone(),
                 )
             })
-            .collect()
+            .collect::<Vec<_>>());
+        contexts
     }
 
     fn terminal_frame_snapshot(&self, session_id: &str) -> Option<TerminalFrameSnapshot> {
@@ -1255,6 +1292,9 @@ impl AleraApp {
     }
 
     pub(super) fn selected_terminal_session_id(&self) -> Option<String> {
+        if let Some(command) = self.command_terminal.as_ref() {
+            return Some(command.session_id.clone());
+        }
         let tab_id = self.selected_tab_id.as_deref()?;
         self.snapshot
             .tabs

@@ -4,6 +4,7 @@ use gpui::{Context, SharedString, Window};
 use gpui_component::select::SearchableVec;
 use serde_json::{json, Value};
 
+use super::command_terminal::CommandTerminalRequest;
 use super::settings_select_option::SettingsSelectOption;
 use super::settings_state::{AiTextPromptSettings, GitHubStarState, SettingsState};
 use super::AleraApp;
@@ -410,6 +411,51 @@ impl AleraApp {
                     cx,
                 );
                 self.sync_ai_text_selects(window, cx);
+            }
+            key if key.starts_with("ai-prompt-") && key.ends_with("-thinking") => {
+                let operation = key
+                    .trim_start_matches("ai-prompt-")
+                    .trim_end_matches("-thinking")
+                    .to_string();
+                let prompt = self
+                    .settings_state
+                    .ai_text_prompt_settings_by_operation
+                    .get(&operation);
+                let agent = prompt
+                    .and_then(|prompt| prompt.agent.as_deref())
+                    .unwrap_or(&self.settings_state.ai_text_agent);
+                let model = prompt
+                    .and_then(|prompt| prompt.model.as_deref())
+                    .map(str::to_owned)
+                    .unwrap_or_else(|| {
+                        super::ai_text_settings_catalog::selected_model_id(
+                            &self.settings_state,
+                            agent,
+                        )
+                    });
+                let Some(thinking) = super::ai_text_settings_catalog::model_choices(
+                    &self.settings_state,
+                    agent,
+                )
+                .into_iter()
+                .find(|candidate| candidate.id == model)
+                .and_then(|candidate| {
+                    candidate
+                        .thinking_levels
+                        .into_iter()
+                        .find(|(_, label)| *label == value)
+                        .map(|(id, _)| id)
+                }) else {
+                    return;
+                };
+                self.update_ai_text_settings(
+                    |settings| {
+                        settings
+                            .ai_text_selected_thinking_by_model
+                            .insert(model, thinking);
+                    },
+                    cx,
+                );
             }
             "terminal-font" => {
                 self.update_terminal_settings(|settings| settings.terminal_font_family = value, cx);

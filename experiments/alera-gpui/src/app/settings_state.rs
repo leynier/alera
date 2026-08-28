@@ -105,6 +105,7 @@ pub(super) struct SettingsState {
     pub agent_status_notifications_enabled: bool,
     pub agent_status_finished_notifications_enabled: bool,
     pub keep_computer_awake_while_agents_work: bool,
+    pub default_agent_profile_id: Option<String>,
 
     pub quota_enabled_providers: Vec<String>,
     pub quota_unpinned_keys: BTreeSet<String>,
@@ -201,6 +202,7 @@ impl Default for SettingsState {
             agent_status_notifications_enabled: false,
             agent_status_finished_notifications_enabled: false,
             keep_computer_awake_while_agents_work: false,
+            default_agent_profile_id: None,
             quota_enabled_providers: DEFAULT_QUOTA_PROVIDERS
                 .into_iter()
                 .map(str::to_string)
@@ -288,6 +290,13 @@ impl SettingsState {
             .and_then(Value::as_bool)
         {
             self.confirm_workspace_removal = enabled;
+        }
+        if let Some(profile_id) = value.get("defaultAgentProfileId") {
+            self.default_agent_profile_id = profile_id
+                .as_str()
+                .map(str::trim)
+                .filter(|profile_id| !profile_id.is_empty())
+                .map(str::to_owned);
         }
         if let Some(hooks) = value.get("agentStatusHooks").and_then(Value::as_object) {
             for (agent, enabled) in hooks {
@@ -476,6 +485,13 @@ impl SettingsState {
         }
 
         if let Some(agents) = value.get("agents").and_then(Value::as_object) {
+            if let Some(profile_id) = agents.get("defaultAgentProfileId") {
+                self.default_agent_profile_id = profile_id
+                    .as_str()
+                    .map(str::trim)
+                    .filter(|profile_id| !profile_id.is_empty())
+                    .map(str::to_owned);
+            }
             if let Some(hooks) = agents.get("agentStatusHooks").and_then(Value::as_object) {
                 for (agent, enabled) in hooks {
                     if let Some(enabled) = enabled.as_bool() {

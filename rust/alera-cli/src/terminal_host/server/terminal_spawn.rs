@@ -119,7 +119,10 @@ impl ServerActor {
         let managed_launch = initial_managed_agent_launch(tab)?;
         let command = if let Some(mut launch) = managed_launch {
             if let Some(prompt) = initial_prompt(tab) {
-                launch.arguments.push(prompt);
+                crate::terminal_host::orchestration::agent_startup_command::append_codex_initial_prompt_argument(
+                    &mut launch.arguments,
+                    prompt,
+                );
             }
             Some(
                 crate::terminal_host::orchestration::managed_agent_launch::render_managed_launch(
@@ -131,7 +134,7 @@ impl ServerActor {
             initial_command(tab).map(|command| {
                 initial_prompt(tab)
                     .map(|prompt| {
-                        crate::terminal_host::orchestration::agent_startup_command::command_with_initial_prompt(
+                        crate::terminal_host::orchestration::agent_startup_command::codex_command_with_initial_prompt(
                             &command,
                             &prompt,
                             &default_launch.interactive_shell,

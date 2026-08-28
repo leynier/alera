@@ -54,6 +54,7 @@ pub(super) struct AgentProfileSettingsState {
     pub(super) persona_input: Entity<InputState>,
     pub(super) max_ai_credits_input: Entity<InputState>,
     pub(super) max_autopilot_continues_input: Entity<InputState>,
+    pub(super) ccs_profile_input: Entity<InputState>,
     pub(super) description_input: Entity<InputState>,
     pub(super) quota_group_input: Entity<InputState>,
 }
@@ -92,6 +93,7 @@ impl AgentProfileSettingsState {
             persona_input: cx.new(|cx| InputState::new(window, cx)),
             max_ai_credits_input: cx.new(|cx| InputState::new(window, cx)),
             max_autopilot_continues_input: cx.new(|cx| InputState::new(window, cx)),
+            ccs_profile_input: cx.new(|cx| InputState::new(window, cx).placeholder("Profile Name")),
             description_input: cx.new(|cx| InputState::new(window, cx).placeholder("Description")),
             quota_group_input: cx.new(|cx| InputState::new(window, cx).placeholder("Quota Group")),
         }
@@ -106,6 +108,7 @@ impl AgentProfileSettingsState {
                 "maxAutopilotContinues",
                 self.max_autopilot_continues_input.clone(),
             ),
+            ("ccsProfile", self.ccs_profile_input.clone()),
             ("description", self.description_input.clone()),
             ("quotaGroup", self.quota_group_input.clone()),
         ]
@@ -198,6 +201,7 @@ pub(super) fn default_agent_command(adapter: &str) -> &'static str {
 }
 
 pub(super) fn managed_command_preview(adapter: &str, config: &Map<String, Value>) -> String {
+    let mut executable = default_agent_command(adapter).to_owned();
     let mut args = Vec::new();
     match adapter {
         "codex" => {
@@ -221,10 +225,24 @@ pub(super) fn managed_command_preview(adapter: &str, config: &Map<String, Value>
             }
         }
         "claude" => {
+            if let Some(profile) = config.get("ccsProfile").and_then(Value::as_str) {
+                let profile = profile.trim();
+                if !profile.is_empty() {
+                    executable = "ccs".to_owned();
+                    args.push(profile.to_owned());
+                }
+            }
             push_string_option(&mut args, config, "model", "--model");
             push_string_option(&mut args, config, "effort", "--effort");
             push_string_option(&mut args, config, "agent", "--agent");
             push_string_option(&mut args, config, "permissionMode", "--permission-mode");
+            if config
+                .get("allowSkipPermissions")
+                .and_then(Value::as_bool)
+                == Some(true)
+            {
+                args.push("--allow-dangerously-skip-permissions".to_owned());
+            }
         }
         "copilot" => {
             for (key, flag) in [
@@ -263,7 +281,7 @@ pub(super) fn managed_command_preview(adapter: &str, config: &Map<String, Value>
         "amp" => push_string_option(&mut args, config, "mode", "--mode"),
         _ => {}
     }
-    std::iter::once(default_agent_command(adapter).to_owned())
+    std::iter::once(executable)
         .chain(args)
         .collect::<Vec<_>>()
         .join(" ")
@@ -296,6 +314,7 @@ pub(super) fn managed_risk_markers(adapter: &str, config: &Map<String, Value>) -
                 "bypassPermissions",
             );
             mark(string_is("permissionMode", "dontAsk"), "dontAsk");
+            mark(enabled("allowSkipPermissions"), "allowSkipPermissions");
         }
         "copilot" => {
             mark(enabled("allowAll"), "allowAll");
