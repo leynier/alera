@@ -283,6 +283,7 @@ impl AleraApp {
                     this.cache_markdown_preview_content(&path, &content);
                     this.editor_dirty_paths.insert(path.clone());
                     this.editor_dirty = true;
+                    this.schedule_editor_autosave(cx);
                     cx.notify();
                 },
             ));
@@ -353,6 +354,7 @@ impl AleraApp {
         self.git_generation += 1;
         self.explorer_generation += 1;
         self.editor_generation += 1;
+        self.editor_autosave_generation = self.editor_autosave_generation.wrapping_add(1);
         self.search_busy = false;
         self.search_replacing = false;
         self.git_busy = false;
@@ -801,6 +803,7 @@ impl AleraApp {
         };
         self.editor_load_error_paths.remove(&relative_path);
         self.editor_error_messages.remove(&relative_path);
+        self.editor_autosave_generation = self.editor_autosave_generation.wrapping_add(1);
         self.editor_generation += 1;
         let generation = self.editor_generation;
         self.editor_busy = true;
@@ -984,6 +987,7 @@ impl AleraApp {
                             .insert(requested_path.clone(), message);
                     }
                 }
+                this.schedule_editor_autosave(cx);
                 cx.notify();
             });
         })
@@ -999,6 +1003,8 @@ impl AleraApp {
         };
         let editor_input = self.editor_input_for_path(&document.relative_path);
         let display_content = editor_input.read(cx).value().to_string();
+        let saved_path = document.relative_path.clone();
+        let saved_content = display_content.clone();
         self.editor_generation += 1;
         let generation = self.editor_generation;
         self.editor_busy = true;
@@ -1017,12 +1023,27 @@ impl AleraApp {
                 this.editor_busy = false;
                 match result {
                     Ok(document) => {
-                        let path = document.relative_path.clone();
+                        let path = saved_path.clone();
+                        let current_content = this
+                            .editor_input_for_path(&path)
+                            .read(cx)
+                            .value()
+                            .to_string();
                         this.editor_documents.insert(path.clone(), document.clone());
-                        this.editor_buffer_text.remove(&path);
-                        this.editor_dirty_paths.remove(&path);
                         this.editor_document = Some(document);
-                        this.editor_dirty = false;
+                        if current_content == saved_content {
+                            this.editor_buffer_text.remove(&path);
+                            this.editor_dirty_paths.remove(&path);
+                            this.editor_dirty = false;
+                        } else {
+                            // Keep edits made while the write was in flight;
+                            // only the content actually written becomes the
+                            // new conflict baseline.
+                            this.editor_buffer_text
+                                .insert(path.clone(), current_content);
+                            this.editor_dirty_paths.insert(path.clone());
+                            this.editor_dirty = true;
+                        }
                         this.editor_conflict = false;
                         this.local_message = Some(
                             if overwrite {
@@ -1032,6 +1053,7 @@ impl AleraApp {
                             }
                             .into(),
                         );
+                        this.schedule_editor_autosave(cx);
                     }
                     Err(error) if super::editor_actions::is_editor_conflict(&error) => {
                         this.editor_conflict = true;

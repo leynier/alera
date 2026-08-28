@@ -77,6 +77,17 @@ impl AleraApp {
                     self.invalid_settings_value("Tab Size", cx);
                 }
             }
+            "editor-autosave-delay" => {
+                if let Some(value) = parse_i64(&value, 1, 60) {
+                    self.update_editor_settings(
+                        |settings| settings.editor_autosave_delay_seconds = value,
+                        cx,
+                    );
+                    self.schedule_editor_autosave(cx);
+                } else {
+                    self.invalid_settings_value("Autosave Delay", cx);
+                }
+            }
             "terminal-font-size" => {
                 self.update_terminal_f64(
                     &value,

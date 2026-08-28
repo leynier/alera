@@ -12,6 +12,41 @@ pub(super) fn is_editor_conflict(error: &str) -> bool {
 }
 
 impl AleraApp {
+    pub(super) fn schedule_editor_autosave(&mut self, cx: &mut Context<Self>) {
+        self.editor_autosave_generation = self.editor_autosave_generation.wrapping_add(1);
+        let generation = self.editor_autosave_generation;
+        if !self.settings_state.editor_autosave_enabled
+            || !self.editor_dirty
+            || self.editor_busy
+            || self.editor_conflict
+        {
+            return;
+        }
+        let delay = std::time::Duration::from_secs(
+            self.settings_state
+                .editor_autosave_delay_seconds
+                .clamp(1, 60) as u64,
+        );
+        cx.spawn(async move |this, cx| {
+            cx.background_executor().timer(delay).await;
+            let Some(this) = this.upgrade() else {
+                return;
+            };
+            this.update(cx, |this, cx| {
+                if generation != this.editor_autosave_generation
+                    || !this.settings_state.editor_autosave_enabled
+                    || !this.editor_dirty
+                    || this.editor_busy
+                    || this.editor_conflict
+                {
+                    return;
+                }
+                this.save_editor(false, cx);
+            });
+        })
+        .detach();
+    }
+
     pub(super) fn discard_editor_changes(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         if self.editor_busy {
             return;
@@ -29,6 +64,7 @@ impl AleraApp {
         self.editor_dirty_paths.remove(&document.relative_path);
         self.editor_dirty = false;
         self.editor_conflict = false;
+        self.editor_autosave_generation = self.editor_autosave_generation.wrapping_add(1);
         self.local_message = Some("Changes discarded".into());
         cx.notify();
     }

@@ -282,6 +282,8 @@ impl AleraApp {
             |settings| {
                 settings.editor_theme = defaults.editor_theme;
                 settings.editor_tab_size = defaults.editor_tab_size;
+                settings.editor_autosave_enabled = defaults.editor_autosave_enabled;
+                settings.editor_autosave_delay_seconds = defaults.editor_autosave_delay_seconds;
             },
             cx,
         );

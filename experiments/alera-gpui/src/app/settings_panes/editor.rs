@@ -162,5 +162,45 @@ fn editor_pane(
                 ),
             )],
         )))
+        .child(div().mt_4().child(exact_settings_group(
+            "Autosave",
+            "Save dirty editor tabs after they have been idle.",
+            vec![
+                exact_settings_row(
+                    "Autosave",
+                    "Automatically save editor changes after a pause.",
+                    settings_switch(
+                        "editor-autosave",
+                        "Autosave",
+                        settings.editor_autosave_enabled,
+                    )
+                    .on_click(cx.listener(|this, _, _, cx| {
+                        this.update_editor_settings(
+                            |settings| {
+                                settings.editor_autosave_enabled =
+                                    !settings.editor_autosave_enabled;
+                            },
+                            cx,
+                        );
+                        this.schedule_editor_autosave(cx);
+                        cx.stop_propagation();
+                    })),
+                ),
+                exact_settings_row(
+                    "Autosave Delay",
+                    "Idle time before saving editor changes.",
+                    number_input_control(
+                        "editor-autosave-delay",
+                        "Autosave Delay",
+                        settings_input(inputs, "editor-autosave-delay"),
+                        "seconds",
+                        1.0,
+                        1.0,
+                        60.0,
+                        cx,
+                    ),
+                ),
+            ],
+        )))
         .into_any_element()
 }

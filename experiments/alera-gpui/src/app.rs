@@ -355,6 +355,7 @@ pub struct AleraApp {
     editor_input_syncing: bool,
     editor_dirty: bool,
     editor_conflict: bool,
+    editor_autosave_generation: u64,
     search_input: Entity<InputState>,
     replace_input: Entity<InputState>,
     search_include_input: Entity<InputState>,

@@ -1069,6 +1069,7 @@ impl AleraApp {
             editor_input_syncing: false,
             editor_dirty: false,
             editor_conflict: false,
+            editor_autosave_generation: 0,
             search_input,
             replace_input,
             search_include_input,

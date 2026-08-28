@@ -128,6 +128,8 @@ pub(super) struct SettingsState {
 
     pub editor_theme: String,
     pub editor_tab_size: i64,
+    pub editor_autosave_enabled: bool,
+    pub editor_autosave_delay_seconds: i64,
 
     pub terminal_font_family: String,
     pub terminal_font_size: f64,
@@ -249,6 +251,8 @@ impl Default for SettingsState {
             ai_text_timeout_seconds: 120,
             editor_theme: "Alera".to_string(),
             editor_tab_size: 4,
+            editor_autosave_enabled: false,
+            editor_autosave_delay_seconds: 1,
             terminal_font_family: "JetBrains Mono".to_string(),
             terminal_font_size: 13.0,
             terminal_font_weight: 400,
@@ -374,6 +378,12 @@ impl SettingsState {
             }
             if let Some(tab_size) = editor.get("tabSize").and_then(Value::as_i64) {
                 self.editor_tab_size = tab_size;
+            }
+            if let Some(enabled) = editor.get("autosaveEnabled").and_then(Value::as_bool) {
+                self.editor_autosave_enabled = enabled;
+            }
+            if let Some(delay) = editor.get("autosaveDelaySeconds").and_then(Value::as_i64) {
+                self.editor_autosave_delay_seconds = delay.clamp(1, 60);
             }
         }
 
@@ -577,6 +587,8 @@ impl SettingsState {
             "editor": {
                 "tabSize": self.editor_tab_size,
                 "themeName": self.editor_theme,
+                "autosaveEnabled": self.editor_autosave_enabled,
+                "autosaveDelaySeconds": self.editor_autosave_delay_seconds.clamp(1, 60),
             },
             "terminal": {
                 "fontFamily": self.terminal_font_family,

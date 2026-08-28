@@ -141,6 +141,12 @@ pub(super) fn build_settings_inputs(
             false,
         ),
         (
+            "editor-autosave-delay",
+            settings.editor_autosave_delay_seconds.clamp(1, 60).to_string(),
+            "1",
+            false,
+        ),
+        (
             "terminal-font-size",
             settings.terminal_font_size.to_string(),
             "13",
