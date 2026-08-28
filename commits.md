@@ -64,9 +64,9 @@ commit so this file remains useful after context compaction.
 | 43 | `8d07aa6bde514cb945bca5a2a043e39cfa9f128d` | 2026-08-01 | perf: reduce runtime host resource overhead | merged | Cherry-picked bounded Tokio/SQLite pools and demand-driven resource sampler cache release used by the GPUI runtime host; no GPUI visual surface. |
 | 44 | `cf50ed4d81a91e3386443e28d00b988080984324` | 2026-08-01 | perf: reduce mobile terminal resource usage (#334) | merged | Cherry-picked mobile terminal batching/snapshot-memory improvements and cadence tests; no additional GPUI surface. |
 | 45 | `e2693b69bb9528d5be01ae7acdcf4262f50e38cb` | 2026-08-01 | perf: reduce desktop terminal resource usage (#335) | merged | Cherry-picked Flutter desktop cadence/visibility/buffer-budget work and aligned GPUI terminal streaming to a 50 ms cadence, parked frame shaping while the window is inactive, and flushes/repaints on reactivation. |
-| 46 | `1793a7551480c1b4cedcdfdf81d363374b2aca85` | 2026-08-01 | fix: link landing author mentions | pending | - |
-| 47 | `7980d811213d5afa26c9a59573d96eba24926d2f` | 2026-08-01 | fix: use official landing brand icons | pending | - |
-| 48 | `f42b2aa523b896fbdd7ce57095c4cf5869b580fc` | 2026-08-01 | feat: add worktree navigation history | pending | - |
+| 46 | `1793a7551480c1b4cedcdfdf81d363374b2aca85` | 2026-08-01 | fix: link landing author mentions | merged | Cherry-picked landing author-link updates; no desktop GPUI surface. |
+| 47 | `7980d811213d5afa26c9a59573d96eba24926d2f` | 2026-08-01 | fix: use official landing brand icons | merged | Cherry-picked landing favicon/logo asset updates; GPUI uses its embedded desktop icon asset and has no landing surface. |
+| 48 | `f42b2aa523b896fbdd7ce57095c4cf5869b580fc` | 2026-08-01 | feat: add worktree navigation history | merged | Cherry-picked Flutter session history and added GPUI back/forward stacks with pruning, toolbar buttons, platform-aware shortcuts (`Mod+BracketLeft/Right`, `Alt+ArrowLeft/Right`) and terminal-safe routing. GPUI compiles. |
 | 49 | `e4a4260f11652f514869b5b9ac5e042675565737` | 2026-08-01 | docs: update beta messaging | pending | - |
 | 50 | `8cd4bfa12aa2dccdd2edd8e685ec3368903eb648` | 2026-08-01 | Merge pull request #339 from leynier/feat/update-beta-preview-messaging | pending | - |
 | 51 | `69a0a003a0a05f3ed140ebcc443675aa40ba9a84` | 2026-08-01 | feat: add quick open and command palette | pending | - |

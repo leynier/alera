@@ -419,6 +419,7 @@ impl AleraApp {
                             })
                             .unwrap_or(true);
                         this.snapshot = snapshot;
+                        this.prune_worktree_navigation_history();
                         this.open_pending_workspace_setup(cx);
                         // The selected workspace can change while the
                         // snapshot request is in flight. Rehydrate the
@@ -466,6 +467,9 @@ impl AleraApp {
 
     pub(super) fn select_workspace(&mut self, workspace_id: String, cx: &mut Context<Self>) {
         let already_selected = self.selected_workspace_id.as_deref() == Some(&workspace_id);
+        if !already_selected && !self.worktree_navigation_replaying {
+            self.record_worktree_navigation(&workspace_id);
+        }
         if already_selected {
             self.pending_workspace_terminal_id = None;
         } else {
@@ -492,6 +496,58 @@ impl AleraApp {
             self.refresh_local_activity(cx);
         }
         cx.notify();
+    }
+
+    pub(super) fn go_back(&mut self, cx: &mut Context<Self>) {
+        self.prune_worktree_navigation_history();
+        let Some(target) = self.worktree_navigation_back.pop() else {
+            return;
+        };
+        if let Some(current) = self.selected_workspace_id.clone() {
+            self.worktree_navigation_forward.push(current);
+        }
+        self.worktree_navigation_replaying = true;
+        self.select_workspace(target, cx);
+        self.worktree_navigation_replaying = false;
+    }
+
+    pub(super) fn go_forward(&mut self, cx: &mut Context<Self>) {
+        self.prune_worktree_navigation_history();
+        let Some(target) = self.worktree_navigation_forward.pop() else {
+            return;
+        };
+        if let Some(current) = self.selected_workspace_id.clone() {
+            self.worktree_navigation_back.push(current);
+        }
+        self.worktree_navigation_replaying = true;
+        self.select_workspace(target, cx);
+        self.worktree_navigation_replaying = false;
+    }
+
+    fn record_worktree_navigation(&mut self, target: &str) {
+        if self.selected_workspace_id.as_deref() == Some(target) {
+            return;
+        }
+        if let Some(current) = self.selected_workspace_id.clone() {
+            if self.worktree_navigation_back.last() != Some(&current) {
+                self.worktree_navigation_back.push(current);
+            }
+        }
+        self.worktree_navigation_forward.clear();
+    }
+
+    fn prune_worktree_navigation_history(&mut self) {
+        let live = self
+            .snapshot
+            .projects
+            .iter()
+            .flat_map(|project| project.workspaces.iter())
+            .map(|workspace| workspace.id.as_str())
+            .collect::<std::collections::BTreeSet<_>>();
+        self.worktree_navigation_back
+            .retain(|workspace_id| live.contains(workspace_id.as_str()));
+        self.worktree_navigation_forward
+            .retain(|workspace_id| live.contains(workspace_id.as_str()));
     }
 
     pub(super) fn select_workspace_tab(

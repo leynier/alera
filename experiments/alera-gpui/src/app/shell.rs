@@ -172,6 +172,34 @@ impl AleraApp {
                             .gap(px(2.0))
                             .text_color(theme::text_muted())
                             .child(
+                                design_system::icon_button(
+                                    "sidebar-navigation-back",
+                                    "Go Back",
+                                    AleraIcon::Back,
+                                    !self.worktree_navigation_back.is_empty(),
+                                    28.0,
+                                    None,
+                                    None,
+                                )
+                                .on_click(cx.listener(|this, _, _, cx| {
+                                    this.go_back(cx);
+                                })),
+                            )
+                            .child(
+                                design_system::icon_button(
+                                    "sidebar-navigation-forward",
+                                    "Go Forward",
+                                    AleraIcon::ChevronsRight,
+                                    !self.worktree_navigation_forward.is_empty(),
+                                    28.0,
+                                    None,
+                                    None,
+                                )
+                                .on_click(cx.listener(|this, _, _, cx| {
+                                    this.go_forward(cx);
+                                })),
+                            )
+                            .child(
                                 div()
                                     .id("sidebar-view-options")
                                     .focusable()
@@ -971,6 +999,8 @@ impl Render for AleraApp {
             .on_action(cx.listener(Self::on_add_project))
             .on_action(cx.listener(Self::on_toggle_sidebar))
             .on_action(cx.listener(Self::on_create_workspace))
+            .on_action(cx.listener(Self::on_go_back))
+            .on_action(cx.listener(Self::on_go_forward))
             .on_action(cx.listener(Self::on_find_in_files))
             .on_action(cx.listener(Self::on_find_in_terminal))
             .on_action(cx.listener(Self::on_replace_in_files))

@@ -13,6 +13,8 @@ actions!(
         AddProject,
         ToggleSidebar,
         CreateWorkspace,
+        GoBack,
+        GoForward,
         FindInFiles,
         FindInTerminal,
         ReplaceInFiles,
@@ -83,6 +85,8 @@ pub(super) fn action_for_id(id: &str) -> Option<Box<dyn Action>> {
         "addProject" => Box::new(AddProject),
         "toggleSidebar" => Box::new(ToggleSidebar),
         "createWorkspace" => Box::new(CreateWorkspace),
+        "goBack" => Box::new(GoBack),
+        "goForward" => Box::new(GoForward),
         "findInFiles" => Box::new(FindInFiles),
         "findInTerminal" => Box::new(FindInTerminal),
         "replaceInFiles" => Box::new(ReplaceInFiles),
@@ -138,6 +142,10 @@ pub(super) fn canonical_to_gpui(canonical: &str) -> Option<String> {
         "semicolon" => ";".to_string(),
         "quote" => "'".to_string(),
         "backquote" => "`".to_string(),
+        "arrowleft" => "left".to_string(),
+        "arrowright" => "right".to_string(),
+        "arrowup" => "up".to_string(),
+        "arrowdown" => "down".to_string(),
         key => key.to_string(),
     });
     Some(parts.join("-"))
@@ -210,6 +218,32 @@ impl AleraApp {
             return;
         }
         self.open_terminal_search(window, cx);
+    }
+
+    pub(super) fn on_go_back(
+        &mut self,
+        _: &GoBack,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        if !self.keyboard_shortcut_allowed("goBack", window) {
+            cx.propagate();
+            return;
+        }
+        self.go_back(cx);
+    }
+
+    pub(super) fn on_go_forward(
+        &mut self,
+        _: &GoForward,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        if !self.keyboard_shortcut_allowed("goForward", window) {
+            cx.propagate();
+            return;
+        }
+        self.go_forward(cx);
     }
 
     pub(super) fn on_minimize_window(

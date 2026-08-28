@@ -93,6 +93,24 @@ pub(super) const KEYBOARD_BINDINGS: &[KeyboardBindingDefinition] = &[
         true
     ),
     binding!(
+        "goBack",
+        "Go Back",
+        Workspace,
+        "Go to the previously selected workspace.",
+        &["Mod+BracketLeft"],
+        &["Alt+ArrowLeft"],
+        false
+    ),
+    binding!(
+        "goForward",
+        "Go Forward",
+        Workspace,
+        "Go to the next workspace in navigation history.",
+        &["Mod+BracketRight"],
+        &["Alt+ArrowRight"],
+        false
+    ),
+    binding!(
         "findInFiles",
         "Find in Files",
         Workspace,
