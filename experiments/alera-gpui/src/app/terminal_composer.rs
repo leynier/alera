@@ -1,13 +1,16 @@
 use std::collections::BTreeSet;
+use std::path::Path;
 
 use gpui::{
-    div, px, AppContext as _, Context, CursorStyle, Entity, KeyDownEvent, InteractiveElement as _,
-    IntoElement, MouseButton, ParentElement as _, Role,
+    div, prelude::FluentBuilder as _, px, AppContext as _, Context, CursorStyle, Entity, ExternalPaths, KeyDownEvent,
+    InteractiveElement as _, IntoElement, MouseButton, ParentElement as _, Role,
     StatefulInteractiveElement as _, Styled as _, Window,
 };
 use gpui_component::input::{InputEvent, Paste, Textarea, TextareaState};
+use gpui_component::scroll::ScrollableElement as _;
 
-use super::state_types::TextActionTarget;
+use super::state_types::{ExplorerDragData, TerminalComposerAttachment, TerminalComposerAttachmentKind,
+    TextActionTarget};
 use super::text_actions_execution::textarea_context_menu;
 use super::workspace_prompt_actions::save_prompt_clipboard_image;
 use super::{AleraApp, TextActionSetting};
@@ -34,6 +37,8 @@ impl AleraApp {
             .retain(|session_id, _| session_ids.contains(session_id));
         self.terminal_composer_visible
             .retain(|session_id| session_ids.contains(session_id));
+        self.terminal_composer_attachments
+            .retain(|session_id, _| session_ids.contains(session_id));
         if self
             .terminal_composer_menu_open
             .as_ref()
@@ -114,7 +119,7 @@ impl AleraApp {
         &mut self,
         session_id: &str,
         _: &Paste,
-        window: &mut Window,
+        _window: &mut Window,
         cx: &mut Context<Self>,
     ) {
         let Some(clipboard) = cx.read_from_clipboard() else {
@@ -132,16 +137,83 @@ impl AleraApp {
             cx.propagate();
             return;
         };
-        let Some(input) = self.terminal_composer_inputs.get(session_id).cloned() else {
+        if !self.terminal_composer_inputs.contains_key(session_id) {
             cx.propagate();
             return;
-        };
+        }
         match save_prompt_clipboard_image(image) {
-            Ok(path) => input.update(cx, |input, cx| input.insert(path, window, cx)),
+            Ok(path) => self.add_terminal_composer_path(
+                session_id,
+                path,
+                TerminalComposerAttachmentKind::Image,
+                cx,
+            ),
             Err(error) => self.local_message = Some(error.into()),
         }
         cx.stop_propagation();
         cx.notify();
+    }
+
+    fn add_terminal_composer_path(
+        &mut self,
+        session_id: &str,
+        path: String,
+        kind: TerminalComposerAttachmentKind,
+        cx: &mut Context<Self>,
+    ) {
+        let path = path.trim().to_owned();
+        if path.is_empty() {
+            return;
+        }
+        let display_name = Path::new(&path)
+            .file_name()
+            .and_then(|name| name.to_str())
+            .filter(|name| !name.is_empty())
+            .unwrap_or(match kind {
+                TerminalComposerAttachmentKind::Image => "Pasted Image",
+                TerminalComposerAttachmentKind::File => "Pasted File",
+            })
+            .to_owned();
+        let id = format!("attachment-{}", self.terminal_composer_attachment_counter);
+        self.terminal_composer_attachment_counter =
+            self.terminal_composer_attachment_counter.wrapping_add(1);
+        self.terminal_composer_attachments
+            .entry(session_id.to_owned())
+            .or_default()
+            .push(TerminalComposerAttachment {
+                id,
+                kind,
+                path,
+                display_name,
+            });
+        cx.notify();
+    }
+
+    fn add_terminal_composer_paths(
+        &mut self,
+        session_id: &str,
+        paths: impl IntoIterator<Item = String>,
+        cx: &mut Context<Self>,
+    ) {
+        for path in paths {
+            let kind = terminal_composer_attachment_kind(&path);
+            self.add_terminal_composer_path(session_id, path, kind, cx);
+        }
+    }
+
+    fn remove_terminal_composer_attachment(
+        &mut self,
+        session_id: &str,
+        attachment_id: &str,
+        cx: &mut Context<Self>,
+    ) {
+        if let Some(attachments) = self.terminal_composer_attachments.get_mut(session_id) {
+            attachments.retain(|attachment| attachment.id != attachment_id);
+            if attachments.is_empty() {
+                self.terminal_composer_attachments.remove(session_id);
+            }
+            cx.notify();
+        }
     }
 
     fn submit_terminal_composer(
@@ -154,18 +226,25 @@ impl AleraApp {
             return;
         };
         let prompt = input.read(cx).value().to_string();
-        if prompt.trim().is_empty() {
+        let attachments = self
+            .terminal_composer_attachments
+            .get(session_id)
+            .cloned()
+            .unwrap_or_default();
+        if prompt.trim().is_empty() && attachments.is_empty() {
             return;
         }
+        let submission = build_terminal_composer_submission(&prompt, &attachments);
         let Some(session) = self.terminal_sessions.get_mut(session_id) else {
             return;
         };
         session.emulator.clear_restore_prompt_cleanup();
         session.emulator.clear_selection();
-        let mut bytes = session.emulator.encode_paste(&prompt);
+        let mut bytes = session.emulator.encode_paste(&submission);
         bytes.extend(session.emulator.encode_key("enter", None, KeyModifiers::default()));
         self.write_terminal_bytes_for(session_id, bytes);
         input.update(cx, |input, cx| input.set_value("", window, cx));
+        self.terminal_composer_attachments.remove(session_id);
         input.update(cx, |input, cx| input.focus(window, cx));
         self.reset_terminal_cursor_blink();
         self.terminal_composer_menu_open = None;
@@ -190,11 +269,18 @@ impl AleraApp {
         let has_selection = !input.read(cx).selected_range().is_empty();
         let ai_text_enabled = self.settings_state.ai_text_enabled;
         let actions_enabled = ai_text_enabled && has_selection && !actions.is_empty();
+        let attachments = self
+            .terminal_composer_attachments
+            .get(session_id)
+            .cloned()
+            .unwrap_or_default();
+        let has_attachments = !attachments.is_empty();
         let session_for_key = session_id.to_owned();
         let session_for_send = session_id.to_owned();
-        let session_for_close = session_id.to_owned();
         let session_for_menu = session_id.to_owned();
         let session_for_text_menu = session_id.to_owned();
+        let session_for_external_drop = session_id.to_owned();
+        let session_for_explorer_drop = session_id.to_owned();
         let input_for_context_menu = input.clone();
         let menu_open = self.terminal_composer_menu_open.as_deref() == Some(session_id);
         let mut composer = div()
@@ -212,6 +298,26 @@ impl AleraApp {
                     this.on_terminal_composer_paste(&session_id, action, window, cx);
                 })
             })
+            .on_drop(cx.listener(move |this, paths: &ExternalPaths, _, cx| {
+                this.add_terminal_composer_paths(
+                    &session_for_external_drop,
+                    paths
+                        .paths()
+                        .iter()
+                        .map(|path| path.to_string_lossy().into_owned()),
+                    cx,
+                );
+                cx.stop_propagation();
+            }))
+            .on_drop(cx.listener(move |this, drag: &ExplorerDragData, _, cx| {
+                let path = this.absolute_explorer_path(&drag.relative_path);
+                this.add_terminal_composer_paths(
+                    &session_for_explorer_drop,
+                    [path],
+                    cx,
+                );
+                cx.stop_propagation();
+            }))
             .capture_key_down(cx.listener(move |this, event: &KeyDownEvent, window, cx| {
                 let key = event.keystroke.key.as_str();
                 if key.eq_ignore_ascii_case("escape") {
@@ -222,6 +328,9 @@ impl AleraApp {
                     cx.stop_propagation();
                 }
             }))
+            .when(has_attachments, |composer| {
+                composer.child(self.render_terminal_composer_attachments(session_id, cx))
+            })
             .child(
                 Textarea::new(&input)
                     .aria_label("Terminal Prompt Composer")
@@ -281,7 +390,7 @@ impl AleraApp {
                             "terminal-composer-send",
                             "Send Prompt",
                             AleraIcon::Send,
-                            !prompt_can_send(&input, cx),
+                            !prompt_can_send(&input, has_attachments, cx),
                             32.0,
                             Some(theme::accent()),
                             None,
@@ -299,8 +408,103 @@ impl AleraApp {
                 cx,
             ));
         }
-        let _ = session_for_close;
         composer.into_any_element()
+    }
+
+    fn render_terminal_composer_attachments(
+        &self,
+        session_id: &str,
+        cx: &mut Context<Self>,
+    ) -> gpui::AnyElement {
+        let attachments = self
+            .terminal_composer_attachments
+            .get(session_id)
+            .cloned()
+            .unwrap_or_default();
+        let session_id = session_id.to_owned();
+        div()
+            .id("terminal-composer-attachments")
+            .flex()
+            .items_center()
+            .gap_1()
+            .h(px(34.0))
+            .mb_2()
+            .overflow_x_scrollbar()
+            .children(attachments.into_iter().map(|attachment| {
+                let open_path = attachment.path.clone();
+                let remove_id = attachment.id.clone();
+                let session_for_remove = session_id.clone();
+                let image = attachment.kind == TerminalComposerAttachmentKind::Image;
+                div()
+                    .id(gpui::SharedString::from(format!(
+                        "terminal-composer-attachment-{}",
+                        attachment.id
+                    )))
+                    .flex()
+                    .items_center()
+                    .gap_1()
+                    .h(px(30.0))
+                    .px_1()
+                    .rounded_md()
+                    .border_1()
+                    .border_color(theme::border_subtle())
+                    .bg(theme::surface())
+                    .cursor(CursorStyle::PointingHand)
+                    .on_click(cx.listener(move |this, _, _, cx| {
+                        this.open_terminal_composer_attachment(&open_path, cx);
+                    }))
+                    .child(icon(
+                        if image { AleraIcon::ImageOff } else { AleraIcon::File },
+                        15.0,
+                        theme::text_muted(),
+                    ))
+                    .child(
+                        div()
+                            .max_w(px(180.0))
+                            .text_ellipsis()
+                            .child(attachment.display_name),
+                    )
+                    .child(
+                        design_system::icon_button(
+                            gpui::SharedString::from(format!(
+                                "terminal-composer-remove-{}",
+                                attachment.id
+                            )),
+                            if image { "Remove Image" } else { "Remove File" },
+                            AleraIcon::Close,
+                            true,
+                            22.0,
+                            None,
+                            None,
+                        )
+                        .on_click(cx.listener(move |this, _, _, cx| {
+                            this.remove_terminal_composer_attachment(
+                                &session_for_remove,
+                                &remove_id,
+                                cx,
+                            );
+                            cx.stop_propagation();
+                        })),
+                    )
+            }))
+            .into_any_element()
+    }
+
+    fn open_terminal_composer_attachment(
+        &mut self,
+        path: &str,
+        cx: &mut Context<Self>,
+    ) {
+        let mut command = if cfg!(target_os = "macos") {
+            alera_core::child_process::windowless_command("open")
+        } else if cfg!(target_os = "windows") {
+            alera_core::child_process::windowless_command("explorer.exe")
+        } else {
+            alera_core::child_process::windowless_command("xdg-open")
+        };
+        let _ = command.arg(path).spawn();
+        self.local_message = Some("Opened Composer Attachment".into());
+        cx.notify();
     }
 
     fn render_terminal_composer_actions(
@@ -375,6 +579,59 @@ impl AleraApp {
     }
 }
 
-fn prompt_can_send(input: &Entity<TextareaState>, cx: &Context<AleraApp>) -> bool {
-    !input.read(cx).value().trim().is_empty()
+fn prompt_can_send(
+    input: &Entity<TextareaState>,
+    has_attachments: bool,
+    cx: &Context<AleraApp>,
+) -> bool {
+    has_attachments || !input.read(cx).value().trim().is_empty()
+}
+
+fn terminal_composer_attachment_kind(path: &str) -> TerminalComposerAttachmentKind {
+    match Path::new(path)
+        .extension()
+        .and_then(|extension| extension.to_str())
+        .map(|extension| extension.to_ascii_lowercase())
+        .as_deref()
+    {
+        Some("gif" | "jpeg" | "jpg" | "png" | "webp") => {
+            TerminalComposerAttachmentKind::Image
+        }
+        _ => TerminalComposerAttachmentKind::File,
+    }
+}
+
+fn build_terminal_composer_submission(
+    prompt: &str,
+    attachments: &[TerminalComposerAttachment],
+) -> String {
+    let mut images = Vec::new();
+    let mut files = Vec::new();
+    for attachment in attachments {
+        if attachment.path.trim().is_empty() {
+            continue;
+        }
+        match attachment.kind {
+            TerminalComposerAttachmentKind::Image => images.push(attachment.path.clone()),
+            TerminalComposerAttachmentKind::File => files.push(attachment.path.clone()),
+        }
+    }
+    let mut sections = Vec::new();
+    if !images.is_empty() {
+        sections.push("Attached Images:".to_owned());
+        sections.extend(images);
+    }
+    if !files.is_empty() {
+        sections.push("Attached Files:".to_owned());
+        sections.extend(files);
+    }
+    if sections.is_empty() {
+        return prompt.to_owned();
+    }
+    let attachments = sections.join("\n");
+    if prompt.trim().is_empty() {
+        attachments
+    } else {
+        format!("{prompt}\n\n{attachments}")
+    }
 }

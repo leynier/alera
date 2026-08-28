@@ -954,6 +954,8 @@ impl AleraApp {
             terminal_composer_inputs: BTreeMap::new(),
             terminal_composer_visible: BTreeSet::new(),
             terminal_composer_menu_open: None,
+            terminal_composer_attachments: BTreeMap::new(),
+            terminal_composer_attachment_counter: 0,
             quick_open_input,
             quick_open_open: false,
             quick_open_loading: false,

@@ -183,6 +183,8 @@ pub struct AleraApp {
     terminal_composer_inputs: BTreeMap<String, Entity<TextareaState>>,
     terminal_composer_visible: BTreeSet<String>,
     terminal_composer_menu_open: Option<String>,
+    terminal_composer_attachments: BTreeMap<String, Vec<TerminalComposerAttachment>>,
+    terminal_composer_attachment_counter: u64,
     quick_open_input: Entity<InputState>,
     quick_open_open: bool,
     quick_open_loading: bool,

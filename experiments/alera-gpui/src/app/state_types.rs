@@ -12,6 +12,20 @@ pub(super) enum TextActionTarget {
     TerminalComposer { session_id: String },
 }
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(super) enum TerminalComposerAttachmentKind {
+    Image,
+    File,
+}
+
+#[derive(Clone, Debug)]
+pub(super) struct TerminalComposerAttachment {
+    pub(super) id: String,
+    pub(super) kind: TerminalComposerAttachmentKind,
+    pub(super) path: String,
+    pub(super) display_name: String,
+}
+
 #[derive(Clone, Debug)]
 pub(super) struct TextActionPending {
     pub(super) target: TextActionTarget,
