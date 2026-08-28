@@ -1,16 +1,73 @@
 use gpui::{
     div, prelude::FluentBuilder as _, px, relative, AppContext as _, Context, CursorStyle,
-    InteractiveElement as _, IntoElement, ParentElement as _, Role,
+    InteractiveElement as _, IntoElement, MouseDownEvent, MouseMoveEvent, MouseUpEvent,
+    ParentElement as _, Role,
     StatefulInteractiveElement as _, Styled as _,
 };
 use gpui_component::tooltip::Tooltip;
 
-use super::AleraApp;
+use super::{AleraApp, SettingsMasterResizeState, SettingsMasterResizeTarget};
 use crate::activity::SettingsPane;
 use crate::icons::{icon, AleraIcon};
 use crate::{design_system, theme};
 
 impl AleraApp {
+    pub(super) fn begin_settings_master_resize(
+        &mut self,
+        target: SettingsMasterResizeTarget,
+        event: &MouseDownEvent,
+        cx: &mut Context<Self>,
+    ) {
+        let initial_width = match target {
+            SettingsMasterResizeTarget::Projects => self.settings_project_master_width,
+            SettingsMasterResizeTarget::AgentProfiles => {
+                self.settings_agent_profiles_master_width
+            }
+        };
+        self.settings_master_resize = Some(SettingsMasterResizeState {
+            target,
+            start_x: event.position.x,
+            initial_width,
+        });
+        cx.notify();
+        cx.stop_propagation();
+    }
+
+    pub(super) fn update_settings_master_resize(
+        &mut self,
+        event: &MouseMoveEvent,
+        cx: &mut Context<Self>,
+    ) {
+        let Some(resize) = self.settings_master_resize else {
+            return;
+        };
+        if !event.dragging() {
+            return;
+        }
+        const MIN_WIDTH: f32 = 180.0;
+        const MAX_WIDTH: f32 = 420.0;
+        let width = (resize.initial_width + f32::from(event.position.x - resize.start_x))
+            .clamp(MIN_WIDTH, MAX_WIDTH);
+        match resize.target {
+            SettingsMasterResizeTarget::Projects => self.settings_project_master_width = width,
+            SettingsMasterResizeTarget::AgentProfiles => {
+                self.settings_agent_profiles_master_width = width
+            }
+        }
+        cx.notify();
+    }
+
+    pub(super) fn finish_settings_master_resize(
+        &mut self,
+        _: &MouseUpEvent,
+        _: &mut gpui::Window,
+        cx: &mut Context<Self>,
+    ) {
+        if self.settings_master_resize.take().is_some() {
+            cx.notify();
+        }
+    }
+
     pub(super) fn open_project_settings_dialog(
         &mut self,
         project_id: String,

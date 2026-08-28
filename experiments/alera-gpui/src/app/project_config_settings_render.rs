@@ -7,6 +7,7 @@ use gpui_component::tooltip::Tooltip;
 use gpui_component::input::Textarea;
 
 use super::sidebar_view_options::compare_project_selection;
+use super::settings_panes::settings_master_resize_handle;
 use crate::{
     design_system,
     icons::{icon, AleraIcon},
@@ -68,13 +69,10 @@ impl AleraApp {
             // the shared SettingsContent padding.
             .ml(px(8.0))
             .child(self.render_project_config_master(project.id.as_str(), &projects, cx))
-            .child(
-                div()
-                    .mx_4()
-                    .w(px(1.0))
-                    .h_full()
-                    .bg(theme::border_subtle()),
-            )
+            .child(settings_master_resize_handle(
+                super::SettingsMasterResizeTarget::Projects,
+                cx,
+            ))
             .child(
                 div()
                     .flex_1()
@@ -136,7 +134,7 @@ impl AleraApp {
         cx: &mut Context<Self>,
     ) -> gpui::Div {
         div()
-            .w(px(244.0))
+            .w(px(self.settings_project_master_width))
             .flex_shrink_0()
             .child(
                 div()

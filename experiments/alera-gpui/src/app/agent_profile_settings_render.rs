@@ -17,6 +17,7 @@ use super::agent_profile_settings_controls::{
     launch_mode_label, profile_action_button, settings_checkbox, settings_group, settings_row,
     settings_row_width,
 };
+use super::settings_panes::settings_master_resize_handle;
 use super::AleraApp;
 use crate::design_system;
 use crate::icons::{agent_icon, icon, loading_indicator, AleraIcon};
@@ -70,19 +71,10 @@ impl AleraApp {
             .flex_1()
             .min_h_0()
             .child(self.render_agent_profiles_master(cx))
-            // AleraMasterDetail reserves 16 px on both sides of its divider;
-            // the GPUI master column starts 8 px earlier because its title
-            // padding is local to the header. Keep the divider and detail
-            // column on Flutter's exact x-coordinate without changing the
-            // fixed 240 px master width.
-            .child(
-                div()
-                    .ml(px(21.0))
-                    .mr(px(16.0))
-                    .w(px(1.0))
-                    .h_full()
-                    .bg(theme::border_subtle()),
-            )
+            .child(settings_master_resize_handle(
+                super::SettingsMasterResizeTarget::AgentProfiles,
+                cx,
+            ))
             .child(self.render_agent_profile_editor(cx))
             .when(self.agent_profile_settings.risk_confirmation_open, |pane| {
                 pane.child(self.render_agent_profile_risk_confirmation(cx))
@@ -97,10 +89,9 @@ impl AleraApp {
             .flex_col()
             .flex_shrink_0()
             .min_h_0()
-            // Flutter's AleraMasterDetail uses a 240 logical-pixel master.
-            // Keeping the same width prevents the editor column from drifting
-            // right when Settings is rendered on a Retina display.
-            .w(px(240.0))
+            // Flutter's AleraMasterDetail starts at 240 logical pixels and
+            // lets the user drag the splitter between 180 and 420 pixels.
+            .w(px(self.settings_agent_profiles_master_width))
             .child(
                 div()
                     .flex()

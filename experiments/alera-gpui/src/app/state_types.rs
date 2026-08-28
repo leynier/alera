@@ -36,6 +36,19 @@ pub(super) struct PanelResizeState {
 #[derive(Clone, Copy, Debug)]
 pub(super) struct ResizeDrag;
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(super) enum SettingsMasterResizeTarget {
+    Projects,
+    AgentProfiles,
+}
+
+#[derive(Clone, Copy, Debug)]
+pub(super) struct SettingsMasterResizeState {
+    pub(super) target: SettingsMasterResizeTarget,
+    pub(super) start_x: Pixels,
+    pub(super) initial_width: f32,
+}
+
 #[derive(Clone, Copy, Debug)]
 pub(super) struct GitHistoryResizeState {
     pub(super) start_y: Pixels,

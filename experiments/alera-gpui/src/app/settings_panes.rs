@@ -1,7 +1,8 @@
 use gpui::{
     div, prelude::FluentBuilder as _, px, rgb, AnyElement, AppContext as _, Context, CursorStyle,
-    Entity, InteractiveElement as _, IntoElement, ParentElement as _, Role, SharedString,
-    StatefulInteractiveElement as _, Styled as _, Toggled,
+    DragMoveEvent, Empty, Entity, InteractiveElement as _, IntoElement, MouseButton,
+    MouseDownEvent, ParentElement as _, Role, SharedString, StatefulInteractiveElement as _,
+    Styled as _, Toggled,
 };
 use gpui_component::input::{InputState, Textarea, TextareaState};
 use gpui_component::scroll::{ScrollableElement as _, Scrollbar, ScrollbarMode};
@@ -11,7 +12,7 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use super::settings_select_option::SettingsSelectOption;
 use super::settings_state::{GitHubStarState, SettingsState};
-use super::{AleraApp, SettingsGroupAnchors};
+use super::{AleraApp, ResizeDrag, SettingsGroupAnchors, SettingsMasterResizeTarget};
 use crate::activity::SettingsPane;
 use crate::{
     design_system,
