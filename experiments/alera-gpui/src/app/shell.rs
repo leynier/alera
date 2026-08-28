@@ -991,6 +991,7 @@ impl Render for AleraApp {
         // like Flutter waits for TerminalView layout before creating its PTY.
         // Re-run the pending attach check on every render after that measure.
         self.ensure_selected_terminal(cx);
+        self.ensure_terminal_composer_inputs(window, cx);
         self.refresh_terminal_frame_views(cx);
         let toast_entries = self.visible_toast_entries();
         div()
@@ -1014,6 +1015,7 @@ impl Render for AleraApp {
             .on_action(cx.listener(Self::on_go_forward))
             .on_action(cx.listener(Self::on_find_in_files))
             .on_action(cx.listener(Self::on_find_in_terminal))
+            .on_action(cx.listener(Self::on_toggle_terminal_composer))
             .on_action(cx.listener(Self::on_replace_in_files))
             .on_action(cx.listener(Self::on_save_file))
             .on_action(cx.listener(Self::on_run_text_action))

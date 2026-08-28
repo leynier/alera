@@ -7,8 +7,14 @@ use crate::activity::SettingsPane;
 use crate::model::WorkbenchDropZone;
 
 #[derive(Clone, Debug)]
+pub(super) enum TextActionTarget {
+    Editor { path: String },
+    TerminalComposer { session_id: String },
+}
+
+#[derive(Clone, Debug)]
 pub(super) struct TextActionPending {
-    pub(super) path: String,
+    pub(super) target: TextActionTarget,
     pub(super) captured_text: String,
     pub(super) selected_range: Range<usize>,
 }

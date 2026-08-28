@@ -97,6 +97,7 @@ mod tab_actions;
 mod tab_dialog;
 mod tab_menus;
 mod tab_strip;
+mod terminal_composer;
 mod terminal_input;
 mod terminal_surface;
 mod text_actions_execution;
@@ -179,6 +180,9 @@ pub struct AleraApp {
     terminal_frame_views: BTreeMap<String, Entity<TerminalFrameView>>,
     terminal_search_input: Entity<InputState>,
     terminal_search: Option<TerminalSearchState>,
+    terminal_composer_inputs: BTreeMap<String, Entity<TextareaState>>,
+    terminal_composer_visible: BTreeSet<String>,
+    terminal_composer_menu_open: Option<String>,
     quick_open_input: Entity<InputState>,
     quick_open_open: bool,
     quick_open_loading: bool,

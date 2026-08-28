@@ -78,7 +78,7 @@ commit so this file remains useful after context compaction.
 | 57 | `d5e01c76aca0d7408ab955669e20c5595297a499` | 2026-08-02 | release: v0.47.0 | merged | Cherry-picked the v0.47.0 release metadata; no desktop GPUI surface. |
 | 58 | `6419a738ed18719cdb14ea449f73d616357d5bed` | 2026-08-02 | feat: upload prompt images from mobile | merged | Cherry-picked mobile prompt-image upload, runtime-store and capability changes. GPUI already pastes desktop images locally into the prompt; the new mobile-only upload verbs require no additional desktop surface. |
 | 59 | `057ad7fb62d49e2a0d7e4f78d0a63c63d8aa2dcb` | 2026-08-02 | release: v0.48.0 v0.17.0-mobile | merged | Cherry-picked release metadata for Flutter/mobile/landing; no desktop GPUI surface. |
-| 60 | `310a834ad9b62c74b066de372bda2000f0020bc4` | 2026-08-02 | feat: add terminal prompt composer (#345) | pending | - |
+| 60 | `310a834ad9b62c74b066de372bda2000f0020bc4` | 2026-08-02 | feat: add terminal prompt composer (#345) | merged | Cherry-picked Flutter's terminal prompt composer and added GPUI per-session composer state, auto-growing multiline prompt, Enter/Shift+Enter/Escape keyboard behavior, send-to-PTY, focus restoration, Text Actions menu and Mod+Shift+Enter toggle. GPUI compiles. |
 | 61 | `093a15756a67ab09e0f281df10f75901c55f867b` | 2026-08-02 | feat: refine terminal composer controls | pending | - |
 | 62 | `246168a804f871178ebcddec2fcf3edbaacefae5` | 2026-08-02 | fix: keep session handle under max-lines baseline | pending | - |
 | 63 | `17a183f51debfc29114c0e682bc917ed4cdc58ae` | 2026-08-02 | Merge pull request #346 from leynier/feat/terminal-composer-defaults | pending | - |

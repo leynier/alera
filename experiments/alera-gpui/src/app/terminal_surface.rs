@@ -1718,6 +1718,9 @@ impl AleraApp {
             .as_deref()
             .filter(|_| self.terminal_search.is_some())
             .map(|session_id| self.render_terminal_search_overlay(session_id, cx));
+        let composer_visible = active
+            && self.terminal_composer_visible.contains(&owned_session_id)
+            && self.terminal_composer_inputs.contains_key(&owned_session_id);
         let terminal_font_family = self.settings_state.terminal_font_family.clone();
         div()
             .id(SharedString::from(format!(
@@ -1726,6 +1729,8 @@ impl AleraApp {
             )))
             .relative()
             .flex_1()
+            .flex()
+            .flex_col()
             .overflow_hidden()
             .bg(background)
             .px(gpui::px(self.settings_state.terminal_padding_x as f32))
@@ -1843,7 +1848,7 @@ impl AleraApp {
                     .overflow_hidden()
                     .track_focus(&self.terminal_focus)
                     .key_context("terminal")
-                    .when(active, move |terminal| {
+                    .when(active, |terminal| {
                         terminal
                             .on_key_down(cx.listener(Self::handle_terminal_key))
                             .on_scroll_wheel(cx.listener(move |this, event, window, cx| {
@@ -1863,6 +1868,9 @@ impl AleraApp {
                 surface.child(confirmation)
             })
             .when_some(search_overlay, |surface, overlay| surface.child(overlay))
+            .when(composer_visible, |surface| {
+                surface.child(self.render_terminal_composer(&owned_session_id, cx))
+            })
             .child(
                 canvas(
                     move |bounds, _, cx| {
@@ -2481,7 +2489,7 @@ fn format_terminal_path_for_paste(path: &str) -> String {
     }
 }
 
-fn terminal_session_id(tab: &WorkspaceTab) -> &str {
+pub(super) fn terminal_session_id(tab: &WorkspaceTab) -> &str {
     tab.payload
         .get("terminalSessionId")
         .and_then(Value::as_str)

@@ -143,6 +143,14 @@ pub(super) const KEYBOARD_BINDINGS: &[KeyboardBindingDefinition] = &[
         true
     ),
     binding!(
+        "toggleTerminalComposer",
+        "Toggle Terminal Composer",
+        Tabs,
+        "Show or hide the prompt composer for the active terminal.",
+        &["Mod+Shift+Enter"],
+        true
+    ),
+    binding!(
         "replaceInFiles",
         "Replace in Files",
         Workspace,

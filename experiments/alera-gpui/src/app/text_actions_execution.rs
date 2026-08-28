@@ -1,16 +1,14 @@
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
-use gpui::{
-    Action, App, Context, Entity, SharedString, Window,
-};
+use gpui::{Action, App, Context, Entity, SharedString, Window};
 use gpui_component::input::{
-    Copy, Cut, EditorState, GoToDefinition, Paste, SelectAll, ToggleCodeActions,
+    Copy, Cut, EditorState, GoToDefinition, Paste, SelectAll, TextareaState, ToggleCodeActions,
 };
 use gpui_component::native_menu::NativeMenu;
 use serde::Deserialize;
 use serde_json::json;
 
-use super::state_types::TextActionPending;
+use super::state_types::{TextActionPending, TextActionTarget};
 use super::{AleraApp, TextActionSetting};
 
 #[derive(Action, Clone, PartialEq, Eq, Deserialize)]
@@ -30,30 +28,67 @@ pub(super) fn editor_context_menu(
     cx: &mut App,
 ) -> NativeMenu {
     let capabilities = editor.read(cx).context_menu_capabilities();
-    let editable = capabilities.is_editable();
-    let mut menu = if capabilities.is_code_editor() {
-        menu.menu_with_disabled(
-            "Go To Definition",
-            !(capabilities.has_definition() && !capabilities.is_disabled()),
-            Box::new(GoToDefinition),
-        )
-        .menu_with_disabled(
-            "Show Code Actions",
-            !(capabilities.has_code_actions() && editable),
-            Box::new(ToggleCodeActions),
-        )
-        .separator()
-    } else {
-        menu
-    };
+    build_context_menu(
+        menu,
+        capabilities.is_code_editor(),
+        capabilities.is_disabled(),
+        capabilities.is_editable(),
+        capabilities.has_definition(),
+        capabilities.has_code_actions(),
+        capabilities.is_copyable(),
+        cx.read_from_clipboard().is_some(),
+        capabilities.has_selection(),
+        actions,
+        ai_enabled,
+    )
+}
+
+pub(super) fn textarea_context_menu(
+    menu: NativeMenu,
+    textarea: Entity<TextareaState>,
+    actions: Vec<TextActionSetting>,
+    ai_enabled: bool,
+    cx: &mut App,
+) -> NativeMenu {
+    let capabilities = textarea.read(cx).context_menu_capabilities();
+    build_context_menu(
+        menu,
+        capabilities.is_code_editor(),
+        capabilities.is_disabled(),
+        capabilities.is_editable(),
+        capabilities.has_definition(),
+        capabilities.has_code_actions(),
+        capabilities.is_copyable(),
+        cx.read_from_clipboard().is_some(),
+        capabilities.has_selection(),
+        actions,
+        ai_enabled,
+    )
+}
+
+fn build_context_menu(
+    mut menu: NativeMenu,
+    code_editor: bool,
+    disabled: bool,
+    editable: bool,
+    has_definition: bool,
+    has_code_actions: bool,
+    copyable: bool,
+    clipboard_available: bool,
+    has_selection: bool,
+    actions: Vec<TextActionSetting>,
+    ai_enabled: bool,
+) -> NativeMenu {
+    if code_editor {
+        menu = menu
+            .menu_with_disabled("Go To Definition", !(has_definition && !disabled), Box::new(GoToDefinition))
+            .menu_with_disabled("Show Code Actions", !(has_code_actions && editable), Box::new(ToggleCodeActions))
+            .separator();
+    }
     menu = menu
-        .menu_with_disabled("Cut", !(editable && capabilities.is_copyable()), Box::new(Cut))
-        .menu_with_disabled("Copy", !capabilities.is_copyable(), Box::new(Copy))
-        .menu_with_disabled(
-            "Paste",
-            !(editable && cx.read_from_clipboard().is_some()),
-            Box::new(Paste),
-        )
+        .menu_with_disabled("Cut", !(editable && copyable), Box::new(Cut))
+        .menu_with_disabled("Copy", !copyable, Box::new(Copy))
+        .menu_with_disabled("Paste", !(editable && clipboard_available), Box::new(Paste))
         .separator()
         .menu("Select All", Box::new(SelectAll));
 
@@ -61,7 +96,7 @@ pub(super) fn editor_context_menu(
         .into_iter()
         .filter(|action| action.enabled)
         .collect::<Vec<_>>();
-    if ai_enabled && editable && capabilities.has_selection() && !enabled_actions.is_empty() {
+    if ai_enabled && editable && has_selection && !enabled_actions.is_empty() {
         let submenu = enabled_actions.into_iter().fold(NativeMenu::new(), |menu, action| {
             menu.menu(
                 action.name,
@@ -81,9 +116,6 @@ impl AleraApp {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        if self.text_action_operation_id.is_some() {
-            return;
-        }
         let Some(path) = self
             .selected_tab_id
             .as_deref()
@@ -110,6 +142,37 @@ impl AleraApp {
             cx.notify();
             return;
         };
+        self.start_text_action(
+            action.id.clone(),
+            TextActionTarget::Editor { path },
+            captured_text,
+            selected_range,
+            workspace_path,
+            window,
+            cx,
+        );
+    }
+
+    pub(super) fn start_text_action(
+        &mut self,
+        action_id: String,
+        target: TextActionTarget,
+        captured_text: String,
+        selected_range: std::ops::Range<usize>,
+        workspace_path: String,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        if self.text_action_operation_id.is_some()
+            || selected_range.is_empty()
+            || selected_range.end > captured_text.len()
+        {
+            return;
+        }
+        let selected_text = captured_text[selected_range.clone()].to_owned();
+        if selected_text.is_empty() {
+            return;
+        }
         let operation_id = format!(
             "gpui-text-action-{}-{}",
             std::process::id(),
@@ -120,14 +183,13 @@ impl AleraApp {
         );
         self.text_action_operation_id = Some(operation_id.clone());
         self.text_action_pending = Some(TextActionPending {
-            path,
+            target,
             captured_text,
             selected_range,
         });
         self.local_message = Some("Running Text Action".into());
         let bridge = self.bridge.clone();
         let timeout = self.settings_state.ai_text_timeout_seconds.max(10) as u64 + 10;
-        let action_id = action.id.clone();
         cx.spawn_in(window, async move |this, cx| {
             let result = bridge
                 .request_with_timeout(
@@ -160,27 +222,7 @@ impl AleraApp {
                             .get("agentLabel")
                             .and_then(|value| value.as_str())
                             .unwrap_or("AI");
-                        let editor = this.editor_input_for_path(&pending.path);
-                        let current_text = editor.read(cx).value().to_string();
-                        let current_range = editor.read(cx).selected_range();
-                        if current_text != pending.captured_text
-                            || current_range != pending.selected_range
-                        {
-                            this.local_message = Some(
-                                "Generated Replacement Was Not Applied Because The Field Changed"
-                                    .into(),
-                            );
-                        } else if replacement.trim().is_empty() {
-                            this.local_message = Some("Text Action Returned No Replacement".into());
-                        } else {
-                            let range = pending.selected_range.clone();
-                            editor.update(cx, |input, cx| {
-                                input.set_selected_range(range, cx);
-                                input.replace(replacement, window, cx);
-                            });
-                            this.local_message =
-                                Some(format!("Text Action Applied With {agent}").into());
-                        }
+                        this.apply_text_action_result(pending, replacement, agent, window, cx);
                     }
                     Err(error) if error.contains("canceled") => {
                         this.local_message = Some("Text Action Canceled".into());
@@ -194,6 +236,60 @@ impl AleraApp {
         })
         .detach();
         cx.notify();
+    }
+
+    fn apply_text_action_result(
+        &mut self,
+        pending: TextActionPending,
+        replacement: String,
+        agent: &str,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        let (current_text, current_range) = match &pending.target {
+            TextActionTarget::Editor { path } => {
+                let input = self.editor_input_for_path(path);
+                (input.read(cx).value().to_string(), input.read(cx).selected_range())
+            }
+            TextActionTarget::TerminalComposer { session_id } => {
+                let Some(input) = self.terminal_composer_inputs.get(session_id) else {
+                    self.local_message = Some("Text Action Target Is Unavailable".into());
+                    return;
+                };
+                (input.read(cx).value().to_string(), input.read(cx).selected_range())
+            }
+        };
+        if current_text != pending.captured_text || current_range != pending.selected_range {
+            self.local_message = Some(
+                "Generated Replacement Was Not Applied Because The Field Changed".into(),
+            );
+            return;
+        }
+        if replacement.trim().is_empty() {
+            self.local_message = Some("Text Action Returned No Replacement".into());
+            return;
+        }
+        let range = pending.selected_range.clone();
+        match pending.target {
+            TextActionTarget::Editor { path } => {
+                let input = self.editor_input_for_path(&path);
+                input.update(cx, |input, cx| {
+                    input.set_selected_range(range, cx);
+                    input.replace(replacement, window, cx);
+                });
+            }
+            TextActionTarget::TerminalComposer { session_id } => {
+                let Some(input) = self.terminal_composer_inputs.get(&session_id).cloned() else {
+                    self.local_message = Some("Text Action Target Is Unavailable".into());
+                    return;
+                };
+                input.update(cx, |input, cx| {
+                    input.set_selected_range(range, cx);
+                    input.replace(replacement, window, cx);
+                });
+            }
+        }
+        self.local_message = Some(format!("Text Action Applied With {agent}").into());
     }
 
     pub(super) fn cancel_text_action(&mut self, cx: &mut Context<Self>) {
