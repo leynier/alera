@@ -51,6 +51,7 @@ pub enum SettingsPane {
     Agents,
     Quotas,
     AiText,
+    TextActions,
     Editor,
     Terminal,
     Keyboard,
@@ -60,11 +61,12 @@ pub enum SettingsPane {
 }
 
 impl SettingsPane {
-    pub const ALL: [Self; 10] = [
+    pub const ALL: [Self; 11] = [
         Self::Application,
         Self::Agents,
         Self::Quotas,
         Self::AiText,
+        Self::TextActions,
         Self::Editor,
         Self::Terminal,
         Self::Keyboard,
@@ -79,6 +81,7 @@ impl SettingsPane {
             Self::Agents => "Agents",
             Self::Quotas => "Quotas",
             Self::AiText => "AI Text",
+            Self::TextActions => "Text Actions",
             Self::Editor => "Editor",
             Self::Terminal => "Terminal",
             Self::Keyboard => "Keyboard",
@@ -97,7 +100,10 @@ impl SettingsPane {
             | Self::Editor
             | Self::Terminal
             | Self::Keyboard => "Preferences",
-            Self::Projects | Self::MobileDevices | Self::AgentProfiles => "Resources",
+            Self::TextActions
+            | Self::Projects
+            | Self::MobileDevices
+            | Self::AgentProfiles => "Resources",
         }
     }
 
@@ -107,6 +113,7 @@ impl SettingsPane {
             Self::Agents => AleraIcon::Agent,
             Self::Quotas => AleraIcon::Quota,
             Self::AiText => AleraIcon::Ai,
+            Self::TextActions => AleraIcon::Text,
             Self::Editor => AleraIcon::Code,
             Self::Terminal => AleraIcon::Terminal,
             Self::Keyboard => AleraIcon::Keyboard,
