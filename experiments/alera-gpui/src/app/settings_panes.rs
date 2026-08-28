@@ -66,6 +66,7 @@ impl AleraApp {
                 &self.settings_group_anchors,
                 cx,
             ),
+            SettingsPane::TextActions => self.render_text_actions_settings_pane(cx),
             SettingsPane::Editor => editor_pane(
                 &self.editor_theme_search_input,
                 &self.settings_inputs,

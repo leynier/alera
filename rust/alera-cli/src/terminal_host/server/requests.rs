@@ -196,6 +196,12 @@ impl ServerActor {
                 self.start_ai_text_pull_request(client_id, request_id, payload)?;
                 Ok(true)
             }
+            "aiText.textAction.generate" => {
+                self.require_auth(client_id)?;
+                self.require_request_allowed(client_id, request_type)?;
+                self.start_ai_text_text_action(client_id, request_id, payload)?;
+                Ok(true)
+            }
             "workspace.createManaged" => {
                 self.require_auth(client_id)?;
                 self.require_request_allowed(client_id, request_type)?;

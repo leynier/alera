@@ -3,6 +3,10 @@ use std::collections::{BTreeMap, BTreeSet};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
+fn default_true() -> bool {
+    true
+}
+
 const DEFAULT_QUOTA_PROVIDERS: [&str; 8] = [
     "claude",
     "codex",
@@ -30,6 +34,19 @@ pub(super) struct ClaudeQuotaProfile {
 pub(super) struct AiTextPromptSettings {
     pub agent: Option<String>,
     pub model: Option<String>,
+}
+
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+#[serde(default, rename_all = "camelCase")]
+pub(super) struct TextActionSetting {
+    pub id: String,
+    pub name: String,
+    pub prompt: String,
+    #[serde(default = "default_true")]
+    pub enabled: bool,
+    pub agent_override: Option<String>,
+    pub model_override: Option<String>,
+    pub reasoning_by_model: BTreeMap<String, String>,
 }
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
@@ -125,6 +142,7 @@ pub(super) struct SettingsState {
     pub ai_text_instructions_by_operation: BTreeMap<String, String>,
     pub ai_text_prompt_settings_by_operation: BTreeMap<String, AiTextPromptSettings>,
     pub ai_text_timeout_seconds: i64,
+    pub text_actions: Vec<TextActionSetting>,
 
     pub editor_theme: String,
     pub editor_tab_size: i64,
@@ -249,6 +267,7 @@ impl Default for SettingsState {
             ai_text_instructions_by_operation: BTreeMap::new(),
             ai_text_prompt_settings_by_operation: BTreeMap::new(),
             ai_text_timeout_seconds: 120,
+            text_actions: Vec::new(),
             editor_theme: "Alera".to_string(),
             editor_tab_size: 4,
             editor_autosave_enabled: false,
@@ -337,6 +356,18 @@ impl SettingsState {
         }
         if let Some(ai_text) = value.get("aiTextGeneration").and_then(Value::as_object) {
             self.apply_runtime_ai_text(ai_text);
+        }
+        if let Some(text_actions) = value.get("textActions").and_then(Value::as_object) {
+            self.text_actions = text_actions
+                .get("actions")
+                .and_then(Value::as_array)
+                .map(|actions| {
+                    actions
+                        .iter()
+                        .filter_map(|action| serde_json::from_value(action.clone()).ok())
+                        .collect()
+                })
+                .unwrap_or_default();
         }
     }
 
@@ -689,6 +720,10 @@ impl SettingsState {
             "promptSettingsByOperation": self.ai_text_prompt_settings_by_operation,
             "timeoutSeconds": self.ai_text_timeout_seconds,
         })
+    }
+
+    pub fn runtime_text_actions_payload(&self) -> Value {
+        serde_json::json!({"actions": self.text_actions})
     }
 
     fn apply_runtime_quotas(&mut self, quotas: &serde_json::Map<String, Value>) {

@@ -23,6 +23,7 @@ impl AleraApp {
             SettingsMasterResizeTarget::AgentProfiles => {
                 self.settings_agent_profiles_master_width
             }
+            SettingsMasterResizeTarget::TextActions => self.settings_text_actions_master_width,
         };
         self.settings_master_resize = Some(SettingsMasterResizeState {
             target,
@@ -53,6 +54,7 @@ impl AleraApp {
             SettingsMasterResizeTarget::AgentProfiles => {
                 self.settings_agent_profiles_master_width = width
             }
+            SettingsMasterResizeTarget::TextActions => self.settings_text_actions_master_width = width,
         }
         cx.notify();
     }
@@ -307,6 +309,7 @@ impl AleraApp {
                                 .hover(|style| style.bg(theme::surface_raised()))
                                 .on_click(cx.listener(|this, _, _, cx| match this.settings_pane {
                                     SettingsPane::AiText => this.reset_ai_text_settings(cx),
+                                    SettingsPane::TextActions => this.reset_text_actions(cx),
                                     SettingsPane::Editor => this.reset_editor_settings(cx),
                                     SettingsPane::Terminal => {
                                         this.reset_terminal_settings(cx);
@@ -523,6 +526,7 @@ fn settings_pane_description(pane: SettingsPane) -> &'static str {
         SettingsPane::Agents => "Agent Hooks, Notifications And Alera Skills.",
         SettingsPane::Quotas => "Provider Usage, Claude Profiles And Credential Environment.",
         SettingsPane::AiText => "AI-generated source control text.",
+        SettingsPane::TextActions => "Create reusable replacements for selected text.",
         SettingsPane::Editor => "Code editor defaults.",
         SettingsPane::Terminal => "Appearance defaults for new terminal sessions.",
         SettingsPane::Keyboard => "Shortcuts and key bindings.",
@@ -550,6 +554,7 @@ pub(super) fn settings_pane_groups(pane: SettingsPane) -> &'static [&'static str
             "Pull Request Details",
             "Workspace Identity",
         ],
+        SettingsPane::TextActions => &["Actions"],
         SettingsPane::Editor => &[],
         SettingsPane::Terminal => &[
             "Typography",
@@ -574,6 +579,7 @@ fn settings_pane_supports_reset(pane: SettingsPane) -> bool {
     matches!(
         pane,
         SettingsPane::AiText
+            | SettingsPane::TextActions
             | SettingsPane::Editor
             | SettingsPane::Terminal
             | SettingsPane::Keyboard

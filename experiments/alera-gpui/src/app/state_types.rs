@@ -1,9 +1,17 @@
 use std::collections::BTreeMap;
+use std::ops::Range;
 
 use gpui::{Pixels, Point, ScrollAnchor};
 
 use crate::activity::SettingsPane;
 use crate::model::WorkbenchDropZone;
+
+#[derive(Clone, Debug)]
+pub(super) struct TextActionPending {
+    pub(super) path: String,
+    pub(super) captured_text: String,
+    pub(super) selected_range: Range<usize>,
+}
 
 pub(super) type SettingsGroupAnchors = BTreeMap<(SettingsPane, usize), ScrollAnchor>;
 
@@ -40,6 +48,7 @@ pub(super) struct ResizeDrag;
 pub(super) enum SettingsMasterResizeTarget {
     Projects,
     AgentProfiles,
+    TextActions,
 }
 
 #[derive(Clone, Copy, Debug)]

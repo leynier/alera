@@ -51,6 +51,14 @@ const AI_TEXT: &[&str] = &[
     "Workspace Identity Agent Model prompt override",
     "Instructions optional prompt guidance",
 ];
+const TEXT_ACTIONS: &[&str] = &[
+    "Text Actions reusable replacements selected text AI prompt",
+    "New Action create add",
+    "Enabled show action menu",
+    "Agent Model Reasoning action overrides",
+    "Duplicate Reorder action menu order",
+    "Delete remove action",
+];
 const EDITOR: &[&str] = &[
     "Editor Theme syntax colors appearance",
     "Tab Size indentation spaces",
@@ -173,6 +181,18 @@ pub(super) fn first_matching_group(pane: SettingsPane, query: &str) -> Option<us
             &["Pull Request Details", "Agent", "Model", "Reasoning", "Instructions"],
             &["Workspace Identity", "Agent", "Model", "Reasoning", "Instructions"],
         ],
+        SettingsPane::TextActions => &[&[
+            "Actions",
+            "Text Actions",
+            "New Action",
+            "Enabled",
+            "Agent",
+            "Model",
+            "Reasoning",
+            "Duplicate",
+            "Reorder",
+            "Delete",
+        ]],
         _ => return None,
     };
     groups.iter().position(|group| {
@@ -188,6 +208,7 @@ fn pane_entries(pane: SettingsPane) -> &'static [&'static str] {
         SettingsPane::Agents => AGENTS,
         SettingsPane::Quotas => QUOTAS,
         SettingsPane::AiText => AI_TEXT,
+        SettingsPane::TextActions => TEXT_ACTIONS,
         SettingsPane::Editor => EDITOR,
         SettingsPane::Terminal => TERMINAL,
         SettingsPane::Keyboard => KEYBOARD,

@@ -99,6 +99,8 @@ mod tab_menus;
 mod tab_strip;
 mod terminal_input;
 mod terminal_surface;
+mod text_actions_execution;
+mod text_actions_settings;
 mod toast;
 mod welcome_dashboard;
 mod workbench;
@@ -126,7 +128,7 @@ use mobile_access::MobileAccessState;
 use project_config_settings::ProjectConfigSettingsState;
 use run_policy::RunExecutionPolicy;
 use settings_select_option::SettingsSelectOption;
-use settings_state::SettingsState;
+use settings_state::{SettingsState, TextActionSetting};
 use settings_store::SettingsStore;
 use state_types::*;
 use status_data::StatusData;
@@ -181,8 +183,8 @@ pub struct AleraApp {
     quick_open_open: bool,
     quick_open_loading: bool,
     quick_open_error: Option<SharedString>,
-    quick_open_paths: Vec<String>,
-    quick_open_matches: Vec<String>,
+    quick_open_session: Option<alera_native::api::workspace_files::WorkspaceQuickOpenSession>,
+    quick_open_matches: Vec<alera_native::api::workspace_files::WorkspaceQuickOpenMatch>,
     quick_open_selected_index: usize,
     quick_open_generation: u64,
     command_palette_input: Entity<InputState>,
@@ -266,6 +268,7 @@ pub struct AleraApp {
     settings_pane: SettingsPane,
     settings_project_master_width: f32,
     settings_agent_profiles_master_width: f32,
+    settings_text_actions_master_width: f32,
     settings_master_resize: Option<SettingsMasterResizeState>,
     settings_scroll_handle: ScrollHandle,
     settings_scroll_last_offset: Cell<Pixels>,
@@ -273,6 +276,16 @@ pub struct AleraApp {
     explorer_scroll_handle: UniformListScrollHandle,
     settings_group_anchors: SettingsGroupAnchors,
     settings_state: SettingsState,
+    text_actions_selected_id: Option<String>,
+    text_actions_creating_new: bool,
+    text_actions_name_input: Entity<InputState>,
+    text_actions_prompt_input: Entity<TextareaState>,
+    text_actions_agent_input: Entity<InputState>,
+    text_actions_model_input: Entity<InputState>,
+    text_actions_reasoning_input: Entity<InputState>,
+    text_actions_error: Option<SharedString>,
+    text_action_operation_id: Option<String>,
+    text_action_pending: Option<TextActionPending>,
     diagnostics_export_busy: bool,
     settings_store: SettingsStore,
     keyboard_settings: KeyboardSettingsUiState,

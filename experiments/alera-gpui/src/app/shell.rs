@@ -900,6 +900,9 @@ impl AleraApp {
         {
             self.clear_pointer_tab_drag_state(cx);
             true
+        } else if self.text_action_operation_id.is_some() {
+            self.cancel_text_action(cx);
+            true
         } else if self.terminal_search.is_some() {
             self.close_terminal_search(window, cx);
             true
@@ -1013,6 +1016,7 @@ impl Render for AleraApp {
             .on_action(cx.listener(Self::on_find_in_terminal))
             .on_action(cx.listener(Self::on_replace_in_files))
             .on_action(cx.listener(Self::on_save_file))
+            .on_action(cx.listener(Self::on_run_text_action))
             .on_action(cx.listener(Self::on_new_terminal))
             .on_action(cx.listener(Self::on_close_tab))
             .on_action(cx.listener(Self::on_next_tab))

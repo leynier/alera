@@ -104,6 +104,20 @@ impl AleraApp {
         let keyboard_settings = KeyboardSettingsUiState::new(cx);
         let mobile_access = MobileAccessState::new(window, cx);
         let project_config_settings = ProjectConfigSettingsState::new(window, cx);
+        let text_actions_name_input =
+            cx.new(|cx| InputState::new(window, cx).placeholder("Action Name"));
+        let text_actions_prompt_input = cx.new(|cx| {
+            TextareaState::new(window, cx)
+                .placeholder("Describe The Replacement To Generate")
+                .soft_wrap(true)
+                .rows(5)
+        });
+        let text_actions_agent_input =
+            cx.new(|cx| InputState::new(window, cx).placeholder("Global Agent"));
+        let text_actions_model_input =
+            cx.new(|cx| InputState::new(window, cx).placeholder("Global Model"));
+        let text_actions_reasoning_input =
+            cx.new(|cx| InputState::new(window, cx).placeholder("Reasoning (Optional)"));
         let ai_model_id = ai_text_settings_catalog::selected_model_id(
             &settings_state,
             &settings_state.ai_text_agent,
@@ -941,7 +955,7 @@ impl AleraApp {
             quick_open_open: false,
             quick_open_loading: false,
             quick_open_error: None,
-            quick_open_paths: Vec::new(),
+            quick_open_session: None,
             quick_open_matches: Vec::new(),
             quick_open_selected_index: 0,
             quick_open_generation: 0,
@@ -1027,6 +1041,7 @@ impl AleraApp {
             settings_pane: SettingsPane::Application,
             settings_project_master_width: 240.0,
             settings_agent_profiles_master_width: 240.0,
+            settings_text_actions_master_width: 240.0,
             settings_master_resize: None,
             settings_scroll_handle,
             settings_scroll_last_offset: Cell::new(px(0.0)),
@@ -1034,6 +1049,16 @@ impl AleraApp {
             explorer_scroll_handle,
             settings_group_anchors,
             settings_state,
+            text_actions_selected_id: None,
+            text_actions_creating_new: false,
+            text_actions_name_input,
+            text_actions_prompt_input,
+            text_actions_agent_input,
+            text_actions_model_input,
+            text_actions_reasoning_input,
+            text_actions_error: None,
+            text_action_operation_id: None,
+            text_action_pending: None,
             diagnostics_export_busy: false,
             settings_store,
             keyboard_settings,

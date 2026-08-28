@@ -60,6 +60,7 @@ mod ai_text_grok_plan;
 mod ai_text_model_discovery;
 mod ai_text_pull_request;
 mod ai_text_requests;
+mod ai_text_text_action;
 mod ai_text_workspace_identity;
 mod browser_artifact_requests;
 mod browser_artifact_store;

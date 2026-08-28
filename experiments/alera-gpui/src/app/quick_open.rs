@@ -11,67 +11,10 @@ use crate::icons::{icon, AleraIcon};
 use crate::theme;
 
 const QUICK_OPEN_MAX_RESULTS: usize = 50;
-const QUICK_OPEN_MAX_FILES: u32 = 10_000;
-
 #[derive(Clone, Copy)]
 struct CommandPaletteMatch {
     definition: &'static KeyboardBindingDefinition,
     score: i32,
-}
-
-fn quick_open_score(path: &str, query: &str) -> Option<i32> {
-    if query.is_empty() {
-        return Some(0);
-    }
-    let candidate = path.to_ascii_lowercase();
-    let file_name = candidate.rsplit(['/', '\\']).next().unwrap_or(&candidate);
-    if candidate == query {
-        return Some(100_000);
-    }
-    if file_name == query {
-        return Some(95_000);
-    }
-    if file_name.starts_with(query) {
-        return Some(85_000);
-    }
-    if candidate.starts_with(query) {
-        return Some(80_000);
-    }
-    if candidate.contains(query) {
-        return Some(60_000 - candidate.find(query).unwrap_or(0) as i32);
-    }
-    let mut cursor = 0;
-    let mut score = 1_000;
-    for character in query.chars() {
-        let Some(offset) = candidate[cursor..].find(character) else {
-            return None;
-        };
-        let index = cursor + offset;
-        if index == 0 || matches!(candidate.as_bytes().get(index.wrapping_sub(1)), Some(b'/' | b'\\')) {
-            score += 100;
-        }
-        cursor = index + character.len_utf8();
-    }
-    Some(score - cursor.min(999) as i32)
-}
-
-fn rank_quick_open_paths(paths: &[String], query: &str) -> Vec<String> {
-    let query = query.trim().to_ascii_lowercase();
-    let mut ranked = paths
-        .iter()
-        .filter_map(|path| quick_open_score(path, &query).map(|score| (path, score)))
-        .collect::<Vec<_>>();
-    ranked.sort_by(|(left_path, left_score), (right_path, right_score)| {
-        right_score
-            .cmp(left_score)
-            .then_with(|| left_path.to_ascii_lowercase().cmp(&right_path.to_ascii_lowercase()))
-            .then_with(|| left_path.cmp(right_path))
-    });
-    ranked
-        .into_iter()
-        .take(QUICK_OPEN_MAX_RESULTS)
-        .map(|(path, _)| path.clone())
-        .collect()
 }
 
 fn command_palette_matches(query: &str) -> Vec<CommandPaletteMatch> {
@@ -130,7 +73,7 @@ impl AleraApp {
         self.quick_open_open = true;
         self.quick_open_loading = true;
         self.quick_open_error = None;
-        self.quick_open_paths.clear();
+        self.quick_open_session = None;
         self.quick_open_matches.clear();
         self.quick_open_selected_index = 0;
         self.quick_open_generation = self.quick_open_generation.wrapping_add(1);
@@ -144,23 +87,9 @@ impl AleraApp {
         std::thread::Builder::new()
             .name("alera-gpui-quick-open".to_owned())
             .spawn(move || {
-                let result = alera_native::api::workspace_files::list_workspace_files(
+                let result = alera_native::api::workspace_files::start_workspace_quick_open_session(
                     workspace_path,
-                    QUICK_OPEN_MAX_FILES,
                 )
-                .map(|entries| {
-                    entries
-                        .into_iter()
-                        .filter(|entry| {
-                            matches!(
-                                entry.kind,
-                                alera_native::api::workspace_files::WorkspaceFileKind::File
-                                    | alera_native::api::workspace_files::WorkspaceFileKind::Symlink
-                            )
-                        })
-                        .map(|entry| entry.relative_path)
-                        .collect::<Vec<_>>()
-                })
                 .map_err(|error| format!("{error:?}"));
                 let _ = sender.send_blocking(result);
             })
@@ -176,11 +105,9 @@ impl AleraApp {
                 }
                 this.quick_open_loading = false;
                 match result {
-                    Ok(paths) => {
-                        this.quick_open_paths = paths;
-                        let query = this.quick_open_input.read(cx).value().to_string();
-                        this.quick_open_matches =
-                            rank_quick_open_paths(&this.quick_open_paths, &query);
+                    Ok(session) => {
+                        this.quick_open_session = Some(session);
+                        this.search_quick_open_session(cx);
                     }
                     Err(error) => this.quick_open_error = Some(error.into()),
                 }
@@ -195,8 +122,51 @@ impl AleraApp {
         if !self.quick_open_open {
             return;
         }
-        self.quick_open_matches = rank_quick_open_paths(&self.quick_open_paths, &query);
+        let _ = query;
+        self.search_quick_open_session(cx);
+    }
+
+    fn search_quick_open_session(&mut self, cx: &mut Context<Self>) {
+        let Some(session) = self.quick_open_session.clone() else {
+            return;
+        };
+        let query = self.quick_open_input.read(cx).value().to_string();
+        self.quick_open_generation = self.quick_open_generation.wrapping_add(1);
+        let generation = self.quick_open_generation;
+        self.quick_open_loading = true;
+        self.quick_open_matches.clear();
         self.quick_open_selected_index = 0;
+        let (sender, receiver) = async_channel::bounded(1);
+        std::thread::Builder::new()
+            .name("alera-gpui-quick-open-search".to_owned())
+            .spawn(move || {
+                let result = alera_native::api::workspace_files::search_workspace_quick_open_session(
+                    session,
+                    query,
+                    QUICK_OPEN_MAX_RESULTS as u32,
+                )
+                .map_err(|error| format!("{error:?}"));
+                let _ = sender.send_blocking(result);
+            })
+            .ok();
+        cx.spawn(async move |this, cx| {
+            let result = receiver
+                .recv()
+                .await
+                .unwrap_or_else(|_| Err("Quick Open search worker stopped.".to_owned()));
+            let _ = this.update(cx, |this, cx| {
+                if generation != this.quick_open_generation || !this.quick_open_open {
+                    return;
+                }
+                this.quick_open_loading = false;
+                match result {
+                    Ok(matches) => this.quick_open_matches = matches,
+                    Err(error) => this.quick_open_error = Some(error.into()),
+                }
+                cx.notify();
+            });
+        })
+        .detach();
         cx.notify();
     }
 
@@ -214,7 +184,7 @@ impl AleraApp {
         let Some(path) = self
             .quick_open_matches
             .get(self.quick_open_selected_index)
-            .cloned()
+            .map(|item| item.relative_path.clone())
         else {
             return;
         };
@@ -229,6 +199,11 @@ impl AleraApp {
         self.quick_open_open = false;
         self.quick_open_loading = false;
         self.quick_open_generation = self.quick_open_generation.wrapping_add(1);
+        if let Some(session) = self.quick_open_session.take() {
+            std::thread::spawn(move || {
+                alera_native::api::workspace_files::stop_workspace_quick_open_session(session);
+            });
+        }
         cx.notify();
     }
 
@@ -369,7 +344,8 @@ impl AleraApp {
                                         .child("No matching files."),
                                 )
                             })
-                            .children(matches.into_iter().enumerate().map(|(index, path)| {
+                            .children(matches.into_iter().enumerate().map(|(index, item)| {
+                                let path = item.relative_path;
                                 div()
                                     .id(SharedString::from(format!("quick-open-row-{index}")))
                                     .role(Role::ListBoxOption)
@@ -498,21 +474,18 @@ impl AleraApp {
 
 #[cfg(test)]
 mod tests {
-    use super::rank_quick_open_paths;
+    use super::command_palette_matches;
 
     #[test]
-    fn quick_open_prefers_file_name_prefixes() {
-        let paths = vec![
-            "lib/main.dart".to_owned(),
-            "main.dart".to_owned(),
-            "docs/readme.md".to_owned(),
-        ];
-        assert_eq!(rank_quick_open_paths(&paths, "main")[0], "main.dart");
+    fn command_palette_prefers_exact_label_matches() {
+        let matches = command_palette_matches("quick open");
+        assert_eq!(matches.first().map(|item| item.definition.id), Some("openQuickOpen"));
     }
 
     #[test]
-    fn quick_open_treats_paths_as_literal_fuzzy_candidates() {
-        let paths = vec!["src/components/button.dart".to_owned()];
-        assert_eq!(rank_quick_open_paths(&paths, "scb").len(), 1);
+    fn command_palette_keeps_fuzzy_labels_searchable() {
+        assert!(command_palette_matches("opst").iter().any(|item| {
+            item.definition.id == "openCommandPalette"
+        }));
     }
 }

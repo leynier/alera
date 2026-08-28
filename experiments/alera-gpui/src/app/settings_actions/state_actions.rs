@@ -276,6 +276,20 @@ impl AleraApp {
         );
     }
 
+    pub(super) fn reset_text_actions(&mut self, cx: &mut Context<Self>) {
+        self.settings_state.text_actions.clear();
+        self.persist_settings();
+        self.update_runtime_setting(
+            "textActions",
+            self.settings_state.runtime_text_actions_payload(),
+            cx,
+        );
+        self.text_actions_selected_id = None;
+        self.text_actions_creating_new = false;
+        self.text_actions_error = None;
+        cx.notify();
+    }
+
     pub(super) fn reset_editor_settings(&mut self, cx: &mut Context<Self>) {
         let defaults = SettingsState::default();
         self.update_editor_settings(

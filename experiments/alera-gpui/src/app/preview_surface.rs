@@ -16,6 +16,7 @@ use serde_json::Value;
 
 use super::markdown_preview_images::with_markdown_images;
 use super::state_types::PreviewDragState;
+use super::text_actions_execution::editor_context_menu;
 use super::workspace_surface::PreviewAsset;
 use super::AleraApp;
 use crate::model::WorkspaceTab;
@@ -378,6 +379,8 @@ impl AleraApp {
         cx: &mut Context<Self>,
     ) -> AnyElement {
         let input = self.editor_input_for_path(path);
+        let text_actions = self.settings_state.text_actions.clone();
+        let ai_text_enabled = self.settings_state.ai_text_enabled;
         let editor_background = cx
             .theme()
             .highlight_theme
@@ -396,7 +399,17 @@ impl AleraApp {
                     .p_0()
                     .bordered(false)
                     .text_size(px(13.0))
-                    .line_height(px(17.55)),
+                    .line_height(px(17.55))
+                    .context_menu(move |menu, window, cx| {
+                        editor_context_menu(
+                            menu,
+                            input.clone(),
+                            text_actions.clone(),
+                            ai_text_enabled,
+                            window,
+                            cx,
+                        )
+                    }),
             )
             // Keep the inactive pane's scrollbar rail transparent just like
             // the active Flutter editor surface.
@@ -449,6 +462,8 @@ impl AleraApp {
                 .into_any_element();
         };
         let editor_input = self.editor_input_for_path(opened_path);
+        let text_actions = self.settings_state.text_actions.clone();
+        let ai_text_enabled = self.settings_state.ai_text_enabled;
         let editor_background = cx
             .theme()
             .highlight_theme
@@ -567,7 +582,17 @@ impl AleraApp {
                         // defaults (11.375 px / 1.25).
                         .text_size(px(13.0))
                         .line_height(px(17.55))
-                        .disabled(!active),
+                        .disabled(!active)
+                        .context_menu(move |menu, window, cx| {
+                            editor_context_menu(
+                                menu,
+                                editor_input.clone(),
+                                text_actions.clone(),
+                                ai_text_enabled,
+                                window,
+                                cx,
+                            )
+                        }),
                 )
                 // Flutter's CodeForge config keeps the editor scrollbar
                 // transparent. gpui-component's Input does not expose a
