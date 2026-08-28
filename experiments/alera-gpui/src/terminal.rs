@@ -6,7 +6,7 @@ use std::time::Instant;
 
 use alacritty_terminal::event::{Event, EventListener};
 use alacritty_terminal::grid::{Dimensions, Scroll};
-use alacritty_terminal::index::{Column, Point as GridPoint, Side};
+use alacritty_terminal::index::{Column, Line, Point as GridPoint, Side};
 use alacritty_terminal::selection::{Selection, SelectionType};
 use alacritty_terminal::term::cell::{Cell, Flags};
 use alacritty_terminal::term::test::TermSize;
@@ -75,6 +75,14 @@ pub struct TerminalLink {
     pub row: usize,
     pub start_column: usize,
     pub end_column: usize,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct TerminalSearchMatch {
+    /// Absolute line number from the oldest retained scrollback row.
+    pub line_index: usize,
+    pub start: usize,
+    pub end: usize,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -550,6 +558,63 @@ impl TerminalEmulator {
                 }
             })
             .collect()
+    }
+
+    /// Finds literal, non-overlapping matches across the retained terminal
+    /// scrollback. The returned line indexes are stable until new output or a
+    /// resize changes the emulator grid.
+    pub fn search_matches(&self, query: &str, case_sensitive: bool) -> Vec<TerminalSearchMatch> {
+        let query = query.trim();
+        if query.is_empty() {
+            return Vec::new();
+        }
+        let (_, history, screen_lines) = self.scroll_metrics();
+        let total_lines = history + screen_lines;
+        let needle = if case_sensitive {
+            query.to_owned()
+        } else {
+            query.to_lowercase()
+        };
+        let mut matches = Vec::new();
+        for line_index in 0..total_lines {
+            let line_number = line_index as i32 - history as i32;
+            let row = &self.terminal.grid()[Line(line_number)];
+            let mut text = String::with_capacity(self.terminal.columns());
+            for column in 0..self.terminal.columns() {
+                let cell = &row[Column(column)];
+                if cell.flags.contains(Flags::WIDE_CHAR_SPACER) {
+                    continue;
+                }
+                text.push(if cell.flags.contains(Flags::HIDDEN) {
+                    ' '
+                } else {
+                    cell.c
+                });
+                if let Some(zerowidth) = cell.zerowidth() {
+                    text.extend(zerowidth);
+                }
+            }
+            let haystack = if case_sensitive {
+                text
+            } else {
+                text.to_lowercase()
+            };
+            let mut start = 0;
+            while start < haystack.len() {
+                let Some(offset) = haystack[start..].find(&needle) else {
+                    break;
+                };
+                let match_start = start + offset;
+                let match_end = match_start + needle.len();
+                matches.push(TerminalSearchMatch {
+                    line_index,
+                    start: match_start,
+                    end: match_end,
+                });
+                start = match_end;
+            }
+        }
+        matches
     }
 }
 
@@ -1194,6 +1259,25 @@ mod tests {
             terminal.encode_paste("a\x1b[201~b"),
             b"\x1b[200~ab\x1b[201~"
         );
+    }
+
+    #[test]
+    fn search_matches_literal_text_across_scrollback() {
+        let mut terminal = TerminalEmulator::new(24, 3);
+        terminal.write(b"first needle\r\nsecond line\r\nthird needle");
+        let matches = terminal.search_matches("needle", false);
+        assert_eq!(matches.len(), 2);
+        assert_eq!(matches[0].line_index, 0);
+        assert_eq!(matches[1].line_index, 2);
+        assert_eq!(matches[0].start, 6);
+        assert_eq!(matches[0].end, 12);
+    }
+
+    #[test]
+    fn search_treats_regex_metacharacters_as_literal() {
+        let mut terminal = TerminalEmulator::new(24, 3);
+        terminal.write(b"value [x]");
+        assert_eq!(terminal.search_matches("[x]", false).len(), 1);
     }
 
     #[test]

@@ -872,6 +872,9 @@ impl AleraApp {
         {
             self.clear_pointer_tab_drag_state(cx);
             true
+        } else if self.terminal_search.is_some() {
+            self.close_terminal_search(window, cx);
+            true
         } else if self.command_terminal.is_some() {
             self.close_command_terminal(cx);
             true
@@ -969,6 +972,7 @@ impl Render for AleraApp {
             .on_action(cx.listener(Self::on_toggle_sidebar))
             .on_action(cx.listener(Self::on_create_workspace))
             .on_action(cx.listener(Self::on_find_in_files))
+            .on_action(cx.listener(Self::on_find_in_terminal))
             .on_action(cx.listener(Self::on_replace_in_files))
             .on_action(cx.listener(Self::on_save_file))
             .on_action(cx.listener(Self::on_new_terminal))

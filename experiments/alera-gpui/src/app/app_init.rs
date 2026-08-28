@@ -40,6 +40,11 @@ impl AleraApp {
                 .placeholder("Describe What The Agent Should Build")
                 .soft_wrap(true)
         });
+        let terminal_search_input = cx.new(|cx| {
+            InputState::new(window, cx)
+                .placeholder("Search Terminal")
+                .clean_on_escape()
+        });
         let workspace_dropdown_search_input = cx.new(|cx| {
             InputState::new(window, cx)
                 .placeholder("Search")
@@ -388,8 +393,19 @@ impl AleraApp {
                         this.cache_markdown_preview_content(&path, &content);
                         this.editor_dirty_paths.insert(path);
                         this.editor_dirty = true;
+                        this.schedule_editor_autosave(cx);
                         cx.notify();
                     }
+                },
+            ),
+            cx.subscribe_in(
+                &terminal_search_input,
+                window,
+                |this, input, event: &InputEvent, _, cx| {
+                    if !matches!(event, InputEvent::Change) {
+                        return;
+                    }
+                    this.update_terminal_search_query(input.read(cx).value().to_string(), cx);
                 },
             ),
             cx.subscribe_in(
@@ -884,6 +900,8 @@ impl AleraApp {
             refresh_generation: 0,
             terminal_sessions: BTreeMap::new(),
             terminal_frame_views: BTreeMap::new(),
+            terminal_search_input,
+            terminal_search: None,
             command_terminal: None,
             terminal_output_dirty_sessions: BTreeSet::new(),
             terminal_drivers: BTreeMap::new(),

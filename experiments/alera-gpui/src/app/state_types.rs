@@ -49,6 +49,14 @@ pub(super) struct SettingsMasterResizeState {
     pub(super) initial_width: f32,
 }
 
+#[derive(Clone, Debug)]
+pub(super) struct TerminalSearchState {
+    pub(super) session_id: String,
+    pub(super) query: String,
+    pub(super) matches: Vec<crate::terminal::TerminalSearchMatch>,
+    pub(super) selected_index: usize,
+}
+
 #[derive(Clone, Copy, Debug)]
 pub(super) struct GitHistoryResizeState {
     pub(super) start_y: Pixels,

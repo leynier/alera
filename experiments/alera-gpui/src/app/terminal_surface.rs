@@ -2,7 +2,7 @@ use std::collections::BTreeSet;
 
 use base64::prelude::{Engine as _, BASE64_STANDARD};
 use gpui::{
-    canvas, div, font, prelude::FluentBuilder as _, AnyElement, AppContext as _, ClipboardItem,
+    canvas, div, font, prelude::FluentBuilder as _, px, AnyElement, AppContext as _, ClipboardItem,
     Context, CursorStyle, ElementInputHandler, ExternalPaths, FontWeight, InteractiveElement as _,
     IntoElement as _, KeyDownEvent, Modifiers, MouseButton, MouseDownEvent, MouseMoveEvent,
     MouseUpEvent, ParentElement as _, Pixels, Point, Render, Rgba, Role, ScrollWheelEvent,
@@ -10,7 +10,7 @@ use gpui::{
 };
 use serde_json::{json, Value};
 
-use super::{AleraApp, ExplorerDragData};
+use super::{AleraApp, ExplorerDragData, TerminalSearchState};
 use crate::design_system::{self, ButtonKind};
 use crate::icons::{icon, AleraIcon};
 use crate::model::WorkspaceTab;
@@ -396,25 +396,54 @@ impl AleraApp {
             .as_ref()
             .filter(|(hovered_session_id, _)| hovered_session_id == session_id)
             .map(|(_, link)| link);
+        let search_matches = self
+            .terminal_search
+            .as_ref()
+            .filter(|search| search.session_id == session_id)
+            .map(|search| search.matches.clone())
+            .unwrap_or_default();
+        let (display_offset, history, screen_lines) = session.emulator.scroll_metrics();
+        let visible_top = history.saturating_sub(display_offset);
         let lines = session
             .emulator
             .visible_lines(&self.settings_state.terminal_theme_name)
             .into_iter()
             .enumerate()
-            .map(|(row_index, line)| TerminalFrameLine {
-                cursor_column: (active && cursor_visible)
-                    .then_some(line.cursor_column)
-                    .flatten(),
-                selection_range: line.source_row.and_then(|source_row| {
-                    session
-                        .emulator
-                        .selection_range_for_viewport_row(source_row)
-                }),
-                hovered_link: hovered_link
-                    .filter(|link| link.row == row_index)
-                    .map(|link| (link.start_column, link.end_column)),
-                text: SharedString::from(line.plain_text),
-                highlights: line.highlights,
+            .map(|(row_index, line)| {
+                let text = line.plain_text;
+                let mut highlights = line.highlights;
+                let absolute_row = visible_top + row_index.min(screen_lines.saturating_sub(1));
+                for search_match in search_matches
+                    .iter()
+                    .filter(|search_match| search_match.line_index == absolute_row)
+                {
+                    let start = search_match.start.min(text.len());
+                    let end = search_match.end.min(text.len());
+                    if start < end {
+                        highlights.push((
+                            start..end,
+                            gpui::HighlightStyle {
+                                background_color: Some(theme::accent_subtle().into()),
+                                ..gpui::HighlightStyle::default()
+                            },
+                        ));
+                    }
+                }
+                TerminalFrameLine {
+                    cursor_column: (active && cursor_visible)
+                        .then_some(line.cursor_column)
+                        .flatten(),
+                    selection_range: line.source_row.and_then(|source_row| {
+                        session
+                            .emulator
+                            .selection_range_for_viewport_row(source_row)
+                    }),
+                    hovered_link: hovered_link
+                        .filter(|link| link.row == row_index)
+                        .map(|link| (link.start_column, link.end_column)),
+                    text: SharedString::from(text),
+                    highlights,
+                }
             })
             .collect();
         Some(TerminalFrameSnapshot {
@@ -429,6 +458,257 @@ impl AleraApp {
             cursor_opacity: self.settings_state.terminal_cursor_opacity as f32,
             selection_color: self.terminal_selection_color(),
         })
+    }
+
+    pub(super) fn open_terminal_search(
+        &mut self,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        let Some(session_id) = self.selected_terminal_session_id() else {
+            return;
+        };
+        let same_session = self
+            .terminal_search
+            .as_ref()
+            .is_some_and(|search| search.session_id == session_id);
+        let query = if same_session {
+            self.terminal_search_input.read(cx).value().to_string()
+        } else {
+            String::new()
+        };
+        if !same_session {
+            self.terminal_search_input
+                .update(cx, |input, cx| input.set_value("", window, cx));
+        }
+        let matches = self
+            .terminal_sessions
+            .get(&session_id)
+            .map(|session| session.emulator.search_matches(&query, false))
+            .unwrap_or_default();
+        self.terminal_search = Some(TerminalSearchState {
+            session_id,
+            query,
+            matches,
+            selected_index: 0,
+        });
+        self.terminal_search_input
+            .update(cx, |input, cx| input.focus(window, cx));
+        self.refresh_terminal_frame_views(cx);
+        cx.notify();
+    }
+
+    pub(super) fn update_terminal_search_query(
+        &mut self,
+        query: String,
+        cx: &mut Context<Self>,
+    ) {
+        let Some(search) = self.terminal_search.as_ref() else {
+            return;
+        };
+        let query = query.trim().to_owned();
+        let session_id = search.session_id.clone();
+        let matches = self
+            .terminal_sessions
+            .get(&session_id)
+            .map(|session| session.emulator.search_matches(&query, false))
+            .unwrap_or_default();
+        if let Some(search) = self.terminal_search.as_mut() {
+            search.query = query;
+            search.matches = matches;
+            search.selected_index = 0;
+        }
+        if let Some(search_match) = self
+            .terminal_search
+            .as_ref()
+            .and_then(|search| search.matches.first())
+        {
+            self.scroll_terminal_to_search_match(&session_id, search_match.line_index, cx);
+        }
+        self.refresh_terminal_frame_views(cx);
+        cx.notify();
+    }
+
+    pub(super) fn next_terminal_search(&mut self, cx: &mut Context<Self>) {
+        let Some(search) = self.terminal_search.as_mut() else {
+            return;
+        };
+        if search.matches.is_empty() {
+            return;
+        }
+        search.selected_index = (search.selected_index + 1) % search.matches.len();
+        let line_index = search.matches[search.selected_index].line_index;
+        let session_id = search.session_id.clone();
+        self.scroll_terminal_to_search_match(&session_id, line_index, cx);
+        self.refresh_terminal_frame_views(cx);
+        cx.notify();
+    }
+
+    pub(super) fn previous_terminal_search(&mut self, cx: &mut Context<Self>) {
+        let Some(search) = self.terminal_search.as_mut() else {
+            return;
+        };
+        if search.matches.is_empty() {
+            return;
+        }
+        search.selected_index = if search.selected_index == 0 {
+            search.matches.len() - 1
+        } else {
+            search.selected_index - 1
+        };
+        let line_index = search.matches[search.selected_index].line_index;
+        let session_id = search.session_id.clone();
+        self.scroll_terminal_to_search_match(&session_id, line_index, cx);
+        self.refresh_terminal_frame_views(cx);
+        cx.notify();
+    }
+
+    pub(super) fn close_terminal_search(
+        &mut self,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        if self.terminal_search.take().is_none() {
+            return;
+        }
+        self.terminal_search_input
+            .update(cx, |input, cx| input.set_value("", window, cx));
+        self.refresh_terminal_frame_views(cx);
+        cx.notify();
+    }
+
+    fn scroll_terminal_to_search_match(
+        &mut self,
+        session_id: &str,
+        line_index: usize,
+        cx: &mut Context<Self>,
+    ) {
+        let Some(session) = self.terminal_sessions.get_mut(session_id) else {
+            return;
+        };
+        let (current, history, _) = session.emulator.scroll_metrics();
+        let desired = history.saturating_sub(line_index);
+        let delta = desired as i32 - current as i32;
+        if delta != 0 {
+            session.emulator.scroll_display(delta);
+            self.terminal_scrollbar_last_activity
+                .insert(session_id.to_owned(), std::time::Instant::now());
+            cx.notify();
+        }
+    }
+
+    fn render_terminal_search_overlay(
+        &self,
+        session_id: &str,
+        cx: &mut Context<Self>,
+    ) -> AnyElement {
+        let Some(search) = self
+            .terminal_search
+            .as_ref()
+            .filter(|search| search.session_id == session_id)
+        else {
+            return div().into_any_element();
+        };
+        let count = if search.matches.is_empty() {
+            "No Matches".to_owned()
+        } else {
+            format!("{} of {}", search.selected_index + 1, search.matches.len())
+        };
+        div()
+            .id("terminal-search-overlay")
+            .absolute()
+            .top(px(12.0))
+            .right(px(18.0))
+            .w(px(360.0))
+            .p_2()
+            .rounded_lg()
+            .border_1()
+            .border_color(theme::border())
+            .bg(theme::surface_raised())
+            .shadow_lg()
+            .on_mouse_down(MouseButton::Left, |_, _, cx| cx.stop_propagation())
+            .capture_key_down(cx.listener(|this, event: &KeyDownEvent, window, cx| {
+                if event.keystroke.key.eq_ignore_ascii_case("escape") {
+                    this.close_terminal_search(window, cx);
+                } else if event.keystroke.key.eq_ignore_ascii_case("enter") {
+                    if event.keystroke.modifiers.shift {
+                        this.previous_terminal_search(cx);
+                    } else {
+                        this.next_terminal_search(cx);
+                    }
+                } else {
+                    return;
+                }
+                cx.stop_propagation();
+            }))
+            .child(
+                div()
+                    .flex()
+                    .items_center()
+                    .gap_2()
+                    .child(
+                        design_system::text_field(&self.terminal_search_input)
+                            .dense()
+                            .search()
+                            .height(px(34.0)),
+                    )
+                    .child(
+                        div()
+                            .text_xs()
+                            .text_color(theme::text_muted())
+                            .child(count),
+                    ),
+            )
+            .child(
+                div()
+                    .mt_2()
+                    .flex()
+                    .justify_end()
+                    .gap_1()
+                    .child(
+                        design_system::icon_button(
+                            "terminal-search-previous",
+                            "Previous Match",
+                            AleraIcon::ChevronUp,
+                            true,
+                            30.0,
+                            None,
+                            None,
+                        )
+                        .on_click(cx.listener(|this, _, _, cx| {
+                            this.previous_terminal_search(cx);
+                        })),
+                    )
+                    .child(
+                        design_system::icon_button(
+                            "terminal-search-next",
+                            "Next Match",
+                            AleraIcon::ChevronDown,
+                            true,
+                            30.0,
+                            None,
+                            None,
+                        )
+                        .on_click(cx.listener(|this, _, _, cx| {
+                            this.next_terminal_search(cx);
+                        })),
+                    )
+                    .child(
+                        design_system::icon_button(
+                            "terminal-search-close",
+                            "Close Search",
+                            AleraIcon::Close,
+                            true,
+                            30.0,
+                            None,
+                            None,
+                        )
+                        .on_click(cx.listener(|this, _, window, cx| {
+                            this.close_terminal_search(window, cx);
+                        })),
+                    ),
+            )
+            .into_any_element()
     }
 
     fn refresh_terminal_frame_view(&self, session_id: &str, cx: &mut Context<Self>) {
@@ -1432,6 +1712,10 @@ impl AleraApp {
             .is_some()
             .then(|| self.render_terminal_refresh_button(&owned_session_id, cx));
         let mobile_driver_overlay = self.render_mobile_driver_overlay(&owned_session_id, cx);
+        let search_overlay = session_id
+            .as_deref()
+            .filter(|_| self.terminal_search.is_some())
+            .map(|session_id| self.render_terminal_search_overlay(session_id, cx));
         let terminal_font_family = self.settings_state.terminal_font_family.clone();
         div()
             .id(SharedString::from(format!(
@@ -1576,6 +1860,7 @@ impl AleraApp {
             .when_some(restart_confirmation, |surface, confirmation| {
                 surface.child(confirmation)
             })
+            .when_some(search_overlay, |surface, overlay| surface.child(overlay))
             .child(
                 canvas(
                     move |bounds, _, cx| {

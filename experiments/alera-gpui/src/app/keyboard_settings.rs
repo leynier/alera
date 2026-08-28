@@ -101,6 +101,14 @@ pub(super) const KEYBOARD_BINDINGS: &[KeyboardBindingDefinition] = &[
         true
     ),
     binding!(
+        "findInTerminal",
+        "Find in Terminal",
+        Workspace,
+        "Search the active terminal scrollback.",
+        &["Mod+F"],
+        true
+    ),
+    binding!(
         "replaceInFiles",
         "Replace in Files",
         Workspace,

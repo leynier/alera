@@ -54,6 +54,8 @@ const AI_TEXT: &[&str] = &[
 const EDITOR: &[&str] = &[
     "Editor Theme syntax colors appearance",
     "Tab Size indentation spaces",
+    "Autosave automatic save idle changes",
+    "Autosave Delay debounce seconds editor",
 ];
 const TERMINAL: &[&str] = &[
     "Font Family monospace jetbrains typeface",

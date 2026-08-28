@@ -14,6 +14,7 @@ actions!(
         ToggleSidebar,
         CreateWorkspace,
         FindInFiles,
+        FindInTerminal,
         ReplaceInFiles,
         SaveFile,
         NewTerminalTab,
@@ -83,6 +84,7 @@ pub(super) fn action_for_id(id: &str) -> Option<Box<dyn Action>> {
         "toggleSidebar" => Box::new(ToggleSidebar),
         "createWorkspace" => Box::new(CreateWorkspace),
         "findInFiles" => Box::new(FindInFiles),
+        "findInTerminal" => Box::new(FindInTerminal),
         "replaceInFiles" => Box::new(ReplaceInFiles),
         "saveFile" => Box::new(SaveFile),
         "newTerminalTab" => Box::new(NewTerminalTab),
@@ -195,6 +197,19 @@ impl AleraApp {
             return;
         }
         self.open_settings_dialog(window, cx);
+    }
+
+    pub(super) fn on_find_in_terminal(
+        &mut self,
+        _: &FindInTerminal,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        if !self.keyboard_shortcut_allowed("findInTerminal", window) {
+            cx.propagate();
+            return;
+        }
+        self.open_terminal_search(window, cx);
     }
 
     pub(super) fn on_minimize_window(

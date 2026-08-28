@@ -171,6 +171,8 @@ pub struct AleraApp {
     refresh_generation: u64,
     terminal_sessions: BTreeMap<String, TerminalSession>,
     terminal_frame_views: BTreeMap<String, Entity<TerminalFrameView>>,
+    terminal_search_input: Entity<InputState>,
+    terminal_search: Option<TerminalSearchState>,
     command_terminal: Option<CommandTerminalState>,
     terminal_output_dirty_sessions: BTreeSet<String>,
     terminal_drivers: BTreeMap<String, mobile_driver::MobileTerminalDriver>,
