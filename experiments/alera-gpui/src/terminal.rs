@@ -1,3 +1,5 @@
+use std::cell::RefCell;
+use std::ops::Range;
 use std::sync::OnceLock;
 use std::sync::{Arc, Mutex};
 use std::time::Instant;
@@ -18,6 +20,7 @@ use crate::{terminal_palette::resolve_color, terminal_theme_catalog::terminal_th
 const DEFAULT_COLUMNS: usize = 100;
 const DEFAULT_ROWS: usize = 30;
 const SCROLLBACK_LINES: usize = 10_000;
+const MAX_REFLOW_REPLAY_BYTES: usize = 10 * 1024 * 1024;
 
 #[derive(Clone, Default)]
 struct TerminalEventSink {
@@ -53,13 +56,17 @@ pub struct TerminalEmulator {
     selection_anchor: Option<GridPoint>,
     selection_kind: TerminalSelectionKind,
     suppress_restore_prompt_rows: bool,
+    visible_row_map: RefCell<Vec<Option<usize>>>,
 }
 
 pub struct TerminalLine {
     pub text: StyledText,
     #[cfg_attr(not(test), allow(dead_code))]
     pub plain_text: String,
+    pub highlights: Vec<(Range<usize>, HighlightStyle)>,
     pub cursor_column: Option<usize>,
+    pub source_row: Option<usize>,
+    shell_marker: bool,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -108,6 +115,7 @@ pub struct TerminalSession {
     restore_offset: usize,
     restore_total_bytes: usize,
     restore_output_pending: Vec<u8>,
+    restore_replay_bytes: Option<Vec<u8>>,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -136,6 +144,7 @@ impl TerminalEmulator {
             selection_anchor: None,
             selection_kind: TerminalSelectionKind::Simple,
             suppress_restore_prompt_rows: false,
+            visible_row_map: RefCell::new((0..rows.max(2)).map(Some).collect()),
         }
     }
 
@@ -252,6 +261,9 @@ impl TerminalEmulator {
             .into_iter()
             .enumerate()
             .map(|(row_index, row)| {
+                let shell_marker = row
+                    .iter()
+                    .any(|cell| cell.c == '%' && cell.flags.contains(Flags::INVERSE));
                 let mut text = String::with_capacity(columns);
                 let mut highlights = Vec::new();
                 for cell in row {
@@ -285,23 +297,32 @@ impl TerminalEmulator {
                             .then_some(FontStyle::Italic),
                         ..HighlightStyle::default()
                     };
-                    highlights.push((start..end, style));
+                    push_terminal_highlight(&mut highlights, start..end, style);
                 }
+                let styled_text = StyledText::new(SharedString::from(text.clone()))
+                    .with_highlights(highlights.clone());
                 TerminalLine {
-                    text: StyledText::new(SharedString::from(text.clone()))
-                        .with_highlights(highlights),
+                    text: styled_text,
                     plain_text: text,
+                    highlights,
                     cursor_column: cursor
                         .filter(|point| point.line.0 == row_index as i32)
                         .map(|point| point.column.0),
+                    source_row: Some(row_index),
+                    shell_marker,
                 }
             })
             .collect::<Vec<_>>();
         if display_offset == 0 && self.suppress_restore_prompt_rows {
             collapse_stale_shell_prompt_rows(&mut lines);
-            compact_restored_viewport(&mut lines);
+            remove_zsh_shell_marker(&mut lines);
         }
+        *self.visible_row_map.borrow_mut() = lines.iter().map(|line| line.source_row).collect();
         lines
+    }
+
+    pub fn source_row_for_rendered_row(&self, row: usize) -> Option<usize> {
+        self.visible_row_map.borrow().get(row).copied().flatten()
     }
 
     pub fn link_at(&self, point: TerminalPoint) -> Option<TerminalLink> {
@@ -532,6 +553,20 @@ impl TerminalEmulator {
     }
 }
 
+fn push_terminal_highlight(
+    highlights: &mut Vec<(Range<usize>, HighlightStyle)>,
+    range: Range<usize>,
+    style: HighlightStyle,
+) {
+    if let Some((previous_range, previous_style)) = highlights.last_mut() {
+        if previous_range.end == range.start && *previous_style == style {
+            previous_range.end = range.end;
+            return;
+        }
+    }
+    highlights.push((range, style));
+}
+
 fn visible_http_link_at(text: &str, point: TerminalPoint) -> Option<TerminalLink> {
     static URL_PATTERN: OnceLock<Regex> = OnceLock::new();
     let pattern =
@@ -576,13 +611,14 @@ fn visible_http_link_in_spans(
         if end <= matched.start() {
             continue;
         }
-        let matching_spans = spans.iter().filter(|(start, _, _, _)| {
-            *start >= matched.start() && *start < end
-        });
+        let matching_spans = spans
+            .iter()
+            .filter(|(start, _, _, _)| *start >= matched.start() && *start < end);
         let matching_spans = matching_spans.collect::<Vec<_>>();
-        if !matching_spans.iter().any(|(_, _, row, column)| {
-            *row == point.row && *column == point.column
-        }) {
+        if !matching_spans
+            .iter()
+            .any(|(_, _, row, column)| *row == point.row && *column == point.column)
+        {
             continue;
         }
         let row_spans = matching_spans
@@ -590,10 +626,7 @@ fn visible_http_link_in_spans(
             .filter(|(_, _, row, _)| *row == point.row)
             .collect::<Vec<_>>();
         let start_column = row_spans.iter().map(|(_, _, _, column)| *column).min()?;
-        let end_column = row_spans
-            .iter()
-            .map(|(_, _, _, column)| column + 1)
-            .max()?;
+        let end_column = row_spans.iter().map(|(_, _, _, column)| column + 1).max()?;
         let uri = &text[matched.start()..end];
         if !supports_web_uri(uri) {
             continue;
@@ -657,6 +690,39 @@ fn count_character(text: &str, expected: char) -> usize {
         .count()
 }
 
+fn trim_restore_before_last_scrollback_clear(bytes: Vec<u8>) -> Vec<u8> {
+    const ERASE_SAVED_LINES: &[u8] = b"\x1b[3J";
+    let Some(index) = bytes
+        .windows(ERASE_SAVED_LINES.len())
+        .rposition(|window| window == ERASE_SAVED_LINES)
+    else {
+        return bytes;
+    };
+    bytes[index..].to_vec()
+}
+
+fn append_reflow_replay_bytes(replay: &mut Vec<u8>, bytes: &[u8]) -> bool {
+    if replay.len().saturating_add(bytes.len()) > MAX_REFLOW_REPLAY_BYTES {
+        return false;
+    }
+    const ERASE_SAVED_LINES: &[u8] = b"\x1b[3J";
+    let previous_len = replay.len();
+    replay.extend_from_slice(bytes);
+    // The existing prefix was already trimmed to its last erase. Only the
+    // appended bytes and the short sequence boundary can contain a newer one.
+    let scan_start = previous_len.saturating_sub(ERASE_SAVED_LINES.len() - 1);
+    if let Some(relative_index) = replay[scan_start..]
+        .windows(ERASE_SAVED_LINES.len())
+        .rposition(|window| window == ERASE_SAVED_LINES)
+    {
+        let index = scan_start + relative_index;
+        if index > 0 {
+            replay.drain(..index);
+        }
+    }
+    true
+}
+
 /// Remove duplicate shell-integration prompt redraws from a restored
 /// scrollback snapshot.
 ///
@@ -666,6 +732,7 @@ fn count_character(text: &str, expected: char) -> usize {
 /// can leave every old prompt wrapped into visible rows. A contiguous redraw
 /// burst keeps only its latest prompt block; command output between bursts
 /// remains untouched.
+#[cfg(test)]
 fn normalize_restore_prompt_redraws(bytes: Vec<u8>) -> Vec<u8> {
     const PROMPT_START: &[u8] = b"\x1b]133;A\x07";
     const PROMPT_END: &[u8] = b"\x1b]133;B\x07";
@@ -688,11 +755,19 @@ fn normalize_restore_prompt_redraws(bytes: Vec<u8>) -> Vec<u8> {
         let is_redraw = find_subslice(block_prefix, b"\r\r").is_some()
             && strip_terminal_control_bytes(block_prefix).is_empty();
         if is_redraw {
+            append_restore_clear_sequences(block_prefix, &mut normalized);
             // Keep only the latest redraw in a contiguous resize burst. The
-            // latest block carries the current prompt text, while retaining
-            // every historical block makes cursor-up counts from old widths
-            // materialize as visible duplicate rows during replay.
-            pending_redraw = Some(bytes[cursor..block_end].to_vec());
+            // historical cursor-up count belongs to another viewport width,
+            // so canonicalize it to repaint the current row from column zero.
+            let mut redraw = b"\r\x1b[2K".to_vec();
+            redraw.extend_from_slice(&bytes[prompt_start..block_end]);
+            let redraw_visible_len = strip_terminal_control_bytes(&redraw).len();
+            let replace_pending = pending_redraw.as_ref().is_none_or(|pending| {
+                redraw_visible_len >= strip_terminal_control_bytes(pending).len()
+            });
+            if replace_pending {
+                pending_redraw = Some(redraw);
+            }
         } else {
             if let Some(redraw) = pending_redraw.take() {
                 normalized.extend_from_slice(&redraw);
@@ -708,12 +783,22 @@ fn normalize_restore_prompt_redraws(bytes: Vec<u8>) -> Vec<u8> {
     normalized
 }
 
+#[cfg(test)]
+fn append_restore_clear_sequences(bytes: &[u8], output: &mut Vec<u8>) {
+    for sequence in [b"\x1b[3J".as_slice(), b"\x1b[H", b"\x1b[2J"] {
+        if find_subslice(bytes, sequence).is_some() {
+            output.extend_from_slice(sequence);
+        }
+    }
+}
+
 fn find_subslice(haystack: &[u8], needle: &[u8]) -> Option<usize> {
     haystack
         .windows(needle.len())
         .position(|window| window == needle)
 }
 
+#[cfg(test)]
 fn strip_terminal_control_bytes(bytes: &[u8]) -> Vec<u8> {
     let mut visible = Vec::with_capacity(bytes.len());
     let mut index = 0;
@@ -761,70 +846,131 @@ fn strip_terminal_control_bytes(bytes: &[u8]) -> Vec<u8> {
     visible
 }
 
-fn collapse_stale_shell_prompt_rows(lines: &mut [TerminalLine]) {
-    let Some(last_bare_prompt) = lines.iter().rposition(|line| is_bare_shell_prompt(&line.plain_text))
+fn restore_contains_shell_resize_redraw(bytes: &[u8]) -> bool {
+    find_subslice(bytes, b"\r\r").is_some() && find_subslice(bytes, b"\x1b]133;A\x07").is_some()
+}
+
+fn collapse_stale_shell_prompt_rows(lines: &mut Vec<TerminalLine>) {
+    // Prefer the latest prompt prefix as the anchor. The arrow can occupy a
+    // wrapped row after it, and anchoring on that bare row would blank the
+    // current prompt together with the stale rows before it.
+    let last_bare_prompt = lines
+        .iter()
+        .rposition(|line| is_bare_shell_prompt(&line.plain_text));
+    let Some(final_prompt_start) = last_bare_prompt
+        .and_then(|index| {
+            lines[..=index]
+                .iter()
+                .rposition(|line| is_shell_prompt_prefix(&line.plain_text))
+        })
+        .or_else(|| {
+            lines
+                .iter()
+                .rposition(|line| is_shell_prompt_prefix(&line.plain_text))
+        })
+        .or(last_bare_prompt)
     else {
         return;
     };
-    let final_prompt_start = lines[..=last_bare_prompt]
-        .iter()
-        .rposition(|line| is_shell_prompt_prefix(&line.plain_text))
-        .unwrap_or(last_bare_prompt);
     let stale_count = lines[..final_prompt_start]
         .iter()
-        .filter(|line| is_shell_prompt_prefix(&line.plain_text) || is_bare_shell_prompt(&line.plain_text))
+        .filter(|line| {
+            is_shell_prompt_prefix(&line.plain_text) || is_bare_shell_prompt(&line.plain_text)
+        })
         .count();
-    if stale_count < 2 {
+    // A resize snapshot can contain a single bare `%` from zsh's redraw
+    // marker before the final prompt. Once the resize signature has opted us
+    // into this cleanup pass, that one row is stale as well; requiring two
+    // prompt rows leaves the exact one-row artifact visible in short
+    // snapshots.
+    if stale_count == 0 {
         return;
     }
 
+    let mut remove = vec![false; lines.len()];
     let mut in_stale_prompt = false;
-    for line in lines.iter_mut().take(final_prompt_start) {
+    for (index, line) in lines.iter().enumerate().take(final_prompt_start) {
         let prefix = is_shell_prompt_prefix(&line.plain_text);
         let bare = is_bare_shell_prompt(&line.plain_text);
-        if prefix {
+        let marker = line.shell_marker || is_stale_shell_marker(&line.plain_text);
+        let command_line = is_shell_prompt_command_line(&line.plain_text);
+        if command_line && !bare {
+            // A wrapped prompt prefix may be followed by a line containing
+            // the prompt symbol and the user's command. That line terminates
+            // the stale prompt span; command text and subsequent output must
+            // remain visible.
+            in_stale_prompt = false;
+        } else if prefix {
             in_stale_prompt = true;
         }
-        if in_stale_prompt || bare {
-            let width = line.plain_text.chars().count();
-            line.plain_text = " ".repeat(width);
-            line.text = StyledText::new(SharedString::from(line.plain_text.clone()));
-            line.cursor_column = None;
+        if in_stale_prompt || bare || marker {
+            remove[index] = true;
         }
         if bare {
             in_stale_prompt = false;
         }
     }
-}
-
-fn compact_restored_viewport(lines: &mut Vec<TerminalLine>) {
-    let Some(first) = lines
-        .iter()
-        .position(|line| !line.plain_text.trim().is_empty())
-    else {
-        return;
-    };
-    if first == 0 {
+    let removed = remove.iter().filter(|remove| **remove).count();
+    if removed == 0 {
         return;
     }
-    let last = lines
-        .iter()
-        .rposition(|line| !line.plain_text.trim().is_empty())
-        .unwrap_or(first);
     let width = lines
         .first()
         .map(|line| line.plain_text.chars().count())
         .unwrap_or_default();
-    let mut compacted = lines.drain(first..=last).collect::<Vec<_>>();
-    while compacted.len() < lines.len() + (last - first + 1) {
+    let mut retained = lines
+        .drain(..)
+        .enumerate()
+        .filter_map(|(index, line)| (!remove[index]).then_some(line))
+        .collect::<Vec<_>>();
+    retained.extend((0..removed).map(|_| {
         let plain_text = " ".repeat(width);
-        compacted.push(TerminalLine {
+        TerminalLine {
             text: StyledText::new(SharedString::from(plain_text.clone())),
             plain_text,
+            highlights: Vec::new(),
             cursor_column: None,
-        });
+            source_row: None,
+            shell_marker: false,
+        }
+    }));
+    *lines = retained;
+}
+
+fn is_shell_prompt_command_line(text: &str) -> bool {
+    let trimmed = text.trim_start();
+    trimmed.contains('❯') || trimmed.starts_with("> ") || trimmed.starts_with("% ")
+}
+
+fn is_stale_shell_marker(text: &str) -> bool {
+    let trimmed = text.trim();
+    let Some(rest) = trimmed.strip_prefix('%') else {
+        return false;
+    };
+    // zsh's shell-integration redraw paints a reverse-video `%` and then
+    // clears/repaints the row. A partially replayed snapshot can leave one
+    // trailing character from the prompt on that row, so accept an empty or
+    // one-character remainder while leaving real command output untouched.
+    rest.trim().chars().count() <= 1
+}
+
+fn remove_zsh_shell_marker(lines: &mut [TerminalLine]) {
+    for line in lines {
+        let trimmed = line.plain_text.trim_end();
+        if !trimmed.ends_with('%') {
+            continue;
+        }
+        let without_marker = trimmed[..trimmed.len() - '%'.len_utf8()].trim_end();
+        if !without_marker.ends_with('❯') {
+            continue;
+        }
+        let mut text = without_marker.to_owned();
+        text.push(' ');
+        line.plain_text = text.clone();
+        line.text = StyledText::new(SharedString::from(text));
+        line.highlights.clear();
+        line.cursor_column = None;
     }
-    *lines = compacted;
 }
 
 fn is_bare_shell_prompt(text: &str) -> bool {
@@ -867,20 +1013,27 @@ impl TerminalSession {
             restore_offset: 0,
             restore_total_bytes: 0,
             restore_output_pending: Vec::new(),
+            restore_replay_bytes: None,
         }
     }
 
     /// Queue a host snapshot for incremental replay so a large scrollback does
     /// not block the first useful frame of a restored terminal.
     pub fn begin_restore(&mut self, bytes: Vec<u8>) -> u64 {
-        let original_len = bytes.len();
-        let bytes = normalize_restore_prompt_redraws(bytes);
+        // CSI 3J invalidates every prior scrollback row. Starting replay at
+        // its last occurrence prevents later resize redraws from resurrecting
+        // bytes that both xterm and the shell have already discarded.
+        let bytes = trim_restore_before_last_scrollback_clear(bytes);
+        // From that semantic reset onward, preserve the exact VT stream. The
+        // prompt renderer may emit visible segments outside OSC 133, so
+        // coalescing prompt blocks can truncate the prompt itself.
         self.emulator
-            .mark_restore_prompt_cleanup(bytes.len() < original_len);
+            .mark_restore_prompt_cleanup(restore_contains_shell_resize_redraw(&bytes));
         self.restore_generation = self.restore_generation.wrapping_add(1);
         self.restore_total_bytes = bytes.len();
         self.restore_offset = 0;
         self.restore_output_pending.clear();
+        self.restore_replay_bytes = Some(bytes.clone());
         self.restore_pending = (!bytes.is_empty()).then_some(bytes);
         self.restore_generation
     }
@@ -889,6 +1042,11 @@ impl TerminalSession {
     /// can send output immediately after an attach or full resync response;
     /// applying it before the batched snapshot would reorder the terminal.
     pub fn write_output(&mut self, bytes: &[u8]) {
+        if let Some(mut replay) = self.restore_replay_bytes.take() {
+            if append_reflow_replay_bytes(&mut replay, bytes) {
+                self.restore_replay_bytes = Some(replay);
+            }
+        }
         if self.restore_pending.is_some() {
             self.restore_output_pending.extend_from_slice(bytes);
         } else {
@@ -907,6 +1065,14 @@ impl TerminalSession {
 
     pub fn restore_in_progress(&self) -> bool {
         self.restore_pending.is_some()
+    }
+
+    pub fn rebuild_for_dimensions(&mut self, columns: usize, rows: usize) -> Option<u64> {
+        let bytes = self.restore_replay_bytes.clone()?;
+        self.columns = columns.max(2);
+        self.rows = rows.max(2);
+        self.emulator = TerminalEmulator::new(self.columns, self.rows);
+        Some(self.begin_restore(bytes))
     }
 
     /// Apply one bounded batch. The caller schedules another batch on the
@@ -982,6 +1148,21 @@ mod tests {
     }
 
     #[test]
+    fn adjacent_terminal_cells_with_the_same_style_share_one_highlight() {
+        let style = HighlightStyle {
+            color: Some(gpui::rgb(0xffffff).into()),
+            ..HighlightStyle::default()
+        };
+        let mut highlights = Vec::new();
+        push_terminal_highlight(&mut highlights, 0..1, style);
+        push_terminal_highlight(&mut highlights, 1..2, style);
+        push_terminal_highlight(&mut highlights, 2..3, HighlightStyle::default());
+        assert_eq!(highlights.len(), 2);
+        assert_eq!(highlights[0].0, 0..2);
+        assert_eq!(highlights[1].0, 2..3);
+    }
+
+    #[test]
     fn key_encoding_respects_application_cursor_and_control_keys() {
         let terminal = TerminalEmulator::new(20, 3);
         assert_eq!(
@@ -1013,6 +1194,27 @@ mod tests {
             terminal.encode_paste("a\x1b[201~b"),
             b"\x1b[200~ab\x1b[201~"
         );
+    }
+
+    #[test]
+    fn reflow_replay_append_preserves_output_without_rescanning_the_prefix() {
+        let mut replay = b"existing output".to_vec();
+        assert!(append_reflow_replay_bytes(&mut replay, b" and new output"));
+        assert_eq!(replay, b"existing output and new output");
+    }
+
+    #[test]
+    fn reflow_replay_append_detects_a_scrollback_clear_across_chunks() {
+        let mut replay = b"stale output\x1b[".to_vec();
+        assert!(append_reflow_replay_bytes(&mut replay, b"3Jfresh output"));
+        assert_eq!(replay, b"\x1b[3Jfresh output");
+    }
+
+    #[test]
+    fn reflow_replay_append_stops_retaining_an_oversized_stream() {
+        let mut replay = vec![b'x'; MAX_REFLOW_REPLAY_BYTES];
+        assert!(!append_reflow_replay_bytes(&mut replay, b"y"));
+        assert_eq!(replay.len(), MAX_REFLOW_REPLAY_BYTES);
     }
 
     #[test]
@@ -1057,7 +1259,12 @@ mod tests {
         assert!(!session.emulator.visible_text().contains("live"));
         assert!(!session.restore_next_chunk(1024));
 
-        let visible = session.emulator.visible_text();
+        let visible = session
+            .emulator
+            .visible_lines("default")
+            .into_iter()
+            .map(|line| line.plain_text)
+            .collect::<String>();
         assert!(visible.contains("snapshot"));
         assert!(visible.contains("live"));
         assert!(visible.find("snapshot") < visible.find("live"));
@@ -1085,6 +1292,65 @@ mod tests {
     }
 
     #[test]
+    fn restore_cleanup_removes_zsh_reverse_marker_after_prompt() {
+        let mut lines = vec![TerminalLine {
+            text: StyledText::new(SharedString::from("❯ %")),
+            plain_text: "❯ %".to_owned(),
+            highlights: Vec::new(),
+            cursor_column: Some(2),
+            source_row: Some(0),
+            shell_marker: false,
+        }];
+
+        remove_zsh_shell_marker(&mut lines);
+
+        assert_eq!(lines[0].plain_text, "❯ ");
+        assert_eq!(lines[0].cursor_column, None);
+    }
+
+    #[test]
+    fn restore_cleanup_recognizes_partial_zsh_marker_row() {
+        assert!(is_stale_shell_marker(
+            "%                                                                                 l"
+        ));
+        assert!(is_stale_shell_marker("%"));
+        assert!(!is_stale_shell_marker("% real command output"));
+    }
+
+    #[test]
+    fn restore_cleanup_preserves_command_and_output_after_wrapped_prompt() {
+        let line = |text: &str| TerminalLine {
+            text: StyledText::new(SharedString::from(text.to_owned())),
+            plain_text: text.to_owned(),
+            highlights: Vec::new(),
+            cursor_column: None,
+            source_row: None,
+            shell_marker: false,
+        };
+        let mut lines = vec![
+            line("leynier in workspace on main via rust"),
+            line("x"),
+            line("❯ printf '%s\\n' 'https://alera-parity.invalid'"),
+            line("https://alera-parity.invalid"),
+            line("%"),
+            line("leynier in workspace on main via rust"),
+            line("x"),
+            line("❯"),
+        ];
+
+        collapse_stale_shell_prompt_rows(&mut lines);
+
+        assert_eq!(lines.len(), 8);
+        assert!(lines[0].plain_text.contains("printf"));
+        assert_eq!(lines[1].plain_text, "https://alera-parity.invalid");
+        assert!(lines[2].plain_text.contains("leynier in workspace"));
+        assert_eq!(lines[4].plain_text, "❯");
+        assert!(lines[5..]
+            .iter()
+            .all(|line| line.plain_text.trim().is_empty()));
+    }
+
+    #[test]
     fn restore_keeps_a_prompt_that_changed_between_redraws() {
         let first = b"\x1b]133;A\x07first\x1b]133;B\x07";
         let second = b"\r\r\x1b[A\x1b]133;A\x07second\x1b]133;B\x07";
@@ -1093,8 +1359,77 @@ mod tests {
 
         let normalized = normalize_restore_prompt_redraws(bytes);
 
-        assert!(normalized.windows(first.len()).any(|window| window == first));
-        assert!(normalized.windows(second.len()).any(|window| window == second));
+        assert!(normalized
+            .windows(first.len())
+            .any(|window| window == first));
+        assert!(normalized
+            .windows(b"\x1b]133;A\x07second\x1b]133;B\x07".len())
+            .any(|window| window == b"\x1b]133;A\x07second\x1b]133;B\x07"));
+        assert!(!normalized
+            .windows(b"\r\r\x1b[A".len())
+            .any(|window| window == b"\r\r\x1b[A"));
+    }
+
+    #[test]
+    fn restore_normalization_keeps_clear_before_resize_redraws() {
+        let initial_prompt = b"old-output\r\n\x1b]133;A\x07prompt\x1b]133;B\x07";
+        let clear_and_redraw = b"\x1b[3J\x1b[H\x1b[2J\r\r\x1b[A\x1b]133;A\x07prompt\x1b]133;B\x07";
+        let latest_redraw = b"\r\r\x1b[A\x1b]133;A\x07prompt\x1b]133;B\x07after-clear";
+        let mut bytes = initial_prompt.to_vec();
+        bytes.extend_from_slice(clear_and_redraw);
+        bytes.extend_from_slice(latest_redraw);
+
+        let normalized = normalize_restore_prompt_redraws(bytes);
+        let mut terminal = TerminalEmulator::new(40, 5);
+        terminal.write(&normalized);
+        let visible = terminal.visible_text();
+
+        assert!(normalized.windows(4).any(|window| window == b"\x1b[3J"));
+        assert!(visible.contains("after-clear"));
+        assert!(!visible.contains("old-output"));
+    }
+
+    #[test]
+    fn terminal_session_restore_replays_clear_stream_exactly() {
+        let bytes = b"old-output\r\n\x1b]133;A\x07prompt\x1b]133;B\x07\x1b[3J\x1b[H\x1b[2J\r\r\x1b[A\x1b]133;A\x07prompt\x1b]133;B\x07\r\r\x1b[A\x1b]133;A\x07prompt\x1b]133;B\x07\xe2\x9d\xaf printf '%s\\n' 'https://alera-parity.invalid'\r\nhttps://alera-parity.invalid";
+        let mut session = TerminalSession::new("restore-clear".to_owned());
+        session.columns = 80;
+        session.rows = 8;
+        session.emulator = TerminalEmulator::new(session.columns, session.rows);
+        session.begin_restore(bytes.to_vec());
+        while session.restore_next_chunk(32) {}
+        let visible = session
+            .emulator
+            .visible_lines("default")
+            .into_iter()
+            .map(|line| line.plain_text)
+            .collect::<String>();
+
+        assert!(visible.contains("alera-parity.invalid"));
+        assert!(!visible.contains("old-output"));
+    }
+
+    #[test]
+    fn terminal_session_rebuilds_restore_at_final_dimensions() {
+        let bytes = b"old-output\r\n\x1b[3J\x1b[H\x1b[2Jfresh-restore";
+        let mut session = TerminalSession::new("resize-restore".to_owned());
+        session.columns = 12;
+        session.rows = 4;
+        session.emulator = TerminalEmulator::new(session.columns, session.rows);
+        session.begin_restore(bytes.to_vec());
+        while session.restore_next_chunk(8) {}
+        session.write_output(b" live-output");
+
+        let generation = session
+            .rebuild_for_dimensions(40, 8)
+            .expect("restore bytes should remain available for final resize");
+        assert_eq!(session.restore_generation(), generation);
+        while session.restore_next_chunk(8) {}
+
+        let visible = session.emulator.visible_text();
+        assert!(visible.contains("fresh-restore live-output"));
+        assert!(!visible.contains("old-output"));
+        assert_eq!((session.columns, session.rows), (40, 8));
     }
 
     #[test]
@@ -1143,6 +1478,29 @@ mod tests {
             .collect::<Vec<_>>();
         assert_eq!(text, ["two", "three", "four"]);
         assert!(lines.iter().all(|line| line.cursor_column.is_none()));
+    }
+
+    #[test]
+    fn erase_saved_lines_removes_pre_clear_scrollback() {
+        let mut terminal = TerminalEmulator::new(20, 4);
+        terminal.write(b"old-one\r\nold-two\r\nold-three\r\nold-four\r\nold-five");
+        terminal.write(b"\x1b[H\x1b[2J\x1b[3Jafter-clear");
+
+        let visible = terminal
+            .visible_lines("default")
+            .into_iter()
+            .map(|line| line.plain_text)
+            .collect::<String>();
+        assert!(visible.contains("after-clear"));
+        assert!(!visible.contains("old-"));
+
+        terminal.scroll_display(100);
+        let scrolled = terminal
+            .visible_lines("default")
+            .into_iter()
+            .map(|line| line.plain_text)
+            .collect::<String>();
+        assert!(!scrolled.contains("old-"));
     }
 
     #[test]

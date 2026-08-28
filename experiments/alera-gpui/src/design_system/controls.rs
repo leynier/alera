@@ -1,6 +1,7 @@
 use gpui::{
     div, prelude::FluentBuilder as _, px, AnyElement, CursorStyle, ElementId,
-    InteractiveElement as _, ParentElement as _, SharedString, Styled as _,
+    InteractiveElement as _, ParentElement as _, Role, SharedString,
+    StatefulInteractiveElement as _, Styled as _,
 };
 
 use crate::icons::{icon, loading_indicator, AleraIcon};
@@ -12,7 +13,14 @@ pub fn dropdown_trigger(
     expanded: bool,
     enabled: bool,
 ) -> gpui::Stateful<gpui::Div> {
-    dropdown_field(value, expanded, enabled).id(id)
+    let value = value.into();
+    dropdown_field(value.clone(), expanded, enabled)
+        .id(id)
+        .focusable()
+        .tab_stop(enabled)
+        .role(Role::ComboBox)
+        .aria_label(value)
+        .aria_expanded(expanded)
 }
 
 pub fn dropdown_trigger_with_loading(
@@ -22,7 +30,14 @@ pub fn dropdown_trigger_with_loading(
     enabled: bool,
     loading: bool,
 ) -> gpui::Stateful<gpui::Div> {
-    dropdown_field_with_loading(value, expanded, enabled, loading).id(id)
+    let value = value.into();
+    dropdown_field_with_loading(value.clone(), expanded, enabled, loading)
+        .id(id)
+        .focusable()
+        .tab_stop(enabled)
+        .role(Role::ComboBox)
+        .aria_label(value)
+        .aria_expanded(expanded)
 }
 
 pub fn dropdown_field(value: impl Into<SharedString>, expanded: bool, enabled: bool) -> gpui::Div {
@@ -35,6 +50,7 @@ pub fn dropdown_field_with_loading(
     enabled: bool,
     loading: bool,
 ) -> gpui::Div {
+    let value = value.into();
     div()
         .flex()
         .items_center()
@@ -67,7 +83,7 @@ pub fn dropdown_field_with_loading(
                 .flex_1()
                 .overflow_hidden()
                 .whitespace_nowrap()
-                .child(value.into()),
+                .child(value),
         )
         .when(loading, |trigger| {
             trigger.child(loading_indicator(14.0, theme::text_faint()))
@@ -198,6 +214,7 @@ pub fn switch(enabled: bool, interactive: bool) -> gpui::Div {
 
 pub fn icon_button(
     id: impl Into<ElementId>,
+    label: impl Into<SharedString>,
     icon_kind: AleraIcon,
     enabled: bool,
     size: f32,
@@ -206,6 +223,10 @@ pub fn icon_button(
 ) -> gpui::Stateful<gpui::Div> {
     div()
         .id(id)
+        .focusable()
+        .tab_stop(enabled)
+        .role(Role::Button)
+        .aria_label(label.into())
         .flex()
         .items_center()
         .justify_center()
@@ -240,6 +261,7 @@ pub fn menu_item(
     enabled: bool,
     leading: Option<AnyElement>,
 ) -> gpui::Div {
+    let label = label.into();
     let has_subtitle = subtitle.is_some();
     let has_leading = leading.is_some();
     div()
@@ -289,7 +311,7 @@ pub fn menu_item(
                         } else {
                             theme::text_muted()
                         })
-                        .child(label.into()),
+                        .child(label),
                 )
                 .when_some(subtitle, |content, subtitle| {
                     content.child(

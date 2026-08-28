@@ -2,6 +2,7 @@ use std::path::PathBuf;
 
 use super::workspace_surface::PreviewAsset;
 use super::{AleraApp, ExplorerClipboard, ExplorerDragData, ExplorerMenuTarget};
+use alera_core::child_process::windowless_command;
 use gpui::{ClipboardItem, Context, Pixels, Point, Window};
 
 impl AleraApp {
@@ -154,7 +155,7 @@ impl AleraApp {
             let Some(this) = this.upgrade() else {
                 return;
             };
-            let _ = this.update(cx, |this, cx| {
+            this.update(cx, |this, cx| {
                 this.explorer_action_busy = false;
                 match result {
                     Ok(entry) => {
@@ -197,7 +198,7 @@ impl AleraApp {
             let Some(this) = this.upgrade() else {
                 return;
             };
-            let _ = this.update(cx, |this, cx| {
+            this.update(cx, |this, cx| {
                 this.explorer_action_busy = false;
                 match result {
                     Ok(entry) => {
@@ -210,7 +211,6 @@ impl AleraApp {
                         );
                         this.explorer_selected_path = Some(next_path);
                         this.explorer_rename_path = None;
-                        this.local_message = Some("Renamed".into());
                         this.load_root_directory(cx);
                     }
                     Err(error) => {
@@ -236,7 +236,7 @@ impl AleraApp {
             let Some(this) = this.upgrade() else {
                 return;
             };
-            let _ = this.update(cx, |this, cx| {
+            this.update(cx, |this, cx| {
                 this.explorer_action_busy = false;
                 match result {
                     Ok(()) => {
@@ -258,6 +258,8 @@ impl AleraApp {
                             .retain(|path, _| !path_is_same_or_child(path, &relative_path));
                         this.editor_preview_assets
                             .retain(|path, _| !path_is_same_or_child(path, &relative_path));
+                        this.markdown_preview_content
+                            .retain(|path, _| !path_is_same_or_child(path, &relative_path));
                         this.editor_buffer_text
                             .retain(|path, _| !path_is_same_or_child(path, &relative_path));
                         this.editor_dirty_paths
@@ -265,7 +267,6 @@ impl AleraApp {
                         this.editor_cursor_positions
                             .retain(|path, _| !path_is_same_or_child(path, &relative_path));
                         this.clear_source_control_root_if_deleted(&relative_path, cx);
-                        this.local_message = Some("Moved To Trash".into());
                         this.load_root_directory(cx);
                     }
                     Err(error) => {
@@ -282,6 +283,7 @@ impl AleraApp {
         &mut self,
         target: ExplorerMenuTarget,
         position: Point<Pixels>,
+        window: &mut gpui::Window,
         cx: &mut Context<Self>,
     ) {
         if let ExplorerMenuTarget::Entry(path) = &target {
@@ -289,11 +291,20 @@ impl AleraApp {
         }
         self.explorer_menu = Some(target);
         self.explorer_menu_position = position;
+        self.explorer_menu_previous_focus = window.focused(cx);
+        self.explorer_menu_focus.focus(window, cx);
         cx.notify();
     }
 
-    pub(super) fn dismiss_explorer_menu(&mut self, cx: &mut Context<Self>) {
+    pub(super) fn dismiss_explorer_menu(
+        &mut self,
+        window: &mut gpui::Window,
+        cx: &mut Context<Self>,
+    ) {
         if self.explorer_menu.take().is_some() {
+            if let Some(focus) = self.explorer_menu_previous_focus.take() {
+                focus.focus(window, cx);
+            }
             cx.notify();
         }
     }
@@ -310,7 +321,7 @@ impl AleraApp {
     ) {
         self.explorer_clipboard = Some(ExplorerClipboard { relative_path, cut });
         self.explorer_menu = None;
-        self.local_message = Some(if cut { "Ready To Move" } else { "Copied" }.into());
+        self.local_message = None;
         cx.notify();
     }
 
@@ -329,9 +340,9 @@ impl AleraApp {
         self.explorer_menu = None;
         self.local_message = Some(
             if absolute {
-                "Path Copied"
+                "Path copied"
             } else {
-                "Relative Path Copied"
+                "Relative path copied"
             }
             .into(),
         );
@@ -388,7 +399,7 @@ impl AleraApp {
             let Some(this) = this.upgrade() else {
                 return;
             };
-            let _ = this.update(cx, |this, cx| {
+            this.update(cx, |this, cx| {
                 this.explorer_action_busy = false;
                 match result {
                     Ok(entry) => {
@@ -403,8 +414,6 @@ impl AleraApp {
                             this.explorer_clipboard = None;
                         }
                         this.explorer_selected_path = Some(next_path);
-                        this.local_message =
-                            Some(if move_entry { "Moved" } else { "Copied" }.into());
                         this.load_root_directory(cx);
                     }
                     Err(error) => {
@@ -418,10 +427,18 @@ impl AleraApp {
     }
 
     pub(super) fn reveal_explorer_entry(&mut self, relative_path: String, cx: &mut Context<Self>) {
-        let parent = parent_path(&relative_path);
-        let directory = self.absolute_explorer_path(parent);
-        cx.open_url(&format!("file://{}", directory.replace(' ', "%20")));
+        let path = self.absolute_explorer_path(&relative_path);
         self.explorer_menu = None;
+        cx.spawn(async move |this, cx| {
+            let result = reveal_in_file_manager(PathBuf::from(path));
+            if let Err(message) = result {
+                let _ = this.update(cx, |this, cx| {
+                    this.local_message = Some(message.into());
+                    cx.notify();
+                });
+            }
+        })
+        .detach();
         cx.notify();
     }
 
@@ -490,6 +507,7 @@ impl AleraApp {
         }
         rewrite_cached_editor_paths(&mut self.editor_documents, previous, next);
         rewrite_cached_preview_paths(&mut self.editor_preview_assets, previous, next);
+        rewrite_cached_text_paths(&mut self.markdown_preview_content, previous, next);
         rewrite_cached_text_paths(&mut self.editor_buffer_text, previous, next);
         rewrite_dirty_paths(&mut self.editor_dirty_paths, previous, next);
         rewrite_cursor_paths(&mut self.editor_cursor_positions, previous, next);
@@ -508,6 +526,61 @@ fn path_is_same_or_child(path: &str, parent: &str) -> bool {
         || path
             .strip_prefix(parent)
             .is_some_and(|suffix| suffix.starts_with('/'))
+}
+
+fn reveal_in_file_manager(path: PathBuf) -> Result<(), String> {
+    if !path.exists() {
+        return Err("Path was not found.".to_owned());
+    }
+
+    #[cfg(target_os = "macos")]
+    let mut command = {
+        let mut command = windowless_command("open");
+        command.arg("-R").arg(path.as_os_str());
+        command
+    };
+
+    #[cfg(target_os = "windows")]
+    let mut command = {
+        let mut command = windowless_command("explorer.exe");
+        command.arg(format!("/select,{}", path.to_string_lossy()));
+        command
+    };
+
+    #[cfg(target_os = "linux")]
+    let mut command = {
+        let target = if path.is_dir() {
+            path.clone()
+        } else {
+            path.parent().unwrap_or(path.as_path()).to_path_buf()
+        };
+        let mut command = windowless_command("xdg-open");
+        command.arg(target);
+        command
+    };
+
+    #[cfg(not(any(target_os = "macos", target_os = "windows", target_os = "linux")))]
+    let mut command = {
+        let mut command = windowless_command("xdg-open");
+        command.arg(path);
+        command
+    };
+
+    let status = command.status().map_err(|_| file_manager_reveal_error())?;
+    status
+        .success()
+        .then_some(())
+        .ok_or_else(file_manager_reveal_error)
+}
+
+fn file_manager_reveal_error() -> String {
+    if cfg!(target_os = "macos") {
+        "Could not reveal item in Finder.".to_owned()
+    } else if cfg!(target_os = "windows") {
+        "Could not reveal item in Explorer.".to_owned()
+    } else {
+        "Could not reveal item in File Manager.".to_owned()
+    }
 }
 
 fn rewrite_cached_editor_paths(
@@ -569,11 +642,7 @@ fn rewrite_cached_text_paths(
     }
 }
 
-fn rewrite_dirty_paths(
-    paths: &mut std::collections::BTreeSet<String>,
-    previous: &str,
-    next: &str,
-) {
+fn rewrite_dirty_paths(paths: &mut std::collections::BTreeSet<String>, previous: &str, next: &str) {
     let matching = paths
         .iter()
         .filter(|path| path_is_same_or_child(path, previous))

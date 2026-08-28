@@ -1,12 +1,13 @@
 use std::collections::BTreeMap;
 
 use gpui::{
-    div, prelude::FluentBuilder as _, px, AnyElement, Context, CursorStyle,
-    InteractiveElement as _, IntoElement as _, ParentElement as _, SharedString,
+    div, prelude::FluentBuilder as _, px, AnyElement, AppContext as _, Context, CursorStyle,
+    InteractiveElement as _, IntoElement as _, ParentElement as _, Role, SharedString,
     StatefulInteractiveElement as _, Styled as _, Window,
 };
-use gpui_component::input::Input;
+use gpui_component::input::{Input, Textarea};
 use gpui_component::text::TextView;
+use gpui_component::tooltip::Tooltip;
 
 use super::context_pull_request_review_actions::PullRequestReviewAction;
 use super::AleraApp;
@@ -117,11 +118,10 @@ impl AleraApp {
                                 AleraIcon::Refresh
                             },
                         )
+                        .aria_label("Refresh")
+                        .tooltip(|_, cx| cx.new(|_| Tooltip::new("Refresh")).into())
                         .when(!self.forge_busy, |button| {
-                            button.on_mouse_down(
-                                gpui::MouseButton::Left,
-                                cx.listener(|this, _, _, cx| this.refresh_forge(cx)),
-                            )
+                            button.on_click(cx.listener(|this, _, _, cx| this.refresh_forge(cx)))
                         }),
                     ),
             )
@@ -143,23 +143,25 @@ impl AleraApp {
                     .child(div().flex_1())
                     .when(!self.forge_review_editing, |header| {
                         header.child(
-                            pr_icon_button("context-pr-edit", AleraIcon::Edit).on_mouse_down(
-                                gpui::MouseButton::Left,
-                                cx.listener(|this, _, window, cx| {
+                            pr_icon_button("context-pr-edit", AleraIcon::Edit)
+                                .aria_label("Edit Pull Request")
+                                .tooltip(|_, cx| {
+                                    cx.new(|_| Tooltip::new("Edit Pull Request")).into()
+                                })
+                                .on_click(cx.listener(|this, _, window, cx| {
                                     if !this.forge_busy {
                                         this.fill_review_fields(window, cx);
                                         this.forge_review_editing = true;
                                         cx.notify();
                                     }
-                                }),
-                            ),
+                                })),
                         )
                     })
                     .child(
                         pr_icon_button("context-pr-browser", AleraIcon::External)
-                            .on_mouse_down(gpui::MouseButton::Left, move |_, _, cx| {
-                                cx.open_url(&review_url)
-                            }),
+                            .aria_label("Open In Browser")
+                            .tooltip(|_, cx| cx.new(|_| Tooltip::new("Open In Browser")).into())
+                            .on_click(move |_, _, cx| cx.open_url(&review_url)),
                     ),
             )
             .when_some(self.forge_error.clone(), |panel, error| {
@@ -210,6 +212,11 @@ impl AleraApp {
             .child(
                 div()
                     .id("context-pr-edit-base")
+                    .focusable()
+                    .tab_stop(!self.forge_busy)
+                    .role(Role::ComboBox)
+                    .aria_label("Base Branch")
+                    .aria_expanded(self.forge_review_base_menu_open)
                     .flex()
                     .items_center()
                     .h(px(34.0))
@@ -223,14 +230,10 @@ impl AleraApp {
                         CursorStyle::PointingHand
                     })
                     .when(!self.forge_busy, |field| {
-                        field.on_mouse_down(
-                            gpui::MouseButton::Left,
-                            cx.listener(|this, _, _, cx| {
-                                this.forge_review_base_menu_open =
-                                    !this.forge_review_base_menu_open;
-                                cx.notify();
-                            }),
-                        )
+                        field.on_click(cx.listener(|this, _, _, cx| {
+                            this.forge_review_base_menu_open = !this.forge_review_base_menu_open;
+                            cx.notify();
+                        }))
                     })
                     .child(div().flex_1().text_sm().child(selected.clone()))
                     .child(icon(AleraIcon::ChevronDown, 14.0, theme::text_muted())),
@@ -241,8 +244,7 @@ impl AleraApp {
                     .gap_2()
                     .mt_3()
                     .child(
-                        pr_button("context-pr-save", AleraIcon::Check, "Save", true).on_mouse_down(
-                            gpui::MouseButton::Left,
+                        pr_button("context-pr-save", AleraIcon::Check, "Save", true).on_click(
                             cx.listener(|this, _, _, cx| {
                                 if !this.forge_busy {
                                     this.forge_review_editing = false;
@@ -252,21 +254,21 @@ impl AleraApp {
                         ),
                     )
                     .child(
-                        pr_button("context-pr-cancel", AleraIcon::Close, "Cancel", false)
-                            .on_mouse_down(
-                                gpui::MouseButton::Left,
-                                cx.listener(|this, _, _, cx| {
-                                    this.forge_review_editing = false;
-                                    this.forge_review_base_menu_open = false;
-                                    cx.notify();
-                                }),
-                            ),
+                        pr_button("context-pr-cancel", AleraIcon::Close, "Cancel", false).on_click(
+                            cx.listener(|this, _, _, cx| {
+                                this.forge_review_editing = false;
+                                this.forge_review_base_menu_open = false;
+                                cx.notify();
+                            }),
+                        ),
                     ),
             )
             .when(self.forge_review_base_menu_open, |editor| {
                 editor.child(
                     div()
                         .id("context-pr-edit-base-menu")
+                        .role(Role::Menu)
+                        .aria_label("Base Branch")
                         .absolute()
                         .top(px(84.0))
                         .left_0()
@@ -289,6 +291,11 @@ impl AleraApp {
                                 .id(gpui::SharedString::from(format!(
                                     "context-pr-edit-base-option-{branch}"
                                 )))
+                                .focusable()
+                                .tab_stop(true)
+                                .role(Role::MenuItem)
+                                .aria_label(branch.clone())
+                                .aria_selected(checked)
                                 .flex()
                                 .items_center()
                                 .h(px(30.0))
@@ -296,16 +303,13 @@ impl AleraApp {
                                 .text_sm()
                                 .cursor(CursorStyle::PointingHand)
                                 .hover(|style| style.bg(theme::surface_selected()))
-                                .on_mouse_down(
-                                    gpui::MouseButton::Left,
-                                    cx.listener(move |this, _, window, cx| {
-                                        this.forge_review_base_menu_open = false;
-                                        this.forge_base_input.update(cx, |input, cx| {
-                                            input.set_value(value.clone(), window, cx);
-                                        });
-                                        cx.notify();
-                                    }),
-                                )
+                                .on_click(cx.listener(move |this, _, window, cx| {
+                                    this.forge_review_base_menu_open = false;
+                                    this.forge_base_input.update(cx, |input, cx| {
+                                        input.set_value(value.clone(), window, cx);
+                                    });
+                                    cx.notify();
+                                }))
                                 .child(div().flex_1().child(branch))
                                 .when(checked, |row| {
                                     row.child(icon(AleraIcon::Check, 13.0, theme::accent()))
@@ -361,6 +365,11 @@ impl AleraApp {
                     .id(SharedString::from(format!(
                         "context-pr-check-group-{group}"
                     )))
+                    .focusable()
+                    .tab_stop(true)
+                    .role(Role::Button)
+                    .aria_label(label.clone())
+                    .aria_expanded(!collapsed)
                     .flex()
                     .items_center()
                     .h(px(28.0))
@@ -368,15 +377,12 @@ impl AleraApp {
                     .rounded_sm()
                     .cursor(CursorStyle::PointingHand)
                     .hover(|style| style.bg(theme::surface_selected()))
-                    .on_mouse_down(
-                        gpui::MouseButton::Left,
-                        cx.listener(move |this, _, _, cx| {
-                            if !this.forge_collapsed_check_groups.remove(group) {
-                                this.forge_collapsed_check_groups.insert(group.to_string());
-                            }
-                            cx.notify();
-                        }),
-                    )
+                    .on_click(cx.listener(move |this, _, _, cx| {
+                        if !this.forge_collapsed_check_groups.remove(group) {
+                            this.forge_collapsed_check_groups.insert(group.to_string());
+                        }
+                        cx.notify();
+                    }))
                     .child(icon(
                         if collapsed {
                             AleraIcon::ChevronRight
@@ -398,11 +404,7 @@ impl AleraApp {
             .into_any_element()
     }
 
-    fn render_check_row(
-        &self,
-        check: ForgeCheck,
-        cx: &mut Context<Self>,
-    ) -> AnyElement {
+    fn render_check_row(&self, check: ForgeCheck, cx: &mut Context<Self>) -> AnyElement {
         let key = format!("{}|{}", check.name, check.link.as_deref().unwrap_or(""));
         let expanded = self.forge_expanded_checks.contains(&key);
         let toggle_key = key.clone();
@@ -411,9 +413,12 @@ impl AleraApp {
             .ml_2()
             .child(
                 div()
-                    .id(gpui::SharedString::from(format!(
-                        "context-pr-check-{key}"
-                    )))
+                    .id(gpui::SharedString::from(format!("context-pr-check-{key}")))
+                    .focusable()
+                    .tab_stop(true)
+                    .role(Role::Button)
+                    .aria_label(check.name.clone())
+                    .aria_expanded(expanded)
                     .flex()
                     .items_center()
                     .min_h(px(30.0))
@@ -421,15 +426,12 @@ impl AleraApp {
                     .rounded_sm()
                     .cursor(CursorStyle::PointingHand)
                     .hover(|style| style.bg(theme::surface_selected()))
-                    .on_mouse_down(
-                        gpui::MouseButton::Left,
-                        cx.listener(move |this, _, _, cx| {
-                            if !this.forge_expanded_checks.remove(&toggle_key) {
-                                this.forge_expanded_checks.insert(toggle_key.clone());
-                            }
-                            cx.notify();
-                        }),
-                    )
+                    .on_click(cx.listener(move |this, _, _, cx| {
+                        if !this.forge_expanded_checks.remove(&toggle_key) {
+                            this.forge_expanded_checks.insert(toggle_key.clone());
+                        }
+                        cx.notify();
+                    }))
                     .child(check_status_icon(&check.bucket))
                     .child(
                         div()
@@ -444,13 +446,11 @@ impl AleraApp {
                                 format!("context-pr-check-open-{key}"),
                                 AleraIcon::External,
                             )
-                            .on_mouse_down(
-                                gpui::MouseButton::Left,
-                                move |_, _, cx| {
-                                    cx.stop_propagation();
-                                    cx.open_url(&url);
-                                },
-                            ),
+                            .aria_label("Open Check In Browser")
+                            .on_click(move |_, _, cx| {
+                                cx.stop_propagation();
+                                cx.open_url(&url);
+                            }),
                         )
                     })
                     .child(icon(
@@ -507,7 +507,7 @@ impl AleraApp {
 
     fn render_pull_request_comments(
         &self,
-        window: &mut Window,
+        _window: &mut Window,
         cx: &mut Context<Self>,
     ) -> AnyElement {
         let review_open = self
@@ -530,27 +530,40 @@ impl AleraApp {
                     .when(review_open && !composing, |header| {
                         header.child(
                             pr_icon_button("context-pr-comment-start", AleraIcon::Add)
-                                .on_mouse_down(
-                                    gpui::MouseButton::Left,
-                                    cx.listener(|this, _, window, cx| {
-                                        if this.forge_busy {
-                                            return;
-                                        }
-                                        this.forge_comment_composing = true;
-                                        this.forge_comment_input.update(cx, |input, cx| {
-                                            input.set_value("", window, cx);
-                                            input.focus(window, cx);
-                                        });
-                                        cx.notify();
-                                    }),
-                                ),
+                                .aria_label(if self.forge_snapshot.comments.is_empty() {
+                                    "Start Conversation"
+                                } else {
+                                    "Add Comment"
+                                })
+                                .tooltip({
+                                    let label = if self.forge_snapshot.comments.is_empty() {
+                                        "Start Conversation"
+                                    } else {
+                                        "Add Comment"
+                                    };
+                                    move |_, cx| {
+                                        let label = label.to_owned();
+                                        cx.new(move |_| Tooltip::new(label)).into()
+                                    }
+                                })
+                                .on_click(cx.listener(|this, _, window, cx| {
+                                    if this.forge_busy {
+                                        return;
+                                    }
+                                    this.forge_comment_composing = true;
+                                    this.forge_comment_input.update(cx, |input, cx| {
+                                        input.set_value("", window, cx);
+                                        input.focus(window, cx);
+                                    });
+                                    cx.notify();
+                                })),
                         )
                     }),
             )
             .when(composing, |section| {
                 section
                     .child(
-                        Input::new(&self.forge_comment_input)
+                        Textarea::new(&self.forge_comment_input)
                             .disabled(self.forge_busy)
                             .h(px(72.0)),
                     )
@@ -569,13 +582,10 @@ impl AleraApp {
                                     false,
                                 )
                                 .when(!self.forge_busy, |button| {
-                                    button.on_mouse_down(
-                                        gpui::MouseButton::Left,
-                                        cx.listener(|this, _, _, cx| {
-                                            this.forge_comment_composing = false;
-                                            cx.notify();
-                                        }),
-                                    )
+                                    button.on_click(cx.listener(|this, _, _, cx| {
+                                        this.forge_comment_composing = false;
+                                        cx.notify();
+                                    }))
                                 }),
                             )
                             .child(
@@ -590,12 +600,9 @@ impl AleraApp {
                                     true,
                                 )
                                 .when(!self.forge_busy, |button| {
-                                    button.on_mouse_down(
-                                        gpui::MouseButton::Left,
-                                        cx.listener(|this, _, _, cx| {
-                                            this.add_review_comment(cx);
-                                        }),
-                                    )
+                                    button.on_click(cx.listener(|this, _, _, cx| {
+                                        this.add_review_comment(cx);
+                                    }))
                                 }),
                             ),
                     )
@@ -604,115 +611,101 @@ impl AleraApp {
             .when(self.forge_snapshot.comments.is_empty(), |section| {
                 section.child(empty_label("No Comments Yet"))
             })
-            .children(
-                self.forge_snapshot
-                    .comments
-                    .iter()
-                    .cloned()
-                    .map(|comment| {
-                        let comment_id = if comment._id.trim().is_empty() {
-                            format!(
-                                "{}|{}|{}",
-                                comment.author,
-                                comment.created_at.as_deref().unwrap_or_default(),
-                                comment.body
-                            )
-                        } else {
-                            comment._id.clone()
-                        };
-                        let url = comment.url.clone();
-                        let created_at = comment
-                            .created_at
-                            .as_deref()
-                            .and_then(format_review_timestamp);
-                        let location = comment.path.as_ref().map(|path| {
-                            comment
-                                .line
-                                .map(|line| format!("{path}:{line}"))
-                                .unwrap_or_else(|| path.clone())
-                        });
-                        let resolved = comment.resolved;
+            .children(self.forge_snapshot.comments.iter().cloned().map(|comment| {
+                let comment_id = if comment._id.trim().is_empty() {
+                    format!(
+                        "{}|{}|{}",
+                        comment.author,
+                        comment.created_at.as_deref().unwrap_or_default(),
+                        comment.body
+                    )
+                } else {
+                    comment._id.clone()
+                };
+                let url = comment.url.clone();
+                let created_at = comment
+                    .created_at
+                    .as_deref()
+                    .and_then(format_review_timestamp);
+                let location = comment.path.as_ref().map(|path| {
+                    comment
+                        .line
+                        .map(|line| format!("{path}:{line}"))
+                        .unwrap_or_else(|| path.clone())
+                });
+                let resolved = comment.resolved;
+                div()
+                    .id(gpui::SharedString::from(format!(
+                        "context-pr-comment-{comment_id}"
+                    )))
+                    .mt_2()
+                    .p_3()
+                    .rounded_lg()
+                    .border_1()
+                    .border_color(theme::border_subtle())
+                    .bg(theme::surface_raised())
+                    .child(
                         div()
-                            .id(gpui::SharedString::from(format!(
-                                "context-pr-comment-{comment_id}"
-                            )))
-                            .mt_2()
-                            .p_3()
-                            .rounded_lg()
-                            .border_1()
-                            .border_color(theme::border_subtle())
-                            .bg(theme::surface_raised())
+                            .flex()
+                            .items_center()
                             .child(
                                 div()
-                                    .flex()
-                                    .items_center()
-                                    .child(
-                                        div()
-                                            .flex_1()
-                                            .text_xs()
-                                            .font_weight(gpui::FontWeight::SEMIBOLD)
-                                            .child(comment.author),
-                                    )
-                                    .when_some(created_at, |header, created_at| {
-                                        header.child(
-                                            div()
-                                                .text_xs()
-                                                .text_color(theme::text_faint())
-                                                .child(created_at),
-                                        )
-                                    })
-                                    .when_some(url, |header, url| {
-                                        header.child(
-                                            pr_icon_button_owned(
-                                                format!("context-pr-comment-open-{comment_id}"),
-                                                AleraIcon::External,
-                                            )
-                                            .on_mouse_down(
-                                                gpui::MouseButton::Left,
-                                                move |_, _, cx| cx.open_url(&url),
-                                            ),
-                                        )
-                                    }),
+                                    .flex_1()
+                                    .text_xs()
+                                    .font_weight(gpui::FontWeight::SEMIBOLD)
+                                    .child(comment.author),
                             )
-                            .when_some(location, |card, location| {
-                                card.child(
+                            .when_some(created_at, |header, created_at| {
+                                header.child(
                                     div()
-                                        .mt_1()
-                                        .flex()
-                                        .items_center()
-                                        .gap_1()
                                         .text_xs()
                                         .text_color(theme::text_faint())
-                                        .child(icon(AleraIcon::Code, 13.0, theme::text_faint()))
-                                        .child(div().flex_1().child(location))
-                                        .when(resolved, |row| {
-                                            row.child(
-                                                div()
-                                                    .text_color(theme::success())
-                                                    .child("Resolved"),
-                                            )
-                                        }),
+                                        .child(created_at),
                                 )
                             })
+                            .when_some(url, |header, url| {
+                                header.child(
+                                    pr_icon_button_owned(
+                                        format!("context-pr-comment-open-{comment_id}"),
+                                        AleraIcon::External,
+                                    )
+                                    .aria_label("Open Comment In Browser")
+                                    .on_click(move |_, _, cx| cx.open_url(&url)),
+                                )
+                            }),
+                    )
+                    .when_some(location, |card, location| {
+                        card.child(
+                            div()
+                                .mt_1()
+                                .flex()
+                                .items_center()
+                                .gap_1()
+                                .text_xs()
+                                .text_color(theme::text_faint())
+                                .child(icon(AleraIcon::Code, 13.0, theme::text_faint()))
+                                .child(div().flex_1().child(location))
+                                .when(resolved, |row| {
+                                    row.child(div().text_color(theme::success()).child("Resolved"))
+                                }),
+                        )
+                    })
+                    .child(
+                        div()
+                            .mt_1()
+                            .text_sm()
+                            .text_color(theme::text_muted())
                             .child(
-                                div()
-                                    .mt_1()
-                                    .text_sm()
-                                    .text_color(theme::text_muted())
-                                    .child(
-                                        TextView::markdown(
-                                            gpui::SharedString::from(format!(
-                                                "context-pr-comment-body-{comment_id}"
-                                            )),
-                                            normalize_review_comment_markdown(&comment.body),
-                                            window,
-                                            cx,
-                                        )
-                                        .selectable(true),
-                                    ),
-                            )
-                    }),
-            )
+                                TextView::markdown(
+                                    gpui::SharedString::from(format!(
+                                        "context-pr-comment-body-{comment_id}"
+                                    )),
+                                    normalize_review_comment_markdown(&comment.body),
+                                )
+                                .selectable(true),
+                            ),
+                    )
+            }))
             .into_any_element()
     }
 
@@ -754,6 +747,10 @@ impl AleraApp {
             .child(
                 div()
                     .id("context-pr-primary-action")
+                    .focusable()
+                    .tab_stop(enabled)
+                    .role(Role::Button)
+                    .aria_label(action.label())
                     .flex()
                     .flex_1()
                     .items_center()
@@ -774,12 +771,9 @@ impl AleraApp {
                         })
                     })
                     .when(enabled, |button| {
-                        button.on_mouse_down(
-                            gpui::MouseButton::Left,
-                            cx.listener(move |this, _, _, cx| {
-                                this.request_pull_request_action(action, number, cx);
-                            }),
-                        )
+                        button.on_click(cx.listener(move |this, _, _, cx| {
+                            this.request_pull_request_action(action, number, cx);
+                        }))
                     })
                     .child(icon(
                         if self.forge_busy {
@@ -803,6 +797,10 @@ impl AleraApp {
                     .child(
                         div()
                             .id("context-pr-actions-menu-toggle")
+                            .focusable()
+                            .tab_stop(!self.forge_busy)
+                            .role(Role::Button)
+                            .aria_label("Pull Request Actions")
                             .flex()
                             .items_center()
                             .justify_center()
@@ -823,14 +821,11 @@ impl AleraApp {
                                 })
                             })
                             .when(!self.forge_busy, |toggle| {
-                                toggle.on_mouse_down(
-                                    gpui::MouseButton::Left,
-                                    cx.listener(|this, _, _, cx| {
-                                        this.forge_review_action_menu_open =
-                                            !this.forge_review_action_menu_open;
-                                        cx.notify();
-                                    }),
-                                )
+                                toggle.on_click(cx.listener(|this, _, _, cx| {
+                                    this.forge_review_action_menu_open =
+                                        !this.forge_review_action_menu_open;
+                                    cx.notify();
+                                }))
                             })
                             .child(icon(AleraIcon::ChevronDown, 16.0, foreground)),
                     )
@@ -839,6 +834,8 @@ impl AleraApp {
                 button.child(
                     div()
                         .id("context-pr-actions-menu")
+                        .role(Role::Menu)
+                        .aria_label("Pull Request Actions")
                         .absolute()
                         .bottom(px(38.0))
                         .left_0()
@@ -861,6 +858,11 @@ impl AleraApp {
                                     "context-pr-action-option-{}",
                                     option.label()
                                 )))
+                                .focusable()
+                                .tab_stop(true)
+                                .role(Role::MenuItem)
+                                .aria_label(option.label())
+                                .aria_selected(option == action)
                                 .flex()
                                 .items_center()
                                 .h(px(30.0))
@@ -869,14 +871,11 @@ impl AleraApp {
                                 .text_sm()
                                 .cursor(CursorStyle::PointingHand)
                                 .hover(|style| style.bg(theme::surface_selected()))
-                                .on_mouse_down(
-                                    gpui::MouseButton::Left,
-                                    cx.listener(move |this, _, _, cx| {
-                                        this.forge_review_action = Some(option);
-                                        this.forge_review_action_menu_open = false;
-                                        cx.notify();
-                                    }),
-                                )
+                                .on_click(cx.listener(move |this, _, _, cx| {
+                                    this.forge_review_action = Some(option);
+                                    this.forge_review_action_menu_open = false;
+                                    cx.notify();
+                                }))
                                 .child(icon(
                                     action_icon(option),
                                     15.0,
@@ -937,10 +936,7 @@ fn pull_request_message(
                     label,
                     false,
                 )
-                .on_mouse_down(
-                    gpui::MouseButton::Left,
-                    cx.listener(|this, _, _, cx| this.refresh_forge(cx)),
-                ),
+                .on_click(cx.listener(|this, _, _, cx| this.refresh_forge(cx))),
             )
         })
         .into_any_element()
@@ -1081,6 +1077,10 @@ fn pr_button(
 ) -> gpui::Stateful<gpui::Div> {
     div()
         .id(SharedString::from(id))
+        .focusable()
+        .tab_stop(true)
+        .role(Role::Button)
+        .aria_label(label)
         .flex()
         .items_center()
         .justify_center()
@@ -1126,15 +1126,18 @@ fn pr_icon_button(id: &'static str, kind: AleraIcon) -> gpui::Stateful<gpui::Div
 fn pr_icon_button_owned(id: String, kind: AleraIcon) -> gpui::Stateful<gpui::Div> {
     div()
         .id(SharedString::from(id))
+        .focusable()
+        .tab_stop(true)
+        .role(Role::Button)
         .flex()
         .items_center()
         .justify_center()
-        .w(px(26.0))
-        .h(px(26.0))
+        .w(px(30.0))
+        .h(px(30.0))
         .rounded_md()
         .cursor(CursorStyle::PointingHand)
         .hover(|style| style.bg(theme::surface_selected()))
-        .child(icon(kind, 14.0, theme::text_muted()))
+        .child(icon(kind, 16.0, theme::text_muted()))
 }
 
 #[cfg(test)]

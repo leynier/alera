@@ -45,10 +45,26 @@ pub(super) struct GitHistoryResizeState {
 #[derive(Clone, Copy, Debug)]
 pub(super) struct GitHistoryResizeDrag;
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Debug)]
 pub(super) struct PreviewDragState {
+    pub(super) tab_id: String,
     pub(super) start: Point<Pixels>,
     pub(super) initial_offset: Point<Pixels>,
+}
+
+#[derive(Clone, Copy, Debug)]
+pub(super) struct PreviewTransform {
+    pub(super) scale: f32,
+    pub(super) offset: Point<Pixels>,
+}
+
+impl Default for PreviewTransform {
+    fn default() -> Self {
+        Self {
+            scale: 1.0,
+            offset: gpui::point(gpui::px(0.0), gpui::px(0.0)),
+        }
+    }
 }
 
 #[derive(Clone, Debug)]

@@ -1,9 +1,9 @@
 use gpui::{
     div, prelude::FluentBuilder as _, px, AnyElement, AppContext as _, Context, CursorStyle,
-    InteractiveElement as _, IntoElement as _, ParentElement as _, StatefulInteractiveElement as _,
-    Styled as _,
+    InteractiveElement as _, IntoElement as _, ParentElement as _, Role,
+    StatefulInteractiveElement as _, Styled as _,
 };
-use gpui_component::input::Input;
+use gpui_component::input::{Input, Textarea};
 use gpui_component::tooltip::Tooltip;
 
 use super::AleraApp;
@@ -38,7 +38,7 @@ impl AleraApp {
             .gap_3()
             .child(
                 div()
-                    .id("context-open-link-pr")
+                    .id("context-pr-header")
                     .flex()
                     .items_center()
                     .h(px(26.0))
@@ -58,14 +58,13 @@ impl AleraApp {
                                 AleraIcon::Refresh
                             },
                         )
-                        .on_mouse_down(
-                            gpui::MouseButton::Left,
-                            cx.listener(|this, _, _, cx| {
-                                if !this.forge_busy {
-                                    this.refresh_forge(cx);
-                                }
-                            }),
-                        ),
+                        .aria_label("Refresh")
+                        .tooltip(|_, cx| cx.new(|_| Tooltip::new("Refresh")).into())
+                        .on_click(cx.listener(|this, _, _, cx| {
+                            if !this.forge_busy {
+                                this.refresh_forge(cx);
+                            }
+                        })),
                     ),
             )
             .when_some(self.forge_error.clone(), |panel, error| {
@@ -77,6 +76,11 @@ impl AleraApp {
             .child(
                 div()
                     .id("context-base-branch-select")
+                    .focusable()
+                    .tab_stop(form_enabled)
+                    .role(Role::ComboBox)
+                    .aria_label("Base Branch")
+                    .aria_expanded(self.forge_base_menu_open)
                     .flex()
                     .items_center()
                     .h(px(34.0))
@@ -91,14 +95,11 @@ impl AleraApp {
                         CursorStyle::Arrow
                     })
                     .when(form_enabled, |field| {
-                        field.on_mouse_down(
-                            gpui::MouseButton::Left,
-                            cx.listener(|this, _, _, cx| {
-                                this.forge_base_menu_open = !this.forge_base_menu_open;
-                                this.forge_create_menu_open = false;
-                                cx.notify();
-                            }),
-                        )
+                        field.on_click(cx.listener(|this, _, _, cx| {
+                            this.forge_base_menu_open = !this.forge_base_menu_open;
+                            this.forge_create_menu_open = false;
+                            cx.notify();
+                        }))
                     })
                     .child(div().flex_1().text_sm().child(base_value))
                     .child(icon(AleraIcon::ChevronDown, 14.0, theme::text_muted())),
@@ -115,6 +116,14 @@ impl AleraApp {
                             row.child(
                                 div()
                                     .id("context-generate-pr-details")
+                                    .focusable()
+                                    .tab_stop(can_generate || self.forge_ai_busy)
+                                    .role(Role::Button)
+                                    .aria_label(if forge_ai_busy {
+                                        "Stop Generating Pull Request Details"
+                                    } else {
+                                        "Generate Title And Description With AI"
+                                    })
                                     .flex()
                                     .items_center()
                                     .justify_center()
@@ -147,18 +156,13 @@ impl AleraApp {
                                                 }
                                             }))
                                             .hover(|style| style.bg(theme::surface_selected()))
-                                            .on_mouse_down(
-                                                gpui::MouseButton::Left,
-                                                cx.listener(|this, _, window, cx| {
-                                                    if this.forge_ai_busy {
-                                                        this.cancel_pull_request_generation(cx);
-                                                    } else {
-                                                        this.generate_pull_request_details(
-                                                            window, cx,
-                                                        );
-                                                    }
-                                                }),
-                                            )
+                                            .on_click(cx.listener(|this, _, window, cx| {
+                                                if this.forge_ai_busy {
+                                                    this.cancel_pull_request_generation(cx);
+                                                } else {
+                                                    this.generate_pull_request_details(window, cx);
+                                                }
+                                            }))
                                     })
                                     .child(icon(
                                         if self.forge_ai_busy {
@@ -201,7 +205,7 @@ impl AleraApp {
                     .relative()
                     .h(px(64.0))
                     .child(
-                        Input::new(&self.forge_body_input)
+                        Textarea::new(&self.forge_body_input)
                             .disabled(!form_enabled)
                             .h_full(),
                     )
@@ -260,12 +264,9 @@ impl AleraApp {
                         )
                         .flex_1()
                         .when(form_enabled, |button| {
-                            button.on_mouse_down(
-                                gpui::MouseButton::Left,
-                                cx.listener(move |this, _, _, cx| {
-                                    this.create_review(create_draft, cx);
-                                }),
-                            )
+                            button.on_click(cx.listener(move |this, _, _, cx| {
+                                this.create_review(create_draft, cx);
+                            }))
                         })
                         .when(!form_enabled, |button| button.cursor(CursorStyle::Arrow))
                         .h(px(28.0))
@@ -277,15 +278,13 @@ impl AleraApp {
                             AleraIcon::ChevronDown,
                             true,
                         )
+                        .aria_label("Pull Request Type")
                         .when(form_enabled, |button| {
-                            button.on_mouse_down(
-                                gpui::MouseButton::Left,
-                                cx.listener(|this, _, _, cx| {
-                                    this.forge_create_menu_open = !this.forge_create_menu_open;
-                                    this.forge_base_menu_open = false;
-                                    cx.notify();
-                                }),
-                            )
+                            button.on_click(cx.listener(|this, _, _, cx| {
+                                this.forge_create_menu_open = !this.forge_create_menu_open;
+                                this.forge_base_menu_open = false;
+                                cx.notify();
+                            }))
                         })
                         .when(!form_enabled, |button| button.cursor(CursorStyle::Arrow))
                         .w(px(34.0))
@@ -298,6 +297,10 @@ impl AleraApp {
             .child(
                 div()
                     .id("context-open-link-pr")
+                    .focusable()
+                    .tab_stop(form_enabled)
+                    .role(Role::Button)
+                    .aria_label("Link Existing Pull Request")
                     .flex()
                     .items_center()
                     .justify_center()
@@ -310,14 +313,11 @@ impl AleraApp {
                         CursorStyle::Arrow
                     })
                     .when(form_enabled, |button| {
-                        button.on_mouse_down(
-                            gpui::MouseButton::Left,
-                            cx.listener(|this, _, _, cx| {
-                                this.forge_link_form_open = true;
-                                this.forge_form_error = None;
-                                cx.notify();
-                            }),
-                        )
+                        button.on_click(cx.listener(|this, _, _, cx| {
+                            this.forge_link_form_open = true;
+                            this.forge_form_error = None;
+                            cx.notify();
+                        }))
                     })
                     .child("Link Existing Pull Request"),
             )
@@ -343,6 +343,8 @@ impl AleraApp {
                 composer.child(
                     div()
                         .id("context-base-branch-menu")
+                        .role(Role::Menu)
+                        .aria_label("Base Branch")
                         .absolute()
                         .top(px(113.0))
                         .right(px(12.0))
@@ -364,6 +366,11 @@ impl AleraApp {
                                 self.forge_base_input.read(cx).value() == branch.as_str();
                             div()
                                 .id(("context-base-branch-option", index))
+                                .focusable()
+                                .tab_stop(true)
+                                .role(Role::MenuItem)
+                                .aria_label(branch.clone())
+                                .aria_selected(is_selected)
                                 .flex()
                                 .items_center()
                                 .h(px(30.0))
@@ -371,16 +378,13 @@ impl AleraApp {
                                 .text_sm()
                                 .cursor(CursorStyle::PointingHand)
                                 .hover(|style| style.bg(theme::surface_selected()))
-                                .on_mouse_down(
-                                    gpui::MouseButton::Left,
-                                    cx.listener(move |this, _, window, cx| {
-                                        this.forge_base_menu_open = false;
-                                        this.forge_base_input.update(cx, |input, cx| {
-                                            input.set_value(selected_branch.clone(), window, cx);
-                                        });
-                                        cx.notify();
-                                    }),
-                                )
+                                .on_click(cx.listener(move |this, _, window, cx| {
+                                    this.forge_base_menu_open = false;
+                                    this.forge_base_input.update(cx, |input, cx| {
+                                        input.set_value(selected_branch.clone(), window, cx);
+                                    });
+                                    cx.notify();
+                                }))
                                 .child(div().flex_1().child(branch))
                                 .when(is_selected, |row| {
                                     row.child(icon(AleraIcon::Check, 13.0, theme::accent()))
@@ -392,6 +396,8 @@ impl AleraApp {
                 composer.child(
                     div()
                         .id("context-create-pr-menu")
+                        .role(Role::Menu)
+                        .aria_label("Pull Request Type")
                         .absolute()
                         .top(px(274.0))
                         .right(px(16.0))
@@ -410,6 +416,11 @@ impl AleraApp {
                         .child(
                             div()
                                 .id("context-create-publish-option")
+                                .focusable()
+                                .tab_stop(true)
+                                .role(Role::MenuItem)
+                                .aria_label("Create Pull Request")
+                                .aria_selected(!create_draft)
                                 .flex()
                                 .items_center()
                                 .h(px(30.0))
@@ -418,15 +429,12 @@ impl AleraApp {
                                 .text_sm()
                                 .cursor(CursorStyle::PointingHand)
                                 .hover(|style| style.bg(theme::surface_selected()))
-                                .on_mouse_down(
-                                    gpui::MouseButton::Left,
-                                    cx.listener(|this, _, _, cx| {
-                                        this.forge_create_menu_open = false;
-                                        this.forge_create_draft = false;
-                                        this.persist_sidebar_view_prefs(cx);
-                                        cx.notify();
-                                    }),
-                                )
+                                .on_click(cx.listener(|this, _, _, cx| {
+                                    this.forge_create_menu_open = false;
+                                    this.forge_create_draft = false;
+                                    this.persist_sidebar_view_prefs(cx);
+                                    cx.notify();
+                                }))
                                 .child(icon(AleraIcon::GitPullRequest, 14.0, theme::text_muted()))
                                 .child(div().flex_1().child("Create Pull Request"))
                                 .when(!create_draft, |row| {
@@ -436,6 +444,11 @@ impl AleraApp {
                         .child(
                             div()
                                 .id("context-create-draft-option")
+                                .focusable()
+                                .tab_stop(true)
+                                .role(Role::MenuItem)
+                                .aria_label("Draft Pull Request")
+                                .aria_selected(create_draft)
                                 .flex()
                                 .items_center()
                                 .h(px(30.0))
@@ -444,15 +457,12 @@ impl AleraApp {
                                 .text_sm()
                                 .cursor(CursorStyle::PointingHand)
                                 .hover(|style| style.bg(theme::surface_selected()))
-                                .on_mouse_down(
-                                    gpui::MouseButton::Left,
-                                    cx.listener(|this, _, _, cx| {
-                                        this.forge_create_menu_open = false;
-                                        this.forge_create_draft = true;
-                                        this.persist_sidebar_view_prefs(cx);
-                                        cx.notify();
-                                    }),
-                                )
+                                .on_click(cx.listener(|this, _, _, cx| {
+                                    this.forge_create_menu_open = false;
+                                    this.forge_create_draft = true;
+                                    this.persist_sidebar_view_prefs(cx);
+                                    cx.notify();
+                                }))
                                 .child(icon(AleraIcon::Edit, 14.0, theme::text_muted()))
                                 .child(div().flex_1().child("Draft Pull Request"))
                                 .when(create_draft, |row| {
@@ -497,14 +507,13 @@ impl AleraApp {
                                 AleraIcon::Refresh
                             },
                         )
-                        .on_mouse_down(
-                            gpui::MouseButton::Left,
-                            cx.listener(|this, _, _, cx| {
-                                if !this.forge_busy {
-                                    this.refresh_forge(cx);
-                                }
-                            }),
-                        ),
+                        .aria_label("Refresh")
+                        .tooltip(|_, cx| cx.new(|_| Tooltip::new("Refresh")).into())
+                        .on_click(cx.listener(|this, _, _, cx| {
+                            if !this.forge_busy {
+                                this.refresh_forge(cx);
+                            }
+                        })),
                     ),
             )
             .child(
@@ -523,6 +532,10 @@ impl AleraApp {
                     form.child(field_label("Suggested Pull Request")).child(
                         div()
                             .id("context-suggested-pr")
+                            .focusable()
+                            .tab_stop(can_link)
+                            .role(Role::Button)
+                            .aria_label("Suggested Pull Request")
                             .flex()
                             .items_center()
                             .w_full()
@@ -540,16 +553,13 @@ impl AleraApp {
                             })
                             .when(can_link, |card| {
                                 card.hover(|style| style.bg(theme::surface_selected()))
-                                    .on_mouse_down(
-                                        gpui::MouseButton::Left,
-                                        cx.listener(move |this, _, window, cx| {
-                                            this.forge_link_input.update(cx, |input, cx| {
-                                                input.set_value(format!("#{number}"), window, cx);
-                                            });
-                                            this.forge_form_error = None;
-                                            cx.notify();
-                                        }),
-                                    )
+                                    .on_click(cx.listener(move |this, _, window, cx| {
+                                        this.forge_link_input.update(cx, |input, cx| {
+                                            input.set_value(format!("#{number}"), window, cx);
+                                        });
+                                        this.forge_form_error = None;
+                                        cx.notify();
+                                    }))
                             })
                             .child(icon(AleraIcon::GitPullRequest, 16.0, theme::text_muted()))
                             .child(
@@ -574,12 +584,9 @@ impl AleraApp {
                             .cursor(CursorStyle::Arrow)
                     })
                     .when(can_link, |button| {
-                        button.on_mouse_down(
-                            gpui::MouseButton::Left,
-                            cx.listener(|this, _, _, cx| {
-                                this.link_existing_review(cx);
-                            }),
-                        )
+                        button.on_click(cx.listener(|this, _, _, cx| {
+                            this.link_existing_review(cx);
+                        }))
                     }),
             )
             .child(div().flex_1())
@@ -587,6 +594,10 @@ impl AleraApp {
                 form.child(
                     div()
                         .id("context-return-create-pr")
+                        .focusable()
+                        .tab_stop(true)
+                        .role(Role::Button)
+                        .aria_label("Create Pull Request")
                         .flex()
                         .items_center()
                         .justify_center()
@@ -595,14 +606,11 @@ impl AleraApp {
                         .bg(theme::surface_selected())
                         .text_sm()
                         .cursor(CursorStyle::PointingHand)
-                        .on_mouse_down(
-                            gpui::MouseButton::Left,
-                            cx.listener(|this, _, _, cx| {
-                                this.forge_link_form_open = false;
-                                this.forge_form_error = None;
-                                cx.notify();
-                            }),
-                        )
+                        .on_click(cx.listener(|this, _, _, cx| {
+                            this.forge_link_form_open = false;
+                            this.forge_form_error = None;
+                            cx.notify();
+                        }))
                         .child("Create Pull Request"),
                 )
             })
@@ -622,6 +630,10 @@ fn pr_button_with_icon(
 ) -> gpui::Stateful<gpui::Div> {
     div()
         .id(id)
+        .focusable()
+        .tab_stop(true)
+        .role(Role::Button)
+        .aria_label(label)
         .flex()
         .items_center()
         .justify_center()
@@ -671,17 +683,16 @@ fn pr_icon_button_with_style(
 ) -> gpui::Stateful<gpui::Div> {
     div()
         .id(id)
+        .focusable()
+        .tab_stop(true)
+        .role(Role::Button)
         .flex()
         .items_center()
         .justify_center()
-        .min_h(px(30.0))
-        .px_2()
+        .w(px(30.0))
+        .h(px(30.0))
         .rounded_md()
-        .bg(if filled {
-            theme::accent()
-        } else {
-            theme::surface_raised()
-        })
+        .when(filled, |button| button.bg(theme::accent()))
         .text_color(if filled {
             theme::on_accent()
         } else {
@@ -698,7 +709,7 @@ fn pr_icon_button_with_style(
         .when(filled, |button| button.rounded_lg())
         .child(icon(
             kind,
-            14.0,
+            if filled { 14.0 } else { 16.0 },
             if filled {
                 theme::on_accent()
             } else {

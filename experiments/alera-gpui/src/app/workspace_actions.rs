@@ -72,7 +72,7 @@ impl AleraApp {
             let Some(this) = this.upgrade() else {
                 return;
             };
-            let _ = this.update(cx, |this, cx| {
+            this.update(cx, |this, cx| {
                 if this.selected_workspace_project_id.as_deref() != Some(project_id.as_str()) {
                     return;
                 }
@@ -106,7 +106,7 @@ impl AleraApp {
             let Some(this) = this.upgrade() else {
                 return;
             };
-            let _ = this.update(cx, |this, cx| {
+            this.update(cx, |this, cx| {
                 this.workspace_profiles_loading = false;
                 match result.and_then(parse_agent_profile_options) {
                     Ok(profiles) => {

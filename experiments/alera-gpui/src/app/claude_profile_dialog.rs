@@ -1,6 +1,7 @@
 use gpui::{
     div, prelude::FluentBuilder as _, px, AnyElement, Context, CursorStyle, Focusable as _,
-    InteractiveElement as _, IntoElement as _, ParentElement as _, Styled as _, Window,
+    InteractiveElement as _, IntoElement as _, ParentElement as _, Role,
+    StatefulInteractiveElement as _, Styled as _, Window,
 };
 use gpui_component::input::InputState;
 
@@ -31,7 +32,7 @@ impl AleraApp {
         self.show_claude_profile_dialog = true;
         self.claude_profile_alias_input
             .focus_handle(cx)
-            .focus(window);
+            .focus(window, cx);
         cx.notify();
     }
 
@@ -133,6 +134,13 @@ impl AleraApp {
             .bg(theme::overlay_scrim())
             .child(
                 div()
+                    .id("claude-profile-dialog")
+                    .role(Role::Dialog)
+                    .aria_label(if self.editing_claude_profile_index.is_some() {
+                        "Edit CCS Profile"
+                    } else {
+                        "Add CCS Profile"
+                    })
                     .w(px(480.0))
                     .p_6()
                     .rounded_xl()
@@ -171,22 +179,17 @@ impl AleraApp {
                             .justify_end()
                             .gap_2()
                             .child(
-                                dialog_button("cancel-claude-profile", "Cancel", false)
-                                    .on_mouse_down(
-                                        gpui::MouseButton::Left,
-                                        cx.listener(|this, _, _, cx| {
-                                            this.close_claude_profile_dialog(cx);
-                                        }),
-                                    ),
+                                dialog_button("cancel-claude-profile", "Cancel", false).on_click(
+                                    cx.listener(|this, _, _, cx| {
+                                        this.close_claude_profile_dialog(cx);
+                                    }),
+                                ),
                             )
                             .child(
                                 dialog_button("save-claude-profile", "Save Profile", true)
-                                    .on_mouse_down(
-                                        gpui::MouseButton::Left,
-                                        cx.listener(|this, _, _, cx| {
-                                            this.save_claude_profile(cx);
-                                        }),
-                                    ),
+                                    .on_click(cx.listener(|this, _, _, cx| {
+                                        this.save_claude_profile(cx);
+                                    })),
                             ),
                     ),
             )
@@ -214,6 +217,10 @@ fn dialog_button(
 ) -> gpui::Stateful<gpui::Div> {
     div()
         .id(id)
+        .focusable()
+        .tab_stop(true)
+        .role(Role::Button)
+        .aria_label(label)
         .flex()
         .items_center()
         .justify_center()

@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 use std::path::Path;
 use std::time::Duration;
 
-use gpui::{Context, Focusable as _, Timer, Window};
+use gpui::{Context, Focusable as _, Window};
 use serde_json::json;
 
 use super::AleraApp;
@@ -599,6 +599,13 @@ impl AleraApp {
         if tab_ids.is_empty() {
             return;
         }
+        if self
+            .tab_pointer_drag
+            .as_ref()
+            .is_some_and(|(_, tab_id)| tab_ids.contains(tab_id))
+        {
+            self.clear_pointer_tab_drag_state(cx);
+        }
         let closing_open_editor = self.snapshot.tabs.iter().any(|tab| {
             tab_ids.contains(&tab.id)
                 && matches!(tab.kind.as_str(), "editor" | "markdownViewer")
@@ -620,6 +627,14 @@ impl AleraApp {
         self.prune_presence_for_tabs(&tab_ids);
         for tab_id in &tab_ids {
             self.git_diff_errors.remove(tab_id);
+            self.preview_transforms.remove(tab_id);
+            if self
+                .preview_drag
+                .as_ref()
+                .is_some_and(|drag| &drag.tab_id == tab_id)
+            {
+                self.preview_drag = None;
+            }
             self.git_diff_image_sides
                 .retain(|(owner, _), _| owner != tab_id);
             self.git_diff_image_loading
@@ -658,6 +673,11 @@ impl AleraApp {
             .all_tabs
             .retain(|tab| !tab_ids.contains(&tab.id));
         self.snapshot.layout = layout.clone();
+        if self.snapshot.tabs.is_empty() {
+            self.selected_workspace_id = None;
+            self.pending_workspace_terminal_id = None;
+            self.pending_workspace_tab_id = None;
+        }
         let next_selected_tab_id = layout
             .as_ref()
             .and_then(|layout| layout.groups.get(&layout.active_group_id))
@@ -685,6 +705,7 @@ impl AleraApp {
                             this.editor_cursor_positions.clear();
                             this.opened_file_path = None;
                             this.editor_preview_assets.clear();
+                            this.markdown_preview_content.clear();
                             this.editor_dirty = false;
                         }
                         this.refresh_presence_status(cx);
@@ -798,7 +819,7 @@ impl AleraApp {
             .update(cx, |input, cx| input.set_value(title.clone(), window, cx));
         self.tab_rename_replace_pending = Some(title);
         self.show_tab_rename_dialog = true;
-        self.tab_rename_input.focus_handle(cx).focus(window);
+        self.tab_rename_input.focus_handle(cx).focus(window, cx);
         cx.notify();
     }
 
@@ -811,6 +832,21 @@ impl AleraApp {
     }
 
     pub(super) fn activate_workspace_tab(&mut self, tab_id: String, cx: &mut Context<Self>) {
+        if let Some(previous_tab_id) = self
+            .selected_tab_id
+            .as_deref()
+            .filter(|previous_tab_id| *previous_tab_id != tab_id)
+            .map(str::to_owned)
+        {
+            self.preview_transforms.remove(&previous_tab_id);
+            if self
+                .preview_drag
+                .as_ref()
+                .is_some_and(|drag| drag.tab_id == previous_tab_id)
+            {
+                self.preview_drag = None;
+            }
+        }
         if let Some(path) = self
             .opened_file_path
             .clone()
@@ -877,26 +913,26 @@ impl AleraApp {
             .tabs
             .iter()
             .find(|tab| tab.id == tab_id)
-            .map(|tab| tab.kind.as_str());
+            .map(|tab| tab.kind.clone());
         let cached_visual_preview = self
             .snapshot
             .tabs
             .iter()
             .find(|tab| tab.id == tab_id)
             .and_then(|tab| {
-                let path = tab.payload.get("filePath").and_then(|value| value.as_str())?;
+                let path = tab
+                    .payload
+                    .get("filePath")
+                    .and_then(|value| value.as_str())?;
                 let file_role = tab.payload.get("fileRole").and_then(|value| value.as_str());
                 let is_merman_preview = file_role == Some("mermanPreview");
-                let is_cached_visual = self
-                    .editor_preview_assets
-                    .get(path)
-                    .is_some_and(|asset| {
-                        matches!(
-                            asset,
-                            super::workspace_surface::PreviewAsset::Image(_)
-                                | super::workspace_surface::PreviewAsset::Mermaid(_)
-                        )
-                    });
+                let is_cached_visual = self.editor_preview_assets.get(path).is_some_and(|asset| {
+                    matches!(
+                        asset,
+                        super::workspace_surface::PreviewAsset::Image(_)
+                            | super::workspace_surface::PreviewAsset::Mermaid(_)
+                    )
+                });
                 Some(is_merman_preview || is_cached_visual)
             })
             .unwrap_or(false);
@@ -907,12 +943,32 @@ impl AleraApp {
             .find(|tab| tab.id == tab_id && tab.kind == "gitDiff")
             .map(|tab| tab.payload.clone());
         self.selected_tab_id = Some(tab_id.clone());
-        if matches!(selected_kind, Some("editor")) {
+        let tab_scroll_target = self.snapshot.layout.as_ref().and_then(|layout| {
+            layout.groups.iter().find_map(|(group_id, group)| {
+                group
+                    .tab_ids
+                    .iter()
+                    .position(|candidate| candidate == &tab_id)
+                    .map(|index| (group_id.clone(), index))
+            })
+        });
+        if let Some((group_id, index)) = tab_scroll_target {
+            if let Some(handle) = self
+                .tab_strip_scroll_handles
+                .borrow()
+                .get(&group_id)
+                .cloned()
+            {
+                handle.scroll_to_item(index);
+            }
+        }
+        self.sync_selected_editor_from_cache();
+        if selected_kind.as_deref() == Some("editor") {
             // Image/Mermaid editor tabs are viewers in Flutter. Restore the
             // cached visual mode when revisiting an existing tab instead of
             // leaving the previous source document underneath its new title.
             self.show_preview = cached_visual_preview;
-        } else if matches!(selected_kind, Some("markdownViewer")) {
+        } else if selected_kind.as_deref() == Some("markdownViewer") {
             self.show_preview = true;
         }
         self.ensure_selected_terminal(cx);
@@ -1089,7 +1145,7 @@ pub(super) async fn persist_layout(
     bridge.request("layout.upsert", payload.clone()).await?;
     // Flutter and GPUI can observe the same runtime while parity is tested side by side.
     // Reassert the explicit user mutation after both clients have processed the tab event.
-    Timer::after(Duration::from_millis(250)).await;
+    async_io::Timer::after(Duration::from_millis(250)).await;
     bridge.request("layout.upsert", payload).await.map(|_| ())
 }
 

@@ -1,6 +1,6 @@
 use gpui::{
     div, prelude::FluentBuilder as _, px, AnyElement, Context, InteractiveElement as _,
-    IntoElement as _, ParentElement as _, Styled as _,
+    IntoElement as _, ParentElement as _, Role, StatefulInteractiveElement as _, Styled as _,
 };
 use gpui_component::scroll::ScrollableElement as _;
 
@@ -12,11 +12,12 @@ use crate::theme;
 
 impl AleraApp {
     pub(super) fn render_execution_plans_dialog(&self, cx: &mut Context<Self>) -> AnyElement {
-        let compact = !self.run_policies_loading
-            && self.run_policy_error.is_none()
-            && !self.run_policies.is_empty();
+        let compact = !self.run_policies_loading && !self.run_policies.is_empty();
         let content: AnyElement = if self.run_policies_loading {
             div()
+                .id("execution-plans-loading")
+                .role(Role::ProgressIndicator)
+                .aria_label("Loading Execution Plans")
                 .mt_3()
                 .flex_1()
                 .min_h(px(150.0))
@@ -25,6 +26,20 @@ impl AleraApp {
                 .justify_center()
                 .child(loading_indicator(24.0, theme::text_muted()))
                 .into_any_element()
+        } else if !self.run_policies.is_empty() {
+            let content = div().mt_4().flex_shrink_0().children(
+                self.run_policies
+                    .iter()
+                    .map(|policy| self.render_run_policy_panel(policy, cx)),
+            );
+            if self.run_policies.len() > 2 {
+                content
+                    .max_h(px(480.0))
+                    .overflow_y_scrollbar()
+                    .into_any_element()
+            } else {
+                content.into_any_element()
+            }
         } else if let Some(error) = self.run_policy_error.clone() {
             div()
                 .mt_3()
@@ -52,22 +67,7 @@ impl AleraApp {
                 ))
                 .into_any_element()
         } else {
-            let content = div().mt_4().flex_shrink_0().children(
-                self.run_policies
-                    .iter()
-                    .map(|policy| self.render_run_policy_panel(policy, cx)),
-            );
-            // Keep the common one-plan review compact like Flutter's
-            // mainAxisSize.min dialog. Add a viewport only when several
-            // plans actually need one.
-            if self.run_policies.len() > 2 {
-                content
-                    .max_h(px(480.0))
-                    .overflow_y_scrollbar()
-                    .into_any_element()
-            } else {
-                content.into_any_element()
-            }
+            unreachable!("empty policies are handled above")
         };
 
         div()
@@ -81,8 +81,15 @@ impl AleraApp {
             .items_center()
             .justify_center()
             .bg(theme::overlay_scrim())
+            .on_mouse_down(
+                gpui::MouseButton::Left,
+                cx.listener(|this, _, _, cx| this.close_execution_plans(cx)),
+            )
             .child(
                 div()
+                    .id("execution-plans-dialog")
+                    .role(Role::Dialog)
+                    .aria_label("Execution Plans")
                     // Flutter's dialog is max-constrained, not fixed-size:
                     // a loaded plan hugs its content while loading/error and
                     // the empty state retain the roomy review surface.
@@ -104,6 +111,7 @@ impl AleraApp {
                     .pb(px(18.0))
                     .flex()
                     .flex_col()
+                    .on_mouse_down(gpui::MouseButton::Left, |_, _, cx| cx.stop_propagation())
                     .child(
                         div()
                             .text_size(px(16.0))
@@ -132,12 +140,9 @@ impl AleraApp {
                                 ButtonKind::Text,
                                 false,
                             )
-                            .on_mouse_down(
-                                gpui::MouseButton::Left,
-                                cx.listener(|this, _, _, cx| {
-                                    this.close_execution_plans(cx);
-                                }),
-                            ),
+                            .on_click(cx.listener(|this, _, _, cx| {
+                                this.close_execution_plans(cx);
+                            })),
                         ),
                     ),
             )
@@ -154,6 +159,9 @@ impl AleraApp {
         let approve_run_id = run_id.clone();
         let reject_run_id = run_id.clone();
         div()
+            .id(gpui::SharedString::from(format!("run-policy-{run_id}")))
+            .role(Role::Group)
+            .aria_label(run_id.clone())
             .mb_3()
             .rounded_lg()
             .border_1()
@@ -232,17 +240,16 @@ impl AleraApp {
                                     busy,
                                     Some(icon(AleraIcon::Check, 14.0, theme::text())),
                                 )
-                                .on_mouse_down(
-                                    gpui::MouseButton::Left,
-                                    cx.listener(move |this, _, window, cx| {
+                                .on_click(cx.listener(
+                                    move |this, _, window, cx| {
                                         this.decide_run_policy(
                                             approve_run_id.clone(),
                                             true,
                                             window,
                                             cx,
                                         );
-                                    }),
-                                ),
+                                    },
+                                )),
                             )
                             .child(
                                 design_system::button_with_leading_icon(
@@ -254,17 +261,16 @@ impl AleraApp {
                                     busy,
                                     icon(AleraIcon::Cancel, 14.0, theme::text()),
                                 )
-                                .on_mouse_down(
-                                    gpui::MouseButton::Left,
-                                    cx.listener(move |this, _, window, cx| {
+                                .on_click(cx.listener(
+                                    move |this, _, window, cx| {
                                         this.decide_run_policy(
                                             reject_run_id.clone(),
                                             false,
                                             window,
                                             cx,
                                         );
-                                    }),
-                                ),
+                                    },
+                                )),
                             ),
                     )
             })

@@ -34,9 +34,12 @@ impl AleraApp {
             self.render_git_diff_surface(tab, cx)
         } else if selected_tab.is_some_and(|tab| {
             matches!(tab.kind.as_str(), "editor" | "markdownViewer" | "pdf")
-                && tab.payload.get("filePath").and_then(|value| value.as_str()).is_some()
-        })
-        {
+                && tab
+                    .payload
+                    .get("filePath")
+                    .and_then(|value| value.as_str())
+                    .is_some()
+        }) {
             self.render_editor(window, cx)
         } else if selected_tab.is_some_and(|tab| tab.kind == "terminal") {
             self.render_terminal_surface(cx)
@@ -163,18 +166,22 @@ impl AleraApp {
                     )
                     .on_mouse_down(
                         MouseButton::Right,
-                        cx.listener(move |this, event: &MouseDownEvent, _, cx| {
+                        cx.listener(move |this, event: &MouseDownEvent, window, cx| {
                             cx.stop_propagation();
                             this.open_tab_context_menu(
                                 context_group_id.clone(),
                                 context_tab_id.clone(),
                                 event.position,
+                                window,
                                 cx,
                             );
                         }),
                     )
                     .child(tab_kind_icon(
                         &tab.kind,
+                        tab.payload
+                            .get("filePath")
+                            .and_then(serde_json::Value::as_str),
                         if selected {
                             theme::text()
                         } else {
@@ -253,17 +260,19 @@ impl AleraApp {
     }
 }
 
-pub(super) fn tab_kind_icon(kind: &str, color: gpui::Rgba) -> gpui::AnyElement {
-    icon(
-        match kind {
-            "terminal" => AleraIcon::Terminal,
-            "editor" | "markdownViewer" => AleraIcon::File,
-            "gitDiff" => AleraIcon::Diff,
-            _ => AleraIcon::File,
-        },
-        15.0,
-        color,
-    )
+pub(super) fn tab_kind_icon(kind: &str, path: Option<&str>, color: gpui::Rgba) -> gpui::AnyElement {
+    match kind {
+        "editor" | "markdownViewer" => path.map_or_else(
+            || icon(AleraIcon::File, 15.0, color),
+            |path| crate::file_icons::file_icon(path, false, false, false, 15.0, color),
+        ),
+        "terminal" => icon(AleraIcon::Terminal, 15.0, color),
+        // Flutter's workspace tab leading icon uses gitBranch for diff tabs;
+        // the diff/compare glyph is reserved for the diff surface itself.
+        "gitDiff" => icon(AleraIcon::GitBranch, 15.0, color),
+        _ => icon(AleraIcon::File, 15.0, color),
+    }
+    .into_any_element()
 }
 
 pub(super) fn title_case_kind(kind: &str) -> &'static str {

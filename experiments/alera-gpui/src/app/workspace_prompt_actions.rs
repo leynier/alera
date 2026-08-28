@@ -2,11 +2,12 @@ use std::collections::BTreeSet;
 use std::time::Duration;
 
 use gpui::{
-    div, prelude::FluentBuilder as _, AppContext as _, Context, InteractiveElement as _,
-    ParentElement as _, Styled as _, Window,
+    div, prelude::FluentBuilder as _, AppContext as _, Context, ParentElement as _,
+    StatefulInteractiveElement as _, Styled as _, Window,
 };
 use serde_json::{json, Value};
 
+use super::app_helpers::flutter_state_error;
 use super::dialogs::{primary_button, primary_icon_button, secondary_button};
 use super::{AleraApp, NewWorkspaceStep};
 use crate::icons::loading_indicator;
@@ -45,13 +46,11 @@ impl AleraApp {
                     )
                     .when(self.workspace_prompt_active_operation_id.is_some(), |row| {
                         row.child(
-                            secondary_button("cancel-workspace-generation", "Cancel")
-                                .on_mouse_down(
-                                    gpui::MouseButton::Left,
-                                    cx.listener(|this, _, _, cx| {
-                                        this.cancel_prompt_workspace_generation(cx);
-                                    }),
-                                ),
+                            secondary_button("cancel-workspace-generation", "Cancel").on_click(
+                                cx.listener(|this, _, _, cx| {
+                                    this.cancel_prompt_workspace_generation(cx);
+                                }),
+                            ),
                         )
                     })
             })
@@ -59,21 +58,18 @@ impl AleraApp {
                 !self.workspace_creation_busy && self.workspace_prompt_created.is_some(),
                 |row| {
                     row.child(
-                        secondary_button("open-created-workspace", "Open Workspace").on_mouse_down(
-                            gpui::MouseButton::Left,
+                        secondary_button("open-created-workspace", "Open Workspace").on_click(
                             cx.listener(|this, _, _, cx| {
                                 this.open_created_prompt_workspace(cx);
                             }),
                         ),
                     )
                     .child(
-                        primary_button("retry-workspace-agent", "Retry Agent", false)
-                            .on_mouse_down(
-                                gpui::MouseButton::Left,
-                                cx.listener(|this, _, window, cx| {
-                                    this.retry_prompt_workspace_agent(window, cx);
-                                }),
-                            ),
+                        primary_button("retry-workspace-agent", "Retry Agent", false).on_click(
+                            cx.listener(|this, _, window, cx| {
+                                this.retry_prompt_workspace_agent(window, cx);
+                            }),
+                        ),
                     )
                 },
             )
@@ -87,14 +83,13 @@ impl AleraApp {
                             "Create And Start Agent",
                             disabled,
                         )
-                        .on_mouse_down(
-                            gpui::MouseButton::Left,
-                            cx.listener(move |this, _, window, cx| {
+                        .on_click(cx.listener(
+                            move |this, _, window, cx| {
                                 if !disabled {
                                     this.create_prompt_workspace(window, cx);
                                 }
-                            }),
-                        ),
+                            },
+                        )),
                     )
                 },
             )
@@ -105,22 +100,15 @@ impl AleraApp {
             return;
         }
         let prompt = input_value(&self.workspace_prompt_input, cx);
-        if prompt.is_empty() {
-            self.error = Some("Initial Prompt Is Required".into());
-            cx.notify();
-            return;
-        }
-        let Some(project_id) = self.selected_workspace_project_id.clone() else {
-            self.error = Some("Select A Project".into());
-            cx.notify();
-            return;
-        };
-        let source_branch = self
-            .selected_workspace_source_branch
+        let selections = self
+            .selected_workspace_project_id
             .clone()
-            .unwrap_or_else(|| "main".to_string());
-        let Some(profile_id) = self.workspace_selected_agent_profile_id.clone() else {
-            self.error = Some("Select An Agent Profile".into());
+            .zip(self.selected_workspace_source_branch.clone())
+            .zip(self.workspace_selected_agent_profile_id.clone());
+        let Some(((project_id, source_branch), profile_id)) =
+            selections.filter(|_| !prompt.is_empty())
+        else {
+            self.error = Some("Complete The Prompt, Project, Branch, And Agent Profile.".into());
             cx.notify();
             return;
         };
@@ -183,7 +171,7 @@ impl AleraApp {
                 let identity = match identity_result {
                     Ok(identity) => identity,
                     Err(error) => {
-                        finish_prompt_workspace_error(&this, cx, error);
+                        finish_prompt_workspace_error(&this, cx, flutter_state_error(error));
                         return;
                     }
                 };
@@ -195,7 +183,7 @@ impl AleraApp {
                     finish_prompt_workspace_error(
                         &this,
                         cx,
-                        "Generated Identity Omitted Branch Name".to_owned(),
+                        "FormatException: Runtime response is missing \"branchName\".".to_owned(),
                     );
                     return;
                 };
@@ -207,7 +195,8 @@ impl AleraApp {
                     finish_prompt_workspace_error(
                         &this,
                         cx,
-                        "Generated Identity Omitted Workspace Name".to_owned(),
+                        "FormatException: Runtime response is missing \"workspaceName\"."
+                            .to_owned(),
                     );
                     return;
                 };
@@ -224,7 +213,7 @@ impl AleraApp {
                 {
                     Ok(value) => value,
                     Err(error) => {
-                        finish_prompt_workspace_error(&this, cx, error);
+                        finish_prompt_workspace_error(&this, cx, flutter_state_error(error));
                         return;
                     }
                 };
@@ -273,7 +262,7 @@ impl AleraApp {
                         collision_error = Some(error);
                     }
                     Err(error) => {
-                        finish_prompt_workspace_error(&this, cx, error);
+                        finish_prompt_workspace_error(&this, cx, flutter_state_error(error));
                         return;
                     }
                 }
@@ -282,9 +271,9 @@ impl AleraApp {
                 finish_prompt_workspace_error(
                     &this,
                     cx,
-                    collision_error.unwrap_or_else(|| {
+                    flutter_state_error(collision_error.unwrap_or_else(|| {
                         "AI Text Could Not Generate An Available Workspace Identity.".to_owned()
-                    }),
+                    })),
                 );
                 return;
             };
@@ -292,7 +281,7 @@ impl AleraApp {
                 finish_prompt_workspace_error(
                     &this,
                     cx,
-                    "Workspace Creation Omitted Workspace Id".to_owned(),
+                    "FormatException: Runtime response must be a JSON object.".to_owned(),
                 );
                 return;
             };
@@ -323,7 +312,9 @@ impl AleraApp {
                     launch,
                     create_another,
                 ),
-                Err(error) => finish_prompt_workspace_error(&this, cx, error),
+                Err(error) => {
+                    finish_prompt_workspace_error(&this, cx, flutter_state_error(error))
+                }
             }
         })
         .detach();
@@ -387,7 +378,7 @@ impl AleraApp {
                     launch,
                     create_another,
                 ),
-                Err(error) => finish_prompt_workspace_error(&this, cx, error),
+                Err(error) => finish_prompt_workspace_error(&this, cx, flutter_state_error(error)),
             }
         })
         .detach();
@@ -451,7 +442,7 @@ fn finish_prompt_workspace_success(
 }
 
 fn input_value(
-    input: &gpui::Entity<gpui_component::input::InputState>,
+    input: &gpui::Entity<gpui_component::input::TextareaState>,
     cx: &Context<AleraApp>,
 ) -> String {
     input.read(cx).value().trim().to_owned()

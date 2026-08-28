@@ -85,7 +85,7 @@ impl AleraApp {
             let Some(this) = this.upgrade() else {
                 return;
             };
-            let _ = this.update(cx, |this, cx| {
+            this.update(cx, |this, cx| {
                 if generation != this.status_data.quota_generation {
                     return;
                 }
@@ -96,7 +96,11 @@ impl AleraApp {
                         this.status_data.quota_environment = environment;
                         this.status_data.quota_error = None;
                     }
-                    Err(error) => this.status_data.quota_error = Some(error),
+                    Err(error) => {
+                        this.status_data.quotas.clear();
+                        this.status_data.quota_environment.clear();
+                        this.status_data.quota_error = Some(error);
+                    }
                 }
                 cx.notify();
             });
@@ -115,7 +119,7 @@ impl AleraApp {
             let Some(this) = this.upgrade() else {
                 return;
             };
-            let _ = this.update(cx, |this, cx| {
+            this.update(cx, |this, cx| {
                 if generation != this.status_data.resource_generation {
                     return;
                 }
@@ -124,7 +128,10 @@ impl AleraApp {
                         this.status_data.resources = Some(value);
                         this.status_data.resource_error = None;
                     }
-                    Err(error) => this.status_data.resource_error = Some(error),
+                    Err(error) => {
+                        this.status_data.resources = None;
+                        this.status_data.resource_error = Some(error);
+                    }
                 }
                 cx.notify();
             });
@@ -142,7 +149,7 @@ impl AleraApp {
             let Some(this) = this.upgrade() else {
                 return;
             };
-            let _ = this.update(cx, |this, cx| {
+            this.update(cx, |this, cx| {
                 if generation != this.status_data.runtime_generation {
                     return;
                 }
@@ -152,7 +159,10 @@ impl AleraApp {
                         this.status_data.runtime = Some(value);
                         this.status_data.runtime_error = None;
                     }
-                    Err(error) => this.status_data.runtime_error = Some(error),
+                    Err(error) => {
+                        this.status_data.runtime = None;
+                        this.status_data.runtime_error = Some(error);
+                    }
                 }
                 cx.notify();
             });
@@ -169,7 +179,7 @@ impl AleraApp {
             let Some(this) = this.upgrade() else {
                 return;
             };
-            let _ = this.update(cx, |this, cx| {
+            this.update(cx, |this, cx| {
                 if generation != this.status_data.presence_generation {
                     return;
                 }

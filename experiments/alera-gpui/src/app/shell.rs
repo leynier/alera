@@ -6,11 +6,15 @@ use crate::{
 };
 use gpui::{
     canvas, div, prelude::FluentBuilder as _, px, AnyElement, AppContext as _, Context,
-    CursorStyle, DragMoveEvent, Empty, InteractiveElement as _, IntoElement, MouseButton,
-    MouseDownEvent, MouseMoveEvent, MouseUpEvent, ParentElement as _, Render,
-    StatefulInteractiveElement as _, Styled as _, Window,
+    CursorStyle, DragMoveEvent, Empty, InteractiveElement as _, IntoElement, IsZero as _,
+    KeyDownEvent, MouseButton, MouseDownEvent, MouseMoveEvent, MouseUpEvent, ParentElement as _,
+    Render, Role, ScrollWheelEvent, StatefulInteractiveElement as _, Styled as _, Window,
 };
-use gpui_component::{scroll::ScrollableElement as _, tooltip::Tooltip};
+use gpui_component::{
+    scroll::{Scrollbar, ScrollbarMode},
+    tooltip::Tooltip,
+};
+const SIDEBAR_SCROLL_DELTA_FACTOR: f32 = if cfg!(target_os = "macos") { 1.25 } else { 1.0 };
 
 impl AleraApp {
     fn render_sidebar(&self, cx: &mut Context<Self>) -> impl IntoElement {
@@ -102,6 +106,10 @@ impl AleraApp {
                     .child(
                         div()
                             .id("collapse-project-sidebar")
+                            .focusable()
+                            .tab_stop(true)
+                            .role(Role::Button)
+                            .aria_label("Collapse Sidebar")
                             .flex()
                             .items_center()
                             .justify_center()
@@ -113,13 +121,13 @@ impl AleraApp {
                             .cursor(CursorStyle::PointingHand)
                             .tooltip(|_, cx| cx.new(|_| Tooltip::new("Collapse Sidebar")).into())
                             .hover(|style| style.bg(theme::surface_raised()))
-                            .on_mouse_down(
-                                MouseButton::Left,
-                                cx.listener(|this, _, _, cx| {
-                                    this.sidebar_collapsed = true;
-                                    cx.notify();
-                                }),
-                            )
+                            .on_click(cx.listener(|this, _, window, cx| {
+                                this.sidebar_collapsed = true;
+                                cx.defer_in(window, |this, window, cx| {
+                                    this.collapsed_sidebar_focus.focus(window, cx);
+                                });
+                                cx.notify();
+                            }))
                             .child(icon(AleraIcon::SidebarToggle, 18.0, theme::text_muted())),
                     ),
             )
@@ -129,10 +137,10 @@ impl AleraApp {
                     .p_2()
                     .border_b_1()
                     .border_color(theme::border_subtle())
-                    .child(design_system::search_field(
-                        &self.sidebar_filter_input,
-                        true,
-                    )),
+                    .child(
+                        design_system::search_field(&self.sidebar_filter_input, true)
+                            .aria_label("Search workspaces"),
+                    ),
             )
             .child(
                 div()
@@ -166,6 +174,10 @@ impl AleraApp {
                             .child(
                                 div()
                                     .id("sidebar-view-options")
+                                    .focusable()
+                                    .tab_stop(true)
+                                    .role(Role::Button)
+                                    .aria_label("View Options")
                                     .flex()
                                     .items_center()
                                     .justify_center()
@@ -179,17 +191,22 @@ impl AleraApp {
                                         })
                                     })
                                     .hover(|style| style.bg(theme::surface_raised()))
-                                    .on_mouse_down(
-                                        MouseButton::Left,
-                                        cx.listener(|this, _, _, cx| {
-                                            this.open_sidebar_view_options(cx);
-                                        }),
-                                    )
+                                    .on_click(cx.listener(|this, _, _, cx| {
+                                        this.open_sidebar_view_options(cx);
+                                    }))
                                     .child(icon(AleraIcon::Tune, 14.0, theme::text_muted())),
                             )
                             .child(
                                 div()
                                     .id("toggle-collapse-all-projects")
+                                    .focusable()
+                                    .tab_stop(true)
+                                    .role(Role::Button)
+                                    .aria_label(if all_project_sections_collapsed {
+                                        "Expand All"
+                                    } else {
+                                        "Collapse All"
+                                    })
                                     .flex()
                                     .items_center()
                                     .justify_center()
@@ -208,12 +225,9 @@ impl AleraApp {
                                         .into()
                                     })
                                     .hover(|style| style.bg(theme::surface_raised()))
-                                    .on_mouse_down(
-                                        MouseButton::Left,
-                                        cx.listener(|this, _, _, cx| {
-                                            this.toggle_all_project_sections(cx);
-                                        }),
-                                    )
+                                    .on_click(cx.listener(|this, _, _, cx| {
+                                        this.toggle_all_project_sections(cx);
+                                    }))
                                     .child(icon(
                                         if self.all_project_sections_collapsed() {
                                             AleraIcon::ExpandAll
@@ -227,6 +241,14 @@ impl AleraApp {
                             .child(
                                 div()
                                     .id("add-project-header")
+                                    .focusable()
+                                    .tab_stop(has_git_projects)
+                                    .role(Role::Button)
+                                    .aria_label(if has_git_projects {
+                                        "New Workspace"
+                                    } else {
+                                        "Add A Git Project First"
+                                    })
                                     .flex()
                                     .items_center()
                                     .justify_center()
@@ -251,12 +273,9 @@ impl AleraApp {
                                     .opacity(if has_git_projects { 1.0 } else { 0.4 })
                                     .hover(|style| style.bg(theme::surface_raised()))
                                     .when(has_git_projects, |button| {
-                                        button.on_mouse_down(
-                                            MouseButton::Left,
-                                            cx.listener(|this, _, window, cx| {
-                                                this.open_new_workspace_dialog(window, cx);
-                                            }),
-                                        )
+                                        button.on_click(cx.listener(|this, _, window, cx| {
+                                            this.open_new_workspace_dialog(window, cx);
+                                        }))
                                     })
                                     .child(icon(AleraIcon::Add, 14.0, theme::text_muted())),
                             ),
@@ -264,16 +283,106 @@ impl AleraApp {
             )
             // Flutter keeps the workspace tree in an independent ListView so
             // a long project/workspace list can scroll without moving the
-            // search, toolbar, or footer. Use the same scroll boundary in
-            // GPUI instead of clipping rows at the available height.
+            // search, toolbar, or footer. Keep a persistent handle here so
+            // the thumb and the content share one scroll boundary in GPUI.
             .child(
                 div()
-                    .id("sidebar-workspaces")
+                    .relative()
+                    .flex()
+                    .flex_col()
                     .flex_1()
                     .min_h_0()
-                    .overflow_y_scrollbar()
-                    .py_1()
-                    .children(rows),
+                    .child(
+                        div()
+                            .id("sidebar-workspaces")
+                            .flex_1()
+                            .min_h_0()
+                            .track_scroll(&self.sidebar_scroll_handle)
+                            // Computer Use delivers a smaller wheel delta to
+                            // GPUI than Flutter's desktop ListView. Keep the
+                            // scrollbar attached to the same handle, but own
+                            // the delta here so one synthetic page lands on
+                            // the same row in both clients.
+                            .overflow_hidden()
+                            .on_scroll_wheel(
+                                cx.listener(|this, event: &ScrollWheelEvent, window, cx| {
+                                    let delta =
+                                        event.delta.pixel_delta(window.line_height()).y;
+                                    if delta.is_zero() {
+                                        return;
+                                    }
+                                    let current = this.sidebar_scroll_handle.offset();
+                                    let max_y = this.sidebar_scroll_handle.max_offset().y;
+                                    let next_y = (current.y + delta * SIDEBAR_SCROLL_DELTA_FACTOR)
+                                        .clamp(-max_y, px(0.0));
+                                    this.sidebar_scroll_handle
+                                        .set_offset(gpui::point(current.x, next_y));
+                                    cx.stop_propagation();
+                                    cx.notify();
+                                }),
+                            )
+                            .py_1()
+                            .when(self.snapshot.projects.is_empty(), |list| {
+                                list.child(
+                                    div()
+                                        .size_full()
+                                        .flex()
+                                        .flex_col()
+                                        .items_center()
+                                        .justify_center()
+                                        .px_6()
+                                        .text_center()
+                                        .child(icon(AleraIcon::Folder, 28.0, theme::text_muted()))
+                                        .child(
+                                            div()
+                                                .mt_3()
+                                                .text_sm()
+                                                .font_weight(gpui::FontWeight::SEMIBOLD)
+                                                .child("No Projects Yet"),
+                                        )
+                                        .child(
+                                            div()
+                                                .mt_2()
+                                                .max_w(px(165.0))
+                                                .whitespace_normal()
+                                                .text_xs()
+                                                .text_color(theme::text_muted())
+                                                .child(
+                                                    "Add a git repository to create workspaces with terminal tabs.",
+                                                ),
+                                        )
+                                        .child(
+                                            div().mt(px(20.0)).child(
+                                                design_system::button_with_leading_icon(
+                                                    "sidebar-empty-add-project",
+                                                    "Add Your First Project",
+                                                    design_system::ButtonKind::Filled,
+                                                    false,
+                                                    icon(
+                                                        AleraIcon::Add,
+                                                        14.0,
+                                                        theme::on_accent(),
+                                                    )
+                                                    .into_any_element(),
+                                                )
+                                                .h(px(28.0))
+                                                .text_size(px(11.0))
+                                                .on_click(cx.listener(
+                                                    |this, _, window, cx| {
+                                                        this.add_project(window, cx);
+                                                    },
+                                                )),
+                                            ),
+                                        ),
+                                )
+                            })
+                            .children(rows),
+                    )
+                    .child(
+                        Scrollbar::vertical(&self.sidebar_scroll_handle)
+                            .id("sidebar-workspaces-scrollbar")
+                            .mode(ScrollbarMode::Scrolling),
+                    ),
             )
             .child(
                 div()
@@ -288,6 +397,10 @@ impl AleraApp {
                     .child(
                         div()
                             .id("add-project")
+                            .focusable()
+                            .tab_stop(true)
+                            .role(Role::Button)
+                            .aria_label("Add Project")
                             .flex()
                             .items_center()
                             .h(px(32.0))
@@ -298,13 +411,10 @@ impl AleraApp {
                             .text_xs()
                             .font_weight(gpui::FontWeight::SEMIBOLD)
                             .cursor(CursorStyle::PointingHand)
-                            .on_mouse_down(
-                                MouseButton::Left,
-                                cx.listener(|this, _: &MouseDownEvent, window, cx| {
-                                    this.add_project(window, cx);
-                                    cx.stop_propagation();
-                                }),
-                            )
+                            .on_click(cx.listener(|this, _, window, cx| {
+                                this.add_project(window, cx);
+                                cx.stop_propagation();
+                            }))
                             .gap_2()
                             .child(icon(AleraIcon::FolderSpecial, 16.0, theme::text()))
                             .child("Add Project"),
@@ -312,6 +422,10 @@ impl AleraApp {
                     .child(
                         div()
                             .id("open-settings")
+                            .focusable()
+                            .tab_stop(true)
+                            .role(Role::Button)
+                            .aria_label("Settings")
                             .flex()
                             .items_center()
                             .justify_center()
@@ -321,13 +435,10 @@ impl AleraApp {
                             .text_color(theme::text_muted())
                             .cursor(CursorStyle::PointingHand)
                             .hover(|style| style.bg(theme::surface_raised()))
-                            .on_mouse_down(
-                                MouseButton::Left,
-                                cx.listener(|this, _: &MouseDownEvent, window, cx| {
-                                    this.open_settings_dialog(window, cx);
-                                    cx.stop_propagation();
-                                }),
-                            )
+                            .on_click(cx.listener(|this, _, window, cx| {
+                                this.open_settings_dialog(window, cx);
+                                cx.stop_propagation();
+                            }))
                             .child(icon(AleraIcon::Settings, 17.0, theme::text_muted())),
                     ),
             )
@@ -341,6 +452,13 @@ impl AleraApp {
                 .is_some_and(|state| state.target == PanelResizeTarget::ProjectSidebar);
         div()
             .id("project-sidebar-resize")
+            .focusable()
+            .tab_stop(true)
+            .role(Role::Splitter)
+            .aria_label("Resize Project Sidebar")
+            .aria_numeric_value(f64::from(self.sidebar_width))
+            .aria_min_numeric_value(220.0)
+            .aria_max_numeric_value(460.0)
             .absolute()
             .top_0()
             .left(px(self.sidebar_width - 6.0))
@@ -371,6 +489,9 @@ impl AleraApp {
             )
             .on_mouse_up(MouseButton::Left, cx.listener(Self::finish_panel_resize))
             .on_mouse_up_out(MouseButton::Left, cx.listener(Self::finish_panel_resize))
+            .on_key_down(cx.listener(|this, event: &KeyDownEvent, _, cx| {
+                this.resize_panel_with_keyboard(PanelResizeTarget::ProjectSidebar, event, cx);
+            }))
             .child(
                 div()
                     .absolute()
@@ -395,6 +516,13 @@ impl AleraApp {
                 .is_some_and(|state| state.target == PanelResizeTarget::ContextSidebar);
         div()
             .id("context-sidebar-resize")
+            .focusable()
+            .tab_stop(true)
+            .role(Role::Splitter)
+            .aria_label("Resize Context Sidebar")
+            .aria_numeric_value(f64::from(self.context_sidebar_width))
+            .aria_min_numeric_value(220.0)
+            .aria_max_numeric_value(460.0)
             .absolute()
             .top_0()
             .right(px(self.context_sidebar_width - 6.0))
@@ -425,6 +553,9 @@ impl AleraApp {
             )
             .on_mouse_up(MouseButton::Left, cx.listener(Self::finish_panel_resize))
             .on_mouse_up_out(MouseButton::Left, cx.listener(Self::finish_panel_resize))
+            .on_key_down(cx.listener(|this, event: &KeyDownEvent, _, cx| {
+                this.resize_panel_with_keyboard(PanelResizeTarget::ContextSidebar, event, cx);
+            }))
             .child(
                 div()
                     .absolute()
@@ -439,6 +570,31 @@ impl AleraApp {
                     }),
             )
             .into_any_element()
+    }
+
+    fn resize_panel_with_keyboard(
+        &mut self,
+        target: PanelResizeTarget,
+        event: &KeyDownEvent,
+        cx: &mut Context<Self>,
+    ) {
+        let delta = match event.keystroke.key.as_str() {
+            "left" | "down" => -8.0,
+            "right" | "up" => 8.0,
+            _ => return,
+        };
+        match target {
+            PanelResizeTarget::ProjectSidebar => {
+                self.sidebar_width = (self.sidebar_width + delta).clamp(220.0, 460.0);
+            }
+            PanelResizeTarget::ContextSidebar => {
+                self.context_sidebar_width =
+                    (self.context_sidebar_width + delta).clamp(220.0, 460.0);
+            }
+        }
+        self.persist_sidebar_view_prefs(cx);
+        cx.notify();
+        cx.stop_propagation();
     }
 
     fn render_resize_event_observer(&self, cx: &mut Context<Self>) -> AnyElement {
@@ -476,8 +632,7 @@ impl AleraApp {
                         // panels.
                         let viewport_width = window.viewport_size().width;
                         let workbench_right = viewport_width - context_sidebar_width;
-                        if event.position.x < workbench_left
-                            || event.position.x >= workbench_right
+                        if event.position.x < workbench_left || event.position.x >= workbench_right
                         {
                             return;
                         }
@@ -558,6 +713,10 @@ impl AleraApp {
                     });
                 div()
                     .id(("collapsed-project", index))
+                    .focusable()
+                    .tab_stop(true)
+                    .role(Role::Button)
+                    .aria_label(project.name.clone())
                     .relative()
                     .flex()
                     .items_center()
@@ -585,17 +744,14 @@ impl AleraApp {
                         cx.new(move |_| Tooltip::new(label)).into()
                     })
                     .hover(|style| style.bg(theme::surface_raised()))
-                    .on_mouse_down(
-                        MouseButton::Left,
-                        cx.listener(move |this, _, _, cx| {
-                            this.sidebar_collapsed = false;
-                            if let Some(workspace_id) = workspace_id.clone() {
-                                this.select_workspace(workspace_id, cx);
-                            } else {
-                                cx.notify();
-                            }
-                        }),
-                    )
+                    .on_click(cx.listener(move |this, _, _, cx| {
+                        this.sidebar_collapsed = false;
+                        if let Some(workspace_id) = workspace_id.clone() {
+                            this.select_workspace(workspace_id, cx);
+                        } else {
+                            cx.notify();
+                        }
+                    }))
                     .child(label)
             });
         div()
@@ -611,6 +767,11 @@ impl AleraApp {
             .child(
                 div()
                     .id("expand-project-sidebar")
+                    .track_focus(&self.collapsed_sidebar_focus)
+                    .focusable()
+                    .tab_stop(true)
+                    .role(Role::Button)
+                    .aria_label("Expand Sidebar")
                     .flex()
                     .items_center()
                     .justify_end()
@@ -621,13 +782,10 @@ impl AleraApp {
                     .border_color(theme::border_subtle())
                     .cursor(CursorStyle::PointingHand)
                     .tooltip(|_, cx| cx.new(|_| Tooltip::new("Expand Sidebar")).into())
-                    .on_mouse_down(
-                        MouseButton::Left,
-                        cx.listener(|this, _, _, cx| {
-                            this.sidebar_collapsed = false;
-                            cx.notify();
-                        }),
-                    )
+                    .on_click(cx.listener(|this, _, _, cx| {
+                        this.sidebar_collapsed = false;
+                        cx.notify();
+                    }))
                     .child(icon(AleraIcon::SidebarToggle, 18.0, theme::text_muted())),
             )
             .child(
@@ -644,6 +802,10 @@ impl AleraApp {
             .child(
                 div()
                     .id("collapsed-add-project")
+                    .focusable()
+                    .tab_stop(true)
+                    .role(Role::Button)
+                    .aria_label("Add Project")
                     .flex()
                     .items_center()
                     .justify_center()
@@ -656,17 +818,18 @@ impl AleraApp {
                     .cursor(CursorStyle::PointingHand)
                     .tooltip(|_, cx| cx.new(|_| Tooltip::new("Add Project")).into())
                     .hover(|style| style.bg(theme::surface_raised()))
-                    .on_mouse_down(
-                        MouseButton::Left,
-                        cx.listener(|this, _, window, cx| {
-                            this.add_project(window, cx);
-                        }),
-                    )
+                    .on_click(cx.listener(|this, _, window, cx| {
+                        this.add_project(window, cx);
+                    }))
                     .child(icon(AleraIcon::FolderSpecial, 16.0, theme::text_muted())),
             )
             .child(
                 div()
                     .id("collapsed-settings")
+                    .focusable()
+                    .tab_stop(true)
+                    .role(Role::Button)
+                    .aria_label("Settings")
                     .flex()
                     .items_center()
                     .justify_center()
@@ -677,14 +840,103 @@ impl AleraApp {
                     .text_color(theme::text_muted())
                     .cursor(CursorStyle::PointingHand)
                     .tooltip(|_, cx| cx.new(|_| Tooltip::new("Settings")).into())
-                    .on_mouse_down(
-                        MouseButton::Left,
-                        cx.listener(|this, _, window, cx| {
-                            this.open_settings_dialog(window, cx);
-                        }),
-                    )
+                    .on_click(cx.listener(|this, _, window, cx| {
+                        this.open_settings_dialog(window, cx);
+                    }))
                     .child(icon(AleraIcon::Settings, 18.0, theme::text_muted())),
             )
+    }
+
+    fn handle_shell_key_down(
+        &mut self,
+        event: &KeyDownEvent,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        if !event.keystroke.key.eq_ignore_ascii_case("escape") {
+            return;
+        }
+        if self.dismiss_top_overlay_on_escape(window, cx) {
+            cx.stop_propagation();
+        }
+    }
+
+    pub(super) fn dismiss_top_overlay_on_escape(
+        &mut self,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) -> bool {
+        let handled = if self.tab_pointer_drag.is_some()
+            || self.tab_drop_target.is_some()
+            || self.pane_drop_target.is_some()
+        {
+            self.clear_pointer_tab_drag_state(cx);
+            true
+        } else if self.workbench_menu.is_some() {
+            self.dismiss_workbench_menu(window, cx);
+            true
+        } else if self.sidebar_menu.take().is_some() || self.sidebar_sort_dropdown.take().is_some()
+        {
+            true
+        } else if self.show_sidebar_view_options {
+            self.close_sidebar_view_options(cx);
+            true
+        } else if self.status_popover != crate::activity::StatusPopover::None {
+            self.dismiss_status_popover(cx);
+            true
+        } else if self.show_tab_rename_dialog && !self.tab_mutation_busy {
+            self.close_tab_rename_dialog(cx);
+            true
+        } else if self.sidebar_dialog.is_some() && !self.sidebar_action_busy {
+            self.close_sidebar_dialog(cx);
+            true
+        } else if self.show_settings_dialog {
+            self.close_settings_dialog(window, cx);
+            true
+        } else if self.show_add_project_dialog && !self.add_project_busy {
+            self.close_add_project_dialog(cx);
+            true
+        } else if self.show_new_workspace_dialog && !self.workspace_creation_busy {
+            self.close_new_workspace_dialog(cx);
+            true
+        } else if !self.explorer_action_busy
+            && (self.explorer_create_directory.is_some()
+                || self.explorer_rename_path.is_some()
+                || self.explorer_delete_path.is_some())
+        {
+            self.close_explorer_dialog(cx);
+            true
+        } else if self.show_execution_plans {
+            self.close_execution_plans(cx);
+            true
+        } else if self.mobile_access.overlay.is_some() {
+            self.close_mobile_overlay(cx);
+            true
+        } else if self.source_control_dialog.take().is_some() {
+            true
+        } else if self.forge_review_action_menu_open {
+            self.forge_review_action_menu_open = false;
+            true
+        } else if self.forge_review_base_menu_open {
+            self.forge_review_base_menu_open = false;
+            true
+        } else if self.forge_create_menu_open {
+            self.forge_create_menu_open = false;
+            true
+        } else if self.forge_base_menu_open {
+            self.forge_base_menu_open = false;
+            true
+        } else {
+            self.forge_review_confirmation.take().is_some()
+                || self.resource_close_confirmation.take().is_some()
+                || (!self.runtime_action_busy && self.runtime_action_armed.take().is_some())
+                || (!self.codex_reset_busy && self.codex_reset_offer_revision.take().is_some())
+        };
+
+        if handled {
+            cx.notify();
+        }
+        handled
     }
 }
 
@@ -696,8 +948,13 @@ impl Render for AleraApp {
         // like Flutter waits for TerminalView layout before creating its PTY.
         // Re-run the pending attach check on every render after that measure.
         self.ensure_selected_terminal(cx);
+        self.refresh_terminal_frame_views(cx);
         let toast_entries = self.visible_toast_entries();
         div()
+            .id("alera-app")
+            .role(Role::Application)
+            .aria_label("Alera Dev")
+            .on_key_down(cx.listener(Self::handle_shell_key_down))
             .relative()
             .on_action(cx.listener(Self::on_open_settings))
             .on_action(cx.listener(Self::on_open_execution_plans))
@@ -840,15 +1097,11 @@ impl Render for AleraApp {
             .when(self.forge_review_confirmation.is_some(), |root| {
                 root.child(self.render_pull_request_confirmation(cx))
             })
-            .children(
-                toast_entries
-                    .into_iter()
-                    .rev()
-                    .enumerate()
-                    .map(|(stack_index, (message, exiting))| {
-                        super::toast::render_toast(message, stack_index, exiting)
-                    }),
-            )
+            .children(toast_entries.into_iter().rev().enumerate().map(
+                |(stack_index, (message, exiting))| {
+                    super::toast::render_toast(message, stack_index, exiting)
+                },
+            ))
             .when(self.explorer_menu.is_some(), |root| {
                 root.child(self.render_explorer_menu(window, cx))
             })

@@ -5,7 +5,7 @@ impl AleraApp {
         std::thread::Builder::new()
             .name("alera-github-star-check".to_string())
             .spawn(move || {
-                let _ = sender.send_blocking(crate::forge_service::github_starred());
+                let _ = sender.send_blocking(github_starred_via_native_process());
             })
             .expect("failed to start GitHub star check");
         cx.spawn(async move |this, cx| {
@@ -35,13 +35,22 @@ impl AleraApp {
         std::thread::Builder::new()
             .name("alera-github-star".to_string())
             .spawn(move || {
-                let _ = sender.send_blocking(crate::forge_service::star_github());
+                let _ = sender.send_blocking(star_github_via_native_process());
             })
             .expect("failed to start GitHub star request");
         cx.spawn(async move |this, cx| {
             let succeeded = receiver.recv().await.unwrap_or(false);
             let _ = this.update(cx, |this, cx| {
                 this.settings_state.github_star_state = if succeeded {
+                    // Flutter mutes the one-time support prompt only after a
+                    // successful star action. Persist the same local flag so
+                    // switching between clients does not re-offer it.
+                    this.settings_state.star_clicked = true;
+                    this.settings_store.save(&this.settings_state);
+                    this.persist_shared_flutter_settings(
+                        this.settings_state.shared_flutter_local_payload(),
+                        cx,
+                    );
                     GitHubStarState::Starred
                 } else {
                     GitHubStarState::Error
@@ -68,7 +77,7 @@ impl AleraApp {
             let Some(this) = this.upgrade() else {
                 return;
             };
-            let _ = this.update(cx, |this, cx| {
+            this.update(cx, |this, cx| {
                 if generation != this.settings_state.generation {
                     return;
                 }
@@ -153,6 +162,7 @@ impl AleraApp {
 
     pub(super) fn set_editor_theme(&mut self, theme: String, cx: &mut Context<Self>) {
         self.settings_state.editor_theme = theme;
+        crate::editor_theme::apply_editor_theme(cx, &self.settings_state.editor_theme);
         self.persist_settings();
         self.persist_shared_flutter_settings(
             self.settings_state.shared_flutter_local_payload(),
@@ -195,7 +205,7 @@ impl AleraApp {
             let Some(this) = this.upgrade() else {
                 return;
             };
-            let _ = this.update(cx, |this, cx| {
+            this.update(cx, |this, cx| {
                 if let Err(error) = result {
                     this.settings_state.error = Some(error);
                     cx.notify();
@@ -310,4 +320,45 @@ impl AleraApp {
         );
     }
 
+}
+
+fn github_starred_via_native_process() -> Option<bool> {
+    let result = alera_native::api::process::process_run(
+        "gh".to_owned(),
+        ["api", "--silent", "-i", "user/starred/leynier/alera"]
+            .into_iter()
+            .map(str::to_owned)
+            .collect(),
+        None,
+        None,
+    )
+    .ok()?;
+    if result.exit_code == 0 {
+        return Some(true);
+    }
+    let output = format!("{}\n{}", result.stdout, result.stderr).to_ascii_lowercase();
+    if output.contains("http 404") || output.contains("status: 404") {
+        Some(false)
+    } else {
+        None
+    }
+}
+
+fn star_github_via_native_process() -> bool {
+    alera_native::api::process::process_run(
+        "gh".to_owned(),
+        [
+            "api",
+            "--silent",
+            "-X",
+            "PUT",
+            "user/starred/leynier/alera",
+        ]
+        .into_iter()
+        .map(str::to_owned)
+        .collect(),
+        None,
+        None,
+    )
+    .is_ok_and(|result| result.exit_code == 0)
 }

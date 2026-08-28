@@ -839,6 +839,10 @@ impl ServerActor {
                 self.require_auth(client_id)?;
                 super::workspace_search_requests::preview_replace(payload).await
             }
+            "workspaceSearch.cancel" => {
+                self.require_auth(client_id)?;
+                super::workspace_search_requests::cancel(payload).await
+            }
             "workspaceSearch.replaceAll" => {
                 self.require_auth(client_id)?;
                 super::workspace_search_requests::replace_all(payload).await

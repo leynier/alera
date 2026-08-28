@@ -1,7 +1,7 @@
 use gpui::{
     deferred, div, prelude::FluentBuilder as _, px, AnyElement, Context, CursorStyle,
-    InteractiveElement as _, IntoElement as _, MouseButton, ParentElement as _, SharedString,
-    Styled as _,
+    InteractiveElement as _, IntoElement as _, ParentElement as _, Role, SharedString,
+    StatefulInteractiveElement as _, Styled as _,
 };
 
 use super::sidebar_view_options_components::sidebar_sort_label;
@@ -26,6 +26,11 @@ impl AleraApp {
                 .id(match target {
                     SidebarSortTarget::Project => "sidebar-project-sort-menu",
                     SidebarSortTarget::Workspace => "sidebar-workspace-sort-menu",
+                })
+                .role(Role::Menu)
+                .aria_label(match target {
+                    SidebarSortTarget::Project => "Sort Projects By",
+                    SidebarSortTarget::Workspace => "Sort Workspaces By",
                 })
                 .absolute()
                 .top(px(34.0))
@@ -59,6 +64,11 @@ impl AleraApp {
                                 },
                                 label
                             )))
+                            .focusable()
+                            .tab_stop(true)
+                            .role(Role::MenuItem)
+                            .aria_label(label)
+                            .aria_selected(selected == sort)
                             .flex()
                             .items_center()
                             .h(px(32.0))
@@ -75,17 +85,14 @@ impl AleraApp {
                             })
                             .when(selected != sort, |row| row.child(div().w(px(14.0))))
                             .child(div().ml_2().child(label))
-                            .on_mouse_down(
-                                MouseButton::Left,
-                                cx.listener(move |this, _, _, cx| match target {
-                                    SidebarSortTarget::Project => {
-                                        this.set_sidebar_project_sort(sort, cx);
-                                    }
-                                    SidebarSortTarget::Workspace => {
-                                        this.set_sidebar_workspace_sort(sort, cx);
-                                    }
-                                }),
-                            )
+                            .on_click(cx.listener(move |this, _, _, cx| match target {
+                                SidebarSortTarget::Project => {
+                                    this.set_sidebar_project_sort(sort, cx);
+                                }
+                                SidebarSortTarget::Workspace => {
+                                    this.set_sidebar_workspace_sort(sort, cx);
+                                }
+                            }))
                     }),
                 ),
         )

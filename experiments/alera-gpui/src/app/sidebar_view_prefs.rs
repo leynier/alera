@@ -16,7 +16,7 @@ impl AleraApp {
             let Some(this) = this.upgrade() else {
                 return;
             };
-            let _ = this.update(cx, |this, cx| match result {
+            this.update(cx, |this, cx| match result {
                 Ok(record) => {
                     let shared = record.get("prefs").unwrap_or(&record);
                     let prefs = merge_local_and_shared_prefs(local_prefs, shared);

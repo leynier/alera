@@ -1,6 +1,6 @@
 use gpui::{
     div, prelude::FluentBuilder as _, px, CursorStyle, InteractiveElement as _, IntoElement as _,
-    ParentElement as _, SharedString, Styled as _,
+    ParentElement as _, Role, SharedString, StatefulInteractiveElement as _, Styled as _, Toggled,
 };
 
 use super::SidebarSortBy;
@@ -32,6 +32,11 @@ pub(super) fn segment_button(
 ) -> gpui::Stateful<gpui::Div> {
     div()
         .id(id)
+        .focusable()
+        .tab_stop(true)
+        .role(Role::RadioButton)
+        .aria_label(label)
+        .aria_selected(selected)
         .flex()
         .flex_1()
         .items_center()
@@ -56,6 +61,10 @@ pub(super) fn sort_row(
 ) -> gpui::Stateful<gpui::Div> {
     div()
         .id(id)
+        .focusable()
+        .tab_stop(true)
+        .role(Role::Button)
+        .aria_label(format!("{label}: {value}"))
         .flex()
         .items_center()
         .h(px(32.0))
@@ -88,8 +97,18 @@ pub(super) fn check_row(
     label: impl Into<SharedString>,
     checked: bool,
 ) -> gpui::Stateful<gpui::Div> {
+    let label = label.into();
     div()
         .id(id.into())
+        .focusable()
+        .tab_stop(true)
+        .role(Role::CheckBox)
+        .aria_label(label.clone())
+        .aria_toggled(if checked {
+            Toggled::True
+        } else {
+            Toggled::False
+        })
         .flex()
         .items_center()
         .gap_2()
@@ -117,7 +136,7 @@ pub(super) fn check_row(
                         .child(icon(AleraIcon::Check, 11.0, theme::on_accent()))
                 }),
         )
-        .child(div().text_sm().child(label.into()))
+        .child(div().text_sm().child(label))
 }
 
 pub(super) fn filter_header(label: &'static str, count: usize) -> gpui::Div {
@@ -146,6 +165,10 @@ pub(super) fn filter_header(label: &'static str, count: usize) -> gpui::Div {
 pub(super) fn clear_button(id: &'static str, enabled: bool) -> gpui::Stateful<gpui::Div> {
     div()
         .id(id)
+        .focusable()
+        .tab_stop(enabled)
+        .role(Role::Button)
+        .aria_label("Clear")
         .px_2()
         .py_1()
         .rounded_md()
@@ -167,8 +190,13 @@ pub(super) fn selected_filter_chip(
     id: impl Into<SharedString>,
     label: impl Into<SharedString>,
 ) -> gpui::Stateful<gpui::Div> {
+    let label = label.into();
     div()
         .id(id.into())
+        .focusable()
+        .tab_stop(true)
+        .role(Role::Button)
+        .aria_label(SharedString::from(format!("Remove {label}")))
         .flex()
         .items_center()
         .gap_1()
@@ -181,7 +209,7 @@ pub(super) fn selected_filter_chip(
         .text_xs()
         .cursor(CursorStyle::PointingHand)
         .hover(|style| style.bg(theme::surface_selected()))
-        .child(label.into())
+        .child(label)
         .child(icon(AleraIcon::Close, 11.0, theme::text_faint()))
 }
 
@@ -190,8 +218,13 @@ pub(super) fn available_filter_row(
     label: impl Into<SharedString>,
     leading: Option<AleraIcon>,
 ) -> gpui::Stateful<gpui::Div> {
+    let label = label.into();
     div()
         .id(id.into())
+        .focusable()
+        .tab_stop(true)
+        .role(Role::Button)
+        .aria_label(label.clone())
         .flex()
         .items_center()
         .gap_2()
@@ -216,7 +249,7 @@ pub(super) fn available_filter_row(
                 .overflow_hidden()
                 .text_ellipsis()
                 .text_sm()
-                .child(label.into()),
+                .child(label),
         )
 }
 

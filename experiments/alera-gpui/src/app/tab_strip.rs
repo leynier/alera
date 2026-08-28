@@ -1,8 +1,8 @@
 use gpui::{
-    canvas, div, prelude::FluentBuilder as _, px, AnyElement, AppContext as _, Bounds, Context,
-    CursorStyle, DragMoveEvent, InteractiveElement as _, IntoElement, MouseButton, MouseDownEvent,
-    MouseUpEvent, ParentElement as _, Pixels, Point, Render, Rgba, SharedString,
-    StatefulInteractiveElement as _, Styled as _, Timer, Window,
+    canvas, div, prelude::FluentBuilder as _, px, AnyElement, AppContext as _, Bounds, ClickEvent,
+    Context, CursorStyle, DragMoveEvent, InteractiveElement as _, IntoElement, MouseButton,
+    MouseUpEvent, ParentElement as _, Pixels, Point, Render, Rgba, Role, SharedString,
+    StatefulInteractiveElement as _, Styled as _, Window,
 };
 use gpui_component::tooltip::Tooltip;
 use serde_json::Value;
@@ -21,11 +21,13 @@ pub(super) struct TabDragData {
     tab_id: String,
     title: String,
     kind: String,
+    file_path: Option<String>,
 }
 
 struct DraggedTabFeedback {
     title: String,
     kind: String,
+    file_path: Option<String>,
 }
 
 impl Render for DraggedTabFeedback {
@@ -43,7 +45,11 @@ impl Render for DraggedTabFeedback {
             .bg(theme::surface_raised())
             .shadow_lg()
             .text_sm()
-            .child(super::workbench::tab_kind_icon(&self.kind, theme::text()))
+            .child(super::workbench::tab_kind_icon(
+                &self.kind,
+                self.file_path.as_deref(),
+                theme::text(),
+            ))
             .child(
                 div()
                     .max_w(px(tab_title_max_width(&self.kind)))
@@ -199,6 +205,12 @@ impl AleraApp {
         let bounds_app = cx.entity();
         let append_index = tabs.len();
         let drag_active = self.tab_pointer_drag.is_some() || cx.has_active_drag();
+        let tab_scroll_handle = self
+            .tab_strip_scroll_handles
+            .borrow_mut()
+            .entry(group_id.to_owned())
+            .or_default()
+            .clone();
         div()
             .relative()
             .flex()
@@ -214,8 +226,9 @@ impl AleraApp {
                     .id(SharedString::from(format!("tab-scroll-{group_id}")))
                     .flex()
                     .min_w_0()
-                    .flex_shrink()
+                    .flex_shrink(1.0)
                     .overflow_x_scroll()
+                    .track_scroll(&tab_scroll_handle)
                     .children(tabs.iter().enumerate().map(|(index, tab)| {
                         self.render_tab_chip(group_id, tab, index, active_tab, cx)
                     }))
@@ -256,7 +269,7 @@ impl AleraApp {
                             ),
                     ),
             )
-            .child(self.render_new_tab_button(group_id, cx))
+            .child(self.render_new_tab_button(group_id, active_tab.map(|tab| tab.id.as_str()), cx))
             .child(div().flex_1())
             .child(self.render_pane_menu_button(group_id, cx))
             .child(div().w(px(4.0)))
@@ -287,7 +300,7 @@ impl AleraApp {
         cx: &mut Context<Self>,
     ) -> AnyElement {
         let selected = active_tab.is_some_and(|active| active.id == tab.id);
-        let tab_id = tab.id.clone();
+        let activate_tab_id = tab.id.clone();
         let pointer_group_id = group_id.to_string();
         let pointer_tab_id = tab.id.clone();
         let bounds_group_id = group_id.to_string();
@@ -302,6 +315,11 @@ impl AleraApp {
             tab_id: tab.id.clone(),
             title: tab.title.clone(),
             kind: tab.kind.clone(),
+            file_path: tab
+                .payload
+                .get("filePath")
+                .and_then(Value::as_str)
+                .map(str::to_owned),
         };
         let pointer_dragged = self
             .tab_pointer_drag
@@ -339,6 +357,11 @@ impl AleraApp {
                 "layout-tab-{group_id}-{}",
                 tab.id
             )))
+            .focusable()
+            .tab_stop(true)
+            .role(Role::Tab)
+            .aria_label(tab.title.clone())
+            .aria_selected(selected)
             .relative()
             .flex()
             .flex_shrink_0()
@@ -378,31 +401,32 @@ impl AleraApp {
                         pointer_tab_id.clone(),
                         cx,
                     );
-                    this.activate_workspace_tab(tab_id.clone(), cx);
                 }),
             )
+            .on_click(cx.listener(move |this, _, _, cx| {
+                this.activate_workspace_tab(activate_tab_id.clone(), cx);
+            }))
             .on_mouse_up(
                 MouseButton::Left,
                 cx.listener(|this, event: &MouseUpEvent, _, cx| {
                     this.drop_pointer_tab_at_position(event.position, cx);
                 }),
             )
-            .on_mouse_down(
-                MouseButton::Right,
-                cx.listener(move |this, event: &MouseDownEvent, _, cx| {
-                    cx.stop_propagation();
-                    this.open_tab_context_menu(
-                        menu_group_id.clone(),
-                        menu_tab_id.clone(),
-                        event.position,
-                        cx,
-                    );
-                }),
-            )
+            .on_aux_click(cx.listener(move |this, event: &ClickEvent, window, cx| {
+                cx.stop_propagation();
+                this.open_tab_context_menu(
+                    menu_group_id.clone(),
+                    menu_tab_id.clone(),
+                    event.position(),
+                    window,
+                    cx,
+                );
+            }))
             .on_drag(drag_data, |drag, _, _, cx| {
                 cx.new(|_| DraggedTabFeedback {
                     title: drag.title.clone(),
                     kind: drag.kind.clone(),
+                    file_path: drag.file_path.clone(),
                 })
             })
             .drag_over::<TabDragData>(|style, _, _, _| style.bg(theme::surface_selected()))
@@ -428,6 +452,7 @@ impl AleraApp {
             })
             .child(super::workbench::tab_kind_icon(
                 &tab.kind,
+                tab.payload.get("filePath").and_then(Value::as_str),
                 if selected {
                     theme::text()
                 } else {
@@ -447,19 +472,20 @@ impl AleraApp {
                         "layout-close-tab-{group_id}-{}",
                         tab.id
                     )))
+                    .focusable()
+                    .tab_stop(true)
+                    .role(Role::Button)
+                    .aria_label(SharedString::from(format!("Close {}", tab.title)))
                     .flex()
                     .items_center()
                     .justify_center()
                     .p(px(2.0))
                     .rounded_sm()
-                    .on_mouse_down(
-                        gpui::MouseButton::Left,
-                        cx.listener(move |this, _, _, cx| {
-                            cx.stop_propagation();
-                            this.clear_pointer_tab_drag_state(cx);
-                            this.request_close_tab(close_tab_id.clone(), cx);
-                        }),
-                    )
+                    .on_click(cx.listener(move |this, _, _, cx| {
+                        cx.stop_propagation();
+                        this.clear_pointer_tab_drag_state(cx);
+                        this.request_close_tab(close_tab_id.clone(), cx);
+                    }))
                     .child(icon(AleraIcon::Close, 12.0, theme::text_muted())),
             )
             .child(
@@ -635,6 +661,10 @@ impl AleraApp {
     }
 
     fn drop_workspace_tab(&mut self, drag: &TabDragData, cx: &mut Context<Self>) {
+        if self.tab_mutation_busy {
+            self.clear_pointer_tab_drag_state(cx);
+            return;
+        }
         self.tab_pointer_drag = None;
         if let Some(target) = self.tab_drop_target.take() {
             self.pane_drop_target = None;
@@ -653,18 +683,20 @@ impl AleraApp {
                 cx,
             );
         } else {
-            // A native drop can arrive without a preview target when the pointer
-            // leaves the workbench between the last drag update and release.
-            // Never leave a stale directional overlay behind in that case.
-            self.clear_pointer_tab_drag_state(cx);
+            // A native Drop can arrive before the MouseUp that carries the
+            // authoritative final coordinates. Preserve only the typed drag
+            // identity so the window-level mouse-up fallback can resolve the
+            // destination even when no DragMove reached this target.
+            self.tab_pointer_drag = Some((drag.source_group_id.clone(), drag.tab_id.clone()));
         }
     }
 
-    fn clear_pointer_tab_drag_state(&mut self, cx: &mut Context<Self>) {
+    pub(super) fn clear_pointer_tab_drag_state(&mut self, cx: &mut Context<Self>) {
         let changed = self.tab_pointer_drag.take().is_some()
             || self.tab_drop_target.take().is_some()
             || self.pane_drop_target.take().is_some();
         if changed {
+            self.tab_pointer_drag_generation = self.tab_pointer_drag_generation.wrapping_add(1);
             cx.notify();
         }
     }
@@ -684,7 +716,9 @@ impl AleraApp {
         self.tab_pointer_drag_generation = self.tab_pointer_drag_generation.wrapping_add(1);
         let generation = self.tab_pointer_drag_generation;
         cx.spawn(async move |this, cx| {
-            Timer::after(Duration::from_secs(10)).await;
+            cx.background_executor()
+                .timer(Duration::from_secs(10))
+                .await;
             let _ = this.update(cx, |this, cx| {
                 if this.tab_pointer_drag_generation == generation {
                     this.tab_pointer_drag = None;
@@ -813,6 +847,11 @@ impl AleraApp {
             tab_id,
             title: tab.title.clone(),
             kind: tab.kind.clone(),
+            file_path: tab
+                .payload
+                .get("filePath")
+                .and_then(Value::as_str)
+                .map(str::to_owned),
         };
         let Some(layout) = self.snapshot.layout.as_ref() else {
             self.clear_pointer_tab_drag_state(cx);

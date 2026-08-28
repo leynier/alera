@@ -1,5 +1,6 @@
 use alera_native::api::workspace_search::{
-    preview_workspace_replace, replace_workspace_matches, search_workspace,
+    cancel_workspace_search, preview_workspace_replace, preview_workspace_replace_cancelable,
+    replace_workspace_matches, search_workspace, search_workspace_cancelable,
     WorkspaceReplaceFileExpectation, WorkspaceReplaceOptions, WorkspaceReplaceRequest,
     WorkspaceReplaceResult, WorkspaceSearchOptions, WorkspaceSearchResult,
 };
@@ -19,6 +20,13 @@ struct WorkspaceSearchRequest {
     include_pattern: Option<String>,
     exclude_pattern: Option<String>,
     include_ignored: bool,
+    request_id: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct WorkspaceSearchCancelRequest {
+    request_id: String,
 }
 
 #[derive(Debug, Deserialize)]
@@ -50,26 +58,42 @@ struct WorkspaceReplaceFileExpectationRequest {
 
 pub(super) async fn search(payload: &Value) -> HostResult<Value> {
     let request: WorkspaceSearchRequest = parse(payload)?;
-    let result = tokio::task::spawn_blocking(move || search_workspace(request.into_options()))
-        .await
-        .map_err(|error| HostError::state(format!("Workspace Search Task Failed: {error}")))?
-        .map_err(|error| HostError::state(error.context))?;
+    let request_id = request.request_id.clone();
+    let options = request.into_options();
+    let result = tokio::task::spawn_blocking(move || match request_id {
+        Some(request_id) => search_workspace_cancelable(options, request_id),
+        None => search_workspace(options),
+    })
+    .await
+    .map_err(|error| HostError::state(format!("Workspace Search Task Failed: {error}")))?
+    .map_err(|error| HostError::state(error.context))?;
     Ok(search_result_value(result))
 }
 
 pub(super) async fn preview_replace(payload: &Value) -> HostResult<Value> {
     let request: WorkspaceReplaceAllRequest = parse(payload)?;
+    let request_id = request.search.request_id.clone();
     let preview = tokio::task::spawn_blocking(move || {
-        preview_workspace_replace(WorkspaceReplaceOptions {
+        let options = WorkspaceReplaceOptions {
             search: request.search.into_options(),
             replacement: request.replacement,
             preserve_case: request.preserve_case,
-        })
+        };
+        match request_id {
+            Some(request_id) => preview_workspace_replace_cancelable(options, request_id),
+            None => preview_workspace_replace(options),
+        }
     })
     .await
     .map_err(|error| HostError::state(format!("Workspace Replace Preview Task Failed: {error}")))?
     .map_err(|error| HostError::state(error.context))?;
     Ok(search_result_value(preview.result))
+}
+
+pub(super) async fn cancel(payload: &Value) -> HostResult<Value> {
+    let request: WorkspaceSearchCancelRequest = parse(payload)?;
+    cancel_workspace_search(request.request_id);
+    Ok(json!({"cancelled": true}))
 }
 
 pub(super) async fn replace_all(payload: &Value) -> HostResult<Value> {

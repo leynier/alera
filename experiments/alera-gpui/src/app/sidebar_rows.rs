@@ -5,8 +5,8 @@ use std::{
 
 use gpui::{
     div, prelude::FluentBuilder as _, px, Animation, AnimationExt as _, AnyElement,
-    AppContext as _, Context, CursorStyle, InteractiveElement as _, IntoElement as _, MouseButton,
-    MouseDownEvent, ParentElement as _, SharedString, StatefulInteractiveElement as _, Styled as _,
+    AppContext as _, ClickEvent, Context, CursorStyle, InteractiveElement as _, IntoElement as _,
+    ParentElement as _, Role, SharedString, StatefulInteractiveElement as _, Styled as _,
 };
 use gpui_component::tooltip::Tooltip;
 use serde_json::Value;
@@ -308,6 +308,11 @@ impl AleraApp {
             .child(
                 div()
                     .id(id)
+                    .focusable()
+                    .tab_stop(true)
+                    .role(Role::Button)
+                    .aria_label(label)
+                    .aria_expanded(!collapsed)
                     .flex()
                     .items_center()
                     // Flutter wraps the 26 px content tile in 2 px vertical
@@ -321,18 +326,15 @@ impl AleraApp {
                     .text_sm()
                     .text_color(theme::text_muted())
                     .hover(|style| style.bg(theme::surface()))
-                    .on_mouse_down(
-                        MouseButton::Left,
-                        cx.listener(move |this, _, _, cx| {
-                            if id == "sidebar-pinned-section" {
-                                this.toggle_pinned_section(cx);
-                            } else {
-                                this.sidebar_all_collapsed = !this.sidebar_all_collapsed;
-                                this.persist_sidebar_view_prefs(cx);
-                                cx.notify();
-                            }
-                        }),
-                    )
+                    .on_click(cx.listener(move |this, _, _, cx| {
+                        if id == "sidebar-pinned-section" {
+                            this.toggle_pinned_section(cx);
+                        } else {
+                            this.sidebar_all_collapsed = !this.sidebar_all_collapsed;
+                            this.persist_sidebar_view_prefs(cx);
+                            cx.notify();
+                        }
+                    }))
                     .child(icon(leading, 14.0, theme::text_muted()))
                     .child(
                         div()
@@ -372,6 +374,11 @@ impl AleraApp {
         let can_create_workspace = project.kind == "gitRepository";
         div()
             .id(SharedString::from(format!("project-row-{}", project.id)))
+            .focusable()
+            .tab_stop(true)
+            .role(Role::Button)
+            .aria_label(project.name.clone())
+            .aria_expanded(!collapsed)
             .flex()
             .items_center()
             // Keep the project header at Flutter's 26 px tile plus 2 px outer
@@ -385,19 +392,13 @@ impl AleraApp {
             .rounded_lg()
             .cursor(CursorStyle::PointingHand)
             .hover(|style| style.bg(theme::surface()))
-            .on_mouse_down(
-                MouseButton::Left,
-                cx.listener(move |this, _, _, cx| {
-                    this.toggle_project_section(project_id.clone(), cx);
-                }),
-            )
-            .on_mouse_down(
-                MouseButton::Right,
-                cx.listener(move |this, event: &MouseDownEvent, _, cx| {
-                    this.show_project_menu(project_menu_id.clone(), event.position, cx);
-                    cx.stop_propagation();
-                }),
-            )
+            .on_click(cx.listener(move |this, _, _, cx| {
+                this.toggle_project_section(project_id.clone(), cx);
+            }))
+            .on_aux_click(cx.listener(move |this, event: &ClickEvent, _, cx| {
+                this.show_project_menu(project_menu_id.clone(), event.position(), cx);
+                cx.stop_propagation();
+            }))
             .child(icon(
                 if collapsed {
                     AleraIcon::Folder
@@ -456,14 +457,16 @@ impl AleraApp {
                     .opacity(if can_create_workspace { 1.0 } else { 0.4 })
                     .hover(|style| style.bg(theme::surface_raised()))
                     .when(can_create_workspace, |button| {
-                        button.on_mouse_down(
-                            MouseButton::Left,
-                            cx.listener(move |this, _, window, cx| {
+                        button
+                            .focusable()
+                            .tab_stop(true)
+                            .role(Role::Button)
+                            .aria_label("New Workspace in This Project")
+                            .on_click(cx.listener(move |this, _, window, cx| {
                                 cx.stop_propagation();
                                 this.open_new_workspace_dialog(window, cx);
                                 this.select_workspace_project(new_workspace_project_id.clone(), cx);
-                            }),
-                        )
+                            }))
                     })
                     .child(icon(AleraIcon::Add, 14.0, theme::text_muted())),
             )
@@ -523,28 +526,31 @@ impl AleraApp {
                 if pinned_copy { "pinned" } else { "regular" },
                 workspace.id
             )))
+            .focusable()
+            .tab_stop(true)
+            .role(Role::Button)
+            .aria_label(workspace.name.clone())
+            .aria_selected(selected)
             .ml(px(8.0 + indent))
             .mr_2()
             .my(px(2.0))
             .px_3()
             .py(px(6.0))
+            // Flutter's body-medium row plus its vertical padding resolves
+            // to a 33 px logical tile. Keep a floor here so long lists have
+            // the same cumulative height and scrollbar range as Flutter.
+            .min_h(px(33.0))
             .rounded_lg()
             .cursor(CursorStyle::PointingHand)
             .hover(|style| style.bg(theme::surface()))
             .when(selected, |item| item.bg(theme::surface_raised()))
-            .on_mouse_down(
-                MouseButton::Left,
-                cx.listener(move |this, _, _, cx| {
-                    this.select_workspace(workspace_id.clone(), cx);
-                }),
-            )
-            .on_mouse_down(
-                MouseButton::Right,
-                cx.listener(move |this, event: &MouseDownEvent, _, cx| {
-                    this.show_workspace_menu(workspace_menu_id.clone(), event.position, cx);
-                    cx.stop_propagation();
-                }),
-            )
+            .on_click(cx.listener(move |this, _, _, cx| {
+                this.select_workspace(workspace_id.clone(), cx);
+            }))
+            .on_aux_click(cx.listener(move |this, event: &ClickEvent, _, cx| {
+                this.show_workspace_menu(workspace_menu_id.clone(), event.position(), cx);
+                cx.stop_propagation();
+            }))
             .flex()
             .items_center()
             .gap_2()
@@ -677,6 +683,15 @@ impl AleraApp {
                         "workspace-children-toggle-{}",
                         workspace.id
                     )))
+                    .focusable()
+                    .tab_stop(true)
+                    .role(Role::Button)
+                    .aria_label(if children_collapsed {
+                        "Show Child Workspaces"
+                    } else {
+                        "Hide Child Workspaces"
+                    })
+                    .aria_expanded(!children_collapsed)
                     .flex()
                     .items_center()
                     .gap_1()
@@ -694,13 +709,10 @@ impl AleraApp {
                         cx.new(|_| Tooltip::new(label)).into()
                     })
                     .hover(|style| style.bg(theme::surface_raised()))
-                    .on_mouse_down(
-                        MouseButton::Left,
-                        cx.listener(move |this, _, _, cx| {
-                            cx.stop_propagation();
-                            this.toggle_parent_workspace_section(toggle_children_id.clone(), cx);
-                        }),
-                    )
+                    .on_click(cx.listener(move |this, _, _, cx| {
+                        cx.stop_propagation();
+                        this.toggle_parent_workspace_section(toggle_children_id.clone(), cx);
+                    }))
                     .child(icon(AleraIcon::Workflow, 12.0, theme::text_faint()))
                     .child(
                         div()
@@ -716,7 +728,7 @@ impl AleraApp {
                 .flex()
                 .flex_col()
                 .child(row)
-                .child(self.render_agent_run_list(&agent_runs, indent, cx))
+                .child(self.render_agent_run_list(&agent_runs, &workspace.id, indent, cx))
                 .into_any_element();
         }
         row.into_any_element()
@@ -740,8 +752,7 @@ impl AleraApp {
                     .filter(|value| !value.trim().is_empty())
                     .unwrap_or(tab.id.as_str());
                 self.status_data.presence.iter().find(|entry| {
-                    entry.get("workspaceId").and_then(Value::as_str)
-                        == Some(workspace.id.as_str())
+                    entry.get("workspaceId").and_then(Value::as_str) == Some(workspace.id.as_str())
                         && entry.get("tabId").and_then(Value::as_str) == Some(tab.id.as_str())
                         && entry
                             .get("handle")
@@ -787,10 +798,29 @@ impl AleraApp {
         } else {
             "Show Agent Runs".to_owned()
         };
+        let mut summary_aria_label = groups
+            .iter()
+            .take(3)
+            .map(|(state, state_runs)| agent_group_accessibility_label(state, state_runs))
+            .collect::<Vec<_>>()
+            .join("; ");
+        let hidden_group_runs = groups
+            .iter()
+            .skip(3)
+            .map(|(_, runs)| runs.len())
+            .sum::<usize>();
+        if hidden_group_runs > 0 {
+            summary_aria_label.push_str(&format!(" +{hidden_group_runs}"));
+        }
         let mut summary = div()
             .id(SharedString::from(format!(
                 "workspace-agent-summary-{workspace_id}"
             )))
+            .focusable()
+            .tab_stop(true)
+            .role(Role::Button)
+            .aria_label(summary_aria_label)
+            .aria_expanded(expanded)
             .flex()
             .items_center()
             .px_1()
@@ -803,23 +833,15 @@ impl AleraApp {
                 cx.new(move |_| Tooltip::new(label)).into()
             })
             .hover(|style| style.bg(theme::surface_raised()))
-            .on_mouse_down(
-                MouseButton::Left,
-                cx.listener(move |this, _, _, cx| {
-                    cx.stop_propagation();
-                    this.toggle_workspace_agents(toggle_id.clone(), cx);
-                }),
-            );
+            .on_click(cx.listener(move |this, _, _, cx| {
+                cx.stop_propagation();
+                this.toggle_workspace_agents(toggle_id.clone(), cx);
+            }));
         for (index, (state, state_runs)) in groups.iter().take(3).enumerate() {
             let cluster = render_agent_group_cluster(workspace_id.as_str(), state, state_runs)
                 .when(index > 0, |cluster| cluster.ml(px(6.0)));
             summary = summary.child(cluster);
         }
-        let hidden_group_runs = groups
-            .iter()
-            .skip(3)
-            .map(|(_, runs)| runs.len())
-            .sum::<usize>();
         if hidden_group_runs > 0 {
             summary = summary.child(
                 div()
@@ -843,6 +865,7 @@ impl AleraApp {
     fn render_agent_run_list(
         &self,
         runs: &[Value],
+        workspace_id: &str,
         workspace_indent: f32,
         cx: &mut Context<Self>,
     ) -> gpui::Div {
@@ -864,6 +887,7 @@ impl AleraApp {
                 .unwrap_or_default()
                 .to_owned();
             let select_id = tab_id.clone();
+            let select_workspace_id = workspace_id.to_owned();
             let close_id = tab_id.clone();
             let state = agent_state_key(run);
             let indicator_state = agent_indicator_state_key(run);
@@ -879,6 +903,12 @@ impl AleraApp {
                 .and_then(Value::as_str)
                 .unwrap_or("working");
             let description = agent_run_description(run, agent, raw_state);
+            let row_label = format!(
+                "{} {} {}",
+                agent_state_label(state),
+                agent_display_name(agent),
+                description
+            );
             // Presence can refresh while a row is being hovered. Keep every
             // interactive identity tied to the terminal tab rather than its
             // current render index so a later status update cannot retarget a
@@ -887,6 +917,10 @@ impl AleraApp {
             list = list.child(
                 div()
                     .id(SharedString::from(format!("sidebar-agent-run-{row_key}")))
+                    .focusable()
+                    .tab_stop(true)
+                    .role(Role::Button)
+                    .aria_label(row_label)
                     .flex()
                     .items_center()
                     .gap(px(6.0))
@@ -903,13 +937,14 @@ impl AleraApp {
                             style.bg(theme::surface())
                         }
                     })
-                    .on_mouse_down(
-                        MouseButton::Left,
-                        cx.listener(move |this, _, _, cx| {
-                            this.activate_workspace_tab(select_id.clone(), cx);
-                            cx.stop_propagation();
-                        }),
-                    )
+                    .on_click(cx.listener(move |this, _, _, cx| {
+                        this.select_workspace_tab(
+                            select_workspace_id.clone(),
+                            select_id.clone(),
+                            cx,
+                        );
+                        cx.stop_propagation();
+                    }))
                     .on_hover({
                         let hover_id = tab_id.clone();
                         cx.listener(move |this, hovered: &bool, _, cx| {
@@ -925,9 +960,7 @@ impl AleraApp {
                     })
                     .child(
                         div()
-                            .id(SharedString::from(format!(
-                                "sidebar-agent-state-{row_key}"
-                            )))
+                            .id(SharedString::from(format!("sidebar-agent-state-{row_key}")))
                             .tooltip({
                                 let label = agent_state_label(state).to_owned();
                                 move |_, cx| {
@@ -1004,21 +1037,20 @@ impl AleraApp {
                             })
                             .opacity(if actions_visible { 1.0 } else { 0.0 })
                             .when(actions_visible, |button| {
-                                button.tooltip(|_, cx| {
-                                    cx.new(|_| Tooltip::new("Close Terminal")).into()
-                                })
+                                button
+                                    .focusable()
+                                    .tab_stop(true)
+                                    .role(Role::Button)
+                                    .aria_label("Close Terminal")
+                                    .tooltip(|_, cx| {
+                                        cx.new(|_| Tooltip::new("Close Terminal")).into()
+                                    })
+                                    .on_click(cx.listener(move |this, _, _, cx| {
+                                        cx.stop_propagation();
+                                        this.request_close_tab(close_id.clone(), cx);
+                                    }))
                             })
                             .hover(|style| style.bg(theme::surface_raised()))
-                            .on_mouse_down(
-                                MouseButton::Left,
-                                cx.listener(move |this, _, _, cx| {
-                                    if !actions_visible {
-                                        return;
-                                    }
-                                    cx.stop_propagation();
-                                    this.request_close_tab(close_id.clone(), cx);
-                                }),
-                            )
                             .child(icon(AleraIcon::Close, 12.0, theme::text_muted()));
                         close_button.with_animation(
                             SharedString::from(format!(
@@ -1111,6 +1143,30 @@ fn render_agent_group_cluster(workspace_id: &str, state: &str, state_runs: &[&Va
         );
     }
     cluster
+}
+
+fn agent_group_accessibility_label(state: &str, state_runs: &[&Value]) -> String {
+    let mut agents = state_runs
+        .iter()
+        .filter_map(|run| run.get("agentType").and_then(Value::as_str))
+        .collect::<Vec<_>>();
+    agents.sort_by_key(|agent| (agent_sort_key(agent), *agent));
+    agents.dedup();
+    let visible_agents = agents.into_iter().take(3).collect::<Vec<_>>();
+    let hidden_count = state_runs.len().saturating_sub(visible_agents.len());
+    let mut label = format!(
+        "{} {}",
+        agent_state_label(state),
+        visible_agents
+            .into_iter()
+            .map(agent_display_name)
+            .collect::<Vec<_>>()
+            .join(", ")
+    );
+    if hidden_count > 0 {
+        label.push_str(&format!(" +{hidden_count}"));
+    }
+    label
 }
 
 fn agent_sort_key(agent: &str) -> usize {

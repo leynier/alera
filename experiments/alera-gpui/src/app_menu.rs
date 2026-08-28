@@ -1,4 +1,4 @@
-use gpui::{actions, AnyWindowHandle, App, Entity, Menu, MenuItem, OsAction, SystemMenuType};
+use gpui::{actions, AnyWindowHandle, App, Entity, Menu, MenuItem, SystemMenuType};
 use gpui_component::input::{Copy, Cut, Paste, Redo, SelectAll, Undo};
 
 use crate::app::AleraApp;
@@ -13,6 +13,7 @@ actions!(
         MenuMinimizeWindow,
         MenuZoomWindow,
         MenuToggleFullScreen,
+        MenuBringAllToFront,
         MenuQuitApp,
         HideApp,
         HideOtherApps,
@@ -28,13 +29,16 @@ pub fn install(
 ) {
     let settings_app = app.downgrade();
     cx.on_action(move |_: &MenuOpenSettings, cx| {
-        if let Some(app) = settings_app.upgrade() {
-            let _ = window_handle.update(cx, |_, window, cx| {
-                let _ = app.update(cx, |app, cx| {
-                    app.open_settings_dialog(window, cx);
+        let settings_app = settings_app.clone();
+        cx.defer(move |cx| {
+            if let Some(app) = settings_app.upgrade() {
+                let _ = window_handle.update(cx, |_, window, cx| {
+                    app.update(cx, |app, cx| {
+                        app.open_settings_dialog(window, cx);
+                    });
                 });
-            });
-        }
+            }
+        });
     });
     let plans_app = app.downgrade();
     cx.on_action(move |_: &MenuOpenExecutionPlans, cx| {
@@ -75,6 +79,12 @@ pub fn install(
             let _ = window_handle.update(cx, |_, window, _| window.toggle_fullscreen());
         });
     });
+    cx.on_action(move |_: &MenuBringAllToFront, cx| {
+        cx.activate(true);
+        cx.defer(move |cx| {
+            let _ = window_handle.update(cx, |_, window, _| window.activate_window());
+        });
+    });
     cx.on_action(|_: &MenuQuitApp, cx| cx.quit());
     cx.on_action(|_: &HideApp, cx| cx.hide());
     cx.on_action(|_: &HideOtherApps, cx| cx.hide_other_apps());
@@ -82,6 +92,7 @@ pub fn install(
     cx.set_menus(vec![
         Menu {
             name: app_name.into(),
+            disabled: false,
             items: vec![
                 MenuItem::action(format!("About {app_name}"), MenuShowAbout),
                 MenuItem::separator(),
@@ -100,22 +111,30 @@ pub fn install(
         },
         Menu {
             name: "Edit".into(),
+            disabled: false,
             items: vec![
-                MenuItem::os_action("Undo", Undo, OsAction::Undo),
-                MenuItem::os_action("Redo", Redo, OsAction::Redo),
+                MenuItem::action("Undo", Undo),
+                MenuItem::action("Redo", Redo),
                 MenuItem::separator(),
-                MenuItem::os_action("Cut", Cut, OsAction::Cut),
-                MenuItem::os_action("Copy", Copy, OsAction::Copy),
-                MenuItem::os_action("Paste", Paste, OsAction::Paste),
-                MenuItem::os_action("Select All", SelectAll, OsAction::SelectAll),
+                MenuItem::action("Cut", Cut),
+                MenuItem::action("Copy", Copy),
+                MenuItem::action("Paste", Paste),
+                MenuItem::action("Select All", SelectAll),
             ],
         },
         Menu {
-            name: "Window".into(),
+            // GPUI calls setWindowsMenu when this title is exactly "Window",
+            // which makes macOS 15 inject tiling items that Flutter does not
+            // expose. The zero-width suffix preserves the visible title while
+            // keeping this menu fully app-defined.
+            name: "Window\u{200b}".into(),
+            disabled: false,
             items: vec![
                 MenuItem::action("Minimize", MenuMinimizeWindow),
                 MenuItem::action("Zoom", MenuZoomWindow),
                 MenuItem::action("Enter Full Screen", MenuToggleFullScreen),
+                MenuItem::separator(),
+                MenuItem::action("Bring All to Front", MenuBringAllToFront),
             ],
         },
     ]);

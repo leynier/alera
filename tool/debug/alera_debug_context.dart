@@ -7,7 +7,7 @@ final class _DebugContext {
 
   // Builds the Rust sidecar (rust/alera-cli) in release and stages its runtime
   // bundle so ALERA_CLI_BUNDLE_DIR resolution finds every required asset.
-  Future<int> buildCli({String? outputDir}) async {
+  Future<int> buildCli({String? outputDir, bool prepareNativeHelpers = true}) async {
     final cargoExit = await _run(_options.cargoExecutable, const <String>[
       'build',
       '--locked',
@@ -18,10 +18,16 @@ final class _DebugContext {
     if (cargoExit != 0) {
       return cargoExit;
     }
-    return _stageCliBinary(outputDir ?? _options.bundleDir);
+    return _stageCliBinary(
+      outputDir ?? _options.bundleDir,
+      prepareNativeHelpers: prepareNativeHelpers,
+    );
   }
 
-  Future<int> _stageCliBinary(String outputDir) async {
+  Future<int> _stageCliBinary(
+    String outputDir, {
+    required bool prepareNativeHelpers,
+  }) async {
     final source = File(
       _join(_rustDir, 'target', 'release', _cliExecutableName),
     );
@@ -31,9 +37,11 @@ final class _DebugContext {
     }
     final destinationDir = Directory(_absoluteBuildOutputPath(outputDir));
     await destinationDir.create(recursive: true);
-    final helperExit = await _prepareCliNativeHelpers(destinationDir);
-    if (helperExit != 0) {
-      return helperExit;
+    if (prepareNativeHelpers) {
+      final helperExit = await _prepareCliNativeHelpers(destinationDir);
+      if (helperExit != 0) {
+        return helperExit;
+      }
     }
     final destination = File(_join(destinationDir.path, _cliExecutableName));
     await source.copy(destination.path);
@@ -54,7 +62,7 @@ final class _DebugContext {
   }
 
   Future<int> cliHelp() async {
-    final buildExit = await buildCli();
+    final buildExit = await buildCli(prepareNativeHelpers: false);
     if (buildExit != 0) {
       return buildExit;
     }
@@ -63,7 +71,7 @@ final class _DebugContext {
 
   // Runs the compiled Rust sidecar in the foreground for stdout/stderr debugging.
   Future<int> hostDebugForeground() async {
-    final buildExit = await buildCli();
+    final buildExit = await buildCli(prepareNativeHelpers: false);
     if (buildExit != 0) {
       return buildExit;
     }
@@ -99,7 +107,11 @@ final class _DebugContext {
     );
   }
 
-  Future<int> gpuiDebug() async {
+  Future<int> gpuiDebug() => _gpuiRun(release: false);
+
+  Future<int> gpuiRelease() => _gpuiRun(release: true);
+
+  Future<int> _gpuiRun({required bool release}) async {
     final manifest = _join(
       _repoRoot,
       'experiments',
@@ -107,6 +119,13 @@ final class _DebugContext {
       'Cargo.toml',
     );
     final environment = Map<String, String>.of(Platform.environment);
+    // Keep GPUI on the same app-scoped runtime directory as Flutter on every
+    // platform. macOS also writes this value into LSEnvironment below, but
+    // the explicit environment is required for direct Linux/Windows runs.
+    environment['ALERA_APP_ID'] = _options.appId;
+    environment['ALERA_RUNTIME_DIR'] =
+        environment['ALERA_RUNTIME_DIR'] ??
+        _join(_defaultAppSupportDir(_options.appId), 'terminal_host');
     if (Platform.isMacOS) {
       final toolchain = await _metalToolchainIdentifier();
       if (toolchain == null) {
@@ -124,17 +143,29 @@ final class _DebugContext {
       manifest,
       '--bin',
       'alera-gpui',
+      if (release) '--release',
     ], environment: environment);
     if (buildExit != 0) {
       return buildExit;
     }
+    final configuredTarget = environment['CARGO_TARGET_DIR'];
+    final targetDirectory = configuredTarget == null
+        ? _join(_repoRoot, 'experiments', 'alera-gpui', 'target')
+        : Directory(configuredTarget).isAbsolute
+        ? configuredTarget
+        : _join(_repoRoot, configuredTarget);
     final executable = _join(
-      _join(_repoRoot, 'experiments', 'alera-gpui', 'target'),
-      'debug',
+      targetDirectory,
+      release ? 'release' : 'debug',
       Platform.isWindows ? 'alera-gpui.exe' : 'alera-gpui',
     );
     if (!Platform.isMacOS) {
-      return _run(executable, const <String>[], forwardStdin: true);
+      return _run(
+        executable,
+        const <String>[],
+        environment: environment,
+        forwardStdin: true,
+      );
     }
     return _launchMacosGpuiBundle(executable, environment);
   }
@@ -349,7 +380,10 @@ final class _DebugContext {
         environment['ALERA_RUNTIME_DIR'] ??
         _join(_defaultAppSupportDir(_options.appId), 'terminal_host');
     await File(_join(contents.path, 'Info.plist')).writeAsString(
-      _gpuiMacosInfoPlist(_options.appId, runtimeDir),
+      _gpuiMacosInfoPlist(
+        _options.appId,
+        runtimeDir,
+      ),
       flush: true,
     );
     await File(targetExecutable).copy(bundledExecutable);
@@ -412,7 +446,15 @@ final class _DebugContext {
       'Alera GPUI',
     );
     final pids = <int>{};
-    for (final candidate in <String>[executable, bundledExecutable]) {
+    final repoPrefix = '$_repoRoot${Platform.pathSeparator}';
+    final relativeExecutable = executable.startsWith(repoPrefix)
+        ? executable.substring(repoPrefix.length)
+        : executable;
+    for (final candidate in <String>{
+      executable,
+      relativeExecutable,
+      bundledExecutable,
+    }) {
       final result = await Process.run('pgrep', <String>['-f', candidate]);
       if (result.exitCode != 0) {
         continue;
@@ -424,20 +466,23 @@ final class _DebugContext {
     return pids.toList(growable: false);
   }
 
-  static String _gpuiMacosInfoPlist(String appId, String runtimeDir) =>
+  static String _gpuiMacosInfoPlist(
+    String appId,
+    String runtimeDir,
+  ) =>
       '''
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
   <key>CFBundleDisplayName</key>
-  <string>Alera GPUI</string>
+  <string>${_xmlEscape(appId.endsWith('.dev') ? 'Alera Dev' : 'Alera GPUI')}</string>
   <key>CFBundleExecutable</key>
   <string>Alera GPUI</string>
   <key>CFBundleIdentifier</key>
   <string>${_gpuiBundleIdentifier(appId)}</string>
   <key>CFBundleName</key>
-  <string>Alera GPUI</string>
+  <string>${_xmlEscape(appId.endsWith('.dev') ? 'Alera Dev' : 'Alera GPUI')}</string>
   <key>CFBundlePackageType</key>
   <string>APPL</string>
   <key>CFBundleShortVersionString</key>

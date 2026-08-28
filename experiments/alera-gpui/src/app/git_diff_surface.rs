@@ -2,8 +2,8 @@ use std::path::Path;
 use std::sync::Arc;
 
 use gpui::{
-    div, prelude::FluentBuilder as _, px, AnyElement, Context, CursorStyle,
-    Image, ImageFormat, InteractiveElement as _, IntoElement, ParentElement as _, SharedString,
+    div, prelude::FluentBuilder as _, px, AnyElement, Context, CursorStyle, Image, ImageFormat,
+    InteractiveElement as _, IntoElement, ParentElement as _, SharedString,
     StatefulInteractiveElement as _, Styled as _,
 };
 
@@ -210,16 +210,15 @@ impl AleraApp {
                     .when(
                         !loading && error.is_none() && loaded && !self.git_diff.files.is_empty(),
                         |content| {
-                        content
-                            .when(self.git_diff.truncated, |content| {
-                                content.child(diff_banner("Diff truncated for preview."))
-                            })
-                            .children(
-                                self.git_diff
-                                    .files
-                                    .iter()
-                                    .map(|file| self.render_diff_file(&tab.id, file, commit_diff)),
-                            )
+                            content
+                                .when(self.git_diff.truncated, |content| {
+                                    content.child(diff_banner("Diff truncated for preview."))
+                                })
+                                .children(
+                                    self.git_diff.files.iter().map(|file| {
+                                        self.render_diff_file(&tab.id, file, commit_diff)
+                                    }),
+                                )
                         },
                     ),
             )
@@ -228,95 +227,86 @@ impl AleraApp {
 }
 
 impl AleraApp {
-    fn render_diff_file(
-        &self,
-        tab_id: &str,
-        file: &GitDiffFile,
-        commit_diff: bool,
-    ) -> AnyElement {
+    fn render_diff_file(&self, tab_id: &str, file: &GitDiffFile, commit_diff: bool) -> AnyElement {
         let image_key = (tab_id.to_owned(), file.path.clone());
         let image_preview = file.is_binary && is_image_path(&file.path);
         let image_sides = self.git_diff_image_sides.get(&image_key);
         let image_loading = self.git_diff_image_loading.contains(&image_key);
         div()
-        .flex()
-        .flex_col()
-        .child(
-            div()
-                .id(SharedString::from(format!(
-                    "git-diff-file-{}-{}",
-                    file.area, file.path
-                )))
-                .flex()
-                .items_center()
-                .h(px(32.0))
-                .px_3()
-                .gap_2()
-                .border_b_1()
-                .border_color(theme::border_subtle())
-                .bg(theme::surface_raised())
-                .child(file_icon(
-                    &file.path,
-                    false,
-                    false,
-                    false,
-                    16.0,
-                    theme::text_muted(),
-                ))
-                .child(
-                    div()
-                        .w_0()
-                        .flex_1()
-                        .overflow_hidden()
-                        .text_ellipsis()
-                        .whitespace_nowrap()
-                        .font_family("JetBrains Mono")
-                        .text_size(px(12.0))
-                        .text_color(theme::text())
-                        .child(format!(
-                            "{} · {}",
-                            if commit_diff {
-                                "Commit"
-                            } else {
-                                title_case_area(&file.area)
-                            },
-                            file.path
-                        )),
-                )
-                .child(diff_stats(file)),
-        )
-        .when(file.is_binary && !image_preview, |content| {
-            content.child(diff_banner("Binary file diff is not shown."))
-        })
-        .when(image_preview, |content| {
-            content.child(render_image_diff_row(
-                file,
-                image_sides,
-                image_loading,
-            ))
-        })
-        .when(!file.is_binary && file.is_large, |content| {
-            content.child(diff_banner("Large untracked file diff is not shown."))
-        })
-        .when(
-            !file.is_binary && !file.is_large && file.lines.is_empty(),
-            |content| content.child(diff_banner("No text diff for this file.")),
-        )
-        .when(!file.is_binary && !file.is_large, |content| {
-            content.children(
-                file.lines
-                    .iter()
-                    .filter(|line| !commit_diff || !line.kind.eq_ignore_ascii_case("header"))
-                    .map(render_diff_line),
+            .flex()
+            .flex_col()
+            .child(
+                div()
+                    .id(SharedString::from(format!(
+                        "git-diff-file-{}-{}",
+                        file.area, file.path
+                    )))
+                    .flex()
+                    .items_center()
+                    .h(px(32.0))
+                    .px_3()
+                    .gap_2()
+                    .border_b_1()
+                    .border_color(theme::border_subtle())
+                    .bg(theme::surface_raised())
+                    .child(file_icon(
+                        &file.path,
+                        false,
+                        false,
+                        false,
+                        16.0,
+                        theme::text_muted(),
+                    ))
+                    .child(
+                        div()
+                            .w_0()
+                            .flex_1()
+                            .overflow_hidden()
+                            .text_ellipsis()
+                            .whitespace_nowrap()
+                            .font_family("JetBrains Mono")
+                            .text_size(px(12.0))
+                            .text_color(theme::text())
+                            .child(format!(
+                                "{} · {}",
+                                if commit_diff {
+                                    "Commit"
+                                } else {
+                                    title_case_area(&file.area)
+                                },
+                                file.path
+                            )),
+                    )
+                    .child(diff_stats(file)),
             )
-        })
-        .when(file.line_preview_truncated, |content| {
-            content.child(diff_banner("Diff line preview truncated."))
-        })
-        .when(file.truncated, |content| {
-            content.child(diff_banner("File diff truncated for preview."))
-        })
-        .into_any_element()
+            .when(file.is_binary && !image_preview, |content| {
+                content.child(diff_banner("Binary file diff is not shown."))
+            })
+            .when(image_preview, |content| {
+                content.child(render_image_diff_row(file, image_sides, image_loading))
+            })
+            .when(!file.is_binary && file.is_large, |content| {
+                content.child(diff_banner("Large untracked file diff is not shown."))
+            })
+            .when(
+                !file.is_binary && !file.is_large && file.lines.is_empty(),
+                |content| content.child(diff_banner("No text diff for this file.")),
+            )
+            .when(!file.is_binary && !file.is_large, |content| {
+                content.children(
+                    file.lines
+                        .iter()
+                        .filter(|line| !commit_diff || !line.kind.eq_ignore_ascii_case("header"))
+                        .map(render_diff_line),
+                )
+            })
+            .when(file.line_preview_truncated, |content| {
+                content.child(diff_banner("Diff line preview truncated."))
+            })
+            .when(file.truncated, |content| {
+                content.child(diff_banner("File diff truncated for preview."))
+            })
+            .into_any_element()
     }
 }
 
@@ -382,12 +372,7 @@ fn render_image_diff_side(
     div()
         .flex_1()
         .min_w_0()
-        .child(
-            div()
-                .text_xs()
-                .text_color(theme::text_faint())
-                .child(title),
-        )
+        .child(div().text_xs().text_color(theme::text_faint()).child(title))
         .child(
             div()
                 .h(px(180.0))
@@ -450,6 +435,10 @@ pub(super) fn to_git_diff_image_side(
 
 fn render_diff_line(line: &GitDiffLine) -> AnyElement {
     let kind = line.kind.to_ascii_lowercase();
+    // Flutter renders every GitDiffLine with maxLines: 1. libgit2 can place
+    // several file-header records in one line payload, so showing the raw
+    // newlines here exposed mode metadata that the reference clips.
+    let visible_text = line.text.lines().next().unwrap_or_default().to_owned();
     let (foreground, background) = match kind.as_str() {
         "addition" => (theme::success(), theme::diff_add_background()),
         "deletion" => (theme::danger(), theme::diff_delete_background()),
@@ -465,7 +454,7 @@ fn render_diff_line(line: &GitDiffLine) -> AnyElement {
         .text_size(px(12.0))
         .text_color(foreground)
         .whitespace_nowrap()
-        .child(line.text.clone())
+        .child(visible_text)
         .into_any_element()
 }
 

@@ -203,9 +203,9 @@ impl AleraApp {
             // carries the area needed to read its index/worktree blob. Commit
             // diffs intentionally keep area absent so the commit tree path is
             // used by the native API.
-            let area = area.clone().or_else(|| {
-                commit_id.is_none().then_some(file.area.clone())
-            });
+            let area = area
+                .clone()
+                .or_else(|| commit_id.is_none().then_some(file.area.clone()));
             let commit_id = commit_id.clone();
             let parent_id = parent_id.clone();
             cx.spawn(async move |this, cx| {
@@ -239,10 +239,8 @@ impl AleraApp {
                     .and_then(super::git_diff_surface::to_git_diff_image_side);
                 let _ = this.update(cx, |this, cx| {
                     this.git_diff_image_loading.remove(&key);
-                    this.git_diff_image_sides.insert(
-                        key,
-                        super::git_diff_surface::GitDiffImageSides { old, new },
-                    );
+                    this.git_diff_image_sides
+                        .insert(key, super::git_diff_surface::GitDiffImageSides { old, new });
                     cx.notify();
                 });
             })

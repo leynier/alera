@@ -1,18 +1,14 @@
 use std::time::Duration;
 
 use gpui::{
-    div, px, Animation, AnimationExt as _, AnyElement, IntoElement as _, ParentElement as _,
-    SharedString, Styled as _,
+    div, px, Animation, AnimationExt as _, AnyElement, InteractiveElement as _, IntoElement as _,
+    ParentElement as _, Role, SharedString, StatefulInteractiveElement as _, Styled as _,
 };
 
 use crate::icons::{icon, AleraIcon};
 use crate::theme;
 
-pub(super) fn render_toast(
-    message: SharedString,
-    stack_index: usize,
-    exiting: bool,
-) -> AnyElement {
+pub(super) fn render_toast(message: SharedString, stack_index: usize, exiting: bool) -> AnyElement {
     let kind = toast_icon(&message);
     let color = match kind {
         AleraIcon::Error => theme::danger(),
@@ -20,6 +16,9 @@ pub(super) fn render_toast(
         _ => theme::accent(),
     };
     let toast = div()
+        .id(("alera-toast", stack_index))
+        .role(Role::Alert)
+        .aria_label(message.clone())
         .absolute()
         .right(px(16.0))
         .bottom(px(40.0 + stack_index as f32 * 58.0))
@@ -36,7 +35,13 @@ pub(super) fn render_toast(
         .shadow_lg()
         .text_sm()
         .child(icon(kind, 16.0, color))
-        .child(div().flex_1().child(message.clone()));
+        .child(
+            div()
+                .flex_1()
+                .min_w_0()
+                .whitespace_normal()
+                .child(message.clone()),
+        );
     if exiting {
         toast
             .with_animation(
@@ -58,7 +63,7 @@ fn toast_icon(message: &str) -> AleraIcon {
     // instead of treating every message containing "copied" as successful.
     if matches!(
         normalized.as_str(),
-        "copied" | "path copied" | "version copied"
+        "copied" | "path copied" | "relative path copied" | "version copied"
     ) {
         return AleraIcon::Info;
     }
@@ -116,7 +121,12 @@ mod tests {
 
     #[test]
     fn generic_clipboard_toasts_keep_flutter_info_tone() {
-        for message in ["Copied", "Path Copied", "Version Copied"] {
+        for message in [
+            "Copied",
+            "Path Copied",
+            "Relative Path Copied",
+            "Version Copied",
+        ] {
             assert_eq!(toast_icon(message), AleraIcon::Info, "{message}");
         }
         assert_eq!(toast_icon("Workspace Path Copied"), AleraIcon::Success);

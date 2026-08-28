@@ -1265,4 +1265,74 @@ mod tests {
             "one"
         );
     }
+
+    #[test]
+    fn copy_workspace_entry_recursively_copies_directory_with_unique_name() {
+        let workspace = tempfile::tempdir().expect("tempdir");
+        let source = workspace.path().join("docs");
+        fs::create_dir_all(source.join("nested")).expect("create source tree");
+        fs::write(source.join("nested/readme.md"), "nested").expect("write nested file");
+        fs::create_dir(workspace.path().join("docs copy")).expect("create first copy name");
+
+        let copied = copy_workspace_entry(
+            workspace_path(&workspace),
+            "docs".to_string(),
+            String::new(),
+        )
+        .expect("copy directory");
+
+        assert_eq!(copied.relative_path, "docs copy 2");
+        assert_eq!(copied.kind, WorkspaceFileKind::Directory);
+        assert_eq!(
+            fs::read_to_string(workspace.path().join("docs copy 2/nested/readme.md")).unwrap(),
+            "nested"
+        );
+    }
+
+    #[test]
+    fn move_workspace_entry_rejects_destination_inside_source() {
+        let workspace = tempfile::tempdir().expect("tempdir");
+        fs::create_dir_all(workspace.path().join("folder/nested")).expect("create source tree");
+
+        let kind = error_kind(move_workspace_entry(
+            workspace_path(&workspace),
+            "folder".to_string(),
+            "folder/nested".to_string(),
+        ));
+
+        assert_eq!(kind, WorkspaceFileErrorKind::InvalidPath);
+        assert!(workspace.path().join("folder/nested").is_dir());
+    }
+
+    #[test]
+    fn copy_and_move_workspace_entry_reject_symlink_sources() {
+        let workspace = tempfile::tempdir().expect("tempdir");
+        let target = workspace.path().join("target.txt");
+        fs::write(&target, "target").expect("write target");
+        fs::create_dir(workspace.path().join("destination")).expect("create destination");
+        let link = workspace.path().join("target-link.txt");
+        if let Err(error) = create_file_symlink(&target, &link) {
+            eprintln!("skipping symlink test because symlink creation failed: {error}");
+            return;
+        }
+
+        assert_eq!(
+            error_kind(copy_workspace_entry(
+                workspace_path(&workspace),
+                "target-link.txt".to_string(),
+                "destination".to_string(),
+            )),
+            WorkspaceFileErrorKind::Unsupported
+        );
+        assert_eq!(
+            error_kind(move_workspace_entry(
+                workspace_path(&workspace),
+                "target-link.txt".to_string(),
+                "destination".to_string(),
+            )),
+            WorkspaceFileErrorKind::Unsupported
+        );
+        assert_eq!(fs::read_to_string(target).unwrap(), "target");
+        assert!(link.symlink_metadata().unwrap().file_type().is_symlink());
+    }
 }

@@ -104,7 +104,7 @@ impl AleraApp {
             let Some(this) = this.upgrade() else {
                 return;
             };
-            let _ = this.update(cx, |this, cx| {
+            this.update(cx, |this, cx| {
                 if result.is_ok() {
                     this.local_message = Some("AI Commit Message Generation Canceled".into());
                 }

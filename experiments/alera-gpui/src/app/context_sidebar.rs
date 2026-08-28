@@ -1,7 +1,7 @@
 use gpui::{
     div, prelude::FluentBuilder as _, px, AnyElement, AppContext as _, Context, CursorStyle,
-    InteractiveElement as _, IntoElement, ParentElement as _, StatefulInteractiveElement as _,
-    Styled as _, Window,
+    InteractiveElement as _, IntoElement, ParentElement as _, Role,
+    StatefulInteractiveElement as _, Styled as _, Window,
 };
 use gpui_component::tooltip::Tooltip;
 
@@ -21,6 +21,7 @@ impl AleraApp {
             return div()
                 .flex()
                 .flex_col()
+                .items_center()
                 .flex_shrink_0()
                 .w(px(52.0))
                 .h_full()
@@ -43,22 +44,26 @@ impl AleraApp {
                 .child(
                     div()
                         .id("expand-context-sidebar")
+                        .focusable()
+                        .tab_stop(true)
+                        .role(Role::Button)
+                        .aria_label("Expand panel")
                         .flex()
                         .items_center()
                         .justify_center()
+                        .w(px(30.0))
                         .h(px(30.0))
                         .mb_2()
+                        .rounded_md()
                         .cursor(CursorStyle::PointingHand)
                         .text_color(theme::text_muted())
-                        .tooltip(|_, cx| cx.new(|_| Tooltip::new("Expand Context Sidebar")).into())
-                        .on_mouse_down(
-                            gpui::MouseButton::Left,
-                            cx.listener(|this, _, _, cx| {
-                                this.context_sidebar_collapsed = false;
-                                this.persist_sidebar_view_prefs(cx);
-                                cx.notify();
-                            }),
-                        )
+                        .hover(|style| style.bg(theme::surface_raised()))
+                        .tooltip(|_, cx| cx.new(|_| Tooltip::new("Expand panel")).into())
+                        .on_click(cx.listener(|this, _, _, cx| {
+                            this.context_sidebar_collapsed = false;
+                            this.persist_sidebar_view_prefs(cx);
+                            cx.notify();
+                        }))
                         .child(icon(AleraIcon::ChevronsLeft, 16.0, theme::text_muted())),
                 )
                 .into_any_element();
@@ -110,6 +115,10 @@ impl AleraApp {
                     .child(
                         div()
                             .id("collapse-context-sidebar")
+                            .focusable()
+                            .tab_stop(true)
+                            .role(Role::Button)
+                            .aria_label("Collapse panel")
                             .flex()
                             .items_center()
                             .justify_center()
@@ -119,17 +128,12 @@ impl AleraApp {
                             .cursor(CursorStyle::PointingHand)
                             .text_color(theme::text_muted())
                             .hover(|style| style.bg(theme::surface_raised()))
-                            .tooltip(|_, cx| {
-                                cx.new(|_| Tooltip::new("Collapse Context Sidebar")).into()
-                            })
-                            .on_mouse_down(
-                                gpui::MouseButton::Left,
-                                cx.listener(|this, _, _, cx| {
-                                    this.context_sidebar_collapsed = true;
-                                    this.persist_sidebar_view_prefs(cx);
-                                    cx.notify();
-                                }),
-                            )
+                            .tooltip(|_, cx| cx.new(|_| Tooltip::new("Collapse panel")).into())
+                            .on_click(cx.listener(|this, _, _, cx| {
+                                this.context_sidebar_collapsed = true;
+                                this.persist_sidebar_view_prefs(cx);
+                                cx.notify();
+                            }))
                             .child(icon(AleraIcon::ChevronsRight, 16.0, theme::text_muted())),
                     ),
             )
@@ -144,23 +148,32 @@ impl AleraApp {
         &self,
         index: usize,
         panel: ContextPanel,
-        vertical: bool,
+        _vertical: bool,
         cx: &mut Context<Self>,
     ) -> impl IntoElement {
         let selected = self.context_panel == panel;
-        let show_tooltip = !selected;
         let enabled = !matches!(
             panel,
             ContextPanel::SourceControl | ContextPanel::PullRequest
         ) || self.selected_source_control_scope().is_some();
         div()
             .id(("context-panel", index))
+            .focusable()
+            .tab_stop(enabled)
+            .role(Role::Button)
+            .aria_label(panel.label())
             .flex()
             .items_center()
             .justify_center()
-            .w(if vertical { px(52.0) } else { px(30.0) })
+            .w(px(30.0))
             .h(px(30.0))
             .rounded_md()
+            .border_1()
+            .border_color(if selected {
+                theme::border()
+            } else {
+                theme::border_subtle()
+            })
             .cursor(if enabled {
                 CursorStyle::PointingHand
             } else {
@@ -176,18 +189,13 @@ impl AleraApp {
             .when(enabled, |button| {
                 button
                     .hover(|style| style.bg(theme::surface_raised()))
-                    .on_mouse_down(
-                        gpui::MouseButton::Left,
-                        cx.listener(move |this, _, _, cx| {
-                            this.context_sidebar_collapsed = false;
-                            this.select_context_panel(panel, cx);
-                        }),
-                    )
+                    .on_click(cx.listener(move |this, _, _, cx| {
+                        this.context_sidebar_collapsed = false;
+                        this.select_context_panel(panel, cx);
+                    }))
             })
             .when(selected, |button| button.bg(theme::surface_raised()))
-            .when(show_tooltip, |button| {
-                button.tooltip(move |_, cx| cx.new(|_| Tooltip::new(panel.label())).into())
-            })
+            .tooltip(move |_, cx| cx.new(|_| Tooltip::new(panel.label())).into())
             .child(icon(
                 panel.icon(),
                 16.0,
@@ -224,31 +232,23 @@ impl AleraApp {
                     .child(title.to_owned()),
             )
             .child(
-                panel_toolbar_button("explorer-new-file", AleraIcon::NewFile, "New file")
-                    .on_mouse_down(
-                        gpui::MouseButton::Left,
-                        cx.listener(|this, _, window, cx| {
-                            this.begin_create_explorer_entry(false, window, cx);
-                        }),
-                    ),
+                panel_toolbar_button("explorer-new-file", AleraIcon::NewFile, "New file").on_click(
+                    cx.listener(|this, _, window, cx| {
+                        this.begin_create_explorer_entry(false, window, cx);
+                    }),
+                ),
             )
             .child(
                 panel_toolbar_button("explorer-new-folder", AleraIcon::NewFolder, "New folder")
-                    .on_mouse_down(
-                        gpui::MouseButton::Left,
-                        cx.listener(|this, _, window, cx| {
-                            this.begin_create_explorer_entry(true, window, cx);
-                        }),
-                    ),
+                    .on_click(cx.listener(|this, _, window, cx| {
+                        this.begin_create_explorer_entry(true, window, cx);
+                    })),
             )
             .child(
                 panel_toolbar_button("explorer-save-all", AleraIcon::Save, "Save all files")
-                    .on_mouse_down(
-                        gpui::MouseButton::Left,
-                        cx.listener(|this, _, _, cx| {
-                            this.save_editor(false, cx);
-                        }),
-                    ),
+                    .on_click(cx.listener(|this, _, _, cx| {
+                        this.save_editor(false, cx);
+                    })),
             )
             .child(
                 panel_toolbar_button(
@@ -264,12 +264,9 @@ impl AleraApp {
                         "Hide ignored files"
                     },
                 )
-                .on_mouse_down(
-                    gpui::MouseButton::Left,
-                    cx.listener(|this, _, _, cx| {
-                        this.toggle_explorer_ignored_files(cx);
-                    }),
-                ),
+                .on_click(cx.listener(|this, _, _, cx| {
+                    this.toggle_explorer_ignored_files(cx);
+                })),
             )
             .child(
                 panel_toolbar_button(
@@ -277,12 +274,9 @@ impl AleraApp {
                     AleraIcon::CollapseAll,
                     "Collapse All",
                 )
-                .on_mouse_down(
-                    gpui::MouseButton::Left,
-                    cx.listener(|this, _, _, cx| {
-                        this.collapse_all_explorer_directories(cx);
-                    }),
-                ),
+                .on_click(cx.listener(|this, _, _, cx| {
+                    this.collapse_all_explorer_directories(cx);
+                })),
             )
             .child(
                 panel_toolbar_button(
@@ -295,12 +289,9 @@ impl AleraApp {
                     "Refresh",
                 )
                 .when(!self.explorer_busy, |button| {
-                    button.on_mouse_down(
-                        gpui::MouseButton::Left,
-                        cx.listener(|this, _, _, cx| {
-                            this.refresh_local_activity(cx);
-                        }),
-                    )
+                    button.on_click(cx.listener(|this, _, _, cx| {
+                        this.refresh_local_activity(cx);
+                    }))
                 }),
             )
             .into_any_element()
@@ -314,12 +305,14 @@ fn panel_toolbar_button(
 ) -> gpui::Stateful<gpui::Div> {
     div()
         .id(id)
+        .focusable()
+        .tab_stop(true)
+        .role(Role::Button)
+        .aria_label(tooltip)
         .flex()
         .flex_shrink_0()
         .items_center()
         .justify_center()
-        // Flutter's AleraIconButton keeps a 30 px compact hitbox. Do not let
-        // a narrow context sidebar shrink these controls below that contract.
         .w(px(30.0))
         .h(px(30.0))
         .rounded_md()

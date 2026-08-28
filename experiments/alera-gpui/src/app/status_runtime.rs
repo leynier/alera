@@ -1,7 +1,7 @@
 use gpui::{
     div, prelude::FluentBuilder as _, px, AnyElement, Context, CursorStyle,
-    InteractiveElement as _, IntoElement, ParentElement as _, StatefulInteractiveElement as _,
-    Styled as _,
+    InteractiveElement as _, IntoElement, ParentElement as _, Role,
+    StatefulInteractiveElement as _, Styled as _,
 };
 use serde_json::{json, Value};
 use std::cmp::Ordering;
@@ -20,7 +20,7 @@ impl AleraApp {
         let running = runtime_is_running(value, self.status_data.runtime_error.is_some());
         let loading = self.status_data.runtime_loading;
         let version = version_label(string_at(value, "runtimeHostVersion"));
-        let bundled_version = version_label(Some(env!("CARGO_PKG_VERSION")));
+        let bundled_version = version_label(Some(bundled_runtime_version()));
         let host_commit = string_at(value, "runtimeHostCommit");
         let bundled_commit = option_env!("ALERA_BUILD_COMMIT").unwrap_or("unknown");
         // Flutter exposes build metadata only when the host and bundled
@@ -44,6 +44,8 @@ impl AleraApp {
 
         div()
             .id("runtime-popover")
+            .role(Role::Dialog)
+            .aria_label("Runtime Host")
             .absolute()
             .right(px(4.0))
             .bottom(theme::status_bar_height() + px(4.0))
@@ -109,75 +111,87 @@ impl AleraApp {
             .child(
                 div()
                     .flex()
+                    .flex_col()
                     .flex_shrink_0()
-                    .justify_end()
                     .gap_2()
                     .mt_3()
                     .child(
-                        runtime_button("runtime-refresh", "Refresh", RuntimeButtonStyle::Outline)
-                            .on_mouse_down(
-                                gpui::MouseButton::Left,
-                                cx.listener(|this, _, _, cx| {
-                                    this.refresh_runtime_status(cx);
-                                }),
-                            ),
+                        div()
+                            .flex()
+                            .justify_end()
+                            .gap_2()
+                            .child(
+                                runtime_button(
+                                    "runtime-refresh",
+                                    "Refresh",
+                                    RuntimeButtonStyle::Outline,
+                                )
+                                .on_click(cx.listener(
+                                    |this, _, _, cx| {
+                                        this.refresh_runtime_status(cx);
+                                    },
+                                )),
+                            )
+                            .when(!running, |actions| {
+                                actions.child(
+                                    runtime_button_with_loading(
+                                        "runtime-start",
+                                        "Start",
+                                        RuntimeButtonStyle::Filled,
+                                        self.runtime_action_busy,
+                                    )
+                                    .on_click(cx.listener(
+                                        |this, _, _, cx| {
+                                            this.request_runtime_start(cx);
+                                        },
+                                    )),
+                                )
+                            })
+                            .when(running, |actions| {
+                                actions.child(
+                                    runtime_button_with_loading(
+                                        "runtime-stop",
+                                        "Stop",
+                                        if stop_is_destructive {
+                                            RuntimeButtonStyle::Danger
+                                        } else {
+                                            RuntimeButtonStyle::Outline
+                                        },
+                                        self.runtime_action_busy,
+                                    )
+                                    .on_click(cx.listener(
+                                        |this, _, _, cx| {
+                                            this.request_runtime_stop(false, false, cx);
+                                        },
+                                    )),
+                                )
+                            }),
                     )
-                    .when(!running, |actions| {
-                        actions.child(
-                            runtime_button_with_loading(
-                                "runtime-start",
-                                "Start",
-                                RuntimeButtonStyle::Filled,
-                                self.runtime_action_busy,
-                            )
-                            .on_mouse_down(
-                                gpui::MouseButton::Left,
-                                cx.listener(|this, _, _, cx| {
-                                    this.request_runtime_start(cx);
-                                }),
-                            ),
-                        )
-                    })
-                    .when(running, |actions| {
-                        actions.child(
-                            runtime_button_with_loading(
-                                "runtime-stop",
-                                "Stop",
-                                if stop_is_destructive {
-                                    RuntimeButtonStyle::Danger
-                                } else {
-                                    RuntimeButtonStyle::Outline
-                                },
-                                self.runtime_action_busy,
-                            )
-                            .on_mouse_down(
-                                gpui::MouseButton::Left,
-                                cx.listener(|this, _, _, cx| {
-                                    this.request_runtime_stop(false, false, cx);
-                                }),
-                            ),
-                        )
-                    })
                     .when(update_available, |actions| {
                         actions.child(
-                            runtime_button_with_loading(
-                                "runtime-update",
-                                "Update Runtime",
-                                RuntimeButtonStyle::Filled,
-                                self.runtime_action_busy,
-                            )
-                            .on_mouse_down(
-                                gpui::MouseButton::Left,
-                                cx.listener(|this, _, _, cx| {
-                                    this.request_runtime_stop(false, true, cx);
-                                }),
+                            div().flex().justify_end().child(
+                                runtime_button_with_loading(
+                                    "runtime-update",
+                                    "Update Runtime",
+                                    RuntimeButtonStyle::Filled,
+                                    self.runtime_action_busy,
+                                )
+                                .on_click(cx.listener(
+                                    |this, _, _, cx| {
+                                        this.request_runtime_stop(false, true, cx);
+                                    },
+                                )),
                             ),
                         )
                     }),
             )
-            // Keep the overlay out of the status bar flex flow. The generic
-            // scrollbar wrapper forces a relative outer element.
-            .overflow_y_scroll()
+            .when(
+                build_mismatch
+                    || persistent
+                    || self.status_data.runtime_error.is_some()
+                    || update_available,
+                |panel| panel.overflow_y_scroll(),
+            )
             .into_any_element()
     }
 
@@ -201,7 +215,7 @@ impl AleraApp {
                 // Flutter's intrinsic confirm dialog resolves to roughly 350
                 // GPUI logical pixels on the macOS desktop scale; keeping the
                 // shell compact also preserves the same message wrapping.
-                dialog_shell(350.0)
+                dialog_shell("force-stop-runtime-dialog", "Force Stop Runtime", 350.0)
                     .child(
                         div()
                             .text_size(px(14.0))
@@ -223,16 +237,13 @@ impl AleraApp {
                             .child(
                                 button("cancel-runtime-stop", "Cancel", ButtonKind::Text, false)
                                     .flex_1()
-                                    .on_mouse_down(
-                                        gpui::MouseButton::Left,
-                                        cx.listener(|this, _, _, cx| {
-                                            if !this.runtime_action_busy {
-                                                this.runtime_action_armed = None;
-                                                this.runtime_restart_after_stop = false;
-                                                cx.notify();
-                                            }
-                                        }),
-                                    ),
+                                    .on_click(cx.listener(|this, _, _, cx| {
+                                        if !this.runtime_action_busy {
+                                            this.runtime_action_armed = None;
+                                            this.runtime_restart_after_stop = false;
+                                            cx.notify();
+                                        }
+                                    })),
                             )
                             .child(
                                 button(
@@ -242,13 +253,12 @@ impl AleraApp {
                                     self.runtime_action_busy,
                                 )
                                 .flex_1()
-                                .on_mouse_down(
-                                    gpui::MouseButton::Left,
-                                    cx.listener(|this, _, _, cx| {
+                                .on_click(cx.listener(
+                                    |this, _, _, cx| {
                                         let restart = this.runtime_restart_after_stop;
                                         this.request_runtime_stop(true, restart, cx);
-                                    }),
-                                ),
+                                    },
+                                )),
                             ),
                     ),
             )
@@ -274,7 +284,7 @@ impl AleraApp {
             let Some(this) = this.upgrade() else {
                 return;
             };
-            let _ = this.update(cx, |this, cx| {
+            this.update(cx, |this, cx| {
                 this.runtime_action_busy = false;
                 match result {
                     Ok(_) => {
@@ -330,11 +340,13 @@ impl AleraApp {
         };
         cx.spawn(async move |this, cx| {
             let result = bridge.start_host(config).await;
-            gpui::Timer::after(std::time::Duration::from_millis(500)).await;
+            cx.background_executor()
+                .timer(std::time::Duration::from_millis(500))
+                .await;
             let Some(this) = this.upgrade() else {
                 return;
             };
-            let _ = this.update(cx, |this, cx| {
+            this.update(cx, |this, cx| {
                 this.runtime_action_busy = false;
                 match result {
                     Ok(()) => {
@@ -394,6 +406,10 @@ fn runtime_button(
     let danger = matches!(button_style, RuntimeButtonStyle::Danger);
     div()
         .id(id)
+        .focusable()
+        .tab_stop(true)
+        .role(Role::Button)
+        .aria_label(label)
         .h(px(28.0))
         .px_3()
         .flex()
@@ -532,6 +548,10 @@ fn version_label(value: Option<&str>) -> String {
     }
 }
 
+fn bundled_runtime_version() -> &'static str {
+    option_env!("ALERA_RUNTIME_BUNDLED_VERSION").unwrap_or("0.1.0")
+}
+
 pub(super) fn runtime_is_running(value: Option<&Value>, has_error: bool) -> bool {
     value.is_some() && !has_error
 }
@@ -547,7 +567,7 @@ pub(super) fn runtime_update_available(value: Option<&Value>, has_error: bool) -
         return false;
     };
     let host_version = version_label(Some(raw_host_version));
-    let bundled_version = version_label(Some(env!("CARGO_PKG_VERSION")));
+    let bundled_version = version_label(Some(bundled_runtime_version()));
     let version_order = compare_runtime_versions(&bundled_version, &host_version);
     if version_order == Ordering::Greater {
         return true;
@@ -676,8 +696,9 @@ mod tests {
     use serde_json::json;
 
     use super::{
-        compare_runtime_versions, runtime_busy_message, runtime_chip_label,
-        runtime_has_build_mismatch, runtime_is_running, runtime_update_available,
+        bundled_runtime_version, compare_runtime_versions, runtime_busy_message,
+        runtime_chip_label, runtime_has_build_mismatch, runtime_is_running,
+        runtime_update_available,
     };
 
     #[test]
@@ -690,7 +711,7 @@ mod tests {
     #[test]
     fn runtime_chip_uses_version_and_build_updates() {
         let current = json!({
-            "runtimeHostVersion": env!("CARGO_PKG_VERSION"),
+            "runtimeHostVersion": bundled_runtime_version(),
             "runtimeHostCommit": option_env!("ALERA_BUILD_COMMIT").unwrap_or("unknown")
         });
         assert!(runtime_is_running(Some(&current), false));
@@ -715,7 +736,7 @@ mod tests {
 
     #[test]
     fn runtime_update_and_build_rows_follow_flutter_version_direction() {
-        let bundled_version = format!("v{}", env!("CARGO_PKG_VERSION"));
+        let bundled_version = format!("v{}", bundled_runtime_version());
         let bundled_commit = option_env!("ALERA_BUILD_COMMIT").unwrap_or("unknown");
         let older = json!({
             "runtimeHostVersion": "0.0.1",

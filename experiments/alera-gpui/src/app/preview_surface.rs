@@ -1,18 +1,20 @@
+use std::collections::hash_map::DefaultHasher;
+use std::hash::{Hash as _, Hasher as _};
 use std::path::Path;
 
 use gpui::{
     div, img, prelude::FluentBuilder as _, px, rems, AnyElement, AppContext as _, ClipboardItem,
     Context, CursorStyle, InteractiveElement as _, IntoElement as _, MouseButton, MouseDownEvent,
-    MouseMoveEvent, ParentElement as _, ScrollWheelEvent, SharedString,
+    MouseMoveEvent, ParentElement as _, Role, ScrollWheelEvent, SharedString,
     StatefulInteractiveElement as _, StyleRefinement, Styled as _, StyledText, Window,
 };
-use gpui_component::input::Input;
+use gpui_component::input::Editor;
 use gpui_component::text::{TextView, TextViewStyle};
 use gpui_component::tooltip::Tooltip;
 use gpui_component::ActiveTheme as _;
-use gpui_component::PixelsExt as _;
 use serde_json::Value;
 
+use super::markdown_preview_images::with_markdown_images;
 use super::state_types::PreviewDragState;
 use super::workspace_surface::PreviewAsset;
 use super::AleraApp;
@@ -52,7 +54,7 @@ impl AleraApp {
     fn render_inactive_editor(
         &self,
         tab: &WorkspaceTab,
-        window: &mut Window,
+        _window: &mut Window,
         cx: &mut Context<Self>,
     ) -> AnyElement {
         let path = tab
@@ -61,118 +63,340 @@ impl AleraApp {
             .and_then(Value::as_str)
             .unwrap_or(tab.title.as_str())
             .to_owned();
-        let title_color = theme::text_muted();
+        let dirty = self.editor_dirty_paths.contains(&path);
+        let title_color = if dirty {
+            theme::text()
+        } else {
+            theme::text_muted()
+        };
+        let tab_id = tab.id.clone();
+        let header_tab_id = tab_id.clone();
+        let source_available = self.editor_documents.contains_key(&path);
+        let preview_available = self.editor_preview_assets.contains_key(&path);
+        let is_markdown_viewer = tab.kind == "markdownViewer";
+        let is_merman_viewer = tab.kind == "editor"
+            && tab.payload.get("fileRole").and_then(Value::as_str) == Some("mermanPreview");
+        let source_editor = !is_markdown_viewer && !is_merman_viewer && source_available;
+        let toolbar = div()
+            .flex()
+            .items_center()
+            .gap_2()
+            .when(source_editor, |toolbar| {
+                let diff_tab_id = tab_id.clone();
+                let save_tab_id = tab_id.clone();
+                let discard_tab_id = tab_id.clone();
+                let preview_tab_id = tab_id.clone();
+                toolbar
+                    .child(
+                        inactive_editor_toolbar_button(
+                            SharedString::from(format!("editor-view-diff-{tab_id}")),
+                            "View Diff",
+                            AleraIcon::Diff,
+                            true,
+                        )
+                        .tooltip(|_, cx| cx.new(|_| Tooltip::new("View Diff")).into())
+                        .on_mouse_down(
+                            MouseButton::Left,
+                            cx.listener(move |this, _, _, cx| {
+                                cx.stop_propagation();
+                                this.activate_workspace_tab(diff_tab_id.clone(), cx);
+                                this.open_editor_diff(cx);
+                            }),
+                        ),
+                    )
+                    .child(
+                        inactive_editor_toolbar_button(
+                            SharedString::from(format!("save-editor-{tab_id}")),
+                            "Save File",
+                            AleraIcon::Save,
+                            dirty && !self.editor_busy,
+                        )
+                        .tooltip(|_, cx| cx.new(|_| Tooltip::new("Save File")).into())
+                        .when(dirty && !self.editor_busy, |button| {
+                            button.on_mouse_down(
+                                MouseButton::Left,
+                                cx.listener(move |this, _, _, cx| {
+                                    cx.stop_propagation();
+                                    this.activate_workspace_tab(save_tab_id.clone(), cx);
+                                    if this.editor_dirty && !this.editor_busy {
+                                        this.save_editor(false, cx);
+                                    }
+                                }),
+                            )
+                        }),
+                    )
+                    .child(
+                        inactive_editor_toolbar_button(
+                            SharedString::from(format!("discard-editor-{tab_id}")),
+                            "Discard Changes",
+                            AleraIcon::Restore,
+                            dirty && !self.editor_busy,
+                        )
+                        .tooltip(|_, cx| cx.new(|_| Tooltip::new("Discard Changes")).into())
+                        .when(dirty && !self.editor_busy, |button| {
+                            button.on_mouse_down(
+                                MouseButton::Left,
+                                cx.listener(move |this, _, window, cx| {
+                                    cx.stop_propagation();
+                                    this.activate_workspace_tab(discard_tab_id.clone(), cx);
+                                    if this.editor_dirty && !this.editor_busy {
+                                        this.discard_editor_changes(window, cx);
+                                    }
+                                }),
+                            )
+                        }),
+                    )
+                    .when(preview_available, |toolbar| {
+                        toolbar.child(
+                            inactive_editor_toolbar_button(
+                                SharedString::from(format!("open-editor-preview-{tab_id}")),
+                                "Open Preview",
+                                AleraIcon::Preview,
+                                true,
+                            )
+                            .tooltip(|_, cx| cx.new(|_| Tooltip::new("Open Preview")).into())
+                            .on_mouse_down(
+                                MouseButton::Left,
+                                cx.listener(move |this, _, _, cx| {
+                                    cx.stop_propagation();
+                                    this.activate_workspace_tab(preview_tab_id.clone(), cx);
+                                    this.open_editor_preview(cx);
+                                }),
+                            ),
+                        )
+                    })
+            })
+            .when(is_markdown_viewer, |toolbar| {
+                let refresh_tab_id = tab_id.clone();
+                let refresh_path = path.clone();
+                let source_path = path.clone();
+                toolbar
+                    .child(
+                        inactive_editor_toolbar_button(
+                            SharedString::from(format!("refresh-markdown-preview-{tab_id}")),
+                            "Refresh Preview",
+                            AleraIcon::Refresh,
+                            !self.editor_busy,
+                        )
+                        .tooltip(|_, cx| cx.new(|_| Tooltip::new("Refresh Preview")).into())
+                        .when(!self.editor_busy, |button| {
+                            button.on_click(cx.listener(move |this, _, window, cx| {
+                                cx.stop_propagation();
+                                this.activate_workspace_tab(refresh_tab_id.clone(), cx);
+                                this.load_workspace_file(refresh_path.clone(), window, cx);
+                            }))
+                        }),
+                    )
+                    .child(
+                        inactive_editor_toolbar_button(
+                            SharedString::from(format!("open-markdown-source-{tab_id}")),
+                            "Open Source File",
+                            AleraIcon::Code,
+                            true,
+                        )
+                        .tooltip(|_, cx| cx.new(|_| Tooltip::new("Open Source File")).into())
+                        .on_click(cx.listener(move |this, _, _, cx| {
+                            cx.stop_propagation();
+                            this.open_editor_tab(source_path.clone(), cx);
+                        })),
+                    )
+            })
+            .when(is_merman_viewer, |toolbar| {
+                let source_path = path.clone();
+                let refresh_tab_id = tab_id.clone();
+                let refresh_path = path.clone();
+                toolbar
+                    .child(
+                        inactive_editor_toolbar_button(
+                            SharedString::from(format!("open-merman-source-{tab_id}")),
+                            "Open Editor",
+                            AleraIcon::Edit,
+                            true,
+                        )
+                        .tooltip(|_, cx| cx.new(|_| Tooltip::new("Open Editor")).into())
+                        .on_click(cx.listener(move |this, _, _, cx| {
+                            cx.stop_propagation();
+                            this.open_editor_tab(source_path.clone(), cx);
+                        })),
+                    )
+                    .child(
+                        inactive_editor_toolbar_button(
+                            SharedString::from(format!("refresh-merman-preview-{tab_id}")),
+                            "Refresh Preview",
+                            AleraIcon::Refresh,
+                            !self.editor_busy,
+                        )
+                        .tooltip(|_, cx| cx.new(|_| Tooltip::new("Refresh Preview")).into())
+                        .when(!self.editor_busy, |button| {
+                            button.on_click(cx.listener(move |this, _, window, cx| {
+                                cx.stop_propagation();
+                                this.activate_workspace_tab(refresh_tab_id.clone(), cx);
+                                this.load_workspace_file(refresh_path.clone(), window, cx);
+                            }))
+                        }),
+                    )
+            });
         let header = div()
             .flex()
             .items_center()
+            .justify_between()
             .h(theme::header_height())
             .px_3()
             .border_b_1()
             .border_color(theme::border())
-            .child(file_icon(&path, false, false, false, 16.0, title_color))
+            .cursor(CursorStyle::PointingHand)
+            .on_mouse_down(
+                MouseButton::Left,
+                cx.listener(move |this, _, _, cx| {
+                    this.activate_workspace_tab(header_tab_id.clone(), cx);
+                }),
+            )
             .child(
                 div()
-                    .ml_2()
+                    .flex()
+                    .items_center()
                     .flex_1()
                     .min_w_0()
+                    .child(file_icon(&path, false, false, false, 16.0, title_color))
+                    .child(
+                        div()
+                            .ml_2()
+                            .flex_1()
+                            .min_w_0()
+                            .overflow_hidden()
+                            .whitespace_nowrap()
+                            .text_ellipsis()
+                            .font_family("JetBrains Mono")
+                            .text_size(px(12.0))
+                            .text_color(title_color)
+                            .child(path.clone()),
+                    ),
+            )
+            .child(toolbar);
+        let live_editor = tab.kind == "editor" && self.editor_documents.contains_key(&path);
+        let loading = self.editor_loading_path.as_deref() == Some(path.as_str());
+        let error = self.editor_error_messages.get(&path).cloned();
+        let body = if loading {
+            div()
+                .flex_1()
+                .flex()
+                .items_center()
+                .justify_center()
+                .child(loading_indicator(36.0, theme::text_muted()))
+                .into_any_element()
+        } else if let Some(message) = error {
+            div()
+                .id(SharedString::from(format!("editor-load-error-{path}")))
+                .role(Role::Alert)
+                .aria_label(message.clone())
+                .flex_1()
+                .flex()
+                .items_center()
+                .justify_center()
+                .font_family("Inter")
+                .text_size(px(13.0))
+                .text_color(theme::text_muted())
+                .child(message)
+                .into_any_element()
+        } else {
+            match self.editor_preview_assets.get(&path) {
+                Some(PreviewAsset::Image(image)) => div()
+                    .flex_1()
+                    .flex()
+                    .items_center()
+                    .justify_center()
                     .overflow_hidden()
-                    .whitespace_nowrap()
-                    .text_ellipsis()
-                    .font_family("JetBrains Mono")
-                    .text_size(px(12.0))
-                    .text_color(title_color)
-                    .child(path.clone()),
-            );
-        let is_markdown_viewer = tab.kind == "markdownViewer";
-        let is_merman_viewer = tab.kind == "editor"
-            && tab.payload.get("fileRole").and_then(Value::as_str) == Some("mermanPreview");
-        let body = match self.editor_preview_assets.get(&path) {
-            Some(PreviewAsset::Image(image)) => div()
-                .flex_1()
-                .flex()
-                .items_center()
-                .justify_center()
-                .overflow_hidden()
-                .child(img(image.clone()))
-                .into_any_element(),
-            Some(PreviewAsset::Mermaid(image)) if is_merman_viewer => div()
-                .flex_1()
-                .flex()
-                .items_center()
-                .justify_center()
-                .overflow_hidden()
-                .child(img(image.clone()))
-                .into_any_element(),
-            Some(PreviewAsset::Markdown) if is_markdown_viewer => self
-                .editor_documents
-                .get(&path)
-                .map(|document| {
-                    div()
-                        .flex_1()
-                        .overflow_hidden()
-                        .p_6()
-                        .child(
-                            TextView::markdown(
-                                SharedString::from(format!("inactive-markdown-{path}")),
-                                normalize_nested_fenced_code_blocks(
-                                    self.editor_buffer_text
-                                        .get(&path)
-                                        .unwrap_or(&document.display_content),
-                                ),
-                                window,
-                                cx,
+                    .child(img(image.clone()))
+                    .into_any_element(),
+                Some(PreviewAsset::Mermaid(image)) if is_merman_viewer => div()
+                    .flex_1()
+                    .flex()
+                    .items_center()
+                    .justify_center()
+                    .overflow_hidden()
+                    .child(img(image.clone()))
+                    .into_any_element(),
+                Some(PreviewAsset::Markdown) if is_markdown_viewer => self
+                    .editor_documents
+                    .get(&path)
+                    .map(|document| {
+                        let markdown = self
+                            .markdown_preview_content
+                            .get(&path)
+                            .unwrap_or(&document.display_content);
+                        div()
+                            .flex_1()
+                            .overflow_hidden()
+                            .py_6()
+                            .px(px(27.0))
+                            .child(
+                                with_markdown_images(TextView::markdown(
+                                    SharedString::from(format!("inactive-markdown-{path}")),
+                                    normalize_nested_fenced_code_blocks(markdown),
+                                ))
+                                .into_any_element(),
                             )
-                            .into_any_element(),
+                            .into_any_element()
+                    })
+                    .unwrap_or_else(|| {
+                        inactive_editor_text(
+                            self.editor_documents.get(&path),
+                            self.editor_buffer_text.get(&path),
                         )
-                        .into_any_element()
-                })
-                .unwrap_or_else(|| {
-                    inactive_editor_text(
-                        self.editor_documents.get(&path),
-                        self.editor_buffer_text.get(&path),
-                    )
-                }),
-            _ if tab.kind == "editor" && self.editor_documents.contains_key(&path) => {
-                self.render_inactive_editor_input(&path)
+                    }),
+                _ if tab.kind == "editor" && self.editor_documents.contains_key(&path) => {
+                    self.render_inactive_editor_input(&path, tab.id.clone(), cx)
+                }
+                _ => inactive_editor_text(
+                    self.editor_documents.get(&path),
+                    self.editor_buffer_text.get(&path),
+                ),
             }
-            _ => inactive_editor_text(
-                self.editor_documents.get(&path),
-                self.editor_buffer_text.get(&path),
-            ),
         };
-        let tab_id = tab.id.clone();
         div()
             .flex()
             .flex_col()
             .flex_1()
             .h_full()
-            .on_mouse_down(
-                MouseButton::Left,
-                cx.listener(move |this, _, _, cx| {
-                    this.activate_workspace_tab(tab_id.clone(), cx);
-                }),
-            )
+            .when(!live_editor, |pane| {
+                pane.on_mouse_down(
+                    MouseButton::Left,
+                    cx.listener(move |this, _, _, cx| {
+                        this.activate_workspace_tab(tab_id.clone(), cx);
+                    }),
+                )
+            })
             .child(header)
             .child(body)
             .into_any_element()
     }
 
-    fn render_inactive_editor_input(&self, path: &str) -> AnyElement {
+    fn render_inactive_editor_input(
+        &self,
+        path: &str,
+        tab_id: String,
+        cx: &mut Context<Self>,
+    ) -> AnyElement {
         let input = self.editor_input_for_path(path);
+        let editor_background = cx
+            .theme()
+            .highlight_theme
+            .style
+            .editor_background
+            .unwrap_or_else(|| cx.theme().background);
         div()
             .flex_1()
             .relative()
             .overflow_hidden()
+            .bg(editor_background)
             .font_family("JetBrains Mono")
             .child(
-                Input::new(&input)
+                Editor::new(&input)
                     .h_full()
                     .p_0()
                     .bordered(false)
-                    .focus_bordered(false)
                     .text_size(px(13.0))
-                    .line_height(px(17.55))
-                    .disabled(true),
+                    .line_height(px(17.55)),
             )
             // Keep the inactive pane's scrollbar rail transparent just like
             // the active Flutter editor surface.
@@ -183,13 +407,21 @@ impl AleraApp {
                     .right_0()
                     .bottom_0()
                     .w(px(10.0))
-                    .bg(theme::app_background()),
+                    .bg(editor_background),
             )
+            // The pane container promotes this tab on mouse-down. Let the same
+            // event continue into its route-owned EditorState so caret,
+            // selection and typing behave like Flutter's per-tab editor
+            // sessions instead of requiring a second click through a read-only
+            // activation shield.
+            .id(SharedString::from(format!(
+                "inactive-editor-input-{tab_id}"
+            )))
             .into_any_element()
     }
 
-    /// Keep an editor document visible after its pane becomes inactive. The
-    /// shared GPUI editor state is read-only until that pane is selected again.
+    /// Keep an editor document visible and editable after its pane becomes
+    /// inactive. Its route-owned state promotes the pane when it receives focus.
     fn render_active_editor(
         &self,
         window: &mut Window,
@@ -217,6 +449,12 @@ impl AleraApp {
                 .into_any_element();
         };
         let editor_input = self.editor_input_for_path(opened_path);
+        let editor_background = cx
+            .theme()
+            .highlight_theme
+            .style
+            .editor_background
+            .unwrap_or_else(|| cx.theme().background);
         let editor_error = selected_file_path
             .as_ref()
             .and_then(|path| self.editor_error_messages.get(path))
@@ -267,6 +505,9 @@ impl AleraApp {
         };
         let content = if let Some(message) = editor_error {
             div()
+                .id("active-editor-load-error")
+                .role(Role::Alert)
+                .aria_label(message.clone())
                 .flex_1()
                 .flex()
                 .items_center()
@@ -276,15 +517,19 @@ impl AleraApp {
                 .text_color(theme::text_muted())
                 .child(message)
                 .into_any_element()
-        } else if self.editor_loading_path.is_some() && self.editor_busy {
+        } else if self.editor_loading_path.as_deref() == Some(opened_path.as_str())
+            && self.editor_busy
+        {
             div()
                 .flex_1()
                 .flex()
                 .items_center()
                 .justify_center()
-                .child(loading_indicator(20.0, theme::text_muted()))
+                .child(loading_indicator(36.0, theme::text_muted()))
                 .into_any_element()
-        } else if self.editor_loading_path.is_some() && !self.editor_busy {
+        } else if self.editor_loading_path.as_deref() == Some(opened_path.as_str())
+            && !self.editor_busy
+        {
             div()
                 .flex_1()
                 .flex()
@@ -310,13 +555,13 @@ impl AleraApp {
                 .flex_1()
                 .relative()
                 .overflow_hidden()
+                .bg(editor_background)
                 .font_family("JetBrains Mono")
                 .child(
-                    Input::new(&editor_input)
+                    Editor::new(&editor_input)
                         .h_full()
                         .p_0()
                         .bordered(false)
-                        .focus_bordered(false)
                         // Match Flutter's bodyMedium (13 px) and 1.35 line
                         // height instead of gpui-component's compact input
                         // defaults (11.375 px / 1.25).
@@ -336,7 +581,7 @@ impl AleraApp {
                         .right_0()
                         .bottom_0()
                         .w(px(10.0))
-                        .bg(theme::app_background()),
+                        .bg(editor_background),
                 )
                 .into_any_element()
         };
@@ -394,6 +639,7 @@ impl AleraApp {
                                         .child(
                                             editor_toolbar_button(
                                                 "editor-view-diff",
+                                                "View Diff",
                                                 AleraIcon::Diff,
                                                 active,
                                             )
@@ -415,6 +661,7 @@ impl AleraApp {
                                         .child(
                                             editor_toolbar_button(
                                                 "save-editor",
+                                                save_tooltip,
                                                 if self.editor_busy {
                                                     AleraIcon::Loading
                                                 } else {
@@ -448,6 +695,7 @@ impl AleraApp {
                                         .child(
                                             editor_toolbar_button(
                                                 "discard-editor",
+                                                "Discard Changes",
                                                 AleraIcon::Restore,
                                                 active && !self.editor_busy && self.editor_dirty,
                                             )
@@ -460,7 +708,8 @@ impl AleraApp {
                                                     button.on_mouse_down(
                                                         gpui::MouseButton::Left,
                                                         cx.listener(|this, _, window, cx| {
-                                                            if this.editor_dirty && !this.editor_busy
+                                                            if this.editor_dirty
+                                                                && !this.editor_busy
                                                             {
                                                                 this.discard_editor_changes(
                                                                     window, cx,
@@ -475,6 +724,7 @@ impl AleraApp {
                                             toolbar.child(
                                                 editor_toolbar_button(
                                                     "open-editor-preview",
+                                                    "Open Preview",
                                                     AleraIcon::Preview,
                                                     active,
                                                 )
@@ -498,59 +748,10 @@ impl AleraApp {
                                 let refresh_button = editor_toolbar_button(
                                     "refresh-markdown-preview",
                                     if refresh_enabled {
-                                        AleraIcon::Refresh
+                                        "Refresh Preview"
                                     } else {
-                                        AleraIcon::Loading
+                                        "Refreshing Preview"
                                     },
-                                    refresh_enabled,
-                                )
-                                .tooltip(move |_, cx| {
-                                    cx.new(|_| {
-                                        Tooltip::new(if refresh_enabled {
-                                            "Refresh Preview"
-                                        } else {
-                                            "Refreshing Preview"
-                                        })
-                                    })
-                                    .into()
-                                })
-                                .when(self.editor_busy, |button| {
-                                    button.child(loading_indicator(14.0, theme::text_muted()))
-                                })
-                                .when(active, |button| {
-                                    button.on_mouse_down(
-                                        gpui::MouseButton::Left,
-                                        cx.listener(|this, _, window, cx| {
-                                            if let Some(path) = this.opened_file_path.clone() {
-                                                this.load_workspace_file(path, window, cx);
-                                            }
-                                        }),
-                                    )
-                                });
-                                let open_source_button = editor_toolbar_button(
-                                    "open-markdown-source",
-                                    AleraIcon::Code,
-                                    active,
-                                )
-                                .tooltip(|_, cx| {
-                                    cx.new(|_| Tooltip::new("Open Source File")).into()
-                                })
-                                .when(active, |button| {
-                                    button.on_mouse_down(
-                                        gpui::MouseButton::Left,
-                                        cx.listener(|this, _, _, cx| {
-                                            if let Some(path) = this.opened_file_path.clone() {
-                                                this.open_editor_tab(path, cx);
-                                            }
-                                        }),
-                                    )
-                                });
-                                toolbar.child(refresh_button).child(open_source_button)
-                            })
-                            .when(is_merman_viewer, |toolbar| {
-                                let refresh_enabled = active && !self.editor_busy;
-                                let refresh_button = editor_toolbar_button(
-                                    "refresh-merman-preview",
                                     if refresh_enabled {
                                         AleraIcon::Refresh
                                     } else {
@@ -572,30 +773,79 @@ impl AleraApp {
                                     button.child(loading_indicator(14.0, theme::text_muted()))
                                 })
                                 .when(active, |button| {
-                                    button.on_mouse_down(
-                                        gpui::MouseButton::Left,
-                                        cx.listener(|this, _, window, cx| {
-                                            if let Some(path) = this.opened_file_path.clone() {
-                                                this.load_workspace_file(path, window, cx);
-                                            }
-                                        }),
-                                    )
+                                    button.on_click(cx.listener(|this, _, window, cx| {
+                                        if let Some(path) = this.opened_file_path.clone() {
+                                            this.load_workspace_file(path, window, cx);
+                                        }
+                                    }))
+                                });
+                                let open_source_button = editor_toolbar_button(
+                                    "open-markdown-source",
+                                    "Open Source File",
+                                    AleraIcon::Code,
+                                    active,
+                                )
+                                .tooltip(|_, cx| {
+                                    cx.new(|_| Tooltip::new("Open Source File")).into()
+                                })
+                                .when(active, |button| {
+                                    button.on_click(cx.listener(|this, _, _, cx| {
+                                        if let Some(path) = this.opened_file_path.clone() {
+                                            this.open_editor_tab(path, cx);
+                                        }
+                                    }))
+                                });
+                                toolbar.child(refresh_button).child(open_source_button)
+                            })
+                            .when(is_merman_viewer, |toolbar| {
+                                let refresh_enabled = active && !self.editor_busy;
+                                let refresh_button = editor_toolbar_button(
+                                    "refresh-merman-preview",
+                                    if refresh_enabled {
+                                        "Refresh Preview"
+                                    } else {
+                                        "Refreshing Preview"
+                                    },
+                                    if refresh_enabled {
+                                        AleraIcon::Refresh
+                                    } else {
+                                        AleraIcon::Loading
+                                    },
+                                    refresh_enabled,
+                                )
+                                .tooltip(move |_, cx| {
+                                    cx.new(|_| {
+                                        Tooltip::new(if refresh_enabled {
+                                            "Refresh Preview"
+                                        } else {
+                                            "Refreshing Preview"
+                                        })
+                                    })
+                                    .into()
+                                })
+                                .when(self.editor_busy, |button| {
+                                    button.child(loading_indicator(14.0, theme::text_muted()))
+                                })
+                                .when(active, |button| {
+                                    button.on_click(cx.listener(|this, _, window, cx| {
+                                        if let Some(path) = this.opened_file_path.clone() {
+                                            this.load_workspace_file(path, window, cx);
+                                        }
+                                    }))
                                 });
                                 let open_source_button = editor_toolbar_button(
                                     "open-merman-source",
+                                    "Open Editor",
                                     AleraIcon::Edit,
                                     active,
                                 )
                                 .tooltip(|_, cx| cx.new(|_| Tooltip::new("Open Editor")).into())
                                 .when(active, |button| {
-                                    button.on_mouse_down(
-                                        gpui::MouseButton::Left,
-                                        cx.listener(|this, _, _, cx| {
-                                            if let Some(path) = this.opened_file_path.clone() {
-                                                this.open_editor_tab(path, cx);
-                                            }
-                                        }),
-                                    )
+                                    button.on_click(cx.listener(|this, _, _, cx| {
+                                        if let Some(path) = this.opened_file_path.clone() {
+                                            this.open_editor_tab(path, cx);
+                                        }
+                                    }))
                                 });
                                 toolbar.child(open_source_button).child(refresh_button)
                             }),
@@ -626,18 +876,21 @@ impl AleraApp {
                     .and_then(|group| self.pane_bounds.get(&group.id))
                     .map(|bounds| (bounds.size.width.as_f32() - 64.0).max(120.0))
                     .unwrap_or(640.0);
+                let markdown = self
+                    .markdown_preview_content
+                    .get(&document.relative_path)
+                    .unwrap_or(&document.display_content);
                 div()
                     .id("markdown-preview")
                     .flex_1()
                     .overflow_hidden()
-                    .p_6()
+                    .py_6()
+                    .px(px(27.0))
                     .child(
-                        TextView::markdown(
+                        with_markdown_images(TextView::markdown(
                             "markdown-preview-content",
-                            normalize_nested_fenced_code_blocks(&document.display_content),
-                            window,
-                            cx,
-                        )
+                            normalize_nested_fenced_code_blocks(markdown),
+                        ))
                         .style({
                             TextViewStyle {
                                 is_dark: true,
@@ -668,9 +921,9 @@ impl AleraApp {
                                     // top row that Flutter's CodeField uses so the
                                     // language label and Copy code action never
                                     // overlap the first source line.
-                                    .pt(px(48.0))
+                                    .pt(px(52.0))
                                     .pr(px(16.0))
-                                    .pb(px(16.0))
+                                    .pb(px(28.0))
                                     .pl(px(16.0))
                                     .text_size(px(13.0))
                                     .line_height(px(18.85)),
@@ -679,6 +932,12 @@ impl AleraApp {
                         })
                         .code_block_actions(move |code_block, _, _cx| {
                             let code = code_block.code();
+                            let mut code_hasher = DefaultHasher::new();
+                            code.hash(&mut code_hasher);
+                            let copy_id = SharedString::from(format!(
+                                "markdown-copy-code-{:016x}",
+                                code_hasher.finish()
+                            ));
                             let language = code_block
                                 .lang()
                                 .filter(|language| !language.is_empty())
@@ -688,7 +947,9 @@ impl AleraApp {
                                 .items_center()
                                 .justify_between()
                                 .w(px(code_action_width))
+                                .bg(gpui::rgb(0x121212))
                                 .px_3()
+                                .pt(px(4.0))
                                 .pb(px(8.0))
                                 .border_b_1()
                                 .border_color(theme::border_subtle())
@@ -697,12 +958,16 @@ impl AleraApp {
                                 .child(language)
                                 .child(
                                     div()
-                                        .id(("markdown-copy-code", code.len()))
+                                        .id(copy_id)
+                                        .focusable()
+                                        .tab_stop(true)
+                                        .role(Role::Button)
+                                        .aria_label("Copy code")
                                         .flex()
                                         .items_center()
                                         .gap_1()
                                         .cursor(CursorStyle::PointingHand)
-                                        .on_mouse_down(MouseButton::Left, move |_, _, cx| {
+                                        .on_click(move |_, _, cx| {
                                             cx.write_to_clipboard(ClipboardItem::new_string(
                                                 code.to_string(),
                                             ));
@@ -740,13 +1005,30 @@ impl AleraApp {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) -> AnyElement {
+        let transform_key = self
+            .selected_tab_id
+            .clone()
+            .unwrap_or_else(|| id.to_owned());
+        let transform = self
+            .preview_transforms
+            .get(&transform_key)
+            .copied()
+            .unwrap_or_default();
         let (viewport_width, viewport_height) = self.preview_viewport_size();
         let render_image = image.clone().get_render_image(window, cx);
+        let intrinsic_scale = if id == "merman-preview" {
+            window.scale_factor().max(1.0)
+        } else {
+            1.0
+        };
         let (intrinsic_width, intrinsic_height) = render_image
             .as_ref()
             .map(|image| {
                 let size = image.size(0);
-                (size.width.0 as f32, size.height.0 as f32)
+                (
+                    size.width.0 as f32 / intrinsic_scale,
+                    size.height.0 as f32 / intrinsic_scale,
+                )
             })
             .filter(|(width, height)| *width > 0.0 && *height > 0.0)
             .unwrap_or((viewport_width, viewport_height));
@@ -758,18 +1040,18 @@ impl AleraApp {
         let fit_scale = (available_width / intrinsic_width)
             .min(available_height / intrinsic_height)
             .min(1.0);
-        let display_scale = fit_scale * self.preview_scale;
+        let display_scale = fit_scale * transform.scale;
         let display_width = intrinsic_width * display_scale;
         let display_height = intrinsic_height * display_scale;
-        let max_offset_x = ((display_width - available_width) / 2.0).max(0.0);
-        let max_offset_y = ((display_height - available_height) / 2.0).max(0.0);
-        let offset_x = self
-            .preview_offset
+        let max_offset_x = ((display_width - available_width) / 2.0).max(0.0) + 48.0;
+        let max_offset_y = ((display_height - available_height) / 2.0).max(0.0) + 48.0;
+        let offset_x = transform
+            .offset
             .x
             .as_f32()
             .clamp(-max_offset_x, max_offset_x);
-        let offset_y = self
-            .preview_offset
+        let offset_y = transform
+            .offset
             .y
             .as_f32()
             .clamp(-max_offset_y, max_offset_y);
@@ -793,8 +1075,13 @@ impl AleraApp {
                 .child(img(image.clone()).size_full())
                 .into_any_element()
         };
+        let pointer_key = transform_key.clone();
+        let move_key = transform_key.clone();
+        let release_key = transform_key.clone();
+        let release_out_key = transform_key.clone();
+        let scroll_key = transform_key.clone();
         div()
-            .id(id)
+            .id(SharedString::from(format!("{id}-{transform_key}")))
             .flex_1()
             .relative()
             .overflow_hidden()
@@ -808,18 +1095,32 @@ impl AleraApp {
             .cursor(CursorStyle::PointingHand)
             .on_mouse_down(
                 MouseButton::Left,
-                cx.listener(|this, event: &MouseDownEvent, _, cx| {
+                cx.listener(move |this, event: &MouseDownEvent, _, cx| {
+                    let initial_offset = this
+                        .preview_transforms
+                        .get(&pointer_key)
+                        .copied()
+                        .unwrap_or_default()
+                        .offset;
                     this.preview_drag = Some(PreviewDragState {
+                        tab_id: pointer_key.clone(),
                         start: event.position,
-                        initial_offset: this.preview_offset,
+                        initial_offset,
                     });
                     cx.stop_propagation();
                 }),
             )
-            .on_mouse_move(cx.listener(|this, event: &MouseMoveEvent, _, cx| {
+            .on_mouse_move(cx.listener(move |this, event: &MouseMoveEvent, _, cx| {
                 if event.pressed_button == Some(MouseButton::Left) {
-                    if let Some(drag) = this.preview_drag {
-                        this.preview_offset = gpui::point(
+                    if let Some(drag) = this
+                        .preview_drag
+                        .as_ref()
+                        .filter(|drag| drag.tab_id == move_key)
+                        .cloned()
+                    {
+                        let transform =
+                            this.preview_transforms.entry(move_key.clone()).or_default();
+                        transform.offset = gpui::point(
                             drag.initial_offset.x + (event.position.x - drag.start.x),
                             drag.initial_offset.y + (event.position.y - drag.start.y),
                         );
@@ -829,17 +1130,31 @@ impl AleraApp {
             }))
             .on_mouse_up(
                 MouseButton::Left,
-                cx.listener(|this, _, _, _| {
-                    this.preview_drag = None;
+                cx.listener(move |this, _, _, _| {
+                    if this
+                        .preview_drag
+                        .as_ref()
+                        .is_some_and(|drag| drag.tab_id == release_key)
+                    {
+                        this.preview_drag = None;
+                    }
                 }),
             )
             .on_mouse_up_out(
                 MouseButton::Left,
-                cx.listener(|this, _, _, _| {
-                    this.preview_drag = None;
+                cx.listener(move |this, _, _, _| {
+                    if this
+                        .preview_drag
+                        .as_ref()
+                        .is_some_and(|drag| drag.tab_id == release_out_key)
+                    {
+                        this.preview_drag = None;
+                    }
                 }),
             )
-            .on_scroll_wheel(cx.listener(Self::handle_preview_scroll))
+            .on_scroll_wheel(cx.listener(move |this, event, window, cx| {
+                this.handle_preview_scroll(&scroll_key, event, window, cx);
+            }))
             .child(image_element)
             .into_any_element()
     }
@@ -864,29 +1179,29 @@ impl AleraApp {
 
     fn handle_preview_scroll(
         &mut self,
+        tab_id: &str,
         event: &ScrollWheelEvent,
         _window: &mut Window,
         cx: &mut Context<Self>,
     ) {
         let delta = event.delta.pixel_delta(px(16.0));
+        let transform = self
+            .preview_transforms
+            .entry(tab_id.to_owned())
+            .or_default();
         if event.modifiers.platform || event.modifiers.control {
             let factor = (1.0_f32 - delta.y.as_f32() * 0.002).clamp(0.8, 1.25);
-            self.preview_scale = (self.preview_scale * factor).clamp(0.25, 8.0);
+            transform.scale = (transform.scale * factor).clamp(0.25, 8.0);
         } else {
-            self.preview_offset = gpui::point(
-                self.preview_offset.x - delta.x,
-                self.preview_offset.y - delta.y,
-            );
+            transform.offset =
+                gpui::point(transform.offset.x - delta.x, transform.offset.y - delta.y);
         }
         cx.stop_propagation();
         cx.notify();
     }
 }
 
-fn inactive_editor_text(
-    document: Option<&EditorDocument>,
-    buffer: Option<&String>,
-) -> AnyElement {
+fn inactive_editor_text(document: Option<&EditorDocument>, buffer: Option<&String>) -> AnyElement {
     let content = document
         .map(|document| {
             buffer
@@ -907,11 +1222,53 @@ fn inactive_editor_text(
 
 fn editor_toolbar_button(
     id: &'static str,
+    label: &'static str,
     kind: AleraIcon,
     enabled: bool,
 ) -> gpui::Stateful<gpui::Div> {
     div()
         .id(id)
+        .focusable()
+        .tab_stop(enabled)
+        .role(Role::Button)
+        .aria_label(label)
+        .flex()
+        .items_center()
+        .justify_center()
+        .w(px(28.0))
+        .h(px(28.0))
+        .rounded_md()
+        .cursor(if enabled {
+            CursorStyle::PointingHand
+        } else {
+            CursorStyle::Arrow
+        })
+        .when(enabled, |button| {
+            button.hover(|style| style.bg(theme::surface_selected()))
+        })
+        .child(icon(
+            kind,
+            15.0,
+            if enabled {
+                theme::text_muted()
+            } else {
+                theme::text_faint()
+            },
+        ))
+}
+
+fn inactive_editor_toolbar_button(
+    id: SharedString,
+    label: &'static str,
+    kind: AleraIcon,
+    enabled: bool,
+) -> gpui::Stateful<gpui::Div> {
+    div()
+        .id(id)
+        .focusable()
+        .tab_stop(enabled)
+        .role(Role::Button)
+        .aria_label(label)
         .flex()
         .items_center()
         .justify_center()

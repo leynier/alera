@@ -112,11 +112,27 @@ fn project_labeled_input(label: &'static str, input: &Entity<InputState>) -> gpu
         )
 }
 
-fn project_prompt_append_input(input: &Entity<InputState>) -> gpui::Div {
+fn project_prompt_append_input(input: &Entity<TextareaState>) -> gpui::Div {
     div()
         .relative()
         .h(px(84.0))
-        .child(design_system::text_field(input).height(px(76.0)))
+        .child(
+            div()
+                .h(px(76.0))
+                .rounded(px(6.0))
+                .border_1()
+                .border_color(theme::border())
+                .bg(theme::surface_selected())
+                .child(
+                    Textarea::new(input)
+                        .aria_label("Prompt Append")
+                        .appearance(false)
+                        .size_full()
+                        .px(px(12.0))
+                        .py(px(10.0))
+                        .text_size(px(13.0)),
+                ),
+        )
         .child(
             div()
                 .absolute()
@@ -134,16 +150,33 @@ fn project_checkbox(
     id: impl Into<gpui::ElementId>,
     checked: bool,
 ) -> gpui::Stateful<gpui::Div> {
-    design_system::checkbox(checked, true, None).id(id)
+    design_system::checkbox(checked, true, None)
+        .id(id)
+        .focusable()
+        .tab_stop(true)
+        .role(Role::CheckBox)
+        .aria_label("Overwrite Existing Destination")
+        .aria_toggled(if checked {
+            Toggled::True
+        } else {
+            Toggled::False
+        })
 }
 
 fn project_icon_button(
     id: impl Into<gpui::ElementId>,
     icon_kind: AleraIcon,
     color: gpui::Rgba,
+    tooltip: impl Into<gpui::SharedString>,
 ) -> gpui::Stateful<gpui::Div> {
+    let tooltip = tooltip.into();
+    let aria_label = tooltip.clone();
     div()
         .id(id)
+        .focusable()
+        .tab_stop(true)
+        .role(Role::Button)
+        .aria_label(aria_label)
         .flex()
         .items_center()
         .justify_center()
@@ -151,6 +184,10 @@ fn project_icon_button(
         .h(px(32.0))
         .rounded_md()
         .cursor(CursorStyle::PointingHand)
+        .tooltip(move |_, cx| {
+            let label = tooltip.clone();
+            cx.new(move |_| Tooltip::new(label)).into()
+        })
         .hover(|style| style.bg(theme::surface_raised()))
         .child(icon(icon_kind, 16.0, color))
 }
@@ -162,6 +199,10 @@ fn project_outline_button(
 ) -> gpui::Stateful<gpui::Div> {
     div()
         .id(id)
+        .focusable()
+        .tab_stop(true)
+        .role(Role::Button)
+        .aria_label(label)
         .flex()
         .items_center()
         .h(px(34.0))
@@ -184,6 +225,10 @@ fn project_action_button(
 ) -> gpui::Stateful<gpui::Div> {
     div()
         .id(id)
+        .focusable()
+        .tab_stop(true)
+        .role(Role::Button)
+        .aria_label(label)
         .flex()
         .items_center()
         .h(px(36.0))

@@ -1,6 +1,10 @@
+use std::collections::BTreeSet;
+use std::time::Instant;
+
 use gpui::{ClipboardItem, Context, Pixels, Point, Window};
 use serde_json::{json, Value};
 
+use super::app_helpers::flutter_state_error;
 use super::{
     AleraApp, SidebarDialog, SidebarDialogKind, SidebarGroupBy, SidebarMenu, SidebarSortBy,
     SidebarSortTarget, SidebarWorkspaceKind,
@@ -292,6 +296,29 @@ impl AleraApp {
         }
     }
 
+    fn enqueue_sidebar_error_toasts(
+        &mut self,
+        primary: String,
+        secondary: Option<String>,
+        cx: &mut Context<Self>,
+    ) {
+        // Flutter exposes the controller error through its global listener and
+        // the sidebar action also posts its own toast. Preserve both entries,
+        // including identical messages and their order.
+        self.local_message = None;
+        self.local_message_started_at = None;
+        self.local_message_timer_message = None;
+        let shown_at = Instant::now();
+        self.toast_entries.push_back((primary.into(), shown_at));
+        if let Some(secondary) = secondary {
+            self.toast_entries.push_back((secondary.into(), shown_at));
+        }
+        while self.toast_entries.len() > 3 {
+            self.toast_entries.pop_front();
+        }
+        cx.notify();
+    }
+
     pub(super) fn open_sidebar_dialog(
         &mut self,
         kind: SidebarDialogKind,
@@ -391,13 +418,15 @@ impl AleraApp {
                     json!({"workspaceId": dialog.target_id, "name": name}),
                 )
             }
-            SidebarDialogKind::ManageWorkspaceTags => SidebarOperation::Request(
-                "workspaceTag.setForWorkspace",
-                json!({
-                    "workspaceId": dialog.target_id,
-                    "tagIds": self.sidebar_selected_tag_ids.iter().cloned().collect::<Vec<_>>(),
-                }),
-            ),
+            SidebarDialogKind::ManageWorkspaceTags => SidebarOperation::SetTags {
+                workspace_id: dialog.target_id.clone(),
+                current_tag_ids: self
+                    .snapshot
+                    .workspace(&dialog.target_id)
+                    .map(|workspace| workspace.tag_ids.iter().cloned().collect())
+                    .unwrap_or_default(),
+                next_tag_ids: self.sidebar_selected_tag_ids.clone(),
+            },
             SidebarDialogKind::SetWorkspaceParent => SidebarOperation::SetParent {
                 child_id: dialog.target_id.clone(),
                 previous_parent_id: self
@@ -425,6 +454,9 @@ impl AleraApp {
         };
         let bridge = self.bridge.clone();
         self.sidebar_action_busy = true;
+        // Flutter closes rename, confirmation and save dialogs before the
+        // mutation starts, then reports failures through the global toast.
+        self.sidebar_dialog = None;
         self.error = None;
         cx.notify();
         cx.spawn(async move |this, cx| {
@@ -432,7 +464,7 @@ impl AleraApp {
             let Some(this) = this.upgrade() else {
                 return;
             };
-            let _ = this.update(cx, |this, cx| {
+            this.update(cx, |this, cx| {
                 this.sidebar_action_busy = false;
                 match result {
                     Ok(_) => {
@@ -460,8 +492,27 @@ impl AleraApp {
                         this.refresh(cx);
                     }
                     Err(error) => {
-                        this.error = Some(error.into());
-                        cx.notify();
+                        let mut error = error.user_facing();
+                        // Flutter rename goes through WorkspaceService and
+                        // ProjectService, whose domain exceptions render
+                        // without the RuntimeHostClient `Bad state:` prefix.
+                        if matches!(
+                            dialog.kind,
+                            SidebarDialogKind::RenameProject | SidebarDialogKind::RenameWorkspace
+                        ) {
+                            error = error
+                                .strip_prefix("Bad state: ")
+                                .unwrap_or(error.as_str())
+                                .to_owned();
+                        }
+                        let secondary = error.clone();
+                        let message = if dialog.kind == SidebarDialogKind::SleepWorkspace {
+                            format!("Could Not Sleep Workspace: {error}")
+                        } else {
+                            error
+                        };
+                        this.error = None;
+                        this.enqueue_sidebar_error_toasts(message, Some(secondary), cx);
                     }
                 }
             });
@@ -506,7 +557,7 @@ impl AleraApp {
             let Some(this) = this.upgrade() else {
                 return;
             };
-            let _ = this.update(cx, |this, cx| {
+            this.update(cx, |this, cx| {
                 this.sidebar_action_busy = false;
                 match result {
                     Ok(value) => {
@@ -516,8 +567,9 @@ impl AleraApp {
                         this.refresh(cx);
                     }
                     Err(error) => {
-                        this.error = Some(error.into());
-                        cx.notify();
+                        let error = flutter_state_error(error);
+                        this.error = Some(error.clone().into());
+                        this.enqueue_sidebar_error_toasts(error, None, cx);
                     }
                 }
             });
@@ -552,7 +604,7 @@ impl AleraApp {
             let Some(this) = this.upgrade() else {
                 return;
             };
-            let _ = this.update(cx, |this, cx| {
+            this.update(cx, |this, cx| {
                 this.sidebar_action_busy = false;
                 match result {
                     Ok(_) => {
@@ -561,8 +613,9 @@ impl AleraApp {
                         this.refresh(cx);
                     }
                     Err(error) => {
-                        this.error = Some(error.into());
-                        cx.notify();
+                        let error = flutter_state_error(error);
+                        this.error = Some(error.clone().into());
+                        this.enqueue_sidebar_error_toasts(error, None, cx);
                     }
                 }
             });
@@ -603,7 +656,7 @@ impl AleraApp {
             let Some(this) = this.upgrade() else {
                 return;
             };
-            let _ = this.update(cx, |this, cx| match result {
+            this.update(cx, |this, cx| match result {
                 Ok(_) => {
                     this.local_message = Some(
                         if pinned {
@@ -616,8 +669,8 @@ impl AleraApp {
                     this.refresh(cx);
                 }
                 Err(error) => {
-                    this.local_message = Some(error.into());
-                    cx.notify();
+                    let error = flutter_state_error(error);
+                    this.enqueue_sidebar_error_toasts(error.clone(), Some(error), cx);
                 }
             });
         })
@@ -650,14 +703,14 @@ impl AleraApp {
             let Some(this) = this.upgrade() else {
                 return;
             };
-            let _ = this.update(cx, |this, cx| match result {
+            this.update(cx, |this, cx| match result {
                 Ok(_) => {
                     this.local_message = Some("Workspace Parent Cleared".into());
                     this.refresh(cx);
                 }
                 Err(error) => {
-                    this.local_message = Some(error.into());
-                    cx.notify();
+                    let error = flutter_state_error(error);
+                    this.enqueue_sidebar_error_toasts(error.clone(), Some(error), cx);
                 }
             });
         })
@@ -699,7 +752,7 @@ impl AleraApp {
             let Some(this) = this.upgrade() else {
                 return;
             };
-            let _ = this.update(cx, |this, cx| match result {
+            this.update(cx, |this, cx| match result {
                 Ok(value) => {
                     if let Some(url) = repository_url(&value) {
                         cx.open_url(url);
@@ -728,6 +781,11 @@ fn repository_url(value: &Value) -> Option<&str> {
 
 enum SidebarOperation {
     Request(&'static str, Value),
+    SetTags {
+        workspace_id: String,
+        current_tag_ids: BTreeSet<String>,
+        next_tag_ids: BTreeSet<String>,
+    },
     SetParent {
         child_id: String,
         previous_parent_id: Option<String>,
@@ -735,13 +793,60 @@ enum SidebarOperation {
     },
 }
 
+enum SidebarOperationError {
+    Runtime(String),
+    Display(String),
+}
+
+impl SidebarOperationError {
+    fn user_facing(self) -> String {
+        match self {
+            Self::Runtime(error) => flutter_state_error(error),
+            Self::Display(error) => error,
+        }
+    }
+}
+
 async fn run_sidebar_operation(
     bridge: &crate::runtime_bridge::RuntimeBridge,
     operation: SidebarOperation,
-) -> Result<(), String> {
+) -> Result<(), SidebarOperationError> {
     match operation {
         SidebarOperation::Request(verb, payload) => {
-            bridge.request(verb, payload).await?;
+            bridge
+                .request(verb, payload)
+                .await
+                .map_err(SidebarOperationError::Runtime)?;
+        }
+        SidebarOperation::SetTags {
+            workspace_id,
+            current_tag_ids,
+            next_tag_ids,
+        } => {
+            for tag_id in current_tag_ids.difference(&next_tag_ids) {
+                bridge
+                    .request(
+                        "workspaceTag.unassign",
+                        json!({
+                            "workspaceId": workspace_id.clone(),
+                            "tagId": tag_id,
+                        }),
+                    )
+                    .await
+                    .map_err(SidebarOperationError::Runtime)?;
+            }
+            for tag_id in next_tag_ids.difference(&current_tag_ids) {
+                bridge
+                    .request(
+                        "workspaceTag.assign",
+                        json!({
+                            "workspaceId": workspace_id.clone(),
+                            "tagId": tag_id,
+                        }),
+                    )
+                    .await
+                    .map_err(SidebarOperationError::Runtime)?;
+            }
         }
         SidebarOperation::SetParent {
             child_id,
@@ -751,7 +856,26 @@ async fn run_sidebar_operation(
             if previous_parent_id == next_parent_id {
                 return Ok(());
             }
-            if let Some(parent_id) = previous_parent_id {
+            if let Some(next_parent_id) = next_parent_id.as_ref() {
+                if next_parent_id == &child_id {
+                    return Err(SidebarOperationError::Display(
+                        "A Workspace Cannot Be Its Own Parent".to_owned(),
+                    ));
+                }
+                let relations = bridge
+                    .request("workspaceRelation.list", json!({}))
+                    .await
+                    .map_err(SidebarOperationError::Runtime)?;
+                let descendants = workspace_descendant_ids(&relations, &child_id)
+                    .map_err(SidebarOperationError::Display)?;
+                if descendants.contains(next_parent_id) {
+                    return Err(SidebarOperationError::Display(
+                        "Cannot Set A Descendant Workspace As Parent".to_owned(),
+                    ));
+                }
+            }
+            let mut removed_previous_parent = false;
+            if let Some(parent_id) = previous_parent_id.as_ref() {
                 bridge
                     .request(
                         "workspaceRelation.unlink",
@@ -760,20 +884,75 @@ async fn run_sidebar_operation(
                             "childWorkspaceId": child_id.clone(),
                         }),
                     )
-                    .await?;
+                    .await
+                    .map_err(SidebarOperationError::Runtime)?;
+                removed_previous_parent = true;
             }
             if let Some(parent_id) = next_parent_id {
-                bridge
+                if let Err(error) = bridge
                     .request(
                         "workspaceRelation.link",
                         json!({
                             "parentWorkspaceId": parent_id,
-                            "childWorkspaceId": child_id,
+                            "childWorkspaceId": child_id.clone(),
                         }),
                     )
-                    .await?;
+                    .await
+                {
+                    if removed_previous_parent {
+                        if let Some(previous_parent_id) = previous_parent_id {
+                            if let Err(restore_error) = bridge
+                                .request(
+                                    "workspaceRelation.link",
+                                    json!({
+                                        "parentWorkspaceId": previous_parent_id,
+                                        "childWorkspaceId": child_id,
+                                    }),
+                                )
+                                .await
+                            {
+                                return Err(SidebarOperationError::Display(format!(
+                                    "Workspace Parent Update Failed: {}. Previous Parent Restore Failed: {}",
+                                    flutter_state_error(error),
+                                    flutter_state_error(restore_error),
+                                )));
+                            }
+                        }
+                    }
+                    return Err(SidebarOperationError::Runtime(error));
+                }
             }
         }
     }
     Ok(())
+}
+
+fn workspace_descendant_ids(
+    relations: &Value,
+    workspace_id: &str,
+) -> Result<BTreeSet<String>, String> {
+    let relations = relations.as_array().ok_or_else(|| {
+        "FormatException: Workspace graph payload must be a JSON array.".to_owned()
+    })?;
+    let mut children = std::collections::BTreeMap::<String, Vec<String>>::new();
+    for relation in relations {
+        let Some(parent_id) = relation.get("parentWorkspaceId").and_then(Value::as_str) else {
+            continue;
+        };
+        let Some(child_id) = relation.get("childWorkspaceId").and_then(Value::as_str) else {
+            continue;
+        };
+        children
+            .entry(parent_id.to_owned())
+            .or_default()
+            .push(child_id.to_owned());
+    }
+    let mut descendants = BTreeSet::new();
+    let mut pending = children.get(workspace_id).cloned().unwrap_or_default();
+    while let Some(child_id) = pending.pop() {
+        if descendants.insert(child_id.clone()) {
+            pending.extend(children.get(&child_id).into_iter().flatten().cloned());
+        }
+    }
+    Ok(descendants)
 }

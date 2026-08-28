@@ -12,6 +12,15 @@ pub(super) fn is_snapshot_event(name: &str) -> bool {
     )
 }
 
+pub(super) fn flutter_state_error(error: impl Into<String>) -> String {
+    let error = error.into();
+    if error.starts_with("Bad state: ") {
+        error
+    } else {
+        format!("Bad state: {error}")
+    }
+}
+
 pub(super) fn settings_select(
     window: &mut Window,
     cx: &mut Context<AleraApp>,
@@ -108,7 +117,10 @@ pub(super) fn build_settings_inputs(
     settings: &SettingsState,
     window: &mut Window,
     cx: &mut Context<AleraApp>,
-) -> BTreeMap<String, Entity<InputState>> {
+) -> (
+    BTreeMap<String, Entity<InputState>>,
+    BTreeMap<String, Entity<TextareaState>>,
+) {
     let values = vec![
         (
             "host-empty-seconds",
@@ -331,22 +343,28 @@ pub(super) fn build_settings_inputs(
         ),
     ];
 
-    values
-        .into_iter()
-        .map(|(key, value, placeholder, multi_line)| {
+    let mut inputs = BTreeMap::new();
+    let mut textareas = BTreeMap::new();
+    for (key, value, placeholder, multi_line) in values {
+        if multi_line {
             let input = cx.new(|cx| {
-                let mut input = InputState::new(window, cx)
+                let mut input = TextareaState::new(window, cx)
                     .placeholder(placeholder)
-                    .multi_line(multi_line);
-                if multi_line {
-                    input = input.soft_wrap(true);
-                }
+                    .soft_wrap(true);
                 input.set_value(value, window, cx);
                 input
             });
-            (key.to_string(), input)
-        })
-        .collect()
+            textareas.insert(key.to_string(), input);
+        } else {
+            let input = cx.new(|cx| {
+                let mut input = InputState::new(window, cx).placeholder(placeholder);
+                input.set_value(value, window, cx);
+                input
+            });
+            inputs.insert(key.to_string(), input);
+        }
+    }
+    (inputs, textareas)
 }
 
 pub(super) fn ai_agent_label_for_key(agent: &str) -> &'static str {

@@ -1,6 +1,6 @@
 use gpui::{
-    div, px, Context, CursorStyle, InteractiveElement as _, MouseButton, ParentElement as _,
-    Styled as _,
+    div, px, Context, CursorStyle, InteractiveElement as _, ParentElement as _, Role,
+    StatefulInteractiveElement as _, Styled as _,
 };
 
 use super::agent_profile_settings::managed_risk_warning;
@@ -29,6 +29,9 @@ impl AleraApp {
             .bg(theme::overlay_scrim())
             .child(
                 div()
+                    .id("agent-profile-risk-dialog")
+                    .role(Role::Dialog)
+                    .aria_label("Confirm Reduced Protections")
                     .w(px(420.0))
                     .p_5()
                     .rounded_xl()
@@ -56,12 +59,9 @@ impl AleraApp {
                             .gap_2()
                             .child(
                                 confirmation_button("cancel-agent-profile-risk", "Cancel", false)
-                                    .on_mouse_down(
-                                        MouseButton::Left,
-                                        cx.listener(|this, _, _, cx| {
-                                            this.cancel_agent_profile_risk(cx);
-                                        }),
-                                    ),
+                                    .on_click(cx.listener(|this, _, _, cx| {
+                                        this.cancel_agent_profile_risk(cx);
+                                    })),
                             )
                             .child(
                                 confirmation_button(
@@ -69,12 +69,11 @@ impl AleraApp {
                                     "Save Anyway",
                                     true,
                                 )
-                                .on_mouse_down(
-                                    MouseButton::Left,
-                                    cx.listener(|this, _, window, cx| {
+                                .on_click(cx.listener(
+                                    |this, _, window, cx| {
                                         this.confirm_agent_profile_risk(window, cx);
-                                    }),
-                                ),
+                                    },
+                                )),
                             ),
                     ),
             )
@@ -88,6 +87,10 @@ fn confirmation_button(
 ) -> gpui::Stateful<gpui::Div> {
     div()
         .id(id)
+        .focusable()
+        .tab_stop(true)
+        .role(Role::Button)
+        .aria_label(label)
         .flex_1()
         .flex()
         .items_center()

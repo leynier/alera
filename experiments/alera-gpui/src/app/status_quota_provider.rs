@@ -1,16 +1,18 @@
 use std::time::Duration;
 
 use gpui::{
-    div, prelude::FluentBuilder as _, px, AnyElement, Context, CursorStyle,
-    InteractiveElement as _, IntoElement, MouseDownEvent, MouseMoveEvent, ParentElement as _,
+    div, prelude::FluentBuilder as _, px, AnyElement, AppContext as _, ClickEvent, Context,
+    CursorStyle, InteractiveElement as _, IntoElement, MouseMoveEvent, ParentElement as _, Role,
     StatefulInteractiveElement as _, Styled as _,
 };
+use gpui_component::tooltip::Tooltip;
 use serde_json::json;
 
 use super::status_bar::quota_pin_key;
 use super::status_data::{QuotaReading, QuotaSnapshot};
 use super::status_quota::{
-    codex_reset_expiry, provider_agent_icon, provider_base_label, quota_color,
+    codex_reset_expiry, provider_agent_icon, provider_base_label, provider_label, quota_color,
+    quota_tooltip,
 };
 use super::AleraApp;
 use crate::activity::StatusPopover;
@@ -25,8 +27,17 @@ impl AleraApp {
         cx: &mut Context<Self>,
     ) -> AnyElement {
         let popover = StatusPopover::QuotaProvider(index);
+        let accessibility_label = provider_label(snapshot);
+        let tooltip = quota_tooltip(
+            snapshot,
+            (snapshot.provider == "claude").then_some(snapshot.display_name.as_str()),
+        );
         let mut row = div()
             .id(("quota-summary", index))
+            .focusable()
+            .tab_stop(true)
+            .role(Role::Button)
+            .aria_label(accessibility_label)
             .flex()
             .items_center()
             .h_full()
@@ -35,6 +46,10 @@ impl AleraApp {
             .border_r_1()
             .border_color(theme::border_subtle())
             .cursor(CursorStyle::PointingHand)
+            .tooltip(move |_, cx| {
+                let tooltip = tooltip.clone();
+                cx.new(move |_| Tooltip::new(tooltip)).into()
+            })
             .hover(|style| style.bg(theme::surface_raised()))
             .on_mouse_move(cx.listener(|this, event: &MouseMoveEvent, _, _| {
                 this.status_popover_anchor_x = event.position.x / px(1.0);
@@ -42,14 +57,14 @@ impl AleraApp {
             .on_hover(cx.listener(move |this, hovered: &bool, _, cx| {
                 this.set_status_popover_trigger_hovered(popover, *hovered, cx);
             }))
-            .on_mouse_down(
-                gpui::MouseButton::Left,
-                cx.listener(move |this, event: &MouseDownEvent, _, cx| {
-                    this.status_popover_anchor_x = event.position.x / px(1.0);
-                    this.toggle_status_popover(popover, cx);
-                    cx.stop_propagation();
-                }),
-            )
+            .on_mouse_down(gpui::MouseButton::Left, |_, _, cx| {
+                cx.stop_propagation();
+            })
+            .on_click(cx.listener(move |this, event: &ClickEvent, _, cx| {
+                this.status_popover_anchor_x = event.position().x / px(1.0);
+                this.toggle_status_popover(popover, cx);
+                cx.stop_propagation();
+            }))
             .child(agent_icon(
                 provider_agent_icon(&snapshot.provider),
                 14.0,
@@ -116,6 +131,8 @@ impl AleraApp {
         let tui_busy = self.quota_tui_busy_key.as_deref() == Some(snapshot_key.as_str());
         div()
             .id(("quota-provider-popover", index))
+            .role(Role::Dialog)
+            .aria_label(provider_label(snapshot))
             .absolute()
             .left(px(left))
             .bottom(theme::status_bar_height() + px(4.0))
@@ -289,6 +306,10 @@ impl AleraApp {
                             row.child(
                                 div()
                                     .id(("quota-provider-use-reset", index))
+                                    .focusable()
+                                    .tab_stop(can_consume)
+                                    .role(Role::Button)
+                                    .aria_label("Use Reset")
                                     .h(px(24.0))
                                     .px(px(6.0))
                                     .flex()
@@ -300,8 +321,7 @@ impl AleraApp {
                                         theme::text_faint()
                                     })
                                     .when(can_consume, |button| {
-                                        button.cursor(CursorStyle::PointingHand).on_mouse_down(
-                                            gpui::MouseButton::Left,
+                                        button.cursor(CursorStyle::PointingHand).on_click(
                                             cx.listener(move |this, _, _, cx| {
                                                 this.codex_reset_offer_revision =
                                                     offer_revision.clone();
@@ -324,6 +344,10 @@ impl AleraApp {
                     panel.child(
                         div()
                             .id(("quota-try-tui", index))
+                            .focusable()
+                            .tab_stop(!tui_busy)
+                            .role(Role::Button)
+                            .aria_label("Try With TUI")
                             .mt_3()
                             .flex()
                             .justify_end()
@@ -335,9 +359,9 @@ impl AleraApp {
                                 theme::accent()
                             })
                             .when(!tui_busy, |button| {
-                                button.cursor(CursorStyle::PointingHand).on_mouse_down(
-                                    gpui::MouseButton::Left,
-                                    cx.listener(move |this, _, _, cx| {
+                                button
+                                    .cursor(CursorStyle::PointingHand)
+                                    .on_click(cx.listener(move |this, _, _, cx| {
                                         this.try_claude_quota_tui(
                                             snapshot_key.clone(),
                                             account_id.clone(),
@@ -345,8 +369,7 @@ impl AleraApp {
                                             cx,
                                         );
                                         cx.stop_propagation();
-                                    }),
-                                )
+                                    }))
                             })
                             .when(tui_busy, |button| {
                                 button.child(loading_indicator(13.0, theme::text_faint()))
@@ -391,7 +414,7 @@ impl AleraApp {
             let Some(this) = this.upgrade() else {
                 return;
             };
-            let _ = this.update(cx, |this, cx| {
+            this.update(cx, |this, cx| {
                 this.quota_tui_busy_key = None;
                 match result {
                     Ok(_) => this.refresh_quota_status(false, cx),

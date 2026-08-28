@@ -1,6 +1,6 @@
 use gpui::{
     div, prelude::FluentBuilder as _, px, svg, AnyElement, AppContext as _, Context, CursorStyle,
-    InteractiveElement as _, IntoElement as _, ParentElement as _, SharedString,
+    InteractiveElement as _, IntoElement as _, ParentElement as _, Role, SharedString,
     StatefulInteractiveElement as _, Styled as _,
 };
 use gpui_component::tooltip::Tooltip;
@@ -56,7 +56,7 @@ impl AleraApp {
                     .border_color(theme::border_subtle())
                     .overflow_hidden()
                     .child(
-                        keyboard_segment("keyboard-app-first", "App First", app_first).on_mouse_down(gpui::MouseButton::Left,
+                        keyboard_segment("keyboard-app-first", "App First", app_first).on_click(
                             cx.listener(|this, _, _, cx| {
                                 this.set_keyboard_terminal_policy("appFirst", cx);
                             }),
@@ -68,7 +68,7 @@ impl AleraApp {
                             "Terminal First",
                             !app_first,
                         )
-                        .on_mouse_down(gpui::MouseButton::Left, cx.listener(|this, _, _, cx| {
+                        .on_click(cx.listener(|this, _, _, cx| {
                             this.set_keyboard_terminal_policy("terminalFirst", cx);
                         })),
                     )
@@ -150,12 +150,9 @@ impl AleraApp {
                             "Change Shortcut"
                         },
                     )
-                    .on_mouse_down(
-                        gpui::MouseButton::Left,
-                        cx.listener(move |this, _, window, cx| {
-                            this.start_keyboard_recording(id, window, cx);
-                        }),
-                    ),
+                    .on_click(cx.listener(move |this, _, window, cx| {
+                        this.start_keyboard_recording(id, window, cx);
+                    })),
                 )
                 .when(modified, |row| {
                     row.child(
@@ -164,23 +161,17 @@ impl AleraApp {
                             AleraIcon::Refresh,
                             "Reset To Default",
                         )
-                        .on_mouse_down(
-                            gpui::MouseButton::Left,
-                            cx.listener(move |this, _, _, cx| {
-                                this.reset_keyboard_binding(id, cx);
-                            }),
-                        ),
+                        .on_click(cx.listener(move |this, _, _, cx| {
+                            this.reset_keyboard_binding(id, cx);
+                        })),
                     )
                 })
                 .when(!disabled, |row| {
                     row.child(
                         keyboard_block_button(SharedString::from(format!("keyboard-disable-{id}")))
-                            .on_mouse_down(
-                                gpui::MouseButton::Left,
-                                cx.listener(move |this, _, _, cx| {
-                                    this.disable_keyboard_binding(id, cx);
-                                }),
-                            ),
+                            .on_click(cx.listener(move |this, _, _, cx| {
+                                this.disable_keyboard_binding(id, cx);
+                            })),
                     )
                 })
                 .into_any_element(),
@@ -239,12 +230,9 @@ impl AleraApp {
                             .mt_5()
                             .child(
                                 keyboard_dialog_button("keyboard-conflict-cancel", "Cancel", false)
-                                    .on_mouse_down(
-                                        gpui::MouseButton::Left,
-                                        cx.listener(|this, _, _, cx| {
-                                            this.cancel_keyboard_conflict(cx);
-                                        }),
-                                    ),
+                                    .on_click(cx.listener(|this, _, _, cx| {
+                                        this.cancel_keyboard_conflict(cx);
+                                    })),
                             )
                             .child(
                                 keyboard_dialog_button(
@@ -252,12 +240,11 @@ impl AleraApp {
                                     "Reassign",
                                     true,
                                 )
-                                .on_mouse_down(
-                                    gpui::MouseButton::Left,
-                                    cx.listener(|this, _, _, cx| {
+                                .on_click(cx.listener(
+                                    |this, _, _, cx| {
                                         this.confirm_keyboard_conflict(cx);
-                                    }),
-                                ),
+                                    },
+                                )),
                             ),
                     ),
             )
@@ -315,7 +302,8 @@ fn keyboard_setting_row(
         // desktop. Keeping this height explicit prevents the cumulative
         // scroll drift that otherwise becomes visible at the bottom of the
         // Keyboard pane.
-        .min_h(px(66.0))
+        .h(px(72.0))
+        .flex_none()
         .px_4()
         .py_2()
         .border_b_1()
@@ -349,6 +337,11 @@ fn keyboard_segment(
 ) -> gpui::Stateful<gpui::Div> {
     div()
         .id(id)
+        .focusable()
+        .tab_stop(true)
+        .role(Role::RadioButton)
+        .aria_label(label)
+        .aria_selected(selected)
         .flex_1()
         .flex()
         .items_center()
@@ -390,6 +383,10 @@ fn keyboard_icon_button(
 ) -> gpui::Stateful<gpui::Div> {
     div()
         .id(id)
+        .focusable()
+        .tab_stop(true)
+        .role(Role::Button)
+        .aria_label(tooltip)
         .flex()
         .items_center()
         .justify_center()
@@ -405,6 +402,10 @@ fn keyboard_icon_button(
 fn keyboard_block_button(id: SharedString) -> gpui::Stateful<gpui::Div> {
     div()
         .id(id)
+        .focusable()
+        .tab_stop(true)
+        .role(Role::Button)
+        .aria_label("Disable Shortcut")
         .flex()
         .items_center()
         .justify_center()
@@ -430,6 +431,10 @@ fn keyboard_dialog_button(
 ) -> gpui::Stateful<gpui::Div> {
     div()
         .id(id)
+        .focusable()
+        .tab_stop(true)
+        .role(Role::Button)
+        .aria_label(label)
         .flex()
         .items_center()
         .justify_center()

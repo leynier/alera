@@ -17,7 +17,9 @@ pub(super) struct SettingsStore {
 impl SettingsStore {
     pub fn start() -> (Self, SettingsState) {
         let path = settings_path();
-        let initial = load_from_path(&path).unwrap_or_default();
+        let initial = load_from_path(&path)
+            .or_else(|| legacy_settings_fallback_path().and_then(|path| load_from_path(&path)))
+            .unwrap_or_default();
         let (updates, receiver) = async_channel::unbounded();
         thread::Builder::new()
             .name("alera-gpui-settings".to_string())
@@ -99,10 +101,38 @@ fn persist_loop(path: PathBuf, receiver: Receiver<SettingsState>) {
 }
 
 fn settings_path() -> PathBuf {
+    let app_id = std::env::var("ALERA_APP_ID")
+        .ok()
+        .filter(|value| !value.trim().is_empty())
+        .unwrap_or_else(|| "dev.leynier.alera".to_owned());
+    let scope = app_id
+        .chars()
+        .map(|character| {
+            if character.is_ascii_alphanumeric() || matches!(character, '.' | '-' | '_') {
+                character
+            } else {
+                '_'
+            }
+        })
+        .collect::<String>();
+    settings_directory().join(format!("gpui-settings-{scope}.json"))
+}
+
+fn legacy_settings_fallback_path() -> Option<PathBuf> {
+    let app_id = std::env::var("ALERA_APP_ID").ok();
+    if app_id
+        .as_deref()
+        .is_some_and(|app_id| !matches!(app_id, "dev.leynier.alera" | "dev.leynier.alera.dev"))
+    {
+        return None;
+    }
+    Some(settings_directory().join("gpui-settings.json"))
+}
+
+fn settings_directory() -> PathBuf {
     dirs::config_dir()
         .unwrap_or_else(|| PathBuf::from("."))
         .join("Alera")
-        .join("gpui-settings.json")
 }
 
 async fn load_shared_flutter_settings_from(path: PathBuf) -> Option<Value> {

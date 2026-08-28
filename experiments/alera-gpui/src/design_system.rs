@@ -1,7 +1,8 @@
 use gpui::{
     div, prelude::FluentBuilder as _, px, AnyElement, App, CursorStyle, ElementId, Entity,
     Focusable as _, InteractiveElement as _, IntoElement, MouseButton, MouseDownEvent,
-    ParentElement as _, RenderOnce, SharedString, Styled as _, Window,
+    ParentElement as _, RenderOnce, Role, SharedString, StatefulInteractiveElement as _,
+    Styled as _, Window,
 };
 use gpui_component::{
     input::{Input, InputState},
@@ -54,6 +55,7 @@ pub fn configure_component_theme(cx: &mut gpui::App) {
     colors.accent_foreground = theme::text().into();
     colors.danger = theme::danger().into();
     colors.danger_foreground = theme::on_danger().into();
+    colors.link = theme::info().into();
     colors.selection = theme::text_selection().into();
     colors.sidebar = theme::surface_selected().into();
     colors.sidebar_border = theme::border_subtle().into();
@@ -67,6 +69,7 @@ pub struct AleraTextField {
     prefix: Option<AnyElement>,
     suffix: Option<AnyElement>,
     label: Option<SharedString>,
+    accessibility_label: Option<SharedString>,
     disabled: bool,
     error: Option<SharedString>,
     height: gpui::Pixels,
@@ -81,6 +84,7 @@ impl AleraTextField {
             prefix: None,
             suffix: None,
             label: None,
+            accessibility_label: None,
             disabled: false,
             error: None,
             height: px(48.0),
@@ -110,6 +114,11 @@ impl AleraTextField {
 
     pub fn label(mut self, label: impl Into<SharedString>) -> Self {
         self.label = Some(label.into());
+        self
+    }
+
+    pub fn aria_label(mut self, label: impl Into<SharedString>) -> Self {
+        self.accessibility_label = Some(label.into());
         self
     }
 
@@ -181,6 +190,10 @@ impl RenderOnce for AleraTextField {
         } else {
             self.suffix
         };
+        let accessibility_label = self
+            .accessibility_label
+            .or_else(|| self.label.clone())
+            .or_else(|| self.search.then(|| SharedString::from("Search")));
         let mut input = Input::new(&self.state)
             .appearance(false)
             .disabled(self.disabled)
@@ -188,6 +201,9 @@ impl RenderOnce for AleraTextField {
             .px(if self.dense { px(8.0) } else { px(12.0) })
             .py(if self.dense { px(12.0) } else { px(10.0) })
             .text_size(px(if self.dense { 12.0 } else { 13.0 }));
+        if let Some(label) = accessibility_label {
+            input = input.aria_label(label);
+        }
         if let Some(prefix) = self.prefix {
             input = input.prefix(prefix);
         }
@@ -265,6 +281,7 @@ pub fn button(
     kind: ButtonKind,
     disabled: bool,
 ) -> gpui::Stateful<gpui::Div> {
+    let label = label.into();
     button_with_loading(id, label, kind, disabled, false)
 }
 
@@ -296,6 +313,7 @@ pub fn button_with_loading_and_leading_icon(
     loading: bool,
     leading: Option<AnyElement>,
 ) -> gpui::Stateful<gpui::Div> {
+    let label = label.into();
     let filled = matches!(kind, ButtonKind::Filled | ButtonKind::Destructive);
     let elevated = kind == ButtonKind::Elevated;
     let destructive = kind == ButtonKind::Destructive;
@@ -318,6 +336,10 @@ pub fn button_with_loading_and_leading_icon(
     };
     let mut button = div()
         .id(id)
+        .focusable()
+        .tab_stop(!disabled)
+        .role(Role::Button)
+        .aria_label(label.clone())
         .flex()
         .items_center()
         .justify_center()
@@ -359,11 +381,18 @@ pub fn button_with_loading_and_leading_icon(
     } else if let Some(leading) = leading {
         button = button.child(div().mr(px(6.0)).child(leading));
     }
-    button.child(label.into())
+    button.child(label)
 }
 
-pub fn dialog_shell(width: f32) -> gpui::Div {
+pub fn dialog_shell(
+    id: impl Into<ElementId>,
+    label: impl Into<SharedString>,
+    width: f32,
+) -> gpui::Stateful<gpui::Div> {
     div()
+        .id(id)
+        .role(Role::Dialog)
+        .aria_label(label.into())
         .w(px(width))
         .rounded_xl()
         .border_1()

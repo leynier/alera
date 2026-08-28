@@ -17,6 +17,10 @@ fn application_pane(
             .into_any_element(),
         GitHubStarState::NotStarred => div()
             .id("support-alera-star")
+            .focusable()
+            .tab_stop(true)
+            .role(Role::Button)
+            .aria_label("Star")
             .flex()
             .items_center()
             .justify_center()
@@ -29,13 +33,10 @@ fn application_pane(
             .bg(theme::surface_selected())
             .cursor(CursorStyle::PointingHand)
             .hover(|style| style.bg(theme::surface_raised()))
-            .on_mouse_down(
-                MouseButton::Left,
-                cx.listener(|this, _: &MouseDownEvent, _, cx| {
-                    this.star_github(cx);
-                    cx.stop_propagation();
-                }),
-            )
+            .on_click(cx.listener(|this, _, _, cx| {
+                this.star_github(cx);
+                cx.stop_propagation();
+            }))
             .child(icon(AleraIcon::Star, 16.0, theme::text_muted()))
             .child("Star")
             .into_any_element(),
@@ -69,6 +70,10 @@ fn application_pane(
             .into_any_element(),
         GitHubStarState::Error => div()
             .id("support-alera-retry")
+            .focusable()
+            .tab_stop(true)
+            .role(Role::Button)
+            .aria_label("Try Again")
             .flex()
             .items_center()
             .justify_center()
@@ -81,13 +86,10 @@ fn application_pane(
             .bg(theme::surface_selected())
             .cursor(CursorStyle::PointingHand)
             .hover(|style| style.bg(theme::surface_raised()))
-            .on_mouse_down(
-                MouseButton::Left,
-                cx.listener(|this, _: &MouseDownEvent, _, cx| {
-                    this.star_github(cx);
-                    cx.stop_propagation();
-                }),
-            )
+            .on_click(cx.listener(|this, _, _, cx| {
+                this.star_github(cx);
+                cx.stop_propagation();
+            }))
             .child(icon(AleraIcon::Star, 16.0, theme::text_muted()))
             .child("Try Again")
             .into_any_element(),
@@ -116,11 +118,11 @@ fn application_pane(
                             "Ask before unregistering a project and deleting its workspace metadata.",
                             settings_switch(
                                 "confirm-project-removal",
+                                "Confirm Project Removal",
                                 settings.confirm_project_removal,
                             )
-                            .on_mouse_down(
-                                MouseButton::Left,
-                                cx.listener(|this, _: &MouseDownEvent, _, cx| {
+                            .on_click(
+                                cx.listener(|this, _, _, cx| {
                                     this.set_confirm_project_removal(
                                         !this.settings_state.confirm_project_removal,
                                         cx,
@@ -134,11 +136,11 @@ fn application_pane(
                             "Ask before removing a linked workspace and deleting its branch.",
                             settings_switch(
                                 "confirm-workspace-removal",
+                                "Confirm Workspace Removal",
                                 settings.confirm_workspace_removal,
                             )
-                            .on_mouse_down(
-                                MouseButton::Left,
-                                cx.listener(|this, _: &MouseDownEvent, _, cx| {
+                            .on_click(
+                                cx.listener(|this, _, _, cx| {
                                     this.set_confirm_workspace_removal(
                                         !this.settings_state.confirm_workspace_removal,
                                         cx,
@@ -170,11 +172,11 @@ fn application_pane(
                             "Leave the app-launched sidecar running after a clean quit. Persistent CLI runtimes are never stopped by quitting, and unexpected exits always leave the host up.",
                             settings_switch(
                                 "keep-runtime-open-on-quit",
+                                "Keep Runtime Open When App Quits",
                                 settings.keep_runtime_open_on_quit,
                             )
-                            .on_mouse_down(
-                                MouseButton::Left,
-                                cx.listener(|this, _: &MouseDownEvent, _, cx| {
+                            .on_click(
+                                cx.listener(|this, _, _, cx| {
                                     this.set_keep_runtime_open_on_quit(
                                         !this.settings_state.keep_runtime_open_on_quit,
                                         cx,
@@ -188,6 +190,7 @@ fn application_pane(
                             "Seconds to keep the host alive after the app closes with no running sessions.",
                             number_input_control(
                                 "host-empty-seconds",
+                                "Empty Host Shutdown",
                                 settings_input(inputs, "host-empty-seconds"),
                                 "s",
                                 5.0,
@@ -201,6 +204,7 @@ fn application_pane(
                             "Seconds to keep detached running sessions alive after the app closes.",
                             number_input_control(
                                 "host-detached-seconds",
+                                "Detached Session Shutdown",
                                 settings_input(inputs, "host-detached-seconds"),
                                 "s",
                                 60.0,
@@ -230,9 +234,8 @@ fn application_pane(
                         exact_settings_row(
                             "Open Logs Folder",
                             "Show the folder holding the app log files.",
-                            settings_button("open-logs-folder", "Open").on_mouse_down(
-                                MouseButton::Left,
-                                cx.listener(|this, _: &MouseDownEvent, _, cx| {
+                            settings_button("open-logs-folder", "Open").on_click(
+                                cx.listener(|this, _, _, cx| {
                                     this.open_logs_folder(cx);
                                     cx.stop_propagation();
                                 }),
@@ -247,9 +250,8 @@ fn application_pane(
                                 diagnostics_export_busy,
                             )
                             .when(!diagnostics_export_busy, |button| {
-                                button.on_mouse_down(
-                                    MouseButton::Left,
-                                    cx.listener(|this, _: &MouseDownEvent, window, cx| {
+                                button.on_click(
+                                    cx.listener(|this, _, window, cx| {
                                         this.export_diagnostics(window, cx);
                                         cx.stop_propagation();
                                     }),
@@ -260,6 +262,7 @@ fn application_pane(
                             "Log Level",
                             "How much detail is written to the log files.",
                             settings_select_control(
+                                "Log Level",
                                 diagnostics_log_level_select,
                                 false,
                                 false,
@@ -270,11 +273,11 @@ fn application_pane(
                             "Send crashes to Sentry, an external service. Off by default; local log files work either way.",
                             settings_switch(
                                 "send-crash-reports",
+                                "Send Crash Reports",
                                 settings.crash_reporting_enabled,
                             )
-                            .on_mouse_down(
-                                MouseButton::Left,
-                                cx.listener(|this, _: &MouseDownEvent, _, cx| {
+                            .on_click(
+                                cx.listener(|this, _, _, cx| {
                                     this.set_crash_reporting_enabled(
                                         !this.settings_state.crash_reporting_enabled,
                                         cx,
@@ -369,9 +372,8 @@ fn agents_pane(
                                         AleraIcon::Refresh,
                                         "Refresh",
                                     )
-                                    .on_mouse_down(
-                                        MouseButton::Left,
-                                        cx.listener(|this, _: &MouseDownEvent, _, cx| {
+                                    .on_click(
+                                        cx.listener(|this, _, _, cx| {
                                             this.refresh_cli_registration(cx);
                                             cx.stop_propagation();
                                         }),
@@ -384,10 +386,9 @@ fn agents_pane(
                                         "Register",
                                     )
                                     .when(!cli_registration_blocked, |button| {
-                                        button.on_mouse_down(
-                                            MouseButton::Left,
+                                        button.on_click(
                                             cx.listener(
-                                                |this, _: &MouseDownEvent, _, cx| {
+                                                |this, _, _, cx| {
                                                     this.install_cli_registration(cx);
                                                     cx.stop_propagation();
                                                 },
@@ -628,11 +629,11 @@ fn agents_pane(
                             "Show native notifications when an agent needs attention. Bursts are grouped into one notification.",
                             settings_switch(
                                 "agent-status-notifications",
+                                "Agent Status Notifications",
                                 settings.agent_status_notifications_enabled,
                             )
-                            .on_mouse_down(
-                                MouseButton::Left,
-                                cx.listener(|this, _: &MouseDownEvent, _, cx| {
+                            .on_click(
+                                cx.listener(|this, _, _, cx| {
                                     this.update_agent_settings(
                                         |settings| {
                                             settings.agent_status_notifications_enabled =
@@ -649,11 +650,11 @@ fn agents_pane(
                             "Also notify when an agent finishes. Most agents report the end of a turn, not the end of a task, so this notifies on every reply.",
                             settings_switch(
                                 "agent-finished-notifications",
+                                "Agent Finished Notifications",
                                 settings.agent_status_finished_notifications_enabled,
                             )
-                            .on_mouse_down(
-                                MouseButton::Left,
-                                cx.listener(|this, _: &MouseDownEvent, _, cx| {
+                            .on_click(
+                                cx.listener(|this, _, _, cx| {
                                     this.update_agent_settings(
                                         |settings| {
                                             settings.agent_status_finished_notifications_enabled =
@@ -670,11 +671,11 @@ fn agents_pane(
                             agent_awake_description(),
                             settings_switch(
                                 "keep-computer-awake",
+                                "Keep Computer Awake While Agents Are Working",
                                 settings.keep_computer_awake_while_agents_work,
                             )
-                            .on_mouse_down(
-                                MouseButton::Left,
-                                cx.listener(|this, _: &MouseDownEvent, _, cx| {
+                            .on_click(
+                                cx.listener(|this, _, _, cx| {
                                     this.update_agent_settings(
                                         |settings| {
                                             settings.keep_computer_awake_while_agents_work =

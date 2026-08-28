@@ -1,6 +1,6 @@
 use gpui::{
     div, prelude::FluentBuilder as _, px, AnyElement, Context, CursorStyle,
-    InteractiveElement as _, IntoElement, MouseButton, ParentElement as _, SharedString,
+    InteractiveElement as _, IntoElement, ParentElement as _, Role, SharedString,
     StatefulInteractiveElement as _, Styled as _,
 };
 use gpui_component::scroll::ScrollableElement as _;
@@ -25,6 +25,9 @@ impl AleraApp {
     pub(super) fn render_agent_profiles_settings_pane(&self, cx: &mut Context<Self>) -> AnyElement {
         if self.agent_profile_settings.loading && self.agent_profile_settings.profiles.is_empty() {
             return div()
+                .id("agent-profiles-loading")
+                .role(Role::ProgressIndicator)
+                .aria_label("Loading Agent Profiles")
                 .flex()
                 .flex_1()
                 .items_center()
@@ -34,6 +37,9 @@ impl AleraApp {
         }
         if let Some(error) = self.agent_profile_settings.load_error.clone() {
             return div()
+                .id("agent-profiles-error")
+                .role(Role::Alert)
+                .aria_label(error.clone())
                 .flex()
                 .flex_1()
                 .flex_col()
@@ -110,6 +116,10 @@ impl AleraApp {
                     .child(
                         div()
                             .id("new-agent-profile")
+                            .focusable()
+                            .tab_stop(true)
+                            .role(Role::Button)
+                            .aria_label("New Agent Profile")
                             .flex()
                             .items_center()
                             .justify_center()
@@ -118,12 +128,9 @@ impl AleraApp {
                             .rounded_md()
                             .cursor(CursorStyle::PointingHand)
                             .hover(|style| style.bg(theme::surface_raised()))
-                            .on_mouse_down(
-                                MouseButton::Left,
-                                cx.listener(|this, _, window, cx| {
-                                    this.new_agent_profile(window, cx);
-                                }),
-                            )
+                            .on_click(cx.listener(|this, _, window, cx| {
+                                this.new_agent_profile(window, cx);
+                            }))
                             .child(icon(AleraIcon::Add, 16.0, theme::text_muted())),
                     ),
             )
@@ -159,6 +166,8 @@ impl AleraApp {
             } else {
                 div()
                     .id("agent-profile-list")
+                    .role(Role::List)
+                    .aria_label("Agent Profiles")
                     .flex_1()
                     .min_h_0()
                     .overflow_y_scroll()
@@ -188,6 +197,11 @@ impl AleraApp {
                                 "agent-profile-row-{}",
                                 profile.id
                             )))
+                            .focusable()
+                            .tab_stop(true)
+                            .role(Role::ListBoxOption)
+                            .aria_label(profile.name.clone())
+                            .aria_selected(selected)
                             .flex()
                             .items_center()
                             .gap_2()
@@ -197,12 +211,9 @@ impl AleraApp {
                             .when(selected, |row| row.bg(theme::accent_subtle()))
                             .cursor(CursorStyle::PointingHand)
                             .hover(|style| style.bg(theme::surface_raised()))
-                            .on_mouse_down(
-                                MouseButton::Left,
-                                cx.listener(move |this, _, window, cx| {
-                                    this.select_agent_profile(id.clone(), window, cx);
-                                }),
-                            )
+                            .on_click(cx.listener(move |this, _, window, cx| {
+                                this.select_agent_profile(id.clone(), window, cx);
+                            }))
                             .child(agent_icon(
                                 adapter_icon(&profile.agent_type),
                                 16.0,
@@ -283,12 +294,9 @@ impl AleraApp {
                             true,
                             state.saving,
                         )
-                        .on_mouse_down(
-                            MouseButton::Left,
-                            cx.listener(|this, _, window, cx| {
-                                this.save_agent_profile(window, cx);
-                            }),
-                        ),
+                        .on_click(cx.listener(|this, _, window, cx| {
+                            this.save_agent_profile(window, cx);
+                        })),
                     )
                     .child(
                         profile_action_button(
@@ -298,12 +306,9 @@ impl AleraApp {
                             false,
                             state.selected_id.is_none() || state.saving,
                         )
-                        .on_mouse_down(
-                            MouseButton::Left,
-                            cx.listener(|this, _, window, cx| {
-                                this.remove_agent_profile(window, cx);
-                            }),
-                        ),
+                        .on_click(cx.listener(|this, _, window, cx| {
+                            this.remove_agent_profile(window, cx);
+                        })),
                     ),
             );
         div()
@@ -331,14 +336,12 @@ impl AleraApp {
             "Profile",
             "How This Agent Is Launched For A Dispatched Task.",
             vec![
-                div()
-                    .p_3()
-                    .child(
-                        design_system::text_field(&state.name_input)
-                            .disabled(state.saving)
-                            .label("Name")
-                            .prefix(icon(AleraIcon::Text, 15.0, theme::text_faint())),
-                    ),
+                div().p_3().child(
+                    design_system::text_field(&state.name_input)
+                        .disabled(state.saving)
+                        .label("Name")
+                        .prefix(icon(AleraIcon::Text, 15.0, theme::text_faint())),
+                ),
                 div().px_3().pb_3().child(
                     self.render_agent_profile_dropdown(
                         "Adapter Type",
@@ -410,10 +413,7 @@ impl AleraApp {
                 "Use A Model ID That Is Not In The Discovered List.",
                 div()
                     .w(px(220.0))
-                    .child(
-                        design_system::text_field(&state.model_input)
-                            .disabled(state.saving),
-                    ),
+                    .child(design_system::text_field(&state.model_input).disabled(state.saving)),
             ));
         }
         if supports_persona(&state.adapter) {
@@ -423,10 +423,7 @@ impl AleraApp {
                 "Use A Persona Name That Is Not In The Discovered List.",
                 div()
                     .w(px(220.0))
-                    .child(
-                        design_system::text_field(&state.persona_input)
-                            .disabled(state.saving),
-                    ),
+                    .child(design_system::text_field(&state.persona_input).disabled(state.saving)),
             ));
         }
         for control in controls_for(&state.adapter) {
@@ -452,15 +449,13 @@ impl AleraApp {
                         description,
                         settings_checkbox(
                             SharedString::from(format!("profile-flag-{key}")),
+                            title,
                             enabled,
                             !state.saving,
                         )
-                        .on_mouse_down(
-                            MouseButton::Left,
-                            cx.listener(move |this, _, _, cx| {
-                                this.toggle_agent_profile_flag(key, cx);
-                            }),
-                        ),
+                        .on_click(cx.listener(move |this, _, _, cx| {
+                            this.toggle_agent_profile_flag(key, cx);
+                        })),
                     )
                 }
                 ManagedControl::Number {
@@ -476,20 +471,27 @@ impl AleraApp {
                     settings_row(
                         title,
                         description,
-                        div().w(px(220.0)).child(
-                            design_system::text_field(input).disabled(state.saving),
-                        ),
+                        div()
+                            .w(px(220.0))
+                            .child(design_system::text_field(input).disabled(state.saving)),
                     )
                 }
             });
         }
         if let Some(error) = self.agent_profile_discovery_error() {
+            let error_label = error.clone();
             rows.push(
                 div()
-                    .p_3()
-                    .text_size(px(12.0))
+                    .p_4()
+                    .text_size(px(13.0))
                     .text_color(theme::warning())
-                    .child(error),
+                    .child(
+                        div()
+                            .id("agent-profile-discovery-error")
+                            .role(Role::Alert)
+                            .aria_label(error_label)
+                            .child(error),
+                    ),
             );
         }
         settings_group(

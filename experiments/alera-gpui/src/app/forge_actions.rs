@@ -50,7 +50,7 @@ impl AleraApp {
             let Some(this) = this.upgrade() else {
                 return;
             };
-            let _ = this.update(cx, |this, cx| {
+            this.update(cx, |this, cx| {
                 this.forge_busy = false;
                 match result {
                     Ok(_) => {

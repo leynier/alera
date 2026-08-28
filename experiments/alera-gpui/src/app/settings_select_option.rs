@@ -1,5 +1,6 @@
 use gpui::{
-    div, App, CursorStyle, IntoElement, ParentElement as _, SharedString, Styled as _, Window,
+    div, App, CursorStyle, InteractiveElement as _, IntoElement, ParentElement as _, Role,
+    SharedString, StatefulInteractiveElement as _, Styled as _, Window,
 };
 use gpui_component::select::SelectItem;
 
@@ -29,6 +30,12 @@ impl SelectItem for SettingsSelectOption {
 
     fn render(&self, _: &mut Window, _: &mut App) -> impl IntoElement {
         div()
+            .id(SharedString::from(format!(
+                "settings-select-option-{}",
+                self.value
+            )))
+            .role(Role::ListBoxOption)
+            .aria_label(self.value.clone())
             .w_full()
             .cursor(CursorStyle::PointingHand)
             .child(self.value.clone())

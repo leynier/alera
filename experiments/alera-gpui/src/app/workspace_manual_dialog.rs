@@ -1,7 +1,7 @@
 use gpui::{
     div, prelude::FluentBuilder as _, px, AnyElement, Context, CursorStyle,
-    InteractiveElement as _, IntoElement as _, ParentElement as _, StatefulInteractiveElement as _,
-    Styled as _,
+    InteractiveElement as _, IntoElement as _, ParentElement as _, Role,
+    StatefulInteractiveElement as _, Styled as _, Toggled,
 };
 
 use super::dialogs::{
@@ -42,6 +42,9 @@ impl AleraApp {
         };
 
         div()
+            .id("new-workspace-selection-dialog")
+            .role(Role::Dialog)
+            .aria_label("New Workspace - Selection")
             .w(px(690.0))
             .rounded_lg()
             .border_1()
@@ -90,6 +93,16 @@ impl AleraApp {
                     .child(
                         div()
                             .id("workspace-new-branch-mode")
+                            .focusable()
+                            .tab_stop(true)
+                            .role(Role::RadioButton)
+                            .aria_label("New Branch")
+                            .aria_selected(!self.workspace_reuse_existing_branch)
+                            .aria_toggled(if self.workspace_reuse_existing_branch {
+                                Toggled::False
+                            } else {
+                                Toggled::True
+                            })
                             .flex_1()
                             .h_full()
                             .flex()
@@ -100,17 +113,24 @@ impl AleraApp {
                             .when(!self.workspace_reuse_existing_branch, |button| {
                                 button.bg(theme::surface_selected())
                             })
-                            .on_mouse_down(
-                                gpui::MouseButton::Left,
-                                cx.listener(|this, _, window, cx| {
-                                    this.set_workspace_reuse_existing_branch(false, window, cx);
-                                }),
-                            )
+                            .on_click(cx.listener(|this, _, window, cx| {
+                                this.set_workspace_reuse_existing_branch(false, window, cx);
+                            }))
                             .child("New Branch"),
                     )
                     .child(
                         div()
                             .id("workspace-existing-branch-mode")
+                            .focusable()
+                            .tab_stop(true)
+                            .role(Role::RadioButton)
+                            .aria_label("Existing Branch")
+                            .aria_selected(self.workspace_reuse_existing_branch)
+                            .aria_toggled(if self.workspace_reuse_existing_branch {
+                                Toggled::True
+                            } else {
+                                Toggled::False
+                            })
                             .flex_1()
                             .h_full()
                             .flex()
@@ -121,12 +141,9 @@ impl AleraApp {
                             .when(self.workspace_reuse_existing_branch, |button| {
                                 button.bg(theme::surface_selected())
                             })
-                            .on_mouse_down(
-                                gpui::MouseButton::Left,
-                                cx.listener(|this, _, window, cx| {
-                                    this.set_workspace_reuse_existing_branch(true, window, cx);
-                                }),
-                            )
+                            .on_click(cx.listener(|this, _, window, cx| {
+                                this.set_workspace_reuse_existing_branch(true, window, cx);
+                            }))
                             .child("Existing Branch"),
                     ),
             )
@@ -178,8 +195,7 @@ impl AleraApp {
                     .gap_2()
                     .mt_4()
                     .child(
-                        secondary_button("cancel-workspace-selection", "Cancel").on_mouse_down(
-                            gpui::MouseButton::Left,
+                        secondary_button("cancel-workspace-selection", "Cancel").on_click(
                             cx.listener(|this, _, _, cx| this.close_new_workspace_dialog(cx)),
                         ),
                     )
@@ -190,12 +206,9 @@ impl AleraApp {
                             self.workspace_branches_loading
                                 || self.selected_workspace_source_branch.is_none(),
                         )
-                        .on_mouse_down(
-                            gpui::MouseButton::Left,
-                            cx.listener(|this, _, window, cx| {
-                                this.continue_manual_workspace_settings(window, cx);
-                            }),
-                        ),
+                        .on_click(cx.listener(|this, _, window, cx| {
+                            this.continue_manual_workspace_settings(window, cx);
+                        })),
                     ),
             )
             .into_any_element()
@@ -266,6 +279,9 @@ impl AleraApp {
         };
 
         div()
+            .id("new-workspace-settings-dialog")
+            .role(Role::Dialog)
+            .aria_label("New Workspace - Settings")
             .w(px(570.0))
             .rounded_lg()
             .border_1()
@@ -389,23 +405,27 @@ impl AleraApp {
             )
             .child(
                 div()
+                    .id("create-another-manual-workspace")
+                    .focusable()
+                    .tab_stop(true)
+                    .role(Role::CheckBox)
+                    .aria_label("Create Another")
+                    .aria_selected(self.create_another_workspace)
+                    .aria_toggled(if self.create_another_workspace {
+                        Toggled::True
+                    } else {
+                        Toggled::False
+                    })
                     .flex()
                     .items_center()
                     .gap_2()
                     .mt_4()
+                    .cursor(CursorStyle::PointingHand)
+                    .on_click(cx.listener(|this, _, _, cx| {
+                        this.toggle_create_another_workspace(cx);
+                    }))
                     .child(check_box(self.create_another_workspace))
-                    .child(
-                        div()
-                            .id("create-another-manual-workspace")
-                            .cursor(CursorStyle::PointingHand)
-                            .on_mouse_down(
-                                gpui::MouseButton::Left,
-                                cx.listener(|this, _, _, cx| {
-                                    this.toggle_create_another_workspace(cx);
-                                }),
-                            )
-                            .child("Create Another"),
-                    ),
+                    .child("Create Another"),
             )
             .when_some(self.error.clone(), |dialog, error| {
                 dialog.child(
@@ -423,12 +443,11 @@ impl AleraApp {
                     .gap_2()
                     .mt_4()
                     .child(
-                        secondary_button("back-workspace-selection", "Back").on_mouse_down(
-                            gpui::MouseButton::Left,
-                            cx.listener(|this, _, _, cx| {
+                        secondary_button("back-workspace-selection", "Back").on_click(cx.listener(
+                            |this, _, _, cx| {
                                 this.back_new_workspace(cx);
-                            }),
-                        ),
+                            },
+                        )),
                     )
                     .child(
                         primary_button_with_loading(
@@ -443,12 +462,9 @@ impl AleraApp {
                                 || self.workspace_creation_busy,
                             self.workspace_creation_busy,
                         )
-                        .on_mouse_down(
-                            gpui::MouseButton::Left,
-                            cx.listener(|this, _, _, cx| {
-                                this.create_workspace(cx);
-                            }),
-                        ),
+                        .on_click(cx.listener(|this, _, _, cx| {
+                            this.create_workspace(cx);
+                        })),
                     ),
             )
             .into_any_element()

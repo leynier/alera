@@ -2,8 +2,8 @@ use std::time::Duration;
 
 use gpui::{
     div, prelude::FluentBuilder as _, px, AnyElement, AppContext as _, Context, CursorStyle,
-    InteractiveElement as _, IntoElement, ParentElement as _, StatefulInteractiveElement as _,
-    Styled as _, Timer,
+    InteractiveElement as _, IntoElement, ParentElement as _, Role,
+    StatefulInteractiveElement as _, Styled as _,
 };
 use gpui_component::tooltip::Tooltip;
 use serde_json::Value;
@@ -27,8 +27,11 @@ impl AleraApp {
             self.status_popover = StatusPopover::None;
             self.status_popover_pinned = false;
             self.status_popover_panel_hovered = false;
-            self.status_popover_hover_suppressed =
-                (self.status_popover_trigger_hovered == Some(popover)).then_some(popover);
+            // A click can arrive before GPUI publishes the trigger's hover
+            // transition. Suppress unconditionally until the pointer leaves,
+            // otherwise the just-closed pinned popover reopens after the
+            // hover delay while the cursor is still over the same chip.
+            self.status_popover_hover_suppressed = Some(popover);
             cx.notify();
             return;
         }
@@ -77,7 +80,27 @@ impl AleraApp {
             self.status_popover_trigger_hovered = None;
         }
         if self.status_popover_hover_suppressed == Some(popover) {
-            self.status_popover_hover_suppressed = None;
+            self.cancel_status_popover_transition();
+            let generation = self.status_popover_transition_generation;
+            cx.spawn(async move |this, cx| {
+                cx.background_executor()
+                    .timer(Duration::from_millis(120))
+                    .await;
+                let Some(this) = this.upgrade() else {
+                    return;
+                };
+                this.update(cx, |this, cx| {
+                    if this.status_popover_transition_generation == generation
+                        && this.status_popover_trigger_hovered != Some(popover)
+                        && this.status_popover_hover_suppressed == Some(popover)
+                    {
+                        this.status_popover_hover_suppressed = None;
+                        cx.notify();
+                    }
+                });
+            })
+            .detach();
+            return;
         }
         self.schedule_status_popover_close(cx);
     }
@@ -123,11 +146,13 @@ impl AleraApp {
         self.cancel_status_popover_transition();
         let generation = self.status_popover_transition_generation;
         cx.spawn(async move |this, cx| {
-            Timer::after(STATUS_POPOVER_OPEN_DELAY).await;
+            cx.background_executor()
+                .timer(STATUS_POPOVER_OPEN_DELAY)
+                .await;
             let Some(this) = this.upgrade() else {
                 return;
             };
-            let _ = this.update(cx, |this, cx| {
+            this.update(cx, |this, cx| {
                 if this.status_popover_transition_generation != generation
                     || this.status_popover_pinned
                     || this.status_popover_trigger_hovered != Some(popover)
@@ -152,11 +177,13 @@ impl AleraApp {
         let generation = self.status_popover_transition_generation;
         let popover = self.status_popover;
         cx.spawn(async move |this, cx| {
-            Timer::after(STATUS_POPOVER_CLOSE_DELAY).await;
+            cx.background_executor()
+                .timer(STATUS_POPOVER_CLOSE_DELAY)
+                .await;
             let Some(this) = this.upgrade() else {
                 return;
             };
-            let _ = this.update(cx, |this, cx| {
+            this.update(cx, |this, cx| {
                 if this.status_popover_transition_generation != generation
                     || this.status_popover_pinned
                     || this.status_popover_panel_hovered
@@ -294,6 +321,10 @@ impl AleraApp {
             .child(
                 div()
                     .id("quota-overview")
+                    .focusable()
+                    .tab_stop(true)
+                    .role(Role::Button)
+                    .aria_label("All Agent Quotas")
                     .flex()
                     .items_center()
                     .justify_center()
@@ -302,7 +333,11 @@ impl AleraApp {
                     .border_r_1()
                     .border_color(theme::border_subtle())
                     .cursor(CursorStyle::PointingHand)
+                    .tooltip(|_, cx| cx.new(|_| Tooltip::new("All Agent Quotas")).into())
                     .hover(|style| style.bg(theme::surface_raised()))
+                    .on_mouse_down(gpui::MouseButton::Left, |_, _, cx| {
+                        cx.stop_propagation();
+                    })
                     .on_hover(cx.listener(|this, hovered: &bool, _, cx| {
                         this.set_status_popover_trigger_hovered(
                             StatusPopover::Quotas,
@@ -310,13 +345,10 @@ impl AleraApp {
                             cx,
                         );
                     }))
-                    .on_mouse_down(
-                        gpui::MouseButton::Left,
-                        cx.listener(|this, _, _, cx| {
-                            this.toggle_status_popover(StatusPopover::Quotas, cx);
-                            cx.stop_propagation();
-                        }),
-                    )
+                    .on_click(cx.listener(|this, _, _, cx| {
+                        this.toggle_status_popover(StatusPopover::Quotas, cx);
+                        cx.stop_propagation();
+                    }))
                     .child(icon(AleraIcon::Quota, 13.0, theme::text_muted())),
             )
             .child(
@@ -351,22 +383,41 @@ impl AleraApp {
                     .child(
                         div()
                             .id("quota-refresh")
+                            .focusable()
+                            .tab_stop(!self.status_data.quota_loading)
+                            .role(Role::Button)
+                            .aria_label(if self.status_data.quota_loading {
+                                "Refreshing Quotas"
+                            } else {
+                                "Refresh Quotas"
+                            })
                             .flex()
                             .items_center()
                             .justify_center()
                             .h_full()
                             .px_2()
                             .cursor(CursorStyle::PointingHand)
+                            .tooltip({
+                                let label = if self.status_data.quota_loading {
+                                    "Refreshing Quotas"
+                                } else {
+                                    "Refresh Quotas - Automatically Refreshes Every 5 Minutes"
+                                };
+                                move |_, cx| {
+                                    let label = label.to_owned();
+                                    cx.new(move |_| Tooltip::new(label)).into()
+                                }
+                            })
                             .hover(|style| style.bg(theme::surface_raised()))
-                            .on_mouse_down(
-                                gpui::MouseButton::Left,
-                                cx.listener(|this, _, _, cx| {
-                                    if !this.status_data.quota_loading {
-                                        this.refresh_quota_status(true, cx);
-                                    }
-                                    cx.stop_propagation();
-                                }),
-                            )
+                            .on_mouse_down(gpui::MouseButton::Left, |_, _, cx| {
+                                cx.stop_propagation();
+                            })
+                            .on_click(cx.listener(|this, _, _, cx| {
+                                if !this.status_data.quota_loading {
+                                    this.refresh_quota_status(true, cx);
+                                }
+                                cx.stop_propagation();
+                            }))
                             .child(if self.status_data.quota_loading {
                                 loading_indicator(13.0, theme::text_faint())
                             } else {
@@ -377,6 +428,10 @@ impl AleraApp {
             .child(
                 div()
                     .id("resource-status")
+                    .focusable()
+                    .tab_stop(true)
+                    .role(Role::Button)
+                    .aria_label("Resource Manager")
                     .flex()
                     .items_center()
                     .gap(px(6.0))
@@ -387,6 +442,9 @@ impl AleraApp {
                     .cursor(CursorStyle::PointingHand)
                     .tooltip(|_, cx| cx.new(|_| Tooltip::new("Resource Manager")).into())
                     .hover(|style| style.bg(theme::surface_raised()))
+                    .on_mouse_down(gpui::MouseButton::Left, |_, _, cx| {
+                        cx.stop_propagation();
+                    })
                     .on_hover(cx.listener(|this, hovered: &bool, _, cx| {
                         this.set_status_popover_trigger_hovered(
                             StatusPopover::Resources,
@@ -394,13 +452,10 @@ impl AleraApp {
                             cx,
                         );
                     }))
-                    .on_mouse_down(
-                        gpui::MouseButton::Left,
-                        cx.listener(|this, _, _, cx| {
-                            this.toggle_status_popover(StatusPopover::Resources, cx);
-                            cx.stop_propagation();
-                        }),
-                    )
+                    .on_click(cx.listener(|this, _, _, cx| {
+                        this.toggle_status_popover(StatusPopover::Resources, cx);
+                        cx.stop_propagation();
+                    }))
                     .child(icon(AleraIcon::Activity, 13.0, theme::text_muted()))
                     .child(div().text_size(px(10.0)).child(memory))
                     .child(icon(AleraIcon::Terminal, 11.0, theme::text_muted()))
@@ -417,6 +472,10 @@ impl AleraApp {
             .child(
                 div()
                     .id("runtime-status")
+                    .focusable()
+                    .tab_stop(true)
+                    .role(Role::Button)
+                    .aria_label("Runtime Host")
                     .flex()
                     .items_center()
                     .gap(px(6.0))
@@ -428,6 +487,9 @@ impl AleraApp {
                     .text_color(runtime_color)
                     .tooltip(|_, cx| cx.new(|_| Tooltip::new("Runtime Host")).into())
                     .hover(|style| style.bg(theme::surface_raised()))
+                    .on_mouse_down(gpui::MouseButton::Left, |_, _, cx| {
+                        cx.stop_propagation();
+                    })
                     .on_hover(cx.listener(|this, hovered: &bool, _, cx| {
                         this.set_status_popover_trigger_hovered(
                             StatusPopover::Runtime,
@@ -435,13 +497,10 @@ impl AleraApp {
                             cx,
                         );
                     }))
-                    .on_mouse_down(
-                        gpui::MouseButton::Left,
-                        cx.listener(|this, _, _, cx| {
-                            this.toggle_status_popover(StatusPopover::Runtime, cx);
-                            cx.stop_propagation();
-                        }),
-                    )
+                    .on_click(cx.listener(|this, _, _, cx| {
+                        this.toggle_status_popover(StatusPopover::Runtime, cx);
+                        cx.stop_propagation();
+                    }))
                     .child(if runtime_loading {
                         loading_indicator(13.0, runtime_color)
                     } else {

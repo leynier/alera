@@ -1,6 +1,7 @@
 use gpui::{
     div, prelude::FluentBuilder as _, px, AnyElement, Context, CursorStyle,
-    InteractiveElement as _, IntoElement, ParentElement as _, Styled as _,
+    InteractiveElement as _, IntoElement, ParentElement as _, Role,
+    StatefulInteractiveElement as _, Styled as _,
 };
 
 use super::AleraApp;
@@ -26,6 +27,9 @@ impl AleraApp {
             .bg(theme::overlay_scrim())
             .child(
                 div()
+                    .id("resource-close-dialog")
+                    .role(Role::Dialog)
+                    .aria_label("Close Terminal Session")
                     .w(px(420.0))
                     .rounded_lg()
                     .border_1()
@@ -57,15 +61,12 @@ impl AleraApp {
                             .child(
                                 resource_dialog_button("cancel-resource-close", "Cancel", false)
                                     .flex_1()
-                                    .on_mouse_down(
-                                        gpui::MouseButton::Left,
-                                        cx.listener(|this, _, _, cx| {
-                                            if !this.tab_mutation_busy {
-                                                this.resource_close_confirmation = None;
-                                                cx.notify();
-                                            }
-                                        }),
-                                    ),
+                                    .on_click(cx.listener(|this, _, _, cx| {
+                                        if !this.tab_mutation_busy {
+                                            this.resource_close_confirmation = None;
+                                            cx.notify();
+                                        }
+                                    })),
                             )
                             .child(
                                 resource_dialog_button_with_loading(
@@ -75,9 +76,8 @@ impl AleraApp {
                                     self.tab_mutation_busy,
                                 )
                                 .flex_1()
-                                .on_mouse_down(
-                                    gpui::MouseButton::Left,
-                                    cx.listener(|this, _, _, cx| {
+                                .on_click(cx.listener(
+                                    |this, _, _, cx| {
                                         if this.tab_mutation_busy {
                                             return;
                                         }
@@ -87,8 +87,8 @@ impl AleraApp {
                                             return;
                                         };
                                         this.request_close_tab(confirmation.tab_id, cx);
-                                    }),
-                                ),
+                                    },
+                                )),
                             ),
                     ),
             )
@@ -112,6 +112,10 @@ fn resource_dialog_button_with_loading(
 ) -> gpui::Stateful<gpui::Div> {
     div()
         .id(id)
+        .focusable()
+        .tab_stop(!loading)
+        .role(Role::Button)
+        .aria_label(label)
         .h(px(32.0))
         .px_3()
         .flex()
@@ -129,7 +133,11 @@ fn resource_dialog_button_with_loading(
             theme::text()
         })
         .font_weight(gpui::FontWeight::SEMIBOLD)
-        .cursor(CursorStyle::PointingHand)
+        .cursor(if loading {
+            CursorStyle::Arrow
+        } else {
+            CursorStyle::PointingHand
+        })
         .hover(|style| {
             style.bg(if destructive {
                 theme::danger_hover()

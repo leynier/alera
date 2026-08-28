@@ -3,7 +3,8 @@ use std::path::Path;
 
 use gpui::{
     div, prelude::FluentBuilder as _, px, AnyElement, Context, CursorStyle,
-    InteractiveElement as _, IntoElement, MouseDownEvent, ParentElement as _, Styled as _,
+    InteractiveElement as _, IntoElement, ParentElement as _, Role,
+    StatefulInteractiveElement as _, Styled as _,
 };
 
 use super::context_source_control_actions::source_row_action;
@@ -53,21 +54,26 @@ impl AleraApp {
         let staged = area == "staged";
         let header = div()
             .id(gpui::SharedString::from(format!("source-group-{area}")))
+            .focusable()
+            .tab_stop(true)
+            .role(Role::Button)
+            .aria_label(gpui::SharedString::from(format!(
+                "{label} {}",
+                entries.len()
+            )))
+            .aria_expanded(!collapsed)
             .flex()
             .items_center()
             .h(px(28.0))
             .px_2()
             .cursor(CursorStyle::PointingHand)
-            .on_mouse_down(
-                gpui::MouseButton::Left,
-                cx.listener(move |this, _, _, cx| {
-                    if !this.source_control_collapsed_sections.remove(&area_key) {
-                        this.source_control_collapsed_sections
-                            .insert(area_key.clone());
-                    }
-                    cx.notify();
-                }),
-            )
+            .on_click(cx.listener(move |this, _, _, cx| {
+                if !this.source_control_collapsed_sections.remove(&area_key) {
+                    this.source_control_collapsed_sections
+                        .insert(area_key.clone());
+                }
+                cx.notify();
+            }))
             .child(icon(
                 if collapsed {
                     AleraIcon::ChevronRight
@@ -108,25 +114,22 @@ impl AleraApp {
                             },
                             false,
                         )
-                        .on_mouse_down(
-                            gpui::MouseButton::Left,
-                            cx.listener(move |this, _: &MouseDownEvent, _, cx| {
-                                cx.stop_propagation();
-                                this.run_git_path_actions(
-                                    stage_paths
-                                        .iter()
-                                        .map(|path| {
-                                            if staged {
-                                                GitAction::UnstagePath(path.clone())
-                                            } else {
-                                                GitAction::StagePath(path.clone())
-                                            }
-                                        })
-                                        .collect(),
-                                    cx,
-                                );
-                            }),
-                        ),
+                        .on_click(cx.listener(move |this, _, _, cx| {
+                            cx.stop_propagation();
+                            this.run_git_path_actions(
+                                stage_paths
+                                    .iter()
+                                    .map(|path| {
+                                        if staged {
+                                            GitAction::UnstagePath(path.clone())
+                                        } else {
+                                            GitAction::StagePath(path.clone())
+                                        }
+                                    })
+                                    .collect(),
+                                cx,
+                            );
+                        })),
                     )
                     .when(!staged, |actions| {
                         actions.child(
@@ -135,13 +138,12 @@ impl AleraApp {
                                 AleraIcon::GitDiscard,
                                 true,
                             )
-                            .on_mouse_down(
-                                gpui::MouseButton::Left,
-                                cx.listener(move |this, _: &MouseDownEvent, _, cx| {
+                            .on_click(cx.listener(
+                                move |this, _, _, cx| {
                                     cx.stop_propagation();
                                     this.request_discard_paths(discard_paths.clone(), cx);
-                                }),
-                            ),
+                                },
+                            )),
                         )
                     }),
             );
@@ -154,7 +156,15 @@ impl AleraApp {
                 .when(!collapsed && !self.source_control_tree_mode, |group| {
                     group.children(entries.iter().copied().enumerate().map(
                         |(row_index, change)| {
-                            self.source_change_row(group_index, row_index, 0, area, change, cx)
+                            self.source_change_row(
+                                group_index,
+                                row_index,
+                                0,
+                                area,
+                                change,
+                                None,
+                                cx,
+                            )
                         },
                     ))
                 })
@@ -196,6 +206,11 @@ impl AleraApp {
                         "source-tree-dir-{area}-{}",
                         row.path
                     )))
+                    .focusable()
+                    .tab_stop(true)
+                    .role(Role::Button)
+                    .aria_label(row.name.clone())
+                    .aria_expanded(!collapsed)
                     .flex()
                     .items_center()
                     .h(px(30.0))
@@ -203,16 +218,13 @@ impl AleraApp {
                     .pr_2()
                     .cursor(CursorStyle::PointingHand)
                     .hover(|style| style.bg(theme::surface_selected()))
-                    .on_mouse_down(
-                        gpui::MouseButton::Left,
-                        cx.listener(move |this, _, _, cx| {
-                            if !this.source_control_collapsed_tree_nodes.remove(&toggle_key) {
-                                this.source_control_collapsed_tree_nodes
-                                    .insert(toggle_key.clone());
-                            }
-                            cx.notify();
-                        }),
-                    )
+                    .on_click(cx.listener(move |this, _, _, cx| {
+                        if !this.source_control_collapsed_tree_nodes.remove(&toggle_key) {
+                            this.source_control_collapsed_tree_nodes
+                                .insert(toggle_key.clone());
+                        }
+                        cx.notify();
+                    }))
                     .child(icon(
                         if collapsed {
                             AleraIcon::ChevronRight
@@ -247,9 +259,18 @@ impl AleraApp {
                     .into_any_element(),
             );
         };
-        Some(self.source_change_row(group_index, row_index, row.depth, area, change, cx))
+        Some(self.source_change_row(
+            group_index,
+            row_index,
+            row.depth,
+            area,
+            change,
+            Some(&row.name),
+            cx,
+        ))
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn source_change_row(
         &self,
         _group_index: usize,
@@ -257,6 +278,7 @@ impl AleraApp {
         depth: usize,
         area: &str,
         change: &GitChange,
+        display_name: Option<&str>,
         cx: &mut Context<Self>,
     ) -> AnyElement {
         let staged = area == "staged";
@@ -264,10 +286,18 @@ impl AleraApp {
         let discard_path = change.path.clone();
         let diff_path = change.path.clone();
         let diff_area = area.to_owned();
+        let display_name = display_name.unwrap_or(&change.path).to_owned();
         div()
             .id(gpui::SharedString::from(format!(
                 "source-change-{area}-{}",
                 change.path
+            )))
+            .focusable()
+            .tab_stop(true)
+            .role(Role::ListBoxOption)
+            .aria_label(gpui::SharedString::from(format!(
+                "{} {}",
+                display_name, change.status
             )))
             .flex()
             .items_center()
@@ -276,12 +306,9 @@ impl AleraApp {
             .pr_2()
             .cursor(CursorStyle::PointingHand)
             .hover(|style| style.bg(theme::surface_selected()))
-            .on_mouse_down(
-                gpui::MouseButton::Left,
-                cx.listener(move |this, _, _, cx| {
-                    this.open_git_diff_tab(Some(diff_path.clone()), Some(diff_area.clone()), cx);
-                }),
-            )
+            .on_click(cx.listener(move |this, _, _, cx| {
+                this.open_git_diff_tab(Some(diff_path.clone()), Some(diff_area.clone()), cx);
+            }))
             .child(div().w(px(16.0)))
             .child(file_icon(
                 &change.path,
@@ -296,10 +323,11 @@ impl AleraApp {
                     .ml(px(6.0))
                     .flex_1()
                     .overflow_hidden()
+                    .whitespace_nowrap()
                     .text_ellipsis()
                     .text_sm()
                     .text_color(theme::text_muted())
-                    .child(change.path.clone()),
+                    .child(display_name),
             )
             .child(status_badge(&change.status))
             .child(div().w(px(6.0)))
@@ -324,20 +352,17 @@ impl AleraApp {
                             },
                             false,
                         )
-                        .on_mouse_down(
-                            gpui::MouseButton::Left,
-                            cx.listener(move |this, _: &MouseDownEvent, _, cx| {
-                                cx.stop_propagation();
-                                this.run_git_action(
-                                    if staged {
-                                        GitAction::UnstagePath(action_path.clone())
-                                    } else {
-                                        GitAction::StagePath(action_path.clone())
-                                    },
-                                    cx,
-                                );
-                            }),
-                        ),
+                        .on_click(cx.listener(move |this, _, _, cx| {
+                            cx.stop_propagation();
+                            this.run_git_action(
+                                if staged {
+                                    GitAction::UnstagePath(action_path.clone())
+                                } else {
+                                    GitAction::StagePath(action_path.clone())
+                                },
+                                cx,
+                            );
+                        })),
                     )
                     .when(!staged, |actions| {
                         actions.child(
@@ -349,13 +374,12 @@ impl AleraApp {
                                 AleraIcon::GitDiscard,
                                 true,
                             )
-                            .on_mouse_down(
-                                gpui::MouseButton::Left,
-                                cx.listener(move |this, _: &MouseDownEvent, _, cx| {
+                            .on_click(cx.listener(
+                                move |this, _, _, cx| {
                                     cx.stop_propagation();
                                     this.request_discard_path(discard_path.clone(), cx);
-                                }),
-                            ),
+                                },
+                            )),
                         )
                     }),
             )
@@ -458,4 +482,32 @@ fn ancestor_keys(area: &str, path: &str) -> Vec<String> {
     (0..components.len().saturating_sub(1))
         .map(|depth| format!("{area}:{}", components[..=depth].join("/")))
         .collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn tree_leaf_uses_basename_without_losing_action_path() {
+        let change = GitChange {
+            path: "src/components/stats/top-languages-stat.astro".to_owned(),
+            area: "unstaged".to_owned(),
+            status: "M".to_owned(),
+            added: Some(2),
+            removed: Some(1),
+        };
+        let rows = source_tree_rows(&[&change]);
+        let leaf = rows
+            .iter()
+            .find(|row| row.change.is_some())
+            .expect("tree should retain the changed file");
+
+        assert_eq!(leaf.name, "top-languages-stat.astro");
+        assert_eq!(leaf.path, change.path);
+        assert_eq!(
+            leaf.change.map(|entry| entry.path.as_str()),
+            Some(change.path.as_str())
+        );
+    }
 }

@@ -39,6 +39,10 @@ fn application_workspace_panel(
                     .child(
                         div()
                             .id("browse-workspace-directory")
+                            .focusable()
+                            .tab_stop(true)
+                            .role(Role::Button)
+                            .aria_label("Browse Workspace Directory")
                             .flex()
                             .items_center()
                             .justify_center()
@@ -50,9 +54,8 @@ fn application_workspace_panel(
                             .border_color(theme::border())
                             .cursor(CursorStyle::PointingHand)
                             .hover(|style| style.bg(theme::surface_raised()))
-                            .on_mouse_down(
-                                MouseButton::Left,
-                                cx.listener(|this, _: &MouseDownEvent, window, cx| {
+                            .on_click(
+                                cx.listener(|this, _, window, cx| {
                                     this.browse_workspace_directory(window, cx);
                                     cx.stop_propagation();
                                 }),
@@ -317,6 +320,14 @@ fn update_settings_row(settings: &SettingsState, cx: &mut Context<AleraApp>) -> 
                 .child(
                     div()
                         .id("check-for-updates")
+                        .focusable()
+                        .tab_stop(!settings.update_busy)
+                        .role(Role::Button)
+                        .aria_label(if settings.update_busy {
+                            "Checking For Updates"
+                        } else {
+                            "Check For Updates"
+                        })
                         .flex()
                         .items_center()
                         .justify_center()
@@ -335,9 +346,8 @@ fn update_settings_row(settings: &SettingsState, cx: &mut Context<AleraApp>) -> 
                         .when(!settings.update_busy, |button| {
                             button
                                 .hover(|style| style.bg(theme::surface_raised()))
-                                .on_mouse_down(
-                                    MouseButton::Left,
-                                    cx.listener(|this, _: &MouseDownEvent, _, cx| {
+                                .on_click(
+                                    cx.listener(|this, _, _, cx| {
                                         this.check_for_updates(cx);
                                         cx.stop_propagation();
                                     }),
@@ -356,6 +366,10 @@ fn settings_icon_button(
 ) -> gpui::Stateful<gpui::Div> {
     div()
         .id(id)
+        .focusable()
+        .tab_stop(true)
+        .role(Role::Button)
+        .aria_label(label)
         .flex()
         .items_center()
         .justify_center()
@@ -382,6 +396,14 @@ fn skill_install_control(
 ) -> gpui::Div {
     let runner_for_install = runner.to_ascii_lowercase();
     let runner_for_copy = runner_for_install.clone();
+    let runner_label = match skill {
+        "all" => "All Alera Skills Runner",
+        "cli" => "Alera CLI Skill Runner",
+        "orchestration" => "Alera Orchestration Skill Runner",
+        "computer-use" => "Alera Computer Use Skill Runner",
+        "emulator" => "Alera Emulator Skill Runner",
+        _ => "Agent Skill Runner",
+    };
     div()
         .flex()
         .justify_end()
@@ -389,6 +411,8 @@ fn skill_install_control(
         .child(
             div()
                 .id(SharedString::from(format!("{id}-runner")))
+                .role(Role::ComboBox)
+                .aria_label(runner_label)
                 .relative()
                 .w(px(82.0))
                 .h(px(34.0))
@@ -409,6 +433,10 @@ fn skill_install_control(
             control.child(
                 div()
                     .id(SharedString::from(format!("{id}-copy")))
+                    .focusable()
+                    .tab_stop(true)
+                    .role(Role::Button)
+                    .aria_label("Copy")
                     .flex()
                     .items_center()
                     .h(px(34.0))
@@ -419,9 +447,8 @@ fn skill_install_control(
                     .border_color(theme::border())
                     .cursor(CursorStyle::PointingHand)
                     .hover(|style| style.bg(theme::surface_raised()))
-                    .on_mouse_down(
-                        MouseButton::Left,
-                        cx.listener(move |this, _: &MouseDownEvent, _, cx| {
+                    .on_click(
+                        cx.listener(move |this, _, _, cx| {
                             this.copy_agent_skill_command(skill, &runner_for_copy, cx);
                             cx.stop_propagation();
                         }),
@@ -433,6 +460,10 @@ fn skill_install_control(
         .child(
             div()
                 .id(SharedString::from(format!("{id}-install")))
+                .focusable()
+                .tab_stop(true)
+                .role(Role::Button)
+                .aria_label(install_label)
                 .flex()
                 .items_center()
                 .h(px(34.0))
@@ -443,9 +474,8 @@ fn skill_install_control(
                 .border_color(theme::border())
                 .cursor(CursorStyle::PointingHand)
                 .hover(|style| style.bg(theme::surface_raised()))
-                .on_mouse_down(
-                    MouseButton::Left,
-                    cx.listener(move |this, _: &MouseDownEvent, _, cx| {
+                .on_click(
+                    cx.listener(move |this, _, _, cx| {
                         if skill == "all" {
                             this.install_all_agent_skills(&runner_for_install, cx);
                         } else {
@@ -474,9 +504,13 @@ fn agent_hook_row(
     exact_settings_row(
         title,
         description,
-        settings_switch(SharedString::from(format!("agent-hook-{agent}")), enabled).on_mouse_down(
-            MouseButton::Left,
-            cx.listener(move |this, _: &MouseDownEvent, _, cx| {
+        settings_switch(
+            SharedString::from(format!("agent-hook-{agent}")),
+            title,
+            enabled,
+        )
+        .on_click(
+            cx.listener(move |this, _, _, cx| {
                 this.update_agent_settings(
                     |settings| {
                         let enabled = settings
@@ -508,6 +542,16 @@ fn quota_provider_row(
         .iter()
         .any(|candidate| candidate == provider);
     let pinned = !settings.quota_unpinned_keys.contains(provider);
+    let pin_tooltip = if pinned {
+        "Shown In Status Bar"
+    } else {
+        "Hidden From Status Bar - Available In The Quota Panel"
+    };
+    let pin_label: SharedString = if pinned {
+        format!("Unpin {title}").into()
+    } else {
+        format!("Pin {title}").into()
+    };
     exact_settings_row(
         title,
         description,
@@ -524,11 +568,17 @@ fn quota_provider_row(
                     .w(px(32.0))
                     .h(px(32.0))
                     .rounded_md()
+                    .focusable()
+                    .tab_stop(true)
+                    .role(Role::Button)
+                    .aria_label(pin_label)
+                    .tooltip(move |_, cx| {
+                        cx.new(move |_| Tooltip::new(pin_tooltip)).into()
+                    })
                     .cursor(CursorStyle::PointingHand)
                     .hover(|style| style.bg(theme::surface_raised()))
-                    .on_mouse_down(
-                        MouseButton::Left,
-                        cx.listener(move |this, _: &MouseDownEvent, _, cx| {
+                    .on_click(
+                        cx.listener(move |this, _, _, cx| {
                             this.update_quota_settings(
                                 |settings| toggle_quota_pin(settings, provider),
                                 cx,
@@ -553,11 +603,11 @@ fn quota_provider_row(
             .child(
                 settings_switch(
                     SharedString::from(format!("quota-provider-{provider}")),
+                    title,
                     enabled,
                 )
-                .on_mouse_down(
-                    MouseButton::Left,
-                    cx.listener(move |this, _: &MouseDownEvent, _, cx| {
+                .on_click(
+                    cx.listener(move |this, _, _, cx| {
                         this.update_quota_settings(
                             |settings| toggle_quota_provider(settings, provider),
                             cx,
@@ -584,6 +634,6 @@ fn credential_environment_row(title: &'static str, input: &Entity<InputState>) -
     exact_settings_row(
         title,
         "Environment Variable Read On The Active Host. The Secret Value Is Never Stored By Alera.",
-        settings_text_input(input, 220.0, 48.0),
+        settings_text_input(title, input, 220.0, 48.0),
     )
 }

@@ -102,6 +102,16 @@ fn editor_pane(
                                                         let name_for_click = (*name).to_string();
                                                         div()
                                                             .id(("editor-theme", index))
+                                                            .focusable()
+                                                            .tab_stop(true)
+                                                            .role(Role::RadioButton)
+                                                            .aria_label(*name)
+                                                            .aria_selected(selected)
+                                                            .aria_toggled(if selected {
+                                                                Toggled::True
+                                                            } else {
+                                                                Toggled::False
+                                                            })
                                                             .flex()
                                                             .items_center()
                                                             .h(px(28.0))
@@ -114,10 +124,9 @@ fn editor_pane(
                                                             .hover(|style| {
                                                                 style.bg(theme::surface_selected())
                                                             })
-                                                            .on_mouse_down(
-                                                                MouseButton::Left,
+                                                            .on_click(
                                                                 cx.listener(
-                                                                move |this, _: &MouseDownEvent, _, cx| {
+                                                                move |this, _, _, cx| {
                                                                     this.set_editor_theme(
                                                                         name_for_click.clone(),
                                                                         cx,
@@ -143,6 +152,7 @@ fn editor_pane(
                 "Spaces inserted when pressing Tab.",
                 number_input_control(
                     "editor-tab-size",
+                    "Tab Size",
                     settings_input(inputs, "editor-tab-size"),
                     "spaces",
                     1.0,

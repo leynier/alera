@@ -208,8 +208,6 @@ fn build_command(
             let mut command = windowless_async_command(program);
             #[cfg(windows)]
             {
-                use std::os::windows::process::CommandExt;
-
                 command.raw_arg(&raw_arguments);
             }
             #[cfg(not(windows))]

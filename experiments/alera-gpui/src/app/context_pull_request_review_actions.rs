@@ -1,6 +1,6 @@
 use gpui::{
     div, px, AnyElement, Context, CursorStyle, InteractiveElement as _, IntoElement as _,
-    ParentElement as _, Styled as _,
+    ParentElement as _, Role, StatefulInteractiveElement as _, Styled as _,
 };
 use serde_json::json;
 
@@ -156,7 +156,7 @@ impl AleraApp {
             let Some(this) = this.upgrade() else {
                 return;
             };
-            let _ = this.update(cx, |this, cx| {
+            this.update(cx, |this, cx| {
                 this.forge_busy = false;
                 match result {
                     Ok(_) => {
@@ -221,6 +221,9 @@ impl AleraApp {
             )
             .child(
                 div()
+                    .id("pull-request-action-confirmation")
+                    .role(Role::Dialog)
+                    .aria_label(title.clone())
                     .w(px(420.0))
                     .rounded_lg()
                     .border_1()
@@ -252,13 +255,10 @@ impl AleraApp {
                             .mt_5()
                             .child(
                                 confirmation_button("cancel-pr-action", "Cancel", false, false)
-                                    .on_mouse_down(
-                                        gpui::MouseButton::Left,
-                                        cx.listener(|this, _, _, cx| {
-                                            this.forge_review_confirmation = None;
-                                            cx.notify();
-                                        }),
-                                    ),
+                                    .on_click(cx.listener(|this, _, _, cx| {
+                                        this.forge_review_confirmation = None;
+                                        cx.notify();
+                                    })),
                             )
                             .child(
                                 confirmation_button(
@@ -267,12 +267,11 @@ impl AleraApp {
                                     action.destructive(),
                                     true,
                                 )
-                                .on_mouse_down(
-                                    gpui::MouseButton::Left,
-                                    cx.listener(|this, _, _, cx| {
+                                .on_click(cx.listener(
+                                    |this, _, _, cx| {
                                         this.confirm_pull_request_action(cx);
-                                    }),
-                                ),
+                                    },
+                                )),
                             ),
                     ),
             )
@@ -288,6 +287,10 @@ fn confirmation_button(
 ) -> gpui::Stateful<gpui::Div> {
     div()
         .id(id)
+        .focusable()
+        .tab_stop(true)
+        .role(Role::Button)
+        .aria_label(label)
         .flex()
         .items_center()
         .justify_center()

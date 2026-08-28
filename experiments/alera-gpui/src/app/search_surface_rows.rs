@@ -1,8 +1,9 @@
 use std::collections::BTreeMap;
+use std::rc::Rc;
 
 use gpui::{
-    div, prelude::FluentBuilder as _, px, AnyElement, Context, CursorStyle, FontWeight,
-    HighlightStyle, InteractiveElement as _, IntoElement as _, MouseButton, ParentElement as _,
+    div, list, prelude::FluentBuilder as _, px, AnyElement, Context, CursorStyle, FontWeight,
+    HighlightStyle, InteractiveElement as _, IntoElement as _, ParentElement as _, Role,
     SharedString, StatefulInteractiveElement as _, StrikethroughStyle, Styled as _, StyledText,
 };
 
@@ -19,6 +20,7 @@ struct SearchTreeDirectory {
     files: Vec<SearchFile>,
 }
 
+#[derive(Clone)]
 enum SearchRenderRow {
     Directory {
         name: String,
@@ -46,13 +48,37 @@ impl AleraApp {
             self.search_view_as_tree,
             &self.search_collapsed_result_paths,
         );
+        if self.search_list_state.item_count() != rows.len() {
+            self.search_list_state.reset(rows.len());
+        }
+        let rows_empty = rows.is_empty();
+        let virtual_rows = if rows_empty {
+            None
+        } else {
+            let rows = Rc::new(rows);
+            let entity = cx.entity().downgrade();
+            Some(
+                list(self.search_list_state.clone(), move |index, _, cx| {
+                    let Some(row) = rows.get(index).cloned() else {
+                        return div().into_any_element();
+                    };
+                    entity
+                        .upgrade()
+                        .map(|entity| {
+                            entity.update(cx, |this, cx| this.render_search_result_row(row, cx))
+                        })
+                        .unwrap_or_else(|| div().into_any_element())
+                })
+                .size_full()
+                .into_any_element(),
+            )
+        };
         div()
             .id("search-results")
             .flex()
             .flex_col()
             .flex_1()
             .min_h_0()
-            .overflow_y_scroll()
             .when(self.search_results.truncated, |results| {
                 results.child(
                     div()
@@ -79,35 +105,42 @@ impl AleraApp {
                     )
                 },
             )
-            .when(self.search_busy && rows.is_empty(), |results| {
+            .when(self.search_busy && rows_empty, |results| {
                 results.child(
                     div()
+                        .id("search-loading")
+                        .role(Role::ProgressIndicator)
+                        .aria_label("Searching")
                         .flex()
                         .flex_1()
                         .min_h(px(160.0))
                         .w_full()
                         .items_center()
                         .justify_center()
-                        .child(loading_indicator(20.0, theme::text_muted())),
+                        .child(loading_indicator(36.0, theme::text_muted())),
                 )
             })
-            .children(rows.into_iter().map(|row| match row {
-                SearchRenderRow::Directory {
-                    name,
-                    path,
-                    depth,
-                    match_count,
-                } => self.render_search_directory_row(name, path, depth, match_count, cx),
-                SearchRenderRow::File {
-                    file,
-                    depth,
-                    show_directory,
-                } => self.render_search_file_row(file, depth, show_directory, cx),
-                SearchRenderRow::Match { path, item, depth } => {
-                    self.render_search_match_row(path, item, depth, cx)
-                }
-            }))
+            .when_some(virtual_rows, |results, rows| results.child(rows))
             .into_any_element()
+    }
+
+    fn render_search_result_row(&self, row: SearchRenderRow, cx: &mut Context<Self>) -> AnyElement {
+        match row {
+            SearchRenderRow::Directory {
+                name,
+                path,
+                depth,
+                match_count,
+            } => self.render_search_directory_row(name, path, depth, match_count, cx),
+            SearchRenderRow::File {
+                file,
+                depth,
+                show_directory,
+            } => self.render_search_file_row(file, depth, show_directory, cx),
+            SearchRenderRow::Match { path, item, depth } => {
+                self.render_search_match_row(path, item, depth, cx)
+            }
+        }
     }
 
     fn render_search_directory_row(
@@ -120,8 +153,13 @@ impl AleraApp {
     ) -> AnyElement {
         let key = format!("dir:{path}");
         let collapsed = self.search_collapsed_result_paths.contains(&key);
+        let accessibility_name = format!("Toggle {name}");
         div()
             .id(SharedString::from(format!("search-directory-{path}")))
+            .focusable()
+            .tab_stop(true)
+            .role(Role::Button)
+            .aria_label(accessibility_name)
             .flex()
             .items_center()
             .py(px(6.0))
@@ -130,15 +168,12 @@ impl AleraApp {
             .gap(px(4.0))
             .cursor(CursorStyle::PointingHand)
             .hover(|style| style.bg(theme::surface_selected()))
-            .on_mouse_down(
-                MouseButton::Left,
-                cx.listener(move |this, _, _, cx| {
-                    if !this.search_collapsed_result_paths.insert(key.clone()) {
-                        this.search_collapsed_result_paths.remove(&key);
-                    }
-                    cx.notify();
-                }),
-            )
+            .on_click(cx.listener(move |this, _, _, cx| {
+                if !this.search_collapsed_result_paths.insert(key.clone()) {
+                    this.search_collapsed_result_paths.remove(&key);
+                }
+                cx.notify();
+            }))
             .child(icon(
                 if collapsed {
                     AleraIcon::ChevronRight
@@ -193,8 +228,16 @@ impl AleraApp {
             .collect::<Vec<_>>();
         let (name, directory) = split_path(&file.relative_path);
         let can_replace = self.search_replace_expanded && !self.search_busy;
+        let accessibility_name = format!("Toggle {}", file.relative_path);
         div()
-            .id(SharedString::from(format!("search-file-{}", file.relative_path)))
+            .id(SharedString::from(format!(
+                "search-file-{}",
+                file.relative_path
+            )))
+            .focusable()
+            .tab_stop(true)
+            .role(Role::Button)
+            .aria_label(accessibility_name)
             .flex()
             .items_center()
             .py(px(6.0))
@@ -203,15 +246,12 @@ impl AleraApp {
             .gap(px(4.0))
             .cursor(CursorStyle::PointingHand)
             .hover(|style| style.bg(theme::surface_selected()))
-            .on_mouse_down(
-                MouseButton::Left,
-                cx.listener(move |this, _, _, cx| {
-                    if !this.search_collapsed_result_paths.insert(key.clone()) {
-                        this.search_collapsed_result_paths.remove(&key);
-                    }
-                    cx.notify();
-                }),
-            )
+            .on_click(cx.listener(move |this, _, _, cx| {
+                if !this.search_collapsed_result_paths.insert(key.clone()) {
+                    this.search_collapsed_result_paths.remove(&key);
+                }
+                cx.notify();
+            }))
             .child(icon(
                 if collapsed {
                     AleraIcon::ChevronRight
@@ -270,15 +310,13 @@ impl AleraApp {
                     AleraIcon::Replace,
                     can_replace,
                     false,
+                    "Replace in file",
                 )
                 .when(can_replace, |button| {
-                    button.on_mouse_down(
-                        MouseButton::Left,
-                        cx.listener(move |this, _, _, cx| {
-                            this.request_replace(ids.clone(), cx);
-                            cx.stop_propagation();
-                        }),
-                    )
+                    button.on_click(cx.listener(move |this, _, _, cx| {
+                        this.request_replace(ids.clone(), cx);
+                        cx.stop_propagation();
+                    }))
                 }),
             )
             .into_any_element()
@@ -298,8 +336,15 @@ impl AleraApp {
         let match_id = item.id.clone();
         let can_replace = self.search_replace_expanded && !self.search_busy;
         let preview = styled_match_preview(&item, self.search_replace_expanded);
+        let accessibility_name = format!("Open {path} line {line}");
         div()
-            .id(SharedString::from(format!("search-match-{path}-{match_id}")))
+            .id(SharedString::from(format!(
+                "search-match-{path}-{match_id}"
+            )))
+            .focusable()
+            .tab_stop(true)
+            .role(Role::Button)
+            .aria_label(accessibility_name)
             .flex()
             .items_start()
             .pt(px(4.0))
@@ -308,19 +353,9 @@ impl AleraApp {
             .pl(px(8.0 + depth as f32 * 16.0))
             .cursor(CursorStyle::PointingHand)
             .hover(|style| style.bg(theme::surface_selected()))
-            .on_mouse_down(
-                MouseButton::Left,
-                cx.listener(move |this, _, window, cx| {
-                    this.open_search_match(
-                        open_path.clone(),
-                        line,
-                        column,
-                        match_length,
-                        window,
-                        cx,
-                    );
-                }),
-            )
+            .on_click(cx.listener(move |this, _, window, cx| {
+                this.open_search_match(open_path.clone(), line, column, match_length, window, cx);
+            }))
             .child(
                 div()
                     .w(px(32.0))
@@ -349,15 +384,13 @@ impl AleraApp {
                     AleraIcon::Replace,
                     can_replace,
                     false,
+                    "Replace match",
                 )
                 .when(can_replace, |button| {
-                    button.on_mouse_down(
-                        MouseButton::Left,
-                        cx.listener(move |this, _, _, cx| {
-                            this.request_replace(vec![match_id.clone()], cx);
-                            cx.stop_propagation();
-                        }),
-                    )
+                    button.on_click(cx.listener(move |this, _, _, cx| {
+                        this.request_replace(vec![match_id.clone()], cx);
+                        cx.stop_propagation();
+                    }))
                 }),
             )
             .into_any_element()

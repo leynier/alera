@@ -4,10 +4,12 @@ mod app_log;
 mod app_menu;
 mod assets;
 mod design_system;
+mod editor_theme;
 mod file_icons;
 mod forge_api;
 mod forge_service;
 mod icons;
+mod markdown_images;
 mod material_icon_layers;
 pub use alera_desktop_core::model;
 pub use alera_desktop_core::runtime_bridge;
@@ -18,14 +20,11 @@ mod theme;
 mod workspace_git;
 mod workspace_service;
 
-use std::path::PathBuf;
+use std::{path::PathBuf, sync::Arc};
 
 use app::AleraApp;
 use assets::AleraAssets;
-use gpui::{
-    px, size, App, AppContext as _, Application, Bounds, TitlebarOptions, WindowBounds,
-    WindowOptions,
-};
+use gpui::{px, size, App, AppContext as _, Bounds, TitlebarOptions, WindowBounds, WindowOptions};
 use gpui_component::Root;
 use runtime_bridge::RuntimeBridge;
 
@@ -35,11 +34,13 @@ fn main() {
     let _crash_reporting = app_log::init_crash_reporting(false);
     let bridge = RuntimeBridge::start(runtime_dir());
     let app_name = app_display_name();
-    Application::new()
+    gpui_platform::application()
         .with_assets(AleraAssets)
+        .with_http_client(Arc::new(markdown_images::AleraImageHttpClient::new()))
         .run(move |cx: &mut App| {
             gpui_component::init(cx);
             icons::register_fonts(cx);
+            editor_theme::register_editor_languages();
             design_system::configure_component_theme(cx);
             app::register_keyboard_actions(cx);
             let bridge = bridge.clone();
@@ -58,7 +59,12 @@ fn main() {
                 move |window, cx| {
                     let app = cx.new(|cx| AleraApp::new(bridge, window, cx));
                     app_menu::install(app_name, &app, window.window_handle(), cx);
-                    cx.new(|cx| Root::new(app, window, cx))
+                    let root = cx.new(|cx| Root::new(app.clone(), window, cx));
+                    // Root must retain the app before startup spawns weak-entity
+                    // tasks. Starting immediately afterwards also covers a
+                    // bridge that connected before the first frame or defer.
+                    app.update(cx, |app, cx| app.start(window, cx));
+                    root
                 },
             )
             .expect("failed to open the Alera GPUI window");
@@ -77,7 +83,10 @@ fn runtime_dir() -> PathBuf {
     std::env::var_os("ALERA_RUNTIME_DIR")
         .map(PathBuf::from)
         .or_else(|| {
-            dirs::data_local_dir().map(|data| data.join("dev.leynier.alera").join("terminal_host"))
+            let app_id = std::env::var_os("ALERA_APP_ID")
+                .filter(|value| !value.is_empty())
+                .unwrap_or_else(|| "dev.leynier.alera.dev".into());
+            dirs::data_local_dir().map(|data| data.join(app_id).join("terminal_host"))
         })
         .expect("failed to resolve the Alera runtime directory")
 }

@@ -1,19 +1,41 @@
 use gpui::{
-    div, prelude::FluentBuilder as _, px, AnyElement, Context, CursorStyle,
-    InteractiveElement as _, IntoElement as _, MouseButton, ParentElement as _, SharedString,
-    Styled as _, Window,
+    div, prelude::FluentBuilder as _, px, AnyElement, AppContext as _, Context, CursorStyle,
+    InteractiveElement as _, IntoElement as _, ParentElement as _, Role, SharedString,
+    StatefulInteractiveElement as _, Styled as _, Toggled, Window,
 };
-use std::time::Duration;
+use std::{collections::BTreeSet, time::Duration};
 
 use super::AleraApp;
 use crate::design_system;
 use crate::icons::{icon, loading_indicator, AleraIcon};
 use crate::theme;
-use crate::workspace_service::SearchOptions;
+use crate::workspace_service::{ReplaceSummary, SearchOptions};
+use gpui_component::tooltip::Tooltip;
 
 impl AleraApp {
     pub(super) fn schedule_workspace_search(&mut self, cx: &mut Context<Self>) {
+        self.cancel_active_workspace_search(cx);
         self.search_input_generation += 1;
+        self.search_generation += 1;
+        if self.current_search_options(cx).is_none() {
+            self.search_busy = false;
+            self.search_replacing = false;
+            self.search_results = Default::default();
+            self.search_error = None;
+            self.search_error_is_query_failure = false;
+            self.search_collapsed_result_paths.clear();
+            cx.notify();
+            return;
+        }
+        // Flutter enters loading as soon as the input changes, including the
+        // 250 ms debounce window, and removes results from the previous query.
+        self.search_busy = true;
+        self.search_replacing = false;
+        self.search_results = Default::default();
+        self.search_error = None;
+        self.search_error_is_query_failure = false;
+        self.search_collapsed_result_paths.clear();
+        cx.notify();
         let generation = self.search_input_generation;
         cx.spawn(async move |this, cx| {
             cx.background_executor()
@@ -22,11 +44,24 @@ impl AleraApp {
             let Some(this) = this.upgrade() else {
                 return;
             };
-            let _ = this.update(cx, |this, cx| {
+            this.update(cx, |this, cx| {
                 if generation == this.search_input_generation {
                     this.search_workspace(cx);
                 }
             });
+        })
+        .detach();
+    }
+
+    pub(super) fn cancel_active_workspace_search(&mut self, cx: &mut Context<Self>) {
+        let Some(request_id) = self.search_active_request_id.take() else {
+            return;
+        };
+        let service = self.workspace_service.clone();
+        cx.spawn(async move |_, _| {
+            // Older hosts do not expose the additive cancel verb. Stale
+            // generations are still ignored, so cancellation stays best effort.
+            let _ = service.cancel_search(request_id).await;
         })
         .detach();
     }
@@ -50,6 +85,7 @@ impl AleraApp {
     }
 
     pub(super) fn search_workspace(&mut self, cx: &mut Context<Self>) {
+        self.cancel_active_workspace_search(cx);
         let Some(options) = self.current_search_options(cx) else {
             self.search_generation += 1;
             self.search_busy = false;
@@ -63,28 +99,36 @@ impl AleraApp {
         };
         self.search_generation += 1;
         let generation = self.search_generation;
+        let request_id = format!(
+            "gpui:{}:{generation}:{}",
+            std::process::id(),
+            options.workspace_path
+        );
+        self.search_active_request_id = Some(request_id.clone());
         self.search_busy = true;
         self.search_replacing = false;
         self.search_error = None;
         self.search_error_is_query_failure = false;
-        self.replace_confirmation = None;
         let service = self.workspace_service.clone();
         let replacement = self.replace_input.read(cx).value().to_string();
         let preserve_case = self.search_preserve_case;
         cx.spawn(async move |this, cx| {
             let result = if replacement.is_empty() {
-                service.search(options).await
+                service.search(options, request_id.clone()).await
             } else {
                 service
-                    .preview_replace(options, replacement, preserve_case)
+                    .preview_replace(options, replacement, preserve_case, request_id.clone())
                     .await
             };
             let Some(this) = this.upgrade() else {
                 return;
             };
-            let _ = this.update(cx, |this, cx| {
+            this.update(cx, |this, cx| {
                 if generation != this.search_generation {
                     return;
+                }
+                if this.search_active_request_id.as_deref() == Some(request_id.as_str()) {
+                    this.search_active_request_id = None;
                 }
                 this.search_busy = false;
                 this.search_replacing = false;
@@ -94,7 +138,6 @@ impl AleraApp {
                         this.search_results = results;
                         this.search_error = None;
                         this.search_error_is_query_failure = false;
-                        this.local_message = None;
                     }
                     Err(error) => {
                         // Flutter discards stale/partial matches when the search request fails.
@@ -102,7 +145,6 @@ impl AleraApp {
                         this.search_collapsed_result_paths.clear();
                         this.search_error = Some(error.into());
                         this.search_error_is_query_failure = true;
-                        this.local_message = None;
                     }
                 }
                 cx.notify();
@@ -140,7 +182,6 @@ impl AleraApp {
                             || file.matches.iter().any(|item| match_ids.contains(&item.id)))
                 });
                 if affects_dirty_file {
-                    self.replace_confirmation = None;
                     let message: SharedString =
                         format!("Save or discard {opened_path} before replacing.").into();
                     self.local_message = Some(message.clone());
@@ -152,25 +193,6 @@ impl AleraApp {
             }
         }
 
-        let confirmation = (
-            options.query.clone(),
-            replacement.clone(),
-            self.search_results.total_matches,
-        );
-        if replace_all && self.replace_confirmation.as_ref() != Some(&confirmation) {
-            self.replace_confirmation = Some(confirmation);
-            self.search_error_is_query_failure = false;
-            self.local_message = Some(
-                format!(
-                    "Confirm Replacing {} Matches By Clicking Replace All Again",
-                    self.search_results.total_matches
-                )
-                .into(),
-            );
-            cx.notify();
-            return;
-        }
-
         let expected_files = self
             .search_results
             .files
@@ -180,6 +202,15 @@ impl AleraApp {
             })
             .map(|file| (file.relative_path.clone(), file.content_token.clone()))
             .collect::<Vec<_>>();
+        let match_ids = if replace_all {
+            self.search_results
+                .files
+                .iter()
+                .flat_map(|file| file.matches.iter().map(|item| item.id.clone()))
+                .collect()
+        } else {
+            match_ids
+        };
         self.search_generation += 1;
         let generation = self.search_generation;
         self.search_busy = true;
@@ -187,46 +218,29 @@ impl AleraApp {
         let service = self.workspace_service.clone();
         let preserve_case = self.search_preserve_case;
         cx.spawn(async move |this, cx| {
-            let result = if replace_all {
-                service
-                    .replace_all(options, replacement, preserve_case)
-                    .await
-            } else {
-                service
-                    .replace_matches(
-                        options,
-                        replacement,
-                        preserve_case,
-                        match_ids,
-                        expected_files,
-                    )
-                    .await
-            };
+            // Use the exact matches and content tokens from the visible preview.
+            // Recomputing the preview here would hide edits made before confirmation.
+            let result = service
+                .replace_matches(
+                    options,
+                    replacement,
+                    preserve_case,
+                    match_ids,
+                    expected_files,
+                )
+                .await;
             let Some(this) = this.upgrade() else {
                 return;
             };
-            let _ = this.update(cx, |this, cx| {
+            this.update(cx, |this, cx| {
                 if generation != this.search_generation {
                     return;
                 }
                 this.search_busy = false;
                 this.search_replacing = false;
-                this.replace_confirmation = None;
                 match result {
                     Ok(summary) => {
-                        this.local_message = Some(
-                            format!(
-                                "Replaced {} Matches In {} Files{}",
-                                summary.matches_replaced,
-                                summary.files_changed,
-                                if summary.conflicts.is_empty() {
-                                    String::new()
-                                } else {
-                                    format!(", {} Conflicts", summary.conflicts.len())
-                                }
-                            )
-                            .into(),
-                        );
+                        this.local_message = Some(replace_feedback(&summary).into());
                         this.search_workspace(cx);
                     }
                     Err(error) => {
@@ -241,6 +255,8 @@ impl AleraApp {
     }
 
     fn clear_search(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        self.cancel_active_workspace_search(cx);
+        self.search_generation += 1;
         for input in [
             &self.search_input,
             &self.replace_input,
@@ -250,11 +266,11 @@ impl AleraApp {
             input.update(cx, |input, cx| input.set_value("", window, cx));
         }
         self.search_results = Default::default();
+        self.search_busy = false;
         self.search_replacing = false;
         self.search_error = None;
         self.search_error_is_query_failure = false;
         self.search_collapsed_result_paths.clear();
-        self.replace_confirmation = None;
         self.local_message = None;
         cx.notify();
     }
@@ -325,9 +341,6 @@ impl AleraApp {
                         .pb_2()
                         .text_size(px(12.0))
                         .text_color(theme::text_muted())
-                        .when(self.search_busy && !self.search_replacing, |row| {
-                            row.child(loading_indicator(13.0, theme::text_muted()))
-                        })
                         .child(if self.search_busy {
                             if self.search_replacing {
                                 let match_word = if self.search_results.total_matches == 1 {
@@ -430,17 +443,17 @@ impl AleraApp {
             .child(
                 design_system::icon_button(
                     "clear-search-results",
+                    "Clear search results",
                     AleraIcon::Close,
                     can_clear,
-                    24.0,
+                    30.0,
                     None,
                     None,
                 )
+                .tooltip(|_, cx| cx.new(|_| Tooltip::new("Clear search results")).into())
                 .when(can_clear, |button| {
-                    button.on_mouse_down(
-                        MouseButton::Left,
-                        cx.listener(|this, _, window, cx| this.clear_search(window, cx)),
-                    )
+                    button
+                        .on_click(cx.listener(|this, _, window, cx| this.clear_search(window, cx)))
                 }),
             )
             .child(toolbar_gap())
@@ -448,102 +461,140 @@ impl AleraApp {
                 design_system::icon_button(
                     "toggle-search-ignored",
                     if self.search_include_ignored {
+                        "Ignore ignored files"
+                    } else {
+                        "Search ignored files"
+                    },
+                    if self.search_include_ignored {
                         AleraIcon::Visible
                     } else {
                         AleraIcon::Hidden
                     },
                     true,
-                    24.0,
+                    30.0,
                     self.search_include_ignored
                         .then_some(theme::surface_raised()),
                     self.search_include_ignored.then_some(theme::border()),
                 )
-                .on_mouse_down(
-                    MouseButton::Left,
-                    cx.listener(|this, _, _, cx| {
-                        this.search_include_ignored = !this.search_include_ignored;
-                        if !this.search_input.read(cx).value().trim().is_empty() {
-                            this.search_workspace(cx);
-                        } else {
-                            cx.notify();
-                        }
-                        }),
-                ),
+                .tooltip({
+                    let label = if self.search_include_ignored {
+                        "Ignore ignored files"
+                    } else {
+                        "Search ignored files"
+                    };
+                    move |_, cx| {
+                        let label = label.to_owned();
+                        cx.new(move |_| Tooltip::new(label)).into()
+                    }
+                })
+                .on_click(cx.listener(|this, _, _, cx| {
+                    this.search_include_ignored = !this.search_include_ignored;
+                    if !this.search_input.read(cx).value().trim().is_empty() {
+                        this.search_workspace(cx);
+                    } else {
+                        cx.notify();
+                    }
+                })),
             )
             .child(toolbar_gap())
             .child(
                 design_system::icon_button(
                     "toggle-search-tree",
                     if self.search_view_as_tree {
+                        "View as list"
+                    } else {
+                        "View as tree"
+                    },
+                    if self.search_view_as_tree {
                         AleraIcon::List
                     } else {
                         AleraIcon::GitGraph
                     },
                     true,
-                    24.0,
+                    30.0,
                     None,
                     None,
                 )
-                .on_mouse_down(
-                    MouseButton::Left,
-                    cx.listener(|this, _, _, cx| {
-                        this.search_view_as_tree = !this.search_view_as_tree;
-                        this.search_collapsed_result_paths.clear();
-                        cx.notify();
-                    }),
-                ),
+                .tooltip({
+                    let label = if self.search_view_as_tree {
+                        "View as list"
+                    } else {
+                        "View as tree"
+                    };
+                    move |_, cx| {
+                        let label = label.to_owned();
+                        cx.new(move |_| Tooltip::new(label)).into()
+                    }
+                })
+                .on_click(cx.listener(|this, _, _, cx| {
+                    this.search_view_as_tree = !this.search_view_as_tree;
+                    this.search_collapsed_result_paths.clear();
+                    cx.notify();
+                })),
             )
             .child(toolbar_gap())
             .child(
                 design_system::icon_button(
                     "toggle-all-search-results",
                     if all_collapsed {
+                        "Expand All"
+                    } else {
+                        "Collapse All"
+                    },
+                    if all_collapsed {
                         AleraIcon::ExpandAll
                     } else {
                         AleraIcon::CollapseAll
                     },
                     has_results,
-                    24.0,
+                    30.0,
                     None,
                     None,
                 )
+                .tooltip({
+                    let label = if all_collapsed {
+                        "Expand All"
+                    } else {
+                        "Collapse All"
+                    };
+                    move |_, cx| {
+                        let label = label.to_owned();
+                        cx.new(move |_| Tooltip::new(label)).into()
+                    }
+                })
                 .when(has_results, |button| {
-                    button.on_mouse_down(
-                        MouseButton::Left,
-                        cx.listener(move |this, _, _, cx| {
-                            this.search_collapsed_result_paths.clear();
-                            if !all_collapsed {
-                                this.search_collapsed_result_paths.extend(
-                                    super::search_surface_rows::search_collapsible_keys(
-                                        &this.search_results.files,
-                                        this.search_view_as_tree,
-                                    ),
-                                );
-                            }
-                            cx.notify();
-                        }),
-                    )
+                    button.on_click(cx.listener(move |this, _, _, cx| {
+                        this.search_collapsed_result_paths.clear();
+                        if !all_collapsed {
+                            this.search_collapsed_result_paths.extend(
+                                super::search_surface_rows::search_collapsible_keys(
+                                    &this.search_results.files,
+                                    this.search_view_as_tree,
+                                ),
+                            );
+                        }
+                        cx.notify();
+                    }))
                 }),
             )
             .child(toolbar_gap())
             .child(
                 design_system::icon_button(
                     "refresh-search",
+                    "Refresh",
                     if self.search_busy {
                         AleraIcon::Loading
                     } else {
                         AleraIcon::Refresh
                     },
                     has_query && !self.search_busy,
-                    24.0,
+                    30.0,
                     None,
                     None,
                 )
+                .tooltip(|_, cx| cx.new(|_| Tooltip::new("Refresh")).into())
                 .when(has_query && !self.search_busy, |button| {
-                    button.on_mouse_down(
-                        MouseButton::Left,
-                        cx.listener(|this, _, _, cx| this.search_workspace(cx)),
-                    )
+                    button.on_click(cx.listener(|this, _, _, cx| this.search_workspace(cx)))
                 }),
             )
             .into_any_element()
@@ -568,20 +619,24 @@ impl AleraApp {
                     .child(
                         div()
                             .id("toggle-search-replace")
+                            .focusable()
+                            .tab_stop(true)
+                            .role(Role::Button)
+                            .aria_label(if self.search_replace_expanded {
+                                "Hide replace"
+                            } else {
+                                "Show replace"
+                            })
                             .flex()
                             .items_center()
                             .justify_center()
                             .w(px(16.0))
                             .h(px(16.0))
                             .cursor(CursorStyle::PointingHand)
-                            .on_mouse_down(
-                                MouseButton::Left,
-                                cx.listener(|this, _, _, cx| {
-                                    this.search_replace_expanded = !this.search_replace_expanded;
-                                    this.replace_confirmation = None;
-                                    cx.notify();
-                                }),
-                            )
+                            .on_click(cx.listener(|this, _, _, cx| {
+                                this.search_replace_expanded = !this.search_replace_expanded;
+                                cx.notify();
+                            }))
                             .child(icon(
                                 if self.search_replace_expanded {
                                     AleraIcon::ChevronDown
@@ -606,43 +661,37 @@ impl AleraApp {
                                             "Aa",
                                             self.search_case_sensitive,
                                             true,
+                                            "Match case",
                                         )
-                                        .on_mouse_down(
-                                            MouseButton::Left,
-                                            cx.listener(|this, _, _, cx| {
-                                                this.search_case_sensitive =
-                                                    !this.search_case_sensitive;
-                                                this.search_workspace(cx);
-                                            }),
-                                        )
+                                        .on_click(cx.listener(|this, _, _, cx| {
+                                            this.search_case_sensitive =
+                                                !this.search_case_sensitive;
+                                            this.search_workspace(cx);
+                                        }))
                                         .into_any_element(),
                                         search_toggle(
                                             "search-word",
                                             "ab",
                                             self.search_whole_word,
                                             true,
+                                            "Match whole word",
                                         )
-                                        .on_mouse_down(
-                                            MouseButton::Left,
-                                            cx.listener(|this, _, _, cx| {
-                                                this.search_whole_word = !this.search_whole_word;
-                                                this.search_workspace(cx);
-                                            }),
-                                        )
+                                        .on_click(cx.listener(|this, _, _, cx| {
+                                            this.search_whole_word = !this.search_whole_word;
+                                            this.search_workspace(cx);
+                                        }))
                                         .into_any_element(),
                                         search_toggle(
                                             "search-regex",
                                             ".*",
                                             self.search_use_regex,
                                             true,
+                                            "Use regular expression",
                                         )
-                                        .on_mouse_down(
-                                            MouseButton::Left,
-                                            cx.listener(|this, _, _, cx| {
-                                                this.search_use_regex = !this.search_use_regex;
-                                                this.search_workspace(cx);
-                                            }),
-                                        )
+                                        .on_click(cx.listener(|this, _, _, cx| {
+                                            this.search_use_regex = !this.search_use_regex;
+                                            this.search_workspace(cx);
+                                        }))
                                         .into_any_element(),
                                     ]),
                                 ),
@@ -659,30 +708,25 @@ impl AleraApp {
                                                 "AB",
                                                 self.search_preserve_case,
                                                 true,
+                                                "Preserve case",
                                             )
-                                            .on_mouse_down(
-                                                MouseButton::Left,
-                                                cx.listener(|this, _, _, cx| {
-                                                    this.search_preserve_case =
-                                                        !this.search_preserve_case;
-                                                    this.replace_confirmation = None;
-                                                    this.search_workspace(cx);
-                                                }),
-                                            )
+                                            .on_click(cx.listener(|this, _, _, cx| {
+                                                this.search_preserve_case =
+                                                    !this.search_preserve_case;
+                                                this.search_workspace(cx);
+                                            }))
                                             .into_any_element(),
                                             search_icon_button(
                                                 "replace-all-search-results",
                                                 AleraIcon::CheckCheck,
                                                 can_replace,
                                                 false,
+                                                "Replace all",
                                             )
                                             .when(can_replace, |button| {
-                                                button.on_mouse_down(
-                                                    MouseButton::Left,
-                                                    cx.listener(|this, _, _, cx| {
-                                                        this.request_replace(Vec::new(), cx);
-                                                    }),
-                                                )
+                                                button.on_click(cx.listener(|this, _, _, cx| {
+                                                    this.request_replace(Vec::new(), cx);
+                                                }))
                                             })
                                             .into_any_element(),
                                         ])),
@@ -697,14 +741,16 @@ impl AleraApp {
                         AleraIcon::More,
                         true,
                         details_active,
+                        if details_active {
+                            "Hide details"
+                        } else {
+                            "Show details"
+                        },
                     )
-                    .on_mouse_down(
-                        MouseButton::Left,
-                        cx.listener(|this, _, _, cx| {
-                            this.search_details_expanded = !this.search_details_expanded;
-                            cx.notify();
-                        }),
-                    ),
+                    .on_click(cx.listener(|this, _, _, cx| {
+                        this.search_details_expanded = !this.search_details_expanded;
+                        cx.notify();
+                    })),
                 ),
             )
             .when(self.search_details_expanded, |inputs| {
@@ -716,6 +762,7 @@ impl AleraApp {
                                 AleraIcon::LayoutGrid,
                                 false,
                                 false,
+                                "Files to include",
                             )
                             .into_any_element()]),
                         ),
@@ -728,12 +775,51 @@ impl AleraApp {
                                 AleraIcon::TextSearch,
                                 false,
                                 false,
+                                "Files to exclude",
                             )
                             .into_any_element()]),
                         ),
                     )
             })
             .into_any_element()
+    }
+}
+
+fn replace_feedback(summary: &ReplaceSummary) -> String {
+    if summary.conflicts.is_empty() {
+        let match_word = if summary.matches_replaced == 1 {
+            "match"
+        } else {
+            "matches"
+        };
+        return format!("Replaced {} {match_word}.", summary.matches_replaced);
+    }
+
+    let skipped = summary
+        .conflicts
+        .iter()
+        .map(|conflict| conflict.relative_path.as_str())
+        .collect::<BTreeSet<_>>()
+        .len();
+    let skipped_files = if skipped == 1 {
+        "1 file".to_string()
+    } else {
+        format!("{skipped} files")
+    };
+    let first = &summary.conflicts[0];
+    let first_reason = format!("{}: {}", first.relative_path, first.reason);
+    if summary.matches_replaced > 0 {
+        let match_word = if summary.matches_replaced == 1 {
+            "match"
+        } else {
+            "matches"
+        };
+        format!(
+            "Replaced {} {match_word}. {skipped_files} skipped. {first_reason}",
+            summary.matches_replaced
+        )
+    } else {
+        format!("Replace skipped {skipped_files}. {first_reason}")
     }
 }
 
@@ -764,9 +850,21 @@ pub(super) fn search_toggle(
     label: impl Into<SharedString>,
     selected: bool,
     enabled: bool,
+    tooltip: impl Into<SharedString>,
 ) -> gpui::Stateful<gpui::Div> {
+    let label = label.into();
+    let tooltip = tooltip.into();
     div()
         .id(id)
+        .focusable()
+        .tab_stop(enabled)
+        .role(Role::Button)
+        .aria_label(tooltip.clone())
+        .aria_toggled(if selected {
+            Toggled::True
+        } else {
+            Toggled::False
+        })
         .flex()
         .items_center()
         .justify_center()
@@ -799,7 +897,13 @@ pub(super) fn search_toggle(
                 .cursor(CursorStyle::PointingHand)
                 .hover(|style| style.bg(theme::surface_selected()))
         })
-        .child(label.into())
+        .tooltip({
+            move |_, cx| {
+                let tooltip = tooltip.clone();
+                cx.new(move |_| Tooltip::new(tooltip)).into()
+            }
+        })
+        .child(label)
 }
 
 pub(super) fn search_icon_button(
@@ -807,9 +911,15 @@ pub(super) fn search_icon_button(
     icon_kind: AleraIcon,
     enabled: bool,
     selected: bool,
+    tooltip: impl Into<SharedString>,
 ) -> gpui::Stateful<gpui::Div> {
+    let tooltip = tooltip.into();
     div()
         .id(id)
+        .focusable()
+        .tab_stop(enabled)
+        .role(Role::Button)
+        .aria_label(tooltip.clone())
         .flex()
         .items_center()
         .justify_center()
@@ -827,6 +937,12 @@ pub(super) fn search_icon_button(
                 .cursor(CursorStyle::PointingHand)
                 .hover(|style| style.bg(theme::surface_selected()))
         })
+        .tooltip({
+            move |_, cx| {
+                let tooltip = tooltip.clone();
+                cx.new(move |_| Tooltip::new(tooltip)).into()
+            }
+        })
         .child(icon(
             icon_kind,
             14.0,
@@ -840,4 +956,31 @@ pub(super) fn search_icon_button(
                 theme::text_faint()
             },
         ))
+}
+
+#[cfg(test)]
+mod replace_feedback_tests {
+    use super::*;
+    use crate::workspace_service::ReplaceConflict;
+
+    #[test]
+    fn feedback_matches_flutter_for_success_and_conflicts() {
+        assert_eq!(
+            replace_feedback(&ReplaceSummary {
+                matches_replaced: 1,
+                conflicts: Vec::new(),
+            }),
+            "Replaced 1 match."
+        );
+        assert_eq!(
+            replace_feedback(&ReplaceSummary {
+                matches_replaced: 0,
+                conflicts: vec![ReplaceConflict {
+                    relative_path: "note.txt".to_string(),
+                    reason: "File changed on disk".to_string(),
+                }],
+            }),
+            "Replace skipped 1 file. note.txt: File changed on disk"
+        );
+    }
 }

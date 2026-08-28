@@ -15,6 +15,12 @@ impl AleraApp {
     pub fn start(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         self.connection_label = "Runtime Starting".into();
         self.apply_saved_keyboard_overrides(cx);
+        self._subscriptions
+            .push(cx.observe_window_activation(window, |this, window, cx| {
+                if !window.is_window_active() {
+                    this.cancel_window_pointer_gestures(cx);
+                }
+            }));
         let app = cx.entity().downgrade();
         self._subscriptions
             .push(cx.intercept_keystrokes(move |event, window, cx| {
@@ -23,6 +29,13 @@ impl AleraApp {
                 };
                 let keystroke = event.keystroke.clone();
                 app.update(cx, |this, cx| {
+                    if !this.show_settings_dialog
+                        && keystroke.key.eq_ignore_ascii_case("escape")
+                        && this.dismiss_top_overlay_on_escape(window, cx)
+                    {
+                        cx.stop_propagation();
+                        return;
+                    }
                     if this.keyboard_settings.recording_id.is_some() {
                         this.capture_keyboard_keystroke(&keystroke, window, cx);
                     }
@@ -30,11 +43,13 @@ impl AleraApp {
             }));
         let events = self.bridge.events();
         self._cursor_blink_task = cx.spawn_in(window, async move |this, cx| loop {
-            Timer::after(Duration::from_millis(530)).await;
+            cx.background_executor()
+                .timer(Duration::from_millis(530))
+                .await;
             let Some(this) = this.upgrade() else {
                 break;
             };
-            let result = this.update(cx, |this, cx| {
+            this.update(cx, |this, cx| {
                 let toast_changed = this.expire_local_message();
                 let operation_active = this
                     .terminal_sessions
@@ -65,9 +80,6 @@ impl AleraApp {
                 this.terminal_cursor_visible = !this.terminal_cursor_visible;
                 cx.notify();
             });
-            if result.is_err() {
-                break;
-            }
         });
         self._event_task = cx.spawn_in(window, async move |this, cx| {
             while let Ok(event) = events.recv().await {
@@ -80,6 +92,7 @@ impl AleraApp {
                     _ => false,
                 };
                 let connected = matches!(&event, BridgeEvent::Connected);
+                let terminal_output = matches!(&event, BridgeEvent::TerminalOutput { .. });
                 let quotas_changed = matches!(
                     &event,
                     BridgeEvent::Notification { name, .. } if name == "agentQuotasChanged"
@@ -126,12 +139,35 @@ impl AleraApp {
                         }
                         BridgeEvent::Unavailable => {
                             this.connection_label = "Runtime Unavailable".into();
+                            // Flutter does not invalidate its keep-alive quota
+                            // provider when the runtime lifecycle changes. Keep
+                            // the last successful quota snapshot until its own
+                            // scheduled or manual refresh succeeds or fails.
+                            this.status_data.resource_generation += 1;
+                            this.status_data.resources = None;
+                            this.status_data.resource_error =
+                                Some("Alera Runtime Is Unavailable.".to_owned());
+                            this.status_data.presence_generation += 1;
+                            this.status_data.presence.clear();
+                            this.status_data.runtime_generation += 1;
+                            this.status_data.runtime = None;
+                            this.status_data.runtime_loading = false;
+                            this.status_data.runtime_error = None;
                             this.mark_terminal_sessions_unavailable(
                                 "Terminal host unavailable: Alera Runtime Is Unavailable.".into(),
                             );
                         }
                         BridgeEvent::Disconnected { reason } => {
                             this.connection_label = "Runtime Reconnecting".into();
+                            this.status_data.resource_generation += 1;
+                            this.status_data.resources = None;
+                            this.status_data.resource_error = Some(reason.clone());
+                            this.status_data.presence_generation += 1;
+                            this.status_data.presence.clear();
+                            this.status_data.runtime_generation += 1;
+                            this.status_data.runtime = None;
+                            this.status_data.runtime_loading = false;
+                            this.status_data.runtime_error = Some(reason.clone());
                             this.mark_terminal_sessions_unavailable(format!(
                                 "Terminal host unavailable: {reason}"
                             ));
@@ -179,7 +215,9 @@ impl AleraApp {
                     {
                         this.refresh_project_config_settings(window, cx);
                     }
-                    cx.notify();
+                    if !terminal_output {
+                        cx.notify();
+                    }
                 });
             }
         });
@@ -191,6 +229,24 @@ impl AleraApp {
         self.load_sidebar_view_prefs(cx);
         self.refresh_status_data(cx);
         self.ensure_explorer_watcher(cx);
+    }
+
+    fn cancel_window_pointer_gestures(&mut self, cx: &mut Context<Self>) {
+        let changed = self.tab_pointer_drag.take().is_some()
+            || self.tab_drop_target.take().is_some()
+            || self.pane_drop_target.take().is_some()
+            || self.panel_resize.take().is_some()
+            || self.split_resize.take().is_some()
+            || self.explorer_drop_target.take().is_some()
+            || self.explorer_pointer_down.take().is_some()
+            || std::mem::take(&mut self.explorer_pointer_dragged)
+            || self.preview_drag.take().is_some()
+            || self.terminal_selection_drag.take().is_some()
+            || self.terminal_scrollbar_drag.take().is_some();
+        if changed {
+            self.tab_pointer_drag_generation = self.tab_pointer_drag_generation.wrapping_add(1);
+            cx.notify();
+        }
     }
 
     /// Keep transient feedback aligned with Flutter's toast host. Every
@@ -234,9 +290,10 @@ impl AleraApp {
             .any(|(_, shown_at)| shown_at.elapsed() >= TOAST_DURATION);
         changed |= previous_len != self.toast_entries.len() || was_exiting != is_exiting;
 
-        if self.local_message_started_at.is_some_and(|started_at| {
-            started_at.elapsed() >= TOAST_DURATION
-        }) {
+        if self
+            .local_message_started_at
+            .is_some_and(|started_at| started_at.elapsed() >= TOAST_DURATION)
+        {
             self.local_message = None;
             self.local_message_started_at = None;
             self.local_message_timer_message = None;
@@ -258,7 +315,10 @@ impl AleraApp {
             })
             .collect::<Vec<_>>();
         if let Some(message) = self.local_message.clone() {
-            if messages.last().is_none_or(|(current, _)| current != &message) {
+            if messages
+                .last()
+                .is_none_or(|(current, _)| current != &message)
+            {
                 messages.push((message, false));
             }
         }
@@ -279,17 +339,21 @@ impl AleraApp {
             let Some(this) = this.upgrade() else {
                 return;
             };
-            let _ = this.update(cx, |this, cx| {
+            this.update(cx, |this, cx| {
                 if generation != this.refresh_generation {
                     return;
                 }
                 match snapshot {
                     Ok(mut snapshot) => {
-                        let next_workspace_id = this
-                            .selected_workspace_id
-                            .clone()
-                            .filter(|id| snapshot.workspace(id).is_some())
-                            .or_else(|| fallback_workspace_id(&snapshot));
+                        let next_workspace_id = match this.selected_workspace_id.clone() {
+                            Some(id) if snapshot.workspace(&id).is_some() => Some(id),
+                            Some(_) => None,
+                            None if !this.workspace_selection_initialized => {
+                                fallback_workspace_id(&snapshot)
+                            }
+                            None => None,
+                        };
+                        this.workspace_selection_initialized = true;
                         if this.selected_workspace_id != next_workspace_id {
                             this.selected_workspace_id = next_workspace_id;
                             this.selected_tab_id = None;
@@ -299,9 +363,12 @@ impl AleraApp {
                             this.refresh(cx);
                             return;
                         }
-                        this.selected_tab_id = this
-                            .selected_tab_id
-                            .clone()
+                        let requested_tab_id = this
+                            .pending_workspace_tab_id
+                            .take()
+                            .filter(|id| snapshot.tabs.iter().any(|tab| &tab.id == id));
+                        this.selected_tab_id = requested_tab_id
+                            .or_else(|| this.selected_tab_id.clone())
                             .filter(|id| snapshot.tabs.iter().any(|tab| &tab.id == id))
                             .or_else(|| {
                                 snapshot.layout.as_ref().and_then(|layout| {
@@ -312,7 +379,14 @@ impl AleraApp {
                                 })
                             })
                             .or_else(|| snapshot.tabs.first().map(|tab| tab.id.clone()));
-                        this.error = None;
+                        // From Prompt owns its inline error while the dialog
+                        // is open. Workspace creation broadcasts a snapshot
+                        // refresh before Agent Profile launch completes, and
+                        // clearing the shared slot here would hide the launch
+                        // failure and leave Retry Agent without an explanation.
+                        if !this.show_new_workspace_dialog {
+                            this.error = None;
+                        }
                         snapshot.projects.sort_by(|a, b| a.name.cmp(&b.name));
                         let create_terminal_for_selection =
                             this.pending_workspace_terminal_id.as_deref()
@@ -325,11 +399,12 @@ impl AleraApp {
                             .selected_workspace_id
                             .as_deref()
                             .map(|workspace_id| {
-                                this.snapshot.workspace(workspace_id).map(|workspace| {
-                                    workspace.path.as_str()
-                                }) != snapshot.workspace(workspace_id).map(|workspace| {
-                                    workspace.path.as_str()
-                                })
+                                this.snapshot
+                                    .workspace(workspace_id)
+                                    .map(|workspace| workspace.path.as_str())
+                                    != snapshot
+                                        .workspace(workspace_id)
+                                        .map(|workspace| workspace.path.as_str())
                             })
                             .unwrap_or(true);
                         this.snapshot = snapshot;
@@ -340,9 +415,7 @@ impl AleraApp {
                         // previous workspace.
                         if workspace_scope_changed
                             || (this.context_panel != ContextPanel::Search
-                                && this
-                                    .explorer_loaded_workspace_id
-                                    .as_deref()
+                                && this.explorer_loaded_workspace_id.as_deref()
                                     != this.selected_workspace_id.as_deref())
                         {
                             this.refresh_local_activity(cx);
@@ -365,7 +438,13 @@ impl AleraApp {
                             this.load_git_diff_tab(tab.id, tab.payload, cx);
                         }
                     }
-                    Err(error) => this.error = Some(error.into()),
+                    Err(error) => {
+                        crate::app_log::warning(
+                            "workbench_snapshot",
+                            &format!("snapshot refresh failed: {error}"),
+                        );
+                        this.error = Some(error.into());
+                    }
                 }
                 cx.notify();
             });
@@ -400,6 +479,24 @@ impl AleraApp {
         } else {
             self.refresh_local_activity(cx);
         }
+        cx.notify();
+    }
+
+    pub(super) fn select_workspace_tab(
+        &mut self,
+        workspace_id: String,
+        tab_id: String,
+        cx: &mut Context<Self>,
+    ) {
+        if self.selected_workspace_id.as_deref() == Some(workspace_id.as_str())
+            && self.snapshot.tabs.iter().any(|tab| tab.id == tab_id)
+        {
+            self.pending_workspace_tab_id = None;
+            self.activate_workspace_tab(tab_id, cx);
+            return;
+        }
+        self.select_workspace(workspace_id, cx);
+        self.pending_workspace_tab_id = Some(tab_id);
         cx.notify();
     }
 

@@ -11,8 +11,8 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use gpui::{
-    div, prelude::*, px, rgb, size, App, Application, Bounds, Context, Render, Task, Timer, Window,
-    WindowBounds, WindowOptions,
+    div, prelude::*, px, rgb, size, App, Bounds, Context, Render, Task, Window, WindowBounds,
+    WindowOptions,
 };
 use terminal::{KeyModifiers, TerminalEmulator};
 
@@ -26,6 +26,7 @@ enum Mode {
     Stream,
     Idle,
     Restore,
+    Parse,
 }
 
 impl Mode {
@@ -33,6 +34,7 @@ impl Mode {
         match std::env::var("ALERA_GPUI_BENCH_MODE").as_deref() {
             Ok("idle") => Self::Idle,
             Ok("restore") => Self::Restore,
+            Ok("parse") => Self::Parse,
             _ => Self::Stream,
         }
     }
@@ -71,6 +73,7 @@ impl TerminalBenchmark {
             Mode::Stream => this.start_stream(cx),
             Mode::Idle => this.start_idle(cx),
             Mode::Restore => this.start_restore(window, cx),
+            Mode::Parse => unreachable!("parse mode runs without a window"),
         });
         benchmark
     }
@@ -79,27 +82,25 @@ impl TerminalBenchmark {
         self.started_at = Instant::now();
         self.cpu_before = process_cpu_seconds();
         self._task = Some(cx.spawn(async move |this, cx| loop {
-            Timer::after(FRAME_INTERVAL).await;
+            cx.background_executor().timer(FRAME_INTERVAL).await;
             let Some(this) = this.upgrade() else {
                 return;
             };
-            let finished = this
-                .update(cx, |this, cx| {
-                    for _ in 0..4 {
-                        this.emulator
-                            .write(format!("{} {}\r\n", this.write_count, this.line).as_bytes());
-                        this.write_count += 1;
-                    }
-                    let finished = this.started_at.elapsed() >= DURATION;
-                    if finished {
-                        this.print_stream_report();
-                        cx.quit();
-                    } else {
-                        cx.notify();
-                    }
-                    finished
-                })
-                .unwrap_or(true);
+            let finished = this.update(cx, |this, cx| {
+                for _ in 0..4 {
+                    this.emulator
+                        .write(format!("{} {}\r\n", this.write_count, this.line).as_bytes());
+                    this.write_count += 1;
+                }
+                let finished = this.started_at.elapsed() >= DURATION;
+                if finished {
+                    this.print_stream_report();
+                    cx.quit();
+                } else {
+                    cx.notify();
+                }
+                finished
+            });
             if finished {
                 return;
             }
@@ -110,11 +111,11 @@ impl TerminalBenchmark {
         self.started_at = Instant::now();
         self.cpu_before = process_cpu_seconds();
         self._task = Some(cx.spawn(async move |this, cx| {
-            Timer::after(DURATION).await;
+            cx.background_executor().timer(DURATION).await;
             let Some(this) = this.upgrade() else {
                 return;
             };
-            let _ = this.update(cx, |this, cx| {
+            this.update(cx, |this, cx| {
                 this.print_idle_report();
                 cx.quit();
             });
@@ -265,8 +266,40 @@ fn input_latency_p95_micros() -> f64 {
     samples[(samples.len() * 95 / 100).min(samples.len() - 1)] as f64 / 1000.0
 }
 
+fn run_parse_probe() {
+    const LINES: usize = 2_400;
+    const FRAMES: usize = 225;
+    let mut terminal = TerminalEmulator::new(100, 30);
+    let line = "ALERA_STREAM_0000 abcdefghijklmnopqrstuvwxyz 0123456789\r\n";
+    let parse_started = Instant::now();
+    for _ in 0..LINES {
+        terminal.write(line.as_bytes());
+    }
+    let parse_elapsed = parse_started.elapsed();
+    let render_started = Instant::now();
+    for _ in 0..FRAMES {
+        std::hint::black_box(terminal.visible_lines("Alera Dark"));
+    }
+    let render_elapsed = render_started.elapsed();
+    println!("\n=== GPUI terminal parse probe ===");
+    println!(
+        "  {LINES} writes in {:.2} ms ({:.3} ms/write)",
+        parse_elapsed.as_secs_f64() * 1000.0,
+        parse_elapsed.as_secs_f64() * 1000.0 / LINES as f64
+    );
+    println!(
+        "  {FRAMES} visible frames in {:.2} ms ({:.3} ms/frame)",
+        render_elapsed.as_secs_f64() * 1000.0,
+        render_elapsed.as_secs_f64() * 1000.0 / FRAMES as f64
+    );
+}
+
 fn main() {
-    Application::new().run(|cx: &mut App| {
+    if Mode::from_environment() == Mode::Parse {
+        run_parse_probe();
+        return;
+    }
+    gpui_platform::application().run(|cx: &mut App| {
         let bounds = Bounds::centered(None, size(px(1100.0), px(720.0)), cx);
         cx.open_window(
             WindowOptions {
@@ -276,5 +309,6 @@ fn main() {
             |window, cx| cx.new(|cx| TerminalBenchmark::new(window, cx)),
         )
         .expect("failed to open benchmark window");
+        cx.activate(true);
     });
 }

@@ -1,7 +1,7 @@
 use std::path::Path;
 use std::time::{Duration, Instant};
 
-use gpui::{Context, PathPromptOptions, Timer, Window};
+use gpui::{Context, PathPromptOptions, Window};
 use serde_json::{json, Value};
 
 use super::{AddProjectMode, AleraApp};
@@ -208,7 +208,7 @@ impl AleraApp {
             let Some(this) = this.upgrade() else {
                 return;
             };
-            let _ = this.update(cx, |this, cx| {
+            this.update(cx, |this, cx| {
                 this.add_project_busy = false;
                 match result {
                     Ok(()) => {
@@ -295,7 +295,7 @@ async fn wait_for_clone(bridge: &RuntimeBridge, job_id: &str) -> Result<(), Stri
             }
             Some("cancelled") => return Err("Project Clone Was Cancelled".to_string()),
             _ => {
-                Timer::after(Duration::from_millis(300)).await;
+                async_io::Timer::after(Duration::from_millis(300)).await;
             }
         }
     }

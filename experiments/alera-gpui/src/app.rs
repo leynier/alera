@@ -1,12 +1,13 @@
-use std::cell::Cell;
+use std::cell::{Cell, RefCell};
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
 use std::time::{Duration, Instant};
 
 use gpui::{
-    px, AppContext as _, Bounds, Context, Entity, FocusHandle, Pixels, Point, ScrollAnchor,
-    ScrollHandle, SharedString, Subscription, Task, Timer, Window,
+    px, AppContext as _, Bounds, Context, Entity, FocusHandle, ListAlignment, ListState, Pixels,
+    Point, ScrollAnchor, ScrollHandle, SharedString, Subscription, Task, UniformListScrollHandle,
+    Window,
 };
-use gpui_component::input::{InputEvent, InputState};
+use gpui_component::input::{EditorState, InputEvent, InputState, TextareaState};
 use gpui_component::select::{SearchableVec, SelectEvent, SelectState};
 use gpui_component::IndexPath;
 use serde_json::Value;
@@ -52,6 +53,7 @@ mod keyboard_actions;
 mod keyboard_settings;
 mod keyboard_settings_actions;
 mod keyboard_settings_render;
+mod markdown_preview_images;
 mod mobile_access;
 mod mobile_driver;
 mod preview_surface;
@@ -125,6 +127,7 @@ use settings_state::SettingsState;
 use settings_store::SettingsStore;
 use state_types::*;
 use status_data::StatusData;
+use terminal_surface::TerminalFrameView;
 use workspace_prompt_actions::PromptWorkspaceCreation;
 use workspace_prompt_dropdown::{AgentProfileOption, WorkspacePromptDropdown};
 use workspace_surface::{ExplorerRow, PreviewAsset};
@@ -135,7 +138,9 @@ pub struct AleraApp {
     bridge: RuntimeBridge,
     snapshot: WorkbenchSnapshot,
     selected_workspace_id: Option<String>,
+    workspace_selection_initialized: bool,
     pending_workspace_terminal_id: Option<String>,
+    pending_workspace_tab_id: Option<String>,
     selected_tab_id: Option<String>,
     tab_rename_input: Entity<InputState>,
     tab_rename_replace_pending: Option<String>,
@@ -143,12 +148,16 @@ pub struct AleraApp {
     tab_mutation_busy: bool,
     tab_close_armed: Option<Vec<String>>,
     workbench_menu: Option<WorkbenchMenu>,
+    workbench_menu_focus: FocusHandle,
+    workbench_menu_previous_focus: Option<FocusHandle>,
+    workbench_menu_highlighted: usize,
     tab_drop_target: Option<TabDropTarget>,
     pane_drop_target: Option<PaneDropTarget>,
     tab_pointer_drag: Option<(String, String)>,
     tab_pointer_drag_generation: u64,
     tab_bar_bounds: BTreeMap<String, Bounds<Pixels>>,
     tab_chip_bounds: BTreeMap<(String, String), Bounds<Pixels>>,
+    tab_strip_scroll_handles: RefCell<BTreeMap<String, ScrollHandle>>,
     pane_bounds: BTreeMap<String, Bounds<Pixels>>,
     split_resize: Option<SplitResizeState>,
     panel_resize: Option<PanelResizeState>,
@@ -157,6 +166,8 @@ pub struct AleraApp {
     error: Option<SharedString>,
     refresh_generation: u64,
     terminal_sessions: BTreeMap<String, TerminalSession>,
+    terminal_frame_views: BTreeMap<String, Entity<TerminalFrameView>>,
+    terminal_output_dirty_sessions: BTreeSet<String>,
     terminal_drivers: BTreeMap<String, mobile_driver::MobileTerminalDriver>,
     terminal_driver_collapsed: BTreeSet<String>,
     terminal_driver_reclaiming: BTreeSet<String>,
@@ -165,6 +176,7 @@ pub struct AleraApp {
     terminal_resize_pending: BTreeMap<String, (usize, usize)>,
     terminal_resize_generation: BTreeMap<String, u64>,
     terminal_output_frame_scheduled: bool,
+    terminal_output_last_frame_at: Instant,
     terminal_focus: FocusHandle,
     terminal_selection_drag: Option<String>,
     terminal_marked_text: Option<String>,
@@ -175,6 +187,7 @@ pub struct AleraApp {
     terminal_cursor_visible: bool,
     terminal_cursor_last_activity: Instant,
     sidebar_collapsed: bool,
+    collapsed_sidebar_focus: FocusHandle,
     sidebar_width: f32,
     panel_resize_hovered: Option<PanelResizeTarget>,
     collapsed_project_ids: BTreeSet<String>,
@@ -230,7 +243,8 @@ pub struct AleraApp {
     settings_pane: SettingsPane,
     settings_scroll_handle: ScrollHandle,
     settings_scroll_last_offset: Cell<Pixels>,
-    explorer_scroll_handle: ScrollHandle,
+    sidebar_scroll_handle: ScrollHandle,
+    explorer_scroll_handle: UniformListScrollHandle,
     settings_group_anchors: SettingsGroupAnchors,
     settings_state: SettingsState,
     diagnostics_export_busy: bool,
@@ -253,6 +267,8 @@ pub struct AleraApp {
     explorer_delete_path: Option<String>,
     explorer_menu: Option<ExplorerMenuTarget>,
     explorer_menu_position: Point<Pixels>,
+    explorer_menu_focus: FocusHandle,
+    explorer_menu_previous_focus: Option<FocusHandle>,
     explorer_selected_path: Option<String>,
     explorer_clipboard: Option<ExplorerClipboard>,
     explorer_drop_target: Option<String>,
@@ -261,7 +277,7 @@ pub struct AleraApp {
     explorer_action_busy: bool,
     explorer_watch_generation: u64,
     editor_document: Option<EditorDocument>,
-    editor_inputs: BTreeMap<String, Entity<InputState>>,
+    editor_inputs: BTreeMap<String, Entity<EditorState>>,
     editor_documents: BTreeMap<String, EditorDocument>,
     editor_load_error_paths: BTreeSet<String>,
     editor_error_messages: BTreeMap<String, SharedString>,
@@ -273,8 +289,8 @@ pub struct AleraApp {
     pending_editor_cursor: Option<(String, usize, usize, usize)>,
     preview_asset: Option<PreviewAsset>,
     editor_preview_assets: BTreeMap<String, PreviewAsset>,
-    preview_scale: f32,
-    preview_offset: Point<Pixels>,
+    markdown_preview_content: BTreeMap<String, String>,
+    preview_transforms: BTreeMap<String, PreviewTransform>,
     preview_drag: Option<PreviewDragState>,
     show_preview: bool,
     sidebar_filter_input: Entity<InputState>,
@@ -287,7 +303,7 @@ pub struct AleraApp {
     add_project_mode: AddProjectMode,
     show_add_project_dialog: bool,
     add_project_busy: bool,
-    workspace_prompt_input: Entity<InputState>,
+    workspace_prompt_input: Entity<TextareaState>,
     workspace_dropdown_search_input: Entity<InputState>,
     workspace_project_search_input: Entity<InputState>,
     workspace_branch_search_input: Entity<InputState>,
@@ -298,6 +314,7 @@ pub struct AleraApp {
     editor_theme_search_input: Entity<InputState>,
     terminal_theme_search_input: Entity<InputState>,
     settings_inputs: BTreeMap<String, Entity<InputState>>,
+    settings_textareas: BTreeMap<String, Entity<TextareaState>>,
     settings_selects: BTreeMap<String, Entity<SelectState<SearchableVec<SettingsSelectOption>>>>,
     skill_runners: BTreeMap<String, String>,
     claude_profile_alias_input: Entity<InputState>,
@@ -326,7 +343,7 @@ pub struct AleraApp {
     workspace_prompt_phase: Option<&'static str>,
     workspace_prompt_active_operation_id: Option<String>,
     workspace_prompt_created: Option<PromptWorkspaceCreation>,
-    editor_input: Entity<InputState>,
+    editor_input: Entity<EditorState>,
     editor_input_syncing: bool,
     editor_dirty: bool,
     editor_conflict: bool,
@@ -344,20 +361,25 @@ pub struct AleraApp {
     search_include_ignored: bool,
     search_view_as_tree: bool,
     search_collapsed_result_paths: BTreeSet<String>,
+    search_list_state: ListState,
     search_input_generation: u64,
+    search_active_request_id: Option<String>,
     settings_search_generation: u64,
-    commit_input: Entity<InputState>,
-    source_amend_input: Entity<InputState>,
+    commit_input: Entity<TextareaState>,
+    source_amend_input: Entity<TextareaState>,
     source_control_filter_input: Entity<InputState>,
     source_control_filter_visible: bool,
     source_control_tree_mode: bool,
     source_control_menu_open: bool,
+    source_control_menu_focus: FocusHandle,
+    source_control_menu_previous_focus: Option<FocusHandle>,
+    source_control_menu_highlighted: usize,
     source_control_collapsed_sections: BTreeSet<String>,
     source_control_collapsed_tree_nodes: BTreeSet<String>,
     forge_title_input: Entity<InputState>,
-    forge_body_input: Entity<InputState>,
+    forge_body_input: Entity<TextareaState>,
     forge_base_input: Entity<InputState>,
-    forge_comment_input: Entity<InputState>,
+    forge_comment_input: Entity<TextareaState>,
     forge_link_input: Entity<InputState>,
     run_policy_reason_input: Entity<InputState>,
     show_execution_plans: bool,
@@ -367,7 +389,6 @@ pub struct AleraApp {
     run_policy_error: Option<SharedString>,
     search_results: SearchResults,
     search_error: Option<SharedString>,
-    replace_confirmation: Option<(String, String, u32)>,
     git_snapshot: GitSnapshot,
     explorer_git_status: ExplorerGitStatusSnapshot,
     git_snapshot_loading: bool,
@@ -379,11 +400,15 @@ pub struct AleraApp {
     git_diff_image_sides: BTreeMap<(String, String), git_diff_surface::GitDiffImageSides>,
     git_diff_image_loading: BTreeSet<(String, String)>,
     git_history_expanded: bool,
+    git_history_loaded_once: bool,
     git_history_height: f32,
     git_history_resize: Option<GitHistoryResizeState>,
     source_history_expanded_ids: BTreeSet<String>,
     source_history_loading_ids: BTreeSet<String>,
     source_history_action_menu: Option<context_source_history::SourceHistoryActionMenu>,
+    source_history_menu_focus: FocusHandle,
+    source_history_menu_previous_focus: Option<FocusHandle>,
+    source_history_menu_highlighted: usize,
     source_history_files: BTreeMap<String, Vec<crate::workspace_git::GitCommitChange>>,
     source_control_dialog: Option<context_source_control_dialog::SourceControlDialog>,
     git_discard_armed: bool,

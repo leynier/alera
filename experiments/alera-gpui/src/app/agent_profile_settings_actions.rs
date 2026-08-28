@@ -215,7 +215,7 @@ impl AleraApp {
                     .dropdown_filter_input
                     .update(cx, |input, cx| input.focus(window, cx));
             } else {
-                self.agent_profile_settings.dropdown_focus.focus(window);
+                self.agent_profile_settings.dropdown_focus.focus(window, cx);
             }
         }
         self.agent_profile_settings.error = None;

@@ -1,6 +1,6 @@
 use gpui::{
     div, prelude::FluentBuilder as _, px, Context, CursorStyle, InteractiveElement as _,
-    IntoElement, MouseButton, MouseDownEvent, ParentElement as _, Styled as _,
+    IntoElement, ParentElement as _, Role, StatefulInteractiveElement as _, Styled as _, Toggled,
 };
 
 use super::{AddProjectMode, AleraApp};
@@ -23,7 +23,7 @@ impl AleraApp {
             .justify_center()
             .bg(theme::overlay_scrim())
             .child(
-                design_system::dialog_shell(614.0)
+                design_system::dialog_shell("add-project-dialog", "Add Project", 614.0)
                     .child(
                         div()
                             .flex()
@@ -68,13 +68,12 @@ impl AleraApp {
                                     ButtonKind::Text,
                                     false,
                                 )
-                                .on_mouse_down(
-                                    MouseButton::Left,
-                                    cx.listener(|this, _: &MouseDownEvent, _, cx| {
+                                .on_click(cx.listener(
+                                    |this, _, _, cx| {
                                         this.close_add_project_dialog(cx);
                                         cx.stop_propagation();
-                                    }),
-                                ),
+                                    },
+                                )),
                             )
                             .child(
                                 design_system::button_with_loading(
@@ -92,13 +91,12 @@ impl AleraApp {
                                     self.add_project_busy,
                                 )
                                 .when(submit_enabled, |button| {
-                                    button.cursor(CursorStyle::PointingHand).on_mouse_down(
-                                        MouseButton::Left,
-                                        cx.listener(|this, _: &MouseDownEvent, _, cx| {
+                                    button
+                                        .cursor(CursorStyle::PointingHand)
+                                        .on_click(cx.listener(|this, _, _, cx| {
                                             this.submit_add_project(cx);
                                             cx.stop_propagation();
-                                        }),
-                                    )
+                                        }))
                                 }),
                             ),
                     ),
@@ -166,6 +164,16 @@ impl AleraApp {
                 AddProjectMode::LocalFolder => "add-local-project-mode",
                 AddProjectMode::CloneFromUrl => "add-clone-project-mode",
             })
+            .focusable()
+            .tab_stop(true)
+            .role(Role::RadioButton)
+            .aria_label(label)
+            .aria_selected(selected)
+            .aria_toggled(if selected {
+                Toggled::True
+            } else {
+                Toggled::False
+            })
             .flex()
             .flex_1()
             .items_center()
@@ -182,13 +190,10 @@ impl AleraApp {
                     .bg(theme::surface_selected())
                     .text_color(theme::text())
             })
-            .on_mouse_down(
-                MouseButton::Left,
-                cx.listener(move |this, _: &MouseDownEvent, _, cx| {
-                    this.select_add_project_mode(mode, cx);
-                    cx.stop_propagation();
-                }),
-            )
+            .on_click(cx.listener(move |this, _, _, cx| {
+                this.select_add_project_mode(mode, cx);
+                cx.stop_propagation();
+            }))
             .child(icon(icon_kind, 14.0, theme::text_muted()))
             .child(label)
     }
@@ -217,15 +222,15 @@ impl AleraApp {
                         .suffix(
                             design_system::icon_button(
                                 "browse-local-project",
+                                "Browse Project Folder",
                                 AleraIcon::FolderOpen,
                                 true,
                                 30.0,
                                 None,
                                 None,
                             )
-                            .on_mouse_down(
-                                MouseButton::Left,
-                                cx.listener(|this, _: &MouseDownEvent, window, cx| {
+                            .on_click(
+                                cx.listener(|this, _, window, cx| {
                                     this.browse_local_project(window, cx);
                                     cx.stop_propagation();
                                 }),
@@ -254,19 +259,19 @@ impl AleraApp {
                         .suffix(
                             design_system::icon_button(
                                 "browse-clone-parent",
+                                "Browse Destination Folder",
                                 AleraIcon::NewFolder,
                                 true,
                                 30.0,
                                 None,
                                 None,
                             )
-                            .on_mouse_down(
-                                MouseButton::Left,
-                                cx.listener(|this, _: &MouseDownEvent, window, cx| {
+                            .on_click(cx.listener(
+                                |this, _, window, cx| {
                                     this.browse_clone_parent(window, cx);
                                     cx.stop_propagation();
-                                }),
-                            ),
+                                },
+                            )),
                         ),
                 ),
             )

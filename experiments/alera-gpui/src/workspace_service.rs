@@ -89,9 +89,14 @@ pub struct SearchMatch {
 
 #[derive(Clone, Debug)]
 pub struct ReplaceSummary {
-    pub files_changed: u32,
     pub matches_replaced: u32,
-    pub conflicts: Vec<String>,
+    pub conflicts: Vec<ReplaceConflict>,
+}
+
+#[derive(Clone, Debug)]
+pub struct ReplaceConflict {
+    pub relative_path: String,
+    pub reason: String,
 }
 
 impl WorkspaceService {
@@ -139,13 +144,14 @@ impl WorkspaceService {
     ) -> Result<EditorDocument, String> {
         let value = self
             .bridge
-            .request(
+            .request_with_timeout(
                 "workspaceFiles.readEditor",
                 json!({
                     "workspacePath": workspace_path,
                     "relativePath": relative_path.clone(),
                     "tabSize": 4,
                 }),
+                Duration::from_secs(10),
             )
             .await?;
         parse_editor_document(value, relative_path)
@@ -281,10 +287,19 @@ impl WorkspaceService {
         Ok(())
     }
 
-    pub async fn search(&self, options: SearchOptions) -> Result<SearchResults, String> {
+    pub async fn search(
+        &self,
+        options: SearchOptions,
+        request_id: String,
+    ) -> Result<SearchResults, String> {
+        let mut payload = search_payload(&options);
+        payload
+            .as_object_mut()
+            .expect("workspace search payload must be an object")
+            .insert("requestId".to_owned(), Value::String(request_id));
         let value = self
             .bridge
-            .request("workspaceSearch.search", search_payload(&options))
+            .request("workspaceSearch.search", payload)
             .await?;
         parse_search_results(value)
     }
@@ -294,6 +309,7 @@ impl WorkspaceService {
         options: SearchOptions,
         replacement: String,
         preserve_case: bool,
+        request_id: String,
     ) -> Result<SearchResults, String> {
         let mut payload = search_payload(&options);
         let object = payload
@@ -301,6 +317,7 @@ impl WorkspaceService {
             .expect("workspace search payload must be an object");
         object.insert("replacement".to_owned(), Value::String(replacement));
         object.insert("preserveCase".to_owned(), Value::Bool(preserve_case));
+        object.insert("requestId".to_owned(), Value::String(request_id));
         let value = self
             .bridge
             .request("workspaceSearch.previewReplace", payload)
@@ -308,26 +325,11 @@ impl WorkspaceService {
         parse_search_results(value)
     }
 
-    pub async fn replace_all(
-        &self,
-        options: SearchOptions,
-        replacement: String,
-        preserve_case: bool,
-    ) -> Result<ReplaceSummary, String> {
-        let mut payload = search_payload(&options);
-        payload
-            .as_object_mut()
-            .expect("workspace search payload must be an object")
-            .insert("replacement".to_owned(), Value::String(replacement));
-        payload
-            .as_object_mut()
-            .expect("workspace search payload must be an object")
-            .insert("preserveCase".to_owned(), Value::Bool(preserve_case));
-        let value = self
-            .bridge
-            .request("workspaceSearch.replaceAll", payload)
+    pub async fn cancel_search(&self, request_id: String) -> Result<(), String> {
+        self.bridge
+            .request("workspaceSearch.cancel", json!({"requestId": request_id}))
             .await?;
-        parse_replace_summary(value)
+        Ok(())
     }
 
     pub async fn replace_matches(
@@ -523,6 +525,7 @@ impl WorkspaceService {
         parse_git_diff(value)
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub async fn git_diff_blob(
         &self,
         workspace_path: String,
@@ -731,18 +734,13 @@ fn parse_replace_summary(value: Value) -> Result<ReplaceSummary, String> {
         .ok_or_else(|| "Workspace Replace Response Omitted Conflicts.".to_string())?
         .iter()
         .map(|conflict| {
-            Ok(format!(
-                "{}: {}",
-                required_string(conflict, "relativePath")?,
-                required_string(conflict, "reason")?,
-            ))
+            Ok(ReplaceConflict {
+                relative_path: required_string(conflict, "relativePath")?,
+                reason: required_string(conflict, "reason")?,
+            })
         })
         .collect::<Result<Vec<_>, String>>()?;
     Ok(ReplaceSummary {
-        files_changed: value
-            .get("filesChanged")
-            .and_then(Value::as_u64)
-            .unwrap_or_default() as u32,
         matches_replaced: value
             .get("matchesReplaced")
             .and_then(Value::as_u64)

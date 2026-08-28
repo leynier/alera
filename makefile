@@ -15,7 +15,7 @@ PERF_APP_PID ?=
 PERF_APP_PID_ARG = $(if $(PERF_APP_PID),--app-pid "$(PERF_APP_PID)",)
 ALERA_DEBUG_TOOL = tool/debug/alera_debug.dart
 
-.PHONY: help init-submodules update-submodules frb-generate rust-test cli-build cli-help host-debug app-debug gpui-debug freya-debug freya-release freya-test app-profile app-debug-bundled-cli debug-processes host-stop perf-linux perf-macos-resources
+.PHONY: help init-submodules update-submodules frb-generate rust-test cli-build cli-help host-debug app-debug gpui-debug gpui-release freya-debug freya-release freya-test app-profile app-debug-bundled-cli debug-processes host-stop perf-linux perf-macos-resources
 
 # List available make targets.
 help:
@@ -81,6 +81,10 @@ app-debug:
 # Build and run the experimental GPUI desktop app.
 gpui-debug:
 	$(DART) $(ALERA_DEBUG_TOOL) gpui-debug --cargo "$(CARGO)" --app-id "$(ALERA_APP_ID)"
+
+# Build and run the experimental GPUI desktop app in release mode.
+gpui-release:
+	$(DART) $(ALERA_DEBUG_TOOL) gpui-release --cargo "$(CARGO)" --app-id "$(ALERA_APP_ID)"
 
 # Build and run the experimental Freya desktop app in debug mode.
 freya-debug:

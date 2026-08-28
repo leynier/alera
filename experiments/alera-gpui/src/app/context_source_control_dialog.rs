@@ -1,9 +1,9 @@
 use gpui::{
     div, prelude::FluentBuilder as _, px, AnyElement, Context, CursorStyle,
-    InteractiveElement as _, IntoElement as _, ParentElement as _, StatefulInteractiveElement as _,
-    Styled as _,
+    InteractiveElement as _, IntoElement as _, ParentElement as _, Role,
+    StatefulInteractiveElement as _, Styled as _,
 };
-use gpui_component::input::Input;
+use gpui_component::input::Textarea;
 
 use super::AleraApp;
 use crate::design_system::{self, ButtonKind};
@@ -58,7 +58,7 @@ impl AleraApp {
             SourceControlDialog::Amend => unreachable!(),
         };
         modal_shell(
-            design_system::dialog_shell(420.0)
+            design_system::dialog_shell("source-control-dialog", title, 420.0)
                 .child(
                     div()
                         .text_size(px(14.0))
@@ -86,13 +86,10 @@ impl AleraApp {
                                 false,
                             )
                             .flex_1()
-                            .on_mouse_down(
-                                gpui::MouseButton::Left,
-                                cx.listener(|this, _, _, cx| {
-                                    this.source_control_dialog = None;
-                                    cx.notify();
-                                }),
-                            ),
+                            .on_click(cx.listener(|this, _, _, cx| {
+                                this.source_control_dialog = None;
+                                cx.notify();
+                            })),
                         )
                         .child(
                             design_system::button(
@@ -102,12 +99,9 @@ impl AleraApp {
                                 false,
                             )
                             .flex_1()
-                            .on_mouse_down(
-                                gpui::MouseButton::Left,
-                                cx.listener(|this, _, _, cx| {
-                                    this.confirm_source_control_dialog(cx);
-                                }),
-                            ),
+                            .on_click(cx.listener(|this, _, _, cx| {
+                                this.confirm_source_control_dialog(cx);
+                            })),
                         ),
                 ),
         )
@@ -123,6 +117,10 @@ impl AleraApp {
                 let stash_index = stash.index;
                 div()
                     .id(("source-stash-row", row_index))
+                    .focusable()
+                    .tab_stop(true)
+                    .role(Role::ListBoxOption)
+                    .aria_label(format!("{} {}", stash.reference, stash.message))
                     .flex()
                     .flex_col()
                     .px_3()
@@ -130,13 +128,10 @@ impl AleraApp {
                     .rounded_md()
                     .cursor(CursorStyle::PointingHand)
                     .hover(|style| style.bg(theme::surface_selected()))
-                    .on_mouse_down(
-                        gpui::MouseButton::Left,
-                        cx.listener(move |this, _, _, cx| {
-                            this.source_control_dialog = None;
-                            this.run_git_action(GitAction::StashPop(stash_index), cx);
-                        }),
-                    )
+                    .on_click(cx.listener(move |this, _, _, cx| {
+                        this.source_control_dialog = None;
+                        this.run_git_action(GitAction::StashPop(stash_index), cx);
+                    }))
                     .child(
                         div()
                             .text_size(px(14.0))
@@ -183,6 +178,10 @@ impl AleraApp {
                     div().flex().justify_end().mt(px(12.0)).child(
                         div()
                             .id("cancel-stash-picker")
+                            .focusable()
+                            .tab_stop(true)
+                            .role(Role::Button)
+                            .aria_label("Cancel")
                             .px_4()
                             .h(px(32.0))
                             .flex()
@@ -191,13 +190,10 @@ impl AleraApp {
                             .rounded_md()
                             .cursor(CursorStyle::PointingHand)
                             .hover(|style| style.bg(theme::surface_selected()))
-                            .on_mouse_down(
-                                gpui::MouseButton::Left,
-                                cx.listener(|this, _, _, cx| {
-                                    this.source_control_dialog = None;
-                                    cx.notify();
-                                }),
-                            )
+                            .on_click(cx.listener(|this, _, _, cx| {
+                                this.source_control_dialog = None;
+                                cx.notify();
+                            }))
                             .child("Cancel"),
                     ),
                 ),
@@ -233,7 +229,7 @@ impl AleraApp {
                             theme::border()
                         })
                         .bg(theme::surface())
-                        .child(Input::new(&self.source_amend_input).h_full()),
+                        .child(Textarea::new(&self.source_amend_input).h_full()),
                 )
                 .when(empty, |dialog| {
                     dialog.child(
@@ -253,6 +249,10 @@ impl AleraApp {
                         .child(
                             div()
                                 .id("cancel-source-amend")
+                                .focusable()
+                                .tab_stop(true)
+                                .role(Role::Button)
+                                .aria_label("Cancel")
                                 .px_4()
                                 .h(px(36.0))
                                 .flex()
@@ -261,18 +261,19 @@ impl AleraApp {
                                 .rounded_md()
                                 .cursor(CursorStyle::PointingHand)
                                 .hover(|style| style.bg(theme::surface_selected()))
-                                .on_mouse_down(
-                                    gpui::MouseButton::Left,
-                                    cx.listener(|this, _, _, cx| {
-                                        this.source_control_dialog = None;
-                                        cx.notify();
-                                    }),
-                                )
+                                .on_click(cx.listener(|this, _, _, cx| {
+                                    this.source_control_dialog = None;
+                                    cx.notify();
+                                }))
                                 .child("Cancel"),
                         )
                         .child(
                             div()
                                 .id("confirm-source-amend")
+                                .focusable()
+                                .tab_stop(!empty)
+                                .role(Role::Button)
+                                .aria_label("Amend")
                                 .px_4()
                                 .h(px(36.0))
                                 .flex()
@@ -290,12 +291,11 @@ impl AleraApp {
                                     theme::app_background()
                                 })
                                 .when(!empty, |button| {
-                                    button.cursor(CursorStyle::PointingHand).on_mouse_down(
-                                        gpui::MouseButton::Left,
-                                        cx.listener(|this, _, _, cx| {
+                                    button
+                                        .cursor(CursorStyle::PointingHand)
+                                        .on_click(cx.listener(|this, _, _, cx| {
                                             this.confirm_source_control_dialog(cx);
-                                        }),
-                                    )
+                                        }))
                                 })
                                 .child("Amend"),
                         ),
@@ -325,7 +325,7 @@ impl AleraApp {
     }
 }
 
-fn modal_shell(content: gpui::Div) -> AnyElement {
+fn modal_shell(content: impl gpui::IntoElement) -> AnyElement {
     div()
         .absolute()
         .inset_0()

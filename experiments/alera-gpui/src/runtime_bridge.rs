@@ -380,7 +380,10 @@ async fn spawn_runtime_host(
         return Ok(());
     }
 
-    let control_file = runtime_dir.join("runtime-host.json");
+    // Flutter and the bundled CLI use `host.json` for the app-scoped local
+    // host. Reusing that name is what makes GPUI attach to the same process
+    // instead of creating a second host under `runtime-host.json`.
+    let control_file = runtime_dir.join("host.json");
     let _ = tokio::fs::remove_file(&control_file).await;
     let token = uuid::Uuid::new_v4().to_string();
     let (program, prefix, working_directory) = resolve_cli_command()?;

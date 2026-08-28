@@ -456,27 +456,22 @@ impl WorkbenchSnapshot {
                 .collect();
         }
 
-        let all_tabs = if selected_workspace_id.is_some() {
-            let mut all_tabs = Vec::new();
-            for workspace in projects.iter().flat_map(|project| &project.workspaces) {
-                let values = bridge
-                    .request_with_timeout(
-                        "tab.list",
-                        json!({ "workspaceId": workspace.id }),
-                        SNAPSHOT_REQUEST_TIMEOUT,
-                    )
-                    .await?;
-                all_tabs.extend(
-                    as_array(values)
-                        .into_iter()
-                        .map(parse_tab)
-                        .collect::<Result<Vec<_>, _>>()?,
-                );
-            }
-            all_tabs
-        } else {
-            Vec::new()
-        };
+        let mut all_tabs = Vec::new();
+        for workspace in projects.iter().flat_map(|project| &project.workspaces) {
+            let values = bridge
+                .request_with_timeout(
+                    "tab.list",
+                    json!({ "workspaceId": workspace.id }),
+                    SNAPSHOT_REQUEST_TIMEOUT,
+                )
+                .await?;
+            all_tabs.extend(
+                as_array(values)
+                    .into_iter()
+                    .map(parse_tab)
+                    .collect::<Result<Vec<_>, _>>()?,
+            );
+        }
         let tabs = selected_workspace_id
             .map(|workspace_id| {
                 all_tabs

@@ -92,6 +92,7 @@ pub(super) enum GitHubStarState {
 pub(super) struct SettingsState {
     pub settings_schema_version: u32,
     pub workspace_directory: String,
+    pub star_clicked: bool,
     pub confirm_project_removal: bool,
     pub confirm_workspace_removal: bool,
     pub keep_runtime_open_on_quit: bool,
@@ -185,6 +186,7 @@ impl Default for SettingsState {
         Self {
             settings_schema_version: 1,
             workspace_directory: "~/.alera/workspaces".to_string(),
+            star_clicked: false,
             confirm_project_removal: true,
             confirm_workspace_removal: true,
             keep_runtime_open_on_quit: false,
@@ -316,6 +318,9 @@ impl SettingsState {
                     .filter(|directory| !directory.trim().is_empty())
                     .unwrap_or("~/.alera/workspaces")
                     .to_string();
+            }
+            if let Some(clicked) = general.get("starClicked").and_then(Value::as_bool) {
+                self.star_clicked = clicked;
             }
             if let Some(enabled) = general
                 .get("confirmProjectRemoval")
@@ -526,6 +531,7 @@ impl SettingsState {
                 } else {
                     Value::String(self.workspace_directory.clone())
                 },
+                "starClicked": self.star_clicked,
                 "confirmProjectRemoval": self.confirm_project_removal,
                 "confirmWorkspaceRemoval": self.confirm_workspace_removal,
             },
@@ -883,6 +889,7 @@ mod tests {
         state.apply_local_flutter_settings(&json!({
             "general": {
                 "workspaceDirectory": "/tmp/alera-workspaces",
+                "starClicked": true,
                 "confirmProjectRemoval": false,
                 "confirmWorkspaceRemoval": false
             },
@@ -920,6 +927,7 @@ mod tests {
         }));
 
         assert_eq!(state.workspace_directory, "/tmp/alera-workspaces");
+        assert!(state.star_clicked);
         assert!(!state.confirm_project_removal);
         assert_eq!(state.editor_theme, "GitHub Dark");
         assert_eq!(state.editor_tab_size, 2);
@@ -958,6 +966,7 @@ mod tests {
             payload.pointer("/editor/themeName"),
             Some(&json!("GitHub Dark"))
         );
+        assert_eq!(payload.pointer("/general/starClicked"), Some(&json!(false)));
         assert_eq!(
             payload.pointer("/terminal/cursorShape"),
             Some(&json!("bar"))

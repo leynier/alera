@@ -116,7 +116,7 @@ impl AleraApp {
                     Ok(Err(error)) => {
                         let _ = this.update(cx, |this, cx| {
                             this.diagnostics_export_busy = false;
-                            this.local_message = Some(error.to_string().into());
+                            crate::app_log::error("diagnostics", &error.to_string());
                             cx.notify();
                         });
                         return;
@@ -124,7 +124,7 @@ impl AleraApp {
                     Err(error) => {
                         let _ = this.update(cx, |this, cx| {
                             this.diagnostics_export_busy = false;
-                            this.local_message = Some(error.to_string().into());
+                            crate::app_log::error("diagnostics", &error.to_string());
                             cx.notify();
                         });
                         return;
@@ -147,7 +147,7 @@ impl AleraApp {
                     this.diagnostics_export_busy = false;
                     match result {
                         Ok(()) => this.local_message = Some("Diagnostics exported.".into()),
-                        Err(error) => this.local_message = Some(error.into()),
+                        Err(error) => crate::app_log::error("diagnostics", &error),
                     }
                     cx.notify();
                 });

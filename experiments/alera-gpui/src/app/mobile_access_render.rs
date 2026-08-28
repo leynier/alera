@@ -1,6 +1,7 @@
 use gpui::{
-    div, prelude::FluentBuilder as _, px, AnyElement, CursorStyle, InteractiveElement as _,
-    IntoElement as _, MouseButton, MouseDownEvent, ParentElement as _, Styled as _,
+    div, prelude::FluentBuilder as _, px, AnyElement, ClickEvent, CursorStyle,
+    InteractiveElement as _, IntoElement as _, ParentElement as _, Role,
+    Styled as _, Toggled,
 };
 use gpui_component::tooltip::Tooltip;
 use qrcode::{Color, QrCode};
@@ -130,7 +131,7 @@ impl AleraApp {
             "Enables the gateway if it is disabled.",
             self.mobile_button(
                 "mobile-generate-pairing",
-                Some(AleraIcon::MobileDevice),
+                Some(AleraIcon::QrCode),
                 if self.mobile_access.busy {
                     "Generating…"
                 } else {
@@ -189,9 +190,17 @@ impl AleraApp {
     fn mobile_switch(&self, enabled: bool, cx: &mut Context<Self>) -> AnyElement {
         design_system::switch(enabled, true)
             .id("mobile-enabled-switch")
-            .on_mouse_down(
-                MouseButton::Left,
-                cx.listener(move |this, _: &MouseDownEvent, window, cx| {
+            .focusable()
+            .tab_stop(true)
+            .role(Role::Switch)
+            .aria_label("Enable Mobile Access")
+            .aria_toggled(if enabled {
+                Toggled::True
+            } else {
+                Toggled::False
+            })
+            .on_click(
+                cx.listener(move |this, _, window, cx| {
                     this.update_mobile_settings(Some(!enabled), None, window, cx);
                     cx.stop_propagation();
                 }),
@@ -223,6 +232,11 @@ impl AleraApp {
                 .map(|(index, (mode, label))| {
                     div()
                         .id(("mobile-mode", index))
+                        .focusable()
+                        .tab_stop(true)
+                        .role(Role::RadioButton)
+                        .aria_label(label)
+                        .aria_selected(mode == selected)
                         .flex()
                         .items_center()
                         .justify_center()
@@ -235,9 +249,8 @@ impl AleraApp {
                         })
                         .when(mode != selected, |item| item.text_color(theme::text_muted()))
                         .cursor(CursorStyle::PointingHand)
-                        .on_mouse_down(
-                            MouseButton::Left,
-                            cx.listener(move |this, _: &MouseDownEvent, window, cx| {
+                        .on_click(
+                            cx.listener(move |this, _, window, cx| {
                                 this.update_mobile_settings(None, Some(mode), window, cx);
                                 cx.stop_propagation();
                             }),
@@ -347,6 +360,14 @@ impl AleraApp {
                             } else {
                                 "mobile-expiry-up"
                             })
+                            .focusable()
+                            .tab_stop(true)
+                            .role(Role::Button)
+                            .aria_label(if port {
+                                "Increase Port"
+                            } else {
+                                "Increase Expires In"
+                            })
                             .flex()
                             .items_center()
                             .justify_center()
@@ -354,9 +375,8 @@ impl AleraApp {
                             .border_1()
                             .border_color(theme::border())
                             .cursor(CursorStyle::PointingHand)
-                            .on_mouse_down(
-                                MouseButton::Left,
-                                cx.listener(move |this, _: &MouseDownEvent, window, cx| {
+                            .on_click(
+                                cx.listener(move |this, _, window, cx| {
                                     this.adjust_mobile_number(port, 1, window, cx);
                                     cx.stop_propagation();
                                 }),
@@ -370,6 +390,14 @@ impl AleraApp {
                             } else {
                                 "mobile-expiry-down"
                             })
+                            .focusable()
+                            .tab_stop(true)
+                            .role(Role::Button)
+                            .aria_label(if port {
+                                "Decrease Port"
+                            } else {
+                                "Decrease Expires In"
+                            })
                             .flex()
                             .items_center()
                             .justify_center()
@@ -377,9 +405,8 @@ impl AleraApp {
                             .border_1()
                             .border_color(theme::border())
                             .cursor(CursorStyle::PointingHand)
-                            .on_mouse_down(
-                                MouseButton::Left,
-                                cx.listener(move |this, _: &MouseDownEvent, window, cx| {
+                            .on_click(
+                                cx.listener(move |this, _, window, cx| {
                                     this.adjust_mobile_number(port, -1, window, cx);
                                     cx.stop_propagation();
                                 }),
@@ -396,10 +423,14 @@ impl AleraApp {
         icon_kind: Option<AleraIcon>,
         label: &'static str,
         filled: bool,
-        listener: impl Fn(&MouseDownEvent, &mut Window, &mut gpui::App) + 'static,
+        listener: impl Fn(&ClickEvent, &mut Window, &mut gpui::App) + 'static,
     ) -> AnyElement {
         div()
             .id(id)
+            .focusable()
+            .tab_stop(!self.mobile_access.busy)
+            .role(Role::Button)
+            .aria_label(label)
             .flex()
             .items_center()
             .justify_center()
@@ -432,19 +463,15 @@ impl AleraApp {
             })
             .when(!self.mobile_access.busy, |button| {
                 button.when_some(icon_kind, |button, icon_kind| {
-                    button.child(if icon_kind == AleraIcon::MobileDevice {
-                        qr_icon(16.0).into_any_element()
-                    } else {
-                        icon(
-                            icon_kind,
-                            16.0,
-                            if filled {
-                                theme::on_accent()
-                            } else {
-                                theme::text()
-                            },
-                        )
-                    })
+                    button.child(icon(
+                        icon_kind,
+                        16.0,
+                        if filled {
+                            theme::on_accent()
+                        } else {
+                            theme::text()
+                        },
+                    ))
                 })
             })
             .text_color(if filled {
@@ -453,7 +480,7 @@ impl AleraApp {
                 theme::text()
             })
             .child(label)
-            .on_mouse_down(MouseButton::Left, listener)
+            .on_click(listener)
             .into_any_element()
     }
 }

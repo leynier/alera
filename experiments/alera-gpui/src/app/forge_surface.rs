@@ -46,7 +46,7 @@ impl AleraApp {
             let Some(entity) = weak.upgrade() else {
                 return;
             };
-            let _ = entity.update(cx, |this, cx| {
+            entity.update(cx, |this, cx| {
                 if generation != this.forge_generation {
                     return;
                 }
@@ -89,7 +89,7 @@ impl AleraApp {
             let Some(entity) = weak.upgrade() else {
                 return;
             };
-            let _ = entity.update(cx, |this, cx| {
+            entity.update(cx, |this, cx| {
                 if generation != this.forge_generation {
                     return;
                 }
@@ -175,7 +175,7 @@ impl AleraApp {
             let Some(this) = this.upgrade() else {
                 return;
             };
-            let _ = this.update(cx, |this, cx| {
+            this.update(cx, |this, cx| {
                 if generation != this.forge_generation {
                     return;
                 }

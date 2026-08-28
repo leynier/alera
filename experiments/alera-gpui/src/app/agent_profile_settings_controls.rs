@@ -1,6 +1,6 @@
 use gpui::{
     deferred, div, prelude::FluentBuilder as _, px, Context, CursorStyle, InteractiveElement as _,
-    MouseButton, ParentElement as _, SharedString, StatefulInteractiveElement as _, Styled as _,
+    ParentElement as _, Role, SharedString, StatefulInteractiveElement as _, Styled as _, Toggled,
 };
 use serde_json::Value;
 
@@ -88,6 +88,16 @@ impl AleraApp {
         let value = value.into();
         let expanded = self.agent_profile_settings.dropdown == Some(dropdown);
         let selected = selected_value(self, dropdown).to_owned();
+        let accessibility_label = match dropdown {
+            AgentProfileDropdown::Adapter => "Adapter Type",
+            AgentProfileDropdown::LaunchMode => "Launch Mode",
+            AgentProfileDropdown::Managed("model") => "Model",
+            AgentProfileDropdown::Managed("reasoningEffort") => "Reasoning Effort",
+            AgentProfileDropdown::Managed("sandbox") => "Sandbox",
+            AgentProfileDropdown::Managed("approvalPolicy") => "Approval Policy",
+            AgentProfileDropdown::Managed("persona") => "Persona",
+            AgentProfileDropdown::Managed(key) => key,
+        };
         let options = options.into_iter().collect::<Vec<_>>();
         let filterable = self.agent_profile_dropdown_is_filterable(dropdown);
         let query = self
@@ -121,6 +131,11 @@ impl AleraApp {
             .child(
                 div()
                     .id(SharedString::from(format!("profile-dropdown-{dropdown:?}")))
+                    .focusable()
+                    .tab_stop(enabled)
+                    .role(Role::ComboBox)
+                    .aria_label(accessibility_label)
+                    .aria_expanded(expanded)
                     .when(expanded && enabled, |trigger| {
                         trigger
                             .track_focus(&self.agent_profile_settings.dropdown_focus)
@@ -142,8 +157,7 @@ impl AleraApp {
                     .when(enabled, |trigger| {
                         trigger
                             .cursor(CursorStyle::PointingHand)
-                            .on_mouse_down(
-                                MouseButton::Left,
+                            .on_click(
                                 cx.listener(move |this, _, window, cx| {
                                     this.toggle_agent_profile_dropdown(dropdown, window, cx);
                                 }),
@@ -208,8 +222,14 @@ impl AleraApp {
                                     .children(options.into_iter().enumerate().map(
                                         |(index, (option, name))| {
                                             let selected_option = option.clone();
+                                            let option_label = name.clone();
                                             div()
                                                 .id(("profile-dropdown-option", index))
+                                                .focusable()
+                                                .tab_stop(enabled)
+                                                .role(Role::ListBoxOption)
+                                                .aria_label(option_label)
+                                                .aria_selected(selected == option)
                                                 .flex()
                                                 .items_center()
                                                 .h(px(30.0))
@@ -227,8 +247,7 @@ impl AleraApp {
                                                         .hover(|style| {
                                                             style.bg(theme::surface_raised())
                                                         })
-                                                        .on_mouse_down(
-                                                            MouseButton::Left,
+                                                        .on_click(
                                                             cx.listener(
                                                                 move |this, _, window, cx| {
                                                                     this.select_agent_profile_dropdown_value(
@@ -363,10 +382,21 @@ pub(super) fn settings_row_width(
 
 pub(super) fn settings_checkbox(
     id: impl Into<gpui::ElementId>,
+    label: impl Into<SharedString>,
     enabled: bool,
     interactive: bool,
 ) -> gpui::Stateful<gpui::Div> {
-    design_system::checkbox(enabled, interactive, None).id(id)
+    design_system::checkbox(enabled, interactive, None)
+        .id(id)
+        .focusable()
+        .tab_stop(interactive)
+        .role(Role::CheckBox)
+        .aria_label(label.into())
+        .aria_toggled(if enabled {
+            Toggled::True
+        } else {
+            Toggled::False
+        })
 }
 
 pub(super) fn profile_action_button(
@@ -378,6 +408,10 @@ pub(super) fn profile_action_button(
 ) -> gpui::Stateful<gpui::Div> {
     div()
         .id(id)
+        .focusable()
+        .tab_stop(!disabled)
+        .role(Role::Button)
+        .aria_label(label)
         .flex()
         .items_center()
         .justify_center()

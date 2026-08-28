@@ -2,7 +2,8 @@ use std::cmp::Ordering;
 
 use gpui::{
     div, prelude::FluentBuilder as _, px, Context, CursorStyle, InteractiveElement as _,
-    IntoElement, MouseButton, ParentElement as _, SharedString, Styled as _,
+    IntoElement, MouseButton, ParentElement as _, Role, SharedString,
+    StatefulInteractiveElement as _, Styled as _,
 };
 use gpui_component::scroll::ScrollableElement as _;
 
@@ -123,6 +124,8 @@ impl AleraApp {
             .child(
                 div()
                     .id("sidebar-view-options-dialog")
+                    .role(Role::Dialog)
+                    .aria_label("View Options")
                     .w(px(460.0))
                     .h(px(dialog_height))
                     .rounded_lg()
@@ -149,6 +152,10 @@ impl AleraApp {
                             .child(
                                 div()
                                     .id("close-sidebar-view-options")
+                                    .focusable()
+                                    .tab_stop(true)
+                                    .role(Role::Button)
+                                    .aria_label("Close")
                                     .flex()
                                     .items_center()
                                     .justify_center()
@@ -157,12 +164,9 @@ impl AleraApp {
                                     .rounded_md()
                                     .cursor(CursorStyle::PointingHand)
                                     .hover(|style| style.bg(theme::surface()))
-                                    .on_mouse_down(
-                                        MouseButton::Left,
-                                        cx.listener(|this, _, _, cx| {
-                                            this.close_sidebar_view_options(cx);
-                                        }),
-                                    )
+                                    .on_click(cx.listener(|this, _, _, cx| {
+                                        this.close_sidebar_view_options(cx);
+                                    }))
                                     .child(icon(AleraIcon::Close, 16.0, theme::text_muted())),
                             ),
                     )
@@ -187,8 +191,7 @@ impl AleraApp {
                                             "None",
                                             self.sidebar_group_by == SidebarGroupBy::None,
                                         )
-                                        .on_mouse_down(
-                                            MouseButton::Left,
+                                        .on_click(
                                             cx.listener(|this, _, _, cx| {
                                                 this.set_sidebar_group_by(SidebarGroupBy::None, cx);
                                             }),
@@ -200,8 +203,7 @@ impl AleraApp {
                                             "Project",
                                             self.sidebar_group_by == SidebarGroupBy::Project,
                                         )
-                                        .on_mouse_down(
-                                            MouseButton::Left,
+                                        .on_click(
                                             cx.listener(|this, _, _, cx| {
                                                 this.set_sidebar_group_by(
                                                     SidebarGroupBy::Project,
@@ -223,15 +225,12 @@ impl AleraApp {
                                                     project_sort_label,
                                                     "project-sort-trigger",
                                                 )
-                                                .on_mouse_down(
-                                                    MouseButton::Left,
-                                                    cx.listener(|this, _, _, cx| {
-                                                        this.toggle_sidebar_sort_dropdown(
-                                                            SidebarSortTarget::Project,
-                                                            cx,
-                                                        );
-                                                    }),
-                                                ),
+                                                .on_click(cx.listener(|this, _, _, cx| {
+                                                    this.toggle_sidebar_sort_dropdown(
+                                                        SidebarSortTarget::Project,
+                                                        cx,
+                                                    );
+                                                })),
                                             )
                                             .when(
                                                 self.sidebar_sort_dropdown
@@ -254,15 +253,12 @@ impl AleraApp {
                                                     workspace_sort_label,
                                                     "workspace-sort-trigger",
                                                 )
-                                                .on_mouse_down(
-                                                    MouseButton::Left,
-                                                    cx.listener(|this, _, _, cx| {
-                                                        this.toggle_sidebar_sort_dropdown(
-                                                            SidebarSortTarget::Workspace,
-                                                            cx,
-                                                        );
-                                                    }),
-                                                ),
+                                                .on_click(cx.listener(|this, _, _, cx| {
+                                                    this.toggle_sidebar_sort_dropdown(
+                                                        SidebarSortTarget::Workspace,
+                                                        cx,
+                                                    );
+                                                })),
                                             )
                                             .when(
                                                 self.sidebar_sort_dropdown
@@ -287,8 +283,7 @@ impl AleraApp {
                                                 workspace_sort_label,
                                                 "workspace-sort-trigger",
                                             )
-                                            .on_mouse_down(
-                                                MouseButton::Left,
+                                            .on_click(
                                                 cx.listener(|this, _, _, cx| {
                                                     this.toggle_sidebar_sort_dropdown(
                                                         SidebarSortTarget::Workspace,
@@ -326,8 +321,7 @@ impl AleraApp {
                                             self.sidebar_workspace_kind
                                                 == SidebarWorkspaceKind::All,
                                         )
-                                        .on_mouse_down(
-                                            MouseButton::Left,
+                                        .on_click(
                                             cx.listener(|this, _, _, cx| {
                                                 this.set_sidebar_workspace_kind(
                                                     SidebarWorkspaceKind::All,
@@ -343,8 +337,7 @@ impl AleraApp {
                                             self.sidebar_workspace_kind
                                                 == SidebarWorkspaceKind::DefaultOnly,
                                         )
-                                        .on_mouse_down(
-                                            MouseButton::Left,
+                                        .on_click(
                                             cx.listener(|this, _, _, cx| {
                                                 this.set_sidebar_workspace_kind(
                                                     SidebarWorkspaceKind::DefaultOnly,
@@ -360,8 +353,7 @@ impl AleraApp {
                                             self.sidebar_workspace_kind
                                                 == SidebarWorkspaceKind::NonDefaultOnly,
                                         )
-                                        .on_mouse_down(
-                                            MouseButton::Left,
+                                        .on_click(
                                             cx.listener(|this, _, _, cx| {
                                                 this.set_sidebar_workspace_kind(
                                                     SidebarWorkspaceKind::NonDefaultOnly,
@@ -378,12 +370,11 @@ impl AleraApp {
                                     self.sidebar_repeat_pinned,
                                 )
                                 .mt_2()
-                                .on_mouse_down(
-                                    MouseButton::Left,
-                                    cx.listener(|this, _, _, cx| {
+                                .on_click(cx.listener(
+                                    |this, _, _, cx| {
                                         this.toggle_sidebar_repeat_pinned(cx);
-                                    }),
-                                ),
+                                    },
+                                )),
                             )
                             .child(div().h(px(1.0)).my_2().bg(theme::border_subtle()))
                             .child(
@@ -392,12 +383,11 @@ impl AleraApp {
                                         "clear-sidebar-project-filters",
                                         selected_project_count > 0,
                                     )
-                                    .on_mouse_down(
-                                        MouseButton::Left,
-                                        cx.listener(|this, _, _, cx| {
+                                    .on_click(cx.listener(
+                                        |this, _, _, cx| {
                                             this.clear_sidebar_project_filters(cx);
-                                        }),
-                                    ),
+                                        },
+                                    )),
                                 ),
                             )
                             .when(!selected_projects.is_empty(), |panel| {
@@ -411,8 +401,7 @@ impl AleraApp {
                                             )),
                                             project.name.clone(),
                                         )
-                                        .on_mouse_down(
-                                            MouseButton::Left,
+                                        .on_click(
                                             cx.listener(move |this, _, _, cx| {
                                                 this.toggle_sidebar_project_filter(
                                                     project_id.clone(),
@@ -451,12 +440,11 @@ impl AleraApp {
                                     project.name.clone(),
                                     None,
                                 )
-                                .on_mouse_down(
-                                    MouseButton::Left,
-                                    cx.listener(move |this, _, _, cx| {
+                                .on_click(cx.listener(
+                                    move |this, _, _, cx| {
                                         this.toggle_sidebar_project_filter(project_id.clone(), cx);
-                                    }),
-                                )
+                                    },
+                                ))
                             }))
                             .child(div().h(px(1.0)).my_3().bg(theme::border_subtle()))
                             .child(
@@ -465,12 +453,11 @@ impl AleraApp {
                                         "clear-sidebar-tag-filters",
                                         selected_tag_count > 0,
                                     )
-                                    .on_mouse_down(
-                                        MouseButton::Left,
-                                        cx.listener(|this, _, _, cx| {
+                                    .on_click(cx.listener(
+                                        |this, _, _, cx| {
                                             this.clear_sidebar_view_tag_filters(cx);
-                                        }),
-                                    ),
+                                        },
+                                    )),
                                 ),
                             )
                             .when(!selected_tags.is_empty(), |panel| {
@@ -484,8 +471,7 @@ impl AleraApp {
                                             )),
                                             tag.name.clone(),
                                         )
-                                        .on_mouse_down(
-                                            MouseButton::Left,
+                                        .on_click(
                                             cx.listener(move |this, _, _, cx| {
                                                 this.toggle_sidebar_view_tag_filter(
                                                     tag_id.clone(),
@@ -521,12 +507,11 @@ impl AleraApp {
                                     tag.name.clone(),
                                     Some(AleraIcon::Tag),
                                 )
-                                .on_mouse_down(
-                                    MouseButton::Left,
-                                    cx.listener(move |this, _, _, cx| {
+                                .on_click(cx.listener(
+                                    move |this, _, _, cx| {
                                         this.toggle_sidebar_view_tag_filter(tag_id.clone(), cx);
-                                    }),
-                                )
+                                    },
+                                ))
                             })),
                     ),
             )

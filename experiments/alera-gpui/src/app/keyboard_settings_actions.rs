@@ -9,6 +9,18 @@ use super::keyboard_settings::{
 use super::AleraApp;
 
 impl AleraApp {
+    pub(super) fn keyboard_shortcut_for_keystroke(
+        &self,
+        keystroke: &Keystroke,
+    ) -> Option<&'static super::keyboard_settings::KeyboardBindingDefinition> {
+        let canonical = canonical_from_keystroke(keystroke)?;
+        KEYBOARD_BINDINGS.iter().find(|definition| {
+            effective_bindings(&self.settings_state, definition)
+                .iter()
+                .any(|binding| binding == &canonical)
+        })
+    }
+
     pub(super) fn set_keyboard_terminal_policy(
         &mut self,
         policy: &'static str,
@@ -34,7 +46,7 @@ impl AleraApp {
         } else {
             self.keyboard_settings.recording_id = Some(id);
             self.keyboard_settings.error = None;
-            self.keyboard_settings.focus.focus(window);
+            self.keyboard_settings.focus.focus(window, cx);
         }
         cx.notify();
     }

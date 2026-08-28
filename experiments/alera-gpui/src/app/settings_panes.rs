@@ -1,11 +1,10 @@
 use gpui::{
     div, prelude::FluentBuilder as _, px, rgb, AnyElement, AppContext as _, Context, CursorStyle,
-    Entity, InteractiveElement as _, IntoElement, IsZero as _, MouseButton, MouseDownEvent,
-    ParentElement as _, ScrollWheelEvent, SharedString, StatefulInteractiveElement as _,
-    Styled as _,
+    Entity, InteractiveElement as _, IntoElement, ParentElement as _, Role, SharedString,
+    StatefulInteractiveElement as _, Styled as _, Toggled,
 };
-use gpui_component::input::InputState;
-use gpui_component::scroll::{ScrollableElement as _, Scrollbar};
+use gpui_component::input::{InputState, Textarea, TextareaState};
+use gpui_component::scroll::{ScrollableElement as _, Scrollbar, ScrollbarMode};
 use gpui_component::select::{SearchableVec, Select, SelectEvent, SelectState};
 use gpui_component::tooltip::Tooltip;
 use std::collections::{BTreeMap, BTreeSet};
@@ -23,11 +22,7 @@ use crate::{
 
 type SettingsSelect = Entity<SelectState<SearchableVec<SettingsSelectOption>>>;
 type SettingsInputs = BTreeMap<String, Entity<InputState>>;
-
-// Computer Use's macOS wheel event is larger than Flutter's ListView delta.
-// Keep the correction in one named token so every Settings pane uses the same
-// logical scroll distance while the native thumb still tracks the real range.
-const SETTINGS_SCROLL_DELTA_FACTOR: f32 = 0.42;
+type SettingsTextareas = BTreeMap<String, Entity<TextareaState>>;
 
 impl AleraApp {
     pub(super) fn render_settings_pane(&self, cx: &mut Context<Self>) -> AnyElement {
@@ -63,6 +58,7 @@ impl AleraApp {
             SettingsPane::AiText => ai_text_pane(
                 &self.settings_state,
                 &self.settings_inputs,
+                &self.settings_textareas,
                 &self.settings_selects,
                 &self.ai_model_discovery_busy,
                 &self.ai_model_discovery_errors,
@@ -170,45 +166,18 @@ impl AleraApp {
                         .min_h_0()
                         .track_scroll(&scroll_handle)
                         .flex_col()
-                        // The offset is owned by the child wheel handler
-                        // below. Keeping this node clipped but non-scrollable
-                        // prevents GPUI's automatic listener from adding the
-                        // raw wheel delta a second time; ScrollHandle still
-                        // computes its real max range for the thumb.
-                        .overflow_hidden()
+                        .overflow_y_scroll()
                         // Keep the scroll content intrinsic. Forcing the pane
                         // to flex to the viewport hides the final rows from
                         // the scroll range when a settings section is taller
                         // than the window.
-                        .child(
-                            pane.flex_shrink_0().on_scroll_wheel(
-                                cx.listener(|this, event: &ScrollWheelEvent, window, cx| {
-                                    let delta = event.delta.pixel_delta(window.line_height()).y;
-                                    if delta.is_zero() {
-                                        return;
-                                    }
-                                    let current = this.settings_scroll_handle.offset();
-                                    let max_y = this.settings_scroll_handle.max_offset().height;
-                                    // The macOS Computer Use backend reports a
-                                    // larger synthetic page delta than Flutter's
-                                    // ListView. Use the persisted pre-event offset
-                                    // so the adjustment remains stable and stop
-                                    // propagation before `overflow_y_scroll` can
-                                    // apply the raw delta a second time.
-                                    let previous = this.settings_scroll_last_offset.get();
-                                    let next_y = (previous
-                                        + delta * SETTINGS_SCROLL_DELTA_FACTOR)
-                                        .clamp(-max_y, px(0.0));
-                                    this.settings_scroll_handle
-                                        .set_offset(gpui::point(current.x, next_y));
-                                    this.settings_scroll_last_offset.set(next_y);
-                                    cx.stop_propagation();
-                                    cx.notify();
-                                }),
-                            ),
-                        ),
+                        .child(pane.flex_shrink_0()),
                 )
-                .child(Scrollbar::vertical(&scroll_handle).id("settings-scrollbar"))
+                .child(
+                    Scrollbar::vertical(&scroll_handle)
+                        .id("settings-scrollbar")
+                        .mode(ScrollbarMode::Always),
+                )
                 .into_any_element()
         }
     }

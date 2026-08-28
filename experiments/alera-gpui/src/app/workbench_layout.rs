@@ -4,7 +4,7 @@ use gpui::{
     div, px, AnyElement, AppContext as _, Context, CursorStyle, DragMoveEvent, Empty,
     InteractiveElement as _, IntoElement as _, MouseButton, MouseDownEvent, MouseMoveEvent,
     MouseUpEvent, ParentElement as _, SharedString, StatefulInteractiveElement as _, Styled as _,
-    Timer, Window,
+    Window,
 };
 
 use super::{AleraApp, PanelResizeState, PanelResizeTarget, ResizeDrag, SplitResizeState};
@@ -55,12 +55,8 @@ impl AleraApp {
                     .unwrap_or_else(|| {
                         let size = window.viewport_size();
                         match axis {
-                            WorkbenchSplitAxis::Horizontal => {
-                                f32::from(size.width / px(1.0))
-                            }
-                            WorkbenchSplitAxis::Vertical => {
-                                f32::from(size.height / px(1.0))
-                            }
+                            WorkbenchSplitAxis::Horizontal => size.width / px(1.0),
+                            WorkbenchSplitAxis::Vertical => size.height / px(1.0),
                         }
                     })
                     .max(1.0);
@@ -99,7 +95,7 @@ impl AleraApp {
                         .child(
                             div()
                                 .flex_basis(gpui::relative(ratio))
-                                .flex_shrink()
+                                .flex_shrink(1.0)
                                 .h_full()
                                 .overflow_hidden()
                                 .child(first_view),
@@ -114,7 +110,7 @@ impl AleraApp {
                         .child(
                             div()
                                 .flex_basis(gpui::relative(1.0 - ratio))
-                                .flex_shrink()
+                                .flex_shrink(1.0)
                                 .h_full()
                                 .overflow_hidden()
                                 .child(second_view),
@@ -129,7 +125,7 @@ impl AleraApp {
                         .child(
                             div()
                                 .flex_basis(gpui::relative(ratio))
-                                .flex_shrink()
+                                .flex_shrink(1.0)
                                 .w_full()
                                 .overflow_hidden()
                                 .child(first_view),
@@ -144,7 +140,7 @@ impl AleraApp {
                         .child(
                             div()
                                 .flex_basis(gpui::relative(1.0 - ratio))
-                                .flex_shrink()
+                                .flex_shrink(1.0)
                                 .w_full()
                                 .overflow_hidden()
                                 .child(second_view),
@@ -197,12 +193,12 @@ impl AleraApp {
             let bounds = self.pane_bounds.get(group_id)?;
             let (start, end) = match axis {
                 WorkbenchSplitAxis::Horizontal => (
-                    f32::from(bounds.origin.x / px(1.0)),
-                    f32::from((bounds.origin.x + bounds.size.width) / px(1.0)),
+                    (bounds.origin.x / px(1.0)),
+                    ((bounds.origin.x + bounds.size.width) / px(1.0)),
                 ),
                 WorkbenchSplitAxis::Vertical => (
-                    f32::from(bounds.origin.y / px(1.0)),
-                    f32::from((bounds.origin.y + bounds.size.height) / px(1.0)),
+                    (bounds.origin.y / px(1.0)),
+                    ((bounds.origin.y + bounds.size.height) / px(1.0)),
                 ),
             };
             min_edge = min_edge.min(start);
@@ -300,11 +296,13 @@ impl AleraApp {
         self.resize_persist_generation = self.resize_persist_generation.wrapping_add(1);
         let generation = self.resize_persist_generation;
         cx.spawn(async move |this, cx| {
-            Timer::after(Duration::from_millis(180)).await;
+            cx.background_executor()
+                .timer(Duration::from_millis(180))
+                .await;
             let Some(this) = this.upgrade() else {
                 return;
             };
-            let _ = this.update(cx, |this, cx| {
+            this.update(cx, |this, cx| {
                 if this.resize_persist_generation != generation {
                     return;
                 }

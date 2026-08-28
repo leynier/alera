@@ -2,9 +2,8 @@ use std::time::Duration;
 
 use gpui::{
     div, prelude::FluentBuilder as _, px, AppContext as _, Context, CursorStyle,
-    InteractiveElement as _,
-    MouseButton, ParentElement as _, SharedString, StatefulInteractiveElement as _, Styled as _,
-    Window,
+    InteractiveElement as _, ParentElement as _, Role, SharedString,
+    StatefulInteractiveElement as _, Styled as _, Window,
 };
 use gpui_component::tooltip::Tooltip;
 use serde_json::{json, Value};
@@ -230,6 +229,10 @@ impl AleraApp {
                     row.child(
                         div()
                             .id(choice.refresh_id)
+                            .focusable()
+                            .tab_stop(!self.agent_profile_settings.saving && !choice.busy)
+                            .role(Role::Button)
+                            .aria_label(choice.refresh_tooltip)
                             .tooltip(move |_, cx| {
                                 cx.new(|_| Tooltip::new(choice.refresh_tooltip)).into()
                             })
@@ -245,19 +248,14 @@ impl AleraApp {
                                     button
                                         .cursor(CursorStyle::PointingHand)
                                         .hover(|style| style.bg(theme::surface_raised()))
-                                    .on_mouse_down(
-                                        MouseButton::Left,
-                                        cx.listener(move |this, _, window, cx| {
+                                        .on_click(cx.listener(move |this, _, window, cx| {
                                             on_refresh(this, window, cx);
-                                        }),
-                                    )
+                                        }))
                                 },
                             )
                             .when(
                                 self.agent_profile_settings.saving || choice.busy,
-                                |button| {
-                                button.opacity(0.5)
-                                },
+                                |button| button.opacity(0.5),
                             )
                             .child(icon(
                                 if choice.busy {

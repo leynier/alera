@@ -1,8 +1,15 @@
 fn settings_switch(
     id: impl Into<gpui::ElementId>,
+    label: impl Into<SharedString>,
     enabled: bool,
 ) -> gpui::Stateful<gpui::Div> {
-    design_system::switch(enabled, true).id(id)
+    design_system::switch(enabled, true)
+        .id(id)
+        .focusable()
+        .tab_stop(true)
+        .role(Role::Switch)
+        .aria_label(label.into())
+        .aria_toggled(if enabled { Toggled::True } else { Toggled::False })
 }
 
 fn settings_button(
@@ -17,8 +24,13 @@ fn settings_button_with_loading(
     label: impl Into<SharedString>,
     loading: bool,
 ) -> gpui::Stateful<gpui::Div> {
+    let label = label.into();
     div()
         .id(id)
+        .focusable()
+        .tab_stop(!loading)
+        .role(Role::Button)
+        .aria_label(label.clone())
         .flex()
         .items_center()
         .justify_center()
@@ -39,10 +51,11 @@ fn settings_button_with_loading(
         .when(loading, |button| {
             button.child(loading_indicator(16.0, theme::text_muted()))
         })
-        .when(!loading, |button| button.child(label.into()))
+        .when(!loading, |button| button.child(label))
 }
 
 fn settings_select_control(
+    label: &'static str,
     select: &SettingsSelect,
     wide: bool,
     _compact: bool,
@@ -59,7 +72,14 @@ fn settings_select_control(
         .border_color(theme::border())
         .bg(theme::surface_selected())
         .cursor(CursorStyle::PointingHand)
-        .child(Select::new(select).w_full().h_full())
+        .child(
+            div()
+                .id(("settings-select", select.entity_id()))
+                .role(Role::ComboBox)
+                .aria_label(label)
+                .size_full()
+                .child(Select::new(select).w_full().h_full()),
+        )
         .child(
             div()
                 .absolute()
@@ -88,16 +108,27 @@ fn settings_font_select_control(
         .bg(theme::surface_selected())
         .cursor(CursorStyle::PointingHand)
         .child(
-            Select::new(select)
-                .w_full()
-                .h_full()
-                .placeholder("SF Mono")
-                .appearance(false),
+            div()
+                .id(("settings-font-select", select.entity_id()))
+                .role(Role::ComboBox)
+                .aria_label("Font Family")
+                .size_full()
+                .child(
+                    Select::new(select)
+                        .w_full()
+                        .h_full()
+                        .placeholder("SF Mono")
+                        .appearance(false),
+                ),
         )
         .when(has_value, |this| {
             this.child(
                 div()
                     .id("settings-terminal-font-clear")
+                    .focusable()
+                    .tab_stop(true)
+                    .role(Role::Button)
+                    .aria_label("Clear Font Family")
                     .absolute()
                     .top_0()
                     .right(px(30.0))
@@ -107,10 +138,10 @@ fn settings_font_select_control(
                     .items_center()
                     .justify_center()
                     .cursor(CursorStyle::PointingHand)
+                    .tooltip(|_, cx| cx.new(|_| Tooltip::new("Clear")).into())
                     .child(icon(AleraIcon::Cancel, 14.0, theme::text_muted()))
-                    .on_mouse_down(
-                        MouseButton::Left,
-                        cx.listener(move |_, _: &MouseDownEvent, window, cx| {
+                    .on_click(
+                        cx.listener(move |_, _, window, cx| {
                             select_for_clear.update(cx, |select, cx| {
                                 select.set_selected_index(None, window, cx);
                                 cx.emit(SelectEvent::Confirm(None));
@@ -121,6 +152,7 @@ fn settings_font_select_control(
         })
         .child(
             div()
+                .id("settings-terminal-font-menu")
                 .absolute()
                 .top_0()
                 .right(px(8.0))
@@ -129,6 +161,7 @@ fn settings_font_select_control(
                 .flex()
                 .items_center()
                 .justify_center()
+                .tooltip(|_, cx| cx.new(|_| Tooltip::new("Fonts")).into())
                 .child(icon(AleraIcon::ChevronDown, 14.0, theme::text_muted())),
         )
 }
@@ -159,6 +192,9 @@ fn provider_order_item(
 ) -> gpui::Div {
     let provider_up = provider.clone();
     let provider_down = provider.clone();
+    let provider_label = quota_provider_label(&provider);
+    let earlier_tooltip: SharedString = format!("Move {provider_label} Earlier").into();
+    let later_tooltip: SharedString = format!("Move {provider_label} Later").into();
     div()
         .flex()
         .items_center()
@@ -185,19 +221,26 @@ fn provider_order_item(
         .child(
             div()
                 .id(SharedString::from(format!("quota-order-up-{provider}")))
+                .focusable()
+                .tab_stop(index > 0)
+                .role(Role::Button)
+                .aria_label(earlier_tooltip.clone())
                 .flex()
                 .items_center()
                 .justify_center()
                 .w(px(28.0))
                 .h(px(28.0))
                 .rounded_md()
+                .tooltip(move |_, cx| {
+                    let label = earlier_tooltip.clone();
+                    cx.new(move |_| Tooltip::new(label)).into()
+                })
                 .when(index > 0, |button| {
                     button
                         .cursor(CursorStyle::PointingHand)
                         .hover(|style| style.bg(theme::surface_raised()))
-                        .on_mouse_down(
-                            MouseButton::Left,
-                            cx.listener(move |this, _: &MouseDownEvent, _, cx| {
+                        .on_click(
+                            cx.listener(move |this, _, _, cx| {
                                 this.update_quota_settings(
                                     |settings| {
                                         let Some(current) = settings
@@ -223,19 +266,26 @@ fn provider_order_item(
         .child(
             div()
                 .id(SharedString::from(format!("quota-order-down-{provider}")))
+                .focusable()
+                .tab_stop(index + 1 < count)
+                .role(Role::Button)
+                .aria_label(later_tooltip.clone())
                 .flex()
                 .items_center()
                 .justify_center()
                 .w(px(28.0))
                 .h(px(28.0))
                 .rounded_md()
+                .tooltip(move |_, cx| {
+                    let label = later_tooltip.clone();
+                    cx.new(move |_| Tooltip::new(label)).into()
+                })
                 .when(index + 1 < count, |button| {
                     button
                         .cursor(CursorStyle::PointingHand)
                         .hover(|style| style.bg(theme::surface_raised()))
-                        .on_mouse_down(
-                            MouseButton::Left,
-                            cx.listener(move |this, _: &MouseDownEvent, _, cx| {
+                        .on_click(
+                            cx.listener(move |this, _, _, cx| {
                                 this.update_quota_settings(
                                     |settings| {
                                         let Some(current) = settings

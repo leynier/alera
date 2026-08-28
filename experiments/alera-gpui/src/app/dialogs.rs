@@ -1,8 +1,9 @@
 use gpui::{
     div, prelude::FluentBuilder as _, px, AnyElement, Context, CursorStyle,
-    InteractiveElement as _, IntoElement, ParentElement as _, Styled as _,
+    InteractiveElement as _, IntoElement, ParentElement as _, Role,
+    StatefulInteractiveElement as _, Styled as _, Toggled,
 };
-use gpui_component::input::Input;
+use gpui_component::input::Textarea;
 
 use super::workspace_prompt_dropdown::WorkspacePromptDropdown;
 use super::{AleraApp, NewWorkspaceMode, NewWorkspaceStep};
@@ -52,6 +53,9 @@ impl AleraApp {
             .is_empty();
 
         div()
+            .id("new-workspace-dialog")
+            .role(Role::Dialog)
+            .aria_label("New Workspace")
             .w(px(630.0))
             .rounded_lg()
             .border_1()
@@ -92,7 +96,7 @@ impl AleraApp {
                         div()
                             .h(px(94.0))
                             .child(
-                                Input::new(&self.workspace_prompt_input)
+                                Textarea::new(&self.workspace_prompt_input)
                                     .disabled(
                                         self.workspace_creation_busy
                                             || self.workspace_prompt_created.is_some(),
@@ -129,8 +133,12 @@ impl AleraApp {
                         cx,
                     ))
                     .when_some(self.error.clone(), |dialog, error| {
+                        let alert_label = error.clone();
                         dialog.child(
                             div()
+                                .id("prompt-workspace-error")
+                                .role(Role::Alert)
+                                .aria_label(alert_label)
                                 .mt_4()
                                 .text_sm()
                                 .text_color(theme::danger())
@@ -139,10 +147,34 @@ impl AleraApp {
                     })
                     .child(
                         div()
+                            .id("create-another-prompt-workspace")
+                            .focusable()
+                            .tab_stop(
+                                !self.workspace_creation_busy
+                                    && self.workspace_prompt_created.is_none(),
+                            )
+                            .role(Role::CheckBox)
+                            .aria_label("Create Another")
+                            .aria_toggled(if self.create_another_workspace {
+                                Toggled::True
+                            } else {
+                                Toggled::False
+                            })
                             .flex()
                             .items_center()
                             .gap_2()
                             .mt_4()
+                            .when(
+                                !self.workspace_creation_busy
+                                    && self.workspace_prompt_created.is_none(),
+                                |row| {
+                                    row.cursor(CursorStyle::PointingHand).on_click(
+                                        cx.listener(|this, _, _, cx| {
+                                            this.toggle_create_another_workspace(cx);
+                                        }),
+                                    )
+                                },
+                            )
                             .child(design_system::checkbox(
                                 self.create_another_workspace,
                                 !self.workspace_creation_busy
@@ -151,21 +183,6 @@ impl AleraApp {
                             ))
                             .child(
                                 div()
-                                    .id("create-another-prompt-workspace")
-                                    .when(
-                                        !self.workspace_creation_busy
-                                            && self.workspace_prompt_created.is_none(),
-                                        |label| {
-                                            label
-                                                .cursor(CursorStyle::PointingHand)
-                                                .on_mouse_down(
-                                                    gpui::MouseButton::Left,
-                                                    cx.listener(|this, _, _, cx| {
-                                                        this.toggle_create_another_workspace(cx);
-                                                    }),
-                                                )
-                                        },
-                                    )
                                     .child("Create Another"),
                             ),
                     )
@@ -193,7 +210,7 @@ impl AleraApp {
                                     "Continue Manually",
                                     false,
                                 )
-                                .on_mouse_down(gpui::MouseButton::Left, cx.listener(|this, _, _, cx| {
+                                .on_click(cx.listener(|this, _, _, cx| {
                                     this.continue_manual_workspace(cx);
                                 })),
                             ),
@@ -201,8 +218,12 @@ impl AleraApp {
             })
             .when(!prompt_mode, |dialog| {
                 dialog.when_some(self.error.clone(), |dialog, error| {
+                    let alert_label = error.clone();
                     dialog.child(
                         div()
+                            .id("manual-workspace-error")
+                            .role(Role::Alert)
+                            .aria_label(alert_label)
                             .mt_3()
                             .text_sm()
                             .text_color(theme::danger())
@@ -228,14 +249,15 @@ impl AleraApp {
                 header.child(
                     div()
                         .id("workspace-header-back")
+                        .focusable()
+                        .tab_stop(true)
+                        .role(Role::Button)
+                        .aria_label("Back")
                         .mr_2()
                         .cursor(CursorStyle::PointingHand)
-                        .on_mouse_down(
-                            gpui::MouseButton::Left,
-                            cx.listener(|this, _, _, cx| {
-                                this.back_new_workspace(cx);
-                            }),
-                        )
+                        .on_click(cx.listener(|this, _, _, cx| {
+                            this.back_new_workspace(cx);
+                        }))
                         .child(icon(AleraIcon::Back, 16.0, theme::text_muted())),
                 )
             })
@@ -259,16 +281,17 @@ impl AleraApp {
             .child(
                 div()
                     .id("close-workspace-dialog")
+                    .focusable()
+                    .tab_stop(true)
+                    .role(Role::Button)
+                    .aria_label("Close New Workspace")
                     .ml_3()
                     .text_lg()
                     .text_color(theme::text_muted())
                     .cursor(CursorStyle::PointingHand)
-                    .on_mouse_down(
-                        gpui::MouseButton::Left,
-                        cx.listener(|this, _, _, cx| {
-                            this.close_new_workspace_dialog(cx);
-                        }),
-                    )
+                    .on_click(cx.listener(|this, _, _, cx| {
+                        this.close_new_workspace_dialog(cx);
+                    }))
                     .child(icon(AleraIcon::Close, 16.0, theme::text_muted())),
             )
     }
@@ -284,6 +307,16 @@ impl AleraApp {
         let selected = self.new_workspace_mode == mode;
         div()
             .id(id)
+            .focusable()
+            .tab_stop(!self.workspace_creation_busy)
+            .role(Role::RadioButton)
+            .aria_label(label)
+            .aria_selected(selected)
+            .aria_toggled(if selected {
+                Toggled::True
+            } else {
+                Toggled::False
+            })
             .flex()
             .items_center()
             .justify_center()
@@ -293,14 +326,11 @@ impl AleraApp {
                 button.cursor(CursorStyle::PointingHand)
             })
             .when(selected, |button| button.bg(theme::surface()))
-            .on_mouse_down(
-                gpui::MouseButton::Left,
-                cx.listener(move |this, _, _, cx| {
-                    if !this.workspace_creation_busy {
-                        this.select_new_workspace_mode(mode, cx);
-                    }
-                }),
-            )
+            .on_click(cx.listener(move |this, _, _, cx| {
+                if !this.workspace_creation_busy {
+                    this.select_new_workspace_mode(mode, cx);
+                }
+            }))
             .gap_1()
             .child(icon(icon_kind, 14.0, theme::text_muted()))
             .child(label)
@@ -351,6 +381,10 @@ pub(super) fn primary_button_with_loading(
 ) -> gpui::Stateful<gpui::Div> {
     div()
         .id(id)
+        .focusable()
+        .tab_stop(!disabled)
+        .role(Role::Button)
+        .aria_label(label)
         .flex()
         .items_center()
         .justify_center()
@@ -388,6 +422,10 @@ pub(super) fn primary_icon_button(
     };
     div()
         .id(id)
+        .focusable()
+        .tab_stop(!disabled)
+        .role(Role::Button)
+        .aria_label(label)
         .flex()
         .items_center()
         .justify_center()
@@ -410,6 +448,10 @@ pub(super) fn primary_icon_button(
 pub(super) fn secondary_button(id: &'static str, label: &'static str) -> gpui::Stateful<gpui::Div> {
     div()
         .id(id)
+        .focusable()
+        .tab_stop(true)
+        .role(Role::Button)
+        .aria_label(label)
         .flex()
         .items_center()
         .justify_center()

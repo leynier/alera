@@ -1,7 +1,7 @@
 use gpui::{
-    div, prelude::FluentBuilder as _, px, AppContext as _, ClipboardItem, Context, CursorStyle, IntoElement,
-    InteractiveElement as _, MouseButton, ParentElement as _, StatefulInteractiveElement as _,
-    Styled as _,
+    div, prelude::FluentBuilder as _, px, AppContext as _, ClipboardItem, Context, CursorStyle,
+    InteractiveElement as _, IntoElement, ParentElement as _, Role,
+    StatefulInteractiveElement as _, Styled as _,
 };
 
 use super::AleraApp;
@@ -41,7 +41,7 @@ impl AleraApp {
             .justify_center()
             .bg(theme::overlay_scrim())
             .child(
-                design_system::dialog_shell(400.0)
+                design_system::dialog_shell("about-dialog", "About Alera", 400.0)
                     // Flutter's About dialog is capped at 400 logical px; on
                     // a scaled macOS display that produces the same roughly
                     // 310 physical px surface as the reference dialog.
@@ -66,6 +66,10 @@ impl AleraApp {
                             .child(
                                 div()
                                     .id("close-about")
+                                    .focusable()
+                                    .tab_stop(true)
+                                    .role(Role::Button)
+                                    .aria_label("Close")
                                     .flex()
                                     .items_center()
                                     .justify_center()
@@ -75,17 +79,12 @@ impl AleraApp {
                                     .cursor(CursorStyle::PointingHand)
                                     .hover(|style| style.bg(theme::surface_raised()))
                                     .tooltip(|_, cx| {
-                                        cx.new(|_| {
-                                            gpui_component::tooltip::Tooltip::new("Close")
-                                        })
-                                        .into()
+                                        cx.new(|_| gpui_component::tooltip::Tooltip::new("Close"))
+                                            .into()
                                     })
-                                    .on_mouse_down(
-                                        MouseButton::Left,
-                                        cx.listener(|this, _, _, cx| {
-                                            this.close_about_dialog(cx);
-                                        }),
-                                    )
+                                    .on_click(cx.listener(|this, _, _, cx| {
+                                        this.close_about_dialog(cx);
+                                    }))
                                     .child(icon(AleraIcon::Close, 14.0, theme::text_muted())),
                             ),
                     )
@@ -118,6 +117,10 @@ impl AleraApp {
                             .child(
                                 div()
                                     .id("copy-about-version")
+                                    .focusable()
+                                    .tab_stop(true)
+                                    .role(Role::Button)
+                                    .aria_label("Copy Version")
                                     .flex()
                                     .items_center()
                                     .justify_center()
@@ -132,16 +135,13 @@ impl AleraApp {
                                         })
                                         .into()
                                     })
-                                    .on_mouse_down(
-                                        MouseButton::Left,
-                                        cx.listener(move |this, _, _, cx| {
-                                            cx.write_to_clipboard(ClipboardItem::new_string(
-                                                copy_version.clone(),
-                                            ));
-                                            this.local_message = Some("Version Copied".into());
-                                            cx.notify();
-                                        }),
-                                    )
+                                    .on_click(cx.listener(move |this, _, _, cx| {
+                                        cx.write_to_clipboard(ClipboardItem::new_string(
+                                            copy_version.clone(),
+                                        ));
+                                        this.local_message = Some("Version Copied".into());
+                                        cx.notify();
+                                    }))
                                     .child(icon(AleraIcon::Copy, 14.0, theme::text_muted())),
                             ),
                     )
@@ -159,13 +159,10 @@ impl AleraApp {
                                     update_busy,
                                 )
                                 .when(!update_busy, |button| {
-                                    button.on_mouse_down(
-                                        MouseButton::Left,
-                                        cx.listener(|this, _, _, cx| {
-                                            this.close_about_dialog(cx);
-                                            this.check_for_updates_from_menu(cx);
-                                        }),
-                                    )
+                                    button.on_click(cx.listener(|this, _, _, cx| {
+                                        this.close_about_dialog(cx);
+                                        this.check_for_updates_from_menu(cx);
+                                    }))
                                 }),
                             )
                             .child(
@@ -175,12 +172,11 @@ impl AleraApp {
                                     ButtonKind::Filled,
                                     false,
                                 )
-                                .on_mouse_down(
-                                    MouseButton::Left,
-                                    cx.listener(|this, _, _, cx| {
+                                .on_click(cx.listener(
+                                    |this, _, _, cx| {
                                         this.close_about_dialog(cx);
-                                    }),
-                                ),
+                                    },
+                                )),
                             ),
                     ),
             )

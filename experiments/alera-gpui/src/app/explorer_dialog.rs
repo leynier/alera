@@ -2,7 +2,8 @@ use std::path::Path;
 
 use gpui::{
     div, prelude::FluentBuilder as _, px, AnyElement, Context, CursorStyle,
-    InteractiveElement as _, IntoElement, ParentElement as _, Styled as _,
+    InteractiveElement as _, IntoElement, ParentElement as _, Role,
+    StatefulInteractiveElement as _, Styled as _,
 };
 
 use super::AleraApp;
@@ -24,8 +25,20 @@ impl AleraApp {
         };
 
         explorer_dialog_overlay()
+            .on_mouse_down(
+                gpui::MouseButton::Left,
+                cx.listener(|this, _, _, cx| {
+                    this.close_explorer_dialog(cx);
+                }),
+            )
             .child(
                 div()
+                    .id("explorer-action-dialog")
+                    .on_mouse_down(gpui::MouseButton::Left, |_, _, cx| {
+                        cx.stop_propagation();
+                    })
+                    .role(Role::Dialog)
+                    .aria_label(title)
                     .w(px(290.0))
                     .min_h(px(192.0))
                     .rounded(px(12.0))
@@ -69,13 +82,11 @@ impl AleraApp {
                             .px(px(24.0))
                             .pb(px(24.0))
                             .child(
-                                dialog_button("cancel-explorer-action", "Cancel", false)
-                                    .on_mouse_down(
-                                        gpui::MouseButton::Left,
-                                        cx.listener(|this, _, _, cx| {
-                                            this.close_explorer_dialog(cx);
-                                        }),
-                                    ),
+                                dialog_button("cancel-explorer-action", "Cancel", false).on_click(
+                                    cx.listener(|this, _, _, cx| {
+                                        this.close_explorer_dialog(cx);
+                                    }),
+                                ),
                             )
                             .child(
                                 dialog_button_with_loading(
@@ -88,11 +99,13 @@ impl AleraApp {
                                     false,
                                     self.explorer_action_busy,
                                 )
-                                .on_mouse_down(
-                                    gpui::MouseButton::Left,
-                                    cx.listener(|this, _, _, cx| {
-                                        this.submit_explorer_dialog(cx);
-                                    }),
+                                .when(
+                                    !self.explorer_action_busy,
+                                    |button| {
+                                        button.on_click(cx.listener(|this, _, _, cx| {
+                                            this.submit_explorer_dialog(cx);
+                                        }))
+                                    },
                                 ),
                             ),
                     ),
@@ -109,8 +122,20 @@ impl AleraApp {
             .unwrap_or("Item");
 
         explorer_dialog_overlay()
+            .on_mouse_down(
+                gpui::MouseButton::Left,
+                cx.listener(|this, _, _, cx| {
+                    this.close_explorer_dialog(cx);
+                }),
+            )
             .child(
                 div()
+                    .id("explorer-delete-dialog")
+                    .on_mouse_down(gpui::MouseButton::Left, |_, _, cx| {
+                        cx.stop_propagation();
+                    })
+                    .role(Role::Dialog)
+                    .aria_label(format!("Delete {name}"))
                     .w(px(420.0))
                     .rounded(px(12.0))
                     .border_1()
@@ -142,12 +167,9 @@ impl AleraApp {
                             .child(
                                 dialog_button("cancel-explorer-action", "Cancel", false)
                                     .flex_1()
-                                    .on_mouse_down(
-                                        gpui::MouseButton::Left,
-                                        cx.listener(|this, _, _, cx| {
-                                            this.close_explorer_dialog(cx);
-                                        }),
-                                    ),
+                                    .on_click(cx.listener(|this, _, _, cx| {
+                                        this.close_explorer_dialog(cx);
+                                    })),
                             )
                             .child(
                                 dialog_button_with_loading(
@@ -161,11 +183,13 @@ impl AleraApp {
                                     self.explorer_action_busy,
                                 )
                                 .flex_1()
-                                .on_mouse_down(
-                                    gpui::MouseButton::Left,
-                                    cx.listener(|this, _, _, cx| {
-                                        this.submit_explorer_dialog(cx);
-                                    }),
+                                .when(
+                                    !self.explorer_action_busy,
+                                    |button| {
+                                        button.on_click(cx.listener(|this, _, _, cx| {
+                                            this.submit_explorer_dialog(cx);
+                                        }))
+                                    },
                                 ),
                             ),
                     ),
@@ -204,6 +228,10 @@ fn dialog_button_with_loading(
 ) -> gpui::Stateful<gpui::Div> {
     div()
         .id(id)
+        .focusable()
+        .tab_stop(!loading)
+        .role(Role::Button)
+        .aria_label(label)
         .h(px(if label == "Cancel" { 40.0 } else { 34.0 }))
         .min_w(px(if label == "Cancel" { 64.0 } else { 0.0 }))
         .px(px(if label == "Cancel" { 12.0 } else { 14.0 }))
@@ -211,7 +239,11 @@ fn dialog_button_with_loading(
         .items_center()
         .justify_center()
         .rounded(px(8.0))
-        .cursor(CursorStyle::PointingHand)
+        .cursor(if loading {
+            CursorStyle::Arrow
+        } else {
+            CursorStyle::PointingHand
+        })
         .when(destructive, |button| {
             button.bg(theme::danger()).text_color(theme::on_danger())
         })

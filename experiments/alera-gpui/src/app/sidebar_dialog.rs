@@ -1,7 +1,7 @@
 use gpui::{
-    div, prelude::FluentBuilder as _, px, AnyElement, Context, CursorStyle,
-    InteractiveElement as _, IntoElement, MouseButton, ParentElement as _, Pixels, Point,
-    SharedString, Size, Styled as _, Window,
+    anchored, deferred, div, prelude::FluentBuilder as _, px, AnyElement, Context, CursorStyle,
+    InteractiveElement as _, IntoElement, MouseButton, ParentElement as _, Pixels, Point, Role,
+    SharedString, Size, StatefulInteractiveElement as _, Styled as _, Toggled, Window,
 };
 use gpui_component::scroll::ScrollableElement as _;
 
@@ -60,13 +60,13 @@ impl AleraApp {
             .is_some_and(|project| project.kind == "gitRepository");
         sidebar_menu_shell(
             "project-context-menu",
+            "Project actions",
             self.sidebar_menu_position,
             window.viewport_size(),
             px(112.0),
         )
         .child(
-            sidebar_menu_button("project-menu-rename", AleraIcon::Edit, "Rename").on_mouse_down(
-                MouseButton::Left,
+            sidebar_menu_button("project-menu-rename", AleraIcon::Edit, "Rename").on_click(
                 cx.listener(move |this, _, window, cx| {
                     cx.stop_propagation();
                     this.open_sidebar_dialog(
@@ -81,15 +81,12 @@ impl AleraApp {
         .child(
             sidebar_menu_button("project-menu-workspace", AleraIcon::Add, "New Workspace")
                 .when(can_create_workspace, |button| {
-                    button.on_mouse_down(
-                        MouseButton::Left,
-                        cx.listener(move |this, _, window, cx| {
-                            cx.stop_propagation();
-                            this.selected_workspace_project_id = Some(workspace_id.clone());
-                            this.open_new_workspace_dialog(window, cx);
-                            this.sidebar_menu = None;
-                        }),
-                    )
+                    button.on_click(cx.listener(move |this, _, window, cx| {
+                        cx.stop_propagation();
+                        this.selected_workspace_project_id = Some(workspace_id.clone());
+                        this.open_new_workspace_dialog(window, cx);
+                        this.sidebar_menu = None;
+                    }))
                 })
                 .when(!can_create_workspace, |button| {
                     button
@@ -101,18 +98,15 @@ impl AleraApp {
         .child(
             sidebar_menu_button("project-menu-remove", AleraIcon::Delete, "Remove Project")
                 .text_color(theme::danger())
-                .on_mouse_down(
-                    MouseButton::Left,
-                    cx.listener(move |this, _, window, cx| {
-                        cx.stop_propagation();
-                        this.open_sidebar_dialog(
-                            SidebarDialogKind::RemoveProject,
-                            remove_id.clone(),
-                            window,
-                            cx,
-                        );
-                    }),
-                ),
+                .on_click(cx.listener(move |this, _, window, cx| {
+                    cx.stop_propagation();
+                    this.open_sidebar_dialog(
+                        SidebarDialogKind::RemoveProject,
+                        remove_id.clone(),
+                        window,
+                        cx,
+                    );
+                })),
         )
         .into_any_element()
     }
@@ -146,13 +140,13 @@ impl AleraApp {
         let remove_id = workspace_id;
         sidebar_menu_shell(
             "workspace-context-menu",
+            "Workspace actions",
             self.sidebar_menu_position,
             window.viewport_size(),
             px(310.0),
         )
         .child(
-            sidebar_menu_button("workspace-menu-rename", AleraIcon::Edit, "Rename").on_mouse_down(
-                MouseButton::Left,
+            sidebar_menu_button("workspace-menu-rename", AleraIcon::Edit, "Rename").on_click(
                 cx.listener(move |this, _, window, cx| {
                     cx.stop_propagation();
                     this.open_sidebar_dialog(
@@ -178,28 +172,23 @@ impl AleraApp {
                     "Pin Workspace"
                 },
             )
-            .on_mouse_down(
-                MouseButton::Left,
-                cx.listener(move |this, _, _, cx| {
-                    cx.stop_propagation();
-                    this.toggle_workspace_pinned(pin_id.clone(), next_pinned, cx);
-                }),
-            ),
+            .on_click(cx.listener(move |this, _, _, cx| {
+                cx.stop_propagation();
+                this.toggle_workspace_pinned(pin_id.clone(), next_pinned, cx);
+            })),
         )
         .child(
-            sidebar_menu_button("workspace-menu-tags", AleraIcon::Tag, "Manage Tags")
-                .on_mouse_down(
-                    MouseButton::Left,
-                    cx.listener(move |this, _, window, cx| {
-                        cx.stop_propagation();
-                        this.open_sidebar_dialog(
-                            SidebarDialogKind::ManageWorkspaceTags,
-                            tags_id.clone(),
-                            window,
-                            cx,
-                        );
-                    }),
-                ),
+            sidebar_menu_button("workspace-menu-tags", AleraIcon::Tag, "Manage Tags").on_click(
+                cx.listener(move |this, _, window, cx| {
+                    cx.stop_propagation();
+                    this.open_sidebar_dialog(
+                        SidebarDialogKind::ManageWorkspaceTags,
+                        tags_id.clone(),
+                        window,
+                        cx,
+                    );
+                }),
+            ),
         )
         .child(
             sidebar_menu_button(
@@ -207,18 +196,15 @@ impl AleraApp {
                 AleraIcon::Link,
                 "Set Parent Workspace",
             )
-            .on_mouse_down(
-                MouseButton::Left,
-                cx.listener(move |this, _, window, cx| {
-                    cx.stop_propagation();
-                    this.open_sidebar_dialog(
-                        SidebarDialogKind::SetWorkspaceParent,
-                        parent_id.clone(),
-                        window,
-                        cx,
-                    );
-                }),
-            ),
+            .on_click(cx.listener(move |this, _, window, cx| {
+                cx.stop_propagation();
+                this.open_sidebar_dialog(
+                    SidebarDialogKind::SetWorkspaceParent,
+                    parent_id.clone(),
+                    window,
+                    cx,
+                );
+            })),
         )
         .when(has_parent, |menu| {
             menu.child(
@@ -227,13 +213,10 @@ impl AleraApp {
                     AleraIcon::Close,
                     "Clear Parent Workspace",
                 )
-                .on_mouse_down(
-                    MouseButton::Left,
-                    cx.listener(move |this, _, _, cx| {
-                        cx.stop_propagation();
-                        this.clear_workspace_parent(clear_parent_id.clone(), cx);
-                    }),
-                ),
+                .on_click(cx.listener(move |this, _, _, cx| {
+                    cx.stop_propagation();
+                    this.clear_workspace_parent(clear_parent_id.clone(), cx);
+                })),
             )
         })
         .child(sidebar_menu_divider())
@@ -243,13 +226,10 @@ impl AleraApp {
                 AleraIcon::External,
                 "Open in Browser",
             )
-            .on_mouse_down(
-                MouseButton::Left,
-                cx.listener(move |this, _, _, cx| {
-                    cx.stop_propagation();
-                    this.open_workspace_repository(repository_id.clone(), cx);
-                }),
-            ),
+            .on_click(cx.listener(move |this, _, _, cx| {
+                cx.stop_propagation();
+                this.open_workspace_repository(repository_id.clone(), cx);
+            })),
         )
         .child(
             sidebar_menu_button(
@@ -257,17 +237,13 @@ impl AleraApp {
                 AleraIcon::FolderOpen,
                 "Open in Finder",
             )
-            .on_mouse_down(
-                MouseButton::Left,
-                cx.listener(move |this, _, _, cx| {
-                    cx.stop_propagation();
-                    this.open_workspace_folder(folder_id.clone(), cx);
-                }),
-            ),
+            .on_click(cx.listener(move |this, _, _, cx| {
+                cx.stop_propagation();
+                this.open_workspace_folder(folder_id.clone(), cx);
+            })),
         )
         .child(
-            sidebar_menu_button("workspace-menu-copy", AleraIcon::Copy, "Copy Path").on_mouse_down(
-                MouseButton::Left,
+            sidebar_menu_button("workspace-menu-copy", AleraIcon::Copy, "Copy Path").on_click(
                 cx.listener(move |this, _, _, cx| {
                     cx.stop_propagation();
                     this.copy_workspace_path(copy_id.clone(), cx);
@@ -276,8 +252,7 @@ impl AleraApp {
         )
         .child(sidebar_menu_divider())
         .child(
-            sidebar_menu_button("workspace-menu-sleep", AleraIcon::Theme, "Sleep").on_mouse_down(
-                MouseButton::Left,
+            sidebar_menu_button("workspace-menu-sleep", AleraIcon::Theme, "Sleep").on_click(
                 cx.listener(move |this, _, window, cx| {
                     cx.stop_propagation();
                     this.open_sidebar_dialog(
@@ -297,9 +272,8 @@ impl AleraApp {
                         .cursor(CursorStyle::Arrow)
                 })
                 .when(!is_main, |button| {
-                    button.text_color(theme::danger()).on_mouse_down(
-                        MouseButton::Left,
-                        cx.listener(move |this, _, window, cx| {
+                    button.text_color(theme::danger()).on_click(cx.listener(
+                        move |this, _, window, cx| {
                             cx.stop_propagation();
                             this.open_sidebar_dialog(
                                 SidebarDialogKind::RemoveWorkspace,
@@ -307,8 +281,8 @@ impl AleraApp {
                                 window,
                                 cx,
                             );
-                        }),
-                    )
+                        },
+                    ))
                 }),
         )
         .into_any_element()
@@ -331,6 +305,8 @@ impl AleraApp {
             let selected = self.sidebar_selected_tag_ids.contains(&tag.id);
             let toggle_id = tag.id.clone();
             let delete_id = tag.id.clone();
+            let tag_label = format!("#{}", tag.name);
+            let delete_label = format!("Delete Tag #{}", tag.name);
             list = list.child(
                 div()
                     .id(SharedString::from(format!("sidebar-tag-row-{}", tag.id)))
@@ -341,17 +317,23 @@ impl AleraApp {
                     .child(
                         div()
                             .id(SharedString::from(format!("sidebar-tag-toggle-{}", tag.id)))
+                            .focusable()
+                            .tab_stop(true)
+                            .role(Role::CheckBox)
+                            .aria_label(tag_label.clone())
+                            .aria_toggled(if selected {
+                                Toggled::True
+                            } else {
+                                Toggled::False
+                            })
                             .flex()
                             .items_center()
                             .flex_1()
                             .gap_2()
                             .cursor(CursorStyle::PointingHand)
-                            .on_mouse_down(
-                                MouseButton::Left,
-                                cx.listener(move |this, _, _, cx| {
-                                    this.toggle_sidebar_tag(toggle_id.clone(), cx);
-                                }),
-                            )
+                            .on_click(cx.listener(move |this, _, _, cx| {
+                                this.toggle_sidebar_tag(toggle_id.clone(), cx);
+                            }))
                             .child(
                                 div()
                                     .flex()
@@ -375,18 +357,19 @@ impl AleraApp {
                                         check.child(icon(AleraIcon::Check, 12.0, theme::surface()))
                                     }),
                             )
-                            .child(format!("#{}", tag.name)),
+                            .child(tag_label),
                     )
                     .child(
                         div()
                             .id(SharedString::from(format!("sidebar-tag-delete-{}", tag.id)))
+                            .focusable()
+                            .tab_stop(true)
+                            .role(Role::Button)
+                            .aria_label(delete_label)
                             .cursor(CursorStyle::PointingHand)
-                            .on_mouse_down(
-                                MouseButton::Left,
-                                cx.listener(move |this, _, _, cx| {
-                                    this.arm_sidebar_tag_delete(delete_id.clone(), cx);
-                                }),
-                            )
+                            .on_click(cx.listener(move |this, _, _, cx| {
+                                this.arm_sidebar_tag_delete(delete_id.clone(), cx);
+                            }))
                             .child(icon(AleraIcon::Delete, 16.0, theme::text_muted())),
                     ),
             );
@@ -418,12 +401,9 @@ impl AleraApp {
                             self.sidebar_action_busy,
                         )
                         .mt_2()
-                        .on_mouse_down(
-                            MouseButton::Left,
-                            cx.listener(|this, _, _, cx| {
-                                this.create_sidebar_tag(cx);
-                            }),
-                        ),
+                        .on_click(cx.listener(|this, _, _, cx| {
+                            this.create_sidebar_tag(cx);
+                        })),
                     ),
             )
             .into_any_element()
@@ -447,10 +427,8 @@ impl AleraApp {
             .unwrap_or_else(|| "No Parent".to_string());
         let mut options = div()
             .id("sidebar-parent-options")
-            .absolute()
-            .top(px(54.0))
-            .left_0()
-            .right_0()
+            .occlude()
+            .w(px(420.0))
             .max_h(px(230.0))
             .overflow_y_scrollbar()
             .rounded_md()
@@ -475,12 +453,9 @@ impl AleraApp {
                     self.sidebar_selected_parent_id.is_none(),
                     false,
                 )
-                .on_mouse_down(
-                    MouseButton::Left,
-                    cx.listener(|this, _, _, cx| {
-                        this.select_sidebar_parent(None, cx);
-                    }),
-                ),
+                .on_click(cx.listener(|this, _, _, cx| {
+                    this.select_sidebar_parent(None, cx);
+                })),
             );
         }
         for project in &self.snapshot.projects {
@@ -506,12 +481,9 @@ impl AleraApp {
                 options = options.child(if disabled {
                     option
                 } else {
-                    option.on_mouse_down(
-                        MouseButton::Left,
-                        cx.listener(move |this, _, _, cx| {
-                            this.select_sidebar_parent(Some(parent_id.clone()), cx);
-                        }),
-                    )
+                    option.on_click(cx.listener(move |this, _, _, cx| {
+                        this.select_sidebar_parent(Some(parent_id.clone()), cx);
+                    }))
                 });
             }
         }
@@ -530,6 +502,11 @@ impl AleraApp {
             .child(
                 div()
                     .id("sidebar-parent-trigger")
+                    .focusable()
+                    .tab_stop(true)
+                    .role(Role::ComboBox)
+                    .aria_label("Parent Workspace")
+                    .aria_expanded(self.sidebar_parent_dropdown_open)
                     .flex()
                     .items_center()
                     .h(px(34.0))
@@ -539,12 +516,9 @@ impl AleraApp {
                     .border_color(theme::border())
                     .bg(theme::surface_selected())
                     .cursor(CursorStyle::PointingHand)
-                    .on_mouse_down(
-                        MouseButton::Left,
-                        cx.listener(|this, _, _, cx| {
-                            this.toggle_sidebar_parent_dropdown(cx);
-                        }),
-                    )
+                    .on_click(cx.listener(|this, _, _, cx| {
+                        this.toggle_sidebar_parent_dropdown(cx);
+                    }))
                     .child(div().flex_1().child(selected_label))
                     .child(icon(
                         if self.sidebar_parent_dropdown_open {
@@ -554,11 +528,19 @@ impl AleraApp {
                         },
                         16.0,
                         theme::text_muted(),
-                    )),
+                    ))
+                    .when(self.sidebar_parent_dropdown_open, |trigger| {
+                        trigger.child(
+                            deferred(
+                                anchored()
+                                    .snap_to_window_with_margin(px(8.0))
+                                    .offset(gpui::point(px(-10.0), px(100.0)))
+                                    .child(options),
+                            )
+                            .with_priority(1),
+                        )
+                    }),
             )
-            .when(self.sidebar_parent_dropdown_open, |body| {
-                body.child(options)
-            })
             .into_any_element()
     }
 
@@ -660,7 +642,7 @@ impl AleraApp {
             .justify_center()
             .bg(theme::overlay_scrim())
             .child(
-                design_system::dialog_shell(dialog_width)
+                design_system::dialog_shell("sidebar-action-dialog", title, dialog_width)
                     .child(
                         div()
                             .flex()
@@ -729,7 +711,7 @@ impl AleraApp {
                                     ButtonKind::Text,
                                     self.sidebar_action_busy,
                                 )
-                                .on_mouse_down(MouseButton::Left, cx.listener(|this, _, _, cx| {
+                                .on_click(cx.listener(|this, _, _, cx| {
                                     this.close_sidebar_dialog(cx);
                                 })),
                             )
@@ -749,11 +731,9 @@ impl AleraApp {
                                     self.sidebar_action_busy,
                                     self.sidebar_action_busy,
                                 )
-                                .on_mouse_down(MouseButton::Left, cx.listener(
-                                    |this, _, _, cx| {
-                                        this.submit_sidebar_dialog(cx);
-                                    },
-                                )),
+                                .on_click(cx.listener(|this, _, _, cx| {
+                                    this.submit_sidebar_dialog(cx);
+                                })),
                             ),
                     ),
             )
@@ -771,7 +751,11 @@ impl AleraApp {
                         .justify_center()
                         .bg(theme::overlay_scrim())
                         .child(
-                            design_system::dialog_shell(420.0)
+                            design_system::dialog_shell(
+                                "delete-tag-dialog",
+                                "Delete Tag",
+                                420.0,
+                            )
                                 .child(
                                     div()
                                         .text_size(px(14.0))
@@ -800,7 +784,7 @@ impl AleraApp {
                                                 self.sidebar_action_busy,
                                             )
                                             .flex_1()
-                                            .on_mouse_down(MouseButton::Left, cx.listener(|this, _, _, cx| {
+                                            .on_click(cx.listener(|this, _, _, cx| {
                                                 this.cancel_sidebar_tag_delete(cx);
                                             })),
                                         )
@@ -812,7 +796,7 @@ impl AleraApp {
                                                 self.sidebar_action_busy,
                                             )
                                             .flex_1()
-                                            .on_mouse_down(MouseButton::Left, cx.listener(|this, _, _, cx| {
+                                            .on_click(cx.listener(|this, _, _, cx| {
                                                 this.delete_sidebar_tag(cx);
                                             })),
                                         ),
@@ -863,8 +847,14 @@ fn parent_option(
     selected: bool,
     disabled: bool,
 ) -> gpui::Stateful<gpui::Div> {
+    let label = label.into();
     div()
         .id(id)
+        .focusable()
+        .tab_stop(!disabled)
+        .role(Role::ListBoxOption)
+        .aria_label(label.clone())
+        .aria_selected(selected)
         .flex()
         .items_center()
         .h(px(32.0))
@@ -883,11 +873,12 @@ fn parent_option(
         .child(div().w(px(16.0)).when(selected, |marker| {
             marker.child(icon(AleraIcon::Check, 14.0, theme::accent()))
         }))
-        .child(label.into())
+        .child(label)
 }
 
 fn sidebar_menu_shell(
     id: &'static str,
+    label: &'static str,
     position: Point<Pixels>,
     viewport: Size<Pixels>,
     height: Pixels,
@@ -899,6 +890,8 @@ fn sidebar_menu_shell(
         .clamp(px(8.0), viewport.height - height - px(8.0));
     div()
         .id(id)
+        .role(Role::Menu)
+        .aria_label(label)
         .absolute()
         .top(top)
         .left(left)
@@ -918,6 +911,10 @@ fn sidebar_menu_button(
 ) -> gpui::Stateful<gpui::Div> {
     div()
         .id(id)
+        .focusable()
+        .tab_stop(true)
+        .role(Role::MenuItem)
+        .aria_label(label)
         .flex()
         .items_center()
         .h(px(30.0))

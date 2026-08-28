@@ -1,3 +1,4 @@
+use super::super::app_helpers::flutter_state_error;
 use super::{branch_array, looks_like_collision};
 use serde_json::json;
 
@@ -15,5 +16,17 @@ fn branch_array_ignores_non_string_values() {
             .into_iter()
             .collect::<Vec<_>>(),
         vec!["dev", "main"]
+    );
+}
+
+#[test]
+fn runtime_errors_match_flutter_state_error_copy() {
+    assert_eq!(
+        flutter_state_error("AI text generation was canceled.".to_owned()),
+        "Bad state: AI text generation was canceled."
+    );
+    assert_eq!(
+        flutter_state_error("Bad state: Agent profile not found: profile-1".to_owned()),
+        "Bad state: Agent profile not found: profile-1"
     );
 }

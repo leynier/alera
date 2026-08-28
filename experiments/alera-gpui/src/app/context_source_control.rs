@@ -1,9 +1,9 @@
 use gpui::{
     div, prelude::FluentBuilder as _, px, AnyElement, AppContext as _, Context, CursorStyle,
-    InteractiveElement as _, IntoElement, ParentElement as _, StatefulInteractiveElement as _,
-    Styled as _,
+    InteractiveElement as _, IntoElement, ParentElement as _, Role,
+    StatefulInteractiveElement as _, Styled as _,
 };
-use gpui_component::input::Input;
+use gpui_component::input::{Input, Textarea};
 use gpui_component::tooltip::Tooltip;
 
 use super::context_source_control_actions::{
@@ -146,17 +146,24 @@ impl AleraApp {
                     .child(
                         div()
                             .relative()
-                            // Flutter leaves a 12 px gap after the wrapped
-                            // toolbar row before the commit composer.
-                            .mt(px(12.0))
+                            // The GPUI toolbar's 30 px controls and line box
+                            // consume the extra inset that Flutter's compact
+                            // row does not; 2 px here keeps the visible
+                            // composer edge aligned at the native scale.
+                            .mt(px(2.0))
                             .h(px(64.0))
                             .rounded(px(8.0))
                             .border_1()
                             .border_color(theme::border())
                             .bg(theme::surface())
                             .child(
-                                Input::new(&self.commit_input)
+                                Textarea::new(&self.commit_input)
                                     .disabled(self.source_commit_ai_busy)
+                                    // The Flutter composer uses the panel
+                                    // surface; let the wrapper own its fill
+                                    // and border instead of Input's theme
+                                    // background.
+                                    .appearance(false)
                                     .h_full(),
                             )
                             .when(self.source_commit_ai_busy, |field| {
@@ -197,7 +204,9 @@ impl AleraApp {
                             .relative()
                             .flex()
                             .items_center()
-                            .mt(px(12.0))
+                            // Flutter places an 8 px SizedBox before the
+                            // primary action after the commit field.
+                            .mt(px(8.0))
                             .h(px(28.0))
                             .rounded(px(8.0))
                             .overflow_hidden()
@@ -206,6 +215,10 @@ impl AleraApp {
                             .child(
                                 div()
                                     .id("source-primary-action")
+                                    .focusable()
+                                    .tab_stop(primary_enabled)
+                                    .role(Role::Button)
+                                    .aria_label(source_action_label(primary))
                                     .flex()
                                     .flex_1()
                                     .items_center()
@@ -225,14 +238,9 @@ impl AleraApp {
                                     .when(primary_enabled, |button| {
                                         button
                                             .hover(|style| style.bg(theme::accent_hover()))
-                                            .on_mouse_down(
-                                                gpui::MouseButton::Left,
-                                                cx.listener(move |this, _, window, cx| {
-                                                    this.run_source_control_action(
-                                                        primary, window, cx,
-                                                    );
-                                                }),
-                                            )
+                                            .on_click(cx.listener(move |this, _, window, cx| {
+                                                this.run_source_control_action(primary, window, cx);
+                                            }))
                                     })
                                     .child(icon(
                                         source_action_icon(primary),
@@ -245,6 +253,10 @@ impl AleraApp {
                             .child(
                                 div()
                                     .id("source-primary-menu")
+                                    .focusable()
+                                    .tab_stop(!source_busy)
+                                    .role(Role::Button)
+                                    .aria_label("Source Control Actions")
                                     .flex()
                                     .items_center()
                                     .justify_center()
@@ -262,18 +274,14 @@ impl AleraApp {
                                     })
                                     .when(!self.source_control_menu_open, |button| {
                                         button.tooltip(|_, cx| {
-                                            cx.new(|_| Tooltip::new("Source Control Actions")).into()
+                                            cx.new(|_| Tooltip::new("Source Control Actions"))
+                                                .into()
                                         })
                                     })
                                     .when(!source_busy, |button| {
-                                        button.on_mouse_down(
-                                            gpui::MouseButton::Left,
-                                            cx.listener(|this, _, _, cx| {
-                                                this.source_control_menu_open =
-                                                    !this.source_control_menu_open;
-                                                cx.notify();
-                                            }),
-                                        )
+                                        button.on_click(cx.listener(|this, _, window, cx| {
+                                            this.toggle_source_control_menu(window, cx);
+                                        }))
                                     })
                                     .child(icon(AleraIcon::ChevronDown, 12.0, theme::on_accent())),
                             ),
@@ -417,67 +425,56 @@ impl AleraApp {
         let button = source_icon_button_with_enabled(id, kind, selected, enabled);
         let ai_busy = self.source_commit_ai_busy;
         let tooltip = source_toolbar_tooltip(id, ai_busy);
-        let button = button.when(!self.source_control_menu_open, |button| {
-            button.tooltip(move |_, cx| cx.new(|_| Tooltip::new(tooltip)).into())
-        });
+        let button = button
+            .aria_label(tooltip)
+            .when(!self.source_control_menu_open, |button| {
+                button.tooltip(move |_, cx| cx.new(|_| Tooltip::new(tooltip)).into())
+            });
         match id {
             "source-view-mode" => button
                 .when(enabled, |button| {
-                    button.on_mouse_down(
-                        gpui::MouseButton::Left,
-                        cx.listener(|this, _, _, cx| {
-                            this.source_control_tree_mode = !this.source_control_tree_mode;
-                            cx.notify();
-                        }),
-                    )
+                    button.on_click(cx.listener(|this, _, _, cx| {
+                        this.source_control_tree_mode = !this.source_control_tree_mode;
+                        cx.notify();
+                    }))
                 })
                 .into_any_element(),
             "source-filter" => button
                 .when(enabled, |button| {
-                    button.on_mouse_down(
-                        gpui::MouseButton::Left,
-                        cx.listener(|this, _, _, cx| {
-                            this.source_control_filter_visible =
-                                !this.source_control_filter_visible;
-                            cx.notify();
-                        }),
-                    )
+                    button.on_click(cx.listener(|this, _, _, cx| {
+                        this.source_control_filter_visible = !this.source_control_filter_visible;
+                        cx.notify();
+                    }))
                 })
                 .into_any_element(),
             "source-collapse" => button
                 .when(enabled, |button| {
-                    button.on_mouse_down(
-                        gpui::MouseButton::Left,
-                        cx.listener(|this, _, _, cx| {
-                            let all_collapsed = ["staged", "unstaged", "untracked"]
-                                .into_iter()
-                                .all(|area| this.source_control_collapsed_sections.contains(area));
-                            if all_collapsed {
-                                this.source_control_collapsed_sections.clear();
-                            } else {
-                                this.source_control_collapsed_sections =
-                                    ["staged", "unstaged", "untracked"]
-                                        .into_iter()
-                                        .map(str::to_owned)
-                                        .collect();
-                            }
-                            cx.notify();
-                        }),
-                    )
+                    button.on_click(cx.listener(|this, _, _, cx| {
+                        let all_collapsed = ["staged", "unstaged", "untracked"]
+                            .into_iter()
+                            .all(|area| this.source_control_collapsed_sections.contains(area));
+                        if all_collapsed {
+                            this.source_control_collapsed_sections.clear();
+                        } else {
+                            this.source_control_collapsed_sections =
+                                ["staged", "unstaged", "untracked"]
+                                    .into_iter()
+                                    .map(str::to_owned)
+                                    .collect();
+                        }
+                        cx.notify();
+                    }))
                 })
                 .into_any_element(),
             "source-refresh" => button
                 .when(enabled, |button| {
-                    button.on_mouse_down(
-                        gpui::MouseButton::Left,
-                        cx.listener(|this, _, _, cx| this.refresh_git_with_feedback(cx)),
-                    )
+                    button
+                        .on_click(cx.listener(|this, _, _, cx| this.refresh_git_with_feedback(cx)))
                 })
                 .into_any_element(),
             "source-open-all" => button
                 .when(enabled, |button| {
-                    button.on_mouse_down(
-                        gpui::MouseButton::Left,
+                    button.on_click(
                         cx.listener(|this, _, _, cx| this.open_git_diff_tab(None, None, cx)),
                     )
                 })
@@ -491,24 +488,19 @@ impl AleraApp {
                                 cx.notify();
                             }
                         }))
-                        .on_mouse_down(
-                            gpui::MouseButton::Left,
-                            cx.listener(|this, _, window, cx| {
-                                if this.source_commit_ai_busy {
-                                    this.cancel_commit_message_generation(cx);
-                                } else {
-                                    this.generate_commit_message(window, cx);
-                                }
-                            }),
-                        )
+                        .on_click(cx.listener(|this, _, window, cx| {
+                            if this.source_commit_ai_busy {
+                                this.cancel_commit_message_generation(cx);
+                            } else {
+                                this.generate_commit_message(window, cx);
+                            }
+                        }))
                 })
                 .into_any_element(),
             "source-clear-root" => button
                 .when(enabled, |button| {
-                    button.on_mouse_down(
-                        gpui::MouseButton::Left,
-                        cx.listener(|this, _, _, cx| this.clear_source_control_root(cx)),
-                    )
+                    button
+                        .on_click(cx.listener(|this, _, _, cx| this.clear_source_control_root(cx)))
                 })
                 .into_any_element(),
             _ => button.into_any_element(),

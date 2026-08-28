@@ -22,6 +22,7 @@ fn terminal_pane(
                     "Text size used in new terminal sessions.",
                     number_input_control(
                         "terminal-font-size",
+                        "Font Size",
                         settings_input(inputs, "terminal-font-size"),
                         "px",
                         1.0,
@@ -35,6 +36,7 @@ fn terminal_pane(
                     "Weight used for terminal text.",
                     number_input_control(
                         "terminal-font-weight",
+                        "Font Weight",
                         settings_input(inputs, "terminal-font-weight"),
                         "",
                         100.0,
@@ -48,6 +50,7 @@ fn terminal_pane(
                     "Vertical spacing for terminal rows.",
                     number_input_control(
                         "terminal-line-height",
+                        "Line Height",
                         settings_input(inputs, "terminal-line-height"),
                         "",
                         0.1,
@@ -79,10 +82,13 @@ fn terminal_pane(
                 exact_settings_row(
                     "Blinking Cursor",
                     "Blink the cursor while the terminal has focus.",
-                    settings_switch("terminal-cursor-blink", settings.terminal_cursor_blink)
-                        .on_mouse_down(
-                            MouseButton::Left,
-                            cx.listener(|this, _: &MouseDownEvent, _, cx| {
+                    settings_switch(
+                        "terminal-cursor-blink",
+                        "Blinking Cursor",
+                        settings.terminal_cursor_blink,
+                    )
+                        .on_click(
+                            cx.listener(|this, _, _, cx| {
                                 this.update_terminal_settings(
                                     |settings| {
                                         settings.terminal_cursor_blink =
@@ -99,6 +105,7 @@ fn terminal_pane(
                     "Opacity of the terminal cursor.",
                     number_input_control(
                         "terminal-cursor-opacity",
+                        "Cursor Opacity",
                         settings_input(inputs, "terminal-cursor-opacity"),
                         "",
                         0.05,
@@ -129,6 +136,7 @@ fn terminal_pane(
                     "Opacity of the terminal background.",
                     number_input_control(
                         "terminal-background-opacity",
+                        "Background Opacity",
                         settings_input(inputs, "terminal-background-opacity"),
                         "",
                         0.05,
@@ -142,6 +150,7 @@ fn terminal_pane(
                     "Horizontal spacing around the terminal grid.",
                     number_input_control(
                         "terminal-padding-x",
+                        "Horizontal Padding",
                         settings_input(inputs, "terminal-padding-x"),
                         "px",
                         1.0,
@@ -155,6 +164,7 @@ fn terminal_pane(
                     "Vertical spacing around the terminal grid.",
                     number_input_control(
                         "terminal-padding-y",
+                        "Vertical Padding",
                         settings_input(inputs, "terminal-padding-y"),
                         "px",
                         1.0,
@@ -208,6 +218,7 @@ fn terminal_pane(
                     "Mouse reports sent per wheel step while a TUI owns scrolling.",
                     number_input_control(
                         "terminal-tui-scroll",
+                        "TUI Scroll Speed",
                         settings_input(inputs, "terminal-tui-scroll"),
                         "",
                         1.0,
@@ -221,11 +232,11 @@ fn terminal_pane(
                     "Copy local terminal selections to the system clipboard.",
                     settings_switch(
                         "terminal-copy-on-select",
+                        "Copy On Select",
                         settings.terminal_clipboard_on_select,
                     )
-                    .on_mouse_down(
-                        MouseButton::Left,
-                        cx.listener(|this, _: &MouseDownEvent, _, cx| {
+                    .on_click(
+                        cx.listener(|this, _, _, cx| {
                             this.update_terminal_settings(
                                 |settings| {
                                     settings.terminal_clipboard_on_select =
@@ -242,11 +253,11 @@ fn terminal_pane(
                     "Let terminal applications replace the system clipboard.",
                     settings_switch(
                         "terminal-osc52",
+                        "Allow OSC 52 Clipboard Writes",
                         settings.terminal_allow_osc52_clipboard,
                     )
-                    .on_mouse_down(
-                        MouseButton::Left,
-                        cx.listener(|this, _: &MouseDownEvent, _, cx| {
+                    .on_click(
+                        cx.listener(|this, _, _, cx| {
                             this.update_terminal_settings(
                                 |settings| {
                                     settings.terminal_allow_osc52_clipboard =
@@ -277,10 +288,13 @@ fn terminal_pane(
                 exact_settings_row(
                     "Use Login Shell",
                     "Start shells as login shells so profile files such as ~/.zprofile and ~/.profile are loaded.",
-                    settings_switch("terminal-login-shell", settings.terminal_login_shell)
-                        .on_mouse_down(
-                            MouseButton::Left,
-                            cx.listener(|this, _: &MouseDownEvent, _, cx| {
+                    settings_switch(
+                        "terminal-login-shell",
+                        "Use Login Shell",
+                        settings.terminal_login_shell,
+                    )
+                        .on_click(
+                            cx.listener(|this, _, _, cx| {
                                 this.update_terminal_settings(
                                     |settings| {
                                         settings.terminal_login_shell =
@@ -295,9 +309,8 @@ fn terminal_pane(
                 exact_settings_row(
                     "Reload Shell Environment",
                     "Re-read the login shell PATH so tools installed since the runtime started resolve in new terminals.",
-                    settings_button("terminal-reload-shell", "Reload").on_mouse_down(
-                        MouseButton::Left,
-                        cx.listener(|this, _: &MouseDownEvent, _, cx| {
+                    settings_button("terminal-reload-shell", "Reload").on_click(
+                        cx.listener(|this, _, _, cx| {
                             this.reload_shell_environment(cx);
                             cx.stop_propagation();
                         }),
@@ -308,6 +321,7 @@ fn terminal_pane(
                     "Maximum terminal history retained per session.",
                     number_input_control(
                         "terminal-scrollback-lines",
+                        "Scrollback Lines",
                         settings_input(inputs, "terminal-scrollback-lines"),
                         "",
                         100.0,
@@ -321,6 +335,7 @@ fn terminal_pane(
                     "Maximum host-side terminal output retained per session.",
                     number_input_control(
                         "terminal-host-scrollback-mb",
+                        "Host Scrollback Size",
                         settings_input(inputs, "terminal-host-scrollback-mb"),
                         "MB",
                         1.0,
@@ -334,6 +349,7 @@ fn terminal_pane(
                     "Ceiling for terminal scrollback held in the app. Over it, terminals you have not looked at recently are unloaded and restored when you return. Their agents keep running. Use 0 for no limit.",
                     number_input_control(
                         "terminal-buffer-budget-mb",
+                        "Terminal Memory Budget",
                         settings_input(inputs, "terminal-buffer-budget-mb"),
                         "MB",
                         64.0,
@@ -346,6 +362,7 @@ fn terminal_pane(
                     "Word Separators",
                     "Characters that break double-click word selection.",
                     settings_text_input(
+                        "Word Separators",
                         settings_input(inputs, "terminal-word-separators"),
                         220.0,
                         48.0,
@@ -400,7 +417,10 @@ fn terminal_theme_picker(
                         .flex()
                         .flex_col()
                         .flex_1()
-                        .child(design_system::search_field(search_input, false))
+                        .child(
+                            design_system::search_field(search_input, false)
+                                .aria_label("Search Built-In Themes"),
+                        )
                         .child(
                             div()
                                 .mt_2()
@@ -451,6 +471,11 @@ fn terminal_theme_picker(
                                             let name_for_click = (*name).to_string();
                                             div()
                                                 .id(("terminal-theme", index))
+                                                .focusable()
+                                                .tab_stop(true)
+                                                .role(Role::ListBoxOption)
+                                                .aria_label(*name)
+                                                .aria_selected(selected)
                                                 .flex()
                                                 .items_center()
                                                 .h(px(28.0))
@@ -463,9 +488,8 @@ fn terminal_theme_picker(
                                                 .hover(|style| {
                                                     style.bg(theme::surface_selected())
                                                 })
-                                                .on_mouse_down(
-                                                    MouseButton::Left,
-                                                    cx.listener(move |this, _: &MouseDownEvent, _, cx| {
+                                                .on_click(
+                                                    cx.listener(move |this, _, _, cx| {
                                                         this.set_terminal_theme(
                                                             name_for_click.clone(),
                                                             cx,
@@ -582,6 +606,11 @@ fn terminal_cursor_shape_control(
                 let selected = settings.terminal_cursor_shape == shape;
                 div()
                     .id(SharedString::from(format!("terminal-cursor-{shape}")))
+                    .focusable()
+                    .tab_stop(true)
+                    .role(Role::RadioButton)
+                    .aria_label(tooltip)
+                    .aria_selected(selected)
                     .flex()
                     .flex_1()
                     .items_center()
@@ -599,9 +628,8 @@ fn terminal_cursor_shape_control(
                     .hover(|style| style.bg(theme::surface_raised()))
                     .tooltip(move |_, cx| cx.new(|_| Tooltip::new(tooltip)).into())
                     .child(glyph)
-                    .on_mouse_down(
-                        MouseButton::Left,
-                        cx.listener(move |this, _: &MouseDownEvent, _, cx| {
+                    .on_click(
+                        cx.listener(move |this, _, _, cx| {
                             this.update_terminal_settings(
                                 |settings| settings.terminal_cursor_shape = shape.to_string(),
                                 cx,

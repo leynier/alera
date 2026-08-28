@@ -3,7 +3,7 @@ use std::time::Duration;
 
 use chrono::Utc;
 use gpui::{AppContext as _, Context, Entity, SharedString, Window};
-use gpui_component::input::InputState;
+use gpui_component::input::{InputState, TextareaState};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 
@@ -63,7 +63,7 @@ pub(super) struct ProjectConfigSettingsState {
     pub override_project_ids: BTreeSet<String>,
     pub origin: String,
     pub source_error: Option<SharedString>,
-    pub prompt_append_input: Entity<InputState>,
+    pub prompt_append_input: Entity<TextareaState>,
     pub copy_rules: Vec<ProjectCopyRuleDraft>,
     pub setup_commands: Vec<ProjectSetupCommandDraft>,
     pub git_hosting_provider: Option<String>,
@@ -83,9 +83,8 @@ impl ProjectConfigSettingsState {
             origin: "none".into(),
             source_error: None,
             prompt_append_input: cx.new(|cx| {
-                InputState::new(window, cx)
+                TextareaState::new(window, cx)
                     .placeholder("")
-                    .multi_line(true)
                     .soft_wrap(true)
             }),
             copy_rules: Vec::new(),

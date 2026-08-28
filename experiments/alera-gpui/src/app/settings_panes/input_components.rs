@@ -16,6 +16,7 @@ fn terminal_color_row(
         description,
         div().w(px(220.0)).h(px(48.0)).child(
             design_system::text_field(input)
+                .aria_label(title)
                 .height(px(48.0))
                 .prefix(div().w(px(18.0)).h(px(18.0)).rounded_sm().bg(color)),
         ),
@@ -23,12 +24,34 @@ fn terminal_color_row(
 }
 
 
-fn instruction_row(title: &'static str, input: &Entity<InputState>) -> gpui::Div {
+fn instruction_row(title: &'static str, input: &Entity<TextareaState>) -> gpui::Div {
     exact_settings_row(
         title,
         "Extra guidance appended to this generation prompt.",
-        settings_text_input(input, 320.0, 76.0),
+        div()
+            .w(px(320.0))
+            .h(px(76.0))
+            .rounded(px(6.0))
+            .border_1()
+            .border_color(theme::border())
+            .bg(theme::surface_selected())
+            .child(
+                Textarea::new(input)
+                    .aria_label(format!("{title} Extra Guidance"))
+                    .appearance(false)
+                    .size_full()
+                    .px(px(12.0))
+                    .py(px(10.0))
+                    .text_size(px(13.0)),
+            ),
     )
+}
+
+fn settings_textarea<'a>(
+    inputs: &'a SettingsTextareas,
+    key: &str,
+) -> &'a Entity<TextareaState> {
+    inputs.get(key).expect("settings textarea should exist")
 }
 
 #[derive(Clone, Copy)]
@@ -230,15 +253,26 @@ fn settings_input<'a>(inputs: &'a SettingsInputs, key: &str) -> &'a Entity<Input
     inputs.get(key).expect("settings input should exist")
 }
 
-fn settings_text_input(input: &Entity<InputState>, width: f32, height: f32) -> gpui::Div {
+fn settings_text_input(
+    label: &'static str,
+    input: &Entity<InputState>,
+    width: f32,
+    height: f32,
+) -> gpui::Div {
     div()
         .w(px(width))
         .h(px(height))
-        .child(design_system::text_field(input).height(px(height)))
+        .child(
+            design_system::text_field(input)
+                .aria_label(label)
+                .height(px(height)),
+        )
 }
 
+#[allow(clippy::too_many_arguments)]
 fn number_input_control(
     key: &'static str,
+    label: &'static str,
     input: &Entity<InputState>,
     suffix: &'static str,
     step: f64,
@@ -267,6 +301,7 @@ fn number_input_control(
                 .h_full()
                 .child(
                     design_system::text_field(input)
+                        .aria_label(label)
                         .height(px(48.0))
                         .when_some(suffix, |field, suffix| field.suffix(suffix)),
                 ),
@@ -280,6 +315,10 @@ fn number_input_control(
                 .child(
                     div()
                         .id((key, 0usize))
+                        .focusable()
+                        .tab_stop(true)
+                        .role(Role::Button)
+                        .aria_label(format!("Increase {label}"))
                         .flex()
                         .items_center()
                         .justify_center()
@@ -288,9 +327,8 @@ fn number_input_control(
                         .border_color(theme::border_subtle())
                         .cursor(CursorStyle::PointingHand)
                         .hover(|style| style.bg(theme::surface_raised()))
-                        .on_mouse_down(
-                            MouseButton::Left,
-                            cx.listener(move |this, _: &MouseDownEvent, window, cx| {
+                        .on_click(
+                            cx.listener(move |this, _, window, cx| {
                                 adjust_settings_number(
                                     this,
                                     key,
@@ -309,6 +347,10 @@ fn number_input_control(
                 .child(
                     div()
                         .id((key, 1usize))
+                        .focusable()
+                        .tab_stop(true)
+                        .role(Role::Button)
+                        .aria_label(format!("Decrease {label}"))
                         .flex()
                         .items_center()
                         .justify_center()
@@ -317,9 +359,8 @@ fn number_input_control(
                         .border_color(theme::border_subtle())
                         .cursor(CursorStyle::PointingHand)
                         .hover(|style| style.bg(theme::surface_raised()))
-                        .on_mouse_down(
-                            MouseButton::Left,
-                            cx.listener(move |this, _: &MouseDownEvent, window, cx| {
+                        .on_click(
+                            cx.listener(move |this, _, window, cx| {
                                 adjust_settings_number(
                                     this,
                                     key,

@@ -6,8 +6,8 @@ use super::*;
 
 impl AleraApp {
     pub fn new(bridge: RuntimeBridge, window: &mut Window, cx: &mut Context<Self>) -> Self {
-        cx.on_next_frame(window, |this, window, cx| this.start(window, cx));
         let (settings_store, settings_state) = SettingsStore::start();
+        crate::editor_theme::apply_editor_theme(cx, &settings_state.editor_theme);
         crate::app_log::set_level(&settings_state.diagnostics_log_level);
         crate::app_log::set_crash_reporting_enabled(settings_state.crash_reporting_enabled);
         let terminal_focus = cx.focus_handle();
@@ -36,9 +36,8 @@ impl AleraApp {
         let project_display_name_input =
             cx.new(|cx| InputState::new(window, cx).placeholder("Display Name (Optional)"));
         let workspace_prompt_input = cx.new(|cx| {
-            InputState::new(window, cx)
+            TextareaState::new(window, cx)
                 .placeholder("Describe What The Agent Should Build")
-                .multi_line(true)
                 .soft_wrap(true)
         });
         let workspace_dropdown_search_input = cx.new(|cx| {
@@ -85,7 +84,8 @@ impl AleraApp {
             cx.new(|cx| InputState::new(window, cx).placeholder("ccwork"));
         let claude_profile_name_input =
             cx.new(|cx| InputState::new(window, cx).placeholder("work"));
-        let settings_inputs = build_settings_inputs(&settings_state, window, cx);
+        let (settings_inputs, settings_textareas) =
+            build_settings_inputs(&settings_state, window, cx);
         let keyboard_settings = KeyboardSettingsUiState::new(cx);
         let mobile_access = MobileAccessState::new(window, cx);
         let project_config_settings = ProjectConfigSettingsState::new(window, cx);
@@ -270,8 +270,8 @@ impl AleraApp {
             cx.new(|cx| InputState::new(window, cx).placeholder("Search workspaces"));
         let explorer_name_input = cx.new(|cx| InputState::new(window, cx));
         let editor_input = cx.new(|cx| {
-            InputState::new(window, cx)
-                .code_editor("text")
+            EditorState::new(window, cx)
+                .language("text")
                 // Flutter's CodeForge editor keeps soft wrapping enabled. The
                 // same setting is important for long Markdown/code lines so
                 // the editor surface and vertical rhythm stay comparable.
@@ -288,15 +288,13 @@ impl AleraApp {
         let search_exclude_input =
             cx.new(|cx| InputState::new(window, cx).placeholder("Files to exclude"));
         let commit_input = cx.new(|cx| {
-            InputState::new(window, cx)
+            TextareaState::new(window, cx)
                 .placeholder("Message")
-                .multi_line(true)
                 .soft_wrap(true)
         });
         let source_amend_input = cx.new(|cx| {
-            InputState::new(window, cx)
+            TextareaState::new(window, cx)
                 .placeholder("Message")
-                .multi_line(true)
                 .soft_wrap(true)
         });
         let source_control_filter_input =
@@ -304,16 +302,14 @@ impl AleraApp {
         let forge_title_input =
             cx.new(|cx| InputState::new(window, cx).placeholder("Pull Request Title"));
         let forge_body_input = cx.new(|cx| {
-            InputState::new(window, cx)
+            TextareaState::new(window, cx)
                 .placeholder("Description")
-                .multi_line(true)
                 .soft_wrap(true)
         });
         let forge_base_input = cx.new(|cx| InputState::new(window, cx).placeholder("Base Branch"));
         let forge_comment_input = cx.new(|cx| {
-            InputState::new(window, cx)
+            TextareaState::new(window, cx)
                 .placeholder("Add A Comment")
-                .multi_line(true)
                 .soft_wrap(true)
         });
         let forge_link_input =
@@ -331,6 +327,17 @@ impl AleraApp {
                 &editor_input,
                 window,
                 |this, input, event: &InputEvent, _, cx| {
+                    if matches!(event, InputEvent::Focus) {
+                        let path = this
+                            .editor_inputs
+                            .iter()
+                            .find(|(_, candidate)| *candidate == input)
+                            .map(|(path, _)| path.clone());
+                        if let Some(path) = path {
+                            this.activate_editor_path_on_focus(&path, cx);
+                        }
+                        return;
+                    }
                     if !matches!(event, InputEvent::Change)
                         || this.editor_input_syncing
                         || this.editor_document.is_none()
@@ -338,8 +345,10 @@ impl AleraApp {
                         return;
                     }
                     if let Some(path) = this.opened_file_path.clone() {
+                        let content = input.read(cx).value().to_string();
                         this.editor_buffer_text
-                            .insert(path.clone(), input.read(cx).value().to_string());
+                            .insert(path.clone(), content.clone());
+                        this.cache_markdown_preview_content(&path, &content);
                         this.editor_dirty_paths.insert(path);
                         this.editor_dirty = true;
                         cx.notify();
@@ -618,7 +627,6 @@ impl AleraApp {
                     if matches!(event, InputEvent::PressEnter { .. }) {
                         this.search_workspace(cx);
                     } else if matches!(event, InputEvent::Change) {
-                        this.replace_confirmation = None;
                         this.schedule_workspace_search(cx);
                     }
                 },
@@ -628,7 +636,6 @@ impl AleraApp {
                 window,
                 |this, _, event: &InputEvent, _, cx| {
                     if matches!(event, InputEvent::Change) {
-                        this.replace_confirmation = None;
                         this.schedule_workspace_search(cx);
                     }
                 },
@@ -638,7 +645,6 @@ impl AleraApp {
                 window,
                 |this, _, event: &InputEvent, _, cx| {
                     if matches!(event, InputEvent::Change) {
-                        this.replace_confirmation = None;
                         this.schedule_workspace_search(cx);
                     }
                 },
@@ -648,7 +654,6 @@ impl AleraApp {
                 window,
                 |this, _, event: &InputEvent, _, cx| {
                     if matches!(event, InputEvent::Change) {
-                        this.replace_confirmation = None;
                         this.schedule_workspace_search(cx);
                     }
                 },
@@ -707,6 +712,10 @@ impl AleraApp {
                 },
             ),
         ];
+        let tab_navigation_interceptor = cx.listener(|this, event, window, cx| {
+            this.intercept_tab_navigation_keystroke(event, window, cx);
+        });
+        subscriptions.push(cx.intercept_keystrokes(tab_navigation_interceptor));
         for (key, input) in agent_profile_settings.managed_inputs() {
             subscriptions.push(cx.subscribe_in(
                 &input,
@@ -762,12 +771,31 @@ impl AleraApp {
                 },
             ));
         }
+        for (key, input) in &settings_textareas {
+            let key = key.clone();
+            subscriptions.push(cx.subscribe_in(
+                input,
+                window,
+                move |this, input, event: &InputEvent, _, cx| {
+                    let commit = matches!(event, InputEvent::Blur | InputEvent::PressEnter { .. });
+                    if commit || matches!(event, InputEvent::Change) {
+                        this.apply_settings_input(
+                            &key,
+                            input.read(cx).value().to_string(),
+                            commit,
+                            cx,
+                        );
+                    }
+                },
+            ));
+        }
         workspace_directory_input.update(cx, |input, cx| {
             input.set_value(settings_state.workspace_directory.clone(), window, cx);
         });
         let workspace_service = WorkspaceService::start(bridge.clone());
         let settings_scroll_handle = ScrollHandle::new();
-        let explorer_scroll_handle = ScrollHandle::new();
+        let sidebar_scroll_handle = ScrollHandle::new();
+        let explorer_scroll_handle = gpui::UniformListScrollHandle::new();
         let settings_group_anchors = SettingsPane::ALL
             .into_iter()
             .flat_map(|pane| {
@@ -789,7 +817,9 @@ impl AleraApp {
             bridge,
             snapshot: WorkbenchSnapshot::default(),
             selected_workspace_id: None,
+            workspace_selection_initialized: false,
             pending_workspace_terminal_id: None,
+            pending_workspace_tab_id: None,
             selected_tab_id: None,
             tab_rename_input,
             tab_rename_replace_pending: None,
@@ -797,12 +827,16 @@ impl AleraApp {
             tab_mutation_busy: false,
             tab_close_armed: None,
             workbench_menu: None,
+            workbench_menu_focus: cx.focus_handle(),
+            workbench_menu_previous_focus: None,
+            workbench_menu_highlighted: 0,
             tab_drop_target: None,
             pane_drop_target: None,
             tab_pointer_drag: None,
             tab_pointer_drag_generation: 0,
             tab_bar_bounds: BTreeMap::new(),
             tab_chip_bounds: BTreeMap::new(),
+            tab_strip_scroll_handles: RefCell::new(BTreeMap::new()),
             pane_bounds: BTreeMap::new(),
             split_resize: None,
             panel_resize: None,
@@ -811,6 +845,8 @@ impl AleraApp {
             error: None,
             refresh_generation: 0,
             terminal_sessions: BTreeMap::new(),
+            terminal_frame_views: BTreeMap::new(),
+            terminal_output_dirty_sessions: BTreeSet::new(),
             terminal_drivers: BTreeMap::new(),
             terminal_driver_collapsed: BTreeSet::new(),
             terminal_driver_reclaiming: BTreeSet::new(),
@@ -819,6 +855,7 @@ impl AleraApp {
             terminal_resize_pending: BTreeMap::new(),
             terminal_resize_generation: BTreeMap::new(),
             terminal_output_frame_scheduled: false,
+            terminal_output_last_frame_at: Instant::now() - Duration::from_millis(84),
             terminal_focus,
             terminal_selection_drag: None,
             terminal_marked_text: None,
@@ -829,6 +866,7 @@ impl AleraApp {
             terminal_cursor_visible: true,
             terminal_cursor_last_activity: Instant::now(),
             sidebar_collapsed: false,
+            collapsed_sidebar_focus: cx.focus_handle(),
             sidebar_width: 300.0,
             panel_resize_hovered: None,
             collapsed_project_ids: BTreeSet::new(),
@@ -885,6 +923,7 @@ impl AleraApp {
             settings_pane: SettingsPane::Application,
             settings_scroll_handle,
             settings_scroll_last_offset: Cell::new(px(0.0)),
+            sidebar_scroll_handle,
             explorer_scroll_handle,
             settings_group_anchors,
             settings_state,
@@ -908,6 +947,8 @@ impl AleraApp {
             explorer_delete_path: None,
             explorer_menu: None,
             explorer_menu_position: gpui::point(px(820.0), px(120.0)),
+            explorer_menu_focus: cx.focus_handle(),
+            explorer_menu_previous_focus: None,
             explorer_selected_path: None,
             explorer_clipboard: None,
             explorer_drop_target: None,
@@ -928,8 +969,8 @@ impl AleraApp {
             pending_editor_cursor: None,
             preview_asset: None,
             editor_preview_assets: BTreeMap::new(),
-            preview_scale: 1.0,
-            preview_offset: gpui::point(px(0.0), px(0.0)),
+            markdown_preview_content: BTreeMap::new(),
+            preview_transforms: BTreeMap::new(),
             preview_drag: None,
             show_preview: false,
             sidebar_filter_input,
@@ -953,6 +994,7 @@ impl AleraApp {
             editor_theme_search_input,
             terminal_theme_search_input,
             settings_inputs,
+            settings_textareas,
             settings_selects,
             skill_runners,
             claude_profile_alias_input,
@@ -999,7 +1041,9 @@ impl AleraApp {
             search_include_ignored: false,
             search_view_as_tree: false,
             search_collapsed_result_paths: BTreeSet::new(),
+            search_list_state: ListState::new(0, ListAlignment::Top, px(512.0)),
             search_input_generation: 0,
+            search_active_request_id: None,
             settings_search_generation: 0,
             commit_input,
             source_amend_input,
@@ -1007,6 +1051,9 @@ impl AleraApp {
             source_control_filter_visible: false,
             source_control_tree_mode: false,
             source_control_menu_open: false,
+            source_control_menu_focus: cx.focus_handle(),
+            source_control_menu_previous_focus: None,
+            source_control_menu_highlighted: 0,
             source_control_collapsed_sections: BTreeSet::new(),
             source_control_collapsed_tree_nodes: BTreeSet::new(),
             forge_title_input,
@@ -1022,7 +1069,6 @@ impl AleraApp {
             run_policy_error: None,
             search_results: SearchResults::default(),
             search_error: None,
-            replace_confirmation: None,
             git_snapshot: GitSnapshot::default(),
             explorer_git_status: ExplorerGitStatusSnapshot::default(),
             git_snapshot_loading: false,
@@ -1034,11 +1080,15 @@ impl AleraApp {
             git_diff_image_sides: BTreeMap::new(),
             git_diff_image_loading: BTreeSet::new(),
             git_history_expanded: false,
+            git_history_loaded_once: false,
             git_history_height: 256.0,
             git_history_resize: None,
             source_history_expanded_ids: BTreeSet::new(),
             source_history_loading_ids: BTreeSet::new(),
             source_history_action_menu: None,
+            source_history_menu_focus: cx.focus_handle(),
+            source_history_menu_previous_focus: None,
+            source_history_menu_highlighted: 0,
             source_history_files: BTreeMap::new(),
             source_control_dialog: None,
             git_discard_armed: false,

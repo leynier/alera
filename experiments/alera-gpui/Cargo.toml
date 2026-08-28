@@ -2,14 +2,15 @@
 name = "alera-gpui"
 version = "0.40.0"
 edition = "2021"
+rust-version = "1.96"
 description = "Linux-first GPUI proof of concept for the Alera desktop client."
 publish = false
 build = "build.rs"
 
 [features]
 default = ["wayland"]
-wayland = ["gpui/wayland"]
-x11 = ["gpui/x11"]
+wayland = ["gpui/wayland", "gpui-platform/wayland"]
+x11 = ["gpui/x11", "gpui-platform/x11"]
 
 [dependencies]
 alera-native = { package = "alera_native", path = "../../rust" }
@@ -18,15 +19,20 @@ alera-core = { path = "../../rust/alera-core", features = ["async-process"] }
 alera-runtime-client = { path = "../../rust/alera-runtime-client" }
 alacritty_terminal = "0.26"
 anyhow = "1"
+async-io = "2"
 async-channel = "2"
 base64 = "0.23"
 chrono = "0.4"
 dirs = "6"
-gpui = { version = "=0.2.2", default-features = false, features = ["font-kit"] }
-gpui-component = { version = "=0.5.1", features = ["tree-sitter-languages"] }
+gpui = { version = "=0.2.2", git = "https://github.com/zed-industries/zed", default-features = false, features = ["font-kit"] }
+gpui-platform = { package = "gpui_platform", git = "https://github.com/zed-industries/zed", default-features = false, features = ["font-kit"] }
+gpui-component = { git = "https://github.com/longbridge/gpui-component.git", rev = "6d07863fe7077f85abfa0ec2fcb05f3e17c573b2", features = ["tree-sitter-languages"] }
+futures = "0.3"
+image = { version = "0.25", default-features = false, features = ["bmp", "gif", "jpeg", "png", "tiff", "webp"] }
 libloading = "0.8"
 regex = "1"
 reqwest = { version = "0.13", default-features = false, features = ["blocking", "rustls", "json"] }
+reqwest_client = { git = "https://github.com/zed-industries/zed" }
 rust-embed = { version = "8.12", features = ["debug-embed"] }
 qrcode = "0.14"
 serde = { version = "1", features = ["derive"] }
@@ -45,4 +51,5 @@ zip = { version = "2", default-features = false, features = ["deflate"] }
 uuid = { version = "1", features = ["v4"] }
 
 [profile.release]
-debug = true
+debug = false
+strip = "symbols"

@@ -1,6 +1,6 @@
 use gpui::{
     div, px, AnyElement, Context, CursorStyle, InteractiveElement as _, IntoElement,
-    ParentElement as _, Styled as _,
+    ParentElement as _, Role, StatefulInteractiveElement as _, Styled as _,
 };
 use serde_json::json;
 
@@ -21,7 +21,7 @@ impl AleraApp {
             let Some(this) = this.upgrade() else {
                 return;
             };
-            let _ = this.update(cx, |this, cx| {
+            this.update(cx, |this, cx| {
                 match result {
                     Ok(_) => {
                         this.refresh(cx);
@@ -53,7 +53,7 @@ impl AleraApp {
             let Some(this) = this.upgrade() else {
                 return;
             };
-            let _ = this.update(cx, |this, cx| {
+            this.update(cx, |this, cx| {
                 if let Some(error) = error {
                     this.local_message = Some(error.into());
                 }
@@ -108,6 +108,10 @@ impl AleraApp {
             .child(
                 div()
                     .id("resource-kill-all-orphans")
+                    .focusable()
+                    .tab_stop(true)
+                    .role(Role::Button)
+                    .aria_label("Kill All Orphan Terminals")
                     .h(px(26.0))
                     .px_2()
                     .flex()
@@ -118,12 +122,9 @@ impl AleraApp {
                     .text_color(theme::warning())
                     .cursor(CursorStyle::PointingHand)
                     .hover(|style| style.bg(theme::surface_selected()))
-                    .on_mouse_down(
-                        gpui::MouseButton::Left,
-                        cx.listener(move |this, _, _, cx| {
-                            this.terminate_resource_sessions(session_ids.clone(), cx);
-                        }),
-                    )
+                    .on_click(cx.listener(move |this, _, _, cx| {
+                        this.terminate_resource_sessions(session_ids.clone(), cx);
+                    }))
                     .child("Kill All"),
             )
             .into_any_element()

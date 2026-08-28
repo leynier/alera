@@ -3,9 +3,9 @@ use std::cmp::Ordering;
 use gpui::{
     canvas, div, point, prelude::FluentBuilder as _, px, AnyElement, AppContext as _, Bounds,
     Context, CursorStyle, InteractiveElement as _, IntoElement, ParentElement as _, PathBuilder,
-    Pixels, StatefulInteractiveElement as _, Styled as _, Window,
+    Pixels, Role, StatefulInteractiveElement as _, Styled as _, Window,
 };
-use gpui_component::{tooltip::Tooltip, PixelsExt};
+use gpui_component::tooltip::Tooltip;
 use serde_json::Value;
 
 use super::status_bar::format_resource_memory;
@@ -120,6 +120,11 @@ pub(super) fn resource_sort_button(
     let tooltip = format!("Sort By {label}");
     div()
         .id(id)
+        .focusable()
+        .tab_stop(true)
+        .role(Role::Button)
+        .aria_label(format!("Sort By {label}"))
+        .aria_selected(column == selected)
         .when(flex, |button| button.flex_1())
         .when(!flex, |button| button.w(px(68.0)).justify_end())
         .flex()
@@ -133,13 +138,10 @@ pub(super) fn resource_sort_button(
         } else {
             theme::text_faint()
         })
-        .on_mouse_down(
-            gpui::MouseButton::Left,
-            cx.listener(move |this, _, _, cx| {
-                this.resource_sort_column = column.to_owned();
-                cx.notify();
-            }),
-        )
+        .on_click(cx.listener(move |this, _, _, cx| {
+            this.resource_sort_column = column.to_owned();
+            cx.notify();
+        }))
         .child(label)
 }
 
@@ -169,8 +171,11 @@ pub(super) fn metric_row_with_suffix(
     session: Option<(bool, Vec<u64>)>,
     suffix: Option<String>,
 ) -> gpui::Stateful<gpui::Div> {
+    let accessibility_label = label.to_owned();
     div()
         .id(id)
+        .role(Role::Group)
+        .aria_label(accessibility_label)
         .relative()
         .flex()
         .items_center()

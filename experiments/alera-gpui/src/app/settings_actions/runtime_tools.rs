@@ -91,7 +91,7 @@ impl AleraApp {
             let Some(this) = this.upgrade() else {
                 return;
             };
-            let _ = this.update(cx, |this, cx| {
+            this.update(cx, |this, cx| {
                 this.settings_state.loading = false;
                 if let Some(error) = failure {
                     this.settings_state.error = Some(error);
@@ -190,7 +190,7 @@ impl AleraApp {
             let Some(this) = this.upgrade() else {
                 return;
             };
-            let _ = this.update(cx, |this, cx| {
+            this.update(cx, |this, cx| {
                 this.settings_state.loading = false;
                 match result {
                     Ok(_) => this.settings_state.toast = Some(success_message.to_string()),
@@ -220,7 +220,7 @@ impl AleraApp {
             let Some(this) = this.upgrade() else {
                 return;
             };
-            let _ = this.update(cx, |this, cx| {
+            this.update(cx, |this, cx| {
                 this.settings_state.loading = false;
                 match result {
                     Ok(value) => {
@@ -258,7 +258,7 @@ impl AleraApp {
             let Some(this) = this.upgrade() else {
                 return;
             };
-            let _ = this.update(cx, |this, cx| {
+            this.update(cx, |this, cx| {
                 this.settings_state.loading = false;
                 if let Err(error) = result {
                     this.settings_state.error = Some(error);

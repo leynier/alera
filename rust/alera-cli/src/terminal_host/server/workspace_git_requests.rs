@@ -145,11 +145,7 @@ pub(super) async fn diff_blob(payload: &Value) -> HostResult<Value> {
         };
         let format = image_format(format_path)
             .ok_or_else(|| HostError::format("Unsupported Workspace Image Format."))?;
-        let area = request
-            .area
-            .as_deref()
-            .map(parse_change_area)
-            .transpose()?;
+        let area = request.area.as_deref().map(parse_change_area).transpose()?;
         let bytes = alera_native::api::git_diff_blob::git_diff_blob_bytes(
             request.workspace_path,
             request.file_path,

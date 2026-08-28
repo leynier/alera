@@ -53,7 +53,7 @@ impl AleraApp {
             let Some(this) = this.upgrade() else {
                 return;
             };
-            let _ = this.update(cx, |this, cx| {
+            this.update(cx, |this, cx| {
                 if generation != this.git_generation {
                     return;
                 }
@@ -63,7 +63,8 @@ impl AleraApp {
                     Ok(snapshot) => {
                         this.git_snapshot = snapshot;
                         this.git_snapshot_error = None;
-                        this.local_message = show_feedback.then_some("Source control refreshed".into());
+                        this.local_message =
+                            show_feedback.then_some("Source control refreshed".into());
                     }
                     Err(error) => {
                         let message = friendly_git_error(&error);
@@ -78,6 +79,16 @@ impl AleraApp {
     }
 
     pub(super) fn run_git_action(&mut self, action: GitAction, cx: &mut Context<Self>) {
+        let success_message = git_action_success_message(&action);
+        self.run_git_action_with_success(action, success_message, cx);
+    }
+
+    pub(super) fn run_git_action_with_success(
+        &mut self,
+        action: GitAction,
+        success_message: &'static str,
+        cx: &mut Context<Self>,
+    ) {
         let Some(workspace_path) = self.selected_source_control_path() else {
             return;
         };
@@ -97,14 +108,14 @@ impl AleraApp {
             let Some(this) = this.upgrade() else {
                 return;
             };
-            let _ = this.update(cx, |this, cx| {
+            this.update(cx, |this, cx| {
                 if generation != this.git_generation {
                     return;
                 }
                 this.git_busy = false;
                 match result {
-                    Ok(message) => {
-                        this.local_message = Some(message.into());
+                    Ok(_) => {
+                        this.local_message = Some(success_message.into());
                         if let Some(snapshot) = snapshot {
                             this.git_snapshot = snapshot;
                         }
@@ -129,6 +140,10 @@ impl AleraApp {
         self.git_busy = true;
         self.git_discard_armed = false;
         self.git_discard_path_armed = None;
+        let success_message = actions
+            .first()
+            .map(git_action_success_message)
+            .unwrap_or("Updated Changes");
         let service = self.workspace_service.clone();
         cx.spawn(async move |this, cx| {
             let mut result = Ok("Updated Changes".to_owned());
@@ -146,14 +161,14 @@ impl AleraApp {
             let Some(this) = this.upgrade() else {
                 return;
             };
-            let _ = this.update(cx, |this, cx| {
+            this.update(cx, |this, cx| {
                 if generation != this.git_generation {
                     return;
                 }
                 this.git_busy = false;
                 match result {
-                    Ok(message) => {
-                        this.local_message = Some(message.into());
+                    Ok(_) => {
+                        this.local_message = Some(success_message.into());
                         if let Some(snapshot) = snapshot {
                             this.git_snapshot = snapshot;
                         }
@@ -164,21 +179,6 @@ impl AleraApp {
             });
         })
         .detach();
-    }
-
-    pub(super) fn commit(&mut self, amend: bool, cx: &mut Context<Self>) {
-        let message = self.commit_input.read(cx).value().trim().to_string();
-        if message.is_empty() {
-            self.local_message = Some("Enter A Commit Message".into());
-            cx.notify();
-            return;
-        }
-        let action = if amend {
-            GitAction::Amend(message)
-        } else {
-            GitAction::Commit(message)
-        };
-        self.run_git_action(action, cx);
     }
 
     pub(super) fn request_discard_all(&mut self, cx: &mut Context<Self>) {
@@ -199,6 +199,23 @@ impl AleraApp {
             .to_owned();
         self.source_control_dialog = Some(SourceControlDialog::DiscardPaths { paths, target });
         cx.notify();
+    }
+}
+
+fn git_action_success_message(action: &GitAction) -> &'static str {
+    match action {
+        GitAction::StageAll | GitAction::StagePath(_) => "Staged",
+        GitAction::UnstageAll | GitAction::UnstagePath(_) => "Unstaged",
+        GitAction::DiscardAll => "Changes discarded",
+        GitAction::DiscardPath(_) => "Change discarded",
+        GitAction::Commit(_) => "Committed",
+        GitAction::Amend(_) => "Commit amended",
+        GitAction::Fetch => "Fetched",
+        GitAction::Pull => "Pulled",
+        GitAction::Push => "Pushed",
+        GitAction::Sync => "Synced",
+        GitAction::Stash => "Stashed",
+        GitAction::StashPop(_) => "Stash popped",
     }
 }
 

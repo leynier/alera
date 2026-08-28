@@ -2,8 +2,8 @@ use std::collections::BTreeMap;
 
 use gpui::{
     div, prelude::FluentBuilder as _, px, AnyElement, AppContext as _, Context, CursorStyle,
-    InteractiveElement as _, IntoElement, ParentElement as _, StatefulInteractiveElement as _,
-    Styled as _,
+    InteractiveElement as _, IntoElement, ParentElement as _, Role,
+    StatefulInteractiveElement as _, Styled as _,
 };
 use gpui_component::scroll::ScrollableElement as _;
 use gpui_component::tooltip::Tooltip;
@@ -77,8 +77,53 @@ impl AleraApp {
         let host = value
             .and_then(|item| item.pointer("/processes/host"))
             .cloned();
-        let empty =
-            tree.projects.is_empty() && tree.orphans.is_empty() && app.is_none() && host.is_none();
+        // Flutter treats the panel tree as terminal-session data. App and host
+        // metrics remain in the totals header, but they do not turn an empty
+        // session tree into a populated body.
+        let empty = tree.projects.is_empty() && tree.orphans.is_empty();
+        let body_row_count = tree
+            .projects
+            .iter()
+            .map(|project| {
+                1 + if self.resource_collapsed_project_ids.contains(&project.id) {
+                    0
+                } else {
+                    project
+                        .workspaces
+                        .iter()
+                        .map(|workspace| 1 + workspace.sessions.len())
+                        .sum::<usize>()
+                }
+            })
+            .sum::<usize>()
+            + if has_orphans { 1 + orphan_count } else { 0 }
+            + if !empty && (app.is_some() || host.is_some()) {
+                1 + usize::from(app.is_some()) + usize::from(host.is_some())
+            } else {
+                0
+            };
+        let panel_height = if empty {
+            // Flutter's Flexible empty body keeps the card at 320 px even
+            // though the placeholder itself is shorter. Preserve that stable
+            // footprint so warming, unavailable, and no-session states do not
+            // jump toward the status bar.
+            320.0
+        } else if body_row_count >= 10 {
+            420.0
+        } else {
+            (36.0
+                + 24.0
+                + 32.0
+                + 8.0
+                + body_row_count as f32 * 22.0
+                + if has_orphans { 34.0 } else { 0.0 }
+                + if self.status_data.resource_error.is_some() {
+                    56.0
+                } else {
+                    0.0
+                })
+            .min(420.0)
+        };
         let body = div()
             .id("resource-body-scroll")
             .flex_1()
@@ -131,7 +176,7 @@ impl AleraApp {
                         }),
                 )
             })
-            .when(app.is_some() || host.is_some(), |body| {
+            .when(!empty && (app.is_some() || host.is_some()), |body| {
                 body.child(
                     div()
                         .border_t_1()
@@ -163,11 +208,13 @@ impl AleraApp {
 
         div()
             .id("resource-popover")
+            .role(Role::Dialog)
+            .aria_label("Resource Manager")
             .absolute()
             .right(px(8.0))
             .bottom(theme::status_bar_height() + px(4.0))
             .w(px(417.0))
-            .h_auto()
+            .h(px(panel_height))
             .max_h(px(420.0))
             .flex()
             .flex_col()
@@ -414,17 +461,18 @@ impl AleraApp {
                     }),
                     None,
                 )
+                .focusable()
+                .tab_stop(true)
+                .role(Role::Button)
+                .aria_label(project.name.clone())
                 .cursor(CursorStyle::PointingHand)
-                .on_mouse_down(
-                    gpui::MouseButton::Left,
-                    cx.listener(move |this, _, _, cx| {
-                        if !this.resource_collapsed_project_ids.remove(&toggle_id) {
-                            this.resource_collapsed_project_ids
-                                .insert(toggle_id.clone());
-                        }
-                        cx.notify();
-                    }),
-                ),
+                .on_click(cx.listener(move |this, _, _, cx| {
+                    if !this.resource_collapsed_project_ids.remove(&toggle_id) {
+                        this.resource_collapsed_project_ids
+                            .insert(toggle_id.clone());
+                    }
+                    cx.notify();
+                })),
             )
             .children(child_rows)
             .into_any_element()
@@ -461,20 +509,26 @@ impl AleraApp {
             None,
             Some((session.running, session.history)),
         )
+        .focusable()
+        .tab_stop(true)
+        .role(Role::Button)
+        .aria_label(session.label.clone())
         .when(!orphan, |row| {
-            row.cursor(CursorStyle::PointingHand).on_mouse_down(
-                gpui::MouseButton::Left,
-                cx.listener(move |this, _, _, cx| {
+            row.cursor(CursorStyle::PointingHand)
+                .on_click(cx.listener(move |this, _, _, cx| {
                     this.dismiss_status_popover(cx);
                     this.open_resource_session(open_workspace_id.clone(), open_tab_id.clone(), cx);
-                }),
-            )
+                }))
         })
         .child(
             div()
                 .id(gpui::SharedString::from(format!(
                     "resource-terminate-{project_index}-{workspace_index}-{session_index}"
                 )))
+                .focusable()
+                .tab_stop(true)
+                .role(Role::Button)
+                .aria_label(action_tooltip)
                 .absolute()
                 .right(px(8.0))
                 .flex()
@@ -487,23 +541,19 @@ impl AleraApp {
                 .cursor(CursorStyle::PointingHand)
                 .tooltip(move |_, cx| cx.new(|_| Tooltip::new(action_tooltip)).into())
                 .hover(|style| style.bg(theme::surface_selected()))
-                .on_mouse_down(
-                    gpui::MouseButton::Left,
-                    cx.listener(move |this, _, _, cx| {
-                        cx.stop_propagation();
-                        if orphan {
-                            this.terminate_resource_session(terminate_session_id.clone(), cx);
-                        } else {
-                            this.resource_close_confirmation =
-                                Some(super::ResourceCloseConfirmation {
-                                    tab_id: close_tab_id.clone(),
-                                    label: close_label.clone(),
-                                });
-                            this.dismiss_status_popover(cx);
-                            cx.notify();
-                        }
-                    }),
-                )
+                .on_click(cx.listener(move |this, _, _, cx| {
+                    cx.stop_propagation();
+                    if orphan {
+                        this.terminate_resource_session(terminate_session_id.clone(), cx);
+                    } else {
+                        this.resource_close_confirmation = Some(super::ResourceCloseConfirmation {
+                            tab_id: close_tab_id.clone(),
+                            label: close_label.clone(),
+                        });
+                        this.dismiss_status_popover(cx);
+                        cx.notify();
+                    }
+                }))
                 .child(icon(AleraIcon::Close, 11.0, theme::text_faint())),
         )
         .into_any_element()

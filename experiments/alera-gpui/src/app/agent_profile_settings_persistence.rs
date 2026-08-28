@@ -147,15 +147,19 @@ impl AleraApp {
                         this.agent_profile_settings
                             .profiles
                             .retain(|profile| profile.id != id);
+                        // Flutter selects the first remaining profile when the
+                        // removed id no longer exists in the provider snapshot.
+                        // Keep the local list and editor in that same state
+                        // before the host change event arrives.
                         if let Some(next) = this.agent_profile_settings.profiles.first().cloned() {
                             this.seed_agent_profile(&next, window, cx);
                         } else {
                             this.new_agent_profile(window, cx);
                             this.agent_profile_settings.creating_new = false;
                         }
-                        // Flutter clears the editor after Remove without a
-                        // success toast; keep the list mutation quiet and
-                        // reserve feedback for Save and validation errors.
+                        // Flutter does not show a success toast after Remove;
+                        // keep the list mutation quiet and reserve feedback
+                        // for Save and validation errors.
                         this.agent_profile_settings.toast = None;
                         this.sync_workspace_agent_profile_options();
                     }

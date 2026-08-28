@@ -90,13 +90,13 @@ fn quotas_pane(
                             "Read Default Claude Code Usage And Any Configured CCS Profiles.",
                             settings_switch(
                                 "claude-provider-enabled",
+                                "Claude Code Quotas",
                                 settings
                                     .quota_enabled_providers
                                     .iter()
                                     .any(|provider| provider == "claude"),
                             )
-                            .on_mouse_down(
-                                MouseButton::Left,
+                            .on_click(
                                 cx.listener(|this, _, _, cx| {
                                     this.update_quota_settings(
                                         |settings| toggle_quota_provider(settings, "claude"),
@@ -123,10 +123,9 @@ fn quotas_pane(
                                         } else {
                                             AleraIcon::Pin
                                         },
-                                        "",
+                                        "Toggle Default Claude Quota Pin",
                                     )
-                                    .on_mouse_down(
-                                        MouseButton::Left,
+                                    .on_click(
                                         cx.listener(|this, _, _, cx| {
                                             this.update_quota_settings(
                                                 |settings| {
@@ -140,10 +139,10 @@ fn quotas_pane(
                                 .child(
                                     settings_switch(
                                         "claude-default-enabled",
+                                        "Default Claude Code Quota",
                                         settings.claude_default_enabled,
                                     )
-                                    .on_mouse_down(
-                                        MouseButton::Left,
+                                    .on_click(
                                         cx.listener(|this, _, _, cx| {
                                             this.update_quota_settings(
                                                 |settings| {
@@ -273,8 +272,7 @@ fn quota_environment_presence_control(
                 },
                 "Check Environment",
             )
-            .on_mouse_down(
-                MouseButton::Left,
+            .on_click(
                 cx.listener(|this, _, _, cx| {
                     if !this.status_data.quota_loading {
                         this.refresh_quota_status(true, cx);
@@ -335,9 +333,13 @@ fn claude_profiles_control(
                                 AleraIcon::PinOff
                             },
                             pinned,
+                            if pinned {
+                                "Shown In Status Bar".to_owned()
+                            } else {
+                                "Hidden From Status Bar - Available In The Quota Panel".to_owned()
+                            },
                         )
-                        .on_mouse_down(
-                            MouseButton::Left,
+                        .on_click(
                             cx.listener(move |this, _, _, cx| {
                                 this.update_quota_settings(
                                     |settings| {
@@ -356,9 +358,9 @@ fn claude_profiles_control(
                             SharedString::from(format!("move-claude-profile-up-{index}")),
                             AleraIcon::ChevronUp,
                             false,
+                            format!("Move {} Earlier", profile.alias),
                         )
-                        .on_mouse_down(
-                            MouseButton::Left,
+                        .on_click(
                             cx.listener(move |this, _, _, cx| {
                                 this.move_claude_profile(move_up_index, -1, cx);
                             }),
@@ -369,9 +371,9 @@ fn claude_profiles_control(
                             SharedString::from(format!("move-claude-profile-down-{index}")),
                             AleraIcon::ChevronDown,
                             false,
+                            format!("Move {} Later", profile.alias),
                         )
-                        .on_mouse_down(
-                            MouseButton::Left,
+                        .on_click(
                             cx.listener(move |this, _, _, cx| {
                                 this.move_claude_profile(move_down_index, 1, cx);
                             }),
@@ -382,9 +384,9 @@ fn claude_profiles_control(
                             SharedString::from(format!("edit-claude-profile-{index}")),
                             AleraIcon::Edit,
                             false,
+                            "Edit CCS Profile",
                         )
-                        .on_mouse_down(
-                            MouseButton::Left,
+                        .on_click(
                             cx.listener(move |this, _, window, cx| {
                                 this.open_claude_profile_dialog(Some(edit_index), window, cx);
                             }),
@@ -395,9 +397,9 @@ fn claude_profiles_control(
                             SharedString::from(format!("remove-claude-profile-{index}")),
                             AleraIcon::Delete,
                             false,
+                            "Remove CCS Profile",
                         )
-                        .on_mouse_down(
-                            MouseButton::Left,
+                        .on_click(
                             cx.listener(move |this, _, _, cx| {
                                 this.remove_claude_profile(remove_index, cx);
                             }),
@@ -409,6 +411,10 @@ fn claude_profiles_control(
     control.child(
         div()
             .id("add-claude-profile")
+            .focusable()
+            .tab_stop(true)
+            .role(Role::Button)
+            .aria_label("Add CCS Profile")
             .flex()
             .items_center()
             .h(px(34.0))
@@ -417,8 +423,7 @@ fn claude_profiles_control(
             .rounded_lg()
             .cursor(CursorStyle::PointingHand)
             .hover(|style| style.bg(theme::surface_raised()))
-            .on_mouse_down(
-                MouseButton::Left,
+            .on_click(
                 cx.listener(|this, _, window, cx| {
                     this.open_claude_profile_dialog(None, window, cx);
                 }),
@@ -432,9 +437,16 @@ fn project_icon_button(
     id: SharedString,
     icon_kind: AleraIcon,
     active: bool,
+    tooltip: impl Into<SharedString>,
 ) -> gpui::Stateful<gpui::Div> {
+    let tooltip = tooltip.into();
+    let aria_label = tooltip.clone();
     div()
         .id(id)
+        .focusable()
+        .tab_stop(true)
+        .role(Role::Button)
+        .aria_label(aria_label)
         .flex()
         .items_center()
         .justify_center()
@@ -442,6 +454,10 @@ fn project_icon_button(
         .h(px(28.0))
         .rounded_md()
         .cursor(CursorStyle::PointingHand)
+        .tooltip(move |_, cx| {
+            let label = tooltip.clone();
+            cx.new(move |_| Tooltip::new(label)).into()
+        })
         .hover(|style| style.bg(theme::surface_raised()))
         .child(icon(
             icon_kind,
@@ -454,9 +470,11 @@ fn project_icon_button(
         ))
 }
 
+#[allow(clippy::too_many_arguments)]
 fn ai_text_pane(
     settings: &SettingsState,
     inputs: &SettingsInputs,
+    textareas: &SettingsTextareas,
     selects: &BTreeMap<String, SettingsSelect>,
     discovery_busy: &BTreeSet<String>,
     discovery_errors: &BTreeMap<String, SharedString>,
@@ -477,8 +495,8 @@ fn ai_text_pane(
         exact_settings_row(
             "Enable AI Text",
             "Show generation actions in source control and pull requests.",
-            settings_switch("ai-text-enabled", settings.ai_text_enabled).on_mouse_down(
-                MouseButton::Left,
+            settings_switch("ai-text-enabled", "Enable AI Text", settings.ai_text_enabled)
+                .on_click(
                 cx.listener(|this, _, _, cx| {
                     this.update_ai_text_settings(
                         |settings| settings.ai_text_enabled = !settings.ai_text_enabled,
@@ -490,14 +508,19 @@ fn ai_text_pane(
         exact_settings_row(
             "Agent",
             "CLI used for generated source control text.",
-            settings_select_control(agent_select, false, true),
+            settings_select_control("Agent", agent_select, false, true),
         ),
     ];
     if settings.ai_text_agent == "custom" {
         generation_rows.push(exact_settings_row(
             "Custom Command",
             "Use {prompt} to pass the prompt as an argument; otherwise Alera sends it on stdin.",
-            settings_text_input(settings_input(inputs, "ai-custom-command"), 320.0, 48.0),
+            settings_text_input(
+                "Custom Command",
+                settings_input(inputs, "ai-custom-command"),
+                320.0,
+                48.0,
+            ),
         ));
     } else {
         generation_rows.push(exact_settings_row(
@@ -515,6 +538,7 @@ fn ai_text_pane(
             ai_model_select_control(
                 model_select,
                 &settings.ai_text_agent,
+                "global",
                 discovery_busy,
                 cx,
             ),
@@ -523,7 +547,7 @@ fn ai_text_pane(
             generation_rows.push(exact_settings_row(
                 "Thinking",
                 "Reasoning effort for models that support it.",
-                settings_select_control(thinking_select, false, false),
+                settings_select_control("Thinking", thinking_select, false, false),
             ));
         }
     }
@@ -536,7 +560,12 @@ fn ai_text_pane(
         generation_rows.push(exact_settings_row(
             "Custom Command",
             "Used By Prompts That Override The Global Agent With Custom Command.",
-            settings_text_input(settings_input(inputs, "ai-custom-command"), 320.0, 48.0),
+            settings_text_input(
+                "Custom Command",
+                settings_input(inputs, "ai-custom-command"),
+                320.0,
+                48.0,
+            ),
         ));
     }
     div()
@@ -574,15 +603,15 @@ fn ai_text_pane(
                     vec![
                 instruction_row(
                     "Commit Messages",
-                    settings_input(inputs, "ai-instructions-commitMessage"),
+                    settings_textarea(textareas, "ai-instructions-commitMessage"),
                 ),
                 instruction_row(
                     "Pull Request Details",
-                    settings_input(inputs, "ai-instructions-pullRequestDetails"),
+                    settings_textarea(textareas, "ai-instructions-pullRequestDetails"),
                 ),
                 instruction_row(
                     "Workspace Identity",
-                    settings_input(inputs, "ai-instructions-workspaceIdentity"),
+                    settings_textarea(textareas, "ai-instructions-workspaceIdentity"),
                 ),
                     ],
                 )
@@ -622,7 +651,16 @@ fn prompt_override_rows(
                 _ => "Workspace Identity Agent",
             },
             "Override The Global Agent For This Prompt.",
-            settings_select_control(agent_select, false, true),
+            settings_select_control(
+                match operation {
+                    "commitMessage" => "Commit Messages Agent",
+                    "pullRequestDetails" => "Pull Request Details Agent",
+                    _ => "Workspace Identity Agent",
+                },
+                agent_select,
+                false,
+                true,
+            ),
         ));
         if effective_agent != "custom" {
             let model_select = selects
@@ -638,7 +676,13 @@ fn prompt_override_rows(
                     .get(effective_agent)
                     .cloned()
                     .unwrap_or_else(|| "Override The Global Model For This Prompt.".into()),
-                ai_model_select_control(model_select, effective_agent, discovery_busy, cx),
+                ai_model_select_control(
+                    model_select,
+                    effective_agent,
+                    operation,
+                    discovery_busy,
+                    cx,
+                ),
             ));
         }
         let _ = title;
@@ -649,21 +693,35 @@ fn prompt_override_rows(
 fn ai_model_select_control(
     select: &SettingsSelect,
     agent: &str,
+    scope: &str,
     discovery_busy: &BTreeSet<String>,
     cx: &mut Context<AleraApp>,
 ) -> gpui::Div {
     let can_discover = super::settings_actions::supports_ai_model_discovery(agent);
     let busy = discovery_busy.contains(agent);
     let agent = agent.to_string();
+    let refresh_id = SharedString::from(format!("refresh-ai-models-{scope}"));
     div()
         .flex()
         .items_center()
         .gap_2()
-        .child(div().flex_1().child(settings_select_control(select, false, true)))
+        .child(
+            div()
+                .flex_1()
+                .child(settings_select_control("Model", select, false, true)),
+        )
         .when(can_discover, |row| {
             row.child(
                 div()
-                    .id(SharedString::from(format!("refresh-ai-models-{agent}")))
+                    .id(refresh_id)
+                    .focusable()
+                    .tab_stop(!busy)
+                    .role(Role::Button)
+                    .aria_label(if busy {
+                        "Refreshing Models"
+                    } else {
+                        "Refresh Models"
+                    })
                     .flex()
                     .items_center()
                     .justify_center()
@@ -680,15 +738,22 @@ fn ai_model_select_control(
                         button
                             .cursor(CursorStyle::PointingHand)
                             .hover(|style| style.bg(theme::surface_raised()))
-                            .on_mouse_down(
-                                MouseButton::Left,
+                            .on_click(
                                 cx.listener(move |this, _, window, cx| {
                                     this.discover_ai_text_models(agent.clone(), window, cx);
                                 }),
                             )
                     })
                     .tooltip(|_, cx| cx.new(|_| Tooltip::new("Refresh Models")).into())
-                    .child(icon(AleraIcon::Refresh, 14.0, theme::text_muted())),
+                    .child(icon(
+                        if busy {
+                            AleraIcon::Loading
+                        } else {
+                            AleraIcon::Refresh
+                        },
+                        14.0,
+                        theme::text_muted(),
+                    )),
             )
         })
 }

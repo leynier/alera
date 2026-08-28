@@ -187,7 +187,7 @@ impl AleraApp {
             let Some(this) = this.upgrade() else {
                 return;
             };
-            let _ = this.update(cx, |this, cx| {
+            this.update(cx, |this, cx| {
                 this.run_policies_loading = false;
                 match result {
                     Ok(policies) => this.run_policies = policies,

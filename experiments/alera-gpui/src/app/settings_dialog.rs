@@ -1,8 +1,7 @@
 use gpui::{
     div, prelude::FluentBuilder as _, px, relative, AppContext as _, Context, CursorStyle,
-    InteractiveElement as _,
-    IntoElement, MouseButton, MouseDownEvent, ParentElement as _, StatefulInteractiveElement as _,
-    Styled as _,
+    InteractiveElement as _, IntoElement, ParentElement as _, Role,
+    StatefulInteractiveElement as _, Styled as _,
 };
 use gpui_component::tooltip::Tooltip;
 
@@ -58,9 +57,9 @@ impl AleraApp {
         self.show_claude_profile_dialog = false;
         self.claude_profile_error = None;
         if let Some(focus) = self.settings_previous_focus.take() {
-            focus.focus(window);
+            focus.focus(window, cx);
         } else {
-            self.terminal_focus.focus(window);
+            self.terminal_focus.focus(window, cx);
         }
         cx.notify();
     }
@@ -116,6 +115,9 @@ impl AleraApp {
             .bg(theme::overlay_scrim())
             .child(
                 div()
+                    .id("settings-dialog")
+                    .role(Role::Dialog)
+                    .aria_label("Settings")
                     // Flutter sizes this dialog to 92% of the viewport. Use
                     // relative 4% insets so Settings and its scroll viewport
                     // keep the same proportions on every desktop size.
@@ -171,6 +173,10 @@ impl AleraApp {
             .child(
                 div()
                     .id("close-empty-settings")
+                    .focusable()
+                    .tab_stop(true)
+                    .role(Role::Button)
+                    .aria_label("Close")
                     .absolute()
                     .top(px(16.0))
                     .right(px(16.0))
@@ -183,12 +189,9 @@ impl AleraApp {
                     .tooltip(|_, cx| cx.new(|_| Tooltip::new("Close")).into())
                     .cursor(CursorStyle::PointingHand)
                     .hover(|style| style.bg(theme::surface_raised()))
-                    .on_mouse_down(
-                        MouseButton::Left,
-                        cx.listener(|this, _, window, cx| {
-                            this.close_settings_dialog(window, cx);
-                        }),
-                    )
+                    .on_click(cx.listener(|this, _, window, cx| {
+                        this.close_settings_dialog(window, cx);
+                    }))
                     .child(icon(AleraIcon::Close, 14.0, theme::text_muted())),
             )
     }
@@ -220,6 +223,10 @@ impl AleraApp {
                         row.child(
                             div()
                                 .id("reset-settings-pane")
+                                .focusable()
+                                .tab_stop(true)
+                                .role(Role::Button)
+                                .aria_label(format!("Reset {}", self.settings_pane.label()))
                                 .flex()
                                 .items_center()
                                 .justify_center()
@@ -228,26 +235,27 @@ impl AleraApp {
                                 .rounded_lg()
                                 .cursor(CursorStyle::PointingHand)
                                 .hover(|style| style.bg(theme::surface_raised()))
-                                .on_mouse_down(
-                                    MouseButton::Left,
-                                    cx.listener(|this, _, _, cx| match this.settings_pane {
-                                        SettingsPane::AiText => this.reset_ai_text_settings(cx),
-                                        SettingsPane::Editor => this.reset_editor_settings(cx),
-                                        SettingsPane::Terminal => {
-                                            this.reset_terminal_settings(cx);
-                                        }
-                                        SettingsPane::Keyboard => {
-                                            this.reset_keyboard_settings(cx);
-                                        }
-                                        _ => {}
-                                    }),
-                                )
+                                .on_click(cx.listener(|this, _, _, cx| match this.settings_pane {
+                                    SettingsPane::AiText => this.reset_ai_text_settings(cx),
+                                    SettingsPane::Editor => this.reset_editor_settings(cx),
+                                    SettingsPane::Terminal => {
+                                        this.reset_terminal_settings(cx);
+                                    }
+                                    SettingsPane::Keyboard => {
+                                        this.reset_keyboard_settings(cx);
+                                    }
+                                    _ => {}
+                                }))
                                 .child(format!("Reset {}", self.settings_pane.label())),
                         )
                     })
                     .child(
                         div()
                             .id("close-settings")
+                            .focusable()
+                            .tab_stop(true)
+                            .role(Role::Button)
+                            .aria_label("Close")
                             .flex()
                             .items_center()
                             .justify_center()
@@ -257,12 +265,9 @@ impl AleraApp {
                             .tooltip(|_, cx| cx.new(|_| Tooltip::new("Close")).into())
                             .cursor(CursorStyle::PointingHand)
                             .hover(|style| style.bg(theme::surface_raised()))
-                            .on_mouse_down(
-                                MouseButton::Left,
-                                cx.listener(|this, _, window, cx| {
-                                    this.close_settings_dialog(window, cx);
-                                }),
-                            )
+                            .on_click(cx.listener(|this, _, window, cx| {
+                                this.close_settings_dialog(window, cx);
+                            }))
                             .child(icon(AleraIcon::Close, 16.0, theme::text_muted())),
                     ),
             )
@@ -282,6 +287,10 @@ impl AleraApp {
                             .cloned();
                         div()
                             .id(("settings-group-chip", index))
+                            .focusable()
+                            .tab_stop(true)
+                            .role(Role::Button)
+                            .aria_label(*group)
                             .px(px(6.0))
                             .py(px(2.0))
                             .rounded_sm()
@@ -292,13 +301,10 @@ impl AleraApp {
                             .cursor(CursorStyle::PointingHand)
                             .hover(|style| style.bg(theme::surface_raised()))
                             .when_some(anchor, |chip, anchor| {
-                                chip.on_mouse_down(
-                                    MouseButton::Left,
-                                    move |_: &MouseDownEvent, window, cx| {
-                                        anchor.scroll_to(window, cx);
-                                        cx.stop_propagation();
-                                    },
-                                )
+                                chip.on_click(move |_, window, cx| {
+                                    anchor.scroll_to(window, cx);
+                                    cx.stop_propagation();
+                                })
                             })
                             .child(*group)
                     }),
@@ -342,6 +348,11 @@ impl AleraApp {
                 navigation_rows.push(
                     div()
                         .id(("settings-pane", pane_index + section_index * 20))
+                        .focusable()
+                        .tab_stop(true)
+                        .role(Role::Tab)
+                        .aria_label(pane.label())
+                        .aria_selected(selected)
                         .flex()
                         .items_center()
                         .mb(px(2.0))
@@ -358,16 +369,13 @@ impl AleraApp {
                         })
                         .hover(|style| style.bg(theme::surface_raised()))
                         .when(selected, |row| row.bg(theme::surface_raised()))
-                        .on_mouse_down(
-                            MouseButton::Left,
-                            cx.listener(move |this, _: &MouseDownEvent, window, cx| {
-                                this.select_settings_pane(pane, window, cx);
-                                if pane == SettingsPane::AiText {
-                                    this.auto_discover_configured_ai_models(window, cx);
-                                }
-                                cx.stop_propagation();
-                            }),
-                        )
+                        .on_click(cx.listener(move |this, _, window, cx| {
+                            this.select_settings_pane(pane, window, cx);
+                            if pane == SettingsPane::AiText {
+                                this.auto_discover_configured_ai_models(window, cx);
+                            }
+                            cx.stop_propagation();
+                        }))
                         .child(div().w(px(2.0)).h(px(16.0)).rounded_full().bg(if selected {
                             theme::accent()
                         } else {
@@ -418,14 +426,18 @@ impl AleraApp {
                 ),
             )
             .child(div().h(px(1.0)).bg(theme::border_subtle()))
-            .child(div().p_3().child(design_system::search_field(
-                &self.settings_search_input,
-                false,
-            )))
+            .child(
+                div().p_3().child(
+                    design_system::search_field(&self.settings_search_input, false)
+                        .aria_label("Search settings"),
+                ),
+            )
             .child(div().h(px(1.0)).bg(theme::border_subtle()))
             .child(
                 div()
                     .id("settings-navigation")
+                    .role(Role::TabList)
+                    .aria_label("Settings sections")
                     .flex_1()
                     .min_h_0()
                     .overflow_y_scroll()

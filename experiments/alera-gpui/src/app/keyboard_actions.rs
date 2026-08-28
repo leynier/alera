@@ -1,4 +1,4 @@
-use gpui::{actions, Action, App, Context, KeyBinding, Window};
+use gpui::{actions, Action, App, Context, KeyBinding, KeystrokeEvent, Window};
 
 use super::keyboard_settings::{defaults, KEYBOARD_BINDINGS};
 use super::AleraApp;
@@ -64,6 +64,19 @@ pub fn register(cx: &mut App) {
 }
 
 pub(super) fn key_binding_for_action(id: &str, keystroke: &str) -> Option<KeyBinding> {
+    let action = action_for_id(id)?;
+    KeyBinding::load(
+        keystroke,
+        action,
+        None,
+        false,
+        None,
+        &gpui::DummyKeyboardMapper,
+    )
+    .ok()
+}
+
+pub(super) fn action_for_id(id: &str) -> Option<Box<dyn Action>> {
     let action: Box<dyn Action> = match id {
         "openSettings" => Box::new(OpenSettings),
         "addProject" => Box::new(AddProject),
@@ -90,15 +103,7 @@ pub(super) fn key_binding_for_action(id: &str, keystroke: &str) -> Option<KeyBin
         "closeSplit" => Box::new(CloseSplit),
         _ => return None,
     };
-    KeyBinding::load(
-        keystroke,
-        action,
-        None,
-        false,
-        None,
-        &gpui::DummyKeyboardMapper,
-    )
-    .ok()
+    Some(action)
 }
 
 pub(super) fn canonical_to_gpui(canonical: &str) -> Option<String> {
@@ -137,6 +142,38 @@ pub(super) fn canonical_to_gpui(canonical: &str) -> Option<String> {
 }
 
 impl AleraApp {
+    pub(super) fn intercept_tab_navigation_keystroke(
+        &mut self,
+        event: &KeystrokeEvent,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        if self.keyboard_settings.recording_id.is_some() {
+            return;
+        }
+        let Some(definition) = self.keyboard_shortcut_for_keystroke(&event.keystroke) else {
+            return;
+        };
+        if !self.keyboard_shortcut_allowed(definition.id, window) {
+            return;
+        }
+        match definition.id {
+            "nextTab" => self.select_relative_tab(1, cx),
+            "previousTab" => self.select_relative_tab(-1, cx),
+            "goToTab1" => self.select_tab_number(1, cx),
+            "goToTab2" => self.select_tab_number(2, cx),
+            "goToTab3" => self.select_tab_number(3, cx),
+            "goToTab4" => self.select_tab_number(4, cx),
+            "goToTab5" => self.select_tab_number(5, cx),
+            "goToTab6" => self.select_tab_number(6, cx),
+            "goToTab7" => self.select_tab_number(7, cx),
+            "goToTab8" => self.select_tab_number(8, cx),
+            "goToTab9" => self.select_tab_number(9, cx),
+            _ => return,
+        }
+        cx.stop_propagation();
+    }
+
     tab_action_handler!(on_go_to_tab_1, GoToTab1, "goToTab1", 1);
     tab_action_handler!(on_go_to_tab_2, GoToTab2, "goToTab2", 2);
     tab_action_handler!(on_go_to_tab_3, GoToTab3, "goToTab3", 3);
@@ -215,6 +252,11 @@ impl AleraApp {
             return;
         }
         self.sidebar_collapsed = !self.sidebar_collapsed;
+        if self.sidebar_collapsed {
+            cx.defer_in(window, |this, window, cx| {
+                this.collapsed_sidebar_focus.focus(window, cx);
+            });
+        }
         cx.notify();
     }
 

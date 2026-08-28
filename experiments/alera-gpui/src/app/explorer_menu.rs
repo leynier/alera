@@ -1,6 +1,7 @@
 use gpui::{
     div, prelude::FluentBuilder as _, px, AnyElement, Context, CursorStyle,
-    InteractiveElement as _, IntoElement, ParentElement as _, Pixels, Point, Styled as _, Window,
+    InteractiveElement as _, IntoElement, KeyDownEvent, ParentElement as _, Pixels, Point, Role,
+    StatefulInteractiveElement as _, Styled as _, Window,
 };
 
 use super::{AleraApp, ExplorerMenuTarget};
@@ -26,6 +27,7 @@ impl AleraApp {
         };
         div()
             .id("explorer-menu-overlay")
+            .track_focus(&self.explorer_menu_focus)
             .absolute()
             .top_0()
             .right_0()
@@ -33,10 +35,16 @@ impl AleraApp {
             .left_0()
             .on_mouse_down(
                 gpui::MouseButton::Left,
-                cx.listener(|this, _, _, cx| {
-                    this.dismiss_explorer_menu(cx);
+                cx.listener(|this, _, window, cx| {
+                    this.dismiss_explorer_menu(window, cx);
                 }),
             )
+            .on_key_down(cx.listener(|this, event: &KeyDownEvent, window, cx| {
+                if event.keystroke.key.as_str() == "escape" {
+                    this.dismiss_explorer_menu(window, cx);
+                    cx.stop_propagation();
+                }
+            }))
             .child(menu)
     }
 
@@ -57,13 +65,10 @@ impl AleraApp {
                 AleraIcon::NewFile,
                 "New file",
             )
-            .on_mouse_down(
-                gpui::MouseButton::Left,
-                cx.listener(|this, _, window, cx| {
-                    cx.stop_propagation();
-                    this.begin_create_explorer_entry(false, window, cx);
-                }),
-            ),
+            .on_click(cx.listener(|this, _, window, cx| {
+                cx.stop_propagation();
+                this.begin_create_explorer_entry(false, window, cx);
+            })),
         )
         .child(
             explorer_menu_button(
@@ -71,13 +76,10 @@ impl AleraApp {
                 AleraIcon::NewFolder,
                 "New folder",
             )
-            .on_mouse_down(
-                gpui::MouseButton::Left,
-                cx.listener(|this, _, window, cx| {
-                    cx.stop_propagation();
-                    this.begin_create_explorer_entry(true, window, cx);
-                }),
-            ),
+            .on_click(cx.listener(|this, _, window, cx| {
+                cx.stop_propagation();
+                this.begin_create_explorer_entry(true, window, cx);
+            })),
         )
         .into_any_element()
     }
@@ -124,18 +126,15 @@ impl AleraApp {
         )
         .child(
             explorer_menu_button("explorer-entry-new-file", AleraIcon::NewFile, "New file")
-                .on_mouse_down(
-                    gpui::MouseButton::Left,
-                    cx.listener(move |this, _, window, cx| {
-                        cx.stop_propagation();
-                        this.begin_create_explorer_entry_at(
-                            create_file_parent.clone(),
-                            false,
-                            window,
-                            cx,
-                        );
-                    }),
-                ),
+                .on_click(cx.listener(move |this, _, window, cx| {
+                    cx.stop_propagation();
+                    this.begin_create_explorer_entry_at(
+                        create_file_parent.clone(),
+                        false,
+                        window,
+                        cx,
+                    );
+                })),
         )
         .child(
             explorer_menu_button(
@@ -143,22 +142,13 @@ impl AleraApp {
                 AleraIcon::NewFolder,
                 "New folder",
             )
-            .on_mouse_down(
-                gpui::MouseButton::Left,
-                cx.listener(move |this, _, window, cx| {
-                    cx.stop_propagation();
-                    this.begin_create_explorer_entry_at(
-                        create_folder_parent.clone(),
-                        true,
-                        window,
-                        cx,
-                    );
-                }),
-            ),
+            .on_click(cx.listener(move |this, _, window, cx| {
+                cx.stop_propagation();
+                this.begin_create_explorer_entry_at(create_folder_parent.clone(), true, window, cx);
+            })),
         )
         .child(
-            explorer_menu_button("explorer-entry-copy", AleraIcon::Copy, "Copy").on_mouse_down(
-                gpui::MouseButton::Left,
+            explorer_menu_button("explorer-entry-copy", AleraIcon::Copy, "Copy").on_click(
                 cx.listener(move |this, _, _, cx| {
                     cx.stop_propagation();
                     this.copy_explorer_entry(copy_path.clone(), false, cx);
@@ -166,8 +156,7 @@ impl AleraApp {
             ),
         )
         .child(
-            explorer_menu_button("explorer-entry-cut", AleraIcon::Cut, "Cut").on_mouse_down(
-                gpui::MouseButton::Left,
+            explorer_menu_button("explorer-entry-cut", AleraIcon::Cut, "Cut").on_click(
                 cx.listener(move |this, _, _, cx| {
                     cx.stop_propagation();
                     this.copy_explorer_entry(cut_path.clone(), true, cx);
@@ -178,28 +167,23 @@ impl AleraApp {
             explorer_menu_button("explorer-entry-paste", AleraIcon::Paste, "Paste")
                 .when(!can_paste, |button| {
                     button
+                        .tab_stop(false)
                         .text_color(theme::text_faint())
                         .cursor(CursorStyle::Arrow)
                 })
                 .when(can_paste, |button| {
-                    button.on_mouse_down(
-                        gpui::MouseButton::Left,
-                        cx.listener(move |this, _, _, cx| {
-                            cx.stop_propagation();
-                            this.paste_explorer_entry(Some(paste_path.clone()), cx);
-                        }),
-                    )
+                    button.on_click(cx.listener(move |this, _, _, cx| {
+                        cx.stop_propagation();
+                        this.paste_explorer_entry(Some(paste_path.clone()), cx);
+                    }))
                 }),
         )
         .child(
             explorer_menu_button("explorer-entry-copy-path", AleraIcon::Copy, "Copy path")
-                .on_mouse_down(
-                    gpui::MouseButton::Left,
-                    cx.listener(move |this, _, _, cx| {
-                        cx.stop_propagation();
-                        this.copy_explorer_path(absolute_path.clone(), true, cx);
-                    }),
-                ),
+                .on_click(cx.listener(move |this, _, _, cx| {
+                    cx.stop_propagation();
+                    this.copy_explorer_path(absolute_path.clone(), true, cx);
+                })),
         )
         .child(
             explorer_menu_button(
@@ -207,13 +191,10 @@ impl AleraApp {
                 AleraIcon::Copy,
                 "Copy relative path",
             )
-            .on_mouse_down(
-                gpui::MouseButton::Left,
-                cx.listener(move |this, _, _, cx| {
-                    cx.stop_propagation();
-                    this.copy_explorer_path(relative_copy_path.clone(), false, cx);
-                }),
-            ),
+            .on_click(cx.listener(move |this, _, _, cx| {
+                cx.stop_propagation();
+                this.copy_explorer_path(relative_copy_path.clone(), false, cx);
+            })),
         )
         .child(
             explorer_menu_button(
@@ -221,13 +202,10 @@ impl AleraApp {
                 AleraIcon::Duplicate,
                 "Duplicate",
             )
-            .on_mouse_down(
-                gpui::MouseButton::Left,
-                cx.listener(move |this, _, _, cx| {
-                    cx.stop_propagation();
-                    this.duplicate_explorer_entry(duplicate_path.clone(), cx);
-                }),
-            ),
+            .on_click(cx.listener(move |this, _, _, cx| {
+                cx.stop_propagation();
+                this.duplicate_explorer_entry(duplicate_path.clone(), cx);
+            })),
         )
         .child(
             explorer_menu_button(
@@ -235,18 +213,14 @@ impl AleraApp {
                 AleraIcon::External,
                 "Reveal in Finder",
             )
-            .on_mouse_down(
-                gpui::MouseButton::Left,
-                cx.listener(move |this, _, _, cx| {
-                    cx.stop_propagation();
-                    this.reveal_explorer_entry(reveal_path.clone(), cx);
-                }),
-            ),
+            .on_click(cx.listener(move |this, _, _, cx| {
+                cx.stop_propagation();
+                this.reveal_explorer_entry(reveal_path.clone(), cx);
+            })),
         )
         .child(explorer_menu_divider())
         .child(
-            explorer_menu_button("explorer-entry-rename", AleraIcon::Edit, "Rename").on_mouse_down(
-                gpui::MouseButton::Left,
+            explorer_menu_button("explorer-entry-rename", AleraIcon::Edit, "Rename").on_click(
                 cx.listener(move |this, _, window, cx| {
                     cx.stop_propagation();
                     this.begin_rename_explorer_entry(rename_path.clone(), window, cx);
@@ -268,17 +242,14 @@ impl AleraApp {
                         "Use As Source Control Root"
                     },
                 )
-                .on_mouse_down(
-                    gpui::MouseButton::Left,
-                    cx.listener(move |this, _, _, cx| {
-                        cx.stop_propagation();
-                        if is_source_root {
-                            this.clear_source_control_root(cx);
-                        } else {
-                            this.focus_source_control_root(source_root_path.clone(), cx);
-                        }
-                    }),
-                ),
+                .on_click(cx.listener(move |this, _, _, cx| {
+                    cx.stop_propagation();
+                    if is_source_root {
+                        this.clear_source_control_root(cx);
+                    } else {
+                        this.focus_source_control_root(source_root_path.clone(), cx);
+                    }
+                })),
             )
         })
         .child(explorer_menu_divider())
@@ -288,35 +259,27 @@ impl AleraApp {
                 AleraIcon::ChevronRight,
                 "Collapse folder",
             )
-            .on_mouse_down(
-                gpui::MouseButton::Left,
-                cx.listener(move |this, _, _, cx| {
-                    cx.stop_propagation();
-                    this.collapse_explorer_entry(collapse_path.clone(), cx);
-                }),
-            ),
+            .on_click(cx.listener(move |this, _, _, cx| {
+                cx.stop_propagation();
+                this.collapse_explorer_entry(collapse_path.clone(), cx);
+            })),
         )
         .child(
-            explorer_menu_button("explorer-entry-refresh", AleraIcon::Refresh, "Refresh")
-                .on_mouse_down(
-                    gpui::MouseButton::Left,
-                    cx.listener(|this, _, _, cx| {
-                        cx.stop_propagation();
-                        this.refresh_explorer_entry(cx);
-                    }),
-                ),
+            explorer_menu_button("explorer-entry-refresh", AleraIcon::Refresh, "Refresh").on_click(
+                cx.listener(|this, _, _, cx| {
+                    cx.stop_propagation();
+                    this.refresh_explorer_entry(cx);
+                }),
+            ),
         )
         .child(explorer_menu_divider())
         .child(
             explorer_menu_button("explorer-entry-delete", AleraIcon::Delete, "Delete")
                 .text_color(theme::danger())
-                .on_mouse_down(
-                    gpui::MouseButton::Left,
-                    cx.listener(move |this, _, _, cx| {
-                        cx.stop_propagation();
-                        this.begin_delete_explorer_entry(delete_path.clone(), cx);
-                    }),
-                ),
+                .on_click(cx.listener(move |this, _, _, cx| {
+                    cx.stop_propagation();
+                    this.begin_delete_explorer_entry(delete_path.clone(), cx);
+                })),
         )
         .into_any_element()
     }
@@ -335,6 +298,8 @@ fn explorer_menu_shell(
         .clamp(px(8.0), viewport.height - height - px(8.0));
     div()
         .id(id)
+        .role(Role::Menu)
+        .aria_label("Explorer Actions")
         .absolute()
         .top(top)
         .left(left)
@@ -354,6 +319,10 @@ fn explorer_menu_button(
 ) -> gpui::Stateful<gpui::Div> {
     div()
         .id(id)
+        .focusable()
+        .tab_stop(true)
+        .role(Role::MenuItem)
+        .aria_label(label)
         .flex()
         .items_center()
         .h(px(30.0))

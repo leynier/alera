@@ -100,19 +100,20 @@ fn mobile_empty_state(
         .flex_col()
         .items_center()
         .justify_center()
-        .min_h(px(112.0))
-        .p_4()
-        .child(icon(icon_kind, 24.0, theme::text_faint()))
+        .min_h(px(132.0))
+        .p_6()
+        .child(icon(icon_kind, 28.0, theme::text_faint()))
         .child(
             div()
-                .mt_2()
+                .mt_3()
+                .text_size(px(14.0))
                 .font_weight(gpui::FontWeight::SEMIBOLD)
                 .child(title.into()),
         )
         .child(
             div()
-                .mt_1()
-                .text_size(px(12.0))
+                .mt_2()
+                .text_size(px(13.0))
                 .text_color(theme::text_muted())
                 .child(message.into()),
         )
@@ -150,19 +151,20 @@ fn mobile_qr_empty_state(
         .flex_col()
         .items_center()
         .justify_center()
-        .min_h(px(112.0))
-        .p_4()
-        .child(qr_icon(24.0))
+        .min_h(px(132.0))
+        .p_6()
+        .child(icon(AleraIcon::QrCode, 28.0, theme::text_faint()))
         .child(
             div()
-                .mt_2()
+                .mt_3()
+                .text_size(px(14.0))
                 .font_weight(gpui::FontWeight::SEMIBOLD)
                 .child(title.into()),
         )
         .child(
             div()
-                .mt_1()
-                .text_size(px(12.0))
+                .mt_2()
+                .text_size(px(13.0))
                 .text_color(theme::text_muted())
                 .child(message.into()),
         )
@@ -175,6 +177,9 @@ fn mobile_icon_button(
 ) -> gpui::Stateful<gpui::Div> {
     div()
         .id(id)
+        .focusable()
+        .tab_stop(true)
+        .role(Role::Button)
         .flex()
         .items_center()
         .justify_center()
@@ -184,42 +189,6 @@ fn mobile_icon_button(
         .cursor(CursorStyle::PointingHand)
         .hover(|style| style.bg(theme::surface_raised()))
         .child(icon(icon_kind, 16.0, color))
-}
-
-fn qr_icon(size: f32) -> gpui::Div {
-    div()
-        .relative()
-        .w(px(size))
-        .h(px(size))
-        .child(qr_corner(0.0, 0.0, size))
-        .child(qr_corner(size - size * 0.42, 0.0, size))
-        .child(qr_corner(0.0, size - size * 0.42, size))
-        .child(
-            div()
-                .absolute()
-                .right_0()
-                .bottom_0()
-                .w(px(size * 0.24))
-                .h(px(size * 0.24))
-                .bg(theme::text_muted()),
-        )
-}
-
-fn qr_corner(left: f32, top: f32, size: f32) -> gpui::Div {
-    div()
-        .absolute()
-        .left(px(left))
-        .top(px(top))
-        .w(px(size * 0.42))
-        .h(px(size * 0.42))
-        .border_1()
-        .border_color(theme::text_muted())
-        .child(
-            div()
-                .m(px(size * 0.1))
-                .size_full()
-                .bg(theme::text_muted()),
-        )
 }
 
 fn mobile_dialog(width: f32) -> gpui::Div {
@@ -253,9 +222,9 @@ fn mobile_dialog_header(
                 AleraIcon::Close,
                 theme::text_muted(),
             )
-            .on_mouse_down(
-                MouseButton::Left,
-                cx.listener(|this, _: &MouseDownEvent, _, cx| {
+            .aria_label("Close")
+            .on_click(
+                cx.listener(|this, _, _, cx| {
                     this.close_mobile_overlay(cx);
                     cx.stop_propagation();
                 }),
@@ -271,6 +240,10 @@ fn mobile_dialog_button(
 ) -> gpui::Stateful<gpui::Div> {
     div()
         .id(id)
+        .focusable()
+        .tab_stop(true)
+        .role(Role::Button)
+        .aria_label(label)
         .flex()
         .items_center()
         .justify_center()

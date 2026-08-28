@@ -1,7 +1,10 @@
 use gpui::{
-    deferred, div, prelude::FluentBuilder as _, px, AnyElement, CursorStyle, InteractiveElement as _,
-    IntoElement as _, MouseButton, ParentElement as _, Styled as _,
+    deferred, div, prelude::FluentBuilder as _, px, AnyElement, CursorStyle,
+    InteractiveElement as _, IntoElement as _, ParentElement as _, Role,
+    StatefulInteractiveElement as _, Styled as _, Toggled,
 };
+use gpui_component::tooltip::Tooltip;
+use gpui_component::input::Textarea;
 
 use super::sidebar_view_options::compare_project_selection;
 use crate::{
@@ -168,6 +171,16 @@ impl AleraApp {
                                 };
                                 div()
                                     .id(("project-config-project", index))
+                                    .focusable()
+                                    .tab_stop(true)
+                                    .role(Role::RadioButton)
+                                    .aria_label(project.name.clone())
+                                    .aria_selected(selected)
+                                    .aria_toggled(if selected {
+                                        Toggled::True
+                                    } else {
+                                        Toggled::False
+                                    })
                                     .flex()
                                     .items_center()
                                     .p_3()
@@ -177,8 +190,7 @@ impl AleraApp {
                                     .when(selected, |row| row.bg(theme::accent_subtle()))
                                     .cursor(CursorStyle::PointingHand)
                                     .hover(|style| style.bg(theme::surface_raised()))
-                                    .on_mouse_down(
-                                        MouseButton::Left,
+                                    .on_click(
                                         cx.listener(move |this, _, window, cx| {
                                             this.select_project_config(id.clone(), window, cx);
                                         }),
@@ -236,8 +248,7 @@ impl AleraApp {
                             self.project_config_settings.provider_dropdown_open,
                             true,
                         )
-                        .on_mouse_down(
-                            MouseButton::Left,
+                        .on_click(
                             cx.listener(|this, _, _, cx| {
                                 this.project_config_settings.provider_dropdown_open =
                                     !this.project_config_settings.provider_dropdown_open;
@@ -292,8 +303,7 @@ impl AleraApp {
                             None,
                         )
                         .id(("project-provider-option", index))
-                        .on_mouse_down(
-                            MouseButton::Left,
+                        .on_click(
                             cx.listener(move |this, _, _, cx| {
                                 this.set_project_hosting_provider(value.clone(), cx);
                             }),
@@ -324,8 +334,11 @@ impl AleraApp {
                         ("project-copy-overwrite", index),
                         rule.overwrite,
                     )
-                    .on_mouse_down(
-                        MouseButton::Left,
+                    .tooltip(|_, cx| {
+                        cx.new(|_| Tooltip::new("Overwrite Existing Destination"))
+                            .into()
+                    })
+                    .on_click(
                         cx.listener(move |this, _, _, cx| {
                             this.toggle_project_copy_overwrite(index, cx);
                         }),
@@ -335,9 +348,9 @@ impl AleraApp {
                             ("project-copy-delete", index),
                             AleraIcon::Delete,
                             theme::text_muted(),
+                            "Remove Copy Rule",
                         )
-                        .on_mouse_down(
-                            MouseButton::Left,
+                        .on_click(
                             cx.listener(move |this, _, _, cx| {
                                 this.remove_project_copy_rule(index, cx);
                             }),
@@ -351,8 +364,7 @@ impl AleraApp {
         rows.push(
             div().flex().p_4().child(
                 project_outline_button("project-copy-add", AleraIcon::Add, "Add Copy Rule")
-                    .on_mouse_down(
-                        MouseButton::Left,
+                    .on_click(
                         cx.listener(|this, _, window, cx| {
                             this.add_project_copy_rule(window, cx);
                         }),
@@ -386,9 +398,9 @@ impl AleraApp {
                             ("project-command-delete", index),
                             AleraIcon::Delete,
                             theme::text_muted(),
+                            "Remove Setup Command",
                         )
-                        .on_mouse_down(
-                            MouseButton::Left,
+                        .on_click(
                             cx.listener(move |this, _, _, cx| {
                                 this.remove_project_setup_command(index, cx);
                             }),
@@ -402,8 +414,7 @@ impl AleraApp {
         rows.push(
             div().flex().p_4().child(
                 project_outline_button("project-command-add", AleraIcon::Add, "Add Setup Command")
-                    .on_mouse_down(
-                        MouseButton::Left,
+                    .on_click(
                         cx.listener(|this, _, window, cx| {
                             this.add_project_setup_command(window, cx);
                         }),
@@ -440,8 +451,7 @@ impl AleraApp {
                         "Use Repo File",
                         false,
                     )
-                    .on_mouse_down(
-                        MouseButton::Left,
+                    .on_click(
                         cx.listener(|this, _, window, cx| {
                             this.use_project_repo_file(window, cx);
                         }),
@@ -463,8 +473,7 @@ impl AleraApp {
                     },
                     true,
                 )
-                .on_mouse_down(
-                    MouseButton::Left,
+                .on_click(
                     cx.listener(|this, _, window, cx| {
                         this.save_project_config_override(window, cx);
                     }),

@@ -1,6 +1,7 @@
 use gpui::{
     div, prelude::FluentBuilder as _, px, AnyElement, Context, CursorStyle,
-    InteractiveElement as _, IntoElement as _, ParentElement as _, Styled as _,
+    InteractiveElement as _, IntoElement as _, ParentElement as _, Role,
+    StatefulInteractiveElement as _, Styled as _,
 };
 
 use super::keyboard_settings::{definition, effective_bindings};
@@ -16,62 +17,54 @@ impl AleraApp {
             .projects
             .iter()
             .any(|project| project.kind == "gitRepository");
-        let quick_start = div()
-            .flex()
-            .flex_col()
-            .flex_1()
-            .rounded_lg()
-            .border_1()
-            .border_color(theme::border_subtle())
-            .bg(theme::surface())
-            .overflow_hidden()
-            .child(
-                welcome_action(
-                    "welcome-add-project",
-                    AleraIcon::NewFolder,
-                    "Add Project",
-                    "Open a local folder or clone a repository",
-                    true,
-                )
-                .on_mouse_down(
-                    gpui::MouseButton::Left,
-                    cx.listener(|this, _, window, cx| {
-                        this.add_project(window, cx);
-                    }),
-                ),
-            )
-            .child(
-                welcome_action(
-                    "welcome-new-workspace",
-                    AleraIcon::GitFork,
-                    "New Workspace",
-                    "Create a linked workspace for active Git project",
-                    has_git_projects,
-                )
-                .when(has_git_projects, |action| {
-                    action.on_mouse_down(
-                        gpui::MouseButton::Left,
-                        cx.listener(|this, _, window, cx| {
-                            this.open_new_workspace_dialog(window, cx)
-                        }),
+        let quick_start =
+            div()
+                .flex()
+                .flex_col()
+                .flex_1()
+                .rounded_lg()
+                .border_1()
+                .border_color(theme::border_subtle())
+                .bg(theme::surface())
+                .overflow_hidden()
+                .child(
+                    welcome_action(
+                        "welcome-add-project",
+                        AleraIcon::NewFolder,
+                        "Add Project",
+                        "Open a local folder or clone a repository",
+                        true,
                     )
-                }),
-            )
-            .child(
-                welcome_action(
-                    "welcome-settings",
-                    AleraIcon::Settings,
-                    "Open Settings",
-                    "Configure keyboard shortcuts and preferences",
-                    true,
+                    .on_click(cx.listener(|this, _, window, cx| {
+                        this.add_project(window, cx);
+                    })),
                 )
-                .on_mouse_down(
-                    gpui::MouseButton::Left,
-                    cx.listener(|this, _, window, cx| {
-                        this.open_settings_dialog(window, cx);
+                .child(
+                    welcome_action(
+                        "welcome-new-workspace",
+                        AleraIcon::GitFork,
+                        "New Workspace",
+                        "Create a linked workspace for active Git project",
+                        has_git_projects,
+                    )
+                    .when(has_git_projects, |action| {
+                        action.on_click(cx.listener(|this, _, window, cx| {
+                            this.open_new_workspace_dialog(window, cx)
+                        }))
                     }),
-                ),
-            );
+                )
+                .child(
+                    welcome_action(
+                        "welcome-settings",
+                        AleraIcon::Settings,
+                        "Open Settings",
+                        "Configure keyboard shortcuts and preferences",
+                        true,
+                    )
+                    .on_click(cx.listener(|this, _, window, cx| {
+                        this.open_settings_dialog(window, cx);
+                    })),
+                );
         let shortcuts = [
             ("addProject", "Add Project"),
             ("createWorkspace", "New Workspace"),
@@ -210,6 +203,10 @@ fn welcome_action(
 ) -> gpui::Stateful<gpui::Div> {
     div()
         .id(id)
+        .focusable()
+        .tab_stop(enabled)
+        .role(Role::Button)
+        .aria_label(title)
         .flex()
         .items_center()
         .h(px(70.0))

@@ -1,8 +1,8 @@
 use chrono::{DateTime, Local};
 use gpui::{
     div, prelude::FluentBuilder as _, px, AnyElement, AppContext as _, ClipboardItem, Context,
-    CursorStyle, DragMoveEvent, Empty, InteractiveElement as _, IntoElement, MouseButton,
-    MouseDownEvent, MouseMoveEvent, MouseUpEvent, ParentElement as _,
+    CursorStyle, DragMoveEvent, Empty, InteractiveElement as _, IntoElement, KeyDownEvent,
+    MouseButton, MouseDownEvent, MouseMoveEvent, MouseUpEvent, ParentElement as _, Role,
     StatefulInteractiveElement as _, Styled as _,
 };
 
@@ -86,6 +86,15 @@ impl AleraApp {
     pub(super) fn source_history_footer(&self, cx: &mut Context<Self>) -> AnyElement {
         div()
             .id("toggle-git-history")
+            .focusable()
+            .tab_stop(true)
+            .role(Role::Button)
+            .aria_label(if self.git_history_expanded {
+                "Hide Commits"
+            } else {
+                "Show Commits"
+            })
+            .aria_expanded(self.git_history_expanded)
             .flex()
             .flex_shrink_0()
             .items_center()
@@ -95,13 +104,13 @@ impl AleraApp {
             .border_t_1()
             .border_color(theme::border_subtle())
             .cursor(CursorStyle::PointingHand)
-            .on_mouse_down(
-                gpui::MouseButton::Left,
-                cx.listener(|this, _, _, cx| {
-                    this.git_history_expanded = !this.git_history_expanded;
-                    cx.notify();
-                }),
-            )
+            .on_click(cx.listener(|this, _, _, cx| {
+                this.git_history_expanded = !this.git_history_expanded;
+                if this.git_history_expanded {
+                    this.git_history_loaded_once = true;
+                }
+                cx.notify();
+            }))
             .child(icon(
                 if self.git_history_expanded {
                     AleraIcon::ChevronDown
@@ -117,7 +126,7 @@ impl AleraApp {
                     .font_weight(gpui::FontWeight::SEMIBOLD)
                     .child("COMMITS"),
             )
-            .when(!self.git_snapshot.history.is_empty(), |footer| {
+            .when(self.git_history_loaded_once, |footer| {
                 footer.child(
                     div()
                         .ml(px(6.0))
@@ -131,7 +140,7 @@ impl AleraApp {
                         }),
                 )
             })
-            .when(self.git_snapshot.history.is_empty(), |footer| {
+            .when(!self.git_history_loaded_once, |footer| {
                 footer.child(div().flex_1())
             })
             .child({
@@ -146,18 +155,17 @@ impl AleraApp {
                     false,
                     !loading && !self.git_busy,
                 )
+                .aria_label("Refresh Commits")
                 .tooltip(|_, cx| cx.new(|_| Tooltip::new("Refresh Commits")).into())
                 .when(!loading && !self.git_busy, |button| {
-                    button.on_mouse_down(
-                        gpui::MouseButton::Left,
-                        cx.listener(|this, _, _, cx| {
-                            // The refresh icon lives inside the expandable footer. Keep the
-                            // action from bubbling into the footer toggle, matching Flutter's
-                            // independent refresh button behavior.
-                            cx.stop_propagation();
-                            this.refresh_git(cx);
-                        }),
-                    )
+                    button.on_click(cx.listener(|this, _, _, cx| {
+                        // The refresh icon lives inside the expandable footer. Keep the
+                        // action from bubbling into the footer toggle, matching Flutter's
+                        // independent refresh button behavior.
+                        cx.stop_propagation();
+                        this.git_history_loaded_once = true;
+                        this.refresh_git(cx);
+                    }))
                 })
             })
             .into_any_element()
@@ -172,6 +180,8 @@ impl AleraApp {
             .unwrap_or_else(|| "No Commits Yet".into());
         div()
             .id("source-history-list")
+            .role(Role::List)
+            .aria_label("Commits")
             .relative()
             .flex()
             .flex_col()
@@ -185,6 +195,9 @@ impl AleraApp {
                 |panel| {
                     panel.child(
                         div()
+                            .id("source-history-loading")
+                            .role(Role::ProgressIndicator)
+                            .aria_label("Loading Commits")
                             .flex()
                             .flex_1()
                             .items_center()
@@ -196,8 +209,12 @@ impl AleraApp {
             .when(
                 view_models.is_empty() && !self.git_snapshot_loading,
                 |panel| {
+                    let empty_label = empty_message.clone();
                     panel.child(
                         div()
+                            .id("source-history-empty")
+                            .role(Role::Label)
+                            .aria_label(empty_label)
                             .flex()
                             .flex_1()
                             .items_center()
@@ -210,7 +227,12 @@ impl AleraApp {
             )
             .when(!view_models.is_empty(), |panel| {
                 panel.children(view_models.iter().map(|view_model| {
-                    self.source_history_item(&view_model.item, &view_model.graph, view_model.kind, cx)
+                    self.source_history_item(
+                        &view_model.item,
+                        &view_model.graph,
+                        view_model.kind,
+                        cx,
+                    )
                 }))
             })
             .when(
@@ -252,6 +274,13 @@ impl AleraApp {
                         "source-history-row-{}",
                         item.full_id
                     )))
+                    .when(!boundary, |row| {
+                        row.focusable()
+                            .tab_stop(true)
+                            .role(Role::Button)
+                            .aria_label(item.subject.clone())
+                            .aria_expanded(expanded)
+                    })
                     .flex()
                     .items_center()
                     .h(px(28.0))
@@ -260,12 +289,9 @@ impl AleraApp {
                     .when(!boundary, |row| {
                         row.cursor(CursorStyle::PointingHand)
                             .hover(|style| style.bg(theme::surface_selected()))
-                            .on_mouse_down(
-                                gpui::MouseButton::Left,
-                                cx.listener(move |this, _, _, cx| {
-                                    this.toggle_source_history_item(full_id.clone(), cx);
-                                }),
-                            )
+                            .on_click(cx.listener(move |this, _, _, cx| {
+                                this.toggle_source_history_item(full_id.clone(), cx);
+                            }))
                     })
                     .child(history_graph(graph))
                     .when(!boundary, |row| {
@@ -305,6 +331,13 @@ impl AleraApp {
                                     "source-history-actions-{}",
                                     item.full_id
                                 )))
+                                .focusable()
+                                .tab_stop(true)
+                                .role(Role::Button)
+                                .aria_label(gpui::SharedString::from(format!(
+                                    "Commit Actions For {}",
+                                    item.subject
+                                )))
                                 .flex()
                                 .items_center()
                                 .justify_center()
@@ -313,17 +346,17 @@ impl AleraApp {
                                 .rounded_md()
                                 .cursor(CursorStyle::PointingHand)
                                 .hover(|style| style.bg(theme::surface_raised()))
-                                .on_mouse_down(
-                                    gpui::MouseButton::Left,
-                                    cx.listener(move |this, _: &MouseDownEvent, _, cx| {
-                                        cx.stop_propagation();
-                                        this.source_history_action_menu =
-                                            Some(SourceHistoryActionMenu {
-                                                commit_id: menu_commit_id.clone(),
-                                            });
-                                        cx.notify();
-                                    }),
-                                )
+                                .on_mouse_down(gpui::MouseButton::Left, |_, _, cx| {
+                                    cx.stop_propagation();
+                                })
+                                .on_click(cx.listener(move |this, _, window, cx| {
+                                    cx.stop_propagation();
+                                    this.open_source_history_action_menu(
+                                        menu_commit_id.clone(),
+                                        window,
+                                        cx,
+                                    );
+                                }))
                                 .child(icon(AleraIcon::More, 12.0, theme::text_faint())),
                         )
                     }),
@@ -430,6 +463,10 @@ impl AleraApp {
                                 "source-history-open-all-{}",
                                 item.full_id
                             )))
+                            .focusable()
+                            .tab_stop(true)
+                            .role(Role::Button)
+                            .aria_label("Open All Changes")
                             .flex()
                             .items_center()
                             .h(px(28.0))
@@ -438,19 +475,16 @@ impl AleraApp {
                             .text_color(theme::text_muted())
                             .cursor(CursorStyle::PointingHand)
                             .hover(|style| style.text_color(theme::text()))
-                            .on_mouse_down(
-                                gpui::MouseButton::Left,
-                                cx.listener(move |this, _, _, cx| {
-                                    this.open_git_commit_diff_tab(
-                                        None,
-                                        None,
-                                        "all",
-                                        open_all_commit_id.clone(),
-                                        open_all_subject.clone(),
-                                        cx,
-                                    );
-                                }),
-                            )
+                            .on_click(cx.listener(move |this, _, _, cx| {
+                                this.open_git_commit_diff_tab(
+                                    None,
+                                    None,
+                                    "all",
+                                    open_all_commit_id.clone(),
+                                    open_all_subject.clone(),
+                                    cx,
+                                );
+                            }))
                             .child(icon(AleraIcon::External, 13.0, theme::text_muted()))
                             .child("Open All Changes"),
                     )
@@ -476,21 +510,109 @@ impl AleraApp {
             )),
             change,
         )
-            .cursor(CursorStyle::PointingHand)
-            .on_mouse_down(
-                gpui::MouseButton::Left,
-                cx.listener(move |this, _, _, cx| {
-                    this.open_git_commit_diff_tab(
-                        Some(path.clone()),
-                        old_path.clone(),
-                        "file",
-                        commit_id.clone(),
-                        subject.clone(),
-                        cx,
-                    );
-                }),
+        .cursor(CursorStyle::PointingHand)
+        .on_click(cx.listener(move |this, _, _, cx| {
+            this.open_git_commit_diff_tab(
+                Some(path.clone()),
+                old_path.clone(),
+                "file",
+                commit_id.clone(),
+                subject.clone(),
+                cx,
+            );
+        }))
+        .into_any_element()
+    }
+
+    fn open_source_history_action_menu(
+        &mut self,
+        commit_id: String,
+        window: &mut gpui::Window,
+        cx: &mut Context<Self>,
+    ) {
+        self.source_history_action_menu = Some(SourceHistoryActionMenu { commit_id });
+        self.source_history_menu_previous_focus = window.focused(cx);
+        self.source_history_menu_highlighted = 0;
+        self.source_history_menu_focus.focus(window, cx);
+        cx.notify();
+    }
+
+    fn dismiss_source_history_action_menu(
+        &mut self,
+        window: &mut gpui::Window,
+        cx: &mut Context<Self>,
+    ) {
+        self.source_history_action_menu = None;
+        if let Some(focus) = self.source_history_menu_previous_focus.take() {
+            focus.focus(window, cx);
+        }
+        cx.notify();
+    }
+
+    fn handle_source_history_menu_key(
+        &mut self,
+        event: &KeyDownEvent,
+        window: &mut gpui::Window,
+        cx: &mut Context<Self>,
+    ) {
+        match event.keystroke.key.as_str() {
+            "escape" => self.dismiss_source_history_action_menu(window, cx),
+            "down" | "up" => {
+                self.source_history_menu_highlighted =
+                    (self.source_history_menu_highlighted + 1) % 2;
+                cx.notify();
+            }
+            "home" => {
+                self.source_history_menu_highlighted = 0;
+                cx.notify();
+            }
+            "end" => {
+                self.source_history_menu_highlighted = 1;
+                cx.notify();
+            }
+            "enter" | "space" => self.activate_source_history_menu_item(
+                self.source_history_menu_highlighted,
+                window,
+                cx,
+            ),
+            _ => return,
+        }
+        cx.stop_propagation();
+    }
+
+    fn activate_source_history_menu_item(
+        &mut self,
+        index: usize,
+        window: &mut gpui::Window,
+        cx: &mut Context<Self>,
+    ) {
+        let Some(menu) = self.source_history_action_menu.as_ref() else {
+            return;
+        };
+        let Some(item) = self
+            .git_snapshot
+            .history
+            .iter()
+            .find(|item| item.full_id == menu.commit_id)
+        else {
+            return;
+        };
+        let (value, feedback) = if index == 0 {
+            (item.full_id.clone(), "Commit Hash Copied")
+        } else {
+            (
+                if item.message.trim().is_empty() {
+                    item.subject.clone()
+                } else {
+                    item.message.clone()
+                },
+                "Commit Message Copied",
             )
-            .into_any_element()
+        };
+        self.dismiss_source_history_action_menu(window, cx);
+        cx.write_to_clipboard(ClipboardItem::new_string(value));
+        self.local_message = Some(feedback.into());
+        cx.notify();
     }
 
     fn toggle_source_history_item(&mut self, commit_id: String, cx: &mut Context<Self>) {
@@ -517,7 +639,7 @@ impl AleraApp {
             let Some(this) = this.upgrade() else {
                 return;
             };
-            let _ = this.update(cx, |this, cx| {
+            this.update(cx, |this, cx| {
                 this.source_history_loading_ids.remove(&commit_id);
                 match result {
                     Ok(files) => {
@@ -552,6 +674,9 @@ impl AleraApp {
         };
         div()
             .id("source-history-action-menu")
+            .track_focus(&self.source_history_menu_focus)
+            .role(Role::Menu)
+            .aria_label("Commit Actions")
             .absolute()
             .right(px(8.0))
             // The menu is rendered inside the selected commit row. Anchor it
@@ -566,9 +691,14 @@ impl AleraApp {
             .bg(theme::surface_raised())
             .shadow_lg()
             .py_1()
-            .on_mouse_down_out(cx.listener(|this, _, _, cx| {
-                this.source_history_action_menu = None;
-                cx.notify();
+            .on_mouse_down(gpui::MouseButton::Left, |_, _, cx| {
+                cx.stop_propagation();
+            })
+            .on_mouse_down_out(cx.listener(|this, _, window, cx| {
+                this.dismiss_source_history_action_menu(window, cx);
+            }))
+            .on_key_down(cx.listener(|this, event: &KeyDownEvent, window, cx| {
+                this.handle_source_history_menu_key(event, window, cx);
             }))
             .child(
                 history_action_row(
@@ -576,15 +706,17 @@ impl AleraApp {
                     AleraIcon::GitBranch,
                     "Copy Commit Hash",
                 )
-                .on_mouse_down(
-                    gpui::MouseButton::Left,
-                    cx.listener(move |this, _, _, cx| {
-                        cx.write_to_clipboard(ClipboardItem::new_string(hash.clone()));
-                        this.source_history_action_menu = None;
-                        this.local_message = Some("Commit Hash Copied".into());
-                        cx.notify();
-                    }),
-                ),
+                .aria_selected(self.source_history_menu_highlighted == 0)
+                .when(self.source_history_menu_highlighted == 0, |row| {
+                    row.bg(theme::surface_selected())
+                })
+                .on_click(cx.listener(move |this, _, window, cx| {
+                    cx.stop_propagation();
+                    cx.write_to_clipboard(ClipboardItem::new_string(hash.clone()));
+                    this.dismiss_source_history_action_menu(window, cx);
+                    this.local_message = Some("Commit Hash Copied".into());
+                    cx.notify();
+                })),
             )
             .child(
                 history_action_row(
@@ -592,15 +724,17 @@ impl AleraApp {
                     AleraIcon::Copy,
                     "Copy Commit Message",
                 )
-                .on_mouse_down(
-                    gpui::MouseButton::Left,
-                    cx.listener(move |this, _, _, cx| {
-                        cx.write_to_clipboard(ClipboardItem::new_string(message.clone()));
-                        this.source_history_action_menu = None;
-                        this.local_message = Some("Commit Message Copied".into());
-                        cx.notify();
-                    }),
-                ),
+                .aria_selected(self.source_history_menu_highlighted == 1)
+                .when(self.source_history_menu_highlighted == 1, |row| {
+                    row.bg(theme::surface_selected())
+                })
+                .on_click(cx.listener(move |this, _, window, cx| {
+                    cx.stop_propagation();
+                    cx.write_to_clipboard(ClipboardItem::new_string(message.clone()));
+                    this.dismiss_source_history_action_menu(window, cx);
+                    this.local_message = Some("Commit Message Copied".into());
+                    cx.notify();
+                })),
             )
             .into_any_element()
     }
@@ -613,6 +747,10 @@ fn history_action_row(
 ) -> gpui::Stateful<gpui::Div> {
     div()
         .id(id)
+        .focusable()
+        .tab_stop(true)
+        .role(Role::MenuItem)
+        .aria_label(label)
         .flex()
         .items_center()
         .h(px(30.0))
@@ -648,12 +786,17 @@ fn history_ref_badge(item_ref: &GitHistoryRef) -> gpui::Div {
         .child(item_ref.name.clone())
 }
 
-fn history_file_row(
-    id: gpui::SharedString,
-    change: &GitCommitChange,
-) -> gpui::Stateful<gpui::Div> {
+fn history_file_row(id: gpui::SharedString, change: &GitCommitChange) -> gpui::Stateful<gpui::Div> {
     div()
         .id(id)
+        .focusable()
+        .tab_stop(true)
+        .role(Role::ListBoxOption)
+        .aria_label(gpui::SharedString::from(format!(
+            "{} {}",
+            change.path,
+            status_letter(&change.status)
+        )))
         .flex()
         .items_center()
         .h(px(25.0))

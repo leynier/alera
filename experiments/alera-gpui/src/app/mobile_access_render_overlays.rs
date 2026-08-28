@@ -26,7 +26,7 @@ impl AleraApp {
                         .p_3()
                         .border_b_1()
                         .border_color(theme::border_subtle())
-                        .child(qr_icon(16.0))
+                        .child(icon(AleraIcon::QrCode, 16.0, theme::text_faint()))
                         .child(
                             div()
                                 .flex_1()
@@ -54,9 +54,9 @@ impl AleraApp {
                                 AleraIcon::Close,
                                 theme::text_muted(),
                             )
+                            .aria_label("Cancel Offer")
                             .tooltip(|_, cx| cx.new(|_| Tooltip::new("Cancel Offer")).into())
-                            .on_mouse_down(
-                                MouseButton::Left,
+                            .on_click(
                                 cx.listener(move |this, _, _, cx| {
                                     this.mobile_access.overlay =
                                         Some(MobileOverlay::CancelOffer(id.clone()));
@@ -171,11 +171,11 @@ impl AleraApp {
                                     AleraIcon::Edit,
                                     theme::text_muted(),
                                 )
+                                .aria_label("Rename Device")
                                 .tooltip(|_, cx| {
                                     cx.new(|_| Tooltip::new("Rename Device")).into()
                                 })
-                                .on_mouse_down(
-                                    MouseButton::Left,
+                                .on_click(
                                     cx.listener(move |this, _, window, cx| {
                                         this.begin_mobile_rename(
                                             rename_id.clone(),
@@ -195,11 +195,11 @@ impl AleraApp {
                                     AleraIcon::Delete,
                                     theme::danger(),
                                 )
+                                .aria_label("Revoke Device")
                                 .tooltip(|_, cx| {
                                     cx.new(|_| Tooltip::new("Revoke Device")).into()
                                 })
-                                .on_mouse_down(
-                                    MouseButton::Left,
+                                .on_click(
                                     cx.listener(move |this, _, _, cx| {
                                         this.mobile_access.overlay =
                                             Some(MobileOverlay::RevokeDevice {
@@ -221,11 +221,11 @@ impl AleraApp {
                                     AleraIcon::Delete,
                                     theme::danger(),
                                 )
+                                .aria_label("Delete Device")
                                 .tooltip(|_, cx| {
                                     cx.new(|_| Tooltip::new("Delete Device")).into()
                                 })
-                                .on_mouse_down(
-                                    MouseButton::Left,
+                                .on_click(
                                     cx.listener(move |this, _, _, cx| {
                                         this.mobile_access.overlay =
                                             Some(MobileOverlay::DeleteDevice {
@@ -304,6 +304,9 @@ impl AleraApp {
             .map(|value| value.with_timezone(&Utc) <= Utc::now())
             .unwrap_or(false);
         mobile_dialog(420.0)
+            .id("mobile-pairing-dialog")
+            .role(Role::Dialog)
+            .aria_label("Link Mobile Device")
             .child(mobile_dialog_header("Link Mobile Device", cx))
             .child(
                 div()
@@ -364,8 +367,7 @@ impl AleraApp {
                             false,
                         )
                         .flex_1()
-                        .on_mouse_down(
-                            MouseButton::Left,
+                        .on_click(
                             cx.listener(|this, _, window, cx| {
                                 this.confirm_mobile_overlay(window, cx);
                             }),
@@ -383,8 +385,7 @@ impl AleraApp {
                             true,
                         )
                         .flex_1()
-                        .on_mouse_down(
-                            MouseButton::Left,
+                        .on_click(
                             cx.listener(|this, _, _, cx| {
                                 this.copy_mobile_pairing_json(cx);
                             }),
@@ -396,6 +397,9 @@ impl AleraApp {
 
     fn render_mobile_rename(&self, cx: &mut Context<Self>) -> AnyElement {
         mobile_dialog(420.0)
+            .id("mobile-rename-dialog")
+            .role(Role::Dialog)
+            .aria_label("Rename Device")
             .child(mobile_dialog_header("Rename Device", cx))
             .child(
                 div()
@@ -410,8 +414,7 @@ impl AleraApp {
                     .mt_4()
                     .child(
                         mobile_dialog_button("mobile-rename-cancel", AleraIcon::Close, "Cancel", false)
-                            .on_mouse_down(
-                                MouseButton::Left,
+                            .on_click(
                                 cx.listener(|this, _, _, cx| {
                                     this.close_mobile_overlay(cx);
                                 }),
@@ -419,8 +422,7 @@ impl AleraApp {
                     )
                     .child(
                         mobile_dialog_button("mobile-rename-save", AleraIcon::Check, "Rename", true)
-                            .on_mouse_down(
-                                MouseButton::Left,
+                            .on_click(
                                 cx.listener(|this, _, window, cx| {
                                     this.confirm_mobile_overlay(window, cx);
                                 }),
@@ -437,12 +439,13 @@ impl AleraApp {
         confirm_label: &'static str,
         cx: &mut Context<Self>,
     ) -> AnyElement {
-        design_system::dialog_shell(420.0)
+        let title = title.into();
+        design_system::dialog_shell("mobile-confirmation-dialog", title.clone(), 420.0)
             .child(
                 div()
                     .text_size(px(14.0))
                     .font_weight(gpui::FontWeight::MEDIUM)
-                    .child(title.into()),
+                    .child(title),
             )
             .child(
                 div()
@@ -465,8 +468,7 @@ impl AleraApp {
                             false,
                         )
                         .flex_1()
-                        .on_mouse_down(
-                            MouseButton::Left,
+                        .on_click(
                             cx.listener(|this, _, _, cx| {
                                 this.close_mobile_overlay(cx);
                             }),
@@ -480,8 +482,7 @@ impl AleraApp {
                             false,
                         )
                         .flex_1()
-                        .on_mouse_down(
-                            MouseButton::Left,
+                        .on_click(
                             cx.listener(|this, _, window, cx| {
                                 this.confirm_mobile_overlay(window, cx);
                             }),

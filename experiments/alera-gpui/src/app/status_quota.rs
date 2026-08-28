@@ -2,7 +2,7 @@ use std::time::Duration;
 
 use gpui::{
     div, prelude::FluentBuilder as _, px, AnyElement, AppContext as _, Context, CursorStyle,
-    InteractiveElement as _, IntoElement, ParentElement as _, SharedString,
+    InteractiveElement as _, IntoElement, ParentElement as _, Role, SharedString,
     StatefulInteractiveElement as _, Styled as _,
 };
 use gpui_component::tooltip::Tooltip;
@@ -26,6 +26,8 @@ impl AleraApp {
             .unwrap_or("No Quota Data");
         div()
             .id("quota-popover")
+            .role(Role::Dialog)
+            .aria_label("Agent Quotas")
             .absolute()
             .left(px(8.0))
             // Flutter's hover-card layout keeps a 4px gap above the status
@@ -80,6 +82,7 @@ impl AleraApp {
         let pinned = !self.settings_state.quota_unpinned_keys.contains(&pin_key);
         let toggle_key = pin_key.clone();
         let name = provider_label(snapshot);
+        let accessibility_name = name.clone();
         let status_color = quota_name_color(&snapshot.status);
         let credits = snapshot.reset_credits.clone();
         let offer_revision = credits
@@ -95,6 +98,8 @@ impl AleraApp {
 
         div()
             .id(("quota-overview-row", index))
+            .role(Role::Group)
+            .aria_label(accessibility_name)
             .flex()
             .flex_col()
             .px_2()
@@ -176,6 +181,14 @@ impl AleraApp {
                     .child(
                         div()
                             .id(("quota-pin", index))
+                            .focusable()
+                            .tab_stop(true)
+                            .role(Role::Button)
+                            .aria_label(if pinned {
+                                "Unpin From Status Bar"
+                            } else {
+                                "Pin To Status Bar"
+                            })
                             .flex()
                             .items_center()
                             .justify_center()
@@ -194,22 +207,19 @@ impl AleraApp {
                                 .into()
                             })
                             .hover(|style| style.bg(theme::surface_selected()))
-                            .on_mouse_down(
-                                gpui::MouseButton::Left,
-                                cx.listener(move |this, _, _, cx| {
-                                    let key = toggle_key.clone();
-                                    this.update_quota_settings(
-                                        move |settings| {
-                                            if pinned {
-                                                settings.quota_unpinned_keys.insert(key);
-                                            } else {
-                                                settings.quota_unpinned_keys.remove(&key);
-                                            }
-                                        },
-                                        cx,
-                                    );
-                                }),
-                            )
+                            .on_click(cx.listener(move |this, _, _, cx| {
+                                let key = toggle_key.clone();
+                                this.update_quota_settings(
+                                    move |settings| {
+                                        if pinned {
+                                            settings.quota_unpinned_keys.insert(key);
+                                        } else {
+                                            settings.quota_unpinned_keys.remove(&key);
+                                        }
+                                    },
+                                    cx,
+                                );
+                            }))
                             .child(icon(
                                 if pinned {
                                     AleraIcon::Pin
@@ -267,6 +277,10 @@ impl AleraApp {
                             credit_row.child(
                                 div()
                                     .id("quota-use-reset")
+                                    .focusable()
+                                    .tab_stop(can_consume)
+                                    .role(Role::Button)
+                                    .aria_label("Use Reset")
                                     .px(px(6.0))
                                     .h(px(24.0))
                                     .flex()
@@ -278,8 +292,7 @@ impl AleraApp {
                                         theme::text_faint()
                                     })
                                     .when(can_consume, |button| {
-                                        button.cursor(CursorStyle::PointingHand).on_mouse_down(
-                                            gpui::MouseButton::Left,
+                                        button.cursor(CursorStyle::PointingHand).on_click(
                                             cx.listener(move |this, _, _, cx| {
                                                 this.codex_reset_offer_revision =
                                                     offer_revision.clone();
@@ -309,6 +322,9 @@ impl AleraApp {
             .bg(theme::overlay_scrim())
             .child(
                 div()
+                    .id("codex-reset-dialog")
+                    .role(Role::Dialog)
+                    .aria_label("Use Codex Reset")
                     .w(px(430.0))
                     .rounded_lg()
                     .border_1()
@@ -338,7 +354,7 @@ impl AleraApp {
                             .gap_2()
                             .mt_4()
                             .child(
-                                quota_dialog_button("cancel-codex-reset", "Cancel", false).on_mouse_down(gpui::MouseButton::Left,
+                                quota_dialog_button("cancel-codex-reset", "Cancel", false).on_click(
                                     cx.listener(|this, _, _, cx| {
                                         if !this.codex_reset_busy {
                                             this.codex_reset_offer_revision = None;
@@ -358,7 +374,7 @@ impl AleraApp {
                                     true,
                                     self.codex_reset_busy,
                                 )
-                                .on_mouse_down(gpui::MouseButton::Left, cx.listener(|this, _, _, cx| {
+                                .on_click(cx.listener(|this, _, _, cx| {
                                     this.consume_codex_reset(cx);
                                 })),
                             ),
@@ -387,7 +403,7 @@ impl AleraApp {
             let Some(this) = this.upgrade() else {
                 return;
             };
-            let _ = this.update(cx, |this, cx| {
+            this.update(cx, |this, cx| {
                 this.codex_reset_busy = false;
                 this.codex_reset_offer_revision = None;
                 match result {
@@ -569,6 +585,10 @@ fn quota_dialog_button_with_loading(
 ) -> gpui::Stateful<gpui::Div> {
     div()
         .id(id)
+        .focusable()
+        .tab_stop(!loading)
+        .role(Role::Button)
+        .aria_label(label)
         .h(px(30.0))
         .px_3()
         .flex()

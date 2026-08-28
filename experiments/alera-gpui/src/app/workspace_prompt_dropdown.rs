@@ -1,7 +1,7 @@
 use gpui::{
     deferred, div, prelude::FluentBuilder as _, px, AnyElement, Context, CursorStyle,
-    InteractiveElement as _, IntoElement as _, ParentElement as _, StatefulInteractiveElement as _,
-    Styled as _,
+    InteractiveElement as _, IntoElement as _, ParentElement as _, Role,
+    StatefulInteractiveElement as _, Styled as _,
 };
 
 use super::AleraApp;
@@ -74,31 +74,28 @@ impl AleraApp {
         };
         design_system::dropdown_trigger_with_loading(id, value, expanded, enabled, loading)
             .when(enabled, |trigger| {
-                trigger.on_mouse_down(
-                    gpui::MouseButton::Left,
-                    cx.listener(move |this, _, window, cx| {
-                        let opening = !expanded;
-                        this.workspace_prompt_dropdown = opening.then_some(dropdown);
-                        if opening {
-                            this.workspace_dropdown_search_input
-                                .update(cx, |input, cx| {
-                                    input.set_placeholder(
-                                        match dropdown {
-                                            WorkspacePromptDropdown::ParentWorkspace => {
-                                                "Search Workspaces"
-                                            }
-                                            _ => "Search",
-                                        },
-                                        window,
-                                        cx,
-                                    );
-                                    input.set_value("", window, cx);
-                                    input.focus(window, cx);
-                                });
-                        }
-                        cx.notify();
-                    }),
-                )
+                trigger.on_click(cx.listener(move |this, _, window, cx| {
+                    let opening = !expanded;
+                    this.workspace_prompt_dropdown = opening.then_some(dropdown);
+                    if opening {
+                        this.workspace_dropdown_search_input
+                            .update(cx, |input, cx| {
+                                input.set_placeholder(
+                                    match dropdown {
+                                        WorkspacePromptDropdown::ParentWorkspace => {
+                                            "Search Workspaces"
+                                        }
+                                        _ => "Search",
+                                    },
+                                    window,
+                                    cx,
+                                );
+                                input.set_value("", window, cx);
+                                input.focus(window, cx);
+                            });
+                    }
+                    cx.notify();
+                }))
             })
             .into_any_element()
     }
@@ -253,6 +250,11 @@ impl AleraApp {
     ) -> AnyElement {
         div()
             .id(("workspace-prompt-option", index))
+            .focusable()
+            .tab_stop(true)
+            .role(Role::ListBoxOption)
+            .aria_label(label.clone())
+            .aria_selected(selected)
             .flex()
             .items_center()
             .h(px(30.0))
@@ -262,14 +264,11 @@ impl AleraApp {
             .text_sm()
             .cursor(CursorStyle::PointingHand)
             .hover(|style| style.bg(theme::surface_selected()))
-            .on_mouse_down(
-                gpui::MouseButton::Left,
-                cx.listener(move |this, _, _, cx| {
-                    on_select(this, cx);
-                    this.workspace_prompt_dropdown = None;
-                    cx.notify();
-                }),
-            )
+            .on_click(cx.listener(move |this, _, _, cx| {
+                on_select(this, cx);
+                this.workspace_prompt_dropdown = None;
+                cx.notify();
+            }))
             .child(div().w(px(14.0)).when(selected, |slot| {
                 slot.child(icon(AleraIcon::Check, 13.0, theme::text()))
             }))
