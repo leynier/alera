@@ -342,6 +342,7 @@ impl AleraApp {
     ) -> AnyElement {
         match tab.map(|tab| tab.kind.as_str()) {
             Some("terminal") => self.render_terminal_surface_for(tab, active, cx),
+            Some("codex") => self.render_codex_surface_for(tab.unwrap(), cx),
             Some("gitDiff") => self.render_git_diff_surface(tab.unwrap(), cx),
             Some("editor") | Some("markdownViewer") => {
                 self.render_editor_for_tab(tab.unwrap(), active, window, cx)

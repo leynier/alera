@@ -9,6 +9,7 @@ pub(super) fn is_snapshot_event(name: &str) -> bool {
             | "workbenchLayoutsChanged"
             | "workspaceTagsChanged"
             | "workspaceRelationsChanged"
+            | "codexThreadChanged"
     )
 }
 

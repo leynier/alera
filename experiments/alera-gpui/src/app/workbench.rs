@@ -43,6 +43,8 @@ impl AleraApp {
             self.render_editor(window, cx)
         } else if selected_tab.is_some_and(|tab| tab.kind == "terminal") {
             self.render_terminal_surface(cx)
+        } else if selected_tab.is_some_and(|tab| tab.kind == "codex") {
+            self.render_codex_surface(cx)
         } else {
             div()
                 .flex_1()
@@ -267,6 +269,7 @@ pub(super) fn tab_kind_icon(kind: &str, path: Option<&str>, color: gpui::Rgba) -
             |path| crate::file_icons::file_icon(path, false, false, false, 15.0, color),
         ),
         "terminal" => icon(AleraIcon::Terminal, 15.0, color),
+        "codex" => icon(AleraIcon::Composer, 15.0, color),
         // Flutter's workspace tab leading icon uses gitBranch for diff tabs;
         // the diff/compare glyph is reserved for the diff surface itself.
         "gitDiff" => icon(AleraIcon::GitBranch, 15.0, color),
@@ -282,6 +285,7 @@ pub(super) fn title_case_kind(kind: &str) -> &'static str {
         "markdownViewer" => "Markdown Preview",
         "gitDiff" => "Git Diff",
         "mobileEmulator" => "Mobile Device",
+        "codex" => "Codex",
         _ => "Workbench",
     }
 }

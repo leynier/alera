@@ -182,6 +182,9 @@ impl AleraApp {
                             this.error = Some(reason.into());
                         }
                         BridgeEvent::Notification { name, payload } => {
+                            if name == "codexThreadChanged" {
+                                this.handle_codex_notification(&payload, window, cx);
+                            }
                             this.handle_terminal_notification(&name, &payload, cx);
                         }
                         BridgeEvent::TerminalOutput { session_id, data } => {

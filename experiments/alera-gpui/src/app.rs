@@ -29,6 +29,7 @@ mod app_lifecycle;
 mod app_menu_dialog;
 mod claude_profile_dialog;
 mod command_terminal;
+mod codex_surface;
 mod context_pull_request;
 mod context_pull_request_comments;
 mod context_pull_request_ai;
@@ -186,6 +187,21 @@ pub struct AleraApp {
     terminal_composer_menu_open: Option<String>,
     terminal_composer_attachments: BTreeMap<String, Vec<TerminalComposerAttachment>>,
     terminal_composer_attachment_counter: u64,
+    codex_opening_tabs: BTreeSet<String>,
+    codex_snapshots: BTreeMap<String, Value>,
+    codex_composer_inputs: BTreeMap<String, Entity<TextareaState>>,
+    codex_selected_model: Option<String>,
+    codex_models: Vec<Value>,
+    codex_catalogs_loaded: bool,
+    codex_catalogs_loading: bool,
+    codex_error: Option<SharedString>,
+    codex_menu_open: Option<String>,
+    codex_raw_logs: bool,
+    codex_reasoning_effort: String,
+    codex_speed_mode: String,
+    codex_permission_mode: String,
+    codex_plan_mode: bool,
+    codex_queued_messages: BTreeMap<String, Vec<String>>,
     quick_open_input: Entity<InputState>,
     quick_open_open: bool,
     quick_open_loading: bool,

@@ -1115,6 +1115,7 @@ fn tab_title_max_width(kind: &str) -> f32 {
     match kind {
         "editor" | "markdownViewer" | "pdf" | "gitDiff" => 180.0,
         "mobileEmulator" => 132.0,
+        "codex" => 132.0,
         _ => 92.0,
     }
 }

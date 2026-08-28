@@ -992,6 +992,7 @@ impl Render for AleraApp {
         // Re-run the pending attach check on every render after that measure.
         self.ensure_selected_terminal(cx);
         self.ensure_terminal_composer_inputs(window, cx);
+        self.ensure_codex_state(window, cx);
         self.refresh_terminal_frame_views(cx);
         let toast_entries = self.visible_toast_entries();
         div()

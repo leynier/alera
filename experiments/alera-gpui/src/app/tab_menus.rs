@@ -173,7 +173,7 @@ impl AleraApp {
 
     fn workbench_menu_enabled_indices(&self) -> Vec<usize> {
         match self.workbench_menu.as_ref() {
-            Some(WorkbenchMenu::NewTab { .. }) => vec![0],
+            Some(WorkbenchMenu::NewTab { .. }) => vec![0, 1],
             Some(WorkbenchMenu::Pane { .. }) => {
                 let mut indices = vec![0, 1, 2, 3];
                 if self
@@ -274,6 +274,13 @@ impl AleraApp {
                 }
                 self.create_terminal_tab(cx);
             }
+            WorkbenchMenu::NewTab { group_id, .. } if index == 1 => {
+                self.dismiss_workbench_menu(window, cx);
+                if let Some(layout) = self.snapshot.layout.as_mut() {
+                    layout.active_group_id = group_id;
+                }
+                self.create_codex_tab(cx);
+            }
             WorkbenchMenu::Pane { group_id, .. } => {
                 if let Some(direction) = [
                     WorkbenchSplitDirection::Right,
@@ -360,13 +367,15 @@ impl AleraApp {
         viewport: Size<Pixels>,
         cx: &mut Context<Self>,
     ) -> AnyElement {
+        let terminal_group_id = group_id.clone();
+        let codex_group_id = group_id.clone();
         menu_shell(
             "new-tab-menu",
             "New Tab",
             position,
             viewport,
             px(220.0),
-            px(68.0),
+            px(104.0),
         )
         .child(
             menu_button(
@@ -380,17 +389,31 @@ impl AleraApp {
                 cx.stop_propagation();
                 this.dismiss_workbench_menu(window, cx);
                 if let Some(layout) = this.snapshot.layout.as_mut() {
-                    layout.active_group_id = group_id.clone();
+                    layout.active_group_id = terminal_group_id.clone();
                 }
                 this.create_terminal_tab(cx);
             })),
         )
         .child(menu_button(
+            "new-tab-codex",
+            "New Codex",
+            icon(AleraIcon::Composer, 16.0, theme::text_muted()),
+            true,
+            self.workbench_menu_highlighted == 1,
+        ).on_click(cx.listener(move |this, _, window, cx| {
+            cx.stop_propagation();
+            this.dismiss_workbench_menu(window, cx);
+            if let Some(layout) = this.snapshot.layout.as_mut() {
+                layout.active_group_id = codex_group_id.clone();
+            }
+            this.create_codex_tab(cx);
+        })))
+        .child(menu_button(
             "new-tab-mobile-emulator",
             "New Mobile Emulator",
             icon(AleraIcon::MobileDevice, 16.0, theme::text_faint()),
             false,
-            self.workbench_menu_highlighted == 1,
+            self.workbench_menu_highlighted == 2,
         ))
         .into_any_element()
     }

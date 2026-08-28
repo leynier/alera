@@ -157,7 +157,7 @@ async fn run_bridge(
 ) {
     loop {
         let connection =
-            RuntimeClientConnection::connect(&runtime_dir, RuntimeClientOptions::default()).await;
+            RuntimeClientConnection::connect(&runtime_dir, gpui_runtime_client_options()).await;
         match connection {
             Ok(Some(connection)) => {
                 crate::app_log::info("runtime_bridge", "connected to the runtime host");
@@ -374,7 +374,7 @@ async fn spawn_runtime_host(
     // control file. Reuse that live host instead of creating another process
     // that races to replace the same control file.
     if let Ok(Some(connection)) =
-        RuntimeClientConnection::connect(runtime_dir, RuntimeClientOptions::default()).await
+        RuntimeClientConnection::connect(runtime_dir, gpui_runtime_client_options()).await
     {
         connection.handle.close().await;
         return Ok(());
@@ -424,7 +424,7 @@ async fn spawn_runtime_host(
     let deadline = tokio::time::Instant::now() + HOST_STARTUP_TIMEOUT;
     let mut last_error = None;
     loop {
-        match RuntimeClientConnection::connect(runtime_dir, RuntimeClientOptions::default()).await {
+        match RuntimeClientConnection::connect(runtime_dir, gpui_runtime_client_options()).await {
             Ok(Some(connection)) => {
                 connection.handle.close().await;
                 return Ok(());
@@ -438,6 +438,13 @@ async fn spawn_runtime_host(
             }));
         }
         tokio::time::sleep(HOST_STARTUP_POLL).await;
+    }
+}
+
+fn gpui_runtime_client_options() -> RuntimeClientOptions {
+    RuntimeClientOptions {
+        supported_tab_kinds: vec!["mobileEmulator".to_owned(), "codex".to_owned()],
+        ..RuntimeClientOptions::default()
     }
 }
 
