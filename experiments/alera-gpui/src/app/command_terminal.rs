@@ -35,6 +35,7 @@ pub(super) struct CommandTerminalState {
     pub session_id: String,
     pub working_directory: String,
     pub startup_scheduled: bool,
+    pub follow_up_agent_hooks: bool,
 }
 
 impl CommandTerminalState {
@@ -57,6 +58,15 @@ impl AleraApp {
     pub(super) fn open_command_terminal(
         &mut self,
         request: CommandTerminalRequest,
+        cx: &mut Context<Self>,
+    ) {
+        self.open_command_terminal_with_follow_up(request, false, cx);
+    }
+
+    pub(super) fn open_command_terminal_with_follow_up(
+        &mut self,
+        request: CommandTerminalRequest,
+        follow_up_agent_hooks: bool,
         cx: &mut Context<Self>,
     ) {
         if self.command_terminal.is_some() || request.command.trim().is_empty() {
@@ -86,6 +96,7 @@ impl AleraApp {
             session_id,
             working_directory,
             startup_scheduled: false,
+            follow_up_agent_hooks,
         });
         cx.notify();
     }
@@ -95,6 +106,7 @@ impl AleraApp {
             return;
         };
         let session_id = state.session_id;
+        let follow_up_agent_hooks = state.follow_up_agent_hooks;
         self.terminal_sessions.remove(&session_id);
         self.terminal_frame_views.remove(&session_id);
         self.terminal_output_dirty_sessions.remove(&session_id);
@@ -117,6 +129,11 @@ impl AleraApp {
             let _ = bridge.request("terminate", json!({"sessionId": session_id})).await;
         })
         .detach();
+        if follow_up_agent_hooks {
+            let hooks = serde_json::to_value(&self.settings_state.agent_status_hooks)
+                .unwrap_or_else(|_| json!({}));
+            self.update_runtime_setting("agentStatusHooks", hooks, cx);
+        }
         cx.notify();
     }
 

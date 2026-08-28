@@ -41,7 +41,7 @@ impl AleraApp {
             "emulator" => "Alera Emulator",
             _ => skill,
         };
-        self.open_command_terminal(
+        self.open_command_terminal_with_follow_up(
             CommandTerminalRequest {
                 title: format!("Install {skill_name} Skill"),
                 command: agent_skill_install_command(skill, runner),
@@ -50,6 +50,7 @@ impl AleraApp {
                 ),
                 working_directory: None,
             },
+            skill == "orchestration",
             cx,
         );
     }
@@ -59,52 +60,18 @@ impl AleraApp {
         runner: &str,
         cx: &mut Context<Self>,
     ) {
-        self.settings_state.loading = true;
-        self.settings_state.error = None;
-        self.settings_state.toast = None;
-        let bridge = self.bridge.clone();
-        let runner = runner.to_string();
-        cx.spawn(async move |this, cx| {
-            let mut failure = None;
-            for skill in ["cli", "orchestration", "computer-use", "emulator"] {
-                let operation_id = format!(
-                    "gpui-{skill}-{}",
-                    std::time::SystemTime::now()
-                        .duration_since(std::time::UNIX_EPOCH)
-                        .map(|duration| duration.as_millis())
-                        .unwrap_or_default()
-                );
-                if let Err(error) = bridge
-                    .request(
-                        "agentSkill.install",
-                        json!({
-                            "operationId": operation_id,
-                            "skill": skill,
-                            "runner": runner,
-                        }),
-                    )
-                    .await
-                {
-                    failure = Some(error);
-                    break;
-                }
-            }
-            let Some(this) = this.upgrade() else {
-                return;
-            };
-            this.update(cx, |this, cx| {
-                this.settings_state.loading = false;
-                if let Some(error) = failure {
-                    this.settings_state.error = Some(error);
-                } else {
-                    this.settings_state.toast =
-                        Some("All Alera Skills Installed / Updated".to_string());
-                }
-                cx.notify();
-            });
-        })
-        .detach();
-        cx.notify();
+        self.open_command_terminal_with_follow_up(
+            CommandTerminalRequest {
+                title: "Install All Alera Skills".to_owned(),
+                command: agent_all_skills_install_command(runner),
+                description: Some(
+                    "The Installers Run Here. Answer Any Prompt In The Terminal.".to_owned(),
+                ),
+                working_directory: None,
+            },
+            true,
+            cx,
+        );
     }
 
     pub(super) fn copy_agent_skill_command(
@@ -295,4 +262,12 @@ fn agent_skill_install_command(skill: &str, runner: &str) -> String {
         ),
         _ => format!("{} || {}", command("npx"), command("bunx")),
     }
+}
+
+fn agent_all_skills_install_command(runner: &str) -> String {
+    ["cli", "orchestration", "computer-use", "emulator"]
+        .into_iter()
+        .map(|skill| agent_skill_install_command(skill, runner))
+        .collect::<Vec<_>>()
+        .join("; ")
 }
