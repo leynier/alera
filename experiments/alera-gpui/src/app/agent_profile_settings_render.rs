@@ -436,6 +436,24 @@ impl AleraApp {
                         )
                         .child(
                             div()
+                                .flex()
+                                .justify_end()
+                                .mt_2()
+                                .child(
+                                    design_system::button_with_leading_icon(
+                                        "test-agent-profile-command",
+                                        "Test Command",
+                                        crate::design_system::ButtonKind::Outlined,
+                                        state.saving,
+                                        icon(AleraIcon::Terminal, 15.0, theme::text_muted()),
+                                    )
+                                    .on_click(cx.listener(|this, _, _, cx| {
+                                        this.test_agent_profile_command(cx);
+                                    })),
+                                ),
+                        )
+                        .child(
+                            div()
                                 .mt_3()
                                 .flex()
                                 .items_start()

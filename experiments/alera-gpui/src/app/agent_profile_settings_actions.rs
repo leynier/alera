@@ -1,6 +1,7 @@
 use gpui::{Context, Window};
 use serde_json::{json, Number, Value};
 
+use super::command_terminal::CommandTerminalRequest;
 use super::agent_profile_settings::{
     default_agent_command, managed_risk_markers, parse_agent_profiles, profile_input_value,
     profile_number_text, set_profile_input, AgentProfileDropdown, AgentProfileRecord,
@@ -8,6 +9,27 @@ use super::agent_profile_settings::{
 use super::AleraApp;
 
 impl AleraApp {
+    pub(super) fn test_agent_profile_command(&mut self, cx: &mut Context<Self>) {
+        let command = profile_input_value(&self.agent_profile_settings.command_input, cx);
+        if command.is_empty() {
+            self.agent_profile_settings.error = Some("Command Is Required".into());
+            cx.notify();
+            return;
+        }
+        self.open_command_terminal(
+            CommandTerminalRequest {
+                title: "Test Agent Profile".to_owned(),
+                command,
+                description: Some(
+                    "The Profile Command Runs Here. It Does Not Receive A Dispatched Task."
+                        .to_owned(),
+                ),
+                working_directory: None,
+            },
+            cx,
+        );
+    }
+
     pub(super) fn refresh_agent_profiles(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         if self.agent_profile_settings.loading {
             return;
