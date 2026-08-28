@@ -51,6 +51,7 @@ impl AleraApp {
     ) -> AnyElement {
         let rename_id = project_id.clone();
         let workspace_id = project_id.clone();
+        let settings_id = project_id.clone();
         let remove_id = project_id;
         let can_create_workspace = self
             .snapshot
@@ -63,8 +64,20 @@ impl AleraApp {
             "Project actions",
             self.sidebar_menu_position,
             window.viewport_size(),
-            px(112.0),
+            px(150.0),
         )
+        .child(
+            sidebar_menu_button(
+                "project-menu-settings",
+                AleraIcon::Settings,
+                "Open Project Settings",
+            )
+            .on_click(cx.listener(move |this, _, window, cx| {
+                cx.stop_propagation();
+                this.open_project_settings_dialog(settings_id.clone(), window, cx);
+            })),
+        )
+        .child(sidebar_menu_divider())
         .child(
             sidebar_menu_button("project-menu-rename", AleraIcon::Edit, "Rename").on_click(
                 cx.listener(move |this, _, window, cx| {
@@ -137,14 +150,32 @@ impl AleraApp {
         let folder_id = workspace_id.clone();
         let copy_id = workspace_id.clone();
         let sleep_id = workspace_id.clone();
+        let project_settings_id = self
+            .snapshot
+            .project_for_workspace(&workspace_id)
+            .map(|project| project.id.clone());
         let remove_id = workspace_id;
         sidebar_menu_shell(
             "workspace-context-menu",
             "Workspace actions",
             self.sidebar_menu_position,
             window.viewport_size(),
-            px(310.0),
+            px(342.0),
         )
+        .when_some(project_settings_id, |menu, project_id| {
+            menu.child(
+                sidebar_menu_button(
+                    "workspace-menu-project-settings",
+                    AleraIcon::Settings,
+                    "Open Project Settings",
+                )
+                .on_click(cx.listener(move |this, _, window, cx| {
+                    cx.stop_propagation();
+                    this.open_project_settings_dialog(project_id.clone(), window, cx);
+                })),
+            )
+            .child(sidebar_menu_divider())
+        })
         .child(
             sidebar_menu_button("workspace-menu-rename", AleraIcon::Edit, "Rename").on_click(
                 cx.listener(move |this, _, window, cx| {

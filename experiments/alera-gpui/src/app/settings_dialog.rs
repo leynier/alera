@@ -11,6 +11,19 @@ use crate::icons::{icon, AleraIcon};
 use crate::{design_system, theme};
 
 impl AleraApp {
+    pub(super) fn open_project_settings_dialog(
+        &mut self,
+        project_id: String,
+        window: &mut gpui::Window,
+        cx: &mut Context<Self>,
+    ) {
+        self.open_settings_dialog(window, cx);
+        self.settings_pane = SettingsPane::Projects;
+        self.project_config_settings.selected_project_id = Some(project_id);
+        self.refresh_project_config_settings(window, cx);
+        cx.notify();
+    }
+
     pub(crate) fn open_settings_dialog(
         &mut self,
         window: &mut gpui::Window,
