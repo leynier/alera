@@ -502,7 +502,7 @@ fn input_value(
     input.read(cx).value().trim().to_owned()
 }
 
-fn save_prompt_clipboard_image(image: &gpui::Image) -> Result<String, String> {
+pub(super) fn save_prompt_clipboard_image(image: &gpui::Image) -> Result<String, String> {
     use std::io::Write as _;
 
     let decoded = image::load_from_memory(&image.bytes)

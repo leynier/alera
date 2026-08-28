@@ -1766,6 +1766,9 @@ impl AleraApp {
             .on_mouse_down(
                 MouseButton::Left,
                 cx.listener(move |this, event: &MouseDownEvent, window, cx| {
+                    if this.terminal_composer_menu_open.take().is_some() {
+                        cx.notify();
+                    }
                     if let Some(tab_id) = tab_id.clone() {
                         this.activate_workspace_tab(tab_id, cx);
                     }

@@ -5,10 +5,11 @@ use gpui::{
     IntoElement, MouseButton, ParentElement as _, Role,
     StatefulInteractiveElement as _, Styled as _, Window,
 };
-use gpui_component::input::{InputEvent, Textarea, TextareaState};
+use gpui_component::input::{InputEvent, Paste, Textarea, TextareaState};
 
 use super::state_types::TextActionTarget;
 use super::text_actions_execution::textarea_context_menu;
+use super::workspace_prompt_actions::save_prompt_clipboard_image;
 use super::{AleraApp, TextActionSetting};
 use crate::design_system::{self, ButtonKind};
 use crate::icons::{icon, AleraIcon};
@@ -109,6 +110,40 @@ impl AleraApp {
         }
     }
 
+    fn on_terminal_composer_paste(
+        &mut self,
+        session_id: &str,
+        _: &Paste,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        let Some(clipboard) = cx.read_from_clipboard() else {
+            cx.propagate();
+            return;
+        };
+        if clipboard.text().is_some() {
+            cx.propagate();
+            return;
+        }
+        let Some(image) = clipboard.entries().iter().find_map(|entry| match entry {
+            gpui::ClipboardEntry::Image(image) => Some(image),
+            gpui::ClipboardEntry::String(_) | gpui::ClipboardEntry::ExternalPaths(_) => None,
+        }) else {
+            cx.propagate();
+            return;
+        };
+        let Some(input) = self.terminal_composer_inputs.get(session_id).cloned() else {
+            cx.propagate();
+            return;
+        };
+        match save_prompt_clipboard_image(image) {
+            Ok(path) => input.update(cx, |input, cx| input.insert(path, window, cx)),
+            Err(error) => self.local_message = Some(error.into()),
+        }
+        cx.stop_propagation();
+        cx.notify();
+    }
+
     fn submit_terminal_composer(
         &mut self,
         session_id: &str,
@@ -171,6 +206,12 @@ impl AleraApp {
             .border_color(theme::border())
             .bg(theme::surface_selected())
             .on_mouse_down(MouseButton::Left, |_, _, cx| cx.stop_propagation())
+            .capture_action({
+                let session_id = session_id.to_owned();
+                cx.listener(move |this, action: &Paste, window, cx| {
+                    this.on_terminal_composer_paste(&session_id, action, window, cx);
+                })
+            })
             .capture_key_down(cx.listener(move |this, event: &KeyDownEvent, window, cx| {
                 let key = event.keystroke.key.as_str();
                 if key.eq_ignore_ascii_case("escape") {
@@ -284,6 +325,14 @@ impl AleraApp {
             .p_1()
             .role(Role::Menu)
             .on_mouse_down(MouseButton::Left, |_, _, cx| cx.stop_propagation())
+            .child(
+                div()
+                    .px_2()
+                    .py_1()
+                    .text_xs()
+                    .text_color(theme::text_faint())
+                    .child("Select Text Action"),
+            )
             .children(actions.into_iter().map(|action| {
                 let id = action.id.clone();
                 let session_id = session_id.clone();
