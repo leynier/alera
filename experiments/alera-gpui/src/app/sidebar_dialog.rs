@@ -162,20 +162,6 @@ impl AleraApp {
             window.viewport_size(),
             px(342.0),
         )
-        .when_some(project_settings_id, |menu, project_id| {
-            menu.child(
-                sidebar_menu_button(
-                    "workspace-menu-project-settings",
-                    AleraIcon::Settings,
-                    "Open Project Settings",
-                )
-                .on_click(cx.listener(move |this, _, window, cx| {
-                    cx.stop_propagation();
-                    this.open_project_settings_dialog(project_id.clone(), window, cx);
-                })),
-            )
-            .child(sidebar_menu_divider())
-        })
         .child(
             sidebar_menu_button("workspace-menu-rename", AleraIcon::Edit, "Rename").on_click(
                 cx.listener(move |this, _, window, cx| {
@@ -273,6 +259,19 @@ impl AleraApp {
                 this.open_workspace_folder(folder_id.clone(), cx);
             })),
         )
+        .when_some(project_settings_id, |menu, project_id| {
+            menu.child(
+                sidebar_menu_button(
+                    "workspace-menu-project-settings",
+                    AleraIcon::Settings,
+                    "Open in Project Settings",
+                )
+                .on_click(cx.listener(move |this, _, window, cx| {
+                    cx.stop_propagation();
+                    this.open_project_settings_dialog(project_id.clone(), window, cx);
+                })),
+            )
+        })
         .child(
             sidebar_menu_button("workspace-menu-copy", AleraIcon::Copy, "Copy Path").on_click(
                 cx.listener(move |this, _, _, cx| {
