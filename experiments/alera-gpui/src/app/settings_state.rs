@@ -178,6 +178,20 @@ pub(super) struct SettingsState {
     #[serde(skip)]
     pub update_message: Option<String>,
     #[serde(skip)]
+    pub update_current_version: Option<String>,
+    #[serde(skip)]
+    pub update_current_build_number: Option<String>,
+    #[serde(skip)]
+    pub update_latest_version: Option<String>,
+    #[serde(skip)]
+    pub update_latest_build_number: Option<String>,
+    #[serde(skip)]
+    pub update_upgrade_command: Option<String>,
+    #[serde(skip)]
+    pub update_upgrade_manager: Option<String>,
+    #[serde(skip)]
+    pub update_restart_required: bool,
+    #[serde(skip)]
     pub update_busy: bool,
     #[serde(skip)]
     pub github_star_state: GitHubStarState,
@@ -269,6 +283,13 @@ impl Default for SettingsState {
             cli_registration_status: None,
             update_status: "Update Status".to_string(),
             update_message: None,
+            update_current_version: Some(env!("CARGO_PKG_VERSION").to_string()),
+            update_current_build_number: None,
+            update_latest_version: None,
+            update_latest_build_number: None,
+            update_upgrade_command: None,
+            update_upgrade_manager: None,
+            update_restart_required: false,
             update_busy: false,
             github_star_state: GitHubStarState::Loading,
         }

@@ -262,6 +262,7 @@ fn update_settings_row(settings: &SettingsState, cx: &mut Context<AleraApp>) -> 
         "No Update Available" => (AleraIcon::Check, theme::success()),
         "Checking for Updates" => (AleraIcon::Loading, theme::text_muted()),
         "Update Available" => (AleraIcon::Download, theme::info()),
+        "Restart Alera" => (AleraIcon::Refresh, theme::info()),
         _ => (AleraIcon::Info, theme::text_muted()),
     };
     let message = settings
@@ -312,11 +313,92 @@ fn update_settings_row(settings: &SettingsState, cx: &mut Context<AleraApp>) -> 
                         ),
                 ),
         )
+        .when_some(settings.update_current_version.clone(), |row, version| {
+            row.child(
+                div()
+                    .ml(px(30.0))
+                    .mt_1()
+                    .text_size(px(12.0))
+                    .text_color(theme::text_muted())
+                    .child(format!("Current Version {version}")),
+            )
+        })
+        .when_some(settings.update_latest_version.clone(), |row, version| {
+            let build = settings
+                .update_latest_build_number
+                .clone()
+                .map(|build| format!(" (Build {build})"))
+                .unwrap_or_default();
+            row.child(
+                div()
+                    .ml(px(30.0))
+                    .mt_1()
+                    .text_size(px(12.0))
+                    .text_color(theme::text_muted())
+                    .child(format!("Update Version {version}{build}")),
+            )
+        })
+        .when_some(settings.update_upgrade_command.clone(), |row, command| {
+            let manager = settings
+                .update_upgrade_manager
+                .clone()
+                .unwrap_or_else(|| "Package Manager".to_owned());
+            row.child(
+                div()
+                    .ml(px(30.0))
+                    .mt_2()
+                    .flex()
+                    .items_center()
+                    .gap_2()
+                    .p(px(10.0))
+                    .rounded_md()
+                    .border_1()
+                    .border_color(theme::border_subtle())
+                    .bg(theme::surface())
+                    .child(
+                        div()
+                            .flex_1()
+                            .overflow_hidden()
+                            .whitespace_nowrap()
+                            .font_family("JetBrains Mono")
+                            .text_size(px(12.0))
+                            .child(command),
+                    )
+                    .child(
+                        design_system::button_with_leading_icon(
+                            "run-update-command",
+                            format!("Run Update With {manager}"),
+                            design_system::ButtonKind::Filled,
+                            false,
+                            icon(AleraIcon::Terminal, 14.0, theme::on_accent()),
+                        )
+                        .on_click(cx.listener(|this, _, _, cx| {
+                            this.run_update_command(cx);
+                            cx.stop_propagation();
+                        })),
+                    ),
+            )
+        })
         .child(
             div()
                 .mt_4()
                 .flex()
                 .justify_end()
+                .gap_2()
+                .when(settings.update_restart_required, |row| {
+                    row.child(
+                        design_system::button_with_leading_icon(
+                            "restart-alera",
+                            "Restart Alera",
+                            design_system::ButtonKind::Filled,
+                            false,
+                            icon(AleraIcon::Refresh, 14.0, theme::on_accent()),
+                        )
+                        .on_click(cx.listener(|this, _, _, cx| {
+                            this.restart_app(cx);
+                        })),
+                    )
+                })
                 .child(
                     div()
                         .id("check-for-updates")

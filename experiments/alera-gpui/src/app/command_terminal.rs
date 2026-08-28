@@ -36,6 +36,7 @@ pub(super) struct CommandTerminalState {
     pub working_directory: String,
     pub startup_scheduled: bool,
     pub follow_up_agent_hooks: bool,
+    pub follow_up_update_restart: bool,
 }
 
 impl CommandTerminalState {
@@ -60,13 +61,14 @@ impl AleraApp {
         request: CommandTerminalRequest,
         cx: &mut Context<Self>,
     ) {
-        self.open_command_terminal_with_follow_up(request, false, cx);
+        self.open_command_terminal_with_follow_up(request, false, false, cx);
     }
 
     pub(super) fn open_command_terminal_with_follow_up(
         &mut self,
         request: CommandTerminalRequest,
         follow_up_agent_hooks: bool,
+        follow_up_update_restart: bool,
         cx: &mut Context<Self>,
     ) {
         if self.command_terminal.is_some() || request.command.trim().is_empty() {
@@ -97,6 +99,7 @@ impl AleraApp {
             working_directory,
             startup_scheduled: false,
             follow_up_agent_hooks,
+            follow_up_update_restart,
         });
         cx.notify();
     }
@@ -107,6 +110,7 @@ impl AleraApp {
         };
         let session_id = state.session_id;
         let follow_up_agent_hooks = state.follow_up_agent_hooks;
+        let follow_up_update_restart = state.follow_up_update_restart;
         self.terminal_sessions.remove(&session_id);
         self.terminal_frame_views.remove(&session_id);
         self.terminal_output_dirty_sessions.remove(&session_id);
@@ -133,6 +137,9 @@ impl AleraApp {
             let hooks = serde_json::to_value(&self.settings_state.agent_status_hooks)
                 .unwrap_or_else(|_| json!({}));
             self.update_runtime_setting("agentStatusHooks", hooks, cx);
+        }
+        if follow_up_update_restart {
+            self.require_update_restart(cx);
         }
         cx.notify();
     }
