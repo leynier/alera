@@ -51,6 +51,7 @@ impl AleraApp {
                 working_directory: None,
             },
             skill == "orchestration",
+            false,
             cx,
         );
     }
@@ -70,6 +71,7 @@ impl AleraApp {
                 working_directory: None,
             },
             true,
+            false,
             cx,
         );
     }
