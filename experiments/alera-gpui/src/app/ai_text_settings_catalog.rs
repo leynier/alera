@@ -167,7 +167,8 @@ pub(super) fn default_model(agent: &str) -> &'static str {
         "codex" => "gpt-5.5",
         "copilot" => "gpt-5.4",
         "cursor" => "auto",
-        "agy" => "Gemini 3.5 Flash (Medium)",
+        // An empty model lets AGY use its own configured/default model.
+        "agy" => "",
         "opencode" => "opencode/deepseek-v4-flash-free",
         "pi" => "github-copilot/gpt-5.4-mini",
         "amp" => "smart",
