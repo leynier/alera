@@ -6,7 +6,6 @@ use gpui::{
     StatefulInteractiveElement as _, Styled as _, Window,
 };
 use gpui_component::input::{Input, Textarea};
-use gpui_component::text::TextView;
 use gpui_component::tooltip::Tooltip;
 
 use super::context_pull_request_review_actions::PullRequestReviewAction;
@@ -653,7 +652,7 @@ impl AleraApp {
                                     .flex_1()
                                     .text_xs()
                                     .font_weight(gpui::FontWeight::SEMIBOLD)
-                                    .child(comment.author),
+                                    .child(comment.author.clone()),
                             )
                             .when_some(created_at, |header, created_at| {
                                 header.child(
@@ -691,19 +690,16 @@ impl AleraApp {
                         )
                     })
                     .child(
-                        div()
-                            .mt_1()
-                            .text_sm()
-                            .text_color(theme::text_muted())
-                            .child(
-                                TextView::markdown(
-                                    gpui::SharedString::from(format!(
-                                        "context-pr-comment-body-{comment_id}"
-                                    )),
-                                    normalize_review_comment_markdown(&comment.body),
-                                )
-                                .selectable(true),
-                            ),
+                div()
+                    .mt_1()
+                    .text_sm()
+                    .text_color(theme::text_muted())
+                    .child(self.render_review_comment_body(
+                        &comment,
+                        &comment_id,
+                        review_open && !self.forge_busy,
+                        cx,
+                    )),
                     )
             }))
             .into_any_element()
@@ -1047,7 +1043,7 @@ fn format_check_timestamp(value: &str) -> Option<String> {
         })
 }
 
-fn normalize_review_comment_markdown(body: &str) -> String {
+pub(super) fn normalize_review_comment_markdown(body: &str) -> String {
     if !body.starts_with("[vc]:") {
         return body.to_string();
     }

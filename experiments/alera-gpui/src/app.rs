@@ -30,6 +30,7 @@ mod app_menu_dialog;
 mod claude_profile_dialog;
 mod command_terminal;
 mod context_pull_request;
+mod context_pull_request_comments;
 mod context_pull_request_ai;
 mod context_pull_request_composer;
 mod context_pull_request_review_actions;
@@ -483,6 +484,7 @@ pub struct AleraApp {
     forge_link_form_open: bool,
     forge_form_error: Option<SharedString>,
     forge_error: Option<SharedString>,
+    forge_comment_saving_ids: BTreeSet<String>,
     runtime_action_busy: bool,
     runtime_action_armed: Option<String>,
     runtime_restart_after_stop: bool,

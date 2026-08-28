@@ -242,7 +242,7 @@ impl AleraApp {
     }
 }
 
-async fn resolve_forge_identity(
+pub(super) async fn resolve_forge_identity(
     bridge: &crate::runtime_bridge::RuntimeBridge,
     workspace_service: &crate::workspace_service::WorkspaceService,
     workspace_id: &str,

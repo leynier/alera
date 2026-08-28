@@ -1255,6 +1255,7 @@ impl AleraApp {
             forge_link_form_open: false,
             forge_form_error: None,
             forge_error: None,
+            forge_comment_saving_ids: BTreeSet::new(),
             runtime_action_busy: false,
             runtime_action_armed: None,
             runtime_restart_after_stop: false,

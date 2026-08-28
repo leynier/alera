@@ -13,7 +13,7 @@ const REVIEW_FIELDS: &str =
     "number,title,body,state,url,isDraft,mergeable,headRefName,baseRefName,author";
 const CHECK_FIELDS: &str =
     "name,state,bucket,link,description,event,workflow,startedAt,completedAt";
-const REVIEW_THREADS_QUERY: &str = r#"query($owner:String!,$repo:String!,$number:Int!){repository(owner:$owner,name:$repo){pullRequest(number:$number){reviewThreads(first:100){nodes{isResolved comments(first:100){nodes{id body url createdAt path line author{login}}}}}}}}"#;
+const REVIEW_THREADS_QUERY: &str = r#"query($owner:String!,$repo:String!,$number:Int!){repository(owner:$owner,name:$repo){pullRequest(number:$number){reviewThreads(first:100){nodes{isResolved comments(first:100){nodes{id databaseId body url createdAt path line author{login}}}}}}}}"#;
 
 pub(crate) fn load_snapshot(
     _workspace_path: String,
@@ -166,17 +166,23 @@ fn load_comments(repo_slug: &str, number: u64) -> Result<Vec<ForgeComment>, Stri
     comments.extend(load_rest_comments(
         &format!("repos/{repo_slug}/issues/{number}/comments?per_page=100"),
         "created_at",
+        crate::forge_api::ForgeCommentSource::Conversation,
     )?);
     comments.extend(load_rest_comments(
         &format!("repos/{repo_slug}/pulls/{number}/reviews?per_page=100"),
         "submitted_at",
+        crate::forge_api::ForgeCommentSource::ReviewSummary,
     )?);
     comments.extend(load_review_thread_comments(repo_slug, number)?);
     comments.sort_by(|left, right| left.created_at.cmp(&right.created_at));
     Ok(comments)
 }
 
-fn load_rest_comments(endpoint: &str, created_at_field: &str) -> Result<Vec<ForgeComment>, String> {
+fn load_rest_comments(
+    endpoint: &str,
+    created_at_field: &str,
+    source: crate::forge_api::ForgeCommentSource,
+) -> Result<Vec<ForgeComment>, String> {
     let value = run_gh_json(vec!["api".into(), endpoint.into()], false)?;
     Ok(value
         .as_array()
@@ -188,7 +194,12 @@ fn load_rest_comments(endpoint: &str, created_at_field: &str) -> Result<Vec<Forg
                 return None;
             }
             Some(ForgeComment {
-                _id: item.get("id").map(Value::to_string).unwrap_or_default(),
+                _id: item
+                    .get("id")
+                    .and_then(Value::as_i64)
+                    .map(|id| id.to_string())
+                    .or_else(|| optional_string(item, "id"))
+                    .unwrap_or_default(),
                 author: item
                     .get("user")
                     .and_then(|user| user.get("login"))
@@ -201,6 +212,7 @@ fn load_rest_comments(endpoint: &str, created_at_field: &str) -> Result<Vec<Forg
                 path: None,
                 line: None,
                 resolved: false,
+                source,
             })
         })
         .collect())
@@ -247,7 +259,11 @@ fn load_review_thread_comments(repo_slug: &str, number: u64) -> Result<Vec<Forge
                 continue;
             }
             comments.push(ForgeComment {
-                _id: string(item, "id"),
+                _id: item
+                    .get("databaseId")
+                    .and_then(Value::as_i64)
+                    .map(|id| id.to_string())
+                    .unwrap_or_else(|| string(item, "id")),
                 author: item
                     .get("author")
                     .and_then(|author| author.get("login"))
@@ -260,6 +276,7 @@ fn load_review_thread_comments(repo_slug: &str, number: u64) -> Result<Vec<Forge
                 path: optional_string(item, "path"),
                 line: item.get("line").and_then(Value::as_u64),
                 resolved,
+                source: crate::forge_api::ForgeCommentSource::ReviewThread,
             });
         }
     }
@@ -368,6 +385,33 @@ pub(crate) fn run_action(
                 body,
             ]);
             "Comment Added"
+        }
+        ForgeAction::UpdateComment {
+            number,
+            comment_id,
+            source,
+            body,
+        } => {
+            let endpoint = match source {
+                crate::forge_api::ForgeCommentSource::Conversation => {
+                    format!("repos/{}/issues/comments/{comment_id}", identity.repo_slug)
+                }
+                crate::forge_api::ForgeCommentSource::ReviewSummary => {
+                    format!("repos/{}/pulls/{number}/reviews/{comment_id}", identity.repo_slug)
+                }
+                crate::forge_api::ForgeCommentSource::ReviewThread => {
+                    format!("repos/{}/pulls/comments/{comment_id}", identity.repo_slug)
+                }
+            };
+            arguments.extend([
+                "api".into(),
+                endpoint,
+                "--method".into(),
+                "PATCH".into(),
+                "--raw-field".into(),
+                format!("body={body}"),
+            ]);
+            "Review Comment Updated"
         }
     };
     run_gh(arguments, false)?;

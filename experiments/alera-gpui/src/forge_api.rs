@@ -103,6 +103,15 @@ pub struct ForgeComment {
     pub path: Option<String>,
     pub line: Option<u64>,
     pub resolved: bool,
+    pub source: ForgeCommentSource,
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum ForgeCommentSource {
+    #[default]
+    Conversation,
+    ReviewSummary,
+    ReviewThread,
 }
 
 #[derive(Clone, Debug)]
@@ -132,6 +141,12 @@ pub enum ForgeAction {
     },
     Comment {
         number: u64,
+        body: String,
+    },
+    UpdateComment {
+        number: u64,
+        comment_id: String,
+        source: ForgeCommentSource,
         body: String,
     },
 }
