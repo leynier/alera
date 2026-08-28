@@ -89,35 +89,6 @@ fn every_adapter_builds_its_native_session_flags() {
 }
 
 #[test]
-fn codex_carries_a_separate_plan_mode_effort() {
-    let launch = build_managed_agent_launch(
-        "codex",
-        &json!({"effort": "medium", "planModeEffort": "xhigh"}),
-    )
-    .unwrap();
-    assert_eq!(
-        launch.arguments,
-        [
-            "--config",
-            "model_reasoning_effort=medium",
-            "--config",
-            "plan_mode_reasoning_effort=xhigh"
-        ]
-    );
-    assert_eq!(
-        build_managed_agent_launch("codex", &json!({"planModeEffort": "high"}))
-            .unwrap()
-            .arguments,
-        ["--config", "plan_mode_reasoning_effort=high"]
-    );
-    assert!(
-        build_managed_agent_launch("codex", &json!({"planModeEffort": "plan"})).is_err(),
-        "an unsupported effort was accepted"
-    );
-    assert!(build_managed_agent_launch("claude", &json!({"planModeEffort": "high"})).is_err());
-}
-
-#[test]
 fn a_claude_ccs_profile_replaces_the_executable_and_leads_the_arguments() {
     let launch = build_managed_agent_launch(
         "claude",

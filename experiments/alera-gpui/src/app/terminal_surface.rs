@@ -543,6 +543,21 @@ impl AleraApp {
                 .into_iter()
                 .find(|(handle, _, _, _)| handle == session_id)
                 .map(|(_, _, tab_id, _)| tab_id);
+            let auto_close_on_success = tab_id.as_ref().and_then(|tab_id| {
+                self.snapshot
+                    .tabs
+                    .iter()
+                    .find(|tab| &tab.id == tab_id)
+                    .and_then(|tab| tab.payload.get("autoCloseOnSuccess"))
+                    .and_then(Value::as_bool)
+            }) == Some(true);
+            let exit_code = payload.get("exitCode").and_then(Value::as_i64);
+            if auto_close_on_success && exit_code != Some(0) {
+                // Deferred Setup tabs are intentionally kept on failure so
+                // the user can read the diagnostics and rerun the command.
+                cx.notify();
+                return;
+            }
             if let Some(tab_id) = tab_id {
                 self.close_exited_terminal_tab(tab_id, cx);
             }

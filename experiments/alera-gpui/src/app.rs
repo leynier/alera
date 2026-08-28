@@ -130,6 +130,7 @@ use settings_store::SettingsStore;
 use state_types::*;
 use status_data::StatusData;
 use terminal_surface::TerminalFrameView;
+use workspace_actions::PendingWorkspaceSetup;
 use workspace_prompt_actions::PromptWorkspaceCreation;
 use workspace_prompt_dropdown::{AgentProfileOption, WorkspacePromptDropdown};
 use workspace_surface::{ExplorerRow, PreviewAsset};
@@ -142,6 +143,7 @@ pub struct AleraApp {
     selected_workspace_id: Option<String>,
     workspace_selection_initialized: bool,
     pending_workspace_terminal_id: Option<String>,
+    pending_workspace_setup: Option<PendingWorkspaceSetup>,
     pending_workspace_tab_id: Option<String>,
     selected_tab_id: Option<String>,
     tab_rename_input: Entity<InputState>,

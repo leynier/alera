@@ -9,6 +9,7 @@ use serde_json::{json, Value};
 
 use super::app_helpers::flutter_state_error;
 use super::dialogs::{primary_button, primary_icon_button, secondary_button};
+use super::workspace_actions::deferred_setup_command_from_payload;
 use super::{AleraApp, NewWorkspaceStep};
 use crate::icons::loading_indicator;
 use crate::theme;
@@ -16,6 +17,7 @@ use crate::theme;
 #[derive(Clone, Debug)]
 pub(super) struct PromptWorkspaceCreation {
     pub workspace_id: String,
+    pub deferred_setup_command: Option<String>,
 }
 
 impl AleraApp {
@@ -285,9 +287,11 @@ impl AleraApp {
                 );
                 return;
             };
+            let deferred_setup_command = deferred_setup_command_from_payload(&creation);
             let _ = this.update(cx, |this, cx| {
                 this.workspace_prompt_created = Some(PromptWorkspaceCreation {
                     workspace_id: workspace_id.clone(),
+                    deferred_setup_command: deferred_setup_command.clone(),
                 });
                 this.workspace_prompt_phase = Some("Starting Agent");
                 cx.notify();
@@ -310,6 +314,7 @@ impl AleraApp {
                     window_handle,
                     workspace_id,
                     launch,
+                    deferred_setup_command,
                     create_another,
                 ),
                 Err(error) => {
@@ -376,6 +381,7 @@ impl AleraApp {
                     window_handle,
                     creation.workspace_id,
                     launch,
+                    creation.deferred_setup_command.clone(),
                     create_another,
                 ),
                 Err(error) => finish_prompt_workspace_error(&this, cx, flutter_state_error(error)),
@@ -388,6 +394,11 @@ impl AleraApp {
         let Some(creation) = self.workspace_prompt_created.take() else {
             return;
         };
+        self.queue_deferred_workspace_setup(
+            creation.workspace_id.clone(),
+            creation.deferred_setup_command,
+            None,
+        );
         self.selected_workspace_id = Some(creation.workspace_id);
         self.selected_tab_id = None;
         self.show_new_workspace_dialog = false;
@@ -417,6 +428,7 @@ fn finish_prompt_workspace_success(
     window_handle: gpui::AnyWindowHandle,
     workspace_id: String,
     launch: Value,
+    deferred_setup_command: Option<String>,
     create_another: bool,
 ) {
     let _ = cx.update_window(window_handle, |_, window, cx| {
@@ -425,8 +437,14 @@ fn finish_prompt_workspace_success(
             this.workspace_prompt_phase = None;
             this.workspace_prompt_active_operation_id = None;
             this.workspace_prompt_created = None;
+            let agent_tab_id = tab_id_from_launch(&launch);
+            this.selected_tab_id = agent_tab_id.clone();
+            this.queue_deferred_workspace_setup(
+                workspace_id.clone(),
+                deferred_setup_command,
+                agent_tab_id,
+            );
             this.selected_workspace_id = Some(workspace_id);
-            this.selected_tab_id = tab_id_from_launch(&launch);
             this.show_new_workspace_dialog = create_another;
             this.new_workspace_step = NewWorkspaceStep::Entry;
             this.workspace_prompt_dropdown = None;

@@ -7,7 +7,152 @@ use serde_json::{json, Value};
 use super::workspace_prompt_dropdown::AgentProfileOption;
 use super::{AleraApp, NewWorkspaceMode, NewWorkspaceStep};
 
+/// Deferred worktree setup that must be materialized as a visible Setup tab
+/// once the newly-created workspace is present in the next snapshot.
+#[derive(Clone, Debug)]
+pub(super) struct PendingWorkspaceSetup {
+    pub workspace_id: String,
+    pub command: String,
+    pub activate_tab_id: Option<String>,
+}
+
 impl AleraApp {
+    pub(super) fn queue_deferred_workspace_setup(
+        &mut self,
+        workspace_id: String,
+        command: Option<String>,
+        activate_tab_id: Option<String>,
+    ) {
+        let Some(command) = command.map(|command| command.trim().to_owned()) else {
+            return;
+        };
+        if command.is_empty() {
+            return;
+        }
+        self.pending_workspace_setup = Some(PendingWorkspaceSetup {
+            workspace_id,
+            command,
+            activate_tab_id,
+        });
+    }
+
+    /// Called after a workspace snapshot is installed. The runtime returns a
+    /// deferred setup command with workspace creation; GPUI must turn it into
+    /// the same visible, auto-closing Setup terminal Flutter opens.
+    pub(super) fn open_pending_workspace_setup(&mut self, cx: &mut Context<Self>) {
+        let Some(pending) = self.pending_workspace_setup.clone() else {
+            return;
+        };
+        if self.selected_workspace_id.as_deref() != Some(pending.workspace_id.as_str())
+            || self.snapshot.workspace(&pending.workspace_id).is_none()
+        {
+            return;
+        }
+        if self.tab_mutation_busy {
+            return;
+        }
+        if self.snapshot.tabs.iter().any(|tab| {
+            tab.workspace_id == pending.workspace_id
+                && tab.title == "Setup"
+                && tab
+                    .payload
+                    .get("autoCloseOnSuccess")
+                    .and_then(Value::as_bool)
+                    == Some(true)
+        }) {
+            self.pending_workspace_setup = None;
+            return;
+        }
+        self.pending_workspace_setup = None;
+        self.open_deferred_setup_terminal(pending, cx);
+    }
+
+    fn open_deferred_setup_terminal(
+        &mut self,
+        pending: PendingWorkspaceSetup,
+        cx: &mut Context<Self>,
+    ) {
+        let timestamp = chrono::Utc::now();
+        let tab_id = format!(
+            "gpui-setup-tab-{}-{}",
+            std::process::id(),
+            timestamp.timestamp_micros()
+        );
+        let mut layout = self.snapshot.layout.clone();
+        if layout.is_none() {
+            let group_id = format!("gpui-group-{}", pending.workspace_id);
+            let mut groups = std::collections::BTreeMap::new();
+            groups.insert(
+                group_id.clone(),
+                crate::model::WorkbenchPaneGroup {
+                    id: group_id.clone(),
+                    tab_ids: Vec::new(),
+                    active_tab_id: None,
+                },
+            );
+            layout = Some(crate::model::WorkbenchLayout {
+                workspace_id: pending.workspace_id.clone(),
+                root: crate::model::WorkbenchLayoutNode::Leaf {
+                    group_id: group_id.clone(),
+                },
+                groups,
+                active_group_id: group_id,
+            });
+        }
+        if let Some(layout) = layout.as_mut() {
+            layout.add_tab_to_active_group(tab_id.clone());
+        }
+        let bridge = self.bridge.clone();
+        let workspace_id = pending.workspace_id;
+        let command = pending.command;
+        let activate_tab_id = pending.activate_tab_id;
+        self.tab_mutation_busy = true;
+        cx.spawn(async move |this, cx| {
+            let result = bridge
+                .request(
+                    "tab.upsert",
+                    json!({
+                        "id": tab_id,
+                        "workspaceId": workspace_id,
+                        "kind": "terminal",
+                        "title": "Setup",
+                        "createdAt": timestamp.to_rfc3339(),
+                        "updatedAt": timestamp.to_rfc3339(),
+                        "payload": {
+                            "terminalSessionId": tab_id,
+                            "initialCommand": command,
+                            "initialCommandOnce": true,
+                            "spawnOnCreate": true,
+                            "autoCloseOnSuccess": true,
+                        },
+                    }),
+                )
+                .await;
+            let result = match result {
+                Ok(tab) => super::tab_actions::persist_layout(&bridge, layout).await.map(|_| tab),
+                Err(error) => Err(error),
+            };
+            let _ = this.update(cx, |this, cx| {
+                this.tab_mutation_busy = false;
+                match result {
+                    Ok(tab) => {
+                        this.selected_tab_id = activate_tab_id.or_else(|| {
+                            tab.get("id")
+                                .and_then(Value::as_str)
+                                .map(str::to_owned)
+                        });
+                        this.refresh(cx);
+                    }
+                    Err(error) => {
+                        this.local_message = Some(error.into());
+                        cx.notify();
+                    }
+                }
+            });
+        })
+        .detach();
+    }
+
     pub(super) fn open_new_workspace_dialog(
         &mut self,
         window: &mut Window,
@@ -404,10 +549,18 @@ impl AleraApp {
                 this.workspace_creation_busy = false;
                 match result {
                     Ok(payload) => {
+                        let workspace_id = workspace_id_from_payload(&payload);
+                        if let Some(workspace_id) = workspace_id.clone() {
+                            this.queue_deferred_workspace_setup(
+                                workspace_id,
+                                deferred_setup_command_from_payload(&payload),
+                                None,
+                            );
+                        }
                         this.show_new_workspace_dialog = create_another;
                         this.new_workspace_step = NewWorkspaceStep::Entry;
                         this.error = None;
-                        this.selected_workspace_id = workspace_id_from_payload(&payload);
+                        this.selected_workspace_id = workspace_id;
                         this.selected_tab_id = None;
                         this.refresh(cx);
                     }
@@ -461,6 +614,15 @@ fn workspace_id_from_payload(payload: &Value) -> Option<String> {
         .and_then(|workspace| workspace.get("id"))
         .and_then(Value::as_str)
         .map(str::to_string)
+}
+
+pub(super) fn deferred_setup_command_from_payload(payload: &Value) -> Option<String> {
+    payload
+        .get("deferredSetupCommand")
+        .and_then(Value::as_str)
+        .map(str::trim)
+        .filter(|command| !command.is_empty())
+        .map(str::to_owned)
 }
 
 fn string_array(value: &Value, key: &str) -> Vec<String> {

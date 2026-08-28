@@ -856,6 +856,7 @@ impl AleraApp {
             selected_workspace_id: None,
             workspace_selection_initialized: false,
             pending_workspace_terminal_id: None,
+            pending_workspace_setup: None,
             pending_workspace_tab_id: None,
             selected_tab_id: None,
             tab_rename_input,

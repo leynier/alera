@@ -415,6 +415,7 @@ impl AleraApp {
                             })
                             .unwrap_or(true);
                         this.snapshot = snapshot;
+                        this.open_pending_workspace_setup(cx);
                         // The selected workspace can change while the
                         // snapshot request is in flight. Rehydrate the
                         // contextual surface from the new workspace path so
