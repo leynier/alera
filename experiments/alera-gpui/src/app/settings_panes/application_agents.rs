@@ -454,7 +454,7 @@ fn agents_pane(
                             .map(String::as_str)
                             .unwrap_or("Auto"),
                         false,
-                        "Install / Update All",
+                        "Install / Update",
                         cx,
                     ),
                 ),
