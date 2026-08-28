@@ -125,6 +125,13 @@ impl AleraApp {
             "agentType": self.agent_profile_settings.adapter,
             "launchMode": self.agent_profile_settings.launch_mode,
             "command": command,
+            "customPrompt": self
+                .agent_profile_settings
+                .custom_prompt_input
+                .read(cx)
+                .value()
+                .trim()
+                .to_owned(),
             "description": profile_input_value(&self.agent_profile_settings.description_input, cx),
             "quotaGroup": optional_profile_input_value(&self.agent_profile_settings.quota_group_input, cx),
         });

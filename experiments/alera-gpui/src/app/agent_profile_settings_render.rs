@@ -4,6 +4,7 @@ use gpui::{
     StatefulInteractiveElement as _, Styled as _,
 };
 use gpui_component::scroll::ScrollableElement as _;
+use gpui_component::input::Textarea;
 use serde_json::Value;
 
 use super::agent_profile_settings::{
@@ -510,6 +511,31 @@ impl AleraApp {
                             ),
                     )
                 },
+                div()
+                    .p_3()
+                    .child(
+                        div()
+                            .text_size(px(13.0))
+                            .font_weight(gpui::FontWeight::MEDIUM)
+                            .child("Custom Prompt"),
+                    )
+                    .child(
+                        div()
+                            .mt_1()
+                            .text_size(px(12.0))
+                            .text_color(theme::text_muted())
+                            .child("Optional instructions for every dispatched task."),
+                    )
+                    .child(
+                        div()
+                            .mt_2()
+                            .h(px(104.0))
+                            .child(
+                                Textarea::new(&state.custom_prompt_input)
+                                    .disabled(state.saving)
+                                    .h_full(),
+                            ),
+                    ),
             ],
         )
     }

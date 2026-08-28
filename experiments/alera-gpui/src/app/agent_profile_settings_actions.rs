@@ -121,6 +121,9 @@ impl AleraApp {
         ] {
             set_profile_input(input, "", window, cx);
         }
+        self.agent_profile_settings
+            .custom_prompt_input
+            .update(cx, |input, cx| input.set_value("", window, cx));
         self.auto_discover_agent_profile_options("codex".to_owned(), window, cx);
         cx.notify();
     }
@@ -220,6 +223,9 @@ impl AleraApp {
             window,
             cx,
         );
+        self.agent_profile_settings
+            .custom_prompt_input
+            .update(cx, |input, cx| input.set_value(&profile.custom_prompt, window, cx));
         set_profile_input(
             &self.agent_profile_settings.quota_group_input,
             profile.quota_group.as_deref().unwrap_or_default(),

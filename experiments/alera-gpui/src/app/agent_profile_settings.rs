@@ -1,7 +1,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use gpui::{AppContext as _, Context, Entity, FocusHandle, SharedString, Window};
-use gpui_component::input::InputState;
+use gpui_component::input::{InputState, TextareaState};
 use serde_json::{Map, Value};
 
 use super::AleraApp;
@@ -15,6 +15,7 @@ pub(super) struct AgentProfileRecord {
     pub(super) command: String,
     pub(super) launch_mode: String,
     pub(super) managed_config: Map<String, Value>,
+    pub(super) custom_prompt: String,
     pub(super) description: String,
     pub(super) quota_group: Option<String>,
 }
@@ -57,6 +58,7 @@ pub(super) struct AgentProfileSettingsState {
     pub(super) ccs_profile_input: Entity<InputState>,
     pub(super) description_input: Entity<InputState>,
     pub(super) quota_group_input: Entity<InputState>,
+    pub(super) custom_prompt_input: Entity<TextareaState>,
 }
 
 impl AgentProfileSettingsState {
@@ -87,6 +89,11 @@ impl AgentProfileSettingsState {
             adapter: "codex".to_owned(),
             launch_mode: "managed".to_owned(),
             managed_config: Map::new(),
+            custom_prompt_input: cx.new(|cx| {
+                TextareaState::new(window, cx)
+                    .rows(3)
+                    .placeholder("Optional Instructions For Every Dispatched Task")
+            }),
             name_input: cx.new(|cx| InputState::new(window, cx).placeholder("Name")),
             command_input: cx.new(|cx| InputState::new(window, cx).placeholder("Command")),
             model_input: cx.new(|cx| InputState::new(window, cx)),
@@ -147,6 +154,11 @@ pub(super) fn parse_agent_profile(value: &Value) -> Result<AgentProfileRecord, S
             .and_then(Value::as_object)
             .cloned()
             .unwrap_or_default(),
+        custom_prompt: value
+            .get("customPrompt")
+            .and_then(Value::as_str)
+            .unwrap_or_default()
+            .to_owned(),
         description: value
             .get("description")
             .and_then(Value::as_str)
