@@ -932,6 +932,9 @@ impl AleraApp {
         } else if self.workbench_menu.is_some() {
             self.dismiss_workbench_menu(window, cx);
             true
+        } else if self.source_change_context_menu.is_some() {
+            self.dismiss_source_change_context_menu(window, cx);
+            true
         } else if self.sidebar_menu.take().is_some() || self.sidebar_sort_dropdown.take().is_some()
         {
             true

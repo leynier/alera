@@ -6,8 +6,8 @@ use std::time::Duration;
 use gpui::{
     div, prelude::FluentBuilder as _, uniform_list, AnyElement, AppContext as _, ClickEvent,
     Context, CursorStyle, DragMoveEvent, Entity, Image, ImageFormat, InteractiveElement as _,
-    IntoElement, MouseButton, MouseDownEvent, ParentElement as _, Render, Role, SharedString,
-    StatefulInteractiveElement as _, Styled as _, Window,
+    IntoElement, MouseButton, MouseDownEvent, ParentElement as _, Render, Role, ScrollStrategy,
+    SharedString, StatefulInteractiveElement as _, Styled as _, Window,
 };
 use gpui_component::input::{EditorState, InputEvent};
 use gpui_component::scroll::{Scrollbar, ScrollbarMode};
@@ -372,6 +372,7 @@ impl AleraApp {
         self.explorer_expanded_paths.clear();
         self.explorer_menu = None;
         self.explorer_selected_path = None;
+        self.explorer_reveal_pending = None;
         self.explorer_clipboard = None;
         self.explorer_drop_target = None;
         self.explorer_pointer_down = None;
@@ -415,6 +416,8 @@ impl AleraApp {
         self.git_diff_image_loading.clear();
         self.git_discard_armed = false;
         self.git_discard_path_armed = None;
+        self.source_change_context_menu = None;
+        self.source_change_menu_previous_focus = None;
         self.forge_snapshot = Default::default();
         self.forge_review_action = None;
         self.forge_review_action_menu_open = false;
@@ -438,6 +441,31 @@ impl AleraApp {
             .as_deref()
             .and_then(|id| self.snapshot.workspace(id))
             .map(|workspace| workspace.path.clone())
+    }
+
+    pub(super) fn reveal_source_control_path_in_explorer(
+        &mut self,
+        source_relative_path: String,
+        cx: &mut Context<Self>,
+    ) {
+        let Some(scope) = self.selected_source_control_scope() else {
+            return;
+        };
+        let Some(workspace_relative_path) =
+            scope.to_workspace_relative_path(&source_relative_path)
+        else {
+            return;
+        };
+        self.explorer_expanded_paths
+            .extend(explorer_ancestor_paths(&workspace_relative_path));
+        self.explorer_selected_path = Some(workspace_relative_path.clone());
+        self.explorer_reveal_pending = Some(workspace_relative_path);
+        self.context_panel = ContextPanel::Explorer;
+        self.context_sidebar_collapsed = false;
+        self.persist_sidebar_view_prefs(cx);
+        self.load_root_directory(cx);
+        self.ensure_explorer_watcher(cx);
+        cx.notify();
     }
 
     pub(super) fn load_root_directory(&mut self, cx: &mut Context<Self>) {
@@ -579,14 +607,26 @@ impl AleraApp {
                     return;
                 }
                 this.explorer_busy = false;
-                // File watchers refresh the rows every few seconds. Keep the
-                // user's viewport stable across that rebuild; switching the
-                // workspace explicitly resets it in `reset_local_workspace`.
-                this.explorer_scroll_handle
-                    .0
-                    .borrow()
-                    .base_handle
-                    .set_offset(explorer_scroll_offset);
+                if let Some(reveal_path) = this.explorer_reveal_pending.take() {
+                    this.explorer_selected_path = Some(reveal_path.clone());
+                    if let Some(index) = this
+                        .explorer_rows
+                        .iter()
+                        .position(|row| row.entry.relative_path == reveal_path)
+                    {
+                        this.explorer_scroll_handle
+                            .scroll_to_item(index, ScrollStrategy::Nearest);
+                    }
+                } else {
+                    // File watchers refresh the rows every few seconds. Keep
+                    // the user's viewport stable across that rebuild;
+                    // switching workspace resets it explicitly.
+                    this.explorer_scroll_handle
+                        .0
+                        .borrow()
+                        .base_handle
+                        .set_offset(explorer_scroll_offset);
+                }
                 cx.notify();
             });
         })
@@ -1594,6 +1634,26 @@ fn editor_file_error_message(error: &str) -> String {
     }
 }
 
+fn explorer_ancestor_paths(relative_path: &str) -> Vec<String> {
+    let parts = relative_path
+        .split('/')
+        .filter(|part| !part.is_empty())
+        .collect::<Vec<_>>();
+    let mut ancestors = Vec::with_capacity(parts.len().saturating_sub(1));
+    let mut current = String::new();
+    let directory_count = parts.len().saturating_sub(1);
+    for part in parts.into_iter().take(directory_count) {
+        if current.is_empty() {
+            current.push_str(part);
+        } else {
+            current.push('/');
+            current.push_str(part);
+        }
+        ancestors.push(current.clone());
+    }
+    ancestors
+}
+
 fn merman_preview_error_message(error: &str) -> String {
     let normalized = error.to_ascii_lowercase();
     if normalized.contains("not found") || normalized.contains("no such file") {
@@ -1673,7 +1733,7 @@ mod image_preview_tests {
 
 #[cfg(test)]
 mod editor_file_error_tests {
-    use super::editor_file_error_message;
+    use super::{editor_file_error_message, explorer_ancestor_paths};
 
     #[test]
     fn editor_errors_use_flutter_copy() {
@@ -1693,5 +1753,14 @@ mod editor_file_error_tests {
             editor_file_error_message("unexpected filesystem failure"),
             "File operation failed"
         );
+    }
+
+    #[test]
+    fn explorer_reveal_expands_every_parent_directory() {
+        assert_eq!(
+            explorer_ancestor_paths("packages/app/lib/main.rs"),
+            ["packages", "packages/app", "packages/app/lib"]
+        );
+        assert!(explorer_ancestor_paths("readme.md").is_empty());
     }
 }

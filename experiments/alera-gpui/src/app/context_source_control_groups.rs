@@ -3,11 +3,12 @@ use std::path::Path;
 
 use gpui::{
     div, prelude::FluentBuilder as _, px, AnyElement, Context, CursorStyle,
-    InteractiveElement as _, IntoElement, ParentElement as _, Role,
+    InteractiveElement as _, IntoElement, MouseButton, MouseDownEvent, ParentElement as _, Role,
     StatefulInteractiveElement as _, Styled as _,
 };
 
 use super::context_source_control_actions::source_row_action;
+use super::context_source_control_context_menu::SourceChangeContextMenu;
 use super::AleraApp;
 use crate::file_icons::file_icon;
 use crate::icons::{icon, AleraIcon};
@@ -375,6 +376,8 @@ impl AleraApp {
         let Some(change) = row.change else {
             let collapsed = self.source_control_collapsed_tree_nodes.contains(&tree_key);
             let toggle_key = tree_key.clone();
+            let menu_area = area.to_owned();
+            let menu_path = row.path.clone();
             return Some(
                 div()
                     .id(gpui::SharedString::from(format!(
@@ -386,6 +389,7 @@ impl AleraApp {
                     .role(Role::Button)
                     .aria_label(row.name.clone())
                     .aria_expanded(!collapsed)
+                    .relative()
                     .flex()
                     .items_center()
                     .h(px(30.0))
@@ -400,6 +404,22 @@ impl AleraApp {
                         }
                         cx.notify();
                     }))
+                    .on_mouse_down(
+                        MouseButton::Right,
+                        cx.listener(move |this, _: &MouseDownEvent, window, cx| {
+                            cx.stop_propagation();
+                            this.open_source_change_context_menu(
+                                SourceChangeContextMenu {
+                                    group_area: menu_area.clone(),
+                                    change_area: None,
+                                    path: menu_path.clone(),
+                                    directory: true,
+                                },
+                                window,
+                                cx,
+                            );
+                        }),
+                    )
                     .child(icon(
                         if collapsed {
                             AleraIcon::ChevronRight
@@ -469,6 +489,9 @@ impl AleraApp {
             area
         };
         let display_name = display_name.unwrap_or(&change.path).to_owned();
+        let menu_group_area = area.to_owned();
+        let menu_change_area = change.area.clone();
+        let menu_path = change.path.clone();
         div()
             .id(gpui::SharedString::from(format!(
                 "source-change-{area}-{action_area}-{}",
@@ -481,6 +504,7 @@ impl AleraApp {
                 "{} {}",
                 display_name, change.status
             )))
+            .relative()
             .flex()
             .items_center()
             .h(px(30.0))
@@ -500,6 +524,22 @@ impl AleraApp {
                     cx,
                 );
             }))
+            .on_mouse_down(
+                MouseButton::Right,
+                cx.listener(move |this, _: &MouseDownEvent, window, cx| {
+                    cx.stop_propagation();
+                    this.open_source_change_context_menu(
+                        SourceChangeContextMenu {
+                            group_area: menu_group_area.clone(),
+                            change_area: Some(menu_change_area.clone()),
+                            path: menu_path.clone(),
+                            directory: false,
+                        },
+                        window,
+                        cx,
+                    );
+                }),
+            )
             .child(div().w(px(16.0)))
             .child(file_icon(
                 &change.path,

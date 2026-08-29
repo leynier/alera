@@ -70,6 +70,7 @@ impl AleraApp {
                         _ => crate::activity::ContextPanel::Explorer,
                     };
                     this.explorer_hide_ignored = string_field(prefs, "explorerMode") != "showAll";
+                    this.source_control_tree_mode = source_control_tree_mode(prefs);
                     this.source_control_group_mode =
                         string_field(prefs, "gitDiffGroupMode") == "unified";
                     this.forge_create_draft =
@@ -201,6 +202,14 @@ impl AleraApp {
             }),
         );
         object.insert(
+            "gitDiffViewMode".into(),
+            json!(if self.source_control_tree_mode {
+                "tree"
+            } else {
+                "list"
+            }),
+        );
+        object.insert(
             "gitDiffGroupMode".into(),
             json!(if self.source_control_group_mode {
                 "unified"
@@ -327,6 +336,23 @@ fn sort_key(value: SidebarSortBy) -> &'static str {
 
 fn string_field<'a>(value: &'a Value, key: &str) -> &'a str {
     value.get(key).and_then(Value::as_str).unwrap_or("")
+}
+
+fn source_control_tree_mode(prefs: &Value) -> bool {
+    string_field(prefs, "gitDiffViewMode") != "list"
+}
+
+#[cfg(test)]
+mod tests {
+    use super::source_control_tree_mode;
+    use serde_json::json;
+
+    #[test]
+    fn source_control_defaults_to_tree_and_restores_list() {
+        assert!(source_control_tree_mode(&json!({})));
+        assert!(source_control_tree_mode(&json!({"gitDiffViewMode": "tree"})));
+        assert!(!source_control_tree_mode(&json!({"gitDiffViewMode": "list"})));
+    }
 }
 
 fn string_set(value: Option<&Value>) -> std::collections::BTreeSet<String> {

@@ -407,6 +407,9 @@ impl AleraApp {
             .when(self.source_control_menu_open, |panel| {
                 panel.child(self.source_control_menu(cx))
             })
+            .when(self.source_change_context_menu.is_some(), |panel| {
+                panel.child(self.render_source_change_context_menu(cx))
+            })
             .into_any_element()
     }
 
