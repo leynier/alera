@@ -198,7 +198,7 @@ commit so this file remains useful after context compaction.
 | 177 | `fe40edb17462867a7f669a08cdc5cf4349c08843` | 2026-08-10 | fix: normalize codex review timeline | merged | Cherry-picked Codex review timeline normalization; GPUI intentionally receives no Codex Chat surface change. |
 | 178 | `37dc2ac5fa7d76ccbe4ca3475a54e9ce552e532e` | 2026-08-10 | chore: merge main into codex integration | merged | Replayed the merge commit against parent 1 after the individual source commits, preserving the current runtime/usage tree and its merge-only workflow documentation; GPUI Codex Chat remains disabled. |
 | 179 | `88ac8b10d542c0b4d33ba3f558deb7109d550a19` | 2026-08-10 | Merge pull request #384 from leynier/feat/claude-codex-usage | merged | Replayed the PR merge against its mainline parent as an empty reconciliation because its feature tree was already incorporated one commit at a time; GPUI Codex Chat stays disabled. |
-| 180 | `9c0cf4c9b4297807f7c7165f230810248a92ce86` | 2026-08-10 | fix: restore integration quality gates | in progress | Cherry-picking integration test/gate restoration; no GPUI UI surface is affected. |
+| 180 | `9c0cf4c9b4297807f7c7165f230810248a92ce86` | 2026-08-10 | fix: restore integration quality gates | merged | Cherry-picked integration test/gate restoration and shared workspace MIME helpers; no GPUI UI surface is affected. |
 | 181 | `1fc45835dab0b07641dec1127c1a6a7583588188` | 2026-08-10 | chore: merge latest main into codex integration | pending | - |
 | 182 | `de1941573c8e41cfc9f016af29cbf1b6aba3b94e` | 2026-08-10 | test: cover codex domain contracts | pending | - |
 | 183 | `50b5c077903ac319606973bdb33a4690490187bf` | 2026-08-10 | Merge pull request #386 from leynier/review/codex-integration | pending | - |
