@@ -315,6 +315,12 @@ class _FakeTerminalRuntime implements TerminalRuntime {
   void closeWorkspace(String workspaceId) {}
 
   @override
+  void releaseTab(String tabId) {}
+
+  @override
+  void releaseWorkspace(String workspaceId) {}
+
+  @override
   void dispose() {}
 }
 

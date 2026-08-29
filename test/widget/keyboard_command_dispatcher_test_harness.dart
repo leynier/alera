@@ -252,6 +252,14 @@ class _FakeTerminalRuntime implements TerminalRuntime {
   }
 
   @override
+  void releaseTab(String tabId) {
+    _sessions.remove(tabId)?.dispose();
+  }
+
+  @override
+  void releaseWorkspace(String workspaceId) => closeWorkspace(workspaceId);
+
+  @override
   void dispose() {
     for (final session in _sessions.values) {
       session.dispose();

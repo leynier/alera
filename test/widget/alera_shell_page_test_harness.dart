@@ -95,6 +95,12 @@ class _ShellTestWorkbenchController extends WorkbenchController {
     if (ids.isEmpty) {
       return;
     }
+    // Mirrors production: the controller owns disposing the terminal handle
+    // and the editor document for every closed tab.
+    for (final tabId in ids) {
+      ref.read(terminalRuntimeProvider).closeTab(tabId);
+      ref.read(editorSessionRegistryProvider).forget(tabId);
+    }
     final remaining = state
         .tabsFor(workspace.id)
         .where((tab) => !ids.contains(tab.id))

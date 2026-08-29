@@ -566,7 +566,9 @@ void _registerAleraShellSidebarStateTests() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
 
-    expect(harness.runtime.closedTabIds, <String>['tab-2']);
+    // A failed close keeps the terminal alive: the runtime handle is disposed
+    // by the controller only after the tab record was actually removed.
+    expect(harness.runtime.closedTabIds, isEmpty);
     expect(events.last.message, 'Bad state: close tab failed');
   });
 

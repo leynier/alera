@@ -17,6 +17,7 @@ import 'package:alera/src/features/projects/domain/project_config.dart';
 import 'package:alera/src/features/settings/application/settings_controller.dart';
 import 'package:alera/src/features/settings/domain/alera_settings.dart';
 import 'package:alera/src/features/workbench/application/workbench_providers.dart';
+import 'package:alera/src/features/workbench/application/workspace_search_controller.dart';
 import 'package:alera/src/features/workbench/application/workspace_tab_service.dart';
 import 'package:alera/src/features/workbench/application/workbench_controller.dart';
 import 'package:alera/src/features/workbench/application/workspace_explorer_reveal.dart';
@@ -32,6 +33,7 @@ import 'package:alera/src/features/workbench/domain/workspace.dart';
 import 'package:alera/src/features/workbench/domain/workspace_creation_result.dart';
 import 'package:alera/src/features/workbench/presentation/terminal_runtime.dart';
 import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_protocol.dart';
+import 'package:alera/src/rust/api/workspace_files.dart' as native_files;
 import 'package:alera/src/shared/infra/git/git_diff_models.dart';
 import 'package:alera/src/shared/infra/git/git_providers.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -61,6 +63,7 @@ part 'workbench_controller_preview_tab_test_cases.dart';
 part 'workbench_controller_view_prefs_test_repository.dart';
 part 'workbench_controller_test_harness.dart';
 part 'workbench_controller_selection_test_cases.dart';
+part 'workbench_controller_terminal_cleanup_test_cases.dart';
 
 late _WorkbenchHarness _harness;
 late WorkbenchController _controller;
@@ -91,5 +94,6 @@ void main() {
     _registerWorkbenchControllerWatcherRecoveryTests();
     _registerWorkbenchControllerNavigationTests();
     _registerWorkbenchControllerPreviewTabTests();
+    _registerWorkbenchControllerTerminalCleanupTests();
   });
 }

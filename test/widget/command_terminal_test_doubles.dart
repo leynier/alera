@@ -112,6 +112,14 @@ class FakeCommandTerminalRuntime implements TerminalRuntime {
   void closeWorkspace(String workspaceId) {}
 
   @override
+  void releaseTab(String tabId) {
+    sessions.remove(tabId);
+  }
+
+  @override
+  void releaseWorkspace(String workspaceId) {}
+
+  @override
   void dispose() {
     unawaited(_exits.close());
   }

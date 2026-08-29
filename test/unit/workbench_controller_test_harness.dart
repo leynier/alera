@@ -159,8 +159,13 @@ class _FakeTerminalRuntime implements TerminalRuntime {
     );
   }
 
+  final List<String> closedTabIds = <String>[];
+  final List<String> releasedTabIds = <String>[];
+  final List<String> releasedWorkspaceIds = <String>[];
+
   @override
   void closeTab(String tabId) {
+    closedTabIds.add(tabId);
     sessions.remove(tabId)?.dispose();
   }
 
@@ -172,6 +177,24 @@ class _FakeTerminalRuntime implements TerminalRuntime {
     ];
     for (final tabId in tabIds) {
       closeTab(tabId);
+    }
+  }
+
+  @override
+  void releaseTab(String tabId) {
+    releasedTabIds.add(tabId);
+    sessions.remove(tabId)?.dispose();
+  }
+
+  @override
+  void releaseWorkspace(String workspaceId) {
+    releasedWorkspaceIds.add(workspaceId);
+    final tabIds = <String>[
+      for (final entry in sessions.entries)
+        if (entry.value.workspaceId == workspaceId) entry.key,
+    ];
+    for (final tabId in tabIds) {
+      sessions.remove(tabId)?.dispose();
     }
   }
 

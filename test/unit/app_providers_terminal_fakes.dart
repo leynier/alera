@@ -21,6 +21,12 @@ class _FakeTerminalRuntime implements TerminalRuntime {
   void closeWorkspace(String workspaceId) {}
 
   @override
+  void releaseTab(String tabId) {}
+
+  @override
+  void releaseWorkspace(String workspaceId) {}
+
+  @override
   void dispose() {
     _events.close();
   }
@@ -53,6 +59,12 @@ class _FocusableTerminalRuntime implements TerminalRuntime {
 
   @override
   void closeWorkspace(String workspaceId) {}
+
+  @override
+  void releaseTab(String tabId) {}
+
+  @override
+  void releaseWorkspace(String workspaceId) {}
 
   @override
   void dispose() {
