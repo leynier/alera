@@ -428,7 +428,7 @@ commit so this file remains useful after context compaction.
 | 406 | `7f7976528846c3c4063d58ba06d27f7e94d3b2ff` | 2026-08-29 | Merge pull request #563 from leynier/feat/desktop-presence-tray-badge | merged | Replayed the PR merge against parent 1 after its constituent commits. The Flutter feature is present and the GPUI exclusion remains explicit. |
 | 407 | `3ec1af522dcc6c29157f0a633ab29b79199e7488` | 2026-08-29 | fix: repair linux runner build (#564) | merged | Replayed Flutter Linux runner compatibility. The GPUI Linux backend and build inputs are unchanged. |
 | 408 | `7cffc80df5307ed79a15bcbc541f26e52c4d47ca` | 2026-08-29 | fix: reject loopback lookalike hosts in cloud base url (#565) | merged | Replayed shared runtime and cloud URL validation. GPUI inherits the hardened sidecar and requires no separate UI implementation. |
-| 409 | `0a76ad8f852c3b1481e5c9b18795d856384cde1f` | 2026-08-29 | release: v0.75.0 (#566) | pending | Pending source review and GPUI impact analysis. |
+| 409 | `0a76ad8f852c3b1481e5c9b18795d856384cde1f` | 2026-08-29 | release: v0.75.0 (#566) | merged | Replayed Flutter v0.75.0 release and landing metadata. GPUI remains independently versioned and requires no feature adaptation. |
 | 410 | `90df319abf432e7a85af3a8874b8011db9dcd7c7` | 2026-08-29 | fix: free terminal, editor, and workspace-scoped state when tabs and workspaces close (#567) | pending | Pending source review and GPUI impact analysis. |
 | 411 | `4a733ec6f545b9a7ddec0fa05009919ea57f2cee` | 2026-08-29 | release: v0.75.1 (#568) | pending | Pending source review and GPUI impact analysis. |
 | 412 | `6c5a18418919283a436260eb1b47953c69967470` | 2026-08-29 | fix: release terminal memory on cleanup | pending | Pending source review and GPUI impact analysis. |
