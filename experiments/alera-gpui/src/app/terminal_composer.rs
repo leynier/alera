@@ -1,6 +1,7 @@
 use std::collections::BTreeSet;
 use std::path::Path;
 
+use base64::prelude::{BASE64_STANDARD, Engine as _};
 use gpui::{
     div, prelude::FluentBuilder as _, px, AppContext as _, Context, CursorStyle, Entity, ExternalPaths, KeyDownEvent,
     InteractiveElement as _, IntoElement, MouseButton, ParentElement as _, Role,
@@ -8,6 +9,7 @@ use gpui::{
 };
 use gpui_component::input::{InputEvent, Paste, Textarea, TextareaState};
 use gpui_component::scroll::ScrollableElement as _;
+use serde_json::json;
 
 use super::state_types::{ExplorerDragData, TerminalComposerAttachment, TerminalComposerAttachmentKind,
     TextActionTarget};
@@ -16,7 +18,6 @@ use super::workspace_prompt_actions::save_prompt_clipboard_image;
 use super::{AleraApp, TextActionSetting};
 use crate::design_system::{self, ButtonKind};
 use crate::icons::{icon, AleraIcon};
-use crate::terminal::KeyModifiers;
 use crate::theme;
 
 impl AleraApp {
@@ -240,9 +241,32 @@ impl AleraApp {
         };
         session.emulator.clear_restore_prompt_cleanup();
         session.emulator.clear_selection();
-        let mut bytes = session.emulator.encode_paste(&submission);
-        bytes.extend(session.emulator.encode_key("enter", None, KeyModifiers::default()));
-        self.write_terminal_bytes_for(session_id, bytes);
+        let bytes = session.emulator.encode_paste(&submission);
+        let supports_deferred = self
+            .settings_state
+            .runtime_capabilities
+            .iter()
+            .any(|capability| capability == "terminalDeferredInputV1");
+        if supports_deferred {
+            self.write_terminal_bytes_with_deferred_enter_for(session_id, bytes);
+        } else {
+            self.write_terminal_bytes_for(session_id, bytes);
+            let bridge = self.bridge.clone();
+            let session_id = session_id.to_owned();
+            cx.spawn(async move |_, cx| {
+                cx.background_executor()
+                    .timer(std::time::Duration::from_millis(500))
+                    .await;
+                let _ = bridge.send_ordered(
+                    "write",
+                    json!({
+                        "sessionId": session_id,
+                        "dataBase64": BASE64_STANDARD.encode(b"\r"),
+                    }),
+                );
+            })
+            .detach();
+        }
         input.update(cx, |input, cx| input.set_value("", window, cx));
         self.terminal_composer_attachments.remove(session_id);
         input.update(cx, |input, cx| input.focus(window, cx));

@@ -1610,6 +1610,21 @@ impl AleraApp {
         );
     }
 
+    pub(super) fn write_terminal_bytes_with_deferred_enter_for(
+        &self,
+        session_id: &str,
+        bytes: Vec<u8>,
+    ) {
+        let _ = self.bridge.send_ordered(
+            "write",
+            json!({
+                "sessionId": session_id,
+                "dataBase64": BASE64_STANDARD.encode(bytes),
+                "deferredEnter": true,
+            }),
+        );
+    }
+
     pub(super) fn render_terminal_surface(&self, cx: &mut Context<Self>) -> AnyElement {
         let tab = self.selected_tab_id.as_deref().and_then(|tab_id| {
             self.snapshot
