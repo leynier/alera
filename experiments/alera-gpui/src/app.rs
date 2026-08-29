@@ -46,6 +46,7 @@ mod context_sidebar;
 mod context_source_control;
 mod context_source_control_actions;
 mod context_source_control_ai;
+mod context_source_control_context_menu;
 mod context_source_control_dialog;
 mod context_source_control_groups;
 mod context_source_history;
@@ -420,6 +421,7 @@ pub struct AleraApp {
     explorer_menu_focus: FocusHandle,
     explorer_menu_previous_focus: Option<FocusHandle>,
     explorer_selected_path: Option<String>,
+    explorer_reveal_pending: Option<String>,
     explorer_clipboard: Option<ExplorerClipboard>,
     explorer_drop_target: Option<String>,
     explorer_pointer_down: Option<String>,
@@ -531,6 +533,11 @@ pub struct AleraApp {
     source_control_menu_focus: FocusHandle,
     source_control_menu_previous_focus: Option<FocusHandle>,
     source_control_menu_highlighted: usize,
+    source_change_context_menu:
+        Option<context_source_control_context_menu::SourceChangeContextMenu>,
+    source_change_menu_focus: FocusHandle,
+    source_change_menu_previous_focus: Option<FocusHandle>,
+    source_change_menu_highlighted: usize,
     source_control_collapsed_sections: BTreeSet<String>,
     source_control_collapsed_tree_nodes: BTreeSet<String>,
     forge_title_input: Entity<InputState>,
