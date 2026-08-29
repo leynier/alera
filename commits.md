@@ -126,7 +126,7 @@ commit so this file remains useful after context compaction.
 | 105 | `3031dae503a390ecd0eb5f845ccfb3c03ada0680` | 2026-08-06 | fix: satisfy quality gates | merged | Cherry-picked the quota snapshot extraction and OpenCode quality-gate fix; GPUI consumes the extracted amount/data-quality fields through the #103 parser adaptation. |
 | 106 | `0e341790642499ae30d11c2026368e2a9b91feb1` | 2026-08-06 | fix: satisfy mobile analysis | merged | Cherry-picked the source mobile analyzer cleanup; no GPUI code was expected. |
 | 107 | `52fb0e6fa8b35724dc4e1911e44e5ef1d615c553` | 2026-08-06 | fix: satisfy mobile lint | merged | Cherry-picked the source mobile lint cleanup; no GPUI code was expected. |
-| 108 | `9d463eb5f993f1e1193e83fb6545b105a4b1061c` | 2026-08-06 | fix: scope mobile lint suppression | pending | - |
+| 108 | `9d463eb5f993f1e1193e83fb6545b105a4b1061c` | 2026-08-06 | fix: scope mobile lint suppression | in_progress | Replaying the source-only lint suppression scope; no GPUI code is expected. |
 | 109 | `c5f89526657e560362be15e33b653748882f70ec` | 2026-08-06 | fix: update opencode quality checks | pending | - |
 | 110 | `9066814fded893b8e29b56a6c8c4cd00dc8bf405` | 2026-08-06 | test: cover opencode quota payloads | pending | - |
 | 111 | `0e3e1db7a55092b45a0b7b2b836badfad9b9e394` | 2026-08-06 | Merge pull request #366 from rmarticedeno/agent/opencode-go-zen | pending | - |
