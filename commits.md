@@ -171,7 +171,7 @@ commit so this file remains useful after context compaction.
 | 150 | `85de7bad8e323529d3d2094e19bffc903ed1f065` | 2026-08-09 | fix: keep declined plans in plan mode | merged | Cherry-picked plan-decline state so Flutter/mobile keep plan mode active for follow-up refinement; GPUI Codex Chat is intentionally disabled and received no surface adaptation. |
 | 151 | `3b6d8708e93e28c20c3e47bcfc0c5e58a04427db` | 2026-08-09 | fix: scope codex question controls | merged | Cherry-picked Codex question/plan detection and session transition coverage; Codex Chat is intentionally disabled in GPUI, so no GPUI surface change was expected. |
 | 152 | `2b0c26389420ebc8a1a1793de7be7d0e1dcd4682` | 2026-08-09 | fix: refine codex review dialog | merged | Cherry-picked the full Codex review target/delivery dialog and commit-title payload; Codex Chat remains intentionally disabled in GPUI per current scope. |
-| 153 | `7383d16c6e20dc27979dc1ec85faa3758aba4bde` | 2026-08-09 | refactor: split mobile codex files | in_progress | Replaying mobile Codex file separation and restored test support; no GPUI code change is expected. |
+| 153 | `7383d16c6e20dc27979dc1ec85faa3758aba4bde` | 2026-08-09 | refactor: split mobile codex files | merged | Cherry-picked mobile Codex file separation and restored test support; no GPUI code change was expected. |
 | 154 | `a16db33fe586b4c44c328ffc258694813c34f083` | 2026-08-09 | fix: stabilize codex plan transitions | pending | - |
 | 155 | `c999d6d49b5df99eee055817cdc6ad3a9a0515cf` | 2026-08-09 | fix: align mobile codex plan states | pending | - |
 | 156 | `b8ef4dd9e8a7117279a185b76d42a1e824375b11` | 2026-08-09 | fix: align mobile codex review flow | pending | - |
