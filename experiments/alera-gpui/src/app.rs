@@ -97,6 +97,7 @@ mod status_resource_actions;
 mod status_resource_components;
 mod status_resource_dialog;
 mod status_runtime;
+mod status_usage;
 mod tab_actions;
 mod tab_dialog;
 mod tab_menus;
@@ -320,6 +321,13 @@ pub struct AleraApp {
     codex_reset_offer_revision: Option<String>,
     codex_reset_busy: bool,
     quota_tui_busy_key: Option<String>,
+    show_agent_usage_dialog: bool,
+    agent_usage_days: u32,
+    agent_usage_loading: bool,
+    agent_usage_error: Option<SharedString>,
+    agent_usage_snapshot: Option<Value>,
+    agent_usage_generation: u64,
+    agent_usage_breakdown_mode: status_usage::UsageBreakdownMode,
     resource_sort_column: String,
     resource_collapsed_project_ids: BTreeSet<String>,
     resource_close_confirmation: Option<ResourceCloseConfirmation>,

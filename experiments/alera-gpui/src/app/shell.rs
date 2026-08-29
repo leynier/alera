@@ -927,6 +927,9 @@ impl AleraApp {
         } else if self.status_popover != crate::activity::StatusPopover::None {
             self.dismiss_status_popover(cx);
             true
+        } else if self.show_agent_usage_dialog {
+            self.close_agent_usage_dialog(cx);
+            true
         } else if self.show_tab_rename_dialog && !self.tab_mutation_busy {
             self.close_tab_rename_dialog(cx);
             true
@@ -1121,6 +1124,9 @@ impl Render for AleraApp {
             })
             .when(self.show_about_dialog, |root| {
                 root.child(self.render_about_dialog(cx))
+            })
+            .when(self.show_agent_usage_dialog, |root| {
+                root.child(self.render_agent_usage_dialog(cx))
             })
             .when(self.show_execution_plans, |root| {
                 root.child(self.render_execution_plans_dialog(cx))

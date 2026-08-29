@@ -65,6 +65,35 @@ impl AleraApp {
                     .enumerate()
                     .map(|(index, snapshot)| self.quota_overview_row(index, snapshot, cx)),
             )
+            .child(
+                div()
+                    .border_t_1()
+                    .border_color(theme::border_subtle())
+                    .p_2()
+                    .child(
+                        div()
+                            .id("quota-open-usage")
+                            .focusable()
+                            .tab_stop(true)
+                            .role(Role::Button)
+                            .aria_label("Open Usage")
+                            .h(px(30.0))
+                            .rounded_md()
+                            .flex()
+                            .items_center()
+                            .justify_center()
+                            .gap_2()
+                            .bg(theme::surface_selected())
+                            .cursor(CursorStyle::PointingHand)
+                            .hover(|style| style.bg(theme::accent_subtle()))
+                            .on_click(cx.listener(|this, _, _, cx| {
+                                this.open_agent_usage_dialog(cx);
+                                cx.stop_propagation();
+                            }))
+                            .child(icon(AleraIcon::Quota, 13.0, theme::text_muted()))
+                            .child("Open Usage"),
+                    ),
+            )
             // Keep the popover itself absolute. `overflow_y_scrollbar()` wraps
             // the element in a relative container, which would put this
             // overlay back into the status bar's flex flow.
