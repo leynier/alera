@@ -1,4 +1,4 @@
-use std::collections::BTreeSet;
+use std::{collections::BTreeSet, path::Path};
 
 use base64::prelude::{Engine as _, BASE64_STANDARD};
 use gpui::{
@@ -1667,6 +1667,9 @@ impl AleraApp {
         let focus = self.terminal_focus.clone();
         let drop_focus = self.terminal_focus.clone();
         let drop_session_id = owned_session_id.clone();
+        // Keep the workspace root with the drop handler so paths from the file picker
+        // are pasted relative to the same directory as the terminal session.
+        let drop_workspace_path = self.selected_workspace_path();
         let scroll_session_id = owned_session_id.clone();
         let explorer_drop_focus = self.terminal_focus.clone();
         let explorer_drop_session_id = owned_session_id.clone();
@@ -1817,7 +1820,7 @@ impl AleraApp {
                     cx.stop_propagation();
                     return;
                 }
-                let text = format_paths_for_terminal_paste(paths);
+                let text = format_paths_for_terminal_paste(paths, drop_workspace_path.as_deref());
                 if text.is_empty() {
                     return;
                 }
@@ -1841,8 +1844,7 @@ impl AleraApp {
                         cx.stop_propagation();
                         return;
                     }
-                    let path = this.absolute_explorer_path(&drag.relative_path);
-                    let text = format_terminal_path_for_paste(&path);
+                    let text = format_terminal_path_for_paste(&drag.relative_path);
                     if text.is_empty() {
                         return;
                     }
@@ -2515,12 +2517,14 @@ fn terminal_key_uses_text_input(
     }) || key.chars().count() == 1
 }
 
-fn format_paths_for_terminal_paste(paths: &ExternalPaths) -> String {
+fn format_paths_for_terminal_paste(paths: &ExternalPaths, workspace_path: Option<&str>) -> String {
     paths
         .paths()
         .iter()
         .filter_map(|path| {
-            let value = path.to_string_lossy().trim().replace('\u{1b}', "\u{241b}");
+            let value = workspace_relative_path(workspace_path, &path.to_string_lossy())
+                .trim()
+                .replace('\u{1b}', "\u{241b}");
             if value.is_empty() {
                 return None;
             }
@@ -2542,6 +2546,21 @@ fn format_terminal_path_for_paste(path: &str) -> String {
         format!("'{}' ", value.replace('\'', "'\\''"))
     } else {
         format!("{value} ")
+    }
+}
+
+fn workspace_relative_path(workspace_path: Option<&str>, file_path: &str) -> String {
+    let Some(workspace_path) = workspace_path else {
+        return file_path.to_owned();
+    };
+    let Ok(relative) = Path::new(file_path).strip_prefix(Path::new(workspace_path)) else {
+        return file_path.to_owned();
+    };
+    let value = relative.to_string_lossy().to_string();
+    if value.is_empty() {
+        file_path.to_owned()
+    } else {
+        value
     }
 }
 
