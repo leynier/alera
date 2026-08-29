@@ -27,6 +27,7 @@ class Win32DesktopPresence {
   void SetBadgeCount(int count);
   void ShowFromTray();
   void QuitFromTray();
+  void NotifyInstallation(bool installed);
   HICON CreateBadgeIcon(int count);
   void UpdateOverlay();
 

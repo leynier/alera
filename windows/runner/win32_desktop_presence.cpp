@@ -3,6 +3,7 @@
 #include <shellapi.h>
 #include <shobjidl.h>
 
+#include <memory>
 #include <string>
 
 #include "resource.h"
@@ -167,7 +168,9 @@ bool Win32DesktopPresence::HandleMessage(HWND hwnd,
   if (taskbar_created_message_ != 0 && message == taskbar_created_message_) {
     if (tray_desired_) {
       tray_visible_ = false;
-      SetTray(true, tooltip_);
+      NotifyInstallation(false);
+      const bool installed = SetTray(true, tooltip_);
+      NotifyInstallation(installed);
     }
     return true;
   }
@@ -242,6 +245,14 @@ bool Win32DesktopPresence::SetTray(bool visible, const std::wstring& tooltip) {
 void Win32DesktopPresence::SetBadgeCount(int count) {
   badge_count_ = count < 0 ? 0 : count;
   UpdateOverlay();
+}
+
+void Win32DesktopPresence::NotifyInstallation(bool installed) {
+  if (channel_) {
+    channel_->InvokeMethod(
+        "trayInstallationChanged",
+        std::make_unique<flutter::EncodableValue>(installed));
+  }
 }
 
 void Win32DesktopPresence::ShowFromTray() {

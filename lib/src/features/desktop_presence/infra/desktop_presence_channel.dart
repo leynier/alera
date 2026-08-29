@@ -13,6 +13,7 @@ abstract final class DesktopPresenceMethod {
 abstract final class DesktopPresenceEvent {
   static const String trayShow = 'trayShow';
   static const String trayQuit = 'trayQuit';
+  static const String trayInstallationChanged = 'trayInstallationChanged';
 }
 
 class DesktopPresenceSnapshot {
@@ -39,7 +40,11 @@ class DesktopPresenceSnapshot {
 }
 
 abstract interface class DesktopPresenceBackend {
-  void listen({required VoidCallback onShow, required VoidCallback onQuit});
+  void listen({
+    required VoidCallback onShow,
+    required VoidCallback onQuit,
+    void Function(bool installed)? onInstallationChanged,
+  });
 
   Future<void> apply(DesktopPresenceSnapshot snapshot);
 
@@ -54,7 +59,11 @@ class MethodChannelDesktopPresenceBackend implements DesktopPresenceBackend {
   bool _listening = false;
 
   @override
-  void listen({required VoidCallback onShow, required VoidCallback onQuit}) {
+  void listen({
+    required VoidCallback onShow,
+    required VoidCallback onQuit,
+    void Function(bool installed)? onInstallationChanged,
+  }) {
     if (_listening) {
       return;
     }
@@ -65,6 +74,8 @@ class MethodChannelDesktopPresenceBackend implements DesktopPresenceBackend {
           onShow();
         case DesktopPresenceEvent.trayQuit:
           onQuit();
+        case DesktopPresenceEvent.trayInstallationChanged:
+          onInstallationChanged?.call(call.arguments == true);
       }
       return null;
     });

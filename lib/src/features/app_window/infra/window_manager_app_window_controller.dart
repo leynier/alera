@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:ui';
 
 import 'package:alera/src/features/app_window/application/app_window_controller.dart';
@@ -43,17 +44,24 @@ class WindowManagerAppWindowController implements AppWindowController {
     await _manager.hide();
     // window_manager 0.5.2 dispatches macOS orderOut asynchronously, so the
     // method channel can return while isVisible is still true.
-    await _waitUntilHidden();
+    if (await _becameHidden()) {
+      return;
+    }
+    try {
+      await _manager.show();
+    } catch (_) {}
+    throw StateError('window hide did not complete');
   }
 
-  Future<void> _waitUntilHidden() async {
+  Future<bool> _becameHidden() async {
     final deadline = DateTime.now().add(const Duration(milliseconds: 500));
     while (await _manager.isVisible()) {
       if (DateTime.now().isAfter(deadline)) {
-        return;
+        return false;
       }
       await Future<void>.delayed(const Duration(milliseconds: 16));
     }
+    return true;
   }
 
   @override
