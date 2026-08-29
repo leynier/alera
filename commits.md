@@ -175,7 +175,7 @@ commit so this file remains useful after context compaction.
 | 154 | `a16db33fe586b4c44c328ffc258694813c34f083` | 2026-08-09 | fix: stabilize codex plan transitions | merged | Cherry-picked serialized plan-preview restore/selection behavior and file-change placeholder handling; Codex Chat remains intentionally disabled in GPUI. |
 | 155 | `c999d6d49b5df99eee055817cdc6ad3a9a0515cf` | 2026-08-09 | fix: align mobile codex plan states | merged | Cherry-picked mobile Codex plan working/fade states and explicit implement-plan detection; GPUI Codex Chat remains intentionally disabled. |
 | 156 | `b8ef4dd9e8a7117279a185b76d42a1e824375b11` | 2026-08-09 | fix: align mobile codex review flow | merged | Cherry-picked mobile Codex review sheet/branch lookup and runtime `codex.review.branches`; GPUI Codex Chat remains intentionally disabled. |
-| 157 | `275408b4df1d00681af62fe2568f4d6fc90ed5c5` | 2026-08-09 | fix: align mobile codex timeline parity | pending | - |
+| 157 | `275408b4df1d00681af62fe2568f4d6fc90ed5c5` | 2026-08-09 | fix: align mobile codex timeline parity | in_progress | Replaying mobile Codex timeline/turn activity projection and identity icon behavior; GPUI Codex Chat remains intentionally disabled. |
 | 158 | `88350519633b1a3318e4962ddaa084138458bd47` | 2026-08-09 | fix: refine codex recovery prompt | pending | - |
 | 159 | `d13e8547246108fa791af56f124d6fbb534e17ff` | 2026-08-09 | fix: refine codex compaction status | pending | - |
 | 160 | `cccb2b4994ae80595ef3337c3b1b4cd024dabdf6` | 2026-08-10 | fix: unblock windows app shutdown (#375) | pending | - |
