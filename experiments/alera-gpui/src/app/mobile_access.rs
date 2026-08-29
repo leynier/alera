@@ -22,6 +22,25 @@ pub(super) enum MobileEndpointMode {
     Manual,
 }
 
+#[derive(Clone, Copy, Debug, Default, Deserialize, Eq, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub(super) enum MobileNetbirdEndpoint {
+    #[default]
+    Ip,
+    Dns,
+    Interface,
+}
+
+impl MobileNetbirdEndpoint {
+    fn wire_name(self) -> &'static str {
+        match self {
+            Self::Ip => "ip",
+            Self::Dns => "dns",
+            Self::Interface => "interface",
+        }
+    }
+}
+
 impl MobileEndpointMode {
     fn from_wire(value: &str) -> Self {
         match value {
@@ -48,6 +67,8 @@ pub(super) struct MobileGatewaySettings {
     pub enabled: bool,
     pub bind_host: String,
     pub port: u16,
+    #[serde(default)]
+    pub netbird_endpoint: MobileNetbirdEndpoint,
     #[serde(default)]
     endpoint_mode: String,
 }
@@ -78,6 +99,8 @@ pub(super) struct MobileNetbirdStatus {
     pub detected: bool,
     pub connected: bool,
     pub netbird_ip: Option<String>,
+    pub dns_hostname: Option<String>,
+    pub interface_name: Option<String>,
     pub profile_name: Option<String>,
     pub management_url: Option<String>,
     pub management_kind: Option<String>,
@@ -234,6 +257,7 @@ impl AleraApp {
         &mut self,
         enabled: Option<bool>,
         mode: Option<MobileEndpointMode>,
+        netbird_endpoint: Option<MobileNetbirdEndpoint>,
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
@@ -247,7 +271,10 @@ impl AleraApp {
         if let Some(mode) = mode {
             payload.insert("endpointMode".into(), mode.wire_name().into());
         }
-        if enabled.is_none() && mode.is_none() {
+        if let Some(endpoint) = netbird_endpoint {
+            payload.insert("netbirdEndpoint".into(), endpoint.wire_name().into());
+        }
+        if enabled.is_none() && mode.is_none() && netbird_endpoint.is_none() {
             let port = match self
                 .mobile_access
                 .gateway_port_input
@@ -340,8 +367,13 @@ impl AleraApp {
             .trim()
             .to_string();
         if !endpoint.is_empty() {
-            if let Some(error) =
-                validate_pairing_endpoint(&endpoint, status.settings.enabled, status.settings.port)
+            if let Some(error) = validate_pairing_endpoint(
+                &endpoint,
+                status.settings.enabled,
+                status.settings.port,
+                status.settings.netbird_endpoint == MobileNetbirdEndpoint::Dns
+                    && status.settings.endpoint_mode == "netbird",
+            )
             {
                 self.mobile_access.error = Some(error.into());
                 cx.notify();

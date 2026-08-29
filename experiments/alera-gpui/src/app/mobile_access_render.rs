@@ -68,6 +68,7 @@ impl AleraApp {
         }
         if mode == MobileEndpointMode::Netbird {
             gateway_rows.push(self.mobile_netbird_row(status));
+            gateway_rows.push(self.mobile_netbird_endpoint_row(status, cx));
         }
         if mode == MobileEndpointMode::Manual {
             gateway_rows.push(mobile_settings_row(
@@ -104,7 +105,7 @@ impl AleraApp {
                 },
                 true,
                 cx.listener(|this, _, window, cx| {
-                    this.update_mobile_settings(None, None, window, cx);
+                    this.update_mobile_settings(None, None, None, window, cx);
                 }),
             ),
         ));
@@ -207,7 +208,7 @@ impl AleraApp {
             })
             .on_click(
                 cx.listener(move |this, _, window, cx| {
-                    this.update_mobile_settings(Some(!enabled), None, window, cx);
+                    this.update_mobile_settings(Some(!enabled), None, None, window, cx);
                     cx.stop_propagation();
                 }),
             )
@@ -264,7 +265,7 @@ impl AleraApp {
                         .cursor(CursorStyle::PointingHand)
                         .on_click(
                             cx.listener(move |this, _, window, cx| {
-                                this.update_mobile_settings(None, Some(mode), window, cx);
+                                this.update_mobile_settings(None, Some(mode), None, window, cx);
                                 cx.stop_propagation();
                             }),
                         )
@@ -328,6 +329,73 @@ impl AleraApp {
                 )
                 .child(mobile_badge(label))
                 .into_any_element(),
+        )
+    }
+
+    fn mobile_netbird_endpoint_row(
+        &self,
+        status: &MobileAccessStatus,
+        cx: &mut Context<Self>,
+    ) -> gpui::Div {
+        let selected = status.settings.netbird_endpoint;
+        let netbird = status.netbird.as_ref();
+        let mut modes = vec![(MobileNetbirdEndpoint::Ip, "IP Address".to_string())];
+        if netbird.and_then(|value| value.dns_hostname.as_ref()).is_some()
+            || selected == MobileNetbirdEndpoint::Dns
+        {
+            modes.push((MobileNetbirdEndpoint::Dns, "DNS Hostname".to_string()));
+        }
+        if let Some(interface) = netbird.and_then(|value| value.interface_name.clone()) {
+            modes.push((
+                MobileNetbirdEndpoint::Interface,
+                format!("Interface ({interface})"),
+            ));
+        } else if selected == MobileNetbirdEndpoint::Interface {
+            modes.push((
+                MobileNetbirdEndpoint::Interface,
+                "Private Interface".to_string(),
+            ));
+        }
+        mobile_settings_row_width(
+            "NetBird Endpoint",
+            "Address included in new pairing offers.",
+            360.0,
+            div()
+                .flex()
+                .h(px(34.0))
+                .rounded_lg()
+                .border_1()
+                .border_color(theme::border())
+                .overflow_hidden()
+                .children(modes.into_iter().enumerate().map(|(index, (mode, label))| {
+                    div()
+                        .id(("mobile-netbird-endpoint", index))
+                        .focusable()
+                        .tab_stop(!self.mobile_access.busy)
+                        .role(Role::RadioButton)
+                        .aria_label(label.clone())
+                        .aria_selected(mode == selected)
+                        .flex()
+                        .items_center()
+                        .justify_center()
+                        .flex_1()
+                        .px_2()
+                        .when(mode == selected, |item| {
+                            item.bg(theme::surface_raised()).text_color(theme::text())
+                        })
+                        .when(mode != selected, |item| item.text_color(theme::text_muted()))
+                        .cursor(CursorStyle::PointingHand)
+                        .on_click(cx.listener(move |this, _, window, cx| {
+                            this.update_mobile_settings(
+                                None,
+                                None,
+                                Some(mode),
+                                window,
+                                cx,
+                            );
+                        }))
+                        .child(label)
+                })),
         )
     }
 

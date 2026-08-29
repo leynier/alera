@@ -67,7 +67,12 @@ pub(super) fn is_loopback_host(value: &str) -> bool {
     value == "localhost" || value == "::1" || value.starts_with("127.")
 }
 
-fn validate_pairing_endpoint(endpoint: &str, enabled: bool, gateway_port: u16) -> Option<String> {
+fn validate_pairing_endpoint(
+    endpoint: &str,
+    enabled: bool,
+    gateway_port: u16,
+    netbird_dns: bool,
+) -> Option<String> {
     let Some((scheme, authority)) = endpoint.trim().split_once("://") else {
         return Some("Endpoint Must Be A ws:// Or wss:// URL With An Explicit Port".into());
     };
@@ -101,6 +106,7 @@ fn validate_pairing_endpoint(endpoint: &str, enabled: bool, gateway_port: u16) -
     if scheme.eq_ignore_ascii_case("ws")
         && !is_loopback_host(&host)
         && !is_private_overlay_host(&host)
+        && !(netbird_dns && is_dns_hostname(&host))
     {
         return Some("Endpoints Outside Loopback Or A Private Overlay Must Use wss://".into());
     }
@@ -110,6 +116,18 @@ fn validate_pairing_endpoint(endpoint: &str, enabled: bool, gateway_port: u16) -
         ));
     }
     None
+}
+
+fn is_dns_hostname(value: &str) -> bool {
+    let value = value.trim().trim_matches(['[', ']']);
+    !value.is_empty()
+        && !value.contains(':')
+        && value.contains('.')
+        && !value.starts_with('.')
+        && !value.ends_with('.')
+        && value
+            .chars()
+            .all(|character| character.is_ascii_alphanumeric() || matches!(character, '-' | '.'))
 }
 
 fn is_private_overlay_host(value: &str) -> bool {
@@ -130,11 +148,11 @@ mod tests {
 
     #[test]
     fn endpoint_validation_matches_mobile_pairing_rules() {
-        assert!(validate_pairing_endpoint("ws://127.0.0.1:6768", true, 6768).is_none());
-        assert!(validate_pairing_endpoint("wss://example.com:443", true, 6768).is_none());
-        assert!(validate_pairing_endpoint("https://example.com:443", true, 6768).is_some());
-        assert!(validate_pairing_endpoint("ws://example.com:6768", true, 6768).is_some());
-        assert!(validate_pairing_endpoint("ws://127.0.0.1:9999", true, 6768).is_some());
+        assert!(validate_pairing_endpoint("ws://127.0.0.1:6768", true, 6768, false).is_none());
+        assert!(validate_pairing_endpoint("wss://example.com:443", true, 6768, false).is_none());
+        assert!(validate_pairing_endpoint("https://example.com:443", true, 6768, false).is_some());
+        assert!(validate_pairing_endpoint("ws://example.com:6768", true, 6768, false).is_some());
+        assert!(validate_pairing_endpoint("ws://127.0.0.1:9999", true, 6768, false).is_some());
     }
 
     #[test]
