@@ -256,7 +256,7 @@ commit so this file remains useful after context compaction.
 | 235 | `5391b7b6317fbbf5ae8992de01a5438adb663ac3` | 2026-08-14 | feat: add browser annotations to codex chat (#409) | merged | Cherry-picked browser annotation/Codex message contracts; no GPUI adaptation was made because Codex Chat remains explicitly unsupported. |
 | 236 | `85508b6bab2fc6004b68351f902a57edf83f9bde` | 2026-08-14 | feat: expand ai dictation workflows (#417) | merged | Cherry-picked expanded dictation/model/system/runtime workflows and speech-message capability. GPUI microphone capture remains a documented parity gap to close after the source replay. |
 | 237 | `2aa26947cca0361a96f45a10b72d66551ca9eec2` | 2026-08-14 | release: v0.60.0 v0.24.0-mobile | merged | Cherry-picked Flutter/mobile release metadata; no GPUI UI surface is affected. |
-| 238 | `ddf81f7afd0d34833433f1698bb6fbc7287ec7f5` | 2026-08-14 | fix: set file modes with a syscall instead of a chmod process (#419) | pending | - |
+| 238 | `ddf81f7afd0d34833433f1698bb6fbc7287ec7f5` | 2026-08-14 | fix: set file modes with a syscall instead of a chmod process (#419) | in progress | Cherry-picking native file mode handling; no GPUI UI surface is affected. |
 | 239 | `2486e4259685c600988b7167f3d767b178cd9e1f` | 2026-08-14 | fix: hydrate the login shell through the rust process runner (#420) | pending | - |
 | 240 | `1134f8dce4638c88ebb83d1030d76e69b34747af` | 2026-08-14 | fix: read the macos keychain through the rust process runner (#421) | pending | - |
 | 241 | `29e9765f2641388d546c1274c37741f6c1cbb77f` | 2026-08-14 | test: forbid dart:io process spawns in the app (#422) | pending | - |
