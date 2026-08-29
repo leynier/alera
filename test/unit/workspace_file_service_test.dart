@@ -37,6 +37,55 @@ void main() {
       },
     );
 
+    test('releases a path notifier once nothing references its path', () {
+      final registry = EditorSessionRegistry();
+      registry
+          .documentFor('tab-1')
+          .attachFile(
+            workspacePath: '/repo/alera',
+            relativePath: 'docs/readme.md',
+          );
+      final notifier = registry.documentChangesForPath(
+        workspacePath: '/repo/alera',
+        relativePath: 'docs/readme.md',
+      );
+
+      registry.forget('tab-1');
+
+      // A rebuilt viewer obtains a fresh notifier: the old one was dropped
+      // instead of accumulating one entry per file ever opened.
+      final next = registry.documentChangesForPath(
+        workspacePath: '/repo/alera',
+        relativePath: 'docs/readme.md',
+      );
+      expect(identical(next, notifier), isFalse);
+    });
+
+    test('keeps a path notifier alive while a viewer is listening', () {
+      final registry = EditorSessionRegistry();
+      registry
+          .documentFor('tab-1')
+          .attachFile(
+            workspacePath: '/repo/alera',
+            relativePath: 'docs/readme.md',
+          );
+      final notifier = registry.documentChangesForPath(
+        workspacePath: '/repo/alera',
+        relativePath: 'docs/readme.md',
+      );
+      void listener() {}
+      notifier.addListener(listener);
+
+      registry.forget('tab-1');
+
+      final next = registry.documentChangesForPath(
+        workspacePath: '/repo/alera',
+        relativePath: 'docs/readme.md',
+      );
+      expect(identical(next, notifier), isTrue);
+      notifier.removeListener(listener);
+    });
+
     test('load errors clear dirty and saveable document state', () {
       final registry = EditorSessionRegistry();
       final document = registry.documentFor('tab-1')

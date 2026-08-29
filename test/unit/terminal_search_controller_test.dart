@@ -88,6 +88,29 @@ void main() {
     expect(controller.needsFullRefreshForTesting, isFalse);
   });
 
+  test('releases the match index when the overlay closes', () {
+    final terminal = _terminal()..write('needle\r\nother needle');
+    final controller = TerminalSearchController(
+      terminal: terminal,
+      scrollToLine: (_) {},
+    );
+    addTearDown(controller.dispose);
+
+    controller.open();
+    controller.setQuery('needle');
+    expect(controller.matchCount, 2);
+
+    // Matches are one entry per scrollback hit; keeping them while the
+    // overlay is hidden retains memory nobody can see.
+    controller.close();
+    expect(controller.matchCount, 0);
+    expect(controller.selectedMatch, isNull);
+
+    // Reopening rescans with the kept query, so nothing is lost.
+    controller.open();
+    expect(controller.matchCount, 2);
+  });
+
   test('rechecks output that arrived while the overlay was closed', () {
     final terminal = _terminal()..write('first');
     final controller = TerminalSearchController(

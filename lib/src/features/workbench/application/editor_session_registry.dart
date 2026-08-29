@@ -9,8 +9,8 @@ class EditorSessionRegistry extends ChangeNotifier {
       <String, _EditorDocumentPath>{};
   final Map<_EditorDocumentPath, Set<String>> _tabIdsByPath =
       <_EditorDocumentPath, Set<String>>{};
-  final Map<_EditorDocumentPath, ChangeNotifier> _pathNotifiers =
-      <_EditorDocumentPath, ChangeNotifier>{};
+  final Map<_EditorDocumentPath, _EditorPathChangeNotifier> _pathNotifiers =
+      <_EditorDocumentPath, _EditorPathChangeNotifier>{};
 
   EditorDocumentSession documentFor(String tabId) {
     return _documents.putIfAbsent(
@@ -24,7 +24,7 @@ class EditorSessionRegistry extends ChangeNotifier {
     required String relativePath,
   }) {
     final path = _EditorDocumentPath(workspacePath, relativePath);
-    return _pathNotifiers.putIfAbsent(path, ChangeNotifier.new);
+    return _pathNotifiers.putIfAbsent(path, _EditorPathChangeNotifier.new);
   }
 
   void register(String tabId, EditorSessionHandle handle) {
@@ -210,10 +210,27 @@ class EditorSessionRegistry extends ChangeNotifier {
         _tabIdsByPath.remove(path);
       }
       _pathNotifiers[path]?.notifyListeners();
+      _maybeReleasePathNotifier(path);
     }
     if (hadSession || hadDocument) {
       notifyListeners();
     }
+  }
+
+  /// Drops a path notifier once nothing references its path anymore.
+  ///
+  /// Without this the map grows with every file ever opened for the lifetime
+  /// of the session. A notifier still held by a mounted viewer keeps its
+  /// listeners, so it stays; a rebuilt viewer obtains a fresh one through
+  /// [documentChangesForPath].
+  void _maybeReleasePathNotifier(_EditorDocumentPath path) {
+    final notifier = _pathNotifiers[path];
+    if (notifier == null ||
+        notifier.hasActiveListeners ||
+        _tabIdsByPath.containsKey(path)) {
+      return;
+    }
+    _pathNotifiers.remove(path);
   }
 
   void _documentChanged(String tabId) {
@@ -235,6 +252,7 @@ class EditorSessionRegistry extends ChangeNotifier {
           _tabIdsByPath.remove(previousPath);
         }
         _pathNotifiers[previousPath]?.notifyListeners();
+        _maybeReleasePathNotifier(previousPath);
       }
       if (nextPath != null) {
         _pathByTabId[tabId] = nextPath;
@@ -263,6 +281,12 @@ class EditorSessionRegistry extends ChangeNotifier {
     }
     return '$newPath/${path.substring(prefix.length)}';
   }
+}
+
+/// Exposes the protected listener count so the registry can drop notifiers
+/// nobody references anymore.
+class _EditorPathChangeNotifier extends ChangeNotifier {
+  bool get hasActiveListeners => hasListeners;
 }
 
 class _EditorDocumentPath {

@@ -70,8 +70,13 @@ final class TerminalSearchController extends ChangeNotifier {
     }
     _isOpen = false;
     // Keep the query for the next invocation, but make reopening authoritative
-    // after output that arrived while the overlay was hidden.
+    // after output that arrived while the overlay was hidden. The match index
+    // is released because reopening rescans anyway; keeping it would retain
+    // one entry per scrollback hit while nobody can see them.
     _needsFullRefresh = true;
+    _matchesByLine.clear();
+    _matches = const <TerminalSearchMatch>[];
+    _selectedIndex = -1;
     notifyListeners();
   }
 
