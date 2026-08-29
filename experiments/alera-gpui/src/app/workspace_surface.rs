@@ -262,31 +262,33 @@ impl AleraApp {
         };
         if !self.editor_inputs.is_empty() {
             let path = path.to_owned();
-            self._subscriptions.push(cx.subscribe_in(
+            let subscribed_path = path.clone();
+            let subscription = cx.subscribe_in(
                 &input,
                 window,
                 move |this, input, event: &InputEvent, _, cx| {
                     if matches!(event, InputEvent::Focus) {
-                        this.activate_editor_path_on_focus(&path, cx);
+                        this.activate_editor_path_on_focus(&subscribed_path, cx);
                         return;
                     }
                     if !matches!(event, InputEvent::Change)
                         || this.editor_input_syncing
                         || this.editor_document.is_none()
-                        || this.opened_file_path.as_deref() != Some(path.as_str())
+                        || this.opened_file_path.as_deref() != Some(subscribed_path.as_str())
                     {
                         return;
                     }
                     let content = input.read(cx).value().to_string();
                     this.editor_buffer_text
-                        .insert(path.clone(), content.clone());
-                    this.cache_markdown_preview_content(&path, &content);
-                    this.editor_dirty_paths.insert(path.clone());
+                        .insert(subscribed_path.clone(), content.clone());
+                    this.cache_markdown_preview_content(&subscribed_path, &content);
+                    this.editor_dirty_paths.insert(subscribed_path.clone());
                     this.editor_dirty = true;
                     this.schedule_editor_autosave(cx);
                     cx.notify();
                 },
-            ));
+            );
+            self.editor_input_subscriptions.insert(path, subscription);
         }
         self.editor_inputs.insert(path.to_owned(), input.clone());
         input
@@ -353,12 +355,18 @@ impl AleraApp {
         self.cancel_active_workspace_search(cx);
         self.search_generation += 1;
         self.git_generation += 1;
+        self.forge_generation = self.forge_generation.wrapping_add(1);
+        self.agent_canvas_generation = self.agent_canvas_generation.wrapping_add(1);
         self.explorer_generation += 1;
         self.editor_generation += 1;
         self.editor_autosave_generation = self.editor_autosave_generation.wrapping_add(1);
         self.search_busy = false;
         self.search_replacing = false;
         self.git_busy = false;
+        self.forge_busy = false;
+        self.forge_ai_operation_id = None;
+        self.forge_ai_busy = false;
+        self.forge_ai_hovered = false;
         self.explorer_busy = false;
         self.editor_busy = false;
         self.explorer_watch_generation = self.explorer_watch_generation.wrapping_add(1);
@@ -384,6 +392,7 @@ impl AleraApp {
         self.terminal_scrollbar_drag = None;
         self.terminal_scrollbar_last_activity.clear();
         self.editor_document = None;
+        self.editor_input_subscriptions.clear();
         self.editor_inputs.clear();
         self.editor_documents.clear();
         self.editor_load_error_paths.clear();
@@ -419,14 +428,29 @@ impl AleraApp {
         self.source_change_context_menu = None;
         self.source_change_menu_previous_focus = None;
         self.forge_snapshot = Default::default();
+        self.forge_error = None;
+        self.forge_form_error = None;
         self.forge_review_action = None;
         self.forge_review_action_menu_open = false;
         self.forge_review_confirmation = None;
         self.forge_review_editing = false;
+        self.forge_stack_editing = false;
+        self.forge_stack_workspace_editing = false;
+        self.forge_stack_selected_workspace_ids.clear();
         self.forge_review_base_menu_open = false;
         self.forge_comment_composing = false;
         self.forge_expanded_checks.clear();
         self.forge_collapsed_check_groups.clear();
+        self.forge_base_menu_open = false;
+        self.forge_create_menu_open = false;
+        self.forge_create_draft = false;
+        self.forge_link_form_open = false;
+        self.forge_comment_saving_ids.clear();
+        self.agent_canvas_loading = false;
+        self.agent_canvas_error = None;
+        self.agent_canvas_values.clear();
+        self.agent_canvas_selected_id = None;
+        self.agent_canvas_busy = false;
         self.local_message = None;
         // Toasts are scoped to the workspace interaction that produced them.
         // Do not carry a stale filesystem error into the next workspace while

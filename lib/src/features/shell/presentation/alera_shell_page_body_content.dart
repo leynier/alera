@@ -118,7 +118,7 @@ extension _AleraShellPageBodyContent on _AleraShellPageBodyState {
               return;
             }
             final closingTab = _workspaceTabById(tabs, tabId);
-            terminalRuntime.closeTab(tabId);
+            // The controller disposes the terminal handle and editor document.
             await controller.closeWorkspaceTab(
               workspace: workspace,
               tabId: tabId,
@@ -126,7 +126,6 @@ extension _AleraShellPageBodyContent on _AleraShellPageBodyState {
             if (closingTab?.kind == WorkspaceTabKind.browser) {
               await ref.read(browserSessionRegistryProvider).closePage(tabId);
             }
-            ref.read(editorSessionRegistryProvider).forget(tabId);
           },
           onCloseTabs: (tabIds) async {
             if (!await _confirmCloseDirtyTabs(tabs, tabIds)) {
@@ -138,9 +137,8 @@ extension _AleraShellPageBodyContent on _AleraShellPageBodyState {
                     WorkspaceTabKind.browser)
                   tabId,
             ];
-            for (final tabId in tabIds) {
-              terminalRuntime.closeTab(tabId);
-            }
+            // The controller disposes the terminal handles and editor
+            // documents.
             await controller.closeWorkspaceTabs(
               workspace: workspace,
               tabIds: tabIds,
@@ -149,10 +147,6 @@ extension _AleraShellPageBodyContent on _AleraShellPageBodyState {
               for (final tabId in browserTabIds)
                 ref.read(browserSessionRegistryProvider).closePage(tabId),
             ]);
-            final registry = ref.read(editorSessionRegistryProvider);
-            for (final tabId in tabIds) {
-              registry.forget(tabId);
-            }
           },
           onRenameTab: ({required tabId, required title}) async {
             await controller.renameWorkspaceTab(tabId: tabId, title: title);

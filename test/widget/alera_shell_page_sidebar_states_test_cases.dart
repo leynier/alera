@@ -566,7 +566,7 @@ void _registerAleraShellSidebarStateTests() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
 
-    expect(harness.runtime.closedTabIds, <String>['tab-2']);
+    expect(harness.runtime.closedTabIds, isEmpty);
     expect(events.last.message, 'Bad state: close tab failed');
   });
 

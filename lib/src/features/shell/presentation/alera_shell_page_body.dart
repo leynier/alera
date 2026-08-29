@@ -425,7 +425,7 @@ Future<void> _runAgentCanvasSourceControlAction({
       if (tab == null) {
         throw StateError('The Agent Canvas terminal is no longer open.');
       }
-      terminalRuntime.closeTab(tab.id);
+      // The controller disposes the terminal handle alongside the tab record.
       await controller.closeWorkspaceTab(workspace: workspace, tabId: tab.id);
     default:
       throw StateError(

@@ -26,6 +26,7 @@ import 'package:alera/src/features/pull_requests/domain/review_stack_workspace_m
 import 'package:alera/src/features/pull_requests/domain/update_review_input.dart';
 import 'package:alera/src/features/pull_requests/domain/update_review_result.dart';
 import 'package:alera/src/features/pull_requests/domain/workspace_pull_request_scope.dart';
+import 'package:alera/src/features/workbench/application/retired_workspace_invalidation.dart';
 import 'package:alera/src/shared/infra/git/git_backend.dart';
 import 'package:alera/src/shared/infra/git/git_exception.dart';
 import 'package:alera/src/shared/infra/git/git_providers.dart';
@@ -65,6 +66,7 @@ class WorkspacePullRequestController extends _$WorkspacePullRequestController
   Future<WorkspacePullRequestState> build(
     WorkspacePullRequestScope scope,
   ) async {
+    invalidateWhenWorkspaceRetired(ref, scope.workspaceId);
     _gitBackend = ref.read(gitBackendProvider);
     _registry = ref.read(forgeProviderRegistryProvider);
     _linkedReviews = ref.read(linkedReviewRepositoryProvider);

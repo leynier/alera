@@ -204,6 +204,21 @@ abstract interface class TerminalRuntime {
 
   void closeWorkspace(String workspaceId);
 
+  /// Frees the emulator and buffers for [tabId] without terminating the PTY.
+  ///
+  /// This is the cleanup for a tab record that disappeared from persisted
+  /// state (closed by another client, or removed by a background flow): the
+  /// handle can never be reached again through [sessionFor], so keeping it
+  /// would leak the whole scrollback buffer, while terminating the PTY here
+  /// could kill a session another client still owns.
+  void releaseTab(String tabId);
+
+  /// Frees every handle of [workspaceId] without terminating the PTYs.
+  ///
+  /// See [releaseTab] for when release is the right call instead of
+  /// [closeWorkspace].
+  void releaseWorkspace(String workspaceId);
+
   void dispose();
 }
 

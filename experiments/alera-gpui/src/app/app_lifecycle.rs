@@ -450,7 +450,22 @@ impl AleraApp {
                                         .map(|workspace| workspace.path.as_str())
                             })
                             .unwrap_or(true);
+                        let next_tab_ids = snapshot
+                            .tabs
+                            .iter()
+                            .map(|tab| tab.id.as_str())
+                            .collect::<std::collections::BTreeSet<_>>();
+                        let retired_tabs = this
+                            .snapshot
+                            .tabs
+                            .iter()
+                            .filter(|tab| !next_tab_ids.contains(tab.id.as_str()))
+                            .cloned()
+                            .collect::<Vec<_>>();
                         this.snapshot = snapshot;
+                        if !retired_tabs.is_empty() {
+                            this.release_closed_tab_state(&retired_tabs, cx);
+                        }
                         this.prune_worktree_navigation_history();
                         this.open_pending_workspace_setup(cx);
                         // The selected workspace can change while the

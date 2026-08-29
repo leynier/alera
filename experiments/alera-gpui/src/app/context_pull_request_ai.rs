@@ -43,12 +43,13 @@ impl AleraApp {
         self.forge_form_error = None;
         self.local_message = None;
         let bridge = self.bridge.clone();
+        let request_operation_id = operation_id.clone();
         cx.spawn_in(window, async move |this, cx| {
             let result = bridge
                 .request_with_timeout(
                     "aiText.pullRequestDetails.generate",
                     json!({
-                        "operationId": operation_id,
+                        "operationId": request_operation_id,
                         "workspacePath": workspace_path,
                         "baseBranch": base_branch,
                         "headBranch": head_branch,
@@ -60,6 +61,9 @@ impl AleraApp {
                 return;
             };
             let _ = this.update_in(cx, move |this, window, cx| {
+                if this.forge_ai_operation_id.as_deref() != Some(operation_id.as_str()) {
+                    return;
+                }
                 this.forge_ai_busy = false;
                 this.forge_ai_operation_id = None;
                 match result {

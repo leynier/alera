@@ -282,7 +282,15 @@ TerminalRuntime terminalRuntime(Ref ref) {
     initialSettings: ref.read(settingsControllerProvider).terminal,
     externalUriLauncher: ref.watch(externalUriLauncherProvider),
     shellStartupPreparer: shellStartupPreparer,
-    terminalSessionCleanup: agentRuntimeOverlay.clearTerminalOverlays,
+    terminalSessionCleanup: (terminalSessionId) {
+      // A terminal closed mid-turn never emits the Codex Stop hook, so the
+      // transcript watch has to be dropped here or its file poller outlives
+      // the session.
+      ref
+          .read(agentHookReceiverProvider)
+          .clearTerminalSession(terminalSessionId);
+      return agentRuntimeOverlay.clearTerminalOverlays(terminalSessionId);
+    },
     terminalProcessCreated: (terminalSessionId) => ref
         .read(agentStatusControllerProvider.notifier)
         .clearTerminal(terminalSessionId),
@@ -354,10 +362,10 @@ void terminalRuntimeExitCoordinator(Ref ref) {
       if (event.autoCloseOnSuccess && event.exitCode != 0) {
         return;
       }
+      // The controller disposes the terminal handle alongside the tab record.
       await ref
           .read(workbenchControllerProvider.notifier)
           .closeWorkspaceTab(workspace: workspace, tabId: event.tabId);
-      runtime.closeTab(event.tabId);
     } catch (_) {
       // WorkbenchController records close failures in state; keep the tab so
       // the user is not left with a silently removed terminal on persistence errors.

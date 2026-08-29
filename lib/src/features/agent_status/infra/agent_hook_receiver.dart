@@ -92,6 +92,11 @@ class AgentHookReceiver {
     _eventSubscription = null;
   }
 
+  /// Releases per-terminal watch state once the terminal session is gone.
+  void clearTerminalSession(String terminalSessionId) {
+    _codexTranscriptStatusWatcher.clearTerminal(terminalSessionId);
+  }
+
   Future<Map<String, String>?> launchEnvironmentFor({
     required String terminalSessionId,
     required String workspaceId,

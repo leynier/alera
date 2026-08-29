@@ -37,6 +37,8 @@ impl AleraApp {
             .collect::<BTreeSet<_>>();
         self.terminal_composer_inputs
             .retain(|session_id, _| session_ids.contains(session_id));
+        self.terminal_composer_subscriptions
+            .retain(|session_id, _| session_ids.contains(session_id));
         self.terminal_composer_visible
             .retain(|session_id| session_ids.contains(session_id));
         self.terminal_composer_attachments
@@ -58,18 +60,17 @@ impl AleraApp {
                     .auto_grow(2, 6)
                     .soft_wrap(true)
             });
-            self._subscriptions.push(cx.subscribe_in(
-                &input,
-                window,
-                |_, _, event: &InputEvent, _, cx| {
+            let subscription =
+                cx.subscribe_in(&input, window, |_, _, event: &InputEvent, _, cx| {
                     if matches!(event, InputEvent::Change) {
                         cx.notify();
                     }
-                },
-            ));
+                });
             if self.settings_state.terminal_show_composer_by_default {
                 self.terminal_composer_visible.insert(session_id.clone());
             }
+            self.terminal_composer_subscriptions
+                .insert(session_id.clone(), subscription);
             self.terminal_composer_inputs.insert(session_id, input);
         }
     }

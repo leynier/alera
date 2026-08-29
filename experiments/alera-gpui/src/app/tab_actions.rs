@@ -1,4 +1,4 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
 use std::time::Duration;
 
@@ -8,10 +8,106 @@ use serde_json::json;
 use super::AleraApp;
 use crate::model::{
     WorkbenchDropZone, WorkbenchLayout, WorkbenchLayoutNode, WorkbenchPaneGroup,
-    WorkbenchSplitDirection,
+    WorkbenchSplitDirection, WorkspaceTab,
 };
 
 impl AleraApp {
+    pub(super) fn release_closed_tab_state(
+        &mut self,
+        closed_tabs: &[WorkspaceTab],
+        cx: &mut Context<Self>,
+    ) {
+        for tab in closed_tabs {
+            self.git_diff_errors.remove(&tab.id);
+            self.preview_transforms.remove(&tab.id);
+            self.tab_chip_bounds
+                .retain(|(_, tab_id), _| tab_id != &tab.id);
+            if self
+                .preview_drag
+                .as_ref()
+                .is_some_and(|drag| drag.tab_id == tab.id)
+            {
+                self.preview_drag = None;
+            }
+            self.git_diff_image_sides
+                .retain(|(owner, _), _| owner != &tab.id);
+            self.git_diff_image_loading
+                .retain(|(owner, _)| owner != &tab.id);
+            if self.git_diff_loading_tab.as_deref() == Some(tab.id.as_str()) {
+                self.git_diff_loading_tab = None;
+            }
+            if self.git_diff_loaded_tab.as_deref() == Some(tab.id.as_str()) {
+                self.git_diff_loaded_tab = None;
+            }
+            let session_id = tab
+                .payload
+                .get("terminalSessionId")
+                .and_then(|value| value.as_str())
+                .filter(|value| !value.trim().is_empty())
+                .unwrap_or(tab.id.as_str());
+            self.tab_completion_acknowledged.remove(session_id);
+        }
+
+        let retired_paths = retired_editor_paths(closed_tabs, &self.snapshot.tabs);
+        let opened_path_retired = self
+            .opened_file_path
+            .as_ref()
+            .is_some_and(|path| retired_paths.contains(path));
+        let dirty_path_retired = retired_paths
+            .iter()
+            .any(|path| self.editor_dirty_paths.contains(path));
+        for path in &retired_paths {
+            self.editor_input_subscriptions.remove(path);
+            self.editor_inputs.remove(path);
+            self.editor_documents.remove(path);
+            self.editor_load_error_paths.remove(path);
+            self.editor_error_messages.remove(path);
+            self.editor_buffer_text.remove(path);
+            self.editor_dirty_paths.remove(path);
+            self.editor_cursor_positions.remove(path);
+            self.editor_preview_assets.remove(path);
+            self.markdown_preview_content.remove(path);
+        }
+        if dirty_path_retired {
+            self.editor_autosave_generation = self.editor_autosave_generation.wrapping_add(1);
+        }
+        if self
+            .editor_loading_path
+            .as_ref()
+            .is_some_and(|path| retired_paths.contains(path))
+        {
+            self.editor_generation += 1;
+            self.editor_loading_path = None;
+            self.editor_busy = false;
+        }
+        if self
+            .pending_editor_cursor
+            .as_ref()
+            .is_some_and(|(path, _, _, _)| retired_paths.contains(path))
+        {
+            self.pending_editor_cursor = None;
+        }
+        if self
+            .file_preview_open_path
+            .as_ref()
+            .is_some_and(|path| retired_paths.contains(path))
+        {
+            self.file_preview_open_path = None;
+            self.file_preview_keep_after_open = false;
+        }
+        if opened_path_retired {
+            self.editor_document = None;
+            self.opened_file_path = None;
+            self.preview_asset = None;
+            self.show_preview = false;
+            self.editor_dirty = false;
+            self.editor_conflict = false;
+            self.editor_input_syncing = false;
+            self.sync_selected_editor_from_cache();
+        }
+        cx.notify();
+    }
+
     pub(super) fn should_keep_git_preview(&mut self, key: String) -> bool {
         let now = std::time::Instant::now();
         let keep = self.git_preview_last_key.as_deref() == Some(key.as_str())
@@ -551,7 +647,14 @@ impl AleraApp {
         {
             self.clear_pointer_tab_drag_state(cx);
         }
-        let closing_open_editor = self.snapshot.tabs.iter().any(|tab| {
+        let closing_tabs = self
+            .snapshot
+            .tabs
+            .iter()
+            .filter(|tab| tab_ids.contains(&tab.id))
+            .cloned()
+            .collect::<Vec<_>>();
+        let closing_open_editor = closing_tabs.iter().any(|tab| {
             tab_ids.contains(&tab.id)
                 && matches!(tab.kind.as_str(), "editor" | "markdownViewer")
                 && tab.payload.get("filePath").and_then(|value| value.as_str())
@@ -642,17 +745,8 @@ impl AleraApp {
                 match result {
                     Ok(()) => {
                         this.selected_tab_id = next_selected_tab_id;
-                        if closing_open_editor {
-                            this.editor_document = None;
-                            this.editor_documents.clear();
-                            this.editor_buffer_text.clear();
-                            this.editor_dirty_paths.clear();
-                            this.editor_cursor_positions.clear();
-                            this.opened_file_path = None;
-                            this.editor_preview_assets.clear();
-                            this.markdown_preview_content.clear();
-                            this.editor_dirty = false;
-                        }
+                        this.release_closed_tab_state(&closing_tabs, cx);
+                        this.ensure_selected_terminal(cx);
                         this.refresh_presence_status(cx);
                         this.refresh(cx);
                     }
@@ -1074,6 +1168,30 @@ async fn remove_tab_with_retry(
     }
 }
 
+fn retired_editor_paths(
+    closed_tabs: &[WorkspaceTab],
+    remaining_tabs: &[WorkspaceTab],
+) -> BTreeSet<String> {
+    let remaining_paths = remaining_tabs
+        .iter()
+        .filter_map(editor_cache_path)
+        .collect::<BTreeSet<_>>();
+    closed_tabs
+        .iter()
+        .filter_map(editor_cache_path)
+        .filter(|path| !remaining_paths.contains(path))
+        .map(str::to_owned)
+        .collect()
+}
+
+fn editor_cache_path(tab: &WorkspaceTab) -> Option<&str> {
+    matches!(tab.kind.as_str(), "editor" | "markdownViewer")
+        .then(|| tab.payload.get("filePath").and_then(|value| value.as_str()))
+        .flatten()
+        .map(str::trim)
+        .filter(|path| !path.is_empty())
+}
+
 fn ambiguous_tab_removal_error(error: &str) -> bool {
     let error = error.to_ascii_lowercase();
     error.contains("timed out")
@@ -1118,7 +1236,10 @@ pub(super) async fn persist_layout(
 
 #[cfg(test)]
 mod tests {
-    use super::{ambiguous_tab_removal_error, next_terminal_ordinal};
+    use serde_json::json;
+
+    use super::{ambiguous_tab_removal_error, next_terminal_ordinal, retired_editor_paths};
+    use crate::model::WorkspaceTab;
 
     #[test]
     fn terminal_ordinal_reuses_the_first_available_number() {
@@ -1143,5 +1264,34 @@ mod tests {
         assert!(!ambiguous_tab_removal_error(
             "Tab removal was rejected by policy."
         ));
+    }
+
+    #[test]
+    fn closed_editor_paths_are_retired_only_after_the_last_tab() {
+        let source = editor_tab("source", "editor", "README.md");
+        let preview = editor_tab("preview", "markdownViewer", "README.md");
+        let other = editor_tab("other", "editor", "src/main.rs");
+
+        assert!(retired_editor_paths(
+            std::slice::from_ref(&source),
+            &[preview.clone(), other.clone()]
+        )
+        .is_empty());
+        assert_eq!(
+            retired_editor_paths(&[source, preview], &[other]),
+            ["README.md".to_owned()].into_iter().collect()
+        );
+    }
+
+    fn editor_tab(id: &str, kind: &str, path: &str) -> WorkspaceTab {
+        WorkspaceTab {
+            id: id.to_owned(),
+            workspace_id: "workspace-1".to_owned(),
+            title: path.to_owned(),
+            kind: kind.to_owned(),
+            payload: json!({"filePath": path}),
+            created_at: String::new(),
+            updated_at: String::new(),
+        }
     }
 }

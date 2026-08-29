@@ -14,7 +14,11 @@ use crate::theme;
 impl AleraApp {
     pub(super) fn refresh_agent_canvas(&mut self, cx: &mut Context<Self>) {
         let Some(workspace_id) = self.selected_workspace_id.clone() else {
+            self.agent_canvas_generation = self.agent_canvas_generation.wrapping_add(1);
+            self.agent_canvas_loading = false;
+            self.agent_canvas_busy = false;
             self.agent_canvas_values.clear();
+            self.agent_canvas_selected_id = None;
             self.agent_canvas_error = None;
             cx.notify();
             return;
@@ -22,6 +26,8 @@ impl AleraApp {
         if self.agent_canvas_loading {
             return;
         }
+        self.agent_canvas_generation = self.agent_canvas_generation.wrapping_add(1);
+        let generation = self.agent_canvas_generation;
         self.agent_canvas_loading = true;
         self.agent_canvas_error = None;
         let bridge = self.bridge.clone();
@@ -30,10 +36,15 @@ impl AleraApp {
             let catalog = bridge
                 .request(
                     "agentCanvas.catalog",
-                    json!({"workspaceId": workspace_id, "includeHistory": true}),
+                    json!({"workspaceId": workspace_id.clone(), "includeHistory": true}),
                 )
                 .await;
             let _ = this.update(cx, |this, cx| {
+                if generation != this.agent_canvas_generation
+                    || this.selected_workspace_id.as_deref() != Some(workspace_id.as_str())
+                {
+                    return;
+                }
                 this.agent_canvas_loading = false;
                 match capabilities {
                     Ok(value) => this.agent_canvas_capabilities = Some(value),
@@ -530,11 +541,15 @@ impl AleraApp {
             return;
         }
         self.agent_canvas_busy = true;
+        let generation = self.agent_canvas_generation;
         let bridge = self.bridge.clone();
         let request_type = request_type.to_owned();
         cx.spawn(async move |this, cx| {
             let result = bridge.request(request_type, payload).await;
             let _ = this.update(cx, |this, cx| {
+                if generation != this.agent_canvas_generation {
+                    return;
+                }
                 this.agent_canvas_busy = false;
                 if let Err(error) = result {
                     this.agent_canvas_error = Some(error.into());

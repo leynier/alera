@@ -212,6 +212,7 @@ pub struct AleraApp {
     terminal_search_input: Entity<InputState>,
     terminal_search: Option<TerminalSearchState>,
     terminal_composer_inputs: BTreeMap<String, Entity<TextareaState>>,
+    terminal_composer_subscriptions: BTreeMap<String, Subscription>,
     terminal_composer_visible: BTreeSet<String>,
     terminal_composer_menu_open: Option<String>,
     terminal_composer_attachments: BTreeMap<String, Vec<TerminalComposerAttachment>>,
@@ -273,6 +274,7 @@ pub struct AleraApp {
     codex_queued_messages: BTreeMap<String, Vec<String>>,
     #[allow(dead_code)]
     codex_collapsed_cells: BTreeSet<String>,
+    agent_canvas_generation: u64,
     agent_canvas_loading: bool,
     agent_canvas_error: Option<SharedString>,
     agent_canvas_capabilities: Option<Value>,
@@ -437,6 +439,7 @@ pub struct AleraApp {
     explorer_watch_generation: u64,
     editor_document: Option<EditorDocument>,
     editor_inputs: BTreeMap<String, Entity<EditorState>>,
+    editor_input_subscriptions: BTreeMap<String, Subscription>,
     editor_documents: BTreeMap<String, EditorDocument>,
     editor_load_error_paths: BTreeSet<String>,
     editor_error_messages: BTreeMap<String, SharedString>,

@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:alera/src/features/agent_canvas/domain/agent_canvas.dart';
 import 'package:alera/src/features/agent_canvas/infra/runtime_agent_canvas_repository.dart';
+import 'package:alera/src/features/workbench/application/retired_workspace_invalidation.dart';
 import 'package:alera/src/features/workbench/application/workbench_controller.dart';
 import 'package:alera/src/features/workbench/domain/workbench_view_prefs.dart';
 import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_protocol.dart';
@@ -20,13 +21,17 @@ RuntimeAgentCanvasRepository agentCanvasRepository(Ref ref) {
 
 @Riverpod(keepAlive: true)
 Stream<List<AgentCanvas>> agentCanvases(Ref ref, String workspaceId) {
+  invalidateWhenWorkspaceRetired(ref, workspaceId);
   return ref.watch(agentCanvasRepositoryProvider).watch(workspaceId);
 }
 
 @Riverpod(keepAlive: true)
 class AgentCanvasSelection extends _$AgentCanvasSelection {
   @override
-  String? build(String workspaceId) => null;
+  String? build(String workspaceId) {
+    invalidateWhenWorkspaceRetired(ref, workspaceId);
+    return null;
+  }
 
   void select(String terminalSessionId) {
     state = terminalSessionId;

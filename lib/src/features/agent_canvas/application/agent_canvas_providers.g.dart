@@ -114,7 +114,7 @@ final class AgentCanvasesProvider
   }
 }
 
-String _$agentCanvasesHash() => r'426715a7df66335e8d1dca96561894f5ef7493d8';
+String _$agentCanvasesHash() => r'd7e122eb93445b6fedc1113ec68b4e3f9d170907';
 
 final class AgentCanvasesFamily extends $Family
     with $FunctionalFamilyOverride<Stream<List<AgentCanvas>>, String> {
@@ -184,7 +184,7 @@ final class AgentCanvasSelectionProvider
 }
 
 String _$agentCanvasSelectionHash() =>
-    r'700c27166ef8f75d350d23b3f46c860df7f9398c';
+    r'1fe9fa2762b405dc1d37ce62d83ebfd3be62773c';
 
 final class AgentCanvasSelectionFamily extends $Family
     with

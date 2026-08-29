@@ -2,6 +2,21 @@ part of 'workbench_controller.dart';
 
 mixin _WorkbenchControllerSync
     on _$WorkbenchController, _WorkbenchControllerInternals {
+  /// Frees the live terminal handles and editor documents of a workspace that
+  /// no longer exists in persisted state.
+  ///
+  /// Release, not close: a workspace removed by the UI already terminated its
+  /// PTYs through [TerminalRuntime.closeWorkspace], and one removed by another
+  /// client may still own its sessions on the host. Either way the Dart-side
+  /// buffers are unreachable and would otherwise leak.
+  void _releaseRetiredWorkspaceSessions(String workspaceId) {
+    ref.read(terminalRuntimeProvider).releaseWorkspace(workspaceId);
+    final editorSessions = ref.read(editorSessionRegistryProvider);
+    for (final tab in state.tabsFor(workspaceId)) {
+      editorSessions.forget(tab.id);
+    }
+  }
+
   void _onProjectsChanged(List<Project> projects) {
     final validProjectIds = <String>{
       for (final project in projects) project.id,
@@ -30,6 +45,7 @@ mixin _WorkbenchControllerSync
           workspace,
           state.tabsFor(workspace.id),
         );
+        _releaseRetiredWorkspaceSessions(workspace.id);
       }
     }
     final prunedSourceControlRoots =
@@ -159,6 +175,7 @@ mixin _WorkbenchControllerSync
           state.tabsFor(workspaceId),
         );
       }
+      _releaseRetiredWorkspaceSessions(workspaceId);
     }
     for (final workspaceId in removedWorkspaceIds) {
       _tabSubs.remove(workspaceId)?.cancel();
@@ -252,6 +269,16 @@ mixin _WorkbenchControllerSync
     final workspace = _workspaceById(workspaceId);
     if (workspace != null) {
       _releaseHostedReviewTabsInBackground(workspace, removedTabs);
+    }
+    // A tab record that disappeared from persisted state can never reach its
+    // live terminal handle again, so the emulator buffer and the editor
+    // document have to go now. Release rather than close: the PTY may still
+    // belong to whichever client removed the record.
+    final runtime = ref.read(terminalRuntimeProvider);
+    final editorSessions = ref.read(editorSessionRegistryProvider);
+    for (final tab in removedTabs) {
+      runtime.releaseTab(tab.id);
+      editorSessions.forget(tab.id);
     }
     _removeMissingCodexDrafts(workspaceId, tabs);
     final nextTabs = Map<String, List<WorkspaceTabRecord>>.from(

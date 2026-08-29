@@ -202,14 +202,13 @@ class KeyboardCommandDispatcher {
           return;
         }
       }
-      ref.read(terminalRuntimeProvider).closeTab(tab.id);
+      // The controller disposes the terminal handle and editor document.
       await ref
           .read(workbenchControllerProvider.notifier)
           .closeWorkspaceTab(workspace: workspace, tabId: tab.id);
       if (tab.kind == WorkspaceTabKind.browser) {
         await ref.read(browserSessionRegistryProvider).closePage(tab.id);
       }
-      registry.forget(tab.id);
     }());
   }
 

@@ -148,10 +148,50 @@ impl AleraApp {
         for session_id in stale {
             self.terminal_sessions.remove(&session_id);
             self.terminal_frame_views.remove(&session_id);
+            self.terminal_composer_inputs.remove(&session_id);
+            self.terminal_composer_subscriptions.remove(&session_id);
+            self.terminal_composer_visible.remove(&session_id);
+            self.terminal_composer_attachments.remove(&session_id);
+            if self.terminal_composer_menu_open.as_deref() == Some(session_id.as_str()) {
+                self.terminal_composer_menu_open = None;
+            }
             self.terminal_output_dirty_sessions.remove(&session_id);
+            self.terminal_drivers.remove(&session_id);
+            self.terminal_driver_collapsed.remove(&session_id);
+            self.terminal_driver_reclaiming.remove(&session_id);
+            self.terminal_surface_bounds.remove(&session_id);
+            self.terminal_toolbar_viewport_bounds.remove(&session_id);
             self.terminal_resize_pending.remove(&session_id);
             self.terminal_resize_generation.remove(&session_id);
             self.terminal_scrollbar_last_activity.remove(&session_id);
+            if self
+                .terminal_search
+                .as_ref()
+                .is_some_and(|search| search.session_id == session_id)
+            {
+                self.terminal_search = None;
+            }
+            if self.terminal_selection_drag.as_deref() == Some(session_id.as_str()) {
+                self.terminal_selection_drag = None;
+                self.terminal_marked_text = None;
+            }
+            if self.terminal_restart_confirmation.as_deref() == Some(session_id.as_str()) {
+                self.terminal_restart_confirmation = None;
+            }
+            if self
+                .terminal_toolbar_drag
+                .as_ref()
+                .is_some_and(|drag| drag.session_id() == session_id)
+            {
+                self.terminal_toolbar_drag = None;
+            }
+            if self
+                .terminal_toolbar_menu
+                .as_ref()
+                .is_some_and(|menu| menu.session_id() == session_id)
+            {
+                self.terminal_toolbar_menu = None;
+            }
             if self
                 .terminal_pulse_dialog_session
                 .as_deref()
