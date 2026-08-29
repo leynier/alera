@@ -6,7 +6,7 @@ Lograr paridad visual, funcional e interactiva del cliente desktop GPUI frente a
 
 ## Estado actual
 
-- Fase activa: replay estricto de `main` en GPUI, completado hasta el commit inventariado #347 de 400; #348 es el siguiente.
+- Fase activa: replay estricto de `main` en GPUI, completado hasta el commit inventariado #348 de 400; #349 es el siguiente.
 - Apps de validación: cerradas después del gate #347; durante la comparación hubo exactamente una Flutter y una GPUI en la pantalla nativa, sin duplicados ni modal fatal.
 - Última evidencia: Flutter y GPUI debug se reconstruyeron con #347 y Computer Use leyó screenshots/AX frescos a 1302x768. El pipe nativo volvió a cerrarse en la primera acción incluso después de reiniciar el kernel, por lo que la interacción de preview no se declara validada. El contrato GPUI sí quedó implementado y cubierto por tres pruebas dirigidas: single-click preview por split, reemplazo del slot activo, promoción dirty/edit/doble click, título cursivo y Keep Open; PDF conserva su exclusión explícita del POC.
 - Estado del inventario operativo (37 dominios): 30 con `paridad validada`, 0 `parcial`, 0 `sin validar`, 0 `gap` y 7 `fuera de alcance`. El inventario cubre las 22 features de Flutter, las 222 superficies de presentación, los 30 contratos funcionales de `feature-matrix.md` y las 139 filas de `ui-parity-matrix.md`, además de shell, sidebar, workbench, terminal/editor/explorer, Git/PR, AI/agents, settings, mobile, orchestration, diagnostics, feedback/iconos, accesibilidad, procesos y release. El informe solicitado se envió por Telegram el 2026-08-28; no se reanudan actualizaciones automáticas.

@@ -601,7 +601,12 @@ impl AleraApp {
         if state.adapter == "claude" {
             rows.push(settings_row(
                 "CCS Profile",
-                "Leave Empty To Run Claude Directly. A Value Launches Ccs With The Profile First.",
+                concat!(
+                    "Leave empty to run Claude directly. A profile launches ccs with the ",
+                    "profile first and the same flags after it. CCS points CLAUDE_CONFIG_DIR ",
+                    "at its instance directory. Alera writes Claude status hooks into that ",
+                    "instance settings.local.json."
+                ),
                 div()
                     .w(px(220.0))
                     .child(
