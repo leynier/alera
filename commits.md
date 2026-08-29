@@ -213,7 +213,7 @@ commit so this file remains useful after context compaction.
 | 192 | `acc4d772ba03b0f27ced65cc3c4180e8129582e0` | 2026-08-11 | fix: make windows development portable (#390) | merged | Cherry-picked the cross-platform Windows PTY/process and development tooling changes, preserving the GPUI runtime's workspace cwd at the PTY boundary; no additional GPUI visual surface was needed. |
 | 193 | `464d9cca9142a952e074d7f70f63b34a6072828b` | 2026-08-11 | fix: publish desktop packages without mobile release | merged | Cherry-picked desktop-only release workflow conditions; no GPUI UI surface is affected. |
 | 194 | `182eca088f548de8fff680bfb06e1db21b9053db` | 2026-08-11 | fix: stabilize codex tab timeline and activity (#391) | merged | Cherry-picked Codex timeline/activity stabilization; GPUI intentionally receives no Codex Chat surface change. |
-| 195 | `bb8df29f619a677786ac939bdc758e28a6082a23` | 2026-08-11 | release: v0.57.1 v0.22.1-mobile | pending | - |
+| 195 | `bb8df29f619a677786ac939bdc758e28a6082a23` | 2026-08-11 | release: v0.57.1 v0.22.1-mobile | in progress | Cherry-picking Flutter/mobile version metadata; no GPUI UI surface is affected. |
 | 196 | `7724590dcc59b4c6662455ae009e07eb06b3856f` | 2026-08-11 | feat: expand dictation controls (#392) | pending | - |
 | 197 | `5cda0ff8e6a1fc1b181454cbca8d9db8fa937941` | 2026-08-11 | release: v0.58.0 | pending | - |
 | 198 | `f2096c5b243139dc381ffae6ef4e18b92f4af519` | 2026-08-11 | fix: align terminal link utf-16 spans | pending | - |
