@@ -1238,6 +1238,7 @@ impl AleraApp {
             .px_2()
             .border_b_1()
             .border_color(theme::border_subtle())
+            .child(self.render_codex_context_usage(tab_id, cx))
             .child(self.codex_choice_button(
                 tab_id,
                 "configuration",
@@ -1292,6 +1293,57 @@ impl AleraApp {
             .when(menu_open.is_some(), |header| {
                 header.child(self.render_codex_choice_menu(tab_id, menu_open.as_deref().unwrap(), cx))
             })
+            .into_any_element()
+    }
+
+    fn render_codex_context_usage(&self, tab_id: &str, cx: &mut Context<Self>) -> AnyElement {
+        let Some(snapshot) = self.codex_snapshots.get(tab_id) else {
+            return div().into_any_element();
+        };
+        let used = snapshot.get("contextUsed").and_then(Value::as_f64).unwrap_or(0.0);
+        let limit = snapshot.get("contextLimit").and_then(Value::as_f64).unwrap_or(0.0);
+        if used <= 0.0 || limit <= 0.0 {
+            return div().into_any_element();
+        }
+        let fraction = (used / limit).clamp(0.0, 1.0) as f32;
+        let percent = (fraction * 100.0).round();
+        let tab_id = tab_id.to_owned();
+        div()
+            .id("codex-context-usage")
+            .flex()
+            .items_center()
+            .gap_1()
+            .px_2()
+            .h(px(26.0))
+            .rounded_md()
+            .cursor(CursorStyle::PointingHand)
+            .tooltip(|_, cx| {
+                cx.new(|_| gpui_component::tooltip::Tooltip::new("Compact Context")).into()
+            })
+            .hover(|style| style.bg(theme::surface_raised()))
+            .on_click(cx.listener(move |this, _, _, cx| {
+                this.compact_codex_thread(tab_id.clone(), cx);
+            }))
+            .child(
+                div()
+                    .w(px(44.0))
+                    .h(px(4.0))
+                    .rounded_full()
+                    .bg(theme::surface())
+                    .child(
+                        div()
+                            .h_full()
+                            .w(gpui::relative(fraction))
+                            .rounded_full()
+                            .bg(theme::accent()),
+                    ),
+            )
+            .child(
+                div()
+                    .text_xs()
+                    .text_color(theme::text_muted())
+                    .child(format!("{percent:.0}%")),
+            )
             .into_any_element()
     }
 
