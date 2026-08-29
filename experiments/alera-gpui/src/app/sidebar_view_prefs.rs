@@ -66,6 +66,8 @@ impl AleraApp {
                         _ => crate::activity::ContextPanel::Explorer,
                     };
                     this.explorer_hide_ignored = string_field(prefs, "explorerMode") != "showAll";
+                    this.source_control_group_mode =
+                        string_field(prefs, "gitDiffGroupMode") == "unified";
                     this.forge_create_draft =
                         string_field(prefs, "pullRequestCreateAction") == "draft";
                     this.refresh_local_activity(cx);
@@ -188,6 +190,14 @@ impl AleraApp {
                 "hideIgnored"
             } else {
                 "showAll"
+            }),
+        );
+        object.insert(
+            "gitDiffGroupMode".into(),
+            json!(if self.source_control_group_mode {
+                "unified"
+            } else {
+                "byArea"
             }),
         );
         object.insert(

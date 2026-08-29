@@ -1320,6 +1320,7 @@ impl AleraApp {
             source_control_filter_input,
             source_control_filter_visible: false,
             source_control_tree_mode: false,
+            source_control_group_mode: false,
             source_control_menu_open: false,
             source_control_menu_focus: cx.focus_handle(),
             source_control_menu_previous_focus: None,

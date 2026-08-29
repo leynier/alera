@@ -450,6 +450,7 @@ pub struct AleraApp {
     source_control_filter_input: Entity<InputState>,
     source_control_filter_visible: bool,
     source_control_tree_mode: bool,
+    source_control_group_mode: bool,
     source_control_menu_open: bool,
     source_control_menu_focus: FocusHandle,
     source_control_menu_previous_focus: Option<FocusHandle>,

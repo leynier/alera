@@ -39,9 +39,13 @@ impl AleraApp {
         } else {
             ""
         };
-        let all_collapsed = ["staged", "unstaged", "untracked"]
-            .into_iter()
-            .all(|area| self.source_control_collapsed_sections.contains(area));
+        let all_collapsed = if self.source_control_group_mode {
+            self.source_control_collapsed_sections.contains("unified")
+        } else {
+            ["staged", "unstaged", "untracked"]
+                .into_iter()
+                .all(|area| self.source_control_collapsed_sections.contains(area))
+        };
         let source_busy = self.git_busy || self.git_snapshot_loading;
         let primary_enabled = !source_busy && self.git_snapshot_error.is_none();
 
@@ -115,6 +119,16 @@ impl AleraApp {
                                     AleraIcon::List
                                 } else {
                                     AleraIcon::GitBranch
+                                },
+                                false,
+                                cx,
+                            ))
+                            .child(self.source_toolbar_button(
+                                "source-group-mode",
+                                if self.source_control_group_mode {
+                                    AleraIcon::List
+                                } else {
+                                    AleraIcon::LayoutGrid
                                 },
                                 false,
                                 cx,
@@ -360,14 +374,26 @@ impl AleraApp {
                             && self.git_snapshot_error.is_none()
                             && !filtered_changes.is_empty(),
                         |content| {
-                            content.children(
-                                ["staged", "unstaged", "untracked"]
-                                    .into_iter()
-                                    .enumerate()
-                                    .filter_map(|(index, area)| {
-                                        self.source_change_group(index, area, &filtered_changes, cx)
-                                    }),
-                            )
+                            if self.source_control_group_mode {
+                                content.child(self.source_unified_change_group(
+                                    &filtered_changes,
+                                    cx,
+                                ))
+                            } else {
+                                content.children(
+                                    ["staged", "unstaged", "untracked"]
+                                        .into_iter()
+                                        .enumerate()
+                                        .filter_map(|(index, area)| {
+                                            self.source_change_group(
+                                                index,
+                                                area,
+                                                &filtered_changes,
+                                                cx,
+                                            )
+                                        }),
+                                )
+                            }
                         },
                     ),
             )
@@ -427,7 +453,11 @@ impl AleraApp {
         let enabled = self.source_toolbar_button_enabled(id);
         let button = source_icon_button_with_enabled(id, kind, selected, enabled);
         let ai_busy = self.source_commit_ai_busy;
-        let tooltip = source_toolbar_tooltip(id, ai_busy);
+        let tooltip = if id == "source-group-mode" && self.source_control_group_mode {
+            "Show All Changes"
+        } else {
+            source_toolbar_tooltip(id, ai_busy)
+        };
         let button = button
             .aria_label(tooltip)
             .when(!self.source_control_menu_open, |button| {
@@ -438,6 +468,15 @@ impl AleraApp {
                 .when(enabled, |button| {
                     button.on_click(cx.listener(|this, _, _, cx| {
                         this.source_control_tree_mode = !this.source_control_tree_mode;
+                        cx.notify();
+                    }))
+                })
+                .into_any_element(),
+            "source-group-mode" => button
+                .when(enabled, |button| {
+                    button.on_click(cx.listener(|this, _, _, cx| {
+                        this.source_control_group_mode = !this.source_control_group_mode;
+                        this.persist_sidebar_view_prefs(cx);
                         cx.notify();
                     }))
                 })
@@ -453,11 +492,20 @@ impl AleraApp {
             "source-collapse" => button
                 .when(enabled, |button| {
                     button.on_click(cx.listener(|this, _, _, cx| {
-                        let all_collapsed = ["staged", "unstaged", "untracked"]
-                            .into_iter()
-                            .all(|area| this.source_control_collapsed_sections.contains(area));
+                        let all_collapsed = if this.source_control_group_mode {
+                            this.source_control_collapsed_sections.contains("unified")
+                        } else {
+                            ["staged", "unstaged", "untracked"]
+                                .into_iter()
+                                .all(|area| {
+                                    this.source_control_collapsed_sections.contains(area)
+                                })
+                        };
                         if all_collapsed {
                             this.source_control_collapsed_sections.clear();
+                        } else if this.source_control_group_mode {
+                            this.source_control_collapsed_sections =
+                                ["unified".to_owned()].into_iter().collect();
                         } else {
                             this.source_control_collapsed_sections =
                                 ["staged", "unstaged", "untracked"]
@@ -564,6 +612,8 @@ fn source_toolbar_tooltip(id: &str, ai_busy: bool) -> &'static str {
         "source-ai-message" => "Generate Commit Message With AI",
         "source-open-all" => "Open All Changes",
         "source-view-mode" => "Toggle Tree/List View",
+        "source-group-mode" if ai_busy => "Show All Changes",
+        "source-group-mode" => "Group By Staged State",
         "source-filter" => "Filter Changes",
         "source-collapse" => "Collapse All",
         "source-refresh" => "Refresh",
