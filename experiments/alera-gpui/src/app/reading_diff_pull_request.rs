@@ -1,6 +1,6 @@
 use gpui::{
-    div, px, AnyElement, Context, InteractiveElement as _, IntoElement as _,
-    ParentElement as _, Styled as _,
+    div, px, AnyElement, Context, InteractiveElement as _, IntoElement as _, ParentElement as _,
+    Styled as _,
 };
 
 use super::forge_surface::resolve_forge_identity;
@@ -101,7 +101,7 @@ impl AleraApp {
             .into_any_element()
     }
 }
- 
+
 pub(super) fn reading_diff_review_key(workspace_id: &str, review_number: u64) -> String {
     format!("pull-request:{workspace_id}:{review_number}")
 }

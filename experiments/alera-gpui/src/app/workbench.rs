@@ -113,107 +113,114 @@ impl AleraApp {
             .px_2()
             .py_1()
             .gap_1()
-            .children(self.snapshot.tabs.iter().filter(|tab| tab.kind != "codex").enumerate().map(|(index, tab)| {
-                let tab_id = tab.id.clone();
-                let keep_preview_tab_id = tab.id.clone();
-                let close_tab_id = tab.id.clone();
-                let context_tab_id = tab.id.clone();
-                let context_group_id = self
-                    .snapshot
-                    .layout
-                    .as_ref()
-                    .map(|layout| layout.active_group_id.clone())
-                    .unwrap_or_else(|| "legacy".to_string());
-                let selected = self.selected_tab_id.as_deref() == Some(tab.id.as_str());
-                let is_preview = tab.is_preview();
-                let title = if tab.kind == "codex" {
-                    "Codex Chat".to_owned()
-                } else if selected && tab.kind == "terminal" {
-                    self.terminal_sessions
-                        .get(
-                            tab.payload
-                                .get("terminalSessionId")
-                                .and_then(serde_json::Value::as_str)
-                                .unwrap_or(&tab.id),
-                        )
-                        .and_then(|session| session.emulator.title())
-                        .unwrap_or_else(|| tab.title.clone())
-                } else {
-                    tab.title.clone()
-                };
-                div()
-                    .id(("tab", index))
-                    .flex()
-                    .items_center()
-                    .h(px(32.0))
-                    .px_3()
-                    .gap_2()
-                    .rounded_lg()
-                    .border_1()
-                    .border_color(if selected {
-                        theme::border()
-                    } else {
-                        theme::border_subtle()
-                    })
-                    .cursor(CursorStyle::PointingHand)
-                    .text_sm()
-                    .text_color(if selected {
-                        theme::text()
-                    } else {
-                        theme::text_muted()
-                    })
-                    .hover(|style| style.bg(theme::surface_raised()))
-                    .when(selected, |item| item.bg(theme::surface_raised()))
-                    .on_mouse_down(
-                        MouseButton::Left,
-                        cx.listener(move |this, event: &MouseDownEvent, _, cx| {
-                            if event.click_count >= 2 && is_preview {
-                                this.keep_preview_tab(keep_preview_tab_id.clone(), cx);
-                            }
-                            this.activate_workspace_tab(tab_id.clone(), cx);
-                        }),
-                    )
-                    .on_mouse_down(
-                        MouseButton::Right,
-                        cx.listener(move |this, event: &MouseDownEvent, window, cx| {
-                            cx.stop_propagation();
-                            this.open_tab_context_menu(
-                                context_group_id.clone(),
-                                context_tab_id.clone(),
-                                event.position,
-                                window,
-                                cx,
-                            );
-                        }),
-                    )
-                    .child(tab_kind_icon(
-                        &tab.kind,
-                        tab.payload
-                            .get("filePath")
-                            .and_then(serde_json::Value::as_str),
-                        if selected {
-                            theme::text()
+            .children(
+                self.snapshot
+                    .tabs
+                    .iter()
+                    .filter(|tab| tab.kind != "codex")
+                    .enumerate()
+                    .map(|(index, tab)| {
+                        let tab_id = tab.id.clone();
+                        let keep_preview_tab_id = tab.id.clone();
+                        let close_tab_id = tab.id.clone();
+                        let context_tab_id = tab.id.clone();
+                        let context_group_id = self
+                            .snapshot
+                            .layout
+                            .as_ref()
+                            .map(|layout| layout.active_group_id.clone())
+                            .unwrap_or_else(|| "legacy".to_string());
+                        let selected = self.selected_tab_id.as_deref() == Some(tab.id.as_str());
+                        let is_preview = tab.is_preview();
+                        let title = if tab.kind == "codex" {
+                            "Codex Chat".to_owned()
+                        } else if selected && tab.kind == "terminal" {
+                            self.terminal_sessions
+                                .get(
+                                    tab.payload
+                                        .get("terminalSessionId")
+                                        .and_then(serde_json::Value::as_str)
+                                        .unwrap_or(&tab.id),
+                                )
+                                .and_then(|session| session.emulator.title())
+                                .unwrap_or_else(|| tab.title.clone())
                         } else {
-                            theme::text_muted()
-                        },
-                    ))
-                    .child(div().when(is_preview, |title| title.italic()).child(title))
-                    .child(
+                            tab.title.clone()
+                        };
                         div()
-                            .id(("close-tab", index))
-                            .text_xs()
-                            .text_color(theme::text_muted())
-                            .hover(|style| style.text_color(theme::text()))
+                            .id(("tab", index))
+                            .flex()
+                            .items_center()
+                            .h(px(32.0))
+                            .px_3()
+                            .gap_2()
+                            .rounded_lg()
+                            .border_1()
+                            .border_color(if selected {
+                                theme::border()
+                            } else {
+                                theme::border_subtle()
+                            })
+                            .cursor(CursorStyle::PointingHand)
+                            .text_sm()
+                            .text_color(if selected {
+                                theme::text()
+                            } else {
+                                theme::text_muted()
+                            })
+                            .hover(|style| style.bg(theme::surface_raised()))
+                            .when(selected, |item| item.bg(theme::surface_raised()))
                             .on_mouse_down(
                                 MouseButton::Left,
-                                cx.listener(move |this, _: &MouseDownEvent, _, cx| {
-                                    cx.stop_propagation();
-                                    this.request_close_tab(close_tab_id.clone(), cx);
+                                cx.listener(move |this, event: &MouseDownEvent, _, cx| {
+                                    if event.click_count >= 2 && is_preview {
+                                        this.keep_preview_tab(keep_preview_tab_id.clone(), cx);
+                                    }
+                                    this.activate_workspace_tab(tab_id.clone(), cx);
                                 }),
                             )
-                            .child(icon(AleraIcon::Close, 14.0, theme::text_muted())),
-                    )
-            }))
+                            .on_mouse_down(
+                                MouseButton::Right,
+                                cx.listener(move |this, event: &MouseDownEvent, window, cx| {
+                                    cx.stop_propagation();
+                                    this.open_tab_context_menu(
+                                        context_group_id.clone(),
+                                        context_tab_id.clone(),
+                                        event.position,
+                                        window,
+                                        cx,
+                                    );
+                                }),
+                            )
+                            .child(tab_kind_icon(
+                                &tab.kind,
+                                tab.payload
+                                    .get("filePath")
+                                    .and_then(serde_json::Value::as_str),
+                                if selected {
+                                    theme::text()
+                                } else {
+                                    theme::text_muted()
+                                },
+                            ))
+                            .child(div().when(is_preview, |title| title.italic()).child(title))
+                            .child(
+                                div()
+                                    .id(("close-tab", index))
+                                    .text_xs()
+                                    .text_color(theme::text_muted())
+                                    .hover(|style| style.text_color(theme::text()))
+                                    .on_mouse_down(
+                                        MouseButton::Left,
+                                        cx.listener(move |this, _: &MouseDownEvent, _, cx| {
+                                            cx.stop_propagation();
+                                            this.request_close_tab(close_tab_id.clone(), cx);
+                                        }),
+                                    )
+                                    .child(icon(AleraIcon::Close, 14.0, theme::text_muted())),
+                            )
+                    }),
+            )
             .child(
                 div()
                     .id("new-terminal-tab")

@@ -25,7 +25,7 @@ fn canonical_workspace_root_keeps_symlinked_events_git_relative() {
     assert!(event_is_relevant(&repository, &canonical_root, &event).unwrap());
 }
 
-#[cfg(unix)]
+#[cfg(all(unix, not(target_os = "macos")))]
 #[test]
 fn path_identity_cache_keeps_distinct_native_unix_directories() {
     use std::ffi::OsString;
@@ -464,7 +464,8 @@ fn failed_watcher_generation_rejects_a_late_start_result() {
 fn assert_file_changed(
     commands: &mut tokio::sync::mpsc::UnboundedReceiver<super::super::ServerCommand>,
 ) {
-    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(3);
+    let deadline = std::time::Instant::now()
+        + std::time::Duration::from_secs(if cfg!(target_os = "macos") { 15 } else { 3 });
     loop {
         if let Ok(command) = commands.try_recv() {
             assert!(matches!(

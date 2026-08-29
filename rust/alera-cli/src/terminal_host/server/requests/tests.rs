@@ -136,7 +136,6 @@ async fn stale_codex_tab_removal_does_not_depend_on_remote_cleanup() {
         .is_none());
 }
 
-
 #[tokio::test]
 async fn authenticated_mobile_client_can_request_a_safe_runtime_restart() {
     let dir = tempfile::tempdir().unwrap();

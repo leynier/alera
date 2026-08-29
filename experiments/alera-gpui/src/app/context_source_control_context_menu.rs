@@ -73,10 +73,7 @@ impl AleraApp {
         cx.notify();
     }
 
-    pub(super) fn render_source_change_context_menu(
-        &self,
-        cx: &mut Context<Self>,
-    ) -> AnyElement {
+    pub(super) fn render_source_change_context_menu(&self, cx: &mut Context<Self>) -> AnyElement {
         let entries = self.source_change_context_entries();
         div()
             .id("source-change-context-menu")

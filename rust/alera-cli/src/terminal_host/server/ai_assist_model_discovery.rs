@@ -53,9 +53,8 @@ impl ServerActor {
         payload: &Value,
     ) -> HostResult<()> {
         let agent = required_non_blank(payload, "agent")?.to_ascii_lowercase();
-        let spec = discovery_spec(&agent).ok_or_else(|| {
-            HostError::format(format!("{agent} does not support AI Assist."))
-        })?;
+        let spec = discovery_spec(&agent)
+            .ok_or_else(|| HostError::format(format!("{agent} does not support AI Assist.")))?;
         let inbox = self.inbox.clone();
         tokio::spawn(async move {
             let result = Ok(discover_models(spec).await);

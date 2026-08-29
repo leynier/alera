@@ -174,11 +174,17 @@ class _CodexTranscriptWatch {
   }
 
   Future<void> _scanOnce() async {
+    if (!_pollingScanAllowed) {
+      return;
+    }
     final file = File(transcriptPath);
     int length;
     try {
       length = await file.length();
     } catch (_) {
+      return;
+    }
+    if (!_pollingScanAllowed) {
       return;
     }
     if (length <= _offset) {
@@ -191,6 +197,9 @@ class _CodexTranscriptWatch {
       handle = await file.open();
       await handle.setPosition(_offset);
       final bytes = await handle.read(length - _offset);
+      if (!_pollingScanAllowed) {
+        return;
+      }
       _offset = length;
       final text = _partialLine + utf8.decode(bytes, allowMalformed: true);
       final lines = text.split('\n');
@@ -209,6 +218,9 @@ class _CodexTranscriptWatch {
       _finishInitialScanIfNeeded();
     }
   }
+
+  bool get _pollingScanAllowed =>
+      !_disposed && (!_polling || appForeground.isForeground);
 
   void _finishInitialScanIfNeeded() {
     if (!_initialScan) {

@@ -58,7 +58,11 @@ impl AleraApp {
                 }
                 if enabled && !status.active {
                     this.local_message = Some(
-                        match status.error.as_deref().filter(|error| !error.trim().is_empty()) {
+                        match status
+                            .error
+                            .as_deref()
+                            .filter(|error| !error.trim().is_empty())
+                        {
                             Some(error) => {
                                 format!("Could not keep this computer awake. {error}").into()
                             }

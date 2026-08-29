@@ -1,8 +1,7 @@
 use gpui::{
     div, prelude::FluentBuilder as _, px, relative, AppContext as _, Context, CursorStyle,
     InteractiveElement as _, IntoElement, MouseDownEvent, MouseMoveEvent, MouseUpEvent,
-    ParentElement as _, Role,
-    StatefulInteractiveElement as _, Styled as _,
+    ParentElement as _, Role, StatefulInteractiveElement as _, Styled as _,
 };
 use gpui_component::tooltip::Tooltip;
 
@@ -20,9 +19,7 @@ impl AleraApp {
     ) {
         let initial_width = match target {
             SettingsMasterResizeTarget::Projects => self.settings_project_master_width,
-            SettingsMasterResizeTarget::AgentProfiles => {
-                self.settings_agent_profiles_master_width
-            }
+            SettingsMasterResizeTarget::AgentProfiles => self.settings_agent_profiles_master_width,
             SettingsMasterResizeTarget::TextActions => self.settings_text_actions_master_width,
         };
         self.settings_master_resize = Some(SettingsMasterResizeState {
@@ -54,7 +51,9 @@ impl AleraApp {
             SettingsMasterResizeTarget::AgentProfiles => {
                 self.settings_agent_profiles_master_width = width
             }
-            SettingsMasterResizeTarget::TextActions => self.settings_text_actions_master_width = width,
+            SettingsMasterResizeTarget::TextActions => {
+                self.settings_text_actions_master_width = width
+            }
         }
         cx.notify();
     }

@@ -282,12 +282,11 @@ impl AleraApp {
                                 .is_some()
                             {
                                 if let Some(bytes) = restored_bytes {
-                                    restore_generation = Some(
-                                        session.begin_restore_at_dimensions(
+                                    restore_generation =
+                                        Some(session.begin_restore_at_dimensions(
                                             bytes,
                                             snapshot_dimensions,
-                                        ),
-                                    );
+                                        ));
                                 }
                             }
                         }
@@ -298,11 +297,7 @@ impl AleraApp {
                     }
                     if attach_succeeded {
                         if let Some(command) = command_startup {
-                            this.schedule_command_terminal_startup(
-                                session_id.clone(),
-                                command,
-                                cx,
-                            );
+                            this.schedule_command_terminal_startup(session_id.clone(), command, cx);
                         }
                     }
                     cx.notify();
@@ -377,19 +372,21 @@ impl AleraApp {
         let Some(workspace) = self.snapshot.workspace(workspace_id) else {
             return contexts;
         };
-        contexts.extend(self.snapshot
-            .tabs
-            .iter()
-            .filter(|tab| tab.kind == "terminal")
-            .map(|tab| {
-                (
-                    terminal_session_id(tab).to_string(),
-                    workspace.id.clone(),
-                    tab.id.clone(),
-                    workspace.path.clone(),
-                )
-            })
-            .collect::<Vec<_>>());
+        contexts.extend(
+            self.snapshot
+                .tabs
+                .iter()
+                .filter(|tab| tab.kind == "terminal")
+                .map(|tab| {
+                    (
+                        terminal_session_id(tab).to_string(),
+                        workspace.id.clone(),
+                        tab.id.clone(),
+                        workspace.path.clone(),
+                    )
+                })
+                .collect::<Vec<_>>(),
+        );
         contexts
     }
 
@@ -467,11 +464,7 @@ impl AleraApp {
         })
     }
 
-    pub(super) fn open_terminal_search(
-        &mut self,
-        window: &mut Window,
-        cx: &mut Context<Self>,
-    ) {
+    pub(super) fn open_terminal_search(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         let Some(session_id) = self.selected_terminal_session_id() else {
             return;
         };
@@ -505,11 +498,7 @@ impl AleraApp {
         cx.notify();
     }
 
-    pub(super) fn update_terminal_search_query(
-        &mut self,
-        query: String,
-        cx: &mut Context<Self>,
-    ) {
+    pub(super) fn update_terminal_search_query(&mut self, query: String, cx: &mut Context<Self>) {
         let Some(search) = self.terminal_search.as_ref() else {
             return;
         };
@@ -570,11 +559,7 @@ impl AleraApp {
         cx.notify();
     }
 
-    pub(super) fn close_terminal_search(
-        &mut self,
-        window: &mut Window,
-        cx: &mut Context<Self>,
-    ) {
+    pub(super) fn close_terminal_search(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         if self.terminal_search.take().is_none() {
             return;
         }
@@ -673,12 +658,7 @@ impl AleraApp {
                             .search()
                             .height(px(34.0)),
                     )
-                    .child(
-                        div()
-                            .text_xs()
-                            .text_color(theme::text_muted())
-                            .child(count),
-                    ),
+                    .child(div().text_xs().text_color(theme::text_muted()).child(count)),
             )
             .child(
                 div()
@@ -985,10 +965,7 @@ impl AleraApp {
                                     session.emulator.clear_selection();
                                 }
                                 restore_generation = Some(
-                                    session.begin_restore_at_dimensions(
-                                        bytes,
-                                        snapshot_dimensions,
-                                    ),
+                                    session.begin_restore_at_dimensions(bytes, snapshot_dimensions),
                                 );
                                 session.error = None;
                             }
@@ -1129,10 +1106,7 @@ impl AleraApp {
                         {
                             if let Some(bytes) = restored_bytes {
                                 restore_generation = Some(
-                                    session.begin_restore_at_dimensions(
-                                        bytes,
-                                        snapshot_dimensions,
-                                    ),
+                                    session.begin_restore_at_dimensions(bytes, snapshot_dimensions),
                                 );
                             }
                         }
@@ -1147,9 +1121,8 @@ impl AleraApp {
                         session.error = Some(format!("Terminal host unavailable: {error}"));
                     }
                 }
-                let resume_deferred = reattached
-                    && restore_generation.is_none()
-                    && session.output_resync_deferred;
+                let resume_deferred =
+                    reattached && restore_generation.is_none() && session.output_resync_deferred;
                 if resume_deferred {
                     session.output_resync_deferred = false;
                 }
@@ -1616,8 +1589,7 @@ impl AleraApp {
                     return;
                 };
                 let (finished, request) = this.update(cx, |this, _| {
-                    if this.terminal_resize_generation.get(&session_id).copied()
-                        != Some(generation)
+                    if this.terminal_resize_generation.get(&session_id).copied() != Some(generation)
                     {
                         return (true, None);
                     }
@@ -1820,16 +1792,17 @@ impl AleraApp {
         let toolbar = session_id
             .is_some()
             .then(|| self.render_terminal_toolbar(&owned_session_id, cx));
-        let toolbar_menu = session_id
-            .and_then(|_| self.render_terminal_toolbar_menu(&owned_session_id, cx));
+        let toolbar_menu =
+            session_id.and_then(|_| self.render_terminal_toolbar_menu(&owned_session_id, cx));
         let mobile_driver_overlay = self.render_mobile_driver_overlay(&owned_session_id, cx);
         let search_overlay = session_id
-            .as_deref()
             .filter(|_| self.terminal_search.is_some())
             .map(|session_id| self.render_terminal_search_overlay(session_id, cx));
         let composer_visible = active
             && self.terminal_composer_visible.contains(&owned_session_id)
-            && self.terminal_composer_inputs.contains_key(&owned_session_id);
+            && self
+                .terminal_composer_inputs
+                .contains_key(&owned_session_id);
         let terminal_font_family = self.settings_state.terminal_font_family.clone();
         let toolbar_bounds_session_id = owned_session_id.clone();
         let toolbar_bounds_app = cx.entity();
@@ -1982,7 +1955,7 @@ impl AleraApp {
                     .child(
                         canvas(
                             move |bounds, _, cx| {
-                                let _ = toolbar_bounds_app.update(cx, |this, _| {
+                                toolbar_bounds_app.update(cx, |this, _| {
                                     this.terminal_toolbar_viewport_bounds
                                         .insert(toolbar_bounds_session_id.clone(), bounds);
                                 });

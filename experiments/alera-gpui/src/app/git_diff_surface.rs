@@ -112,16 +112,23 @@ impl AleraApp {
                             } else {
                                 CursorStyle::PointingHand
                             })
-                            .when(!loading && loaded && !self.git_diff.files.is_empty(), |button| {
-                                button
-                                    .hover(|style| style.bg(theme::surface_raised()))
-                                    .on_mouse_down(
-                                        gpui::MouseButton::Left,
-                                        cx.listener(move |this, _, _, cx| {
-                                            this.request_git_reading_diff(&reading_tab, false, cx);
-                                        }),
-                                    )
-                            })
+                            .when(
+                                !loading && loaded && !self.git_diff.files.is_empty(),
+                                |button| {
+                                    button
+                                        .hover(|style| style.bg(theme::surface_raised()))
+                                        .on_mouse_down(
+                                            gpui::MouseButton::Left,
+                                            cx.listener(move |this, _, _, cx| {
+                                                this.request_git_reading_diff(
+                                                    &reading_tab,
+                                                    false,
+                                                    cx,
+                                                );
+                                            }),
+                                        )
+                                },
+                            )
                             .child(icon(AleraIcon::Ai, 16.0, theme::text_muted())),
                     )
                     .when(has_reading_diff, |header| {
@@ -252,14 +259,17 @@ impl AleraApp {
                             .text_color(theme::text_muted())
                             .child(loading_indicator(20.0, theme::text_muted()))
                     })
-                    .when(!show_reading_diff && !loading && error.is_some(), |content| {
-                        content
-                            .items_center()
-                            .justify_center()
-                            .text_sm()
-                            .text_color(theme::text_muted())
-                            .child("Could not load diff.")
-                    })
+                    .when(
+                        !show_reading_diff && !loading && error.is_some(),
+                        |content| {
+                            content
+                                .items_center()
+                                .justify_center()
+                                .text_sm()
+                                .text_color(theme::text_muted())
+                                .child("Could not load diff.")
+                        },
+                    )
                     .when(
                         !show_reading_diff
                             && !loading

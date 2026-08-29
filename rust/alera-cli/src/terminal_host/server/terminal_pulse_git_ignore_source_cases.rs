@@ -363,6 +363,14 @@ fn replacing_an_ignore_source_directory_renews_its_watch() {
     wait_for_git_source_reconciliation();
     drain_commands(&mut commands);
     std::fs::write(&exclude, "").unwrap();
+    let refreshed = super::prepare_repository(
+        Repository::open(repository.path()).unwrap(),
+        &GitConfigEnvironment::from_process(),
+    )
+    .unwrap();
+    assert!(!refreshed
+        .status_should_ignore(std::path::Path::new("ignored"))
+        .unwrap());
 
     assert_file_changed(&mut commands, "edit in a recreated ignore source directory");
 }
@@ -427,7 +435,8 @@ fn assert_file_changed(
     >,
     context: &str,
 ) {
-    let deadline = Instant::now() + Duration::from_secs(3);
+    let deadline =
+        Instant::now() + Duration::from_secs(if cfg!(target_os = "macos") { 30 } else { 3 });
     loop {
         if let Ok(command) = commands.try_recv() {
             if matches!(

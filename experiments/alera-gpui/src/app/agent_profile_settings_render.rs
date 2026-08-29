@@ -1,15 +1,14 @@
 use gpui::{
     div, prelude::FluentBuilder as _, px, AnyElement, AppContext as _, Context, CursorStyle,
-    InteractiveElement as _, IntoElement, ParentElement as _, Role, SharedString,
-    Render, StatefulInteractiveElement as _, Styled as _, Window,
+    InteractiveElement as _, IntoElement, ParentElement as _, Render, Role, SharedString,
+    StatefulInteractiveElement as _, Styled as _, Window,
 };
-use gpui_component::scroll::ScrollableElement as _;
 use gpui_component::input::Textarea;
+use gpui_component::scroll::ScrollableElement as _;
 use serde_json::Value;
 
 use super::agent_profile_settings::{
-    adapter_icon, adapter_label, managed_command_preview, profile_input_value,
-    AgentProfileDropdown,
+    adapter_icon, adapter_label, managed_command_preview, profile_input_value, AgentProfileDropdown,
 };
 use super::agent_profile_settings_catalog::{
     controls_for, supports_model, supports_persona, ManagedControl, ADAPTERS, LAUNCH_MODES,
@@ -255,14 +254,16 @@ impl AleraApp {
                                     })
                                 },
                             )
-                            .on_drop(cx.listener(move |this, drag: &AgentProfileDragData, window, cx| {
-                                this.reorder_agent_profiles(
-                                    drag.id.clone(),
-                                    reorder_target_id.clone(),
-                                    window,
-                                    cx,
-                                );
-                            }))
+                            .on_drop(cx.listener(
+                                move |this, drag: &AgentProfileDragData, window, cx| {
+                                    this.reorder_agent_profiles(
+                                        drag.id.clone(),
+                                        reorder_target_id.clone(),
+                                        window,
+                                        cx,
+                                    );
+                                },
+                            ))
                             .child(agent_icon(
                                 adapter_icon(&profile.agent_type),
                                 16.0,
@@ -314,14 +315,22 @@ impl AleraApp {
                                 } else {
                                     theme::text_faint()
                                 })
-                                .on_click(cx.listener(move |this, _, _, cx| {
-                                    this.set_default_agent_profile(Some(set_default_id.clone()), cx);
-                                    cx.stop_propagation();
-                                })),
+                                .on_click(cx.listener(
+                                    move |this, _, _, cx| {
+                                        this.set_default_agent_profile(
+                                            Some(set_default_id.clone()),
+                                            cx,
+                                        );
+                                        cx.stop_propagation();
+                                    },
+                                )),
                             )
                             .child(
                                 design_system::icon_button(
-                                    SharedString::from(format!("agent-profile-clone-{}", profile.id)),
+                                    SharedString::from(format!(
+                                        "agent-profile-clone-{}",
+                                        profile.id
+                                    )),
                                     "Clone Profile",
                                     AleraIcon::Duplicate,
                                     !state.saving,
@@ -329,10 +338,12 @@ impl AleraApp {
                                     None,
                                     None,
                                 )
-                                .on_click(cx.listener(move |this, _, window, cx| {
-                                    this.clone_agent_profile(clone_id.clone(), window, cx);
-                                    cx.stop_propagation();
-                                })),
+                                .on_click(cx.listener(
+                                    move |this, _, window, cx| {
+                                        this.clone_agent_profile(clone_id.clone(), window, cx);
+                                        cx.stop_propagation();
+                                    },
+                                )),
                             )
                     }))
                     .into_any_element()
@@ -560,9 +571,11 @@ impl AleraApp {
                                     false,
                                     state.saving || !has_command_preview,
                                 )
-                                .on_click(cx.listener(|this, _, _, cx| {
-                                    this.test_agent_profile_command(cx);
-                                })),
+                                .on_click(cx.listener(
+                                    |this, _, _, cx| {
+                                        this.test_agent_profile_command(cx);
+                                    },
+                                )),
                             ),
                     )
                 },
@@ -582,14 +595,11 @@ impl AleraApp {
                             .child("Optional instructions for every dispatched task."),
                     )
                     .child(
-                        div()
-                            .mt_2()
-                            .h(px(104.0))
-                            .child(
-                                Textarea::new(&state.custom_prompt_input)
-                                    .disabled(state.saving)
-                                    .h_full(),
-                            ),
+                        div().mt_2().h(px(104.0)).child(
+                            Textarea::new(&state.custom_prompt_input)
+                                .disabled(state.saving)
+                                .h_full(),
+                        ),
                     ),
             ],
         )
@@ -607,12 +617,9 @@ impl AleraApp {
                     "at its instance directory. Alera writes Claude status hooks into that ",
                     "instance settings.local.json."
                 ),
-                div()
-                    .w(px(220.0))
-                    .child(
-                        design_system::text_field(&state.ccs_profile_input)
-                            .disabled(state.saving),
-                    ),
+                div().w(px(220.0)).child(
+                    design_system::text_field(&state.ccs_profile_input).disabled(state.saving),
+                ),
             ));
         }
         if supports_model(&state.adapter) {

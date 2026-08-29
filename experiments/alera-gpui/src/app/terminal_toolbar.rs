@@ -96,9 +96,7 @@ impl AleraApp {
     ) -> AnyElement {
         let pulse = self.terminal_pulse_supported();
         let has_canvas = !self.agent_canvas_values.is_empty();
-        let corner = TerminalToolbarCorner::from_key(
-            &self.settings_state.terminal_toolbar_corner,
-        );
+        let corner = TerminalToolbarCorner::from_key(&self.settings_state.terminal_toolbar_corner);
         let button_count = 3 + usize::from(pulse) + usize::from(has_canvas);
         let width = toolbar_extent(button_count);
         let mut actions = Vec::new();
@@ -192,11 +190,7 @@ impl AleraApp {
             .w(px(width))
             .h(px(TOOLBAR_BUTTON_SIZE))
             .on_aux_click(cx.listener(move |this, event: &ClickEvent, _, cx| {
-                this.open_terminal_toolbar_menu(
-                    menu_session_id.clone(),
-                    event.position(),
-                    cx,
-                );
+                this.open_terminal_toolbar_menu(menu_session_id.clone(), event.position(), cx);
                 cx.stop_propagation();
             }));
         if !corner.is_left() {
@@ -221,9 +215,13 @@ impl AleraApp {
         cluster
             .absolute()
             .when(corner.is_top(), |toolbar| toolbar.top(px(TOOLBAR_INSET)))
-            .when(!corner.is_top(), |toolbar| toolbar.bottom(px(TOOLBAR_INSET)))
+            .when(!corner.is_top(), |toolbar| {
+                toolbar.bottom(px(TOOLBAR_INSET))
+            })
             .when(corner.is_left(), |toolbar| toolbar.left(px(TOOLBAR_INSET)))
-            .when(!corner.is_left(), |toolbar| toolbar.right(px(TOOLBAR_INSET)))
+            .when(!corner.is_left(), |toolbar| {
+                toolbar.right(px(TOOLBAR_INSET))
+            })
             .into_any_element()
     }
 
@@ -259,16 +257,18 @@ impl AleraApp {
         position: Point<Pixels>,
         cx: &mut Context<Self>,
     ) {
-        let Some(bounds) = self.terminal_toolbar_viewport_bounds.get(session_id).copied() else {
+        let Some(bounds) = self
+            .terminal_toolbar_viewport_bounds
+            .get(session_id)
+            .copied()
+        else {
             return;
         };
         let pulse = self.terminal_pulse_supported();
         let has_canvas = !self.agent_canvas_values.is_empty();
         let width = toolbar_extent(3 + usize::from(pulse) + usize::from(has_canvas));
         let height = TOOLBAR_BUTTON_SIZE;
-        let corner = TerminalToolbarCorner::from_key(
-            &self.settings_state.terminal_toolbar_corner,
-        );
+        let corner = TerminalToolbarCorner::from_key(&self.settings_state.terminal_toolbar_corner);
         let left = if corner.is_left() {
             TOOLBAR_INSET
         } else {
@@ -364,9 +364,11 @@ impl AleraApp {
     }
 
     fn show_terminal_agent_canvas(&mut self, session_id: &str, cx: &mut Context<Self>) {
-        if self.agent_canvas_values.iter().any(|canvas| {
-            canvas.get("id").and_then(serde_json::Value::as_str) == Some(session_id)
-        }) {
+        if self
+            .agent_canvas_values
+            .iter()
+            .any(|canvas| canvas.get("id").and_then(serde_json::Value::as_str) == Some(session_id))
+        {
             self.agent_canvas_selected_id = Some(session_id.to_owned());
         }
         self.context_sidebar_collapsed = false;
@@ -375,8 +377,7 @@ impl AleraApp {
 }
 
 fn toolbar_extent(button_count: usize) -> f32 {
-    button_count as f32 * TOOLBAR_BUTTON_SIZE
-        + button_count.saturating_sub(1) as f32 * TOOLBAR_GAP
+    button_count as f32 * TOOLBAR_BUTTON_SIZE + button_count.saturating_sub(1) as f32 * TOOLBAR_GAP
 }
 
 fn clamp_toolbar_axis(value: f32, viewport: f32, toolbar: f32) -> f32 {

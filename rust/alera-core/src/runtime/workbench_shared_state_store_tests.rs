@@ -128,8 +128,6 @@ async fn portable_settings_round_trip_project_confirmation_and_empty_quotas() {
     store
         .set_agent_quota_settings(RuntimeAgentQuotaSettings {
             enabled_providers: Vec::new(),
-            selected_claude_profile: "work".to_string(),
-            unpinned_quota_keys: vec!["claude:default".to_string(), "codex".to_string()],
             ..RuntimeAgentQuotaSettings::default()
         })
         .await
@@ -138,41 +136,6 @@ async fn portable_settings_round_trip_project_confirmation_and_empty_quotas() {
     let settings = store.runtime_settings().await.unwrap();
     assert!(!settings.confirm_project_removal);
     assert!(settings.agent_quotas.enabled_providers.is_empty());
-    assert_eq!(settings.agent_quotas.selected_claude_profile, "work");
-    assert_eq!(
-        settings.agent_quotas.unpinned_quota_keys,
-        ["claude:default", "codex"]
-    );
-}
-
-#[tokio::test]
-async fn default_agent_profile_setting_round_trips_and_clears() {
-    let dir = tempfile::tempdir().unwrap();
-    let store = RuntimeStore::open(dir.path()).await.unwrap();
-
-    store
-        .set_default_agent_profile_id(Some("  prof_codex  "))
-        .await
-        .unwrap();
-    assert_eq!(
-        store
-            .runtime_settings()
-            .await
-            .unwrap()
-            .default_agent_profile_id
-            .as_deref(),
-        Some("prof_codex")
-    );
-
-    store.set_default_agent_profile_id(None).await.unwrap();
-    assert_eq!(
-        store
-            .runtime_settings()
-            .await
-            .unwrap()
-            .default_agent_profile_id,
-        None
-    );
 }
 
 #[tokio::test]

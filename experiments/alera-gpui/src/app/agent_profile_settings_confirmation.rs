@@ -64,9 +64,11 @@ impl AleraApp {
                                     false,
                                     true,
                                 )
-                                    .on_click(cx.listener(|this, _, _, cx| {
+                                .on_click(cx.listener(
+                                    |this, _, _, cx| {
                                         this.cancel_agent_profile_risk(cx);
-                                    })),
+                                    },
+                                )),
                             )
                             .child(
                                 confirmation_button(
@@ -156,9 +158,11 @@ impl AleraApp {
                                     false,
                                     true,
                                 )
-                                .on_click(cx.listener(|this, _, _, cx| {
-                                    this.cancel_agent_profile_removal(cx);
-                                })),
+                                .on_click(cx.listener(
+                                    |this, _, _, cx| {
+                                        this.cancel_agent_profile_removal(cx);
+                                    },
+                                )),
                             )
                             .child(
                                 confirmation_button(

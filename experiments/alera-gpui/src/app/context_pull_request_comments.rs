@@ -1,7 +1,6 @@
 use gpui::{
     div, px, AnyElement, Context, CursorStyle, InteractiveElement as _, IntoElement,
-    ParentElement as _, SharedString,
-    StatefulInteractiveElement as _, Styled as _, Window,
+    ParentElement as _, SharedString, StatefulInteractiveElement as _, Styled as _, Window,
 };
 use gpui_component::text::TextView;
 
@@ -38,10 +37,8 @@ impl AleraApp {
                 let task_index = *task_index;
                 let task = task.clone();
                 let comment_id = comment_id.to_owned();
-                let enabled = editable
-                    && !self
-                        .forge_comment_saving_ids
-                        .contains(comment_id.as_str());
+                let enabled =
+                    editable && !self.forge_comment_saving_ids.contains(comment_id.as_str());
                 let line_text = line
                     .get(task.label_offset..)
                     .unwrap_or_default()
@@ -101,7 +98,9 @@ impl AleraApp {
             rendered_lines.push(rendered);
         }
         div()
-            .id(SharedString::from(format!("context-pr-comment-body-{comment_id}")))
+            .id(SharedString::from(format!(
+                "context-pr-comment-body-{comment_id}"
+            )))
             .flex()
             .flex_col()
             .gap_1()
@@ -226,7 +225,10 @@ fn find_review_comment_tasks(body: &str) -> Vec<ReviewCommentTaskItem> {
         let line = raw_line.strip_suffix('\r').unwrap_or(raw_line);
         if let Some((character, length)) = fence {
             if let Some((close_character, close_length)) = fenced_line(line) {
-                if close_character == character && close_length >= length && line[close_length..].trim().is_empty() {
+                if close_character == character
+                    && close_length >= length
+                    && line[close_length..].trim().is_empty()
+                {
                     fence = None;
                 }
             }
@@ -317,7 +319,10 @@ fn fenced_line(line: &str) -> Option<(u8, usize)> {
     if character != b'`' && character != b'~' {
         return None;
     }
-    let length = bytes.iter().take_while(|value| **value == character).count();
+    let length = bytes
+        .iter()
+        .take_while(|value| **value == character)
+        .count();
     (length >= 3).then_some((character, length))
 }
 
@@ -338,6 +343,9 @@ mod tests {
         let body = "- [ ] first\n```\n- [ ] ignored\n```\n> 1. [x] second";
         let items = find_review_comment_tasks(body);
         assert_eq!(items.len(), 2);
-        assert_eq!(toggle_review_comment_task_list_item(body, 0).unwrap(), "- [x] first\n```\n- [ ] ignored\n```\n> 1. [x] second");
+        assert_eq!(
+            toggle_review_comment_task_list_item(body, 0).unwrap(),
+            "- [x] first\n```\n- [ ] ignored\n```\n> 1. [x] second"
+        );
     }
 }

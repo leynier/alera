@@ -11,9 +11,7 @@ use super::sidebar_view_options_components::{
     available_filter_row, check_row, clear_button, empty_filter_message, filter_header,
     section_label, segment_button, selected_filter_chip, sidebar_sort_label, sort_row,
 };
-use super::{
-    AleraApp, SidebarGroupBy, SidebarSortBy, SidebarSortTarget, SidebarWorkspaceKind,
-};
+use super::{AleraApp, SidebarGroupBy, SidebarSortBy, SidebarSortTarget, SidebarWorkspaceKind};
 use crate::{
     design_system,
     icons::{icon, AleraIcon},
@@ -388,9 +386,11 @@ impl AleraApp {
                                     self.sidebar_active_only,
                                 )
                                 .mt_2()
-                                .on_click(cx.listener(|this, _, _, cx| {
-                                    this.toggle_sidebar_active_only(cx);
-                                })),
+                                .on_click(cx.listener(
+                                    |this, _, _, cx| {
+                                        this.toggle_sidebar_active_only(cx);
+                                    },
+                                )),
                             )
                             .child(
                                 check_row(
@@ -551,19 +551,6 @@ fn workspace_tab_kind_is_active(kind: &str) -> bool {
     matches!(kind, "terminal" | "codex")
 }
 
-#[cfg(test)]
-mod active_filter_tests {
-    use super::workspace_tab_kind_is_active;
-
-    #[test]
-    fn active_filter_matches_flutter_terminal_and_codex_semantics() {
-        assert!(workspace_tab_kind_is_active("terminal"));
-        assert!(workspace_tab_kind_is_active("codex"));
-        assert!(!workspace_tab_kind_is_active("editor"));
-        assert!(!workspace_tab_kind_is_active("gitDiff"));
-    }
-}
-
 pub(super) fn compare_project_selection(left: &&Project, right: &&Project) -> Ordering {
     left.name
         .to_lowercase()
@@ -579,5 +566,18 @@ fn selected_filter_height_delta(selected_count: usize, available_count: usize) -
         // One 26px chip row plus the 8px gap replaces one 30px available row
         // for each selected item.
         34.0 - selected_count as f32 * 30.0 + if available_count == 0 { 34.0 } else { 0.0 }
+    }
+}
+
+#[cfg(test)]
+mod active_filter_tests {
+    use super::workspace_tab_kind_is_active;
+
+    #[test]
+    fn active_filter_matches_flutter_terminal_and_codex_semantics() {
+        assert!(workspace_tab_kind_is_active("terminal"));
+        assert!(workspace_tab_kind_is_active("codex"));
+        assert!(!workspace_tab_kind_is_active("editor"));
+        assert!(!workspace_tab_kind_is_active("gitDiff"));
     }
 }

@@ -104,10 +104,9 @@ impl SettingsPane {
             | Self::Editor
             | Self::Terminal
             | Self::Keyboard => "Preferences",
-            Self::TextActions
-            | Self::Projects
-            | Self::MobileDevices
-            | Self::AgentProfiles => "Resources",
+            Self::TextActions | Self::Projects | Self::MobileDevices | Self::AgentProfiles => {
+                "Resources"
+            }
         }
     }
 

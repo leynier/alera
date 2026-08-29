@@ -91,10 +91,10 @@ impl AleraApp {
                     .border_b_1()
                     .border_color(theme::border_subtle())
                     .children(
-                    ContextPanel::ALL
-                        .into_iter()
-                        .enumerate()
-                        .map(|(index, panel)| {
+                        ContextPanel::ALL
+                            .into_iter()
+                            .enumerate()
+                            .map(|(index, panel)| {
                                 self.context_panel_button(index, panel, false, cx)
                             }),
                     )

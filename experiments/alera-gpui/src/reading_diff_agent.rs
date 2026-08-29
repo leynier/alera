@@ -24,7 +24,9 @@ struct AgentPlan {
     label: &'static str,
 }
 
-pub(crate) fn run_reading_diff_agent(request: ReadingDiffAgentRequest<'_>) -> Result<(String, String), String> {
+pub(crate) fn run_reading_diff_agent(
+    request: ReadingDiffAgentRequest<'_>,
+) -> Result<(String, String), String> {
     let plan = plan_agent(&request)?;
     let mut command = windowless_command(&plan.binary);
     command
@@ -99,7 +101,11 @@ pub(crate) fn run_reading_diff_agent(request: ReadingDiffAgentRequest<'_>) -> Re
     let stderr = String::from_utf8_lossy(&stderr).into_owned();
     if !status.success() {
         return Err(if stderr.trim().is_empty() {
-            format!("{} Exited With Code {}.", plan.label, status.code().unwrap_or(-1))
+            format!(
+                "{} Exited With Code {}.",
+                plan.label,
+                status.code().unwrap_or(-1)
+            )
         } else {
             stderr.trim().to_string()
         });
@@ -142,9 +148,21 @@ fn plan_agent(request: &ReadingDiffAgentRequest<'_>) -> Result<AgentPlan, String
         }
         "claude" => {
             let mut arguments = vec![
-                "-p", "--output-format", "text", "--model", model,
-                "--permission-mode", "plan", "--safe-mode", "--disable-slash-commands",
-                "--strict-mcp-config", "--mcp-config", "{\"mcpServers\":{}}", "--tools", "", "--no-chrome",
+                "-p",
+                "--output-format",
+                "text",
+                "--model",
+                model,
+                "--permission-mode",
+                "plan",
+                "--safe-mode",
+                "--disable-slash-commands",
+                "--strict-mcp-config",
+                "--mcp-config",
+                "{\"mcpServers\":{}}",
+                "--tools",
+                "",
+                "--no-chrome",
             ]
             .into_iter()
             .map(str::to_string)
@@ -165,9 +183,19 @@ fn plan_agent(request: &ReadingDiffAgentRequest<'_>) -> Result<AgentPlan, String
                 return Err("GitHub Copilot Cannot Receive This Diff Chunk Safely.".to_string());
             }
             let mut arguments = vec![
-                "--prompt", request.prompt, "--silent", "--stream", "off",
-                "--no-custom-instructions", "--model", model, "--available-tools=",
-                "--excluded-tools=*", "--disable-builtin-mcps", "--no-ask-user", "--no-auto-update",
+                "--prompt",
+                request.prompt,
+                "--silent",
+                "--stream",
+                "off",
+                "--no-custom-instructions",
+                "--model",
+                model,
+                "--available-tools=",
+                "--excluded-tools=*",
+                "--disable-builtin-mcps",
+                "--no-ask-user",
+                "--no-auto-update",
             ]
             .into_iter()
             .map(str::to_string)
@@ -185,8 +213,16 @@ fn plan_agent(request: &ReadingDiffAgentRequest<'_>) -> Result<AgentPlan, String
         }
         "pi" => {
             let mut arguments = vec![
-                "--print", "--no-session", "--no-tools", "--no-extensions", "--no-skills",
-                "--no-context-files", "--mode", "text", "--model", model,
+                "--print",
+                "--no-session",
+                "--no-tools",
+                "--no-extensions",
+                "--no-skills",
+                "--no-context-files",
+                "--mode",
+                "text",
+                "--model",
+                model,
             ]
             .into_iter()
             .map(str::to_string)
@@ -210,11 +246,20 @@ fn plan_agent(request: &ReadingDiffAgentRequest<'_>) -> Result<AgentPlan, String
             ));
             std::fs::write(&path, request.prompt).map_err(|error| error.to_string())?;
             let mut arguments = vec![
-                "--prompt-file".to_string(), path.to_string_lossy().into_owned(),
-                "--output-format".into(), "plain".into(), "--model".into(), model.into(),
-                "--tools".into(), "".into(), "--no-subagents".into(),
-                "--disable-web-search".into(), "--no-memory".into(),
-                "--max-turns".into(), "1".into(), "--verbatim".into(),
+                "--prompt-file".to_string(),
+                path.to_string_lossy().into_owned(),
+                "--output-format".into(),
+                "plain".into(),
+                "--model".into(),
+                model.into(),
+                "--tools".into(),
+                "".into(),
+                "--no-subagents".into(),
+                "--disable-web-search".into(),
+                "--no-memory".into(),
+                "--max-turns".into(),
+                "1".into(),
+                "--verbatim".into(),
             ];
             if let Some(effort) = effort.filter(|value| *value != "default") {
                 arguments.extend(["--effort".to_string(), effort.to_string()]);
@@ -239,9 +284,21 @@ fn extract_json_object(output: &str) -> Option<String> {
 }
 
 const DISABLED_CODEX_FEATURES: &[&str] = &[
-    "apps", "browser_use", "browser_use_external", "browser_use_full_cdp_access",
-    "computer_use", "hooks", "image_generation", "in_app_browser", "memories",
-    "multi_agent", "plugins", "remote_plugin", "skill_search", "tool_suggest", "view_image",
+    "apps",
+    "browser_use",
+    "browser_use_external",
+    "browser_use_full_cdp_access",
+    "computer_use",
+    "hooks",
+    "image_generation",
+    "in_app_browser",
+    "memories",
+    "multi_agent",
+    "plugins",
+    "remote_plugin",
+    "skill_search",
+    "tool_suggest",
+    "view_image",
 ];
 
 #[cfg(test)]

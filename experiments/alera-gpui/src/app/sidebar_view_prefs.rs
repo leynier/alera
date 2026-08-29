@@ -342,19 +342,6 @@ fn source_control_tree_mode(prefs: &Value) -> bool {
     string_field(prefs, "gitDiffViewMode") != "list"
 }
 
-#[cfg(test)]
-mod tests {
-    use super::source_control_tree_mode;
-    use serde_json::json;
-
-    #[test]
-    fn source_control_defaults_to_tree_and_restores_list() {
-        assert!(source_control_tree_mode(&json!({})));
-        assert!(source_control_tree_mode(&json!({"gitDiffViewMode": "tree"})));
-        assert!(!source_control_tree_mode(&json!({"gitDiffViewMode": "list"})));
-    }
-}
-
 fn string_set(value: Option<&Value>) -> std::collections::BTreeSet<String> {
     value
         .and_then(Value::as_array)
@@ -372,4 +359,21 @@ fn number_field(value: &Value, key: &str, fallback: f32) -> f32 {
         .map(|value| value as f32)
         .unwrap_or(fallback)
         .clamp(220.0, 460.0)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::source_control_tree_mode;
+    use serde_json::json;
+
+    #[test]
+    fn source_control_defaults_to_tree_and_restores_list() {
+        assert!(source_control_tree_mode(&json!({})));
+        assert!(source_control_tree_mode(
+            &json!({"gitDiffViewMode": "tree"})
+        ));
+        assert!(!source_control_tree_mode(
+            &json!({"gitDiffViewMode": "list"})
+        ));
+    }
 }

@@ -8,8 +8,8 @@ use crate::terminal_host::host_error::HostResult;
 
 use super::event_scope::{path_is_in_workspace, path_is_rename_source};
 use super::{
-    git_query_error, is_missing_ambiguous_rename, repository_path_from_bytes, PathIdentity,
-    PathIdentityCache,
+    git_query_error, is_missing_ambiguous_rename, repository_path_from_bytes,
+    repository_relative_path, PathIdentity, PathIdentityCache,
 };
 
 pub(super) fn event_is_git_relevant(
@@ -19,9 +19,6 @@ pub(super) fn event_is_git_relevant(
     ignored_prefixes: &mut HashSet<PathBuf>,
     path_identities: &mut PathIdentityCache,
 ) -> HostResult<bool> {
-    let Some(workdir) = repository.workdir() else {
-        return Ok(false);
-    };
     let identities = event
         .paths
         .iter()
@@ -32,17 +29,17 @@ pub(super) fn event_is_git_relevant(
         if !path_is_in_workspace(root, path) {
             continue;
         }
-        let Ok(relative) = path.strip_prefix(workdir) else {
+        let Some(relative) = repository_relative_path(repository, root, path) else {
             continue;
         };
         let directory_like = identity == PathIdentity::Directory;
         if directory_like {
-            if path_is_ignored(repository, relative, true, ignored_prefixes)? {
+            if path_is_ignored(repository, &relative, true, ignored_prefixes)? {
                 let index = repository.index().map_err(git_query_error)?;
-                if index.get_path(relative, 0).is_some()
+                if index.get_path(&relative, 0).is_some()
                     || index.iter().any(|entry| {
                         repository_path_from_bytes(&entry.path).is_some_and(|entry_path| {
-                            entry_path != relative && entry_path.starts_with(relative)
+                            entry_path != relative && entry_path.starts_with(&relative)
                         })
                     })
                 {
@@ -56,7 +53,7 @@ pub(super) fn event_is_git_relevant(
                 .recurse_untracked_dirs(true)
                 .include_ignored(false)
                 .disable_pathspec_match(true)
-                .pathspec(relative);
+                .pathspec(&relative);
             if repository
                 .statuses(Some(&mut options))
                 .map_err(git_query_error)?
@@ -73,12 +70,12 @@ pub(super) fn event_is_git_relevant(
             }
             continue;
         }
-        match repository.status_file(relative) {
+        match repository.status_file(&relative) {
             Ok(status) if status.contains(Status::IGNORED) => continue,
             Ok(_) => return Ok(true),
             Err(error) if error.code() == ErrorCode::Ambiguous => return Ok(true),
             Err(error) if error.code() == ErrorCode::NotFound => {
-                if !path_is_ignored(repository, relative, directory_like, ignored_prefixes)? {
+                if !path_is_ignored(repository, &relative, directory_like, ignored_prefixes)? {
                     return Ok(true);
                 }
             }

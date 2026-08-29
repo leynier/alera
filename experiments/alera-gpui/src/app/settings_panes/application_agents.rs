@@ -1,3 +1,4 @@
+#[allow(clippy::too_many_arguments)]
 fn application_pane(
     workspace_directory_input: &Entity<InputState>,
     settings: &SettingsState,

@@ -322,7 +322,12 @@ fn missing_resumed_directory_falls_back_to_the_tab_workspace() {
     let (cwd, changed) =
         resumable_codex_cwd(&tab, &workspace, std::slice::from_ref(&workspace)).unwrap();
 
-    assert_eq!(cwd, workspace_path.to_string_lossy());
+    assert_eq!(
+        cwd,
+        dunce::canonicalize(workspace_path)
+            .unwrap()
+            .to_string_lossy()
+    );
     assert!(changed);
 }
 

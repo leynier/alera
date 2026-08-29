@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:xterm/xterm.dart';
 
@@ -27,9 +29,9 @@ void main() {
     final p95Micros =
         samples[(samples.length * 95 ~/ 100).clamp(0, samples.length - 1)];
 
-    print('=== Flutter terminal input encoding ===');
-    print('  char input p95 ${p95Micros.toStringAsFixed(3)} µs');
-    print('  observed output bytes $outputBytes');
+    stdout.writeln('=== Flutter terminal input encoding ===');
+    stdout.writeln('  char input p95 ${p95Micros.toStringAsFixed(3)} µs');
+    stdout.writeln('  observed output bytes $outputBytes');
     expect(outputBytes, 205000);
   });
 }

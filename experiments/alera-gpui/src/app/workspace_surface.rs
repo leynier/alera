@@ -314,7 +314,7 @@ impl AleraApp {
             ContextPanel::Explorer => self.load_root_directory(cx),
             ContextPanel::SourceControl => self.refresh_git(cx),
             ContextPanel::PullRequest => self.refresh_forge(cx),
-            ContextPanel::Search => {},
+            ContextPanel::Search => {}
             ContextPanel::AgentCanvas => self.refresh_agent_canvas(cx),
         }
     }
@@ -451,8 +451,7 @@ impl AleraApp {
         let Some(scope) = self.selected_source_control_scope() else {
             return;
         };
-        let Some(workspace_relative_path) =
-            scope.to_workspace_relative_path(&source_relative_path)
+        let Some(workspace_relative_path) = scope.to_workspace_relative_path(&source_relative_path)
         else {
             return;
         };

@@ -6,12 +6,15 @@ use std::thread;
 use std::time::Duration;
 
 use git2::{Repository, StatusOptions};
-use notify::{Config, Event, EventKind, RecommendedWatcher, RecursiveMode, Watcher};
+#[cfg(test)]
+use notify::Config;
+use notify::{Event, EventKind, RecommendedWatcher, RecursiveMode, Watcher};
 
 use crate::terminal_host::host_error::{HostError, HostResult};
 
 use super::path_identities::{
-    is_missing_ambiguous_rename, repository_path_from_bytes, PathIdentity, PathIdentityCache,
+    is_missing_ambiguous_rename, repository_path_from_bytes, repository_relative_existing_path,
+    repository_relative_path, PathIdentity, PathIdentityCache,
 };
 use super::ServerCommand;
 
@@ -23,6 +26,8 @@ mod git_ignore_sources;
 mod git_relevance;
 #[path = "terminal_pulse_watch_reconciliation.rs"]
 mod reconciliation;
+#[path = "terminal_pulse_watcher_support.rs"]
+mod support;
 
 use event_scope::{
     event_can_remove_paths, event_invalidates_workspace_root, retain_workspace_paths,
@@ -33,12 +38,20 @@ use git_ignore_sources::{
 };
 use git_relevance::event_is_git_relevant;
 use reconciliation::ignored_git_status_paths;
+pub(super) use support::event_requires_watch_reconcile;
+#[cfg(target_os = "macos")]
+use support::spawn_git_source_poller;
+use support::{
+    ancestor_gitignore_files, ensure_setup_active, git_query_error, path_is_git_index_event,
+    report_watcher_failure, rewrite_event_root_alias, watcher_config, watcher_error,
+};
 
 const EVENT_COALESCE_WINDOW: Duration = Duration::from_millis(25);
 
 pub(crate) struct WorkspacePulseWatcher {
     generation: u64,
     worker: Option<thread::JoinHandle<()>>,
+    git_source_poller: Option<thread::JoinHandle<()>>,
     wake_tx: mpsc::SyncSender<()>,
     cancelled: Arc<AtomicBool>,
     event_sequence: Arc<AtomicU64>,
@@ -67,6 +80,7 @@ struct WorkspacePulseWorker {
     persistent_git_ignore_watch_directories: HashSet<PathBuf>,
     git_config_environment: GitConfigEnvironment,
     ignored_git_status_paths: HashSet<PathBuf>,
+    git_relevance_overrides: Arc<RwLock<HashSet<PathBuf>>>,
     failure_reported: Arc<AtomicBool>,
 }
 
@@ -96,6 +110,7 @@ impl WorkspacePulseWatcher {
         git_config_environment: GitConfigEnvironment,
         cancelled: Arc<AtomicBool>,
     ) -> HostResult<Self> {
+        let requested_root = root.clone();
         let root = dunce::canonicalize(&root).map_err(|error| {
             HostError::state(format!(
                 "Terminal Pulse workspace could not be resolved: {error}"
@@ -154,14 +169,18 @@ impl WorkspacePulseWatcher {
         };
         let callback_identity = identity.clone();
         let callback_root = root.clone();
+        let callback_requested_root = requested_root;
         let callback_git_metadata_directory = git_metadata_directory.clone();
         let callback_git_exclude_file = git_exclude_file.clone();
         let callback_ancestor_ignore_files = ancestor_ignore_files.clone();
         let callback_git_ignore_sources = Arc::clone(&git_ignore_sources);
+        let git_relevance_overrides = Arc::new(RwLock::new(HashSet::new()));
+        let callback_git_relevance_overrides = Arc::clone(&git_relevance_overrides);
         let callback_git_config_environment = git_config_environment.clone();
         let (wake_tx, wake_rx) = mpsc::sync_channel::<()>(1);
         let callback_wake_tx = wake_tx.clone();
         let mut git_rules_dirty = false;
+        let mut git_source_topology_changed = false;
         let mut watcher = RecommendedWatcher::new(
             move |event: notify::Result<Event>| {
                 if callback_cancelled.load(Ordering::Relaxed) {
@@ -181,6 +200,7 @@ impl WorkspacePulseWatcher {
                         return;
                     }
                 };
+                rewrite_event_root_alias(&callback_requested_root, &callback_root, &mut event);
                 if matches!(event.kind, EventKind::Access(_)) {
                     return;
                 }
@@ -203,6 +223,15 @@ impl WorkspacePulseWatcher {
                             .read()
                             .is_ok_and(|sources| sources.contains(path))
                 });
+                if git_rules_changed
+                    && (event_can_remove_paths(&event)
+                        || matches!(
+                            event.kind,
+                            EventKind::Create(notify::event::CreateKind::Folder)
+                        ))
+                {
+                    git_source_topology_changed = true;
+                }
                 if git_rules_changed {
                     git_rules_dirty = true;
                 } else if std::mem::take(&mut git_rules_dirty) {
@@ -239,7 +268,7 @@ impl WorkspacePulseWatcher {
                 }
                 let reconcile_watches =
                     git_rules_changed || event_requires_watch_reconcile(&event, &path_identities);
-                let relevant = if event.paths.is_empty() {
+                let mut relevant = if event.paths.is_empty() {
                     false
                 } else {
                     match event_is_git_relevant(
@@ -263,6 +292,25 @@ impl WorkspacePulseWatcher {
                         }
                     }
                 };
+                if !relevant {
+                    relevant = callback_git_relevance_overrides
+                        .read()
+                        .is_ok_and(|overrides| {
+                            event.paths.iter().any(|path| {
+                                repository_relative_path(&repository, &callback_root, path)
+                                    .is_some_and(|relative| {
+                                        overrides.iter().any(|prefix| relative.starts_with(prefix))
+                                    })
+                            })
+                        });
+                }
+                if git_rules_changed
+                    && git_source_topology_changed
+                    && event.paths.iter().any(|path| path.is_file())
+                {
+                    relevant = true;
+                    git_source_topology_changed = false;
+                }
                 if reconcile_watches {
                     callback_reconcile_requested.store(true, Ordering::Release);
                     let _ = callback_wake_tx.try_send(());
@@ -279,6 +327,11 @@ impl WorkspacePulseWatcher {
             watcher_config(),
         )
         .map_err(watcher_error)?;
+        #[cfg(target_os = "macos")]
+        watcher
+            .watch(&root, RecursiveMode::Recursive)
+            .map_err(watcher_error)?;
+        #[cfg(not(target_os = "macos"))]
         for directory in &initial_watch_directories {
             ensure_setup_active(&cancelled)?;
             watcher
@@ -322,6 +375,16 @@ impl WorkspacePulseWatcher {
         let ignored_git_status_paths = ignored_git_status_paths(&worker_repository, &root)?;
         ensure_setup_active(&cancelled)?;
 
+        #[cfg(target_os = "macos")]
+        let git_source_poller = Some(spawn_git_source_poller(
+            Arc::clone(&git_ignore_sources),
+            Arc::clone(&reconcile_requested),
+            wake_tx.clone(),
+            Arc::clone(&cancelled),
+        )?);
+        #[cfg(not(target_os = "macos"))]
+        let git_source_poller = None;
+
         let worker = thread::Builder::new()
             .name(format!("terminal-pulse-{}", identity.workspace_id))
             .spawn(move || {
@@ -342,6 +405,7 @@ impl WorkspacePulseWatcher {
                     persistent_git_ignore_watch_directories,
                     git_config_environment,
                     ignored_git_status_paths,
+                    git_relevance_overrides,
                     failure_reported,
                 }
                 .run()
@@ -352,6 +416,7 @@ impl WorkspacePulseWatcher {
         Ok(Self {
             generation,
             worker: Some(worker),
+            git_source_poller,
             wake_tx,
             cancelled,
             event_sequence,
@@ -367,70 +432,25 @@ impl WorkspacePulseWatcher {
     }
 }
 
-fn ensure_setup_active(cancelled: &AtomicBool) -> HostResult<()> {
-    if cancelled.load(Ordering::Acquire) {
-        return Err(HostError::state(
-            "Terminal Pulse watcher setup was cancelled.",
-        ));
-    }
-    Ok(())
-}
-
 impl Drop for WorkspacePulseWatcher {
     fn drop(&mut self) {
         self.cancelled.store(true, Ordering::Relaxed);
         let _ = self.wake_tx.try_send(());
-        if let Some(worker) = self.worker.take() {
+        let worker = self.worker.take();
+        let git_source_poller = self.git_source_poller.take();
+        if worker.is_some() || git_source_poller.is_some() {
             let _ = thread::Builder::new()
                 .name("terminal-pulse-reaper".to_string())
                 .spawn(move || {
-                    let _ = worker.join();
+                    if let Some(worker) = worker {
+                        let _ = worker.join();
+                    }
+                    if let Some(poller) = git_source_poller {
+                        let _ = poller.join();
+                    }
                 });
         }
     }
-}
-
-fn watcher_config() -> Config {
-    Config::default().with_follow_symlinks(false)
-}
-
-pub(super) fn event_requires_watch_reconcile(
-    event: &Event,
-    identities: &PathIdentityCache,
-) -> bool {
-    event_can_remove_paths(event)
-        || event.paths.iter().any(|path| {
-            path.file_name().is_some_and(|name| name == ".gitignore")
-                || identities.identity_for_event(&event.kind, path) == PathIdentity::Directory
-        })
-}
-
-fn path_is_git_index_event(git_metadata_directory: &Path, path: &Path) -> bool {
-    path.parent() == Some(git_metadata_directory)
-        && path
-            .file_name()
-            .is_some_and(|name| name == "index" || name == "index.lock")
-}
-
-fn ancestor_gitignore_files(root: &Path, repository: &Repository) -> HostResult<HashSet<PathBuf>> {
-    let workdir = repository
-        .workdir()
-        .ok_or_else(|| HostError::state("Terminal Pulse requires a Git working tree."))?;
-    let workdir = dunce::canonicalize(workdir).map_err(|error| {
-        HostError::state(format!(
-            "Terminal Pulse Git working tree could not be resolved: {error}"
-        ))
-    })?;
-    let mut files = HashSet::new();
-    let mut directory = root.parent();
-    while let Some(current) = directory.filter(|current| current.starts_with(&workdir)) {
-        files.insert(current.join(".gitignore"));
-        if current == workdir {
-            break;
-        }
-        directory = current.parent();
-    }
-    Ok(files)
 }
 
 #[cfg(test)]
@@ -468,31 +488,6 @@ pub(super) fn event_is_relevant_with_identities(
         &mut HashSet::new(),
         path_identities,
     )
-}
-
-fn report_watcher_failure(
-    identity: &WorkspacePulseWatcherIdentity,
-    failure_reported: &AtomicBool,
-    inbox: &tokio::sync::mpsc::UnboundedSender<ServerCommand>,
-    error: impl Into<String>,
-) {
-    if !failure_reported.swap(true, Ordering::Relaxed) {
-        let _ = inbox.send(ServerCommand::TerminalPulseWatcherFailed {
-            workspace_id: identity.workspace_id.clone(),
-            watcher_generation: identity.generation,
-            error: error.into(),
-        });
-    }
-}
-
-fn git_query_error(error: git2::Error) -> HostError {
-    HostError::state(format!(
-        "Terminal Pulse could not inspect Git status: {error}"
-    ))
-}
-
-fn watcher_error(error: notify::Error) -> HostError {
-    HostError::state(format!("Terminal Pulse watcher could not start: {error}"))
 }
 
 #[cfg(test)]

@@ -204,14 +204,9 @@ impl AleraApp {
                                             &snapshot.status,
                                             Some(reading.remaining_percent),
                                         ))
-                                        .child(
-                                            reading
-                                                .value_text
-                                                .clone()
-                                                .unwrap_or_else(|| {
-                                                    format!("{:.0}%", reading.remaining_percent)
-                                                }),
-                                        ),
+                                        .child(reading.value_text.clone().unwrap_or_else(|| {
+                                            format!("{:.0}%", reading.remaining_percent)
+                                        })),
                                 )
                         },
                     ))

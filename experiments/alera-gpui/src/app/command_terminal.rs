@@ -3,9 +3,9 @@ use gpui::{
     div, prelude::FluentBuilder as _, AnyElement, ClipboardItem, Context, InteractiveElement as _,
     IntoElement, ParentElement as _, SharedString, StatefulInteractiveElement as _, Styled as _,
 };
+use gpui_component::scroll::ScrollableElement as _;
 use serde_json::json;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
-use gpui_component::scroll::ScrollableElement as _;
 
 use super::AleraApp;
 use crate::{
@@ -88,8 +88,16 @@ impl AleraApp {
                     .map(|workspace| workspace.path.clone())
             })
             .or_else(|| std::env::var("HOME").ok().filter(|path| !path.is_empty()))
-            .or_else(|| std::env::var("USERPROFILE").ok().filter(|path| !path.is_empty()))
-            .or_else(|| std::env::current_dir().ok().map(|path| path.display().to_string()))
+            .or_else(|| {
+                std::env::var("USERPROFILE")
+                    .ok()
+                    .filter(|path| !path.is_empty())
+            })
+            .or_else(|| {
+                std::env::current_dir()
+                    .ok()
+                    .map(|path| path.display().to_string())
+            })
             .unwrap_or_else(|| ".".to_owned());
         let nonce = SystemTime::now()
             .duration_since(UNIX_EPOCH)
@@ -148,7 +156,9 @@ impl AleraApp {
         }
         let bridge = self.bridge.clone();
         cx.spawn(async move |_, _| {
-            let _ = bridge.request("terminate", json!({"sessionId": session_id})).await;
+            let _ = bridge
+                .request("terminate", json!({"sessionId": session_id}))
+                .await;
         })
         .detach();
         if follow_up_agent_hooks {
@@ -190,23 +200,19 @@ impl AleraApp {
                 .timer(Duration::from_millis(120))
                 .await;
             let bytes = format!("{}\r", command.replace("\r\n", "\n").replace('\r', "\n"));
-            let _ = bridge
-                .send_ordered(
-                    "write",
-                    json!({
-                        "sessionId": session_id,
-                        "dataBase64": BASE64_STANDARD.encode(bytes.as_bytes()),
-                    }),
-                );
+            let _ = bridge.send_ordered(
+                "write",
+                json!({
+                    "sessionId": session_id,
+                    "dataBase64": BASE64_STANDARD.encode(bytes.as_bytes()),
+                }),
+            );
             let _ = this.update(cx, |_, cx| cx.notify());
         })
         .detach();
     }
 
-    pub(super) fn render_command_terminal_dialog(
-        &self,
-        cx: &mut Context<Self>,
-    ) -> AnyElement {
+    pub(super) fn render_command_terminal_dialog(&self, cx: &mut Context<Self>) -> AnyElement {
         let Some(state) = self.command_terminal.as_ref() else {
             return div().into_any_element();
         };
@@ -254,10 +260,12 @@ impl AleraApp {
                                     None,
                                     None,
                                 )
-                                .on_click(cx.listener(|this, _, _, cx| {
-                                    this.close_command_terminal(cx);
-                                    cx.stop_propagation();
-                                })),
+                                .on_click(cx.listener(
+                                    |this, _, _, cx| {
+                                        this.close_command_terminal(cx);
+                                        cx.stop_propagation();
+                                    },
+                                )),
                             ),
                     )
                     .when_some(description, |dialog, description| {
@@ -299,10 +307,12 @@ impl AleraApp {
                                     None,
                                     None,
                                 )
-                                .on_click(cx.listener(|this, _, _, cx| {
-                                    this.copy_command_terminal_command(cx);
-                                    cx.stop_propagation();
-                                })),
+                                .on_click(cx.listener(
+                                    |this, _, _, cx| {
+                                        this.copy_command_terminal_command(cx);
+                                        cx.stop_propagation();
+                                    },
+                                )),
                             ),
                     )
                     .child(
@@ -321,22 +331,18 @@ impl AleraApp {
                             .child(terminal),
                     )
                     .child(
-                        div()
-                            .flex()
-                            .justify_end()
-                            .mt_3()
-                            .child(
-                                design_system::button(
-                                    "close-command-terminal-footer",
-                                    "Close",
-                                    ButtonKind::Filled,
-                                    false,
-                                )
-                                .on_click(cx.listener(|this, _, _, cx| {
-                                    this.close_command_terminal(cx);
-                                    cx.stop_propagation();
-                                })),
-                            ),
+                        div().flex().justify_end().mt_3().child(
+                            design_system::button(
+                                "close-command-terminal-footer",
+                                "Close",
+                                ButtonKind::Filled,
+                                false,
+                            )
+                            .on_click(cx.listener(|this, _, _, cx| {
+                                this.close_command_terminal(cx);
+                                cx.stop_propagation();
+                            })),
+                        ),
                     ),
             )
             .into_any_element()

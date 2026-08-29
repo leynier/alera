@@ -388,61 +388,6 @@ async fn wait_for_reconnect(
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[tokio::test]
-    async fn unavailable_requests_do_not_short_circuit_the_reconnect_delay() {
-        let runtime_dir = std::env::temp_dir().join(format!(
-            "alera-runtime-bridge-reconnect-{}",
-            uuid::Uuid::new_v4()
-        ));
-        let (commands, command_rx) = async_channel::unbounded();
-        let (_quit, quit_rx) = async_channel::bounded(1);
-        let (reply, reply_rx) = async_channel::bounded(1);
-        commands
-            .send(BridgeCommand::Request {
-                request_type: "status.get".to_string(),
-                payload: Value::Null,
-                deadline: Duration::from_secs(1),
-                reply,
-            })
-            .await
-            .expect("queue request");
-
-        let result = tokio::time::timeout(
-            Duration::from_millis(100),
-            wait_for_reconnect(&runtime_dir, &command_rx, &quit_rx),
-        )
-        .await;
-
-        assert!(
-            result.is_err(),
-            "request must not trigger an immediate reconnect"
-        );
-        assert_eq!(
-            reply_rx.recv().await.expect("unavailable reply"),
-            Err("Alera Runtime Is Unavailable.".to_string())
-        );
-    }
-
-    #[tokio::test]
-    async fn app_quit_rejects_new_requests_without_waiting_for_a_timeout() {
-        let bridge = RuntimeBridge::start(std::env::temp_dir().join(format!(
-            "alera-runtime-bridge-quit-{}",
-            uuid::Uuid::new_v4()
-        )));
-
-        bridge.begin_app_quit();
-
-        assert_eq!(
-            bridge.request("status.get", Value::Null).await,
-            Err(APP_QUIT_IN_PROGRESS.to_string())
-        );
-    }
-}
-
 async fn spawn_runtime_host(
     runtime_dir: &Path,
     config: &RuntimeHostStartConfig,
@@ -619,5 +564,60 @@ fn cli_executable_name() -> &'static str {
         "alera.exe"
     } else {
         "alera"
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn unavailable_requests_do_not_short_circuit_the_reconnect_delay() {
+        let runtime_dir = std::env::temp_dir().join(format!(
+            "alera-runtime-bridge-reconnect-{}",
+            uuid::Uuid::new_v4()
+        ));
+        let (commands, command_rx) = async_channel::unbounded();
+        let (_quit, quit_rx) = async_channel::bounded(1);
+        let (reply, reply_rx) = async_channel::bounded(1);
+        commands
+            .send(BridgeCommand::Request {
+                request_type: "status.get".to_string(),
+                payload: Value::Null,
+                deadline: Duration::from_secs(1),
+                reply,
+            })
+            .await
+            .expect("queue request");
+
+        let result = tokio::time::timeout(
+            Duration::from_millis(100),
+            wait_for_reconnect(&runtime_dir, &command_rx, &quit_rx),
+        )
+        .await;
+
+        assert!(
+            result.is_err(),
+            "request must not trigger an immediate reconnect"
+        );
+        assert_eq!(
+            reply_rx.recv().await.expect("unavailable reply"),
+            Err("Alera Runtime Is Unavailable.".to_string())
+        );
+    }
+
+    #[tokio::test]
+    async fn app_quit_rejects_new_requests_without_waiting_for_a_timeout() {
+        let bridge = RuntimeBridge::start(std::env::temp_dir().join(format!(
+            "alera-runtime-bridge-quit-{}",
+            uuid::Uuid::new_v4()
+        )));
+
+        bridge.begin_app_quit();
+
+        assert_eq!(
+            bridge.request("status.get", Value::Null).await,
+            Err(APP_QUIT_IN_PROGRESS.to_string())
+        );
     }
 }

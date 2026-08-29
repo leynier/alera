@@ -86,8 +86,7 @@ impl AleraApp {
                     if workspaces.is_empty()
                         && (!filter.is_empty()
                             || !self.sidebar_view_selected_tag_ids.is_empty()
-                            || self.sidebar_workspace_kind
-                                != super::SidebarWorkspaceKind::All
+                            || self.sidebar_workspace_kind != super::SidebarWorkspaceKind::All
                             || self.sidebar_active_only
                             || !self.sidebar_repeat_pinned)
                     {
@@ -1274,11 +1273,11 @@ fn sidebar_aggregate_state(runs: &[Value]) -> Option<SidebarAggregateState> {
             3
         } else {
             match state {
-            "blocked" => 5,
-            "waiting" => 4,
-            "working" => 2,
-            "done" => 1,
-            _ => 2,
+                "blocked" => 5,
+                "waiting" => 4,
+                "working" => 2,
+                "done" => 1,
+                _ => 2,
             }
         };
         let updated_at = run
@@ -1502,7 +1501,17 @@ mod aggregate_tests {
     #[test]
     fn compact_agent_icon_order_matches_flutter_agent_type_enum() {
         let ordered = [
-            "codex", "claude", "copilot", "cursor", "agy", "opencode", "opencode2", "pi", "amp", "grok", "fx",
+            "codex",
+            "claude",
+            "copilot",
+            "cursor",
+            "agy",
+            "opencode",
+            "opencode2",
+            "pi",
+            "amp",
+            "grok",
+            "fx",
         ];
         let keys = ordered.map(agent_sort_key);
         assert_eq!(keys, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);

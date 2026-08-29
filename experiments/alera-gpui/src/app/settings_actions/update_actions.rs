@@ -263,10 +263,8 @@ fn package_manager_upgrade_command() -> Option<String> {
     if cfg!(target_os = "windows") && executable.replace('\\', "/").contains("/apps/alera/current/") {
         return Some("scoop update alera".to_owned());
     }
-    if cfg!(target_os = "linux") {
-        if executable.contains("/usr/bin/") {
-            return Some("sudo apt-get update && sudo apt-get install --only-upgrade alera".to_owned());
-        }
+    if cfg!(target_os = "linux") && executable.contains("/usr/bin/") {
+        return Some("sudo apt-get update && sudo apt-get install --only-upgrade alera".to_owned());
     }
     None
 }

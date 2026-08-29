@@ -6,9 +6,9 @@ use gpui::{
     InteractiveElement as _, IntoElement, ParentElement as _, Role, SharedString,
     StatefulInteractiveElement as _, Styled as _,
 };
-use serde_json::{json, Value};
 use gpui_component::scroll::ScrollableElement;
 use gpui_component::tooltip::Tooltip;
+use serde_json::{json, Value};
 
 use super::status_quota::provider_agent_icon;
 use super::AleraApp;
@@ -49,7 +49,6 @@ struct UsageBucketView {
     cache_savings_usd: f64,
     records: u64,
     unpriced_records: u64,
-    sessions: u64,
 }
 
 #[derive(Clone, Debug, Default)]
@@ -160,7 +159,7 @@ impl UsageSnapshotView {
             entry.records = entry.records.saturating_add(bucket.records);
         }
         let mut result = values.into_values().collect::<Vec<_>>();
-        result.sort_by(|left, right| right.tokens.cmp(&left.tokens));
+        result.sort_by_key(|entry| std::cmp::Reverse(entry.tokens));
         result
     }
 }
@@ -187,7 +186,6 @@ impl UsageBucketView {
             cache_savings_usd: number_f64(value, "cacheSavingsUsd"),
             records: number(Some(value), "records"),
             unpriced_records: number(Some(value), "unpricedRecords"),
-            sessions: number(Some(value), "sessions"),
         }
     }
 }
@@ -341,15 +339,15 @@ impl AleraApp {
             .agent_usage_snapshot
             .as_ref()
             .map(|value| self.usage_snapshot_for_settings(value));
-        let show_grouped_breakdown = (usize::from(
-            self.settings_state.claude_default_show_in_usage,
-        ) + self
-            .settings_state
-            .claude_profiles
-            .iter()
-            .filter(|profile| profile.show_in_usage)
-            .count())
-            > 1;
+        let show_grouped_breakdown =
+            (usize::from(self.settings_state.claude_default_show_in_usage)
+                + self
+                    .settings_state
+                    .claude_profiles
+                    .iter()
+                    .filter(|profile| profile.show_in_usage)
+                    .count())
+                > 1;
         let host = self.current_status_host_label();
         div()
             .id("agent-usage-overlay")
@@ -472,9 +470,9 @@ impl AleraApp {
                                 button.bg(theme::accent()).text_color(theme::on_accent())
                             })
                             .when(selected_days != days, |button| {
-                                button.text_color(theme::text_muted()).hover(|style| {
-                                    style.bg(theme::surface_selected())
-                                })
+                                button
+                                    .text_color(theme::text_muted())
+                                    .hover(|style| style.bg(theme::surface_selected()))
                             })
                             .on_click(cx.listener(move |this, _, _, cx| {
                                 this.set_agent_usage_days(days, cx);
@@ -610,18 +608,47 @@ impl AleraApp {
             .p_5()
             .child(self.render_usage_notice(&snapshot))
             .child(
-                div()
-                    .flex()
-                    .flex_wrap()
-                    .gap_2()
-                    .mt_3()
-                    .children([
-                        usage_metric("Processed Tokens", format_tokens(tokens), format!("{records} assistant responses")),
-                        usage_metric("API-Equivalent Cost", format!("${cost:.2}"), if unpriced > 0 { format!("{unpriced} unpriced responses") } else { match snapshot.pricing_status.as_str() { "fresh" => "Current model rates".to_owned(), "cached" => "Cached model rates".to_owned(), _ => "Pricing unavailable".to_owned() } }),
-                        usage_metric("Sessions", format_count(snapshot.sources.iter().map(|source| source.distinct_sessions).sum()), format!("{} transcript sources", snapshot.sources.len())),
-                        usage_metric("Cached Input", format_tokens(cached), format!("{:.1}% of input", cached_share * 100.0)),
-                        usage_metric("Cache Savings", format!("${savings:.2}"), "Compared with full input rates".to_owned()),
-                    ]),
+                div().flex().flex_wrap().gap_2().mt_3().children([
+                    usage_metric(
+                        "Processed Tokens",
+                        format_tokens(tokens),
+                        format!("{records} assistant responses"),
+                    ),
+                    usage_metric(
+                        "API-Equivalent Cost",
+                        format!("${cost:.2}"),
+                        if unpriced > 0 {
+                            format!("{unpriced} unpriced responses")
+                        } else {
+                            match snapshot.pricing_status.as_str() {
+                                "fresh" => "Current model rates".to_owned(),
+                                "cached" => "Cached model rates".to_owned(),
+                                _ => "Pricing unavailable".to_owned(),
+                            }
+                        },
+                    ),
+                    usage_metric(
+                        "Sessions",
+                        format_count(
+                            snapshot
+                                .sources
+                                .iter()
+                                .map(|source| source.distinct_sessions)
+                                .sum(),
+                        ),
+                        format!("{} transcript sources", snapshot.sources.len()),
+                    ),
+                    usage_metric(
+                        "Cached Input",
+                        format_tokens(cached),
+                        format!("{:.1}% of input", cached_share * 100.0),
+                    ),
+                    usage_metric(
+                        "Cache Savings",
+                        format!("${savings:.2}"),
+                        "Compared with full input rates".to_owned(),
+                    ),
+                ]),
             )
             .child(
                 div()
@@ -657,32 +684,28 @@ impl AleraApp {
                             .rounded_md()
                             .border_1()
                             .border_color(theme::border())
-                            .children(
-                                breakdown_modes
-                                .into_iter()
-                                .map(|(candidate, label)| {
-                                    div()
-                                        .id(SharedString::from(format!("usage-mode-{label}")))
-                                        .role(Role::Button)
-                                        .aria_label(label)
-                                        .px_2()
-                                        .py(px(5.0))
-                                        .text_size(px(10.0))
-                                        .cursor(CursorStyle::PointingHand)
-                                        .when(mode == candidate, |button| {
-                                            button.bg(theme::accent()).text_color(theme::on_accent())
-                                        })
-                                        .when(mode != candidate, |button| {
-                                            button.text_color(theme::text_muted()).hover(|style| {
-                                                style.bg(theme::surface_selected())
-                                            })
-                                        })
-                                        .on_click(cx.listener(move |this, _, _, cx| {
-                                            this.set_agent_usage_breakdown_mode(candidate, cx);
-                                        }))
-                                        .child(label)
-                                }),
-                            ),
+                            .children(breakdown_modes.into_iter().map(|(candidate, label)| {
+                                div()
+                                    .id(SharedString::from(format!("usage-mode-{label}")))
+                                    .role(Role::Button)
+                                    .aria_label(label)
+                                    .px_2()
+                                    .py(px(5.0))
+                                    .text_size(px(10.0))
+                                    .cursor(CursorStyle::PointingHand)
+                                    .when(mode == candidate, |button| {
+                                        button.bg(theme::accent()).text_color(theme::on_accent())
+                                    })
+                                    .when(mode != candidate, |button| {
+                                        button
+                                            .text_color(theme::text_muted())
+                                            .hover(|style| style.bg(theme::surface_selected()))
+                                    })
+                                    .on_click(cx.listener(move |this, _, _, cx| {
+                                        this.set_agent_usage_breakdown_mode(candidate, cx);
+                                    }))
+                                    .child(label)
+                            })),
                     ),
             )
             .child(self.render_usage_table(&breakdowns))
@@ -713,10 +736,19 @@ impl AleraApp {
             .sources
             .iter()
             .filter(|source| matches!(source.status.as_str(), "partial" | "failed"))
-            .map(|source| format!("{} {} is partial.", provider_label(&source.provider), source.display_name))
-            .chain((snapshot.pricing_status == "unavailable").then_some(
-                "Some model costs may be unavailable because pricing could not be loaded.".to_owned(),
-            ))
+            .map(|source| {
+                format!(
+                    "{} {} is partial.",
+                    provider_label(&source.provider),
+                    source.display_name
+                )
+            })
+            .chain(
+                (snapshot.pricing_status == "unavailable").then_some(
+                    "Some model costs may be unavailable because pricing could not be loaded."
+                        .to_owned(),
+                ),
+            )
             .collect::<Vec<_>>();
         if issues.is_empty() {
             return div().into_any_element();
@@ -768,14 +800,22 @@ impl AleraApp {
                     .child(
                         div()
                             .flex_1()
-                            .h(px(claude_height.max(if day.claude_tokens > 0 { 2.0 } else { 0.0 })))
+                            .h(px(claude_height.max(if day.claude_tokens > 0 {
+                                2.0
+                            } else {
+                                0.0
+                            })))
                             .rounded_t_sm()
                             .bg(theme::text()),
                     )
                     .child(
                         div()
                             .flex_1()
-                            .h(px(codex_height.max(if day.codex_tokens > 0 { 2.0 } else { 0.0 })))
+                            .h(px(codex_height.max(if day.codex_tokens > 0 {
+                                2.0
+                            } else {
+                                0.0
+                            })))
                             .rounded_t_sm()
                             .bg(theme::text_faint()),
                     )
@@ -823,9 +863,14 @@ impl AleraApp {
                 .child("No Claude Code or Codex usage was found in this range.")
                 .into_any_element();
         }
-        table = table.child(
-            usage_table_row("Name", "Tokens", "Cost", "Responses", true, None),
-        );
+        table = table.child(usage_table_row(
+            "Name",
+            "Tokens",
+            "Cost",
+            "Responses",
+            true,
+            None,
+        ));
         for value in values {
             table = table.child(usage_table_row(
                 &value.label,
@@ -849,9 +894,26 @@ fn usage_metric(label: &str, value: String, detail: String) -> AnyElement {
         .border_1()
         .border_color(theme::border_subtle())
         .bg(theme::surface())
-        .child(div().text_size(px(10.0)).text_color(theme::text_muted()).child(label.to_owned()))
-        .child(div().mt_1().font_family("JetBrains Mono").text_size(px(16.0)).child(value))
-        .child(div().mt_1().text_size(px(10.0)).text_color(theme::text_faint()).child(detail))
+        .child(
+            div()
+                .text_size(px(10.0))
+                .text_color(theme::text_muted())
+                .child(label.to_owned()),
+        )
+        .child(
+            div()
+                .mt_1()
+                .font_family("JetBrains Mono")
+                .text_size(px(16.0))
+                .child(value),
+        )
+        .child(
+            div()
+                .mt_1()
+                .text_size(px(10.0))
+                .text_color(theme::text_faint())
+                .child(detail),
+        )
         .into_any_element()
 }
 
@@ -873,7 +935,9 @@ fn usage_table_row(
         .border_color(theme::border_subtle())
         .when(!header, |row| {
             row.child(agent_icon(
-                provider.map(provider_agent_icon).unwrap_or(crate::icons::AgentIcon::Codex),
+                provider
+                    .map(provider_agent_icon)
+                    .unwrap_or(crate::icons::AgentIcon::Codex),
                 14.0,
                 theme::text_muted(),
             ))
@@ -936,10 +1000,12 @@ fn build_usage_days(
 ) -> Vec<UsageDayView> {
     let mut days = BTreeMap::<String, UsageDayView>::new();
     for bucket in buckets {
-        let day = days.entry(bucket.day.clone()).or_insert_with(|| UsageDayView {
-            day: bucket.day.clone(),
-            ..UsageDayView::default()
-        });
+        let day = days
+            .entry(bucket.day.clone())
+            .or_insert_with(|| UsageDayView {
+                day: bucket.day.clone(),
+                ..UsageDayView::default()
+            });
         if bucket.provider == "claude" {
             day.claude_tokens = day.claude_tokens.saturating_add(bucket.tokens);
         } else if bucket.provider == "codex" {
@@ -1013,7 +1079,7 @@ fn format_count(value: u64) -> String {
     let raw = value.to_string();
     let mut result = String::new();
     for (index, character) in raw.chars().enumerate() {
-        if index > 0 && (raw.len() - index) % 3 == 0 {
+        if index > 0 && (raw.len() - index).is_multiple_of(3) {
             result.push(',');
         }
         result.push(character);
@@ -1027,8 +1093,7 @@ fn format_usage_day(value: &str) -> String {
     let month = parts.next().and_then(|month| month.parse::<usize>().ok());
     let day = parts.next().and_then(|day| day.parse::<u32>().ok());
     let months = [
-        "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov",
-        "Dec",
+        "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
     ];
     match (month, day) {
         (Some(month), Some(day)) if (1..=12).contains(&month) => {

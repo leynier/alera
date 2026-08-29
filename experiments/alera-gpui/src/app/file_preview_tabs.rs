@@ -44,11 +44,7 @@ impl AleraApp {
         self.open_file_backed_tab(relative_path, false, cx);
     }
 
-    pub(super) fn open_file_preview_tab(
-        &mut self,
-        relative_path: String,
-        cx: &mut Context<Self>,
-    ) {
+    pub(super) fn open_file_preview_tab(&mut self, relative_path: String, cx: &mut Context<Self>) {
         self.open_file_backed_tab(relative_path, true, cx);
     }
 
@@ -88,8 +84,7 @@ impl AleraApp {
             return;
         }
         let tab = self.snapshot.tabs.iter().find(|tab| {
-            tab.is_preview()
-                && tab.payload.get("filePath").and_then(Value::as_str) == Some(path)
+            tab.is_preview() && tab.payload.get("filePath").and_then(Value::as_str) == Some(path)
         });
         if let Some(tab) = tab.cloned() {
             self.persist_kept_preview_tab(tab, cx);
@@ -126,12 +121,12 @@ impl AleraApp {
             tab.workspace_id == workspace_id
                 && tab.payload.get("filePath").and_then(Value::as_str)
                     == Some(relative_path.as_str())
-                && tab.payload.get("fileRole").and_then(Value::as_str)
-                    != Some("mermanPreview")
+                && tab.payload.get("fileRole").and_then(Value::as_str) != Some("mermanPreview")
                 && (tab.kind == kind.key() || kind.can_retarget(&tab.kind))
         });
         if let Some(existing) = existing_for_path {
-            let requires_update = existing.kind != kind.key() || (!preview && existing.is_preview());
+            let requires_update =
+                existing.kind != kind.key() || (!preview && existing.is_preview());
             if !requires_update || (preview && !existing.is_preview()) {
                 self.activate_workspace_tab(existing.id.clone(), cx);
                 return;
@@ -227,10 +222,8 @@ impl AleraApp {
                 this.file_preview_keep_after_open = false;
                 match result {
                     Ok(mut tab) => {
-                        this.selected_tab_id = tab
-                            .get("id")
-                            .and_then(Value::as_str)
-                            .map(str::to_owned);
+                        this.selected_tab_id =
+                            tab.get("id").and_then(Value::as_str).map(str::to_owned);
                         if keep_after_open && remove_preview_from_tab_value(&mut tab) {
                             this.persist_returned_preview_tab(tab, cx);
                         } else {

@@ -202,11 +202,7 @@ impl AleraApp {
                             .map(|tab| tab.id.clone())
                             .collect()
                     });
-                let tab = self
-                    .snapshot
-                    .tabs
-                    .iter()
-                    .find(|tab| tab.id == *tab_id);
+                let tab = self.snapshot.tabs.iter().find(|tab| tab.id == *tab_id);
                 let is_codex = tab.is_some_and(|tab| tab.kind == "codex");
                 let is_preview = tab.is_some_and(|tab| tab.is_preview());
                 let close_index = 4 + usize::from(is_preview);
@@ -369,9 +365,10 @@ impl AleraApp {
                         .filter(|candidate| *candidate != &tab_id)
                         .cloned()
                         .collect(),
-                    value if value == close_index + 2 => tab_position.map_or_else(Vec::new, |position| {
-                        group_tab_ids.iter().skip(position + 1).cloned().collect()
-                    }),
+                    value if value == close_index + 2 => tab_position
+                        .map_or_else(Vec::new, |position| {
+                            group_tab_ids.iter().skip(position + 1).cloned().collect()
+                        }),
                     _ => Vec::new(),
                 };
                 if !tab_ids.is_empty() {
@@ -530,11 +527,7 @@ impl AleraApp {
         let close_right: Vec<String> = tab_index
             .map(|index| group_tab_ids.iter().skip(index + 1).cloned().collect())
             .unwrap_or_default();
-        let tab = self
-            .snapshot
-            .tabs
-            .iter()
-            .find(|tab| tab.id == tab_id);
+        let tab = self.snapshot.tabs.iter().find(|tab| tab.id == tab_id);
         let is_preview = tab.is_some_and(|tab| tab.is_preview());
         let close_index = 4 + usize::from(is_preview);
         let mut menu = menu_shell(
@@ -655,8 +648,7 @@ impl AleraApp {
                         this.request_close_tabs(close_right_ids.clone(), cx);
                     }))
                 }),
-            )
-            ;
+            );
         if !is_codex {
             menu = menu.child(menu_divider()).child(
                 menu_button(

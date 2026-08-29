@@ -28,7 +28,10 @@ impl AgentProfileRemovalImpact {
     pub(super) fn removal_message(&self, profile_name: &str) -> String {
         let mut references = Vec::new();
         if !self.automation_ids.is_empty() {
-            references.push(pluralized_reference(self.automation_ids.len(), "automation"));
+            references.push(pluralized_reference(
+                self.automation_ids.len(),
+                "automation",
+            ));
         }
         if !self.tabs.is_empty() {
             references.push(pluralized_reference(self.tabs.len(), "tab"));
@@ -46,9 +49,7 @@ impl AgentProfileRemovalImpact {
             ));
         }
         if references.is_empty() {
-            return format!(
-                "{profile_name} has no references. Deleting it cannot be undone."
-            );
+            return format!("{profile_name} has no references. Deleting it cannot be undone.");
         }
         let effect = references.join(", ");
         if self.has_blocking_references() {

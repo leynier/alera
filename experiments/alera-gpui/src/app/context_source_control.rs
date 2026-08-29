@@ -375,10 +375,8 @@ impl AleraApp {
                             && !filtered_changes.is_empty(),
                         |content| {
                             if self.source_control_group_mode {
-                                content.child(self.source_unified_change_group(
-                                    &filtered_changes,
-                                    cx,
-                                ))
+                                content
+                                    .child(self.source_unified_change_group(&filtered_changes, cx))
                             } else {
                                 content.children(
                                     ["staged", "unstaged", "untracked"]
@@ -500,9 +498,7 @@ impl AleraApp {
                         } else {
                             ["staged", "unstaged", "untracked"]
                                 .into_iter()
-                                .all(|area| {
-                                    this.source_control_collapsed_sections.contains(area)
-                                })
+                                .all(|area| this.source_control_collapsed_sections.contains(area))
                         };
                         if all_collapsed {
                             this.source_control_collapsed_sections.clear();

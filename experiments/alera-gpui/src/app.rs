@@ -15,8 +15,9 @@ use gpui_component::IndexPath;
 use serde_json::Value;
 
 mod add_project_dialog;
-mod automations;
 mod agent_canvas;
+mod agent_profile_record;
+mod agent_profile_removal;
 mod agent_profile_settings;
 mod agent_profile_settings_actions;
 mod agent_profile_settings_catalog;
@@ -26,20 +27,20 @@ mod agent_profile_settings_discovery;
 mod agent_profile_settings_keyboard;
 mod agent_profile_settings_persistence;
 mod agent_profile_settings_removal;
-mod agent_profile_record;
-mod agent_profile_removal;
 mod agent_profile_settings_render;
 mod ai_assist_settings_catalog;
 mod app_helpers;
 mod app_init;
 mod app_lifecycle;
 mod app_menu_dialog;
+mod automations;
 mod claude_profile_dialog;
-mod command_terminal;
+#[allow(dead_code)]
 mod codex_surface;
+mod command_terminal;
 mod context_pull_request;
-mod context_pull_request_comments;
 mod context_pull_request_ai;
+mod context_pull_request_comments;
 mod context_pull_request_composer;
 mod context_pull_request_review_actions;
 mod context_sidebar;
@@ -63,20 +64,20 @@ mod forge_surface;
 mod git_diff_surface;
 mod git_diff_tab_actions;
 mod git_surface;
+mod keep_alive;
 mod keyboard_actions;
 mod keyboard_settings;
 mod keyboard_settings_actions;
 mod keyboard_settings_render;
-mod keep_alive;
 mod markdown_preview_images;
 mod mobile_access;
 mod mobile_driver;
 mod preview_surface;
 mod project_actions;
 mod project_config_settings;
+mod quick_open;
 mod reading_diff;
 mod reading_diff_pull_request;
-mod quick_open;
 mod run_policy;
 mod run_policy_dialog;
 mod search_surface;
@@ -116,10 +117,10 @@ mod tab_menus;
 mod tab_strip;
 mod terminal_composer;
 mod terminal_input;
+mod terminal_pulse;
 mod terminal_surface;
 mod terminal_toolbar;
 mod terminal_toolbar_menu;
-mod terminal_pulse;
 mod text_actions_execution;
 mod text_actions_settings;
 mod toast;
@@ -232,6 +233,7 @@ pub struct AleraApp {
     codex_sessions_supported: Option<bool>,
     codex_turn_policy_supported: Option<bool>,
     codex_capabilities_loading: bool,
+    #[allow(dead_code)]
     codex_session_action_busy: BTreeSet<String>,
     codex_resume_dialog_tab: Option<String>,
     codex_resume_threads: Vec<Value>,
@@ -246,6 +248,7 @@ pub struct AleraApp {
     codex_prompt_history_index: BTreeMap<String, usize>,
     codex_scroll_handle: ScrollHandle,
     codex_scroll_follow: bool,
+    #[allow(dead_code)]
     codex_working_collapsed: bool,
     codex_selected_model: Option<String>,
     codex_models: Vec<Value>,
@@ -258,7 +261,9 @@ pub struct AleraApp {
     codex_catalogs_loaded: bool,
     codex_catalogs_loading: bool,
     codex_error: Option<SharedString>,
+    #[allow(dead_code)]
     codex_menu_open: Option<String>,
+    #[allow(dead_code)]
     codex_raw_logs: bool,
     codex_reasoning_effort: String,
     codex_speed_mode: String,
@@ -266,6 +271,7 @@ pub struct AleraApp {
     codex_plan_mode: bool,
     codex_collaboration_mode: Option<String>,
     codex_queued_messages: BTreeMap<String, Vec<String>>,
+    #[allow(dead_code)]
     codex_collapsed_cells: BTreeSet<String>,
     agent_canvas_loading: bool,
     agent_canvas_error: Option<SharedString>,

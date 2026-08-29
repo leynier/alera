@@ -20,7 +20,17 @@ const DEFAULT_QUOTA_PROVIDERS: [&str; 9] = [
 ];
 
 const DEFAULT_AGENT_HOOKS: [&str; 11] = [
-    "codex", "claude", "copilot", "cursor", "agy", "opencode", "opencode2", "pi", "amp", "grok", "fx",
+    "codex",
+    "claude",
+    "copilot",
+    "cursor",
+    "agy",
+    "opencode",
+    "opencode2",
+    "pi",
+    "amp",
+    "grok",
+    "fx",
 ];
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
@@ -604,7 +614,10 @@ impl SettingsState {
                 self.terminal_show_composer_by_default = enabled;
             }
             if let Some(corner) = terminal.get("toolbarCorner").and_then(Value::as_str) {
-                if matches!(corner, "topLeft" | "topRight" | "bottomLeft" | "bottomRight") {
+                if matches!(
+                    corner,
+                    "topLeft" | "topRight" | "bottomLeft" | "bottomRight"
+                ) {
                     self.terminal_toolbar_corner = corner.to_owned();
                 }
             }
@@ -900,7 +913,9 @@ impl SettingsState {
                         .as_object()?
                         .iter()
                         .filter_map(|(model, value)| {
-                            value.as_str().map(|value| (model.clone(), value.to_owned()))
+                            value
+                                .as_str()
+                                .map(|value| (model.clone(), value.to_owned()))
                         })
                         .collect::<BTreeMap<_, _>>();
                     (!values.is_empty()).then_some((operation.clone(), values))

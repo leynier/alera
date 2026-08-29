@@ -433,11 +433,7 @@ pub(super) fn controls_for(adapter: &str) -> Vec<ManagedControl> {
     match adapter {
         "codex" => vec![
             choice("effort", "Reasoning Effort", CODEX_EFFORT),
-            choice(
-                "planModeEffort",
-                "Plan Mode Reasoning Effort",
-                CODEX_EFFORT,
-            ),
+            choice("planModeEffort", "Plan Mode Reasoning Effort", CODEX_EFFORT),
             choice("sandbox", "Sandbox", CODEX_SANDBOX),
             choice("approvalPolicy", "Approval Policy", CODEX_APPROVAL),
             flag("webSearch", "Web Search", "Allow Codex To Search The Web."),

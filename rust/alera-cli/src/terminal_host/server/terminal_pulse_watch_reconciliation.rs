@@ -11,7 +11,7 @@ impl WorkspacePulseWorker {
             if self.cancelled.load(Ordering::Relaxed) {
                 return;
             }
-            if self.reconcile_requested.swap(false, Ordering::AcqRel) {
+            while self.reconcile_requested.swap(false, Ordering::AcqRel) {
                 self.repository =
                     match reopen_repository(&self.repository, &self.git_config_environment) {
                         Ok(repository) => repository,
@@ -53,10 +53,16 @@ impl WorkspacePulseWorker {
                             return;
                         }
                     };
-                let newly_unignored = self
+                let newly_unignored_paths = self
                     .ignored_git_status_paths
                     .iter()
-                    .any(|path| status_snapshot.changed.contains(path));
+                    .filter(|path| status_snapshot.changed.contains(*path))
+                    .cloned()
+                    .collect::<HashSet<_>>();
+                let newly_unignored = !newly_unignored_paths.is_empty();
+                if let Ok(mut overrides) = self.git_relevance_overrides.write() {
+                    *overrides = newly_unignored_paths;
+                }
                 self.ignored_git_status_paths = status_snapshot.ignored;
                 match directories_have_git_changes(&self.repository, &additions) {
                     Ok(has_changes) if newly_unignored || has_changes => self.record_change(),
@@ -133,10 +139,10 @@ fn workspace_git_status_snapshot(
         .recurse_ignored_dirs(false)
         .disable_pathspec_match(true);
     if root != workdir {
-        let relative = root.strip_prefix(workdir).map_err(|_| {
+        let relative = repository_relative_path(repository, root, root).ok_or_else(|| {
             HostError::state("Terminal Pulse workspace is outside its Git working tree.")
         })?;
-        options.pathspec(relative);
+        options.pathspec(&relative);
     }
     let statuses = repository
         .statuses(Some(&mut options))
@@ -173,16 +179,21 @@ fn reconcile_watch_directories(
         .difference(desired)
         .cloned()
         .collect::<Vec<_>>();
-    for directory in &additions {
-        watcher
-            .watch(directory, RecursiveMode::NonRecursive)
-            .map_err(watcher_error)?;
-    }
-    for directory in removals {
-        if !git_ignore_watch_directories.contains(&directory) {
-            let _ = watcher.unwatch(&directory);
+    #[cfg(not(target_os = "macos"))]
+    {
+        for directory in &additions {
+            watcher
+                .watch(directory, RecursiveMode::NonRecursive)
+                .map_err(watcher_error)?;
+        }
+        for directory in removals {
+            if !git_ignore_watch_directories.contains(&directory) {
+                let _ = watcher.unwatch(&directory);
+            }
         }
     }
+    #[cfg(target_os = "macos")]
+    let _ = (watcher, git_ignore_watch_directories, removals);
     watched_directories.clone_from(desired);
     Ok(additions)
 }
@@ -195,7 +206,7 @@ fn directories_have_git_changes(
         return Ok(false);
     };
     for directory in directories {
-        let Ok(relative) = directory.strip_prefix(workdir) else {
+        let Some(relative) = repository_relative_existing_path(workdir, directory) else {
             continue;
         };
         let mut options = StatusOptions::new();
@@ -204,7 +215,7 @@ fn directories_have_git_changes(
             .recurse_untracked_dirs(true)
             .include_ignored(false)
             .disable_pathspec_match(true)
-            .pathspec(relative);
+            .pathspec(&relative);
         if repository
             .statuses(Some(&mut options))
             .map_err(git_query_error)?
@@ -218,7 +229,7 @@ fn directories_have_git_changes(
     Ok(false)
 }
 
-#[cfg(all(test, unix))]
+#[cfg(all(test, unix, not(target_os = "macos")))]
 mod tests {
     use std::os::unix::ffi::OsStringExt;
 

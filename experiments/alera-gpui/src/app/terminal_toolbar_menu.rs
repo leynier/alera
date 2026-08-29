@@ -19,9 +19,8 @@ impl AleraApp {
             .terminal_toolbar_menu
             .as_ref()
             .filter(|menu| menu.session_id == session_id)?;
-        let selected = TerminalToolbarCorner::from_key(
-            &self.settings_state.terminal_toolbar_corner,
-        );
+        let selected =
+            TerminalToolbarCorner::from_key(&self.settings_state.terminal_toolbar_corner);
         let position = menu.position;
         let mut panel = div()
             .id("terminal-toolbar-corner-menu")
@@ -76,7 +75,10 @@ impl AleraApp {
         cx: &mut Context<Self>,
     ) -> AnyElement {
         div()
-            .id(SharedString::from(format!("terminal-toolbar-corner-{}", corner.key())))
+            .id(SharedString::from(format!(
+                "terminal-toolbar-corner-{}",
+                corner.key()
+            )))
             .focusable()
             .tab_stop(true)
             .role(Role::MenuItem)
@@ -111,14 +113,12 @@ impl AleraApp {
             return;
         };
         let local = gpui::point(
-            px((global_position.x - bounds.origin.x).as_f32().clamp(
-                8.0,
-                (bounds.size.width.as_f32() - 178.0).max(8.0),
-            )),
-            px((global_position.y - bounds.origin.y).as_f32().clamp(
-                8.0,
-                (bounds.size.height.as_f32() - 132.0).max(8.0),
-            )),
+            px((global_position.x - bounds.origin.x)
+                .as_f32()
+                .clamp(8.0, (bounds.size.width.as_f32() - 178.0).max(8.0))),
+            px((global_position.y - bounds.origin.y)
+                .as_f32()
+                .clamp(8.0, (bounds.size.height.as_f32() - 132.0).max(8.0))),
         );
         self.terminal_toolbar_menu = Some(TerminalToolbarMenu {
             session_id,

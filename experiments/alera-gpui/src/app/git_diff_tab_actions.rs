@@ -46,6 +46,7 @@ impl AleraApp {
         );
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn open_git_commit_diff_tab_with_preview(
         &mut self,
         relative_path: Option<String>,

@@ -462,7 +462,8 @@ void main() {
         debugContext,
         contains('final helperExit = await _prepareCliNativeHelpers'),
       );
-      expect(debugContext, contains('final buildExit = await buildCli();'));
+      expect(debugContext, contains('bool prepareNativeHelpers = true,'));
+      expect(debugContext, contains('if (prepareNativeHelpers) {'));
       expect(
         debugContext,
         contains(

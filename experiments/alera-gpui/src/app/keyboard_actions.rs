@@ -252,12 +252,7 @@ impl AleraApp {
         self.open_terminal_search(window, cx);
     }
 
-    pub(super) fn on_go_back(
-        &mut self,
-        _: &GoBack,
-        window: &mut Window,
-        cx: &mut Context<Self>,
-    ) {
+    pub(super) fn on_go_back(&mut self, _: &GoBack, window: &mut Window, cx: &mut Context<Self>) {
         if !self.keyboard_shortcut_allowed("goBack", window) {
             cx.propagate();
             return;

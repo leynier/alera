@@ -63,7 +63,7 @@ void main() {
   });
 
   test('rejects a native library that does not need libc++_shared.so', () {
-    if (Platform.isWindows) {
+    if (!Platform.isLinux) {
       return;
     }
     final gcc = _gcc();
@@ -99,7 +99,7 @@ void main() {
   });
 
   test('accepts APKs that bundle libc++_shared.so for every ABI', () {
-    if (Platform.isWindows) {
+    if (!Platform.isLinux) {
       return;
     }
     final gcc = _gcc();

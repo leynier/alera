@@ -394,8 +394,7 @@ impl AleraApp {
                 status.settings.port,
                 status.settings.netbird_endpoint == MobileNetbirdEndpoint::Dns
                     && status.settings.endpoint_mode == "netbird",
-            )
-            {
+            ) {
                 self.mobile_access.error = Some(error.into());
                 cx.notify();
                 return;

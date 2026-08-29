@@ -1549,10 +1549,7 @@ mod tests {
         session.rows = 4;
         session.emulator = TerminalEmulator::new(session.columns, session.rows);
 
-        session.begin_restore_at_dimensions(
-            b"\x1b[1;18HTAIL".to_vec(),
-            Some((20, 4)),
-        );
+        session.begin_restore_at_dimensions(b"\x1b[1;18HTAIL".to_vec(), Some((20, 4)));
         while session.restore_next_chunk(8) {}
         session.emulator.scroll_display(100);
         let lines = session
@@ -1623,11 +1620,9 @@ mod tests {
 
         let lines = terminal.visible_lines("Alera Dark");
 
-        assert!(
-            lines
-                .iter()
-                .all(|line| line.cursor_column.is_none_or(|column| column < 4))
-        );
+        assert!(lines
+            .iter()
+            .all(|line| line.cursor_column.is_none_or(|column| column < 4)));
     }
 
     #[test]

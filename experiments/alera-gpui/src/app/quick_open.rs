@@ -1,14 +1,14 @@
+use super::keyboard_settings::{KeyboardBindingDefinition, KEYBOARD_BINDINGS};
+use super::AleraApp;
+use crate::design_system;
+use crate::icons::{icon, AleraIcon};
+use crate::theme;
 use gpui::{
     div, prelude::FluentBuilder as _, px, AnyElement, Context, CursorStyle,
     InteractiveElement as _, IntoElement, KeyDownEvent, MouseButton, ParentElement as _, Role,
     SharedString, StatefulInteractiveElement as _, Styled as _, Window,
 };
 use gpui_component::scroll::ScrollableElement as _;
-use super::keyboard_settings::{KeyboardBindingDefinition, KEYBOARD_BINDINGS};
-use super::AleraApp;
-use crate::design_system;
-use crate::icons::{icon, AleraIcon};
-use crate::theme;
 
 const QUICK_OPEN_MAX_RESULTS: usize = 50;
 #[derive(Clone, Copy)]
@@ -32,15 +32,15 @@ fn command_palette_matches(query: &str) -> Vec<CommandPaletteMatch> {
                 90_000
             } else if label.contains(&query) {
                 80_000
-            } else if description.contains(&query) || definition.id.to_ascii_lowercase().contains(&query) {
+            } else if description.contains(&query)
+                || definition.id.to_ascii_lowercase().contains(&query)
+            {
                 60_000
             } else {
                 let mut cursor = 0;
                 let mut score = 1_000;
                 for character in query.chars() {
-                    let Some(offset) = label[cursor..].find(character) else {
-                        return None;
-                    };
+                    let offset = label[cursor..].find(character)?;
                     let index = cursor + offset;
                     score += (index == cursor) as i32 * 20;
                     cursor = index + character.len_utf8();
@@ -87,10 +87,11 @@ impl AleraApp {
         std::thread::Builder::new()
             .name("alera-gpui-quick-open".to_owned())
             .spawn(move || {
-                let result = alera_native::api::workspace_files::start_workspace_quick_open_session(
-                    workspace_path,
-                )
-                .map_err(|error| format!("{error:?}"));
+                let result =
+                    alera_native::api::workspace_files::start_workspace_quick_open_session(
+                        workspace_path,
+                    )
+                    .map_err(|error| format!("{error:?}"));
                 let _ = sender.send_blocking(result);
             })
             .ok();
@@ -140,12 +141,13 @@ impl AleraApp {
         std::thread::Builder::new()
             .name("alera-gpui-quick-open-search".to_owned())
             .spawn(move || {
-                let result = alera_native::api::workspace_files::search_workspace_quick_open_session(
-                    session,
-                    query,
-                    QUICK_OPEN_MAX_RESULTS as u32,
-                )
-                .map_err(|error| format!("{error:?}"));
+                let result =
+                    alera_native::api::workspace_files::search_workspace_quick_open_session(
+                        session,
+                        query,
+                        QUICK_OPEN_MAX_RESULTS as u32,
+                    )
+                    .map_err(|error| format!("{error:?}"));
                 let _ = sender.send_blocking(result);
             })
             .ok();
@@ -225,14 +227,8 @@ impl AleraApp {
         }
     }
 
-    pub(super) fn move_command_palette_selection(
-        &mut self,
-        delta: i32,
-        cx: &mut Context<Self>,
-    ) {
-        let matches = command_palette_matches(
-            &self.command_palette_input.read(cx).value().to_string(),
-        );
+    pub(super) fn move_command_palette_selection(&mut self, delta: i32, cx: &mut Context<Self>) {
+        let matches = command_palette_matches(self.command_palette_input.read(cx).value().as_ref());
         if matches.is_empty() {
             return;
         }
@@ -242,14 +238,8 @@ impl AleraApp {
         cx.notify();
     }
 
-    pub(super) fn execute_command_palette(
-        &mut self,
-        window: &mut Window,
-        cx: &mut Context<Self>,
-    ) {
-        let matches = command_palette_matches(
-            &self.command_palette_input.read(cx).value().to_string(),
-        );
+    pub(super) fn execute_command_palette(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        let matches = command_palette_matches(self.command_palette_input.read(cx).value().as_ref());
         let Some(selected) = matches.get(self.command_palette_selected_index) else {
             return;
         };
@@ -286,9 +276,12 @@ impl AleraApp {
             .justify_center()
             .pt(px(82.0))
             .bg(theme::overlay_scrim())
-            .on_mouse_down(MouseButton::Left, cx.listener(|this, _, _, cx| {
-                this.close_quick_open(cx);
-            }))
+            .on_mouse_down(
+                MouseButton::Left,
+                cx.listener(|this, _, _, cx| {
+                    this.close_quick_open(cx);
+                }),
+            )
             .child(
                 design_system::dialog_shell("quick-open-dialog", "Quick Open", 640.0)
                     .w(px(640.0))
@@ -329,12 +322,7 @@ impl AleraApp {
                                 )
                             })
                             .when_some(error, |list, error| {
-                                list.child(
-                                    div()
-                                        .p_4()
-                                        .text_color(theme::danger())
-                                        .child(error),
-                                )
+                                list.child(div().p_4().text_color(theme::danger()).child(error))
                             })
                             .when(!loading && matches.is_empty() && !has_error, |list| {
                                 list.child(
@@ -363,16 +351,14 @@ impl AleraApp {
                                     }))
                                     .child(path)
                             })),
-            )
+                    ),
             )
             .into_any_element()
     }
 
     pub(super) fn render_command_palette_overlay(&self, cx: &mut Context<Self>) -> AnyElement {
         let input = self.command_palette_input.clone();
-        let matches = command_palette_matches(
-            &self.command_palette_input.read(cx).value().to_string(),
-        );
+        let matches = command_palette_matches(self.command_palette_input.read(cx).value().as_ref());
         let selected = self.command_palette_selected_index;
         div()
             .id("command-palette-overlay")
@@ -386,9 +372,12 @@ impl AleraApp {
             .justify_center()
             .pt(px(82.0))
             .bg(theme::overlay_scrim())
-            .on_mouse_down(MouseButton::Left, cx.listener(|this, _, _, cx| {
-                this.close_command_palette(cx);
-            }))
+            .on_mouse_down(
+                MouseButton::Left,
+                cx.listener(|this, _, _, cx| {
+                    this.close_command_palette(cx);
+                }),
+            )
             .child(
                 design_system::dialog_shell("command-palette-dialog", "Command Palette", 640.0)
                     .w(px(640.0))
@@ -465,7 +454,9 @@ impl AleraApp {
                             .mt_3()
                             .text_size(px(11.0))
                             .text_color(theme::text_faint())
-                            .child("Use Up and Down to navigate, Enter to run, or Escape to close."),
+                            .child(
+                                "Use Up and Down to navigate, Enter to run, or Escape to close.",
+                            ),
                     ),
             )
             .into_any_element()
@@ -479,13 +470,16 @@ mod tests {
     #[test]
     fn command_palette_prefers_exact_label_matches() {
         let matches = command_palette_matches("quick open");
-        assert_eq!(matches.first().map(|item| item.definition.id), Some("openQuickOpen"));
+        assert_eq!(
+            matches.first().map(|item| item.definition.id),
+            Some("openQuickOpen")
+        );
     }
 
     #[test]
     fn command_palette_keeps_fuzzy_labels_searchable() {
-        assert!(command_palette_matches("opst").iter().any(|item| {
-            item.definition.id == "openCommandPalette"
-        }));
+        assert!(command_palette_matches("cmdp")
+            .iter()
+            .any(|item| { item.definition.id == "openCommandPalette" }));
     }
 }

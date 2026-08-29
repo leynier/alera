@@ -829,9 +829,7 @@ impl AleraApp {
     }
 }
 
-fn parse_workspace_storage_impact(
-    value: Value,
-) -> Result<super::WorkspaceStorageImpact, String> {
+fn parse_workspace_storage_impact(value: Value) -> Result<super::WorkspaceStorageImpact, String> {
     let string = |key: &str| {
         value
             .get(key)

@@ -17,6 +17,7 @@ fn dropping_a_watcher_does_not_wait_for_its_worker() {
     let watcher = WorkspacePulseWatcher {
         generation: 1,
         worker: Some(worker),
+        git_source_poller: None,
         wake_tx,
         cancelled: Arc::new(AtomicBool::new(false)),
         event_sequence: Arc::new(AtomicU64::new(0)),
@@ -70,6 +71,7 @@ fn relevant_bursts_coalesce_without_an_event_queue_overflow() {
                 persistent_git_ignore_watch_directories: HashSet::new(),
                 git_config_environment,
                 ignored_git_status_paths: HashSet::new(),
+                git_relevance_overrides: Arc::new(RwLock::new(HashSet::new())),
                 failure_reported: Arc::new(AtomicBool::new(false)),
             }
             .run()
@@ -96,4 +98,21 @@ fn relevant_bursts_coalesce_without_an_event_queue_overflow() {
         _ => panic!("expected a Terminal Pulse change command"),
     }
     assert!(commands.try_recv().is_err());
+}
+
+#[test]
+fn event_paths_follow_the_canonical_workspace_root_alias() {
+    let mut event = Event::new(EventKind::Modify(notify::event::ModifyKind::Any))
+        .add_path(PathBuf::from("/var/workspace/src/main.rs"));
+
+    rewrite_event_root_alias(
+        Path::new("/var/workspace"),
+        Path::new("/private/var/workspace"),
+        &mut event,
+    );
+
+    assert_eq!(
+        event.paths,
+        [PathBuf::from("/private/var/workspace/src/main.rs")]
+    );
 }

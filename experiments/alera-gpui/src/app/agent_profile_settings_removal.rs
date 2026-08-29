@@ -5,8 +5,7 @@ use serde_json::json;
 
 use super::agent_profile_removal::parse_agent_profile_removal_impact;
 use super::agent_profile_settings_persistence::{
-    require_agent_profile_capabilities, AGENT_PROFILE_REVISIONS_CAPABILITY,
-    SAFE_EDITING_HOST_ERROR,
+    require_agent_profile_capabilities, AGENT_PROFILE_REVISIONS_CAPABILITY, SAFE_EDITING_HOST_ERROR,
 };
 use super::AleraApp;
 
@@ -33,9 +32,8 @@ impl AleraApp {
             .find(|profile| profile.id == id)
             .map(|profile| profile.revision)
         else {
-            self.agent_profile_settings.error = Some(
-                "The selected agent profile no longer exists. Refresh and try again.".into(),
-            );
+            self.agent_profile_settings.error =
+                Some("The selected agent profile no longer exists. Refresh and try again.".into());
             cx.notify();
             return;
         };

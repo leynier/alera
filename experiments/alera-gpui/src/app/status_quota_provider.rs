@@ -263,7 +263,8 @@ impl AleraApp {
                                     div()
                                         .h_full()
                                         .w(gpui::relative(
-                                            (reading.remaining_percent / 100.0).clamp(0.0, 1.0) as f32,
+                                            (reading.remaining_percent / 100.0).clamp(0.0, 1.0)
+                                                as f32,
                                         ))
                                         .rounded_full()
                                         .bg(color),

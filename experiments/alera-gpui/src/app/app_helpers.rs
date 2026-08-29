@@ -143,7 +143,10 @@ pub(super) fn build_settings_inputs(
         ),
         (
             "editor-autosave-delay",
-            settings.editor_autosave_delay_seconds.clamp(1, 60).to_string(),
+            settings
+                .editor_autosave_delay_seconds
+                .clamp(1, 60)
+                .to_string(),
             "1",
             false,
         ),

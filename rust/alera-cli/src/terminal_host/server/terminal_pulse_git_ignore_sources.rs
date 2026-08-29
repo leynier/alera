@@ -1,12 +1,19 @@
+#[cfg(target_os = "macos")]
+use std::collections::hash_map::DefaultHasher;
 use std::collections::{BTreeMap, HashSet};
+#[cfg(target_os = "macos")]
+use std::hash::{Hash, Hasher};
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, RwLock};
 
 use git2::{Config, ConfigLevel, ErrorCode, Repository};
-use notify::{ErrorKind as NotifyErrorKind, RecommendedWatcher, RecursiveMode, Watcher};
+use notify::RecommendedWatcher;
+#[cfg(not(target_os = "macos"))]
+use notify::{ErrorKind as NotifyErrorKind, RecursiveMode, Watcher};
 
 use crate::terminal_host::host_error::{HostError, HostResult};
 
+#[cfg(not(target_os = "macos"))]
 use super::watcher_error;
 
 #[derive(Default)]
@@ -144,8 +151,10 @@ impl GitIgnoreSources {
                 .or_else(|| Config::find_global().ok()),
         );
         let mut files = HashSet::new();
+        let mut durable_parent_sources = HashSet::new();
         if let Some((config, ignore)) = xdg_source_paths(environment, Config::find_xdg().ok()) {
             config_files.insert(config);
+            durable_parent_sources.insert(ignore.clone());
             files.insert(ignore);
         }
         collect_config_includes(&mut config_files, environment)?;
@@ -153,16 +162,30 @@ impl GitIgnoreSources {
         let config = repository.config().map_err(git_source_error)?;
         match config.get_path("core.excludesFile") {
             Ok(path) => {
-                files.insert(resolve_config_path(repository, path));
+                let path = resolve_config_path(repository, path);
+                durable_parent_sources.insert(path.clone());
+                files.insert(path);
             }
             Err(error) if error.code() == ErrorCode::NotFound => {}
             Err(error) => return Err(git_source_error(error)),
         }
         let files: HashSet<PathBuf> = files.into_iter().map(normalize_source_path).collect();
-        let directories = files
+        let mut directories: HashSet<PathBuf> = files
             .iter()
             .filter_map(|path| nearest_existing_directory(path.parent()?))
             .collect();
+        #[cfg(target_os = "macos")]
+        directories.extend(durable_parent_sources.into_iter().filter_map(|path| {
+            let path = normalize_source_path(path);
+            let parent = path.parent()?;
+            let home = environment
+                .home()
+                .map(|home| normalize_source_path(home.to_path_buf()));
+            if home.as_deref() == Some(parent) {
+                return None;
+            }
+            nearest_existing_directory(parent.parent()?)
+        }));
         Ok(Self { files, directories })
     }
 
@@ -174,6 +197,18 @@ impl GitIgnoreSources {
                 .and_then(|name| name.to_str())
                 .and_then(|name| name.strip_suffix(".lock"))
                 .is_some_and(|name| self.files.contains(&path.with_file_name(name)))
+    }
+
+    #[cfg(target_os = "macos")]
+    pub(super) fn content_fingerprint(&self) -> u64 {
+        let mut files = self.files.iter().collect::<Vec<_>>();
+        files.sort();
+        let mut hasher = DefaultHasher::new();
+        for path in files {
+            path.hash(&mut hasher);
+            std::fs::read(path).ok().hash(&mut hasher);
+        }
+        hasher.finish()
     }
 }
 
@@ -368,26 +403,31 @@ pub(super) fn refresh_git_ignore_source_watches(
         .map_err(|_| HostError::state("Terminal Pulse Git ignore source lock failed."))?
         .directories
         .clone();
-    for directory in &previous_directories {
-        if !persistent_watches.contains(directory) && !workspace_watches.contains(directory) {
-            match watcher.unwatch(directory) {
-                Ok(()) => {}
-                Err(error)
-                    if matches!(
-                        error.kind,
-                        NotifyErrorKind::PathNotFound | NotifyErrorKind::WatchNotFound
-                    ) => {}
-                Err(error) => return Err(watcher_error(error)),
+    #[cfg(not(target_os = "macos"))]
+    {
+        for directory in previous_directories.difference(&next.directories) {
+            if !persistent_watches.contains(directory) && !workspace_watches.contains(directory) {
+                match watcher.unwatch(directory) {
+                    Ok(()) => {}
+                    Err(error)
+                        if matches!(
+                            error.kind,
+                            NotifyErrorKind::PathNotFound | NotifyErrorKind::WatchNotFound
+                        ) => {}
+                    Err(error) => return Err(watcher_error(error)),
+                }
+            }
+        }
+        for directory in next.directories.difference(&previous_directories) {
+            if !persistent_watches.contains(directory) && !workspace_watches.contains(directory) {
+                watcher
+                    .watch(directory, RecursiveMode::NonRecursive)
+                    .map_err(watcher_error)?;
             }
         }
     }
-    for directory in &next.directories {
-        if !persistent_watches.contains(directory) && !workspace_watches.contains(directory) {
-            watcher
-                .watch(directory, RecursiveMode::NonRecursive)
-                .map_err(watcher_error)?;
-        }
-    }
+    #[cfg(target_os = "macos")]
+    let _ = (watcher, previous_directories, workspace_watches);
     watched.clear();
     watched.extend(persistent_watches.iter().cloned());
     watched.extend(next.directories.iter().cloned());

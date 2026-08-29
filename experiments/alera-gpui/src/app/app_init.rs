@@ -7,9 +7,8 @@ use super::*;
 impl AleraApp {
     pub fn new(bridge: RuntimeBridge, window: &mut Window, cx: &mut Context<Self>) -> Self {
         let (settings_store, settings_state) = SettingsStore::start();
-        let keep_alive_status = alera_native::api::keep_alive::set_keep_alive(
-            settings_state.keep_alive_enabled,
-        );
+        let keep_alive_status =
+            alera_native::api::keep_alive::set_keep_alive(settings_state.keep_alive_enabled);
         crate::editor_theme::apply_editor_theme(cx, &settings_state.editor_theme);
         crate::app_log::set_level(&settings_state.diagnostics_log_level);
         crate::app_log::set_crash_reporting_enabled(settings_state.crash_reporting_enabled);
@@ -136,8 +135,10 @@ impl AleraApp {
             &settings_state,
             &settings_state.ai_assist_agent,
         );
-        let ai_model_choices =
-            ai_assist_settings_catalog::model_choices(&settings_state, &settings_state.ai_assist_agent);
+        let ai_model_choices = ai_assist_settings_catalog::model_choices(
+            &settings_state,
+            &settings_state.ai_assist_agent,
+        );
         let ai_model = ai_model_choices
             .iter()
             .find(|model| model.id == ai_model_id);
@@ -258,9 +259,9 @@ impl AleraApp {
             "emulator",
             "agent-canvas",
         ]
-            .into_iter()
-            .map(|skill| (skill.to_string(), "Auto".to_string()))
-            .collect::<BTreeMap<_, _>>();
+        .into_iter()
+        .map(|skill| (skill.to_string(), "Auto".to_string()))
+        .collect::<BTreeMap<_, _>>();
         for skill in skill_runners.keys() {
             settings_selects.insert(
                 format!("skill-runner-{skill}"),
@@ -306,7 +307,9 @@ impl AleraApp {
                 ai_assist_settings_catalog::selected_model_id(&settings_state, effective_agent);
             let model_choices =
                 ai_assist_settings_catalog::model_choices(&settings_state, effective_agent);
-            let model = model_choices.iter().find(|model| model.id == inherited_model_id);
+            let model = model_choices
+                .iter()
+                .find(|model| model.id == inherited_model_id);
             let inherited_model_label = model_choices
                 .iter()
                 .find(|model| model.id == inherited_model_id)
@@ -349,9 +352,9 @@ impl AleraApp {
                         .map(String::as_str)
                         .or_else(|| {
                             settings_state
-                        .ai_assist_selected_thinking_by_model
-                        .get(&inherited_model_id)
-                        .map(String::as_str)
+                                .ai_assist_selected_thinking_by_model
+                                .get(&inherited_model_id)
+                                .map(String::as_str)
                         })
                         .or(model.default_thinking.as_deref())?;
                     model
@@ -526,10 +529,7 @@ impl AleraApp {
                 |this, input, event: &InputEvent, _, cx| {
                     if matches!(event, InputEvent::Change) && this.command_palette_open {
                         this.command_palette_selected_index = 0;
-                        this.update_command_palette_query(
-                            input.read(cx).value().to_string(),
-                            cx,
-                        );
+                        this.update_command_palette_query(input.read(cx).value().to_string(), cx);
                     }
                 },
             ),

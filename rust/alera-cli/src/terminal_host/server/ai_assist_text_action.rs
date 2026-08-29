@@ -1,4 +1,6 @@
-use alera_core::runtime::{RuntimeAiAssistPromptSettings, RuntimeAiAssistSettings, RuntimeTextAction};
+use alera_core::runtime::{
+    RuntimeAiAssistPromptSettings, RuntimeAiAssistSettings, RuntimeTextAction,
+};
 use serde_json::{json, Value};
 use tokio::sync::oneshot;
 
@@ -52,14 +54,8 @@ impl ServerActor {
                     .into_iter()
                     .find(|action| action.id == action_id)
                     .ok_or_else(|| HostError::state("Text action was not found."))?;
-                generate_text_action(
-                    &workspace_path,
-                    selected_text,
-                    action,
-                    settings,
-                    cancel_rx,
-                )
-                .await
+                generate_text_action(&workspace_path, selected_text, action, settings, cancel_rx)
+                    .await
             }
             .await;
             if let Ok(mut active) = active_generations().lock() {
@@ -102,10 +98,9 @@ async fn generate_text_action(
         },
     );
     if !action.reasoning_by_model.is_empty() {
-        action_settings.selected_thinking_by_operation.insert(
-            "textAction".to_string(),
-            action.reasoning_by_model.clone(),
-        );
+        action_settings
+            .selected_thinking_by_operation
+            .insert("textAction".to_string(), action.reasoning_by_model.clone());
     }
     let plan = plan_command(&action_settings, "textAction", &prompt)?;
     let agent_label = plan.label.clone();
@@ -145,7 +140,9 @@ fn clean_generated_text(raw: &str) -> String {
         let first = first.trim();
         if first.eq_ignore_ascii_case("generating")
             || first.eq_ignore_ascii_case("thinking")
-            || first.chars().all(|character| matches!(character, '.' | '…'))
+            || first
+                .chars()
+                .all(|character| matches!(character, '.' | '…'))
         {
             text = rest.trim().to_string();
         }
@@ -172,6 +169,9 @@ mod tests {
 
     #[test]
     fn removes_agent_preamble_and_fences() {
-        assert_eq!(clean_generated_text("thinking\n```text\nHello\n```"), "Hello");
+        assert_eq!(
+            clean_generated_text("thinking\n```text\nHello\n```"),
+            "Hello"
+        );
     }
 }

@@ -74,10 +74,8 @@ impl AleraApp {
                 this.terminal_pulse_busy = false;
                 match result {
                     Ok(value) => {
-                        this.terminal_pulse_armed = value
-                            .get("armed")
-                            .and_then(Value::as_bool)
-                            .unwrap_or(false);
+                        this.terminal_pulse_armed =
+                            value.get("armed").and_then(Value::as_bool).unwrap_or(false);
                         this.terminal_pulse_error = value
                             .get("error")
                             .and_then(Value::as_str)
@@ -379,7 +377,10 @@ impl AleraApp {
             .snapshot
             .tabs
             .iter()
-            .find(|tab| tab.kind == "terminal" && super::terminal_surface::terminal_session_id(tab) == session_id)
+            .find(|tab| {
+                tab.kind == "terminal"
+                    && super::terminal_surface::terminal_session_id(tab) == session_id
+            })
             .and_then(|tab| tab.payload.get("terminalPulse"));
         let command = payload
             .and_then(|value| value.get("command"))
@@ -396,11 +397,20 @@ impl AleraApp {
             .and_then(Value::as_u64)
             .unwrap_or(DEFAULT_DELAY_MS)
             .clamp(MIN_DELAY_MS, MAX_DELAY_MS);
-        (command, PulseConfiguration { append_enter, delay_ms })
+        (
+            command,
+            PulseConfiguration {
+                append_enter,
+                delay_ms,
+            },
+        )
     }
 }
 
-fn pulse_input(label: &'static str, input: &gpui::Entity<gpui_component::input::InputState>) -> gpui::Div {
+fn pulse_input(
+    label: &'static str,
+    input: &gpui::Entity<gpui_component::input::InputState>,
+) -> gpui::Div {
     div()
         .p_3()
         .child(
@@ -452,6 +462,8 @@ fn format_delay_seconds(delay_ms: u64) -> String {
     if remainder == 0 {
         seconds.to_string()
     } else {
-        format!("{seconds}.{:03}", remainder).trim_end_matches('0').to_owned()
+        format!("{seconds}.{:03}", remainder)
+            .trim_end_matches('0')
+            .to_owned()
     }
 }

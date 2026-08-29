@@ -8,8 +8,7 @@ use super::workspace_prompt_actions::{finish_prompt_workspace_error, input_value
 use super::AleraApp;
 use crate::runtime_bridge::RuntimeBridge;
 
-const AGENT_PROFILE_LAUNCH_IDEMPOTENCY_CAPABILITY: &str =
-    "agentProfileLaunchIdempotencyV1";
+const AGENT_PROFILE_LAUNCH_IDEMPOTENCY_CAPABILITY: &str = "agentProfileLaunchIdempotencyV1";
 const UNKNOWN_IDEMPOTENT_LAUNCH_REQUEST: &str =
     "Unknown terminal host request: agentProfile.launchIdempotent";
 
@@ -124,14 +123,9 @@ pub(super) async fn launch_agent_profile(
             payload,
             idempotent: true,
         }),
-        Err(error) if !require_idempotency && is_unknown_idempotent_launch_request(&error) =>
-        {
+        Err(error) if !require_idempotency && is_unknown_idempotent_launch_request(&error) => {
             bridge
-                .request_with_timeout(
-                    "agentProfile.launch",
-                    payload,
-                    Duration::from_secs(2 * 60),
-                )
+                .request_with_timeout("agentProfile.launch", payload, Duration::from_secs(2 * 60))
                 .await
                 .map(|payload| AgentProfileLaunchResult {
                     payload,

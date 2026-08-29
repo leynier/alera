@@ -222,10 +222,10 @@ fn directory_is_ignored(repository: &Repository, path: &Path) -> HostResult<bool
     let Some(workdir) = repository.workdir() else {
         return Ok(false);
     };
-    let Ok(relative) = path.strip_prefix(workdir) else {
+    let Some(relative) = repository_relative_existing_path(workdir, path) else {
         return Ok(false);
     };
-    repository.status_should_ignore(relative).map_err(|error| {
+    repository.status_should_ignore(&relative).map_err(|error| {
         HostError::state(format!(
             "Terminal Pulse could not inspect Git ignore rules: {error}"
         ))
@@ -236,7 +236,7 @@ fn tracked_parent_directories(
     root: &Path,
     repository: &Repository,
 ) -> HostResult<HashSet<PathBuf>> {
-    let Some(workdir) = repository.workdir() else {
+    let Some(root_relative) = repository_relative_path(repository, root, root) else {
         return Ok(HashSet::new());
     };
     let index = repository.index().map_err(|error| {
@@ -249,7 +249,10 @@ fn tracked_parent_directories(
         let Some(relative) = repository_path_from_bytes(&entry.path) else {
             continue;
         };
-        let absolute = workdir.join(relative);
+        let Ok(workspace_relative) = relative.strip_prefix(&root_relative) else {
+            continue;
+        };
+        let absolute = root.join(workspace_relative);
         let mut parent = absolute.parent();
         while let Some(directory) = parent.filter(|directory| directory.starts_with(root)) {
             directories.insert(directory.to_path_buf());
@@ -260,6 +263,28 @@ fn tracked_parent_directories(
         }
     }
     Ok(directories)
+}
+
+pub(super) fn repository_relative_path(
+    repository: &Repository,
+    root: &Path,
+    path: &Path,
+) -> Option<PathBuf> {
+    let workspace_relative = path.strip_prefix(root).ok()?;
+    let workdir = repository.workdir()?;
+    let canonical_root = dunce::canonicalize(root).ok()?;
+    let canonical_workdir = dunce::canonicalize(workdir).ok()?;
+    let root_relative = canonical_root.strip_prefix(canonical_workdir).ok()?;
+    Some(root_relative.join(workspace_relative))
+}
+
+pub(super) fn repository_relative_existing_path(workdir: &Path, path: &Path) -> Option<PathBuf> {
+    let canonical_path = dunce::canonicalize(path).ok()?;
+    let canonical_workdir = dunce::canonicalize(workdir).ok()?;
+    canonical_path
+        .strip_prefix(canonical_workdir)
+        .ok()
+        .map(Path::to_path_buf)
 }
 
 #[cfg(unix)]

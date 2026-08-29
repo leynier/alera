@@ -1,9 +1,9 @@
 use std::time::Duration;
 
 use gpui::{
-    div, prelude::FluentBuilder as _, px, AnyElement, AppContext as _, ClipboardItem, Context, CursorStyle,
-    Entity, ExternalPaths, InteractiveElement as _, IntoElement, KeyDownEvent, MouseButton,
-    ParentElement as _, Role, ScrollWheelEvent, SharedString,
+    div, prelude::FluentBuilder as _, px, AnyElement, AppContext as _, ClipboardItem, Context,
+    CursorStyle, Entity, ExternalPaths, InteractiveElement as _, IntoElement, KeyDownEvent,
+    MouseButton, ParentElement as _, Role, ScrollWheelEvent, SharedString,
     StatefulInteractiveElement as _, Styled as _, Window,
 };
 use gpui_component::input::{Input, InputEvent, Textarea, TextareaState};
@@ -11,12 +11,12 @@ use gpui_component::scroll::ScrollableElement as _;
 use gpui_component::text::TextView;
 use serde_json::{json, Value};
 
+use super::markdown_preview_images::with_markdown_images;
 use super::{AleraApp, ExplorerDragData};
 use crate::design_system::{self, ButtonKind};
 use crate::icons::{icon, loading_indicator, AleraIcon};
 use crate::model::WorkspaceTab;
 use crate::theme;
-use super::markdown_preview_images::with_markdown_images;
 
 const CODEX_TAB_KIND: &str = "codex";
 
@@ -37,7 +37,8 @@ impl AleraApp {
             .collect::<std::collections::BTreeSet<_>>();
         self.codex_opening_tabs
             .retain(|tab_id| codex_tabs.contains(tab_id));
-        self.codex_snapshots.retain(|tab_id, _| codex_tabs.contains(tab_id));
+        self.codex_snapshots
+            .retain(|tab_id, _| codex_tabs.contains(tab_id));
         self.codex_thread_ids
             .retain(|tab_id, _| codex_tabs.contains(tab_id));
         self.codex_history_next_cursor
@@ -137,12 +138,16 @@ impl AleraApp {
                     .and_then(|value| value.get("runtimeCapabilities").cloned())
                     .and_then(|value| value.as_array().cloned())
                     .unwrap_or_default();
-                this.codex_sessions_supported = Some(capabilities.iter().any(|value| {
-                    value.as_str() == Some("codexSessionsV1")
-                }));
-                this.codex_turn_policy_supported = Some(capabilities.iter().any(|value| {
-                    value.as_str() == Some("codexTurnPolicyV2")
-                }));
+                this.codex_sessions_supported = Some(
+                    capabilities
+                        .iter()
+                        .any(|value| value.as_str() == Some("codexSessionsV1")),
+                );
+                this.codex_turn_policy_supported = Some(
+                    capabilities
+                        .iter()
+                        .any(|value| value.as_str() == Some("codexTurnPolicyV2")),
+                );
                 cx.notify();
             });
         })
@@ -183,7 +188,8 @@ impl AleraApp {
                     Ok(value) => {
                         this.apply_codex_session_response(&tab_id, &value);
                         if let Some(snapshot) = value.get("snapshot") {
-                            this.codex_snapshots.insert(tab_id.clone(), snapshot.clone());
+                            this.codex_snapshots
+                                .insert(tab_id.clone(), snapshot.clone());
                         }
                         this.codex_error = None;
                     }
@@ -270,7 +276,8 @@ impl AleraApp {
                     Ok(value) => {
                         this.apply_codex_session_response(&tab_id, &value);
                         if let Some(snapshot) = value.get("snapshot") {
-                            this.codex_snapshots.insert(tab_id.clone(), snapshot.clone());
+                            this.codex_snapshots
+                                .insert(tab_id.clone(), snapshot.clone());
                         }
                         this.codex_error = None;
                     }
@@ -337,7 +344,10 @@ impl AleraApp {
             if let Some(object) = tab.payload.as_object_mut() {
                 object.insert("codexSnapshot".to_owned(), snapshot.clone());
                 if let Some(thread_id) = payload.get("threadId").and_then(Value::as_str) {
-                    object.insert("codexThreadId".to_owned(), Value::String(thread_id.to_owned()));
+                    object.insert(
+                        "codexThreadId".to_owned(),
+                        Value::String(thread_id.to_owned()),
+                    );
                 }
             }
         }
@@ -394,10 +404,8 @@ impl AleraApp {
                 this.tab_mutation_busy = false;
                 match result {
                     Ok(tab) => {
-                        this.selected_tab_id = tab
-                            .get("id")
-                            .and_then(Value::as_str)
-                            .map(str::to_owned);
+                        this.selected_tab_id =
+                            tab.get("id").and_then(Value::as_str).map(str::to_owned);
                         this.refresh(cx);
                     }
                     Err(error) => this.local_message = Some(error.into()),
@@ -451,7 +459,8 @@ impl AleraApp {
                     Ok(value) => {
                         this.apply_codex_session_response(&tab_id, &value);
                         if let Some(snapshot) = value.get("snapshot") {
-                            this.codex_snapshots.insert(tab_id.clone(), snapshot.clone());
+                            this.codex_snapshots
+                                .insert(tab_id.clone(), snapshot.clone());
                         }
                         this.codex_error = None;
                     }
@@ -483,7 +492,9 @@ impl AleraApp {
         append: bool,
         cx: &mut Context<Self>,
     ) {
-        if self.codex_resume_loading || self.codex_resume_dialog_tab.as_deref() != Some(tab_id.as_str()) {
+        if self.codex_resume_loading
+            || self.codex_resume_dialog_tab.as_deref() != Some(tab_id.as_str())
+        {
             return;
         }
         let workspace_id = self
@@ -499,7 +510,9 @@ impl AleraApp {
             .trim()
             .to_owned();
         let scope_workspace = self.codex_resume_workspace_only;
-        let cursor = append.then(|| self.codex_resume_next_cursor.clone()).flatten();
+        let cursor = append
+            .then(|| self.codex_resume_next_cursor.clone())
+            .flatten();
         if append && cursor.is_none() {
             return;
         }
@@ -552,12 +565,7 @@ impl AleraApp {
         .detach();
     }
 
-    fn resume_codex_thread(
-        &mut self,
-        tab_id: &str,
-        thread: Value,
-        cx: &mut Context<Self>,
-    ) {
+    fn resume_codex_thread(&mut self, tab_id: &str, thread: Value, cx: &mut Context<Self>) {
         let Some(thread_id) = thread
             .get("threadId")
             .or_else(|| thread.get("id"))
@@ -608,7 +616,8 @@ impl AleraApp {
                         } else {
                             this.apply_codex_session_response(&tab_id, &value);
                             if let Some(snapshot) = value.get("snapshot") {
-                                this.codex_snapshots.insert(tab_id.clone(), snapshot.clone());
+                                this.codex_snapshots
+                                    .insert(tab_id.clone(), snapshot.clone());
                             }
                             this.codex_error = None;
                         }
@@ -680,10 +689,13 @@ impl AleraApp {
             .items_center()
             .justify_center()
             .bg(theme::overlay_scrim())
-            .on_mouse_down(MouseButton::Left, cx.listener(|this, _, _, cx| {
-                this.codex_resume_dialog_tab = None;
-                cx.notify();
-            }))
+            .on_mouse_down(
+                MouseButton::Left,
+                cx.listener(|this, _, _, cx| {
+                    this.codex_resume_dialog_tab = None;
+                    cx.notify();
+                }),
+            )
             .child(
                 design_system::dialog_shell("codex-resume-dialog", "Resume Codex Thread", 620.0)
                     .on_mouse_down(MouseButton::Left, |_, _, cx| cx.stop_propagation())
@@ -702,16 +714,20 @@ impl AleraApp {
                                     },
                                     false,
                                 )
-                                .on_click(cx.listener(|this, _, _, cx| {
-                                    if !this.codex_resume_workspace_only {
-                                        this.codex_resume_workspace_only = true;
-                                        this.codex_resume_next_cursor = None;
-                                        if let Some(tab_id) = this.codex_resume_dialog_tab.clone() {
-                                            this.load_codex_resume_threads(tab_id, false, cx);
+                                .on_click(cx.listener(
+                                    |this, _, _, cx| {
+                                        if !this.codex_resume_workspace_only {
+                                            this.codex_resume_workspace_only = true;
+                                            this.codex_resume_next_cursor = None;
+                                            if let Some(tab_id) =
+                                                this.codex_resume_dialog_tab.clone()
+                                            {
+                                                this.load_codex_resume_threads(tab_id, false, cx);
+                                            }
+                                            cx.notify();
                                         }
-                                        cx.notify();
-                                    }
-                                })),
+                                    },
+                                )),
                             )
                             .child(
                                 design_system::button(
@@ -724,16 +740,20 @@ impl AleraApp {
                                     },
                                     false,
                                 )
-                                .on_click(cx.listener(|this, _, _, cx| {
-                                    if this.codex_resume_workspace_only {
-                                        this.codex_resume_workspace_only = false;
-                                        this.codex_resume_next_cursor = None;
-                                        if let Some(tab_id) = this.codex_resume_dialog_tab.clone() {
-                                            this.load_codex_resume_threads(tab_id, false, cx);
+                                .on_click(cx.listener(
+                                    |this, _, _, cx| {
+                                        if this.codex_resume_workspace_only {
+                                            this.codex_resume_workspace_only = false;
+                                            this.codex_resume_next_cursor = None;
+                                            if let Some(tab_id) =
+                                                this.codex_resume_dialog_tab.clone()
+                                            {
+                                                this.load_codex_resume_threads(tab_id, false, cx);
+                                            }
+                                            cx.notify();
                                         }
-                                        cx.notify();
-                                    }
-                                })),
+                                    },
+                                )),
                             )
                             .child(div().flex_1())
                             .child(
@@ -746,14 +766,16 @@ impl AleraApp {
                                     None,
                                     None,
                                 )
-                                .on_click(cx.listener(move |this, _, _, cx| {
-                                    if this.codex_resume_dialog_tab.as_deref()
-                                        == Some(tab_id_for_close.as_str())
-                                    {
-                                        this.codex_resume_dialog_tab = None;
-                                        cx.notify();
-                                    }
-                                })),
+                                .on_click(cx.listener(
+                                    move |this, _, _, cx| {
+                                        if this.codex_resume_dialog_tab.as_deref()
+                                            == Some(tab_id_for_close.as_str())
+                                        {
+                                            this.codex_resume_dialog_tab = None;
+                                            cx.notify();
+                                        }
+                                    },
+                                )),
                             ),
                     )
                     .child(Input::new(&self.codex_resume_search_input).h(px(34.0)))
@@ -804,10 +826,10 @@ impl AleraApp {
                                         .h(px(54.0))
                                         .px_2()
                                         .rounded_md()
-                                            .cursor(CursorStyle::PointingHand)
-                                            .hover(|style| style.bg(theme::surface_selected()))
-                                            .on_click(cx.listener(move |this, _, _, cx| {
-                                                this.resume_codex_thread(
+                                        .cursor(CursorStyle::PointingHand)
+                                        .hover(|style| style.bg(theme::surface_selected()))
+                                        .on_click(cx.listener(move |this, _, _, cx| {
+                                            this.resume_codex_thread(
                                                 &tab_id_for_row,
                                                 value.clone(),
                                                 cx,
@@ -864,9 +886,15 @@ impl AleraApp {
                                 ButtonKind::Outlined,
                                 self.codex_resume_loading,
                             )
-                            .on_click(cx.listener(move |this, _, _, cx| {
-                                this.load_codex_resume_threads(tab_id_for_more.clone(), true, cx);
-                            })),
+                            .on_click(cx.listener(
+                                move |this, _, _, cx| {
+                                    this.load_codex_resume_threads(
+                                        tab_id_for_more.clone(),
+                                        true,
+                                        cx,
+                                    );
+                                },
+                            )),
                         )
                     }),
             );
@@ -921,9 +949,12 @@ impl AleraApp {
                 self.codex_resume_dialog_tab.as_deref() == Some(tab_id.as_str()),
                 |surface| surface.child(self.render_codex_resume_picker(&tab_id, cx)),
             )
-            .when_some(self.codex_recovery.get(&tab_id).cloned(), |surface, recovery| {
-                surface.child(self.render_codex_recovery_banner(&tab_id, &recovery, cx))
-            })
+            .when_some(
+                self.codex_recovery.get(&tab_id).cloned(),
+                |surface, recovery| {
+                    surface.child(self.render_codex_recovery_banner(&tab_id, &recovery, cx))
+                },
+            )
             .child(
                 div()
                     .id("codex-timeline-scroll-view")
@@ -931,23 +962,21 @@ impl AleraApp {
                     .min_h_0()
                     .track_scroll(&self.codex_scroll_handle)
                     .overflow_y_scrollbar()
-                    .on_scroll_wheel(cx.listener(
-                        |this, event: &ScrollWheelEvent, window, cx| {
-                            let delta = event.delta.pixel_delta(window.line_height()).y;
-                            if delta.as_f32().abs() < f32::EPSILON {
-                                return;
-                            }
-                            let current = this.codex_scroll_handle.offset();
-                            let max_y = this.codex_scroll_handle.max_offset().y;
-                            let next_y = (current.y + delta).clamp(-max_y, px(0.0));
-                            this.codex_scroll_handle
-                                .set_offset(gpui::point(current.x, next_y));
-                            this.codex_scroll_follow =
-                                (-next_y.as_f32()) >= (max_y.as_f32() - 24.0).max(0.0);
-                            cx.stop_propagation();
-                            cx.notify();
-                        },
-                    ))
+                    .on_scroll_wheel(cx.listener(|this, event: &ScrollWheelEvent, window, cx| {
+                        let delta = event.delta.pixel_delta(window.line_height()).y;
+                        if delta.as_f32().abs() < f32::EPSILON {
+                            return;
+                        }
+                        let current = this.codex_scroll_handle.offset();
+                        let max_y = this.codex_scroll_handle.max_offset().y;
+                        let next_y = (current.y + delta).clamp(-max_y, px(0.0));
+                        this.codex_scroll_handle
+                            .set_offset(gpui::point(current.x, next_y));
+                        this.codex_scroll_follow =
+                            (-next_y.as_f32()) >= (max_y.as_f32() - 24.0).max(0.0);
+                        cx.stop_propagation();
+                        cx.notify();
+                    }))
                     .child(if opening && snapshot_events(&snapshot).is_empty() {
                         div()
                             .flex()
@@ -971,12 +1000,7 @@ impl AleraApp {
                 surface.child(self.render_codex_pending_dock(&tab_id, &snapshot, cx))
             })
             .when_some(error, |surface, error| {
-                surface.child(
-                    div()
-                        .p_2()
-                        .text_color(theme::danger())
-                        .child(error),
-                )
+                surface.child(div().p_2().text_color(theme::danger()).child(error))
             })
             .when(!queued.is_empty(), |surface| {
                 surface.child(self.render_codex_queue_bar(&tab_id, queued, cx))
@@ -1130,14 +1154,16 @@ impl AleraApp {
                                 ButtonKind::Outlined,
                                 false,
                             )
-                            .on_click(cx.listener(move |this, _, _, cx| {
-                                this.respond_codex_request(
-                                    &tab_id,
-                                    request_id.clone(),
-                                    result.clone(),
-                                    cx,
-                                );
-                            })),
+                            .on_click(cx.listener(
+                                move |this, _, _, cx| {
+                                    this.respond_codex_request(
+                                        &tab_id,
+                                        request_id.clone(),
+                                        result.clone(),
+                                        cx,
+                                    );
+                                },
+                            )),
                         );
                     }
                 }
@@ -1181,7 +1207,12 @@ impl AleraApp {
             .px_3()
             .py_2()
             .bg(theme::surface())
-            .child(div().text_xs().text_color(theme::text_faint()).child("Queued Messages"))
+            .child(
+                div()
+                    .text_xs()
+                    .text_color(theme::text_faint())
+                    .child("Queued Messages"),
+            )
             .children(messages.into_iter().enumerate().map(|(index, message)| {
                 let tab_id = tab_id.clone();
                 div()
@@ -1231,7 +1262,7 @@ impl AleraApp {
                     .iter()
                     .find(|item| item_id(item).as_deref() == Some(id))
             })
-            .and_then(|item| item_label(item))
+            .and_then(item_label)
             .unwrap_or_else(|| "Model".to_owned());
         let menu_open = self.codex_menu_open.clone();
         let tab_for_compact = tab_id.to_owned();
@@ -1270,37 +1301,80 @@ impl AleraApp {
                 },
                 cx,
             ))
-            .child(self.codex_choice_button(tab_id, "permission", format!("Permission: {}", self.codex_permission_mode), cx))
+            .child(self.codex_choice_button(
+                tab_id,
+                "permission",
+                format!("Permission: {}", self.codex_permission_mode),
+                cx,
+            ))
             .child(
-                design_system::button("codex-plan-mode", "Plan", ButtonKind::Text, false)
-                    .on_click(cx.listener(move |this, _, _, cx| {
+                design_system::button("codex-plan-mode", "Plan", ButtonKind::Text, false).on_click(
+                    cx.listener(move |this, _, _, cx| {
                         this.codex_plan_mode = !this.codex_plan_mode;
-                        this.codex_collaboration_mode = this.codex_plan_mode
+                        this.codex_collaboration_mode = this
+                            .codex_plan_mode
                             .then_some("plan".to_owned())
-                            .or_else(|| this.codex_collaboration_mode.clone().filter(|mode| mode != "plan"));
+                            .or_else(|| {
+                                this.codex_collaboration_mode
+                                    .clone()
+                                    .filter(|mode| mode != "plan")
+                            });
                         this.persist_codex_chat_settings(cx);
                         this.persist_codex_tab_configuration(&tab_for_plan, cx);
                         cx.notify();
-                    })),
+                    }),
+                ),
             )
             .child(div().flex_1())
             .child(
-                design_system::icon_button("codex-compact", "Compact Context", AleraIcon::CollapseAll, false, 28.0, None, None)
-                    .on_click(cx.listener(move |this, _, _, cx| this.compact_codex_thread(tab_for_compact.clone(), cx))),
+                design_system::icon_button(
+                    "codex-compact",
+                    "Compact Context",
+                    AleraIcon::CollapseAll,
+                    false,
+                    28.0,
+                    None,
+                    None,
+                )
+                .on_click(cx.listener(move |this, _, _, cx| {
+                    this.compact_codex_thread(tab_for_compact.clone(), cx)
+                })),
             )
             .child(
-                design_system::icon_button("codex-review", "Start Review", AleraIcon::CheckCheck, false, 28.0, None, None)
-                    .on_click(cx.listener(move |this, _, _, cx| this.review_codex_thread(tab_for_review.clone(), cx))),
+                design_system::icon_button(
+                    "codex-review",
+                    "Start Review",
+                    AleraIcon::CheckCheck,
+                    false,
+                    28.0,
+                    None,
+                    None,
+                )
+                .on_click(cx.listener(move |this, _, _, cx| {
+                    this.review_codex_thread(tab_for_review.clone(), cx)
+                })),
             )
             .child(
-                design_system::icon_button("codex-raw-logs", "Raw Logs", AleraIcon::File, self.codex_raw_logs, 28.0, None, None)
-                    .on_click(cx.listener(|this, _, _, cx| {
-                        this.codex_raw_logs = !this.codex_raw_logs;
-                        cx.notify();
-                    })),
+                design_system::icon_button(
+                    "codex-raw-logs",
+                    "Raw Logs",
+                    AleraIcon::File,
+                    self.codex_raw_logs,
+                    28.0,
+                    None,
+                    None,
+                )
+                .on_click(cx.listener(|this, _, _, cx| {
+                    this.codex_raw_logs = !this.codex_raw_logs;
+                    cx.notify();
+                })),
             )
             .when(menu_open.is_some(), |header| {
-                header.child(self.render_codex_choice_menu(tab_id, menu_open.as_deref().unwrap(), cx))
+                header.child(self.render_codex_choice_menu(
+                    tab_id,
+                    menu_open.as_deref().unwrap(),
+                    cx,
+                ))
             })
             .into_any_element()
     }
@@ -1309,8 +1383,14 @@ impl AleraApp {
         let Some(snapshot) = self.codex_snapshots.get(tab_id) else {
             return div().into_any_element();
         };
-        let used = snapshot.get("contextUsed").and_then(Value::as_f64).unwrap_or(0.0);
-        let limit = snapshot.get("contextLimit").and_then(Value::as_f64).unwrap_or(0.0);
+        let used = snapshot
+            .get("contextUsed")
+            .and_then(Value::as_f64)
+            .unwrap_or(0.0);
+        let limit = snapshot
+            .get("contextLimit")
+            .and_then(Value::as_f64)
+            .unwrap_or(0.0);
         if used <= 0.0 || limit <= 0.0 {
             return div().into_any_element();
         }
@@ -1327,7 +1407,8 @@ impl AleraApp {
             .rounded_md()
             .cursor(CursorStyle::PointingHand)
             .tooltip(|_, cx| {
-                cx.new(|_| gpui_component::tooltip::Tooltip::new("Compact Context")).into()
+                cx.new(|_| gpui_component::tooltip::Tooltip::new("Compact Context"))
+                    .into()
             })
             .hover(|style| style.bg(theme::surface_raised()))
             .on_click(cx.listener(move |this, _, _, cx| {
@@ -1391,45 +1472,34 @@ impl AleraApp {
         let kind = key.split_once(':').map(|(_, kind)| kind).unwrap_or(key);
         let values = match kind {
             "configuration" => {
-                let mut values = vec![
-                    (
-                        "model:".to_owned() + self.codex_selected_model.as_deref().unwrap_or(""),
-                        format!(
-                            "Model: {}",
-                            self.codex_selected_model.as_deref().unwrap_or("Default")
-                        ),
+                let mut values = vec![(
+                    "model:".to_owned() + self.codex_selected_model.as_deref().unwrap_or(""),
+                    format!(
+                        "Model: {}",
+                        self.codex_selected_model.as_deref().unwrap_or("Default")
                     ),
-                ];
+                )];
                 values.extend(
                     ["low", "medium", "high", "xhigh"]
                         .into_iter()
-                        .map(|value| {
-                            (
-                                format!("effort:{value}"),
-                                format!("Effort: {value}"),
-                            )
-                        }),
+                        .map(|value| (format!("effort:{value}"), format!("Effort: {value}"))),
                 );
                 values.extend(
-                    ["normal", "fast"].into_iter().map(|value| {
-                        (format!("speed:{value}"), format!("Speed: {value}"))
-                    }),
+                    ["normal", "fast"]
+                        .into_iter()
+                        .map(|value| (format!("speed:{value}"), format!("Speed: {value}"))),
                 );
-                values.extend(
-                    self.codex_collaboration_modes
-                        .iter()
-                        .filter_map(|item| {
-                            let mode = item
-                                .get("mode")
-                                .or_else(|| item.get("id"))
-                                .and_then(Value::as_str)?;
-                            let normalized = mode.to_ascii_lowercase();
-                            if normalized == "default" || normalized == "plan" {
-                                return None;
-                            }
-                            Some((format!("mode:{mode}"), format!("Mode: {mode}")))
-                        }),
-                );
+                values.extend(self.codex_collaboration_modes.iter().filter_map(|item| {
+                    let mode = item
+                        .get("mode")
+                        .or_else(|| item.get("id"))
+                        .and_then(Value::as_str)?;
+                    let normalized = mode.to_ascii_lowercase();
+                    if normalized == "default" || normalized == "plan" {
+                        return None;
+                    }
+                    Some((format!("mode:{mode}"), format!("Mode: {mode}")))
+                }));
                 values
             }
             "model" => self
@@ -1441,8 +1511,14 @@ impl AleraApp {
                 .into_iter()
                 .map(|value| (value.to_owned(), value.to_owned()))
                 .collect(),
-            "speed" => vec![("normal".to_owned(), "normal".to_owned()), ("fast".to_owned(), "fast".to_owned())],
-            "permission" => vec![("on-request".to_owned(), "on-request".to_owned()), ("never".to_owned(), "never".to_owned())],
+            "speed" => vec![
+                ("normal".to_owned(), "normal".to_owned()),
+                ("fast".to_owned(), "fast".to_owned()),
+            ],
+            "permission" => vec![
+                ("on-request".to_owned(), "on-request".to_owned()),
+                ("never".to_owned(), "never".to_owned()),
+            ],
             "skills" => self
                 .codex_skills
                 .iter()
@@ -1596,11 +1672,12 @@ impl AleraApp {
             self.settings_state.shared_flutter_local_payload(),
             cx,
         );
-        if let Some(tab_id) = self
-            .selected_tab_id
-            .as_deref()
-            .filter(|tab_id| self.snapshot.tabs.iter().any(|tab| tab.id == *tab_id && tab.kind == CODEX_TAB_KIND))
-        {
+        if let Some(tab_id) = self.selected_tab_id.as_deref().filter(|tab_id| {
+            self.snapshot
+                .tabs
+                .iter()
+                .any(|tab| tab.id == *tab_id && tab.kind == CODEX_TAB_KIND)
+        }) {
             self.persist_codex_tab_configuration(tab_id, cx);
         }
     }
@@ -1644,12 +1721,7 @@ impl AleraApp {
         include_pending: bool,
         cx: &mut Context<Self>,
     ) -> AnyElement {
-        let mut content = div()
-            .id("codex-timeline")
-            .flex()
-            .flex_col()
-            .gap_2()
-            .p_3();
+        let mut content = div().id("codex-timeline").flex().flex_col().gap_2().p_3();
         let cells = snapshot_cells(snapshot);
         let mut top_notices = Vec::new();
         let mut visible_cells = Vec::new();
@@ -1784,44 +1856,44 @@ impl AleraApp {
                     .unwrap_or(false);
             let cell_id_for_click = cell_id.clone();
             let mut card = div()
-                    .id(SharedString::from(format!("codex-cell-{index}")))
-                    .rounded_lg()
-                    .border_1()
-                    .border_color(if warning_notice {
-                        theme::warning()
-                    } else {
-                        theme::border_subtle()
-                    })
-                    .bg(if kind == "userMessage" {
-                        theme::surface_selected()
-                    } else {
-                        theme::surface()
-                    })
-                    .p_3()
-                    .child(
-                        div()
-                            .id(SharedString::from(format!("codex-cell-header-{index}")))
-                            .flex()
-                            .items_center()
-                            .gap_1()
-                            .font_weight(gpui::FontWeight::SEMIBOLD)
-                            .text_size(px(11.0))
-                            .text_color(theme::text_muted())
-                            .cursor(CursorStyle::PointingHand)
-                            .on_click(cx.listener(move |this, _, _, cx| {
-                                if !this.codex_collapsed_cells.remove(&cell_id_for_click) {
-                                    this.codex_collapsed_cells.insert(cell_id_for_click.clone());
-                                }
-                                cx.notify();
-                            }))
-                            .when(warning_notice, |row| {
-                                row.child(icon(AleraIcon::Warning, 13.0, theme::warning()))
-                            })
-                            .child(title)
-                            .when(streaming, |row| {
-                                row.child(loading_indicator(12.0, theme::text_faint()))
-                            }),
-                    );
+                .id(SharedString::from(format!("codex-cell-{index}")))
+                .rounded_lg()
+                .border_1()
+                .border_color(if warning_notice {
+                    theme::warning()
+                } else {
+                    theme::border_subtle()
+                })
+                .bg(if kind == "userMessage" {
+                    theme::surface_selected()
+                } else {
+                    theme::surface()
+                })
+                .p_3()
+                .child(
+                    div()
+                        .id(SharedString::from(format!("codex-cell-header-{index}")))
+                        .flex()
+                        .items_center()
+                        .gap_1()
+                        .font_weight(gpui::FontWeight::SEMIBOLD)
+                        .text_size(px(11.0))
+                        .text_color(theme::text_muted())
+                        .cursor(CursorStyle::PointingHand)
+                        .on_click(cx.listener(move |this, _, _, cx| {
+                            if !this.codex_collapsed_cells.remove(&cell_id_for_click) {
+                                this.codex_collapsed_cells.insert(cell_id_for_click.clone());
+                            }
+                            cx.notify();
+                        }))
+                        .when(warning_notice, |row| {
+                            row.child(icon(AleraIcon::Warning, 13.0, theme::warning()))
+                        })
+                        .child(title)
+                        .when(streaming, |row| {
+                            row.child(loading_indicator(12.0, theme::text_faint()))
+                        }),
+                );
             if !collapsed {
                 if let Some(subtitle) = subtitle {
                     card = card.child(
@@ -1834,12 +1906,10 @@ impl AleraApp {
                 }
                 if !body.is_empty() {
                     let copy_body = body.clone();
-                    card = card.child(
-                        with_markdown_images(TextView::markdown(
-                            SharedString::from(format!("codex-cell-body-{index}")),
-                            body,
-                        )),
-                    );
+                    card = card.child(with_markdown_images(TextView::markdown(
+                        SharedString::from(format!("codex-cell-body-{index}")),
+                        body,
+                    )));
                     if kind == "assistantMessage" && !streaming {
                         card = card.child(
                             design_system::icon_button(
@@ -1851,9 +1921,13 @@ impl AleraApp {
                                 None,
                                 None,
                             )
-                            .on_click(cx.listener(move |_, _, _, cx| {
-                                cx.write_to_clipboard(ClipboardItem::new_string(copy_body.clone()));
-                            })),
+                            .on_click(cx.listener(
+                                move |_, _, _, cx| {
+                                    cx.write_to_clipboard(ClipboardItem::new_string(
+                                        copy_body.clone(),
+                                    ));
+                                },
+                            )),
                         );
                     }
                 }
@@ -1867,7 +1941,7 @@ impl AleraApp {
                             .font_family("JetBrains Mono")
                             .text_size(px(11.0))
                             .whitespace_normal()
-                        .child(details),
+                            .child(details),
                     );
                 }
                 if let Some(steps) = cell.pointer("/metadata/plan").and_then(Value::as_array) {
@@ -1889,8 +1963,12 @@ impl AleraApp {
                                 .on_click(cx.listener({
                                     let tab_id = tab_id.to_owned();
                                     move |this, _, window, cx| {
-                                        if let Some(input) = this.codex_composer_inputs.get(&tab_id).cloned() {
-                                            input.update(cx, |input, cx| input.set_value("Implement the plan.", window, cx));
+                                        if let Some(input) =
+                                            this.codex_composer_inputs.get(&tab_id).cloned()
+                                        {
+                                            input.update(cx, |input, cx| {
+                                                input.set_value("Implement the plan.", window, cx)
+                                            });
                                             this.send_codex_message(&tab_id, window, cx);
                                         }
                                     }
@@ -1906,8 +1984,16 @@ impl AleraApp {
                                 .on_click(cx.listener({
                                     let tab_id = tab_id.to_owned();
                                     move |this, _, window, cx| {
-                                        if let Some(input) = this.codex_composer_inputs.get(&tab_id).cloned() {
-                                            input.update(cx, |input, cx| input.set_value("Do not implement the plan.", window, cx));
+                                        if let Some(input) =
+                                            this.codex_composer_inputs.get(&tab_id).cloned()
+                                        {
+                                            input.update(cx, |input, cx| {
+                                                input.set_value(
+                                                    "Do not implement the plan.",
+                                                    window,
+                                                    cx,
+                                                )
+                                            });
                                             this.send_codex_message(&tab_id, window, cx);
                                         }
                                     }
@@ -1919,79 +2005,91 @@ impl AleraApp {
             content = content.child(card);
         }
         if !has_cells {
-        for (index, event) in snapshot_events(snapshot).into_iter().enumerate() {
-            let method = event.get("method").and_then(Value::as_str).unwrap_or("event");
-            let text = event_text(event).unwrap_or_else(|| method.to_owned());
-            if !self.codex_raw_logs && text.trim().is_empty() {
-                continue;
+            for (index, event) in snapshot_events(snapshot).into_iter().enumerate() {
+                let method = event
+                    .get("method")
+                    .and_then(Value::as_str)
+                    .unwrap_or("event");
+                let text = event_text(event).unwrap_or_else(|| method.to_owned());
+                if !self.codex_raw_logs && text.trim().is_empty() {
+                    continue;
+                }
+                let label = codex_event_label(method, event);
+                content = content.child(
+                    div()
+                        .id(SharedString::from(format!("codex-event-{index}")))
+                        .rounded_lg()
+                        .border_1()
+                        .border_color(theme::border_subtle())
+                        .bg(if method.contains("user") {
+                            theme::surface_selected()
+                        } else {
+                            theme::surface()
+                        })
+                        .p_3()
+                        .child(
+                            div()
+                                .text_size(px(11.0))
+                                .font_weight(gpui::FontWeight::SEMIBOLD)
+                                .text_color(theme::text_muted())
+                                .child(label),
+                        )
+                        .child(
+                            div()
+                                .mt_1()
+                                .font_family("JetBrains Mono")
+                                .text_size(px(12.0))
+                                .whitespace_normal()
+                                .child(if self.codex_raw_logs {
+                                    event.to_string()
+                                } else {
+                                    text
+                                }),
+                        ),
+                );
             }
-            let label = codex_event_label(method, event);
-            content = content.child(
-                div()
-                    .id(SharedString::from(format!("codex-event-{index}")))
-                    .rounded_lg()
-                    .border_1()
-                    .border_color(theme::border_subtle())
-                    .bg(if method.contains("user") {
-                        theme::surface_selected()
-                    } else {
-                        theme::surface()
+            if active_codex_turn(snapshot).is_none() {
+                let worked = snapshot_cells(snapshot)
+                    .iter()
+                    .filter(|cell| {
+                        cell.get("metadata")
+                            .and_then(|metadata| metadata.get("commandActions"))
+                            .and_then(Value::as_array)
+                            .is_some_and(|actions| !actions.is_empty())
                     })
-                    .p_3()
-                    .child(
-                        div()
-                            .text_size(px(11.0))
-                            .font_weight(gpui::FontWeight::SEMIBOLD)
-                            .text_color(theme::text_muted())
-                            .child(label),
-                    )
-                    .child(
-                        div()
-                            .mt_1()
-                            .font_family("JetBrains Mono")
-                            .text_size(px(12.0))
-                            .whitespace_normal()
-                            .child(if self.codex_raw_logs {
-                                event.to_string()
-                            } else {
-                                text
-                            }),
-                    ),
-            );
-        }
-        if active_codex_turn(snapshot).is_none() {
-            let worked = snapshot_cells(snapshot)
-                .iter()
-                .filter(|cell| {
-                    cell.get("metadata")
-                        .and_then(|metadata| metadata.get("commandActions"))
-                        .and_then(Value::as_array)
-                        .is_some_and(|actions| !actions.is_empty())
-                })
-                .count();
-            if worked > 0 {
-                content = content
-                    .child(div().id("worked-divider").h(px(1.0)).bg(theme::border_subtle()))
-                    .child(
-                        div()
-                            .px_3()
-                            .py_2()
-                            .text_xs()
-                            .text_color(theme::text_muted())
-                            .child(format!("Worked for {worked} actions")),
-                    );
+                    .count();
+                if worked > 0 {
+                    content = content
+                        .child(
+                            div()
+                                .id("worked-divider")
+                                .h(px(1.0))
+                                .bg(theme::border_subtle()),
+                        )
+                        .child(
+                            div()
+                                .px_3()
+                                .py_2()
+                                .text_xs()
+                                .text_color(theme::text_muted())
+                                .child(format!("Worked for {worked} actions")),
+                        );
+                }
             }
-        }
         }
         if include_pending {
             for (index, request) in snapshot_pending(snapshot).into_iter().enumerate() {
-            let request_id = request.get("id").cloned().unwrap_or(Value::Null);
-            let request_id_for_click = request_id.clone();
-            let method = request.get("method").and_then(Value::as_str).unwrap_or("request");
-            let params = request.get("params").cloned().unwrap_or(Value::Null);
-            let is_approval = method.contains("approval") || method.contains("permission");
-            let is_question = method.contains("requestUserInput") || method.contains("question");
-            let approval_decisions = is_approval.then(|| approval_decisions(&params));
+                let request_id = request.get("id").cloned().unwrap_or(Value::Null);
+                let request_id_for_click = request_id.clone();
+                let method = request
+                    .get("method")
+                    .and_then(Value::as_str)
+                    .unwrap_or("request");
+                let params = request.get("params").cloned().unwrap_or(Value::Null);
+                let is_approval = method.contains("approval") || method.contains("permission");
+                let is_question =
+                    method.contains("requestUserInput") || method.contains("question");
+                let approval_decisions = is_approval.then(|| approval_decisions(&params));
                 content = content.child(
                 div()
                     .id(SharedString::from(format!("codex-pending-{index}")))
@@ -2168,9 +2266,7 @@ impl AleraApp {
                     cx.stop_propagation();
                 }
             }))
-            .child(
-                self.render_codex_attachment_bar(tab_id, &attachments, cx),
-            )
+            .child(self.render_codex_attachment_bar(tab_id, &attachments, cx))
             .child(
                 Textarea::new(&input)
                     .aria_label("Message Codex")
@@ -2192,28 +2288,36 @@ impl AleraApp {
                                 ButtonKind::Outlined,
                                 false,
                             )
-                            .on_click(cx.listener(move |this, _, window, cx| {
-                                this.steer_codex_message(&tab_for_send, window, cx);
-                            })),
+                            .on_click(cx.listener(
+                                move |this, _, window, cx| {
+                                    this.steer_codex_message(&tab_for_send, window, cx);
+                                },
+                            )),
                         )
                     })
                     .child(
                         design_system::icon_button(
                             "codex-send-stop",
                             if busy { "Stop" } else { "Send" },
-                            if busy { AleraIcon::Stop } else { AleraIcon::Send },
+                            if busy {
+                                AleraIcon::Stop
+                            } else {
+                                AleraIcon::Send
+                            },
                             false,
                             32.0,
                             None,
                             None,
                         )
-                        .on_click(cx.listener(move |this, _, window, cx| {
-                            if busy {
-                                this.stop_codex_turn(&tab_for_stop, cx);
-                            } else {
-                                this.send_codex_message(&tab_for_stop, window, cx);
-                            }
-                        })),
+                        .on_click(cx.listener(
+                            move |this, _, window, cx| {
+                                if busy {
+                                    this.stop_codex_turn(&tab_for_stop, cx);
+                                } else {
+                                    this.send_codex_message(&tab_for_stop, window, cx);
+                                }
+                            },
+                        )),
                     ),
             )
             .into_any_element()
@@ -2454,18 +2558,17 @@ impl AleraApp {
     }
 
     fn stop_codex_turn(&mut self, tab_id: &str, cx: &mut Context<Self>) {
-        let Some(turn_id) = self
-            .codex_snapshots
-            .get(tab_id)
-            .and_then(active_codex_turn)
-        else {
+        let Some(turn_id) = self.codex_snapshots.get(tab_id).and_then(active_codex_turn) else {
             return;
         };
         let bridge = self.bridge.clone();
         let tab_id = tab_id.to_owned();
         cx.spawn(async move |this, cx| {
             let result = bridge
-                .request("codex.turn.interrupt", json!({"tabId": tab_id, "turnId": turn_id}))
+                .request(
+                    "codex.turn.interrupt",
+                    json!({"tabId": tab_id, "turnId": turn_id}),
+                )
                 .await;
             if let Some(this) = this.upgrade() {
                 this.update(cx, |this, cx| {
@@ -2567,7 +2670,10 @@ impl AleraApp {
         let tab_id = tab_id.to_owned();
         cx.spawn(async move |this, cx| {
             let result = bridge
-                .request("codex.response", json!({"tabId": tab_id, "requestId": request_id, "result": result_value}))
+                .request(
+                    "codex.response",
+                    json!({"tabId": tab_id, "requestId": request_id, "result": result_value}),
+                )
                 .await;
             if let Some(this) = this.upgrade() {
                 this.update(cx, |this, cx| {
@@ -2617,9 +2723,7 @@ fn codex_cell_label(kind: &str) -> &'static str {
 }
 
 fn is_codex_top_notice(cell: &Value) -> bool {
-    if cell.pointer("/metadata/itemType").and_then(Value::as_str)
-        == Some("mcpServerStartup")
-    {
+    if cell.pointer("/metadata/itemType").and_then(Value::as_str) == Some("mcpServerStartup") {
         return true;
     }
     cell.pointer("/metadata/noticeType")
@@ -2761,7 +2865,10 @@ fn event_text(event: &Value) -> Option<String> {
         event.pointer("/params/item/message"),
         event.get("result"),
     ] {
-        if let Some(text) = candidate.and_then(Value::as_str).filter(|text| !text.is_empty()) {
+        if let Some(text) = candidate
+            .and_then(Value::as_str)
+            .filter(|text| !text.is_empty())
+        {
             return Some(text.to_owned());
         }
     }
@@ -2776,7 +2883,10 @@ fn codex_event_label(method: &str, event: &Value) -> &'static str {
         .to_ascii_lowercase();
     if item_type.contains("user") || method.contains("user") {
         "You"
-    } else if item_type.contains("agent") || item_type.contains("assistant") || method.contains("agentmessage") {
+    } else if item_type.contains("agent")
+        || item_type.contains("assistant")
+        || method.contains("agentmessage")
+    {
         "Codex"
     } else if method.contains("reason") {
         "Reasoning"
@@ -2817,16 +2927,20 @@ fn approval_decisions(params: &Value) -> Vec<(String, &'static str, ButtonKind)>
                 .collect::<Vec<_>>()
         })
         .filter(|values| !values.is_empty())
-        .unwrap_or_else(|| vec!["accept".to_owned(), "acceptForSession".to_owned(), "decline".to_owned()]);
+        .unwrap_or_else(|| {
+            vec![
+                "accept".to_owned(),
+                "acceptForSession".to_owned(),
+                "decline".to_owned(),
+            ]
+        });
     values
         .into_iter()
         .map(|decision| {
             let (label, kind) = match decision.as_str() {
                 "accept" => ("Allow Once", ButtonKind::Filled),
                 "acceptForSession" => ("Allow For Session", ButtonKind::Text),
-                "acceptWithExecpolicyAmendment" => {
-                    ("Allow Matching Commands", ButtonKind::Text)
-                }
+                "acceptWithExecpolicyAmendment" => ("Allow Matching Commands", ButtonKind::Text),
                 "applyNetworkPolicyAmendment" => ("Apply Network Rule", ButtonKind::Text),
                 "cancel" => ("Cancel Turn", ButtonKind::Outlined),
                 "decline" => ("Decline", ButtonKind::Outlined),

@@ -1,6 +1,4 @@
-use super::{
-    parse_codex_models, parse_cursor_models, parse_grok_models,
-};
+use super::{parse_codex_models, parse_cursor_models, parse_grok_models};
 
 #[test]
 fn parses_codex_thinking_metadata() {

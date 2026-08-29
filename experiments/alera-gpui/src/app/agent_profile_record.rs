@@ -35,10 +35,7 @@ pub(super) fn parse_agent_profile(value: &Value) -> Result<AgentProfileRecord, S
     Ok(AgentProfileRecord {
         id: string("id")?,
         name: string("name")?,
-        sort_order: value
-            .get("sortOrder")
-            .and_then(Value::as_i64)
-            .unwrap_or(0),
+        sort_order: value.get("sortOrder").and_then(Value::as_i64).unwrap_or(0),
         agent_type: string("agentType")?,
         command: string("command")?,
         launch_mode: value

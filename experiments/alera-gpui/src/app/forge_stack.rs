@@ -58,19 +58,22 @@ impl AleraApp {
             .forge_stack_selected_workspace_ids
             .remove(&workspace_id)
         {
-            self.forge_stack_selected_workspace_ids
-                .insert(workspace_id);
+            self.forge_stack_selected_workspace_ids.insert(workspace_id);
         }
         cx.notify();
     }
 
     pub(super) fn submit_forge_stack_link(&mut self, cx: &mut Context<Self>) {
-        let mut review_numbers = parse_stack_review_numbers(
-            self.forge_link_input.read(cx).value().as_ref(),
-        );
+        let mut review_numbers =
+            parse_stack_review_numbers(self.forge_link_input.read(cx).value().as_ref());
         let stack_number = self.forge_snapshot.stack.as_ref().map(|stack| stack.number);
         if stack_number.is_none() {
-            if let Some(current) = self.forge_snapshot.review.as_ref().map(|review| review.number) {
+            if let Some(current) = self
+                .forge_snapshot
+                .review
+                .as_ref()
+                .map(|review| review.number)
+            {
                 if !review_numbers.contains(&current) {
                     review_numbers.insert(0, current);
                 }
@@ -150,9 +153,7 @@ impl AleraApp {
             .await
             .map_err(|reason| format!("Stacked Pull Requests Are Unavailable: {reason:?}"));
             let result = match identity {
-                Ok(identity) => service
-                    .stack_action(workspace_path, identity, action)
-                    .await,
+                Ok(identity) => service.stack_action(workspace_path, identity, action).await,
                 Err(error) => Err(error),
             };
             let Some(this) = this.upgrade() else {
@@ -279,4 +280,3 @@ mod tests {
         );
     }
 }
-

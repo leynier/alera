@@ -558,25 +558,37 @@ impl AleraApp {
                 .collect::<Vec<_>>();
             if provider == "claude" || provider == "opencode" {
                 if provider == "claude" && self.settings_state.claude_default_enabled {
-                    if let Some(snapshot) = candidates.iter().find(|snapshot| snapshot.account_id == "default") {
+                    if let Some(snapshot) = candidates
+                        .iter()
+                        .find(|snapshot| snapshot.account_id == "default")
+                    {
                         ordered.push(*snapshot);
                     }
                 }
                 if provider == "claude" {
                     for profile in &self.settings_state.claude_profiles {
-                        if let Some(snapshot) = candidates.iter().find(|snapshot| snapshot.account_id == profile.profile) {
+                        if let Some(snapshot) = candidates
+                            .iter()
+                            .find(|snapshot| snapshot.account_id == profile.profile)
+                        {
                             ordered.push(*snapshot);
                         }
                     }
                 } else {
                     for account in ["go", "zen", "default"] {
-                        if let Some(snapshot) = candidates.iter().find(|snapshot| snapshot.account_id == account) {
+                        if let Some(snapshot) = candidates
+                            .iter()
+                            .find(|snapshot| snapshot.account_id == account)
+                        {
                             ordered.push(*snapshot);
                         }
                     }
                 }
                 for snapshot in candidates {
-                    if !ordered.iter().any(|candidate| candidate.provider == snapshot.provider && candidate.account_id == snapshot.account_id) {
+                    if !ordered.iter().any(|candidate| {
+                        candidate.provider == snapshot.provider
+                            && candidate.account_id == snapshot.account_id
+                    }) {
                         ordered.push(snapshot);
                     }
                 }

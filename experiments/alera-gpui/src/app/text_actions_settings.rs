@@ -64,10 +64,18 @@ impl AleraApp {
         self.text_actions_prompt_input
             .update(cx, |input, cx| input.set_value(&action.prompt, window, cx));
         self.text_actions_agent_input.update(cx, |input, cx| {
-            input.set_value(action.agent_override.as_deref().unwrap_or_default(), window, cx)
+            input.set_value(
+                action.agent_override.as_deref().unwrap_or_default(),
+                window,
+                cx,
+            )
         });
         self.text_actions_model_input.update(cx, |input, cx| {
-            input.set_value(action.model_override.as_deref().unwrap_or_default(), window, cx)
+            input.set_value(
+                action.model_override.as_deref().unwrap_or_default(),
+                window,
+                cx,
+            )
         });
         let reasoning = action
             .model_override
@@ -125,7 +133,9 @@ impl AleraApp {
             .position(|action| action.id == id)
             .map(|index| index + 1)
             .unwrap_or(self.settings_state.text_actions.len());
-        self.settings_state.text_actions.insert(index, clone.clone());
+        self.settings_state
+            .text_actions
+            .insert(index, clone.clone());
         self.text_actions_selected_id = Some(clone.id.clone());
         self.text_actions_creating_new = false;
         self.persist_text_actions(cx);
@@ -146,9 +156,12 @@ impl AleraApp {
             cx.notify();
             return;
         }
-        if self.settings_state.text_actions.iter().any(|action| {
-            action.id != id && action.name.trim().eq_ignore_ascii_case(name.as_str())
-        }) {
+        if self
+            .settings_state
+            .text_actions
+            .iter()
+            .any(|action| action.id != id && action.name.trim().eq_ignore_ascii_case(name.as_str()))
+        {
             self.text_actions_error = Some("Action names must be unique.".into());
             cx.notify();
             return;
@@ -214,7 +227,9 @@ impl AleraApp {
     }
 
     pub(super) fn delete_text_action(&mut self, id: String, cx: &mut Context<Self>) {
-        self.settings_state.text_actions.retain(|action| action.id != id);
+        self.settings_state
+            .text_actions
+            .retain(|action| action.id != id);
         self.text_actions_selected_id = self
             .settings_state
             .text_actions
@@ -234,10 +249,7 @@ impl AleraApp {
         );
     }
 
-    pub(super) fn render_text_actions_settings_pane(
-        &self,
-        cx: &mut Context<Self>,
-    ) -> AnyElement {
+    pub(super) fn render_text_actions_settings_pane(&self, cx: &mut Context<Self>) -> AnyElement {
         let selected_id = self.text_actions_selected_id.clone();
         let actions = self.settings_state.text_actions.clone();
         let selected = selected_id
@@ -318,20 +330,17 @@ impl AleraApp {
                                 this.select_text_action(id.clone(), window, cx);
                             }))
                             .child(icon(AleraIcon::Tune, 14.0, theme::text_faint()))
-                            .child(
-                                div()
-                                    .min_w_0()
-                                    .flex_1()
-                                    .child(action.name.clone())
-                                    .when(!enabled, |row| {
-                                        row.child(
-                                            div()
-                                                .text_xs()
-                                                .text_color(theme::text_faint())
-                                                .child("Disabled"),
-                                        )
-                                    }),
-                            )
+                            .child(div().min_w_0().flex_1().child(action.name.clone()).when(
+                                !enabled,
+                                |row| {
+                                    row.child(
+                                        div()
+                                            .text_xs()
+                                            .text_color(theme::text_faint())
+                                            .child("Disabled"),
+                                    )
+                                },
+                            ))
                             .child(
                                 design_system::switch(action.enabled, true)
                                     .id(SharedString::from(format!("text-action-enabled-{index}")))
@@ -345,105 +354,120 @@ impl AleraApp {
         let detail = if let Some(action) = selected {
             let id = action.id.clone();
             let duplicate_id = id.clone();
-            div()
-                .flex_1()
-                .min_w_0()
-                .min_h_0()
-                .child(
-                    div()
-                        .flex()
-                        .flex_col()
-                        .size_full()
-                        .overflow_y_scrollbar()
-                        .child(
-                            div()
-                                .p_3()
-                                .child(
-                                    div()
-                                        .text_size(px(13.0))
-                                        .font_weight(gpui::FontWeight::SEMIBOLD)
-                                        .child("Action"),
-                                )
-                                .child(
-                                    div()
-                                        .mt_2()
-                                        .child(design_system::text_field(&self.text_actions_name_input).label("Name")),
-                                )
-                                .child(
-                                    div()
-                                        .mt_2()
-                                        .h(px(120.0))
-                                        .child(
-                                            Textarea::new(&self.text_actions_prompt_input)
-                                                .aria_label("Prompt")
-                                                .h_full(),
-                                        ),
-                                )
-                                .child(
-                                    div()
-                                        .mt_2()
-                                        .text_size(px(11.0))
-                                        .text_color(theme::text_muted())
-                                        .child("Prompt used to replace the selected text."),
+            div().flex_1().min_w_0().min_h_0().child(
+                div()
+                    .flex()
+                    .flex_col()
+                    .size_full()
+                    .overflow_y_scrollbar()
+                    .child(
+                        div()
+                            .p_3()
+                            .child(
+                                div()
+                                    .text_size(px(13.0))
+                                    .font_weight(gpui::FontWeight::SEMIBOLD)
+                                    .child("Action"),
+                            )
+                            .child(
+                                div().mt_2().child(
+                                    design_system::text_field(&self.text_actions_name_input)
+                                        .label("Name"),
                                 ),
-                        )
-                        .child(
-                            div()
-                                .p_3()
-                                .child(
-                                    div()
-                                        .text_size(px(13.0))
-                                        .font_weight(gpui::FontWeight::SEMIBOLD)
-                                        .child("Agent"),
+                            )
+                            .child(
+                                div().mt_2().h(px(120.0)).child(
+                                    Textarea::new(&self.text_actions_prompt_input)
+                                        .aria_label("Prompt")
+                                        .h_full(),
+                                ),
+                            )
+                            .child(
+                                div()
+                                    .mt_2()
+                                    .text_size(px(11.0))
+                                    .text_color(theme::text_muted())
+                                    .child("Prompt used to replace the selected text."),
+                            ),
+                    )
+                    .child(
+                        div()
+                            .p_3()
+                            .child(
+                                div()
+                                    .text_size(px(13.0))
+                                    .font_weight(gpui::FontWeight::SEMIBOLD)
+                                    .child("Agent"),
+                            )
+                            .child(
+                                div().mt_2().child(
+                                    design_system::text_field(&self.text_actions_agent_input)
+                                        .label("Agent Override"),
+                                ),
+                            )
+                            .child(
+                                div().mt_2().child(
+                                    design_system::text_field(&self.text_actions_model_input)
+                                        .label("Model Override"),
+                                ),
+                            )
+                            .child(
+                                div().mt_2().child(
+                                    design_system::text_field(&self.text_actions_reasoning_input)
+                                        .label("Reasoning Override"),
+                                ),
+                            ),
+                    )
+                    .when_some(self.text_actions_error.clone(), |detail, error| {
+                        detail.child(div().p_3().text_color(theme::danger()).child(error))
+                    })
+                    .child(
+                        div()
+                            .p_3()
+                            .flex()
+                            .justify_end()
+                            .gap_2()
+                            .child(
+                                design_system::button(
+                                    "duplicate-text-action",
+                                    "Duplicate",
+                                    crate::design_system::ButtonKind::Outlined,
+                                    false,
                                 )
-                                .child(div().mt_2().child(design_system::text_field(&self.text_actions_agent_input).label("Agent Override")))
-                                .child(div().mt_2().child(design_system::text_field(&self.text_actions_model_input).label("Model Override")))
-                                .child(div().mt_2().child(design_system::text_field(&self.text_actions_reasoning_input).label("Reasoning Override"))),
-                        )
-                        .when_some(self.text_actions_error.clone(), |detail, error| {
-                            detail.child(div().p_3().text_color(theme::danger()).child(error))
-                        })
-                        .child(
-                            div()
-                                .p_3()
-                                .flex()
-                                .justify_end()
-                                .gap_2()
-                                .child(
-                                    design_system::button(
-                                        "duplicate-text-action",
-                                        "Duplicate",
-                                        crate::design_system::ButtonKind::Outlined,
-                                        false,
-                                    )
-                                    .on_click(cx.listener(move |this, _, _, cx| {
+                                .on_click(cx.listener(
+                                    move |this, _, _, cx| {
                                         this.duplicate_text_action(duplicate_id.clone(), cx);
-                                    })),
+                                    },
+                                )),
+                            )
+                            .child(
+                                design_system::button(
+                                    "delete-text-action",
+                                    "Delete",
+                                    crate::design_system::ButtonKind::Destructive,
+                                    false,
                                 )
-                                .child(
-                                    design_system::button(
-                                        "delete-text-action",
-                                        "Delete",
-                                        crate::design_system::ButtonKind::Destructive,
-                                        false,
-                                    )
-                                    .on_click(cx.listener(move |this, _, _, cx| {
+                                .on_click(cx.listener(
+                                    move |this, _, _, cx| {
                                         this.delete_text_action(id.clone(), cx);
-                                    })),
+                                    },
+                                )),
+                            )
+                            .child(
+                                design_system::button(
+                                    "save-text-action",
+                                    "Save",
+                                    ButtonKind::Filled,
+                                    false,
                                 )
-                                .child(
-                                    design_system::button(
-                                        "save-text-action",
-                                        "Save",
-                                        ButtonKind::Filled,
-                                        false,
-                                    )
-                                    .on_click(cx.listener(|this, _, window, cx| {
+                                .on_click(cx.listener(
+                                    |this, _, window, cx| {
                                         this.save_text_action(window, cx);
-                                    })),
-                                ),
-                        ),
-                )
+                                    },
+                                )),
+                            ),
+                    ),
+            )
         } else if self.text_actions_creating_new {
             let new_content = div()
                 .p_3()
@@ -454,19 +478,16 @@ impl AleraApp {
                         .child("New Text Action"),
                 )
                 .child(
-                    div()
-                        .mt_2()
-                        .child(design_system::text_field(&self.text_actions_name_input).label("Name")),
+                    div().mt_2().child(
+                        design_system::text_field(&self.text_actions_name_input).label("Name"),
+                    ),
                 )
                 .child(
-                    div()
-                        .mt_2()
-                        .h(px(120.0))
-                        .child(
-                            Textarea::new(&self.text_actions_prompt_input)
-                                .aria_label("Prompt")
-                                .h_full(),
-                        ),
+                    div().mt_2().h(px(120.0)).child(
+                        Textarea::new(&self.text_actions_prompt_input)
+                            .aria_label("Prompt")
+                            .h_full(),
+                    ),
                 )
                 .child(
                     div().mt_2().child(

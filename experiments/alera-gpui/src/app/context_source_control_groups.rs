@@ -157,16 +157,16 @@ impl AleraApp {
                 .when(!collapsed && !self.source_control_tree_mode, |group| {
                     group.children(entries.iter().copied().enumerate().map(
                         |(row_index, change)| {
-            self.source_change_row(
-                group_index,
-                row_index,
-                0,
-                area,
-                change,
-                None,
-                false,
-                cx,
-            )
+                            self.source_change_row(
+                                group_index,
+                                row_index,
+                                0,
+                                area,
+                                change,
+                                None,
+                                false,
+                                cx,
+                            )
                         },
                     ))
                 })
@@ -176,18 +176,11 @@ impl AleraApp {
                             .into_iter()
                             .enumerate()
                             .filter_map(|(row_index, row)| {
-                                self.source_tree_row(
-                                    group_index,
-                                    row_index,
-                                    area,
-                                    row,
-                                    false,
-                                    cx,
-                                )
+                                self.source_tree_row(group_index, row_index, area, row, false, cx)
                             }),
                     )
                 })
-                        .into_any_element(),
+                .into_any_element(),
         )
     }
 
@@ -234,11 +227,9 @@ impl AleraApp {
             .px_2()
             .cursor(CursorStyle::PointingHand)
             .on_click(cx.listener(move |this, _, _, cx| {
-                if !this
-                    .source_control_collapsed_sections
-                    .remove(&toggle_key)
-                {
-                    this.source_control_collapsed_sections.insert(toggle_key.clone());
+                if !this.source_control_collapsed_sections.remove(&toggle_key) {
+                    this.source_control_collapsed_sections
+                        .insert(toggle_key.clone());
                 }
                 cx.notify();
             }))
@@ -266,83 +257,46 @@ impl AleraApp {
                     .child(entries.len().to_string()),
             )
             .child(div().w(px(6.0)))
-            .child(
-                div()
-                    .flex()
-                    .items_center()
-                    .justify_end()
-                    .w(px(86.0)),
-            );
+            .child(div().flex().items_center().justify_end().w(px(86.0)));
         if !stage_paths.is_empty() {
             let paths = stage_paths.clone();
             header = header.child(
-                source_row_action(
-                    "source-group-stage-unified",
-                    AleraIcon::GitStage,
-                    false,
-                )
-                .on_click(cx.listener(move |this, _, _, cx| {
-                    cx.stop_propagation();
-                    this.run_git_path_actions(
-                        paths
-                            .iter()
-                            .cloned()
-                            .map(GitAction::StagePath)
-                            .collect(),
-                        cx,
-                    );
-                })),
+                source_row_action("source-group-stage-unified", AleraIcon::GitStage, false)
+                    .on_click(cx.listener(move |this, _, _, cx| {
+                        cx.stop_propagation();
+                        this.run_git_path_actions(
+                            paths.iter().cloned().map(GitAction::StagePath).collect(),
+                            cx,
+                        );
+                    })),
             );
             let paths = discard_paths.clone();
             header = header.child(
-                source_row_action(
-                    "source-group-discard-unified",
-                    AleraIcon::GitDiscard,
-                    true,
-                )
-                .on_click(cx.listener(move |this, _, _, cx| {
-                    cx.stop_propagation();
-                    this.request_discard_paths(paths.clone(), cx);
-                })),
+                source_row_action("source-group-discard-unified", AleraIcon::GitDiscard, true)
+                    .on_click(cx.listener(move |this, _, _, cx| {
+                        cx.stop_propagation();
+                        this.request_discard_paths(paths.clone(), cx);
+                    })),
             );
         }
         if !unstage_paths.is_empty() {
             let paths = unstage_paths.clone();
             header = header.child(
-                source_row_action(
-                    "source-group-unstage-unified",
-                    AleraIcon::GitUnstage,
-                    false,
-                )
-                .on_click(cx.listener(move |this, _, _, cx| {
-                    cx.stop_propagation();
-                    this.run_git_path_actions(
-                        paths
-                            .iter()
-                            .cloned()
-                            .map(GitAction::UnstagePath)
-                            .collect(),
-                        cx,
-                    );
-                })),
+                source_row_action("source-group-unstage-unified", AleraIcon::GitUnstage, false)
+                    .on_click(cx.listener(move |this, _, _, cx| {
+                        cx.stop_propagation();
+                        this.run_git_path_actions(
+                            paths.iter().cloned().map(GitAction::UnstagePath).collect(),
+                            cx,
+                        );
+                    })),
             );
         }
         let mut group = div().flex().flex_col().pb_2().child(header);
         if !collapsed && !self.source_control_tree_mode {
-            group = group.children(
-                entries.iter().enumerate().map(|(row_index, change)| {
-                    self.source_change_row(
-                        0,
-                        row_index,
-                        0,
-                        "unified",
-                        change,
-                        None,
-                        true,
-                        cx,
-                    )
-                }),
-            );
+            group = group.children(entries.iter().enumerate().map(|(row_index, change)| {
+                self.source_change_row(0, row_index, 0, "unified", change, None, true, cx)
+            }));
         }
         if !collapsed && self.source_control_tree_mode {
             group = group.children(
@@ -513,10 +467,8 @@ impl AleraApp {
             .cursor(CursorStyle::PointingHand)
             .hover(|style| style.bg(theme::surface_selected()))
             .on_click(cx.listener(move |this, _, _, cx| {
-                let permanent = this.should_keep_git_preview(format!(
-                    "working:file:{}:{}",
-                    diff_area, diff_path
-                ));
+                let permanent = this
+                    .should_keep_git_preview(format!("working:file:{}:{}", diff_area, diff_path));
                 this.open_git_diff_preview_tab(
                     Some(diff_path.clone()),
                     Some(diff_area.clone()),
@@ -560,9 +512,7 @@ impl AleraApp {
                     .text_color(theme::text_muted())
                     .child(display_name),
             )
-            .when(show_area_marker, |row| {
-                row.child(area_badge(&change.area))
-            })
+            .when(show_area_marker, |row| row.child(area_badge(&change.area)))
             .child(status_badge(&change.status))
             .child(div().w(px(6.0)))
             .child(line_stats(change.added, change.removed))

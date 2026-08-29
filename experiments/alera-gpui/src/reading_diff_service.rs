@@ -17,6 +17,7 @@ pub struct ReadingDiffService {
     commands: Sender<Command>,
 }
 
+#[allow(clippy::large_enum_variant)]
 enum Command {
     Generate {
         request: ReadingDiffRequest,
@@ -125,13 +126,7 @@ fn run(commands: Receiver<Command>, cache_directory: PathBuf) {
                 progress,
                 reply,
             } => {
-                let result = generate(
-                    &request,
-                    &cancel,
-                    &progress,
-                    &mut cache,
-                    &cache_directory,
-                );
+                let result = generate(&request, &cancel, &progress, &mut cache, &cache_directory);
                 let _ = reply.send_blocking(result);
             }
             Command::Close => return,
@@ -172,8 +167,8 @@ fn generate(
         current_chunk: None,
     });
     let max_chunk_bytes = (agent == "copilot").then_some(4096);
-    let prepared = reading_diff::prepare(&request.raw_diff, max_chunk_bytes)
-        .map_err(|error| error.message)?;
+    let prepared =
+        reading_diff::prepare(&request.raw_diff, max_chunk_bytes).map_err(|error| error.message)?;
     let mut compiled = Vec::new();
     let mut agent_label = agent_label(agent).to_string();
     for chunk in &prepared.chunks {
@@ -195,40 +190,36 @@ fn generate(
             cancel: cancel.clone(),
         })?;
         agent_label = label;
-        let result = match reading_diff::compile_with_source(
-            &chunk.raw_diff,
-            &request.raw_diff,
-            &plan,
-        ) {
-            Ok(result) => result,
-            Err(error) => {
-                let _ = progress.send_blocking(ReadingDiffProgress {
-                    stage: ReadingDiffStage::Repairing,
-                    completed_chunks: compiled.len(),
-                    total_chunks: prepared.chunks.len(),
-                    current_chunk: Some(chunk.index as usize + 1),
-                });
-                let repair = build_repair_prompt(&prompt, &plan, &error.message);
-                let (plan, label) = run_reading_diff_agent(ReadingDiffAgentRequest {
-                    agent,
-                    model: &request.model,
-                    effort: request.effort.as_deref(),
-                    prompt: &repair,
-                    working_directory: &request.working_directory,
-                    timeout_seconds: request.timeout_seconds,
-                    cancel: cancel.clone(),
-                })?;
-                agent_label = label;
-                reading_diff::compile_with_source(
-                    &chunk.raw_diff,
-                    &request.raw_diff,
-                    &plan,
-                )
-                .map_err(|error| {
-                    format!("The Replacement Reading Diff Plan Was Invalid: {}", error.message)
-                })?
-            }
-        };
+        let result =
+            match reading_diff::compile_with_source(&chunk.raw_diff, &request.raw_diff, &plan) {
+                Ok(result) => result,
+                Err(error) => {
+                    let _ = progress.send_blocking(ReadingDiffProgress {
+                        stage: ReadingDiffStage::Repairing,
+                        completed_chunks: compiled.len(),
+                        total_chunks: prepared.chunks.len(),
+                        current_chunk: Some(chunk.index as usize + 1),
+                    });
+                    let repair = build_repair_prompt(&prompt, &plan, &error.message);
+                    let (plan, label) = run_reading_diff_agent(ReadingDiffAgentRequest {
+                        agent,
+                        model: &request.model,
+                        effort: request.effort.as_deref(),
+                        prompt: &repair,
+                        working_directory: &request.working_directory,
+                        timeout_seconds: request.timeout_seconds,
+                        cancel: cancel.clone(),
+                    })?;
+                    agent_label = label;
+                    reading_diff::compile_with_source(&chunk.raw_diff, &request.raw_diff, &plan)
+                        .map_err(|error| {
+                            format!(
+                                "The Replacement Reading Diff Plan Was Invalid: {}",
+                                error.message
+                            )
+                        })?
+                }
+            };
         compiled.push(CompiledChunk {
             index: chunk.index,
             continuation_preamble: chunk.continuation_preamble.clone(),
@@ -242,8 +233,8 @@ fn generate(
         total_chunks: prepared.chunks.len(),
         current_chunk: None,
     });
-    let merged = reading_diff::merge_chunks(compiled, &request.raw_diff)
-        .map_err(|error| error.message)?;
+    let merged =
+        reading_diff::merge_chunks(compiled, &request.raw_diff).map_err(|error| error.message)?;
     let result = ReadingDiffResult {
         diff: merged.reading_diff,
         summary: merged.summary,

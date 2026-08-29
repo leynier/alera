@@ -220,7 +220,11 @@ fn claude_can_allow_dangerous_skip_permissions_independently_of_start_mode() {
     .unwrap();
     assert_eq!(
         launch.arguments,
-        ["--permission-mode", "manual", "--allow-dangerously-skip-permissions"]
+        [
+            "--permission-mode",
+            "manual",
+            "--allow-dangerously-skip-permissions"
+        ]
     );
 }
 

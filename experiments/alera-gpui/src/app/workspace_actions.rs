@@ -129,18 +129,17 @@ impl AleraApp {
                 )
                 .await;
             let result = match result {
-                Ok(tab) => super::tab_actions::persist_layout(&bridge, layout).await.map(|_| tab),
+                Ok(tab) => super::tab_actions::persist_layout(&bridge, layout)
+                    .await
+                    .map(|_| tab),
                 Err(error) => Err(error),
             };
             let _ = this.update(cx, |this, cx| {
                 this.tab_mutation_busy = false;
                 match result {
                     Ok(tab) => {
-                        this.selected_tab_id = activate_tab_id.or_else(|| {
-                            tab.get("id")
-                                .and_then(Value::as_str)
-                                .map(str::to_owned)
-                        });
+                        this.selected_tab_id = activate_tab_id
+                            .or_else(|| tab.get("id").and_then(Value::as_str).map(str::to_owned));
                         this.refresh(cx);
                     }
                     Err(error) => {
@@ -265,9 +264,7 @@ impl AleraApp {
                                 this.settings_state
                                     .default_agent_profile_id
                                     .as_deref()
-                                    .filter(|id| {
-                                        profiles.iter().any(|profile| &profile.id == id)
-                                    })
+                                    .filter(|id| profiles.iter().any(|profile| &profile.id == id))
                                     .map(str::to_owned)
                             })
                             .or_else(|| profiles.first().map(|profile| profile.id.clone()));

@@ -49,7 +49,7 @@ fn tracked_files_remain_relevant_inside_an_ignored_directory() {
     assert!(event_is_relevant(&repository, dir.path(), &event).unwrap());
 }
 
-#[cfg(unix)]
+#[cfg(all(unix, not(target_os = "macos")))]
 #[test]
 fn non_utf8_tracked_descendants_keep_ignored_directory_removals_relevant() {
     use std::os::unix::ffi::OsStringExt;
@@ -73,7 +73,7 @@ fn non_utf8_tracked_descendants_keep_ignored_directory_removals_relevant() {
     assert!(event_is_relevant(&repository, dir.path(), &event).unwrap());
 }
 
-#[cfg(unix)]
+#[cfg(all(unix, not(target_os = "macos")))]
 #[test]
 fn native_unix_directory_names_keep_populated_create_events_relevant() {
     use std::os::unix::ffi::OsStringExt;

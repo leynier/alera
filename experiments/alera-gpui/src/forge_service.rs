@@ -191,11 +191,15 @@ fn load_comments(repo_slug: &str, number: u64) -> Result<Vec<ForgeComment>, Stri
     Ok(comments)
 }
 
-fn load_stack_for_review(repo_slug: &str, review_number: u64) -> Result<Option<ForgeStack>, String> {
+fn load_stack_for_review(
+    repo_slug: &str,
+    review_number: u64,
+) -> Result<Option<ForgeStack>, String> {
     let Some(value) = run_gh_optional_json(vec![
         "api".into(),
         format!("repos/{repo_slug}/stacks?pull_request={review_number}"),
-    ])? else {
+    ])?
+    else {
         return Ok(None);
     };
     let Some(stack_number) = value
@@ -264,10 +268,7 @@ fn parse_stack_review(value: &Value) -> Result<ForgeReview, String> {
     } else if draft {
         "DRAFT"
     } else {
-        value
-            .get("state")
-            .and_then(Value::as_str)
-            .unwrap_or("OPEN")
+        value.get("state").and_then(Value::as_str).unwrap_or("OPEN")
     };
     Ok(ForgeReview {
         number,
@@ -399,10 +400,13 @@ pub(crate) fn load_review_diff(
     Ok(output.into_bytes())
 }
 
-fn order_stack_branches(workspace_path: &str, branches: Vec<String>) -> Result<Vec<String>, String> {
+fn order_stack_branches(
+    workspace_path: &str,
+    branches: Vec<String>,
+) -> Result<Vec<String>, String> {
     order_stack_branches_with(branches, |ancestor, descendant| {
         alera_core::git::is_ancestor(workspace_path, ancestor, descendant)
-        .map_err(|error| error.context)
+            .map_err(|error| error.context)
     })
 }
 
@@ -690,7 +694,10 @@ pub(crate) fn run_action(
                     format!("repos/{}/issues/comments/{comment_id}", identity.repo_slug)
                 }
                 crate::forge_api::ForgeCommentSource::ReviewSummary => {
-                    format!("repos/{}/pulls/{number}/reviews/{comment_id}", identity.repo_slug)
+                    format!(
+                        "repos/{}/pulls/{number}/reviews/{comment_id}",
+                        identity.repo_slug
+                    )
                 }
                 crate::forge_api::ForgeCommentSource::ReviewThread => {
                     format!("repos/{}/pulls/comments/{comment_id}", identity.repo_slug)
@@ -801,7 +808,10 @@ fn run_gh_optional_json(arguments: Vec<String>) -> Result<Option<Value>, String>
             return Ok(None);
         }
         return Err(if stderr.trim().is_empty() {
-            format!("gh exited with code {}.", result.status.code().unwrap_or(-1))
+            format!(
+                "gh exited with code {}.",
+                result.status.code().unwrap_or(-1)
+            )
         } else {
             stderr.trim().to_string()
         });
@@ -828,26 +838,31 @@ fn run_gh_in(workspace_path: &str, arguments: Vec<String>) -> Result<String, Str
         return Ok(stdout);
     }
     Err(if stderr.trim().is_empty() {
-        format!("gh exited with code {}.", result.status.code().unwrap_or(-1))
+        format!(
+            "gh exited with code {}.",
+            result.status.code().unwrap_or(-1)
+        )
     } else {
         stderr.trim().to_string()
     })
 }
 
 fn run_gh_stack(workspace_path: &str, arguments: Vec<String>) -> Result<(), String> {
-    run_gh_in(workspace_path, arguments).map(|_| ()).map_err(|error| {
-        let normalized = error.to_ascii_lowercase();
-        if normalized.contains("unknown command \"stack\"")
-            || normalized.contains("unknown command 'stack'")
-            || normalized.contains("is not a gh command")
-            || normalized.contains("extension stack not found")
-        {
-            "The gh-stack Extension Is Required. Run `gh extension install github/gh-stack`."
-                .to_string()
-        } else {
-            error
-        }
-    })
+    run_gh_in(workspace_path, arguments)
+        .map(|_| ())
+        .map_err(|error| {
+            let normalized = error.to_ascii_lowercase();
+            if normalized.contains("unknown command \"stack\"")
+                || normalized.contains("unknown command 'stack'")
+                || normalized.contains("is not a gh command")
+                || normalized.contains("extension stack not found")
+            {
+                "The gh-stack Extension Is Required. Run `gh extension install github/gh-stack`."
+                    .to_string()
+            } else {
+                error
+            }
+        })
 }
 
 fn run_gh(arguments: Vec<String>, allow_nonzero: bool) -> Result<String, String> {
@@ -1061,10 +1076,9 @@ mod tests {
         .expect("linear stack");
         assert_eq!(ordered, ["base", "middle", "top"]);
 
-        assert!(order_stack_branches_with(
-            vec!["left".into(), "right".into()],
-            |_, _| Ok(false),
-        )
-        .is_err());
+        assert!(
+            order_stack_branches_with(vec!["left".into(), "right".into()], |_, _| Ok(false),)
+                .is_err()
+        );
     }
 }

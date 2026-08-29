@@ -27,6 +27,12 @@ pub(super) use super::request_payloads::{json_result, parse_payload};
 use super::runtime_mutation_barrier::conflicts_with_runtime_mutation;
 use super::{ClientKind, ServerActor, ServerCommand};
 
+#[path = "gpui_workspace_requests.rs"]
+mod gpui_workspace_requests;
+#[cfg(test)]
+#[path = "gpui_workspace_requests_tests.rs"]
+mod gpui_workspace_requests_tests;
+
 #[derive(Debug, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct ProjectConfigUpsertRequest {
@@ -187,6 +193,12 @@ impl ServerActor {
         request_type: &str,
         payload: &Value,
     ) -> HostResult<Value> {
+        if let Some(value) = self
+            .handle_gpui_workspace_request(client_id, request_type, payload)
+            .await?
+        {
+            return Ok(value);
+        }
         match request_type {
             request_type if request_type.starts_with("codex.") => {
                 self.handle_codex_request(client_id, request_type, payload)

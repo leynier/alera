@@ -27,9 +27,8 @@ impl AleraApp {
             .and_then(|profile| profile.usage_display_name.clone())
             .or_else(|| profile.map(|profile| profile.alias.clone()))
             .unwrap_or_default();
-        self.claude_profile_show_in_usage = profile
-            .map(|profile| profile.show_in_usage)
-            .unwrap_or(true);
+        self.claude_profile_show_in_usage =
+            profile.map(|profile| profile.show_in_usage).unwrap_or(true);
         self.claude_profile_alias_input
             .update(cx, |input, cx| input.set_value(alias, window, cx));
         self.claude_profile_name_input

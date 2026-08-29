@@ -199,11 +199,17 @@ impl Session {
             tokio::task::spawn_blocking(move || {
                 spawn_pty(launch, terminal_handle, working_directory, cols, rows)
             })
-                .await
-                .map_err(|error| HostError::state(format!("PTY setup worker failed: {error}")))??
+            .await
+            .map_err(|error| HostError::state(format!("PTY setup worker failed: {error}")))??
         };
         #[cfg(not(windows))]
-        let spawned = spawn_pty(launch.clone(), id.clone(), working_directory.clone(), cols, rows)?;
+        let spawned = spawn_pty(
+            launch.clone(),
+            id.clone(),
+            working_directory.clone(),
+            cols,
+            rows,
+        )?;
         let SpawnedPty {
             child,
             master,
@@ -213,7 +219,7 @@ impl Session {
             #[cfg(windows)]
             process_job,
             shell,
-         } = spawned;
+        } = spawned;
         let (input_tx, input_rx) = sync_channel(INPUT_QUEUE_CAPACITY);
         let on_event: Arc<dyn Fn(PtyEvent) + Send + Sync> = Arc::new(on_event);
 

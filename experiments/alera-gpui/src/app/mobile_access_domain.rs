@@ -103,11 +103,10 @@ fn validate_pairing_endpoint(
     if port == 0 || host.trim().is_empty() {
         return Some("Endpoint Port Must Be Between 1 And 65535".into());
     }
-    if scheme.eq_ignore_ascii_case("ws")
-        && !is_loopback_host(&host)
-        && !is_private_overlay_host(&host)
-        && !(netbird_dns && is_dns_hostname(&host))
-    {
+    let safe_insecure_host = is_loopback_host(&host)
+        || is_private_overlay_host(&host)
+        || (netbird_dns && is_dns_hostname(&host));
+    if scheme.eq_ignore_ascii_case("ws") && !safe_insecure_host {
         return Some("Endpoints Outside Loopback Or A Private Overlay Must Use wss://".into());
     }
     if scheme.eq_ignore_ascii_case("ws") && enabled && port != gateway_port {

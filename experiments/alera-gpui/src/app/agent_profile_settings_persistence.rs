@@ -5,16 +5,15 @@ use serde_json::{json, Value};
 
 use super::agent_profile_settings::{
     managed_risk_markers, optional_profile_input_value, parse_agent_profile, parse_agent_profiles,
-    profile_input_value,
-    set_profile_input,
+    profile_input_value, set_profile_input,
 };
 use super::AleraApp;
 
 const AGENT_PROFILE_ORDERING_CAPABILITY: &str = "orchestrationAgentProfileOrderingV1";
-pub(super) const AGENT_PROFILE_REVISIONS_CAPABILITY: &str =
-    "orchestrationAgentProfileRevisionsV1";
+pub(super) const AGENT_PROFILE_REVISIONS_CAPABILITY: &str = "orchestrationAgentProfileRevisionsV1";
 const MANAGED_AGENT_PROFILES_CAPABILITY: &str = "orchestrationManagedAgentProfilesV1";
-pub(super) const SAFE_EDITING_HOST_ERROR: &str = "Safe agent profile editing requires a newer runtime host. \
+pub(super) const SAFE_EDITING_HOST_ERROR: &str =
+    "Safe agent profile editing requires a newer runtime host. \
     Restart Alera to replace the running host.";
 
 impl AleraApp {
@@ -29,7 +28,9 @@ impl AleraApp {
             return;
         }
         let mut reordered = self.agent_profile_settings.profiles.clone();
-        let Some(source_index) = reordered.iter().position(|profile| profile.id == dragged_id)
+        let Some(source_index) = reordered
+            .iter()
+            .position(|profile| profile.id == dragged_id)
         else {
             return;
         };
@@ -117,7 +118,11 @@ impl AleraApp {
                     profiles.sort_by(|left, right| {
                         left.sort_order
                             .cmp(&right.sort_order)
-                            .then_with(|| left.name.to_ascii_lowercase().cmp(&right.name.to_ascii_lowercase()))
+                            .then_with(|| {
+                                left.name
+                                    .to_ascii_lowercase()
+                                    .cmp(&right.name.to_ascii_lowercase())
+                            })
                             .then_with(|| left.id.cmp(&right.id))
                     });
                     this.agent_profile_settings.profiles = profiles;
@@ -387,15 +392,10 @@ pub(super) async fn require_agent_profile_capabilities(
     let status = bridge
         .request_with_timeout("status.get", json!({}), Duration::from_secs(10))
         .await?;
-    let capabilities = status
-        .get("runtimeCapabilities")
-        .and_then(Value::as_array);
+    let capabilities = status.get("runtimeCapabilities").and_then(Value::as_array);
     for (capability, message) in requirements {
-        let supported = capabilities.is_some_and(|items| {
-            items
-                .iter()
-                .any(|item| item.as_str() == Some(*capability))
-        });
+        let supported = capabilities
+            .is_some_and(|items| items.iter().any(|item| item.as_str() == Some(*capability)));
         if !supported {
             return Err((*message).to_owned());
         }

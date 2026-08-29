@@ -444,19 +444,18 @@ impl AleraApp {
                             agent,
                         )
                     });
-                let Some(thinking) = super::ai_assist_settings_catalog::model_choices(
-                    &self.settings_state,
-                    agent,
-                )
-                .into_iter()
-                .find(|candidate| candidate.id == model)
-                .and_then(|candidate| {
-                    candidate
-                        .thinking_levels
+                let Some(thinking) =
+                    super::ai_assist_settings_catalog::model_choices(&self.settings_state, agent)
                         .into_iter()
-                        .find(|(_, label)| *label == value)
-                        .map(|(id, _)| id)
-                }) else {
+                        .find(|candidate| candidate.id == model)
+                        .and_then(|candidate| {
+                            candidate
+                                .thinking_levels
+                                .into_iter()
+                                .find(|(_, label)| *label == value)
+                                .map(|(id, _)| id)
+                        })
+                else {
                     return;
                 };
                 self.update_ai_assist_settings(

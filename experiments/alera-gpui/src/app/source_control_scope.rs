@@ -281,7 +281,6 @@ impl AleraApp {
             roots.remove(workspace_id);
         }
     }
-
 }
 
 pub(super) fn normalize_source_control_root_relative_path(value: &str) -> Option<String> {

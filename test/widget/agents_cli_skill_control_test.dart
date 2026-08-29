@@ -250,7 +250,7 @@ void main() {
       ),
     );
 
-    await tester.tap(find.text('Install / Update All'));
+    await tester.tap(find.text('Install / Update'));
     await tester.pumpAndSettle();
 
     expect(find.text('Install All Alera Skills'), findsOneWidget);
@@ -271,6 +271,34 @@ void main() {
 
     expect(reconciler.settings?.codex, isTrue);
     expect(find.text('Selected hooks ready'), findsOneWidget);
+  });
+
+  testWidgets('all skills control keeps its three buttons on one row', (
+    tester,
+  ) async {
+    final fontLoader = FontLoader('Inter')
+      ..addFont(rootBundle.load('assets/fonts/Inter-Variable.ttf'));
+    await fontLoader.load();
+
+    await tester.pumpWidget(
+      ProviderScope(
+        child: MaterialApp(
+          theme: buildAleraDarkTheme(),
+          home: const Scaffold(
+            body: SizedBox(width: 360, child: AleraAllSkillsControl()),
+          ),
+        ),
+      ),
+    );
+
+    final outlinedButtons = find.byType(OutlinedButton);
+    final filledButton = find.byType(FilledButton);
+    expect(outlinedButtons, findsNWidgets(2));
+    expect(filledButton, findsOneWidget);
+
+    final runnerY = tester.getTopLeft(outlinedButtons.at(0)).dy;
+    expect(tester.getTopLeft(outlinedButtons.at(1)).dy, runnerY);
+    expect(tester.getTopLeft(filledButton).dy, runnerY);
   });
 
   testWidgets('all skills control copies without opening the terminal', (

@@ -4,11 +4,11 @@ use gpui::{AppContext as _, Context, Entity, FocusHandle, SharedString, Window};
 use gpui_component::input::{InputState, TextareaState};
 use serde_json::{Map, Value};
 
-use super::AleraApp;
 pub(super) use super::agent_profile_record::{
     parse_agent_profile, parse_agent_profiles, AgentProfileRecord,
 };
 use super::agent_profile_removal::AgentProfileRemovalImpact;
+use super::AleraApp;
 use crate::icons::AgentIcon;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -204,11 +204,7 @@ pub(super) fn managed_command_preview(adapter: &str, config: &Map<String, Value>
             push_string_option(&mut args, config, "effort", "--effort");
             push_string_option(&mut args, config, "agent", "--agent");
             push_string_option(&mut args, config, "permissionMode", "--permission-mode");
-            if config
-                .get("allowSkipPermissions")
-                .and_then(Value::as_bool)
-                == Some(true)
-            {
+            if config.get("allowSkipPermissions").and_then(Value::as_bool) == Some(true) {
                 args.push("--allow-dangerously-skip-permissions".to_owned());
             }
         }
@@ -261,11 +257,7 @@ pub(super) fn managed_command_preview(adapter: &str, config: &Map<String, Value>
             push_string_option(&mut args, config, "agent", "--agent");
             push_string_option(&mut args, config, "permissionMode", "--permission-mode");
             push_string_option(&mut args, config, "sandbox", "--sandbox");
-            if config
-                .get("disableWebSearch")
-                .and_then(Value::as_bool)
-                == Some(true)
-            {
+            if config.get("disableWebSearch").and_then(Value::as_bool) == Some(true) {
                 args.push("--disable-web-search".to_owned());
             }
         }

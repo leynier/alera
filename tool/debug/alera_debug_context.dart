@@ -398,10 +398,7 @@ final class _DebugContext {
         environment['ALERA_RUNTIME_DIR'] ??
         _join(_defaultAppSupportDir(_options.appId), 'terminal_host');
     await File(_join(contents.path, 'Info.plist')).writeAsString(
-      _gpuiMacosInfoPlist(
-        _options.appId,
-        runtimeDir,
-      ),
+      _gpuiMacosInfoPlist(_options.appId, runtimeDir),
       flush: true,
     );
     await File(targetExecutable).copy(bundledExecutable);
@@ -484,10 +481,7 @@ final class _DebugContext {
     return pids.toList(growable: false);
   }
 
-  static String _gpuiMacosInfoPlist(
-    String appId,
-    String runtimeDir,
-  ) =>
+  static String _gpuiMacosInfoPlist(String appId, String runtimeDir) =>
       '''
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">

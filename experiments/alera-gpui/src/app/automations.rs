@@ -1,6 +1,6 @@
 use gpui::{
-    div, prelude::FluentBuilder as _, px, AnyElement, Context, CursorStyle,
-    Entity, InteractiveElement as _, IntoElement, ParentElement as _, Role, SharedString,
+    div, prelude::FluentBuilder as _, px, AnyElement, Context, CursorStyle, Entity,
+    InteractiveElement as _, IntoElement, ParentElement as _, Role, SharedString,
     StatefulInteractiveElement as _, Styled as _, Toggled, Window,
 };
 use gpui_component::input::{InputState, Textarea};
@@ -26,11 +26,7 @@ const AUTOMATION_FINAL_RUN_STATUSES: &[&str] = &[
 ];
 
 impl AleraApp {
-    pub(crate) fn open_automations_dialog(
-        &mut self,
-        window: &mut Window,
-        cx: &mut Context<Self>,
-    ) {
+    pub(crate) fn open_automations_dialog(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         self.show_automations_dialog = true;
         self.automations_error = None;
         self.automation_detail = None;
@@ -78,7 +74,7 @@ impl AleraApp {
             let Some(this) = this.upgrade() else {
                 return;
             };
-            let _ = this.update(cx, |this, cx| {
+            this.update(cx, |this, cx| {
                 this.automations_loading = false;
                 match result {
                     Ok(payload) => {
@@ -121,7 +117,7 @@ impl AleraApp {
             let Some(this) = this.upgrade() else {
                 return;
             };
-            let _ = this.update(cx, |this, cx| {
+            this.update(cx, |this, cx| {
                 this.automation_detail_loading = false;
                 match result {
                     Ok(value) => this.automation_detail = Some(value),
@@ -153,7 +149,7 @@ impl AleraApp {
             let Some(this) = this.upgrade() else {
                 return;
             };
-            let _ = this.update(cx, |this, cx| {
+            this.update(cx, |this, cx| {
                 this.automation_action_busy = false;
                 match result {
                     Ok(_) => {
@@ -173,7 +169,12 @@ impl AleraApp {
         cx.notify();
     }
 
-    fn open_automation_editor(&mut self, initial: Option<Value>, window: &mut Window, cx: &mut Context<Self>) {
+    fn open_automation_editor(
+        &mut self,
+        initial: Option<Value>,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
         let automation = initial
             .as_ref()
             .and_then(|value| value.get("automation"))
@@ -271,12 +272,14 @@ impl AleraApp {
             .trim()
             .to_owned();
         if name.is_empty() || slug.is_empty() || prompt.is_empty() {
-            self.automation_editor_error = Some("Name, slug, and prompt template are required.".into());
+            self.automation_editor_error =
+                Some("Name, slug, and prompt template are required.".into());
             cx.notify();
             return;
         }
         if workspace_id.is_empty() || profile_id.is_empty() {
-            self.automation_editor_error = Some("A workspace and agent profile are required for a fresh tab target.".into());
+            self.automation_editor_error =
+                Some("A workspace and agent profile are required for a fresh tab target.".into());
             cx.notify();
             return;
         }
@@ -320,16 +323,26 @@ impl AleraApp {
         definition.entry("projectId").or_insert(Value::Null);
         definition.entry("tagIds").or_insert(json!([]));
         definition.entry("setupPolicy").or_insert(json!("wait"));
-        definition.entry("cleanupPolicy").or_insert(json!("preserve"));
+        definition
+            .entry("cleanupPolicy")
+            .or_insert(json!("preserve"));
         definition.entry("overlapPolicy").or_insert(json!("skip"));
         definition.entry("queueCap").or_insert(json!(10));
-        definition.entry("inactivityTimeoutSeconds").or_insert(json!(7200));
-        definition.entry("heartbeatIntervalSeconds").or_insert(json!(60));
-        definition.entry("misfireGraceSeconds").or_insert(json!(900));
+        definition
+            .entry("inactivityTimeoutSeconds")
+            .or_insert(json!(7200));
+        definition
+            .entry("heartbeatIntervalSeconds")
+            .or_insert(json!(60));
+        definition
+            .entry("misfireGraceSeconds")
+            .or_insert(json!(900));
         definition.entry("misfirePolicy").or_insert(json!("skip"));
         definition.entry("retryMaxAttempts").or_insert(json!(3));
         definition.entry("retryBackoffSeconds").or_insert(json!(60));
-        definition.entry("circuitFailureThreshold").or_insert(json!(3));
+        definition
+            .entry("circuitFailureThreshold")
+            .or_insert(json!(3));
         definition.entry("circuitOpenSeconds").or_insert(json!(900));
         definition.entry("precheck").or_insert(Value::Null);
         definition.entry("notifyOnSuccess").or_insert(json!(false));
@@ -355,7 +368,7 @@ impl AleraApp {
             let Some(this) = this.upgrade() else {
                 return;
             };
-            let _ = this.update(cx, |this, cx| {
+            this.update(cx, |this, cx| {
                 this.automation_action_busy = false;
                 match result {
                     Ok(value) => {
@@ -394,11 +407,17 @@ impl AleraApp {
         clone.insert("id".into(), Value::String(Uuid::new_v4().to_string()));
         clone.insert(
             "slug".into(),
-            Value::String(format!("{}-copy", value_string(&automation, "slug").unwrap_or_default())),
+            Value::String(format!(
+                "{}-copy",
+                value_string(&automation, "slug").unwrap_or_default()
+            )),
         );
         clone.insert(
             "name".into(),
-            Value::String(format!("{} Copy", value_string(&automation, "name").unwrap_or_default())),
+            Value::String(format!(
+                "{} Copy",
+                value_string(&automation, "name").unwrap_or_default()
+            )),
         );
         clone.insert("state".into(), json!("draft"));
         clone.insert("revision".into(), json!(0));
@@ -413,7 +432,7 @@ impl AleraApp {
             let Some(this) = this.upgrade() else {
                 return;
             };
-            let _ = this.update(cx, |this, cx| {
+            this.update(cx, |this, cx| {
                 match result {
                     Ok(bundle) => {
                         cx.write_to_clipboard(gpui::ClipboardItem::new_string(bundle.to_string()));
@@ -430,7 +449,8 @@ impl AleraApp {
 
     fn automation_import(&mut self, cx: &mut Context<Self>) {
         let Some(text) = cx.read_from_clipboard().and_then(|item| item.text()) else {
-            self.automations_error = Some("The clipboard does not contain an automation catalog.".into());
+            self.automations_error =
+                Some("The clipboard does not contain an automation catalog.".into());
             cx.notify();
             return;
         };
@@ -451,7 +471,7 @@ impl AleraApp {
             let Some(this) = this.upgrade() else {
                 return;
             };
-            let _ = this.update(cx, |this, cx| {
+            this.update(cx, |this, cx| {
                 this.automation_action_busy = false;
                 match result {
                     Ok(_) => {
@@ -481,9 +501,12 @@ impl AleraApp {
             .items_center()
             .justify_center()
             .bg(theme::overlay_scrim())
-            .on_mouse_down(gpui::MouseButton::Left, cx.listener(|this, _, _, cx| {
-                this.close_automations_dialog(cx);
-            }))
+            .on_mouse_down(
+                gpui::MouseButton::Left,
+                cx.listener(|this, _, _, cx| {
+                    this.close_automations_dialog(cx);
+                }),
+            )
             .child(
                 div()
                     .id("automations-dialog")
@@ -514,18 +537,29 @@ impl AleraApp {
             .value()
             .trim()
             .to_lowercase();
-        let visible: Vec<Value> = self.automations.iter().filter(|item| {
-            let state = value_string(item, "state").unwrap_or_else(|| "draft".into());
-            let name = value_string(item, "name").unwrap_or_default().to_lowercase();
-            let slug = value_string(item, "slug").unwrap_or_default().to_lowercase();
-            let description = value_string(item, "description").unwrap_or_default().to_lowercase();
-            (self.automation_state_filter.is_none()
-                || self.automation_state_filter.as_deref() == Some(state.as_str()))
-                && (query.is_empty()
-                    || name.contains(&query)
-                    || slug.contains(&query)
-                    || description.contains(&query))
-        }).cloned().collect();
+        let visible: Vec<Value> = self
+            .automations
+            .iter()
+            .filter(|item| {
+                let state = value_string(item, "state").unwrap_or_else(|| "draft".into());
+                let name = value_string(item, "name")
+                    .unwrap_or_default()
+                    .to_lowercase();
+                let slug = value_string(item, "slug")
+                    .unwrap_or_default()
+                    .to_lowercase();
+                let description = value_string(item, "description")
+                    .unwrap_or_default()
+                    .to_lowercase();
+                (self.automation_state_filter.is_none()
+                    || self.automation_state_filter.as_deref() == Some(state.as_str()))
+                    && (query.is_empty()
+                        || name.contains(&query)
+                        || slug.contains(&query)
+                        || description.contains(&query))
+            })
+            .cloned()
+            .collect();
         div()
             .flex()
             .flex_col()
@@ -682,7 +716,11 @@ impl AleraApp {
         design_system::button(
             SharedString::from(format!("automation-filter-{label}")),
             label,
-            if selected { ButtonKind::Elevated } else { ButtonKind::Text },
+            if selected {
+                ButtonKind::Elevated
+            } else {
+                ButtonKind::Text
+            },
             false,
         )
         .on_click(cx.listener(move |this, _, _, cx| {
@@ -691,12 +729,15 @@ impl AleraApp {
         }))
     }
 
-    fn render_automation_list_row(&self, item: &Value, cx: &mut Context<Self>) -> gpui::Stateful<gpui::Div> {
+    fn render_automation_list_row(
+        &self,
+        item: &Value,
+        cx: &mut Context<Self>,
+    ) -> gpui::Stateful<gpui::Div> {
         let id = value_string(item, "id").unwrap_or_default();
         let selected = self.automation_selected_id.as_deref() == Some(id.as_str());
-        let approved = value_i64(item, "approvedRevision").is_some_and(|revision| {
-            value_i64(item, "revision") == Some(revision)
-        });
+        let approved = value_i64(item, "approvedRevision")
+            .is_some_and(|revision| value_i64(item, "revision") == Some(revision));
         let name = value_string(item, "name").unwrap_or_else(|| "Automation".into());
         let state = value_string(item, "state").unwrap_or_else(|| "draft".into());
         let schedule = if item
@@ -731,15 +772,29 @@ impl AleraApp {
                 this.load_automation_detail(id.clone(), cx);
             }))
             .child(icon(
-                if approved { AleraIcon::CheckCheck } else { AleraIcon::Warning },
+                if approved {
+                    AleraIcon::CheckCheck
+                } else {
+                    AleraIcon::Warning
+                },
                 15.0,
-                if approved { theme::success() } else { theme::warning() },
+                if approved {
+                    theme::success()
+                } else {
+                    theme::warning()
+                },
             ))
             .child(
                 div()
                     .flex_1()
                     .min_w_0()
-                    .child(div().overflow_hidden().whitespace_nowrap().text_size(px(13.0)).child(name))
+                    .child(
+                        div()
+                            .overflow_hidden()
+                            .whitespace_nowrap()
+                            .text_size(px(13.0))
+                            .child(name),
+                    )
                     .child(
                         div()
                             .mt(px(2.0))
@@ -752,13 +807,25 @@ impl AleraApp {
 
     fn render_automation_detail(&self, cx: &mut Context<Self>) -> AnyElement {
         let Some(detail) = self.automation_detail.as_ref() else {
-            return automation_empty_state("Select An Automation", "Choose an automation to inspect its schedule, target, and runs.");
+            return automation_empty_state(
+                "Select An Automation",
+                "Choose an automation to inspect its schedule, target, and runs.",
+            );
         };
         let Some(automation) = detail.get("automation") else {
-            return automation_empty_state("Automation Unavailable", "The runtime returned no automation definition.");
+            return automation_empty_state(
+                "Automation Unavailable",
+                "The runtime returned no automation definition.",
+            );
         };
         if self.automation_detail_loading {
-            return div().flex().flex_1().items_center().justify_center().child(loading_indicator(22.0, theme::text_muted())).into_any_element();
+            return div()
+                .flex()
+                .flex_1()
+                .items_center()
+                .justify_center()
+                .child(loading_indicator(22.0, theme::text_muted()))
+                .into_any_element();
         }
         let id = value_string(automation, "id").unwrap_or_default();
         let name = value_string(automation, "name").unwrap_or_else(|| "Automation".into());
@@ -873,14 +940,77 @@ impl AleraApp {
             .unwrap_or("Target");
         let rows = [
             ("Slug", value_string(automation, "slug").unwrap_or_default()),
-            ("Schedule", format!("{schedule_kind} · {}", schedule.get("timezone").and_then(Value::as_str).unwrap_or("UTC"))),
-            ("Cron / Time", schedule.get("cron").or_else(|| schedule.get("at")).map(value_display).unwrap_or_else(|| "Not set".into())),
-            ("Target", format!("{target_kind} · {}", target.get("workspaceId").or_else(|| target.get("sourceWorkspaceId")).map(value_display).unwrap_or_else(|| "Not set".into()))),
-            ("Policies", format!("Setup {} · Overlap {} · Misfire {} · Cleanup {}", value_string(automation, "setupPolicy").unwrap_or_else(|| "wait".into()), value_string(automation, "overlapPolicy").unwrap_or_else(|| "skip".into()), value_string(automation, "misfirePolicy").unwrap_or_else(|| "skip".into()), value_string(automation, "cleanupPolicy").unwrap_or_else(|| "preserve".into()))),
-            ("Limits", format!("Queue {} · Inactivity {}s · Heartbeat {}s · Retries {}", value_i64(automation, "queueCap").unwrap_or(10), value_i64(automation, "inactivityTimeoutSeconds").unwrap_or(7200), value_i64(automation, "heartbeatIntervalSeconds").unwrap_or(60), value_i64(automation, "retryMaxAttempts").unwrap_or(3))),
-            ("Revision", format!("{}{}", value_i64(automation, "revision").unwrap_or_default(), if value_i64(automation, "approvedRevision") == value_i64(automation, "revision") { " · approved" } else { " · draft changes" })),
-            ("Description", value_string(automation, "description").unwrap_or_default()),
-            ("Prompt", value_string(automation, "promptTemplate").unwrap_or_default()),
+            (
+                "Schedule",
+                format!(
+                    "{schedule_kind} · {}",
+                    schedule
+                        .get("timezone")
+                        .and_then(Value::as_str)
+                        .unwrap_or("UTC")
+                ),
+            ),
+            (
+                "Cron / Time",
+                schedule
+                    .get("cron")
+                    .or_else(|| schedule.get("at"))
+                    .map(value_display)
+                    .unwrap_or_else(|| "Not set".into()),
+            ),
+            (
+                "Target",
+                format!(
+                    "{target_kind} · {}",
+                    target
+                        .get("workspaceId")
+                        .or_else(|| target.get("sourceWorkspaceId"))
+                        .map(value_display)
+                        .unwrap_or_else(|| "Not set".into())
+                ),
+            ),
+            (
+                "Policies",
+                format!(
+                    "Setup {} · Overlap {} · Misfire {} · Cleanup {}",
+                    value_string(automation, "setupPolicy").unwrap_or_else(|| "wait".into()),
+                    value_string(automation, "overlapPolicy").unwrap_or_else(|| "skip".into()),
+                    value_string(automation, "misfirePolicy").unwrap_or_else(|| "skip".into()),
+                    value_string(automation, "cleanupPolicy").unwrap_or_else(|| "preserve".into())
+                ),
+            ),
+            (
+                "Limits",
+                format!(
+                    "Queue {} · Inactivity {}s · Heartbeat {}s · Retries {}",
+                    value_i64(automation, "queueCap").unwrap_or(10),
+                    value_i64(automation, "inactivityTimeoutSeconds").unwrap_or(7200),
+                    value_i64(automation, "heartbeatIntervalSeconds").unwrap_or(60),
+                    value_i64(automation, "retryMaxAttempts").unwrap_or(3)
+                ),
+            ),
+            (
+                "Revision",
+                format!(
+                    "{}{}",
+                    value_i64(automation, "revision").unwrap_or_default(),
+                    if value_i64(automation, "approvedRevision")
+                        == value_i64(automation, "revision")
+                    {
+                        " · approved"
+                    } else {
+                        " · draft changes"
+                    }
+                ),
+            ),
+            (
+                "Description",
+                value_string(automation, "description").unwrap_or_default(),
+            ),
+            (
+                "Prompt",
+                value_string(automation, "promptTemplate").unwrap_or_default(),
+            ),
         ];
         div()
             .rounded_lg()
@@ -888,8 +1018,16 @@ impl AleraApp {
             .border_color(theme::border_subtle())
             .bg(theme::surface_selected())
             .p_3()
-            .child(div().font_weight(gpui::FontWeight::SEMIBOLD).child("Overview"))
-            .children(rows.into_iter().filter(|(_, value)| !value.is_empty()).map(|(label, value)| automation_info_row(label, value)))
+            .child(
+                div()
+                    .font_weight(gpui::FontWeight::SEMIBOLD)
+                    .child("Overview"),
+            )
+            .children(
+                rows.into_iter()
+                    .filter(|(_, value)| !value.is_empty())
+                    .map(|(label, value)| automation_info_row(label, value)),
+            )
     }
 
     fn render_automation_runs(&self, runs: &[Value], cx: &mut Context<Self>) -> gpui::Div {
@@ -901,13 +1039,22 @@ impl AleraApp {
             .p_3()
             .child(div().font_weight(gpui::FontWeight::SEMIBOLD).child("Runs"));
         if runs.is_empty() {
-            return panel.child(div().mt_2().text_sm().text_color(theme::text_muted()).child("No runs yet."));
+            return panel.child(
+                div()
+                    .mt_2()
+                    .text_sm()
+                    .text_color(theme::text_muted())
+                    .child("No runs yet."),
+            );
         }
         for (index, run) in runs.iter().enumerate() {
             let status = value_string(run, "status").unwrap_or_else(|| "pending".into());
             let run_id = value_string(run, "id").unwrap_or_else(|| format!("run-{index}"));
             let final_status = AUTOMATION_FINAL_RUN_STATUSES.contains(&status.as_str());
-            let target_identity = run.get("targetIdentity").cloned().unwrap_or_else(|| json!({}));
+            let target_identity = run
+                .get("targetIdentity")
+                .cloned()
+                .unwrap_or_else(|| json!({}));
             let target_identity_for_wait = target_identity.clone();
             let target_identity_for_extend = target_identity.clone();
             let run_for_cancel = run_id.clone();
@@ -919,8 +1066,21 @@ impl AleraApp {
                 .rounded_md()
                 .border_1()
                 .border_color(theme::border_subtle())
-                .child(div().text_sm().child(format!("Run #{} · {status}", value_i64(run, "number").unwrap_or(0))))
-                .child(div().mt_1().text_xs().text_color(theme::text_muted()).child(value_string(run, "summary").or_else(|| value_string(run, "error")).unwrap_or_default()));
+                .child(div().text_sm().child(format!(
+                    "Run #{} · {status}",
+                    value_i64(run, "number").unwrap_or(0)
+                )))
+                .child(
+                    div()
+                        .mt_1()
+                        .text_xs()
+                        .text_color(theme::text_muted())
+                        .child(
+                            value_string(run, "summary")
+                                .or_else(|| value_string(run, "error"))
+                                .unwrap_or_default(),
+                        ),
+                );
             if !final_status {
                 row = row.child(
                     div()
@@ -949,7 +1109,13 @@ impl AleraApp {
             .p_3()
             .child(div().font_weight(gpui::FontWeight::SEMIBOLD).child("Audit"));
         if events.is_empty() {
-            return panel.child(div().mt_2().text_sm().text_color(theme::text_muted()).child("No audit events yet."));
+            return panel.child(
+                div()
+                    .mt_2()
+                    .text_sm()
+                    .text_color(theme::text_muted())
+                    .child("No audit events yet."),
+            );
         }
         for event in events {
             panel = panel.child(
@@ -957,7 +1123,17 @@ impl AleraApp {
                     .mt_2()
                     .text_sm()
                     .child(value_string(event, "action").unwrap_or_else(|| "Event".into()))
-                    .child(div().mt_1().text_xs().text_color(theme::text_muted()).child(format!("{} · {}", value_string(event, "createdAt").unwrap_or_default(), value_string(event, "actor").unwrap_or_default()))),
+                    .child(
+                        div()
+                            .mt_1()
+                            .text_xs()
+                            .text_color(theme::text_muted())
+                            .child(format!(
+                                "{} · {}",
+                                value_string(event, "createdAt").unwrap_or_default(),
+                                value_string(event, "actor").unwrap_or_default()
+                            )),
+                    ),
             );
         }
         panel
@@ -1022,7 +1198,7 @@ impl AleraApp {
             let Some(this) = this.upgrade() else {
                 return;
             };
-            let _ = this.update(cx, |this, cx| {
+            this.update(cx, |this, cx| {
                 this.automation_settings_loading = false;
                 this.automation_settings_loaded = true;
                 match result {
@@ -1040,9 +1216,12 @@ impl AleraApp {
             return;
         };
         self.settings_state.automation_autostart = value_bool(automation, "autostart");
-        self.settings_state.automation_run_retention_days = value_i64(automation, "runRetentionDays").unwrap_or(30);
-        self.settings_state.automation_audit_retention_days = value_i64(automation, "auditRetentionDays").unwrap_or(90);
-        self.settings_state.automation_trash_retention_days = value_i64(automation, "trashRetentionDays").unwrap_or(30);
+        self.settings_state.automation_run_retention_days =
+            value_i64(automation, "runRetentionDays").unwrap_or(30);
+        self.settings_state.automation_audit_retention_days =
+            value_i64(automation, "auditRetentionDays").unwrap_or(90);
+        self.settings_state.automation_trash_retention_days =
+            value_i64(automation, "trashRetentionDays").unwrap_or(30);
     }
 
     pub(super) fn toggle_automation_autostart(&mut self, cx: &mut Context<Self>) {
@@ -1050,7 +1229,12 @@ impl AleraApp {
         self.save_automation_settings(cx);
     }
 
-    pub(super) fn adjust_automation_retention(&mut self, kind: &'static str, delta: i64, cx: &mut Context<Self>) {
+    pub(super) fn adjust_automation_retention(
+        &mut self,
+        kind: &'static str,
+        delta: i64,
+        cx: &mut Context<Self>,
+    ) {
         let value = match kind {
             "run" => &mut self.settings_state.automation_run_retention_days,
             "audit" => &mut self.settings_state.automation_audit_retention_days,
@@ -1078,7 +1262,7 @@ impl AleraApp {
             let Some(this) = this.upgrade() else {
                 return;
             };
-            let _ = this.update(cx, |this, cx| {
+            this.update(cx, |this, cx| {
                 this.automation_settings_saving = false;
                 if let Err(error) = result {
                     this.automation_settings_error = Some(error.into());
@@ -1099,66 +1283,91 @@ impl AleraApp {
         let run_retention_days = settings.automation_run_retention_days;
         let audit_retention_days = settings.automation_audit_retention_days;
         let trash_retention_days = settings.automation_trash_retention_days;
-        let value_row = |title: &'static str, description: &'static str, kind: &'static str, value: i64| {
-            let decrease = kind;
-            let increase = kind;
-            div()
-                .flex()
-                .items_center()
-                .min_h(px(69.0))
-                .p_4()
-                .border_b_1()
-                .border_color(theme::border_subtle())
-                .child(div().flex_1().child(div().text_size(px(13.0)).font_weight(gpui::FontWeight::MEDIUM).child(title)).child(div().mt_1().text_size(px(12.0)).text_color(theme::text_muted()).child(description)))
-                .child(
-                    div()
-                        .flex()
-                        .items_center()
-                        .gap_1()
-                        .child(
-                            design_system::icon_button(
-                                SharedString::from(format!("automation-{kind}-decrease")),
-                                "Decrease",
-                                AleraIcon::ChevronDown,
-                                true,
-                                26.0,
-                                None,
-                                None,
+        let value_row =
+            |title: &'static str, description: &'static str, kind: &'static str, value: i64| {
+                let decrease = kind;
+                let increase = kind;
+                div()
+                    .flex()
+                    .items_center()
+                    .min_h(px(69.0))
+                    .p_4()
+                    .border_b_1()
+                    .border_color(theme::border_subtle())
+                    .child(
+                        div()
+                            .flex_1()
+                            .child(
+                                div()
+                                    .text_size(px(13.0))
+                                    .font_weight(gpui::FontWeight::MEDIUM)
+                                    .child(title),
                             )
-                            .on_click(cx.listener(move |this, _, _, cx| {
-                                this.adjust_automation_retention(decrease, -1, cx)
-                            })),
-                        )
-                        .child(
-                            div()
-                                .w(px(48.0))
-                                .text_center()
-                                .text_size(px(13.0))
-                                .child(format!("{value} d")),
-                        )
-                        .child(
-                            design_system::icon_button(
-                                SharedString::from(format!("automation-{kind}-increase")),
-                                "Increase",
-                                AleraIcon::ChevronUp,
-                                true,
-                                26.0,
-                                None,
-                                None,
+                            .child(
+                                div()
+                                    .mt_1()
+                                    .text_size(px(12.0))
+                                    .text_color(theme::text_muted())
+                                    .child(description),
+                            ),
+                    )
+                    .child(
+                        div()
+                            .flex()
+                            .items_center()
+                            .gap_1()
+                            .child(
+                                design_system::icon_button(
+                                    SharedString::from(format!("automation-{kind}-decrease")),
+                                    "Decrease",
+                                    AleraIcon::ChevronDown,
+                                    true,
+                                    26.0,
+                                    None,
+                                    None,
+                                )
+                                .on_click(cx.listener(
+                                    move |this, _, _, cx| {
+                                        this.adjust_automation_retention(decrease, -1, cx)
+                                    },
+                                )),
                             )
-                            .on_click(cx.listener(move |this, _, _, cx| {
-                                this.adjust_automation_retention(increase, 1, cx)
-                            })),
-                        ),
-                )
-        };
+                            .child(
+                                div()
+                                    .w(px(48.0))
+                                    .text_center()
+                                    .text_size(px(13.0))
+                                    .child(format!("{value} d")),
+                            )
+                            .child(
+                                design_system::icon_button(
+                                    SharedString::from(format!("automation-{kind}-increase")),
+                                    "Increase",
+                                    AleraIcon::ChevronUp,
+                                    true,
+                                    26.0,
+                                    None,
+                                    None,
+                                )
+                                .on_click(cx.listener(
+                                    move |this, _, _, cx| {
+                                        this.adjust_automation_retention(increase, 1, cx)
+                                    },
+                                )),
+                            ),
+                    )
+            };
         let switch = design_system::switch(autostart, !saving)
             .id("automation-autostart")
             .focusable()
             .tab_stop(!saving)
             .role(Role::Switch)
             .aria_label("Start Automations At Login")
-            .aria_toggled(if autostart { Toggled::True } else { Toggled::False })
+            .aria_toggled(if autostart {
+                Toggled::True
+            } else {
+                Toggled::False
+            })
             .on_click(cx.listener(|this, _, _, cx| this.toggle_automation_autostart(cx)));
         div()
             .child(div().ml_1().mb_4().child(div().text_size(px(13.0)).font_weight(gpui::FontWeight::SEMIBOLD).child("Automation History And Autostart")).child(div().mt_1().text_size(px(12.0)).text_color(theme::text_muted()).child("Keep scheduled work available without a window and control local retention.")))
@@ -1197,14 +1406,13 @@ impl AleraApp {
             let Some(this) = this.upgrade() else {
                 return;
             };
-            let _ = this.update(cx, |this, cx| {
+            this.update(cx, |this, cx| {
                 this.automation_profile_policy_loading = false;
                 match result {
                     Ok(value) => {
                         this.automation_profile_policy_activate =
                             value_bool(&value, "mayActivateOrEditActive");
-                        this.automation_profile_policy_execute =
-                            value_bool(&value, "mayExecute");
+                        this.automation_profile_policy_execute = value_bool(&value, "mayExecute");
                     }
                     Err(error) => this.automation_profile_policy_error = Some(error.into()),
                 }
@@ -1245,7 +1453,7 @@ impl AleraApp {
             let Some(this) = this.upgrade() else {
                 return;
             };
-            let _ = this.update(cx, |this, cx| {
+            this.update(cx, |this, cx| {
                 this.automation_project_policy_loading = false;
                 match result {
                     Ok(value) => {
@@ -1298,7 +1506,7 @@ impl AleraApp {
             let Some(this) = this.upgrade() else {
                 return;
             };
-            let _ = this.update(cx, |this, cx| {
+            this.update(cx, |this, cx| {
                 this.automation_action_busy = false;
                 if let Err(error) = result {
                     if kind == "agent" {
@@ -1321,8 +1529,7 @@ impl AleraApp {
         if execute {
             self.automation_profile_policy_execute = !self.automation_profile_policy_execute;
         } else {
-            self.automation_profile_policy_activate =
-                !self.automation_profile_policy_activate;
+            self.automation_profile_policy_activate = !self.automation_profile_policy_activate;
         }
         self.save_automation_policy("agent", cx);
     }
@@ -1342,10 +1549,7 @@ impl AleraApp {
         self.save_automation_policy("project", cx);
     }
 
-    pub(super) fn render_automation_profile_policy(
-        &self,
-        cx: &mut Context<Self>,
-    ) -> gpui::Div {
+    pub(super) fn render_automation_profile_policy(&self, cx: &mut Context<Self>) -> gpui::Div {
         let loading = self.automation_profile_policy_loading;
         let activate = design_system::switch(
             self.automation_profile_policy_activate,
@@ -1361,9 +1565,7 @@ impl AleraApp {
         } else {
             Toggled::False
         })
-        .on_click(cx.listener(|this, _, _, cx| {
-            this.toggle_automation_profile_policy(false, cx)
-        }));
+        .on_click(cx.listener(|this, _, _, cx| this.toggle_automation_profile_policy(false, cx)));
         let execute = design_system::switch(
             self.automation_profile_policy_execute,
             !self.automation_action_busy,
@@ -1378,9 +1580,7 @@ impl AleraApp {
         } else {
             Toggled::False
         })
-        .on_click(cx.listener(|this, _, _, cx| {
-            this.toggle_automation_profile_policy(true, cx)
-        }));
+        .on_click(cx.listener(|this, _, _, cx| this.toggle_automation_profile_policy(true, cx)));
         let mut group = policy_group(
             "Automation Permissions",
             "Choose whether this profile may administer active definitions and execute them.",
@@ -1396,18 +1596,25 @@ impl AleraApp {
             execute,
         ));
         if loading {
-            group = group.child(div().p_3().child(loading_indicator(14.0, theme::text_muted())));
+            group = group.child(
+                div()
+                    .p_3()
+                    .child(loading_indicator(14.0, theme::text_muted())),
+            );
         }
         if let Some(error) = self.automation_profile_policy_error.clone() {
-            group = group.child(div().p_3().text_sm().text_color(theme::danger()).child(error));
+            group = group.child(
+                div()
+                    .p_3()
+                    .text_sm()
+                    .text_color(theme::danger())
+                    .child(error),
+            );
         }
         group
     }
 
-    pub(super) fn render_automation_project_policy(
-        &self,
-        cx: &mut Context<Self>,
-    ) -> gpui::Div {
+    pub(super) fn render_automation_project_policy(&self, cx: &mut Context<Self>) -> gpui::Div {
         let repo = design_system::switch(self.automation_project_policy_repo_declared, false)
             .id("automation-project-repo-declared")
             .role(Role::Switch)
@@ -1431,9 +1638,7 @@ impl AleraApp {
         } else {
             Toggled::False
         })
-        .on_click(cx.listener(|this, _, _, cx| {
-            this.toggle_automation_project_policy(true, cx)
-        }));
+        .on_click(cx.listener(|this, _, _, cx| this.toggle_automation_project_policy(true, cx)));
         let approved = design_system::switch(
             self.automation_project_policy_local_approved,
             !self.automation_action_busy,
@@ -1448,9 +1653,7 @@ impl AleraApp {
         } else {
             Toggled::False
         })
-        .on_click(cx.listener(|this, _, _, cx| {
-            this.toggle_automation_project_policy(false, cx)
-        }));
+        .on_click(cx.listener(|this, _, _, cx| this.toggle_automation_project_policy(false, cx)));
         let mut group = policy_group(
             "Automation Policy",
             "Repository declaration is read from alera.toml. Local approval can only restrict execution.",
@@ -1475,10 +1678,20 @@ impl AleraApp {
             approved,
         ));
         if self.automation_project_policy_loading {
-            group = group.child(div().p_3().child(loading_indicator(14.0, theme::text_muted())));
+            group = group.child(
+                div()
+                    .p_3()
+                    .child(loading_indicator(14.0, theme::text_muted())),
+            );
         }
         if let Some(error) = self.automation_project_policy_error.clone() {
-            group = group.child(div().p_3().text_sm().text_color(theme::danger()).child(error));
+            group = group.child(
+                div()
+                    .p_3()
+                    .text_sm()
+                    .text_color(theme::danger())
+                    .child(error),
+            );
         }
         group
     }
@@ -1514,7 +1727,12 @@ fn policy_group(title: &'static str, description: &'static str) -> gpui::Div {
         )
 }
 
-fn set_input_value(input: &Entity<InputState>, value: String, window: &mut Window, cx: &mut Context<AleraApp>) {
+fn set_input_value(
+    input: &Entity<InputState>,
+    value: String,
+    window: &mut Window,
+    cx: &mut Context<AleraApp>,
+) {
     input.update(cx, |input, cx| input.set_value(value, window, cx));
 }
 
@@ -1523,7 +1741,9 @@ fn value_string(value: &Value, key: &str) -> Option<String> {
 }
 
 fn value_i64(value: &Value, key: &str) -> Option<i64> {
-    value.get(key).and_then(|value| value.as_i64().or_else(|| value.as_str()?.parse().ok()))
+    value
+        .get(key)
+        .and_then(|value| value.as_i64().or_else(|| value.as_str()?.parse().ok()))
 }
 
 fn value_bool(value: &Value, key: &str) -> bool {
@@ -1531,7 +1751,12 @@ fn value_bool(value: &Value, key: &str) -> bool {
 }
 
 fn nested_string(value: &Value, outer: &str, inner: &str, key: &str) -> Option<String> {
-    value.get(outer)?.get(inner)?.get(key)?.as_str().map(str::to_owned)
+    value
+        .get(outer)?
+        .get(inner)?
+        .get(key)?
+        .as_str()
+        .map(str::to_owned)
 }
 
 fn nested_object(value: &Value, outer: &str, inner: &str) -> Option<Map<String, Value>> {
@@ -1539,12 +1764,21 @@ fn nested_object(value: &Value, outer: &str, inner: &str) -> Option<Map<String, 
 }
 
 fn target_string(value: &Value, keys: &[&str]) -> Option<String> {
-    let target = value.get("target")?.as_object()?.values().next()?.as_object()?;
-    keys.iter().find_map(|key| target.get(*key).and_then(Value::as_str).map(str::to_owned))
+    let target = value
+        .get("target")?
+        .as_object()?
+        .values()
+        .next()?
+        .as_object()?;
+    keys.iter()
+        .find_map(|key| target.get(*key).and_then(Value::as_str).map(str::to_owned))
 }
 
 fn value_display(value: &Value) -> String {
-    value.as_str().map(str::to_owned).unwrap_or_else(|| value.to_string())
+    value
+        .as_str()
+        .map(str::to_owned)
+        .unwrap_or_else(|| value.to_string())
 }
 
 fn format_timestamp() -> String {
@@ -1552,9 +1786,37 @@ fn format_timestamp() -> String {
 }
 
 fn automation_info_row(label: &'static str, value: String) -> gpui::Div {
-    div().flex().items_start().py_1().child(div().w(px(135.0)).text_size(px(11.0)).text_color(theme::text_muted()).child(label)).child(div().flex_1().text_size(px(12.0)).child(value))
+    div()
+        .flex()
+        .items_start()
+        .py_1()
+        .child(
+            div()
+                .w(px(135.0))
+                .text_size(px(11.0))
+                .text_color(theme::text_muted())
+                .child(label),
+        )
+        .child(div().flex_1().text_size(px(12.0)).child(value))
 }
 
 fn automation_empty_state(title: &'static str, message: &'static str) -> AnyElement {
-    div().flex().flex_1().flex_col().items_center().justify_center().gap_2().child(icon(AleraIcon::Workflow, 28.0, theme::text_faint())).child(div().font_weight(gpui::FontWeight::SEMIBOLD).child(title)).child(div().max_w(px(360.0)).text_center().text_size(px(12.0)).text_color(theme::text_muted()).child(message)).into_any_element()
+    div()
+        .flex()
+        .flex_1()
+        .flex_col()
+        .items_center()
+        .justify_center()
+        .gap_2()
+        .child(icon(AleraIcon::Workflow, 28.0, theme::text_faint()))
+        .child(div().font_weight(gpui::FontWeight::SEMIBOLD).child(title))
+        .child(
+            div()
+                .max_w(px(360.0))
+                .text_center()
+                .text_size(px(12.0))
+                .text_color(theme::text_muted())
+                .child(message),
+        )
+        .into_any_element()
 }

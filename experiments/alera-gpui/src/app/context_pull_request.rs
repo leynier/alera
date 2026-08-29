@@ -178,9 +178,7 @@ impl AleraApp {
                     .child(
                         pr_icon_button("context-pr-read-ai", AleraIcon::Ai)
                             .aria_label("Read Diff With AI")
-                            .tooltip(|_, cx| {
-                                cx.new(|_| Tooltip::new("Read Diff With AI")).into()
-                            })
+                            .tooltip(|_, cx| cx.new(|_| Tooltip::new("Read Diff With AI")).into())
                             .when(
                                 self.reading_diff_busy_key.as_deref() != Some(&reading_key),
                                 |button| {
@@ -209,12 +207,14 @@ impl AleraApp {
                             } else {
                                 "Show AI Reading Diff"
                             })
-                            .on_click(cx.listener(move |this, _, _, cx| {
-                                this.toggle_reading_diff_original(
-                                    reading_toggle_key.clone(),
-                                    cx,
-                                );
-                            })),
+                            .on_click(cx.listener(
+                                move |this, _, _, cx| {
+                                    this.toggle_reading_diff_original(
+                                        reading_toggle_key.clone(),
+                                        cx,
+                                    );
+                                },
+                            )),
                         )
                     })
                     .child(
@@ -678,7 +678,7 @@ impl AleraApp {
             .when(self.forge_snapshot.comments.is_empty(), |section| {
                 section.child(empty_label("No Comments Yet"))
             })
-            .children(self.forge_snapshot.comments.iter().cloned().map(|comment| {
+            .children(self.forge_snapshot.comments.iter().map(|comment| {
                 let comment_id = if comment._id.trim().is_empty() {
                     format!(
                         "{}|{}|{}",
@@ -758,16 +758,16 @@ impl AleraApp {
                         )
                     })
                     .child(
-                div()
-                    .mt_1()
-                    .text_sm()
-                    .text_color(theme::text_muted())
-                    .child(self.render_review_comment_body(
-                        &comment,
-                        &comment_id,
-                        review_open && !self.forge_busy,
-                        cx,
-                    )),
+                        div()
+                            .mt_1()
+                            .text_sm()
+                            .text_color(theme::text_muted())
+                            .child(self.render_review_comment_body(
+                                comment,
+                                &comment_id,
+                                review_open && !self.forge_busy,
+                                cx,
+                            )),
                     )
             }))
             .into_any_element()

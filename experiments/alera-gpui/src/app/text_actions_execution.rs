@@ -66,6 +66,7 @@ pub(super) fn textarea_context_menu(
     )
 }
 
+#[allow(clippy::too_many_arguments)]
 fn build_context_menu(
     mut menu: NativeMenu,
     code_editor: bool,
@@ -81,8 +82,16 @@ fn build_context_menu(
 ) -> NativeMenu {
     if code_editor {
         menu = menu
-            .menu_with_disabled("Go To Definition", !(has_definition && !disabled), Box::new(GoToDefinition))
-            .menu_with_disabled("Show Code Actions", !(has_code_actions && editable), Box::new(ToggleCodeActions))
+            .menu_with_disabled(
+                "Go To Definition",
+                !has_definition || disabled,
+                Box::new(GoToDefinition),
+            )
+            .menu_with_disabled(
+                "Show Code Actions",
+                !(has_code_actions && editable),
+                Box::new(ToggleCodeActions),
+            )
             .separator();
     }
     menu = menu
@@ -97,12 +106,11 @@ fn build_context_menu(
         .filter(|action| action.enabled)
         .collect::<Vec<_>>();
     if ai_enabled && editable && has_selection && !enabled_actions.is_empty() {
-        let submenu = enabled_actions.into_iter().fold(NativeMenu::new(), |menu, action| {
-            menu.menu(
-                action.name,
-                Box::new(RunTextAction { id: action.id }),
-            )
-        });
+        let submenu = enabled_actions
+            .into_iter()
+            .fold(NativeMenu::new(), |menu, action| {
+                menu.menu(action.name, Box::new(RunTextAction { id: action.id }))
+            });
         menu.separator().submenu("Text Actions", submenu)
     } else {
         menu
@@ -153,6 +161,7 @@ impl AleraApp {
         );
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub(super) fn start_text_action(
         &mut self,
         action_id: String,
@@ -249,20 +258,25 @@ impl AleraApp {
         let (current_text, current_range) = match &pending.target {
             TextActionTarget::Editor { path } => {
                 let input = self.editor_input_for_path(path);
-                (input.read(cx).value().to_string(), input.read(cx).selected_range())
+                (
+                    input.read(cx).value().to_string(),
+                    input.read(cx).selected_range(),
+                )
             }
             TextActionTarget::TerminalComposer { session_id } => {
                 let Some(input) = self.terminal_composer_inputs.get(session_id) else {
                     self.local_message = Some("Text Action Target Is Unavailable".into());
                     return;
                 };
-                (input.read(cx).value().to_string(), input.read(cx).selected_range())
+                (
+                    input.read(cx).value().to_string(),
+                    input.read(cx).selected_range(),
+                )
             }
         };
         if current_text != pending.captured_text || current_range != pending.selected_range {
-            self.local_message = Some(
-                "Generated Replacement Was Not Applied Because The Field Changed".into(),
-            );
+            self.local_message =
+                Some("Generated Replacement Was Not Applied Because The Field Changed".into());
             return;
         }
         if replacement.trim().is_empty() {

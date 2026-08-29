@@ -1,18 +1,19 @@
 use std::collections::BTreeSet;
 use std::path::Path;
 
-use base64::prelude::{BASE64_STANDARD, Engine as _};
+use base64::prelude::{Engine as _, BASE64_STANDARD};
 use gpui::{
-    div, prelude::FluentBuilder as _, px, AppContext as _, Context, CursorStyle, Entity, ExternalPaths, KeyDownEvent,
-    InteractiveElement as _, IntoElement, MouseButton, ParentElement as _, Role,
-    StatefulInteractiveElement as _, Styled as _, Window,
+    div, prelude::FluentBuilder as _, px, AppContext as _, Context, CursorStyle, Entity,
+    ExternalPaths, InteractiveElement as _, IntoElement, KeyDownEvent, MouseButton,
+    ParentElement as _, Role, StatefulInteractiveElement as _, Styled as _, Window,
 };
 use gpui_component::input::{InputEvent, Paste, Textarea, TextareaState};
 use gpui_component::scroll::ScrollableElement as _;
 use serde_json::json;
 
-use super::state_types::{ExplorerDragData, TerminalComposerAttachment, TerminalComposerAttachmentKind,
-    TextActionTarget};
+use super::state_types::{
+    ExplorerDragData, TerminalComposerAttachment, TerminalComposerAttachmentKind, TextActionTarget,
+};
 use super::text_actions_execution::textarea_context_menu;
 use super::workspace_prompt_actions::save_prompt_clipboard_image;
 use super::{AleraApp, TextActionSetting};
@@ -108,7 +109,12 @@ impl AleraApp {
         cx.notify();
     }
 
-    fn close_terminal_composer(&mut self, session_id: &str, window: &mut Window, cx: &mut Context<Self>) {
+    fn close_terminal_composer(
+        &mut self,
+        session_id: &str,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
         if self.terminal_composer_visible.remove(session_id) {
             self.terminal_composer_menu_open = None;
             window.focus(&self.terminal_focus, cx);
@@ -335,11 +341,7 @@ impl AleraApp {
             }))
             .on_drop(cx.listener(move |this, drag: &ExplorerDragData, _, cx| {
                 let path = this.absolute_explorer_path(&drag.relative_path);
-                this.add_terminal_composer_paths(
-                    &session_for_explorer_drop,
-                    [path],
-                    cx,
-                );
+                this.add_terminal_composer_paths(&session_for_explorer_drop, [path], cx);
                 cx.stop_propagation();
             }))
             .capture_key_down(cx.listener(move |this, event: &KeyDownEvent, window, cx| {
@@ -406,7 +408,11 @@ impl AleraApp {
                         }))
                         .child(icon(AleraIcon::Composer, 14.0, theme::text_muted()))
                         .child("Text Actions")
-                        .child(icon(AleraIcon::ChevronDown, 14.0, theme::text_faint())),
+                        .child(icon(
+                            AleraIcon::ChevronDown,
+                            14.0,
+                            theme::text_faint(),
+                        )),
                     )
                     .child(div().flex_1())
                     .child(
@@ -419,9 +425,11 @@ impl AleraApp {
                             Some(theme::accent()),
                             None,
                         )
-                        .on_click(cx.listener(move |this, _, window, cx| {
-                            this.submit_terminal_composer(&session_for_send, window, cx);
-                        })),
+                        .on_click(cx.listener(
+                            move |this, _, window, cx| {
+                                this.submit_terminal_composer(&session_for_send, window, cx);
+                            },
+                        )),
                     ),
             );
         if menu_open {
@@ -478,7 +486,11 @@ impl AleraApp {
                         this.open_terminal_composer_attachment(&open_path, cx);
                     }))
                     .child(icon(
-                        if image { AleraIcon::ImageOff } else { AleraIcon::File },
+                        if image {
+                            AleraIcon::ImageOff
+                        } else {
+                            AleraIcon::File
+                        },
                         15.0,
                         theme::text_muted(),
                     ))
@@ -514,11 +526,7 @@ impl AleraApp {
             .into_any_element()
     }
 
-    fn open_terminal_composer_attachment(
-        &mut self,
-        path: &str,
-        cx: &mut Context<Self>,
-    ) {
+    fn open_terminal_composer_attachment(&mut self, path: &str, cx: &mut Context<Self>) {
         let mut command = if cfg!(target_os = "macos") {
             alera_core::child_process::windowless_command("open")
         } else if cfg!(target_os = "windows") {
@@ -565,9 +573,16 @@ impl AleraApp {
                 let id = action.id.clone();
                 let session_id = session_id.clone();
                 div()
-                    .id(gpui::SharedString::from(format!("terminal-composer-action-{}", action.id)))
+                    .id(gpui::SharedString::from(format!(
+                        "terminal-composer-action-{}",
+                        action.id
+                    )))
                     .role(Role::MenuItem)
-                    .cursor(if enabled { CursorStyle::PointingHand } else { CursorStyle::Arrow })
+                    .cursor(if enabled {
+                        CursorStyle::PointingHand
+                    } else {
+                        CursorStyle::Arrow
+                    })
                     .px_2()
                     .py_2()
                     .rounded_md()
@@ -576,7 +591,8 @@ impl AleraApp {
                         if !enabled {
                             return;
                         }
-                        let Some(input) = this.terminal_composer_inputs.get(&session_id).cloned() else {
+                        let Some(input) = this.terminal_composer_inputs.get(&session_id).cloned()
+                        else {
                             return;
                         };
                         let captured_text = input.read(cx).value().to_string();
@@ -618,9 +634,7 @@ fn terminal_composer_attachment_kind(path: &str) -> TerminalComposerAttachmentKi
         .map(|extension| extension.to_ascii_lowercase())
         .as_deref()
     {
-        Some("gif" | "jpeg" | "jpg" | "png" | "webp") => {
-            TerminalComposerAttachmentKind::Image
-        }
+        Some("gif" | "jpeg" | "jpg" | "png" | "webp") => TerminalComposerAttachmentKind::Image,
         _ => TerminalComposerAttachmentKind::File,
     }
 }

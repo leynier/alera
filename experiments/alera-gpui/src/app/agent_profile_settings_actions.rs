@@ -1,12 +1,12 @@
 use gpui::{Context, Window};
 use serde_json::{json, Number, Value};
 
-use super::command_terminal::CommandTerminalRequest;
 use super::agent_profile_settings::{
     default_agent_command, managed_command_preview, managed_risk_markers, parse_agent_profiles,
     profile_input_value, profile_number_text, set_profile_input, AgentProfileDropdown,
     AgentProfileRecord,
 };
+use super::command_terminal::CommandTerminalRequest;
 use super::AleraApp;
 
 impl AleraApp {
@@ -55,12 +55,12 @@ impl AleraApp {
                     Ok(profiles) => {
                         let mut profiles = profiles;
                         profiles.sort_by(|left, right| {
-                            left.sort_order
-                                .cmp(&right.sort_order)
-                                .then_with(|| left.name
-                                .to_ascii_lowercase()
-                                .cmp(&right.name.to_ascii_lowercase())
-                                .then_with(|| left.id.cmp(&right.id)))
+                            left.sort_order.cmp(&right.sort_order).then_with(|| {
+                                left.name
+                                    .to_ascii_lowercase()
+                                    .cmp(&right.name.to_ascii_lowercase())
+                                    .then_with(|| left.id.cmp(&right.id))
+                            })
                         });
                         let selected = this
                             .agent_profile_settings
@@ -240,7 +240,9 @@ impl AleraApp {
         );
         self.agent_profile_settings
             .custom_prompt_input
-            .update(cx, |input, cx| input.set_value(&profile.custom_prompt, window, cx));
+            .update(cx, |input, cx| {
+                input.set_value(&profile.custom_prompt, window, cx)
+            });
         set_profile_input(
             &self.agent_profile_settings.quota_group_input,
             profile.quota_group.as_deref().unwrap_or_default(),

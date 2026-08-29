@@ -1,7 +1,7 @@
 use gpui::{
-    div, prelude::FluentBuilder as _, AnyElement, Context, CursorStyle,
-    InteractiveElement as _, IntoElement as _, ParentElement as _, Role, SharedString,
-    StatefulInteractiveElement as _, Styled as _,
+    div, prelude::FluentBuilder as _, AnyElement, Context, CursorStyle, InteractiveElement as _,
+    IntoElement as _, ParentElement as _, Role, SharedString, StatefulInteractiveElement as _,
+    Styled as _,
 };
 use gpui_component::input::Input;
 
@@ -51,15 +51,12 @@ impl AleraApp {
                             .iter()
                             .find(|entry| entry.review.number == current_number)
                             .map(|entry| entry.position);
-                        header.child(
-                            div()
-                                .text_xs()
-                                .text_color(theme::text_muted())
-                                .child(position.map_or_else(
-                                    || format!("{} Pull Requests", stack.entries.len()),
-                                    |position| format!("{position} of {}", stack.entries.len()),
-                                )),
-                        )
+                        header.child(div().text_xs().text_color(theme::text_muted()).child(
+                            position.map_or_else(
+                                || format!("{} Pull Requests", stack.entries.len()),
+                                |position| format!("{position} of {}", stack.entries.len()),
+                            ),
+                        ))
                     }),
             );
         if let Some(stack) = stack {
@@ -88,7 +85,10 @@ impl AleraApp {
                         .find(|workspace| workspace.branch == review.head_branch)
                         .map(|workspace| workspace.id.clone());
                     div()
-                        .id(SharedString::from(format!("stack-review-{}", review.number)))
+                        .id(SharedString::from(format!(
+                            "stack-review-{}",
+                            review.number
+                        )))
                         .mt_1()
                         .flex()
                         .items_center()
@@ -119,12 +119,7 @@ impl AleraApp {
                                 .child(format!("#{} {}", review.number, review.title)),
                         )
                         .when(current, |row| {
-                            row.child(
-                                div()
-                                    .text_xs()
-                                    .text_color(theme::accent())
-                                    .child("Current"),
-                            )
+                            row.child(div().text_xs().text_color(theme::accent()).child("Current"))
                         })
                         .when_some(local_workspace, |row, workspace_id| {
                             row.child(
@@ -140,11 +135,7 @@ impl AleraApp {
                                         this.select_workspace(workspace_id.clone(), cx);
                                         cx.stop_propagation();
                                     }))
-                                    .child(icon(
-                                        AleraIcon::FolderOpen,
-                                        13.0,
-                                        theme::text_muted(),
-                                    )),
+                                    .child(icon(AleraIcon::FolderOpen, 13.0, theme::text_muted())),
                             )
                         })
                 }));
@@ -158,7 +149,13 @@ impl AleraApp {
             );
         }
         if let Some(error) = self.forge_snapshot.stack_error.as_ref() {
-            card = card.child(div().mt_2().text_xs().text_color(theme::danger()).child(error.clone()));
+            card = card.child(
+                div()
+                    .mt_2()
+                    .text_xs()
+                    .text_color(theme::danger())
+                    .child(error.clone()),
+            );
         }
         if self.forge_stack_editing {
             card = card.child(self.render_stack_number_editor(cx));
@@ -181,19 +178,24 @@ impl AleraApp {
                     .flex()
                     .flex_wrap()
                     .gap_2()
-                    .when(candidates.len() >= if stack.is_some() { 1 } else { 2 }, |actions| {
-                        actions.child(
-                            design_system::button(
-                                "stack-workspaces",
-                                workspace_label,
-                                ButtonKind::Outlined,
-                                self.forge_busy,
+                    .when(
+                        candidates.len() >= if stack.is_some() { 1 } else { 2 },
+                        |actions| {
+                            actions.child(
+                                design_system::button(
+                                    "stack-workspaces",
+                                    workspace_label,
+                                    ButtonKind::Outlined,
+                                    self.forge_busy,
+                                )
+                                .on_click(cx.listener(
+                                    |this, _, _, cx| {
+                                        this.begin_forge_stack_workspace_link(cx);
+                                    },
+                                )),
                             )
-                            .on_click(cx.listener(|this, _, _, cx| {
-                                this.begin_forge_stack_workspace_link(cx);
-                            })),
-                        )
-                    })
+                        },
+                    )
                     .child(
                         design_system::button(
                             "stack-reviews",
@@ -221,7 +223,13 @@ impl AleraApp {
             )
             .child(div().mt_1().child(Input::new(&self.forge_link_input)))
             .when_some(self.forge_form_error.clone(), |editor, error| {
-                editor.child(div().mt_2().text_xs().text_color(theme::danger()).child(error))
+                editor.child(
+                    div()
+                        .mt_2()
+                        .text_xs()
+                        .text_color(theme::danger())
+                        .child(error),
+                )
             })
             .child(
                 div()
@@ -273,7 +281,10 @@ impl AleraApp {
                     .forge_stack_selected_workspace_ids
                     .contains(&workspace.id);
                 div()
-                    .id(SharedString::from(format!("stack-workspace-{}", workspace.id)))
+                    .id(SharedString::from(format!(
+                        "stack-workspace-{}",
+                        workspace.id
+                    )))
                     .mt_1()
                     .flex()
                     .items_center()
@@ -308,7 +319,13 @@ impl AleraApp {
                     )
             }))
             .when_some(self.forge_form_error.clone(), |editor, error| {
-                editor.child(div().mt_2().text_xs().text_color(theme::danger()).child(error))
+                editor.child(
+                    div()
+                        .mt_2()
+                        .text_xs()
+                        .text_color(theme::danger())
+                        .child(error),
+                )
             })
             .child(
                 div()

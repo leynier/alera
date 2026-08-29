@@ -46,15 +46,12 @@ impl AleraApp {
                             .and_then(Value::as_array)
                             .cloned()
                             .unwrap_or_default();
-                        if this
-                            .agent_canvas_selected_id
-                            .as_ref()
-                            .is_some_and(|id| {
-                                !this.agent_canvas_values.iter().any(|canvas| {
-                                    value_string(canvas, "id").as_deref() == Some(id)
-                                })
-                            })
-                        {
+                        if this.agent_canvas_selected_id.as_ref().is_some_and(|id| {
+                            !this
+                                .agent_canvas_values
+                                .iter()
+                                .any(|canvas| value_string(canvas, "id").as_deref() == Some(id))
+                        }) {
                             this.agent_canvas_selected_id = None;
                         }
                     }
@@ -165,12 +162,7 @@ impl AleraApp {
                     .flex_1()
                     .min_h_0()
                     .child(list)
-                    .child(
-                        div()
-                            .w(px(1.0))
-                            .h_full()
-                            .bg(theme::border_subtle()),
-                    )
+                    .child(div().w(px(1.0)).h_full().bg(theme::border_subtle()))
                     .child(div().flex_1().min_w_0().child(details)),
             )
             .into_any_element()
@@ -181,7 +173,10 @@ impl AleraApp {
             .iter()
             .filter(|canvas| {
                 self.agent_canvas_show_history
-                    || !matches!(value_string(canvas, "state").as_deref(), Some("completed" | "orphaned" | "closed"))
+                    || !matches!(
+                        value_string(canvas, "state").as_deref(),
+                        Some("completed" | "orphaned" | "closed")
+                    )
                     || value_bool(canvas, "pinned")
             })
             .cloned()
@@ -217,7 +212,8 @@ impl AleraApp {
             let id = value_string(canvas, "id").unwrap_or_else(|| format!("canvas-{index}"));
             let title = value_string(canvas, "title").unwrap_or_else(|| "Agent Run".to_owned());
             let state = value_string(canvas, "state").unwrap_or_else(|| "waiting".to_owned());
-            let is_selected = selected.is_some_and(|value| value_string(value, "id") == Some(id.clone()));
+            let is_selected =
+                selected.is_some_and(|value| value_string(value, "id") == Some(id.clone()));
             let id_for_click = id.clone();
             list = list.child(
                 div()
@@ -269,8 +265,18 @@ impl AleraApp {
                     .flex()
                     .items_center()
                     .child(icon(AleraIcon::Agent, 18.0, theme::info()))
-                    .child(div().ml_2().flex_1().font_weight(gpui::FontWeight::SEMIBOLD).child(title))
-                    .child(div().text_color(agent_canvas_state_color(&state)).child(state.clone())),
+                    .child(
+                        div()
+                            .ml_2()
+                            .flex_1()
+                            .font_weight(gpui::FontWeight::SEMIBOLD)
+                            .child(title),
+                    )
+                    .child(
+                        div()
+                            .text_color(agent_canvas_state_color(&state))
+                            .child(state.clone()),
+                    ),
             )
             .child(
                 div()
@@ -363,7 +369,8 @@ impl AleraApp {
             ));
         } else {
             for (index, component) in components.iter().enumerate() {
-                body = body.child(self.render_agent_canvas_component(&canvas_id, index, component, cx));
+                body = body
+                    .child(self.render_agent_canvas_component(&canvas_id, index, component, cx));
             }
         }
         body.into_any_element()
@@ -387,7 +394,9 @@ impl AleraApp {
             .or_else(|| value_string(props, "summary"))
             .or_else(|| value_string(props, "message"));
         let mut card = div()
-            .id(SharedString::from(format!("agent-canvas-component-{index}")))
+            .id(SharedString::from(format!(
+                "agent-canvas-component-{index}"
+            )))
             .mt_2()
             .rounded_lg()
             .border_1()
@@ -412,7 +421,12 @@ impl AleraApp {
                     .h(px(5.0))
                     .rounded_full()
                     .bg(theme::surface())
-                    .child(div().h_full().w(gpui::relative(fraction as f32)).bg(theme::accent())),
+                    .child(
+                        div()
+                            .h_full()
+                            .w(gpui::relative(fraction as f32))
+                            .bg(theme::accent()),
+                    ),
             );
         }
         if kind == "DecisionRequest" {
@@ -460,10 +474,13 @@ impl AleraApp {
                 for (action_index, action) in actions.iter().enumerate() {
                     let action = action.clone();
                     let canvas_id = canvas_id.to_owned();
-                    let label = value_string(&action, "label").unwrap_or_else(|| "Action".to_owned());
+                    let label =
+                        value_string(&action, "label").unwrap_or_else(|| "Action".to_owned());
                     card = card.child(
                         design_system::button(
-                            SharedString::from(format!("agent-canvas-action-{index}-{action_index}")),
+                            SharedString::from(format!(
+                                "agent-canvas-action-{index}-{action_index}"
+                            )),
                             label,
                             ButtonKind::Outlined,
                             self.agent_canvas_busy,
@@ -492,8 +509,19 @@ impl AleraApp {
             .p_4()
             .text_center()
             .child(icon(AleraIcon::Agent, 24.0, theme::text_faint()))
-            .child(div().mt_2().font_weight(gpui::FontWeight::SEMIBOLD).child(title.to_owned()))
-            .child(div().mt_1().text_sm().text_color(theme::text_muted()).child(message.to_owned()))
+            .child(
+                div()
+                    .mt_2()
+                    .font_weight(gpui::FontWeight::SEMIBOLD)
+                    .child(title.to_owned()),
+            )
+            .child(
+                div()
+                    .mt_1()
+                    .text_sm()
+                    .text_color(theme::text_muted())
+                    .child(message.to_owned()),
+            )
             .into_any_element()
     }
 

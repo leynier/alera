@@ -120,12 +120,7 @@ impl AleraApp {
         }
     }
 
-    fn run_pull_request_merge(
-        &mut self,
-        number: u64,
-        method: MergeMethod,
-        cx: &mut Context<Self>,
-    ) {
+    fn run_pull_request_merge(&mut self, number: u64, method: MergeMethod, cx: &mut Context<Self>) {
         if self.forge_snapshot.stack.is_some() {
             self.merge_forge_stack(number, method, cx);
         } else {

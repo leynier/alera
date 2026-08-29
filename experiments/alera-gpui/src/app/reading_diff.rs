@@ -2,9 +2,8 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 
 use gpui::{
-    div, px, AnyElement, Context,
-    InteractiveElement as _, IntoElement as _, ParentElement as _, Role,
-    StatefulInteractiveElement as _, Styled as _,
+    div, px, AnyElement, Context, InteractiveElement as _, IntoElement as _, ParentElement as _,
+    Role, StatefulInteractiveElement as _, Styled as _,
 };
 use gpui_component::scroll::ScrollableElement as _;
 
@@ -147,7 +146,9 @@ impl AleraApp {
                     .get(&agent)
                     .cloned()
             })
-            .unwrap_or_else(|| super::ai_assist_settings_catalog::default_model(&agent).to_string());
+            .unwrap_or_else(|| {
+                super::ai_assist_settings_catalog::default_model(&agent).to_string()
+            });
         let effort = self
             .settings_state
             .ai_assist_selected_thinking_by_operation
@@ -208,7 +209,7 @@ impl AleraApp {
                 let Some(this) = this.upgrade() else {
                     return;
                 };
-                let _ = this.update(cx, |this, cx| {
+                this.update(cx, |this, cx| {
                     if this.reading_diff_busy_key.as_deref() == Some(&progress_key) {
                         this.reading_diff_progress = Some(progress);
                         cx.notify();
@@ -274,7 +275,11 @@ impl AleraApp {
             && !self.reading_diff_show_original.contains(key)
     }
 
-    pub(super) fn render_reading_diff_content(&self, key: &str, cx: &mut Context<Self>) -> AnyElement {
+    pub(super) fn render_reading_diff_content(
+        &self,
+        key: &str,
+        cx: &mut Context<Self>,
+    ) -> AnyElement {
         if self.reading_diff_busy_key.as_deref() == Some(key) {
             let progress = self.reading_diff_progress.as_ref();
             let label = progress.map_or_else(
@@ -418,7 +423,6 @@ impl AleraApp {
     }
 }
 
-
 fn reading_diff_area(area: &str) -> Option<alera_native::api::git::GitChangeArea> {
     match area {
         "untracked" => Some(alera_native::api::git::GitChangeArea::Untracked),
@@ -429,11 +433,11 @@ fn reading_diff_area(area: &str) -> Option<alera_native::api::git::GitChangeArea
 }
 
 fn render_reading_diff_result(result: &ReadingDiffResult) -> AnyElement {
-    let retained = if result.changed_lines == 0 {
-        100
-    } else {
-        result.retained_changed_lines.saturating_mul(100) / result.changed_lines
-    };
+    let retained = result
+        .retained_changed_lines
+        .saturating_mul(100)
+        .checked_div(result.changed_lines)
+        .unwrap_or(100);
     div()
         .flex()
         .flex_col()
@@ -472,15 +476,11 @@ fn render_reading_diff_result(result: &ReadingDiffResult) -> AnyElement {
                 ),
         )
         .child(
-            div()
-                .flex_1()
-                .min_h_0()
-                .overflow_y_scrollbar()
-                .children(
-                    String::from_utf8_lossy(&result.diff)
-                        .lines()
-                        .map(render_reading_diff_line),
-                ),
+            div().flex_1().min_h_0().overflow_y_scrollbar().children(
+                String::from_utf8_lossy(&result.diff)
+                    .lines()
+                    .map(render_reading_diff_line),
+            ),
         )
         .into_any_element()
 }
@@ -520,7 +520,11 @@ fn reading_diff_progress_label(progress: &ReadingDiffProgress) -> String {
         ReadingDiffStage::Combining => format!(
             "Combining {} Reading Diff Chunk{}",
             progress.completed_chunks,
-            if progress.completed_chunks == 1 { "" } else { "s" },
+            if progress.completed_chunks == 1 {
+                ""
+            } else {
+                "s"
+            },
         ),
         ReadingDiffStage::Cached => "Loading Cached Reading Diff".to_string(),
     }
