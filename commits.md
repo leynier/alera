@@ -123,7 +123,7 @@ commit so this file remains useful after context compaction.
 | 102 | `56f04643ac59e06367e6accd31613f83f5117d1c` | 2026-08-05 | Merge pull request #365 from leynier/fix/path-drag-tap-scroll | merged | Replayed the gesture-fix merge with parent 1; #101 already contains the effective behavior and no additional GPUI change was required. |
 | 103 | `354e5a9dd7be46fe7ddbb1d7ff43743c6797f829` | 2026-08-06 | feat: add opencode models and quota tracking | merged | Cherry-picked the source OpenCode Go/Zen quota/model and amount snapshot implementation. GPUI provider ordering/icons/amount readings were adapted in `6739b64b`; source and GPUI payload contracts now match. |
 | 104 | `43b2d03c453b66376201d2116b9f51f652b372af` | 2026-08-06 | style: match hosted dart formatter | merged | Cherry-picked the hosted Dart formatting updates; no GPUI code change was required. |
-| 105 | `3031dae503a390ecd0eb5f845ccfb3c03ada0680` | 2026-08-06 | fix: satisfy quality gates | in_progress | Replaying the quota snapshot extraction and OpenCode quality-gate changes; checking GPUI quota payload compatibility. |
+| 105 | `3031dae503a390ecd0eb5f845ccfb3c03ada0680` | 2026-08-06 | fix: satisfy quality gates | merged | Cherry-picked the quota snapshot extraction and OpenCode quality-gate fix; GPUI consumes the extracted amount/data-quality fields through the #103 parser adaptation. |
 | 106 | `0e341790642499ae30d11c2026368e2a9b91feb1` | 2026-08-06 | fix: satisfy mobile analysis | pending | - |
 | 107 | `52fb0e6fa8b35724dc4e1911e44e5ef1d615c553` | 2026-08-06 | fix: satisfy mobile lint | pending | - |
 | 108 | `9d463eb5f993f1e1193e83fb6545b105a4b1061c` | 2026-08-06 | fix: scope mobile lint suppression | pending | - |
