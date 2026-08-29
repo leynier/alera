@@ -216,7 +216,7 @@ commit so this file remains useful after context compaction.
 | 195 | `bb8df29f619a677786ac939bdc758e28a6082a23` | 2026-08-11 | release: v0.57.1 v0.22.1-mobile | merged | Cherry-picked Flutter/mobile version metadata; no GPUI UI surface is affected. |
 | 196 | `7724590dcc59b4c6662455ae009e07eb06b3856f` | 2026-08-11 | feat: expand dictation controls (#392) | merged | Cherry-picked dictation composer placement/enabled-state changes. GPUI still needs a native microphone backend before exposing the control, so no misleading non-functional button was added. |
 | 197 | `5cda0ff8e6a1fc1b181454cbca8d9db8fa937941` | 2026-08-11 | release: v0.58.0 | merged | Cherry-picked Flutter release metadata; no GPUI UI surface is affected. |
-| 198 | `f2096c5b243139dc381ffae6ef4e18b92f4af519` | 2026-08-11 | fix: align terminal link utf-16 spans | in progress | Cherry-picking Flutter UTF-16 link-span fix and auditing GPUI link mapping; GPUI already tracks byte spans and converts visible columns by Unicode scalar count. |
+| 198 | `f2096c5b243139dc381ffae6ef4e18b92f4af519` | 2026-08-11 | fix: align terminal link utf-16 spans | merged | Cherry-picked the Flutter UTF-16 link-span regression test; GPUI already maps regex byte spans to terminal columns with Unicode scalar counts, so no code change was needed. |
 | 199 | `18ab6bb24586871707324035c56217b63b9e02df` | 2026-08-11 | fix: harden app logger sink failures | pending | - |
 | 200 | `af9453ba29225e2fc68cc762606e455908888899` | 2026-08-11 | fix: guard mobile skill installs after disposal | pending | - |
 | 201 | `54b89bbf0dc07ea1a8fa6cecb7aa8e2f8a4afec5` | 2026-08-11 | fix: refresh quota state after action disposal | pending | - |
