@@ -44,6 +44,7 @@ void main() {
       expect(general.keepAliveEnabled, isFalse);
       expect(general.showTrayIcon, isTrue);
       expect(general.showDockBadge, isTrue);
+      expect(general.showTrayBadge, isTrue);
     });
 
     test('agent defaults are conservative', () {

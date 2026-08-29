@@ -66,6 +66,7 @@ void desktopPresenceSync(Ref ref) {
         desktopPresenceSnapshot(
           showTrayIcon: settings.showTrayIcon,
           showDockBadge: settings.showDockBadge,
+          showTrayBadge: settings.showTrayBadge,
           pendingReviewCount: count,
         ),
       ),
@@ -80,6 +81,12 @@ void desktopPresenceSync(Ref ref) {
   });
   ref.listen(
     settingsControllerProvider.select((s) => s.general.showDockBadge),
+    (_, _) {
+      push();
+    },
+  );
+  ref.listen(
+    settingsControllerProvider.select((s) => s.general.showTrayBadge),
     (_, _) {
       push();
     },

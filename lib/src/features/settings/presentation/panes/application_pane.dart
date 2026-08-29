@@ -95,6 +95,13 @@ class ApplicationSettingsPane extends ConsumerWidget {
                 value: general.showDockBadge,
                 onChanged: (value) => controller.setShowDockBadge(value),
               ),
+              SettingsSwitchRow(
+                title: 'Show Tray Badge',
+                description:
+                    'Draw how many agents are waiting for review onto the tray icon itself. Linux only; macOS and Windows show that count on the Dock or taskbar.',
+                value: general.showTrayBadge,
+                onChanged: (value) => controller.setShowTrayBadge(value),
+              ),
             ],
           ),
         ),

@@ -170,6 +170,15 @@ class SettingsController extends _$SettingsController {
     );
   }
 
+  Future<void> setShowTrayBadge(bool value) async {
+    if (state.general.showTrayBadge == value) {
+      return;
+    }
+    await _save(
+      state.copyWith(general: state.general.copyWith(showTrayBadge: value)),
+    );
+  }
+
   Future<void> setAgentStatusHookEnabled(
     AgentType agentType,
     bool value,
