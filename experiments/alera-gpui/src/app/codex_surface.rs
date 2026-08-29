@@ -1408,7 +1408,64 @@ impl AleraApp {
             .gap_2()
             .p_3();
         let cells = snapshot_cells(snapshot);
-        let has_cells = !cells.is_empty();
+        let mut top_notices = Vec::new();
+        let mut visible_cells = Vec::new();
+        let mut has_reasoning = false;
+        for cell in cells {
+            let kind = cell.get("kind").and_then(Value::as_str).unwrap_or_default();
+            if is_codex_top_notice(&cell) {
+                top_notices.push(cell);
+            } else if kind == "reasoning" {
+                has_reasoning = true;
+            } else {
+                visible_cells.push(cell);
+            }
+        }
+        let has_cells = !visible_cells.is_empty();
+        for (index, notice) in top_notices.into_iter().enumerate() {
+            let text = notice
+                .get("renderedMarkdownText")
+                .and_then(Value::as_str)
+                .or_else(|| notice.get("markdownText").and_then(Value::as_str))
+                .or_else(|| notice.get("title").and_then(Value::as_str))
+                .unwrap_or("Codex Notice")
+                .to_owned();
+            content = content.child(
+                div()
+                    .id(SharedString::from(format!("codex-top-notice-{index}")))
+                    .flex()
+                    .items_center()
+                    .gap_2()
+                    .rounded_lg()
+                    .border_1()
+                    .border_color(theme::warning())
+                    .bg(theme::surface_raised())
+                    .p_3()
+                    .child(icon(AleraIcon::Warning, 15.0, theme::warning()))
+                    .child(
+                        div()
+                            .flex_1()
+                            .text_sm()
+                            .text_color(theme::warning())
+                            .child(text),
+                    ),
+            );
+        }
+        if has_reasoning && active_codex_turn(snapshot).is_some() {
+            content = content.child(
+                div()
+                    .id("codex-working-indicator")
+                    .flex()
+                    .items_center()
+                    .gap_2()
+                    .px_3()
+                    .py_2()
+                    .text_sm()
+                    .text_color(theme::text_muted())
+                    .child(loading_indicator(14.0, theme::text_muted()))
+                    .child("Working"),
+            );
+        }
         if !has_cells
             && snapshot_events(snapshot).is_empty()
             && snapshot_pending(snapshot).is_empty()
@@ -1422,7 +1479,7 @@ impl AleraApp {
                     .child("Ask Codex To Work On This Workspace."),
             );
         }
-        for (index, cell) in cells.into_iter().enumerate() {
+        for (index, cell) in visible_cells.into_iter().enumerate() {
             let kind = cell.get("kind").and_then(Value::as_str).unwrap_or("event");
             let cell_id = cell
                 .get("id")
@@ -1640,6 +1697,29 @@ impl AleraApp {
                             }),
                     ),
             );
+        }
+        if active_codex_turn(snapshot).is_none() {
+            let worked = snapshot_cells(snapshot)
+                .iter()
+                .filter(|cell| {
+                    cell.get("metadata")
+                        .and_then(|metadata| metadata.get("commandActions"))
+                        .and_then(Value::as_array)
+                        .is_some_and(|actions| !actions.is_empty())
+                })
+                .count();
+            if worked > 0 {
+                content = content
+                    .child(div().id("worked-divider").h(px(1.0)).bg(theme::border_subtle()))
+                    .child(
+                        div()
+                            .px_3()
+                            .py_2()
+                            .text_xs()
+                            .text_color(theme::text_muted())
+                            .child(format!("Worked for {worked} actions")),
+                    );
+            }
         }
         }
         for (index, request) in snapshot_pending(snapshot).into_iter().enumerate() {
@@ -2271,6 +2351,23 @@ fn codex_cell_label(kind: &str) -> &'static str {
         "questionAnswer" => "Answer",
         _ => "Event",
     }
+}
+
+fn is_codex_top_notice(cell: &Value) -> bool {
+    if cell.pointer("/metadata/itemType").and_then(Value::as_str)
+        == Some("mcpServerStartup")
+    {
+        return true;
+    }
+    cell.pointer("/metadata/noticeType")
+        .and_then(Value::as_str)
+        .is_some_and(|notice| {
+            matches!(
+                notice,
+                "warning" | "guardianWarning" | "configWarning" | "deprecationNotice"
+            )
+        })
+        || cell.get("status").and_then(Value::as_str) == Some("warning")
 }
 
 fn snapshot_pending(snapshot: &Value) -> Vec<Value> {
