@@ -897,6 +897,7 @@ impl AleraApp {
             let method = request.get("method").and_then(Value::as_str).unwrap_or("request");
             let params = request.get("params").cloned().unwrap_or(Value::Null);
             let is_approval = method.contains("approval") || method.contains("permission");
+            let approval_decisions = is_approval.then(|| approval_decisions(&params));
             content = content.child(
                 div()
                     .id(SharedString::from(format!("codex-pending-{index}")))
@@ -920,53 +921,51 @@ impl AleraApp {
                             .text_color(theme::text_muted())
                             .child(request_text(&params, method)),
                     )
-                    .child(
-                        div()
-                            .flex()
-                            .gap_2()
-                            .mt_2()
-                            .child(
+                    .child({
+                        let mut actions = div().flex().gap_2().mt_2();
+                        if let Some(decisions) = approval_decisions {
+                            for (decision, label, kind) in decisions {
+                                let tab_id = tab_id.to_owned();
+                                let request_id = request_id.clone();
+                                let result = approval_result(&params, method, &decision);
+                                actions = actions.child(
+                                    design_system::button(
+                                        SharedString::from(format!("codex-{decision}-{index}")),
+                                        label,
+                                        kind,
+                                        false,
+                                    )
+                                    .on_click(cx.listener(move |this, _, _, cx| {
+                                        this.respond_codex_request(
+                                            &tab_id,
+                                            request_id.clone(),
+                                            result.clone(),
+                                            cx,
+                                        );
+                                    })),
+                                );
+                            }
+                        } else {
+                            let tab_id = tab_id.to_owned();
+                            actions = actions.child(
                                 design_system::button(
-                                    SharedString::from(format!("codex-decline-{index}")),
-                                    if is_approval { "Decline" } else { "Cancel" },
+                                    SharedString::from(format!("codex-cancel-{index}")),
+                                    "Cancel",
                                     ButtonKind::Outlined,
                                     false,
                                 )
-                                .on_click(cx.listener({
-                                    let tab_id = tab_id.to_owned();
-                                    move |this, _, _, cx| {
-                                        this.respond_codex_request(
-                                            &tab_id,
-                                            request_id_for_click.clone(),
-                                            json!({"decision": "decline"}),
-                                            cx,
-                                        );
-                                    }
+                                .on_click(cx.listener(move |this, _, _, cx| {
+                                    this.respond_codex_request(
+                                        &tab_id,
+                                        request_id_for_click.clone(),
+                                        json!({"cancelled": true}),
+                                        cx,
+                                    );
                                 })),
-                            )
-                            .when(is_approval, |actions| {
-                                actions.child(
-                                    design_system::button(
-                                        SharedString::from(format!("codex-approve-{index}")),
-                                        "Approve",
-                                        ButtonKind::Filled,
-                                        false,
-                                    )
-                                    .on_click(cx.listener({
-                                        let tab_id = tab_id.to_owned();
-                                        let request_id = request_id.clone();
-                                        move |this, _, _, cx| {
-                                            this.respond_codex_request(
-                                                &tab_id,
-                                                request_id.clone(),
-                                                json!({"decision": "accept"}),
-                                                cx,
-                                            );
-                                        }
-                                    })),
-                                )
-                            }),
-                    ),
+                            );
+                        }
+                        actions
+                    }),
             );
         }
         content.into_any_element()
@@ -1432,6 +1431,57 @@ fn request_text(params: &Value, method: &str) -> String {
         .and_then(Value::as_str)
         .unwrap_or(method)
         .to_owned()
+}
+
+fn approval_decisions(params: &Value) -> Vec<(String, &'static str, ButtonKind)> {
+    let values = params
+        .get("availableDecisions")
+        .and_then(Value::as_array)
+        .map(|values| {
+            values
+                .iter()
+                .filter_map(|value| {
+                    value
+                        .as_str()
+                        .map(str::to_owned)
+                        .or_else(|| value.as_object()?.keys().next().cloned())
+                })
+                .collect::<Vec<_>>()
+        })
+        .filter(|values| !values.is_empty())
+        .unwrap_or_else(|| vec!["accept".to_owned(), "acceptForSession".to_owned(), "decline".to_owned()]);
+    values
+        .into_iter()
+        .map(|decision| {
+            let (label, kind) = match decision.as_str() {
+                "accept" => ("Allow Once", ButtonKind::Filled),
+                "acceptForSession" => ("Allow For Session", ButtonKind::Text),
+                "acceptWithExecpolicyAmendment" => {
+                    ("Allow Matching Commands", ButtonKind::Text)
+                }
+                "applyNetworkPolicyAmendment" => ("Apply Network Rule", ButtonKind::Text),
+                "cancel" => ("Cancel Turn", ButtonKind::Outlined),
+                "decline" => ("Decline", ButtonKind::Outlined),
+                _ => ("Respond", ButtonKind::Text),
+            };
+            (decision, label, kind)
+        })
+        .collect()
+}
+
+fn approval_result(params: &Value, method: &str, decision: &str) -> Value {
+    if !method.contains("permission") {
+        return json!({"decision": decision});
+    }
+    let accepted = decision.starts_with("accept");
+    json!({
+        "permissions": if accepted {
+            params.get("permissions").cloned().unwrap_or_else(|| json!({}))
+        } else {
+            json!({})
+        },
+        "scope": if decision == "acceptForSession" { "session" } else { "turn" },
+    })
 }
 
 #[cfg(test)]
