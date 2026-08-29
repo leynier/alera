@@ -66,6 +66,13 @@ fn quotas_pane(
                     settings,
                     cx,
                 ),
+                quota_provider_row(
+                    "opencode",
+                    "OpenCode Quotas",
+                    "Read OpenCode Go And Zen Usage From The Host Environment.",
+                    settings,
+                    cx,
+                ),
                 exact_settings_row_width(
                     "Quota Display Order",
                     "Set The Left-To-Right Order Of Enabled Providers In The Status Bar.",

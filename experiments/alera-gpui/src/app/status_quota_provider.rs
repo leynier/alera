@@ -30,7 +30,8 @@ impl AleraApp {
         let accessibility_label = provider_label(snapshot);
         let tooltip = quota_tooltip(
             snapshot,
-            (snapshot.provider == "claude").then_some(snapshot.display_name.as_str()),
+            (snapshot.provider == "claude" || snapshot.provider == "opencode")
+                .then_some(snapshot.display_name.as_str()),
         );
         let mut row = div()
             .id(("quota-summary", index))
@@ -70,7 +71,7 @@ impl AleraApp {
                 14.0,
                 theme::text_muted(),
             ));
-        if snapshot.provider == "claude" {
+        if snapshot.provider == "claude" || snapshot.provider == "opencode" {
             row = row.child(
                 div()
                     .text_size(px(8.0))
@@ -109,7 +110,12 @@ impl AleraApp {
                             &snapshot.status,
                             Some(reading.remaining_percent),
                         ))
-                        .child(format!("{:.0}%", reading.remaining_percent)),
+                        .child(
+                            reading
+                                .value_text
+                                .clone()
+                                .unwrap_or_else(|| format!("{:.0}%", reading.remaining_percent)),
+                        ),
                 )
         }))
         .into_any_element()
@@ -126,7 +132,8 @@ impl AleraApp {
         };
         let left = (self.status_popover_anchor_x - 180.0).max(8.0);
         let status_color = quota_color(&snapshot.status, None);
-        let profile_label = (snapshot.provider == "claude").then(|| snapshot.display_name.clone());
+        let profile_label = (snapshot.provider == "claude" || snapshot.provider == "opencode")
+            .then(|| snapshot.display_name.clone());
         let snapshot_key = quota_pin_key(snapshot);
         let tui_busy = self.quota_tui_busy_key.as_deref() == Some(snapshot_key.as_str());
         div()
@@ -195,7 +202,10 @@ impl AleraApp {
                             })
                             .text_size(px(10.0))
                             .text_color(status_color)
-                            .child(quota_status_label(&snapshot.status)),
+                            .child(quota_status_label(
+                                &snapshot.status,
+                                snapshot.data_quality.as_deref(),
+                            )),
                     ),
             )
             .when(snapshot.readings.is_empty(), |panel| {
@@ -214,6 +224,10 @@ impl AleraApp {
             })
             .children(snapshot.readings.iter().map(|reading| {
                 let color = quota_color(&snapshot.status, Some(reading.remaining_percent));
+                let value_label = reading
+                    .value_text
+                    .clone()
+                    .unwrap_or_else(|| format!("{:.0}% Left", reading.remaining_percent));
                 div()
                     .mt_3()
                     .child(
@@ -234,26 +248,28 @@ impl AleraApp {
                                     .text_size(px(11.0))
                                     .font_weight(gpui::FontWeight::SEMIBOLD)
                                     .text_color(color)
-                                    .child(format!("{:.0}% Left", reading.remaining_percent)),
+                                    .child(value_label),
                             ),
                     )
-                    .child(
-                        div()
-                            .mt(px(6.0))
-                            .h(px(4.0))
-                            .w_full()
-                            .rounded_full()
-                            .bg(theme::surface_selected())
-                            .child(
-                                div()
-                                    .h_full()
-                                    .w(gpui::relative(
-                                        (reading.remaining_percent / 100.0).clamp(0.0, 1.0) as f32,
-                                    ))
-                                    .rounded_full()
-                                    .bg(color),
-                            ),
-                    )
+                    .when(reading.value_text.is_none(), |row| {
+                        row.child(
+                            div()
+                                .mt(px(6.0))
+                                .h(px(4.0))
+                                .w_full()
+                                .rounded_full()
+                                .bg(theme::surface_selected())
+                                .child(
+                                    div()
+                                        .h_full()
+                                        .w(gpui::relative(
+                                            (reading.remaining_percent / 100.0).clamp(0.0, 1.0) as f32,
+                                        ))
+                                        .rounded_full()
+                                        .bg(color),
+                                ),
+                        )
+                    })
                     .child(
                         div()
                             .mt(px(6.0))
@@ -430,7 +446,10 @@ impl AleraApp {
     }
 }
 
-fn quota_status_label(status: &str) -> &'static str {
+fn quota_status_label(status: &str, data_quality: Option<&str>) -> &'static str {
+    if status == "ok" && data_quality == Some("estimated") {
+        return "Estimated";
+    }
     match status {
         "ok" => "Live",
         "stale" => "Stale",

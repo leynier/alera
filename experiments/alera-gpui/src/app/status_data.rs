@@ -32,6 +32,7 @@ pub(super) struct QuotaSnapshot {
     pub status: String,
     pub error: Option<String>,
     pub readings: Vec<QuotaReading>,
+    pub data_quality: Option<String>,
     pub reset_credits: Option<CodexResetCredits>,
 }
 
@@ -50,6 +51,7 @@ pub(super) struct QuotaReading {
     pub remaining_percent: f64,
     pub resets_at: Option<i64>,
     pub reset_description: Option<String>,
+    pub value_text: Option<String>,
 }
 
 impl AleraApp {
@@ -254,6 +256,36 @@ fn parse_quota_snapshot(value: &Value) -> Result<QuotaSnapshot, String> {
         )
         .map(|reading| parse_quota_reading(&provider, reading))
         .collect::<Result<Vec<_>, String>>()?;
+    if let Some(amounts) = value.get("amounts").and_then(Value::as_array) {
+        for amount in amounts {
+            let label = amount
+                .get("label")
+                .and_then(Value::as_str)
+                .unwrap_or("Spend")
+                .to_owned();
+            let numeric = amount
+                .get("spentAmount")
+                .or_else(|| amount.get("remainingAmount"))
+                .or_else(|| amount.get("limitAmount"))
+                .and_then(number_value);
+            let currency = amount
+                .get("currency")
+                .and_then(Value::as_str)
+                .unwrap_or("USD");
+            let value_text = numeric.map(|value| format!("{currency} {value:.2}"));
+            readings.push(QuotaReading {
+                label: compact_reading_label(&provider, &label),
+                full_label: label,
+                remaining_percent: 100.0,
+                resets_at: amount.get("resetsAt").and_then(Value::as_i64),
+                reset_description: amount
+                    .get("resetDescription")
+                    .and_then(Value::as_str)
+                    .map(str::to_owned),
+                value_text,
+            });
+        }
+    }
     readings.sort_by_key(|reading| reading_order(&provider, &reading.full_label));
     Ok(QuotaSnapshot {
         provider,
@@ -265,6 +297,10 @@ fn parse_quota_snapshot(value: &Value) -> Result<QuotaSnapshot, String> {
             .and_then(Value::as_str)
             .map(str::to_owned),
         readings,
+        data_quality: value
+            .get("dataQuality")
+            .and_then(Value::as_str)
+            .map(str::to_owned),
         reset_credits: value
             .get("rateLimitResetCredits")
             .and_then(parse_codex_reset_credits),
@@ -306,7 +342,15 @@ fn parse_quota_reading(provider: &str, value: &Value) -> Result<QuotaReading, St
             .get("resetDescription")
             .and_then(Value::as_str)
             .map(str::to_owned),
+        value_text: None,
     })
+}
+
+fn number_value(value: &Value) -> Option<f64> {
+    value
+        .as_f64()
+        .or_else(|| value.as_i64().map(|number| number as f64))
+        .or_else(|| value.as_str()?.parse().ok())
 }
 
 fn compact_reading_label(provider: &str, label: &str) -> String {

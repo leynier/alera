@@ -7,7 +7,7 @@ fn default_true() -> bool {
     true
 }
 
-const DEFAULT_QUOTA_PROVIDERS: [&str; 8] = [
+const DEFAULT_QUOTA_PROVIDERS: [&str; 9] = [
     "claude",
     "codex",
     "kimi",
@@ -16,6 +16,7 @@ const DEFAULT_QUOTA_PROVIDERS: [&str; 8] = [
     "antigravity",
     "minimax",
     "zai",
+    "opencode",
 ];
 
 const DEFAULT_AGENT_HOOKS: [&str; 9] = [

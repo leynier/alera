@@ -519,31 +519,27 @@ impl AleraApp {
                 .iter()
                 .filter(|snapshot| &snapshot.provider == provider)
                 .collect::<Vec<_>>();
-            if provider == "claude" {
-                if self.settings_state.claude_default_enabled {
-                    if let Some(snapshot) = candidates
-                        .iter()
-                        .find(|snapshot| snapshot.account_id == "default")
-                    {
+            if provider == "claude" || provider == "opencode" {
+                if provider == "claude" && self.settings_state.claude_default_enabled {
+                    if let Some(snapshot) = candidates.iter().find(|snapshot| snapshot.account_id == "default") {
                         ordered.push(*snapshot);
                     }
                 }
-                for profile in &self.settings_state.claude_profiles {
-                    if let Some(snapshot) = candidates
-                        .iter()
-                        .find(|snapshot| snapshot.account_id == profile.profile)
-                    {
-                        ordered.push(*snapshot);
+                if provider == "claude" {
+                    for profile in &self.settings_state.claude_profiles {
+                        if let Some(snapshot) = candidates.iter().find(|snapshot| snapshot.account_id == profile.profile) {
+                            ordered.push(*snapshot);
+                        }
+                    }
+                } else {
+                    for account in ["go", "zen", "default"] {
+                        if let Some(snapshot) = candidates.iter().find(|snapshot| snapshot.account_id == account) {
+                            ordered.push(*snapshot);
+                        }
                     }
                 }
                 for snapshot in candidates {
-                    if snapshot.account_id != "default"
-                        && !self
-                            .settings_state
-                            .claude_profiles
-                            .iter()
-                            .any(|profile| profile.profile == snapshot.account_id)
-                    {
+                    if !ordered.iter().any(|candidate| candidate.provider == snapshot.provider && candidate.account_id == snapshot.account_id) {
                         ordered.push(snapshot);
                     }
                 }
@@ -579,8 +575,8 @@ impl AleraApp {
 }
 
 pub(super) fn quota_pin_key(snapshot: &QuotaSnapshot) -> String {
-    if snapshot.provider == "claude" {
-        format!("claude:{}", snapshot.account_id)
+    if snapshot.provider == "claude" || snapshot.provider == "opencode" {
+        format!("{}:{}", snapshot.provider, snapshot.account_id)
     } else {
         snapshot.provider.clone()
     }

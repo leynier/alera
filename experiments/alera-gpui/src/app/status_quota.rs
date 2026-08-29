@@ -93,7 +93,8 @@ impl AleraApp {
             .is_some_and(|credits| credits.available_count > 0 && credits.can_consume);
         let overview_tooltip = quota_tooltip(
             snapshot,
-            (snapshot.provider == "claude").then_some(snapshot.display_name.as_str()),
+            (snapshot.provider == "claude" || snapshot.provider == "opencode")
+                .then_some(snapshot.display_name.as_str()),
         );
 
         div()
@@ -174,7 +175,14 @@ impl AleraApp {
                                             &snapshot.status,
                                             Some(reading.remaining_percent),
                                         ))
-                                        .child(format!("{:.0}%", reading.remaining_percent)),
+                                        .child(
+                                            reading
+                                                .value_text
+                                                .clone()
+                                                .unwrap_or_else(|| {
+                                                    format!("{:.0}%", reading.remaining_percent)
+                                                }),
+                                        ),
                                 )
                         },
                     ))
@@ -432,13 +440,14 @@ pub(super) fn provider_agent_icon(provider: &str) -> AgentIcon {
         "kimi" => AgentIcon::Kimi,
         "minimax" => AgentIcon::MiniMax,
         "zai" => AgentIcon::Zai,
+        "opencode" => AgentIcon::OpenCode,
         _ => AgentIcon::Codex,
     }
 }
 
 pub(super) fn provider_label(snapshot: &QuotaSnapshot) -> String {
     let provider = provider_base_label(&snapshot.provider);
-    if snapshot.provider == "claude" {
+    if snapshot.provider == "claude" || snapshot.provider == "opencode" {
         format!("{provider} {}", snapshot.display_name)
     } else {
         provider.to_owned()
@@ -455,6 +464,7 @@ pub(super) fn provider_base_label(provider: &str) -> String {
         "kimi" => "Kimi",
         "minimax" => "MiniMax",
         "zai" => "Z.ai",
+        "opencode" => "OpenCode",
         _ => provider,
     }
     .to_owned()
