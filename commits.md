@@ -247,7 +247,7 @@ commit so this file remains useful after context compaction.
 | 226 | `00ee39ab80937681bbc5de66162b37cbc174c263` | 2026-08-12 | fix: stabilize windows arm64 release builds (#411) | merged | Cherry-picked Windows arm64 release cache/toolchain stabilization; no GPUI UI surface is affected. |
 | 227 | `5dd3c4279c79733c22369e9720becc92d9099b16` | 2026-08-12 | release: v0.59.0 v0.23.0-mobile | merged | Cherry-picked Flutter/mobile release metadata; no GPUI UI surface is affected. |
 | 228 | `8aa83da2e9730ee1f832e9af6e9979c996cfde45` | 2026-08-12 | fix: make mobile model downloads retryable (#413) | merged | Cherry-picked retryable mobile dictation model downloads; no GPUI UI surface is affected. |
-| 229 | `fe8946b74ef8aacf2496f2d53414b01a33c6f289` | 2026-08-12 | fix: retry transient runtime mutation conflicts (#414) | in progress | Cherry-picking runtime mutation retry semantics and applying the same bounded retry to the GPUI RuntimeBridge. |
+| 229 | `fe8946b74ef8aacf2496f2d53414b01a33c6f289` | 2026-08-12 | fix: retry transient runtime mutation conflicts (#414) | merged | Cherry-picked runtime mutation retry semantics and added the same bounded 50 ms retry loop to GPUI while preserving the original request timeout budget. |
 | 230 | `eea6d13bad30a2f3922fe3ffc642d4dd49ead481` | 2026-08-12 | fix: complete runtime update after force-stop disconnect (#412) | pending | - |
 | 231 | `0e067aba8789d64b2126da76e1e451b8f2e3abe0` | 2026-08-12 | fix: constrain restored terminal cursor (#415) | pending | - |
 | 232 | `0a790d4cd868e2b1e81ab02d0bd0fedb6c3df871` | 2026-08-13 | release: v0.59.1 v0.23.1-mobile | pending | - |
