@@ -1843,8 +1843,11 @@ impl AleraApp {
                             .font_family("JetBrains Mono")
                             .text_size(px(11.0))
                             .whitespace_normal()
-                            .child(details),
+                        .child(details),
                     );
+                }
+                if let Some(steps) = cell.pointer("/metadata/plan").and_then(Value::as_array) {
+                    card = card.child(render_codex_plan_progress(steps));
                 }
                 if kind == "plan" && !streaming && self.codex_plan_mode {
                     card = card.child(
@@ -2824,6 +2827,55 @@ fn question_result(question_id: &str, answer: &str) -> Value {
             question_id: {"answers": [answer]},
         },
     })
+}
+
+fn render_codex_plan_progress(steps: &[Value]) -> AnyElement {
+    let mut card = div()
+        .id("codex-plan-progress-card")
+        .w(px(320.0))
+        .max_h(px(280.0))
+        .overflow_y_scrollbar()
+        .mt_2()
+        .rounded_md()
+        .border_1()
+        .border_color(theme::border_subtle())
+        .bg(theme::app_background())
+        .p_2()
+        .flex()
+        .flex_col()
+        .gap_1();
+    for step in steps {
+        let status = step
+            .get("status")
+            .and_then(Value::as_str)
+            .unwrap_or("pending");
+        let label = step
+            .get("step")
+            .or_else(|| step.get("title"))
+            .or_else(|| step.get("text"))
+            .and_then(Value::as_str)
+            .unwrap_or("Plan Step");
+        let (kind, color) = if status.eq_ignore_ascii_case("completed") {
+            (AleraIcon::Success, theme::success())
+        } else if status.eq_ignore_ascii_case("inprogress")
+            || status.eq_ignore_ascii_case("in_progress")
+        {
+            (AleraIcon::Loading, theme::accent())
+        } else {
+            (AleraIcon::Circle, theme::text_faint())
+        };
+        card = card.child(
+            div()
+                .flex()
+                .items_center()
+                .gap_2()
+                .text_xs()
+                .text_color(theme::text_muted())
+                .child(icon(kind, 13.0, color))
+                .child(label.to_owned()),
+        );
+    }
+    card.into_any_element()
 }
 
 #[cfg(test)]
