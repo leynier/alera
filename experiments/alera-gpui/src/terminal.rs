@@ -1581,6 +1581,29 @@ mod tests {
     }
 
     #[test]
+    fn restored_history_reflows_while_the_cursor_is_hidden() {
+        let mut terminal = TerminalEmulator::new(20, 4);
+        terminal.write(b"\x1b[?25l1234567890abcdefg");
+
+        terminal.resize(10, 4);
+
+        let viewport = terminal
+            .visible_lines("Alera Dark")
+            .into_iter()
+            .map(|line| line.plain_text.trim_end().to_owned())
+            .collect::<Vec<_>>();
+        terminal.scroll_display(100);
+        let history = terminal
+            .visible_lines("Alera Dark")
+            .into_iter()
+            .map(|line| line.plain_text.trim_end().to_owned())
+            .collect::<Vec<_>>();
+
+        assert!(viewport.iter().any(|line| line == "abcdefg"));
+        assert!(history.iter().any(|line| line == "1234567890"));
+    }
+
+    #[test]
     fn erase_saved_lines_removes_pre_clear_scrollback() {
         let mut terminal = TerminalEmulator::new(20, 4);
         terminal.write(b"old-one\r\nold-two\r\nold-three\r\nold-four\r\nold-five");
