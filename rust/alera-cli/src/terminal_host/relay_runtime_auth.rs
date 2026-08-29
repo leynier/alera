@@ -4,6 +4,8 @@ use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine as _};
 use ed25519_dalek::{Signature, Verifier, VerifyingKey};
 use serde::Deserialize;
 
+use crate::terminal_host::alera_account::validate_cloud_base_url;
+
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct GrantHeader {
@@ -69,7 +71,9 @@ pub(super) async fn verify_grant(token: &str) -> anyhow::Result<GrantClaims> {
     }
     let cloud_url =
         std::env::var("ALERA_CLOUD_URL").unwrap_or_else(|_| "https://api.alera.build".to_owned());
-    let jwks_url = format!("{}/.well-known/jwks.json", cloud_url.trim_end_matches('/'));
+    let cloud_url = cloud_url.trim_end_matches('/');
+    validate_cloud_base_url(cloud_url)?;
+    let jwks_url = format!("{cloud_url}/.well-known/jwks.json");
     let jwks: JsonWebKeySet = reqwest::Client::builder()
         .timeout(Duration::from_secs(10))
         .build()?
