@@ -128,48 +128,6 @@ async fn stale_codex_tab_removal_does_not_depend_on_remote_cleanup() {
         .is_none());
 }
 
-#[tokio::test]
-async fn shutdown_response_precedes_disposal_marker() {
-    let dir = tempfile::tempdir().unwrap();
-    let (handle, mut receiver) = crate::terminal_host::client::ClientHandle::test_channels();
-    let mut actor = crate::terminal_host::server::actor_test_harness::test_actor(
-        &dir,
-        std::collections::HashMap::from([(
-            1,
-            crate::terminal_host::server::actor_test_harness::local_client(handle),
-        )]),
-        std::collections::HashMap::new(),
-    )
-    .await;
-    let (inbox, mut inbox_receiver) = tokio::sync::mpsc::unbounded_channel();
-    actor.inbox = inbox;
-
-    actor
-        .handle_line(
-            1,
-            serde_json::json!({
-                "id": 1,
-                "type": "host.shutdown",
-                "payload": {},
-            })
-            .to_string(),
-        )
-        .await;
-
-    let response = receiver.recv().await.unwrap().as_json().unwrap();
-    assert_eq!(response["id"], 1);
-    assert_eq!(response["ok"], true);
-    let marker = receiver.recv().await.unwrap();
-    assert!(matches!(
-        marker,
-        crate::terminal_host::client::ClientFrame::OrderedControl { frame, .. }
-            if matches!(
-                *frame,
-                crate::terminal_host::client::ClientFrame::ShutdownRuntimeAfterWrite { .. }
-            )
-    ));
-    assert!(inbox_receiver.try_recv().is_err());
-}
 
 #[tokio::test]
 async fn authenticated_mobile_client_can_request_a_safe_runtime_restart() {

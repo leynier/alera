@@ -266,17 +266,17 @@ commit so this file remains useful after context compaction.
 | 245 | `f17da6bc14654e63eff0ac0bda57a38733b988dd` | 2026-08-16 | fix: stop the mobile attach from resizing the pty to 80x24 (#425) | merged | Cherry-picked the mobile viewport fix; GPUI desktop already reports its measured geometry through its own attach/resize path. |
 | 246 | `7ee1af7aac51c3e1dbf8910780a3bf986335fe5c` | 2026-08-16 | fix: reflow restored terminal history with a hidden cursor (#426) | merged | Cherry-picked the xterm fix and added a passing GPUI regression proving Alacritty preserves both reflowed segments across viewport and scrollback with a hidden cursor. |
 | 247 | `03deeef59540d557ef2c22d5f1de17baa28202d8` | 2026-08-16 | feat: replay mobile terminal history at the size that produced it (#427) | merged | Cherry-picked snapshot geometry metadata and adapted GPUI attach, reconnect, and resync to replay at the source size before reflowing to the measured viewport; targeted regressions pass. |
-| 248 | `62eed78a912562d46daa7b7d84ed34f0a32606a0` | 2026-08-16 | fix: size the mobile terminal scrollback for a phone's width (#428) | pending | - |
-| 249 | `9e9eb0dae09f8dd0ec93abff755d428a99f6bd07` | 2026-08-16 | feat: rework the mobile terminal input, tab strip, and attachments | pending | - |
-| 250 | `44e3881883f1e4d7c3bd828206553885846c2ee4` | 2026-08-16 | release: v0.61.0 v0.25.0-mobile | pending | - |
-| 251 | `79193fd1df0bf8f6bcce33230effa85a87180738` | 2026-08-16 | feat: add files and workspace files to the new workspace prompt (#431) | pending | - |
-| 252 | `04a6bf45c898dc12d037f386bde8623e716ffa20` | 2026-08-16 | release: v0.26.0-mobile | pending | - |
-| 253 | `6393207855cfb9d0f34aae00846624d9036a5791` | 2026-08-16 | fix: stop the mobile terminal from reloading over an attachment pick (#433) | pending | - |
-| 254 | `1c086bae8a774e76dc2a29072ca4b91ed87c399f` | 2026-08-16 | release: v0.26.1-mobile | pending | - |
-| 255 | `bee044dd40c1232f7e72ef0d381550c40bb7eb43` | 2026-08-19 | feat: expand mobile ai dictation (#418) | pending | - |
-| 256 | `854bef76096dd76077481d2f7cc902369477fa13` | 2026-08-19 | fix: configure android cmake abi | pending | - |
-| 257 | `2dd7b9661015195d6c7b2e051f4c2f09234906b5` | 2026-08-19 | release: v0.62.0 v0.27.0-mobile | pending | - |
-| 258 | `5dcf8b6b6688d9c007f458864f42851f2ddf2c25` | 2026-08-19 | fix: keep grok and cursor agent identity in the sidebar (#436) | pending | - |
+| 248 | `62eed78a912562d46daa7b7d84ed34f0a32606a0` | 2026-08-16 | fix: size the mobile terminal scrollback for a phone's width (#428) | merged | Cherry-picked the mobile-only 40,000-line budget; GPUI remains on the intended desktop budget of 10,000 lines at desktop width. |
+| 249 | `9e9eb0dae09f8dd0ec93abff755d428a99f6bd07` | 2026-08-16 | feat: rework the mobile terminal input, tab strip, and attachments | merged | Cherry-picked the mobile-only terminal and attachment UI redesign; no shared runtime contract or GPUI desktop surface changed. |
+| 250 | `44e3881883f1e4d7c3bd828206553885846c2ee4` | 2026-08-16 | release: v0.61.0 v0.25.0-mobile | merged | Cherry-picked desktop/mobile release metadata; no GPUI-specific UI behavior is affected. |
+| 251 | `79193fd1df0bf8f6bcce33230effa85a87180738` | 2026-08-16 | feat: add files and workspace files to the new workspace prompt (#431) | merged | Cherry-picked the mobile-only New Workspace prompt attachment flow; no desktop contract changed and Codex Chat remains unsupported in GPUI. |
+| 252 | `04a6bf45c898dc12d037f386bde8623e716ffa20` | 2026-08-16 | release: v0.26.0-mobile | merged | Cherry-picked mobile release metadata; no GPUI-specific UI behavior is affected. |
+| 253 | `6393207855cfb9d0f34aae00846624d9036a5791` | 2026-08-16 | fix: stop the mobile terminal from reloading over an attachment pick (#433) | merged | Cherry-picked the mobile-only lifecycle and attachment-picker fix; no desktop GPUI surface changed. |
+| 254 | `1c086bae8a774e76dc2a29072ca4b91ed87c399f` | 2026-08-16 | release: v0.26.1-mobile | merged | Cherry-picked mobile release metadata; no GPUI-specific UI behavior is affected. |
+| 255 | `bee044dd40c1232f7e72ef0d381550c40bb7eb43` | 2026-08-19 | feat: expand mobile ai dictation (#418) | merged | Cherry-picked mobile dictation and shared host routes while preserving all desktop/runtime workspace crates; the separate GPUI desktop microphone gap remains tracked. |
+| 256 | `854bef76096dd76077481d2f7cc902369477fa13` | 2026-08-19 | fix: configure android cmake abi | merged | Cherry-picked the Android-only CMake ABI fix; no GPUI desktop surface is affected. |
+| 257 | `2dd7b9661015195d6c7b2e051f4c2f09234906b5` | 2026-08-19 | release: v0.62.0 v0.27.0-mobile | merged | Cherry-picked desktop/mobile release metadata; no GPUI-specific UI behavior is affected. |
+| 258 | `5dcf8b6b6688d9c007f458864f42851f2ddf2c25` | 2026-08-19 | fix: keep grok and cursor agent identity in the sidebar (#436) | merged | Cherry-picked the shared identity resolver; GPUI already renders Grok/Cursor names and icons from authoritative agentType. All 7 targeted Rust identity tests pass. |
 | 259 | `f37cb8631217915776286e08cb42a1e83138e61c` | 2026-08-20 | release: v0.62.1 | pending | - |
 | 260 | `08b9d69c152e5987cdfddd508896084eeba552dd` | 2026-08-20 | feat: add grok build to managed agent profiles (#438) | pending | - |
 | 261 | `dbc8ef0250fb1e2f351f4b1ded0e40d0387fcc05` | 2026-08-20 | release: v0.63.0 | pending | - |
