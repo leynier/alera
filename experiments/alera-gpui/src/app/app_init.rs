@@ -975,6 +975,7 @@ impl AleraApp {
             codex_plan_mode: false,
             codex_collaboration_mode: None,
             codex_queued_messages: BTreeMap::new(),
+            codex_collapsed_cells: BTreeSet::new(),
             agent_canvas_loading: false,
             agent_canvas_error: None,
             agent_canvas_capabilities: None,

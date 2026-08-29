@@ -207,6 +207,7 @@ pub struct AleraApp {
     codex_plan_mode: bool,
     codex_collaboration_mode: Option<String>,
     codex_queued_messages: BTreeMap<String, Vec<String>>,
+    codex_collapsed_cells: BTreeSet<String>,
     agent_canvas_loading: bool,
     agent_canvas_error: Option<SharedString>,
     agent_canvas_capabilities: Option<Value>,

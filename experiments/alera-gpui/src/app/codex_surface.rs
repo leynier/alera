@@ -261,6 +261,11 @@ impl AleraApp {
         let busy = active_codex_turn(&snapshot).is_some();
         let input = self.codex_composer_inputs.get(&tab_id).cloned();
         let error = self.codex_error.clone();
+        let queued = self
+            .codex_queued_messages
+            .get(&tab_id)
+            .cloned()
+            .unwrap_or_default();
         div()
             .id(SharedString::from(format!("codex-surface-{tab_id}")))
             .flex()
@@ -296,9 +301,68 @@ impl AleraApp {
                         .child(error),
                 )
             })
+            .when(!queued.is_empty(), |surface| {
+                surface.child(self.render_codex_queue_bar(&tab_id, queued, cx))
+            })
             .when_some(input, |surface, input| {
                 surface.child(self.render_codex_composer(&tab_id, input, busy, cx))
             })
+            .into_any_element()
+    }
+
+    fn render_codex_queue_bar(
+        &self,
+        tab_id: &str,
+        messages: Vec<String>,
+        cx: &mut Context<Self>,
+    ) -> AnyElement {
+        let tab_id = tab_id.to_owned();
+        div()
+            .id("codex-queue-bar")
+            .flex()
+            .items_center()
+            .gap_1()
+            .px_3()
+            .py_2()
+            .bg(theme::surface())
+            .child(div().text_xs().text_color(theme::text_faint()).child("Queued Messages"))
+            .children(messages.into_iter().enumerate().map(|(index, message)| {
+                let tab_id = tab_id.clone();
+                div()
+                    .id(SharedString::from(format!("codex-queued-{index}")))
+                    .flex()
+                    .items_center()
+                    .gap_1()
+                    .max_w(px(240.0))
+                    .px_2()
+                    .py_1()
+                    .rounded_md()
+                    .border_1()
+                    .border_color(theme::border_subtle())
+                    .child(div().flex_1().text_ellipsis().child(message))
+                    .child(
+                        design_system::icon_button(
+                            SharedString::from(format!("codex-queued-remove-{index}")),
+                            "Remove Queued Message",
+                            AleraIcon::Close,
+                            true,
+                            20.0,
+                            None,
+                            None,
+                        )
+                        .on_click(cx.listener(move |this, _, _, cx| {
+                            if let Some(messages) = this.codex_queued_messages.get_mut(&tab_id) {
+                                if index < messages.len() {
+                                    messages.remove(index);
+                                }
+                                if messages.is_empty() {
+                                    this.codex_queued_messages.remove(&tab_id);
+                                }
+                                cx.notify();
+                            }
+                        })),
+                    )
+            }))
             .into_any_element()
     }
 
@@ -553,14 +617,20 @@ impl AleraApp {
         }
         for (index, cell) in cells.into_iter().enumerate() {
             let kind = cell.get("kind").and_then(Value::as_str).unwrap_or("event");
+            let cell_id = cell
+                .get("id")
+                .and_then(Value::as_str)
+                .map(str::to_owned)
+                .unwrap_or_else(|| format!("cell-{index}"));
             let title = cell
                 .get("title")
                 .and_then(Value::as_str)
                 .unwrap_or_else(|| codex_cell_label(kind))
                 .to_owned();
             let body = cell
-                .get("markdownText")
+                .get("renderedMarkdownText")
                 .and_then(Value::as_str)
+                .or_else(|| cell.get("markdownText").and_then(Value::as_str))
                 .or_else(|| cell.get("detailsText").and_then(Value::as_str))
                 .unwrap_or_default()
                 .to_owned();
@@ -572,8 +642,13 @@ impl AleraApp {
                 .get("isStreaming")
                 .and_then(Value::as_bool)
                 .unwrap_or(false);
-            content = content.child(
-                div()
+            let collapsed = self.codex_collapsed_cells.contains(&cell_id)
+                || cell
+                    .get("isCollapsed")
+                    .and_then(Value::as_bool)
+                    .unwrap_or(false);
+            let cell_id_for_click = cell_id.clone();
+            let mut card = div()
                     .id(SharedString::from(format!("codex-cell-{index}")))
                     .rounded_lg()
                     .border_1()
@@ -586,36 +661,88 @@ impl AleraApp {
                     .p_3()
                     .child(
                         div()
+                            .id(SharedString::from(format!("codex-cell-header-{index}")))
                             .flex()
                             .items_center()
                             .gap_1()
                             .font_weight(gpui::FontWeight::SEMIBOLD)
                             .text_size(px(11.0))
                             .text_color(theme::text_muted())
+                            .cursor(CursorStyle::PointingHand)
+                            .on_click(cx.listener(move |this, _, _, cx| {
+                                if !this.codex_collapsed_cells.remove(&cell_id_for_click) {
+                                    this.codex_collapsed_cells.insert(cell_id_for_click.clone());
+                                }
+                                cx.notify();
+                            }))
                             .child(title)
                             .when(streaming, |row| {
                                 row.child(loading_indicator(12.0, theme::text_faint()))
                             }),
-                    )
-                    .when_some(subtitle, |card, subtitle| {
-                        card.child(
-                            div()
-                                .mt_1()
-                                .text_xs()
-                                .text_color(theme::text_faint())
-                                .child(subtitle),
-                        )
-                    })
-                    .when(!body.is_empty(), |card| {
-                        card.child(
-                            div()
-                                .mt_1()
-                                .whitespace_normal()
-                                .text_size(px(12.0))
-                                .child(body),
-                        )
-                    }),
-            );
+                    );
+            if !collapsed {
+                if let Some(subtitle) = subtitle {
+                    card = card.child(
+                        div()
+                            .mt_1()
+                            .text_xs()
+                            .text_color(theme::text_faint())
+                            .child(subtitle),
+                    );
+                }
+                if !body.is_empty() {
+                    card = card.child(
+                        div()
+                            .mt_1()
+                            .whitespace_normal()
+                            .text_size(px(12.0))
+                            .child(body),
+                    );
+                }
+                if kind == "plan" && !streaming {
+                    card = card.child(
+                        div()
+                            .flex()
+                            .gap_2()
+                            .mt_2()
+                            .child(
+                                design_system::button(
+                                    SharedString::from(format!("codex-implement-plan-{index}")),
+                                    "Implement Plan",
+                                    ButtonKind::Filled,
+                                    false,
+                                )
+                                .on_click(cx.listener({
+                                    let tab_id = tab_id.to_owned();
+                                    move |this, _, window, cx| {
+                                        if let Some(input) = this.codex_composer_inputs.get(&tab_id).cloned() {
+                                            input.update(cx, |input, cx| input.set_value("Implement the plan.", window, cx));
+                                            this.send_codex_message(&tab_id, window, cx);
+                                        }
+                                    }
+                                })),
+                            )
+                            .child(
+                                design_system::button(
+                                    SharedString::from(format!("codex-decline-plan-{index}")),
+                                    "Decline",
+                                    ButtonKind::Outlined,
+                                    false,
+                                )
+                                .on_click(cx.listener({
+                                    let tab_id = tab_id.to_owned();
+                                    move |this, _, window, cx| {
+                                        if let Some(input) = this.codex_composer_inputs.get(&tab_id).cloned() {
+                                            input.update(cx, |input, cx| input.set_value("Do not implement the plan.", window, cx));
+                                            this.send_codex_message(&tab_id, window, cx);
+                                        }
+                                    }
+                                })),
+                            ),
+                    );
+                }
+            }
+            content = content.child(card);
         }
         if !has_cells {
         for (index, event) in snapshot_events(snapshot).into_iter().enumerate() {
