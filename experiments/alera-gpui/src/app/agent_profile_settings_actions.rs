@@ -68,8 +68,19 @@ impl AleraApp {
                             .clone()
                             .filter(|id| profiles.iter().any(|profile| &profile.id == id))
                             .or_else(|| profiles.first().map(|profile| profile.id.clone()));
+                        let selected_profile_changed = selected.as_deref().is_some_and(|id| {
+                            let previous = this
+                                .agent_profile_settings
+                                .profiles
+                                .iter()
+                                .find(|profile| profile.id == id);
+                            let current = profiles.iter().find(|profile| profile.id == id);
+                            previous != current
+                        });
                         this.agent_profile_settings.profiles = profiles;
-                        if this.agent_profile_settings.selected_id != selected {
+                        if this.agent_profile_settings.selected_id != selected
+                            || selected_profile_changed
+                        {
                             if let Some(id) = selected {
                                 this.select_agent_profile(id, window, cx);
                             } else if !this.agent_profile_settings.creating_new {

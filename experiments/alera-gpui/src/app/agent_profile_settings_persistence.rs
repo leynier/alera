@@ -10,6 +10,12 @@ use super::agent_profile_settings::{
 };
 use super::AleraApp;
 
+const AGENT_PROFILE_ORDERING_CAPABILITY: &str = "orchestrationAgentProfileOrderingV1";
+const AGENT_PROFILE_REVISIONS_CAPABILITY: &str = "orchestrationAgentProfileRevisionsV1";
+const MANAGED_AGENT_PROFILES_CAPABILITY: &str = "orchestrationManagedAgentProfilesV1";
+const SAFE_EDITING_HOST_ERROR: &str = "Safe agent profile editing requires a newer runtime host. \
+    Restart Alera to replace the running host.";
+
 impl AleraApp {
     pub(super) fn reorder_agent_profiles(
         &mut self,
@@ -42,6 +48,10 @@ impl AleraApp {
             .iter()
             .map(|profile| profile.id.clone())
             .collect::<Vec<_>>();
+        let expected_revisions = reordered
+            .iter()
+            .map(|profile| (profile.id.clone(), Value::from(profile.revision)))
+            .collect::<serde_json::Map<_, _>>();
         self.agent_profile_settings.profiles = reordered;
         self.agent_profile_settings.saving = true;
         self.agent_profile_settings.error = None;
@@ -49,13 +59,30 @@ impl AleraApp {
         let bridge = self.bridge.clone();
         cx.notify();
         cx.spawn_in(window, async move |this, cx| {
-            let result = bridge
-                .request_with_timeout(
-                    "agentProfile.reorder",
-                    json!({"ids": ids}),
-                    Duration::from_secs(10),
+            let result = async {
+                require_agent_profile_capabilities(
+                    &bridge,
+                    &[
+                        (
+                            AGENT_PROFILE_ORDERING_CAPABILITY,
+                            "Reordering agent profiles requires a newer runtime host. Restart Alera to replace the running host.",
+                        ),
+                        (AGENT_PROFILE_REVISIONS_CAPABILITY, SAFE_EDITING_HOST_ERROR),
+                    ],
                 )
-                .await;
+                .await?;
+                bridge
+                    .request_with_timeout(
+                        "agentProfile.reorder",
+                        json!({
+                            "ids": ids,
+                            "expectedRevisions": expected_revisions,
+                        }),
+                        Duration::from_secs(10),
+                    )
+                    .await
+            }
+            .await;
             let _ = this.update_in(cx, |this, _, cx| {
                 this.agent_profile_settings.saving = false;
                 match result.and_then(parse_agent_profiles) {
@@ -228,6 +255,19 @@ impl AleraApp {
         });
         if let Some(id) = &self.agent_profile_settings.selected_id {
             payload["id"] = Value::String(id.clone());
+            let Some(profile) = self
+                .agent_profile_settings
+                .profiles
+                .iter()
+                .find(|profile| &profile.id == id)
+            else {
+                self.agent_profile_settings.error = Some(
+                    "The selected agent profile no longer exists. Refresh and try again.".into(),
+                );
+                cx.notify();
+                return;
+            };
+            payload["expectedRevision"] = Value::from(profile.revision);
         }
         if self.agent_profile_settings.launch_mode == "managed" {
             payload["managedConfig"] =
@@ -246,11 +286,16 @@ impl AleraApp {
         self.agent_profile_settings.error = None;
         self.agent_profile_settings.toast = None;
         let bridge = self.bridge.clone();
+        let required_capabilities = agent_profile_upsert_capabilities(&payload);
         cx.notify();
         cx.spawn_in(window, async move |this, cx| {
-            let result = bridge
-                .request_with_timeout("agentProfile.upsert", payload, Duration::from_secs(10))
-                .await;
+            let result = async {
+                require_agent_profile_capabilities(&bridge, &required_capabilities).await?;
+                bridge
+                    .request_with_timeout("agentProfile.upsert", payload, Duration::from_secs(10))
+                    .await
+            }
+            .await;
             let _ = this.update_in(cx, |this, window, cx| {
                 this.agent_profile_settings.saving = false;
                 match result.and_then(|value| parse_agent_profile(&value)) {
@@ -287,18 +332,39 @@ impl AleraApp {
         let Some(id) = self.agent_profile_settings.selected_id.clone() else {
             return;
         };
+        let Some(expected_revision) = self
+            .agent_profile_settings
+            .profiles
+            .iter()
+            .find(|profile| profile.id == id)
+            .map(|profile| profile.revision)
+        else {
+            self.agent_profile_settings.error = Some(
+                "The selected agent profile no longer exists. Refresh and try again.".into(),
+            );
+            cx.notify();
+            return;
+        };
         self.agent_profile_settings.saving = true;
         self.agent_profile_settings.error = None;
         let bridge = self.bridge.clone();
         cx.notify();
         cx.spawn_in(window, async move |this, cx| {
-            let result = bridge
-                .request_with_timeout(
-                    "agentProfile.remove",
-                    json!({"id": id}),
-                    Duration::from_secs(10),
+            let result = async {
+                require_agent_profile_capabilities(
+                    &bridge,
+                    &[(AGENT_PROFILE_REVISIONS_CAPABILITY, SAFE_EDITING_HOST_ERROR)],
                 )
-                .await;
+                .await?;
+                bridge
+                    .request_with_timeout(
+                        "agentProfile.remove",
+                        json!({"id": id, "expectedRevision": expected_revision}),
+                        Duration::from_secs(10),
+                    )
+                    .await
+            }
+            .await;
             let _ = this.update_in(cx, |this, window, cx| {
                 this.agent_profile_settings.saving = false;
                 match result {
@@ -373,7 +439,50 @@ impl AleraApp {
     }
 }
 
-fn next_clone_name(source_name: &str, profiles: &[super::agent_profile_settings::AgentProfileRecord]) -> String {
+fn agent_profile_upsert_capabilities(payload: &Value) -> Vec<(&'static str, &'static str)> {
+    let mut requirements = Vec::new();
+    if payload.get("id").is_some() {
+        requirements.push((AGENT_PROFILE_REVISIONS_CAPABILITY, SAFE_EDITING_HOST_ERROR));
+    }
+    if payload.get("launchMode").and_then(Value::as_str) == Some("managed") {
+        requirements.push((
+            MANAGED_AGENT_PROFILES_CAPABILITY,
+            "Managed agent profiles require a newer runtime host. Restart Alera to replace the running host, or use Command mode.",
+        ));
+    }
+    requirements
+}
+
+async fn require_agent_profile_capabilities(
+    bridge: &crate::runtime_bridge::RuntimeBridge,
+    requirements: &[(&str, &str)],
+) -> Result<(), String> {
+    if requirements.is_empty() {
+        return Ok(());
+    }
+    let status = bridge
+        .request_with_timeout("status.get", json!({}), Duration::from_secs(10))
+        .await?;
+    let capabilities = status
+        .get("runtimeCapabilities")
+        .and_then(Value::as_array);
+    for (capability, message) in requirements {
+        let supported = capabilities.is_some_and(|items| {
+            items
+                .iter()
+                .any(|item| item.as_str() == Some(*capability))
+        });
+        if !supported {
+            return Err((*message).to_owned());
+        }
+    }
+    Ok(())
+}
+
+fn next_clone_name(
+    source_name: &str,
+    profiles: &[super::agent_profile_settings::AgentProfileRecord],
+) -> String {
     let base = format!("{} Copy", source_name.trim());
     let names = profiles
         .iter()

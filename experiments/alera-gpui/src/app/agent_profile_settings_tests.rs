@@ -16,7 +16,8 @@ fn parses_wrapped_agent_profile_list() {
                 "permissionMode": "plan"
             },
             "description": "Default Claude Profile",
-            "quotaGroup": "anthropic"
+            "quotaGroup": "anthropic",
+            "revision": 7
         }]
     }))
     .expect("valid profile list");
@@ -32,6 +33,7 @@ fn parses_wrapped_agent_profile_list() {
         Some(&Value::String("plan".to_owned()))
     );
     assert_eq!(profile.quota_group.as_deref(), Some("anthropic"));
+    assert_eq!(profile.revision, 7);
 }
 
 #[test]
@@ -48,6 +50,7 @@ fn legacy_profile_defaults_to_command_mode() {
     assert!(profiles[0].managed_config.is_empty());
     assert_eq!(profiles[0].description, "");
     assert_eq!(profiles[0].quota_group, None);
+    assert_eq!(profiles[0].revision, 0);
 }
 
 #[test]

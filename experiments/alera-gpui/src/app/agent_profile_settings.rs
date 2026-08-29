@@ -7,7 +7,7 @@ use serde_json::{Map, Value};
 use super::AleraApp;
 use crate::icons::AgentIcon;
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub(super) struct AgentProfileRecord {
     pub(super) id: String,
     pub(super) name: String,
@@ -19,6 +19,7 @@ pub(super) struct AgentProfileRecord {
     pub(super) custom_prompt: String,
     pub(super) description: String,
     pub(super) quota_group: Option<String>,
+    pub(super) revision: i64,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -173,6 +174,11 @@ pub(super) fn parse_agent_profile(value: &Value) -> Result<AgentProfileRecord, S
             .get("quotaGroup")
             .and_then(Value::as_str)
             .map(str::to_owned),
+        revision: value
+            .get("revision")
+            .and_then(Value::as_i64)
+            .filter(|revision| *revision >= 0)
+            .unwrap_or(0),
     })
 }
 
