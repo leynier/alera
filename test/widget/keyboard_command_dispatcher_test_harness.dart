@@ -142,6 +142,10 @@ class _DispatcherTestWorkbenchController extends WorkbenchController {
     required String tabId,
   }) async {
     closedTabIds.add(tabId);
+    // Mirrors production: the controller owns disposing the terminal handle
+    // and the editor document for every closed tab.
+    ref.read(terminalRuntimeProvider).closeTab(tabId);
+    ref.read(editorSessionRegistryProvider).forget(tabId);
   }
 
   @override
