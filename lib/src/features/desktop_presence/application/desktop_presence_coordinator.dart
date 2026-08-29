@@ -19,17 +19,23 @@ class DesktopPresenceCoordinator {
 
   DesktopPresenceSnapshot? _last;
   bool _started = false;
+  bool _trayInstalled = false;
+  bool _removingTray = false;
   Future<void> _applyQueue = Future<void>.value();
 
-  /// Hide-on-close follows a tray that was actually applied, not the setting.
-  bool get trayInstalled => _last?.trayVisible ?? false;
+  /// Hide-on-close follows a tray that is installed and not being removed.
+  bool get trayInstalled => _trayInstalled && !_removingTray;
 
   void start() {
     if (_started) {
       return;
     }
     _started = true;
-    backend.listen(onShow: _showWindow, onQuit: _quit);
+    backend.listen(
+      onShow: _showWindow,
+      onQuit: _quit,
+      onInstallationChanged: _onInstallationChanged,
+    );
   }
 
   Future<void> apply(DesktopPresenceSnapshot snapshot) {
@@ -41,28 +47,57 @@ class DesktopPresenceCoordinator {
   }
 
   Future<void> _applyNow(DesktopPresenceSnapshot snapshot) async {
-    if (_last == snapshot) {
+    if (_last == snapshot && _trayInstalled == snapshot.trayVisible) {
       return;
     }
-    if ((_last?.trayVisible ?? false) && !snapshot.trayVisible) {
-      await lifecycle.waitForPendingHide();
-      final hidden = !await window.isVisible();
-      final minimized = await window.isMinimized();
-      if ((hidden || minimized) && !await _showAndFocus()) {
-        return;
-      }
+    final removing = (_last?.trayVisible ?? false) && !snapshot.trayVisible;
+    if (removing) {
+      _removingTray = true;
     }
     try {
-      await backend.apply(snapshot);
-    } catch (error, stackTrace) {
-      _logger.warning('failed to apply desktop presence', error, stackTrace);
+      if (removing) {
+        await lifecycle.waitForPendingHide();
+        final hidden = !await window.isVisible();
+        final minimized = await window.isMinimized();
+        if ((hidden || minimized) && !await _showAndFocus()) {
+          return;
+        }
+      }
+      try {
+        await backend.apply(snapshot);
+      } catch (error, stackTrace) {
+        _logger.warning('failed to apply desktop presence', error, stackTrace);
+        return;
+      }
+      _last = snapshot;
+      _trayInstalled = snapshot.trayVisible;
+    } finally {
+      if (removing) {
+        _removingTray = false;
+      }
+    }
+  }
+
+  void _onInstallationChanged(bool installed) {
+    _trayInstalled = installed;
+    if (!installed) {
+      // TaskbarCreated reports unavailable before retrying. Wait a turn so a
+      // successful reinstall does not flash a hidden window.
+      unawaited(_recoverIfStillUninstalled());
+    }
+  }
+
+  Future<void> _recoverIfStillUninstalled() async {
+    await Future<void>.delayed(Duration.zero);
+    if (_trayInstalled) {
       return;
     }
-    _last = snapshot;
+    await _showAndFocus();
   }
 
   Future<void> destroy() async {
     _last = null;
+    _trayInstalled = false;
     try {
       await backend.destroy();
     } catch (error, stackTrace) {

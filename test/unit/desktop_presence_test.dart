@@ -228,23 +228,148 @@ void main() {
       expect(backend.applied.last.trayVisible, isFalse);
       expect(coordinator.trayInstalled, isFalse);
     });
+
+    test('does not hide while tray removal is in progress', () async {
+      final applyStarted = Completer<void>();
+      final finishApply = Completer<void>();
+      final backend = _RecordingPresenceBackend();
+      final window = _RecordingWindow();
+      final lifecycle = AppWindowLifecycleCoordinator(
+        repository: _MemoryWindowStateRepository(),
+        window: window,
+        saveDebounce: Duration.zero,
+      );
+      await lifecycle.start();
+      final coordinator = DesktopPresenceCoordinator(
+        backend: backend,
+        window: window,
+        lifecycle: lifecycle,
+      );
+      coordinator.start();
+      lifecycle.bindHideOnClose(() => coordinator.trayInstalled);
+
+      await coordinator.apply(
+        const DesktopPresenceSnapshot(
+          trayVisible: true,
+          tooltip: 'Alera',
+          badgeCount: 0,
+        ),
+      );
+      expect(coordinator.trayInstalled, isTrue);
+      backend.applyStarted = applyStarted;
+      backend.applyBarrier = finishApply.future;
+
+      final removeTray = coordinator.apply(
+        const DesktopPresenceSnapshot(
+          trayVisible: false,
+          tooltip: 'Alera',
+          badgeCount: 0,
+        ),
+      );
+      await applyStarted.future;
+      expect(coordinator.trayInstalled, isFalse);
+
+      window.emitClose();
+      await Future<void>.delayed(Duration.zero);
+      expect(window.hideCalls, 0);
+
+      finishApply.complete();
+      await removeTray;
+      expect(window.hideCalls, 0);
+      expect(coordinator.trayInstalled, isFalse);
+    });
+
+    test('shows a hidden window when tray installation is lost', () async {
+      final backend = _RecordingPresenceBackend();
+      final window = _RecordingWindow();
+      final lifecycle = AppWindowLifecycleCoordinator(
+        repository: _MemoryWindowStateRepository(),
+        window: window,
+        saveDebounce: Duration.zero,
+      );
+      await lifecycle.start();
+      final coordinator = DesktopPresenceCoordinator(
+        backend: backend,
+        window: window,
+        lifecycle: lifecycle,
+      );
+      coordinator.start();
+
+      await coordinator.apply(
+        const DesktopPresenceSnapshot(
+          trayVisible: true,
+          tooltip: 'Alera',
+          badgeCount: 0,
+        ),
+      );
+      window.visible = false;
+      backend.onInstallationChanged?.call(false);
+      await Future<void>.delayed(Duration.zero);
+
+      expect(coordinator.trayInstalled, isFalse);
+      expect(window.showCalls, 1);
+      expect(window.visible, isTrue);
+    });
+
+    test('does not show when tray reinstall succeeds immediately', () async {
+      final backend = _RecordingPresenceBackend();
+      final window = _RecordingWindow();
+      final lifecycle = AppWindowLifecycleCoordinator(
+        repository: _MemoryWindowStateRepository(),
+        window: window,
+        saveDebounce: Duration.zero,
+      );
+      await lifecycle.start();
+      final coordinator = DesktopPresenceCoordinator(
+        backend: backend,
+        window: window,
+        lifecycle: lifecycle,
+      );
+      coordinator.start();
+
+      await coordinator.apply(
+        const DesktopPresenceSnapshot(
+          trayVisible: true,
+          tooltip: 'Alera',
+          badgeCount: 0,
+        ),
+      );
+      window.visible = false;
+      backend.onInstallationChanged?.call(false);
+      backend.onInstallationChanged?.call(true);
+      await Future<void>.delayed(Duration.zero);
+
+      expect(coordinator.trayInstalled, isTrue);
+      expect(window.showCalls, 0);
+      expect(window.visible, isFalse);
+    });
   });
 }
 
 class _RecordingPresenceBackend implements DesktopPresenceBackend {
   VoidCallback? onShow;
   VoidCallback? onQuit;
+  void Function(bool installed)? onInstallationChanged;
   final List<DesktopPresenceSnapshot> applied = <DesktopPresenceSnapshot>[];
   int destroyCalls = 0;
+  Completer<void>? applyStarted;
+  Future<void>? applyBarrier;
 
   @override
-  void listen({required VoidCallback onShow, required VoidCallback onQuit}) {
+  void listen({
+    required VoidCallback onShow,
+    required VoidCallback onQuit,
+    void Function(bool installed)? onInstallationChanged,
+  }) {
     this.onShow = onShow;
     this.onQuit = onQuit;
+    this.onInstallationChanged = onInstallationChanged;
   }
 
   @override
   Future<void> apply(DesktopPresenceSnapshot snapshot) async {
+    applyStarted?.complete();
+    await applyBarrier;
     applied.add(snapshot);
   }
 
