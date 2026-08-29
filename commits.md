@@ -152,7 +152,7 @@ commit so this file remains useful after context compaction.
 | 131 | `f553eb5b940427a1fb2395c8da1d0f5c6743d106` | 2026-08-09 | chore: reconcile codex integration | merged | Cherry-picked generated Codex/Riverpod hashes and build-runner instruction reconciliation; no separate GPUI code change was expected. |
 | 132 | `f24b4186fa73059ef4f2d4c0e4a97e5c7867f973` | 2026-08-09 | fix: defer codex thread deletion | merged | Cherry-picked deferred Codex thread deletion after runtime mutation commit; no GPUI surface change was expected. |
 | 133 | `8a766dfad6d287ed07fd024ee066274ee5509d5a` | 2026-08-09 | fix: harden codex cleanup and file access | merged | Cherry-picked Codex cleanup validation, no-symlink bounded workspace-file reads, and safe external URI handling; GPUI consumes the hardened shared file service. Regenerated the GPUI lockfile for `cap-fs-ext`; `cargo check --manifest-path experiments/alera-gpui/Cargo.toml` passed. |
-| 134 | `31051020dd8cdc7ac473bf7cf500f966c623462e` | 2026-08-09 | fix: pin workspace file roots | pending | - |
+| 134 | `31051020dd8cdc7ac473bf7cf500f966c623462e` | 2026-08-09 | fix: pin workspace file roots | in_progress | Replaying pinned workspace-file roots and path validation so Codex file reads stay bound to the opened directory; GPUI consumes the shared core service. |
 | 135 | `2dd6c23285b0dcb7242f922e386d0d828bd455af` | 2026-08-09 | fix: scope quick open symlink policy | pending | - |
 | 136 | `8d3694fc4dff361b7a512a127233a8cb58ea25f3` | 2026-08-09 | fix: restore codex chat identity controls | pending | - |
 | 137 | `14819e58a331c2b78a40b8ff1a1ec8a61eec60d8` | 2026-08-09 | fix: restore codex timeline states | pending | - |
