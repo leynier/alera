@@ -249,7 +249,7 @@ commit so this file remains useful after context compaction.
 | 228 | `8aa83da2e9730ee1f832e9af6e9979c996cfde45` | 2026-08-12 | fix: make mobile model downloads retryable (#413) | merged | Cherry-picked retryable mobile dictation model downloads; no GPUI UI surface is affected. |
 | 229 | `fe8946b74ef8aacf2496f2d53414b01a33c6f289` | 2026-08-12 | fix: retry transient runtime mutation conflicts (#414) | merged | Cherry-picked runtime mutation retry semantics and added the same bounded 50 ms retry loop to GPUI while preserving the original request timeout budget. |
 | 230 | `eea6d13bad30a2f3922fe3ffc642d4dd49ead481` | 2026-08-12 | fix: complete runtime update after force-stop disconnect (#412) | merged | Cherry-picked Flutter runtime update lifecycle recovery; GPUI uses a separate native lifecycle and needed no shared UI change. |
-| 231 | `0e067aba8789d64b2126da76e1e451b8f2e3abe0` | 2026-08-12 | fix: constrain restored terminal cursor (#415) | pending | - |
+| 231 | `0e067aba8789d64b2126da76e1e451b8f2e3abe0` | 2026-08-12 | fix: constrain restored terminal cursor (#415) | in progress | Cherry-picking Flutter/xterm cursor restore bounds and adding equivalent clamping to GPUI's Alacritty-backed renderer. |
 | 232 | `0a790d4cd868e2b1e81ab02d0bd0fedb6c3df871` | 2026-08-13 | release: v0.59.1 v0.23.1-mobile | pending | - |
 | 233 | `266175ce63231c7c13c9eb386ff658cf11957bcc` | 2026-08-13 | fix: show workspace status from the most urgent agent (#416) | pending | - |
 | 234 | `ac69a7809f0cb66e4d5b0812a27ca975dc9d9e03` | 2026-08-14 | fix: use authoritative opencode go usage (#407) | pending | - |
