@@ -193,7 +193,7 @@ commit so this file remains useful after context compaction.
 | 172 | `cd8df4a482bf9853df98a6362fca36e8fcf5191a` | 2026-08-10 | feat: cache usage snapshots by period | merged | Cherry-picked usage snapshot cache and stale-while-refresh behavior; GPUI now keeps a bounded in-memory cache per host/period while preserving the shared runtime loader. |
 | 173 | `dd8781f9896069be3a7734a4e85a1bd72d24b27e` | 2026-08-10 | feat: configure claude usage profiles | merged | Cherry-picked Claude usage profile visibility/labels and adapted GPUI Settings and usage controls with Show In Usage, Usage Name, profile/group/model breakdowns, filtering, and period memory; Codex Chat remains disabled. |
 | 174 | `6d2289b8dd7e7c6058f38a705b8ee9f3d8530e06` | 2026-08-10 | refactor: split runtime quota settings models | merged | Cherry-picked the runtime quota model split, preserving the usage-profile fields; GPUI consumes the shared core models and needed no additional UI change. |
-| 175 | `7211053846aed214b0407790893e1522f0d59ba0` | 2026-08-10 | feat: refine usage profile presentation | pending | - |
+| 175 | `7211053846aed214b0407790893e1522f0d59ba0` | 2026-08-10 | feat: refine usage profile presentation | in progress | Cherry-picking independent Claude usage visibility, grouped breakdown gating, and responsive metric presentation; GPUI Codex Chat remains disabled. |
 | 176 | `648fa0094b6fb4e17daf4a1a3e99478268db16a8` | 2026-08-10 | test: cover grouped usage sessions | pending | - |
 | 177 | `fe40edb17462867a7f669a08cdc5cf4349c08843` | 2026-08-10 | fix: normalize codex review timeline | pending | - |
 | 178 | `37dc2ac5fa7d76ccbe4ca3475a54e9ce552e532e` | 2026-08-10 | chore: merge main into codex integration | pending | - |
