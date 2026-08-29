@@ -9,7 +9,9 @@ class WindowManagerAgentWindowActivator
 
   @override
   Future<void> showAndFocus() async {
-    await windowManager.show();
+    if (!await windowManager.isVisible()) {
+      await windowManager.show();
+    }
     if (await windowManager.isMinimized()) {
       await windowManager.restore();
     }

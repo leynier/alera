@@ -23,6 +23,7 @@ sudo -n apt-get install -y --no-install-recommends \
   curl \
   git \
   libgtk-3-dev \
+  libayatana-appindicator3-dev \
   liblzma-dev \
   ninja-build \
   pkg-config \

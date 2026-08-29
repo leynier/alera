@@ -37,6 +37,19 @@ bool FlutterWindow::OnCreate() {
           "dev.leynier.alera/app_menu",
           &flutter::StandardMethodCodec::GetInstance());
 
+  desktop_presence_channel_ =
+      std::make_unique<flutter::MethodChannel<flutter::EncodableValue>>(
+          flutter_controller_->engine()->messenger(),
+          "dev.leynier.alera/desktop_presence",
+          &flutter::StandardMethodCodec::GetInstance());
+  desktop_presence_.Attach(GetHandle(), desktop_presence_channel_.get());
+  desktop_presence_channel_->SetMethodCallHandler(
+      [this](const flutter::MethodCall<flutter::EncodableValue>& call,
+             std::unique_ptr<flutter::MethodResult<flutter::EncodableValue>>
+                 result) {
+        desktop_presence_.HandleMethodCall(call, std::move(result));
+      });
+
   flutter_controller_->engine()->SetNextFrameCallback([&]() {
     this->Show();
   });
@@ -50,6 +63,7 @@ bool FlutterWindow::OnCreate() {
 }
 
 void FlutterWindow::OnDestroy() {
+  desktop_presence_.Destroy();
   if (flutter_controller_) {
     flutter_controller_ = nullptr;
   }
@@ -97,6 +111,10 @@ FlutterWindow::MessageHandler(HWND hwnd, UINT const message,
     case WM_FONTCHANGE:
       flutter_controller_->engine()->ReloadSystemFonts();
       break;
+  }
+
+  if (desktop_presence_.HandleMessage(hwnd, message, wparam, lparam)) {
+    return 0;
   }
 
   return Win32Window::MessageHandler(hwnd, message, wparam, lparam);

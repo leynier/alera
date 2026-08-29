@@ -60,6 +60,12 @@ class _RuntimeHostQuitGateScopeState
     if (!mounted) {
       return RuntimeHostQuitDecision.cancel;
     }
+    // Tray Quit can fire while the window is hidden. The confirmation dialog
+    // is in-window, so the window has to be visible first.
+    await _showWindowForQuitConfirmation();
+    if (!mounted) {
+      return RuntimeHostQuitDecision.cancel;
+    }
     final decision = await showDialog<RuntimeHostQuitDecision>(
       context: context,
       builder: (_) => AleraChoiceDialog<RuntimeHostQuitDecision>(
@@ -73,6 +79,22 @@ class _RuntimeHostQuitGateScopeState
       ),
     );
     return decision ?? RuntimeHostQuitDecision.cancel;
+  }
+
+  Future<void> _showWindowForQuitConfirmation() async {
+    final window = ref.read(appWindowControllerProvider);
+    try {
+      if (!await window.isVisible()) {
+        await window.show();
+      }
+      if (await window.isMinimized()) {
+        await window.restore();
+      }
+      await window.focus();
+    } catch (_) {
+      // The dialog still tries to open; a hidden window is worse than a
+      // failed restore.
+    }
   }
 
   @override

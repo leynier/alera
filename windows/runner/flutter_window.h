@@ -8,6 +8,7 @@
 
 #include <memory>
 
+#include "win32_desktop_presence.h"
 #include "win32_window.h"
 
 // A window that does nothing but host a Flutter view.
@@ -34,6 +35,10 @@ class FlutterWindow : public Win32Window {
   // Channel used to forward native app-menu activation into Dart.
   std::unique_ptr<flutter::MethodChannel<flutter::EncodableValue>>
       app_menu_channel_;
+
+  std::unique_ptr<flutter::MethodChannel<flutter::EncodableValue>>
+      desktop_presence_channel_;
+  Win32DesktopPresence desktop_presence_;
 };
 
 #endif  // RUNNER_FLUTTER_WINDOW_H_

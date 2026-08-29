@@ -42,6 +42,8 @@ void main() {
       expect(general.confirmProjectRemoval, isTrue);
       expect(general.confirmWorkspaceRemoval, isTrue);
       expect(general.keepAliveEnabled, isFalse);
+      expect(general.showTrayIcon, isTrue);
+      expect(general.showDockBadge, isTrue);
     });
 
     test('agent defaults are conservative', () {
@@ -151,6 +153,8 @@ void main() {
       expect(overrides.selection, '#123456');
       expect(general.workspaceDirectory, '/tmp/workspaces');
       expect(general.starClicked, isTrue);
+      expect(general.showTrayIcon, isTrue);
+      expect(general.showDockBadge, isTrue);
       expect(agents.agentStatusHooks.codex, isTrue);
       expect(agents.agentStatusHooks.claude, isFalse);
       expect(agents.agentStatusHooks.copilot, isTrue);

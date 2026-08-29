@@ -169,6 +169,39 @@ void main() {
       );
     });
 
+    test('counts waiting, blocked, and interrupted runs as pending review', () {
+      final waiting = _tab('tab-waiting');
+      final blocked = _tab('tab-blocked');
+      final interrupted = _tab('tab-interrupted');
+      final working = _tab('tab-working');
+      final done = _tab('tab-done');
+      final unmatched = _tab('tab-unmatched');
+
+      final runs = visibleWorkspaceAgentRuns(
+        tabs: <WorkspaceTabRecord>[
+          waiting,
+          blocked,
+          interrupted,
+          working,
+          done,
+          unmatched,
+        ],
+        agentStatuses: <String, AgentStatusEntry>{
+          waiting.terminalSessionId: _entry(waiting, AgentStatusState.waiting),
+          blocked.terminalSessionId: _entry(blocked, AgentStatusState.blocked),
+          interrupted.terminalSessionId: _entry(
+            interrupted,
+            AgentStatusState.done,
+            interrupted: true,
+          ),
+          working.terminalSessionId: _entry(working, AgentStatusState.working),
+          done.terminalSessionId: _entry(done, AgentStatusState.done),
+        },
+      );
+
+      expect(pendingReviewAgentCount(runs), 3);
+    });
+
     test('matches Codex tabs through their synthetic presence handle', () {
       final tab = _tab('codex-tab', kind: WorkspaceTabKind.codex);
       final handle = 'codex:${tab.id}';

@@ -7,6 +7,7 @@ import 'package:alera/src/features/diagnostics/presentation/diagnostics_settings
 import 'package:alera/src/features/shell/presentation/alera_shell_page.dart';
 import 'package:alera/src/features/text_actions/presentation/text_actions_scope.dart';
 import 'package:alera/src/features/updater/presentation/update_availability_watch.dart';
+import 'package:alera/src/features/desktop_presence/presentation/desktop_presence_scope.dart';
 import 'package:alera/src/features/runtime_host/presentation/runtime_host_quit_gate_scope.dart';
 import 'package:flutter/material.dart';
 
@@ -17,7 +18,9 @@ class AleraApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: kAleraAppName,
-      home: const RuntimeHostQuitGateScope(child: AleraShellPage()),
+      home: const RuntimeHostQuitGateScope(
+        child: DesktopPresenceScope(child: AleraShellPage()),
+      ),
       debugShowCheckedModeBanner: false,
       builder: (context, child) {
         return AiDictationDownloadBootstrap(

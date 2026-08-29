@@ -75,6 +75,31 @@ class ApplicationSettingsPane extends ConsumerWidget {
         ),
         const SizedBox(height: AleraTokens.space16),
         KeyedSubtree(
+          key: groupKeys['desktop'],
+          child: AleraSettingsGroup(
+            title: 'Desktop',
+            description:
+                'Tray icon and dock or taskbar badge while Alera is running.',
+            children: <Widget>[
+              SettingsSwitchRow(
+                title: 'Show Tray Icon',
+                description:
+                    'Keep Alera in the menu extra (macOS), notification area (Windows), or status bar (Ubuntu). Closing the window hides it; Quit from the tray or the app menu exits.',
+                value: general.showTrayIcon,
+                onChanged: (value) => controller.setShowTrayIcon(value),
+              ),
+              SettingsSwitchRow(
+                title: 'Show Dock Badge',
+                description:
+                    'Show how many agents are waiting for review on the Dock, taskbar, or Ubuntu Dock.',
+                value: general.showDockBadge,
+                onChanged: (value) => controller.setShowDockBadge(value),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: AleraTokens.space16),
+        KeyedSubtree(
           key: groupKeys['runtime'],
           child: AleraSettingsGroup(
             title: 'Runtime',

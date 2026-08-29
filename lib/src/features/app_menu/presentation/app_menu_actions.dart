@@ -64,9 +64,12 @@ Future<void> showAppMenuAbout(
   );
 }
 
-/// Closes through the app-window lifecycle (flush state, then destroy).
+/// Quits through the app-window lifecycle (flush state, then destroy).
+///
+/// This must not go through [AppWindowController.close]: with the tray
+/// enabled, close only hides the window.
 Future<void> exitAppFromMenu(WidgetRef ref) {
-  return ref.read(appWindowControllerProvider).close();
+  return ref.read(appWindowLifecycleCoordinatorProvider).requestQuit();
 }
 
 /// Invokes a text-editing intent on the primary focus, if any action handles it.

@@ -105,6 +105,132 @@ void main() {
       await _waitFor(() => gateCalls == 2);
     });
 
+    test('hides the window when hide-on-close is bound', () async {
+      final repository = _RecordingStateRepository();
+      final window = _RecordingWindowController();
+      final coordinator = AppWindowLifecycleCoordinator(
+        repository: repository,
+        window: window,
+        saveDebounce: Duration.zero,
+        hideOnClose: () => true,
+      );
+      await coordinator.start();
+
+      window.emit((listener) => listener.onWindowClose());
+      await _waitFor(() => window.hideCalls == 1);
+
+      expect(window.destroyCalls, 0);
+      expect(window.hideCalls, 1);
+      expect(window.preventCloseValues, <bool>[true]);
+    });
+
+    test('requestQuit destroys even when hide-on-close is bound', () async {
+      final repository = _RecordingStateRepository();
+      final window = _RecordingWindowController();
+      final coordinator = AppWindowLifecycleCoordinator(
+        repository: repository,
+        window: window,
+        saveDebounce: Duration.zero,
+        hideOnClose: () => true,
+      );
+      await coordinator.start();
+
+      await coordinator.requestQuit();
+      await _waitFor(() => window.destroyCalls == 1);
+
+      expect(window.hideCalls, 0);
+      expect(window.destroyCalls, 1);
+      expect(window.preventCloseValues, <bool>[true, false]);
+    });
+
+    test(
+      'requestQuit waits for an in-flight hide before the close gate',
+      () async {
+        final saveStarted = Completer<void>();
+        final finishSave = Completer<void>();
+        final gate = Completer<bool>();
+        final repository = _RecordingStateRepository()
+          ..saveStarted = saveStarted
+          ..saveBarrier = finishSave.future;
+        final window = _RecordingWindowController();
+        var gateCalls = 0;
+        final coordinator = AppWindowLifecycleCoordinator(
+          repository: repository,
+          window: window,
+          saveDebounce: Duration.zero,
+          hideOnClose: () => true,
+          closeGate: () {
+            gateCalls += 1;
+            return gate.future;
+          },
+        );
+        await coordinator.start();
+
+        window.emit((listener) => listener.onWindowClose());
+        window.emit((listener) => listener.onWindowClose());
+        await saveStarted.future;
+        expect(window.hideCalls, 0);
+        expect(gateCalls, 0);
+
+        final quit = coordinator.requestQuit();
+        await Future<void>.delayed(Duration.zero);
+        expect(gateCalls, 0);
+        expect(window.hideCalls, 0);
+        expect(window.destroyCalls, 0);
+
+        finishSave.complete();
+        await _waitFor(() => gateCalls == 1);
+        expect(window.hideCalls, 0);
+
+        gate.complete(false);
+        await quit;
+        expect(window.destroyCalls, 0);
+
+        window.emit((listener) => listener.onWindowClose());
+        await _waitFor(() => window.hideCalls == 1);
+        expect(window.destroyCalls, 0);
+      },
+    );
+
+    test('requestQuit finishes hide before opening the close gate', () async {
+      final hideStarted = Completer<void>();
+      final finishHide = Completer<void>();
+      final gate = Completer<bool>();
+      final window = _RecordingWindowController()
+        ..hideStarted = hideStarted
+        ..hideBarrier = finishHide.future;
+      var gateCalls = 0;
+      final coordinator = AppWindowLifecycleCoordinator(
+        repository: _RecordingStateRepository(),
+        window: window,
+        saveDebounce: Duration.zero,
+        hideOnClose: () => true,
+        closeGate: () {
+          gateCalls += 1;
+          return gate.future;
+        },
+      );
+      await coordinator.start();
+
+      window.emit((listener) => listener.onWindowClose());
+      await hideStarted.future;
+      expect(gateCalls, 0);
+
+      final quit = coordinator.requestQuit();
+      await Future<void>.delayed(Duration.zero);
+      expect(gateCalls, 0);
+      expect(window.destroyCalls, 0);
+
+      finishHide.complete();
+      await _waitFor(() => gateCalls == 1);
+      expect(window.hideCalls, 1);
+      expect(window.visible, isFalse);
+
+      gate.complete(false);
+      await quit;
+      expect(window.destroyCalls, 0);
+    });
+
     test('closes once and ignores post-close state work', () async {
       final repository = _RecordingStateRepository();
       final window = _RecordingWindowController();
@@ -173,6 +299,14 @@ class _RecordingWindowController implements AppWindowController {
   final List<bool> preventCloseValues = <bool>[];
   Rect bounds = const Rect.fromLTWH(20, 30, 800, 500);
   int destroyCalls = 0;
+  int hideCalls = 0;
+  int showCalls = 0;
+  int focusCalls = 0;
+  int restoreCalls = 0;
+  bool visible = true;
+  bool minimized = false;
+  Completer<void>? hideStarted;
+  Future<void>? hideBarrier;
 
   void emit(void Function(AppWindowEventListener listener) notify) {
     for (final listener in List<AppWindowEventListener>.from(listeners)) {
@@ -196,6 +330,34 @@ class _RecordingWindowController implements AppWindowController {
   }
 
   @override
+  Future<void> hide() async {
+    hideStarted?.complete();
+    await hideBarrier;
+    hideCalls += 1;
+    visible = false;
+  }
+
+  @override
+  Future<void> show() async {
+    showCalls += 1;
+    visible = true;
+  }
+
+  @override
+  Future<void> restore() async {
+    restoreCalls += 1;
+    minimized = false;
+  }
+
+  @override
+  Future<void> focus() async {
+    focusCalls += 1;
+  }
+
+  @override
+  Future<bool> isVisible() async => visible;
+
+  @override
   Future<Rect> getBounds() async => bounds;
 
   @override
@@ -205,7 +367,7 @@ class _RecordingWindowController implements AppWindowController {
   Future<bool> isMaximized() async => false;
 
   @override
-  Future<bool> isMinimized() async => false;
+  Future<bool> isMinimized() async => minimized;
 
   @override
   Future<void> maximize() async {}

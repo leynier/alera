@@ -299,15 +299,15 @@ class GeneralSettings with GeneralSettingsMappable {
     this.confirmProjectRemoval = true,
     this.confirmWorkspaceRemoval = true,
     this.keepAliveEnabled = false,
+    this.showTrayIcon = true,
+    this.showDockBadge = true,
   });
 
   /// User-configured root directory where new linked workspaces are created.
   /// `null` falls back to the platform default (`~/.alera/workspaces`).
   final String? workspaceDirectory;
 
-  /// Local flag set after the user has interacted with the GitHub star flow.
-  /// Used to mute the in-app nag; the Settings row state is still driven by
-  /// the live `gh` check.
+  /// Local flag after the GitHub star flow; Settings still uses the live `gh` check.
   final bool starClicked;
 
   /// Ask before unregistering a project and deleting its workspace metadata.
@@ -316,11 +316,14 @@ class GeneralSettings with GeneralSettingsMappable {
   /// Ask before removing a linked workspace and its Git worktree.
   final bool confirmWorkspaceRemoval;
 
-  /// Prevent idle sleep and display sleep while Alera is running.
-  ///
-  /// Lid-close and explicit sleep still follow the device power policy.
+  /// Prevent idle and display sleep while Alera is running.
   final bool keepAliveEnabled;
 
+  /// Tray icon. Close hides; Quit still exits.
+  final bool showTrayIcon;
+
+  /// Pending-review Dock / taskbar badge.
+  final bool showDockBadge;
   static const GeneralSettings defaults = GeneralSettings();
 
   factory GeneralSettings.fromJson(Map<String, Object?> json) =>

@@ -14,6 +14,8 @@ void main() {
           confirmProjectRemoval: false,
           confirmWorkspaceRemoval: false,
           keepAliveEnabled: true,
+          showTrayIcon: false,
+          showDockBadge: false,
         ),
         agents: AgentSettings(
           agentStatusHooks: AgentStatusHookSettings(
@@ -95,6 +97,8 @@ void main() {
       expect(restored.general.confirmProjectRemoval, isFalse);
       expect(restored.general.confirmWorkspaceRemoval, isFalse);
       expect(restored.general.keepAliveEnabled, isTrue);
+      expect(restored.general.showTrayIcon, isFalse);
+      expect(restored.general.showDockBadge, isFalse);
       expect(restored.agents.agentStatusHooks.codex, isTrue);
       expect(restored.agents.agentStatusHooks.claude, isTrue);
       expect(restored.agents.agentStatusHooks.copilot, isFalse);

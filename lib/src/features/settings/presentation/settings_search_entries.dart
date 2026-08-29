@@ -20,6 +20,34 @@ applicationSearchEntries = buildSettingsSearchEntryCatalog(const {
       keywords: <String>['safety', 'destructive', 'remove', 'delete'],
     ),
   },
+  'desktop': {
+    'Show Tray Icon': SettingsSearchEntryDetails(
+      description:
+          'Keep Alera in the menu extra, notification area, or Ubuntu status bar.',
+      keywords: <String>[
+        'tray',
+        'status bar',
+        'menu extra',
+        'notification area',
+        'appindicator',
+        'hide',
+        'close',
+      ],
+    ),
+    'Show Dock Badge': SettingsSearchEntryDetails(
+      description:
+          'Show how many agents are waiting for review on the Dock or taskbar.',
+      keywords: <String>[
+        'dock',
+        'taskbar',
+        'badge',
+        'count',
+        'attention',
+        'review',
+        'ubuntu',
+      ],
+    ),
+  },
   'runtime': {
     'Keep Computer Awake': SettingsSearchEntryDetails(
       description:
