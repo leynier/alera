@@ -1199,6 +1199,7 @@ impl AleraApp {
             sidebar_menu: None,
             sidebar_menu_position: gpui::point(px(70.0), px(116.0)),
             sidebar_dialog: None,
+            sidebar_storage_impact: None,
             sidebar_action_input,
             sidebar_tag_input,
             sidebar_parent_filter_input,

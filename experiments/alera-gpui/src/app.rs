@@ -313,6 +313,7 @@ pub struct AleraApp {
     sidebar_menu: Option<SidebarMenu>,
     sidebar_menu_position: Point<Pixels>,
     sidebar_dialog: Option<SidebarDialog>,
+    sidebar_storage_impact: Option<WorkspaceStorageImpact>,
     sidebar_action_input: Entity<InputState>,
     sidebar_tag_input: Entity<InputState>,
     sidebar_parent_filter_input: Entity<InputState>,

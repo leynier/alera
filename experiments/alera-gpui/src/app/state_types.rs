@@ -221,6 +221,18 @@ pub(super) struct SidebarDialog {
     pub(super) target_id: String,
 }
 
+#[derive(Clone, Debug)]
+pub(super) struct WorkspaceStorageImpact {
+    pub(super) workspace_id: String,
+    pub(super) path: String,
+    pub(super) size_bytes: u64,
+    pub(super) entry_count: u64,
+    pub(super) measured_at: String,
+    pub(super) last_activity_at: String,
+    pub(super) safe_to_clean: bool,
+    pub(super) blockers: Vec<String>,
+}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(super) enum ExplorerMenuTarget {
     Background,

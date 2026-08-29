@@ -1,3 +1,4 @@
+use chrono::{DateTime, Local};
 use gpui::{
     anchored, deferred, div, prelude::FluentBuilder as _, px, AnyElement, Context, CursorStyle,
     InteractiveElement as _, IntoElement, MouseButton, ParentElement as _, Pixels, Point, Role,
@@ -622,28 +623,78 @@ impl AleraApp {
                 true,
                 false,
             ),
-            SidebarDialogKind::RemoveWorkspace => (
-                "Remove Workspace?",
-                target_workspace
-                    .map(|workspace| {
-                        if workspace.reuses_existing_branch {
-                            format!("This Removes The Worktree For \"{}\".", workspace.name)
-                        } else if let Some(branch) =
-                            workspace.branch.as_deref().filter(|branch| !branch.is_empty())
-                        {
-                            format!(
-                                "This Removes The Worktree For \"{}\" And Deletes Branch \"{branch}\".",
-                                workspace.name
-                            )
-                        } else {
-                            format!("This Removes The Worktree For \"{}\".", workspace.name)
-                        }
-                    })
-                    .unwrap_or_else(|| "This Removes The Worktree.".to_string()),
-                "Remove",
-                true,
-                false,
-            ),
+            SidebarDialogKind::RemoveWorkspace => {
+                let impact = self.sidebar_storage_impact.as_ref();
+                if self.sidebar_action_busy && impact.is_none() {
+                    (
+                        "Inspecting Workspace Storage",
+                        "Measuring allocated entries and verifying runtime ownership, active work, path containment, and Git worktree identity.".to_string(),
+                        "Inspecting",
+                        false,
+                        false,
+                    )
+                } else if let Some(impact) = impact.filter(|impact| !impact.safe_to_clean) {
+                    (
+                        "Cleanup Unavailable",
+                        format!(
+                            "Alera measured {} across {} entries for workspace {}. Cleanup is blocked:\n\n{}",
+                            format_workspace_storage_bytes(impact.size_bytes),
+                            impact.entry_count,
+                            impact.workspace_id,
+                            impact
+                                .blockers
+                                .iter()
+                                .map(|blocker| format!("• {blocker}"))
+                                .collect::<Vec<_>>()
+                                .join("\n"),
+                        ),
+                        "Close",
+                        false,
+                        false,
+                    )
+                } else if let Some(impact) = impact {
+                    let removal = target_workspace
+                        .map(|workspace| {
+                            if workspace.reuses_existing_branch {
+                                format!("This removes the worktree for \"{}\".", workspace.name)
+                            } else if let Some(branch) = workspace
+                                .branch
+                                .as_deref()
+                                .filter(|branch| !branch.is_empty())
+                            {
+                                format!(
+                                    "This removes the worktree for \"{}\" and deletes branch \"{branch}\".",
+                                    workspace.name
+                                )
+                            } else {
+                                format!("This removes the worktree for \"{}\".", workspace.name)
+                            }
+                        })
+                        .unwrap_or_else(|| "This removes the worktree.".to_string());
+                    (
+                        "Clean Up Workspace?",
+                        format!(
+                            "Measured size: {} across {} entries.\nLast activity: {}.\nMeasured: {}.\nPath: {}.\n\n{removal}",
+                            format_workspace_storage_bytes(impact.size_bytes),
+                            impact.entry_count,
+                            format_workspace_storage_timestamp(&impact.last_activity_at),
+                            format_workspace_storage_timestamp(&impact.measured_at),
+                            impact.path,
+                        ),
+                        "Clean Up",
+                        true,
+                        false,
+                    )
+                } else {
+                    (
+                        "Cleanup Unavailable",
+                        "Alera could not verify workspace storage safety. Close this dialog and try again.".to_string(),
+                        "Close",
+                        false,
+                        false,
+                    )
+                }
+            }
         };
         let dialog_width = if matches!(
             dialog.kind,
@@ -836,6 +887,29 @@ impl AleraApp {
             })
             .into_any_element()
     }
+}
+
+fn format_workspace_storage_bytes(bytes: u64) -> String {
+    if bytes >= 1024 * 1024 * 1024 {
+        format!("{:.1} GB", bytes as f64 / (1024.0 * 1024.0 * 1024.0))
+    } else if bytes >= 1024 * 1024 {
+        format!("{:.1} MB", bytes as f64 / (1024.0 * 1024.0))
+    } else if bytes >= 1024 {
+        format!("{:.1} KB", bytes as f64 / 1024.0)
+    } else {
+        format!("{bytes} B")
+    }
+}
+
+fn format_workspace_storage_timestamp(value: &str) -> String {
+    DateTime::parse_from_rfc3339(value)
+        .map(|value| {
+            value
+                .with_timezone(&Local)
+                .format("%Y-%m-%d %H:%M")
+                .to_string()
+        })
+        .unwrap_or_else(|_| value.to_string())
 }
 
 fn workspace_parent_label(

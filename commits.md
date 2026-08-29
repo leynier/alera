@@ -324,11 +324,11 @@ commit so this file remains useful after context compaction.
 | 303 | `72a19aadf4b26acaf1168b8e1ba5f377cb07ce9f` | 2026-08-23 | fix: ignore browser visibility during page close (#461) | merged | Cherry-picked Flutter browser-session close handling; GPUI has no embedded browser-tab session surface in the defined current scope. |
 | 304 | `1287770ee5784716e02cf029df3d26c1da42009b` | 2026-08-23 | fix: preserve emulator dependencies during disposal (#462) | merged | Cherry-picked Flutter mobile-emulator lifecycle fix; GPUI has no emulator surface in the defined current scope. |
 | 305 | `95430c7a64b4f3d95ed10b333ca6d4804cd521e0` | 2026-08-23 | fix: retry ambiguous tab removal requests (#466) | merged | Cherry-picked idempotent host removal and added GPUI one-shot retry for timeout/connection-close ambiguity while preserving non-transport failures; targeted test passes. |
-| 306 | `9d5c152964ac88cea0b7a1c5e7ba67c49d498839` | 2026-08-23 | fix: preserve terminal attachment during replacement (#467) | pending | - |
-| 307 | `a7a79b31e0633842107d0f01599f0248bd1897e7` | 2026-08-23 | fix: harden mobile dictation lifecycle (#464) | pending | - |
-| 308 | `8a26061dea226d02f9037fea1f80c04f735bbbcf` | 2026-08-23 | fix: complete runtime sentry reporting (#468) | pending | - |
-| 309 | `ecae2c9233d5a9f79011291ad5856230cd6618a0` | 2026-08-23 | fix: contain windows pty process trees | pending | - |
-| 310 | `9b139418868093ea0fb6cdfc73bd629db364f7bf` | 2026-08-23 | feat: add safe workspace storage cleanup | pending | - |
+| 306 | `9d5c152964ac88cea0b7a1c5e7ba67c49d498839` | 2026-08-23 | fix: preserve terminal attachment during replacement (#467) | merged | Cherry-picked Flutter PTY leases; GPUI already keeps one root TerminalSession per sessionId and does not detach on view replacement. |
+| 307 | `a7a79b31e0633842107d0f01599f0248bd1897e7` | 2026-08-23 | fix: harden mobile dictation lifecycle (#464) | merged | Cherry-picked mobile-only dictation lifecycle fixes; GPUI desktop microphone gap remains separately tracked. |
+| 308 | `8a26061dea226d02f9037fea1f80c04f735bbbcf` | 2026-08-23 | fix: complete runtime sentry reporting (#468) | merged | Cherry-picked runtime/Flutter/mobile Sentry completion; GPUI already has local crash reporting and consumes the shared runtime status. |
+| 309 | `ecae2c9233d5a9f79011291ad5856230cd6618a0` | 2026-08-23 | fix: contain windows pty process trees | merged | Cherry-picked shared Windows PTY job containment; GPUI terminals use the same runtime host and need no client UI change. |
+| 310 | `9b139418868093ea0fb6cdfc73bd629db364f7bf` | 2026-08-23 | feat: add safe workspace storage cleanup | merged | Cherry-picked safe cleanup runtime and added GPUI measurement/loading, size/entry/activity/path impact, blocker dialog, active-workspace scope, safe confirmation, and guarded removal; targeted cargo check passes. |
 | 311 | `271ad10d19838c4e5db7638cfd464e2ee5c3b8ae` | 2026-08-23 | feat: add optimistic concurrency to agent profiles (#472) | pending | - |
 | 312 | `8bb20cc17a37e2c1e0002d85c107a698ea711603` | 2026-08-23 | feat(agent-profiles): gate removal on live references (#475) | pending | - |
 | 313 | `fd6152207250fddc719dba00f5f9da99a2f3a160` | 2026-08-23 | feat(agent-profiles): make launches durably idempotent | pending | - |

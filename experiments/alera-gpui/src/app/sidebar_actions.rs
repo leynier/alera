@@ -1,5 +1,5 @@
 use std::collections::BTreeSet;
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
 use gpui::{ClipboardItem, Context, Pixels, Point, Window};
 use serde_json::{json, Value};
@@ -368,9 +368,45 @@ impl AleraApp {
         });
         self.sidebar_tag_delete_armed = None;
         self.sidebar_parent_dropdown_open = false;
+        let storage_workspace_id = target_id.clone();
         self.sidebar_dialog = Some(SidebarDialog { kind, target_id });
         self.sidebar_menu = None;
         self.error = None;
+        self.sidebar_storage_impact = None;
+        if kind == SidebarDialogKind::RemoveWorkspace {
+            self.sidebar_action_busy = true;
+            let bridge = self.bridge.clone();
+            let active_workspace_id = self.selected_workspace_id.clone();
+            cx.spawn(async move |this, cx| {
+                let result = bridge
+                    .request_with_timeout(
+                        "workspace.storageImpact",
+                        json!({
+                            "id": storage_workspace_id,
+                            "activeWorkspaceId": active_workspace_id,
+                        }),
+                        Duration::from_secs(600),
+                    )
+                    .await
+                    .and_then(parse_workspace_storage_impact);
+                let Some(this) = this.upgrade() else {
+                    return;
+                };
+                this.update(cx, |this, cx| {
+                    this.sidebar_action_busy = false;
+                    match result {
+                        Ok(impact) => this.sidebar_storage_impact = Some(impact),
+                        Err(error) => {
+                            this.error = Some(
+                                format!("Could Not Inspect Workspace Storage: {error}").into(),
+                            );
+                        }
+                    }
+                    cx.notify();
+                });
+            })
+            .detach();
+        }
         cx.notify();
     }
 
@@ -379,6 +415,7 @@ impl AleraApp {
             return;
         }
         self.sidebar_dialog = None;
+        self.sidebar_storage_impact = None;
         self.sidebar_tag_delete_armed = None;
         self.sidebar_parent_dropdown_open = false;
         self.error = None;
@@ -392,6 +429,15 @@ impl AleraApp {
         let Some(dialog) = self.sidebar_dialog.clone() else {
             return;
         };
+        if dialog.kind == SidebarDialogKind::RemoveWorkspace
+            && self
+                .sidebar_storage_impact
+                .as_ref()
+                .is_none_or(|impact| !impact.safe_to_clean)
+        {
+            self.close_sidebar_dialog(cx);
+            return;
+        }
         let name = self
             .sidebar_action_input
             .read(cx)
@@ -454,7 +500,11 @@ impl AleraApp {
                     .is_some_and(|workspace| !workspace.reuses_existing_branch);
                 SidebarOperation::Request(
                     "workspace.removeManaged",
-                    json!({"id": dialog.target_id, "deleteBranch": delete_branch}),
+                    json!({
+                        "id": dialog.target_id,
+                        "deleteBranch": delete_branch,
+                        "activeWorkspaceId": self.selected_workspace_id.clone(),
+                    }),
                 )
             }
         };
@@ -474,6 +524,7 @@ impl AleraApp {
                 this.sidebar_action_busy = false;
                 match result {
                     Ok(_) => {
+                        this.sidebar_storage_impact = None;
                         let success_message = match dialog.kind {
                             SidebarDialogKind::RenameProject => "Project Renamed",
                             SidebarDialogKind::RemoveProject => "Project Removed",
@@ -776,6 +827,44 @@ impl AleraApp {
         })
         .detach();
     }
+}
+
+fn parse_workspace_storage_impact(
+    value: Value,
+) -> Result<super::WorkspaceStorageImpact, String> {
+    let string = |key: &str| {
+        value
+            .get(key)
+            .and_then(Value::as_str)
+            .map(str::to_owned)
+            .ok_or_else(|| format!("Storage Impact Omitted {key}"))
+    };
+    Ok(super::WorkspaceStorageImpact {
+        workspace_id: string("workspaceId")?,
+        path: string("path")?,
+        size_bytes: value
+            .get("sizeBytes")
+            .and_then(Value::as_u64)
+            .ok_or_else(|| "Storage Impact Omitted sizeBytes".to_string())?,
+        entry_count: value
+            .get("entryCount")
+            .and_then(Value::as_u64)
+            .ok_or_else(|| "Storage Impact Omitted entryCount".to_string())?,
+        measured_at: string("measuredAt")?,
+        last_activity_at: string("lastActivityAt")?,
+        safe_to_clean: value
+            .get("safeToClean")
+            .and_then(Value::as_bool)
+            .unwrap_or(false),
+        blockers: value
+            .get("blockers")
+            .and_then(Value::as_array)
+            .into_iter()
+            .flatten()
+            .filter_map(Value::as_str)
+            .map(str::to_owned)
+            .collect(),
+    })
 }
 
 fn repository_url(value: &Value) -> Option<&str> {
