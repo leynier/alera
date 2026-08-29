@@ -184,6 +184,7 @@ pub(super) fn adapter_label(adapter: &str) -> &'static str {
         "cursor" => "Cursor",
         "agy" => "Antigravity",
         "opencode" => "OpenCode",
+        "opencode2" => "OpenCode 2",
         "pi" => "Pi",
         "amp" => "Amp",
         _ => "Unknown",
@@ -196,7 +197,7 @@ pub(super) fn adapter_icon(adapter: &str) -> AgentIcon {
         "copilot" => AgentIcon::Copilot,
         "cursor" => AgentIcon::Cursor,
         "agy" => AgentIcon::Agy,
-        "opencode" => AgentIcon::OpenCode,
+        "opencode" | "opencode2" => AgentIcon::OpenCode,
         "pi" => AgentIcon::Pi,
         "amp" => AgentIcon::Amp,
         _ => AgentIcon::Codex,
@@ -211,6 +212,7 @@ pub(super) fn default_agent_command(adapter: &str) -> &'static str {
         "cursor" => "cursor-agent",
         "agy" => "agy",
         "opencode" => "opencode",
+        "opencode2" => "opencode2",
         "pi" => "pi",
         "amp" => "amp",
         _ => "codex",
@@ -294,6 +296,14 @@ pub(super) fn managed_command_preview(adapter: &str, config: &Map<String, Value>
         "opencode" => {
             push_string_option(&mut args, config, "model", "--model");
             push_string_option(&mut args, config, "agent", "--agent");
+            if config.get("autoApprove").and_then(Value::as_bool) == Some(true) {
+                args.push("--auto".to_owned());
+            }
+        }
+        "opencode2" => {
+            if config.get("autoApprove").and_then(Value::as_bool) == Some(true) {
+                args.push("--auto".to_owned());
+            }
         }
         "pi" => {
             push_string_option(&mut args, config, "model", "--model");
@@ -348,7 +358,7 @@ pub(super) fn managed_risk_markers(adapter: &str, config: &Map<String, Value>) -
             mark(enabled("trustWorkspace"), "trustWorkspace");
         }
         "agy" => mark(enabled("skipPermissions"), "skipPermissions"),
-        "opencode" => mark(enabled("autoApprove"), "autoApprove"),
+        "opencode" | "opencode2" => mark(enabled("autoApprove"), "autoApprove"),
         "pi" => mark(string_is("projectTrust", "approve"), "projectTrust"),
         _ => {}
     }
@@ -370,7 +380,7 @@ pub(super) fn managed_risk_warning(adapter: &str, config: &Map<String, Value>) -
         "copilot" => "This Profile Lets Copilot Take Broader Actions With Less Supervision.",
         "cursor" => "This Profile Reduces Cursor Review, Sandbox, Or Trust Protections.",
         "agy" => "This Profile Lets Antigravity Skip Permission Checks.",
-        "opencode" => "This Profile Lets OpenCode Approve Actions Automatically.",
+        "opencode" | "opencode2" => "This Profile Lets OpenCode Approve Actions Automatically.",
         "pi" => "This Profile Pre-Approves Project Trust For Pi.",
         _ => "",
     }

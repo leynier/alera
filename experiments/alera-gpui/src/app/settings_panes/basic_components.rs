@@ -323,6 +323,7 @@ fn quota_provider_label(provider: &str) -> SharedString {
         "kimi" => "Kimi".into(),
         "agy" => "AGY".into(),
         "opencode" => "OpenCode".into(),
+        "opencode2" => "OpenCode 2".into(),
         "pi" => "Pi".into(),
         "amp" => "Amp".into(),
         "grok" => "Grok".into(),

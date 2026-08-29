@@ -1004,6 +1004,7 @@ fn tab_agent_display_name(agent: &str) -> &'static str {
         "cursor" => "Cursor",
         "agy" | "antigravity" => "Antigravity",
         "opencode" => "OpenCode",
+        "opencode2" => "OpenCode 2",
         "pi" => "Pi",
         "amp" => "Amp",
         "grok" => "Grok Build",

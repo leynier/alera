@@ -123,7 +123,7 @@ impl AleraApp {
                     .get(adapter)
                     .cloned()
                     .unwrap_or_else(|| {
-                        if adapter == "opencode" {
+                        if adapter == "opencode" || adapter == "opencode2" {
                             vec!["build".to_owned()]
                         } else {
                             Vec::new()

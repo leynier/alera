@@ -5,6 +5,7 @@ pub(super) const ADAPTERS: &[(&str, &str)] = &[
     ("cursor", "Cursor"),
     ("agy", "Antigravity"),
     ("opencode", "OpenCode"),
+    ("opencode2", "OpenCode 2"),
     ("pi", "Pi"),
     ("amp", "Amp"),
 ];
@@ -328,7 +329,7 @@ pub(super) fn supports_model(adapter: &str) -> bool {
 }
 
 pub(super) fn supports_persona(adapter: &str) -> bool {
-    matches!(adapter, "claude" | "copilot" | "agy" | "opencode")
+    matches!(adapter, "claude" | "copilot" | "agy" | "opencode" | "opencode2")
 }
 
 pub(super) fn controls_for(adapter: &str) -> Vec<ManagedControl> {
@@ -418,6 +419,11 @@ pub(super) fn controls_for(adapter: &str) -> Vec<ManagedControl> {
             "autoApprove",
             "Auto Approve",
             "Approve OpenCode Actions Automatically.",
+        )],
+        "opencode2" => vec![flag(
+            "autoApprove",
+            "Auto Approve",
+            "Approve OpenCode 2 Actions Automatically.",
         )],
         "pi" => vec![
             choice("thinking", "Thinking", PI_THINKING),

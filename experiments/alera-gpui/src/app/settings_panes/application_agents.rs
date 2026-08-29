@@ -644,6 +644,13 @@ fn agents_pane(
                             cx,
                         ),
                         agent_hook_row(
+                            "opencode2",
+                            "OpenCode 2 Hooks",
+                            "Use an Alera-managed OpenCode 2 config overlay with status plugin.",
+                            settings,
+                            cx,
+                        ),
+                        agent_hook_row(
                             "pi",
                             "Pi Hooks",
                             "Use an Alera-managed Pi agent overlay with status extension.",

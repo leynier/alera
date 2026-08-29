@@ -148,7 +148,7 @@ impl AleraApp {
             .get(&adapter)
             .cloned()
             .unwrap_or_else(|| {
-                if adapter == "opencode" {
+                if adapter == "opencode" || adapter == "opencode2" {
                     vec!["build".to_owned()]
                 } else {
                     Vec::new()
@@ -282,7 +282,7 @@ impl AleraApp {
 }
 
 fn supports_persona_discovery(adapter: &str) -> bool {
-    matches!(adapter, "agy" | "opencode")
+    matches!(adapter, "agy" | "opencode" | "opencode2")
 }
 
 fn title_from_id(value: &str) -> String {
