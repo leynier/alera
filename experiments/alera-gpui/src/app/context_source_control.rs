@@ -221,6 +221,7 @@ impl AleraApp {
                             .relative()
                             .flex()
                             .items_center()
+                            .justify_end()
                             // Flutter places an 8 px SizedBox before the
                             // primary action after the commit field.
                             .mt(px(8.0))
@@ -237,10 +238,10 @@ impl AleraApp {
                                     .role(Role::Button)
                                     .aria_label(source_action_label(primary))
                                     .flex()
-                                    .flex_1()
                                     .items_center()
                                     .justify_center()
                                     .gap(px(6.0))
+                                    .px_3()
                                     // Keep the hover fill clipped to the
                                     // outer radius even when GPUI paints the
                                     // child background after the split
