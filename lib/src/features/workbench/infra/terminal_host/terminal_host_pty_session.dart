@@ -415,6 +415,7 @@ final class TerminalHostPtySession
     unawaited(_hostSub?.cancel());
     _hostSub = null;
     if (_lease?.release() ?? true) {
+      _client.releaseSession(_sessionId);
       unawaited(_client.detach(_sessionId).catchError((_) {}));
     }
     unawaited(_events.close());

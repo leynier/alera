@@ -45,6 +45,7 @@ final class FakeTerminalHostClient
   final List<(String, int, int)> resizes = <(String, int, int)>[];
   final List<(String, bool)> outputPaused = <(String, bool)>[];
   final List<String> detached = <String>[];
+  final List<String> released = <String>[];
   final List<String> terminated = <String>[];
   final List<String> restarted = <String>[];
   final List<String> reclaimed = <String>[];
@@ -86,7 +87,9 @@ final class FakeTerminalHostClient
   }
 
   @override
-  void releaseSession(String sessionId) {}
+  void releaseSession(String sessionId) {
+    released.add(sessionId);
+  }
 
   @override
   Future<void> configure(TerminalHostConfig config) async {}
