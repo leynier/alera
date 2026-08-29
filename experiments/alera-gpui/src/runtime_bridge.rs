@@ -1,5 +1,6 @@
 use std::path::{Path, PathBuf};
 use std::process::Stdio;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::thread;
 use std::time::Duration;
@@ -18,6 +19,7 @@ const HOST_STARTUP_POLL: Duration = Duration::from_millis(100);
 const RUNTIME_MUTATION_RETRY_DELAY: Duration = Duration::from_millis(50);
 const RUNTIME_MUTATION_IN_PROGRESS: &str =
     "A runtime mutation is in progress. Wait for it to finish and retry.";
+const APP_QUIT_IN_PROGRESS: &str = "Runtime bridge is closing for app quit.";
 
 #[derive(Clone, Debug)]
 pub struct RuntimeHostStartConfig {
@@ -41,6 +43,8 @@ pub enum BridgeEvent {
 pub struct RuntimeBridge {
     commands: Sender<BridgeCommand>,
     events: Arc<Receiver<BridgeEvent>>,
+    app_quit_in_progress: Arc<AtomicBool>,
+    quit_signal: Sender<()>,
 }
 
 enum BridgeCommand {
@@ -66,17 +70,20 @@ impl RuntimeBridge {
     pub fn start(runtime_dir: PathBuf) -> Self {
         let (command_tx, command_rx) = async_channel::unbounded();
         let (event_tx, event_rx) = async_channel::bounded(EVENT_CAPACITY);
+        let (quit_tx, quit_rx) = async_channel::bounded(1);
         thread::Builder::new()
             .name("alera-gpui-runtime".to_string())
             .spawn(move || {
                 let runtime = tokio::runtime::Runtime::new()
                     .expect("failed to create the GPUI runtime bridge");
-                runtime.block_on(run_bridge(runtime_dir, command_rx, event_tx));
+                runtime.block_on(run_bridge(runtime_dir, command_rx, event_tx, quit_rx));
             })
             .expect("failed to start the GPUI runtime bridge thread");
         Self {
             commands: command_tx,
             events: Arc::new(event_rx),
+            app_quit_in_progress: Arc::new(AtomicBool::new(false)),
+            quit_signal: quit_tx,
         }
     }
 
@@ -99,6 +106,9 @@ impl RuntimeBridge {
         payload: Value,
         deadline: Duration,
     ) -> Result<Value, String> {
+        if self.app_quit_in_progress.load(Ordering::Acquire) {
+            return Err(APP_QUIT_IN_PROGRESS.to_string());
+        }
         let (reply_tx, reply_rx) = async_channel::bounded(1);
         self.commands
             .send(BridgeCommand::Request {
@@ -120,6 +130,9 @@ impl RuntimeBridge {
         request_type: impl Into<String>,
         payload: Value,
     ) -> Result<(), String> {
+        if self.app_quit_in_progress.load(Ordering::Acquire) {
+            return Err(APP_QUIT_IN_PROGRESS.to_string());
+        }
         self.commands
             .try_send(BridgeCommand::OrderedRequest {
                 request_type: request_type.into(),
@@ -130,6 +143,9 @@ impl RuntimeBridge {
     }
 
     pub async fn start_host(&self, config: RuntimeHostStartConfig) -> Result<(), String> {
+        if self.app_quit_in_progress.load(Ordering::Acquire) {
+            return Err(APP_QUIT_IN_PROGRESS.to_string());
+        }
         let (reply_tx, reply_rx) = async_channel::bounded(1);
         self.commands
             .send(BridgeCommand::StartHost {
@@ -143,11 +159,20 @@ impl RuntimeBridge {
             .await
             .map_err(|_| "Runtime bridge closed before starting the host.".to_string())?
     }
+
+    pub fn begin_app_quit(&self) {
+        if self.app_quit_in_progress.swap(true, Ordering::AcqRel) {
+            return;
+        }
+        self.quit_signal.close();
+        let _ = self.commands.try_send(BridgeCommand::Close);
+    }
 }
 
 impl Drop for RuntimeBridge {
     fn drop(&mut self) {
         if self.commands.sender_count() == 1 {
+            self.quit_signal.close();
             let _ = self.commands.try_send(BridgeCommand::Close);
         }
     }
@@ -157,6 +182,7 @@ async fn run_bridge(
     runtime_dir: PathBuf,
     commands: Receiver<BridgeCommand>,
     events: Sender<BridgeEvent>,
+    quit_signal: Receiver<()>,
 ) {
     loop {
         let connection =
@@ -167,7 +193,7 @@ async fn run_bridge(
                 if events.send(BridgeEvent::Connected).await.is_err() {
                     return;
                 }
-                if !serve_connection(connection, &commands, &events).await {
+                if !serve_connection(connection, &commands, &events, &quit_signal).await {
                     return;
                 }
             }
@@ -176,7 +202,7 @@ async fn run_bridge(
                 if events.send(BridgeEvent::Unavailable).await.is_err() {
                     return;
                 }
-                if !wait_for_reconnect(&runtime_dir, &commands).await {
+                if !wait_for_reconnect(&runtime_dir, &commands, &quit_signal).await {
                     return;
                 }
             }
@@ -194,7 +220,7 @@ async fn run_bridge(
                 {
                     return;
                 }
-                if !wait_for_reconnect(&runtime_dir, &commands).await {
+                if !wait_for_reconnect(&runtime_dir, &commands, &quit_signal).await {
                     return;
                 }
             }
@@ -206,6 +232,7 @@ async fn serve_connection(
     mut connection: RuntimeClientConnection,
     commands: &Receiver<BridgeCommand>,
     events: &Sender<BridgeEvent>,
+    quit_signal: &Receiver<()>,
 ) -> bool {
     loop {
         tokio::select! {
@@ -223,6 +250,7 @@ async fn serve_connection(
                             payload,
                             deadline,
                             reply,
+                            quit_signal.clone(),
                         );
                     }
                     Ok(BridgeCommand::OrderedRequest {
@@ -283,29 +311,36 @@ fn dispatch_request(
     payload: Value,
     deadline: Duration,
     reply: Sender<Result<Value, String>>,
+    quit_signal: Receiver<()>,
 ) {
     tokio::spawn(async move {
         let request_label = request_type.clone();
         let started = tokio::time::Instant::now();
-        let result = loop {
-            let remaining = deadline.saturating_sub(started.elapsed());
-            if remaining.is_zero() {
-                break Err(format!("Runtime request {request_label} timed out."));
-            }
-            match handle
-                .request_with_timeout(request_type.clone(), &payload, remaining)
-                .await
-            {
-                Ok(value) => break Ok(value),
-                Err(error) if error.to_string() == RUNTIME_MUTATION_IN_PROGRESS => {
-                    let remaining = deadline.saturating_sub(started.elapsed());
-                    if remaining.is_zero() {
-                        break Err(format!("Runtime request {request_label} timed out."));
-                    }
-                    tokio::time::sleep(RUNTIME_MUTATION_RETRY_DELAY.min(remaining)).await;
+        let request = async {
+            loop {
+                let remaining = deadline.saturating_sub(started.elapsed());
+                if remaining.is_zero() {
+                    break Err(format!("Runtime request {request_label} timed out."));
                 }
-                Err(error) => break Err(error.to_string()),
+                match handle
+                    .request_with_timeout(request_type.clone(), &payload, remaining)
+                    .await
+                {
+                    Ok(value) => break Ok(value),
+                    Err(error) if error.to_string() == RUNTIME_MUTATION_IN_PROGRESS => {
+                        let remaining = deadline.saturating_sub(started.elapsed());
+                        if remaining.is_zero() {
+                            break Err(format!("Runtime request {request_label} timed out."));
+                        }
+                        tokio::time::sleep(RUNTIME_MUTATION_RETRY_DELAY.min(remaining)).await;
+                    }
+                    Err(error) => break Err(error.to_string()),
+                }
             }
+        };
+        let result = tokio::select! {
+            result = request => result,
+            _ = quit_signal.recv() => Err(APP_QUIT_IN_PROGRESS.to_string()),
         };
         if let Err(error) = result.as_ref() {
             crate::app_log::warning(
@@ -317,11 +352,16 @@ fn dispatch_request(
     });
 }
 
-async fn wait_for_reconnect(runtime_dir: &Path, commands: &Receiver<BridgeCommand>) -> bool {
+async fn wait_for_reconnect(
+    runtime_dir: &Path,
+    commands: &Receiver<BridgeCommand>,
+    quit_signal: &Receiver<()>,
+) -> bool {
     let reconnect_at = tokio::time::Instant::now() + RECONNECT_DELAY;
     loop {
         tokio::select! {
             _ = tokio::time::sleep_until(reconnect_at) => return true,
+            _ = quit_signal.recv() => return false,
             command = commands.recv() => {
                 match command {
                     Ok(BridgeCommand::Request { reply, .. }) => {
@@ -329,6 +369,10 @@ async fn wait_for_reconnect(runtime_dir: &Path, commands: &Receiver<BridgeComman
                     }
                     Ok(BridgeCommand::OrderedRequest { .. }) => {}
                     Ok(BridgeCommand::StartHost { config, reply }) => {
+                        if quit_signal.is_closed() {
+                            let _ = reply.send(Err(APP_QUIT_IN_PROGRESS.to_string())).await;
+                            return false;
+                        }
                         let result = spawn_runtime_host(runtime_dir, &config).await;
                         let started = result.is_ok();
                         let _ = reply.send(result).await;
@@ -355,6 +399,7 @@ mod tests {
             uuid::Uuid::new_v4()
         ));
         let (commands, command_rx) = async_channel::unbounded();
+        let (_quit, quit_rx) = async_channel::bounded(1);
         let (reply, reply_rx) = async_channel::bounded(1);
         commands
             .send(BridgeCommand::Request {
@@ -368,7 +413,7 @@ mod tests {
 
         let result = tokio::time::timeout(
             Duration::from_millis(100),
-            wait_for_reconnect(&runtime_dir, &command_rx),
+            wait_for_reconnect(&runtime_dir, &command_rx, &quit_rx),
         )
         .await;
 
@@ -379,6 +424,21 @@ mod tests {
         assert_eq!(
             reply_rx.recv().await.expect("unavailable reply"),
             Err("Alera Runtime Is Unavailable.".to_string())
+        );
+    }
+
+    #[tokio::test]
+    async fn app_quit_rejects_new_requests_without_waiting_for_a_timeout() {
+        let bridge = RuntimeBridge::start(std::env::temp_dir().join(format!(
+            "alera-runtime-bridge-quit-{}",
+            uuid::Uuid::new_v4()
+        )));
+
+        bridge.begin_app_quit();
+
+        assert_eq!(
+            bridge.request("status.get", Value::Null).await,
+            Err(APP_QUIT_IN_PROGRESS.to_string())
         );
     }
 }

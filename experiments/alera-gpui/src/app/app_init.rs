@@ -962,6 +962,14 @@ impl AleraApp {
                 },
             ),
         ];
+        let quit_bridge = bridge.clone();
+        subscriptions.push(cx.on_app_quit(move |_, _| {
+            let bridge = quit_bridge.clone();
+            async move {
+                let _ = alera_native::api::keep_alive::set_keep_alive(false);
+                bridge.begin_app_quit();
+            }
+        }));
         let tab_navigation_interceptor = cx.listener(|this, event, window, cx| {
             this.intercept_tab_navigation_keystroke(event, window, cx);
         });
