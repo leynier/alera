@@ -1,3 +1,4 @@
+use std::collections::BTreeMap;
 use std::path::Path;
 
 use alera_core::child_process::windowless_command;
@@ -6,7 +7,8 @@ use serde_json::Value;
 #[allow(unused_imports)]
 pub use crate::forge_api::{
     ForgeAction, ForgeAuthStatus, ForgeCheck, ForgeComment, ForgeIdentity, ForgeReview,
-    ForgeService, ForgeSnapshot, ForgeUnavailableReason, MergeMethod,
+    ForgeService, ForgeSnapshot, ForgeStack, ForgeStackAction, ForgeStackEntry,
+    ForgeUnavailableReason, MergeMethod,
 };
 
 const REVIEW_FIELDS: &str =
@@ -38,6 +40,8 @@ pub(crate) fn load_snapshot(
             suggested_review: None,
             checks: Vec::new(),
             comments: Vec::new(),
+            stack: None,
+            stack_error: None,
         });
     }
     let detected_review = if let Some(number) = review_number {
@@ -82,13 +86,20 @@ pub(crate) fn load_snapshot(
     } else {
         (detected_review, None)
     };
-    let (checks, comments) = if let Some(review) = &review {
+    let (checks, comments, stack, stack_error) = if let Some(review) = &review {
+        let stack_result = load_stack_for_review(&identity.repo_slug, review.number);
+        let (stack, stack_error) = match stack_result {
+            Ok(stack) => (stack, None),
+            Err(error) => (None, Some(error)),
+        };
         (
             load_checks(&identity.repo_slug, review.number)?,
             load_comments(&identity.repo_slug, review.number)?,
+            stack,
+            stack_error,
         )
     } else {
-        (Vec::new(), Vec::new())
+        (Vec::new(), Vec::new(), None, None)
     };
     Ok(ForgeSnapshot {
         provider: "GitHub".to_string(),
@@ -103,6 +114,8 @@ pub(crate) fn load_snapshot(
         suggested_review,
         checks,
         comments,
+        stack,
+        stack_error,
     })
 }
 
@@ -176,6 +189,265 @@ fn load_comments(repo_slug: &str, number: u64) -> Result<Vec<ForgeComment>, Stri
     comments.extend(load_review_thread_comments(repo_slug, number)?);
     comments.sort_by(|left, right| left.created_at.cmp(&right.created_at));
     Ok(comments)
+}
+
+fn load_stack_for_review(repo_slug: &str, review_number: u64) -> Result<Option<ForgeStack>, String> {
+    let Some(value) = run_gh_optional_json(vec![
+        "api".into(),
+        format!("repos/{repo_slug}/stacks?pull_request={review_number}"),
+    ])? else {
+        return Ok(None);
+    };
+    let Some(stack_number) = value
+        .as_array()
+        .and_then(|items| items.first())
+        .and_then(|item| item.get("number"))
+        .and_then(Value::as_u64)
+    else {
+        return Ok(None);
+    };
+    load_stack_by_number(repo_slug, stack_number)
+}
+
+fn load_stack_by_number(repo_slug: &str, stack_number: u64) -> Result<Option<ForgeStack>, String> {
+    run_gh_optional_json(vec![
+        "api".into(),
+        format!("repos/{repo_slug}/stacks/{stack_number}"),
+    ])?
+    .map(|value| parse_stack(&value))
+    .transpose()
+}
+
+fn parse_stack(value: &Value) -> Result<ForgeStack, String> {
+    let number = value
+        .get("number")
+        .and_then(Value::as_u64)
+        .ok_or_else(|| "GitHub stack omitted its number.".to_string())?;
+    let base_branch = value
+        .pointer("/base/ref")
+        .and_then(Value::as_str)
+        .unwrap_or_default()
+        .to_string();
+    let entries = value
+        .get("pull_requests")
+        .and_then(Value::as_array)
+        .into_iter()
+        .flatten()
+        .enumerate()
+        .map(|(index, review)| {
+            Ok(ForgeStackEntry {
+                review: parse_stack_review(review)?,
+                position: index + 1,
+            })
+        })
+        .collect::<Result<Vec<_>, String>>()?;
+    Ok(ForgeStack {
+        number,
+        base_branch,
+        open: value.get("open").and_then(Value::as_bool).unwrap_or(false),
+        entries,
+    })
+}
+
+fn parse_stack_review(value: &Value) -> Result<ForgeReview, String> {
+    let number = value
+        .get("number")
+        .and_then(Value::as_u64)
+        .ok_or_else(|| "GitHub stack pull request omitted its number.".to_string())?;
+    let draft = value.get("draft").and_then(Value::as_bool).unwrap_or(false);
+    let merged = value
+        .get("merged_at")
+        .and_then(Value::as_str)
+        .is_some_and(|value| !value.trim().is_empty());
+    let state = if merged {
+        "MERGED"
+    } else if draft {
+        "DRAFT"
+    } else {
+        value
+            .get("state")
+            .and_then(Value::as_str)
+            .unwrap_or("OPEN")
+    };
+    Ok(ForgeReview {
+        number,
+        title: string(value, "title"),
+        body: String::new(),
+        state: state.to_string(),
+        url: optional_string(value, "html_url").unwrap_or_default(),
+        draft,
+        mergeable: String::new(),
+        head_branch: value
+            .pointer("/head/ref")
+            .and_then(Value::as_str)
+            .unwrap_or_default()
+            .to_string(),
+        base_branch: value
+            .pointer("/base/ref")
+            .and_then(Value::as_str)
+            .unwrap_or_default()
+            .to_string(),
+        author: value
+            .pointer("/user/login")
+            .and_then(Value::as_str)
+            .unwrap_or("Unknown")
+            .to_string(),
+    })
+}
+
+pub(crate) fn run_stack_action(
+    workspace_path: String,
+    identity: ForgeIdentity,
+    action: ForgeStackAction,
+) -> Result<String, String> {
+    match action {
+        ForgeStackAction::Link {
+            review_numbers,
+            stack_number,
+            base,
+        } => link_stack(
+            &workspace_path,
+            review_numbers,
+            stack_number,
+            base.as_deref(),
+        ),
+        ForgeStackAction::LinkBranches {
+            branches,
+            stack_number,
+            base,
+        } => {
+            let branches = order_stack_branches(&workspace_path, branches)?;
+            let mut review_numbers = Vec::new();
+            for branch in branches {
+                let value = run_gh_json_in(
+                    &workspace_path,
+                    vec![
+                        "pr".into(),
+                        "list".into(),
+                        "--repo".into(),
+                        identity.repo_slug.clone(),
+                        "--head".into(),
+                        branch.clone(),
+                        "--state".into(),
+                        "open".into(),
+                        "--limit".into(),
+                        "1".into(),
+                        "--json".into(),
+                        "number".into(),
+                    ],
+                )?;
+                let number = value
+                    .as_array()
+                    .and_then(|items| items.first())
+                    .and_then(|item| item.get("number"))
+                    .and_then(Value::as_u64)
+                    .ok_or_else(|| format!("No open Pull Request was found for {branch}."))?;
+                if !review_numbers.contains(&number) {
+                    review_numbers.push(number);
+                }
+            }
+            link_stack(
+                &workspace_path,
+                review_numbers,
+                stack_number,
+                base.as_deref(),
+            )
+        }
+        ForgeStackAction::Merge {
+            review_number,
+            method,
+        } => {
+            let merge_method = match method {
+                MergeMethod::Merge => "merge",
+                MergeMethod::Squash => "squash",
+                MergeMethod::Rebase => "rebase",
+            };
+            run_gh_stack(
+                &workspace_path,
+                vec![
+                    "stack".into(),
+                    "merge".into(),
+                    review_number.to_string(),
+                    "--yes".into(),
+                    "--merge-method".into(),
+                    merge_method.into(),
+                ],
+            )?;
+            Ok("Pull Request Stack Merged".to_string())
+        }
+    }
+}
+
+fn order_stack_branches(workspace_path: &str, branches: Vec<String>) -> Result<Vec<String>, String> {
+    order_stack_branches_with(branches, |ancestor, descendant| {
+        alera_core::git::is_ancestor(workspace_path, ancestor, descendant)
+        .map_err(|error| error.context)
+    })
+}
+
+fn order_stack_branches_with(
+    mut branches: Vec<String>,
+    is_ancestor: impl Fn(&str, &str) -> Result<bool, String>,
+) -> Result<Vec<String>, String> {
+    branches.retain(|branch| !branch.trim().is_empty());
+    branches.sort();
+    branches.dedup();
+    let mut ranks = BTreeMap::new();
+    for branch in &branches {
+        ranks.insert(branch.clone(), 0usize);
+    }
+    for left_index in 0..branches.len() {
+        for right_index in (left_index + 1)..branches.len() {
+            let left = &branches[left_index];
+            let right = &branches[right_index];
+            if is_ancestor(left, right)? {
+                *ranks.get_mut(right).expect("known branch") += 1;
+            } else if is_ancestor(right, left)? {
+                *ranks.get_mut(left).expect("known branch") += 1;
+            } else {
+                return Err(format!(
+                    "Workspace Branches {left} And {right} Are Not In One Git Ancestry Chain."
+                ));
+            }
+        }
+    }
+    branches.sort_by_key(|branch| ranks.get(branch).copied().unwrap_or_default());
+    Ok(branches)
+}
+
+fn link_stack(
+    workspace_path: &str,
+    review_numbers: Vec<u64>,
+    stack_number: Option<u64>,
+    base: Option<&str>,
+) -> Result<String, String> {
+    let mut normalized = Vec::new();
+    for number in review_numbers.into_iter().filter(|number| *number > 0) {
+        if !normalized.contains(&number) {
+            normalized.push(number);
+        }
+    }
+    if stack_number.is_none() && normalized.len() < 2 {
+        return Err("A New Stack Requires At Least Two Pull Requests.".to_string());
+    }
+    if stack_number.is_some() && normalized.is_empty() {
+        return Err("Choose At Least One Pull Request To Add To The Stack.".to_string());
+    }
+    let mut arguments = vec!["stack".to_string(), "link".to_string()];
+    if let Some(number) = stack_number {
+        arguments.push(number.to_string());
+    }
+    arguments.extend(normalized.into_iter().map(|number| number.to_string()));
+    if let Some(base) = base.map(str::trim).filter(|base| !base.is_empty()) {
+        arguments.extend(["--base".to_string(), base.to_string()]);
+    }
+    run_gh_stack(workspace_path, arguments)?;
+    Ok(if stack_number.is_some() {
+        "Pull Requests Added To Stack"
+    } else {
+        "Pull Request Stack Created"
+    }
+    .to_string())
 }
 
 fn load_rest_comments(
@@ -492,6 +764,71 @@ fn run_gh_json(arguments: Vec<String>, allow_nonzero: bool) -> Result<Value, Str
     serde_json::from_str(output.trim()).map_err(|error| format!("Unexpected gh JSON: {error}"))
 }
 
+fn run_gh_optional_json(arguments: Vec<String>) -> Result<Option<Value>, String> {
+    let result = windowless_command("gh")
+        .args(arguments)
+        .output()
+        .map_err(|error| format!("Failed to run gh: {error}"))?;
+    let stdout = String::from_utf8_lossy(&result.stdout).into_owned();
+    let stderr = String::from_utf8_lossy(&result.stderr).into_owned();
+    if !result.status.success() {
+        let output = format!("{stdout}\n{stderr}").to_ascii_lowercase();
+        if output.contains("http 404")
+            || output.contains("status: 404")
+            || output.contains("not found")
+        {
+            return Ok(None);
+        }
+        return Err(if stderr.trim().is_empty() {
+            format!("gh exited with code {}.", result.status.code().unwrap_or(-1))
+        } else {
+            stderr.trim().to_string()
+        });
+    }
+    serde_json::from_str(stdout.trim())
+        .map(Some)
+        .map_err(|error| format!("Unexpected gh JSON: {error}"))
+}
+
+fn run_gh_json_in(workspace_path: &str, arguments: Vec<String>) -> Result<Value, String> {
+    let output = run_gh_in(workspace_path, arguments)?;
+    serde_json::from_str(output.trim()).map_err(|error| format!("Unexpected gh JSON: {error}"))
+}
+
+fn run_gh_in(workspace_path: &str, arguments: Vec<String>) -> Result<String, String> {
+    let result = windowless_command("gh")
+        .current_dir(workspace_path)
+        .args(arguments)
+        .output()
+        .map_err(|error| format!("Failed to run gh: {error}"))?;
+    let stdout = String::from_utf8_lossy(&result.stdout).into_owned();
+    let stderr = String::from_utf8_lossy(&result.stderr).into_owned();
+    if result.status.success() {
+        return Ok(stdout);
+    }
+    Err(if stderr.trim().is_empty() {
+        format!("gh exited with code {}.", result.status.code().unwrap_or(-1))
+    } else {
+        stderr.trim().to_string()
+    })
+}
+
+fn run_gh_stack(workspace_path: &str, arguments: Vec<String>) -> Result<(), String> {
+    run_gh_in(workspace_path, arguments).map(|_| ()).map_err(|error| {
+        let normalized = error.to_ascii_lowercase();
+        if normalized.contains("unknown command \"stack\"")
+            || normalized.contains("unknown command 'stack'")
+            || normalized.contains("is not a gh command")
+            || normalized.contains("extension stack not found")
+        {
+            "The gh-stack Extension Is Required. Run `gh extension install github/gh-stack`."
+                .to_string()
+        } else {
+            error
+        }
+    })
+}
+
 fn run_gh(arguments: Vec<String>, allow_nonzero: bool) -> Result<String, String> {
     let result = windowless_command("gh")
         .args(arguments)
@@ -598,7 +935,11 @@ fn optional_string(value: &Value, key: &str) -> Option<String> {
 
 #[cfg(test)]
 mod tests {
-    use super::{github_identity, split_remote, suggested_base_branch};
+    use super::{
+        github_identity, order_stack_branches_with, parse_stack, split_remote,
+        suggested_base_branch,
+    };
+    use serde_json::json;
 
     #[test]
     fn parses_https_and_scp_github_remotes() {
@@ -644,5 +985,65 @@ mod tests {
             identity.base_branches,
             vec!["feature".to_string(), "main".to_string()]
         );
+    }
+
+    #[test]
+    fn maps_github_stack_layers_from_bottom_to_top() {
+        let stack = parse_stack(&json!({
+            "number": 9,
+            "open": true,
+            "base": {"ref": "main"},
+            "pull_requests": [
+                {
+                    "number": 12,
+                    "title": "Base Layer",
+                    "state": "open",
+                    "draft": false,
+                    "html_url": "https://github.com/owner/repo/pull/12",
+                    "head": {"ref": "feature/base"},
+                    "base": {"ref": "main"},
+                    "user": {"login": "leynier"}
+                },
+                {
+                    "number": 13,
+                    "title": "Top Layer",
+                    "state": "open",
+                    "draft": true,
+                    "html_url": "https://github.com/owner/repo/pull/13",
+                    "head": {"ref": "feature/top"},
+                    "base": {"ref": "feature/base"},
+                    "user": {"login": "leynier"}
+                }
+            ]
+        }))
+        .expect("valid stack");
+
+        assert_eq!(stack.number, 9);
+        assert_eq!(stack.base_branch, "main");
+        assert_eq!(stack.entries[0].position, 1);
+        assert_eq!(stack.entries[0].review.number, 12);
+        assert_eq!(stack.entries[1].position, 2);
+        assert!(stack.entries[1].review.draft);
+    }
+
+    #[test]
+    fn orders_workspace_branches_by_git_ancestry() {
+        let ordered = order_stack_branches_with(
+            vec!["top".into(), "base".into(), "middle".into()],
+            |ancestor, descendant| {
+                Ok(matches!(
+                    (ancestor, descendant),
+                    ("base", "middle") | ("base", "top") | ("middle", "top")
+                ))
+            },
+        )
+        .expect("linear stack");
+        assert_eq!(ordered, ["base", "middle", "top"]);
+
+        assert!(order_stack_branches_with(
+            vec!["left".into(), "right".into()],
+            |_, _| Ok(false),
+        )
+        .is_err());
     }
 }

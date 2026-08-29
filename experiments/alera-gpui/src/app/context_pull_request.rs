@@ -200,6 +200,7 @@ impl AleraApp {
                             ),
                         )
                     })
+                    .child(self.render_pull_request_stack_section(cx))
                     .child(self.render_pull_request_checks(cx))
                     .child(self.render_pull_request_comments(window, cx)),
             )

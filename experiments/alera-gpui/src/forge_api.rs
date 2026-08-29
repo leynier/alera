@@ -23,6 +23,12 @@ enum Command {
         action: ForgeAction,
         reply: Sender<Result<String, String>>,
     },
+    StackAction {
+        workspace_path: String,
+        identity: ForgeIdentity,
+        action: ForgeStackAction,
+        reply: Sender<Result<String, String>>,
+    },
     Close,
 }
 
@@ -56,6 +62,8 @@ pub struct ForgeSnapshot {
     pub suggested_review: Option<ForgeReview>,
     pub checks: Vec<ForgeCheck>,
     pub comments: Vec<ForgeComment>,
+    pub stack: Option<ForgeStack>,
+    pub stack_error: Option<String>,
 }
 
 #[derive(Clone, Debug)]
@@ -78,6 +86,20 @@ pub struct ForgeReview {
     pub head_branch: String,
     pub base_branch: String,
     pub author: String,
+}
+
+#[derive(Clone, Debug)]
+pub struct ForgeStack {
+    pub number: u64,
+    pub base_branch: String,
+    pub open: bool,
+    pub entries: Vec<ForgeStackEntry>,
+}
+
+#[derive(Clone, Debug)]
+pub struct ForgeStackEntry {
+    pub review: ForgeReview,
+    pub position: usize,
 }
 
 #[derive(Clone, Debug)]
@@ -151,6 +173,24 @@ pub enum ForgeAction {
     },
 }
 
+#[derive(Clone, Debug)]
+pub enum ForgeStackAction {
+    Link {
+        review_numbers: Vec<u64>,
+        stack_number: Option<u64>,
+        base: Option<String>,
+    },
+    LinkBranches {
+        branches: Vec<String>,
+        stack_number: Option<u64>,
+        base: Option<String>,
+    },
+    Merge {
+        review_number: u64,
+        method: MergeMethod,
+    },
+}
+
 #[derive(Clone, Copy, Debug)]
 pub enum MergeMethod {
     Merge,
@@ -192,6 +232,21 @@ impl ForgeService {
         action: ForgeAction,
     ) -> Result<String, String> {
         request(&self.commands, |reply| Command::Action {
+            workspace_path,
+            identity,
+            action,
+            reply,
+        })
+        .await
+    }
+
+    pub async fn stack_action(
+        &self,
+        workspace_path: String,
+        identity: ForgeIdentity,
+        action: ForgeStackAction,
+    ) -> Result<String, String> {
+        request(&self.commands, |reply| Command::StackAction {
             workspace_path,
             identity,
             action,
@@ -248,6 +303,18 @@ fn run(commands: Receiver<Command>) {
                 reply,
             } => {
                 let _ = reply.send_blocking(crate::forge_service::run_action(
+                    workspace_path,
+                    identity,
+                    action,
+                ));
+            }
+            Command::StackAction {
+                workspace_path,
+                identity,
+                action,
+                reply,
+            } => {
+                let _ = reply.send_blocking(crate::forge_service::run_stack_action(
                     workspace_path,
                     identity,
                     action,

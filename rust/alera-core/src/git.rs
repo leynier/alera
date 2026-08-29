@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use std::fmt;
 use std::path::Path;
 
@@ -94,6 +95,95 @@ pub fn branch_exists(repo_path: &str, branch: &str) -> Result<bool, GitError> {
         Err(error) => Err(GitError::from_git2(error)),
     };
     result
+}
+
+pub fn is_ancestor(
+    repo_path: &str,
+    ancestor_ref: &str,
+    descendant_ref: &str,
+) -> Result<bool, GitError> {
+    let repo = open_repo(repo_path)?;
+    let ancestor_oid = resolve_comparison_ref_oid(&repo, ancestor_ref, "ancestor")?;
+    let descendant_oid = resolve_comparison_ref_oid(&repo, descendant_ref, "descendant")?;
+    if ancestor_oid == descendant_oid {
+        return Ok(true);
+    }
+    repo.graph_descendant_of(descendant_oid, ancestor_oid)
+        .map_err(GitError::from_git2)
+}
+
+fn resolve_comparison_ref_oid(
+    repo: &Repository,
+    raw_name: &str,
+    role: &str,
+) -> Result<git2::Oid, GitError> {
+    let name = raw_name.trim();
+    if name.is_empty() || name.starts_with('-') {
+        return Err(GitError::new(
+            GitErrorKind::InvalidBranchName,
+            format!("{role} ref is invalid"),
+        ));
+    }
+    let candidates = if name.starts_with("refs/") {
+        vec![name.to_string()]
+    } else {
+        vec![
+            format!("refs/heads/{name}"),
+            format!("refs/remotes/origin/{name}"),
+        ]
+    };
+    for candidate in candidates {
+        match repo.revparse_single(&candidate) {
+            Ok(object) => {
+                return object
+                    .peel_to_commit()
+                    .map(|commit| commit.id())
+                    .map_err(GitError::from_git2);
+            }
+            Err(error) if matches!(error.code(), ErrorCode::NotFound | ErrorCode::InvalidSpec) => {}
+            Err(error) => return Err(GitError::from_git2(error)),
+        }
+    }
+    let mut remote_matches = HashSet::new();
+    for branch_result in repo
+        .branches(Some(BranchType::Remote))
+        .map_err(GitError::from_git2)?
+    {
+        let (branch, _) = branch_result.map_err(GitError::from_git2)?;
+        let Some(branch_name) = branch.name().map_err(GitError::from_git2)? else {
+            continue;
+        };
+        let Some((_, short_name)) = branch_name.split_once('/') else {
+            continue;
+        };
+        if short_name == name {
+            remote_matches.insert(
+                branch
+                    .get()
+                    .peel_to_commit()
+                    .map_err(GitError::from_git2)?
+                    .id(),
+            );
+        }
+    }
+    if remote_matches.len() == 1 {
+        return Ok(*remote_matches.iter().next().expect("one remote match"));
+    }
+    if remote_matches.len() > 1 {
+        return Err(GitError::new(
+            GitErrorKind::BranchNotFound,
+            format!("{role} ref '{name}' is ambiguous across remotes"),
+        ));
+    }
+    repo.revparse_single(name)
+        .and_then(|object| object.peel_to_commit())
+        .map(|commit| commit.id())
+        .map_err(|_| {
+            GitError::new(
+                GitErrorKind::BranchNotFound,
+                format!("{role} ref '{name}' was not found"),
+            )
+        })
 }
 
 pub fn is_valid_branch_name(name: &str) -> Result<bool, GitError> {

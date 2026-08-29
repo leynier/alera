@@ -50,6 +50,8 @@ mod explorer_actions;
 mod explorer_dialog;
 mod explorer_menu;
 mod forge_actions;
+mod forge_stack;
+mod forge_stack_render;
 mod forge_surface;
 mod git_diff_surface;
 mod git_diff_tab_actions;
@@ -586,6 +588,9 @@ pub struct AleraApp {
     forge_review_action_menu_open: bool,
     forge_review_confirmation: Option<context_pull_request_review_actions::PullRequestConfirmation>,
     forge_review_editing: bool,
+    forge_stack_editing: bool,
+    forge_stack_workspace_editing: bool,
+    forge_stack_selected_workspace_ids: BTreeSet<String>,
     forge_review_base_menu_open: bool,
     forge_comment_composing: bool,
     forge_expanded_checks: BTreeSet<String>,

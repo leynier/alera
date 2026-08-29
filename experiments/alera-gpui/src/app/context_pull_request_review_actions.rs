@@ -90,27 +90,15 @@ impl AleraApp {
         };
         let number = confirmation.number;
         match confirmation.action {
-            PullRequestReviewAction::Merge => self.run_forge_action(
-                ForgeAction::Merge {
-                    number,
-                    method: MergeMethod::Merge,
-                },
-                cx,
-            ),
-            PullRequestReviewAction::Squash => self.run_forge_action(
-                ForgeAction::Merge {
-                    number,
-                    method: MergeMethod::Squash,
-                },
-                cx,
-            ),
-            PullRequestReviewAction::Rebase => self.run_forge_action(
-                ForgeAction::Merge {
-                    number,
-                    method: MergeMethod::Rebase,
-                },
-                cx,
-            ),
+            PullRequestReviewAction::Merge => {
+                self.run_pull_request_merge(number, MergeMethod::Merge, cx)
+            }
+            PullRequestReviewAction::Squash => {
+                self.run_pull_request_merge(number, MergeMethod::Squash, cx)
+            }
+            PullRequestReviewAction::Rebase => {
+                self.run_pull_request_merge(number, MergeMethod::Rebase, cx)
+            }
             PullRequestReviewAction::MarkReady => self.run_forge_action(
                 ForgeAction::SetDraft {
                     number,
@@ -129,6 +117,19 @@ impl AleraApp {
                 self.run_forge_action(ForgeAction::Close { number }, cx)
             }
             PullRequestReviewAction::Unlink => self.unlink_pull_request(number, cx),
+        }
+    }
+
+    fn run_pull_request_merge(
+        &mut self,
+        number: u64,
+        method: MergeMethod,
+        cx: &mut Context<Self>,
+    ) {
+        if self.forge_snapshot.stack.is_some() {
+            self.merge_forge_stack(number, method, cx);
+        } else {
+            self.run_forge_action(ForgeAction::Merge { number, method }, cx);
         }
     }
 
@@ -201,7 +202,14 @@ impl AleraApp {
             PullRequestReviewAction::Merge
             | PullRequestReviewAction::Squash
             | PullRequestReviewAction::Rebase => {
-                format!("This Will Update The Pull Request On {provider}.")
+                if let Some(stack) = self.forge_snapshot.stack.as_ref() {
+                    format!(
+                        "This Will Merge Stack #{} Through Pull Request #{} On {provider}.",
+                        stack.number, confirmation.number
+                    )
+                } else {
+                    format!("This Will Update The Pull Request On {provider}.")
+                }
             }
         };
         div()
