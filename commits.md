@@ -225,7 +225,7 @@ commit so this file remains useful after context compaction.
 | 204 | `3d93ff8a6ed9d9c405d937a5520a6fdc5b6b6676` | 2026-08-11 | fix: tolerate stale terminal reclaim requests | merged | Cherry-picked runtime terminal reclaim idempotency; GPUI relies on the shared host protocol and needed no separate UI change. |
 | 205 | `7b5d2f1d98c4cf095e0ea436c183086b2e655ce5` | 2026-08-11 | fix: harden app window shutdown ordering | merged | Cherry-picked Flutter window shutdown ordering and tests; GPUI owns native window lifecycle separately and needed no shared UI change. |
 | 206 | `593f4564acabf0fc953a4d8c693738d7e4dcad63` | 2026-08-11 | fix: target codex for global skill installs (#394) | merged | Cherry-picked global skill install targeting; Codex Chat remains disabled in GPUI, so no GPUI UI change. |
-| 207 | `3ea98f63eb42cf98bb89088e2955a698908f97f7` | 2026-08-11 | Merge pull request #399 from leynier/fix/sentry-desktop-d-dictation-dispose | in progress | Replaying the disposal-fix merge after its individual source commits; no GPUI UI surface is affected. |
+| 207 | `3ea98f63eb42cf98bb89088e2955a698908f97f7` | 2026-08-11 | Merge pull request #399 from leynier/fix/sentry-desktop-d-dictation-dispose | merged | Replayed the disposal-fix merge as an empty reconciliation because its individual source commits were already incorporated; no GPUI UI surface is affected. |
 | 208 | `75241085432cb477064dbe510c15537fe22cf994` | 2026-08-11 | fix: recover unreachable mobile hosts | pending | - |
 | 209 | `0a5d04bce7c1deac05a94d5891882f6fd835c84f` | 2026-08-11 | fix: acknowledge tab removal before codex cleanup | pending | - |
 | 210 | `7f3024bf7bd1b54543afe3f71c8d2887884c3578` | 2026-08-12 | fix: preserve pending close warnings | pending | - |
