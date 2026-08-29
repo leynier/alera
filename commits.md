@@ -117,7 +117,7 @@ commit so this file remains useful after context compaction.
 | 96 | `30f6d943dff5ff707853b1c7125d718f54b51afc` | 2026-08-05 | fix: address follow-up ci failures | merged | Cherry-picked the mobile fixture null-field cleanup and max-lines baseline update; no GPUI behavior was expected. |
 | 97 | `8d9d2f7fdcee6b328bc7a1bffe26b67494455750` | 2026-08-05 | Merge pull request #363 from rmarticedeno/agent/netbird-remote-access-plan | merged | Replayed the merge commit with parent 1; the NetBird tree was already incorporated by #92/#93/#95/#96, and the GPUI endpoint/capability implementation was retained. |
 | 98 | `2b596e02901c68bd8a6fa89112a001c18d458a0c` | 2026-08-05 | release: v0.51.0 v0.19.0-mobile | merged | Cherry-picked the landing/mobile/package release metadata; no GPUI code was expected. |
-| 99 | `35696b2ab03e61ed530a7f87198e33bb2c05676d` | 2026-08-05 | perf: start explorer and scm path drags immediately | pending | - |
+| 99 | `35696b2ab03e61ed530a7f87198e33bb2c05676d` | 2026-08-05 | perf: start explorer and scm path drags immediately | in_progress | Replaying the touch-slop drag-source optimization; GPUI already starts Explorer drags from `on_drag` without the Flutter long-press delay. |
 | 100 | `dbe909a22a82a7d1b9ff7c0e0a5ef4aa354a5e06` | 2026-08-05 | Merge pull request #364 from leynier/perf/reduce-file-drag-time | pending | - |
 | 101 | `fc2958c5afb6ad86d55f7a10c7371953d3f03547` | 2026-08-05 | fix: keep path taps and scroll while dragging files | pending | - |
 | 102 | `56f04643ac59e06367e6accd31613f83f5117d1c` | 2026-08-05 | Merge pull request #365 from leynier/fix/path-drag-tap-scroll | pending | - |
