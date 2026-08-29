@@ -177,6 +177,7 @@ class AppWindowLifecycleCoordinator extends AppWindowEventListener {
   bool _closeCommitted = false;
   bool _closed = false;
   bool _quitting = false;
+  Future<void>? _hideFuture;
 
   /// Optional gate invoked before the window is destroyed. Return `false` to
   /// cancel the close (for example when the user declines force-stopping the
@@ -233,7 +234,7 @@ class AppWindowLifecycleCoordinator extends AppWindowEventListener {
       return;
     }
     if (!_quitting && (_hideOnClose?.call() ?? false)) {
-      unawaited(_hideInsteadOfDestroy());
+      _hideFuture ??= _hideInsteadOfDestroy();
       return;
     }
     _closing = true;
@@ -242,29 +243,47 @@ class AppWindowLifecycleCoordinator extends AppWindowEventListener {
 
   /// Commits a real process exit even when hide-on-close is enabled.
   Future<void> requestQuit() async {
-    if (_closing || _closed) {
+    if (_closing || _closed || _quitting) {
       return;
     }
     _quitting = true;
     _closing = true;
+    final hide = _hideFuture;
+    if (hide != null) {
+      await hide;
+    }
+    if (_closed) {
+      return;
+    }
     await _flushAndDestroy();
   }
 
   Future<void> _hideInsteadOfDestroy() async {
     try {
       await flush();
+      if (_quitting || _closing) {
+        return;
+      }
+      try {
+        await _window.hide();
+      } catch (error, stackTrace) {
+        _logWarningIfActive('failed to hide app window', error, stackTrace);
+      }
     } catch (error, stackTrace) {
       _logWarningIfActive(
         'failed to flush app window state on hide',
         error,
         stackTrace,
       );
+    } finally {
+      _hideFuture = null;
     }
-    try {
-      await _window.hide();
-    } catch (error, stackTrace) {
-      _logWarningIfActive('failed to hide app window', error, stackTrace);
-    }
+  }
+
+  void _resetQuitAttempt() {
+    _closing = false;
+    _quitting = false;
+    _hideFuture = null;
   }
 
   @override
@@ -318,15 +337,13 @@ class AppWindowLifecycleCoordinator extends AppWindowEventListener {
       if (gate != null) {
         final allowClose = await gate();
         if (!allowClose) {
-          _closing = false;
-          _quitting = false;
+          _resetQuitAttempt();
           return;
         }
       }
     } catch (error, stackTrace) {
       // Logging listeners are synchronous and may request another close.
-      _closing = false;
-      _quitting = false;
+      _resetQuitAttempt();
       _logWarningIfActive('app window close gate failed', error, stackTrace);
       return;
     }

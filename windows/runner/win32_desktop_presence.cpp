@@ -130,11 +130,20 @@ bool Win32DesktopPresence::HandleMessage(HWND hwnd,
                                          WPARAM wparam,
                                          LPARAM lparam) {
   if (message == kTrayCallback) {
-    if (lparam == WM_LBUTTONUP || lparam == NIN_SELECT) {
+    // NOTIFYICON_VERSION_4 packs the event in LOWORD(lParam) and the icon
+    // id in HIWORD. Pre-v4 notifications put the event in the full lParam
+    // (HIWORD 0), so accept either shape.
+    const UINT event = LOWORD(lparam);
+    const UINT icon_id = HIWORD(lparam);
+    if (icon_id != 0 && icon_id != kTrayIconId) {
+      return false;
+    }
+    if (event == WM_LBUTTONUP || event == NIN_SELECT ||
+        event == NIN_KEYSELECT) {
       ShowFromTray();
       return true;
     }
-    if (lparam == WM_RBUTTONUP || lparam == WM_CONTEXTMENU) {
+    if (event == WM_RBUTTONUP || event == WM_CONTEXTMENU) {
       POINT cursor{};
       ::GetCursorPos(&cursor);
       HMENU menu = ::CreatePopupMenu();
@@ -211,7 +220,7 @@ void Win32DesktopPresence::SetTray(bool visible, const std::wstring& tooltip) {
   nid_.cbSize = sizeof(nid_);
   nid_.hWnd = hwnd_;
   nid_.uID = kTrayIconId;
-  nid_.uFlags = NIF_MESSAGE | NIF_ICON | NIF_TIP;
+  nid_.uFlags = NIF_MESSAGE | NIF_ICON | NIF_TIP | NIF_SHOWTIP;
   nid_.uCallbackMessage = kTrayCallback;
   nid_.hIcon = tray_icon_;
   wcsncpy_s(nid_.szTip, tooltip.c_str(), _TRUNCATE);
