@@ -187,6 +187,7 @@ pub(super) fn adapter_label(adapter: &str) -> &'static str {
         "opencode2" => "OpenCode 2",
         "pi" => "Pi",
         "amp" => "Amp",
+        "grok" => "Grok Build",
         _ => "Unknown",
     }
 }
@@ -200,6 +201,7 @@ pub(super) fn adapter_icon(adapter: &str) -> AgentIcon {
         "opencode" | "opencode2" => AgentIcon::OpenCode,
         "pi" => AgentIcon::Pi,
         "amp" => AgentIcon::Amp,
+        "grok" => AgentIcon::Grok,
         _ => AgentIcon::Codex,
     }
 }
@@ -215,6 +217,7 @@ pub(super) fn default_agent_command(adapter: &str) -> &'static str {
         "opencode2" => "opencode2",
         "pi" => "pi",
         "amp" => "amp",
+        "grok" => "grok",
         _ => "codex",
     }
 }
@@ -310,6 +313,20 @@ pub(super) fn managed_command_preview(adapter: &str, config: &Map<String, Value>
             push_string_option(&mut args, config, "thinking", "--thinking");
         }
         "amp" => push_string_option(&mut args, config, "mode", "--mode"),
+        "grok" => {
+            push_string_option(&mut args, config, "model", "--model");
+            push_string_option(&mut args, config, "effort", "--effort");
+            push_string_option(&mut args, config, "agent", "--agent");
+            push_string_option(&mut args, config, "permissionMode", "--permission-mode");
+            push_string_option(&mut args, config, "sandbox", "--sandbox");
+            if config
+                .get("disableWebSearch")
+                .and_then(Value::as_bool)
+                == Some(true)
+            {
+                args.push("--disable-web-search".to_owned());
+            }
+        }
         _ => {}
     }
     std::iter::once(executable)
@@ -360,6 +377,13 @@ pub(super) fn managed_risk_markers(adapter: &str, config: &Map<String, Value>) -
         "agy" => mark(enabled("skipPermissions"), "skipPermissions"),
         "opencode" | "opencode2" => mark(enabled("autoApprove"), "autoApprove"),
         "pi" => mark(string_is("projectTrust", "approve"), "projectTrust"),
+        "grok" => {
+            mark(
+                string_is("permissionMode", "bypassPermissions"),
+                "bypassPermissions",
+            );
+            mark(string_is("permissionMode", "dontAsk"), "dontAsk");
+        }
         _ => {}
     }
     markers
@@ -382,6 +406,7 @@ pub(super) fn managed_risk_warning(adapter: &str, config: &Map<String, Value>) -
         "agy" => "This Profile Lets Antigravity Skip Permission Checks.",
         "opencode" | "opencode2" => "This Profile Lets OpenCode Approve Actions Automatically.",
         "pi" => "This Profile Pre-Approves Project Trust For Pi.",
+        "grok" => "This Profile Lets Grok Build Continue With Reduced Permission Prompts.",
         _ => "",
     }
 }

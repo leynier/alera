@@ -120,3 +120,27 @@ fn risk_markers_match_reduced_protection_options() {
             .collect()
     );
 }
+
+#[test]
+fn grok_managed_profile_matches_flutter_command_and_risks() {
+    let config = json!({
+        "model": "grok-4.6",
+        "effort": "high",
+        "agent": "grok-build",
+        "permissionMode": "bypassPermissions",
+        "sandbox": "workspace",
+        "disableWebSearch": true
+    })
+    .as_object()
+    .expect("object")
+    .clone();
+
+    assert_eq!(
+        managed_command_preview("grok", &config),
+        "grok --model grok-4.6 --effort high --agent grok-build --permission-mode bypassPermissions --sandbox workspace --disable-web-search"
+    );
+    assert_eq!(
+        managed_risk_markers("grok", &config),
+        ["bypassPermissions".to_owned()].into_iter().collect()
+    );
+}

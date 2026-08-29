@@ -277,8 +277,8 @@ commit so this file remains useful after context compaction.
 | 256 | `854bef76096dd76077481d2f7cc902369477fa13` | 2026-08-19 | fix: configure android cmake abi | merged | Cherry-picked the Android-only CMake ABI fix; no GPUI desktop surface is affected. |
 | 257 | `2dd7b9661015195d6c7b2e051f4c2f09234906b5` | 2026-08-19 | release: v0.62.0 v0.27.0-mobile | merged | Cherry-picked desktop/mobile release metadata; no GPUI-specific UI behavior is affected. |
 | 258 | `5dcf8b6b6688d9c007f458864f42851f2ddf2c25` | 2026-08-19 | fix: keep grok and cursor agent identity in the sidebar (#436) | merged | Cherry-picked the shared identity resolver; GPUI already renders Grok/Cursor names and icons from authoritative agentType. All 7 targeted Rust identity tests pass. |
-| 259 | `f37cb8631217915776286e08cb42a1e83138e61c` | 2026-08-20 | release: v0.62.1 | pending | - |
-| 260 | `08b9d69c152e5987cdfddd508896084eeba552dd` | 2026-08-20 | feat: add grok build to managed agent profiles (#438) | pending | - |
+| 259 | `f37cb8631217915776286e08cb42a1e83138e61c` | 2026-08-20 | release: v0.62.1 | merged | Cherry-picked desktop release metadata; no GPUI-specific UI behavior is affected. |
+| 260 | `08b9d69c152e5987cdfddd508896084eeba552dd` | 2026-08-20 | feat: add grok build to managed agent profiles (#438) | merged | Cherry-picked host support and added full GPUI Settings parity for Grok Build adapter, icon, model/persona, effort, permission, sandbox, web-search flag, command preview, and risk confirmation; targeted GPUI test passes. |
 | 261 | `dbc8ef0250fb1e2f351f4b1ded0e40d0387fcc05` | 2026-08-20 | release: v0.63.0 | pending | - |
 | 262 | `760e120aa094aa9d735b57935623be5ad083c3a5` | 2026-08-21 | fix: bundle android whisper c++ runtime (#437) | pending | - |
 | 263 | `5fb60e612381b0297c2bdd0209237712e0377f1f` | 2026-08-21 | feat: accelerate desktop whisper inference (#439) | pending | - |

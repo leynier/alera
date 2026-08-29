@@ -8,6 +8,7 @@ pub(super) const ADAPTERS: &[(&str, &str)] = &[
     ("opencode2", "OpenCode 2"),
     ("pi", "Pi"),
     ("amp", "Amp"),
+    ("grok", "Grok Build"),
 ];
 
 pub(super) const LAUNCH_MODES: &[(&str, &str)] = &[("managed", "Managed"), ("command", "Command")];
@@ -324,12 +325,96 @@ const AMP_MODE: &[ManagedOption] = &[
     },
 ];
 
+const GROK_EFFORT: &[ManagedOption] = &[
+    ManagedOption {
+        value: "none",
+        label: "None",
+    },
+    ManagedOption {
+        value: "minimal",
+        label: "Minimal",
+    },
+    ManagedOption {
+        value: "low",
+        label: "Low",
+    },
+    ManagedOption {
+        value: "medium",
+        label: "Medium",
+    },
+    ManagedOption {
+        value: "high",
+        label: "High",
+    },
+    ManagedOption {
+        value: "xhigh",
+        label: "Extra High",
+    },
+    ManagedOption {
+        value: "max",
+        label: "Max",
+    },
+];
+
+const GROK_PERMISSION: &[ManagedOption] = &[
+    ManagedOption {
+        value: "default",
+        label: "Default",
+    },
+    ManagedOption {
+        value: "acceptEdits",
+        label: "Accept Edits",
+    },
+    ManagedOption {
+        value: "auto",
+        label: "Auto",
+    },
+    ManagedOption {
+        value: "dontAsk",
+        label: "Do Not Ask",
+    },
+    ManagedOption {
+        value: "bypassPermissions",
+        label: "Bypass Permissions",
+    },
+    ManagedOption {
+        value: "plan",
+        label: "Plan",
+    },
+];
+
+const GROK_SANDBOX: &[ManagedOption] = &[
+    ManagedOption {
+        value: "off",
+        label: "Off",
+    },
+    ManagedOption {
+        value: "workspace",
+        label: "Workspace",
+    },
+    ManagedOption {
+        value: "devbox",
+        label: "Devbox",
+    },
+    ManagedOption {
+        value: "read-only",
+        label: "Read Only",
+    },
+    ManagedOption {
+        value: "strict",
+        label: "Strict",
+    },
+];
+
 pub(super) fn supports_model(adapter: &str) -> bool {
     adapter != "amp"
 }
 
 pub(super) fn supports_persona(adapter: &str) -> bool {
-    matches!(adapter, "claude" | "copilot" | "agy" | "opencode" | "opencode2")
+    matches!(
+        adapter,
+        "claude" | "copilot" | "agy" | "opencode" | "opencode2" | "grok"
+    )
 }
 
 pub(super) fn controls_for(adapter: &str) -> Vec<ManagedControl> {
@@ -438,6 +523,16 @@ pub(super) fn controls_for(adapter: &str) -> Vec<ManagedControl> {
                 options: AMP_MODE,
             },
             flag("fast", "Fast Mode", "Prefer Lower Latency Responses."),
+        ],
+        "grok" => vec![
+            choice("effort", "Reasoning Effort", GROK_EFFORT),
+            choice("permissionMode", "Permission Mode", GROK_PERMISSION),
+            choice("sandbox", "Sandbox", GROK_SANDBOX),
+            flag(
+                "disableWebSearch",
+                "Disable Web Search",
+                "Disable Grok Build Web Search And Web Fetch Tools.",
+            ),
         ],
         _ => Vec::new(),
     }
