@@ -872,7 +872,7 @@ impl AleraApp {
         };
         match name {
             "outputResyncRequired" => {
-                if session.restore_in_progress() {
+                if session.attaching || session.restore_in_progress() {
                     session.output_resync_deferred = true;
                     cx.notify();
                     return;
@@ -952,6 +952,7 @@ impl AleraApp {
                 };
                 session.output_resync_in_flight = false;
                 let mut restore_generation = None;
+                let mut recover_attachment = false;
                 match result {
                     Ok(payload)
                         if payload
@@ -1002,7 +1003,12 @@ impl AleraApp {
                         }
                     }
                     Err(error) => {
-                        session.error = Some(format!("Terminal host unavailable: {error}"));
+                        if terminal_attachment_lost(&error) {
+                            session.output_resync_deferred = true;
+                            recover_attachment = true;
+                        } else {
+                            session.error = Some(format!("Terminal host unavailable: {error}"));
+                        }
                     }
                 }
                 if let Some(generation) = restore_generation {
@@ -1014,6 +1020,9 @@ impl AleraApp {
                     .is_some_and(|(hovered_session, _)| hovered_session == &session_id)
                 {
                     this.terminal_hovered_link = None;
+                }
+                if recover_attachment {
+                    this.recover_terminal_session(session_id.clone(), false, cx);
                 }
                 cx.notify();
             });
@@ -1092,8 +1101,10 @@ impl AleraApp {
                 session.operation = None;
                 session.operation_started_at = None;
                 let mut restore_generation = None;
+                let mut reattached = false;
                 match result {
                     Ok(payload) => {
+                        reattached = true;
                         let snapshot_dimensions = terminal_snapshot_dimensions(&payload);
                         let emulator = TerminalEmulator::new(columns, rows);
                         let restored_bytes = payload
@@ -1136,8 +1147,17 @@ impl AleraApp {
                         session.error = Some(format!("Terminal host unavailable: {error}"));
                     }
                 }
+                let resume_deferred = reattached
+                    && restore_generation.is_none()
+                    && session.output_resync_deferred;
+                if resume_deferred {
+                    session.output_resync_deferred = false;
+                }
                 if let Some(generation) = restore_generation {
                     this.schedule_terminal_restore(session_id.clone(), generation, cx);
+                }
+                if resume_deferred {
+                    this.request_terminal_output_resync(&session_id, cx);
                 }
                 this.reset_terminal_cursor_blink();
                 cx.notify();
@@ -1216,7 +1236,7 @@ impl AleraApp {
                 .request(
                     "resize",
                     json!({
-                        "sessionId": session_id,
+                        "sessionId": session_id.clone(),
                         "cols": columns,
                         "rows": rows,
                     }),
@@ -1579,22 +1599,50 @@ impl AleraApp {
             .to_owned();
         let bridge = self.bridge.clone();
         cx.spawn(async move |this, cx| {
-            // Window zoom emits several intermediate bounds in GPUI. Give the
-            // animation time to settle before forwarding the final PTY size;
-            // stale generations are discarded if another bounds event arrives.
-            cx.background_executor()
-                .timer(std::time::Duration::from_millis(650))
-                .await;
-            let Some(this) = this.upgrade() else {
-                return;
-            };
-            let request = this.update(cx, |this, _| {
-                if this.terminal_resize_generation.get(&session_id).copied() != Some(generation) {
-                    return None;
+            let mut first_wait = true;
+            let (columns, rows) = loop {
+                // Window zoom emits several intermediate bounds in GPUI. Give
+                // the first request time to settle, then poll the shared
+                // attachment lane without racing an attach or output resync.
+                cx.background_executor()
+                    .timer(std::time::Duration::from_millis(if first_wait {
+                        650
+                    } else {
+                        50
+                    }))
+                    .await;
+                first_wait = false;
+                let Some(this) = this.upgrade() else {
+                    return;
+                };
+                let (finished, request) = this.update(cx, |this, _| {
+                    if this.terminal_resize_generation.get(&session_id).copied()
+                        != Some(generation)
+                    {
+                        return (true, None);
+                    }
+                    let waiting = this
+                        .terminal_sessions
+                        .get(&session_id)
+                        .is_some_and(|session| {
+                            session.attaching
+                                || session.output_resync_in_flight
+                                || session.restore_in_progress()
+                        });
+                    if waiting {
+                        return (false, None);
+                    }
+                    (true, this.terminal_resize_pending.remove(&session_id))
+                });
+                if !finished {
+                    continue;
                 }
-                this.terminal_resize_pending.remove(&session_id)
-            });
-            let Some((columns, rows)) = request else {
+                let Some(request) = request else {
+                    return;
+                };
+                break request;
+            };
+            let Some(this) = this.upgrade() else {
                 return;
             };
             let restore_generation = this.update(cx, |this, _| {
@@ -1608,16 +1656,23 @@ impl AleraApp {
                     this.schedule_terminal_restore(restore_session_id, restore_generation, cx);
                 });
             }
-            let _ = bridge
+            let result = bridge
                 .request(
                     "resize",
                     json!({
-                        "sessionId": session_id,
+                        "sessionId": session_id.clone(),
                         "cols": columns,
                         "rows": rows,
                     }),
                 )
                 .await;
+            if let Err(error) = result {
+                if terminal_attachment_lost(&error) {
+                    this.update(cx, |this, cx| {
+                        this.recover_terminal_session(session_id, false, cx);
+                    });
+                }
+            }
         })
         .detach();
     }
@@ -2410,6 +2465,11 @@ impl AleraApp {
     }
 }
 
+fn terminal_attachment_lost(error: &str) -> bool {
+    error.contains("Terminal session is not attached")
+        || error.contains("Terminal host connection closed")
+}
+
 fn terminal_selection_overlay(
     start: usize,
     end: usize,
@@ -2663,6 +2723,17 @@ mod tests {
             })),
             None
         );
+    }
+
+    #[test]
+    fn attachment_recovery_recognizes_host_detach_and_connection_loss() {
+        assert!(terminal_attachment_lost(
+            "Terminal session is not attached: session-1"
+        ));
+        assert!(terminal_attachment_lost(
+            "Terminal host connection closed during resize"
+        ));
+        assert!(!terminal_attachment_lost("permission denied"));
     }
 
     #[cfg(not(target_os = "macos"))]
