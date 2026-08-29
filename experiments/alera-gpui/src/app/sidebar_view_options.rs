@@ -11,7 +11,9 @@ use super::sidebar_view_options_components::{
     available_filter_row, check_row, clear_button, empty_filter_message, filter_header,
     section_label, segment_button, selected_filter_chip, sidebar_sort_label, sort_row,
 };
-use super::{AleraApp, SidebarGroupBy, SidebarSortTarget, SidebarWorkspaceKind};
+use super::{
+    AleraApp, SidebarGroupBy, SidebarSortBy, SidebarSortTarget, SidebarWorkspaceKind,
+};
 use crate::{
     design_system,
     icons::{icon, AleraIcon},
@@ -26,7 +28,12 @@ impl AleraApp {
             SidebarWorkspaceKind::DefaultOnly => workspace.kind == "main",
             SidebarWorkspaceKind::NonDefaultOnly => workspace.kind != "main",
         };
+        let active_visible = !self.sidebar_active_only
+            || self.snapshot.tabs.iter().any(|tab| {
+                tab.workspace_id == workspace.id && workspace_tab_kind_is_active(&tab.kind)
+            });
         kind_visible
+            && active_visible
             && (self.sidebar_view_selected_tag_ids.is_empty()
                 || workspace
                     .tag_ids
@@ -36,6 +43,17 @@ impl AleraApp {
                     self.sidebar_view_selected_tag_ids
                         .contains(&format!("tag-name:{name}"))
                 }))
+    }
+
+    pub(super) fn sidebar_view_options_active(&self) -> bool {
+        !self.sidebar_selected_project_ids.is_empty()
+            || !self.sidebar_view_selected_tag_ids.is_empty()
+            || self.sidebar_workspace_kind != SidebarWorkspaceKind::All
+            || self.sidebar_active_only
+            || !self.sidebar_repeat_pinned
+            || self.sidebar_group_by != SidebarGroupBy::Project
+            || self.sidebar_project_sort != SidebarSortBy::Name
+            || self.sidebar_workspace_sort != SidebarSortBy::Name
     }
 
     pub(super) fn render_sidebar_view_options(&self, cx: &mut Context<Self>) -> impl IntoElement {
@@ -95,7 +113,7 @@ impl AleraApp {
         // intrinsic dialog grows by about 34 logical pixels for that row;
         // keeping the same height here preserves the centered bounds instead
         // of forcing the extra content into a shorter scroll viewport.
-        let dialog_height = 562.0
+        let dialog_height = 596.0
             + if self.sidebar_group_by == SidebarGroupBy::Project {
                 34.0
             } else {
@@ -365,6 +383,17 @@ impl AleraApp {
                             )
                             .child(
                                 check_row(
+                                    "sidebar-active-only",
+                                    "Active Workspaces Only",
+                                    self.sidebar_active_only,
+                                )
+                                .mt_2()
+                                .on_click(cx.listener(|this, _, _, cx| {
+                                    this.toggle_sidebar_active_only(cx);
+                                })),
+                            )
+                            .child(
+                                check_row(
                                     "sidebar-repeat-pinned",
                                     "Repeat Pinned Workspaces",
                                     self.sidebar_repeat_pinned,
@@ -515,6 +544,23 @@ impl AleraApp {
                             })),
                     ),
             )
+    }
+}
+
+fn workspace_tab_kind_is_active(kind: &str) -> bool {
+    matches!(kind, "terminal" | "codex")
+}
+
+#[cfg(test)]
+mod active_filter_tests {
+    use super::workspace_tab_kind_is_active;
+
+    #[test]
+    fn active_filter_matches_flutter_terminal_and_codex_semantics() {
+        assert!(workspace_tab_kind_is_active("terminal"));
+        assert!(workspace_tab_kind_is_active("codex"));
+        assert!(!workspace_tab_kind_is_active("editor"));
+        assert!(!workspace_tab_kind_is_active("gitDiff"));
     }
 }
 

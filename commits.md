@@ -279,16 +279,16 @@ commit so this file remains useful after context compaction.
 | 258 | `5dcf8b6b6688d9c007f458864f42851f2ddf2c25` | 2026-08-19 | fix: keep grok and cursor agent identity in the sidebar (#436) | merged | Cherry-picked the shared identity resolver; GPUI already renders Grok/Cursor names and icons from authoritative agentType. All 7 targeted Rust identity tests pass. |
 | 259 | `f37cb8631217915776286e08cb42a1e83138e61c` | 2026-08-20 | release: v0.62.1 | merged | Cherry-picked desktop release metadata; no GPUI-specific UI behavior is affected. |
 | 260 | `08b9d69c152e5987cdfddd508896084eeba552dd` | 2026-08-20 | feat: add grok build to managed agent profiles (#438) | merged | Cherry-picked host support and added full GPUI Settings parity for Grok Build adapter, icon, model/persona, effort, permission, sandbox, web-search flag, command preview, and risk confirmation; targeted GPUI test passes. |
-| 261 | `dbc8ef0250fb1e2f351f4b1ded0e40d0387fcc05` | 2026-08-20 | release: v0.63.0 | pending | - |
-| 262 | `760e120aa094aa9d735b57935623be5ad083c3a5` | 2026-08-21 | fix: bundle android whisper c++ runtime (#437) | pending | - |
-| 263 | `5fb60e612381b0297c2bdd0209237712e0377f1f` | 2026-08-21 | feat: accelerate desktop whisper inference (#439) | pending | - |
-| 264 | `d4b96fed2b8dcafe79d8c6b88dc517b3fcfdf4f9` | 2026-08-21 | fix: repair desktop whisper builds (#440) | pending | - |
-| 265 | `e32d5ffdaef9fc456426f686da5328324832aaa1` | 2026-08-21 | fix: shorten windows native scratch paths (#442) | pending | - |
-| 266 | `93516fac6b04d9a3b6c69b9bd97b1dae0e9ab521` | 2026-08-21 | docs: document ai dictation (#443) | pending | - |
-| 267 | `535a9dc8db798f7402294b8032c07671ecf7c372` | 2026-08-21 | fix: prevent windows msvc pdb contention (#444) | pending | - |
-| 268 | `7079b19988238e82b91b3b265028270a9fce583e` | 2026-08-21 | fix: pass /FS to nested windows cl.exe (#441) | pending | - |
-| 269 | `f6a81fa07b59c09ed30fe2752ca2eb1519185f12` | 2026-08-21 | fix: keep windows whisper vulkan cmake under max_path (#445) | pending | - |
-| 270 | `4e3cdc569a1d94daf534656adda97f4ef818d091` | 2026-08-21 | feat: filter active workspaces (#446) | pending | - |
+| 261 | `dbc8ef0250fb1e2f351f4b1ded0e40d0387fcc05` | 2026-08-20 | release: v0.63.0 | merged | Cherry-picked desktop release metadata; no GPUI-specific UI behavior is affected. |
+| 262 | `760e120aa094aa9d735b57935623be5ad083c3a5` | 2026-08-21 | fix: bundle android whisper c++ runtime (#437) | merged | Cherry-picked Android-only Whisper packaging changes; no GPUI desktop surface is affected. |
+| 263 | `5fb60e612381b0297c2bdd0209237712e0377f1f` | 2026-08-21 | feat: accelerate desktop whisper inference (#439) | merged | Cherry-picked Core ML, Metal, and Vulkan Whisper acceleration into the shared desktop backend and packaging. GPUI's separate microphone UI gap remains tracked. |
+| 264 | `d4b96fed2b8dcafe79d8c6b88dc517b3fcfdf4f9` | 2026-08-21 | fix: repair desktop whisper builds (#440) | merged | Cherry-picked Flutter/native packaging fixes for accelerated Whisper; GPUI's direct Cargo build path is unchanged. |
+| 265 | `e32d5ffdaef9fc456426f686da5328324832aaa1` | 2026-08-21 | fix: shorten windows native scratch paths (#442) | merged | Cherry-picked Windows Flutter-native scratch-path changes; GPUI uses its own Cargo target directory and needs no adaptation. |
+| 266 | `93516fac6b04d9a3b6c69b9bd97b1dae0e9ab521` | 2026-08-21 | docs: document ai dictation (#443) | merged | Cherry-picked the canonical dictation scope. It confirms GPUI still owes microphone/review controls across terminal, workspace prompt, Source Control, and Pull Request surfaces plus local Whisper and optional AI Text cleanup. |
+| 267 | `535a9dc8db798f7402294b8032c07671ecf7c372` | 2026-08-21 | fix: prevent windows msvc pdb contention (#444) | merged | Cherry-picked Windows Flutter-native PDB coordination; GPUI's Cargo build path needs no separate UI adaptation. |
+| 268 | `7079b19988238e82b91b3b265028270a9fce583e` | 2026-08-21 | fix: pass /FS to nested windows cl.exe (#441) | merged | Cherry-picked Windows Flutter-native nested compiler flags; GPUI's Cargo path is unaffected. |
+| 269 | `f6a81fa07b59c09ed30fe2752ca2eb1519185f12` | 2026-08-21 | fix: keep windows whisper vulkan cmake under max_path (#445) | merged | Cherry-picked Windows Flutter-native Vulkan path shortening; GPUI direct Cargo builds need no extra UI change. |
+| 270 | `4e3cdc569a1d94daf534656adda97f4ef818d091` | 2026-08-21 | feat: filter active workspaces (#446) | merged | Cherry-picked shared prefs and added GPUI Active Workspaces Only parity: persisted filter, terminal/Codex semantics, empty-project removal, checkbox, and active View Options indicator; targeted test passes. |
 | 271 | `17c9a8c643b6e9304d7c1db671ca07815e69ac3a` | 2026-08-22 | feat: add fx agent support (#447) | pending | - |
 | 272 | `6d2982c6ab2b11c9c08aea98f0b2e778e4300b55` | 2026-08-22 | feat: surface fx across landing and mobile (#449) | pending | - |
 | 273 | `7cf2f9ed3d3ef1c545a01b525fafc38a5716f474` | 2026-08-22 | fix: stop ggml from wrapping windows cl.exe with sccache (#448) | pending | - |

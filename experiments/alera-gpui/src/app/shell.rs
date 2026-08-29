@@ -62,6 +62,7 @@ impl AleraApp {
             .iter()
             .any(|project| project.kind == "gitRepository");
         let all_project_sections_collapsed = self.all_project_sections_collapsed();
+        let sidebar_view_options_active = self.sidebar_view_options_active();
 
         div()
             .relative()
@@ -202,6 +203,7 @@ impl AleraApp {
                             .child(
                                 div()
                                     .id("sidebar-view-options")
+                                    .relative()
                                     .focusable()
                                     .tab_stop(true)
                                     .role(Role::Button)
@@ -222,7 +224,19 @@ impl AleraApp {
                                     .on_click(cx.listener(|this, _, _, cx| {
                                         this.open_sidebar_view_options(cx);
                                     }))
-                                    .child(icon(AleraIcon::Tune, 14.0, theme::text_muted())),
+                                    .child(icon(AleraIcon::Tune, 14.0, theme::text_muted()))
+                                    .when(sidebar_view_options_active, |button| {
+                                        button.child(
+                                            div()
+                                                .absolute()
+                                                .top(px(5.0))
+                                                .right(px(5.0))
+                                                .w(px(6.0))
+                                                .h(px(6.0))
+                                                .rounded_full()
+                                                .bg(theme::accent()),
+                                        )
+                                    }),
                             )
                             .child(
                                 div()

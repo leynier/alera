@@ -33,6 +33,10 @@ impl AleraApp {
                         "nonDefaultOnly" => SidebarWorkspaceKind::NonDefaultOnly,
                         _ => SidebarWorkspaceKind::All,
                     };
+                    this.sidebar_active_only = prefs
+                        .get("showActiveWorkspacesOnly")
+                        .and_then(Value::as_bool)
+                        .unwrap_or(false);
                     this.sidebar_selected_project_ids = string_set(prefs.get("selectedProjectIds"));
                     this.sidebar_view_selected_tag_ids = string_set(prefs.get("selectedTagIds"));
                     this.collapsed_project_ids = string_set(prefs.get("collapsedProjectIds"));
@@ -156,6 +160,10 @@ impl AleraApp {
         object.insert(
             "showPinnedWorkspacesBelow".into(),
             json!(self.sidebar_repeat_pinned),
+        );
+        object.insert(
+            "showActiveWorkspacesOnly".into(),
+            json!(self.sidebar_active_only),
         );
         object.insert(
             "workspaceKindFilter".into(),

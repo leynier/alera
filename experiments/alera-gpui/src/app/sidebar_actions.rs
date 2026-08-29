@@ -141,6 +141,12 @@ impl AleraApp {
         cx.notify();
     }
 
+    pub(super) fn toggle_sidebar_active_only(&mut self, cx: &mut Context<Self>) {
+        self.sidebar_active_only = !self.sidebar_active_only;
+        self.persist_sidebar_view_prefs(cx);
+        cx.notify();
+    }
+
     pub(super) fn toggle_sidebar_project_filter(
         &mut self,
         project_id: String,

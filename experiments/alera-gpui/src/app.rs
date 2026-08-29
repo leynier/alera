@@ -298,6 +298,7 @@ pub struct AleraApp {
     sidebar_selected_project_ids: BTreeSet<String>,
     sidebar_view_selected_tag_ids: BTreeSet<String>,
     sidebar_workspace_kind: SidebarWorkspaceKind,
+    sidebar_active_only: bool,
     sidebar_repeat_pinned: bool,
     sidebar_sort_dropdown: Option<SidebarSortTarget>,
     sidebar_menu: Option<SidebarMenu>,

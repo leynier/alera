@@ -1188,6 +1188,7 @@ impl AleraApp {
             sidebar_selected_project_ids: BTreeSet::new(),
             sidebar_view_selected_tag_ids: BTreeSet::new(),
             sidebar_workspace_kind: SidebarWorkspaceKind::default(),
+            sidebar_active_only: false,
             sidebar_repeat_pinned: true,
             sidebar_sort_dropdown: None,
             sidebar_menu: None,

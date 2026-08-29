@@ -86,6 +86,9 @@ impl AleraApp {
                     if workspaces.is_empty()
                         && (!filter.is_empty()
                             || !self.sidebar_view_selected_tag_ids.is_empty()
+                            || self.sidebar_workspace_kind
+                                != super::SidebarWorkspaceKind::All
+                            || self.sidebar_active_only
                             || !self.sidebar_repeat_pinned)
                     {
                         continue;
