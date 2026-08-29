@@ -124,6 +124,7 @@ pub struct TerminalSession {
     restore_total_bytes: usize,
     restore_output_pending: Vec<u8>,
     restore_replay_bytes: Option<Vec<u8>>,
+    restore_resize_target: Option<(usize, usize)>,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -1079,12 +1080,14 @@ impl TerminalSession {
             restore_total_bytes: 0,
             restore_output_pending: Vec::new(),
             restore_replay_bytes: None,
+            restore_resize_target: None,
         }
     }
 
     /// Queue a host snapshot for incremental replay so a large scrollback does
     /// not block the first useful frame of a restored terminal.
     pub fn begin_restore(&mut self, bytes: Vec<u8>) -> u64 {
+        self.restore_resize_target = None;
         // CSI 3J invalidates every prior scrollback row. Starting replay at
         // its last occurrence prevents later resize redraws from resurrecting
         // bytes that both xterm and the shell have already discarded.
@@ -1101,6 +1104,26 @@ impl TerminalSession {
         self.restore_replay_bytes = Some(bytes.clone());
         self.restore_pending = (!bytes.is_empty()).then_some(bytes);
         self.restore_generation
+    }
+
+    /// Replay a snapshot at the geometry that produced its VT stream, then
+    /// reflow the completed buffer to this client's measured viewport.
+    pub fn begin_restore_at_dimensions(
+        &mut self,
+        bytes: Vec<u8>,
+        snapshot_dimensions: Option<(usize, usize)>,
+    ) -> u64 {
+        let target = (self.columns.max(2), self.rows.max(2));
+        let source = snapshot_dimensions
+            .map(|(columns, rows)| (columns.max(2), rows.max(2)))
+            .filter(|dimensions| *dimensions != target);
+        if let Some((columns, rows)) = source {
+            self.emulator = TerminalEmulator::new(columns, rows);
+        }
+        let generation = self.begin_restore(bytes);
+        self.restore_resize_target =
+            (source.is_some() && self.restore_pending.is_some()).then_some(target);
+        generation
     }
 
     /// Preserve live PTY bytes until the snapshot has been replayed. The host
@@ -1154,6 +1177,9 @@ impl TerminalSession {
             self.restore_pending = None;
             self.restore_offset = 0;
             self.restore_total_bytes = 0;
+            if let Some((columns, rows)) = self.restore_resize_target.take() {
+                self.emulator.resize(columns, rows);
+            }
             if !self.restore_output_pending.is_empty() {
                 let queued = std::mem::take(&mut self.restore_output_pending);
                 self.emulator.write(&queued);
@@ -1514,6 +1540,30 @@ mod tests {
         assert!(visible.contains("fresh-restore live-output"));
         assert!(!visible.contains("old-output"));
         assert_eq!((session.columns, session.rows), (40, 8));
+    }
+
+    #[test]
+    fn terminal_session_replays_snapshot_at_its_original_dimensions() {
+        let mut session = TerminalSession::new("snapshot-dimensions".to_owned());
+        session.columns = 10;
+        session.rows = 4;
+        session.emulator = TerminalEmulator::new(session.columns, session.rows);
+
+        session.begin_restore_at_dimensions(
+            b"\x1b[1;18HTAIL".to_vec(),
+            Some((20, 4)),
+        );
+        while session.restore_next_chunk(8) {}
+        session.emulator.scroll_display(100);
+        let lines = session
+            .emulator
+            .visible_lines("Alera Dark")
+            .into_iter()
+            .map(|line| line.plain_text.trim_end().to_owned())
+            .collect::<Vec<_>>();
+
+        assert!(lines.iter().any(|line| line == "       TAI"));
+        assert!(lines.iter().any(|line| line == "L"));
     }
 
     #[test]

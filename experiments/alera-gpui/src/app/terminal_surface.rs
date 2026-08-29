@@ -255,12 +255,7 @@ impl AleraApp {
                     let mut restore_generation = None;
                     match result {
                         Ok(payload) => {
-                            // The Flutter client keeps the dimensions of its
-                            // measured TerminalView and uses the host payload
-                            // only for lifecycle/snapshot data. The host's
-                            // current dimensions can belong to another
-                            // attached client, so using them here makes a
-                            // prompt wrap differently in the two clients.
+                            let snapshot_dimensions = terminal_snapshot_dimensions(&payload);
                             let emulator = TerminalEmulator::new(attach_columns, attach_rows);
                             session.running = payload
                                 .get("running")
@@ -279,17 +274,22 @@ impl AleraApp {
                                 }
                             };
                             session.emulator = emulator;
+                            session.columns = attach_columns;
+                            session.rows = attach_rows;
                             if payload
                                 .get("snapshotBase64")
                                 .and_then(Value::as_str)
                                 .is_some()
                             {
                                 if let Some(bytes) = restored_bytes {
-                                    restore_generation = Some(session.begin_restore(bytes));
+                                    restore_generation = Some(
+                                        session.begin_restore_at_dimensions(
+                                            bytes,
+                                            snapshot_dimensions,
+                                        ),
+                                    );
                                 }
                             }
-                            session.columns = attach_columns;
-                            session.rows = attach_rows;
                         }
                         Err(error) => session.error = Some(error),
                     }
@@ -949,10 +949,7 @@ impl AleraApp {
                         // resume response. No emulator replacement is needed.
                     }
                     Ok(payload) => {
-                        // A full resume has the same contract as Flutter's
-                        // snapshot replacement: retain this client's current
-                        // viewport. Host dimensions can belong to another
-                        // attached client and are not the rendered width.
+                        let snapshot_dimensions = terminal_snapshot_dimensions(&payload);
                         let columns = session.columns;
                         let rows = session.rows;
                         let snapshot = payload
@@ -972,7 +969,12 @@ impl AleraApp {
                                 {
                                     session.emulator.clear_selection();
                                 }
-                                restore_generation = Some(session.begin_restore(bytes));
+                                restore_generation = Some(
+                                    session.begin_restore_at_dimensions(
+                                        bytes,
+                                        snapshot_dimensions,
+                                    ),
+                                );
                                 session.error = None;
                             }
                             Ok(None) => {
@@ -1078,10 +1080,7 @@ impl AleraApp {
                 let mut restore_generation = None;
                 match result {
                     Ok(payload) => {
-                        // Keep the dimensions requested for this client's
-                        // viewport; the response may report the host's
-                        // previous dimensions when another client is
-                        // attached to the same PTY.
+                        let snapshot_dimensions = terminal_snapshot_dimensions(&payload);
                         let emulator = TerminalEmulator::new(columns, rows);
                         let restored_bytes = payload
                             .get("snapshotBase64")
@@ -1096,17 +1095,22 @@ impl AleraApp {
                             }
                         };
                         session.emulator = emulator;
+                        session.columns = columns;
+                        session.rows = rows;
                         if payload
                             .get("snapshotBase64")
                             .and_then(Value::as_str)
                             .is_some()
                         {
                             if let Some(bytes) = restored_bytes {
-                                restore_generation = Some(session.begin_restore(bytes));
+                                restore_generation = Some(
+                                    session.begin_restore_at_dimensions(
+                                        bytes,
+                                        snapshot_dimensions,
+                                    ),
+                                );
                             }
                         }
-                        session.columns = columns;
-                        session.rows = rows;
                         session.running = payload
                             .get("running")
                             .and_then(Value::as_bool)
@@ -2575,6 +2579,20 @@ fn workspace_relative_path(workspace_path: Option<&str>, file_path: &str) -> Str
     }
 }
 
+fn terminal_snapshot_dimensions(payload: &Value) -> Option<(usize, usize)> {
+    let columns = payload
+        .get("snapshotCols")
+        .and_then(Value::as_u64)
+        .and_then(|value| usize::try_from(value).ok())
+        .filter(|value| *value > 0)?;
+    let rows = payload
+        .get("snapshotRows")
+        .and_then(Value::as_u64)
+        .and_then(|value| usize::try_from(value).ok())
+        .filter(|value| *value > 0)?;
+    Some((columns, rows))
+}
+
 pub(super) fn terminal_session_id(tab: &WorkspaceTab) -> &str {
     tab.payload
         .get("terminalSessionId")
@@ -2642,6 +2660,28 @@ mod tests {
                 ..KeyModifiers::default()
             }
         ));
+    }
+
+    #[test]
+    fn snapshot_dimensions_require_two_positive_values() {
+        assert_eq!(
+            terminal_snapshot_dimensions(&json!({
+                "snapshotCols": 180,
+                "snapshotRows": 50,
+            })),
+            Some((180, 50))
+        );
+        assert_eq!(
+            terminal_snapshot_dimensions(&json!({ "snapshotCols": 180 })),
+            None
+        );
+        assert_eq!(
+            terminal_snapshot_dimensions(&json!({
+                "snapshotCols": 0,
+                "snapshotRows": 50,
+            })),
+            None
+        );
     }
 
     #[cfg(not(target_os = "macos"))]
