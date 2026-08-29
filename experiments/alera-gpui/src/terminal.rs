@@ -315,7 +315,7 @@ impl TerminalEmulator {
                     highlights,
                     cursor_column: cursor
                         .filter(|point| point.line.0 == row_index as i32)
-                        .map(|point| point.column.0),
+                        .map(|point| point.column.0.min(columns.saturating_sub(1))),
                     source_row: Some(row_index),
                     shell_marker,
                 }
@@ -1562,6 +1562,22 @@ mod tests {
             .collect::<Vec<_>>();
         assert_eq!(text, ["two", "three", "four"]);
         assert!(lines.iter().all(|line| line.cursor_column.is_none()));
+    }
+
+    #[test]
+    fn restored_cursor_is_clamped_after_resize() {
+        let mut terminal = TerminalEmulator::new(8, 5);
+        terminal.write(b"\x1b[5;8H\x1b7");
+        terminal.resize(4, 3);
+        terminal.write(b"\x1b8x");
+
+        let lines = terminal.visible_lines("Alera Dark");
+
+        assert!(
+            lines
+                .iter()
+                .all(|line| line.cursor_column.is_none_or(|column| column < 4))
+        );
     }
 
     #[test]
