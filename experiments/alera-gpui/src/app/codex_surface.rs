@@ -77,10 +77,10 @@ impl AleraApp {
             if !self.codex_snapshots.contains_key(&tab_id)
                 && !self.codex_opening_tabs.contains(&tab_id)
             {
-                self.open_codex_thread(tab_id, cx);
+                self.open_codex_thread(tab_id.clone(), cx);
             }
             if !self.codex_catalogs_loaded && !self.codex_catalogs_loading {
-                self.load_codex_catalogs(tab_id, cx);
+                self.load_codex_catalogs(&tab_id, cx);
             }
         }
     }
