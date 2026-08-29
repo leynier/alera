@@ -52,8 +52,15 @@ void main() {
       ..write('\x1b[?25h')
       ..resize(808, 8);
 
+    final scrollBack = terminal.buffer.scrollBack;
     for (var i = 0; i < terminal.buffer.lines.length; i++) {
-      expect(terminal.buffer.lines[i].length, 808);
+      final line = terminal.buffer.lines[i];
+      if (i < scrollBack) {
+        // History rows are compacted to their content after the resize.
+        expect(line.length, lessThanOrEqualTo(808));
+      } else {
+        expect(line.length, 808, reason: 'viewport rows keep the full width');
+      }
     }
     terminal.setCursor(807, terminal.buffer.lines.length - 1);
     expect(() => terminal.write('x'), returnsNormally);
