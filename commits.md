@@ -196,7 +196,7 @@ commit so this file remains useful after context compaction.
 | 175 | `7211053846aed214b0407790893e1522f0d59ba0` | 2026-08-10 | feat: refine usage profile presentation | merged | Cherry-picked independent Claude usage visibility and grouped breakdown gating; GPUI Settings/usage now expose the default/profile usage controls, filter hidden profiles, remember periods, and offer Profiles/Grouped/Models while Codex Chat remains disabled. |
 | 176 | `648fa0094b6fb4e17daf4a1a3e99478268db16a8` | 2026-08-10 | test: cover grouped usage sessions | merged | Cherry-picked grouped usage-session coverage; GPUI behavior is represented by the grouped dashboard implementation. |
 | 177 | `fe40edb17462867a7f669a08cdc5cf4349c08843` | 2026-08-10 | fix: normalize codex review timeline | merged | Cherry-picked Codex review timeline normalization; GPUI intentionally receives no Codex Chat surface change. |
-| 178 | `37dc2ac5fa7d76ccbe4ca3475a54e9ce552e532e` | 2026-08-10 | chore: merge main into codex integration | pending | - |
+| 178 | `37dc2ac5fa7d76ccbe4ca3475a54e9ce552e532e` | 2026-08-10 | chore: merge main into codex integration | in progress | Replaying the merge commit with parent 1 so its conflict-resolution tree is incorporated after the individual source commits; GPUI Codex Chat remains disabled. |
 | 179 | `88ac8b10d542c0b4d33ba3f558deb7109d550a19` | 2026-08-10 | Merge pull request #384 from leynier/feat/claude-codex-usage | pending | - |
 | 180 | `9c0cf4c9b4297807f7c7165f230810248a92ce86` | 2026-08-10 | fix: restore integration quality gates | pending | - |
 | 181 | `1fc45835dab0b07641dec1127c1a6a7583588188` | 2026-08-10 | chore: merge latest main into codex integration | pending | - |
