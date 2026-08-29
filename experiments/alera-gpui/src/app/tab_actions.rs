@@ -687,7 +687,7 @@ impl AleraApp {
         cx.spawn(async move |this, cx| {
             let result = async {
                 for tab_id in &tab_ids {
-                    bridge.request("tab.remove", json!({"id": tab_id})).await?;
+                    remove_tab_with_retry(&bridge, tab_id).await?;
                 }
                 persist_layout(&bridge, layout).await
             }
@@ -1115,6 +1115,28 @@ impl AleraApp {
     }
 }
 
+async fn remove_tab_with_retry(
+    bridge: &crate::runtime_bridge::RuntimeBridge,
+    tab_id: &str,
+) -> Result<(), String> {
+    let payload = json!({"id": tab_id});
+    match bridge.request("tab.remove", payload.clone()).await {
+        Ok(_) => Ok(()),
+        Err(error) if ambiguous_tab_removal_error(&error) => {
+            bridge.request("tab.remove", payload).await.map(|_| ())
+        }
+        Err(error) => Err(error),
+    }
+}
+
+fn ambiguous_tab_removal_error(error: &str) -> bool {
+    let error = error.to_ascii_lowercase();
+    error.contains("timed out")
+        || error.contains("closed before replying")
+        || error.contains("connection closed")
+        || error.contains("broken pipe")
+}
+
 fn next_terminal_ordinal<'a>(titles: impl Iterator<Item = &'a str>) -> usize {
     let used = titles
         .filter_map(|title| title.strip_prefix("Terminal "))
@@ -1151,7 +1173,7 @@ pub(super) async fn persist_layout(
 
 #[cfg(test)]
 mod tests {
-    use super::next_terminal_ordinal;
+    use super::{ambiguous_tab_removal_error, next_terminal_ordinal};
 
     #[test]
     fn terminal_ordinal_reuses_the_first_available_number() {
@@ -1163,5 +1185,18 @@ mod tests {
     fn terminal_ordinal_ignores_noncanonical_titles() {
         let titles = ["Terminal", "Terminal Custom", "terminal 1"];
         assert_eq!(next_terminal_ordinal(titles.into_iter()), 1);
+    }
+
+    #[test]
+    fn tab_removal_retries_only_ambiguous_transport_failures() {
+        assert!(ambiguous_tab_removal_error(
+            "Runtime request tab.remove timed out."
+        ));
+        assert!(ambiguous_tab_removal_error(
+            "Runtime bridge closed before replying."
+        ));
+        assert!(!ambiguous_tab_removal_error(
+            "Tab removal was rejected by policy."
+        ));
     }
 }

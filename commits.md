@@ -319,11 +319,11 @@ commit so this file remains useful after context compaction.
 | 298 | `347aaac386403dc40285dc774f039fee19e28c1c` | 2026-08-23 | fix: reconnect relay mobiles after runtime restart (#496) | merged | Cherry-picked Edge relay reconnect behavior; no GPUI surface changed. |
 | 299 | `64503058bf29fc141ef19073cd8864807bb3110c` | 2026-08-23 | fix: harden relay transport recovery (#497) | merged | Cherry-picked shared runtime relay recovery; GPUI remote access benefits without UI changes. |
 | 300 | `24a8a5c13dfebe05db4cb4a2f4b5df54fc5376ac` | 2026-08-23 | fix: complete mobile relay fallback (#493) | merged | Cherry-picked mobile-only relay fallback and lifecycle completion; GPUI desktop remote-access control remains backed by the shared runtime. |
-| 301 | `95f2d16432caa6d1f8fb22cde1d6a3194712e990` | 2026-08-23 | docs: document relay envelope fragmentation (#498) | pending | - |
-| 302 | `9c5e8fb5193cd08c7dc8580c14175b352cb3cbe3` | 2026-08-23 | release: v0.65.1 v0.30.1-mobile | pending | - |
-| 303 | `72a19aadf4b26acaf1168b8e1ba5f377cb07ce9f` | 2026-08-23 | fix: ignore browser visibility during page close (#461) | pending | - |
-| 304 | `1287770ee5784716e02cf029df3d26c1da42009b` | 2026-08-23 | fix: preserve emulator dependencies during disposal (#462) | pending | - |
-| 305 | `95430c7a64b4f3d95ed10b333ca6d4804cd521e0` | 2026-08-23 | fix: retry ambiguous tab removal requests (#466) | pending | - |
+| 301 | `95f2d16432caa6d1f8fb22cde1d6a3194712e990` | 2026-08-23 | docs: document relay envelope fragmentation (#498) | merged | Cherry-picked relay documentation; no GPUI surface changed. |
+| 302 | `9c5e8fb5193cd08c7dc8580c14175b352cb3cbe3` | 2026-08-23 | release: v0.65.1 v0.30.1-mobile | merged | Cherry-picked desktop/mobile release metadata; no GPUI-specific UI behavior is affected. |
+| 303 | `72a19aadf4b26acaf1168b8e1ba5f377cb07ce9f` | 2026-08-23 | fix: ignore browser visibility during page close (#461) | merged | Cherry-picked Flutter browser-session close handling; GPUI has no embedded browser-tab session surface in the defined current scope. |
+| 304 | `1287770ee5784716e02cf029df3d26c1da42009b` | 2026-08-23 | fix: preserve emulator dependencies during disposal (#462) | merged | Cherry-picked Flutter mobile-emulator lifecycle fix; GPUI has no emulator surface in the defined current scope. |
+| 305 | `95430c7a64b4f3d95ed10b333ca6d4804cd521e0` | 2026-08-23 | fix: retry ambiguous tab removal requests (#466) | merged | Cherry-picked idempotent host removal and added GPUI one-shot retry for timeout/connection-close ambiguity while preserving non-transport failures; targeted test passes. |
 | 306 | `9d5c152964ac88cea0b7a1c5e7ba67c49d498839` | 2026-08-23 | fix: preserve terminal attachment during replacement (#467) | pending | - |
 | 307 | `a7a79b31e0633842107d0f01599f0248bd1897e7` | 2026-08-23 | fix: harden mobile dictation lifecycle (#464) | pending | - |
 | 308 | `8a26061dea226d02f9037fea1f80c04f735bbbcf` | 2026-08-23 | fix: complete runtime sentry reporting (#468) | pending | - |
