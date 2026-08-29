@@ -80,7 +80,7 @@ impl AleraApp {
                 self.open_codex_thread(tab_id, cx);
             }
             if !self.codex_catalogs_loaded && !self.codex_catalogs_loading {
-                self.load_codex_catalogs(cx);
+                self.load_codex_catalogs(tab_id, cx);
             }
         }
     }
@@ -114,16 +114,21 @@ impl AleraApp {
         cx.notify();
     }
 
-    fn load_codex_catalogs(&mut self, cx: &mut Context<Self>) {
+    fn load_codex_catalogs(&mut self, tab_id: &str, cx: &mut Context<Self>) {
         self.codex_catalogs_loading = true;
         let bridge = self.bridge.clone();
+        let tab_id = tab_id.to_owned();
         cx.spawn(async move |this, cx| {
             let models = bridge.request("codex.model.list", json!({})).await;
             let modes = bridge
                 .request("codex.collaborationModes.list", json!({}))
                 .await;
-            let skills = bridge.request("codex.skills.list", json!({})).await;
-            let apps = bridge.request("codex.apps.list", json!({})).await;
+            let skills = bridge
+                .request("codex.skills.list", json!({"tabId": tab_id}))
+                .await;
+            let apps = bridge
+                .request("codex.apps.list", json!({"tabId": tab_id}))
+                .await;
             let _ = this.update(cx, |this, cx| {
                 this.codex_catalogs_loading = false;
                 this.codex_catalogs_loaded = true;
