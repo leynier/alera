@@ -471,6 +471,43 @@ impl AleraApp {
             )
             .child(
                 div()
+                    .id("keep-alive-status")
+                    .focusable()
+                    .tab_stop(!self.keep_alive_busy)
+                    .role(Role::Button)
+                    .aria_label("Keep Alive")
+                    .aria_selected(self.keep_alive_active)
+                    .flex()
+                    .items_center()
+                    .gap(px(6.0))
+                    .h_full()
+                    .px_2()
+                    .border_l_1()
+                    .border_color(theme::border_subtle())
+                    .cursor(CursorStyle::PointingHand)
+                    .text_color(self.keep_alive_color())
+                    .tooltip({
+                        let tooltip = self.keep_alive_tooltip();
+                        move |_, cx| {
+                            let tooltip = tooltip.clone();
+                            cx.new(move |_| Tooltip::new(tooltip)).into()
+                        }
+                    })
+                    .hover(|style| style.bg(theme::surface_raised()))
+                    .on_mouse_down(gpui::MouseButton::Left, |_, _, cx| {
+                        cx.stop_propagation();
+                    })
+                    .on_click(cx.listener(|this, _, _, cx| {
+                        if !this.keep_alive_busy {
+                            this.toggle_keep_alive(cx);
+                        }
+                        cx.stop_propagation();
+                    }))
+                    .child(icon(AleraIcon::Coffee, 13.0, self.keep_alive_color()))
+                    .child(div().text_size(px(10.0)).child("Keep Alive")),
+            )
+            .child(
+                div()
                     .id("runtime-status")
                     .focusable()
                     .tab_stop(true)

@@ -171,6 +171,24 @@ fn application_pane(
                         "Lifecycle of the local runtime host that owns terminal sessions.",
                         vec![
                         exact_settings_row(
+                            "Keep Computer Awake",
+                            "Prevents idle sleep and display sleep while Alera is running. Closing the lid still follows this device's power settings.",
+                            settings_switch(
+                                "keep-computer-awake",
+                                "Keep Computer Awake",
+                                settings.keep_alive_enabled,
+                            )
+                            .on_click(
+                                cx.listener(|this, _, _, cx| {
+                                    this.set_keep_alive_enabled(
+                                        !this.settings_state.keep_alive_enabled,
+                                        cx,
+                                    );
+                                    cx.stop_propagation();
+                                }),
+                            ),
+                        ),
+                        exact_settings_row(
                             "Keep Runtime Open When App Quits",
                             "Leave the app-launched sidecar running after a clean quit. Persistent CLI runtimes are never stopped by quitting, and unexpected exits always leave the host up.",
                             settings_switch(

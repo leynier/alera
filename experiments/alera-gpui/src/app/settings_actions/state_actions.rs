@@ -89,6 +89,7 @@ impl AleraApp {
                 if let Some(value) = local {
                     this.settings_state.apply_local_flutter_settings(&value);
                 }
+                this.sync_keep_alive_from_settings(cx);
                 if let Ok(value) = status {
                     this.settings_state.apply_host_status(&value);
                 }

@@ -4,6 +4,7 @@ const APPLICATION: &[&str] = &[
     "Workspace Directory worktree folder location path storage",
     "Confirm Project Removal safety destructive remove delete",
     "Confirm Workspace Removal safety destructive remove delete",
+    "Keep Computer Awake idle display sleep power",
     "Keep Runtime Open When App Quits host sidecar lifecycle shutdown",
     "Empty Host Shutdown host sidecar lifetime timeout",
     "Detached Session Shutdown host sidecar session timeout",

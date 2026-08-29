@@ -128,6 +128,7 @@ pub(super) struct SettingsState {
     pub star_clicked: bool,
     pub confirm_project_removal: bool,
     pub confirm_workspace_removal: bool,
+    pub keep_alive_enabled: bool,
     pub keep_runtime_open_on_quit: bool,
     pub host_empty_shutdown_delay_seconds: i64,
     pub host_detached_shutdown_delay_seconds: i64,
@@ -252,6 +253,7 @@ impl Default for SettingsState {
             star_clicked: false,
             confirm_project_removal: true,
             confirm_workspace_removal: true,
+            keep_alive_enabled: false,
             keep_runtime_open_on_quit: false,
             host_empty_shutdown_delay_seconds: 30,
             host_detached_shutdown_delay_seconds: 3600,
@@ -470,6 +472,9 @@ impl SettingsState {
                 .and_then(Value::as_bool)
             {
                 self.confirm_workspace_removal = enabled;
+            }
+            if let Some(enabled) = general.get("keepAliveEnabled").and_then(Value::as_bool) {
+                self.keep_alive_enabled = enabled;
             }
         }
 
@@ -690,6 +695,7 @@ impl SettingsState {
                 "starClicked": self.star_clicked,
                 "confirmProjectRemoval": self.confirm_project_removal,
                 "confirmWorkspaceRemoval": self.confirm_workspace_removal,
+                "keepAliveEnabled": self.keep_alive_enabled,
             },
             "editor": {
                 "tabSize": self.editor_tab_size,
@@ -1087,7 +1093,8 @@ mod tests {
                 "workspaceDirectory": "/tmp/alera-workspaces",
                 "starClicked": true,
                 "confirmProjectRemoval": false,
-                "confirmWorkspaceRemoval": false
+                "confirmWorkspaceRemoval": false,
+                "keepAliveEnabled": true
             },
             "editor": {"themeName": "GitHub Dark", "tabSize": 2},
             "terminal": {
@@ -1125,6 +1132,7 @@ mod tests {
         assert_eq!(state.workspace_directory, "/tmp/alera-workspaces");
         assert!(state.star_clicked);
         assert!(!state.confirm_project_removal);
+        assert!(state.keep_alive_enabled);
         assert_eq!(state.editor_theme, "GitHub Dark");
         assert_eq!(state.editor_tab_size, 2);
         assert_eq!(state.terminal_font_family, "Iosevka");
@@ -1163,6 +1171,10 @@ mod tests {
             Some(&json!("GitHub Dark"))
         );
         assert_eq!(payload.pointer("/general/starClicked"), Some(&json!(false)));
+        assert_eq!(
+            payload.pointer("/general/keepAliveEnabled"),
+            Some(&json!(false))
+        );
         assert_eq!(
             payload.pointer("/terminal/cursorShape"),
             Some(&json!("bar"))

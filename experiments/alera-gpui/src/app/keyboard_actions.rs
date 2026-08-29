@@ -306,6 +306,7 @@ impl AleraApp {
     }
 
     pub(super) fn on_quit_app(&mut self, _: &QuitApp, _: &mut Window, cx: &mut Context<Self>) {
+        let _ = alera_native::api::keep_alive::set_keep_alive(false);
         cx.quit();
     }
 

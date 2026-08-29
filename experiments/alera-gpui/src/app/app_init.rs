@@ -7,6 +7,9 @@ use super::*;
 impl AleraApp {
     pub fn new(bridge: RuntimeBridge, window: &mut Window, cx: &mut Context<Self>) -> Self {
         let (settings_store, settings_state) = SettingsStore::start();
+        let keep_alive_status = alera_native::api::keep_alive::set_keep_alive(
+            settings_state.keep_alive_enabled,
+        );
         crate::editor_theme::apply_editor_theme(cx, &settings_state.editor_theme);
         crate::app_log::set_level(&settings_state.diagnostics_log_level);
         crate::app_log::set_crash_reporting_enabled(settings_state.crash_reporting_enabled);
@@ -1227,6 +1230,10 @@ impl AleraApp {
             status_popover_transition_generation: 0,
             status_popover_anchor_x: 8.0,
             status_data: StatusData::default(),
+            keep_alive_active: keep_alive_status.active,
+            keep_alive_error: keep_alive_status.error.map(Into::into),
+            keep_alive_busy: false,
+            keep_alive_generation: 0,
             tab_completion_acknowledged: BTreeMap::new(),
             codex_reset_offer_revision: None,
             codex_reset_busy: false,

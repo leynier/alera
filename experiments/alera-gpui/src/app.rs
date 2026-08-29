@@ -66,6 +66,7 @@ mod keyboard_actions;
 mod keyboard_settings;
 mod keyboard_settings_actions;
 mod keyboard_settings_render;
+mod keep_alive;
 mod markdown_preview_images;
 mod mobile_access;
 mod mobile_driver;
@@ -342,6 +343,10 @@ pub struct AleraApp {
     status_popover_transition_generation: u64,
     status_popover_anchor_x: f32,
     status_data: StatusData,
+    keep_alive_active: bool,
+    keep_alive_error: Option<SharedString>,
+    keep_alive_busy: bool,
+    keep_alive_generation: u64,
     /// Session-local acknowledgement of a completed agent run. Flutter keeps
     /// the warning dot until the tab is viewed, keyed by the run epoch.
     tab_completion_acknowledged: BTreeMap<String, String>,
