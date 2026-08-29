@@ -21,22 +21,30 @@ class DesktopPresenceSnapshot {
     required this.trayVisible,
     required this.tooltip,
     required this.badgeCount,
+    this.trayBadgeCount = 0,
   });
 
   final bool trayVisible;
   final String tooltip;
+
+  /// Dock, taskbar, or launcher-entry badge.
   final int badgeCount;
+
+  /// Count drawn onto the tray icon itself. Only Linux paints it today.
+  final int trayBadgeCount;
 
   @override
   bool operator ==(Object other) {
     return other is DesktopPresenceSnapshot &&
         other.trayVisible == trayVisible &&
         other.tooltip == tooltip &&
-        other.badgeCount == badgeCount;
+        other.badgeCount == badgeCount &&
+        other.trayBadgeCount == trayBadgeCount;
   }
 
   @override
-  int get hashCode => Object.hash(trayVisible, tooltip, badgeCount);
+  int get hashCode =>
+      Object.hash(trayVisible, tooltip, badgeCount, trayBadgeCount);
 }
 
 abstract interface class DesktopPresenceBackend {
@@ -83,13 +91,12 @@ class MethodChannelDesktopPresenceBackend implements DesktopPresenceBackend {
 
   @override
   Future<void> apply(DesktopPresenceSnapshot snapshot) async {
-    final installed = await _channel.invokeMethod<Object?>(
-      DesktopPresenceMethod.setTray,
-      <String, Object?>{
-        'visible': snapshot.trayVisible,
-        'tooltip': snapshot.tooltip,
-      },
-    );
+    final installed = await _channel
+        .invokeMethod<Object?>(DesktopPresenceMethod.setTray, <String, Object?>{
+          'visible': snapshot.trayVisible,
+          'tooltip': snapshot.tooltip,
+          'badgeCount': snapshot.trayBadgeCount,
+        });
     if (snapshot.trayVisible && installed == false) {
       throw StateError('desktop tray was not installed');
     }

@@ -248,6 +248,7 @@ void main() {
         await controller.setKeepAliveEnabled(true);
         await controller.setShowTrayIcon(false);
         await controller.setShowDockBadge(false);
+        await controller.setShowTrayBadge(false);
 
         final restored = await repository.load();
         expect(
@@ -281,6 +282,7 @@ void main() {
         expect(restored.general.keepAliveEnabled, isTrue);
         expect(restored.general.showTrayIcon, isFalse);
         expect(restored.general.showDockBadge, isFalse);
+        expect(restored.general.showTrayBadge, isFalse);
       },
     );
 

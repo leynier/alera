@@ -10,6 +10,10 @@ add_executable(${BINARY_NAME}
   "main.cc"
   "my_application.cc"
   "desktop_presence.cc"
+  "status_notifier_item.cc"
+  "status_notifier_menu.cc"
+  "tray_badge_icon.cc"
+  "appindicator_tray_fallback.cc"
   "${FLUTTER_MANAGED_DIR}/generated_plugin_registrant.cc"
 )
 

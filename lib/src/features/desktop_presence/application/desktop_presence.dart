@@ -30,11 +30,13 @@ int pendingReviewCountForTabs({
 DesktopPresenceSnapshot desktopPresenceSnapshot({
   required bool showTrayIcon,
   required bool showDockBadge,
+  required bool showTrayBadge,
   required int pendingReviewCount,
 }) {
   return DesktopPresenceSnapshot(
     trayVisible: showTrayIcon,
     tooltip: pendingReviewTooltip(pendingReviewCount),
     badgeCount: showDockBadge ? pendingReviewCount : 0,
+    trayBadgeCount: showTrayBadge ? pendingReviewCount : 0,
   );
 }

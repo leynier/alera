@@ -31,7 +31,7 @@ void main() {
 
     expect(
       _catalogFingerprint(catalogs),
-      'baa5ae1b5ed44dbf8a290c929d94a92fbb77a514812d9031392e37e89bf78779',
+      '3c5a1af6d8345b420d013ae62b0e9f4732f54ffb21c57b6e15569dc61a8a6558',
     );
   });
 
@@ -63,7 +63,15 @@ void main() {
       (
         entries: applicationSearchEntries,
         query: 'tray',
-        expected: <(String, String?)>[('Show Tray Icon', 'desktop')],
+        expected: <(String, String?)>[
+          ('Show Tray Icon', 'desktop'),
+          ('Show Tray Badge', 'desktop'),
+        ],
+      ),
+      (
+        entries: applicationSearchEntries,
+        query: 'number',
+        expected: <(String, String?)>[('Show Tray Badge', 'desktop')],
       ),
       (
         entries: applicationSearchEntries,

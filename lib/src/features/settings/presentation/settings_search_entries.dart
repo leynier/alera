@@ -47,6 +47,20 @@ applicationSearchEntries = buildSettingsSearchEntryCatalog(const {
         'ubuntu',
       ],
     ),
+    'Show Tray Badge': SettingsSearchEntryDetails(
+      description:
+          'Draw how many agents are waiting for review onto the tray icon.',
+      keywords: <String>[
+        'tray',
+        'badge',
+        'count',
+        'number',
+        'attention',
+        'review',
+        'status bar',
+        'linux',
+      ],
+    ),
   },
   'runtime': {
     'Keep Computer Awake': SettingsSearchEntryDetails(
