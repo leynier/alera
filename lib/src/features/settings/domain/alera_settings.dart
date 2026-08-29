@@ -307,9 +307,7 @@ class GeneralSettings with GeneralSettingsMappable {
   /// `null` falls back to the platform default (`~/.alera/workspaces`).
   final String? workspaceDirectory;
 
-  /// Local flag set after the user has interacted with the GitHub star flow.
-  /// Used to mute the in-app nag; the Settings row state is still driven by
-  /// the live `gh` check.
+  /// Local flag after the GitHub star flow; Settings still uses the live `gh` check.
   final bool starClicked;
 
   /// Ask before unregistering a project and deleting its workspace metadata.
@@ -318,22 +316,14 @@ class GeneralSettings with GeneralSettingsMappable {
   /// Ask before removing a linked workspace and its Git worktree.
   final bool confirmWorkspaceRemoval;
 
-  /// Prevent idle sleep and display sleep while Alera is running.
-  ///
-  /// Lid-close and explicit sleep still follow the device power policy.
+  /// Prevent idle and display sleep while Alera is running.
   final bool keepAliveEnabled;
 
-  /// Keep a tray / menu-extra / AppIndicator icon while the desktop app runs.
-  ///
-  /// When this is on, closing the window hides it; Quit from the tray or the
-  /// app menu still exits. Missing from older settings blobs, so those decode
-  /// as on.
+  /// Tray icon. Close hides; Quit still exits.
   final bool showTrayIcon;
 
-  /// Show how many agents are waiting for review on the Dock, taskbar, or
-  /// Ubuntu Dock. Missing from older settings blobs, so those decode as on.
+  /// Pending-review Dock / taskbar badge.
   final bool showDockBadge;
-
   static const GeneralSettings defaults = GeneralSettings();
 
   factory GeneralSettings.fromJson(Map<String, Object?> json) =>
