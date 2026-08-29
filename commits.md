@@ -184,7 +184,7 @@ commit so this file remains useful after context compaction.
 | 163 | `1894f48189cf668869f8116ae3a3e111fb95d559` | 2026-08-09 | feat: build and ship macos for apple silicon only (#379) | merged | Cherry-picked Apple Silicon-only macOS build/release settings and bundle verification; no GPUI code change was expected. |
 | 164 | `22b3f9ff5008c9621f6459434e4f3a5c04d48983` | 2026-08-09 | feat: attribute linux deb and rpm installs to their package manager (#380) | merged | Cherry-picked Linux package-manager attribution for update flows; no GPUI code change was expected. |
 | 165 | `785236121e3c0f2f46f271eef2bce23461733eab` | 2026-08-09 | feat: update linux installs that no package manager owns (#381) | merged | Cherry-picked release/updater support for writable unmanaged Linux tarball installs, including the writability probe and Linux tarball artifact; no GPUI UI surface is affected. |
-| 166 | `a262e00795b0bccdc5dc414676b12cb652677428` | 2026-08-09 | docs: record why the linux dependencies stay declared (#382) | in progress | Cherry-picking the Linux tarball dependency documentation; no GPUI surface is affected. |
+| 166 | `a262e00795b0bccdc5dc414676b12cb652677428` | 2026-08-09 | docs: record why the linux dependencies stay declared (#382) | merged | Cherry-picked the Linux tarball dependency documentation; no GPUI surface is affected. |
 | 167 | `446821425ccd8774d3199be5b432078a33369fcc` | 2026-08-10 | release: v0.55.0 v0.21.0-mobile | pending | - |
 | 168 | `5e2b4aef5a73aba3530b90ddc1be9380504d7365` | 2026-08-10 | feat: add claude and codex usage dashboard | pending | - |
 | 169 | `002567a472fb0c30643dcad9cd504f33423403e6` | 2026-08-10 | fix: refine codex tool responses | pending | - |
