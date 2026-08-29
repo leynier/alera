@@ -45,8 +45,8 @@ static void emit_launcher_update(DesktopPresence* self) {
                         g_variant_new_int64(self->badge_count));
   g_variant_builder_add(&builder, "{sv}", "count-visible",
                         g_variant_new_boolean(visible));
-  g_autoptr(gchar) app_uri = launcher_app_uri();
-  g_autoptr(gchar) object_path = launcher_object_path();
+  g_autofree gchar* app_uri = launcher_app_uri();
+  g_autofree gchar* object_path = launcher_object_path();
   g_dbus_connection_emit_signal(
       bus, nullptr, object_path, kLauncherInterface, "Update",
       g_variant_new("(s@a{sv})", app_uri, g_variant_builder_end(&builder)),
@@ -69,7 +69,7 @@ static void launcher_query(GDBusConnection*,
                         g_variant_new_int64(self->badge_count));
   g_variant_builder_add(&builder, "{sv}", "count-visible",
                         g_variant_new_boolean(visible));
-  g_autoptr(gchar) app_uri = launcher_app_uri();
+  g_autofree gchar* app_uri = launcher_app_uri();
   g_dbus_method_invocation_return_value(
       invocation,
       g_variant_new("(s@a{sv})", app_uri, g_variant_builder_end(&builder)));
@@ -119,7 +119,7 @@ static void ensure_launcher_object(DesktopPresence* self) {
   if (info == nullptr) {
     return;
   }
-  g_autoptr(gchar) object_path = launcher_object_path();
+  g_autofree gchar* object_path = launcher_object_path();
   self->launcher_registration = g_dbus_connection_register_object(
       bus, object_path, info->interfaces[0], &kLauncherVtable, self, nullptr,
       nullptr);
@@ -165,8 +165,14 @@ static void set_tray(DesktopPresence* self, bool visible,
   }
   if (self->indicator == nullptr) {
     self->menu = build_menu(self);
+    // libayatana-appindicator 0.5.94 deprecates both constructors without
+    // naming a replacement, and the runner builds with -Werror. Ubuntu 24.04
+    // ships an older header, so this only bites on newer distros.
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
     self->indicator = app_indicator_new(APPLICATION_ID, "alera",
                                         APP_INDICATOR_CATEGORY_APPLICATION_STATUS);
+#pragma GCC diagnostic pop
     app_indicator_set_menu(self->indicator, GTK_MENU(self->menu));
     // Primary click opens the AppIndicator menu. Middle-click / secondary
     // activate runs Show, which is the protocol the indicator actually
