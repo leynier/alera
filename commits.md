@@ -131,7 +131,7 @@ commit so this file remains useful after context compaction.
 | 110 | `9066814fded893b8e29b56a6c8c4cd00dc8bf405` | 2026-08-06 | test: cover opencode quota payloads | merged | Cherry-picked the source OpenCode quota payload coverage; no GPUI code was expected. |
 | 111 | `0e3e1db7a55092b45a0b7b2b836badfad9b9e394` | 2026-08-06 | Merge pull request #366 from rmarticedeno/agent/opencode-go-zen | merged | Replayed the OpenCode Go/Zen merge with parent 1; source formatting/generated quota changes were already covered by #103-#110, and GPUI support remains in the status-bar/parser adaptation. |
 | 112 | `1cb9b8b848bbea903d36855df6bb5f8b6e45f4a2` | 2026-08-06 | release: v0.52.0 v0.20.0-mobile | merged | Cherry-picked the source release metadata; no GPUI code was expected. |
-| 113 | `ccec4803e188e84ca2dee36d928c337307e9fadf` | 2026-08-07 | feat: paste workspace-relative paths on terminal drops (#367) | pending | - |
+| 113 | `ccec4803e188e84ca2dee36d928c337307e9fadf` | 2026-08-07 | feat: paste workspace-relative paths on terminal drops (#367) | in_progress | Replaying workspace-relative path conversion for external and Explorer terminal drops; GPUI will keep paths outside the workspace absolute. |
 | 114 | `ae11c13f2664cfa209b70bed2632a56c96c7199b` | 2026-08-07 | fix: align antigravity hooks with the documented contract (#368) | pending | - |
 | 115 | `b617e61916835cf81d9fea6c4dd13c69d0a06d9f` | 2026-08-07 | fix: align cursor hooks with the documented contract (#369) | pending | - |
 | 116 | `1af236b9eeccfe269010d6850f677dbd60e48b89` | 2026-08-07 | fix: deliver the initial prompt to every agent, not only codex (#370) | pending | - |
