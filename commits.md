@@ -182,7 +182,7 @@ commit so this file remains useful after context compaction.
 | 161 | `a2fefb15a7c4b54493f07bdd4d3072a532c7c30f` | 2026-08-09 | fix: package only alera.app in the macos release asset (#377) | merged | Cherry-picked the macOS release packaging guard that archives only `Alera.app`; no GPUI code change was expected. |
 | 162 | `88f4205211e5c6ab2546e5733ec45a460aefd613` | 2026-08-09 | chore: drop the unused appindicator dependency from the deb (#378) | merged | Cherry-picked the Linux package dependency cleanup removing unused appindicator dependencies; no GPUI code change was expected. |
 | 163 | `1894f48189cf668869f8116ae3a3e111fb95d559` | 2026-08-09 | feat: build and ship macos for apple silicon only (#379) | merged | Cherry-picked Apple Silicon-only macOS build/release settings and bundle verification; no GPUI code change was expected. |
-| 164 | `22b3f9ff5008c9621f6459434e4f3a5c04d48983` | 2026-08-09 | feat: attribute linux deb and rpm installs to their package manager (#380) | in_progress | Replaying Linux package-manager attribution for update flows; no GPUI code change is expected. |
+| 164 | `22b3f9ff5008c9621f6459434e4f3a5c04d48983` | 2026-08-09 | feat: attribute linux deb and rpm installs to their package manager (#380) | merged | Cherry-picked Linux package-manager attribution for update flows; no GPUI code change was expected. |
 | 165 | `785236121e3c0f2f46f271eef2bce23461733eab` | 2026-08-09 | feat: update linux installs that no package manager owns (#381) | pending | - |
 | 166 | `a262e00795b0bccdc5dc414676b12cb652677428` | 2026-08-09 | docs: record why the linux dependencies stay declared (#382) | pending | - |
 | 167 | `446821425ccd8774d3199be5b432078a33369fcc` | 2026-08-10 | release: v0.55.0 v0.21.0-mobile | pending | - |
