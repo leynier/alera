@@ -65,6 +65,8 @@ impl MobileEndpointMode {
 #[serde(rename_all = "camelCase")]
 pub(super) struct MobileGatewaySettings {
     pub enabled: bool,
+    #[serde(default)]
+    pub remote_access_enabled: bool,
     pub bind_host: String,
     pub port: u16,
     #[serde(default)]
@@ -205,8 +207,9 @@ impl MobileAccessState {
         cx: &mut Context<AleraApp>,
     ) {
         let signature = format!(
-            "{}|{}|{}|{}",
+            "{}|{}|{}|{}|{}",
             status.settings.enabled,
+            status.settings.remote_access_enabled,
             status.settings.bind_host,
             status.settings.port,
             status.settings.endpoint_mode
@@ -307,6 +310,24 @@ impl AleraApp {
         self.run_mobile_request(
             "mobile.settings.update",
             Value::Object(payload),
+            true,
+            window,
+            cx,
+        );
+    }
+
+    pub(super) fn update_mobile_remote_access(
+        &mut self,
+        enabled: bool,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        if self.mobile_access.busy {
+            return;
+        }
+        self.run_mobile_request(
+            "mobile.settings.update",
+            json!({"remoteAccessEnabled": enabled}),
             true,
             window,
             cx,

@@ -296,18 +296,18 @@ commit so this file remains useful after context compaction.
 | 275 | `6ca3583f89bad49ea4419c891c8ee90bf39fd5b8` | 2026-08-22 | fix: stage windows sidecar before cmake install (#451) | merged | Cherry-picked Windows Flutter sidecar staging; GPUI's separate app packaging is unaffected. |
 | 276 | `8e84755b4d049c947dafe9b65174f39d19f8dd6e` | 2026-08-22 | feat: support github stacked pull requests (#434) | merged | Cherry-picked native Git support and added GPUI stack detection, layer UI, explicit/workspace linking, ancestry validation, gh-stack errors, and stack-aware merge methods; 3 targeted tests pass. Visual click-through remains queued while Computer Use actions are unavailable. |
 | 277 | `964a6ea6ab438850941c6d395f8718298b652e5b` | 2026-08-22 | feat: add subscription-backed ai reading diffs (#385) | merged | Cherry-picked the deterministic core and added GPUI full-patch preparation, diff-only subscription agents, confirmation, chunk repair/merge, progress, cancel, persistent cache, result/original toggle, Source Control, Pull Request, and settings operation; 4 targeted tests pass. Real subscription execution was not consumed during validation. |
-| 278 | `fc92469ebfe39217452b099720268181204a3ead` | 2026-08-22 | ci: split rust pr checks and reuse the compiler cache (#454) | pending | - |
-| 279 | `02513b4c5efc76f04c39e44b5b08355fada61bd6` | 2026-08-22 | fix: verify android native dependencies without ndk readelf lookup (#455) | pending | - |
-| 280 | `6c2a7c59f3f8e827efd6c787251871b73c916236` | 2026-08-22 | release: v0.64.0 v0.28.0-mobile | pending | - |
-| 281 | `9cbdaf8de534bd338ea3cd63e0f425c7586d281b` | 2026-08-22 | feat: enable mobile ai dictation on new workspace from prompt (#456) | pending | - |
-| 282 | `341774f00b44e1e303713a03c3c818f7613eba5c` | 2026-08-22 | release: v0.29.0-mobile | pending | - |
-| 283 | `b02ff23291da03560b55624aff43a06dab1dd33c` | 2026-08-22 | ci: bootstrap cloud relay durable object (#457) | pending | - |
-| 284 | `8b6f5e2def3528172540c52485fda163d517555c` | 2026-08-22 | docs: document merge queue batching (#458) | pending | - |
-| 285 | `f629bb1e5964862b272275597a27e15a4d5aa610` | 2026-08-22 | fix: use project-scoped bucket viewer (#460) | pending | - |
-| 286 | `dc3862a5439d823c3e6dbd017e046ce9dc9247cf` | 2026-08-22 | fix: read cloud storage versioning status (#473) | pending | - |
-| 287 | `2e1f4ebe0df4e90032c489c099a3e52b5a718095` | 2026-08-22 | docs: document cloud state versioning check (#474) | pending | - |
-| 288 | `2e69bc83c4b4e28c8380e4449a804a577b5c12f7` | 2026-08-23 | docs: clarify relay probe contract (#479) | pending | - |
-| 289 | `74bffcc355652fe91008e19a63a2f3901f8fe016` | 2026-08-23 | feat: add account-scoped mobile cloud relay (#354) | pending | - |
+| 278 | `fc92469ebfe39217452b099720268181204a3ead` | 2026-08-22 | ci: split rust pr checks and reuse the compiler cache (#454) | merged | Cherry-picked Rust CI/cache changes; no GPUI UI surface changed. |
+| 279 | `02513b4c5efc76f04c39e44b5b08355fada61bd6` | 2026-08-22 | fix: verify android native dependencies without ndk readelf lookup (#455) | merged | Cherry-picked Android-only native dependency verification; no GPUI desktop surface is affected. |
+| 280 | `6c2a7c59f3f8e827efd6c787251871b73c916236` | 2026-08-22 | release: v0.64.0 v0.28.0-mobile | merged | Cherry-picked desktop/mobile release metadata; no GPUI-specific UI behavior is affected. |
+| 281 | `9cbdaf8de534bd338ea3cd63e0f425c7586d281b` | 2026-08-22 | feat: enable mobile ai dictation on new workspace from prompt (#456) | merged | Cherry-picked the mobile-only workspace-prompt dictation surface; GPUI's desktop dictation gap remains separately tracked. |
+| 282 | `341774f00b44e1e303713a03c3c818f7613eba5c` | 2026-08-22 | release: v0.29.0-mobile | merged | Cherry-picked mobile release metadata; no GPUI-specific UI behavior is affected. |
+| 283 | `b02ff23291da03560b55624aff43a06dab1dd33c` | 2026-08-22 | ci: bootstrap cloud relay durable object (#457) | merged | Cherry-picked Cloud/Edge deployment infrastructure; no desktop GPUI surface changed. |
+| 284 | `8b6f5e2def3528172540c52485fda163d517555c` | 2026-08-22 | docs: document merge queue batching (#458) | merged | Cherry-picked contributor workflow documentation; no GPUI surface changed. |
+| 285 | `f629bb1e5964862b272275597a27e15a4d5aa610` | 2026-08-22 | fix: use project-scoped bucket viewer (#460) | merged | Cherry-picked Cloud deployment permissions; no GPUI surface changed. |
+| 286 | `dc3862a5439d823c3e6dbd017e046ce9dc9247cf` | 2026-08-22 | fix: read cloud storage versioning status (#473) | merged | Cherry-picked Cloud deployment verification; no GPUI surface changed. |
+| 287 | `2e1f4ebe0df4e90032c489c099a3e52b5a718095` | 2026-08-22 | docs: document cloud state versioning check (#474) | merged | Cherry-picked Cloud operations documentation; no GPUI surface changed. |
+| 288 | `2e69bc83c4b4e28c8380e4449a804a577b5c12f7` | 2026-08-23 | docs: clarify relay probe contract (#479) | merged | Cherry-picked Cloud operations documentation; no GPUI surface changed. |
+| 289 | `74bffcc355652fe91008e19a63a2f3901f8fe016` | 2026-08-23 | feat: add account-scoped mobile cloud relay (#354) | merged | Cherry-picked account-scoped encrypted relay runtime and added GPUI Mobile Gateway remote-access parsing, persisted switch, RPC, compatibility default, and search entry; targeted test passes. |
 | 290 | `c755342915d6a064b35e006b3e879f6952850773` | 2026-08-23 | release: v0.65.0 v0.30.0-mobile | pending | - |
 | 291 | `08929324ee81b0d48eaaede0b1997c3abd73cbe3` | 2026-08-23 | fix: route relay control requests to cloud (#482) | pending | - |
 | 292 | `8db7272f82d7a2af7736b6efd4a8e4c825b0db95` | 2026-08-23 | docs: clarify relay control plane routing (#483) | pending | - |

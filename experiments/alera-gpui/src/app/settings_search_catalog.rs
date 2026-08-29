@@ -103,7 +103,7 @@ const PROJECTS: &[&str] = &[
     "Project Worktree Setup repository workspace copy setup prompt append agent instructions alera.toml",
 ];
 const MOBILE: &[&str] = &[
-    "Mobile Gateway bind port enable wss endpoint tailscale vpn remote",
+    "Mobile Gateway bind port enable wss endpoint tailscale vpn remote encrypted relay",
     "Link Mobile Device QR pair scan phone companion",
     "Active Pairing Offers cancel copy",
     "Paired Devices rename revoke delete token",

@@ -45,6 +45,11 @@ impl AleraApp {
                 "Accept connections from paired mobile devices.",
                 self.mobile_switch(settings.enabled, cx),
             ),
+            mobile_settings_row(
+                "Enable Remote Access",
+                "Allow signed-in Alera mobile devices to discover this runtime and use the encrypted relay.",
+                self.mobile_remote_switch(settings.remote_access_enabled, cx),
+            ),
             mobile_settings_row_width(
                 "Connection Mode",
                 match mode {
@@ -212,6 +217,25 @@ impl AleraApp {
                     cx.stop_propagation();
                 }),
             )
+            .into_any_element()
+    }
+
+    fn mobile_remote_switch(&self, enabled: bool, cx: &mut Context<Self>) -> AnyElement {
+        design_system::switch(enabled, true)
+            .id("mobile-remote-enabled-switch")
+            .focusable()
+            .tab_stop(true)
+            .role(Role::Switch)
+            .aria_label("Enable Remote Access")
+            .aria_toggled(if enabled {
+                Toggled::True
+            } else {
+                Toggled::False
+            })
+            .on_click(cx.listener(move |this, _, window, cx| {
+                this.update_mobile_remote_access(!enabled, window, cx);
+                cx.stop_propagation();
+            }))
             .into_any_element()
     }
 

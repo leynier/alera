@@ -118,6 +118,35 @@ fn validate_pairing_endpoint(
     None
 }
 
+#[cfg(test)]
+mod remote_access_tests {
+    use super::parse_mobile_status;
+    use serde_json::json;
+
+    #[test]
+    fn remote_access_defaults_off_and_parses_when_enabled() {
+        let base = json!({
+            "settings": {
+                "enabled": true,
+                "bindHost": "127.0.0.1",
+                "port": 6768
+            },
+            "devices": [],
+            "activePairings": []
+        });
+        assert!(!parse_mobile_status(base.clone())
+            .unwrap()
+            .settings
+            .remote_access_enabled);
+        let mut enabled = base;
+        enabled["settings"]["remoteAccessEnabled"] = json!(true);
+        assert!(parse_mobile_status(enabled)
+            .unwrap()
+            .settings
+            .remote_access_enabled);
+    }
+}
+
 fn is_dns_hostname(value: &str) -> bool {
     let value = value.trim().trim_matches(['[', ']']);
     !value.is_empty()
