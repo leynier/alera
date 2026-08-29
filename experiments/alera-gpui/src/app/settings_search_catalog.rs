@@ -7,6 +7,7 @@ const APPLICATION: &[&str] = &[
     "Keep Runtime Open When App Quits host sidecar lifecycle shutdown",
     "Empty Host Shutdown host sidecar lifetime timeout",
     "Detached Session Shutdown host sidecar session timeout",
+    "Automations schedules runs autostart retention history",
     "Open Logs Folder diagnostics debug",
     "Export Diagnostics logs bundle report zip",
     "Log Level verbose debug diagnostics",

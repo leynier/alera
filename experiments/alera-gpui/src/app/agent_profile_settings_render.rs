@@ -347,6 +347,9 @@ impl AleraApp {
         }
         content = content
             .child(self.render_agent_profile_routing_group())
+            .when(state.selected_id.is_some(), |content| {
+                content.child(self.render_automation_profile_policy(cx))
+            })
             .when_some(state.error.clone(), |content, error| {
                 content.child(
                     div()

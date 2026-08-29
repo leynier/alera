@@ -4,6 +4,9 @@ fn application_pane(
     inputs: &SettingsInputs,
     anchors: &SettingsGroupAnchors,
     diagnostics_export_busy: bool,
+    automation_settings_loading: bool,
+    automation_settings_saving: bool,
+    automation_settings_error: Option<SharedString>,
     diagnostics_log_level_select: &SettingsSelect,
     cx: &mut Context<AleraApp>,
 ) -> AnyElement {
@@ -227,6 +230,38 @@ fn application_pane(
             div()
                 .mt_6()
                 .child(
+                    AleraApp::render_automation_settings_group(
+                        settings,
+                        automation_settings_saving,
+                        automation_settings_error,
+                        cx,
+                    )
+                    .id(("settings-group-anchor", 3usize))
+                    .anchor_scroll(settings_group_anchor(
+                        anchors,
+                        SettingsPane::Application,
+                        3,
+                    )),
+                )
+                .when(automation_settings_loading, |group| {
+                    group.child(
+                        div()
+                            .mt_2()
+                            .ml_1()
+                            .flex()
+                            .items_center()
+                            .gap_2()
+                            .text_size(px(12.0))
+                            .text_color(theme::text_muted())
+                            .child(loading_indicator(13.0, theme::text_muted()))
+                            .child("Loading Automation Settings"),
+                    )
+                }),
+        )
+        .child(
+            div()
+                .mt_6()
+                .child(
                     exact_settings_group(
                         "Diagnostics",
                         "Alera keeps rotating log files on this computer so an error can be reviewed after it happens.",
@@ -288,11 +323,11 @@ fn application_pane(
                         ),
                         ],
                     )
-                    .id(("settings-group-anchor", 3usize))
+                    .id(("settings-group-anchor", 4usize))
                     .anchor_scroll(settings_group_anchor(
                         anchors,
                         SettingsPane::Application,
-                        3,
+                        4,
                     )),
                 ),
         )
@@ -305,11 +340,11 @@ fn application_pane(
                         "Check the Alera release channel for a newer desktop build.",
                         vec![update_settings_row(settings, cx)]
                     )
-                    .id(("settings-group-anchor", 4usize))
+                    .id(("settings-group-anchor", 5usize))
                     .anchor_scroll(settings_group_anchor(
                         anchors,
                         SettingsPane::Application,
-                        4,
+                        5,
                     )),
                 ),
         )
@@ -325,11 +360,11 @@ fn application_pane(
                                 support_control,
                             )],
                         )
-                        .id(("settings-group-anchor", 5usize))
+                        .id(("settings-group-anchor", 6usize))
                         .anchor_scroll(settings_group_anchor(
                             anchors,
                             SettingsPane::Application,
-                            5,
+                            6,
                         )),
                     ),
             )

@@ -111,6 +111,7 @@ impl AleraApp {
                     .child(self.render_project_hosting_provider(cx))
                     .child(self.render_project_copy_rules(cx))
                     .child(self.render_project_setup_commands(cx))
+                    .child(self.render_automation_project_policy(cx))
                     .when_some(
                         self.project_config_settings.error.clone(),
                         |detail, error| {

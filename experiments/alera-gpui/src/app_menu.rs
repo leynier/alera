@@ -7,6 +7,7 @@ actions!(
     alera_menu,
     [
         MenuOpenSettings,
+        MenuOpenAutomations,
         MenuOpenExecutionPlans,
         MenuShowAbout,
         MenuCheckForUpdates,
@@ -47,6 +48,19 @@ pub fn install(
                 app.open_execution_plans_from_menu(cx);
             });
         }
+    });
+    let automations_app = app.downgrade();
+    cx.on_action(move |_: &MenuOpenAutomations, cx| {
+        let automations_app = automations_app.clone();
+        cx.defer(move |cx| {
+            if let Some(app) = automations_app.upgrade() {
+                let _ = window_handle.update(cx, |_, window, cx| {
+                    app.update(cx, |app, cx| {
+                        app.open_automations_dialog(window, cx);
+                    });
+                });
+            }
+        });
     });
     let updates_app = app.downgrade();
     cx.on_action(move |_: &MenuCheckForUpdates, cx| {
@@ -97,6 +111,7 @@ pub fn install(
                 MenuItem::action(format!("About {app_name}"), MenuShowAbout),
                 MenuItem::separator(),
                 MenuItem::action("Settings", MenuOpenSettings),
+                MenuItem::action("Automations", MenuOpenAutomations),
                 MenuItem::action("Execution Plans", MenuOpenExecutionPlans),
                 MenuItem::action("Check for Updates", MenuCheckForUpdates),
                 MenuItem::separator(),

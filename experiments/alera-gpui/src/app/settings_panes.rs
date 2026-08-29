@@ -36,6 +36,9 @@ impl AleraApp {
                 &self.settings_inputs,
                 &self.settings_group_anchors,
                 self.diagnostics_export_busy,
+                self.automation_settings_loading,
+                self.automation_settings_saving,
+                self.automation_settings_error.clone(),
                 self.settings_selects
                     .get("diagnostics-log-level")
                     .expect("diagnostics select should exist"),

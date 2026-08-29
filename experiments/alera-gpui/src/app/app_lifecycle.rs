@@ -128,6 +128,11 @@ impl AleraApp {
                     &event,
                     BridgeEvent::Notification { name, .. } if name == "projectConfigsChanged"
                 );
+                let automations_changed = matches!(
+                    &event,
+                    BridgeEvent::Notification { name, .. }
+                        if matches!(name.as_str(), "automationsChanged" | "automationRunChanged")
+                );
                 let view_prefs_changed = matches!(
                     &event,
                     BridgeEvent::Notification { name, .. } if name == "workbenchViewPrefsChanged"
@@ -233,6 +238,9 @@ impl AleraApp {
                         && this.settings_pane == SettingsPane::Projects
                     {
                         this.refresh_project_config_settings(window, cx);
+                    }
+                    if automations_changed && this.show_automations_dialog {
+                        this.load_automations(cx);
                     }
                     if !terminal_output {
                         cx.notify();

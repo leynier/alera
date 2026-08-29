@@ -106,6 +106,7 @@ impl AleraApp {
         self.show_settings_dialog = true;
         self.dismiss_status_popover(cx);
         self.refresh_settings_values(cx);
+        self.load_automation_settings(cx);
         self.refresh_github_star_state(cx);
         if !was_open {
             self.check_for_updates(cx);
@@ -542,6 +543,7 @@ pub(super) fn settings_pane_groups(pane: SettingsPane) -> &'static [&'static str
             "Storage",
             "Safety",
             "Runtime",
+            "Automations",
             "Diagnostics",
             "Updates",
             "Support",

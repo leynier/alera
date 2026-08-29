@@ -168,6 +168,7 @@ impl AleraApp {
             cx.notify();
             return;
         };
+        self.load_automation_project_policy(Some(&project_id), cx);
         self.project_config_settings.generation += 1;
         let generation = self.project_config_settings.generation;
         self.project_config_settings.loading = true;
@@ -226,6 +227,8 @@ impl AleraApp {
             return;
         }
         self.project_config_settings.selected_project_id = Some(project_id);
+        let selected_project_id = self.project_config_settings.selected_project_id.clone();
+        self.load_automation_project_policy(selected_project_id.as_deref(), cx);
         self.project_config_settings.seed_signature = None;
         self.project_config_settings.provider_dropdown_open = false;
         self.refresh_project_config_settings(window, cx);

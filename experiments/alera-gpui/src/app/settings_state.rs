@@ -148,6 +148,10 @@ pub(super) struct SettingsState {
     pub codex_chat_speed_mode: String,
     pub codex_chat_permission_mode: String,
     pub codex_chat_plan_mode: bool,
+    pub automation_autostart: bool,
+    pub automation_run_retention_days: i64,
+    pub automation_audit_retention_days: i64,
+    pub automation_trash_retention_days: i64,
 
     pub editor_theme: String,
     pub editor_tab_size: i64,
@@ -279,6 +283,10 @@ impl Default for SettingsState {
             codex_chat_speed_mode: "normal".to_owned(),
             codex_chat_permission_mode: "on-request".to_owned(),
             codex_chat_plan_mode: false,
+            automation_autostart: false,
+            automation_run_retention_days: 30,
+            automation_audit_retention_days: 90,
+            automation_trash_retention_days: 30,
             editor_theme: "Alera".to_string(),
             editor_tab_size: 4,
             editor_autosave_enabled: false,
@@ -397,6 +405,20 @@ impl SettingsState {
             }
             if let Some(value) = codex.get("planMode").and_then(Value::as_bool) {
                 self.codex_chat_plan_mode = value;
+            }
+        }
+        if let Some(automation) = value.get("automation").and_then(Value::as_object) {
+            if let Some(value) = automation.get("autostart").and_then(Value::as_bool) {
+                self.automation_autostart = value;
+            }
+            if let Some(value) = automation.get("runRetentionDays").and_then(Value::as_i64) {
+                self.automation_run_retention_days = value.clamp(1, 3650);
+            }
+            if let Some(value) = automation.get("auditRetentionDays").and_then(Value::as_i64) {
+                self.automation_audit_retention_days = value.clamp(1, 3650);
+            }
+            if let Some(value) = automation.get("trashRetentionDays").and_then(Value::as_i64) {
+                self.automation_trash_retention_days = value.clamp(1, 3650);
             }
         }
     }

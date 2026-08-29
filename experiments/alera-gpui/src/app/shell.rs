@@ -936,6 +936,9 @@ impl AleraApp {
         } else if self.show_settings_dialog {
             self.close_settings_dialog(window, cx);
             true
+        } else if self.show_automations_dialog {
+            self.close_automations_dialog(cx);
+            true
         } else if self.show_add_project_dialog && !self.add_project_busy {
             self.close_add_project_dialog(cx);
             true
@@ -1112,6 +1115,9 @@ impl Render for AleraApp {
             })
             .when(self.show_settings_dialog, |root| {
                 root.child(self.render_settings_dialog(cx))
+            })
+            .when(self.show_automations_dialog, |root| {
+                root.child(self.render_automations_dialog(cx))
             })
             .when(self.show_about_dialog, |root| {
                 root.child(self.render_about_dialog(cx))

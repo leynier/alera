@@ -96,6 +96,7 @@ impl AleraApp {
 
     pub(super) fn new_agent_profile(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         self.agent_profile_settings.selected_id = None;
+        self.load_automation_profile_policy(None, cx);
         self.agent_profile_settings.creating_new = true;
         self.agent_profile_settings.adapter = "codex".to_owned();
         self.agent_profile_settings.launch_mode = "managed".to_owned();
@@ -155,6 +156,7 @@ impl AleraApp {
         cx: &mut Context<Self>,
     ) {
         self.agent_profile_settings.selected_id = Some(profile.id.clone());
+        self.load_automation_profile_policy(Some(&profile.id), cx);
         self.agent_profile_settings.creating_new = false;
         self.agent_profile_settings.adapter = profile.agent_type.clone();
         self.agent_profile_settings.launch_mode = profile.launch_mode.clone();

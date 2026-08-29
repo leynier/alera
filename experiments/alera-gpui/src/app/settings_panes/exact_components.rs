@@ -192,7 +192,7 @@ pub(super) fn settings_master_resize_handle(
         .child(div().w(px(1.0)).h_full().bg(theme::border_subtle()))
 }
 
-fn exact_settings_row(
+pub(super) fn exact_settings_row(
     title: &'static str,
     description: impl Into<SharedString>,
     control: impl IntoElement,

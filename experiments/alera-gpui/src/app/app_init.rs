@@ -382,6 +382,29 @@ impl AleraApp {
             cx.new(|cx| InputState::new(window, cx).placeholder("#123 Or Pull Request URL"));
         let run_policy_reason_input =
             cx.new(|cx| InputState::new(window, cx).placeholder("Rejection Reason"));
+        let automation_search_input = cx.new(|cx| {
+            InputState::new(window, cx)
+                .placeholder("Search automations")
+                .clean_on_escape()
+        });
+        let automation_editor_name_input =
+            cx.new(|cx| InputState::new(window, cx).placeholder("Daily Automation"));
+        let automation_editor_slug_input =
+            cx.new(|cx| InputState::new(window, cx).placeholder("daily-automation"));
+        let automation_editor_description_input =
+            cx.new(|cx| InputState::new(window, cx).placeholder("Description"));
+        let automation_editor_prompt_input = cx.new(|cx| {
+            TextareaState::new(window, cx)
+                .placeholder("Review the current workspace and report the result.")
+                .soft_wrap(true)
+                .rows(4)
+        });
+        let automation_editor_cron_input =
+            cx.new(|cx| InputState::new(window, cx).placeholder("0 9 * * 1-5"));
+        let automation_editor_workspace_input =
+            cx.new(|cx| InputState::new(window, cx).placeholder("Workspace ID"));
+        let automation_editor_profile_input =
+            cx.new(|cx| InputState::new(window, cx).placeholder("Agent Profile ID"));
         forge_base_input.update(cx, |input, cx| {
             input.set_value("main", window, cx);
         });
@@ -810,6 +833,78 @@ impl AleraApp {
                     }
                 },
             ),
+            cx.subscribe_in(
+                &automation_search_input,
+                window,
+                |this, _, event: &InputEvent, _, cx| {
+                    if matches!(event, InputEvent::Change) && this.show_automations_dialog {
+                        cx.notify();
+                    }
+                },
+            ),
+            cx.subscribe_in(
+                &automation_editor_name_input,
+                window,
+                |_, _, event: &InputEvent, _, cx| {
+                    if matches!(event, InputEvent::Change) {
+                        cx.notify();
+                    }
+                },
+            ),
+            cx.subscribe_in(
+                &automation_editor_slug_input,
+                window,
+                |_, _, event: &InputEvent, _, cx| {
+                    if matches!(event, InputEvent::Change) {
+                        cx.notify();
+                    }
+                },
+            ),
+            cx.subscribe_in(
+                &automation_editor_description_input,
+                window,
+                |_, _, event: &InputEvent, _, cx| {
+                    if matches!(event, InputEvent::Change) {
+                        cx.notify();
+                    }
+                },
+            ),
+            cx.subscribe_in(
+                &automation_editor_prompt_input,
+                window,
+                |_, _, event: &InputEvent, _, cx| {
+                    if matches!(event, InputEvent::Change) {
+                        cx.notify();
+                    }
+                },
+            ),
+            cx.subscribe_in(
+                &automation_editor_cron_input,
+                window,
+                |_, _, event: &InputEvent, _, cx| {
+                    if matches!(event, InputEvent::Change) {
+                        cx.notify();
+                    }
+                },
+            ),
+            cx.subscribe_in(
+                &automation_editor_workspace_input,
+                window,
+                |_, _, event: &InputEvent, _, cx| {
+                    if matches!(event, InputEvent::Change) {
+                        cx.notify();
+                    }
+                },
+            ),
+            cx.subscribe_in(
+                &automation_editor_profile_input,
+                window,
+                |_, _, event: &InputEvent, _, cx| {
+                    if matches!(event, InputEvent::Change) {
+                        cx.notify();
+                    }
+                },
+            ),
         ];
         let tab_navigation_interceptor = cx.listener(|this, event, window, cx| {
             this.intercept_tab_navigation_keystroke(event, window, cx);
@@ -1228,6 +1323,42 @@ impl AleraApp {
             forge_link_input,
             run_policy_reason_input,
             show_execution_plans: false,
+            show_automations_dialog: false,
+            automations: Vec::new(),
+            automations_loading: false,
+            automations_error: None,
+            automation_selected_id: None,
+            automation_detail: None,
+            automation_detail_loading: false,
+            automation_search_input,
+            automation_state_filter: None,
+            automation_include_trashed: false,
+            automation_action_busy: false,
+            automation_editor_open: false,
+            automation_editor_id: None,
+            automation_editor_name_input,
+            automation_editor_slug_input,
+            automation_editor_description_input,
+            automation_editor_prompt_input,
+            automation_editor_cron_input,
+            automation_editor_workspace_input,
+            automation_editor_profile_input,
+            automation_editor_error: None,
+            automation_settings_loading: false,
+            automation_settings_saving: false,
+            automation_settings_loaded: false,
+            automation_settings_error: None,
+            automation_profile_policy_id: None,
+            automation_profile_policy_loading: false,
+            automation_profile_policy_error: None,
+            automation_profile_policy_activate: false,
+            automation_profile_policy_execute: false,
+            automation_project_policy_id: None,
+            automation_project_policy_loading: false,
+            automation_project_policy_error: None,
+            automation_project_policy_local_approved: false,
+            automation_project_policy_restrictive: false,
+            automation_project_policy_repo_declared: false,
             run_policies: Vec::new(),
             run_policies_loading: false,
             run_policy_busy_id: None,
