@@ -251,7 +251,7 @@ commit so this file remains useful after context compaction.
 | 230 | `eea6d13bad30a2f3922fe3ffc642d4dd49ead481` | 2026-08-12 | fix: complete runtime update after force-stop disconnect (#412) | merged | Cherry-picked Flutter runtime update lifecycle recovery; GPUI uses a separate native lifecycle and needed no shared UI change. |
 | 231 | `0e067aba8789d64b2126da76e1e451b8f2e3abe0` | 2026-08-12 | fix: constrain restored terminal cursor (#415) | merged | Cherry-picked Flutter/xterm cursor restore bounds and added equivalent clamping plus a passing resize/restore regression test to GPUI's Alacritty-backed renderer. |
 | 232 | `0a790d4cd868e2b1e81ab02d0bd0fedb6c3df871` | 2026-08-13 | release: v0.59.1 v0.23.1-mobile | merged | Cherry-picked Flutter/mobile release metadata; no GPUI UI surface is affected. |
-| 233 | `266175ce63231c7c13c9eb386ff658cf11957bcc` | 2026-08-13 | fix: show workspace status from the most urgent agent (#416) | in progress | Cherry-picking workspace-agent urgency ranking and aligning the GPUI sidebar aggregate glyph selection. |
+| 233 | `266175ce63231c7c13c9eb386ff658cf11957bcc` | 2026-08-13 | fix: show workspace status from the most urgent agent (#416) | merged | Cherry-picked workspace-agent urgency ranking and aligned GPUI to blocked > waiting > interrupted > working > done, with a passing older-interruption-vs-newer-working regression test. |
 | 234 | `ac69a7809f0cb66e4d5b0812a27ca975dc9d9e03` | 2026-08-14 | fix: use authoritative opencode go usage (#407) | pending | - |
 | 235 | `5391b7b6317fbbf5ae8992de01a5438adb663ac3` | 2026-08-14 | feat: add browser annotations to codex chat (#409) | pending | - |
 | 236 | `85508b6bab2fc6004b68351f902a57edf83f9bde` | 2026-08-14 | feat: expand ai dictation workflows (#417) | pending | - |
