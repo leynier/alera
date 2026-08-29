@@ -229,6 +229,12 @@ class _E2eTerminalRuntime implements TerminalRuntime {
   }
 
   @override
+  void releaseTab(String tabId) => closeTab(tabId);
+
+  @override
+  void releaseWorkspace(String workspaceId) => closeWorkspace(workspaceId);
+
+  @override
   void dispose() {
     for (final session in _sessions.values) {
       session.dispose();

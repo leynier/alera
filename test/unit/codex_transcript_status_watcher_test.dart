@@ -335,6 +335,43 @@ void main() {
         expect(event.payload['last_assistant_message'], 'Done.');
       },
     );
+
+    test('clearTerminal drops the watch for a closed terminal', () async {
+      transcript.writeAsStringSync('');
+      watcher.observeHookEvent(
+        _event(
+          hookEventName: 'UserPromptSubmit',
+          payload: <String, Object?>{
+            'turn_id': 'turn-1',
+            'transcript_path': transcript.path,
+            'prompt': 'work on it',
+          },
+        ),
+      );
+      await watcher.scanNowForTesting('session-1');
+
+      watcher.clearTerminal('session-1');
+
+      transcript.writeAsStringSync(
+        '${jsonEncode(<String, Object?>{
+          'type': 'response_item',
+          'payload': <String, Object?>{
+            'type': 'function_call',
+            'name': 'request_user_input',
+            'call_id': 'call-1',
+            'arguments': jsonEncode(<String, Object?>{
+              'questions': <Object?>[
+                <String, Object?>{'question': 'Still there?'},
+              ],
+            }),
+          },
+        })}\n',
+        mode: FileMode.append,
+      );
+      await watcher.scanNowForTesting('session-1');
+
+      expect(sink.events, isEmpty);
+    });
   });
 }
 

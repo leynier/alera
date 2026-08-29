@@ -53,7 +53,9 @@ void _registerAleraShellCodexSidebarTests() {
     await tester.tap(find.byTooltip('Close Codex'));
     await tester.pump(const Duration(milliseconds: 300));
 
-    expect(harness.runtime.closedTabIds, isEmpty);
+    // The centralized close always drops the runtime handle for the closed
+    // tab id; for a Codex tab this is a no-op since it owns no PTY session.
+    expect(harness.runtime.closedTabIds, <String>[codexTab.id]);
     expect(harness.controller.state.tabsFor('workspace-2'), isEmpty);
     expect(find.text(description), findsNothing);
   });

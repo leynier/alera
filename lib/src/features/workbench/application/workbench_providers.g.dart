@@ -893,7 +893,7 @@ final class TerminalHostWarmupCoordinatorProvider
 }
 
 String _$terminalHostWarmupCoordinatorHash() =>
-    r'e3da3d9a686e7a2f7da75b9a4ead06cd16643987';
+    r'c3a90a270ad1ae4e87df060a31bd5236f732170a';
 
 @ProviderFor(terminalRuntime)
 final terminalRuntimeProvider = TerminalRuntimeProvider._();
@@ -935,7 +935,7 @@ final class TerminalRuntimeProvider
   }
 }
 
-String _$terminalRuntimeHash() => r'3c912b3e72332dbde6e0d3b4812c93fd77ca25e0';
+String _$terminalRuntimeHash() => r'a62f15f2346a52106d1d5a059a46217683c4d179';
 
 @ProviderFor(terminalShellStartupPreparer)
 final terminalShellStartupPreparerProvider =
@@ -1027,4 +1027,4 @@ final class TerminalRuntimeExitCoordinatorProvider
 }
 
 String _$terminalRuntimeExitCoordinatorHash() =>
-    r'c569d9d2038983f89934aeb9c7ac44dbec538e41';
+    r'f9aaa1121a88909b644a3d96083320520b389265';

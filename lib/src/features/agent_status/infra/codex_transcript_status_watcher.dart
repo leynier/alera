@@ -63,6 +63,15 @@ class CodexTranscriptStatusWatcher {
     await _watches[terminalSessionId]?.scan();
   }
 
+  /// Drops the watch for a terminal session that no longer exists.
+  ///
+  /// A Codex `Stop` hook is the normal end of a watch, but a terminal closed
+  /// mid-turn never emits one, and without this the file watcher and its
+  /// timers keep polling the transcript for the rest of the session.
+  void clearTerminal(String terminalSessionId) {
+    _watches.remove(terminalSessionId)?.dispose();
+  }
+
   void clear() {
     for (final watch in _watches.values) {
       watch.dispose();

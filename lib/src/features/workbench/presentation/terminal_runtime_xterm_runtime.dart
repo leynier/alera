@@ -206,6 +206,25 @@ class XtermTerminalRuntime implements TerminalRuntime {
   }
 
   @override
+  void releaseTab(String tabId) {
+    final session = _sessions.remove(tabId);
+    if (session != null) {
+      _disposeSession(session, terminatePty: false);
+    }
+  }
+
+  @override
+  void releaseWorkspace(String workspaceId) {
+    final removed = _sessions.entries
+        .where((entry) => entry.value.workspaceId == workspaceId)
+        .map((entry) => entry.key)
+        .toList(growable: false);
+    for (final tabId in removed) {
+      releaseTab(tabId);
+    }
+  }
+
+  @override
   void dispose() {
     for (final session in _sessions.values) {
       _disposeSession(session, terminatePty: false);

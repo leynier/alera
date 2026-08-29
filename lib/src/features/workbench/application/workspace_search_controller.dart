@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:alera/src/features/workbench/application/retired_workspace_invalidation.dart';
 import 'package:alera/src/features/workbench/application/workbench_providers.dart';
 import 'package:alera/src/features/workbench/application/workspace_file_service.dart';
 import 'package:alera/src/features/workbench/application/workspace_search_service.dart';
@@ -161,6 +162,7 @@ class WorkspaceSearchController extends _$WorkspaceSearchController {
 
   @override
   WorkspaceSearchState build(String workspaceId) {
+    invalidateWhenWorkspaceRetired(ref, workspaceId);
     _searchService = ref.read(workspaceSearchServiceProvider);
     ref.onDispose(() {
       _debounce?.cancel();
