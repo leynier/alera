@@ -273,49 +273,54 @@ mod tests {
             Err(error) => panic!("create verifier: {error}"),
         };
 
+        let nonce = uuid::Uuid::new_v4().to_string();
+        let other_nonce = uuid::Uuid::new_v4().to_string();
         let valid = token(
-            claims("https://accounts.google.com", "alera-client", 3600, "nonce"),
+            claims("https://accounts.google.com", "alera-client", 3600, &nonce),
             &key.encoding,
         );
-        assert!(verifier.verify(&valid, Some("nonce")).await.is_ok());
-        assert!(verifier.verify(&valid, Some("nonce")).await.is_ok());
+        assert!(verifier.verify(&valid, Some(nonce.as_str())).await.is_ok());
+        assert!(verifier.verify(&valid, Some(nonce.as_str())).await.is_ok());
         assert_eq!(hits.load(Ordering::SeqCst), 1);
 
         assert!(verifier
-            .verify(&tamper_signature(&valid), Some("nonce"))
+            .verify(&tamper_signature(&valid), Some(nonce.as_str()))
             .await
             .is_err());
         assert!(verifier
             .verify(
                 &token(
-                    claims("https://attacker.example", "alera-client", 3600, "nonce",),
+                    claims("https://attacker.example", "alera-client", 3600, &nonce),
                     &key.encoding,
                 ),
-                Some("nonce"),
+                Some(nonce.as_str()),
             )
             .await
             .is_err());
         assert!(verifier
             .verify(
                 &token(
-                    claims("https://accounts.google.com", "other-client", 3600, "nonce",),
+                    claims("https://accounts.google.com", "other-client", 3600, &nonce),
                     &key.encoding,
                 ),
-                Some("nonce"),
+                Some(nonce.as_str()),
             )
             .await
             .is_err());
         assert!(verifier
             .verify(
                 &token(
-                    claims("https://accounts.google.com", "alera-client", -120, "nonce",),
+                    claims("https://accounts.google.com", "alera-client", -120, &nonce),
                     &key.encoding,
                 ),
-                Some("nonce"),
+                Some(nonce.as_str()),
             )
             .await
             .is_err());
-        assert!(verifier.verify(&valid, Some("wrong-nonce")).await.is_err());
+        assert!(verifier
+            .verify(&valid, Some(other_nonce.as_str()))
+            .await
+            .is_err());
     }
 
     fn claims(issuer: &str, audience: &str, expires_in: i64, nonce: &str) -> VerifiedGoogleClaims {

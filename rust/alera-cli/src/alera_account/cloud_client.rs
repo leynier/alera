@@ -1,9 +1,11 @@
-use anyhow::{anyhow, Context as _, Result};
+use anyhow::{Context as _, Result};
 use chrono::{DateTime, Utc};
 use reqwest::{Client, Method, StatusCode};
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use serde_json::Value;
 use thiserror::Error;
+
+use crate::terminal_host::alera_account::cloud_base_url::validate_cloud_base_url;
 
 pub(crate) const DEFAULT_CLOUD_BASE_URL: &str = "https://api.alera.build";
 
@@ -140,14 +142,7 @@ pub(crate) struct CloudAccountClient {
 impl CloudAccountClient {
     pub(crate) fn new(base_url: String) -> Result<Self> {
         let base_url = base_url.trim_end_matches('/').to_string();
-        if !base_url.starts_with("https://")
-            && !base_url.starts_with("http://127.0.0.1")
-            && !base_url.starts_with("http://localhost")
-        {
-            return Err(anyhow!(
-                "ALERA_CLOUD_URL must use HTTPS or a loopback HTTP origin"
-            ));
-        }
+        validate_cloud_base_url(&base_url)?;
         Ok(Self {
             base_url,
             http: Client::builder()
