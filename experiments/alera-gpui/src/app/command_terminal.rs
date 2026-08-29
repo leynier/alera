@@ -48,6 +48,8 @@ impl CommandTerminalState {
             title: self.request.title.clone(),
             kind: "terminal".to_owned(),
             payload: json!({"terminalSessionId": self.session_id}),
+            created_at: String::new(),
+            updated_at: String::new(),
         }
     }
 }

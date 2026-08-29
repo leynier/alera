@@ -376,6 +376,7 @@ impl AleraApp {
         self.explorer_drop_target = None;
         self.explorer_pointer_down = None;
         self.explorer_pointer_dragged = false;
+        self.explorer_pointer_double_clicked = false;
         self.explorer_create_directory = None;
         self.explorer_rename_path = None;
         self.explorer_delete_path = None;
@@ -1122,9 +1123,10 @@ impl AleraApp {
             })
             .on_mouse_down(
                 gpui::MouseButton::Left,
-                cx.listener(move |this, _: &MouseDownEvent, _, _| {
+                cx.listener(move |this, event: &MouseDownEvent, _, _| {
                     this.explorer_pointer_down = Some(pointer_path.clone());
                     this.explorer_pointer_dragged = false;
+                    this.explorer_pointer_double_clicked = event.click_count >= 2;
                 }),
             )
             .on_click(cx.listener(move |this, event: &ClickEvent, window, cx| {
@@ -1133,6 +1135,7 @@ impl AleraApp {
                 // folder/file move, which is the behavior Flutter
                 // gets from LongPressDraggable cancelling InkWell.
                 let was_dragged = this.explorer_pointer_dragged || cx.has_active_drag();
+                let open_permanently = std::mem::take(&mut this.explorer_pointer_double_clicked);
                 this.explorer_pointer_down = None;
                 this.explorer_pointer_dragged = false;
                 if was_dragged {
@@ -1151,8 +1154,10 @@ impl AleraApp {
                 this.select_explorer_entry(click_path.clone());
                 if is_directory {
                     this.toggle_directory(click_path.clone(), cx);
-                } else {
+                } else if open_permanently {
                     this.open_file_tab(click_path.clone(), cx);
+                } else {
+                    this.open_file_preview_tab(click_path.clone(), cx);
                 }
             }))
             .on_aux_click(cx.listener(move |this, event: &ClickEvent, window, cx| {

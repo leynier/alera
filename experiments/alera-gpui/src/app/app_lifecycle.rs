@@ -267,6 +267,9 @@ impl AleraApp {
     }
 
     fn cancel_window_pointer_gestures(&mut self, cx: &mut Context<Self>) {
+        let explorer_pointer_dragged = std::mem::take(&mut self.explorer_pointer_dragged);
+        let explorer_pointer_double_clicked =
+            std::mem::take(&mut self.explorer_pointer_double_clicked);
         let changed = self.tab_pointer_drag.take().is_some()
             || self.tab_drop_target.take().is_some()
             || self.pane_drop_target.take().is_some()
@@ -274,7 +277,8 @@ impl AleraApp {
             || self.split_resize.take().is_some()
             || self.explorer_drop_target.take().is_some()
             || self.explorer_pointer_down.take().is_some()
-            || std::mem::take(&mut self.explorer_pointer_dragged)
+            || explorer_pointer_dragged
+            || explorer_pointer_double_clicked
             || self.preview_drag.take().is_some()
             || self.terminal_selection_drag.take().is_some()
             || self.terminal_scrollbar_drag.take().is_some();

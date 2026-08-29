@@ -310,6 +310,7 @@ impl AleraApp {
         let bounds_tab_id = tab.id.clone();
         let bounds_app = cx.entity();
         let close_tab_id = tab.id.clone();
+        let keep_preview_tab_id = tab.id.clone();
         let menu_group_id = group_id.to_string();
         let menu_tab_id = tab.id.clone();
         let drop_group_id = group_id.to_string();
@@ -328,6 +329,7 @@ impl AleraApp {
             .tab_pointer_drag
             .as_ref()
             .is_some_and(|(source, dragged)| source == group_id && dragged == &tab.id);
+        let is_preview = tab.is_preview();
         let drag_active = pointer_dragged || cx.has_active_drag();
         let show_leading = self.tab_drop_target.as_ref().is_some_and(|target| {
             drag_active && target.group_id == group_id && target.gap_index == index
@@ -398,12 +400,18 @@ impl AleraApp {
             })
             .on_mouse_down(
                 MouseButton::Left,
-                cx.listener(move |this, _, _, cx| {
-                    this.begin_pointer_tab_drag(
-                        pointer_group_id.clone(),
-                        pointer_tab_id.clone(),
-                        cx,
-                    );
+                cx.listener(move |this, event: &gpui::MouseDownEvent, _, cx| {
+                    if event.click_count >= 2 && is_preview {
+                        this.keep_preview_tab(keep_preview_tab_id.clone(), cx);
+                        return;
+                    }
+                    if event.click_count == 1 {
+                        this.begin_pointer_tab_drag(
+                            pointer_group_id.clone(),
+                            pointer_tab_id.clone(),
+                            cx,
+                        );
+                    }
                 }),
             )
             .on_click(cx.listener(move |this, _, _, cx| {
@@ -467,6 +475,7 @@ impl AleraApp {
                 div()
                     .max_w(px(tab_title_max_width(&tab.kind)))
                     .text_ellipsis()
+                    .when(is_preview, |title| title.italic())
                     .child(if tab.kind == "codex" {
                         "Codex Chat".to_owned()
                     } else {

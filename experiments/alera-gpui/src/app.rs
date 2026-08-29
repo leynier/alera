@@ -54,6 +54,7 @@ mod editor_actions;
 mod explorer_actions;
 mod explorer_dialog;
 mod explorer_menu;
+mod file_preview_tabs;
 mod forge_actions;
 mod forge_stack;
 mod forge_stack_render;
@@ -176,6 +177,8 @@ pub struct AleraApp {
     tab_rename_replace_pending: Option<String>,
     show_tab_rename_dialog: bool,
     tab_mutation_busy: bool,
+    file_preview_open_path: Option<String>,
+    file_preview_keep_after_open: bool,
     tab_close_armed: Option<Vec<String>>,
     workbench_menu: Option<WorkbenchMenu>,
     workbench_menu_focus: FocusHandle,
@@ -407,6 +410,7 @@ pub struct AleraApp {
     explorer_drop_target: Option<String>,
     explorer_pointer_down: Option<String>,
     explorer_pointer_dragged: bool,
+    explorer_pointer_double_clicked: bool,
     explorer_action_busy: bool,
     explorer_watch_generation: u64,
     editor_document: Option<EditorDocument>,

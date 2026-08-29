@@ -73,6 +73,25 @@ pub struct WorkspaceTab {
     pub title: String,
     pub kind: String,
     pub payload: Value,
+    pub created_at: String,
+    pub updated_at: String,
+}
+
+impl WorkspaceTab {
+    pub fn is_preview(&self) -> bool {
+        self.payload.get("preview").and_then(Value::as_bool) == Some(true)
+    }
+
+    pub fn is_file_preview_slot(&self) -> bool {
+        self.is_preview()
+            && matches!(self.kind.as_str(), "editor" | "markdownViewer" | "pdf")
+            && self.payload.get("fileRole").and_then(Value::as_str) != Some("mermanPreview")
+            && self
+                .payload
+                .get("filePath")
+                .and_then(Value::as_str)
+                .is_some()
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -629,6 +648,8 @@ fn parse_tab(value: Value) -> Result<WorkspaceTab, String> {
         title: required_string(&value, "title")?,
         kind: string_or(&value, "kind", "terminal"),
         payload: value.get("payload").cloned().unwrap_or_else(|| json!({})),
+        created_at: string_or(&value, "createdAt", ""),
+        updated_at: string_or(&value, "updatedAt", ""),
     })
 }
 
@@ -820,6 +841,8 @@ mod tests {
                 title: "One".to_string(),
                 kind: "terminal".to_string(),
                 payload: json!({}),
+                created_at: String::new(),
+                updated_at: String::new(),
             },
             WorkspaceTab {
                 id: "uuid-2".to_string(),
@@ -827,6 +850,8 @@ mod tests {
                 title: "Two".to_string(),
                 kind: "terminal".to_string(),
                 payload: json!({}),
+                created_at: String::new(),
+                updated_at: String::new(),
             },
             WorkspaceTab {
                 id: "uuid-3".to_string(),
@@ -834,6 +859,8 @@ mod tests {
                 title: "Three".to_string(),
                 kind: "terminal".to_string(),
                 payload: json!({}),
+                created_at: String::new(),
+                updated_at: String::new(),
             },
         ];
         normalize_layout_tab_ids(&mut layout, &tabs);

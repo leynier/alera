@@ -115,6 +115,7 @@ impl AleraApp {
             .gap_1()
             .children(self.snapshot.tabs.iter().filter(|tab| tab.kind != "codex").enumerate().map(|(index, tab)| {
                 let tab_id = tab.id.clone();
+                let keep_preview_tab_id = tab.id.clone();
                 let close_tab_id = tab.id.clone();
                 let context_tab_id = tab.id.clone();
                 let context_group_id = self
@@ -124,6 +125,7 @@ impl AleraApp {
                     .map(|layout| layout.active_group_id.clone())
                     .unwrap_or_else(|| "legacy".to_string());
                 let selected = self.selected_tab_id.as_deref() == Some(tab.id.as_str());
+                let is_preview = tab.is_preview();
                 let title = if tab.kind == "codex" {
                     "Codex Chat".to_owned()
                 } else if selected && tab.kind == "terminal" {
@@ -164,7 +166,10 @@ impl AleraApp {
                     .when(selected, |item| item.bg(theme::surface_raised()))
                     .on_mouse_down(
                         MouseButton::Left,
-                        cx.listener(move |this, _, _, cx| {
+                        cx.listener(move |this, event: &MouseDownEvent, _, cx| {
+                            if event.click_count >= 2 && is_preview {
+                                this.keep_preview_tab(keep_preview_tab_id.clone(), cx);
+                            }
                             this.activate_workspace_tab(tab_id.clone(), cx);
                         }),
                     )
@@ -192,7 +197,7 @@ impl AleraApp {
                             theme::text_muted()
                         },
                     ))
-                    .child(title)
+                    .child(div().when(is_preview, |title| title.italic()).child(title))
                     .child(
                         div()
                             .id(("close-tab", index))
@@ -279,7 +284,7 @@ impl AleraApp {
 
 pub(super) fn tab_kind_icon(kind: &str, path: Option<&str>, color: gpui::Rgba) -> gpui::AnyElement {
     match kind {
-        "editor" | "markdownViewer" => path.map_or_else(
+        "editor" | "markdownViewer" | "pdf" => path.map_or_else(
             || icon(AleraIcon::File, 15.0, color),
             |path| crate::file_icons::file_icon(path, false, false, false, 15.0, color),
         ),
@@ -298,6 +303,7 @@ pub(super) fn title_case_kind(kind: &str) -> &'static str {
         "terminal" => "Terminal",
         "editor" => "Editor",
         "markdownViewer" => "Markdown Preview",
+        "pdf" => "PDF",
         "gitDiff" => "Git Diff",
         "mobileEmulator" => "Mobile Device",
         "codex" => "Codex",

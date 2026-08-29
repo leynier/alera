@@ -469,6 +469,7 @@ impl AleraApp {
                         return;
                     }
                     if let Some(path) = this.opened_file_path.clone() {
+                        this.keep_preview_tab_for_path(&path, cx);
                         let content = input.read(cx).value().to_string();
                         this.editor_buffer_text
                             .insert(path.clone(), content.clone());
@@ -1058,6 +1059,8 @@ impl AleraApp {
             tab_rename_replace_pending: None,
             show_tab_rename_dialog: false,
             tab_mutation_busy: false,
+            file_preview_open_path: None,
+            file_preview_keep_after_open: false,
             tab_close_armed: None,
             workbench_menu: None,
             workbench_menu_focus: cx.focus_handle(),
@@ -1290,6 +1293,7 @@ impl AleraApp {
             explorer_drop_target: None,
             explorer_pointer_down: None,
             explorer_pointer_dragged: false,
+            explorer_pointer_double_clicked: false,
             explorer_action_busy: false,
             explorer_watch_generation: 0,
             editor_document: None,

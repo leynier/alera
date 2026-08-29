@@ -202,25 +202,30 @@ impl AleraApp {
                             .map(|tab| tab.id.clone())
                             .collect()
                     });
-                let is_codex = self
+                let tab = self
                     .snapshot
                     .tabs
                     .iter()
-                    .find(|tab| tab.id == *tab_id)
-                    .is_some_and(|tab| tab.kind == "codex");
-                let mut indices = vec![0, 1, 2, 3, 4];
+                    .find(|tab| tab.id == *tab_id);
+                let is_codex = tab.is_some_and(|tab| tab.kind == "codex");
+                let is_preview = tab.is_some_and(|tab| tab.is_preview());
+                let close_index = 4 + usize::from(is_preview);
+                let mut indices = vec![0, 1, 2, 3, close_index];
+                if is_preview {
+                    indices.push(4);
+                }
                 if !is_codex {
-                    indices.push(7);
+                    indices.push(close_index + 3);
                 }
                 if group_tab_ids.iter().any(|candidate| candidate != tab_id) {
-                    indices.push(5);
+                    indices.push(close_index + 1);
                 }
                 if group_tab_ids
                     .iter()
                     .position(|candidate| candidate == tab_id)
                     .is_some_and(|index| index + 1 < group_tab_ids.len())
                 {
-                    indices.push(6);
+                    indices.push(close_index + 2);
                 }
                 indices.sort_unstable();
                 indices
@@ -345,14 +350,26 @@ impl AleraApp {
                 let tab_position = group_tab_ids
                     .iter()
                     .position(|candidate| candidate == &tab_id);
+                let is_preview = self
+                    .snapshot
+                    .tabs
+                    .iter()
+                    .find(|tab| tab.id == tab_id)
+                    .is_some_and(|tab| tab.is_preview());
+                if is_preview && index == 4 {
+                    self.dismiss_workbench_menu(window, cx);
+                    self.keep_preview_tab(tab_id, cx);
+                    return;
+                }
+                let close_index = 4 + usize::from(is_preview);
                 let tab_ids = match index {
-                    4 => vec![tab_id.clone()],
-                    5 => group_tab_ids
+                    value if value == close_index => vec![tab_id.clone()],
+                    value if value == close_index + 1 => group_tab_ids
                         .iter()
                         .filter(|candidate| *candidate != &tab_id)
                         .cloned()
                         .collect(),
-                    6 => tab_position.map_or_else(Vec::new, |position| {
+                    value if value == close_index + 2 => tab_position.map_or_else(Vec::new, |position| {
                         group_tab_ids.iter().skip(position + 1).cloned().collect()
                     }),
                     _ => Vec::new(),
@@ -360,7 +377,7 @@ impl AleraApp {
                 if !tab_ids.is_empty() {
                     self.dismiss_workbench_menu(window, cx);
                     self.request_close_tabs(tab_ids, cx);
-                } else if index == 7 {
+                } else if index == close_index + 3 {
                     self.dismiss_workbench_menu(window, cx);
                     self.open_tab_rename_dialog(tab_id, window, cx);
                 }
@@ -513,13 +530,20 @@ impl AleraApp {
         let close_right: Vec<String> = tab_index
             .map(|index| group_tab_ids.iter().skip(index + 1).cloned().collect())
             .unwrap_or_default();
+        let tab = self
+            .snapshot
+            .tabs
+            .iter()
+            .find(|tab| tab.id == tab_id);
+        let is_preview = tab.is_some_and(|tab| tab.is_preview());
+        let close_index = 4 + usize::from(is_preview);
         let mut menu = menu_shell(
             "tab-context-menu",
             "Tab actions",
             position,
             viewport,
             px(238.0),
-            px(276.0),
+            px(if is_preview { 306.0 } else { 276.0 }),
         );
         for (index, (label, direction)) in [
             ("Split Up", WorkbenchSplitDirection::Up),
@@ -547,23 +571,36 @@ impl AleraApp {
             );
         }
         let close_id = tab_id.clone();
+        let keep_preview_id = tab_id.clone();
         let close_other_ids = close_others.clone();
         let close_right_ids = close_right.clone();
-        let is_codex = self
-            .snapshot
-            .tabs
-            .iter()
-            .find(|tab| tab.id == tab_id)
-            .is_some_and(|tab| tab.kind == "codex");
+        let is_codex = tab.is_some_and(|tab| tab.kind == "codex");
         let rename_id = tab_id;
-        let mut menu = menu.child(menu_divider())
+        let mut menu = menu.child(menu_divider());
+        if is_preview {
+            menu = menu.child(
+                menu_button(
+                    "tab-keep-open",
+                    "Keep Open",
+                    icon(AleraIcon::Pin, 16.0, theme::text_muted()),
+                    true,
+                    self.workbench_menu_highlighted == 4,
+                )
+                .on_click(cx.listener(move |this, _, window, cx| {
+                    cx.stop_propagation();
+                    this.dismiss_workbench_menu(window, cx);
+                    this.keep_preview_tab(keep_preview_id.clone(), cx);
+                })),
+            );
+        }
+        let mut menu = menu
             .child(
                 menu_button(
                     "tab-close",
                     "Close",
                     icon(AleraIcon::Close, 16.0, theme::text_muted()),
                     true,
-                    self.workbench_menu_highlighted == 4,
+                    self.workbench_menu_highlighted == close_index,
                 )
                 .on_click(cx.listener(move |this, _, window, cx| {
                     cx.stop_propagation();
@@ -585,7 +622,7 @@ impl AleraApp {
                         },
                     ),
                     !close_others.is_empty(),
-                    self.workbench_menu_highlighted == 5,
+                    self.workbench_menu_highlighted == close_index + 1,
                 )
                 .when(!close_others.is_empty(), |row| {
                     row.on_click(cx.listener(move |this, _, window, cx| {
@@ -609,7 +646,7 @@ impl AleraApp {
                         },
                     ),
                     !close_right.is_empty(),
-                    self.workbench_menu_highlighted == 6,
+                    self.workbench_menu_highlighted == close_index + 2,
                 )
                 .when(!close_right.is_empty(), |row| {
                     row.on_click(cx.listener(move |this, _, window, cx| {
@@ -627,7 +664,7 @@ impl AleraApp {
                     "Change Title",
                     icon(AleraIcon::Edit, 16.0, theme::text_muted()),
                     true,
-                    self.workbench_menu_highlighted == 7,
+                    self.workbench_menu_highlighted == close_index + 3,
                 )
                 .on_click(cx.listener(move |this, _, window, cx| {
                     cx.stop_propagation();
