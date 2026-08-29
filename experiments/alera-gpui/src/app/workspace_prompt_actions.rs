@@ -2,7 +2,7 @@ use std::collections::BTreeSet;
 use std::time::Duration;
 
 use gpui::{
-    div, prelude::FluentBuilder as _, AppContext as _, ClipboardEntry, Context, ParentElement as _,
+    div, prelude::FluentBuilder as _, ClipboardEntry, Context, ParentElement as _,
     StatefulInteractiveElement as _, Styled as _, Window,
 };
 use gpui_component::input::Paste;
@@ -11,7 +11,10 @@ use serde_json::{json, Value};
 use super::app_helpers::flutter_state_error;
 use super::dialogs::{primary_button, primary_icon_button, secondary_button};
 use super::workspace_actions::deferred_setup_command_from_payload;
-use super::{AleraApp, NewWorkspaceStep};
+use super::workspace_prompt_agent_launch::{
+    finish_prompt_workspace_success, launch_agent_profile, AgentProfileLaunchError,
+};
+use super::AleraApp;
 use crate::icons::loading_indicator;
 use crate::theme;
 
@@ -163,6 +166,8 @@ impl AleraApp {
         self.workspace_creation_busy = true;
         self.workspace_prompt_phase = Some("Generating Workspace Identity");
         self.workspace_prompt_created = None;
+        self.workspace_prompt_agent_launch_mutation_id = None;
+        self.workspace_prompt_original_agent_launch_idempotent = None;
         self.error = None;
         cx.notify();
 
@@ -324,37 +329,58 @@ impl AleraApp {
                 return;
             };
             let deferred_setup_command = deferred_setup_command_from_payload(&creation);
+            let client_mutation_id = uuid::Uuid::new_v4().to_string();
             let _ = this.update(cx, |this, cx| {
                 this.workspace_prompt_created = Some(PromptWorkspaceCreation {
                     workspace_id: workspace_id.clone(),
                     deferred_setup_command: deferred_setup_command.clone(),
                 });
+                this.workspace_prompt_agent_launch_mutation_id =
+                    Some(client_mutation_id.clone());
+                this.workspace_prompt_original_agent_launch_idempotent = Some(true);
                 this.workspace_prompt_phase = Some("Starting Agent");
                 cx.notify();
             });
-            let launch = bridge
-                .request_with_timeout(
-                    "agentProfile.launch",
-                    json!({
-                        "workspaceId": workspace_id,
-                        "profileId": profile_id,
-                        "prompt": prompt,
-                    }),
-                    Duration::from_secs(2 * 60),
-                )
-                .await;
+            let launch = launch_agent_profile(
+                &bridge,
+                json!({
+                    "workspaceId": workspace_id,
+                    "profileId": profile_id,
+                    "prompt": prompt,
+                    "clientMutationId": client_mutation_id,
+                }),
+                false,
+            )
+            .await;
             match launch {
-                Ok(launch) => finish_prompt_workspace_success(
-                    &this,
-                    cx,
-                    window_handle,
-                    workspace_id,
-                    launch,
-                    deferred_setup_command,
-                    create_another,
-                ),
+                Ok(launch) => {
+                    let _ = this.update(cx, |this, cx| {
+                        this.workspace_prompt_original_agent_launch_idempotent =
+                            Some(launch.idempotent);
+                        cx.notify();
+                    });
+                    finish_prompt_workspace_success(
+                        &this,
+                        cx,
+                        window_handle,
+                        workspace_id,
+                        launch.payload,
+                        deferred_setup_command,
+                        create_another,
+                    );
+                }
                 Err(error) => {
-                    finish_prompt_workspace_error(&this, cx, flutter_state_error(error))
+                    if matches!(&error, AgentProfileLaunchError::NonIdempotent(_)) {
+                        let _ = this.update(cx, |this, cx| {
+                            this.workspace_prompt_original_agent_launch_idempotent = Some(false);
+                            cx.notify();
+                        });
+                    }
+                    finish_prompt_workspace_error(
+                        &this,
+                        cx,
+                        flutter_state_error(error.message()),
+                    )
                 }
             }
         })
@@ -374,58 +400,6 @@ impl AleraApp {
         .detach();
     }
 
-    pub(super) fn retry_prompt_workspace_agent(
-        &mut self,
-        window: &mut Window,
-        cx: &mut Context<Self>,
-    ) {
-        if self.workspace_creation_busy {
-            return;
-        }
-        let Some(creation) = self.workspace_prompt_created.clone() else {
-            return;
-        };
-        let Some(profile_id) = self.workspace_selected_agent_profile_id.clone() else {
-            self.error = Some("Select An Agent Profile".into());
-            cx.notify();
-            return;
-        };
-        let prompt = input_value(&self.workspace_prompt_input, cx);
-        let create_another = self.create_another_workspace;
-        let bridge = self.bridge.clone();
-        let window_handle = window.window_handle();
-        self.workspace_creation_busy = true;
-        self.workspace_prompt_phase = Some("Starting Agent");
-        self.error = None;
-        cx.notify();
-        cx.spawn(async move |this, cx| {
-            let result = bridge
-                .request_with_timeout(
-                    "agentProfile.launch",
-                    json!({
-                        "workspaceId": creation.workspace_id,
-                        "profileId": profile_id,
-                        "prompt": prompt,
-                    }),
-                    Duration::from_secs(2 * 60),
-                )
-                .await;
-            match result {
-                Ok(launch) => finish_prompt_workspace_success(
-                    &this,
-                    cx,
-                    window_handle,
-                    creation.workspace_id,
-                    launch,
-                    creation.deferred_setup_command.clone(),
-                    create_another,
-                ),
-                Err(error) => finish_prompt_workspace_error(&this, cx, flutter_state_error(error)),
-            }
-        })
-        .detach();
-    }
-
     pub(super) fn open_created_prompt_workspace(&mut self, cx: &mut Context<Self>) {
         let Some(creation) = self.workspace_prompt_created.take() else {
             return;
@@ -439,12 +413,14 @@ impl AleraApp {
         self.selected_tab_id = None;
         self.show_new_workspace_dialog = false;
         self.workspace_prompt_phase = None;
+        self.workspace_prompt_agent_launch_mutation_id = None;
+        self.workspace_prompt_original_agent_launch_idempotent = None;
         self.error = None;
         self.refresh(cx);
     }
 }
 
-fn finish_prompt_workspace_error(
+pub(super) fn finish_prompt_workspace_error(
     this: &gpui::WeakEntity<AleraApp>,
     cx: &mut gpui::AsyncApp,
     error: String,
@@ -458,44 +434,7 @@ fn finish_prompt_workspace_error(
     });
 }
 
-fn finish_prompt_workspace_success(
-    this: &gpui::WeakEntity<AleraApp>,
-    cx: &mut gpui::AsyncApp,
-    window_handle: gpui::AnyWindowHandle,
-    workspace_id: String,
-    launch: Value,
-    deferred_setup_command: Option<String>,
-    create_another: bool,
-) {
-    let _ = cx.update_window(window_handle, |_, window, cx| {
-        let _ = this.update(cx, |this, cx| {
-            this.workspace_creation_busy = false;
-            this.workspace_prompt_phase = None;
-            this.workspace_prompt_active_operation_id = None;
-            this.workspace_prompt_created = None;
-            let agent_tab_id = tab_id_from_launch(&launch);
-            this.selected_tab_id = agent_tab_id.clone();
-            this.queue_deferred_workspace_setup(
-                workspace_id.clone(),
-                deferred_setup_command,
-                agent_tab_id,
-            );
-            this.selected_workspace_id = Some(workspace_id);
-            this.show_new_workspace_dialog = create_another;
-            this.new_workspace_step = NewWorkspaceStep::Entry;
-            this.workspace_prompt_dropdown = None;
-            this.error = None;
-            if create_another {
-                this.workspace_prompt_input
-                    .update(cx, |input, cx| input.set_value("", window, cx));
-                this.workspace_selected_parent_id = None;
-            }
-            this.refresh(cx);
-        });
-    });
-}
-
-fn input_value(
+pub(super) fn input_value(
     input: &gpui::Entity<gpui_component::input::TextareaState>,
     cx: &Context<AleraApp>,
 ) -> String {
@@ -532,15 +471,6 @@ fn workspace_id_from_payload(payload: &Value) -> Option<String> {
         .get("workspace")
         .and_then(Value::as_object)
         .and_then(|workspace| workspace.get("id"))
-        .and_then(Value::as_str)
-        .map(str::to_owned)
-}
-
-fn tab_id_from_launch(launch: &Value) -> Option<String> {
-    launch
-        .get("tab")
-        .and_then(Value::as_object)
-        .and_then(|tab| tab.get("id"))
         .and_then(Value::as_str)
         .map(str::to_owned)
 }

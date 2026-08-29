@@ -192,6 +192,8 @@ impl AleraApp {
         self.workspace_prompt_phase = None;
         self.workspace_prompt_active_operation_id = None;
         self.workspace_prompt_created = None;
+        self.workspace_prompt_agent_launch_mutation_id = None;
+        self.workspace_prompt_original_agent_launch_idempotent = None;
         self.show_new_workspace_dialog = true;
         self.error = None;
         self.load_workspace_prompt_profiles(cx);

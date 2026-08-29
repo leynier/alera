@@ -125,6 +125,7 @@ mod workspace_actions;
 mod workspace_manual_dialog;
 mod workspace_manual_rows;
 mod workspace_prompt_actions;
+mod workspace_prompt_agent_launch;
 mod workspace_prompt_dropdown;
 mod workspace_surface;
 
@@ -477,6 +478,8 @@ pub struct AleraApp {
     workspace_prompt_phase: Option<&'static str>,
     workspace_prompt_active_operation_id: Option<String>,
     workspace_prompt_created: Option<PromptWorkspaceCreation>,
+    workspace_prompt_agent_launch_mutation_id: Option<String>,
+    workspace_prompt_original_agent_launch_idempotent: Option<bool>,
     editor_input: Entity<EditorState>,
     editor_input_syncing: bool,
     editor_dirty: bool,

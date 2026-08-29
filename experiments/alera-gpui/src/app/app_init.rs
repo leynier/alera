@@ -1361,6 +1361,8 @@ impl AleraApp {
             workspace_prompt_phase: None,
             workspace_prompt_active_operation_id: None,
             workspace_prompt_created: None,
+            workspace_prompt_agent_launch_mutation_id: None,
+            workspace_prompt_original_agent_launch_idempotent: None,
             editor_input,
             editor_input_syncing: false,
             editor_dirty: false,
