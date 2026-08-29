@@ -23,10 +23,19 @@ impl AleraApp {
         let name = profile
             .map(|profile| profile.profile.clone())
             .unwrap_or_default();
+        let usage_name = profile
+            .and_then(|profile| profile.usage_display_name.clone())
+            .or_else(|| profile.map(|profile| profile.alias.clone()))
+            .unwrap_or_default();
+        self.claude_profile_show_in_usage = profile
+            .map(|profile| profile.show_in_usage)
+            .unwrap_or(true);
         self.claude_profile_alias_input
             .update(cx, |input, cx| input.set_value(alias, window, cx));
         self.claude_profile_name_input
             .update(cx, |input, cx| input.set_value(name, window, cx));
+        self.claude_profile_usage_name_input
+            .update(cx, |input, cx| input.set_value(usage_name, window, cx));
         self.editing_claude_profile_index = index;
         self.claude_profile_error = None;
         self.show_claude_profile_dialog = true;
@@ -56,6 +65,12 @@ impl AleraApp {
             .value()
             .trim()
             .to_string();
+        let usage_display_name = self
+            .claude_profile_usage_name_input
+            .read(cx)
+            .value()
+            .trim()
+            .to_string();
         if alias.is_empty() || profile.is_empty() {
             self.claude_profile_error = Some("Alias And Profile Are Required.".to_string());
             cx.notify();
@@ -76,7 +91,12 @@ impl AleraApp {
             cx.notify();
             return;
         }
-        let next = ClaudeQuotaProfile { alias, profile };
+        let next = ClaudeQuotaProfile {
+            alias,
+            profile,
+            show_in_usage: self.claude_profile_show_in_usage,
+            usage_display_name: (!usage_display_name.is_empty()).then_some(usage_display_name),
+        };
         self.update_quota_settings(
             |settings| {
                 if let Some(index) = editing {
@@ -162,6 +182,29 @@ impl AleraApp {
                     .child(profile_input(
                         "CCS Profile",
                         &self.claude_profile_name_input,
+                    ))
+                    .child(
+                        div()
+                            .id("claude-profile-show-in-usage")
+                            .role(gpui::Role::CheckBox)
+                            .aria_label("Show In Usage")
+                            .flex()
+                            .items_center()
+                            .cursor(CursorStyle::PointingHand)
+                            .on_click(cx.listener(|this, _, _, cx| {
+                                this.claude_profile_show_in_usage =
+                                    !this.claude_profile_show_in_usage;
+                                cx.notify();
+                            }))
+                            .child(design_system::checkbox(
+                                self.claude_profile_show_in_usage,
+                                true,
+                                Some("Show In Usage".into()),
+                            )),
+                    )
+                    .child(profile_input(
+                        "Usage Name",
+                        &self.claude_profile_usage_name_input,
                     ))
                     .when_some(self.claude_profile_error.clone(), |dialog, error| {
                         dialog.child(

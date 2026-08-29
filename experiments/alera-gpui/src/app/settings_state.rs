@@ -28,6 +28,21 @@ const DEFAULT_AGENT_HOOKS: [&str; 10] = [
 pub(super) struct ClaudeQuotaProfile {
     pub alias: String,
     pub profile: String,
+    #[serde(default = "default_true")]
+    pub show_in_usage: bool,
+    #[serde(default)]
+    pub usage_display_name: Option<String>,
+}
+
+impl ClaudeQuotaProfile {
+    pub(super) fn usage_label(&self) -> String {
+        self.usage_display_name
+            .as_deref()
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+            .unwrap_or(&self.alias)
+            .to_owned()
+    }
 }
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]

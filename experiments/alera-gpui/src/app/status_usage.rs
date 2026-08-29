@@ -21,7 +21,8 @@ const USAGE_DIALOG_HEIGHT: f32 = 720.0;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(super) enum UsageBreakdownMode {
-    Account,
+    Profile,
+    Grouped,
     Model,
 }
 
@@ -55,6 +56,7 @@ struct UsageBucketView {
 #[derive(Clone, Debug, Default)]
 struct UsageSourceView {
     provider: String,
+    account_id: String,
     display_name: String,
     status: String,
     scanned_files: u64,
@@ -96,31 +98,7 @@ impl UsageSnapshotView {
             .collect::<Vec<_>>();
         let since_day = string(value, "sinceDay", "");
         let until_day = string(value, "untilDay", "");
-        let mut days = BTreeMap::<String, UsageDayView>::new();
-        for bucket in &buckets {
-            let day = days.entry(bucket.day.clone()).or_insert_with(|| UsageDayView {
-                day: bucket.day.clone(),
-                ..UsageDayView::default()
-            });
-            if bucket.provider == "claude" {
-                day.claude_tokens = day.claude_tokens.saturating_add(bucket.tokens);
-            } else if bucket.provider == "codex" {
-                day.codex_tokens = day.codex_tokens.saturating_add(bucket.tokens);
-            }
-            day.cost_usd += bucket.cost_usd;
-        }
-        if let (Some(mut date), Some(last)) = (parse_day(&since_day), parse_day(&until_day)) {
-            let mut filled = Vec::new();
-            while date <= last {
-                let key = date.format("%Y-%m-%d").to_string();
-                filled.push(days.remove(&key).unwrap_or_else(|| UsageDayView {
-                    day: key,
-                    ..UsageDayView::default()
-                }));
-                date += ChronoDuration::days(1);
-            }
-            days = filled.into_iter().map(|day| (day.day.clone(), day)).collect();
-        }
+        let days = build_usage_days(&buckets, &since_day, &until_day);
         Self {
             since_day,
             until_day,
@@ -131,8 +109,12 @@ impl UsageSnapshotView {
                 .and_then(Value::as_str)
                 .unwrap_or("unavailable")
                 .to_owned(),
-            days: days.into_values().collect(),
+            days,
         }
+    }
+
+    fn rebuild_days(&mut self) {
+        self.days = build_usage_days(&self.buckets, &self.since_day, &self.until_day);
     }
 
     fn totals(&self) -> (u64, u64, u64, f64, f64, u64, u64) {
@@ -156,9 +138,13 @@ impl UsageSnapshotView {
         let mut values = BTreeMap::<String, UsageBreakdownView>::new();
         for bucket in &self.buckets {
             let (key, label) = match mode {
-                UsageBreakdownMode::Account => (
+                UsageBreakdownMode::Profile => (
                     format!("{}:{}", bucket.provider, bucket.account_id),
-                    bucket.display_name.clone(),
+                    account_label(&bucket.provider, &bucket.account_id, &bucket.display_name),
+                ),
+                UsageBreakdownMode::Grouped => (
+                    bucket.provider.clone(),
+                    provider_label(&bucket.provider).to_owned(),
                 ),
                 UsageBreakdownMode::Model => (
                     format!("{}:{}", bucket.provider, bucket.model),
@@ -211,6 +197,7 @@ impl UsageSourceView {
     fn from_value(value: &Value) -> Self {
         Self {
             provider: string(value, "provider", "codex"),
+            account_id: string(value, "accountId", "default"),
             display_name: string(value, "displayName", "Default"),
             status: string(value, "status", "failed"),
             scanned_files: number(Some(value), "scannedFiles"),
@@ -249,8 +236,7 @@ impl AleraApp {
         self.status_popover_pinned = false;
         self.status_popover_panel_hovered = false;
         self.show_agent_usage_dialog = true;
-        self.agent_usage_days = 30;
-        self.agent_usage_breakdown_mode = UsageBreakdownMode::Account;
+        self.agent_usage_breakdown_mode = UsageBreakdownMode::Profile;
         self.refresh_agent_usage(cx);
         cx.notify();
     }
@@ -270,11 +256,15 @@ impl AleraApp {
         cx.notify();
     }
 
-    pub(super) fn toggle_agent_usage_breakdown(&mut self, cx: &mut Context<Self>) {
-        self.agent_usage_breakdown_mode = match self.agent_usage_breakdown_mode {
-            UsageBreakdownMode::Account => UsageBreakdownMode::Model,
-            UsageBreakdownMode::Model => UsageBreakdownMode::Account,
-        };
+    pub(super) fn set_agent_usage_breakdown_mode(
+        &mut self,
+        mode: UsageBreakdownMode,
+        cx: &mut Context<Self>,
+    ) {
+        if self.agent_usage_breakdown_mode == mode {
+            return;
+        }
+        self.agent_usage_breakdown_mode = mode;
         cx.notify();
     }
 
@@ -291,6 +281,20 @@ impl AleraApp {
         let payload = json!({
             "sinceDay": since.format("%Y-%m-%d").to_string(),
             "untilDay": until.format("%Y-%m-%d").to_string(),
+            "claudeDefaultEnabled": self.settings_state.claude_default_enabled,
+            "claudeProfiles": self
+                .settings_state
+                .claude_profiles
+                .iter()
+                .map(|profile| {
+                    json!({
+                        "alias": profile.usage_label(),
+                        "profile": profile.profile,
+                        "showInUsage": profile.show_in_usage,
+                        "usageDisplayName": profile.usage_display_name,
+                    })
+                })
+                .collect::<Vec<_>>(),
         });
         let bridge = self.bridge.clone();
         cx.spawn(async move |this, cx| {
@@ -336,11 +340,23 @@ impl AleraApp {
         let snapshot = self
             .agent_usage_snapshot
             .as_ref()
-            .map(UsageSnapshotView::from_value);
+            .map(|value| self.usage_snapshot_for_settings(value));
         let quotas = self
             .visible_quota_snapshots()
             .into_iter()
             .filter(|snapshot| matches!(snapshot.provider.as_str(), "claude" | "codex"))
+            .filter(|snapshot| {
+                snapshot.provider != "claude"
+                    || (snapshot.account_id == "default"
+                        && self.settings_state.claude_default_enabled)
+                    || self
+                        .settings_state
+                        .claude_profiles
+                        .iter()
+                        .any(|profile| {
+                            profile.profile == snapshot.account_id && profile.show_in_usage
+                        })
+            })
             .cloned()
             .collect::<Vec<_>>();
         let host = self.current_status_host_label();
@@ -379,6 +395,46 @@ impl AleraApp {
                     }),
             )
             .into_any_element()
+    }
+
+    fn usage_snapshot_for_settings(&self, value: &Value) -> UsageSnapshotView {
+        let mut snapshot = UsageSnapshotView::from_value(value);
+        let labels = self
+            .settings_state
+            .claude_profiles
+            .iter()
+            .filter(|profile| profile.show_in_usage)
+            .map(|profile| (profile.profile.clone(), profile.usage_label()))
+            .collect::<BTreeMap<_, _>>();
+        let default_enabled = self.settings_state.claude_default_enabled;
+        snapshot.buckets.retain_mut(|bucket| {
+            if bucket.provider != "claude" {
+                return true;
+            }
+            if bucket.account_id == "default" {
+                return default_enabled;
+            }
+            let Some(label) = labels.get(&bucket.account_id) else {
+                return false;
+            };
+            bucket.display_name = label.clone();
+            true
+        });
+        snapshot.sources.retain_mut(|source| {
+            if source.provider != "claude" {
+                return true;
+            }
+            if source.account_id == "default" {
+                return default_enabled;
+            }
+            let Some(label) = labels.get(&source.account_id) else {
+                return false;
+            };
+            source.display_name = label.clone();
+            true
+        });
+        snapshot.rebuild_days();
+        snapshot
     }
 
     fn render_usage_header(&self, host: String, cx: &mut Context<Self>) -> AnyElement {
@@ -587,26 +643,41 @@ impl AleraApp {
                     )
                     .child(
                         div()
-                            .id("usage-breakdown-mode")
-                            .role(Role::Button)
-                            .aria_label(if mode == UsageBreakdownMode::Account {
-                                "Switch To Model Breakdown"
-                            } else {
-                                "Switch To Account Breakdown"
-                            })
-                            .px_2()
-                            .py(px(5.0))
+                            .flex()
+                            .items_center()
                             .rounded_md()
-                            .bg(theme::surface_selected())
-                            .cursor(CursorStyle::PointingHand)
-                            .on_click(cx.listener(|this, _, _, cx| {
-                                this.toggle_agent_usage_breakdown(cx);
-                            }))
-                            .child(if mode == UsageBreakdownMode::Account {
-                                "Account"
-                            } else {
-                                "Model"
-                            }),
+                            .border_1()
+                            .border_color(theme::border())
+                            .children(
+                                [
+                                    (UsageBreakdownMode::Profile, "Profiles"),
+                                    (UsageBreakdownMode::Grouped, "Grouped"),
+                                    (UsageBreakdownMode::Model, "Models"),
+                                ]
+                                .into_iter()
+                                .map(|(candidate, label)| {
+                                    div()
+                                        .id(SharedString::from(format!("usage-mode-{label}")))
+                                        .role(Role::Button)
+                                        .aria_label(label)
+                                        .px_2()
+                                        .py(px(5.0))
+                                        .text_size(px(10.0))
+                                        .cursor(CursorStyle::PointingHand)
+                                        .when(mode == candidate, |button| {
+                                            button.bg(theme::accent()).text_color(theme::on_accent())
+                                        })
+                                        .when(mode != candidate, |button| {
+                                            button.text_color(theme::text_muted()).hover(|style| {
+                                                style.bg(theme::surface_selected())
+                                            })
+                                        })
+                                        .on_click(cx.listener(move |this, _, _, cx| {
+                                            this.set_agent_usage_breakdown_mode(candidate, cx);
+                                        }))
+                                        .child(label)
+                                }),
+                            ),
                     ),
             )
             .child(self.render_usage_table(&breakdowns))
@@ -635,10 +706,23 @@ impl AleraApp {
     fn render_usage_quota_strip(&self, quotas: &[QuotaSnapshot]) -> AnyElement {
         let visible = quotas
             .iter()
-            .filter(|snapshot| matches!(snapshot.provider.as_str(), "claude" | "codex"));
+            .filter(|snapshot| matches!(snapshot.provider.as_str(), "claude" | "codex"))
+            .filter(|snapshot| {
+                snapshot.provider != "claude"
+                    || (snapshot.account_id == "default"
+                        && self.settings_state.claude_default_enabled)
+                    || self
+                        .settings_state
+                        .claude_profiles
+                        .iter()
+                        .any(|profile| {
+                            profile.profile == snapshot.account_id && profile.show_in_usage
+                        })
+            })
+            .collect::<Vec<_>>();
         div()
-            .when(quotas.is_empty(), |panel| panel)
-            .when(!quotas.is_empty(), |panel| {
+            .when(visible.is_empty(), |panel| panel)
+            .when(!visible.is_empty(), |panel| {
                 panel
                     .child(
                         div()
@@ -653,11 +737,25 @@ impl AleraApp {
                             .border_1()
                             .border_color(theme::border_subtle())
                             .bg(theme::surface())
-                            .children(visible.map(|snapshot| {
+                            .children(visible.iter().map(|snapshot| {
                                 let used = snapshot
                                     .readings
                                     .first()
                                     .map(|reading| 100.0 - reading.remaining_percent);
+                                let label = if snapshot.provider == "claude"
+                                    && snapshot.account_id == "default"
+                                {
+                                    "Claude Code Default".to_owned()
+                                } else if snapshot.provider == "claude" {
+                                    self.settings_state
+                                        .claude_profiles
+                                        .iter()
+                                        .find(|profile| profile.profile == snapshot.account_id)
+                                        .map(|profile| profile.usage_label())
+                                        .unwrap_or_else(|| snapshot.display_name.clone())
+                                } else {
+                                    provider_label(&snapshot.provider).to_owned()
+                                };
                                 div()
                                     .flex()
                                     .items_center()
@@ -673,11 +771,7 @@ impl AleraApp {
                                         div()
                                             .flex_1()
                                             .text_size(px(11.0))
-                                            .child(format!(
-                                                "{} {}",
-                                                provider_label(&snapshot.provider),
-                                                snapshot.display_name
-                                            )),
+                                            .child(label),
                                     )
                                     .when_some(used, |row, used| {
                                         row.child(
@@ -916,8 +1010,49 @@ fn provider_label(provider: &str) -> &'static str {
     }
 }
 
+fn account_label(provider: &str, account_id: &str, display_name: &str) -> String {
+    match (provider, account_id) {
+        ("claude", "default") => "Claude Code Default".to_owned(),
+        ("codex", "default") => "Codex".to_owned(),
+        _ => display_name.to_owned(),
+    }
+}
+
 fn parse_day(value: &str) -> Option<NaiveDate> {
     NaiveDate::parse_from_str(value, "%Y-%m-%d").ok()
+}
+
+fn build_usage_days(
+    buckets: &[UsageBucketView],
+    since_day: &str,
+    until_day: &str,
+) -> Vec<UsageDayView> {
+    let mut days = BTreeMap::<String, UsageDayView>::new();
+    for bucket in buckets {
+        let day = days.entry(bucket.day.clone()).or_insert_with(|| UsageDayView {
+            day: bucket.day.clone(),
+            ..UsageDayView::default()
+        });
+        if bucket.provider == "claude" {
+            day.claude_tokens = day.claude_tokens.saturating_add(bucket.tokens);
+        } else if bucket.provider == "codex" {
+            day.codex_tokens = day.codex_tokens.saturating_add(bucket.tokens);
+        }
+        day.cost_usd += bucket.cost_usd;
+    }
+    if let (Some(mut date), Some(last)) = (parse_day(since_day), parse_day(until_day)) {
+        let mut filled = Vec::new();
+        while date <= last {
+            let key = date.format("%Y-%m-%d").to_string();
+            filled.push(days.remove(&key).unwrap_or_else(|| UsageDayView {
+                day: key,
+                ..UsageDayView::default()
+            }));
+            date += ChronoDuration::days(1);
+        }
+        return filled;
+    }
+    days.into_values().collect()
 }
 
 fn string(value: &Value, key: &str, fallback: &str) -> String {

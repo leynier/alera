@@ -329,6 +329,17 @@ fn claude_profiles_control(
                                     .text_size(px(11.0))
                                     .text_color(theme::text_muted())
                                     .child(profile.profile.clone()),
+                            )
+                            .child(
+                                div()
+                                    .truncate()
+                                    .text_size(px(10.0))
+                                    .text_color(theme::text_faint())
+                                    .child(if profile.show_in_usage {
+                                        format!("Usage: {}", profile.usage_label())
+                                    } else {
+                                        "Not Shown In Usage".to_owned()
+                                    }),
                             ),
                     )
                     .child(

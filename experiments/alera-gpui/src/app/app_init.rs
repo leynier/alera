@@ -104,6 +104,8 @@ impl AleraApp {
             cx.new(|cx| InputState::new(window, cx).placeholder("ccwork"));
         let claude_profile_name_input =
             cx.new(|cx| InputState::new(window, cx).placeholder("work"));
+        let claude_profile_usage_name_input =
+            cx.new(|cx| InputState::new(window, cx).placeholder("Work"));
         let (settings_inputs, settings_textareas) =
             build_settings_inputs(&settings_state, window, cx);
         let keyboard_settings = KeyboardSettingsUiState::new(cx);
@@ -1208,13 +1210,13 @@ impl AleraApp {
             codex_reset_busy: false,
             quota_tui_busy_key: None,
             show_agent_usage_dialog: false,
-            agent_usage_days: 30,
+            agent_usage_days: 7,
             agent_usage_loading: false,
             agent_usage_error: None,
             agent_usage_snapshot: None,
             agent_usage_cache: BTreeMap::new(),
             agent_usage_generation: 0,
-            agent_usage_breakdown_mode: status_usage::UsageBreakdownMode::Account,
+            agent_usage_breakdown_mode: status_usage::UsageBreakdownMode::Profile,
             resource_sort_column: "memory".to_owned(),
             resource_collapsed_project_ids: BTreeSet::new(),
             resource_close_confirmation: None,
@@ -1314,8 +1316,10 @@ impl AleraApp {
             skill_runners,
             claude_profile_alias_input,
             claude_profile_name_input,
+            claude_profile_usage_name_input,
             show_claude_profile_dialog: false,
             editing_claude_profile_index: None,
+            claude_profile_show_in_usage: true,
             claude_profile_error: None,
             new_workspace_mode: NewWorkspaceMode::default(),
             new_workspace_step: NewWorkspaceStep::default(),
