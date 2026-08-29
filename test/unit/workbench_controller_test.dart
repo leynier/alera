@@ -62,6 +62,7 @@ part 'workbench_controller_navigation_test_cases.dart';
 part 'workbench_controller_preview_tab_test_cases.dart';
 part 'workbench_controller_view_prefs_test_repository.dart';
 part 'workbench_controller_test_harness.dart';
+part 'workbench_controller_terminal_runtime_fakes.dart';
 part 'workbench_controller_selection_test_cases.dart';
 part 'workbench_controller_terminal_cleanup_test_cases.dart';
 
