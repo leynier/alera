@@ -1096,6 +1096,8 @@ impl AleraApp {
             codex_attachments: BTreeMap::new(),
             codex_prompt_history: BTreeMap::new(),
             codex_prompt_history_index: BTreeMap::new(),
+            codex_scroll_handle: ScrollHandle::new(),
+            codex_scroll_follow: true,
             codex_selected_model: settings_state.codex_chat_selected_model.clone(),
             codex_models: Vec::new(),
             codex_collaboration_modes: Vec::new(),

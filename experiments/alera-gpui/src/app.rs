@@ -210,6 +210,8 @@ pub struct AleraApp {
     codex_attachments: BTreeMap<String, Vec<String>>,
     codex_prompt_history: BTreeMap<String, Vec<String>>,
     codex_prompt_history_index: BTreeMap<String, usize>,
+    codex_scroll_handle: ScrollHandle,
+    codex_scroll_follow: bool,
     codex_selected_model: Option<String>,
     codex_models: Vec<Value>,
     codex_collaboration_modes: Vec<Value>,

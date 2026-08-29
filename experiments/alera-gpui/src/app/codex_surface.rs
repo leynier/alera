@@ -3,7 +3,8 @@ use std::time::Duration;
 use gpui::{
     div, prelude::FluentBuilder as _, px, AnyElement, AppContext as _, ClipboardItem, Context, CursorStyle,
     Entity, ExternalPaths, InteractiveElement as _, IntoElement, KeyDownEvent, MouseButton,
-    ParentElement as _, Role, SharedString, StatefulInteractiveElement as _, Styled as _, Window,
+    ParentElement as _, Role, ScrollWheelEvent, SharedString,
+    StatefulInteractiveElement as _, Styled as _, Window,
 };
 use gpui_component::input::{Input, InputEvent, Textarea, TextareaState};
 use gpui_component::scroll::ScrollableElement as _;
@@ -336,6 +337,9 @@ impl AleraApp {
         }
         if active_codex_turn(snapshot).is_none() {
             self.start_next_queued_codex_message(tab_id.to_owned(), window, cx);
+        }
+        if self.selected_tab_id.as_deref() == Some(tab_id) && self.codex_scroll_follow {
+            self.codex_scroll_handle.scroll_to_bottom();
         }
         cx.notify();
     }
@@ -913,9 +917,28 @@ impl AleraApp {
             })
             .child(
                 div()
+                    .id("codex-timeline-scroll-view")
                     .flex_1()
                     .min_h_0()
+                    .track_scroll(&self.codex_scroll_handle)
                     .overflow_y_scrollbar()
+                    .on_scroll_wheel(cx.listener(
+                        |this, event: &ScrollWheelEvent, window, cx| {
+                            let delta = event.delta.pixel_delta(window.line_height()).y;
+                            if delta.as_f32().abs() < f32::EPSILON {
+                                return;
+                            }
+                            let current = this.codex_scroll_handle.offset();
+                            let max_y = this.codex_scroll_handle.max_offset().y;
+                            let next_y = (current.y + delta).clamp(-max_y, px(0.0));
+                            this.codex_scroll_handle
+                                .set_offset(gpui::point(current.x, next_y));
+                            this.codex_scroll_follow =
+                                (-next_y.as_f32()) >= (max_y.as_f32() - 24.0).max(0.0);
+                            cx.stop_propagation();
+                            cx.notify();
+                        },
+                    ))
                     .child(if opening && snapshot_events(&snapshot).is_empty() {
                         div()
                             .flex()
