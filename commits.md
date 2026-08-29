@@ -253,7 +253,7 @@ commit so this file remains useful after context compaction.
 | 232 | `0a790d4cd868e2b1e81ab02d0bd0fedb6c3df871` | 2026-08-13 | release: v0.59.1 v0.23.1-mobile | merged | Cherry-picked Flutter/mobile release metadata; no GPUI UI surface is affected. |
 | 233 | `266175ce63231c7c13c9eb386ff658cf11957bcc` | 2026-08-13 | fix: show workspace status from the most urgent agent (#416) | merged | Cherry-picked workspace-agent urgency ranking and aligned GPUI to blocked > waiting > interrupted > working > done, with a passing older-interruption-vs-newer-working regression test. |
 | 234 | `ac69a7809f0cb66e4d5b0812a27ca975dc9d9e03` | 2026-08-14 | fix: use authoritative opencode go usage (#407) | merged | Cherry-picked authoritative OpenCode Go quota retrieval; GPUI already renders generic provider windows, amounts, reset times, and estimated/live quality from the shared runtime response. |
-| 235 | `5391b7b6317fbbf5ae8992de01a5438adb663ac3` | 2026-08-14 | feat: add browser annotations to codex chat (#409) | pending | - |
+| 235 | `5391b7b6317fbbf5ae8992de01a5438adb663ac3` | 2026-08-14 | feat: add browser annotations to codex chat (#409) | in progress | Cherry-picking browser annotation/Codex message contracts; GPUI Codex Chat remains explicitly unsupported. |
 | 236 | `85508b6bab2fc6004b68351f902a57edf83f9bde` | 2026-08-14 | feat: expand ai dictation workflows (#417) | pending | - |
 | 237 | `2aa26947cca0361a96f45a10b72d66551ca9eec2` | 2026-08-14 | release: v0.60.0 v0.24.0-mobile | pending | - |
 | 238 | `ddf81f7afd0d34833433f1698bb6fbc7287ec7f5` | 2026-08-14 | fix: set file modes with a syscall instead of a chmod process (#419) | pending | - |
