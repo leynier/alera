@@ -5,7 +5,7 @@ use gpui::{
 
 use super::AleraApp;
 use crate::{
-    icons::{icon, AleraIcon},
+    icons::{agent_icon, icon, AgentIcon, AleraIcon},
     theme,
 };
 
@@ -124,7 +124,9 @@ impl AleraApp {
                     .map(|layout| layout.active_group_id.clone())
                     .unwrap_or_else(|| "legacy".to_string());
                 let selected = self.selected_tab_id.as_deref() == Some(tab.id.as_str());
-                let title = if selected && tab.kind == "terminal" {
+                let title = if tab.kind == "codex" {
+                    "Codex Chat".to_owned()
+                } else if selected && tab.kind == "terminal" {
                     self.terminal_sessions
                         .get(
                             tab.payload
@@ -269,7 +271,7 @@ pub(super) fn tab_kind_icon(kind: &str, path: Option<&str>, color: gpui::Rgba) -
             |path| crate::file_icons::file_icon(path, false, false, false, 15.0, color),
         ),
         "terminal" => icon(AleraIcon::Terminal, 15.0, color),
-        "codex" => icon(AleraIcon::Composer, 15.0, color),
+        "codex" => agent_icon(AgentIcon::Codex, 15.0, color),
         // Flutter's workspace tab leading icon uses gitBranch for diff tabs;
         // the diff/compare glyph is reserved for the diff surface itself.
         "gitDiff" => icon(AleraIcon::GitBranch, 15.0, color),

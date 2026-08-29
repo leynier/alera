@@ -9,7 +9,7 @@ use gpui_component::tooltip::Tooltip;
 use super::{AleraApp, WorkbenchMenu};
 use crate::model::WorkbenchSplitDirection;
 use crate::{
-    icons::{icon, AleraIcon},
+    icons::{agent_icon, icon, AgentIcon, AleraIcon},
     theme,
 };
 
@@ -202,7 +202,16 @@ impl AleraApp {
                             .map(|tab| tab.id.clone())
                             .collect()
                     });
-                let mut indices = vec![0, 1, 2, 3, 4, 7];
+                let is_codex = self
+                    .snapshot
+                    .tabs
+                    .iter()
+                    .find(|tab| tab.id == *tab_id)
+                    .is_some_and(|tab| tab.kind == "codex");
+                let mut indices = vec![0, 1, 2, 3, 4];
+                if !is_codex {
+                    indices.push(7);
+                }
                 if group_tab_ids.iter().any(|candidate| candidate != tab_id) {
                     indices.push(5);
                 }
@@ -396,8 +405,8 @@ impl AleraApp {
         )
         .child(menu_button(
             "new-tab-codex",
-            "New Codex",
-            icon(AleraIcon::Composer, 16.0, theme::text_muted()),
+            "New Codex Chat",
+            agent_icon(AgentIcon::Codex, 16.0, theme::text_muted()),
             true,
             self.workbench_menu_highlighted == 1,
         ).on_click(cx.listener(move |this, _, window, cx| {
@@ -555,8 +564,14 @@ impl AleraApp {
         let close_id = tab_id.clone();
         let close_other_ids = close_others.clone();
         let close_right_ids = close_right.clone();
+        let is_codex = self
+            .snapshot
+            .tabs
+            .iter()
+            .find(|tab| tab.id == tab_id)
+            .is_some_and(|tab| tab.kind == "codex");
         let rename_id = tab_id;
-        menu.child(menu_divider())
+        let mut menu = menu.child(menu_divider())
             .child(
                 menu_button(
                     "tab-close",
@@ -619,8 +634,9 @@ impl AleraApp {
                     }))
                 }),
             )
-            .child(menu_divider())
-            .child(
+            ;
+        if !is_codex {
+            menu = menu.child(menu_divider()).child(
                 menu_button(
                     "tab-change-title",
                     "Change Title",
@@ -633,8 +649,9 @@ impl AleraApp {
                     this.dismiss_workbench_menu(window, cx);
                     this.open_tab_rename_dialog(rename_id.clone(), window, cx);
                 })),
-            )
-            .into_any_element()
+            );
+        }
+        menu.into_any_element()
     }
 }
 

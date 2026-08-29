@@ -464,7 +464,11 @@ impl AleraApp {
                 div()
                     .max_w(px(tab_title_max_width(&tab.kind)))
                     .text_ellipsis()
-                    .child(tab.title.clone()),
+                    .child(if tab.kind == "codex" {
+                        "Codex Chat".to_owned()
+                    } else {
+                        tab.title.clone()
+                    }),
             )
             .child(
                 div()
@@ -475,7 +479,14 @@ impl AleraApp {
                     .focusable()
                     .tab_stop(true)
                     .role(Role::Button)
-                    .aria_label(SharedString::from(format!("Close {}", tab.title)))
+                    .aria_label(SharedString::from(format!(
+                        "Close {}",
+                        if tab.kind == "codex" {
+                            "Codex Chat"
+                        } else {
+                            tab.title.as_str()
+                        }
+                    )))
                     .flex()
                     .items_center()
                     .justify_center()
