@@ -84,7 +84,10 @@ impl WorkspaceTab {
 
     pub fn is_file_preview_slot(&self) -> bool {
         self.is_preview()
-            && matches!(self.kind.as_str(), "editor" | "markdownViewer" | "pdf")
+            && matches!(
+                self.kind.as_str(),
+                "editor" | "markdownViewer" | "pdf" | "gitDiff"
+            )
             && self.payload.get("fileRole").and_then(Value::as_str) != Some("mermanPreview")
             && self
                 .payload

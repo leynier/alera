@@ -268,7 +268,7 @@ impl AleraApp {
         .detach();
     }
 
-    fn persist_returned_preview_tab(&mut self, tab: Value, cx: &mut Context<Self>) {
+    pub(super) fn persist_returned_preview_tab(&mut self, tab: Value, cx: &mut Context<Self>) {
         let bridge = self.bridge.clone();
         cx.spawn(async move |this, cx| {
             let result = bridge.request("tab.upsert", tab).await;
@@ -286,12 +286,15 @@ impl AleraApp {
         .detach();
     }
 
-    fn file_preview_tab_in_group(&self, group_id: &str) -> Option<&WorkspaceTab> {
+    pub(super) fn file_preview_tab_in_group(&self, group_id: &str) -> Option<&WorkspaceTab> {
         let group = self.snapshot.layout.as_ref()?.groups.get(group_id)?;
         preview_tab_in_group(&self.snapshot.tabs, group)
     }
 
-    fn file_tab_is_dirty(&self, tab: &WorkspaceTab) -> bool {
+    pub(super) fn file_tab_is_dirty(&self, tab: &WorkspaceTab) -> bool {
+        if !matches!(tab.kind.as_str(), "editor" | "markdownViewer" | "pdf") {
+            return false;
+        }
         let Some(path) = tab.payload.get("filePath").and_then(Value::as_str) else {
             return false;
         };
@@ -336,7 +339,7 @@ fn set_preview_payload(payload: &mut Map<String, Value>, preview: bool) {
     }
 }
 
-fn kept_tab_payload(tab: &WorkspaceTab) -> Value {
+pub(super) fn kept_tab_payload(tab: &WorkspaceTab) -> Value {
     let mut payload = tab.payload.as_object().cloned().unwrap_or_default();
     payload.remove("preview");
     let updated_at = chrono::Utc::now().to_rfc3339();
@@ -351,7 +354,7 @@ fn kept_tab_payload(tab: &WorkspaceTab) -> Value {
     })
 }
 
-fn remove_preview_from_tab_value(tab: &mut Value) -> bool {
+pub(super) fn remove_preview_from_tab_value(tab: &mut Value) -> bool {
     let Some(payload) = tab.get_mut("payload").and_then(Value::as_object_mut) else {
         return false;
     };
@@ -417,6 +420,23 @@ mod tests {
         };
 
         assert!(preview_tab_in_group(&tabs, &group).is_none());
+    }
+
+    #[test]
+    fn git_diff_participates_in_the_shared_preview_slot() {
+        let mut git_diff = tab("git-preview", true);
+        git_diff.kind = "gitDiff".to_owned();
+        let tabs = [git_diff];
+        let group = WorkbenchPaneGroup {
+            id: "group-a".to_owned(),
+            tab_ids: vec!["git-preview".to_owned()],
+            active_tab_id: Some("git-preview".to_owned()),
+        };
+
+        assert_eq!(
+            preview_tab_in_group(&tabs, &group).map(|tab| tab.id.as_str()),
+            Some("git-preview")
+        );
     }
 
     fn tab(id: &str, preview: bool) -> WorkspaceTab {

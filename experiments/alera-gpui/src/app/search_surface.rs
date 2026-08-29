@@ -290,7 +290,8 @@ impl AleraApp {
             column.saturating_sub(1) as usize,
             match_length as usize,
         ));
-        self.open_workspace_file(path, window, cx);
+        self.open_file_preview_tab(path.clone(), cx);
+        self.load_workspace_file(path, window, cx);
     }
 
     pub(super) fn render_search_panel(

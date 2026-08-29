@@ -189,7 +189,7 @@ impl AleraApp {
             return;
         };
         self.close_quick_open(cx);
-        self.open_file_tab(path, cx);
+        self.open_file_preview_tab(path, cx);
     }
 
     pub(super) fn close_quick_open(&mut self, cx: &mut Context<Self>) {

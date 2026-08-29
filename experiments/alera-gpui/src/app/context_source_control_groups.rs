@@ -489,7 +489,16 @@ impl AleraApp {
             .cursor(CursorStyle::PointingHand)
             .hover(|style| style.bg(theme::surface_selected()))
             .on_click(cx.listener(move |this, _, _, cx| {
-                this.open_git_diff_tab(Some(diff_path.clone()), Some(diff_area.clone()), cx);
+                let permanent = this.should_keep_git_preview(format!(
+                    "working:file:{}:{}",
+                    diff_area, diff_path
+                ));
+                this.open_git_diff_preview_tab(
+                    Some(diff_path.clone()),
+                    Some(diff_area.clone()),
+                    permanent,
+                    cx,
+                );
             }))
             .child(div().w(px(16.0)))
             .child(file_icon(

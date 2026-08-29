@@ -682,16 +682,6 @@ impl AleraApp {
         self.load_root_directory(cx);
     }
 
-    pub(super) fn open_workspace_file(
-        &mut self,
-        relative_path: String,
-        window: &mut Window,
-        cx: &mut Context<Self>,
-    ) {
-        self.open_editor_tab(relative_path.clone(), cx);
-        self.load_workspace_file(relative_path, window, cx);
-    }
-
     pub(super) fn ensure_selected_editor_loaded(
         &mut self,
         window: &mut Window,

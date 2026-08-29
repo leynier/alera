@@ -512,12 +512,16 @@ impl AleraApp {
         )
         .cursor(CursorStyle::PointingHand)
         .on_click(cx.listener(move |this, _, _, cx| {
-            this.open_git_commit_diff_tab(
+            let permanent = this.should_keep_git_preview(format!(
+                "commit:{}:{}",
+                commit_id, path
+            ));
+            this.open_git_commit_diff_preview_tab(
                 Some(path.clone()),
                 old_path.clone(),
-                "file",
                 commit_id.clone(),
                 subject.clone(),
+                permanent,
                 cx,
             );
         }))
