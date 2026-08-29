@@ -1253,23 +1253,28 @@ struct SidebarAggregateState {
 }
 
 fn sidebar_aggregate_state(runs: &[Value]) -> Option<SidebarAggregateState> {
-    // Flutter chooses the aggregate from the same urgency projection used by
-    // `aggregateWorkspaceAgentStatus`: blocked > waiting > working > done.
-    // Interruption changes the glyph of an individual run, but must not jump
-    // ahead of a more urgent non-interrupted run in another terminal or alter
-    // the aggregate state selected by Flutter.
+    // Flutter keeps row order stable but chooses the workspace glyph by
+    // urgency: blocked > waiting > interrupted > working > done.
     let mut best: Option<(&Value, u8, &str)> = None;
     for run in runs {
         let state = run
             .get("agentState")
             .and_then(Value::as_str)
             .unwrap_or("working");
-        let priority = match state {
-            "blocked" => 4,
-            "waiting" => 3,
+        let interrupted = run
+            .get("interrupted")
+            .and_then(Value::as_bool)
+            .unwrap_or(false);
+        let priority = if interrupted {
+            3
+        } else {
+            match state {
+            "blocked" => 5,
+            "waiting" => 4,
             "working" => 2,
             "done" => 1,
             _ => 2,
+            }
         };
         let updated_at = run
             .get("updatedAt")
@@ -1549,17 +1554,17 @@ mod aggregate_tests {
     }
 
     #[test]
-    fn aggregate_state_uses_latest_run_when_priorities_tie() {
+    fn aggregate_state_ranks_interruption_above_newer_working_run() {
         let runs = vec![
             json!({
                 "agentState": "working",
                 "interrupted": false,
-                "updatedAt": "2026-08-24T14:00:00Z"
+                "updatedAt": "2026-08-24T15:00:00Z"
             }),
             json!({
                 "agentState": "working",
                 "interrupted": true,
-                "updatedAt": "2026-08-24T15:00:00Z"
+                "updatedAt": "2026-08-24T14:00:00Z"
             }),
         ];
 
