@@ -205,7 +205,7 @@ commit so this file remains useful after context compaction.
 | 184 | `9edf6a7536b357f7a6c75dab3eed4fa36bdf34e6` | 2026-08-10 | fix: align source control actions right (#387) | merged | Cherry-picked Source Control action alignment and made the GPUI primary action intrinsic-width and right-aligned with matching padding. |
 | 185 | `db824e22621b201920d147604276a4beb6b5b0a9` | 2026-08-10 | release: v0.56.0 v0.22.0-mobile | merged | Cherry-picked Flutter/mobile version metadata; no GPUI UI surface is affected. |
 | 186 | `b302f8679b92ab2ae8c6a7004d4c42ea7d6490f9` | 2026-08-10 | fix: keep shutdown dialog on navigator route (#388) | merged | Cherry-picked mobile shutdown dialog routing; no GPUI UI surface is affected. |
-| 187 | `2d155304283ccc8b2644039bf31f17223ddd2dfc` | 2026-08-10 | fix: restore source control action layout (#389) | pending | - |
+| 187 | `2d155304283ccc8b2644039bf31f17223ddd2dfc` | 2026-08-10 | fix: restore source control action layout (#389) | in progress | Cherry-picking the restored Source Control edge-aligned/full-width action layout and applying the same reversal to GPUI. |
 | 188 | `7f44322513d4b3155f8c2c1c6c493430922253cd` | 2026-08-10 | feat: add offline ai dictation (#376) | pending | - |
 | 189 | `cc4986beb663073045be52a9ce52ccf3809b0439` | 2026-08-10 | fix: link native macOS dependencies for the Rust framework | pending | - |
 | 190 | `0db518fbfcb751c8abb7dedb71459c9584676a68` | 2026-08-10 | fix: make release asset uploads resilient | pending | - |
