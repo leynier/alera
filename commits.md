@@ -208,7 +208,7 @@ commit so this file remains useful after context compaction.
 | 187 | `2d155304283ccc8b2644039bf31f17223ddd2dfc` | 2026-08-10 | fix: restore source control action layout (#389) | merged | Cherry-picked the restored Source Control edge-aligned/full-width action layout and applied the same reversal to GPUI, keeping primary actions flush with the composer edges. |
 | 188 | `7f44322513d4b3155f8c2c1c6c493430922253cd` | 2026-08-10 | feat: add offline ai dictation (#376) | merged | Cherry-picked offline AI dictation, Whisper native contracts, model storage, settings, and Flutter composer controls. GPUI has no microphone capture abstraction yet; the GPUI composer remains functional without exposing a misleading Codex Chat control. |
 | 189 | `cc4986beb663073045be52a9ce52ccf3809b0439` | 2026-08-10 | fix: link native macOS dependencies for the Rust framework | merged | Cherry-picked the macOS native framework dependency fix; no GPUI UI surface is affected. |
-| 190 | `0db518fbfcb751c8abb7dedb71459c9584676a68` | 2026-08-10 | fix: make release asset uploads resilient | in progress | Cherry-picking release asset upload retry/verification changes; no GPUI UI surface is affected. |
+| 190 | `0db518fbfcb751c8abb7dedb71459c9584676a68` | 2026-08-10 | fix: make release asset uploads resilient | merged | Cherry-picked release asset upload retry/verification changes; no GPUI UI surface is affected. |
 | 191 | `e92fd010bfff26ce74f34c298c4736d1e91dd290` | 2026-08-11 | release: v0.57.0 | pending | - |
 | 192 | `acc4d772ba03b0f27ced65cc3c4180e8129582e0` | 2026-08-11 | fix: make windows development portable (#390) | pending | - |
 | 193 | `464d9cca9142a952e074d7f70f63b34a6072828b` | 2026-08-11 | fix: publish desktop packages without mobile release | pending | - |
