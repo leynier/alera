@@ -19,6 +19,7 @@ class DesktopPresenceCoordinator {
 
   DesktopPresenceSnapshot? _last;
   bool _started = false;
+  Future<void> _applyQueue = Future<void>.value();
 
   void start() {
     if (_started) {
@@ -28,16 +29,32 @@ class DesktopPresenceCoordinator {
     backend.listen(onShow: _showWindow, onQuit: _quit);
   }
 
-  Future<void> apply(DesktopPresenceSnapshot snapshot) async {
+  Future<void> apply(DesktopPresenceSnapshot snapshot) {
+    final pending = _applyQueue.then((_) => _applyNow(snapshot));
+    _applyQueue = pending.catchError((Object error, StackTrace stackTrace) {
+      _logger.warning('failed to apply desktop presence', error, stackTrace);
+    });
+    return _applyQueue;
+  }
+
+  Future<void> _applyNow(DesktopPresenceSnapshot snapshot) async {
     if (_last == snapshot) {
       return;
     }
-    _last = snapshot;
+    if ((_last?.trayVisible ?? false) && !snapshot.trayVisible) {
+      final hidden = !await window.isVisible();
+      final minimized = await window.isMinimized();
+      if ((hidden || minimized) && !await _showAndFocus()) {
+        return;
+      }
+    }
     try {
       await backend.apply(snapshot);
     } catch (error, stackTrace) {
       _logger.warning('failed to apply desktop presence', error, stackTrace);
+      return;
     }
+    _last = snapshot;
   }
 
   Future<void> destroy() async {
@@ -53,17 +70,22 @@ class DesktopPresenceCoordinator {
     unawaited(_showAndFocus());
   }
 
-  Future<void> _showAndFocus() async {
+  Future<bool> _showAndFocus() async {
     try {
       if (!await window.isVisible()) {
         await window.show();
+        if (!await window.isVisible()) {
+          return false;
+        }
       }
       if (await window.isMinimized()) {
         await window.restore();
       }
       await window.focus();
+      return true;
     } catch (error, stackTrace) {
       _logger.warning('failed to show app window from tray', error, stackTrace);
+      return false;
     }
   }
 

@@ -80,6 +80,95 @@ void main() {
       await Future<void>.delayed(Duration.zero);
       expect(window.destroyCalls, 1);
     });
+
+    test('shows a hidden window before removing the tray', () async {
+      final backend = _RecordingPresenceBackend();
+      final window = _RecordingWindow();
+      final lifecycle = AppWindowLifecycleCoordinator(
+        repository: _MemoryWindowStateRepository(),
+        window: window,
+        saveDebounce: Duration.zero,
+      );
+      await lifecycle.start();
+      final coordinator = DesktopPresenceCoordinator(
+        backend: backend,
+        window: window,
+        lifecycle: lifecycle,
+      );
+      coordinator.start();
+
+      await coordinator.apply(
+        const DesktopPresenceSnapshot(
+          trayVisible: true,
+          tooltip: 'Alera',
+          badgeCount: 0,
+        ),
+      );
+      window.visible = false;
+
+      await coordinator.apply(
+        const DesktopPresenceSnapshot(
+          trayVisible: false,
+          tooltip: 'Alera',
+          badgeCount: 0,
+        ),
+      );
+
+      expect(window.showCalls, 1);
+      expect(window.focusCalls, 1);
+      expect(window.visible, isTrue);
+      expect(backend.applied, hasLength(2));
+      expect(backend.applied.last.trayVisible, isFalse);
+    });
+
+    test('keeps the tray when showing a hidden window fails', () async {
+      final backend = _RecordingPresenceBackend();
+      final window = _RecordingWindow()..showFails = true;
+      final lifecycle = AppWindowLifecycleCoordinator(
+        repository: _MemoryWindowStateRepository(),
+        window: window,
+        saveDebounce: Duration.zero,
+      );
+      await lifecycle.start();
+      final coordinator = DesktopPresenceCoordinator(
+        backend: backend,
+        window: window,
+        lifecycle: lifecycle,
+      );
+      coordinator.start();
+
+      await coordinator.apply(
+        const DesktopPresenceSnapshot(
+          trayVisible: true,
+          tooltip: 'Alera',
+          badgeCount: 1,
+        ),
+      );
+      window.visible = false;
+
+      await coordinator.apply(
+        const DesktopPresenceSnapshot(
+          trayVisible: false,
+          tooltip: 'Alera',
+          badgeCount: 1,
+        ),
+      );
+      expect(backend.applied, hasLength(1));
+      expect(backend.applied.single.trayVisible, isTrue);
+      expect(window.visible, isFalse);
+
+      window.showFails = false;
+      await coordinator.apply(
+        const DesktopPresenceSnapshot(
+          trayVisible: false,
+          tooltip: 'Alera',
+          badgeCount: 1,
+        ),
+      );
+      expect(window.visible, isTrue);
+      expect(backend.applied, hasLength(2));
+      expect(backend.applied.last.trayVisible, isFalse);
+    });
   });
 }
 
@@ -131,6 +220,7 @@ class _RecordingWindow implements AppWindowController {
   int hideCalls = 0;
   bool visible = true;
   bool minimized = false;
+  bool showFails = false;
 
   @override
   void addListener(AppWindowEventListener listener) {
@@ -198,6 +288,9 @@ class _RecordingWindow implements AppWindowController {
   @override
   Future<void> show() async {
     showCalls += 1;
+    if (showFails) {
+      throw StateError('show failed');
+    }
     visible = true;
   }
 
