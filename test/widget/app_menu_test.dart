@@ -155,7 +155,7 @@ void main() {
       expect(toastMessages, <String>['Alera is up to date.']);
     });
 
-    testWidgets('exitAppFromMenu closes the app window', (tester) async {
+    testWidgets('exitAppFromMenu quits the app window', (tester) async {
       final window = FakeAppWindowController();
       await pumpActionHarness(
         tester,
@@ -165,8 +165,9 @@ void main() {
 
       await tester.tap(find.text('Run'));
       await tester.pump();
+      await tester.pump();
 
-      expect(window.closeCalls, 1);
+      expect(window.destroyCalls, 1);
     });
   });
 
@@ -242,15 +243,16 @@ void main() {
           });
         });
 
-        testWidgets('native channel closes the app window', (tester) async {
+        testWidgets('native channel quits the app window', (tester) async {
           await withPlatform(platform, () async {
             final window = FakeAppWindowController();
             await pumpMenuScope(tester, window: window);
 
             await invokeNativeMenuMethod(tester, NativeAppMenuMethod.exitApp);
             await tester.pump();
+            await tester.pump();
 
-            expect(window.closeCalls, 1);
+            expect(window.destroyCalls, 1);
           });
         });
 

@@ -4,6 +4,8 @@ import Speech
 
 @main
 class AppDelegate: FlutterAppDelegate {
+  private var desktopPresence: DesktopPresence?
+
   override func applicationDidFinishLaunching(_ notification: Notification) {
     super.applicationDidFinishLaunching(notification)
     guard let controller = mainFlutterWindow?.contentViewController as? FlutterViewController else {
@@ -23,9 +25,22 @@ class AppDelegate: FlutterAppDelegate {
       let locale = localeId.map { Locale(identifier: $0) } ?? Locale.current
       result(SFSpeechRecognizer(locale: locale)?.supportsOnDeviceRecognition == true)
     }
+    desktopPresence = DesktopPresence(messenger: controller.engine.binaryMessenger)
+  }
+
+  override func applicationShouldHandleReopen(
+    _ sender: NSApplication,
+    hasVisibleWindows flag: Bool
+  ) -> Bool {
+    if !flag {
+      desktopPresence?.requestShow()
+    }
+    return true
   }
 
   override func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
+    // Hide-on-close uses NSWindow.orderOut, so the window still exists.
+    // Destroying it (Quit) is what should terminate the process.
     return true
   }
 

@@ -31,7 +31,7 @@ void main() {
 
     expect(
       _catalogFingerprint(catalogs),
-      '5fc8943def91f434123ca47ec60687752b17d7eed86ce39bdd5a7597f21b79bf',
+      'baa5ae1b5ed44dbf8a290c929d94a92fbb77a514812d9031392e37e89bf78779',
     );
   });
 
@@ -59,6 +59,16 @@ void main() {
         entries: applicationSearchEntries,
         query: 'keep-alive',
         expected: <(String, String?)>[('Keep Computer Awake', 'runtime')],
+      ),
+      (
+        entries: applicationSearchEntries,
+        query: 'tray',
+        expected: <(String, String?)>[('Show Tray Icon', 'desktop')],
+      ),
+      (
+        entries: applicationSearchEntries,
+        query: 'taskbar',
+        expected: <(String, String?)>[('Show Dock Badge', 'desktop')],
       ),
       (
         entries: agentsSearchEntries,

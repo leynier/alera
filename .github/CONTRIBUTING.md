@@ -36,6 +36,7 @@ sudo apt-get install -y \
   ninja-build \
   pkg-config \
   libgtk-3-dev \
+  libayatana-appindicator3-dev \
   libwebkit2gtk-4.1-dev \
   libjson-glib-dev \
   libsecret-1-dev \

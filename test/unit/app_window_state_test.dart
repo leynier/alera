@@ -332,6 +332,8 @@ class _FakeAppWindowController implements AppWindowController {
   bool minimized = false;
   bool destroyed = false;
   int maximizeCalls = 0;
+  int hideCalls = 0;
+  bool visible = true;
 
   void emit(void Function(AppWindowEventListener listener) notify) {
     for (final listener in List<AppWindowEventListener>.from(listeners)) {
@@ -348,6 +350,28 @@ class _FakeAppWindowController implements AppWindowController {
   Future<void> destroy() async {
     destroyed = true;
   }
+
+  @override
+  Future<void> hide() async {
+    hideCalls += 1;
+    visible = false;
+  }
+
+  @override
+  Future<void> show() async {
+    visible = true;
+  }
+
+  @override
+  Future<void> restore() async {
+    minimized = false;
+  }
+
+  @override
+  Future<void> focus() async {}
+
+  @override
+  Future<bool> isVisible() async => visible;
 
   @override
   Future<Rect> getBounds() async => bounds;
