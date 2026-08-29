@@ -2,7 +2,7 @@ use std::time::Duration;
 
 use gpui::{
     div, prelude::FluentBuilder as _, px, AnyElement, AppContext as _, Context, CursorStyle,
-    Entity, InteractiveElement as _, IntoElement, KeyDownEvent, MouseButton,
+    Entity, ExternalPaths, InteractiveElement as _, IntoElement, KeyDownEvent, MouseButton,
     ParentElement as _, Role, SharedString, StatefulInteractiveElement as _, Styled as _, Window,
 };
 use gpui_component::input::{Input, InputEvent, Textarea, TextareaState};
@@ -10,7 +10,7 @@ use gpui_component::scroll::ScrollableElement as _;
 use gpui_component::text::TextView;
 use serde_json::{json, Value};
 
-use super::AleraApp;
+use super::{AleraApp, ExplorerDragData};
 use crate::design_system::{self, ButtonKind};
 use crate::icons::{icon, loading_indicator, AleraIcon};
 use crate::model::WorkspaceTab;
@@ -34,6 +34,12 @@ impl AleraApp {
         self.codex_thread_ids
             .retain(|tab_id, _| codex_tabs.contains(tab_id));
         self.codex_recovery
+            .retain(|tab_id, _| codex_tabs.contains(tab_id));
+        self.codex_attachments
+            .retain(|tab_id, _| codex_tabs.contains(tab_id));
+        self.codex_prompt_history
+            .retain(|tab_id, _| codex_tabs.contains(tab_id));
+        self.codex_prompt_history_index
             .retain(|tab_id, _| codex_tabs.contains(tab_id));
         self.codex_composer_inputs
             .retain(|tab_id, _| codex_tabs.contains(tab_id));
@@ -974,7 +980,12 @@ impl AleraApp {
             .px_2()
             .border_b_1()
             .border_color(theme::border_subtle())
-            .child(self.codex_choice_button(tab_id, "model", model_label, cx))
+            .child(self.codex_choice_button(
+                tab_id,
+                "configuration",
+                format!("{} · {}", model_label, self.codex_reasoning_effort),
+                cx,
+            ))
             .when(!self.codex_skills.is_empty(), |header| {
                 header.child(self.codex_choice_button(tab_id, "skills", "Skills".to_owned(), cx))
             })
@@ -1001,8 +1012,6 @@ impl AleraApp {
                     cx,
                 ))
             })
-            .child(self.codex_choice_button(tab_id, "reasoning", format!("Reasoning: {}", self.codex_reasoning_effort), cx))
-            .child(self.codex_choice_button(tab_id, "speed", format!("Speed: {}", self.codex_speed_mode), cx))
             .child(self.codex_choice_button(tab_id, "permission", format!("Permission: {}", self.codex_permission_mode), cx))
             .child(
                 design_system::button("codex-plan-mode", "Plan", ButtonKind::Text, false)
@@ -1072,6 +1081,33 @@ impl AleraApp {
     ) -> AnyElement {
         let kind = key.split_once(':').map(|(_, kind)| kind).unwrap_or(key);
         let values = match kind {
+            "configuration" => {
+                let mut values = vec![
+                    (
+                        "model:".to_owned() + self.codex_selected_model.as_deref().unwrap_or(""),
+                        format!(
+                            "Model: {}",
+                            self.codex_selected_model.as_deref().unwrap_or("Default")
+                        ),
+                    ),
+                ];
+                values.extend(
+                    ["low", "medium", "high", "xhigh"]
+                        .into_iter()
+                        .map(|value| {
+                            (
+                                format!("effort:{value}"),
+                                format!("Effort: {value}"),
+                            )
+                        }),
+                );
+                values.extend(
+                    ["normal", "fast"].into_iter().map(|value| {
+                        (format!("speed:{value}"), format!("Speed: {value}"))
+                    }),
+                );
+                values
+            }
             "model" => self
                 .codex_models
                 .iter()
@@ -1184,6 +1220,15 @@ impl AleraApp {
         cx: &mut Context<Self>,
     ) {
         match kind {
+            "configuration" => {
+                if let Some(model) = value.strip_prefix("model:") {
+                    self.codex_selected_model = Some(model.to_owned());
+                } else if let Some(effort) = value.strip_prefix("effort:") {
+                    self.codex_reasoning_effort = effort.to_owned();
+                } else if let Some(speed) = value.strip_prefix("speed:") {
+                    self.codex_speed_mode = speed.to_owned();
+                }
+            }
             "model" => self.codex_selected_model = Some(value.to_owned()),
             "reasoning" => self.codex_reasoning_effort = value.to_owned(),
             "speed" => self.codex_speed_mode = value.to_owned(),
@@ -1571,6 +1616,14 @@ impl AleraApp {
         let tab_for_key = tab_id.to_owned();
         let tab_for_send = tab_id.to_owned();
         let tab_for_stop = tab_id.to_owned();
+        let input_for_key = input.clone();
+        let tab_for_external_drop = tab_id.to_owned();
+        let tab_for_explorer_drop = tab_id.to_owned();
+        let attachments = self
+            .codex_attachments
+            .get(tab_id)
+            .cloned()
+            .unwrap_or_default();
         div()
             .id("codex-composer")
             .p_3()
@@ -1578,7 +1631,32 @@ impl AleraApp {
             .border_color(theme::border_subtle())
             .bg(theme::surface_selected())
             .on_mouse_down(MouseButton::Left, |_, _, cx| cx.stop_propagation())
+            .on_drop(cx.listener(move |this, paths: &ExternalPaths, _, cx| {
+                this.add_codex_attachments(&tab_for_external_drop, paths.paths(), cx);
+            }))
+            .on_drop(cx.listener(move |this, drag: &ExplorerDragData, _, cx| {
+                this.add_codex_attachment_strings(
+                    &tab_for_explorer_drop,
+                    [drag.relative_path.clone()],
+                    cx,
+                );
+            }))
             .capture_key_down(cx.listener(move |this, event: &KeyDownEvent, window, cx| {
+                if (event.keystroke.key.eq_ignore_ascii_case("up")
+                    || event.keystroke.key.eq_ignore_ascii_case("down"))
+                    && !event.keystroke.modifiers.platform
+                    && !event.keystroke.modifiers.control
+                    && input_for_key.read(cx).value().trim().is_empty()
+                {
+                    let direction = if event.keystroke.key.eq_ignore_ascii_case("up") {
+                        -1
+                    } else {
+                        1
+                    };
+                    this.navigate_codex_prompt_history(&tab_for_key, direction, window, cx);
+                    cx.stop_propagation();
+                    return;
+                }
                 if event.keystroke.key.eq_ignore_ascii_case("enter")
                     && !event.keystroke.modifiers.shift
                 {
@@ -1586,6 +1664,9 @@ impl AleraApp {
                     cx.stop_propagation();
                 }
             }))
+            .child(
+                self.render_codex_attachment_bar(tab_id, &attachments, cx),
+            )
             .child(
                 Textarea::new(&input)
                     .aria_label("Message Codex")
@@ -1634,31 +1715,172 @@ impl AleraApp {
             .into_any_element()
     }
 
+    fn navigate_codex_prompt_history(
+        &mut self,
+        tab_id: &str,
+        direction: isize,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        let Some(history) = self.codex_prompt_history.get(tab_id) else {
+            return;
+        };
+        if history.is_empty() {
+            return;
+        }
+        let current = self
+            .codex_prompt_history_index
+            .get(tab_id)
+            .copied()
+            .unwrap_or(history.len());
+        let next = if direction < 0 {
+            current.saturating_sub(1)
+        } else {
+            (current + 1).min(history.len())
+        };
+        self.codex_prompt_history_index
+            .insert(tab_id.to_owned(), next);
+        if let Some(input) = self.codex_composer_inputs.get(tab_id).cloned() {
+            let value = history.get(next).cloned().unwrap_or_default();
+            input.update(cx, |input, cx| input.set_value(&value, window, cx));
+        }
+    }
+
+    fn add_codex_attachments(
+        &mut self,
+        tab_id: &str,
+        paths: &[std::path::PathBuf],
+        cx: &mut Context<Self>,
+    ) {
+        let attachments = self.codex_attachments.entry(tab_id.to_owned()).or_default();
+        for path in paths {
+            let value = path.to_string_lossy().trim().to_owned();
+            if !value.is_empty() && !attachments.contains(&value) {
+                attachments.push(value);
+            }
+        }
+        cx.notify();
+    }
+
+    fn add_codex_attachment_strings(
+        &mut self,
+        tab_id: &str,
+        paths: impl IntoIterator<Item = String>,
+        cx: &mut Context<Self>,
+    ) {
+        let attachments = self.codex_attachments.entry(tab_id.to_owned()).or_default();
+        for value in paths {
+            if !value.trim().is_empty() && !attachments.contains(&value) {
+                attachments.push(value);
+            }
+        }
+        cx.notify();
+    }
+
+    fn remove_codex_attachment(&mut self, tab_id: &str, path: &str, cx: &mut Context<Self>) {
+        if let Some(attachments) = self.codex_attachments.get_mut(tab_id) {
+            attachments.retain(|value| value != path);
+            if attachments.is_empty() {
+                self.codex_attachments.remove(tab_id);
+            }
+            cx.notify();
+        }
+    }
+
+    fn render_codex_attachment_bar(
+        &self,
+        tab_id: &str,
+        attachments: &[String],
+        cx: &mut Context<Self>,
+    ) -> AnyElement {
+        if attachments.is_empty() {
+            return div().into_any_element();
+        }
+        let tab_id = tab_id.to_owned();
+        div()
+            .id("codex-composer-file-bar")
+            .flex()
+            .items_center()
+            .gap_1()
+            .px_3()
+            .pt_2()
+            .overflow_x_scroll()
+            .children(attachments.iter().map(|path| {
+                let tab_id_for_chip = tab_id.clone();
+                let path_for_remove = path.clone();
+                div()
+                    .id(SharedString::from(format!("codex-attached-file-{path}")))
+                    .flex()
+                    .items_center()
+                    .gap_1()
+                    .max_w(px(220.0))
+                    .px_2()
+                    .py_1()
+                    .rounded_full()
+                    .bg(theme::surface())
+                    .text_xs()
+                    .child(path.rsplit('/').next().unwrap_or(path).to_owned())
+                    .child(
+                        design_system::icon_button(
+                            SharedString::from(format!("codex-remove-file-{path}")),
+                            "Remove Attachment",
+                            AleraIcon::Close,
+                            true,
+                            18.0,
+                            None,
+                            None,
+                        )
+                        .on_click(cx.listener(move |this, _, _, cx| {
+                            this.remove_codex_attachment(&tab_id_for_chip, &path_for_remove, cx);
+                        })),
+                    )
+            }))
+            .into_any_element()
+    }
+
     fn send_codex_message(&mut self, tab_id: &str, window: &mut Window, cx: &mut Context<Self>) {
         let Some(input) = self.codex_composer_inputs.get(tab_id).cloned() else {
             return;
         };
         let text = input.read(cx).value().to_string();
-        if text.trim().is_empty() {
+        let attachments = self.codex_attachments.remove(tab_id).unwrap_or_default();
+        if text.trim().is_empty() && attachments.is_empty() {
             return;
         }
         let snapshot = self.codex_snapshots.get(tab_id);
         if snapshot.is_some_and(|snapshot| active_codex_turn(snapshot).is_some()) {
+            let queued_text = if attachments.is_empty() {
+                text.clone()
+            } else {
+                format!(
+                    "{text}\n\n{}",
+                    attachments
+                        .iter()
+                        .map(|path| format!("@{path}"))
+                        .collect::<Vec<_>>()
+                        .join("\n")
+                )
+            };
             self.codex_queued_messages
                 .entry(tab_id.to_owned())
                 .or_default()
-                .push(text);
+                .push(queued_text);
             input.update(cx, |input, cx| input.set_value("", window, cx));
             cx.notify();
             return;
         }
-        self.start_codex_turn(tab_id.to_owned(), text, window, cx);
+        self.codex_prompt_history
+            .entry(tab_id.to_owned())
+            .or_default()
+            .push(text.clone());
+        self.start_codex_turn(tab_id.to_owned(), text, attachments, window, cx);
     }
 
     fn start_codex_turn(
         &mut self,
         tab_id: String,
         text: String,
+        attachments: Vec<String>,
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
@@ -1677,6 +1899,17 @@ impl AleraApp {
             .codex_collaboration_mode
             .clone()
             .or_else(|| plan.then_some("plan".to_owned()));
+        let mut turn_input = vec![json!({"type": "text", "text": text})];
+        for path in attachments {
+            if is_codex_image_path(&path) {
+                turn_input.push(json!({"type": "localImage", "path": path}));
+            } else {
+                turn_input.push(json!({
+                    "type": "text",
+                    "text": format!("\n\n@{path}"),
+                }));
+            }
+        }
         self.codex_error = None;
         input.update(cx, |input, cx| input.set_value("", window, cx));
         cx.spawn_in(window, async move |this, cx| {
@@ -1686,7 +1919,7 @@ impl AleraApp {
                     json!({
                         "tabId": tab_id,
                         "expectedThreadId": expected_thread_id,
-                        "input": [{"type": "text", "text": text}],
+                        "input": turn_input,
                         "model": model,
                         "reasoning": {"effort": reasoning},
                         "effort": reasoning,
@@ -1791,7 +2024,7 @@ impl AleraApp {
         if messages.is_empty() {
             self.codex_queued_messages.remove(&tab_id);
         }
-        self.start_codex_turn(tab_id, message, window, cx);
+        self.start_codex_turn(tab_id, message, Vec::new(), window, cx);
     }
 
     fn compact_codex_thread(&mut self, tab_id: String, cx: &mut Context<Self>) {
@@ -1956,6 +2189,13 @@ fn expand_saved_prompt(
         }
     }
     rendered.trim().to_owned()
+}
+
+fn is_codex_image_path(path: &str) -> bool {
+    let lower = path.to_ascii_lowercase();
+    [".png", ".jpg", ".jpeg", ".gif", ".webp", ".bmp", ".svg"]
+        .iter()
+        .any(|extension| lower.ends_with(extension))
 }
 
 fn item_id(item: &Value) -> Option<String> {
