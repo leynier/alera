@@ -112,9 +112,20 @@ impl AleraApp {
         self.status_data.resource_generation += 1;
         let generation = self.status_data.resource_generation;
         let bridge = self.bridge.clone();
+        let interval_ms = if matches!(
+            self.status_popover,
+            crate::activity::StatusPopover::Resources
+        ) {
+            2_000
+        } else {
+            15_000
+        };
         cx.spawn(async move |this, cx| {
             let result = bridge
-                .request("resources.snapshot", json!({"appPid": std::process::id()}))
+                .request(
+                    "resources.snapshot",
+                    json!({"appPid": std::process::id(), "intervalMs": interval_ms}),
+                )
                 .await;
             let Some(this) = this.upgrade() else {
                 return;

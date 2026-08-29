@@ -55,8 +55,7 @@ impl AleraApp {
         let warming = value
             .and_then(|item| item.get("warming"))
             .and_then(Value::as_bool)
-            .unwrap_or(true)
-            || self.status_data.resource_error.is_some();
+            .unwrap_or(self.status_data.resource_error.is_none());
         let cores = integer_at(value, &["host", "cpuCoreCount"])
             .unwrap_or(1)
             .max(1);
