@@ -20,11 +20,15 @@ PODS:
     - FlutterMacOS
   - package_info_plus (0.0.1):
     - FlutterMacOS
+  - pasteboard (0.0.1):
+    - FlutterMacOS
   - path_provider_foundation (0.0.1):
     - Flutter
     - FlutterMacOS
   - pdfium_flutter (0.1.5):
     - Flutter
+    - FlutterMacOS
+  - record_macos (2.0.0):
     - FlutterMacOS
   - screen_retriever_macos (0.0.1):
     - FlutterMacOS
@@ -47,8 +51,10 @@ DEPENDENCIES:
   - media_kit_libs_macos_video (from `Flutter/ephemeral/.symlinks/plugins/media_kit_libs_macos_video/macos`)
   - media_kit_video (from `Flutter/ephemeral/.symlinks/plugins/media_kit_video/macos`)
   - package_info_plus (from `Flutter/ephemeral/.symlinks/plugins/package_info_plus/macos`)
+  - pasteboard (from `Flutter/ephemeral/.symlinks/plugins/pasteboard/macos`)
   - path_provider_foundation (from `Flutter/ephemeral/.symlinks/plugins/path_provider_foundation/darwin`)
   - pdfium_flutter (from `Flutter/ephemeral/.symlinks/plugins/pdfium_flutter/darwin`)
+  - record_macos (from `Flutter/ephemeral/.symlinks/plugins/record_macos/macos`)
   - screen_retriever_macos (from `Flutter/ephemeral/.symlinks/plugins/screen_retriever_macos/macos`)
   - url_launcher_macos (from `Flutter/ephemeral/.symlinks/plugins/url_launcher_macos/macos`)
   - wakelock_plus (from `Flutter/ephemeral/.symlinks/plugins/wakelock_plus/macos`)
@@ -77,10 +83,14 @@ EXTERNAL SOURCES:
     :path: Flutter/ephemeral/.symlinks/plugins/media_kit_video/macos
   package_info_plus:
     :path: Flutter/ephemeral/.symlinks/plugins/package_info_plus/macos
+  pasteboard:
+    :path: Flutter/ephemeral/.symlinks/plugins/pasteboard/macos
   path_provider_foundation:
     :path: Flutter/ephemeral/.symlinks/plugins/path_provider_foundation/darwin
   pdfium_flutter:
     :path: Flutter/ephemeral/.symlinks/plugins/pdfium_flutter/darwin
+  record_macos:
+    :path: Flutter/ephemeral/.symlinks/plugins/record_macos/macos
   screen_retriever_macos:
     :path: Flutter/ephemeral/.symlinks/plugins/screen_retriever_macos/macos
   url_launcher_macos:
@@ -92,7 +102,7 @@ EXTERNAL SOURCES:
 
 SPEC CHECKSUMS:
   alera_browser: 7a246164ceb674c079a7154bdbc989a789749174
-  alera_native: 84fbb2a99bbe531726d9fa7ed491470d40dadb91
+  alera_native: db47b1c1e5aa45905d4b67f504d94a8425ea2ea1
   code_forge: 80bb2da320b632313812696666477ddee9a9f486
   desktop_drop: 1eeeb9484299585770b6461e4f3d60950e99efa2
   desktop_updater: c6cadea9a19511e0b0630183a58e949ad8f99031
@@ -102,13 +112,15 @@ SPEC CHECKSUMS:
   media_kit_libs_macos_video: b3e2bbec2eef97c285f2b1baa7963c67c753fb82
   media_kit_video: c75b07f14d59706c775778e4dd47dd027de8d1e5
   package_info_plus: 12f1c5c2cfe8727ca46cbd0b26677728972d9a5b
+  pasteboard: f179698f095f9778bb5753a249027e697ba98953
   path_provider_foundation: 0b743cbb62d8e47eab856f09262bb8c1ddcfe6ba
   pdfium_flutter: 9e8e72bdbed9498f7b87a9e01eb8899fb36955b3
+  record_macos: 25091280c4e09c8ab21428dde5fd342e065508fd
   screen_retriever_macos: 038d3f7b34a779b06f536842003e41e8ec1fb4b7
   url_launcher_macos: 175a54c831f4375a6cf895875f716ee5af3888ce
   wakelock_plus: 9d63063ffb7af1c215209769067c57103bde719d
   window_manager: e25faf20d88283a0d46e7b1a759d07261ca27575
 
-PODFILE CHECKSUM: d16f5e5d196d1ca9863d7a71d5885cad7ffa7d2d
+PODFILE CHECKSUM: 61bbb90189ab63dcb58230e5b9faa1f61c6832a5
 
 COCOAPODS: 1.16.2
