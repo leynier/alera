@@ -414,6 +414,10 @@ impl AleraApp {
                 design_system::button("codex-plan-mode", "Plan", ButtonKind::Text, false)
                     .on_click(cx.listener(|this, _, _, cx| {
                         this.codex_plan_mode = !this.codex_plan_mode;
+                        this.codex_collaboration_mode = this.codex_plan_mode
+                            .then_some("plan".to_owned())
+                            .or_else(|| this.codex_collaboration_mode.clone().filter(|mode| mode != "plan"));
+                        this.persist_codex_chat_settings(cx);
                         cx.notify();
                     })),
             )
@@ -571,8 +575,22 @@ impl AleraApp {
             }
             _ => {}
         }
+        self.persist_codex_chat_settings(cx);
         self.codex_menu_open = None;
         cx.notify();
+    }
+
+    fn persist_codex_chat_settings(&mut self, cx: &mut Context<Self>) {
+        self.settings_state.codex_chat_selected_model = self.codex_selected_model.clone();
+        self.settings_state.codex_chat_reasoning_effort = self.codex_reasoning_effort.clone();
+        self.settings_state.codex_chat_speed_mode = self.codex_speed_mode.clone();
+        self.settings_state.codex_chat_permission_mode = self.codex_permission_mode.clone();
+        self.settings_state.codex_chat_plan_mode = self.codex_plan_mode;
+        self.persist_settings();
+        self.persist_shared_flutter_settings(
+            self.settings_state.shared_flutter_local_payload(),
+            cx,
+        );
     }
 
     fn insert_codex_token(
@@ -699,7 +717,7 @@ impl AleraApp {
                             .child(body),
                     );
                 }
-                if kind == "plan" && !streaming {
+                if kind == "plan" && !streaming && self.codex_plan_mode {
                     card = card.child(
                         div()
                             .flex()

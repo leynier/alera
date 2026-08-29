@@ -143,6 +143,11 @@ pub(super) struct SettingsState {
     pub ai_text_prompt_settings_by_operation: BTreeMap<String, AiTextPromptSettings>,
     pub ai_text_timeout_seconds: i64,
     pub text_actions: Vec<TextActionSetting>,
+    pub codex_chat_selected_model: Option<String>,
+    pub codex_chat_reasoning_effort: String,
+    pub codex_chat_speed_mode: String,
+    pub codex_chat_permission_mode: String,
+    pub codex_chat_plan_mode: bool,
 
     pub editor_theme: String,
     pub editor_tab_size: i64,
@@ -269,6 +274,11 @@ impl Default for SettingsState {
             ai_text_prompt_settings_by_operation: BTreeMap::new(),
             ai_text_timeout_seconds: 120,
             text_actions: Vec::new(),
+            codex_chat_selected_model: None,
+            codex_chat_reasoning_effort: "medium".to_owned(),
+            codex_chat_speed_mode: "normal".to_owned(),
+            codex_chat_permission_mode: "on-request".to_owned(),
+            codex_chat_plan_mode: false,
             editor_theme: "Alera".to_string(),
             editor_tab_size: 4,
             editor_autosave_enabled: false,
@@ -370,6 +380,24 @@ impl SettingsState {
                         .collect()
                 })
                 .unwrap_or_default();
+        }
+        if let Some(codex) = value.get("codexChat").and_then(Value::as_object) {
+            self.codex_chat_selected_model = codex
+                .get("selectedModel")
+                .and_then(Value::as_str)
+                .map(str::to_owned);
+            if let Some(value) = codex.get("reasoningEffort").and_then(Value::as_str) {
+                self.codex_chat_reasoning_effort = value.to_owned();
+            }
+            if let Some(value) = codex.get("speedMode").and_then(Value::as_str) {
+                self.codex_chat_speed_mode = value.to_owned();
+            }
+            if let Some(value) = codex.get("permissionMode").and_then(Value::as_str) {
+                self.codex_chat_permission_mode = value.to_owned();
+            }
+            if let Some(value) = codex.get("planMode").and_then(Value::as_bool) {
+                self.codex_chat_plan_mode = value;
+            }
         }
     }
 
@@ -668,6 +696,13 @@ impl SettingsState {
             "keyboard": {
                 "overrides": self.keyboard_overrides,
                 "terminalPolicy": self.keyboard_terminal_policy,
+            },
+            "codexChat": {
+                "selectedModel": self.codex_chat_selected_model,
+                "reasoningEffort": self.codex_chat_reasoning_effort,
+                "speedMode": self.codex_chat_speed_mode,
+                "permissionMode": self.codex_chat_permission_mode,
+                "planMode": self.codex_chat_plan_mode,
             },
         })
     }
