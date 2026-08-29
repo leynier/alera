@@ -201,7 +201,7 @@ commit so this file remains useful after context compaction.
 | 180 | `9c0cf4c9b4297807f7c7165f230810248a92ce86` | 2026-08-10 | fix: restore integration quality gates | merged | Cherry-picked integration test/gate restoration and shared workspace MIME helpers; no GPUI UI surface is affected. |
 | 181 | `1fc45835dab0b07641dec1127c1a6a7583588188` | 2026-08-10 | chore: merge latest main into codex integration | merged | Replayed the merge against parent 1 as an empty reconciliation because its source tree was already represented by the prior commits; no GPUI Codex Chat change. |
 | 182 | `de1941573c8e41cfc9f016af29cbf1b6aba3b94e` | 2026-08-10 | test: cover codex domain contracts | merged | Cherry-picked Codex domain contract coverage; GPUI intentionally receives no Codex Chat surface change. |
-| 183 | `50b5c077903ac319606973bdb33a4690490187bf` | 2026-08-10 | Merge pull request #386 from leynier/review/codex-integration | in progress | Replaying the review PR merge after its individual commits; no new GPUI surface and Codex Chat remains disabled. |
+| 183 | `50b5c077903ac319606973bdb33a4690490187bf` | 2026-08-10 | Merge pull request #386 from leynier/review/codex-integration | merged | Replayed the review PR merge against its mainline parent after preserving the previously incorporated source/runtime changes; GPUI Codex Chat remains disabled. |
 | 184 | `9edf6a7536b357f7a6c75dab3eed4fa36bdf34e6` | 2026-08-10 | fix: align source control actions right (#387) | pending | - |
 | 185 | `db824e22621b201920d147604276a4beb6b5b0a9` | 2026-08-10 | release: v0.56.0 v0.22.0-mobile | pending | - |
 | 186 | `b302f8679b92ab2ae8c6a7004d4c42ea7d6490f9` | 2026-08-10 | fix: keep shutdown dialog on navigator route (#388) | pending | - |
