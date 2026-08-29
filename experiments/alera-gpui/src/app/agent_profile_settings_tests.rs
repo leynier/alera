@@ -144,3 +144,21 @@ fn grok_managed_profile_matches_flutter_command_and_risks() {
         ["bypassPermissions".to_owned()].into_iter().collect()
     );
 }
+
+#[test]
+fn fx_managed_profile_matches_flutter_flags() {
+    let config = json!({
+        "resumeLast": true,
+        "noAdditionalDirs": true,
+        "record": true
+    })
+    .as_object()
+    .expect("object")
+    .clone();
+
+    assert_eq!(
+        managed_command_preview("fx", &config),
+        "fx --continue --no-additional-dirs --record"
+    );
+    assert!(managed_risk_markers("fx", &config).is_empty());
+}

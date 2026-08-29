@@ -671,6 +671,13 @@ fn agents_pane(
                             settings,
                             cx,
                         ),
+                        agent_hook_row(
+                            "fx",
+                            "fx Status",
+                            "Receive fx lifecycle state through its built-in local Herdr integration on macOS and Linux.",
+                            settings,
+                            cx,
+                        ),
                         ],
                     )
                     .id(("settings-group-anchor", 1usize))

@@ -26,6 +26,7 @@ const AGENTS: &[(&str, &str)] = &[
     ("pi", "Pi"),
     ("amp", "Amp"),
     ("grok", "Grok Build"),
+    ("fx", "fx"),
     ("custom", "Custom Command"),
 ];
 
@@ -108,8 +109,8 @@ const AMP_MODELS: &[AiTextModel] = &[
     model("deep", "Deep", BASIC_THINKING, Some("low")),
 ];
 const GROK_MODELS: &[AiTextModel] = &[model(
-    "grok-4.5",
-    "Grok 4.5",
+    "grok-4.6",
+    "Grok 4.6",
     GROK_THINKING,
     Some("default"),
 )];
@@ -158,6 +159,7 @@ pub(super) fn models_for(agent: &str) -> &'static [AiTextModel] {
         "pi" => PI_MODELS,
         "amp" => AMP_MODELS,
         "grok" => GROK_MODELS,
+        "fx" => &[],
         _ => &[],
     }
 }
@@ -173,7 +175,8 @@ pub(super) fn default_model(agent: &str) -> &'static str {
         "opencode" | "opencode2" => "opencode/deepseek-v4-flash-free",
         "pi" => "github-copilot/gpt-5.4-mini",
         "amp" => "smart",
-        "grok" => "grok-4.5",
+        "grok" => "grok-4.6",
+        "fx" => "",
         _ => "",
     }
 }

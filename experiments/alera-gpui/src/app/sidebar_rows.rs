@@ -1187,12 +1187,13 @@ fn agent_sort_key(agent: &str) -> usize {
         "pi" => 7,
         "amp" => 8,
         "grok" => 9,
+        "fx" => 10,
         // These providers are quota-only in Flutter's AgentType enum but can
         // still arrive in persisted GPUI presence data. Keep them deterministic
         // after the shared agent types.
-        "kimi" => 10,
-        "minimax" | "miniMax" => 11,
-        "zai" => 12,
+        "kimi" => 11,
+        "minimax" | "miniMax" => 12,
+        "zai" => 13,
         _ => 100,
     }
 }
@@ -1207,6 +1208,7 @@ fn agent_icon_for(agent: &str) -> AgentIcon {
         "pi" => AgentIcon::Pi,
         "amp" => AgentIcon::Amp,
         "grok" => AgentIcon::Grok,
+        "fx" => AgentIcon::Fx,
         "kimi" => AgentIcon::Kimi,
         "minimax" | "miniMax" => AgentIcon::MiniMax,
         "zai" => AgentIcon::Zai,
@@ -1473,6 +1475,7 @@ fn agent_display_name(agent: &str) -> &'static str {
         "pi" => "Pi",
         "amp" => "Amp",
         "grok" => "Grok Build",
+        "fx" => "fx",
         "kimi" => "Kimi",
         "minimax" | "miniMax" => "MiniMax",
         "zai" => "Z.ai",
@@ -1499,10 +1502,10 @@ mod aggregate_tests {
     #[test]
     fn compact_agent_icon_order_matches_flutter_agent_type_enum() {
         let ordered = [
-            "codex", "claude", "copilot", "cursor", "agy", "opencode", "opencode2", "pi", "amp", "grok",
+            "codex", "claude", "copilot", "cursor", "agy", "opencode", "opencode2", "pi", "amp", "grok", "fx",
         ];
         let keys = ordered.map(agent_sort_key);
-        assert_eq!(keys, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]);
+        assert_eq!(keys, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
     }
 
     #[test]

@@ -30,6 +30,7 @@ const AGENTS: &[&str] = &[
     "Pi Hooks extension agent status",
     "Amp Hooks plugin agent status",
     "Grok Build Hooks xai agent status",
+    "fx Status Herdr agent status",
     "Agent Status Notifications attention",
     "Agent Finished Notifications done turn",
     "Keep Computer Awake While Agents Are Working sleep power display",

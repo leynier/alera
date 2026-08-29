@@ -1022,6 +1022,7 @@ fn tab_agent_display_name(agent: &str) -> &'static str {
         "pi" => "Pi",
         "amp" => "Amp",
         "grok" => "Grok Build",
+        "fx" => "fx",
         "kimi" => "Kimi",
         "minimax" | "miniMax" => "MiniMax",
         "zai" => "Z.ai",

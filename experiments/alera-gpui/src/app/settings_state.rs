@@ -19,8 +19,8 @@ const DEFAULT_QUOTA_PROVIDERS: [&str; 9] = [
     "opencode",
 ];
 
-const DEFAULT_AGENT_HOOKS: [&str; 10] = [
-    "codex", "claude", "copilot", "cursor", "agy", "opencode", "opencode2", "pi", "amp", "grok",
+const DEFAULT_AGENT_HOOKS: [&str; 11] = [
+    "codex", "claude", "copilot", "cursor", "agy", "opencode", "opencode2", "pi", "amp", "grok", "fx",
 ];
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]

@@ -9,6 +9,7 @@ pub(super) const ADAPTERS: &[(&str, &str)] = &[
     ("pi", "Pi"),
     ("amp", "Amp"),
     ("grok", "Grok Build"),
+    ("fx", "fx"),
 ];
 
 pub(super) const LAUNCH_MODES: &[(&str, &str)] = &[("managed", "Managed"), ("command", "Command")];
@@ -407,7 +408,7 @@ const GROK_SANDBOX: &[ManagedOption] = &[
 ];
 
 pub(super) fn supports_model(adapter: &str) -> bool {
-    adapter != "amp"
+    adapter != "amp" && adapter != "fx"
 }
 
 pub(super) fn supports_persona(adapter: &str) -> bool {
@@ -533,6 +534,19 @@ pub(super) fn controls_for(adapter: &str) -> Vec<ManagedControl> {
                 "Disable Web Search",
                 "Disable Grok Build Web Search And Web Fetch Tools.",
             ),
+        ],
+        "fx" => vec![
+            flag(
+                "resumeLast",
+                "Resume Last Session",
+                "Continue The Most Recent fx Session.",
+            ),
+            flag(
+                "noAdditionalDirs",
+                "No Additional Directories",
+                "Do Not Add Workspace Directories Beyond The Launch Directory.",
+            ),
+            flag("record", "Record Session", "Record The fx Session."),
         ],
         _ => Vec::new(),
     }

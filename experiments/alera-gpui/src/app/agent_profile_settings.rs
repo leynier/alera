@@ -188,6 +188,7 @@ pub(super) fn adapter_label(adapter: &str) -> &'static str {
         "pi" => "Pi",
         "amp" => "Amp",
         "grok" => "Grok Build",
+        "fx" => "fx",
         _ => "Unknown",
     }
 }
@@ -202,6 +203,7 @@ pub(super) fn adapter_icon(adapter: &str) -> AgentIcon {
         "pi" => AgentIcon::Pi,
         "amp" => AgentIcon::Amp,
         "grok" => AgentIcon::Grok,
+        "fx" => AgentIcon::Fx,
         _ => AgentIcon::Codex,
     }
 }
@@ -218,6 +220,7 @@ pub(super) fn default_agent_command(adapter: &str) -> &'static str {
         "pi" => "pi",
         "amp" => "amp",
         "grok" => "grok",
+        "fx" => "fx",
         _ => "codex",
     }
 }
@@ -325,6 +328,17 @@ pub(super) fn managed_command_preview(adapter: &str, config: &Map<String, Value>
                 == Some(true)
             {
                 args.push("--disable-web-search".to_owned());
+            }
+        }
+        "fx" => {
+            for (key, flag) in [
+                ("resumeLast", "--continue"),
+                ("noAdditionalDirs", "--no-additional-dirs"),
+                ("record", "--record"),
+            ] {
+                if config.get(key).and_then(Value::as_bool) == Some(true) {
+                    args.push(flag.to_owned());
+                }
             }
         }
         _ => {}

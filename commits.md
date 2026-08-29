@@ -289,7 +289,7 @@ commit so this file remains useful after context compaction.
 | 268 | `7079b19988238e82b91b3b265028270a9fce583e` | 2026-08-21 | fix: pass /FS to nested windows cl.exe (#441) | merged | Cherry-picked Windows Flutter-native nested compiler flags; GPUI's Cargo path is unaffected. |
 | 269 | `f6a81fa07b59c09ed30fe2752ca2eb1519185f12` | 2026-08-21 | fix: keep windows whisper vulkan cmake under max_path (#445) | merged | Cherry-picked Windows Flutter-native Vulkan path shortening; GPUI direct Cargo builds need no extra UI change. |
 | 270 | `4e3cdc569a1d94daf534656adda97f4ef818d091` | 2026-08-21 | feat: filter active workspaces (#446) | merged | Cherry-picked shared prefs and added GPUI Active Workspaces Only parity: persisted filter, terminal/Codex semantics, empty-project removal, checkbox, and active View Options indicator; targeted test passes. |
-| 271 | `17c9a8c643b6e9304d7c1db671ca07815e69ac3a` | 2026-08-22 | feat: add fx agent support (#447) | pending | - |
+| 271 | `17c9a8c643b6e9304d7c1db671ca07815e69ac3a` | 2026-08-22 | feat: add fx agent support (#447) | merged | Cherry-picked host support and added GPUI FX parity: exact SVG, sidebar/tab identity, status hook, managed profile flags, AI Text model discovery, and stable ordering; 2 targeted GPUI tests pass. |
 | 272 | `6d2982c6ab2b11c9c08aea98f0b2e778e4300b55` | 2026-08-22 | feat: surface fx across landing and mobile (#449) | pending | - |
 | 273 | `7cf2f9ed3d3ef1c545a01b525fafc38a5716f474` | 2026-08-22 | fix: stop ggml from wrapping windows cl.exe with sccache (#448) | pending | - |
 | 274 | `e9a5ed9a299ffc7eeb079868191564898adf5c0d` | 2026-08-22 | fix: keep windows vulkan trycompile objects under max_path (#450) | pending | - |

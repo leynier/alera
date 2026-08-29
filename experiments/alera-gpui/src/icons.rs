@@ -124,6 +124,7 @@ pub enum AgentIcon {
     Codex,
     Copilot,
     Cursor,
+    Fx,
     Grok,
     Kimi,
     MiniMax,
@@ -141,6 +142,7 @@ impl AgentIcon {
             Self::Codex => ("agents/codex.svg", false, true),
             Self::Copilot => ("agents/copilot.svg", false, true),
             Self::Cursor => ("agents/cursor.png", true, false),
+            Self::Fx => ("agents/fx.svg", false, true),
             Self::Grok => ("agents/grok.svg", false, true),
             Self::Kimi => ("agents/kimi.svg", false, false),
             Self::MiniMax => ("agents/minimax.svg", false, false),
@@ -446,5 +448,13 @@ mod tests {
             assert!(!raster);
             assert!(!tintable);
         }
+    }
+
+    #[test]
+    fn fx_uses_the_tintable_source_svg() {
+        let (path, raster, tintable) = AgentIcon::Fx.asset();
+        assert_eq!(path, "agents/fx.svg");
+        assert!(!raster);
+        assert!(tintable);
     }
 }
