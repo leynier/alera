@@ -190,7 +190,7 @@ commit so this file remains useful after context compaction.
 | 169 | `002567a472fb0c30643dcad9cd504f33423403e6` | 2026-08-10 | fix: refine codex tool responses | merged | Cherry-picked Codex timeline/tool response contracts; GPUI intentionally receives no Codex Chat surface change. |
 | 170 | `482c8ede0ca6ca1c24a6ee58b08b24852b29d84e` | 2026-08-10 | feat: polish usage chart and metrics | merged | Cherry-picked responsive usage metrics/chart changes and aligned the GPUI usage dashboard with responsive metric cards and per-day provider tooltips; Codex Chat remains disabled. |
 | 171 | `7c50446f5be45db3145bebd9ad10d57a411ebcaf` | 2026-08-10 | fix: preserve codex timeline history | merged | Cherry-picked Codex timeline history retention contracts; GPUI intentionally receives no Codex Chat surface change. |
-| 172 | `cd8df4a482bf9853df98a6362fca36e8fcf5191a` | 2026-08-10 | feat: cache usage snapshots by period | pending | - |
+| 172 | `cd8df4a482bf9853df98a6362fca36e8fcf5191a` | 2026-08-10 | feat: cache usage snapshots by period | in progress | Cherry-picking usage snapshot cache and stale-while-refresh behavior; GPUI will keep an in-memory period cache while preserving the shared runtime loader. |
 | 173 | `dd8781f9896069be3a7734a4e85a1bd72d24b27e` | 2026-08-10 | feat: configure claude usage profiles | pending | - |
 | 174 | `6d2289b8dd7e7c6058f38a705b8ee9f3d8530e06` | 2026-08-10 | refactor: split runtime quota settings models | pending | - |
 | 175 | `7211053846aed214b0407790893e1522f0d59ba0` | 2026-08-10 | feat: refine usage profile presentation | pending | - |
