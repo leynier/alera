@@ -228,7 +228,7 @@ commit so this file remains useful after context compaction.
 | 207 | `3ea98f63eb42cf98bb89088e2955a698908f97f7` | 2026-08-11 | Merge pull request #399 from leynier/fix/sentry-desktop-d-dictation-dispose | merged | Replayed the disposal-fix merge as an empty reconciliation because its individual source commits were already incorporated; no GPUI UI surface is affected. |
 | 208 | `75241085432cb477064dbe510c15537fe22cf994` | 2026-08-11 | fix: recover unreachable mobile hosts | merged | Cherry-picked mobile host reachability/recovery and diagnostics; no GPUI UI surface is affected. |
 | 209 | `0a5d04bce7c1deac05a94d5891882f6fd835c84f` | 2026-08-11 | fix: acknowledge tab removal before codex cleanup | merged | Cherry-picked runtime Codex cleanup ordering; GPUI Codex Chat remains disabled, while shared cleanup behavior is retained. |
-| 210 | `7f3024bf7bd1b54543afe3f71c8d2887884c3578` | 2026-08-12 | fix: preserve pending close warnings | pending | - |
+| 210 | `7f3024bf7bd1b54543afe3f71c8d2887884c3578` | 2026-08-12 | fix: preserve pending close warnings | in progress | Cherry-picking Flutter window close-warning persistence; GPUI uses its own native lifecycle and needs no UI change. |
 | 211 | `8a74bc0cf19826354ba1815064cbe5583db6928a` | 2026-08-12 | fix: handle asynchronous stdout failures | pending | - |
 | 212 | `aff35e3d976b2f7ce46dfe0377c7893e430ef1dd` | 2026-08-12 | Merge pull request #395 from leynier/fix/sentry-desktop-a-terminal-link-range | pending | - |
 | 213 | `43656c28c0455f214319176987fe67dac511f440` | 2026-08-12 | Merge pull request #396 from leynier/fix/sentry-desktop-e-logger-handle | pending | - |
