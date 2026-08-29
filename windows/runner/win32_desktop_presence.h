@@ -23,7 +23,7 @@ class Win32DesktopPresence {
   void Destroy();
 
  private:
-  void SetTray(bool visible, const std::wstring& tooltip);
+  bool SetTray(bool visible, const std::wstring& tooltip);
   void SetBadgeCount(int count);
   void ShowFromTray();
   void QuitFromTray();
@@ -33,7 +33,9 @@ class Win32DesktopPresence {
   HWND hwnd_ = nullptr;
   flutter::MethodChannel<flutter::EncodableValue>* channel_ = nullptr;
   NOTIFYICONDATA nid_{};
+  bool tray_desired_ = false;
   bool tray_visible_ = false;
+  std::wstring tooltip_;
   int badge_count_ = 0;
   HICON overlay_icon_ = nullptr;
   HICON tray_icon_ = nullptr;

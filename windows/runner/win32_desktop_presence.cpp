@@ -108,8 +108,8 @@ void Win32DesktopPresence::HandleMethodCall(
     const bool visible = args ? MapBool(*args, "visible", false) : false;
     const std::wstring tooltip =
         Utf8ToWide(args ? MapString(*args, "tooltip") : std::string());
-    SetTray(visible, tooltip);
-    result->Success();
+    const bool installed = SetTray(visible, tooltip);
+    result->Success(flutter::EncodableValue(installed));
     return;
   }
   if (call.method_name() == "setBadgeCount") {
@@ -165,9 +165,9 @@ bool Win32DesktopPresence::HandleMessage(HWND hwnd,
     return true;
   }
   if (taskbar_created_message_ != 0 && message == taskbar_created_message_) {
-    if (tray_visible_) {
+    if (tray_desired_) {
       tray_visible_ = false;
-      SetTray(true, nid_.szTip);
+      SetTray(true, tooltip_);
     }
     return true;
   }
@@ -180,6 +180,7 @@ bool Win32DesktopPresence::HandleMessage(HWND hwnd,
 }
 
 void Win32DesktopPresence::Destroy() {
+  tray_desired_ = false;
   if (tray_visible_ && hwnd_) {
     ::Shell_NotifyIconW(NIM_DELETE, &nid_);
     tray_visible_ = false;
@@ -200,16 +201,18 @@ void Win32DesktopPresence::Destroy() {
   }
 }
 
-void Win32DesktopPresence::SetTray(bool visible, const std::wstring& tooltip) {
+bool Win32DesktopPresence::SetTray(bool visible, const std::wstring& tooltip) {
+  tray_desired_ = visible;
+  tooltip_ = tooltip;
   if (!hwnd_) {
-    return;
+    return !visible;
   }
   if (!visible) {
     if (tray_visible_) {
       ::Shell_NotifyIconW(NIM_DELETE, &nid_);
       tray_visible_ = false;
     }
-    return;
+    return true;
   }
   if (tray_icon_ == nullptr) {
     tray_icon_ = static_cast<HICON>(::LoadImageW(
@@ -226,13 +229,14 @@ void Win32DesktopPresence::SetTray(bool visible, const std::wstring& tooltip) {
   wcsncpy_s(nid_.szTip, tooltip.c_str(), _TRUNCATE);
   if (tray_visible_) {
     ::Shell_NotifyIconW(NIM_MODIFY, &nid_);
-    return;
+    return true;
   }
   if (::Shell_NotifyIconW(NIM_ADD, &nid_)) {
     nid_.uVersion = NOTIFYICON_VERSION_4;
     ::Shell_NotifyIconW(NIM_SETVERSION, &nid_);
     tray_visible_ = true;
   }
+  return tray_visible_;
 }
 
 void Win32DesktopPresence::SetBadgeCount(int count) {

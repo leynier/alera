@@ -53,9 +53,7 @@ void desktopPresenceSync(Ref ref) {
   final coordinator = ref.watch(desktopPresenceCoordinatorProvider);
   coordinator.start();
   final lifecycle = ref.watch(appWindowLifecycleCoordinatorProvider);
-  lifecycle.bindHideOnClose(
-    () => ref.read(settingsControllerProvider).general.showTrayIcon,
-  );
+  lifecycle.bindHideOnClose(() => coordinator.trayInstalled);
 
   void push() {
     final settings = ref.read(settingsControllerProvider).general;

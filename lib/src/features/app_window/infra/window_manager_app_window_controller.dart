@@ -39,7 +39,22 @@ class WindowManagerAppWindowController implements AppWindowController {
   Future<bool> isMinimized() => _manager.isMinimized();
 
   @override
-  Future<void> hide() => _manager.hide();
+  Future<void> hide() async {
+    await _manager.hide();
+    // window_manager 0.5.2 dispatches macOS orderOut asynchronously, so the
+    // method channel can return while isVisible is still true.
+    await _waitUntilHidden();
+  }
+
+  Future<void> _waitUntilHidden() async {
+    final deadline = DateTime.now().add(const Duration(milliseconds: 500));
+    while (await _manager.isVisible()) {
+      if (DateTime.now().isAfter(deadline)) {
+        return;
+      }
+      await Future<void>.delayed(const Duration(milliseconds: 16));
+    }
+  }
 
   @override
   Future<void> show() => _manager.show();

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:alera/src/core/build_flavor.dart';
 import 'package:alera/src/features/desktop_presence/application/desktop_presence.dart';
 import 'package:alera/src/features/desktop_presence/application/desktop_presence_coordinator.dart';
@@ -169,6 +171,63 @@ void main() {
       expect(backend.applied, hasLength(2));
       expect(backend.applied.last.trayVisible, isFalse);
     });
+
+    test('waits for an in-flight hide before removing the tray', () async {
+      final saveStarted = Completer<void>();
+      final finishSave = Completer<void>();
+      final backend = _RecordingPresenceBackend();
+      final window = _RecordingWindow();
+      final lifecycle = AppWindowLifecycleCoordinator(
+        repository: _MemoryWindowStateRepository()
+          ..saveStarted = saveStarted
+          ..saveBarrier = finishSave.future,
+        window: window,
+        saveDebounce: Duration.zero,
+        hideOnClose: () => true,
+      );
+      await lifecycle.start();
+      final coordinator = DesktopPresenceCoordinator(
+        backend: backend,
+        window: window,
+        lifecycle: lifecycle,
+      );
+      coordinator.start();
+
+      await coordinator.apply(
+        const DesktopPresenceSnapshot(
+          trayVisible: true,
+          tooltip: 'Alera',
+          badgeCount: 0,
+        ),
+      );
+      expect(coordinator.trayInstalled, isTrue);
+
+      window.emitClose();
+      await saveStarted.future;
+      expect(window.hideCalls, 0);
+      expect(window.visible, isTrue);
+
+      final removeTray = coordinator.apply(
+        const DesktopPresenceSnapshot(
+          trayVisible: false,
+          tooltip: 'Alera',
+          badgeCount: 0,
+        ),
+      );
+      await Future<void>.delayed(Duration.zero);
+      expect(backend.applied, hasLength(1));
+      expect(window.showCalls, 0);
+
+      finishSave.complete();
+      await removeTray;
+
+      expect(window.hideCalls, 1);
+      expect(window.showCalls, 1);
+      expect(window.visible, isTrue);
+      expect(backend.applied, hasLength(2));
+      expect(backend.applied.last.trayVisible, isFalse);
+      expect(coordinator.trayInstalled, isFalse);
+    });
   });
 }
 
@@ -197,6 +256,8 @@ class _RecordingPresenceBackend implements DesktopPresenceBackend {
 
 class _MemoryWindowStateRepository implements AppWindowStateRepository {
   AppWindowState? state;
+  Completer<void>? saveStarted;
+  Future<void>? saveBarrier;
 
   @override
   Future<void> clear() async {
@@ -208,6 +269,8 @@ class _MemoryWindowStateRepository implements AppWindowStateRepository {
 
   @override
   Future<void> save(AppWindowState state) async {
+    saveStarted?.complete();
+    await saveBarrier;
     this.state = state;
   }
 }
@@ -221,6 +284,12 @@ class _RecordingWindow implements AppWindowController {
   bool visible = true;
   bool minimized = false;
   bool showFails = false;
+
+  void emitClose() {
+    for (final listener in List<AppWindowEventListener>.from(listeners)) {
+      listener.onWindowClose();
+    }
+  }
 
   @override
   void addListener(AppWindowEventListener listener) {

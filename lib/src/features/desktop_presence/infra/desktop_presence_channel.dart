@@ -72,13 +72,16 @@ class MethodChannelDesktopPresenceBackend implements DesktopPresenceBackend {
 
   @override
   Future<void> apply(DesktopPresenceSnapshot snapshot) async {
-    await _channel.invokeMethod<void>(
+    final installed = await _channel.invokeMethod<Object?>(
       DesktopPresenceMethod.setTray,
       <String, Object?>{
         'visible': snapshot.trayVisible,
         'tooltip': snapshot.tooltip,
       },
     );
+    if (snapshot.trayVisible && installed == false) {
+      throw StateError('desktop tray was not installed');
+    }
     await _channel.invokeMethod<void>(
       DesktopPresenceMethod.setBadgeCount,
       <String, Object?>{'count': snapshot.badgeCount},
