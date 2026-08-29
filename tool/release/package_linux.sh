@@ -44,6 +44,7 @@ Name=Alera
 Comment=Alera desktop agentic development environment
 Exec=/opt/alera/alera
 Icon=alera
+StartupWMClass=dev.leynier.alera
 Terminal=false
 Categories=Development;
 DESKTOP
@@ -54,9 +55,8 @@ install_payload "$deb_root"
 mkdir -p "$deb_root/DEBIAN"
 installed_size="$(du -sk "$deb_root/opt/alera" | awk '{print $1}')"
 # The dependency lists below are hand written, so they can only stay honest if
-# every entry is one `ldd` over the bundle resolves. An extra name makes users
-# install a library Alera never loads: `libayatana-appindicator3` was listed
-# here for a tray that no binary in the bundle links or dlopens.
+# every entry is one `ldd` over the bundle resolves. The tray/AppIndicator
+# path links `libayatana-appindicator3`, so that runtime package belongs here.
 #
 # These stay declared rather than copied into the payload, which is not the
 # same tradeoff for each of them:
@@ -84,7 +84,7 @@ Priority: optional
 Architecture: ${arch_deb}
 Maintainer: ${maintainer}
 Installed-Size: ${installed_size}
-Depends: libgtk-3-0, libwebkit2gtk-4.1-0, libjson-glib-1.0-0, libsecret-1-0, libsqlite3-0, libssl3, libmpv2, libvulkan1
+Depends: libgtk-3-0, libwebkit2gtk-4.1-0, libjson-glib-1.0-0, libsecret-1-0, libsqlite3-0, libssl3, libmpv2, libvulkan1, libayatana-appindicator3-1
 Description: ${description}
 DEB
 dpkg-deb --build "$deb_root" "$output_dir/alera-${release_version}-linux.deb"
@@ -116,6 +116,7 @@ Requires: sqlite
 Requires: openssl-libs
 Requires: mpv-libs
 Requires: vulkan-loader
+Requires: libayatana-appindicator-gtk3
 
 %description
 ${description}

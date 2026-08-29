@@ -39,6 +39,21 @@ class WindowManagerAppWindowController implements AppWindowController {
   Future<bool> isMinimized() => _manager.isMinimized();
 
   @override
+  Future<void> hide() => _manager.hide();
+
+  @override
+  Future<void> show() => _manager.show();
+
+  @override
+  Future<void> restore() => _manager.restore();
+
+  @override
+  Future<void> focus() => _manager.focus();
+
+  @override
+  Future<bool> isVisible() => _manager.isVisible();
+
+  @override
   Future<void> maximize() => _manager.maximize();
 
   @override

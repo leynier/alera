@@ -10,6 +10,7 @@ commit so this file remains useful after context compaction.
 
 - Base (last common commit): `04da54b2959578c49d737b835abe081337888cd2`
 - Main reference at ledger creation: `d29d279152f96d980a40e1bc77c99bda47b59991`
+- Current main reference: `a1265778d294a3ff8a0653a6410f4d2e3d72032f`
 - Pending commits: 400
 - Scope: replicate desktop behavior and UI in `experiments/alera-gpui`; keep
   Flutter as the functional and visual reference.
@@ -419,3 +420,19 @@ commit so this file remains useful after context compaction.
 | 398 | `bbb452c3df5eb932802f250c60e42a0e0d5f586d` | 2026-08-26 | docs: add desktop and mobile product media (#561) | merged | Cherry-picked landing/readme product media and canonical screenshots. They are documentation assets, not runtime GPUI assets. |
 | 399 | `20f15d4e956baab2d111bcff103dc04a762e29a4` | 2026-08-27 | fix: use Homebrew symbol form for macOS cask dependency | merged | Cherry-picked Homebrew cask dependency syntax and manifest-render coverage. No GPUI runtime surface changed. |
 | 400 | `d29d279152f96d980a40e1bc77c99bda47b59991` | 2026-08-27 | Merge pull request #562 from leynier/fix/homebrew-macos-depends-on | merged | Replayed the packaging PR merge against parent 1 as an empty reconciliation because #399 was already applied. This is the current tip of local `main`; no commits remain in the inventory. |
+| 401 | `3243daeb913aa78c5decdeffd63daf17e2a6c407` | 2026-08-29 | feat: add desktop tray icon and pending-review dock badge | merged | Replayed the Flutter desktop presence implementation. Tray, Dock/taskbar badge and hide-on-close are explicitly excluded from GPUI by user direction, so no GPUI platform or settings surface was added. |
+| 402 | `77e5c9ed00202eda5c61c3ff7982e5a46c58fbb5` | 2026-08-29 | fix: keep general settings under the max-lines ratchet | pending | Pending source review and GPUI impact analysis. |
+| 403 | `1ac9861d51d9e3ef6b757ec243b9f4567370c46c` | 2026-08-29 | fix: serialize hide-on-close with quit and restore Windows tray clicks | pending | Pending source review and GPUI impact analysis. |
+| 404 | `a3f4efa1a34f4705e83173c94eaeb01cc7b567e8` | 2026-08-29 | fix: wait for hide before tray removal and retry Windows NIM_ADD | pending | Pending source review and GPUI impact analysis. |
+| 405 | `c0ed8020f6e05637ce1ea8346be9416fc3f96a1e` | 2026-08-29 | fix: block hide during tray removal and recover Explorer icon loss | pending | Pending source review and GPUI impact analysis. |
+| 406 | `7f7976528846c3c4063d58ba06d27f7e94d3b2ff` | 2026-08-29 | Merge pull request #563 from leynier/feat/desktop-presence-tray-badge | pending | Pending source review and GPUI impact analysis. |
+| 407 | `3ec1af522dcc6c29157f0a633ab29b79199e7488` | 2026-08-29 | fix: repair linux runner build (#564) | pending | Pending source review and GPUI impact analysis. |
+| 408 | `7cffc80df5307ed79a15bcbc541f26e52c4d47ca` | 2026-08-29 | fix: reject loopback lookalike hosts in cloud base url (#565) | pending | Pending source review and GPUI impact analysis. |
+| 409 | `0a76ad8f852c3b1481e5c9b18795d856384cde1f` | 2026-08-29 | release: v0.75.0 (#566) | pending | Pending source review and GPUI impact analysis. |
+| 410 | `90df319abf432e7a85af3a8874b8011db9dcd7c7` | 2026-08-29 | fix: free terminal, editor, and workspace-scoped state when tabs and workspaces close (#567) | pending | Pending source review and GPUI impact analysis. |
+| 411 | `4a733ec6f545b9a7ddec0fa05009919ea57f2cee` | 2026-08-29 | release: v0.75.1 (#568) | pending | Pending source review and GPUI impact analysis. |
+| 412 | `6c5a18418919283a436260eb1b47953c69967470` | 2026-08-29 | fix: release terminal memory on cleanup | pending | Pending source review and GPUI impact analysis. |
+| 413 | `2e7370d4f1a3a7f5bf304625325280779626d645` | 2026-08-29 | Merge pull request #569 from leynier/fix/memory-leak | pending | Pending source review and GPUI impact analysis. |
+| 414 | `78aed094edf5cc772cb479517192448d53dc7501` | 2026-08-29 | fix: route linux tray primary click via activate filter | pending | Pending source review and GPUI impact analysis. |
+| 415 | `230a695b2434b02d418c056c2f065d2176780f03` | 2026-08-29 | release: v0.75.2 | pending | Pending source review and GPUI impact analysis. |
+| 416 | `a1265778d294a3ff8a0653a6410f4d2e3d72032f` | 2026-08-29 | Merge pull request #570 from leynier/release/version-v0.75.2 | pending | Pending source review and GPUI impact analysis. |

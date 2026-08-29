@@ -246,6 +246,8 @@ void main() {
         await controller.setAgentStatusNotificationsEnabled(true);
         await controller.setKeepComputerAwakeWhileAgentsWork(true);
         await controller.setKeepAliveEnabled(true);
+        await controller.setShowTrayIcon(false);
+        await controller.setShowDockBadge(false);
 
         final restored = await repository.load();
         expect(
@@ -277,6 +279,8 @@ void main() {
         expect(restored.agents.agentStatusNotificationsEnabled, isTrue);
         expect(restored.agents.keepComputerAwakeWhileAgentsWork, isTrue);
         expect(restored.general.keepAliveEnabled, isTrue);
+        expect(restored.general.showTrayIcon, isFalse);
+        expect(restored.general.showDockBadge, isFalse);
       },
     );
 

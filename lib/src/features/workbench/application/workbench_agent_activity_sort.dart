@@ -62,14 +62,14 @@ WorkspaceAttention workspaceAttention({
 }
 
 AgentAttentionClass _classify(AgentStatusEntry status) {
-  if (status.interrupted ?? false) {
+  if (agentStatusNeedsYou(status)) {
     return AgentAttentionClass.needsYou;
   }
   return switch (status.state) {
-    AgentStatusState.waiting ||
-    AgentStatusState.blocked => AgentAttentionClass.needsYou,
     AgentStatusState.done => AgentAttentionClass.done,
     AgentStatusState.working => AgentAttentionClass.working,
+    AgentStatusState.waiting ||
+    AgentStatusState.blocked => AgentAttentionClass.needsYou,
   };
 }
 

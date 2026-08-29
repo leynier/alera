@@ -1,5 +1,7 @@
 #include "my_application.h"
 
+#include "desktop_presence.h"
+
 #include <flutter_linux/flutter_linux.h>
 #include <gio/gio.h>
 #include <glib/gstdio.h>
@@ -15,6 +17,8 @@ struct _MyApplication {
   char** dart_entrypoint_arguments;
   FlMethodChannel* clipboard_channel;
   FlMethodChannel* app_menu_channel;
+  DesktopPresence* desktop_presence;
+  GtkWindow* window;
 };
 
 G_DEFINE_TYPE(MyApplication, my_application, GTK_TYPE_APPLICATION)
@@ -221,11 +225,22 @@ static void first_frame_cb(MyApplication* self, FlView* view) {
   gtk_widget_show(gtk_widget_get_toplevel(GTK_WIDGET(view)));
 }
 
+static void on_window_destroy(GtkWidget*, gpointer user_data) {
+  auto* self = MY_APPLICATION(user_data);
+  self->window = nullptr;
+}
+
 // Implements GApplication::activate.
 static void my_application_activate(GApplication* application) {
   MyApplication* self = MY_APPLICATION(application);
+  if (self->window != nullptr) {
+    gtk_window_present(self->window);
+    return;
+  }
   GtkWindow* window =
       GTK_WINDOW(gtk_application_window_new(GTK_APPLICATION(application)));
+  self->window = window;
+  g_signal_connect(window, "destroy", G_CALLBACK(on_window_destroy), self);
 
   // Use a header bar when running in GNOME as this is the common style used
   // by applications and is the setup most users will be using (e.g. Ubuntu
@@ -311,6 +326,8 @@ static void my_application_activate(GApplication* application) {
       fl_engine_get_binary_messenger(engine), kAppMenuChannel,
       FL_METHOD_CODEC(app_menu_codec));
 
+  self->desktop_presence = desktop_presence_new(engine);
+
   fl_register_plugins(FL_PLUGIN_REGISTRY(view));
 
   gtk_widget_grab_focus(GTK_WIDGET(view));
@@ -331,6 +348,8 @@ static gboolean my_application_local_command_line(GApplication* application,
     return TRUE;
   }
 
+  // Unique apps: a second launch registers against the primary instance.
+  // Activate presents the existing window instead of constructing another.
   g_application_activate(application);
   *exit_status = 0;
 
@@ -361,6 +380,8 @@ static void my_application_dispose(GObject* object) {
   g_clear_pointer(&self->dart_entrypoint_arguments, g_strfreev);
   g_clear_object(&self->clipboard_channel);
   g_clear_object(&self->app_menu_channel);
+  desktop_presence_free(self->desktop_presence);
+  self->desktop_presence = nullptr;
   G_OBJECT_CLASS(my_application_parent_class)->dispose(object);
 }
 
@@ -380,9 +401,12 @@ MyApplication* my_application_new() {
   // like GTK and desktop environments map this running application to its
   // corresponding .desktop file. This ensures better integration by allowing
   // the application to be recognized beyond its binary name.
+  // Unique so a Dock/launcher activation presents the existing hidden window
+  // instead of starting a second process. Dev and release still coexist via
+  // distinct APPLICATION_IDs.
   g_set_prgname(APPLICATION_ID);
 
   return MY_APPLICATION(g_object_new(my_application_get_type(),
                                      "application-id", APPLICATION_ID, "flags",
-                                     G_APPLICATION_NON_UNIQUE, nullptr));
+                                     G_APPLICATION_FLAGS_NONE, nullptr));
 }

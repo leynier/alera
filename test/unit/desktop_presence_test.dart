@@ -1,0 +1,208 @@
+import 'package:alera/src/core/build_flavor.dart';
+import 'package:alera/src/features/desktop_presence/application/desktop_presence.dart';
+import 'package:alera/src/features/desktop_presence/application/desktop_presence_coordinator.dart';
+import 'package:alera/src/features/desktop_presence/infra/desktop_presence_channel.dart';
+import 'package:alera/src/features/app_window/application/app_window_controller.dart';
+import 'package:alera/src/features/app_window/application/app_window_state_repository.dart';
+import 'package:alera/src/features/app_window/domain/app_window_state.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_test/flutter_test.dart';
+
+void main() {
+  group('desktop presence snapshot', () {
+    test('clears the badge when the dock setting is off', () {
+      final snapshot = desktopPresenceSnapshot(
+        showTrayIcon: true,
+        showDockBadge: false,
+        pendingReviewCount: 4,
+      );
+      expect(snapshot.trayVisible, isTrue);
+      expect(snapshot.badgeCount, 0);
+      expect(snapshot.tooltip, '4 agents need attention');
+    });
+
+    test('hides the tray independently of the badge', () {
+      final snapshot = desktopPresenceSnapshot(
+        showTrayIcon: false,
+        showDockBadge: true,
+        pendingReviewCount: 1,
+      );
+      expect(snapshot.trayVisible, isFalse);
+      expect(snapshot.badgeCount, 1);
+      expect(snapshot.tooltip, '1 agent needs attention');
+    });
+
+    test('uses the flavor desktop id for Unity launcher entries', () {
+      expect(
+        linuxLauncherDesktopId(bundleId: kAleraReleaseBundleId),
+        'dev.leynier.alera.desktop',
+      );
+      expect(
+        linuxLauncherDesktopId(bundleId: kAleraDevBundleId),
+        'dev.leynier.alera.dev.desktop',
+      );
+    });
+  });
+
+  group('DesktopPresenceCoordinator', () {
+    test('applies snapshots and shows the window from the tray', () async {
+      final backend = _RecordingPresenceBackend();
+      final window = _RecordingWindow();
+      final lifecycle = AppWindowLifecycleCoordinator(
+        repository: _MemoryWindowStateRepository(),
+        window: window,
+        saveDebounce: Duration.zero,
+      );
+      await lifecycle.start();
+      final coordinator = DesktopPresenceCoordinator(
+        backend: backend,
+        window: window,
+        lifecycle: lifecycle,
+      );
+      coordinator.start();
+
+      await coordinator.apply(
+        const DesktopPresenceSnapshot(
+          trayVisible: true,
+          tooltip: 'Alera',
+          badgeCount: 2,
+        ),
+      );
+      expect(backend.applied.single.badgeCount, 2);
+
+      window.visible = false;
+      backend.onShow?.call();
+      await Future<void>.delayed(Duration.zero);
+      expect(window.showCalls, 1);
+      expect(window.focusCalls, 1);
+
+      backend.onQuit?.call();
+      await Future<void>.delayed(Duration.zero);
+      expect(window.destroyCalls, 1);
+    });
+  });
+}
+
+class _RecordingPresenceBackend implements DesktopPresenceBackend {
+  VoidCallback? onShow;
+  VoidCallback? onQuit;
+  final List<DesktopPresenceSnapshot> applied = <DesktopPresenceSnapshot>[];
+  int destroyCalls = 0;
+
+  @override
+  void listen({required VoidCallback onShow, required VoidCallback onQuit}) {
+    this.onShow = onShow;
+    this.onQuit = onQuit;
+  }
+
+  @override
+  Future<void> apply(DesktopPresenceSnapshot snapshot) async {
+    applied.add(snapshot);
+  }
+
+  @override
+  Future<void> destroy() async {
+    destroyCalls += 1;
+  }
+}
+
+class _MemoryWindowStateRepository implements AppWindowStateRepository {
+  AppWindowState? state;
+
+  @override
+  Future<void> clear() async {
+    state = null;
+  }
+
+  @override
+  Future<AppWindowState?> load() async => state;
+
+  @override
+  Future<void> save(AppWindowState state) async {
+    this.state = state;
+  }
+}
+
+class _RecordingWindow implements AppWindowController {
+  final List<AppWindowEventListener> listeners = <AppWindowEventListener>[];
+  int destroyCalls = 0;
+  int showCalls = 0;
+  int focusCalls = 0;
+  int hideCalls = 0;
+  bool visible = true;
+  bool minimized = false;
+
+  @override
+  void addListener(AppWindowEventListener listener) {
+    listeners.add(listener);
+  }
+
+  @override
+  void removeListener(AppWindowEventListener listener) {
+    listeners.remove(listener);
+  }
+
+  @override
+  Future<void> close() async {
+    for (final listener in List<AppWindowEventListener>.from(listeners)) {
+      listener.onWindowClose();
+    }
+  }
+
+  @override
+  Future<void> destroy() async {
+    destroyCalls += 1;
+  }
+
+  @override
+  Future<Rect> getBounds() async => const Rect.fromLTWH(0, 0, 800, 600);
+
+  @override
+  Future<void> hide() async {
+    hideCalls += 1;
+    visible = false;
+  }
+
+  @override
+  Future<bool> isFullScreen() async => false;
+
+  @override
+  Future<bool> isMaximized() async => false;
+
+  @override
+  Future<bool> isMinimized() async => minimized;
+
+  @override
+  Future<bool> isVisible() async => visible;
+
+  @override
+  Future<void> maximize() async {}
+
+  @override
+  Future<void> restore() async {
+    minimized = false;
+  }
+
+  @override
+  Future<void> setBounds(Rect bounds) async {}
+
+  @override
+  Future<void> setFullScreen(bool value) async {}
+
+  @override
+  Future<void> setPreventClose(bool value) async {}
+
+  @override
+  Future<void> setTitle(String title) async {}
+
+  @override
+  Future<void> show() async {
+    showCalls += 1;
+    visible = true;
+  }
+
+  @override
+  Future<void> focus() async {
+    focusCalls += 1;
+  }
+}

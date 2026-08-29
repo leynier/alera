@@ -103,6 +103,28 @@ int _compareAgentRuns(WorkspaceAgentRun a, WorkspaceAgentRun b) {
   return a.tab.createdAt.compareTo(b.tab.createdAt);
 }
 
+/// Agents that currently need the user: waiting, blocked, or interrupted.
+int pendingReviewAgentCount(Iterable<WorkspaceAgentRun> runs) {
+  var count = 0;
+  for (final run in runs) {
+    if (agentStatusNeedsYou(run.status)) {
+      count += 1;
+    }
+  }
+  return count;
+}
+
+/// Shared with Agent Activity: interruption and waiting/blocked need the user.
+bool agentStatusNeedsYou(AgentStatusEntry status) {
+  if (status.interrupted ?? false) {
+    return true;
+  }
+  return switch (status.state) {
+    AgentStatusState.waiting || AgentStatusState.blocked => true,
+    AgentStatusState.working || AgentStatusState.done => false,
+  };
+}
+
 // Compact tray and Agent Activity treat interruption as attention, not as
 // a finished run. Ranking it above working/done keeps the glyph from
 // turning green (or spinning) over a leftover interrupted tab.

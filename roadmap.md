@@ -154,7 +154,7 @@ Comprehensive feature roadmap for Alera. Each feature is scored on two axes:
 | Feature | Difficulty | Utility | Status | Notes |
 |---|:---:|:---:|:---:|---|
 | Activity feed | 3 | 5 | Partial | Agent activity sort, sidebar agent runs, and status projection ship; no unified chronological activity feed yet |
-| Notification system | 3 | 4 | Partial | Native desktop notifications plus opt-in FCM mobile push for attention, done, orchestration, and terminal-exit events with tap routing; no unread model or OS dock badge yet |
+| Notification system | 3 | 4 | Partial | Native desktop notifications plus opt-in FCM mobile push for attention, done, orchestration, and terminal-exit events with tap routing; desktop tray icon and dock/taskbar badge for pending-review agents ship |
 | Agent auto-acknowledge | 1 | 3 | Shipped | Viewing a completed agent tab acknowledges that completion epoch and clears attention until the next run |
 
 ---

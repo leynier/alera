@@ -8,6 +8,8 @@ import 'package:alera/src/features/app_menu/infra/native_app_menu_channel.dart';
 import 'package:alera/src/features/app_menu/presentation/alera_app_menu_scope.dart';
 import 'package:alera/src/features/app_window/application/app_window_controller.dart';
 import 'package:alera/src/features/app_window/application/app_window_providers.dart';
+import 'package:alera/src/features/app_window/application/app_window_state_repository.dart';
+import 'package:alera/src/features/app_window/domain/app_window_state.dart';
 import 'package:alera/src/features/settings/domain/alera_settings.dart';
 import 'package:alera/src/features/updater/domain/alera_update.dart';
 import 'package:flutter/foundation.dart';
@@ -36,6 +38,13 @@ Future<void> pumpActionHarness(
   FakeUpdateController? updateController,
   FakeAppWindowController? window,
 }) async {
+  final resolvedWindow = window ?? FakeAppWindowController();
+  final lifecycle = AppWindowLifecycleCoordinator(
+    repository: MemoryAppWindowStateRepository(),
+    window: resolvedWindow,
+    saveDebounce: Duration.zero,
+  );
+  await lifecycle.start();
   await tester.pumpWidget(
     ProviderScope(
       overrides: [
@@ -49,9 +58,8 @@ Future<void> pumpActionHarness(
                 ),
               ),
         ),
-        appWindowControllerProvider.overrideWithValue(
-          window ?? FakeAppWindowController(),
-        ),
+        appWindowControllerProvider.overrideWithValue(resolvedWindow),
+        appWindowLifecycleCoordinatorProvider.overrideWithValue(lifecycle),
         settingsControllerProvider.overrideWith(
           () => FakeSettingsController(AleraSettings.defaults),
         ),
@@ -80,6 +88,13 @@ Future<void> pumpMenuScope(
   FakeAppWindowController? window,
   Widget? child,
 }) async {
+  final resolvedWindow = window ?? FakeAppWindowController();
+  final lifecycle = AppWindowLifecycleCoordinator(
+    repository: MemoryAppWindowStateRepository(),
+    window: resolvedWindow,
+    saveDebounce: Duration.zero,
+  );
+  await lifecycle.start();
   await tester.pumpWidget(
     ProviderScope(
       overrides: [
@@ -93,9 +108,8 @@ Future<void> pumpMenuScope(
                 ),
               ),
         ),
-        appWindowControllerProvider.overrideWithValue(
-          window ?? FakeAppWindowController(),
-        ),
+        appWindowControllerProvider.overrideWithValue(resolvedWindow),
+        appWindowLifecycleCoordinatorProvider.overrideWithValue(lifecycle),
         settingsControllerProvider.overrideWith(
           () => FakeSettingsController(AleraSettings.defaults),
         ),
@@ -199,22 +213,57 @@ class FakeUpdateController extends AleraUpdateController {
   }
 }
 
-class FakeAppWindowController implements AppWindowController {
-  int closeCalls = 0;
+class MemoryAppWindowStateRepository implements AppWindowStateRepository {
+  AppWindowState? state;
 
   @override
-  void addListener(AppWindowEventListener listener) {}
+  Future<void> clear() async {
+    state = null;
+  }
+
+  @override
+  Future<AppWindowState?> load() async => state;
+
+  @override
+  Future<void> save(AppWindowState state) async {
+    this.state = state;
+  }
+}
+
+class FakeAppWindowController implements AppWindowController {
+  int closeCalls = 0;
+  int destroyCalls = 0;
+  final List<AppWindowEventListener> listeners = <AppWindowEventListener>[];
+  bool preventClose = false;
+
+  @override
+  void addListener(AppWindowEventListener listener) {
+    listeners.add(listener);
+  }
+
+  @override
+  void removeListener(AppWindowEventListener listener) {
+    listeners.remove(listener);
+  }
 
   @override
   Future<void> close() async {
     closeCalls += 1;
+    for (final listener in List<AppWindowEventListener>.from(listeners)) {
+      listener.onWindowClose();
+    }
   }
 
   @override
-  Future<void> destroy() async {}
+  Future<void> destroy() async {
+    destroyCalls += 1;
+  }
 
   @override
   Future<Rect> getBounds() async => const Rect.fromLTWH(0, 0, 1280, 720);
+
+  @override
+  Future<void> hide() async {}
 
   @override
   Future<bool> isFullScreen() async => false;
@@ -226,10 +275,13 @@ class FakeAppWindowController implements AppWindowController {
   Future<bool> isMinimized() async => false;
 
   @override
+  Future<bool> isVisible() async => true;
+
+  @override
   Future<void> maximize() async {}
 
   @override
-  void removeListener(AppWindowEventListener listener) {}
+  Future<void> restore() async {}
 
   @override
   Future<void> setBounds(Rect bounds) async {}
@@ -238,8 +290,16 @@ class FakeAppWindowController implements AppWindowController {
   Future<void> setFullScreen(bool value) async {}
 
   @override
-  Future<void> setPreventClose(bool value) async {}
+  Future<void> setPreventClose(bool value) async {
+    preventClose = value;
+  }
 
   @override
   Future<void> setTitle(String title) async {}
+
+  @override
+  Future<void> show() async {}
+
+  @override
+  Future<void> focus() async {}
 }

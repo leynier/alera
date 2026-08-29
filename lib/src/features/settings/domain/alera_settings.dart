@@ -299,6 +299,8 @@ class GeneralSettings with GeneralSettingsMappable {
     this.confirmProjectRemoval = true,
     this.confirmWorkspaceRemoval = true,
     this.keepAliveEnabled = false,
+    this.showTrayIcon = true,
+    this.showDockBadge = true,
   });
 
   /// User-configured root directory where new linked workspaces are created.
@@ -320,6 +322,17 @@ class GeneralSettings with GeneralSettingsMappable {
   ///
   /// Lid-close and explicit sleep still follow the device power policy.
   final bool keepAliveEnabled;
+
+  /// Keep a tray / menu-extra / AppIndicator icon while the desktop app runs.
+  ///
+  /// When this is on, closing the window hides it; Quit from the tray or the
+  /// app menu still exits. Missing from older settings blobs, so those decode
+  /// as on.
+  final bool showTrayIcon;
+
+  /// Show how many agents are waiting for review on the Dock, taskbar, or
+  /// Ubuntu Dock. Missing from older settings blobs, so those decode as on.
+  final bool showDockBadge;
 
   static const GeneralSettings defaults = GeneralSettings();
 

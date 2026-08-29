@@ -50,6 +50,16 @@ abstract interface class AppWindowController {
 
   Future<bool> isMinimized();
 
+  Future<void> hide();
+
+  Future<void> show();
+
+  Future<void> restore();
+
+  Future<void> focus();
+
+  Future<bool> isVisible();
+
   Future<void> setPreventClose(bool value);
 
   /// Requests a user-initiated window close (system close path).
@@ -129,6 +139,7 @@ class AppWindowLifecycleCoordinator extends AppWindowEventListener {
         const DestroyAppWindowCloseStrategy(),
     Duration saveDebounce = const Duration(milliseconds: 350),
     Future<bool> Function()? closeGate,
+    bool Function()? hideOnClose,
     Logger? logger,
   }) : this._(
          repository: repository,
@@ -136,6 +147,7 @@ class AppWindowLifecycleCoordinator extends AppWindowEventListener {
          closeStrategy: closeStrategy,
          saveDebounce: saveDebounce,
          closeGate: closeGate,
+         hideOnClose: hideOnClose,
          logger: logger ?? Logger('AppWindowLifecycleCoordinator'),
        );
 
@@ -145,6 +157,7 @@ class AppWindowLifecycleCoordinator extends AppWindowEventListener {
     required this._closeStrategy,
     required this._saveDebounce,
     required this._closeGate,
+    required this._hideOnClose,
     required this._logger,
   });
 
@@ -153,6 +166,7 @@ class AppWindowLifecycleCoordinator extends AppWindowEventListener {
   final AppWindowCloseStrategy _closeStrategy;
   final Duration _saveDebounce;
   Future<bool> Function()? _closeGate;
+  bool Function()? _hideOnClose;
   final Logger _logger;
 
   AppWindowState? _lastState;
@@ -162,6 +176,7 @@ class AppWindowLifecycleCoordinator extends AppWindowEventListener {
   bool _closing = false;
   bool _closeCommitted = false;
   bool _closed = false;
+  bool _quitting = false;
 
   /// Optional gate invoked before the window is destroyed. Return `false` to
   /// cancel the close (for example when the user declines force-stopping the
@@ -169,6 +184,16 @@ class AppWindowLifecycleCoordinator extends AppWindowEventListener {
   void bindCloseGate(Future<bool> Function()? closeGate) {
     _closeGate = closeGate;
   }
+
+  /// When this returns true, a user close hides the window instead of
+  /// destroying the process. Quit still goes through [requestQuit].
+  void bindHideOnClose(bool Function()? hideOnClose) {
+    _hideOnClose = hideOnClose;
+  }
+
+  /// True while a committed quit is in progress, so hide-on-close cannot
+  /// swallow a tray or app-menu Quit.
+  bool get isQuitting => _quitting;
 
   Future<void> start() async {
     if (_started || _closed) {
@@ -207,8 +232,39 @@ class AppWindowLifecycleCoordinator extends AppWindowEventListener {
     if (_closing || _closed) {
       return;
     }
+    if (!_quitting && (_hideOnClose?.call() ?? false)) {
+      unawaited(_hideInsteadOfDestroy());
+      return;
+    }
     _closing = true;
     unawaited(_flushAndDestroy());
+  }
+
+  /// Commits a real process exit even when hide-on-close is enabled.
+  Future<void> requestQuit() async {
+    if (_closing || _closed) {
+      return;
+    }
+    _quitting = true;
+    _closing = true;
+    await _flushAndDestroy();
+  }
+
+  Future<void> _hideInsteadOfDestroy() async {
+    try {
+      await flush();
+    } catch (error, stackTrace) {
+      _logWarningIfActive(
+        'failed to flush app window state on hide',
+        error,
+        stackTrace,
+      );
+    }
+    try {
+      await _window.hide();
+    } catch (error, stackTrace) {
+      _logWarningIfActive('failed to hide app window', error, stackTrace);
+    }
   }
 
   @override
@@ -263,12 +319,14 @@ class AppWindowLifecycleCoordinator extends AppWindowEventListener {
         final allowClose = await gate();
         if (!allowClose) {
           _closing = false;
+          _quitting = false;
           return;
         }
       }
     } catch (error, stackTrace) {
       // Logging listeners are synchronous and may request another close.
       _closing = false;
+      _quitting = false;
       _logWarningIfActive('app window close gate failed', error, stackTrace);
       return;
     }

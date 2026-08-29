@@ -105,6 +105,44 @@ void main() {
       await _waitFor(() => gateCalls == 2);
     });
 
+    test('hides the window when hide-on-close is bound', () async {
+      final repository = _RecordingStateRepository();
+      final window = _RecordingWindowController();
+      final coordinator = AppWindowLifecycleCoordinator(
+        repository: repository,
+        window: window,
+        saveDebounce: Duration.zero,
+        hideOnClose: () => true,
+      );
+      await coordinator.start();
+
+      window.emit((listener) => listener.onWindowClose());
+      await _waitFor(() => window.hideCalls == 1);
+
+      expect(window.destroyCalls, 0);
+      expect(window.hideCalls, 1);
+      expect(window.preventCloseValues, <bool>[true]);
+    });
+
+    test('requestQuit destroys even when hide-on-close is bound', () async {
+      final repository = _RecordingStateRepository();
+      final window = _RecordingWindowController();
+      final coordinator = AppWindowLifecycleCoordinator(
+        repository: repository,
+        window: window,
+        saveDebounce: Duration.zero,
+        hideOnClose: () => true,
+      );
+      await coordinator.start();
+
+      await coordinator.requestQuit();
+      await _waitFor(() => window.destroyCalls == 1);
+
+      expect(window.hideCalls, 0);
+      expect(window.destroyCalls, 1);
+      expect(window.preventCloseValues, <bool>[true, false]);
+    });
+
     test('closes once and ignores post-close state work', () async {
       final repository = _RecordingStateRepository();
       final window = _RecordingWindowController();
@@ -173,6 +211,12 @@ class _RecordingWindowController implements AppWindowController {
   final List<bool> preventCloseValues = <bool>[];
   Rect bounds = const Rect.fromLTWH(20, 30, 800, 500);
   int destroyCalls = 0;
+  int hideCalls = 0;
+  int showCalls = 0;
+  int focusCalls = 0;
+  int restoreCalls = 0;
+  bool visible = true;
+  bool minimized = false;
 
   void emit(void Function(AppWindowEventListener listener) notify) {
     for (final listener in List<AppWindowEventListener>.from(listeners)) {
@@ -196,6 +240,32 @@ class _RecordingWindowController implements AppWindowController {
   }
 
   @override
+  Future<void> hide() async {
+    hideCalls += 1;
+    visible = false;
+  }
+
+  @override
+  Future<void> show() async {
+    showCalls += 1;
+    visible = true;
+  }
+
+  @override
+  Future<void> restore() async {
+    restoreCalls += 1;
+    minimized = false;
+  }
+
+  @override
+  Future<void> focus() async {
+    focusCalls += 1;
+  }
+
+  @override
+  Future<bool> isVisible() async => visible;
+
+  @override
   Future<Rect> getBounds() async => bounds;
 
   @override
@@ -205,7 +275,7 @@ class _RecordingWindowController implements AppWindowController {
   Future<bool> isMaximized() async => false;
 
   @override
-  Future<bool> isMinimized() async => false;
+  Future<bool> isMinimized() async => minimized;
 
   @override
   Future<void> maximize() async {}

@@ -1416,6 +1416,20 @@ class GeneralSettingsMapper extends ClassMapperBase<GeneralSettings> {
     opt: true,
     def: false,
   );
+  static bool _$showTrayIcon(GeneralSettings v) => v.showTrayIcon;
+  static const Field<GeneralSettings, bool> _f$showTrayIcon = Field(
+    'showTrayIcon',
+    _$showTrayIcon,
+    opt: true,
+    def: true,
+  );
+  static bool _$showDockBadge(GeneralSettings v) => v.showDockBadge;
+  static const Field<GeneralSettings, bool> _f$showDockBadge = Field(
+    'showDockBadge',
+    _$showDockBadge,
+    opt: true,
+    def: true,
+  );
 
   @override
   final MappableFields<GeneralSettings> fields = const {
@@ -1424,6 +1438,8 @@ class GeneralSettingsMapper extends ClassMapperBase<GeneralSettings> {
     #confirmProjectRemoval: _f$confirmProjectRemoval,
     #confirmWorkspaceRemoval: _f$confirmWorkspaceRemoval,
     #keepAliveEnabled: _f$keepAliveEnabled,
+    #showTrayIcon: _f$showTrayIcon,
+    #showDockBadge: _f$showDockBadge,
   };
 
   static GeneralSettings _instantiate(DecodingData data) {
@@ -1433,6 +1449,8 @@ class GeneralSettingsMapper extends ClassMapperBase<GeneralSettings> {
       confirmProjectRemoval: data.dec(_f$confirmProjectRemoval),
       confirmWorkspaceRemoval: data.dec(_f$confirmWorkspaceRemoval),
       keepAliveEnabled: data.dec(_f$keepAliveEnabled),
+      showTrayIcon: data.dec(_f$showTrayIcon),
+      showDockBadge: data.dec(_f$showDockBadge),
     );
   }
 
@@ -1504,6 +1522,8 @@ abstract class GeneralSettingsCopyWith<$R, $In extends GeneralSettings, $Out>
     bool? confirmProjectRemoval,
     bool? confirmWorkspaceRemoval,
     bool? keepAliveEnabled,
+    bool? showTrayIcon,
+    bool? showDockBadge,
   });
   GeneralSettingsCopyWith<$R2, $In, $Out2> $chain<$R2, $Out2>(
     Then<$Out2, $R2> t,
@@ -1525,6 +1545,8 @@ class _GeneralSettingsCopyWithImpl<$R, $Out>
     bool? confirmProjectRemoval,
     bool? confirmWorkspaceRemoval,
     bool? keepAliveEnabled,
+    bool? showTrayIcon,
+    bool? showDockBadge,
   }) => $apply(
     FieldCopyWithData({
       if (workspaceDirectory != $none) #workspaceDirectory: workspaceDirectory,
@@ -1534,6 +1556,8 @@ class _GeneralSettingsCopyWithImpl<$R, $Out>
       if (confirmWorkspaceRemoval != null)
         #confirmWorkspaceRemoval: confirmWorkspaceRemoval,
       if (keepAliveEnabled != null) #keepAliveEnabled: keepAliveEnabled,
+      if (showTrayIcon != null) #showTrayIcon: showTrayIcon,
+      if (showDockBadge != null) #showDockBadge: showDockBadge,
     }),
   );
   @override
@@ -1552,6 +1576,8 @@ class _GeneralSettingsCopyWithImpl<$R, $Out>
       or: $value.confirmWorkspaceRemoval,
     ),
     keepAliveEnabled: data.get(#keepAliveEnabled, or: $value.keepAliveEnabled),
+    showTrayIcon: data.get(#showTrayIcon, or: $value.showTrayIcon),
+    showDockBadge: data.get(#showDockBadge, or: $value.showDockBadge),
   );
 
   @override
