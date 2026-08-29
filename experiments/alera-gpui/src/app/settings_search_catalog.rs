@@ -53,6 +53,7 @@ const AI_TEXT: &[&str] = &[
     "Commit Messages Agent Model prompt override",
     "Pull Request Details Agent Model prompt override",
     "Workspace Identity Agent Model prompt override",
+    "Reading Diffs Agent Model reasoning instructions diff only",
     "Instructions optional prompt guidance",
 ];
 const TEXT_ACTIONS: &[&str] = &[

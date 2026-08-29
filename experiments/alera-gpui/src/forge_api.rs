@@ -29,6 +29,11 @@ enum Command {
         action: ForgeStackAction,
         reply: Sender<Result<String, String>>,
     },
+    ReviewDiff {
+        identity: ForgeIdentity,
+        review_number: u64,
+        reply: Sender<Result<Vec<u8>, String>>,
+    },
     Close,
 }
 
@@ -254,6 +259,19 @@ impl ForgeService {
         })
         .await
     }
+
+    pub async fn review_diff(
+        &self,
+        identity: ForgeIdentity,
+        review_number: u64,
+    ) -> Result<Vec<u8>, String> {
+        request(&self.commands, |reply| Command::ReviewDiff {
+            identity,
+            review_number,
+            reply,
+        })
+        .await
+    }
 }
 
 impl Drop for ForgeService {
@@ -318,6 +336,16 @@ fn run(commands: Receiver<Command>) {
                     workspace_path,
                     identity,
                     action,
+                ));
+            }
+            Command::ReviewDiff {
+                identity,
+                review_number,
+                reply,
+            } => {
+                let _ = reply.send_blocking(crate::forge_service::load_review_diff(
+                    identity,
+                    review_number,
                 ));
             }
             Command::Close => return,

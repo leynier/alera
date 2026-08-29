@@ -63,7 +63,12 @@ impl AleraApp {
                 }
             });
         }
-        for operation in ["commitMessage", "pullRequestDetails", "workspaceIdentity"] {
+        for operation in [
+            "commitMessage",
+            "pullRequestDetails",
+            "workspaceIdentity",
+            "readingDiff",
+        ] {
             let prompt = self
                 .settings_state
                 .ai_text_prompt_settings_by_operation

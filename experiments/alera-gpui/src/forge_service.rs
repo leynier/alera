@@ -378,6 +378,27 @@ pub(crate) fn run_stack_action(
     }
 }
 
+pub(crate) fn load_review_diff(
+    identity: ForgeIdentity,
+    review_number: u64,
+) -> Result<Vec<u8>, String> {
+    let output = run_gh(
+        vec![
+            "pr".into(),
+            "diff".into(),
+            review_number.to_string(),
+            "--repo".into(),
+            identity.repo_slug,
+            "--patch".into(),
+        ],
+        false,
+    )?;
+    if output.trim().is_empty() {
+        return Err("No Pull Request Diff Is Available To Read.".to_string());
+    }
+    Ok(output.into_bytes())
+}
+
 fn order_stack_branches(workspace_path: &str, branches: Vec<String>) -> Result<Vec<String>, String> {
     order_stack_branches_with(branches, |ancestor, descendant| {
         alera_core::git::is_ancestor(workspace_path, ancestor, descendant)

@@ -1,5 +1,7 @@
 use std::cell::{Cell, RefCell};
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
+use std::sync::atomic::AtomicBool;
+use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use gpui::{
@@ -66,6 +68,8 @@ mod mobile_driver;
 mod preview_surface;
 mod project_actions;
 mod project_config_settings;
+mod reading_diff;
+mod reading_diff_pull_request;
 mod quick_open;
 mod run_policy;
 mod run_policy_dialog;
@@ -124,6 +128,9 @@ mod workspace_surface;
 use crate::activity::{ContextPanel, SettingsPane, StatusPopover};
 use crate::forge_service::{ForgeService, ForgeSnapshot};
 use crate::model::WorkbenchSnapshot;
+use crate::reading_diff_service::{
+    ReadingDiffProgress, ReadingDiffRequest, ReadingDiffResult, ReadingDiffService,
+};
 use crate::runtime_bridge::{BridgeEvent, RuntimeBridge};
 use crate::terminal::{TerminalLink, TerminalSession};
 use crate::workspace_git::{GitDiffResult, GitSnapshot};
@@ -560,6 +567,14 @@ pub struct AleraApp {
     git_diff_errors: BTreeMap<String, SharedString>,
     git_diff_image_sides: BTreeMap<(String, String), git_diff_surface::GitDiffImageSides>,
     git_diff_image_loading: BTreeSet<(String, String)>,
+    reading_diff_service: ReadingDiffService,
+    reading_diff_confirmation: Option<ReadingDiffRequest>,
+    reading_diff_busy_key: Option<String>,
+    reading_diff_progress: Option<ReadingDiffProgress>,
+    reading_diff_results: BTreeMap<String, ReadingDiffResult>,
+    reading_diff_errors: BTreeMap<String, SharedString>,
+    reading_diff_show_original: BTreeSet<String>,
+    reading_diff_cancel: Option<Arc<AtomicBool>>,
     git_history_expanded: bool,
     git_history_loaded_once: bool,
     git_history_height: f32,

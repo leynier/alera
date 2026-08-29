@@ -617,6 +617,7 @@ fn ai_text_pane(
         ("commitMessage", "Commit Messages"),
         ("pullRequestDetails", "Pull Request Details"),
         ("workspaceIdentity", "Workspace Identity"),
+        ("readingDiff", "Reading Diffs"),
     ]
     .into_iter()
     .enumerate()

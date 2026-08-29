@@ -11,6 +11,8 @@ mod forge_service;
 mod icons;
 mod markdown_images;
 mod material_icon_layers;
+mod reading_diff_agent;
+mod reading_diff_service;
 pub use alera_desktop_core::model;
 pub use alera_desktop_core::runtime_bridge;
 mod terminal;

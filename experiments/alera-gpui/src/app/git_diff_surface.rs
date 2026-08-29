@@ -75,7 +75,13 @@ impl AleraApp {
             })
             .and_then(|()| open_path.clone());
         let can_open_file = openable_path.is_some();
+        let show_reading_diff = self.reading_diff_visible(&tab.id);
+        let has_reading_diff = self.reading_diff_results.contains_key(&tab.id)
+            || self.reading_diff_errors.contains_key(&tab.id);
+        let reading_key = tab.id.clone();
+        let reading_tab = tab.clone();
         div()
+            .relative()
             .flex()
             .flex_col()
             .flex_1()
@@ -92,6 +98,61 @@ impl AleraApp {
                     .gap_2()
                     .border_b_1()
                     .border_color(theme::border_subtle())
+                    .child(
+                        div()
+                            .id("git-diff-read-ai")
+                            .flex()
+                            .items_center()
+                            .justify_center()
+                            .w(px(28.0))
+                            .h(px(28.0))
+                            .rounded_md()
+                            .cursor(if loading || !loaded || self.git_diff.files.is_empty() {
+                                CursorStyle::Arrow
+                            } else {
+                                CursorStyle::PointingHand
+                            })
+                            .when(!loading && loaded && !self.git_diff.files.is_empty(), |button| {
+                                button
+                                    .hover(|style| style.bg(theme::surface_raised()))
+                                    .on_mouse_down(
+                                        gpui::MouseButton::Left,
+                                        cx.listener(move |this, _, _, cx| {
+                                            this.request_git_reading_diff(&reading_tab, false, cx);
+                                        }),
+                                    )
+                            })
+                            .child(icon(AleraIcon::Ai, 16.0, theme::text_muted())),
+                    )
+                    .when(has_reading_diff, |header| {
+                        header.child(
+                            div()
+                                .id("git-diff-toggle-reading")
+                                .flex()
+                                .items_center()
+                                .justify_center()
+                                .w(px(28.0))
+                                .h(px(28.0))
+                                .rounded_md()
+                                .cursor(CursorStyle::PointingHand)
+                                .hover(|style| style.bg(theme::surface_raised()))
+                                .on_mouse_down(
+                                    gpui::MouseButton::Left,
+                                    cx.listener(move |this, _, _, cx| {
+                                        this.toggle_reading_diff_original(reading_key.clone(), cx);
+                                    }),
+                                )
+                                .child(icon(
+                                    if show_reading_diff {
+                                        AleraIcon::Diff
+                                    } else {
+                                        AleraIcon::Ai
+                                    },
+                                    16.0,
+                                    theme::text_muted(),
+                                )),
+                        )
+                    })
                     .child(
                         div()
                             .w_0()
@@ -181,14 +242,17 @@ impl AleraApp {
                     .flex_1()
                     .min_h_0()
                     .overflow_y_scroll()
-                    .when(loading && !loaded, |content| {
+                    .when(show_reading_diff, |content| {
+                        content.child(self.render_reading_diff_content(&tab.id, cx))
+                    })
+                    .when(!show_reading_diff && loading && !loaded, |content| {
                         content
                             .items_center()
                             .justify_center()
                             .text_color(theme::text_muted())
                             .child(loading_indicator(20.0, theme::text_muted()))
                     })
-                    .when(!loading && error.is_some(), |content| {
+                    .when(!show_reading_diff && !loading && error.is_some(), |content| {
                         content
                             .items_center()
                             .justify_center()
@@ -197,7 +261,11 @@ impl AleraApp {
                             .child("Could not load diff.")
                     })
                     .when(
-                        !loading && error.is_none() && loaded && self.git_diff.files.is_empty(),
+                        !show_reading_diff
+                            && !loading
+                            && error.is_none()
+                            && loaded
+                            && self.git_diff.files.is_empty(),
                         |content| {
                             content
                                 .items_center()
@@ -208,7 +276,11 @@ impl AleraApp {
                         },
                     )
                     .when(
-                        !loading && error.is_none() && loaded && !self.git_diff.files.is_empty(),
+                        !show_reading_diff
+                            && !loading
+                            && error.is_none()
+                            && loaded
+                            && !self.git_diff.files.is_empty(),
                         |content| {
                             content
                                 .when(self.git_diff.truncated, |content| {
@@ -222,6 +294,7 @@ impl AleraApp {
                         },
                     ),
             )
+            .child(self.render_reading_diff_confirmation(&tab.id, cx))
             .into_any_element()
     }
 }

@@ -249,7 +249,12 @@ impl AleraApp {
                 settings_select(window, cx, &["Auto", "npx", "bunx"], "Auto", false),
             );
         }
-        for operation in ["commitMessage", "pullRequestDetails", "workspaceIdentity"] {
+        for operation in [
+            "commitMessage",
+            "pullRequestDetails",
+            "workspaceIdentity",
+            "readingDiff",
+        ] {
             let prompt = settings_state
                 .ai_text_prompt_settings_by_operation
                 .get(operation);
@@ -1449,6 +1454,14 @@ impl AleraApp {
             git_diff_errors: BTreeMap::new(),
             git_diff_image_sides: BTreeMap::new(),
             git_diff_image_loading: BTreeSet::new(),
+            reading_diff_service: ReadingDiffService::start(),
+            reading_diff_confirmation: None,
+            reading_diff_busy_key: None,
+            reading_diff_progress: None,
+            reading_diff_results: BTreeMap::new(),
+            reading_diff_errors: BTreeMap::new(),
+            reading_diff_show_original: BTreeSet::new(),
+            reading_diff_cancel: None,
             git_history_expanded: false,
             git_history_loaded_once: false,
             git_history_height: 256.0,

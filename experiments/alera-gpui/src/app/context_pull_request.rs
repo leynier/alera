@@ -80,6 +80,16 @@ impl AleraApp {
             return self.render_pull_request_composer(cx);
         };
         let review_number = review.number;
+        let reading_workspace_id = self.selected_workspace_id.clone().unwrap_or_default();
+        let reading_key = super::reading_diff_pull_request::reading_diff_review_key(
+            &reading_workspace_id,
+            review_number,
+        );
+        let has_reading_diff = self.reading_diff_results.contains_key(&reading_key)
+            || self.reading_diff_errors.contains_key(&reading_key);
+        let reading_diff_visible = self.reading_diff_visible(&reading_key);
+        let reading_request_number = review_number;
+        let reading_toggle_key = reading_key.clone();
         let review_url = review.url.clone();
         let state_label = if review.draft {
             "Draft"
@@ -166,6 +176,48 @@ impl AleraApp {
                         )
                     })
                     .child(
+                        pr_icon_button("context-pr-read-ai", AleraIcon::Ai)
+                            .aria_label("Read Diff With AI")
+                            .tooltip(|_, cx| {
+                                cx.new(|_| Tooltip::new("Read Diff With AI")).into()
+                            })
+                            .when(
+                                self.reading_diff_busy_key.as_deref() != Some(&reading_key),
+                                |button| {
+                                    button.on_click(cx.listener(move |this, _, _, cx| {
+                                        this.request_pull_request_reading_diff(
+                                            reading_request_number,
+                                            false,
+                                            cx,
+                                        );
+                                    }))
+                                },
+                            ),
+                    )
+                    .when(has_reading_diff, |header| {
+                        header.child(
+                            pr_icon_button(
+                                "context-pr-toggle-reading",
+                                if reading_diff_visible {
+                                    AleraIcon::Diff
+                                } else {
+                                    AleraIcon::Ai
+                                },
+                            )
+                            .aria_label(if reading_diff_visible {
+                                "Show Pull Request Details"
+                            } else {
+                                "Show AI Reading Diff"
+                            })
+                            .on_click(cx.listener(move |this, _, _, cx| {
+                                this.toggle_reading_diff_original(
+                                    reading_toggle_key.clone(),
+                                    cx,
+                                );
+                            })),
+                        )
+                    })
+                    .child(
                         pr_icon_button("context-pr-browser", AleraIcon::External)
                             .aria_label("Open In Browser")
                             .tooltip(|_, cx| cx.new(|_| Tooltip::new("Open In Browser")).into())
@@ -200,11 +252,17 @@ impl AleraApp {
                             ),
                         )
                     })
+                    .child(self.render_pull_request_reading_diff(
+                        &reading_workspace_id,
+                        review_number,
+                        cx,
+                    ))
                     .child(self.render_pull_request_stack_section(cx))
                     .child(self.render_pull_request_checks(cx))
                     .child(self.render_pull_request_comments(window, cx)),
             )
             .child(self.render_pull_request_action_button(review_number, cx))
+            .child(self.render_reading_diff_confirmation(&reading_key, cx))
             .into_any_element()
     }
 
