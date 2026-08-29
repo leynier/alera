@@ -1260,16 +1260,6 @@ impl AleraApp {
                 },
                 cx,
             ))
-            .when(!self.codex_collaboration_modes.is_empty(), |header| {
-                header.child(self.codex_choice_button(
-                    tab_id,
-                    "collaboration",
-                    self.codex_collaboration_mode
-                        .clone()
-                        .unwrap_or_else(|| "Collaboration".to_owned()),
-                    cx,
-                ))
-            })
             .child(self.codex_choice_button(tab_id, "permission", format!("Permission: {}", self.codex_permission_mode), cx))
             .child(
                 design_system::button("codex-plan-mode", "Plan", ButtonKind::Text, false)
@@ -1363,6 +1353,21 @@ impl AleraApp {
                     ["normal", "fast"].into_iter().map(|value| {
                         (format!("speed:{value}"), format!("Speed: {value}"))
                     }),
+                );
+                values.extend(
+                    self.codex_collaboration_modes
+                        .iter()
+                        .filter_map(|item| {
+                            let mode = item
+                                .get("mode")
+                                .or_else(|| item.get("id"))
+                                .and_then(Value::as_str)?;
+                            let normalized = mode.to_ascii_lowercase();
+                            if normalized == "default" || normalized == "plan" {
+                                return None;
+                            }
+                            Some((format!("mode:{mode}"), format!("Mode: {mode}")))
+                        }),
                 );
                 values
             }
@@ -1485,6 +1490,9 @@ impl AleraApp {
                     self.codex_reasoning_effort = effort.to_owned();
                 } else if let Some(speed) = value.strip_prefix("speed:") {
                     self.codex_speed_mode = speed.to_owned();
+                } else if let Some(mode) = value.strip_prefix("mode:") {
+                    self.codex_collaboration_mode = Some(mode.to_owned());
+                    self.codex_plan_mode = false;
                 }
             }
             "model" => self.codex_selected_model = Some(value.to_owned()),
