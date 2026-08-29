@@ -118,6 +118,21 @@ impl AleraApp {
         self.terminal_frame_views.remove(&session_id);
         self.terminal_output_dirty_sessions.remove(&session_id);
         self.terminal_surface_bounds.remove(&session_id);
+        self.terminal_toolbar_viewport_bounds.remove(&session_id);
+        if self
+            .terminal_toolbar_drag
+            .as_ref()
+            .is_some_and(|drag| drag.session_id() == session_id)
+        {
+            self.terminal_toolbar_drag = None;
+        }
+        if self
+            .terminal_toolbar_menu
+            .as_ref()
+            .is_some_and(|menu| menu.session_id() == session_id)
+        {
+            self.terminal_toolbar_menu = None;
+        }
         self.terminal_resize_pending.remove(&session_id);
         self.terminal_resize_generation.remove(&session_id);
         self.terminal_scrollbar_last_activity.remove(&session_id);

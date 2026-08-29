@@ -82,6 +82,9 @@ impl AleraApp {
                 self.settings_selects
                     .get("terminal-font")
                     .expect("terminal font select should exist"),
+                self.settings_selects
+                    .get("terminal-toolbar-corner")
+                    .expect("terminal toolbar corner select should exist"),
                 &self.terminal_theme_search_input,
                 &self.settings_group_anchors,
                 cx,

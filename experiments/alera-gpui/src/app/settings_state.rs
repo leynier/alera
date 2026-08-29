@@ -194,6 +194,7 @@ pub(super) struct SettingsState {
     pub terminal_clipboard_on_select: bool,
     pub terminal_allow_osc52_clipboard: bool,
     pub terminal_show_composer_by_default: bool,
+    pub terminal_toolbar_corner: String,
     pub terminal_host_scrollback_bytes: i64,
     pub terminal_buffer_budget_megabytes: i64,
     pub terminal_login_shell: bool,
@@ -329,6 +330,7 @@ impl Default for SettingsState {
             terminal_clipboard_on_select: false,
             terminal_allow_osc52_clipboard: false,
             terminal_show_composer_by_default: false,
+            terminal_toolbar_corner: "topRight".to_owned(),
             terminal_host_scrollback_bytes: 10_000_000,
             terminal_buffer_budget_megabytes: 256,
             terminal_login_shell: cfg!(target_os = "macos"),
@@ -601,6 +603,11 @@ impl SettingsState {
             {
                 self.terminal_show_composer_by_default = enabled;
             }
+            if let Some(corner) = terminal.get("toolbarCorner").and_then(Value::as_str) {
+                if matches!(corner, "topLeft" | "topRight" | "bottomLeft" | "bottomRight") {
+                    self.terminal_toolbar_corner = corner.to_owned();
+                }
+            }
             apply_i64(
                 terminal.get("hostEmptyShutdownDelaySeconds"),
                 &mut self.host_empty_shutdown_delay_seconds,
@@ -722,6 +729,7 @@ impl SettingsState {
                 "clipboardOnSelect": self.terminal_clipboard_on_select,
                 "allowOsc52Clipboard": self.terminal_allow_osc52_clipboard,
                 "showComposerByDefault": self.terminal_show_composer_by_default,
+                "toolbarCorner": self.terminal_toolbar_corner,
                 "hostEmptyShutdownDelaySeconds": self.host_empty_shutdown_delay_seconds,
                 "hostDetachedSessionShutdownDelaySeconds":
                     self.host_detached_shutdown_delay_seconds,
@@ -1115,6 +1123,7 @@ mod tests {
                 "tuiScrollSensitivity": 2,
                 "clipboardOnSelect": true,
                 "allowOsc52Clipboard": true,
+                "toolbarCorner": "bottomLeft",
                 "hostEmptyShutdownDelaySeconds": 45,
                 "hostDetachedSessionShutdownDelaySeconds": 7200,
                 "hostScrollbackBytes": 2000000,
@@ -1139,6 +1148,7 @@ mod tests {
         assert_eq!(state.terminal_font_size, 15.0);
         assert_eq!(state.terminal_cursor_shape, "bar");
         assert!(state.terminal_cursor_blink);
+        assert_eq!(state.terminal_toolbar_corner, "bottomLeft");
         assert_eq!(state.terminal_word_separators.as_deref(), Some(" /"));
         assert_eq!(
             state.terminal_color_overrides.get("cursor"),
@@ -1180,6 +1190,10 @@ mod tests {
             Some(&json!("bar"))
         );
         assert_eq!(payload.pointer("/terminal/cursorBlink"), Some(&json!(true)));
+        assert_eq!(
+            payload.pointer("/terminal/toolbarCorner"),
+            Some(&json!("topRight"))
+        );
         assert_eq!(
             payload.pointer("/diagnostics/logLevel"),
             Some(&json!("warning"))

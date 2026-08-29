@@ -178,31 +178,6 @@ impl AleraApp {
         cx.notify();
     }
 
-    pub(super) fn render_terminal_pulse_button(
-        &self,
-        session_id: &str,
-        cx: &mut Context<Self>,
-    ) -> AnyElement {
-        let session_id = session_id.to_owned();
-        design_system::icon_button(
-            SharedString::from(format!("terminal-pulse-{session_id}")),
-            "Configure Terminal Pulse",
-            AleraIcon::Activity,
-            true,
-            28.0,
-            Some(theme::surface_raised()),
-            Some(theme::border_subtle()),
-        )
-        .absolute()
-        .top(px(4.0))
-        .right(px(68.0))
-        .on_click(cx.listener(move |this, _, window, cx| {
-            this.open_terminal_pulse_dialog(session_id.clone(), window, cx);
-            cx.stop_propagation();
-        }))
-        .into_any_element()
-    }
-
     pub(super) fn render_terminal_pulse_dialog(&self, cx: &mut Context<Self>) -> AnyElement {
         let Some(session_id) = self.terminal_pulse_dialog_session.as_deref() else {
             return div().into_any_element();

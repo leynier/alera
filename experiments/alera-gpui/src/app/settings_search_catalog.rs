@@ -83,6 +83,7 @@ const TERMINAL: &[&str] = &[
     "Background Opacity transparent alpha",
     "Horizontal Padding inset space",
     "Vertical Padding inset space",
+    "Toolbar Corner buttons overlay position corner move",
     "Color Overrides foreground background selection cursor",
     "TUI Scroll Speed mouse wheel opencode amp claude",
     "Copy On Select clipboard selection mouse",

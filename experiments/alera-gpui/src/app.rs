@@ -116,6 +116,8 @@ mod tab_strip;
 mod terminal_composer;
 mod terminal_input;
 mod terminal_surface;
+mod terminal_toolbar;
+mod terminal_toolbar_menu;
 mod terminal_pulse;
 mod text_actions_execution;
 mod text_actions_settings;
@@ -289,6 +291,9 @@ pub struct AleraApp {
     terminal_driver_reclaiming: BTreeSet<String>,
     terminal_character_width: f32,
     terminal_surface_bounds: BTreeMap<String, Bounds<Pixels>>,
+    terminal_toolbar_viewport_bounds: BTreeMap<String, Bounds<Pixels>>,
+    terminal_toolbar_drag: Option<terminal_toolbar::TerminalToolbarDrag>,
+    terminal_toolbar_menu: Option<terminal_toolbar::TerminalToolbarMenu>,
     terminal_resize_pending: BTreeMap<String, (usize, usize)>,
     terminal_resize_generation: BTreeMap<String, u64>,
     terminal_output_frame_scheduled: bool,

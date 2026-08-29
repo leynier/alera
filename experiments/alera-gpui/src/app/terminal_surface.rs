@@ -621,11 +621,25 @@ impl AleraApp {
         } else {
             format!("{} of {}", search.selected_index + 1, search.matches.len())
         };
+        let toolbar_corner = self.settings_state.terminal_toolbar_corner.as_str();
+        let toolbar_button_count = 3
+            + usize::from(self.terminal_pulse_supported())
+            + usize::from(!self.agent_canvas_values.is_empty());
+        let toolbar_inset = 48.0 * toolbar_button_count as f32 + 4.0;
         div()
             .id("terminal-search-overlay")
             .absolute()
             .top(px(12.0))
-            .right(px(18.0))
+            .when(toolbar_corner == "topLeft", |overlay| {
+                overlay.left(px(toolbar_inset))
+            })
+            .when(toolbar_corner == "topRight", |overlay| {
+                overlay.right(px(toolbar_inset))
+            })
+            .when(
+                matches!(toolbar_corner, "bottomLeft" | "bottomRight"),
+                |overlay| overlay.right(px(18.0)),
+            )
             .w(px(360.0))
             .p_2()
             .rounded_lg()
@@ -1175,7 +1189,7 @@ impl AleraApp {
         .detach();
     }
 
-    fn refresh_terminal_viewport(&self, session_id: String, cx: &mut Context<Self>) {
+    pub(super) fn refresh_terminal_viewport(&self, session_id: String, cx: &mut Context<Self>) {
         let Some(session) = self.terminal_sessions.get(&session_id) else {
             return;
         };
@@ -1218,6 +1232,15 @@ impl AleraApp {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
+        if event.keystroke.key.eq_ignore_ascii_case("escape") {
+            let toolbar_dragged = self.terminal_toolbar_drag.take().is_some();
+            let toolbar_menu_closed = self.terminal_toolbar_menu.take().is_some();
+            if toolbar_dragged || toolbar_menu_closed {
+                cx.notify();
+                cx.stop_propagation();
+                return;
+            }
+        }
         if let Some(definition) = self.keyboard_shortcut_for_keystroke(&event.keystroke) {
             let terminal_first = self.settings_state.keyboard_terminal_policy == "terminalFirst";
             if !terminal_first || definition.allow_in_terminal {
@@ -1739,15 +1762,11 @@ impl AleraApp {
         let restart_confirmation = (self.terminal_restart_confirmation.as_deref()
             == Some(owned_session_id.as_str()))
         .then(|| self.render_terminal_restart_confirmation(&owned_session_id, cx));
-        let refresh_button = session_id
+        let toolbar = session_id
             .is_some()
-            .then(|| self.render_terminal_refresh_button(&owned_session_id, cx));
-        let composer_toggle = session_id
-            .filter(|_| active)
-            .map(|_| self.render_terminal_composer_toggle(&owned_session_id, cx));
-        let pulse_button = session_id
-            .filter(|_| active && self.terminal_pulse_supported())
-            .map(|_| self.render_terminal_pulse_button(&owned_session_id, cx));
+            .then(|| self.render_terminal_toolbar(&owned_session_id, cx));
+        let toolbar_menu = session_id
+            .and_then(|_| self.render_terminal_toolbar_menu(&owned_session_id, cx));
         let mobile_driver_overlay = self.render_mobile_driver_overlay(&owned_session_id, cx);
         let search_overlay = session_id
             .as_deref()
@@ -1757,6 +1776,8 @@ impl AleraApp {
             && self.terminal_composer_visible.contains(&owned_session_id)
             && self.terminal_composer_inputs.contains_key(&owned_session_id);
         let terminal_font_family = self.settings_state.terminal_font_family.clone();
+        let toolbar_bounds_session_id = owned_session_id.clone();
+        let toolbar_bounds_app = cx.entity();
         div()
             .id(SharedString::from(format!(
                 "terminal-surface-{}",
@@ -1798,6 +1819,9 @@ impl AleraApp {
             .on_mouse_down(
                 MouseButton::Left,
                 cx.listener(move |this, event: &MouseDownEvent, window, cx| {
+                    if this.terminal_toolbar_menu.take().is_some() {
+                        cx.notify();
+                    }
                     if this.terminal_composer_menu_open.take().is_some() {
                         cx.notify();
                     }
@@ -1814,19 +1838,22 @@ impl AleraApp {
                 }),
             )
             .on_mouse_move(cx.listener(move |this, event: &MouseMoveEvent, _, cx| {
+                this.update_terminal_toolbar_drag(event.position, cx);
                 this.update_terminal_link_hover(&link_session_id, event, cx);
                 this.update_terminal_selection(&move_session_id, event, cx);
             }))
             .on_mouse_up(
                 MouseButton::Left,
-                cx.listener(move |this, event: &MouseUpEvent, _, cx| {
+                cx.listener(move |this, event: &MouseUpEvent, window, cx| {
                     this.finish_terminal_selection(&finish_session_id, event, cx);
+                    this.finish_terminal_toolbar_drag(window, cx);
                 }),
             )
             .on_mouse_up_out(
                 MouseButton::Left,
-                cx.listener(move |this, event: &MouseUpEvent, _, cx| {
+                cx.listener(move |this, event: &MouseUpEvent, window, cx| {
                     this.finish_terminal_selection(&finish_out_session_id, event, cx);
+                    this.finish_terminal_toolbar_drag(window, cx);
                 }),
             )
             .on_drop(cx.listener(move |this, paths: &ExternalPaths, window, cx| {
@@ -1881,6 +1908,7 @@ impl AleraApp {
             )
             .child(
                 div()
+                    .relative()
                     .flex_1()
                     .overflow_hidden()
                     .track_focus(&self.terminal_focus)
@@ -1892,12 +1920,25 @@ impl AleraApp {
                                 this.handle_terminal_scroll(&scroll_session_id, event, window, cx);
                             }))
                     })
-                    .child(body),
+                    .child(body)
+                    .when_some(toolbar, |viewport, toolbar| viewport.child(toolbar))
+                    .when_some(toolbar_menu, |viewport, menu| viewport.child(menu))
+                    .when_some(search_overlay, |viewport, overlay| viewport.child(overlay))
+                    .child(
+                        canvas(
+                            move |bounds, _, cx| {
+                                let _ = toolbar_bounds_app.update(cx, |this, _| {
+                                    this.terminal_toolbar_viewport_bounds
+                                        .insert(toolbar_bounds_session_id.clone(), bounds);
+                                });
+                            },
+                            |_, _, _, _| {},
+                        )
+                        .absolute()
+                        .inset_0(),
+                    ),
             )
             .when_some(scrollbar, |surface, scrollbar| surface.child(scrollbar))
-            .when_some(refresh_button, |surface, button| surface.child(button))
-            .when_some(composer_toggle, |surface, button| surface.child(button))
-            .when_some(pulse_button, |surface, button| surface.child(button))
             .when_some(recovery, |surface, recovery| surface.child(recovery))
             .when_some(operation, |surface, operation| surface.child(operation))
             .when_some(restore_progress, |surface, (written, total)| {
@@ -1906,7 +1947,6 @@ impl AleraApp {
             .when_some(restart_confirmation, |surface, confirmation| {
                 surface.child(confirmation)
             })
-            .when_some(search_overlay, |surface, overlay| surface.child(overlay))
             .when(composer_visible, |surface| {
                 surface.child(self.render_terminal_composer(&owned_session_id, cx))
             })
@@ -1945,65 +1985,6 @@ impl AleraApp {
                 surface.child(overlay)
             })
             .into_any_element()
-    }
-
-    fn render_terminal_refresh_button(
-        &self,
-        session_id: &str,
-        cx: &mut Context<Self>,
-    ) -> AnyElement {
-        let session_id = session_id.to_owned();
-        design_system::icon_button(
-            SharedString::from(format!("terminal-refresh-{session_id}")),
-            "Refresh Terminal",
-            AleraIcon::Refresh,
-            true,
-            28.0,
-            Some(theme::surface_raised()),
-            Some(theme::border_subtle()),
-        )
-        .absolute()
-        .top(gpui::px(4.0))
-        .right(gpui::px(4.0))
-        .on_click(cx.listener(move |this, _, _, cx| {
-            this.refresh_terminal_viewport(session_id.clone(), cx);
-            cx.stop_propagation();
-        }))
-        .into_any_element()
-    }
-
-    fn render_terminal_composer_toggle(
-        &self,
-        session_id: &str,
-        cx: &mut Context<Self>,
-    ) -> AnyElement {
-        let visible = self.terminal_composer_visible.contains(session_id);
-        let session_id = session_id.to_owned();
-        design_system::icon_button(
-            SharedString::from(format!("terminal-composer-toggle-{session_id}")),
-            if visible {
-                "Hide Terminal Composer"
-            } else {
-                "Show Terminal Composer"
-            },
-            AleraIcon::Composer,
-            true,
-            28.0,
-            Some(if visible {
-                theme::accent_subtle()
-            } else {
-                theme::surface_raised()
-            }),
-            Some(theme::border_subtle()),
-        )
-        .absolute()
-        .top(px(4.0))
-        .right(px(36.0))
-        .on_click(cx.listener(move |this, _, window, cx| {
-            this.toggle_terminal_composer(session_id.clone(), window, cx);
-            cx.stop_propagation();
-        }))
-        .into_any_element()
     }
 
     fn render_terminal_operation_state(

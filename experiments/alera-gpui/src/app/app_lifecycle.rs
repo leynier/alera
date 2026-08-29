@@ -270,6 +270,8 @@ impl AleraApp {
         let explorer_pointer_dragged = std::mem::take(&mut self.explorer_pointer_dragged);
         let explorer_pointer_double_clicked =
             std::mem::take(&mut self.explorer_pointer_double_clicked);
+        let terminal_toolbar_dragged = self.terminal_toolbar_drag.take().is_some();
+        let terminal_toolbar_menu_closed = self.terminal_toolbar_menu.take().is_some();
         let changed = self.tab_pointer_drag.take().is_some()
             || self.tab_drop_target.take().is_some()
             || self.pane_drop_target.take().is_some()
@@ -279,6 +281,8 @@ impl AleraApp {
             || self.explorer_pointer_down.take().is_some()
             || explorer_pointer_dragged
             || explorer_pointer_double_clicked
+            || terminal_toolbar_dragged
+            || terminal_toolbar_menu_closed
             || self.preview_drag.take().is_some()
             || self.terminal_selection_drag.take().is_some()
             || self.terminal_scrollbar_drag.take().is_some();

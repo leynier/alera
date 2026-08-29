@@ -2,6 +2,7 @@ fn terminal_pane(
     settings: &SettingsState,
     inputs: &SettingsInputs,
     font_select: &SettingsSelect,
+    toolbar_corner_select: &SettingsSelect,
     theme_search_input: &Entity<InputState>,
     anchors: &SettingsGroupAnchors,
     cx: &mut Context<AleraApp>,
@@ -171,6 +172,16 @@ fn terminal_pane(
                         0.0,
                         64.0,
                         cx,
+                    ),
+                ),
+                exact_settings_row(
+                    "Toolbar Corner",
+                    "Where the pulse, composer, and refresh buttons sit on the terminal tab.",
+                    settings_select_control(
+                        "Toolbar Corner",
+                        toolbar_corner_select,
+                        false,
+                        false,
                     ),
                 ),
                 terminal_color_row(

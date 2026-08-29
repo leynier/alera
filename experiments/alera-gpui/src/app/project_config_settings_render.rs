@@ -372,7 +372,7 @@ impl AleraApp {
         );
         project_config_group(
             "Copy Rules",
-            "Files And Directories Copied From The Main Worktree.",
+            "Files copied from the main worktree. Gitignored matches from .worktreeinclude are copied too.",
             rows,
         )
     }

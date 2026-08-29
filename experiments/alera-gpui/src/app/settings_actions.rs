@@ -473,6 +473,20 @@ impl AleraApp {
             "terminal-font" => {
                 self.update_terminal_settings(|settings| settings.terminal_font_family = value, cx);
             }
+            "terminal-toolbar-corner" => {
+                let corner = match value.as_str() {
+                    "Top Left" => "topLeft",
+                    "Top Right" => "topRight",
+                    "Bottom Left" => "bottomLeft",
+                    "Bottom Right" => "bottomRight",
+                    _ => return,
+                }
+                .to_owned();
+                self.update_terminal_settings(
+                    |settings| settings.terminal_toolbar_corner = corner,
+                    cx,
+                );
+            }
             _ => {}
         }
     }

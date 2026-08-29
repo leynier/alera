@@ -231,6 +231,21 @@ impl AleraApp {
                     true,
                 ),
             ),
+            (
+                "terminal-toolbar-corner",
+                settings_select(
+                    window,
+                    cx,
+                    &["Top Left", "Top Right", "Bottom Left", "Bottom Right"],
+                    match settings_state.terminal_toolbar_corner.as_str() {
+                        "topLeft" => "Top Left",
+                        "bottomLeft" => "Bottom Left",
+                        "bottomRight" => "Bottom Right",
+                        _ => "Top Right",
+                    },
+                    false,
+                ),
+            ),
         ]
         .into_iter()
         .map(|(key, state)| (key.to_string(), state))
@@ -1173,6 +1188,9 @@ impl AleraApp {
             terminal_driver_reclaiming: BTreeSet::new(),
             terminal_character_width: 7.8,
             terminal_surface_bounds: BTreeMap::new(),
+            terminal_toolbar_viewport_bounds: BTreeMap::new(),
+            terminal_toolbar_drag: None,
+            terminal_toolbar_menu: None,
             terminal_resize_pending: BTreeMap::new(),
             terminal_resize_generation: BTreeMap::new(),
             terminal_output_frame_scheduled: false,

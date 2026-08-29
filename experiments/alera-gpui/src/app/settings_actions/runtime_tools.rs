@@ -246,14 +246,14 @@ fn agent_skill_install_command(skill: &str, runner: &str) -> String {
     let skill = match skill {
         "cli" => "alera-cli",
         "orchestration" => "alera-orchestration",
-        "computer-use" => "computer-use",
+        "computer-use" => "alera-computer-use",
         "emulator" => "alera-emulator",
-        "agent-canvas" => "agent-canvas",
+        "agent-canvas" => "alera-agent-canvas",
         _ => skill,
     };
     let command = |runner: &str| {
         format!(
-            "{runner} skills add https://github.com/leynier/alera --skill {skill} --global --yes"
+            "{runner} skills add https://github.com/leynier/alera --skill {skill} --agent codex --global --yes"
         )
     };
     match runner {
@@ -274,4 +274,17 @@ fn agent_all_skills_install_command(runner: &str) -> String {
         .map(|skill| agent_skill_install_command(skill, runner))
         .collect::<Vec<_>>()
         .join("; ")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::agent_skill_install_command;
+
+    #[test]
+    fn renamed_skills_use_repository_package_names() {
+        assert!(agent_skill_install_command("computer-use", "npx")
+            .contains("--skill alera-computer-use --agent codex"));
+        assert!(agent_skill_install_command("agent-canvas", "bunx")
+            .contains("--skill alera-agent-canvas --agent codex"));
+    }
 }
