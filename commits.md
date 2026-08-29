@@ -210,7 +210,7 @@ commit so this file remains useful after context compaction.
 | 189 | `cc4986beb663073045be52a9ce52ccf3809b0439` | 2026-08-10 | fix: link native macOS dependencies for the Rust framework | merged | Cherry-picked the macOS native framework dependency fix; no GPUI UI surface is affected. |
 | 190 | `0db518fbfcb751c8abb7dedb71459c9584676a68` | 2026-08-10 | fix: make release asset uploads resilient | merged | Cherry-picked release asset upload retry/verification changes; no GPUI UI surface is affected. |
 | 191 | `e92fd010bfff26ce74f34c298c4736d1e91dd290` | 2026-08-11 | release: v0.57.0 | merged | Cherry-picked Flutter release metadata; no GPUI UI surface is affected. |
-| 192 | `acc4d772ba03b0f27ced65cc3c4180e8129582e0` | 2026-08-11 | fix: make windows development portable (#390) | in progress | Cherry-picking Windows development portability metadata; no GPUI UI surface is affected. |
+| 192 | `acc4d772ba03b0f27ced65cc3c4180e8129582e0` | 2026-08-11 | fix: make windows development portable (#390) | merged | Cherry-picked the cross-platform Windows PTY/process and development tooling changes, preserving the GPUI runtime's workspace cwd at the PTY boundary; no additional GPUI visual surface was needed. |
 | 193 | `464d9cca9142a952e074d7f70f63b34a6072828b` | 2026-08-11 | fix: publish desktop packages without mobile release | pending | - |
 | 194 | `182eca088f548de8fff680bfb06e1db21b9053db` | 2026-08-11 | fix: stabilize codex tab timeline and activity (#391) | pending | - |
 | 195 | `bb8df29f619a677786ac939bdc758e28a6082a23` | 2026-08-11 | release: v0.57.1 v0.22.1-mobile | pending | - |
