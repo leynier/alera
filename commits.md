@@ -151,7 +151,7 @@ commit so this file remains useful after context compaction.
 | 130 | `ae5d478cfe697462009d4a2a3529274a3d9e9f08` | 2026-08-09 | perf: add codex timeline benchmark | merged | Cherry-picked the non-gating Codex timeline benchmark and performance documentation; no GPUI code change was expected. |
 | 131 | `f553eb5b940427a1fb2395c8da1d0f5c6743d106` | 2026-08-09 | chore: reconcile codex integration | merged | Cherry-picked generated Codex/Riverpod hashes and build-runner instruction reconciliation; no separate GPUI code change was expected. |
 | 132 | `f24b4186fa73059ef4f2d4c0e4a97e5c7867f973` | 2026-08-09 | fix: defer codex thread deletion | merged | Cherry-picked deferred Codex thread deletion after runtime mutation commit; no GPUI surface change was expected. |
-| 133 | `8a766dfad6d287ed07fd024ee066274ee5509d5a` | 2026-08-09 | fix: harden codex cleanup and file access | pending | - |
+| 133 | `8a766dfad6d287ed07fd024ee066274ee5509d5a` | 2026-08-09 | fix: harden codex cleanup and file access | in_progress | Replaying Codex cleanup validation and no-symlink bounded workspace-file reads, plus safe external URI handling; GPUI will consume the hardened shared file service. |
 | 134 | `31051020dd8cdc7ac473bf7cf500f966c623462e` | 2026-08-09 | fix: pin workspace file roots | pending | - |
 | 135 | `2dd6c23285b0dcb7242f922e386d0d828bd455af` | 2026-08-09 | fix: scope quick open symlink policy | pending | - |
 | 136 | `8d3694fc4dff361b7a512a127233a8cb58ea25f3` | 2026-08-09 | fix: restore codex chat identity controls | pending | - |
