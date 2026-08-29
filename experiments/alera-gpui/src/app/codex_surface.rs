@@ -22,6 +22,12 @@ const CODEX_TAB_KIND: &str = "codex";
 
 impl AleraApp {
     pub(super) fn ensure_codex_state(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        // Codex Chat is intentionally disabled in GPUI for now. The runtime
+        // contracts remain present so Flutter/mobile clients can use them, but
+        // this client must not create sessions or attach a Codex surface.
+        let _ = (window, cx);
+        return;
+        #[allow(unreachable_code)]
         let codex_tabs = self
             .snapshot
             .tabs
@@ -345,6 +351,9 @@ impl AleraApp {
     }
 
     pub(super) fn create_codex_tab(&mut self, cx: &mut Context<Self>) {
+        let _ = cx;
+        return;
+        #[allow(unreachable_code)]
         if self.tab_mutation_busy {
             return;
         }
@@ -1685,7 +1694,9 @@ impl AleraApp {
                     ),
             );
         }
-        if has_reasoning && active_codex_turn(snapshot).is_some() {
+        let working = has_reasoning && active_codex_turn(snapshot).is_some();
+        if working {
+            let expanded = !self.codex_working_collapsed;
             content = content.child(
                 div()
                     .id("codex-working-indicator")
@@ -1696,8 +1707,17 @@ impl AleraApp {
                     .py_2()
                     .text_sm()
                     .text_color(theme::text_muted())
+                    .cursor(CursorStyle::PointingHand)
+                    .on_click(cx.listener(|this, _, _, cx| {
+                        this.codex_working_collapsed = !this.codex_working_collapsed;
+                        cx.notify();
+                    }))
                     .child(loading_indicator(14.0, theme::text_muted()))
-                    .child("Working"),
+                    .child(if expanded {
+                        "Working"
+                    } else {
+                        "Working (Collapsed)"
+                    }),
             );
         }
         if !has_cells
@@ -1713,7 +1733,11 @@ impl AleraApp {
                     .child("Ask Codex To Work On This Workspace."),
             );
         }
-        for (index, cell) in visible_cells.into_iter().enumerate() {
+        for (index, cell) in visible_cells
+            .into_iter()
+            .filter(|cell| !(working && self.codex_working_collapsed && is_codex_worked_cell(cell)))
+            .enumerate()
+        {
             let kind = cell.get("kind").and_then(Value::as_str).unwrap_or("event");
             let cell_id = cell
                 .get("id")
@@ -2607,6 +2631,13 @@ fn is_codex_top_notice(cell: &Value) -> bool {
             )
         })
         || cell.get("status").and_then(Value::as_str) == Some("warning")
+}
+
+fn is_codex_worked_cell(cell: &Value) -> bool {
+    matches!(
+        cell.get("kind").and_then(Value::as_str),
+        Some("command" | "toolCall" | "diff" | "subAgent")
+    )
 }
 
 fn snapshot_pending(snapshot: &Value) -> Vec<Value> {

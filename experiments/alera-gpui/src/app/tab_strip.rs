@@ -72,10 +72,13 @@ impl AleraApp {
                     .tab_ids
                     .iter()
                     .filter_map(|tab_id| self.snapshot.tabs.iter().find(|tab| &tab.id == tab_id))
+                    .filter(|tab| tab.kind != "codex")
                     .collect::<Vec<_>>()
             })
             .unwrap_or_default();
-        let active_tab = self.active_tab_for_group(group, &tabs);
+        let active_tab = self
+            .active_tab_for_group(group, &tabs)
+            .filter(|tab| tab.kind != "codex");
         let group_id = group.map(|group| group.id.clone()).unwrap_or_default();
         let tab_bar = self.render_group_tab_bar(&group_id, &tabs, active_tab, cx);
         let active =

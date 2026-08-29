@@ -44,7 +44,7 @@ impl AleraApp {
         } else if selected_tab.is_some_and(|tab| tab.kind == "terminal") {
             self.render_terminal_surface(cx)
         } else if selected_tab.is_some_and(|tab| tab.kind == "codex") {
-            self.render_codex_surface(cx)
+            self.render_codex_unavailable()
         } else {
             div()
                 .flex_1()
@@ -113,7 +113,7 @@ impl AleraApp {
             .px_2()
             .py_1()
             .gap_1()
-            .children(self.snapshot.tabs.iter().enumerate().map(|(index, tab)| {
+            .children(self.snapshot.tabs.iter().filter(|tab| tab.kind != "codex").enumerate().map(|(index, tab)| {
                 let tab_id = tab.id.clone();
                 let close_tab_id = tab.id.clone();
                 let context_tab_id = tab.id.clone();
@@ -261,6 +261,19 @@ impl AleraApp {
             .when(workspace.is_some() && has_tabs, |layout| {
                 layout.child(self.render_context_sidebar(window, cx))
             })
+    }
+}
+
+impl AleraApp {
+    pub(super) fn render_codex_unavailable(&self) -> gpui::AnyElement {
+        div()
+            .flex()
+            .flex_1()
+            .items_center()
+            .justify_center()
+            .text_color(theme::text_muted())
+            .child("Codex Chat Is Not Available In GPUI Yet")
+            .into_any_element()
     }
 }
 

@@ -9,7 +9,7 @@ use gpui_component::tooltip::Tooltip;
 use super::{AleraApp, WorkbenchMenu};
 use crate::model::WorkbenchSplitDirection;
 use crate::{
-    icons::{agent_icon, icon, AgentIcon, AleraIcon},
+    icons::{icon, AleraIcon},
     theme,
 };
 
@@ -173,7 +173,7 @@ impl AleraApp {
 
     fn workbench_menu_enabled_indices(&self) -> Vec<usize> {
         match self.workbench_menu.as_ref() {
-            Some(WorkbenchMenu::NewTab { .. }) => vec![0, 1],
+            Some(WorkbenchMenu::NewTab { .. }) => vec![0],
             Some(WorkbenchMenu::Pane { .. }) => {
                 let mut indices = vec![0, 1, 2, 3];
                 if self
@@ -377,14 +377,13 @@ impl AleraApp {
         cx: &mut Context<Self>,
     ) -> AnyElement {
         let terminal_group_id = group_id.clone();
-        let codex_group_id = group_id.clone();
         menu_shell(
             "new-tab-menu",
             "New Tab",
             position,
             viewport,
             px(220.0),
-            px(104.0),
+            px(68.0),
         )
         .child(
             menu_button(
@@ -403,20 +402,6 @@ impl AleraApp {
                 this.create_terminal_tab(cx);
             })),
         )
-        .child(menu_button(
-            "new-tab-codex",
-            "New Codex Chat",
-            agent_icon(AgentIcon::Codex, 16.0, theme::text_muted()),
-            true,
-            self.workbench_menu_highlighted == 1,
-        ).on_click(cx.listener(move |this, _, window, cx| {
-            cx.stop_propagation();
-            this.dismiss_workbench_menu(window, cx);
-            if let Some(layout) = this.snapshot.layout.as_mut() {
-                layout.active_group_id = codex_group_id.clone();
-            }
-            this.create_codex_tab(cx);
-        })))
         .child(menu_button(
             "new-tab-mobile-emulator",
             "New Mobile Emulator",
