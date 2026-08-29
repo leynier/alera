@@ -1,5 +1,7 @@
 import 'dart:async';
 
+import 'package:alera/src/features/app_window/application/app_window_providers.dart';
+import 'package:alera/src/features/app_window/domain/foreground_parked_refresh.dart';
 import 'package:alera/src/features/workbench/application/terminal_host_settings_config.dart';
 import 'package:alera/src/features/runtime_host/application/runtime_host_lifecycle_service.dart';
 import 'package:alera/src/features/runtime_host/domain/runtime_host_status.dart';
@@ -38,6 +40,7 @@ RuntimeHostLifecycleService runtimeHostLifecycleService(Ref ref) {
 Future<RuntimeHostStatusSnapshot> runtimeHostStatus(Ref ref) async {
   final service = ref.watch(runtimeHostLifecycleServiceProvider);
   final client = ref.watch(runtimeHostClientProvider);
+  final foreground = ref.watch(appForegroundProvider);
   // Keep status in sync after the shell warms the host.
   ref.watch(terminalHostWarmupCoordinatorProvider);
   final sub = client.runtimeEvents.listen((event) {
@@ -45,11 +48,16 @@ Future<RuntimeHostStatusSnapshot> runtimeHostStatus(Ref ref) async {
       ref.invalidateSelf();
     }
   });
-  final timer = Timer.periodic(const Duration(seconds: 15), (_) {
-    ref.invalidateSelf();
-  });
+  // Park the recurring status probe while the window is hidden: each tick is
+  // an RPC nobody can see the result of. Connection events still refresh, and
+  // returning to a visible window refreshes immediately.
+  final poll = ForegroundParkedRefresh(
+    foreground: foreground,
+    interval: const Duration(seconds: 15),
+    refresh: ref.invalidateSelf,
+  );
   ref.onDispose(() {
-    timer.cancel();
+    poll.dispose();
     unawaited(sub.cancel());
   });
   return service.loadStatus();
