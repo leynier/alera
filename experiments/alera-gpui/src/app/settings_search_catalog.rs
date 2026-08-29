@@ -38,7 +38,8 @@ const QUOTAS: &[&str] = &[
     "Provider Quotas usage codex kimi grok antigravity minimax z.ai order pin status bar",
     "Claude Code Quotas usage default CCS accounts",
     "Claude Default Quotas account",
-    "Claude CCS Profiles alias profile pin",
+    "Claude Default In Usage usage visible",
+    "Claude CCS Profiles alias profile pin usage",
     "Kimi API Key Variable environment",
     "Quota Credential Environment Kimi Z.ai MiniMax remote host",
 ];

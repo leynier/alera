@@ -162,6 +162,24 @@ fn quotas_pane(
                                     ),
                                 ),
                         ),
+                        exact_settings_row(
+                            "Claude Default In Usage",
+                            "Include The Default Claude Account In Usage Independently Of Quota Polling.",
+                            settings_switch(
+                                "claude-default-show-in-usage",
+                                "Claude Default In Usage",
+                                settings.claude_default_show_in_usage,
+                            )
+                            .on_click(cx.listener(|this, _, _, cx| {
+                                this.update_quota_settings(
+                                    |settings| {
+                                        settings.claude_default_show_in_usage =
+                                            !settings.claude_default_show_in_usage;
+                                    },
+                                    cx,
+                                );
+                            })),
+                        ),
                         exact_settings_row_width(
                             "Claude CCS Profiles",
                             "Add CCS Alias And Profile Pairs. These Remain Available When Default Claude Is Disabled.",

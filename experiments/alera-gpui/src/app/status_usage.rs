@@ -10,7 +10,6 @@ use serde_json::{json, Value};
 use gpui_component::scroll::ScrollableElement;
 use gpui_component::tooltip::Tooltip;
 
-use super::status_data::QuotaSnapshot;
 use super::status_quota::provider_agent_icon;
 use super::AleraApp;
 use crate::icons::{agent_icon, icon, loading_indicator, AleraIcon};
@@ -281,11 +280,12 @@ impl AleraApp {
         let payload = json!({
             "sinceDay": since.format("%Y-%m-%d").to_string(),
             "untilDay": until.format("%Y-%m-%d").to_string(),
-            "claudeDefaultEnabled": self.settings_state.claude_default_enabled,
+            "claudeDefaultEnabled": self.settings_state.claude_default_show_in_usage,
             "claudeProfiles": self
                 .settings_state
                 .claude_profiles
                 .iter()
+                .filter(|profile| profile.show_in_usage)
                 .map(|profile| {
                     json!({
                         "alias": profile.usage_label(),
@@ -341,24 +341,15 @@ impl AleraApp {
             .agent_usage_snapshot
             .as_ref()
             .map(|value| self.usage_snapshot_for_settings(value));
-        let quotas = self
-            .visible_quota_snapshots()
-            .into_iter()
-            .filter(|snapshot| matches!(snapshot.provider.as_str(), "claude" | "codex"))
-            .filter(|snapshot| {
-                snapshot.provider != "claude"
-                    || (snapshot.account_id == "default"
-                        && self.settings_state.claude_default_enabled)
-                    || self
-                        .settings_state
-                        .claude_profiles
-                        .iter()
-                        .any(|profile| {
-                            profile.profile == snapshot.account_id && profile.show_in_usage
-                        })
-            })
-            .cloned()
-            .collect::<Vec<_>>();
+        let show_grouped_breakdown = (usize::from(
+            self.settings_state.claude_default_show_in_usage,
+        ) + self
+            .settings_state
+            .claude_profiles
+            .iter()
+            .filter(|profile| profile.show_in_usage)
+            .count())
+            > 1;
         let host = self.current_status_host_label();
         div()
             .id("agent-usage-overlay")
@@ -389,7 +380,7 @@ impl AleraApp {
                         dialog.child(div().h(px(2.0)).bg(theme::accent()))
                     })
                     .child(if let Some(snapshot) = snapshot {
-                        self.render_usage_content(snapshot, quotas, cx)
+                        self.render_usage_content(snapshot, show_grouped_breakdown, cx)
                     } else {
                         self.render_usage_unavailable(cx)
                     }),
@@ -406,7 +397,7 @@ impl AleraApp {
             .filter(|profile| profile.show_in_usage)
             .map(|profile| (profile.profile.clone(), profile.usage_label()))
             .collect::<BTreeMap<_, _>>();
-        let default_enabled = self.settings_state.claude_default_enabled;
+        let default_enabled = self.settings_state.claude_default_show_in_usage;
         snapshot.buckets.retain_mut(|bucket| {
             if bucket.provider != "claude" {
                 return true;
@@ -577,7 +568,7 @@ impl AleraApp {
     fn render_usage_content(
         &self,
         snapshot: UsageSnapshotView,
-        quotas: Vec<QuotaSnapshot>,
+        show_grouped_breakdown: bool,
         cx: &mut Context<Self>,
     ) -> AnyElement {
         let (tokens, cached, input, cost, savings, records, unpriced) = snapshot.totals();
@@ -586,8 +577,26 @@ impl AleraApp {
         } else {
             cached as f64 / input as f64
         };
-        let mode = self.agent_usage_breakdown_mode;
+        let mode = if show_grouped_breakdown
+            || self.agent_usage_breakdown_mode != UsageBreakdownMode::Grouped
+        {
+            self.agent_usage_breakdown_mode
+        } else {
+            UsageBreakdownMode::Profile
+        };
         let breakdowns = snapshot.breakdowns(mode);
+        let breakdown_modes = if show_grouped_breakdown {
+            vec![
+                (UsageBreakdownMode::Profile, "Profiles"),
+                (UsageBreakdownMode::Grouped, "Grouped"),
+                (UsageBreakdownMode::Model, "Models"),
+            ]
+        } else {
+            vec![
+                (UsageBreakdownMode::Profile, "Profiles"),
+                (UsageBreakdownMode::Model, "Models"),
+            ]
+        };
         let maximum = snapshot
             .days
             .iter()
@@ -599,7 +608,7 @@ impl AleraApp {
             .min_h_0()
             .overflow_y_scrollbar()
             .p_5()
-            .children([self.render_usage_quota_strip(&quotas), self.render_usage_notice(&snapshot)])
+            .child(self.render_usage_notice(&snapshot))
             .child(
                 div()
                     .flex()
@@ -649,11 +658,7 @@ impl AleraApp {
                             .border_1()
                             .border_color(theme::border())
                             .children(
-                                [
-                                    (UsageBreakdownMode::Profile, "Profiles"),
-                                    (UsageBreakdownMode::Grouped, "Grouped"),
-                                    (UsageBreakdownMode::Model, "Models"),
-                                ]
+                                breakdown_modes
                                 .into_iter()
                                 .map(|(candidate, label)| {
                                     div()
@@ -700,104 +705,6 @@ impl AleraApp {
                             .unwrap_or_default()
                     )),
             )
-            .into_any_element()
-    }
-
-    fn render_usage_quota_strip(&self, quotas: &[QuotaSnapshot]) -> AnyElement {
-        let visible = quotas
-            .iter()
-            .filter(|snapshot| matches!(snapshot.provider.as_str(), "claude" | "codex"))
-            .filter(|snapshot| {
-                snapshot.provider != "claude"
-                    || (snapshot.account_id == "default"
-                        && self.settings_state.claude_default_enabled)
-                    || self
-                        .settings_state
-                        .claude_profiles
-                        .iter()
-                        .any(|profile| {
-                            profile.profile == snapshot.account_id && profile.show_in_usage
-                        })
-            })
-            .collect::<Vec<_>>();
-        div()
-            .when(visible.is_empty(), |panel| panel)
-            .when(!visible.is_empty(), |panel| {
-                panel
-                    .child(
-                        div()
-                            .text_size(px(13.0))
-                            .font_weight(gpui::FontWeight::SEMIBOLD)
-                            .child("Current Limits"),
-                    )
-                    .child(
-                        div()
-                            .mt_2()
-                            .rounded_md()
-                            .border_1()
-                            .border_color(theme::border_subtle())
-                            .bg(theme::surface())
-                            .children(visible.iter().map(|snapshot| {
-                                let used = snapshot
-                                    .readings
-                                    .first()
-                                    .map(|reading| 100.0 - reading.remaining_percent);
-                                let label = if snapshot.provider == "claude"
-                                    && snapshot.account_id == "default"
-                                {
-                                    "Claude Code Default".to_owned()
-                                } else if snapshot.provider == "claude" {
-                                    self.settings_state
-                                        .claude_profiles
-                                        .iter()
-                                        .find(|profile| profile.profile == snapshot.account_id)
-                                        .map(|profile| profile.usage_label())
-                                        .unwrap_or_else(|| snapshot.display_name.clone())
-                                } else {
-                                    provider_label(&snapshot.provider).to_owned()
-                                };
-                                div()
-                                    .flex()
-                                    .items_center()
-                                    .gap_2()
-                                    .px_3()
-                                    .py_2()
-                                    .child(agent_icon(
-                                        provider_agent_icon(&snapshot.provider),
-                                        14.0,
-                                        theme::text_muted(),
-                                    ))
-                                    .child(
-                                        div()
-                                            .flex_1()
-                                            .text_size(px(11.0))
-                                            .child(label),
-                                    )
-                                    .when_some(used, |row, used| {
-                                        row.child(
-                                            div()
-                                                .w(px(152.0))
-                                                .h(px(4.0))
-                                                .rounded_full()
-                                                .bg(theme::border())
-                                                .child(
-                                                    div()
-                                                        .h_full()
-                                                        .w(gpui::relative((used / 100.0).clamp(0.0, 1.0) as f32))
-                                                        .rounded_full()
-                                                        .bg(theme::text_muted()),
-                                                ),
-                                        )
-                                        .child(
-                                            div()
-                                                .font_family("JetBrains Mono")
-                                                .text_size(px(10.0))
-                                                .child(format!("{used:.0}% Used")),
-                                        )
-                                    })
-                            })),
-                    )
-            })
             .into_any_element()
     }
 

@@ -143,6 +143,7 @@ pub(super) struct SettingsState {
     pub quota_enabled_providers: Vec<String>,
     pub quota_unpinned_keys: BTreeSet<String>,
     pub claude_default_enabled: bool,
+    pub claude_default_show_in_usage: bool,
     pub claude_profiles: Vec<ClaudeQuotaProfile>,
     pub selected_claude_profile: String,
     pub quota_environment: BTreeMap<String, String>,
@@ -270,6 +271,7 @@ impl Default for SettingsState {
                 .collect(),
             quota_unpinned_keys: BTreeSet::new(),
             claude_default_enabled: true,
+            claude_default_show_in_usage: true,
             claude_profiles: Vec::new(),
             selected_claude_profile: "default".to_string(),
             quota_environment: [
@@ -781,6 +783,7 @@ impl SettingsState {
         serde_json::json!({
             "enabledProviders": self.quota_enabled_providers,
             "claudeDefaultEnabled": self.claude_default_enabled,
+            "claudeDefaultShowInUsage": self.claude_default_show_in_usage,
             "claudeProfiles": self.claude_profiles,
             "selectedClaudeProfile": self.selected_claude_profile,
             "environment": self.quota_environment,
@@ -818,6 +821,12 @@ impl SettingsState {
         }
         if let Some(enabled) = quotas.get("claudeDefaultEnabled").and_then(Value::as_bool) {
             self.claude_default_enabled = enabled;
+        }
+        if let Some(show_in_usage) = quotas
+            .get("claudeDefaultShowInUsage")
+            .and_then(Value::as_bool)
+        {
+            self.claude_default_show_in_usage = show_in_usage;
         }
         if let Some(profiles) = quotas.get("claudeProfiles").and_then(Value::as_array) {
             self.claude_profiles = profiles

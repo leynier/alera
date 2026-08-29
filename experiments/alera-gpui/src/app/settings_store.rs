@@ -265,6 +265,7 @@ fn merge_shared_flutter_quota_settings(mut root: Value, quotas: &Value) -> Resul
     for key in [
         "enabledProviders",
         "claudeDefaultEnabled",
+        "claudeDefaultShowInUsage",
         "claudeProfiles",
         "selectedClaudeProfile",
         "environment",
