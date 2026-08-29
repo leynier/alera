@@ -243,7 +243,7 @@ commit so this file remains useful after context compaction.
 | 222 | `73c079d071f64e60c4dbb6c3726f6d4a5270aaf6` | 2026-08-12 | feat: add dictation model and fallback providers (#393) | merged | Cherry-picked Whisper model selection/fallback runtime contracts and settings. GPUI still has no microphone capture surface, so it exposes no misleading non-functional control; Codex Chat remains disabled. |
 | 223 | `33f824580ca9c774569ba8bf79bb18a6546e1070` | 2026-08-12 | feat: add terminal pulse file watcher (#406) | merged | Cherry-picked Terminal Pulse watcher/configuration/runtime contracts and added GPUI terminal controls/dialog, capability gating, validation, persistence, and runtime configure/status requests. |
 | 224 | `5d8db4ff18f52d3e8eafd81d4df88b8162ed4501` | 2026-08-12 | fix: configure release arm64 toolchains (#408) | merged | Cherry-picked release arm64 toolchain setup; no GPUI UI surface is affected. |
-| 225 | `a4861098880c83b5e0bee585fe823588371d3cc7` | 2026-08-12 | fix: enable windows arm64 c++ exceptions (#410) | in progress | Cherry-picking Windows arm64 release flag; no GPUI UI surface is affected. |
+| 225 | `a4861098880c83b5e0bee585fe823588371d3cc7` | 2026-08-12 | fix: enable windows arm64 c++ exceptions (#410) | merged | Cherry-picked Windows arm64 release flag; no GPUI UI surface is affected. |
 | 226 | `00ee39ab80937681bbc5de66162b37cbc174c263` | 2026-08-12 | fix: stabilize windows arm64 release builds (#411) | pending | - |
 | 227 | `5dd3c4279c79733c22369e9720becc92d9099b16` | 2026-08-12 | release: v0.59.0 v0.23.0-mobile | pending | - |
 | 228 | `8aa83da2e9730ee1f832e9af6e9979c996cfde45` | 2026-08-12 | fix: make mobile model downloads retryable (#413) | pending | - |
