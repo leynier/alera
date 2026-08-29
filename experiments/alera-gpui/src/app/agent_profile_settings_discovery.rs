@@ -10,7 +10,7 @@ use serde_json::{json, Value};
 
 use super::agent_profile_settings::AgentProfileDropdown;
 use super::agent_profile_settings_controls::settings_row;
-use super::ai_text_settings_catalog::model_choices;
+use super::ai_assist_settings_catalog::model_choices;
 use super::AleraApp;
 use crate::icons::{icon, AleraIcon};
 use crate::theme;
@@ -36,7 +36,7 @@ impl AleraApp {
         if super::settings_actions::supports_ai_model_discovery(&adapter)
             && self.ai_model_auto_discovered.insert(adapter.clone())
         {
-            self.discover_ai_text_models(adapter.clone(), window, cx);
+            self.discover_ai_assist_models(adapter.clone(), window, cx);
         }
         if supports_persona_discovery(&adapter)
             && self
@@ -134,7 +134,7 @@ impl AleraApp {
                 refresh_id: "refresh-agent-profile-models",
             },
             move |this, window, cx| {
-                this.discover_ai_text_models(adapter.clone(), window, cx);
+                this.discover_ai_assist_models(adapter.clone(), window, cx);
             },
             cx,
         )

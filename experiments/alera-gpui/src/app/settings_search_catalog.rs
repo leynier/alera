@@ -45,9 +45,10 @@ const QUOTAS: &[&str] = &[
     "Kimi API Key Variable environment",
     "Quota Credential Environment Kimi Z.ai MiniMax remote host",
 ];
-const AI_TEXT: &[&str] = &[
-    "Enable AI Text generation source control pull requests",
-    "Agent CLI generated text",
+const AI_ASSIST: &[&str] = &[
+    "AI Assist short local agent jobs source control workspace identity speech",
+    "Enable AI Assist generation source control pull requests",
+    "Agent CLI AI Assist jobs",
     "Model refresh discover",
     "Thinking reasoning effort",
     "Custom Command prompt stdin",
@@ -183,10 +184,11 @@ pub(super) fn first_matching_group(pane: SettingsPane, query: &str) -> Option<us
                 "Word Separators",
             ],
         ],
-        SettingsPane::AiText => &[
-            &["Generation", "Enable AI Text", "Agent", "Model", "Thinking", "Custom Command"],
+        SettingsPane::AiAssist => &[
+            &["Generation", "AI Assist", "Enable AI Assist", "Agent", "Model", "Reasoning", "Custom Command"],
             &["Commit Messages", "Agent", "Model", "Reasoning", "Instructions"],
             &["Pull Request Details", "Agent", "Model", "Reasoning", "Instructions"],
+            &["Reading Diffs", "Agent", "Model", "Reasoning", "Instructions"],
             &["Workspace Identity", "Agent", "Model", "Reasoning", "Instructions"],
         ],
         SettingsPane::TextActions => &[&[
@@ -215,7 +217,7 @@ fn pane_entries(pane: SettingsPane) -> &'static [&'static str] {
         SettingsPane::Application => APPLICATION,
         SettingsPane::Agents => AGENTS,
         SettingsPane::Quotas => QUOTAS,
-        SettingsPane::AiText => AI_TEXT,
+        SettingsPane::AiAssist => AI_ASSIST,
         SettingsPane::TextActions => TEXT_ACTIONS,
         SettingsPane::Editor => EDITOR,
         SettingsPane::Terminal => TERMINAL,
@@ -236,7 +238,8 @@ mod tests {
         assert!(pane_matches(SettingsPane::Terminal, "clipboard"));
         assert_eq!(pane_match_count(SettingsPane::Terminal, "clipboard"), 2);
         assert!(pane_matches(SettingsPane::Projects, "alera.toml"));
-        assert!(!pane_matches(SettingsPane::AiText, "scrollback"));
+        assert!(pane_matches(SettingsPane::AiAssist, "speech"));
+        assert!(!pane_matches(SettingsPane::AiAssist, "scrollback"));
     }
 
     #[test]
@@ -248,6 +251,14 @@ mod tests {
         assert_eq!(
             super::first_matching_group(SettingsPane::Terminal, "font"),
             Some(0)
+        );
+        assert_eq!(
+            super::first_matching_group(SettingsPane::AiAssist, "reading"),
+            Some(3)
+        );
+        assert_eq!(
+            super::first_matching_group(SettingsPane::AiAssist, "workspace"),
+            Some(4)
         );
     }
 }

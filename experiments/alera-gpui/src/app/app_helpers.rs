@@ -264,14 +264,14 @@ pub(super) fn build_settings_inputs(
         ),
         (
             "ai-custom-command",
-            settings.ai_text_custom_command.clone(),
+            settings.ai_assist_custom_command.clone(),
             "llm --system commit-message",
             false,
         ),
         (
             "ai-instructions-commitMessage",
             settings
-                .ai_text_instructions_by_operation
+                .ai_assist_instructions_by_operation
                 .get("commitMessage")
                 .cloned()
                 .unwrap_or_default(),
@@ -281,7 +281,7 @@ pub(super) fn build_settings_inputs(
         (
             "ai-instructions-pullRequestDetails",
             settings
-                .ai_text_instructions_by_operation
+                .ai_assist_instructions_by_operation
                 .get("pullRequestDetails")
                 .cloned()
                 .unwrap_or_default(),
@@ -291,7 +291,7 @@ pub(super) fn build_settings_inputs(
         (
             "ai-instructions-workspaceIdentity",
             settings
-                .ai_text_instructions_by_operation
+                .ai_assist_instructions_by_operation
                 .get("workspaceIdentity")
                 .cloned()
                 .unwrap_or_default(),
@@ -375,5 +375,5 @@ pub(super) fn build_settings_inputs(
 }
 
 pub(super) fn ai_agent_label_for_key(agent: &str) -> &'static str {
-    ai_text_settings_catalog::agent_label(agent)
+    ai_assist_settings_catalog::agent_label(agent)
 }

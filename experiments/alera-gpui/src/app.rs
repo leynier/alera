@@ -29,7 +29,7 @@ mod agent_profile_settings_removal;
 mod agent_profile_record;
 mod agent_profile_removal;
 mod agent_profile_settings_render;
-mod ai_text_settings_catalog;
+mod ai_assist_settings_catalog;
 mod app_helpers;
 mod app_init;
 mod app_lifecycle;

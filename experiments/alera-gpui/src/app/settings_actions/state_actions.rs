@@ -216,15 +216,15 @@ impl AleraApp {
         .detach();
     }
 
-    pub(super) fn update_ai_text_settings(
+    pub(super) fn update_ai_assist_settings(
         &mut self,
         update: impl FnOnce(&mut SettingsState),
         cx: &mut Context<Self>,
     ) {
         update(&mut self.settings_state);
         self.persist_settings();
-        let ai_text = self.settings_state.runtime_ai_text_payload();
-        self.update_runtime_setting("aiTextGeneration", ai_text, cx);
+        let ai_assist = self.settings_state.runtime_ai_assist_payload();
+        self.update_runtime_setting("aiTextGeneration", ai_assist, cx);
     }
 
     pub(super) fn update_editor_settings(
@@ -255,23 +255,23 @@ impl AleraApp {
         self.configure_terminal_host(cx);
     }
 
-    pub(super) fn reset_ai_text_settings(&mut self, cx: &mut Context<Self>) {
+    pub(super) fn reset_ai_assist_settings(&mut self, cx: &mut Context<Self>) {
         let defaults = SettingsState::default();
-        self.update_ai_text_settings(
+        self.update_ai_assist_settings(
             |settings| {
-                settings.ai_text_enabled = defaults.ai_text_enabled;
-                settings.ai_text_agent = defaults.ai_text_agent;
-                settings.ai_text_selected_model_by_agent = defaults.ai_text_selected_model_by_agent;
-                settings.ai_text_selected_thinking_by_model =
-                    defaults.ai_text_selected_thinking_by_model;
-                settings.ai_text_selected_thinking_by_operation =
-                    defaults.ai_text_selected_thinking_by_operation;
-                settings.ai_text_custom_command = defaults.ai_text_custom_command;
-                settings.ai_text_instructions_by_operation =
-                    defaults.ai_text_instructions_by_operation;
-                settings.ai_text_prompt_settings_by_operation =
-                    defaults.ai_text_prompt_settings_by_operation;
-                settings.ai_text_timeout_seconds = defaults.ai_text_timeout_seconds;
+                settings.ai_assist_enabled = defaults.ai_assist_enabled;
+                settings.ai_assist_agent = defaults.ai_assist_agent;
+                settings.ai_assist_selected_model_by_agent = defaults.ai_assist_selected_model_by_agent;
+                settings.ai_assist_selected_thinking_by_model =
+                    defaults.ai_assist_selected_thinking_by_model;
+                settings.ai_assist_selected_thinking_by_operation =
+                    defaults.ai_assist_selected_thinking_by_operation;
+                settings.ai_assist_custom_command = defaults.ai_assist_custom_command;
+                settings.ai_assist_instructions_by_operation =
+                    defaults.ai_assist_instructions_by_operation;
+                settings.ai_assist_prompt_settings_by_operation =
+                    defaults.ai_assist_prompt_settings_by_operation;
+                settings.ai_assist_timeout_seconds = defaults.ai_assist_timeout_seconds;
             },
             cx,
         );

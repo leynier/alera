@@ -128,11 +128,11 @@ impl AleraApp {
     ) -> ReadingDiffRequest {
         let prompt = self
             .settings_state
-            .ai_text_prompt_settings_by_operation
+            .ai_assist_prompt_settings_by_operation
             .get("readingDiff");
         let configured_agent = prompt
             .and_then(|prompt| prompt.agent.as_deref())
-            .unwrap_or(&self.settings_state.ai_text_agent);
+            .unwrap_or(&self.settings_state.ai_assist_agent);
         let agent = match configured_agent {
             "codex" | "claude" | "copilot" | "pi" | "grok" => configured_agent,
             _ => "codex",
@@ -143,20 +143,20 @@ impl AleraApp {
             .filter(|model| !model.trim().is_empty())
             .or_else(|| {
                 self.settings_state
-                    .ai_text_selected_model_by_agent
+                    .ai_assist_selected_model_by_agent
                     .get(&agent)
                     .cloned()
             })
-            .unwrap_or_else(|| super::ai_text_settings_catalog::default_model(&agent).to_string());
+            .unwrap_or_else(|| super::ai_assist_settings_catalog::default_model(&agent).to_string());
         let effort = self
             .settings_state
-            .ai_text_selected_thinking_by_operation
+            .ai_assist_selected_thinking_by_operation
             .get("readingDiff")
             .and_then(|values| values.get(&model))
             .cloned()
             .or_else(|| {
                 self.settings_state
-                    .ai_text_selected_thinking_by_model
+                    .ai_assist_selected_thinking_by_model
                     .get(&model)
                     .cloned()
             });
@@ -169,11 +169,11 @@ impl AleraApp {
             effort,
             instructions: self
                 .settings_state
-                .ai_text_instructions_by_operation
+                .ai_assist_instructions_by_operation
                 .get("readingDiff")
                 .cloned()
                 .unwrap_or_default(),
-            timeout_seconds: self.settings_state.ai_text_timeout_seconds.max(1) as u64,
+            timeout_seconds: self.settings_state.ai_assist_timeout_seconds.max(1) as u64,
             ignore_cache,
         }
     }
@@ -182,9 +182,9 @@ impl AleraApp {
         let Some(request) = self.reading_diff_confirmation.take() else {
             return;
         };
-        if !self.settings_state.ai_text_enabled {
+        if !self.settings_state.ai_assist_enabled {
             self.reading_diff_errors
-                .insert(request.key, "AI Text Generation Is Disabled In Settings.".into());
+                .insert(request.key, "AI Assist is disabled.".into());
             cx.notify();
             return;
         }

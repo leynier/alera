@@ -291,8 +291,8 @@ impl AleraApp {
             .cloned()
             .collect::<Vec<_>>();
         let has_selection = !input.read(cx).selected_range().is_empty();
-        let ai_text_enabled = self.settings_state.ai_text_enabled;
-        let actions_enabled = ai_text_enabled && has_selection && !actions.is_empty();
+        let ai_assist_enabled = self.settings_state.ai_assist_enabled;
+        let actions_enabled = ai_assist_enabled && has_selection && !actions.is_empty();
         let attachments = self
             .terminal_composer_attachments
             .get(session_id)
@@ -367,7 +367,7 @@ impl AleraApp {
                                 menu,
                                 input_for_context_menu.clone(),
                                 actions.clone(),
-                                ai_text_enabled,
+                                ai_assist_enabled,
                                 cx,
                             )
                         }

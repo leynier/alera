@@ -22,8 +22,8 @@ fn branch_array_ignores_non_string_values() {
 #[test]
 fn runtime_errors_match_flutter_state_error_copy() {
     assert_eq!(
-        flutter_state_error("AI text generation was canceled.".to_owned()),
-        "Bad state: AI text generation was canceled."
+        flutter_state_error("AI Assist was canceled.".to_owned()),
+        "Bad state: AI Assist was canceled."
     );
     assert_eq!(
         flutter_state_error("Bad state: Agent profile not found: profile-1".to_owned()),

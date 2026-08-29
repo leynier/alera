@@ -20,7 +20,7 @@ impl AleraApp {
         }
         let base_value = self.forge_base_input.read(cx).value().to_string();
         let form_enabled = !self.forge_busy && !self.forge_ai_busy;
-        let can_generate = self.settings_state.ai_text_enabled
+        let can_generate = self.settings_state.ai_assist_enabled
             && form_enabled
             && !self.forge_snapshot.branch.is_empty()
             && !base_value.trim().is_empty();
@@ -111,7 +111,7 @@ impl AleraApp {
                     .justify_between()
                     .child(field_label("Title"))
                     .when(
-                        self.settings_state.ai_text_enabled || self.forge_ai_busy,
+                        self.settings_state.ai_assist_enabled || self.forge_ai_busy,
                         |row| {
                             row.child(
                                 div()

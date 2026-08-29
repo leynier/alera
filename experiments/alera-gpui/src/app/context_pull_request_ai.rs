@@ -11,7 +11,7 @@ impl AleraApp {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        if !self.settings_state.ai_text_enabled
+        if !self.settings_state.ai_assist_enabled
             || self.forge_busy
             || self.forge_ai_busy
             || self.forge_snapshot.branch.is_empty()

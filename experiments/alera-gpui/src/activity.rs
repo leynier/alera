@@ -54,7 +54,7 @@ pub enum SettingsPane {
     Application,
     Agents,
     Quotas,
-    AiText,
+    AiAssist,
     TextActions,
     Editor,
     Terminal,
@@ -69,7 +69,7 @@ impl SettingsPane {
         Self::Application,
         Self::Agents,
         Self::Quotas,
-        Self::AiText,
+        Self::AiAssist,
         Self::TextActions,
         Self::Editor,
         Self::Terminal,
@@ -84,7 +84,7 @@ impl SettingsPane {
             Self::Application => "Application",
             Self::Agents => "Agents",
             Self::Quotas => "Quotas",
-            Self::AiText => "AI Text",
+            Self::AiAssist => "AI Assist",
             Self::TextActions => "Text Actions",
             Self::Editor => "Editor",
             Self::Terminal => "Terminal",
@@ -100,7 +100,7 @@ impl SettingsPane {
             Self::Application
             | Self::Agents
             | Self::Quotas
-            | Self::AiText
+            | Self::AiAssist
             | Self::Editor
             | Self::Terminal
             | Self::Keyboard => "Preferences",
@@ -116,7 +116,7 @@ impl SettingsPane {
             Self::Application => AleraIcon::Tune,
             Self::Agents => AleraIcon::Agent,
             Self::Quotas => AleraIcon::Quota,
-            Self::AiText => AleraIcon::Ai,
+            Self::AiAssist => AleraIcon::Ai,
             Self::TextActions => AleraIcon::Text,
             Self::Editor => AleraIcon::Code,
             Self::Terminal => AleraIcon::Terminal,

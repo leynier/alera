@@ -6,13 +6,13 @@ impl AleraApp {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        if !self.settings_state.ai_text_enabled {
+        if !self.settings_state.ai_assist_enabled {
             return;
         }
-        let agents = std::iter::once(self.settings_state.ai_text_agent.clone())
+        let agents = std::iter::once(self.settings_state.ai_assist_agent.clone())
             .chain(
                 self.settings_state
-                    .ai_text_prompt_settings_by_operation
+                    .ai_assist_prompt_settings_by_operation
                     .values()
                     .filter_map(|prompt| prompt.agent.clone()),
             )
@@ -20,12 +20,12 @@ impl AleraApp {
             .collect::<std::collections::BTreeSet<_>>();
         for agent in agents {
             if self.ai_model_auto_discovered.insert(agent.clone()) {
-                self.discover_ai_text_models(agent, window, cx);
+                self.discover_ai_assist_models(agent, window, cx);
             }
         }
     }
 
-    pub(super) fn discover_ai_text_models(
+    pub(super) fn discover_ai_assist_models(
         &mut self,
         agent: String,
         window: &mut Window,
@@ -62,16 +62,16 @@ impl AleraApp {
                             .unwrap_or_default()
                             .to_string();
                         this.settings_state
-                            .ai_text_discovered_models_by_agent
+                            .ai_assist_discovered_models_by_agent
                             .insert(agent.clone(), models);
                         if !default_model.is_empty() {
                             this.settings_state
-                                .ai_text_discovered_default_model_by_agent
+                                .ai_assist_discovered_default_model_by_agent
                                 .insert(agent.clone(), default_model);
                         }
                         this.ai_model_discovery_errors.remove(&agent);
                         this.settings_store.save(&this.settings_state);
-                        this.sync_ai_text_selects(window, cx);
+                        this.sync_ai_assist_selects(window, cx);
                         cx.notify();
                     }
                     Ok(value) => {

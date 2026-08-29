@@ -47,7 +47,7 @@ impl ClaudeQuotaProfile {
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 #[serde(default)]
-pub(super) struct AiTextPromptSettings {
+pub(super) struct AiAssistPromptSettings {
     pub agent: Option<String>,
     pub model: Option<String>,
 }
@@ -67,17 +67,17 @@ pub(super) struct TextActionSetting {
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 #[serde(default)]
-pub(super) struct AiTextDiscoveredThinkingLevel {
+pub(super) struct AiAssistDiscoveredThinkingLevel {
     pub id: String,
     pub label: String,
 }
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 #[serde(default, rename_all = "camelCase")]
-pub(super) struct AiTextDiscoveredModel {
+pub(super) struct AiAssistDiscoveredModel {
     pub id: String,
     pub label: String,
-    pub thinking_levels: Vec<AiTextDiscoveredThinkingLevel>,
+    pub thinking_levels: Vec<AiAssistDiscoveredThinkingLevel>,
     pub default_thinking_level: Option<String>,
 }
 
@@ -149,17 +149,17 @@ pub(super) struct SettingsState {
     pub selected_claude_profile: String,
     pub quota_environment: BTreeMap<String, String>,
 
-    pub ai_text_enabled: bool,
-    pub ai_text_agent: String,
-    pub ai_text_selected_model_by_agent: BTreeMap<String, String>,
-    pub ai_text_selected_thinking_by_model: BTreeMap<String, String>,
-    pub ai_text_selected_thinking_by_operation: BTreeMap<String, BTreeMap<String, String>>,
-    pub ai_text_discovered_models_by_agent: BTreeMap<String, Vec<AiTextDiscoveredModel>>,
-    pub ai_text_discovered_default_model_by_agent: BTreeMap<String, String>,
-    pub ai_text_custom_command: String,
-    pub ai_text_instructions_by_operation: BTreeMap<String, String>,
-    pub ai_text_prompt_settings_by_operation: BTreeMap<String, AiTextPromptSettings>,
-    pub ai_text_timeout_seconds: i64,
+    pub ai_assist_enabled: bool,
+    pub ai_assist_agent: String,
+    pub ai_assist_selected_model_by_agent: BTreeMap<String, String>,
+    pub ai_assist_selected_thinking_by_model: BTreeMap<String, String>,
+    pub ai_assist_selected_thinking_by_operation: BTreeMap<String, BTreeMap<String, String>>,
+    pub ai_assist_discovered_models_by_agent: BTreeMap<String, Vec<AiAssistDiscoveredModel>>,
+    pub ai_assist_discovered_default_model_by_agent: BTreeMap<String, String>,
+    pub ai_assist_custom_command: String,
+    pub ai_assist_instructions_by_operation: BTreeMap<String, String>,
+    pub ai_assist_prompt_settings_by_operation: BTreeMap<String, AiAssistPromptSettings>,
+    pub ai_assist_timeout_seconds: i64,
     pub text_actions: Vec<TextActionSetting>,
     pub codex_chat_selected_model: Option<String>,
     pub codex_chat_reasoning_effort: String,
@@ -287,17 +287,17 @@ impl Default for SettingsState {
             .into_iter()
             .map(|(key, value)| (key.to_string(), value.to_string()))
             .collect(),
-            ai_text_enabled: true,
-            ai_text_agent: "codex".to_string(),
-            ai_text_selected_model_by_agent: BTreeMap::new(),
-            ai_text_selected_thinking_by_model: BTreeMap::new(),
-            ai_text_selected_thinking_by_operation: BTreeMap::new(),
-            ai_text_discovered_models_by_agent: BTreeMap::new(),
-            ai_text_discovered_default_model_by_agent: BTreeMap::new(),
-            ai_text_custom_command: String::new(),
-            ai_text_instructions_by_operation: BTreeMap::new(),
-            ai_text_prompt_settings_by_operation: BTreeMap::new(),
-            ai_text_timeout_seconds: 120,
+            ai_assist_enabled: true,
+            ai_assist_agent: "codex".to_string(),
+            ai_assist_selected_model_by_agent: BTreeMap::new(),
+            ai_assist_selected_thinking_by_model: BTreeMap::new(),
+            ai_assist_selected_thinking_by_operation: BTreeMap::new(),
+            ai_assist_discovered_models_by_agent: BTreeMap::new(),
+            ai_assist_discovered_default_model_by_agent: BTreeMap::new(),
+            ai_assist_custom_command: String::new(),
+            ai_assist_instructions_by_operation: BTreeMap::new(),
+            ai_assist_prompt_settings_by_operation: BTreeMap::new(),
+            ai_assist_timeout_seconds: 120,
             text_actions: Vec::new(),
             codex_chat_selected_model: None,
             codex_chat_reasoning_effort: "medium".to_owned(),
@@ -396,8 +396,8 @@ impl SettingsState {
         if let Some(quotas) = value.get("agentQuotas").and_then(Value::as_object) {
             self.apply_runtime_quotas(quotas);
         }
-        if let Some(ai_text) = value.get("aiTextGeneration").and_then(Value::as_object) {
-            self.apply_runtime_ai_text(ai_text);
+        if let Some(ai_assist) = value.get("aiTextGeneration").and_then(Value::as_object) {
+            self.apply_runtime_ai_assist(ai_assist);
         }
         if let Some(text_actions) = value.get("textActions").and_then(Value::as_object) {
             self.text_actions = text_actions
@@ -805,19 +805,19 @@ impl SettingsState {
         })
     }
 
-    pub fn runtime_ai_text_payload(&self) -> Value {
+    pub fn runtime_ai_assist_payload(&self) -> Value {
         serde_json::json!({
-            "enabled": self.ai_text_enabled,
-            "agent": self.ai_text_agent,
-            "selectedModelByAgent": self.ai_text_selected_model_by_agent,
-            "selectedThinkingByModel": self.ai_text_selected_thinking_by_model,
-            "selectedThinkingByOperation": self.ai_text_selected_thinking_by_operation,
-            "discoveredModelsByAgent": self.ai_text_discovered_models_by_agent,
-            "discoveredDefaultModelByAgent": self.ai_text_discovered_default_model_by_agent,
-            "customCommand": self.ai_text_custom_command,
-            "instructionsByOperation": self.ai_text_instructions_by_operation,
-            "promptSettingsByOperation": self.ai_text_prompt_settings_by_operation,
-            "timeoutSeconds": self.ai_text_timeout_seconds,
+            "enabled": self.ai_assist_enabled,
+            "agent": self.ai_assist_agent,
+            "selectedModelByAgent": self.ai_assist_selected_model_by_agent,
+            "selectedThinkingByModel": self.ai_assist_selected_thinking_by_model,
+            "selectedThinkingByOperation": self.ai_assist_selected_thinking_by_operation,
+            "discoveredModelsByAgent": self.ai_assist_discovered_models_by_agent,
+            "discoveredDefaultModelByAgent": self.ai_assist_discovered_default_model_by_agent,
+            "customCommand": self.ai_assist_custom_command,
+            "instructionsByOperation": self.ai_assist_instructions_by_operation,
+            "promptSettingsByOperation": self.ai_assist_prompt_settings_by_operation,
+            "timeoutSeconds": self.ai_assist_timeout_seconds,
         })
     }
 
@@ -868,32 +868,32 @@ impl SettingsState {
         }
     }
 
-    fn apply_runtime_ai_text(&mut self, ai_text: &serde_json::Map<String, Value>) {
-        if let Some(enabled) = ai_text.get("enabled").and_then(Value::as_bool) {
-            self.ai_text_enabled = enabled;
+    fn apply_runtime_ai_assist(&mut self, ai_assist: &serde_json::Map<String, Value>) {
+        if let Some(enabled) = ai_assist.get("enabled").and_then(Value::as_bool) {
+            self.ai_assist_enabled = enabled;
         }
-        if let Some(agent) = ai_text.get("agent").and_then(Value::as_str) {
-            self.ai_text_agent = agent.to_string();
+        if let Some(agent) = ai_assist.get("agent").and_then(Value::as_str) {
+            self.ai_assist_agent = agent.to_string();
         }
-        if let Some(command) = ai_text.get("customCommand").and_then(Value::as_str) {
-            self.ai_text_custom_command = command.to_string();
+        if let Some(command) = ai_assist.get("customCommand").and_then(Value::as_str) {
+            self.ai_assist_custom_command = command.to_string();
         }
-        if let Some(timeout) = ai_text.get("timeoutSeconds").and_then(Value::as_i64) {
-            self.ai_text_timeout_seconds = timeout;
+        if let Some(timeout) = ai_assist.get("timeoutSeconds").and_then(Value::as_i64) {
+            self.ai_assist_timeout_seconds = timeout;
         }
         apply_string_map(
-            ai_text.get("selectedModelByAgent"),
-            &mut self.ai_text_selected_model_by_agent,
+            ai_assist.get("selectedModelByAgent"),
+            &mut self.ai_assist_selected_model_by_agent,
         );
         apply_string_map(
-            ai_text.get("selectedThinkingByModel"),
-            &mut self.ai_text_selected_thinking_by_model,
+            ai_assist.get("selectedThinkingByModel"),
+            &mut self.ai_assist_selected_thinking_by_model,
         );
-        if let Some(by_operation) = ai_text
+        if let Some(by_operation) = ai_assist
             .get("selectedThinkingByOperation")
             .and_then(Value::as_object)
         {
-            self.ai_text_selected_thinking_by_operation = by_operation
+            self.ai_assist_selected_thinking_by_operation = by_operation
                 .iter()
                 .filter_map(|(operation, values)| {
                     let values = values
@@ -908,14 +908,14 @@ impl SettingsState {
                 .collect();
         }
         apply_string_map(
-            ai_text.get("discoveredDefaultModelByAgent"),
-            &mut self.ai_text_discovered_default_model_by_agent,
+            ai_assist.get("discoveredDefaultModelByAgent"),
+            &mut self.ai_assist_discovered_default_model_by_agent,
         );
-        if let Some(models) = ai_text
+        if let Some(models) = ai_assist
             .get("discoveredModelsByAgent")
             .and_then(Value::as_object)
         {
-            self.ai_text_discovered_models_by_agent = models
+            self.ai_assist_discovered_models_by_agent = models
                 .iter()
                 .filter_map(|(agent, value)| {
                     serde_json::from_value(value.clone())
@@ -925,14 +925,14 @@ impl SettingsState {
                 .collect();
         }
         apply_string_map(
-            ai_text.get("instructionsByOperation"),
-            &mut self.ai_text_instructions_by_operation,
+            ai_assist.get("instructionsByOperation"),
+            &mut self.ai_assist_instructions_by_operation,
         );
-        if let Some(settings) = ai_text
+        if let Some(settings) = ai_assist
             .get("promptSettingsByOperation")
             .and_then(Value::as_object)
         {
-            self.ai_text_prompt_settings_by_operation = settings
+            self.ai_assist_prompt_settings_by_operation = settings
                 .iter()
                 .filter_map(|(operation, value)| {
                     serde_json::from_value(value.clone())
@@ -1011,8 +1011,8 @@ mod tests {
         assert_eq!(state.workspace_directory, "/tmp/workspaces");
         assert_eq!(state.agent_status_hooks.get("codex"), Some(&true));
         assert_eq!(state.quota_enabled_providers, ["codex", "kimi"]);
-        assert_eq!(state.ai_text_agent, "opencode");
-        assert!(!state.ai_text_enabled);
+        assert_eq!(state.ai_assist_agent, "opencode");
+        assert!(!state.ai_assist_enabled);
         assert_eq!(state.editor_theme, "Dracula");
         assert_eq!(state.terminal_font_size, 17.0);
     }
@@ -1047,7 +1047,7 @@ mod tests {
             }
         }));
 
-        let discovered = &state.ai_text_discovered_models_by_agent["codex"][0];
+        let discovered = &state.ai_assist_discovered_models_by_agent["codex"][0];
         assert_eq!(discovered.id, "gpt-5.3-codex-spark");
         assert_eq!(discovered.label, "GPT-5.3 Codex Spark");
         assert_eq!(discovered.thinking_levels.len(), 2);
@@ -1055,7 +1055,7 @@ mod tests {
         assert_eq!(discovered.default_thinking_level.as_deref(), Some("medium"));
         assert_eq!(
             state
-                .ai_text_discovered_default_model_by_agent
+                .ai_assist_discovered_default_model_by_agent
                 .get("codex")
                 .map(String::as_str),
             Some("gpt-5.3-codex-spark")

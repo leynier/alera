@@ -47,18 +47,18 @@ pub(crate) fn run_reading_diff_agent(request: ReadingDiffAgentRequest<'_>) -> Re
         child
             .stdin
             .take()
-            .ok_or_else(|| "AI Text Process Stdin Is Unavailable.".to_string())?
+            .ok_or_else(|| "AI Assist process stdin is unavailable.".to_string())?
             .write_all(stdin.as_bytes())
             .map_err(|error| error.to_string())?;
     }
     let stdout = child
         .stdout
         .take()
-        .ok_or_else(|| "AI Text Process Stdout Is Unavailable.".to_string())?;
+        .ok_or_else(|| "AI Assist process stdout is unavailable.".to_string())?;
     let stderr = child
         .stderr
         .take()
-        .ok_or_else(|| "AI Text Process Stderr Is Unavailable.".to_string())?;
+        .ok_or_else(|| "AI Assist process stderr is unavailable.".to_string())?;
     let stdout_thread = std::thread::spawn(move || {
         let mut bytes = Vec::new();
         let mut stream = stdout;
@@ -227,7 +227,7 @@ fn plan_agent(request: &ReadingDiffAgentRequest<'_>) -> Result<AgentPlan, String
                 label: "Grok Build",
             })
         }
-        _ => Err("The Configured AI Text Agent Cannot Guarantee Diff-Only Access.".to_string()),
+        _ => Err("The configured AI Assist agent cannot guarantee diff-only access.".to_string()),
     }
 }
 

@@ -89,7 +89,7 @@ impl AleraApp {
                                 ))
                             })
                             .when(
-                                self.settings_state.ai_text_enabled || self.source_commit_ai_busy,
+                                self.settings_state.ai_assist_enabled || self.source_commit_ai_busy,
                                 |toolbar| {
                                     toolbar.child(self.source_toolbar_button(
                                         "source-ai-message",
@@ -568,7 +568,7 @@ impl AleraApp {
                 .changes
                 .iter()
                 .any(|change| change.area.eq_ignore_ascii_case("staged"));
-            return self.settings_state.ai_text_enabled
+            return self.settings_state.ai_assist_enabled
                 && !self.git_busy
                 && !self.git_snapshot_loading
                 && self.git_snapshot_error.is_none()

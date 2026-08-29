@@ -309,7 +309,7 @@ impl AleraApp {
                                 .cursor(CursorStyle::PointingHand)
                                 .hover(|style| style.bg(theme::surface_raised()))
                                 .on_click(cx.listener(|this, _, _, cx| match this.settings_pane {
-                                    SettingsPane::AiText => this.reset_ai_text_settings(cx),
+                                    SettingsPane::AiAssist => this.reset_ai_assist_settings(cx),
                                     SettingsPane::TextActions => this.reset_text_actions(cx),
                                     SettingsPane::Editor => this.reset_editor_settings(cx),
                                     SettingsPane::Terminal => {
@@ -445,7 +445,7 @@ impl AleraApp {
                         .when(selected, |row| row.bg(theme::surface_raised()))
                         .on_click(cx.listener(move |this, _, window, cx| {
                             this.select_settings_pane(pane, window, cx);
-                            if pane == SettingsPane::AiText {
+                            if pane == SettingsPane::AiAssist {
                                 this.auto_discover_configured_ai_models(window, cx);
                             }
                             cx.stop_propagation();
@@ -526,7 +526,9 @@ fn settings_pane_description(pane: SettingsPane) -> &'static str {
         SettingsPane::Application => "Storage, safety, runtime, diagnostics and updates.",
         SettingsPane::Agents => "Agent Hooks, Notifications And Alera Skills.",
         SettingsPane::Quotas => "Provider Usage, Claude Profiles And Credential Environment.",
-        SettingsPane::AiText => "AI-generated source control text.",
+        SettingsPane::AiAssist => {
+            "Local agent assistance for commits, pull requests, diffs, workspace identity, and speech."
+        }
         SettingsPane::TextActions => "Create reusable replacements for selected text.",
         SettingsPane::Editor => "Code editor defaults.",
         SettingsPane::Terminal => "Appearance defaults for new terminal sessions.",
@@ -550,10 +552,11 @@ pub(super) fn settings_pane_groups(pane: SettingsPane) -> &'static [&'static str
         ],
         SettingsPane::Agents => &["CLI And Skills", "Status Hooks", "Behavior"],
         SettingsPane::Quotas => &["Providers", "Claude", "Credentials"],
-        SettingsPane::AiText => &[
+        SettingsPane::AiAssist => &[
             "Generation",
             "Commit Messages",
             "Pull Request Details",
+            "Reading Diffs",
             "Workspace Identity",
         ],
         SettingsPane::TextActions => &["Actions"],
@@ -580,7 +583,7 @@ pub(super) fn settings_pane_groups(pane: SettingsPane) -> &'static [&'static str
 fn settings_pane_supports_reset(pane: SettingsPane) -> bool {
     matches!(
         pane,
-        SettingsPane::AiText
+        SettingsPane::AiAssist
             | SettingsPane::TextActions
             | SettingsPane::Editor
             | SettingsPane::Terminal

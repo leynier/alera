@@ -2,7 +2,7 @@ use gpui::{Context, KeyDownEvent, Window};
 
 use super::agent_profile_settings::AgentProfileDropdown;
 use super::agent_profile_settings_catalog::{controls_for, ManagedControl, ADAPTERS, LAUNCH_MODES};
-use super::ai_text_settings_catalog::model_choices;
+use super::ai_assist_settings_catalog::model_choices;
 use super::AleraApp;
 
 impl AleraApp {

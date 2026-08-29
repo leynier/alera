@@ -59,7 +59,7 @@ impl AleraApp {
                 &self.settings_group_anchors,
                 cx,
             ),
-            SettingsPane::AiText => ai_text_pane(
+            SettingsPane::AiAssist => ai_assist_pane(
                 &self.settings_state,
                 &self.settings_inputs,
                 &self.settings_textareas,

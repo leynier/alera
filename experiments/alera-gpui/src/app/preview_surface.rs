@@ -380,7 +380,7 @@ impl AleraApp {
     ) -> AnyElement {
         let input = self.editor_input_for_path(path);
         let text_actions = self.settings_state.text_actions.clone();
-        let ai_text_enabled = self.settings_state.ai_text_enabled;
+        let ai_assist_enabled = self.settings_state.ai_assist_enabled;
         let editor_background = cx
             .theme()
             .highlight_theme
@@ -405,7 +405,7 @@ impl AleraApp {
                             menu,
                             input.clone(),
                             text_actions.clone(),
-                            ai_text_enabled,
+                            ai_assist_enabled,
                             window,
                             cx,
                         )
@@ -463,7 +463,7 @@ impl AleraApp {
         };
         let editor_input = self.editor_input_for_path(opened_path);
         let text_actions = self.settings_state.text_actions.clone();
-        let ai_text_enabled = self.settings_state.ai_text_enabled;
+        let ai_assist_enabled = self.settings_state.ai_assist_enabled;
         let editor_background = cx
             .theme()
             .highlight_theme
@@ -588,7 +588,7 @@ impl AleraApp {
                                 menu,
                                 editor_input.clone(),
                                 text_actions.clone(),
-                                ai_text_enabled,
+                                ai_assist_enabled,
                                 window,
                                 cx,
                             )

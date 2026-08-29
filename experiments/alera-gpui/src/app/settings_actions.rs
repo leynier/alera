@@ -6,7 +6,7 @@ use serde_json::{json, Value};
 
 use super::command_terminal::CommandTerminalRequest;
 use super::settings_select_option::SettingsSelectOption;
-use super::settings_state::{AiTextPromptSettings, GitHubStarState, SettingsState};
+use super::settings_state::{AiAssistPromptSettings, GitHubStarState, SettingsState};
 use super::AleraApp;
 
 impl AleraApp {
@@ -27,22 +27,22 @@ impl AleraApp {
                 );
             }
             "ai-custom-command" => {
-                self.update_ai_text_settings(
-                    |settings| settings.ai_text_custom_command = value,
+                self.update_ai_assist_settings(
+                    |settings| settings.ai_assist_custom_command = value,
                     cx,
                 );
             }
             key if key.starts_with("ai-instructions-") => {
                 let operation = key.trim_start_matches("ai-instructions-").to_string();
-                self.update_ai_text_settings(
+                self.update_ai_assist_settings(
                     |settings| {
                         if value.trim().is_empty() {
                             settings
-                                .ai_text_instructions_by_operation
+                                .ai_assist_instructions_by_operation
                                 .remove(&operation);
                         } else {
                             settings
-                                .ai_text_instructions_by_operation
+                                .ai_assist_instructions_by_operation
                                 .insert(operation, value);
                         }
                     },
@@ -269,56 +269,56 @@ impl AleraApp {
                 cx.notify();
             }
             "ai-agent" => {
-                let Some(agent) = super::ai_text_settings_catalog::agent_key(&value) else {
+                let Some(agent) = super::ai_assist_settings_catalog::agent_key(&value) else {
                     return;
                 };
                 let agent = agent.to_string();
-                self.update_ai_text_settings(
+                self.update_ai_assist_settings(
                     |settings| {
-                        settings.ai_text_agent = agent;
+                        settings.ai_assist_agent = agent;
                         settings
-                            .ai_text_prompt_settings_by_operation
+                            .ai_assist_prompt_settings_by_operation
                             .retain(|_, prompt| prompt.agent.is_some());
                     },
                     cx,
                 );
-                self.sync_ai_text_selects(window, cx);
+                self.sync_ai_assist_selects(window, cx);
                 self.auto_discover_configured_ai_models(window, cx);
             }
             "ai-model" => {
-                let agent = self.settings_state.ai_text_agent.clone();
+                let agent = self.settings_state.ai_assist_agent.clone();
                 let model =
-                    super::ai_text_settings_catalog::model_choices(&self.settings_state, &agent)
+                    super::ai_assist_settings_catalog::model_choices(&self.settings_state, &agent)
                         .into_iter()
                         .find(|model| model.label == value)
                         .map(|model| model.id)
                         .unwrap_or(value);
-                self.update_ai_text_settings(
+                self.update_ai_assist_settings(
                     |settings| {
                         settings
-                            .ai_text_selected_model_by_agent
+                            .ai_assist_selected_model_by_agent
                             .insert(agent, model);
                     },
                     cx,
                 );
-                self.sync_ai_text_selects(window, cx);
+                self.sync_ai_assist_selects(window, cx);
                 self.auto_discover_configured_ai_models(window, cx);
             }
             "ai-thinking" => {
-                let agent = self.settings_state.ai_text_agent.clone();
+                let agent = self.settings_state.ai_assist_agent.clone();
                 let model = self
                     .settings_state
-                    .ai_text_selected_model_by_agent
+                    .ai_assist_selected_model_by_agent
                     .get(&agent)
                     .cloned()
                     .unwrap_or_else(|| {
-                        super::ai_text_settings_catalog::selected_model_id(
+                        super::ai_assist_settings_catalog::selected_model_id(
                             &self.settings_state,
                             &agent,
                         )
                     });
                 let Some(thinking) =
-                    super::ai_text_settings_catalog::model_choices(&self.settings_state, &agent)
+                    super::ai_assist_settings_catalog::model_choices(&self.settings_state, &agent)
                         .into_iter()
                         .find(|candidate| candidate.id == model)
                         .and_then(|model| {
@@ -331,10 +331,10 @@ impl AleraApp {
                 else {
                     return;
                 };
-                self.update_ai_text_settings(
+                self.update_ai_assist_settings(
                     |settings| {
                         settings
-                            .ai_text_selected_thinking_by_model
+                            .ai_assist_selected_thinking_by_model
                             .insert(model, thinking);
                     },
                     cx,
@@ -347,31 +347,31 @@ impl AleraApp {
                     .to_string();
                 let previous = self
                     .settings_state
-                    .ai_text_prompt_settings_by_operation
+                    .ai_assist_prompt_settings_by_operation
                     .get(&operation)
                     .cloned()
                     .unwrap_or_default();
                 let previous_agent = previous
                     .agent
                     .as_deref()
-                    .unwrap_or(&self.settings_state.ai_text_agent);
+                    .unwrap_or(&self.settings_state.ai_assist_agent);
                 let next_agent = if value.starts_with("Global (") {
                     None
                 } else {
-                    super::ai_text_settings_catalog::agent_key(&value).map(str::to_string)
+                    super::ai_assist_settings_catalog::agent_key(&value).map(str::to_string)
                 };
                 let effective_next_agent = next_agent
                     .as_deref()
-                    .unwrap_or(&self.settings_state.ai_text_agent);
+                    .unwrap_or(&self.settings_state.ai_assist_agent);
                 let model = (previous_agent == effective_next_agent)
                     .then_some(previous.model)
                     .flatten();
-                self.update_ai_text_settings(
+                self.update_ai_assist_settings(
                     |settings| {
                         update_prompt_settings(
                             settings,
                             operation,
-                            AiTextPromptSettings {
+                            AiAssistPromptSettings {
                                 agent: next_agent,
                                 model,
                             },
@@ -379,7 +379,7 @@ impl AleraApp {
                     },
                     cx,
                 );
-                self.sync_ai_text_selects(window, cx);
+                self.sync_ai_assist_selects(window, cx);
             }
             key if key.starts_with("ai-prompt-") && key.ends_with("-model") => {
                 let operation = key
@@ -388,18 +388,18 @@ impl AleraApp {
                     .to_string();
                 let previous = self
                     .settings_state
-                    .ai_text_prompt_settings_by_operation
+                    .ai_assist_prompt_settings_by_operation
                     .get(&operation)
                     .cloned()
                     .unwrap_or_default();
                 let effective_agent = previous
                     .agent
                     .as_deref()
-                    .unwrap_or(&self.settings_state.ai_text_agent);
+                    .unwrap_or(&self.settings_state.ai_assist_agent);
                 let model = if value.starts_with("Global (") {
                     None
                 } else {
-                    super::ai_text_settings_catalog::model_choices(
+                    super::ai_assist_settings_catalog::model_choices(
                         &self.settings_state,
                         effective_agent,
                     )
@@ -408,12 +408,12 @@ impl AleraApp {
                     .map(|model| model.id)
                     .or(Some(value))
                 };
-                self.update_ai_text_settings(
+                self.update_ai_assist_settings(
                     |settings| {
                         update_prompt_settings(
                             settings,
                             operation,
-                            AiTextPromptSettings {
+                            AiAssistPromptSettings {
                                 agent: previous.agent,
                                 model,
                             },
@@ -421,7 +421,7 @@ impl AleraApp {
                     },
                     cx,
                 );
-                self.sync_ai_text_selects(window, cx);
+                self.sync_ai_assist_selects(window, cx);
             }
             key if key.starts_with("ai-prompt-") && key.ends_with("-thinking") => {
                 let operation = key
@@ -430,21 +430,21 @@ impl AleraApp {
                     .to_string();
                 let prompt = self
                     .settings_state
-                    .ai_text_prompt_settings_by_operation
+                    .ai_assist_prompt_settings_by_operation
                     .get(&operation);
                 let agent = prompt
                     .and_then(|prompt| prompt.agent.as_deref())
-                    .unwrap_or(&self.settings_state.ai_text_agent);
+                    .unwrap_or(&self.settings_state.ai_assist_agent);
                 let model = prompt
                     .and_then(|prompt| prompt.model.as_deref())
                     .map(str::to_owned)
                     .unwrap_or_else(|| {
-                        super::ai_text_settings_catalog::selected_model_id(
+                        super::ai_assist_settings_catalog::selected_model_id(
                             &self.settings_state,
                             agent,
                         )
                     });
-                let Some(thinking) = super::ai_text_settings_catalog::model_choices(
+                let Some(thinking) = super::ai_assist_settings_catalog::model_choices(
                     &self.settings_state,
                     agent,
                 )
@@ -459,10 +459,10 @@ impl AleraApp {
                 }) else {
                     return;
                 };
-                self.update_ai_text_settings(
+                self.update_ai_assist_settings(
                     |settings| {
                         settings
-                            .ai_text_selected_thinking_by_operation
+                            .ai_assist_selected_thinking_by_operation
                             .entry(operation)
                             .or_default()
                             .insert(model, thinking);
@@ -528,15 +528,15 @@ fn valid_environment_name(value: &str) -> bool {
 fn update_prompt_settings(
     settings: &mut SettingsState,
     operation: String,
-    prompt: AiTextPromptSettings,
+    prompt: AiAssistPromptSettings,
 ) {
     if prompt.agent.is_none() && prompt.model.is_none() {
         settings
-            .ai_text_prompt_settings_by_operation
+            .ai_assist_prompt_settings_by_operation
             .remove(&operation);
     } else {
         settings
-            .ai_text_prompt_settings_by_operation
+            .ai_assist_prompt_settings_by_operation
             .insert(operation, prompt);
     }
 }

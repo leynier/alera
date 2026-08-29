@@ -189,7 +189,7 @@ impl AleraApp {
         });
         self.local_message = Some("Running Text Action".into());
         let bridge = self.bridge.clone();
-        let timeout = self.settings_state.ai_text_timeout_seconds.max(10) as u64 + 10;
+        let timeout = self.settings_state.ai_assist_timeout_seconds.max(10) as u64 + 10;
         cx.spawn_in(window, async move |this, cx| {
             let result = bridge
                 .request_with_timeout(

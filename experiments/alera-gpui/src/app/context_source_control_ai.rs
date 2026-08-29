@@ -7,7 +7,7 @@ use super::AleraApp;
 
 impl AleraApp {
     pub(super) fn generate_commit_message(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        if !self.settings_state.ai_text_enabled {
+        if !self.settings_state.ai_assist_enabled {
             return;
         }
         let has_staged = self

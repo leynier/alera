@@ -315,7 +315,7 @@ impl AleraApp {
                     &this,
                     cx,
                     flutter_state_error(collision_error.unwrap_or_else(|| {
-                        "AI Text Could Not Generate An Available Workspace Identity.".to_owned()
+                        "AI Assist could not generate an available workspace identity.".to_owned()
                     })),
                 );
                 return;

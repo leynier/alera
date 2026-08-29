@@ -507,7 +507,7 @@ fn project_icon_button(
 }
 
 #[allow(clippy::too_many_arguments)]
-fn ai_text_pane(
+fn ai_assist_pane(
     settings: &SettingsState,
     inputs: &SettingsInputs,
     textareas: &SettingsTextareas,
@@ -523,19 +523,19 @@ fn ai_text_pane(
         .get("ai-thinking")
         .expect("AI thinking select should exist");
     let model_id =
-        super::ai_text_settings_catalog::selected_model_id(settings, &settings.ai_text_agent);
+        super::ai_assist_settings_catalog::selected_model_id(settings, &settings.ai_assist_agent);
     let model_choices =
-        super::ai_text_settings_catalog::model_choices(settings, &settings.ai_text_agent);
+        super::ai_assist_settings_catalog::model_choices(settings, &settings.ai_assist_agent);
     let selected_model = model_choices.iter().find(|model| model.id == model_id);
     let mut generation_rows = vec![
         exact_settings_row(
-            "Enable AI Text",
+            "Enable AI Assist",
             "Show generation actions in source control and pull requests.",
-            settings_switch("ai-text-enabled", "Enable AI Text", settings.ai_text_enabled)
+            settings_switch("ai-text-enabled", "Enable AI Assist", settings.ai_assist_enabled)
                 .on_click(
                 cx.listener(|this, _, _, cx| {
-                    this.update_ai_text_settings(
-                        |settings| settings.ai_text_enabled = !settings.ai_text_enabled,
+                    this.update_ai_assist_settings(
+                        |settings| settings.ai_assist_enabled = !settings.ai_assist_enabled,
                         cx,
                     );
                 }),
@@ -543,11 +543,11 @@ fn ai_text_pane(
         ),
         exact_settings_row(
             "Agent",
-            "CLI used for generated source control text.",
+            "CLI used for AI Assist jobs.",
             settings_select_control("Agent", agent_select, false, true),
         ),
     ];
-    if settings.ai_text_agent == "custom" {
+    if settings.ai_assist_agent == "custom" {
         generation_rows.push(exact_settings_row(
             "Custom Command",
             "Use {prompt} to pass the prompt as an argument; otherwise Alera sends it on stdin.",
@@ -562,18 +562,18 @@ fn ai_text_pane(
         generation_rows.push(exact_settings_row(
             "Model",
             discovery_errors
-                .get(&settings.ai_text_agent)
+                .get(&settings.ai_assist_agent)
                 .cloned()
                 .unwrap_or_else(|| {
                     format!(
                         "Model passed to {}.",
-                        super::ai_text_settings_catalog::agent_label(&settings.ai_text_agent)
+                        super::ai_assist_settings_catalog::agent_label(&settings.ai_assist_agent)
                     )
                     .into()
                 }),
             ai_model_select_control(
                 model_select,
-                &settings.ai_text_agent,
+                &settings.ai_assist_agent,
                 "global",
                 discovery_busy,
                 cx,
@@ -581,21 +581,21 @@ fn ai_text_pane(
         ));
         if selected_model.is_some_and(|model| !model.thinking_levels.is_empty()) {
             generation_rows.push(exact_settings_row(
-                "Thinking",
+                "Reasoning",
                 "Reasoning effort for models that support it.",
-                settings_select_control("Thinking", thinking_select, false, false),
+                settings_select_control("Reasoning", thinking_select, false, false),
             ));
         }
     }
-    if settings.ai_text_agent != "custom"
+    if settings.ai_assist_agent != "custom"
         && settings
-            .ai_text_prompt_settings_by_operation
+            .ai_assist_prompt_settings_by_operation
             .values()
             .any(|prompt| prompt.agent.as_deref() == Some("custom"))
     {
         generation_rows.push(exact_settings_row(
             "Custom Command",
-            "Used By Prompts That Override The Global Agent With Custom Command.",
+            "Used by prompts that override the global agent with custom command.",
             settings_text_input(
                 "Custom Command",
                 settings_input(inputs, "ai-custom-command"),
@@ -607,17 +607,18 @@ fn ai_text_pane(
     let mut pane = div().child(
         exact_settings_group(
             "Generation",
-            "Local agent CLIs generate text from source control context.",
+            "Local agent CLIs run short background jobs from source control and workspace context.",
             generation_rows,
         )
         .id(("settings-group-anchor", 0usize))
-        .anchor_scroll(settings_group_anchor(anchors, SettingsPane::AiText, 0)),
+        .anchor_scroll(settings_group_anchor(anchors, SettingsPane::AiAssist, 0)),
     );
     for (index, (operation, title)) in [
         ("commitMessage", "Commit Messages"),
         ("pullRequestDetails", "Pull Request Details"),
-        ("workspaceIdentity", "Workspace Identity"),
         ("readingDiff", "Reading Diffs"),
+        ("workspaceIdentity", "Workspace Identity"),
+        ("speechMessage", "Speech Messages"),
     ]
     .into_iter()
     .enumerate()
@@ -626,7 +627,7 @@ fn ai_text_pane(
             div().mt_4().child(
                 exact_settings_group(
                     title,
-                    "Configure The Agent, Model, Reasoning And Instructions For This Prompt.",
+                    "Configure the agent, model, reasoning and instructions for this prompt.",
                     prompt_operation_rows(
                         settings,
                         textareas,
@@ -640,7 +641,7 @@ fn ai_text_pane(
                 .id(("settings-group-anchor", index + 1))
                 .anchor_scroll(settings_group_anchor(
                     anchors,
-                    SettingsPane::AiText,
+                    SettingsPane::AiAssist,
                     index + 1,
                 )),
             ),
@@ -660,17 +661,17 @@ fn prompt_operation_rows(
 ) -> Vec<gpui::Div> {
     let mut rows = Vec::new();
     let prompt = settings
-        .ai_text_prompt_settings_by_operation
+        .ai_assist_prompt_settings_by_operation
         .get(operation);
     let effective_agent = prompt
         .and_then(|prompt| prompt.agent.as_deref())
-        .unwrap_or(&settings.ai_text_agent);
+        .unwrap_or(&settings.ai_assist_agent);
     let agent_select = selects
         .get(&format!("ai-prompt-{operation}-agent"))
         .expect("AI prompt agent select should exist");
     rows.push(exact_settings_row(
         "Agent",
-        "Override The Global Agent For This Prompt.",
+        "Override the global agent for this prompt.",
         settings_select_control("Agent", agent_select, false, true),
     ));
     if effective_agent != "custom" {
@@ -682,7 +683,7 @@ fn prompt_operation_rows(
             discovery_errors
                 .get(effective_agent)
                 .cloned()
-                .unwrap_or_else(|| "Override The Global Model For This Prompt.".into()),
+                .unwrap_or_else(|| "Override the global model for this prompt.".into()),
             ai_model_select_control(
                 model_select,
                 effective_agent,
@@ -696,9 +697,9 @@ fn prompt_operation_rows(
                 .and_then(|prompt| prompt.model.as_deref())
                 .map(str::to_owned)
                 .unwrap_or_else(|| {
-                    super::ai_text_settings_catalog::selected_model_id(settings, effective_agent)
+                    super::ai_assist_settings_catalog::selected_model_id(settings, effective_agent)
                 });
-            let has_thinking = super::ai_text_settings_catalog::model_choices(
+            let has_thinking = super::ai_assist_settings_catalog::model_choices(
                 settings,
                 effective_agent,
             )
@@ -708,7 +709,7 @@ fn prompt_operation_rows(
             if has_thinking {
                 rows.push(exact_settings_row(
                     "Reasoning",
-                    "Reasoning Effort For Models That Support It.",
+                    "Reasoning effort for models that support it.",
                     settings_select_control("Reasoning", thinking_select, false, false),
                 ));
             }
@@ -771,7 +772,7 @@ fn ai_model_select_control(
                             .hover(|style| style.bg(theme::surface_raised()))
                             .on_click(
                                 cx.listener(move |this, _, window, cx| {
-                                    this.discover_ai_text_models(agent.clone(), window, cx);
+                                    this.discover_ai_assist_models(agent.clone(), window, cx);
                                 }),
                             )
                     })

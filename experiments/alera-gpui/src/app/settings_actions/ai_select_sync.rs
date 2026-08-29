@@ -1,10 +1,10 @@
 impl AleraApp {
-    fn sync_ai_text_selects(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        let agent = self.settings_state.ai_text_agent.clone();
+    fn sync_ai_assist_selects(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        let agent = self.settings_state.ai_assist_agent.clone();
         let model_id =
-            super::ai_text_settings_catalog::selected_model_id(&self.settings_state, &agent);
+            super::ai_assist_settings_catalog::selected_model_id(&self.settings_state, &agent);
         let model_choices =
-            super::ai_text_settings_catalog::model_choices(&self.settings_state, &agent);
+            super::ai_assist_settings_catalog::model_choices(&self.settings_state, &agent);
         let model = model_choices.iter().find(|model| model.id == model_id);
         let model_label = model
             .map(|model| model.label.to_string())
@@ -30,7 +30,7 @@ impl AleraApp {
             let selected = model.and_then(|model| {
                 let thinking_id = self
                     .settings_state
-                    .ai_text_selected_thinking_by_model
+                    .ai_assist_selected_thinking_by_model
                     .get(&model_id)
                     .map(String::as_str)
                     .or(model.default_thinking.as_deref())?;
@@ -66,23 +66,24 @@ impl AleraApp {
         for operation in [
             "commitMessage",
             "pullRequestDetails",
-            "workspaceIdentity",
             "readingDiff",
+            "workspaceIdentity",
+            "speechMessage",
         ] {
             let prompt = self
                 .settings_state
-                .ai_text_prompt_settings_by_operation
+                .ai_assist_prompt_settings_by_operation
                 .get(operation);
             let effective_agent = prompt
                 .and_then(|prompt| prompt.agent.as_deref())
                 .unwrap_or(&agent);
             let global_agent_label = format!(
                 "Global ({})",
-                super::ai_text_settings_catalog::agent_label(&agent)
+                super::ai_assist_settings_catalog::agent_label(&agent)
             );
             let selected_agent = prompt
                 .and_then(|prompt| prompt.agent.as_deref())
-                .map(super::ai_text_settings_catalog::agent_label)
+                .map(super::ai_assist_settings_catalog::agent_label)
                 .map(str::to_string)
                 .unwrap_or_else(|| global_agent_label.clone());
             if let Some(select) = self
@@ -92,8 +93,11 @@ impl AleraApp {
                 let options =
                     std::iter::once(SettingsSelectOption::new(global_agent_label))
                         .chain(
-                            super::ai_text_settings_catalog::agents()
+                            super::ai_assist_settings_catalog::agents()
                                 .iter()
+                                .filter(|(id, _)| {
+                                    operation != "speechMessage" || *id != "custom"
+                                })
                                 .map(|(_, label)| SettingsSelectOption::new(*label)),
                         )
                         .collect::<Vec<_>>();
@@ -107,11 +111,11 @@ impl AleraApp {
                 });
             }
 
-            let inherited_model_id = super::ai_text_settings_catalog::selected_model_id(
+            let inherited_model_id = super::ai_assist_settings_catalog::selected_model_id(
                 &self.settings_state,
                 effective_agent,
             );
-            let effective_models = super::ai_text_settings_catalog::model_choices(
+            let effective_models = super::ai_assist_settings_catalog::model_choices(
                 &self.settings_state,
                 effective_agent,
             );
@@ -169,14 +173,14 @@ impl AleraApp {
             let selected_thinking = effective_model.and_then(|model| {
                 let thinking_id = self
                     .settings_state
-                    .ai_text_selected_thinking_by_operation
+                    .ai_assist_selected_thinking_by_operation
                     .get(operation)
                     .and_then(|values| values.get(effective_model_id))
                     .map(String::as_str)
                     .or_else(|| {
                         self
                     .settings_state
-                    .ai_text_selected_thinking_by_model
+                    .ai_assist_selected_thinking_by_model
                     .get(effective_model_id)
                     .map(String::as_str)
                     })

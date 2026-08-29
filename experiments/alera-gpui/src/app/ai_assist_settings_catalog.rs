@@ -1,6 +1,6 @@
 use super::settings_state::SettingsState;
 
-pub(super) struct AiTextModel {
+pub(super) struct AiAssistModel {
     pub id: &'static str,
     pub label: &'static str,
     pub thinking_levels: &'static [(&'static str, &'static str)],
@@ -8,7 +8,7 @@ pub(super) struct AiTextModel {
 }
 
 #[derive(Clone, Debug)]
-pub(super) struct AiTextModelChoice {
+pub(super) struct AiAssistModelChoice {
     pub id: String,
     pub label: String,
     pub thinking_levels: Vec<(String, String)>,
@@ -54,23 +54,23 @@ const GROK_THINKING: &[(&str, &str)] = &[
     ("xhigh", "Extra High"),
 ];
 
-const CLAUDE_MODELS: &[AiTextModel] = &[
+const CLAUDE_MODELS: &[AiAssistModel] = &[
     model("haiku", "Haiku", &[], None),
     model("sonnet", "Sonnet", CLAUDE_THINKING, Some("low")),
     model("opus", "Opus", CLAUDE_THINKING, Some("low")),
 ];
-const CODEX_MODELS: &[AiTextModel] = &[
+const CODEX_MODELS: &[AiAssistModel] = &[
     model("gpt-5.5", "GPT-5.5", OPENAI_THINKING, Some("low")),
     model("gpt-5.4", "GPT-5.4", OPENAI_THINKING, Some("low")),
     model("gpt-5.4-mini", "GPT-5.4 Mini", OPENAI_THINKING, Some("low")),
 ];
-const COPILOT_MODELS: &[AiTextModel] = &[
+const COPILOT_MODELS: &[AiAssistModel] = &[
     model("auto", "Auto", &[], None),
     model("gpt-5.4", "GPT-5.4", OPENAI_THINKING, Some("low")),
     model("gpt-5.4-mini", "GPT-5.4 Mini", OPENAI_THINKING, Some("low")),
 ];
-const CURSOR_MODELS: &[AiTextModel] = &[model("auto", "Auto", &[], None)];
-const AGY_MODELS: &[AiTextModel] = &[
+const CURSOR_MODELS: &[AiAssistModel] = &[model("auto", "Auto", &[], None)];
+const AGY_MODELS: &[AiAssistModel] = &[
     model(
         "Gemini 3.5 Flash (Medium)",
         "Gemini 3.5 Flash (Medium)",
@@ -90,25 +90,25 @@ const AGY_MODELS: &[AiTextModel] = &[
         None,
     ),
 ];
-const OPENCODE_MODELS: &[AiTextModel] = &[model(
+const OPENCODE_MODELS: &[AiAssistModel] = &[model(
     "opencode/deepseek-v4-flash-free",
     "OpenCode DeepSeek V4 Flash Free",
     &[],
     None,
 )];
-const PI_MODELS: &[AiTextModel] = &[model(
+const PI_MODELS: &[AiAssistModel] = &[model(
     "github-copilot/gpt-5.4-mini",
     "GitHub Copilot GPT-5.4 Mini",
     OPENAI_THINKING,
     Some("low"),
 )];
-const AMP_MODELS: &[AiTextModel] = &[
+const AMP_MODELS: &[AiAssistModel] = &[
     model("smart", "Smart", &[], None),
     model("rush", "Rush", &[], None),
     model("large", "Large", BASIC_THINKING, Some("low")),
     model("deep", "Deep", BASIC_THINKING, Some("low")),
 ];
-const GROK_MODELS: &[AiTextModel] = &[model(
+const GROK_MODELS: &[AiAssistModel] = &[model(
     "grok-4.6",
     "Grok 4.6",
     GROK_THINKING,
@@ -120,8 +120,8 @@ const fn model(
     label: &'static str,
     thinking_levels: &'static [(&'static str, &'static str)],
     default_thinking: Option<&'static str>,
-) -> AiTextModel {
-    AiTextModel {
+) -> AiAssistModel {
+    AiAssistModel {
         id,
         label,
         thinking_levels,
@@ -148,7 +148,7 @@ pub(super) fn agents() -> &'static [(&'static str, &'static str)] {
     AGENTS
 }
 
-pub(super) fn models_for(agent: &str) -> &'static [AiTextModel] {
+pub(super) fn models_for(agent: &str) -> &'static [AiAssistModel] {
     match agent {
         "claude" => CLAUDE_MODELS,
         "codex" => CODEX_MODELS,
@@ -181,10 +181,10 @@ pub(super) fn default_model(agent: &str) -> &'static str {
     }
 }
 
-pub(super) fn model_choices(settings: &SettingsState, agent: &str) -> Vec<AiTextModelChoice> {
+pub(super) fn model_choices(settings: &SettingsState, agent: &str) -> Vec<AiAssistModelChoice> {
     let mut models = models_for(agent)
         .iter()
-        .map(|model| AiTextModelChoice {
+        .map(|model| AiAssistModelChoice {
             id: model.id.to_string(),
             label: model.label.to_string(),
             thinking_levels: model
@@ -195,9 +195,9 @@ pub(super) fn model_choices(settings: &SettingsState, agent: &str) -> Vec<AiText
             default_thinking: model.default_thinking.map(str::to_string),
         })
         .collect::<Vec<_>>();
-    if let Some(discovered) = settings.ai_text_discovered_models_by_agent.get(agent) {
+    if let Some(discovered) = settings.ai_assist_discovered_models_by_agent.get(agent) {
         for discovered in discovered {
-            let choice = AiTextModelChoice {
+            let choice = AiAssistModelChoice {
                 id: discovered.id.clone(),
                 label: discovered.label.clone(),
                 thinking_levels: discovered
@@ -219,12 +219,12 @@ pub(super) fn model_choices(settings: &SettingsState, agent: &str) -> Vec<AiText
 
 pub(super) fn selected_model_id(settings: &SettingsState, agent: &str) -> String {
     settings
-        .ai_text_selected_model_by_agent
+        .ai_assist_selected_model_by_agent
         .get(agent)
         .cloned()
         .or_else(|| {
             settings
-                .ai_text_discovered_default_model_by_agent
+                .ai_assist_discovered_default_model_by_agent
                 .get(agent)
                 .cloned()
         })
