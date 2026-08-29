@@ -92,7 +92,8 @@ async fn generate_pull_request_details(
         .cloned()
         .unwrap_or_default();
     let prompt = tokio::task::spawn_blocking(move || {
-        let context = git::git_range_context(path, base, Some(40)).map_err(git_error)?;
+        let context = git::git_range_context(path, base, Some(40), requested_head.clone())
+            .map_err(git_error)?;
         pull_request_prompt(context, requested_head.as_deref(), &instructions)
     })
     .await

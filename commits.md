@@ -308,17 +308,17 @@ commit so this file remains useful after context compaction.
 | 287 | `2e1f4ebe0df4e90032c489c099a3e52b5a718095` | 2026-08-22 | docs: document cloud state versioning check (#474) | merged | Cherry-picked Cloud operations documentation; no GPUI surface changed. |
 | 288 | `2e69bc83c4b4e28c8380e4449a804a577b5c12f7` | 2026-08-23 | docs: clarify relay probe contract (#479) | merged | Cherry-picked Cloud operations documentation; no GPUI surface changed. |
 | 289 | `74bffcc355652fe91008e19a63a2f3901f8fe016` | 2026-08-23 | feat: add account-scoped mobile cloud relay (#354) | merged | Cherry-picked account-scoped encrypted relay runtime and added GPUI Mobile Gateway remote-access parsing, persisted switch, RPC, compatibility default, and search entry; targeted test passes. |
-| 290 | `c755342915d6a064b35e006b3e879f6952850773` | 2026-08-23 | release: v0.65.0 v0.30.0-mobile | pending | - |
-| 291 | `08929324ee81b0d48eaaede0b1997c3abd73cbe3` | 2026-08-23 | fix: route relay control requests to cloud (#482) | pending | - |
-| 292 | `8db7272f82d7a2af7736b6efd4a8e4c825b0db95` | 2026-08-23 | docs: clarify relay control plane routing (#483) | pending | - |
-| 293 | `267623b6fbde349a43c99061e00bf04c84b0f486` | 2026-08-23 | fix: verify relay deployment routing (#487) | pending | - |
-| 294 | `ef3202d7267bf2a25c64ac017d68b99f8c26dc32` | 2026-08-23 | docs: clarify relay websocket transport (#491) | pending | - |
-| 295 | `d50801a555914c23c8e426dc6ef0198189594492` | 2026-08-23 | fix: restore relay websocket connectivity (#490) | pending | - |
-| 296 | `020e96fda8acca0f876074be27fdd639c964b640` | 2026-08-23 | chore: add Amp agent modes (#494) | pending | - |
-| 297 | `f9b464aaeda8e1fcf06200834902e1b2fcb1025a` | 2026-08-23 | fix: stabilize relay runtime presence and reconnects (#495) | pending | - |
-| 298 | `347aaac386403dc40285dc774f039fee19e28c1c` | 2026-08-23 | fix: reconnect relay mobiles after runtime restart (#496) | pending | - |
-| 299 | `64503058bf29fc141ef19073cd8864807bb3110c` | 2026-08-23 | fix: harden relay transport recovery (#497) | pending | - |
-| 300 | `24a8a5c13dfebe05db4cb4a2f4b5df54fc5376ac` | 2026-08-23 | fix: complete mobile relay fallback (#493) | pending | - |
+| 290 | `c755342915d6a064b35e006b3e879f6952850773` | 2026-08-23 | release: v0.65.0 v0.30.0-mobile | merged | Cherry-picked desktop/mobile release metadata; no GPUI-specific UI behavior is affected. |
+| 291 | `08929324ee81b0d48eaaede0b1997c3abd73cbe3` | 2026-08-23 | fix: route relay control requests to cloud (#482) | merged | Cherry-picked Edge relay routing; GPUI consumes the corrected runtime/Cloud behavior without UI changes. |
+| 292 | `8db7272f82d7a2af7736b6efd4a8e4c825b0db95` | 2026-08-23 | docs: clarify relay control plane routing (#483) | merged | Cherry-picked Edge documentation; no GPUI surface changed. |
+| 293 | `267623b6fbde349a43c99061e00bf04c84b0f486` | 2026-08-23 | fix: verify relay deployment routing (#487) | merged | Cherry-picked Cloud deployment verification; no GPUI surface changed. |
+| 294 | `ef3202d7267bf2a25c64ac017d68b99f8c26dc32` | 2026-08-23 | docs: clarify relay websocket transport (#491) | merged | Cherry-picked Edge documentation; no GPUI surface changed. |
+| 295 | `d50801a555914c23c8e426dc6ef0198189594492` | 2026-08-23 | fix: restore relay websocket connectivity (#490) | merged | Cherry-picked shared relay transport fix; GPUI remote-access switch benefits without UI changes. |
+| 296 | `020e96fda8acca0f876074be27fdd639c964b640` | 2026-08-23 | chore: add Amp agent modes (#494) | merged | Cherry-picked repository-local Amp plugins; Amp discovers these modes directly, so no GPUI settings hardcode is appropriate. |
+| 297 | `f9b464aaeda8e1fcf06200834902e1b2fcb1025a` | 2026-08-23 | fix: stabilize relay runtime presence and reconnects (#495) | merged | Cherry-picked shared runtime/Edge relay stabilization; GPUI remote access benefits without UI changes. |
+| 298 | `347aaac386403dc40285dc774f039fee19e28c1c` | 2026-08-23 | fix: reconnect relay mobiles after runtime restart (#496) | merged | Cherry-picked Edge relay reconnect behavior; no GPUI surface changed. |
+| 299 | `64503058bf29fc141ef19073cd8864807bb3110c` | 2026-08-23 | fix: harden relay transport recovery (#497) | merged | Cherry-picked shared runtime relay recovery; GPUI remote access benefits without UI changes. |
+| 300 | `24a8a5c13dfebe05db4cb4a2f4b5df54fc5376ac` | 2026-08-23 | fix: complete mobile relay fallback (#493) | merged | Cherry-picked mobile-only relay fallback and lifecycle completion; GPUI desktop remote-access control remains backed by the shared runtime. |
 | 301 | `95f2d16432caa6d1f8fb22cde1d6a3194712e990` | 2026-08-23 | docs: document relay envelope fragmentation (#498) | pending | - |
 | 302 | `9c5e8fb5193cd08c7dc8580c14175b352cb3cbe3` | 2026-08-23 | release: v0.65.1 v0.30.1-mobile | pending | - |
 | 303 | `72a19aadf4b26acaf1168b8e1ba5f377cb07ce9f` | 2026-08-23 | fix: ignore browser visibility during page close (#461) | pending | - |
