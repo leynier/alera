@@ -119,7 +119,7 @@ commit so this file remains useful after context compaction.
 | 98 | `2b596e02901c68bd8a6fa89112a001c18d458a0c` | 2026-08-05 | release: v0.51.0 v0.19.0-mobile | merged | Cherry-picked the landing/mobile/package release metadata; no GPUI code was expected. |
 | 99 | `35696b2ab03e61ed530a7f87198e33bb2c05676d` | 2026-08-05 | perf: start explorer and scm path drags immediately | in_progress | Replaying the touch-slop drag-source optimization; GPUI already starts Explorer drags from `on_drag` without the Flutter long-press delay. |
 | 100 | `dbe909a22a82a7d1b9ff7c0e0a5ef4aa354a5e06` | 2026-08-05 | Merge pull request #364 from leynier/perf/reduce-file-drag-time | merged | Replayed the merge commit with parent 1; the drag-performance tree was already incorporated by #99 and no new GPUI work was required. |
-| 101 | `fc2958c5afb6ad86d55f7a10c7371953d3f03547` | 2026-08-05 | fix: keep path taps and scroll while dragging files | pending | - |
+| 101 | `fc2958c5afb6ad86d55f7a10c7371953d3f03547` | 2026-08-05 | fix: keep path taps and scroll while dragging files | in_progress | Replaying the multi-drag gesture fix; GPUI already separates click/drag using pointer state and native touch-slop `on_drag`, so I will verify no adapter change is needed. |
 | 102 | `56f04643ac59e06367e6accd31613f83f5117d1c` | 2026-08-05 | Merge pull request #365 from leynier/fix/path-drag-tap-scroll | pending | - |
 | 103 | `354e5a9dd7be46fe7ddbb1d7ff43743c6797f829` | 2026-08-06 | feat: add opencode models and quota tracking | pending | - |
 | 104 | `43b2d03c453b66376201d2116b9f51f652b372af` | 2026-08-06 | style: match hosted dart formatter | pending | - |
