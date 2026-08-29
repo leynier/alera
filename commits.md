@@ -111,7 +111,7 @@ commit so this file remains useful after context compaction.
 | 90 | `c2b701f626bb464585b07827bcd12bf71e51f900` | 2026-08-04 | docs: add netbird remote access plan | merged | Cherry-picked the NetBird remote-access plan document; no GPUI code change is expected. |
 | 91 | `4321eec4f63fddb383bcc10642971831a657f045` | 2026-08-04 | docs: move netbird plan into pr description | merged | Cherry-picked the source document removal; the plan was intentionally moved to PR metadata and no GPUI code change was expected. |
 | 92 | `6b2143df3e5120d1e5bfcdda432a265c46726ba1` | 2026-08-04 | feat: add netbird mobile remote access | merged | Cherry-picked NetBird detection, bind resolution, CLI flags, runtime capability and mobile endpoint rules. GPUI Mobile Devices now parses/displays NetBird status, exposes a conditional NetBird segmented mode, hides the manual endpoint for overlay modes, and validates private overlay ws endpoints; mobile hello advertises the NetBird capability. Targeted GPUI and CLI checks pass. |
-| 93 | `4c2927a2a691f914e5cbafaeda76467c2fd1a22c` | 2026-08-04 | feat: add netbird dns and interface endpoints | pending | - |
+| 93 | `4c2927a2a691f914e5cbafaeda76467c2fd1a22c` | 2026-08-04 | feat: add netbird dns and interface endpoints | in_progress | Replaying NetBird IP/DNS/interface endpoint selection and endpoint metadata contracts, then adapting GPUI Mobile Devices controls. |
 | 94 | `3a1971573e4bf19d09f02b9cdc994859e8370903` | 2026-08-04 | merge: sync with main | pending | - |
 | 95 | `e73d64fe7d38b60758b6403f57b9036fe6a890d7` | 2026-08-05 | fix: address pr check failures | pending | - |
 | 96 | `30f6d943dff5ff707853b1c7125d718f54b51afc` | 2026-08-05 | fix: address follow-up ci failures | pending | - |
