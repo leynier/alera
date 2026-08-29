@@ -935,6 +935,9 @@ impl AleraApp {
                         )
                     }),
             )
+            .when(!snapshot_pending(&snapshot).is_empty(), |surface| {
+                surface.child(self.render_codex_pending_dock(&tab_id, &snapshot, cx))
+            })
             .when_some(error, |surface, error| {
                 surface.child(
                     div()
@@ -980,8 +983,155 @@ impl AleraApp {
             );
         }
         content
-            .child(self.render_codex_timeline(tab_id, snapshot, cx))
+            .child(self.render_codex_timeline(tab_id, snapshot, false, cx))
             .into_any_element()
+    }
+
+    fn render_codex_pending_dock(
+        &self,
+        tab_id: &str,
+        snapshot: &Value,
+        cx: &mut Context<Self>,
+    ) -> AnyElement {
+        let mut dock = div()
+            .id("codex-question-dock")
+            .flex()
+            .flex_col()
+            .gap_2()
+            .p_3()
+            .border_t_1()
+            .border_color(theme::warning())
+            .bg(theme::surface_raised());
+        for (index, request) in snapshot_pending(snapshot).into_iter().enumerate() {
+            let request_id = request.get("id").cloned().unwrap_or(Value::Null);
+            let method = request
+                .get("method")
+                .and_then(Value::as_str)
+                .unwrap_or("request");
+            let params = request.get("params").cloned().unwrap_or(Value::Null);
+            let is_approval = method.contains("approval") || method.contains("permission");
+            let is_question = method.contains("requestUserInput") || method.contains("question");
+            let mut card = div()
+                .id(SharedString::from(format!("codex-question-card-{index}")))
+                .flex()
+                .items_center()
+                .gap_2()
+                .rounded_lg()
+                .border_1()
+                .border_color(theme::warning())
+                .p_2()
+                .child(
+                    div()
+                        .flex_1()
+                        .text_sm()
+                        .child(if is_approval {
+                            "Codex Needs Approval"
+                        } else if is_question {
+                            "Codex Needs Your Input"
+                        } else {
+                            "Codex Request"
+                        })
+                        .child(
+                            div()
+                                .mt_1()
+                                .text_xs()
+                                .text_color(theme::text_muted())
+                                .child(request_text(&params, method)),
+                        ),
+                );
+            let mut actions = div().flex().items_center().gap_1();
+            if is_approval {
+                for (decision, label, kind) in approval_decisions(&params) {
+                    let tab_id = tab_id.to_owned();
+                    let request_id = request_id.clone();
+                    let result = approval_result(&params, method, &decision);
+                    actions = actions.child(
+                        design_system::button(
+                            SharedString::from(format!("codex-dock-{decision}-{index}")),
+                            label,
+                            kind,
+                            false,
+                        )
+                        .on_click(cx.listener(move |this, _, _, cx| {
+                            this.respond_codex_request(
+                                &tab_id,
+                                request_id.clone(),
+                                result.clone(),
+                                cx,
+                            );
+                        })),
+                    );
+                }
+            } else if is_question {
+                if let Some(question) = params
+                    .get("questions")
+                    .and_then(Value::as_array)
+                    .and_then(|questions| questions.first())
+                {
+                    let question_id = question
+                        .get("id")
+                        .and_then(Value::as_str)
+                        .unwrap_or("question")
+                        .to_owned();
+                    for (option_index, option) in question
+                        .get("options")
+                        .and_then(Value::as_array)
+                        .into_iter()
+                        .flatten()
+                        .enumerate()
+                    {
+                        let label = option
+                            .get("label")
+                            .and_then(Value::as_str)
+                            .or_else(|| option.as_str())
+                            .unwrap_or("Select")
+                            .to_owned();
+                        let tab_id = tab_id.to_owned();
+                        let request_id = request_id.clone();
+                        let result = question_result(&question_id, &label);
+                        actions = actions.child(
+                            design_system::button(
+                                SharedString::from(format!(
+                                    "codex-dock-question-{index}-{option_index}"
+                                )),
+                                label,
+                                ButtonKind::Outlined,
+                                false,
+                            )
+                            .on_click(cx.listener(move |this, _, _, cx| {
+                                this.respond_codex_request(
+                                    &tab_id,
+                                    request_id.clone(),
+                                    result.clone(),
+                                    cx,
+                                );
+                            })),
+                        );
+                    }
+                }
+            } else {
+                let tab_id = tab_id.to_owned();
+                actions = actions.child(
+                    design_system::button(
+                        SharedString::from(format!("codex-dock-cancel-{index}")),
+                        "Cancel",
+                        ButtonKind::Outlined,
+                        false,
+                    )
+                    .on_click(cx.listener(move |this, _, _, cx| {
+                        this.respond_codex_request(
+                            &tab_id,
+                            request_id.clone(),
+                            json!({"cancelled": true}),
+                            cx,
+                        );
+                    })),
+                );
+            }
+            card = card.child(actions);
+            dock = dock.child(card);
+        }
+        dock.into_any_element()
     }
 
     fn render_codex_queue_bar(
@@ -1399,6 +1549,7 @@ impl AleraApp {
         &self,
         tab_id: &str,
         snapshot: &Value,
+        include_pending: bool,
         cx: &mut Context<Self>,
     ) -> AnyElement {
         let mut content = div()
@@ -1722,7 +1873,8 @@ impl AleraApp {
             }
         }
         }
-        for (index, request) in snapshot_pending(snapshot).into_iter().enumerate() {
+        if include_pending {
+            for (index, request) in snapshot_pending(snapshot).into_iter().enumerate() {
             let request_id = request.get("id").cloned().unwrap_or(Value::Null);
             let request_id_for_click = request_id.clone();
             let method = request.get("method").and_then(Value::as_str).unwrap_or("request");
@@ -1730,7 +1882,7 @@ impl AleraApp {
             let is_approval = method.contains("approval") || method.contains("permission");
             let is_question = method.contains("requestUserInput") || method.contains("question");
             let approval_decisions = is_approval.then(|| approval_decisions(&params));
-            content = content.child(
+                content = content.child(
                 div()
                     .id(SharedString::from(format!("codex-pending-{index}")))
                     .rounded_lg()
@@ -1842,7 +1994,8 @@ impl AleraApp {
                         }
                         actions
                     }),
-            );
+                );
+            }
         }
         content.into_any_element()
     }
