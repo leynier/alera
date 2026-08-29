@@ -245,7 +245,7 @@ commit so this file remains useful after context compaction.
 | 224 | `5d8db4ff18f52d3e8eafd81d4df88b8162ed4501` | 2026-08-12 | fix: configure release arm64 toolchains (#408) | merged | Cherry-picked release arm64 toolchain setup; no GPUI UI surface is affected. |
 | 225 | `a4861098880c83b5e0bee585fe823588371d3cc7` | 2026-08-12 | fix: enable windows arm64 c++ exceptions (#410) | merged | Cherry-picked Windows arm64 release flag; no GPUI UI surface is affected. |
 | 226 | `00ee39ab80937681bbc5de66162b37cbc174c263` | 2026-08-12 | fix: stabilize windows arm64 release builds (#411) | merged | Cherry-picked Windows arm64 release cache/toolchain stabilization; no GPUI UI surface is affected. |
-| 227 | `5dd3c4279c79733c22369e9720becc92d9099b16` | 2026-08-12 | release: v0.59.0 v0.23.0-mobile | pending | - |
+| 227 | `5dd3c4279c79733c22369e9720becc92d9099b16` | 2026-08-12 | release: v0.59.0 v0.23.0-mobile | in progress | Cherry-picking Flutter/mobile release metadata; no GPUI UI surface is affected. |
 | 228 | `8aa83da2e9730ee1f832e9af6e9979c996cfde45` | 2026-08-12 | fix: make mobile model downloads retryable (#413) | pending | - |
 | 229 | `fe8946b74ef8aacf2496f2d53414b01a33c6f289` | 2026-08-12 | fix: retry transient runtime mutation conflicts (#414) | pending | - |
 | 230 | `eea6d13bad30a2f3922fe3ffc642d4dd49ead481` | 2026-08-12 | fix: complete runtime update after force-stop disconnect (#412) | pending | - |
