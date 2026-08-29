@@ -8,6 +8,7 @@ namespace {
 
 constexpr char kChannelName[] = "dev.leynier.alera/desktop_presence";
 constexpr char kLauncherInterface[] = "com.canonical.Unity.LauncherEntry";
+constexpr char kStatusNotifierInterface[] = "org.kde.StatusNotifierItem";
 
 static gchar* launcher_object_path() {
   guint32 hash = g_str_hash(APPLICATION_ID);
@@ -24,8 +25,27 @@ struct _DesktopPresence {
   guint launcher_owner_watch;
   guint launcher_registration;
   GDBusConnection* bus;
+  guint activate_filter;
   int badge_count;
 };
+
+// libayatana-appindicator's StatusNotifierItem exports no Activate method, so a
+// host that maps the primary click to it (Plasma, the GNOME AppIndicator
+// extension) sees that call fail and opens the context menu instead, which is
+// why left and right click behaved the same. The object belongs to the library,
+// so answering Activate from a filter on the shared session bus is the only
+// place left to add it. macOS and Windows already show the window on a primary
+// click; this keeps Linux consistent.
+struct TrayActivateRelay {
+  GMutex lock;
+  DesktopPresence* presence;
+  guint pending_show;
+};
+
+// Statically allocated so a filter still running on the GDBus worker thread
+// during teardown can never reach freed memory; the presence pointer is what is
+// cleared instead.
+static TrayActivateRelay tray_activate_relay = {};
 
 static gchar* launcher_app_uri() {
   return g_strdup_printf("application://%s.desktop", APPLICATION_ID);
@@ -133,6 +153,66 @@ static void invoke_event(DesktopPresence* self, const char* method) {
                                   nullptr, nullptr);
 }
 
+static gboolean deliver_tray_show(gpointer user_data) {
+  auto* relay = static_cast<TrayActivateRelay*>(user_data);
+  g_mutex_lock(&relay->lock);
+  relay->pending_show = 0;
+  DesktopPresence* presence = relay->presence;
+  g_mutex_unlock(&relay->lock);
+  if (presence != nullptr) {
+    invoke_event(presence, "trayShow");
+  }
+  return G_SOURCE_REMOVE;
+}
+
+static GDBusMessage* activate_filter(GDBusConnection* connection,
+                                     GDBusMessage* message,
+                                     gboolean incoming,
+                                     gpointer user_data) {
+  if (!incoming ||
+      g_dbus_message_get_message_type(message) !=
+          G_DBUS_MESSAGE_TYPE_METHOD_CALL ||
+      g_strcmp0(g_dbus_message_get_interface(message),
+                kStatusNotifierInterface) != 0 ||
+      g_strcmp0(g_dbus_message_get_member(message), "Activate") != 0) {
+    return message;
+  }
+  if ((g_dbus_message_get_flags(message) &
+       G_DBUS_MESSAGE_FLAGS_NO_REPLY_EXPECTED) == 0) {
+    g_autoptr(GDBusMessage) reply = g_dbus_message_new_method_reply(message);
+    g_dbus_connection_send_message(connection, reply,
+                                   G_DBUS_SEND_MESSAGE_FLAGS_NONE, nullptr,
+                                   nullptr);
+  }
+  // Filters run on the GDBus worker thread and the method channel may only be
+  // touched from the main loop.
+  auto* relay = static_cast<TrayActivateRelay*>(user_data);
+  g_mutex_lock(&relay->lock);
+  if (relay->pending_show == 0) {
+    relay->pending_show = g_idle_add(deliver_tray_show, relay);
+  }
+  g_mutex_unlock(&relay->lock);
+  g_object_unref(message);
+  return nullptr;
+}
+
+static void install_activate_filter(DesktopPresence* self) {
+  if (self->activate_filter != 0) {
+    return;
+  }
+  if (self->bus == nullptr) {
+    self->bus = g_bus_get_sync(G_BUS_TYPE_SESSION, nullptr, nullptr);
+  }
+  if (self->bus == nullptr) {
+    return;
+  }
+  g_mutex_lock(&tray_activate_relay.lock);
+  tray_activate_relay.presence = self;
+  g_mutex_unlock(&tray_activate_relay.lock);
+  self->activate_filter = g_dbus_connection_add_filter(
+      self->bus, activate_filter, &tray_activate_relay, nullptr);
+}
+
 static void on_show_activate(GtkMenuItem*, gpointer user_data) {
   invoke_event(static_cast<DesktopPresence*>(user_data), "trayShow");
 }
@@ -174,11 +254,11 @@ static void set_tray(DesktopPresence* self, bool visible,
                                         APP_INDICATOR_CATEGORY_APPLICATION_STATUS);
 #pragma GCC diagnostic pop
     app_indicator_set_menu(self->indicator, GTK_MENU(self->menu));
-    // Primary click opens the AppIndicator menu. Middle-click / secondary
-    // activate runs Show, which is the protocol the indicator actually
-    // exposes for a direct show action.
+    // Middle-click / secondary activate also runs Show; primary click is
+    // answered by activate_filter.
     app_indicator_set_secondary_activate_target(self->indicator,
                                                 self->show_item);
+    install_activate_filter(self);
   }
   (void)tooltip;
   app_indicator_set_status(self->indicator, APP_INDICATOR_STATUS_ACTIVE);
@@ -260,6 +340,17 @@ void desktop_presence_free(DesktopPresence* presence) {
   if (presence->launcher_owner_watch != 0) {
     g_bus_unwatch_name(presence->launcher_owner_watch);
   }
+  if (presence->activate_filter != 0 && presence->bus != nullptr) {
+    g_dbus_connection_remove_filter(presence->bus, presence->activate_filter);
+    presence->activate_filter = 0;
+  }
+  g_mutex_lock(&tray_activate_relay.lock);
+  tray_activate_relay.presence = nullptr;
+  if (tray_activate_relay.pending_show != 0) {
+    g_source_remove(tray_activate_relay.pending_show);
+    tray_activate_relay.pending_show = 0;
+  }
+  g_mutex_unlock(&tray_activate_relay.lock);
   if (presence->bus != nullptr && presence->launcher_registration != 0) {
     g_dbus_connection_unregister_object(presence->bus,
                                         presence->launcher_registration);
