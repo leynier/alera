@@ -408,5 +408,10 @@ MyApplication* my_application_new() {
 
   return MY_APPLICATION(g_object_new(my_application_get_type(),
                                      "application-id", APPLICATION_ID, "flags",
-                                     G_APPLICATION_FLAGS_NONE, nullptr));
+#if GLIB_CHECK_VERSION(2, 74, 0)
+                                     G_APPLICATION_DEFAULT_FLAGS,
+#else
+                                     G_APPLICATION_FLAGS_NONE,
+#endif
+                                     nullptr));
 }
