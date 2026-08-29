@@ -1078,6 +1078,8 @@ impl AleraApp {
             codex_opening_tabs: BTreeSet::new(),
             codex_snapshots: BTreeMap::new(),
             codex_thread_ids: BTreeMap::new(),
+            codex_history_next_cursor: BTreeMap::new(),
+            codex_history_loading: BTreeSet::new(),
             codex_recovery: BTreeMap::new(),
             codex_sessions_supported: None,
             codex_turn_policy_supported: None,

@@ -192,6 +192,8 @@ pub struct AleraApp {
     codex_opening_tabs: BTreeSet<String>,
     codex_snapshots: BTreeMap<String, Value>,
     codex_thread_ids: BTreeMap<String, String>,
+    codex_history_next_cursor: BTreeMap<String, String>,
+    codex_history_loading: BTreeSet<String>,
     codex_recovery: BTreeMap<String, Value>,
     codex_sessions_supported: Option<bool>,
     codex_turn_policy_supported: Option<bool>,

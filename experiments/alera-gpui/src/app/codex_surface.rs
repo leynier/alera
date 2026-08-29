@@ -1,7 +1,7 @@
 use std::time::Duration;
 
 use gpui::{
-    div, prelude::FluentBuilder as _, px, AnyElement, AppContext as _, Context, CursorStyle,
+    div, prelude::FluentBuilder as _, px, AnyElement, AppContext as _, ClipboardItem, Context, CursorStyle,
     Entity, ExternalPaths, InteractiveElement as _, IntoElement, KeyDownEvent, MouseButton,
     ParentElement as _, Role, SharedString, StatefulInteractiveElement as _, Styled as _, Window,
 };
@@ -33,6 +33,10 @@ impl AleraApp {
         self.codex_snapshots.retain(|tab_id, _| codex_tabs.contains(tab_id));
         self.codex_thread_ids
             .retain(|tab_id, _| codex_tabs.contains(tab_id));
+        self.codex_history_next_cursor
+            .retain(|tab_id, _| codex_tabs.contains(tab_id));
+        self.codex_history_loading
+            .retain(|tab_id| codex_tabs.contains(tab_id));
         self.codex_recovery
             .retain(|tab_id, _| codex_tabs.contains(tab_id));
         self.codex_attachments
@@ -194,6 +198,16 @@ impl AleraApp {
             self.codex_thread_ids
                 .insert(tab_id.to_owned(), thread_id.to_owned());
         }
+        if let Some(cursor) = value
+            .get("historyNextCursor")
+            .and_then(Value::as_str)
+            .filter(|cursor| !cursor.is_empty())
+        {
+            self.codex_history_next_cursor
+                .insert(tab_id.to_owned(), cursor.to_owned());
+        } else if value.get("historyNextCursor").is_some() {
+            self.codex_history_next_cursor.remove(tab_id);
+        }
         if let Some(recovery_value) = value.get("recovery") {
             if recovery_value.is_object() {
                 let recovery = recovery_value;
@@ -226,6 +240,39 @@ impl AleraApp {
                 self.codex_collaboration_mode = Some(mode.to_owned());
             }
         }
+    }
+
+    fn load_codex_history(&mut self, tab_id: &str, cursor: &str, cx: &mut Context<Self>) {
+        if self.codex_history_loading.contains(tab_id) {
+            return;
+        }
+        self.codex_history_loading.insert(tab_id.to_owned());
+        let bridge = self.bridge.clone();
+        let tab_id = tab_id.to_owned();
+        let cursor = cursor.to_owned();
+        cx.spawn(async move |this, cx| {
+            let result = bridge
+                .request(
+                    "codex.thread.history",
+                    json!({"tabId": tab_id, "cursor": cursor, "limit": 20}),
+                )
+                .await;
+            let _ = this.update(cx, |this, cx| {
+                this.codex_history_loading.remove(&tab_id);
+                match result {
+                    Ok(value) => {
+                        this.apply_codex_session_response(&tab_id, &value);
+                        if let Some(snapshot) = value.get("snapshot") {
+                            this.codex_snapshots.insert(tab_id.clone(), snapshot.clone());
+                        }
+                        this.codex_error = None;
+                    }
+                    Err(error) => this.codex_error = Some(error.into()),
+                }
+                cx.notify();
+            });
+        })
+        .detach();
     }
 
     fn load_codex_catalogs(&mut self, tab_id: &str, cx: &mut Context<Self>) {
@@ -848,6 +895,7 @@ impl AleraApp {
             .get(&tab_id)
             .cloned()
             .unwrap_or_default();
+        let history_cursor = self.codex_history_next_cursor.get(&tab_id).cloned();
         div()
             .id(SharedString::from(format!("codex-surface-{tab_id}")))
             .flex()
@@ -879,7 +927,12 @@ impl AleraApp {
                             .child("Opening Codex Thread")
                             .into_any_element()
                     } else {
-                        self.render_codex_timeline(&tab_id, &snapshot, cx)
+                        self.render_codex_timeline_with_history(
+                            &tab_id,
+                            &snapshot,
+                            history_cursor,
+                            cx,
+                        )
                     }),
             )
             .when_some(error, |surface, error| {
@@ -896,6 +949,38 @@ impl AleraApp {
             .when_some(input, |surface, input| {
                 surface.child(self.render_codex_composer(&tab_id, input, busy, cx))
             })
+            .into_any_element()
+    }
+
+    fn render_codex_timeline_with_history(
+        &self,
+        tab_id: &str,
+        snapshot: &Value,
+        history_cursor: Option<String>,
+        cx: &mut Context<Self>,
+    ) -> AnyElement {
+        let mut content = div().flex().flex_col().min_h_0();
+        if let Some(cursor) = history_cursor {
+            let tab_id = tab_id.to_owned();
+            let loading = self.codex_history_loading.contains(tab_id.as_str());
+            content = content.child(
+                design_system::button(
+                    "codex-load-earlier",
+                    if loading {
+                        "Loading Earlier Messages"
+                    } else {
+                        "Load Earlier Messages"
+                    },
+                    ButtonKind::Outlined,
+                    loading,
+                )
+                .on_click(cx.listener(move |this, _, _, cx| {
+                    this.load_codex_history(&tab_id, &cursor, cx);
+                })),
+            );
+        }
+        content
+            .child(self.render_codex_timeline(tab_id, snapshot, cx))
             .into_any_element()
     }
 
@@ -1344,7 +1429,7 @@ impl AleraApp {
                 .and_then(Value::as_str)
                 .map(str::to_owned)
                 .unwrap_or_else(|| format!("cell-{index}"));
-            let title = cell
+            let mut title = cell
                 .get("title")
                 .and_then(Value::as_str)
                 .unwrap_or_else(|| codex_cell_label(kind))
@@ -1370,6 +1455,13 @@ impl AleraApp {
                 .get("isStreaming")
                 .and_then(Value::as_bool)
                 .unwrap_or(false);
+            if kind == "plan" && streaming {
+                title = "Writing Plan".to_owned();
+            }
+            let warning_notice = cell
+                .pointer("/metadata/noticeType")
+                .and_then(Value::as_str)
+                .is_some_and(|notice| notice.eq_ignore_ascii_case("warning"));
             let collapsed = self.codex_collapsed_cells.contains(&cell_id)
                 || cell
                     .get("isCollapsed")
@@ -1380,7 +1472,11 @@ impl AleraApp {
                     .id(SharedString::from(format!("codex-cell-{index}")))
                     .rounded_lg()
                     .border_1()
-                    .border_color(theme::border_subtle())
+                    .border_color(if warning_notice {
+                        theme::warning()
+                    } else {
+                        theme::border_subtle()
+                    })
                     .bg(if kind == "userMessage" {
                         theme::surface_selected()
                     } else {
@@ -1403,6 +1499,9 @@ impl AleraApp {
                                 }
                                 cx.notify();
                             }))
+                            .when(warning_notice, |row| {
+                                row.child(icon(AleraIcon::Warning, 13.0, theme::warning()))
+                            })
                             .child(title)
                             .when(streaming, |row| {
                                 row.child(loading_indicator(12.0, theme::text_faint()))
@@ -1419,12 +1518,29 @@ impl AleraApp {
                     );
                 }
                 if !body.is_empty() {
+                    let copy_body = body.clone();
                     card = card.child(
                         with_markdown_images(TextView::markdown(
                             SharedString::from(format!("codex-cell-body-{index}")),
                             body,
                         )),
                     );
+                    if kind == "assistantMessage" && !streaming {
+                        card = card.child(
+                            design_system::icon_button(
+                                SharedString::from(format!("codex-copy-message-{index}")),
+                                "Copy Message",
+                                AleraIcon::Copy,
+                                true,
+                                24.0,
+                                None,
+                                None,
+                            )
+                            .on_click(cx.listener(move |_, _, _, cx| {
+                                cx.write_to_clipboard(ClipboardItem::new_string(copy_body.clone()));
+                            })),
+                        );
+                    }
                 }
                 if show_details {
                     card = card.child(
@@ -1532,6 +1648,7 @@ impl AleraApp {
             let method = request.get("method").and_then(Value::as_str).unwrap_or("request");
             let params = request.get("params").cloned().unwrap_or(Value::Null);
             let is_approval = method.contains("approval") || method.contains("permission");
+            let is_question = method.contains("requestUserInput") || method.contains("question");
             let approval_decisions = is_approval.then(|| approval_decisions(&params));
             content = content.child(
                 div()
@@ -1558,7 +1675,51 @@ impl AleraApp {
                     )
                     .child({
                         let mut actions = div().flex().gap_2().mt_2();
-                        if let Some(decisions) = approval_decisions {
+                        if is_question {
+                            if let Some(questions) = params.get("questions").and_then(Value::as_array) {
+                                for (question_index, question) in questions.iter().enumerate() {
+                                    let question_id = question
+                                        .get("id")
+                                        .and_then(Value::as_str)
+                                        .unwrap_or("question")
+                                        .to_owned();
+                                    let options = question
+                                        .get("options")
+                                        .and_then(Value::as_array)
+                                        .cloned()
+                                        .unwrap_or_default();
+                                    for (option_index, option) in options.iter().enumerate() {
+                                        let label = option
+                                            .get("label")
+                                            .and_then(Value::as_str)
+                                            .or_else(|| option.as_str())
+                                            .unwrap_or("Select")
+                                            .to_owned();
+                                        let tab_id = tab_id.to_owned();
+                                        let request_id = request_id.clone();
+                                        let result = question_result(&question_id, &label);
+                                        actions = actions.child(
+                                            design_system::button(
+                                                SharedString::from(format!(
+                                                    "codex-question-{index}-{question_index}-{option_index}"
+                                                )),
+                                                label,
+                                                ButtonKind::Outlined,
+                                                false,
+                                            )
+                                            .on_click(cx.listener(move |this, _, _, cx| {
+                                                this.respond_codex_request(
+                                                    &tab_id,
+                                                    request_id.clone(),
+                                                    result.clone(),
+                                                    cx,
+                                                );
+                                            })),
+                                        );
+                                    }
+                                }
+                            }
+                        } else if let Some(decisions) = approval_decisions {
                             for (decision, label, kind) in decisions {
                                 let tab_id = tab_id.to_owned();
                                 let request_id = request_id.clone();
@@ -2321,6 +2482,14 @@ fn approval_result(params: &Value, method: &str, decision: &str) -> Value {
             json!({})
         },
         "scope": if decision == "acceptForSession" { "session" } else { "turn" },
+    })
+}
+
+fn question_result(question_id: &str, answer: &str) -> Value {
+    json!({
+        "answers": {
+            question_id: {"answers": [answer]},
+        },
     })
 }
 
