@@ -220,7 +220,7 @@ commit so this file remains useful after context compaction.
 | 199 | `18ab6bb24586871707324035c56217b63b9e02df` | 2026-08-11 | fix: harden app logger sink failures | merged | Cherry-picked logger sink failure handling and tests; no GPUI UI surface is affected. |
 | 200 | `af9453ba29225e2fc68cc762606e455908888899` | 2026-08-11 | fix: guard mobile skill installs after disposal | merged | Cherry-picked mobile skill install disposal guards and tests; no GPUI UI surface is affected. |
 | 201 | `54b89bbf0dc07ea1a8fa6cecb7aa8e2f8a4afec5` | 2026-08-11 | fix: refresh quota state after action disposal | merged | Cherry-picked quota action disposal handling; GPUI owns the longer-lived app state and already refreshes after the TUI request. |
-| 202 | `1410dee2f261afae9e12e91e65a5bcd9ba5e5bf3` | 2026-08-11 | fix: guard dictation model refresh after disposal | in progress | Cherry-picking dictation model refresh disposal handling; no GPUI UI surface is affected. |
+| 202 | `1410dee2f261afae9e12e91e65a5bcd9ba5e5bf3` | 2026-08-11 | fix: guard dictation model refresh after disposal | merged | Cherry-picked dictation model refresh disposal handling; no GPUI UI surface is affected. |
 | 203 | `2b1b0c248859f927ed7d4b724130b92a10273c57` | 2026-08-11 | fix: recover stale mobile terminal attachments | pending | - |
 | 204 | `3d93ff8a6ed9d9c405d937a5520a6fdc5b6b6676` | 2026-08-11 | fix: tolerate stale terminal reclaim requests | pending | - |
 | 205 | `7b5d2f1d98c4cf095e0ea436c183086b2e655ce5` | 2026-08-11 | fix: harden app window shutdown ordering | pending | - |
