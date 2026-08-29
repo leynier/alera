@@ -5,14 +5,16 @@ pub enum ContextPanel {
     #[default]
     SourceControl,
     PullRequest,
+    AgentCanvas,
 }
 
 impl ContextPanel {
-    pub const ALL: [Self; 4] = [
+    pub const ALL: [Self; 5] = [
         Self::Explorer,
         Self::Search,
         Self::SourceControl,
         Self::PullRequest,
+        Self::AgentCanvas,
     ];
 
     pub const fn icon(self) -> AleraIcon {
@@ -21,6 +23,7 @@ impl ContextPanel {
             Self::Search => AleraIcon::Search,
             Self::SourceControl => AleraIcon::GitBranch,
             Self::PullRequest => AleraIcon::GitPullRequest,
+            Self::AgentCanvas => AleraIcon::Agent,
         }
     }
 
@@ -30,6 +33,7 @@ impl ContextPanel {
             Self::Search => "Search",
             Self::SourceControl => "Source Control",
             Self::PullRequest => "Pull Request",
+            Self::AgentCanvas => "Agent Canvas",
         }
     }
 }

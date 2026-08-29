@@ -314,7 +314,8 @@ impl AleraApp {
             ContextPanel::Explorer => self.load_root_directory(cx),
             ContextPanel::SourceControl => self.refresh_git(cx),
             ContextPanel::PullRequest => self.refresh_forge(cx),
-            ContextPanel::Search => {}
+            ContextPanel::Search => {},
+            ContextPanel::AgentCanvas => self.refresh_agent_canvas(cx),
         }
     }
 

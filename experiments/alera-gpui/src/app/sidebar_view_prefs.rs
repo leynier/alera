@@ -62,6 +62,7 @@ impl AleraApp {
                         "search" => crate::activity::ContextPanel::Search,
                         "gitDiff" => crate::activity::ContextPanel::SourceControl,
                         "pullRequests" => crate::activity::ContextPanel::PullRequest,
+                        "agentCanvas" => crate::activity::ContextPanel::AgentCanvas,
                         _ => crate::activity::ContextPanel::Explorer,
                     };
                     this.explorer_hide_ignored = string_field(prefs, "explorerMode") != "showAll";
@@ -179,6 +180,7 @@ impl AleraApp {
                 crate::activity::ContextPanel::Search => "search",
                 crate::activity::ContextPanel::SourceControl => "gitDiff",
                 crate::activity::ContextPanel::PullRequest => "pullRequests",
+                crate::activity::ContextPanel::AgentCanvas => "agentCanvas",
             }),
         );
         object.insert(

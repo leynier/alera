@@ -185,6 +185,11 @@ impl AleraApp {
                             if name == "codexThreadChanged" {
                                 this.handle_codex_notification(&payload, window, cx);
                             }
+                            if name == "agentCanvasChanged"
+                                && this.context_panel == ContextPanel::AgentCanvas
+                            {
+                                this.refresh_agent_canvas(cx);
+                            }
                             this.handle_terminal_notification(&name, &payload, cx);
                         }
                         BridgeEvent::TerminalOutput { session_id, data } => {
@@ -586,6 +591,9 @@ impl AleraApp {
         self.context_panel = panel;
         self.persist_sidebar_view_prefs(cx);
         self.refresh_local_activity(cx);
+        if panel == ContextPanel::AgentCanvas {
+            self.refresh_agent_canvas(cx);
+        }
         self.ensure_explorer_watcher(cx);
         cx.notify();
     }

@@ -13,6 +13,7 @@ use gpui_component::IndexPath;
 use serde_json::Value;
 
 mod add_project_dialog;
+mod agent_canvas;
 mod agent_profile_settings;
 mod agent_profile_settings_actions;
 mod agent_profile_settings_catalog;
@@ -206,6 +207,13 @@ pub struct AleraApp {
     codex_plan_mode: bool,
     codex_collaboration_mode: Option<String>,
     codex_queued_messages: BTreeMap<String, Vec<String>>,
+    agent_canvas_loading: bool,
+    agent_canvas_error: Option<SharedString>,
+    agent_canvas_capabilities: Option<Value>,
+    agent_canvas_values: Vec<Value>,
+    agent_canvas_selected_id: Option<String>,
+    agent_canvas_show_history: bool,
+    agent_canvas_busy: bool,
     quick_open_input: Entity<InputState>,
     quick_open_open: bool,
     quick_open_loading: bool,

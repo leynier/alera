@@ -74,6 +74,7 @@ impl AleraApp {
             ContextPanel::Search => self.render_search_panel(window, cx),
             ContextPanel::SourceControl => self.render_source_control_panel(cx),
             ContextPanel::PullRequest => self.render_pull_request_panel(window, cx),
+            ContextPanel::AgentCanvas => self.render_agent_canvas_panel(window, cx),
         };
         let source_control_available = self.selected_source_control_scope().is_some();
 
@@ -152,10 +153,8 @@ impl AleraApp {
         cx: &mut Context<Self>,
     ) -> impl IntoElement {
         let selected = self.context_panel == panel;
-        let enabled = !matches!(
-            panel,
-            ContextPanel::SourceControl | ContextPanel::PullRequest
-        ) || self.selected_source_control_scope().is_some();
+        let enabled = !matches!(panel, ContextPanel::SourceControl | ContextPanel::PullRequest)
+            || self.selected_source_control_scope().is_some();
         div()
             .id(("context-panel", index))
             .focusable()
