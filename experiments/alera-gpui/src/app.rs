@@ -326,6 +326,7 @@ pub struct AleraApp {
     agent_usage_loading: bool,
     agent_usage_error: Option<SharedString>,
     agent_usage_snapshot: Option<Value>,
+    agent_usage_cache: BTreeMap<String, Value>,
     agent_usage_generation: u64,
     agent_usage_breakdown_mode: status_usage::UsageBreakdownMode,
     resource_sort_column: String,

@@ -1212,6 +1212,7 @@ impl AleraApp {
             agent_usage_loading: false,
             agent_usage_error: None,
             agent_usage_snapshot: None,
+            agent_usage_cache: BTreeMap::new(),
             agent_usage_generation: 0,
             agent_usage_breakdown_mode: status_usage::UsageBreakdownMode::Account,
             resource_sort_column: "memory".to_owned(),

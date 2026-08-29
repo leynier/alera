@@ -220,9 +220,8 @@ impl UsageSourceView {
 }
 
 impl AleraApp {
-    fn current_status_host_label(&self) -> String {
-        let host = self
-            .selected_workspace_id
+    fn current_status_host_id(&self) -> String {
+        self.selected_workspace_id
             .as_deref()
             .and_then(|workspace_id| {
                 self.snapshot
@@ -231,13 +230,17 @@ impl AleraApp {
                     .flat_map(|project| project.workspaces.iter())
                     .find(|workspace| workspace.id == workspace_id)
             })
-            .map(|workspace| workspace.host_id.as_str())
+            .map(|workspace| workspace.host_id.clone())
             .filter(|host| !host.trim().is_empty())
-            .unwrap_or("local");
+            .unwrap_or_else(|| "local".to_owned())
+    }
+
+    fn current_status_host_label(&self) -> String {
+        let host = self.current_status_host_id();
         if host == "local" {
             "Local Host".to_owned()
         } else {
-            host.to_owned()
+            host
         }
     }
 
@@ -281,6 +284,8 @@ impl AleraApp {
         self.agent_usage_loading = true;
         self.agent_usage_error = None;
         let days = self.agent_usage_days.max(1);
+        let cache_key = format!("{}:{days}", self.current_status_host_id());
+        self.agent_usage_snapshot = self.agent_usage_cache.get(&cache_key).cloned();
         let until = Local::now().date_naive();
         let since = until - ChronoDuration::days(i64::from(days.saturating_sub(1)));
         let payload = json!({
@@ -306,6 +311,13 @@ impl AleraApp {
                 this.agent_usage_loading = false;
                 match result {
                     Ok(value) => {
+                        this.agent_usage_cache.insert(cache_key, value.clone());
+                        while this.agent_usage_cache.len() > 9 {
+                            let Some(key) = this.agent_usage_cache.keys().next().cloned() else {
+                                break;
+                            };
+                            this.agent_usage_cache.remove(&key);
+                        }
                         this.agent_usage_snapshot = Some(value);
                         this.agent_usage_error = None;
                     }
