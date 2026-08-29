@@ -17,7 +17,6 @@ impl AleraApp {
         cx: &mut Context<Self>,
     ) -> AnyElement {
         if self.context_sidebar_collapsed {
-            let source_control_available = self.selected_source_control_scope().is_some();
             return div()
                 .flex()
                 .flex_col()
@@ -34,10 +33,6 @@ impl AleraApp {
                     ContextPanel::ALL
                         .into_iter()
                         .enumerate()
-                        .filter(|(_, panel)| {
-                            source_control_available
-                                || matches!(panel, ContextPanel::Explorer | ContextPanel::Search)
-                        })
                         .map(|(index, panel)| self.context_panel_button(index, panel, true, cx)),
                 )
                 .child(div().flex_1())
@@ -76,8 +71,6 @@ impl AleraApp {
             ContextPanel::PullRequest => self.render_pull_request_panel(window, cx),
             ContextPanel::AgentCanvas => self.render_agent_canvas_panel(window, cx),
         };
-        let source_control_available = self.selected_source_control_scope().is_some();
-
         div()
             .relative()
             .flex()
@@ -98,17 +91,10 @@ impl AleraApp {
                     .border_b_1()
                     .border_color(theme::border_subtle())
                     .children(
-                        ContextPanel::ALL
-                            .into_iter()
-                            .enumerate()
-                            .filter(|(_, panel)| {
-                                source_control_available
-                                    || matches!(
-                                        panel,
-                                        ContextPanel::Explorer | ContextPanel::Search
-                                    )
-                            })
-                            .map(|(index, panel)| {
+                    ContextPanel::ALL
+                        .into_iter()
+                        .enumerate()
+                        .map(|(index, panel)| {
                                 self.context_panel_button(index, panel, false, cx)
                             }),
                     )
@@ -153,8 +139,10 @@ impl AleraApp {
         cx: &mut Context<Self>,
     ) -> impl IntoElement {
         let selected = self.context_panel == panel;
-        let enabled = !matches!(panel, ContextPanel::SourceControl | ContextPanel::PullRequest)
-            || self.selected_source_control_scope().is_some();
+        // Keep every panel selectable across workspaces. Source Control and
+        // Pull Request render an explanatory empty state when the active
+        // workspace has no Git scope, matching Flutter's persistent tabs.
+        let enabled = true;
         div()
             .id(("context-panel", index))
             .focusable()
@@ -178,29 +166,22 @@ impl AleraApp {
             } else {
                 CursorStyle::Arrow
             })
-            .text_color(if !enabled {
-                theme::text_faint()
-            } else if selected {
+            .text_color(if selected {
                 theme::text()
             } else {
                 theme::text_muted()
             })
-            .when(enabled, |button| {
-                button
-                    .hover(|style| style.bg(theme::surface_raised()))
-                    .on_click(cx.listener(move |this, _, _, cx| {
-                        this.context_sidebar_collapsed = false;
-                        this.select_context_panel(panel, cx);
-                    }))
-            })
+            .hover(|style| style.bg(theme::surface_raised()))
+            .on_click(cx.listener(move |this, _, _, cx| {
+                this.context_sidebar_collapsed = false;
+                this.select_context_panel(panel, cx);
+            }))
             .when(selected, |button| button.bg(theme::surface_raised()))
             .tooltip(move |_, cx| cx.new(|_| Tooltip::new(panel.label())).into())
             .child(icon(
                 panel.icon(),
                 16.0,
-                if !enabled {
-                    theme::text_faint()
-                } else if selected {
+                if selected {
                     theme::text()
                 } else {
                     theme::text_muted()

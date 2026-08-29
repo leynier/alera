@@ -16,6 +16,9 @@ use crate::theme;
 
 impl AleraApp {
     pub(super) fn render_source_control_panel(&self, cx: &mut Context<Self>) -> AnyElement {
+        if self.selected_source_control_scope().is_none() {
+            return source_control_unavailable_state();
+        }
         let primary = self.source_control_primary_action(cx);
         let filter = self
             .source_control_filter_input
@@ -526,6 +529,32 @@ impl AleraApp {
         }
         !(self.git_busy || self.git_snapshot_loading)
     }
+}
+
+fn source_control_unavailable_state() -> AnyElement {
+    div()
+        .flex()
+        .flex_col()
+        .flex_1()
+        .items_center()
+        .justify_center()
+        .p_4()
+        .text_center()
+        .gap_2()
+        .child(icon(AleraIcon::GitBranch, 24.0, theme::text_muted()))
+        .child(
+            div()
+                .text_sm()
+                .font_weight(gpui::FontWeight::SEMIBOLD)
+                .child("Source Control Unavailable"),
+        )
+        .child(
+            div()
+                .text_size(px(12.0))
+                .text_color(theme::text_muted())
+                .child("This workspace is not connected to a Git repository, so there are no changes to show."),
+        )
+        .into_any_element()
 }
 
 fn source_toolbar_tooltip(id: &str, ai_busy: bool) -> &'static str {

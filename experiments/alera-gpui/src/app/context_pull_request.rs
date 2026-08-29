@@ -20,6 +20,15 @@ impl AleraApp {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) -> AnyElement {
+        if self.selected_source_control_scope().is_none() {
+            return pull_request_message(
+                AleraIcon::GitPullRequest,
+                Some("Pull Request Unavailable"),
+                "This workspace is not connected to a Git repository, so there are no Pull Requests to show.",
+                None,
+                cx,
+            );
+        }
         if self.forge_busy && self.forge_snapshot.auth_status == ForgeAuthStatus::Unknown {
             return div()
                 .flex()

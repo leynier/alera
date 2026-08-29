@@ -68,7 +68,6 @@ impl AleraApp {
                     this.explorer_hide_ignored = string_field(prefs, "explorerMode") != "showAll";
                     this.forge_create_draft =
                         string_field(prefs, "pullRequestCreateAction") == "draft";
-                    this.ensure_context_panel_has_source_control();
                     this.refresh_local_activity(cx);
                 }
                 Err(error) => {

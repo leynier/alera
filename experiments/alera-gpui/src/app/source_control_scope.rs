@@ -1,6 +1,6 @@
 use std::path::{Path, PathBuf};
 
-use gpui::{Context, SharedString};
+use gpui::Context;
 use serde_json::{json, Map, Value};
 
 use super::git_surface::friendly_git_error;
@@ -204,13 +204,8 @@ impl AleraApp {
         self.explorer_menu = None;
         self.git_snapshot = Default::default();
         self.forge_snapshot = Default::default();
-        if matches!(
-            self.context_panel,
-            ContextPanel::SourceControl | ContextPanel::PullRequest
-        ) {
-            self.context_panel = ContextPanel::Explorer;
-            self.load_root_directory(cx);
-        }
+        // Keep the selected Source Control/Pull Request tab. Its panel will
+        // render the unavailable state until a Git scope is selected again.
         self.persist_sidebar_view_prefs(cx);
         cx.notify();
     }
@@ -287,23 +282,6 @@ impl AleraApp {
         }
     }
 
-    pub(super) fn ensure_context_panel_has_source_control(&mut self) {
-        if self.selected_source_control_scope().is_none()
-            && matches!(
-                self.context_panel,
-                ContextPanel::SourceControl | ContextPanel::PullRequest
-            )
-        {
-            self.context_panel = ContextPanel::Explorer;
-        }
-    }
-
-    pub(super) fn source_control_unavailable_message(&mut self, cx: &mut Context<Self>) {
-        self.local_message = Some(SharedString::from(
-            "Choose A Git Folder In Explorer To Use Source Control",
-        ));
-        cx.notify();
-    }
 }
 
 pub(super) fn normalize_source_control_root_relative_path(value: &str) -> Option<String> {

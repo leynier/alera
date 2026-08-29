@@ -501,7 +501,6 @@ impl AleraApp {
         }
         self.selected_workspace_id = Some(workspace_id);
         self.selected_tab_id = None;
-        self.ensure_context_panel_has_source_control();
         self.ensure_selected_terminal(cx);
         // A workspace can legitimately have no tabs after its last terminal
         // is closed. Selecting it must still provide an actionable workbench,
@@ -593,14 +592,6 @@ impl AleraApp {
     }
 
     pub(super) fn select_context_panel(&mut self, panel: ContextPanel, cx: &mut Context<Self>) {
-        if matches!(
-            panel,
-            ContextPanel::SourceControl | ContextPanel::PullRequest
-        ) && self.selected_source_control_scope().is_none()
-        {
-            self.source_control_unavailable_message(cx);
-            return;
-        }
         if self.context_panel == panel {
             return;
         }
