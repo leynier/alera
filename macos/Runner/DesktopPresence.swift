@@ -24,7 +24,7 @@ final class DesktopPresence: NSObject {
       let visible = args?["visible"] as? Bool ?? false
       let tooltip = args?["tooltip"] as? String ?? ""
       setTray(visible: visible, tooltip: tooltip)
-      result(nil)
+      result(true)
     case "setBadgeCount":
       let args = call.arguments as? [String: Any]
       let count = args?["count"] as? Int ?? 0

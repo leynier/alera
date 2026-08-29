@@ -200,7 +200,8 @@ static void method_call_cb(FlMethodChannel*,
       }
     }
     set_tray(self, visible, tooltip);
-    fl_method_call_respond_success(method_call, nullptr, nullptr);
+    g_autoptr(FlValue) installed = fl_value_new_bool(TRUE);
+    fl_method_call_respond_success(method_call, installed, nullptr);
     return;
   }
   if (g_strcmp0(method, "setBadgeCount") == 0) {

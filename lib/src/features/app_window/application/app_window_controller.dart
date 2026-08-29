@@ -196,6 +196,14 @@ class AppWindowLifecycleCoordinator extends AppWindowEventListener {
   /// swallow a tray or app-menu Quit.
   bool get isQuitting => _quitting;
 
+  /// Completes when an in-flight hide-on-close finishes, or immediately.
+  Future<void> waitForPendingHide() async {
+    final hide = _hideFuture;
+    if (hide != null) {
+      await hide;
+    }
+  }
+
   Future<void> start() async {
     if (_started || _closed) {
       return;

@@ -21,6 +21,9 @@ class DesktopPresenceCoordinator {
   bool _started = false;
   Future<void> _applyQueue = Future<void>.value();
 
+  /// Hide-on-close follows a tray that was actually applied, not the setting.
+  bool get trayInstalled => _last?.trayVisible ?? false;
+
   void start() {
     if (_started) {
       return;
@@ -42,6 +45,7 @@ class DesktopPresenceCoordinator {
       return;
     }
     if ((_last?.trayVisible ?? false) && !snapshot.trayVisible) {
+      await lifecycle.waitForPendingHide();
       final hidden = !await window.isVisible();
       final minimized = await window.isMinimized();
       if ((hidden || minimized) && !await _showAndFocus()) {
