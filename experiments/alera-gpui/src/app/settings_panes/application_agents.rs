@@ -476,7 +476,7 @@ fn agents_pane(
                 ),
                 exact_settings_row_width(
                     "All Alera Skills",
-                    "Install Or Update CLI, Orchestration, Computer Use, And Emulator Skills. Reapplies Selected Status Hooks.",
+                    "Install Or Update CLI, Orchestration, Computer Use, Emulator, And Agent Canvas Skills. Reapplies Selected Status Hooks.",
                     360.0,
                     skill_install_control(
                         "all-skills",
@@ -524,6 +524,25 @@ fn agents_pane(
                             .expect("orchestration skill runner select should exist"),
                         skill_runners
                             .get("orchestration")
+                            .map(String::as_str)
+                            .unwrap_or("Auto"),
+                        true,
+                        "Install / Update",
+                        cx,
+                    ),
+                ),
+                exact_settings_row_width(
+                    "Agent Canvas Skill",
+                    "Install Agent Instructions For Publishing Structured Updates And Waiting For Decisions In Agent Canvas.",
+                    360.0,
+                    skill_install_control(
+                        "agent-canvas-skill",
+                        "agent-canvas",
+                        selects
+                            .get("skill-runner-agent-canvas")
+                            .expect("agent canvas skill runner select should exist"),
+                        skill_runners
+                            .get("agent-canvas")
                             .map(String::as_str)
                             .unwrap_or("Auto"),
                         true,

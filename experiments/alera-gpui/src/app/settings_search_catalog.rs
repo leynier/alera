@@ -19,6 +19,7 @@ const AGENTS: &[&str] = &[
     "All Alera Skills install update computer use emulator orchestration",
     "Alera CLI Skill codex workspace",
     "Alera Orchestration Skill handoff task dispatch",
+    "Agent Canvas Skill publish decision structured updates",
     "Alera Computer Use Skill desktop accessibility click window",
     "Codex Hooks agent status",
     "Claude Code Hooks agent status",

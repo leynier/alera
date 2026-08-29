@@ -265,7 +265,7 @@ impl AleraApp {
                             .child(
                                 div()
                                     .flex_1()
-                                    .overflow_hidden()
+                                    .overflow_x_scroll()
                                     .whitespace_nowrap()
                                     .font_family("JetBrains Mono")
                                     .text_size(gpui::px(12.0))

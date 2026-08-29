@@ -37,6 +37,7 @@ impl AleraApp {
         let skill_name = match skill {
             "cli" => "Alera CLI",
             "orchestration" => "Alera Orchestration",
+            "agent-canvas" => "Agent Canvas",
             "computer-use" => "Computer Use",
             "emulator" => "Alera Emulator",
             _ => skill,
@@ -46,7 +47,7 @@ impl AleraApp {
                 title: format!("Install {skill_name} Skill"),
                 command: agent_skill_install_command(skill, runner),
                 description: Some(
-                    "The Installer Runs Here. Answer Any Prompt In The Terminal.".to_owned(),
+                    "The Installer Runs Here And Skips Confirmation Prompts.".to_owned(),
                 ),
                 working_directory: None,
             },
@@ -66,7 +67,7 @@ impl AleraApp {
                 title: "Install All Alera Skills".to_owned(),
                 command: agent_all_skills_install_command(runner),
                 description: Some(
-                    "The Installers Run Here. Answer Any Prompt In The Terminal.".to_owned(),
+                    "The Installers Run Here And Skip Confirmation Prompts.".to_owned(),
                 ),
                 working_directory: None,
             },
@@ -247,11 +248,12 @@ fn agent_skill_install_command(skill: &str, runner: &str) -> String {
         "orchestration" => "alera-orchestration",
         "computer-use" => "computer-use",
         "emulator" => "alera-emulator",
+        "agent-canvas" => "agent-canvas",
         _ => skill,
     };
     let command = |runner: &str| {
         format!(
-            "{runner} skills add https://github.com/leynier/alera --skill {skill} --global"
+            "{runner} skills add https://github.com/leynier/alera --skill {skill} --global --yes"
         )
     };
     match runner {
@@ -267,7 +269,7 @@ fn agent_skill_install_command(skill: &str, runner: &str) -> String {
 }
 
 fn agent_all_skills_install_command(runner: &str) -> String {
-    ["cli", "orchestration", "computer-use", "emulator"]
+    ["cli", "orchestration", "computer-use", "emulator", "agent-canvas"]
         .into_iter()
         .map(|skill| agent_skill_install_command(skill, runner))
         .collect::<Vec<_>>()

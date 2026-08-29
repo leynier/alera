@@ -221,7 +221,14 @@ impl AleraApp {
         .into_iter()
         .map(|(key, state)| (key.to_string(), state))
         .collect::<BTreeMap<_, _>>();
-        let skill_runners = ["all", "cli", "orchestration", "computer-use", "emulator"]
+        let skill_runners = [
+            "all",
+            "cli",
+            "orchestration",
+            "computer-use",
+            "emulator",
+            "agent-canvas",
+        ]
             .into_iter()
             .map(|skill| (skill.to_string(), "Auto".to_string()))
             .collect::<BTreeMap<_, _>>();
