@@ -240,7 +240,7 @@ commit so this file remains useful after context compaction.
 | 219 | `b1e0c51e71c441427ff385d0444b5dbd34d728fe` | 2026-08-12 | Merge pull request #403 from leynier/fix/sentry-desktop-9-logger-shutdown | merged | Replayed the logger shutdown merge as an empty reconciliation because its individual source commit was already incorporated; no GPUI UI surface is affected. |
 | 220 | `3e7c71dd8fa007d568003f0055cea8256015326b` | 2026-08-12 | Merge pull request #404 from leynier/fix/sentry-mobile-3-host-connectivity | merged | Replayed the mobile host connectivity merge as an empty reconciliation because its individual source commit was already incorporated; no GPUI UI surface is affected. |
 | 221 | `22fe038184858ee43a4139536b2826d0564e1219` | 2026-08-12 | feat: add codex chat goal support (#405) | merged | Cherry-picked Codex Chat goal contracts and runtime capability; explicitly did not adapt GPUI because Codex Chat tabs are out of scope for GPUI. |
-| 222 | `73c079d071f64e60c4dbb6c3726f6d4a5270aaf6` | 2026-08-12 | feat: add dictation model and fallback providers (#393) | pending | - |
+| 222 | `73c079d071f64e60c4dbb6c3726f6d4a5270aaf6` | 2026-08-12 | feat: add dictation model and fallback providers (#393) | in progress | Cherry-picking Whisper model selection/fallback runtime contracts; GPUI has no microphone UI yet, so Codex Chat remains unaffected. |
 | 223 | `33f824580ca9c774569ba8bf79bb18a6546e1070` | 2026-08-12 | feat: add terminal pulse file watcher (#406) | pending | - |
 | 224 | `5d8db4ff18f52d3e8eafd81d4df88b8162ed4501` | 2026-08-12 | fix: configure release arm64 toolchains (#408) | pending | - |
 | 225 | `a4861098880c83b5e0bee585fe823588371d3cc7` | 2026-08-12 | fix: enable windows arm64 c++ exceptions (#410) | pending | - |
