@@ -62,6 +62,7 @@ void _registerTerminalHostPtySessionLeaseTests() {
     await _flushAsync();
 
     expect(client.detached, isEmpty);
+    expect(client.released, isEmpty);
     expect(replacement.writeBytes(<int>[7]), isTrue);
     await _flushAsync();
     expect(client.writes, <List<int>>[
@@ -71,5 +72,6 @@ void _registerTerminalHostPtySessionLeaseTests() {
     replacement.dispose();
     await _flushAsync();
     expect(client.detached, <String>['session-1']);
+    expect(client.released, <String>['session-1']);
   });
 }
