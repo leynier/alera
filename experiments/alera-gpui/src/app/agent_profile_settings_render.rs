@@ -108,6 +108,10 @@ impl AleraApp {
             .when(self.agent_profile_settings.risk_confirmation_open, |pane| {
                 pane.child(self.render_agent_profile_risk_confirmation(cx))
             })
+            .when(
+                self.agent_profile_settings.removal_confirmation.is_some(),
+                |pane| pane.child(self.render_agent_profile_removal_confirmation(cx)),
+            )
             .into_any_element()
     }
 
@@ -397,7 +401,7 @@ impl AleraApp {
                             state.selected_id.is_none() || state.saving,
                         )
                         .on_click(cx.listener(|this, _, window, cx| {
-                            this.remove_agent_profile(window, cx);
+                            this.inspect_agent_profile_removal(window, cx);
                         })),
                     ),
             );

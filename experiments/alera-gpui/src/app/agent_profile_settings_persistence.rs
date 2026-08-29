@@ -11,9 +11,10 @@ use super::agent_profile_settings::{
 use super::AleraApp;
 
 const AGENT_PROFILE_ORDERING_CAPABILITY: &str = "orchestrationAgentProfileOrderingV1";
-const AGENT_PROFILE_REVISIONS_CAPABILITY: &str = "orchestrationAgentProfileRevisionsV1";
+pub(super) const AGENT_PROFILE_REVISIONS_CAPABILITY: &str =
+    "orchestrationAgentProfileRevisionsV1";
 const MANAGED_AGENT_PROFILES_CAPABILITY: &str = "orchestrationManagedAgentProfilesV1";
-const SAFE_EDITING_HOST_ERROR: &str = "Safe agent profile editing requires a newer runtime host. \
+pub(super) const SAFE_EDITING_HOST_ERROR: &str = "Safe agent profile editing requires a newer runtime host. \
     Restart Alera to replace the running host.";
 
 impl AleraApp {
@@ -325,84 +326,7 @@ impl AleraApp {
         .detach();
     }
 
-    pub(super) fn remove_agent_profile(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        if self.agent_profile_settings.saving {
-            return;
-        }
-        let Some(id) = self.agent_profile_settings.selected_id.clone() else {
-            return;
-        };
-        let Some(expected_revision) = self
-            .agent_profile_settings
-            .profiles
-            .iter()
-            .find(|profile| profile.id == id)
-            .map(|profile| profile.revision)
-        else {
-            self.agent_profile_settings.error = Some(
-                "The selected agent profile no longer exists. Refresh and try again.".into(),
-            );
-            cx.notify();
-            return;
-        };
-        self.agent_profile_settings.saving = true;
-        self.agent_profile_settings.error = None;
-        let bridge = self.bridge.clone();
-        cx.notify();
-        cx.spawn_in(window, async move |this, cx| {
-            let result = async {
-                require_agent_profile_capabilities(
-                    &bridge,
-                    &[(AGENT_PROFILE_REVISIONS_CAPABILITY, SAFE_EDITING_HOST_ERROR)],
-                )
-                .await?;
-                bridge
-                    .request_with_timeout(
-                        "agentProfile.remove",
-                        json!({"id": id, "expectedRevision": expected_revision}),
-                        Duration::from_secs(10),
-                    )
-                    .await
-            }
-            .await;
-            let _ = this.update_in(cx, |this, window, cx| {
-                this.agent_profile_settings.saving = false;
-                match result {
-                    Ok(_) => {
-                        if this.settings_state.default_agent_profile_id.as_deref()
-                            == Some(id.as_str())
-                        {
-                            this.settings_state.default_agent_profile_id = None;
-                            this.persist_settings();
-                        }
-                        this.agent_profile_settings
-                            .profiles
-                            .retain(|profile| profile.id != id);
-                        // Flutter selects the first remaining profile when the
-                        // removed id no longer exists in the provider snapshot.
-                        // Keep the local list and editor in that same state
-                        // before the host change event arrives.
-                        if let Some(next) = this.agent_profile_settings.profiles.first().cloned() {
-                            this.seed_agent_profile(&next, window, cx);
-                        } else {
-                            this.new_agent_profile(window, cx);
-                            this.agent_profile_settings.creating_new = false;
-                        }
-                        // Flutter does not show a success toast after Remove;
-                        // keep the list mutation quiet and reserve feedback
-                        // for Save and validation errors.
-                        this.agent_profile_settings.toast = None;
-                        this.sync_workspace_agent_profile_options();
-                    }
-                    Err(error) => this.agent_profile_settings.error = Some(error.into()),
-                }
-                cx.notify();
-            });
-        })
-        .detach();
-    }
-
-    fn sync_workspace_agent_profile_options(&mut self) {
+    pub(super) fn sync_workspace_agent_profile_options(&mut self) {
         self.workspace_agent_profiles = self
             .agent_profile_settings
             .profiles
@@ -453,7 +377,7 @@ fn agent_profile_upsert_capabilities(payload: &Value) -> Vec<(&'static str, &'st
     requirements
 }
 
-async fn require_agent_profile_capabilities(
+pub(super) async fn require_agent_profile_capabilities(
     bridge: &crate::runtime_bridge::RuntimeBridge,
     requirements: &[(&str, &str)],
 ) -> Result<(), String> {
