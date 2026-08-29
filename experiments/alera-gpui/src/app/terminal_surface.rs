@@ -153,6 +153,13 @@ impl AleraApp {
             self.terminal_resize_generation.remove(&session_id);
             self.terminal_scrollbar_last_activity.remove(&session_id);
             if self
+                .terminal_pulse_dialog_session
+                .as_deref()
+                .is_some_and(|active| active == session_id)
+            {
+                self.close_terminal_pulse_dialog(cx);
+            }
+            if self
                 .terminal_scrollbar_drag
                 .as_deref()
                 .is_some_and(|active| active == session_id)
@@ -1734,6 +1741,9 @@ impl AleraApp {
         let composer_toggle = session_id
             .filter(|_| active)
             .map(|_| self.render_terminal_composer_toggle(&owned_session_id, cx));
+        let pulse_button = session_id
+            .filter(|_| active && self.terminal_pulse_supported())
+            .map(|_| self.render_terminal_pulse_button(&owned_session_id, cx));
         let mobile_driver_overlay = self.render_mobile_driver_overlay(&owned_session_id, cx);
         let search_overlay = session_id
             .as_deref()
@@ -1883,6 +1893,7 @@ impl AleraApp {
             .when_some(scrollbar, |surface, scrollbar| surface.child(scrollbar))
             .when_some(refresh_button, |surface, button| surface.child(button))
             .when_some(composer_toggle, |surface, button| surface.child(button))
+            .when_some(pulse_button, |surface, button| surface.child(button))
             .when_some(recovery, |surface, recovery| surface.child(recovery))
             .when_some(operation, |surface, operation| surface.child(operation))
             .when_some(restore_progress, |surface, (written, total)| {

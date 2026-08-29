@@ -930,6 +930,9 @@ impl AleraApp {
         } else if self.show_agent_usage_dialog {
             self.close_agent_usage_dialog(cx);
             true
+        } else if self.terminal_pulse_dialog_session.is_some() && !self.terminal_pulse_busy {
+            self.close_terminal_pulse_dialog(cx);
+            true
         } else if self.show_tab_rename_dialog && !self.tab_mutation_busy {
             self.close_tab_rename_dialog(cx);
             true
@@ -1127,6 +1130,9 @@ impl Render for AleraApp {
             })
             .when(self.show_agent_usage_dialog, |root| {
                 root.child(self.render_agent_usage_dialog(cx))
+            })
+            .when(self.terminal_pulse_dialog_session.is_some(), |root| {
+                root.child(self.render_terminal_pulse_dialog(cx))
             })
             .when(self.show_execution_plans, |root| {
                 root.child(self.render_execution_plans_dialog(cx))

@@ -45,6 +45,10 @@ impl AleraApp {
                 .placeholder("Search Terminal")
                 .clean_on_escape()
         });
+        let terminal_pulse_command_input =
+            cx.new(|cx| InputState::new(window, cx).placeholder("r"));
+        let terminal_pulse_delay_input =
+            cx.new(|cx| InputState::new(window, cx).placeholder("2.000"));
         let quick_open_input = cx.new(|cx| {
             InputState::new(window, cx)
                 .placeholder("Search Files")
@@ -1077,6 +1081,14 @@ impl AleraApp {
             terminal_composer_menu_open: None,
             terminal_composer_attachments: BTreeMap::new(),
             terminal_composer_attachment_counter: 0,
+            terminal_pulse_dialog_session: None,
+            terminal_pulse_command_input,
+            terminal_pulse_delay_input,
+            terminal_pulse_armed: false,
+            terminal_pulse_append_enter: true,
+            terminal_pulse_busy: false,
+            terminal_pulse_error: None,
+            terminal_pulse_generation: 0,
             codex_opening_tabs: BTreeSet::new(),
             codex_snapshots: BTreeMap::new(),
             codex_thread_ids: BTreeMap::new(),

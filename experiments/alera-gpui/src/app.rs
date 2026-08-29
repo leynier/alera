@@ -105,6 +105,7 @@ mod tab_strip;
 mod terminal_composer;
 mod terminal_input;
 mod terminal_surface;
+mod terminal_pulse;
 mod text_actions_execution;
 mod text_actions_settings;
 mod toast;
@@ -190,6 +191,14 @@ pub struct AleraApp {
     terminal_composer_menu_open: Option<String>,
     terminal_composer_attachments: BTreeMap<String, Vec<TerminalComposerAttachment>>,
     terminal_composer_attachment_counter: u64,
+    terminal_pulse_dialog_session: Option<String>,
+    terminal_pulse_command_input: Entity<InputState>,
+    terminal_pulse_delay_input: Entity<InputState>,
+    terminal_pulse_armed: bool,
+    terminal_pulse_append_enter: bool,
+    terminal_pulse_busy: bool,
+    terminal_pulse_error: Option<SharedString>,
+    terminal_pulse_generation: u64,
     codex_opening_tabs: BTreeSet<String>,
     codex_snapshots: BTreeMap<String, Value>,
     codex_thread_ids: BTreeMap<String, String>,
