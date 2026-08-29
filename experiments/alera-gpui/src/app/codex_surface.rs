@@ -7,6 +7,7 @@ use gpui::{
 };
 use gpui_component::input::{InputEvent, Textarea, TextareaState};
 use gpui_component::scroll::ScrollableElement as _;
+use gpui_component::text::TextView;
 use serde_json::{json, Value};
 
 use super::AleraApp;
@@ -14,6 +15,7 @@ use crate::design_system::{self, ButtonKind};
 use crate::icons::{loading_indicator, AleraIcon};
 use crate::model::WorkspaceTab;
 use crate::theme;
+use super::markdown_preview_images::with_markdown_images;
 
 const CODEX_TAB_KIND: &str = "codex";
 
@@ -82,7 +84,38 @@ impl AleraApp {
             if !self.codex_catalogs_loaded && !self.codex_catalogs_loading {
                 self.load_codex_catalogs(&tab_id, cx);
             }
+            if let Some(path) = self
+                .snapshot
+                .tabs
+                .iter()
+                .find(|tab| tab.id == tab_id)
+                .and_then(|tab| self.snapshot.workspace(&tab.workspace_id))
+                .map(|workspace| workspace.path.clone())
+            {
+                if self.codex_saved_prompts_workspace.as_deref() != Some(path.as_str())
+                    && !self.codex_saved_prompts_loading
+                {
+                    self.load_codex_saved_prompts(path, cx);
+                }
+            }
         }
+    }
+
+    fn load_codex_saved_prompts(&mut self, workspace_path: String, cx: &mut Context<Self>) {
+        self.codex_saved_prompts_loading = true;
+        self.codex_saved_prompts_workspace = Some(workspace_path.clone());
+        let task = cx.background_executor().spawn(async move {
+            alera_native::api::workspace_files::list_codex_saved_prompts(workspace_path)
+        });
+        cx.spawn(async move |this, cx| {
+            let result = task.await;
+            let _ = this.update(cx, |this, cx| {
+                this.codex_saved_prompts_loading = false;
+                this.codex_saved_prompts = result.unwrap_or_default();
+                cx.notify();
+            });
+        })
+        .detach();
     }
 
     fn open_codex_thread(&mut self, tab_id: String, cx: &mut Context<Self>) {
@@ -397,6 +430,16 @@ impl AleraApp {
             .when(!self.codex_apps.is_empty(), |header| {
                 header.child(self.codex_choice_button(tab_id, "apps", "Apps".to_owned(), cx))
             })
+            .child(self.codex_choice_button(
+                tab_id,
+                "commands",
+                if self.codex_saved_prompts_loading {
+                    "Commands…".to_owned()
+                } else {
+                    "Commands".to_owned()
+                },
+                cx,
+            ))
             .when(!self.codex_collaboration_modes.is_empty(), |header| {
                 header.child(self.codex_choice_button(
                     tab_id,
@@ -498,6 +541,31 @@ impl AleraApp {
                 .iter()
                 .filter_map(|item| Some((item_id(item)?, item_label(item)?)))
                 .collect::<Vec<_>>(),
+            "commands" => {
+                let mut commands = [
+                    ("new", "New Chat"),
+                    ("clear", "Clear"),
+                    ("compact", "Compact Context"),
+                    ("review", "Start Review"),
+                    ("plan", "Toggle Plan"),
+                    ("permissions", "Permissions"),
+                    ("rename", "Rename"),
+                    ("mention", "Mention File"),
+                    ("skills", "Skills"),
+                    ("apps", "Apps"),
+                    ("status", "Status"),
+                    ("logs", "Raw Logs"),
+                ]
+                .into_iter()
+                .map(|(value, label)| (value.to_owned(), label.to_owned()))
+                .collect::<Vec<_>>();
+                commands.extend(
+                    self.codex_saved_prompts
+                        .iter()
+                        .map(|prompt| (prompt.name.clone(), prompt.description.clone())),
+                );
+                commands
+            }
             "collaboration" => self
                 .codex_collaboration_modes
                 .iter()
@@ -569,6 +637,7 @@ impl AleraApp {
             "permission" => self.codex_permission_mode = value.to_owned(),
             "skills" => self.insert_codex_token(tab_id, &format!("/skill {value}"), window, cx),
             "apps" => self.insert_codex_token(tab_id, &format!("/app {value}"), window, cx),
+            "commands" => self.insert_codex_token(tab_id, &format!("/{value} "), window, cx),
             "collaboration" => {
                 self.codex_collaboration_mode = Some(value.to_owned());
                 self.codex_plan_mode = value.eq_ignore_ascii_case("plan");
@@ -652,6 +721,12 @@ impl AleraApp {
                 .or_else(|| cell.get("detailsText").and_then(Value::as_str))
                 .unwrap_or_default()
                 .to_owned();
+            let details = cell
+                .get("detailsText")
+                .and_then(Value::as_str)
+                .unwrap_or_default()
+                .to_owned();
+            let show_details = !details.is_empty() && details != body;
             let subtitle = cell
                 .get("subtitle")
                 .and_then(Value::as_str)
@@ -710,11 +785,23 @@ impl AleraApp {
                 }
                 if !body.is_empty() {
                     card = card.child(
+                        with_markdown_images(TextView::markdown(
+                            SharedString::from(format!("codex-cell-body-{index}")),
+                            body,
+                        )),
+                    );
+                }
+                if show_details {
+                    card = card.child(
                         div()
-                            .mt_1()
+                            .mt_2()
+                            .rounded_md()
+                            .bg(theme::app_background())
+                            .p_2()
+                            .font_family("JetBrains Mono")
+                            .text_size(px(11.0))
                             .whitespace_normal()
-                            .text_size(px(12.0))
-                            .child(body),
+                            .child(details),
                     );
                 }
                 if kind == "plan" && !streaming && self.codex_plan_mode {
@@ -990,6 +1077,7 @@ impl AleraApp {
             return;
         };
         let bridge = self.bridge.clone();
+        let text = expand_saved_prompt(&text, &self.codex_saved_prompts);
         let model = self.codex_selected_model.clone();
         let reasoning = self.codex_reasoning_effort.clone();
         let speed = self.codex_speed_mode.clone();
@@ -1206,6 +1294,69 @@ fn active_codex_turn(snapshot: &Value) -> Option<String> {
         .and_then(Value::as_str)
         .filter(|value| !value.is_empty())
         .map(str::to_owned)
+}
+
+fn expand_saved_prompt(
+    input: &str,
+    prompts: &[alera_native::api::workspace_files::CodexSavedPrompt],
+) -> String {
+    let trimmed = input.trim();
+    let Some(rest) = trimmed.strip_prefix('/') else {
+        return input.to_owned();
+    };
+    let mut parts = rest.splitn(2, char::is_whitespace);
+    let name = parts.next().unwrap_or_default();
+    let arguments = parts.next().unwrap_or_default().trim();
+    let Some(prompt) = prompts
+        .iter()
+        .find(|prompt| prompt.name.eq_ignore_ascii_case(name))
+    else {
+        return input.to_owned();
+    };
+    let positional = arguments
+        .split_whitespace()
+        .map(str::to_owned)
+        .collect::<Vec<_>>();
+    let mut rendered = String::with_capacity(prompt.body.len() + arguments.len());
+    let mut chars = prompt.body.chars().peekable();
+    while let Some(character) = chars.next() {
+        if character != '$' {
+            rendered.push(character);
+            continue;
+        }
+        if chars.peek() == Some(&'$') {
+            chars.next();
+            rendered.push('$');
+            continue;
+        }
+        let mut token = String::new();
+        while let Some(next) = chars.peek().copied() {
+            if next.is_ascii_alphanumeric() || next == '_' || next == '-' {
+                token.push(next);
+                chars.next();
+            } else {
+                break;
+            }
+        }
+        if token.eq_ignore_ascii_case("ARGUMENTS") {
+            rendered.push_str(arguments);
+        } else if let Ok(index) = token.parse::<usize>() {
+            if let Some(value) = positional.get(index.saturating_sub(1)) {
+                rendered.push_str(value);
+            }
+        } else if !token.is_empty() {
+            if let Some((_, value)) = arguments.split_whitespace().find_map(|argument| {
+                argument
+                    .split_once('=')
+                    .filter(|(key, _)| key.eq_ignore_ascii_case(&token))
+            }) {
+                rendered.push_str(value);
+            }
+        } else {
+            rendered.push('$');
+        }
+    }
+    rendered.trim().to_owned()
 }
 
 fn item_id(item: &Value) -> Option<String> {

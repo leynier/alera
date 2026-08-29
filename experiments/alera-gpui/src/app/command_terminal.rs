@@ -5,6 +5,7 @@ use gpui::{
 };
 use serde_json::json;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use gpui_component::scroll::ScrollableElement as _;
 
 use super::AleraApp;
 use crate::{
@@ -265,7 +266,7 @@ impl AleraApp {
                             .child(
                                 div()
                                     .flex_1()
-                                    .overflow_x_scroll()
+                                    .overflow_x_scrollbar()
                                     .whitespace_nowrap()
                                     .font_family("JetBrains Mono")
                                     .text_size(gpui::px(12.0))

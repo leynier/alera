@@ -190,6 +190,14 @@ impl AleraApp {
                             if name == "codexThreadChanged" {
                                 this.handle_codex_notification(&payload, window, cx);
                             }
+                            if name == "codexCatalogChanged" {
+                                // Skills and apps can change while the Codex
+                                // tab is open. The next render re-queries the
+                                // catalog for the selected tab instead of
+                                // leaving stale slash-command choices visible.
+                                this.codex_catalogs_loaded = false;
+                                this.codex_catalogs_loading = false;
+                            }
                             if name == "agentCanvasChanged"
                                 && this.context_panel == ContextPanel::AgentCanvas
                             {
