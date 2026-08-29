@@ -44,10 +44,17 @@ fn main() {
             design_system::configure_component_theme(cx);
             app::register_keyboard_actions(cx);
             let bridge = bridge.clone();
-            let bounds = Bounds::centered(None, size(px(1280.0), px(800.0)), cx);
+            // Start at a desktop-sized canvas so the first GPUI frame matches
+            // Flutter's full-window reference on the native MacBook display.
+            // The platform clamps this to the available work area while still
+            // preserving the user's later window geometry.
+            let bounds = Bounds::centered(None, size(px(1400.0), px(900.0)), cx);
             cx.open_window(
                 WindowOptions {
-                    window_bounds: Some(WindowBounds::Windowed(bounds)),
+                    // Maximized here uses GPUI's reversible native window zoom,
+                    // the same operation as double-clicking the titlebar on
+                    // macOS, rather than entering fullscreen.
+                    window_bounds: Some(WindowBounds::Maximized(bounds)),
                     titlebar: Some(TitlebarOptions {
                         title: Some(app_name.into()),
                         ..Default::default()
