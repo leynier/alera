@@ -5,14 +5,14 @@ use gpui::{
     Entity, InteractiveElement as _, IntoElement, KeyDownEvent, MouseButton,
     ParentElement as _, Role, SharedString, StatefulInteractiveElement as _, Styled as _, Window,
 };
-use gpui_component::input::{InputEvent, Textarea, TextareaState};
+use gpui_component::input::{Input, InputEvent, Textarea, TextareaState};
 use gpui_component::scroll::ScrollableElement as _;
 use gpui_component::text::TextView;
 use serde_json::{json, Value};
 
 use super::AleraApp;
 use crate::design_system::{self, ButtonKind};
-use crate::icons::{loading_indicator, AleraIcon};
+use crate::icons::{icon, loading_indicator, AleraIcon};
 use crate::model::WorkspaceTab;
 use crate::theme;
 use super::markdown_preview_images::with_markdown_images;
@@ -31,6 +31,10 @@ impl AleraApp {
         self.codex_opening_tabs
             .retain(|tab_id| codex_tabs.contains(tab_id));
         self.codex_snapshots.retain(|tab_id, _| codex_tabs.contains(tab_id));
+        self.codex_thread_ids
+            .retain(|tab_id, _| codex_tabs.contains(tab_id));
+        self.codex_recovery
+            .retain(|tab_id, _| codex_tabs.contains(tab_id));
         self.codex_composer_inputs
             .retain(|tab_id, _| codex_tabs.contains(tab_id));
         self.codex_queued_messages
@@ -76,6 +80,9 @@ impl AleraApp {
             .filter(|tab| tab.kind == CODEX_TAB_KIND)
             .map(|tab| tab.id.clone());
         if let Some(tab_id) = selected_codex {
+            if self.codex_sessions_supported.is_none() && !self.codex_capabilities_loading {
+                self.load_codex_capabilities(cx);
+            }
             if !self.codex_snapshots.contains_key(&tab_id)
                 && !self.codex_opening_tabs.contains(&tab_id)
             {
@@ -99,6 +106,30 @@ impl AleraApp {
                 }
             }
         }
+    }
+
+    fn load_codex_capabilities(&mut self, cx: &mut Context<Self>) {
+        self.codex_capabilities_loading = true;
+        let bridge = self.bridge.clone();
+        cx.spawn(async move |this, cx| {
+            let result = bridge.request("status.get", json!({})).await;
+            let _ = this.update(cx, |this, cx| {
+                this.codex_capabilities_loading = false;
+                let capabilities = result
+                    .ok()
+                    .and_then(|value| value.get("runtimeCapabilities").cloned())
+                    .and_then(|value| value.as_array().cloned())
+                    .unwrap_or_default();
+                this.codex_sessions_supported = Some(capabilities.iter().any(|value| {
+                    value.as_str() == Some("codexSessionsV1")
+                }));
+                this.codex_turn_policy_supported = Some(capabilities.iter().any(|value| {
+                    value.as_str() == Some("codexTurnPolicyV2")
+                }));
+                cx.notify();
+            });
+        })
+        .detach();
     }
 
     fn load_codex_saved_prompts(&mut self, workspace_path: String, cx: &mut Context<Self>) {
@@ -133,6 +164,7 @@ impl AleraApp {
                 this.codex_opening_tabs.remove(&tab_id);
                 match result {
                     Ok(value) => {
+                        this.apply_codex_session_response(&tab_id, &value);
                         if let Some(snapshot) = value.get("snapshot") {
                             this.codex_snapshots.insert(tab_id.clone(), snapshot.clone());
                         }
@@ -145,6 +177,49 @@ impl AleraApp {
         })
         .detach();
         cx.notify();
+    }
+
+    fn apply_codex_session_response(&mut self, tab_id: &str, value: &Value) {
+        if let Some(thread_id) = value
+            .get("threadId")
+            .and_then(Value::as_str)
+            .filter(|id| !id.is_empty())
+        {
+            self.codex_thread_ids
+                .insert(tab_id.to_owned(), thread_id.to_owned());
+        }
+        if let Some(recovery_value) = value.get("recovery") {
+            if recovery_value.is_object() {
+                let recovery = recovery_value;
+                self.codex_recovery
+                    .insert(tab_id.to_owned(), recovery.clone());
+            } else {
+                self.codex_recovery.remove(tab_id);
+            }
+        }
+        if let Some(configuration) = value.get("configuration").and_then(Value::as_object) {
+            if let Some(model) = configuration.get("selectedModel").and_then(Value::as_str) {
+                self.codex_selected_model = Some(model.to_owned());
+            }
+            if let Some(reasoning) = configuration.get("reasoningEffort").and_then(Value::as_str) {
+                self.codex_reasoning_effort = reasoning.to_owned();
+            }
+            if let Some(speed) = configuration.get("speedMode").and_then(Value::as_str) {
+                self.codex_speed_mode = speed.to_owned();
+            }
+            if let Some(permission) = configuration.get("permissionMode").and_then(Value::as_str) {
+                self.codex_permission_mode = permission.to_owned();
+            }
+            if let Some(plan) = configuration.get("planMode").and_then(Value::as_bool) {
+                self.codex_plan_mode = plan;
+            }
+            if let Some(mode) = configuration
+                .get("collaborationMode")
+                .and_then(Value::as_str)
+            {
+                self.codex_collaboration_mode = Some(mode.to_owned());
+            }
+        }
     }
 
     fn load_codex_catalogs(&mut self, tab_id: &str, cx: &mut Context<Self>) {
@@ -195,6 +270,7 @@ impl AleraApp {
         let Some(snapshot) = payload.get("snapshot").filter(|value| value.is_object()) else {
             return;
         };
+        self.apply_codex_session_response(tab_id, payload);
         self.codex_snapshots
             .insert(tab_id.to_owned(), snapshot.clone());
         if let Some(tab) = self.snapshot.tabs.iter_mut().find(|tab| tab.id == tab_id) {
@@ -266,6 +342,473 @@ impl AleraApp {
         .detach();
     }
 
+    fn new_codex_thread(&mut self, tab_id: &str, cx: &mut Context<Self>) {
+        self.run_codex_session_command(tab_id, "codex.thread.new", cx);
+    }
+
+    fn clear_codex_thread(&mut self, tab_id: &str, cx: &mut Context<Self>) {
+        self.run_codex_session_command(tab_id, "codex.thread.clear", cx);
+    }
+
+    fn run_codex_session_command(
+        &mut self,
+        tab_id: &str,
+        request_type: &'static str,
+        cx: &mut Context<Self>,
+    ) {
+        if self.codex_session_action_busy.contains(tab_id) {
+            return;
+        }
+        self.codex_session_action_busy.insert(tab_id.to_owned());
+        let bridge = self.bridge.clone();
+        let tab_id = tab_id.to_owned();
+        let cwd = self
+            .snapshot
+            .tabs
+            .iter()
+            .find(|tab| tab.id == tab_id)
+            .and_then(|tab| self.snapshot.workspace(&tab.workspace_id))
+            .map(|workspace| workspace.path.clone());
+        cx.spawn(async move |this, cx| {
+            let result = bridge
+                .request(
+                    request_type,
+                    json!({
+                        "tabId": tab_id,
+                        "cwd": cwd,
+                    }),
+                )
+                .await;
+            let _ = this.update(cx, |this, cx| {
+                this.codex_session_action_busy.remove(&tab_id);
+                match result {
+                    Ok(value) => {
+                        this.apply_codex_session_response(&tab_id, &value);
+                        if let Some(snapshot) = value.get("snapshot") {
+                            this.codex_snapshots.insert(tab_id.clone(), snapshot.clone());
+                        }
+                        this.codex_error = None;
+                    }
+                    Err(error) => this.codex_error = Some(error.into()),
+                }
+                cx.notify();
+            });
+        })
+        .detach();
+        cx.notify();
+    }
+
+    pub(super) fn open_codex_resume_picker(&mut self, tab_id: &str, cx: &mut Context<Self>) {
+        if self.codex_session_action_busy.contains(tab_id) {
+            return;
+        }
+        self.codex_resume_dialog_tab = Some(tab_id.to_owned());
+        self.codex_resume_threads.clear();
+        self.codex_resume_next_cursor = None;
+        self.codex_resume_workspace_only = true;
+        self.codex_resume_error = None;
+        self.load_codex_resume_threads(tab_id.to_owned(), false, cx);
+        cx.notify();
+    }
+
+    pub(super) fn load_codex_resume_threads(
+        &mut self,
+        tab_id: String,
+        append: bool,
+        cx: &mut Context<Self>,
+    ) {
+        if self.codex_resume_loading || self.codex_resume_dialog_tab.as_deref() != Some(tab_id.as_str()) {
+            return;
+        }
+        let workspace_id = self
+            .snapshot
+            .tabs
+            .iter()
+            .find(|tab| tab.id == tab_id)
+            .map(|tab| tab.workspace_id.clone());
+        let search_term = self
+            .codex_resume_search_input
+            .read(cx)
+            .value()
+            .trim()
+            .to_owned();
+        let scope_workspace = self.codex_resume_workspace_only;
+        let cursor = append.then(|| self.codex_resume_next_cursor.clone()).flatten();
+        if append && cursor.is_none() {
+            return;
+        }
+        self.codex_resume_loading = true;
+        let bridge = self.bridge.clone();
+        cx.spawn(async move |this, cx| {
+            let result = bridge
+                .request(
+                    "codex.thread.list",
+                    json!({
+                        "scope": if scope_workspace { "workspace" } else { "all" },
+                        "workspaceId": if scope_workspace { workspace_id } else { None::<String> },
+                        "searchTerm": (!search_term.is_empty()).then_some(search_term),
+                        "cursor": cursor,
+                        "limit": 20,
+                    }),
+                )
+                .await;
+            let _ = this.update(cx, |this, cx| {
+                this.codex_resume_loading = false;
+                if this.codex_resume_dialog_tab.as_deref() != Some(tab_id.as_str()) {
+                    return;
+                }
+                match result {
+                    Ok(value) => {
+                        let items = value
+                            .get("items")
+                            .or_else(|| value.get("threads"))
+                            .or_else(|| value.get("data"))
+                            .and_then(Value::as_array)
+                            .cloned()
+                            .unwrap_or_default();
+                        if append {
+                            this.codex_resume_threads.extend(items);
+                        } else {
+                            this.codex_resume_threads = items;
+                        }
+                        this.codex_resume_next_cursor = value
+                            .get("nextCursor")
+                            .and_then(Value::as_str)
+                            .filter(|cursor| !cursor.is_empty())
+                            .map(str::to_owned);
+                        this.codex_resume_error = None;
+                    }
+                    Err(error) => this.codex_resume_error = Some(error.into()),
+                }
+                cx.notify();
+            });
+        })
+        .detach();
+    }
+
+    fn resume_codex_thread(
+        &mut self,
+        tab_id: &str,
+        thread: Value,
+        cx: &mut Context<Self>,
+    ) {
+        let Some(thread_id) = thread
+            .get("threadId")
+            .or_else(|| thread.get("id"))
+            .and_then(Value::as_str)
+            .filter(|id| !id.is_empty())
+            .map(str::to_owned)
+        else {
+            return;
+        };
+        let cwd = self
+            .snapshot
+            .tabs
+            .iter()
+            .find(|tab| tab.id == tab_id)
+            .and_then(|tab| self.snapshot.workspace(&tab.workspace_id))
+            .map(|workspace| workspace.path.clone());
+        self.codex_resume_dialog_tab = None;
+        self.codex_session_action_busy.insert(tab_id.to_owned());
+        let bridge = self.bridge.clone();
+        let tab_id = tab_id.to_owned();
+        cx.spawn(async move |this, cx| {
+            let result = bridge
+                .request(
+                    "codex.thread.resume",
+                    json!({
+                        "tabId": tab_id,
+                        "threadId": thread_id,
+                        "cwd": cwd,
+                        "limit": 20,
+                    }),
+                )
+                .await;
+            let _ = this.update(cx, |this, cx| {
+                this.codex_session_action_busy.remove(&tab_id);
+                match result {
+                    Ok(value) => {
+                        if value.get("alreadyBound").and_then(Value::as_bool) == Some(true) {
+                            if let (Some(workspace_id), Some(bound_tab_id)) = (
+                                value.get("boundWorkspaceId").and_then(Value::as_str),
+                                value.get("boundTabId").and_then(Value::as_str),
+                            ) {
+                                this.select_workspace_tab(
+                                    workspace_id.to_owned(),
+                                    bound_tab_id.to_owned(),
+                                    cx,
+                                );
+                            }
+                        } else {
+                            this.apply_codex_session_response(&tab_id, &value);
+                            if let Some(snapshot) = value.get("snapshot") {
+                                this.codex_snapshots.insert(tab_id.clone(), snapshot.clone());
+                            }
+                            this.codex_error = None;
+                        }
+                    }
+                    Err(error) => this.codex_error = Some(error.into()),
+                }
+                cx.notify();
+            });
+        })
+        .detach();
+        cx.notify();
+    }
+
+    fn render_codex_recovery_banner(
+        &self,
+        tab_id: &str,
+        recovery: &Value,
+        cx: &mut Context<Self>,
+    ) -> AnyElement {
+        let message = recovery
+            .get("message")
+            .and_then(Value::as_str)
+            .unwrap_or("The saved Codex context is no longer available.");
+        let tab_id = tab_id.to_owned();
+        div()
+            .id("codex-thread-recovery")
+            .flex()
+            .items_center()
+            .gap_2()
+            .p_3()
+            .border_b_1()
+            .border_color(theme::warning())
+            .bg(theme::surface_raised())
+            .child(
+                div()
+                    .flex_1()
+                    .text_sm()
+                    .text_color(theme::text_muted())
+                    .child(message.to_owned()),
+            )
+            .child(
+                design_system::button(
+                    "codex-recover-thread",
+                    "Continue In New Thread",
+                    ButtonKind::Filled,
+                    false,
+                )
+                .on_click(cx.listener(move |this, _, _, cx| {
+                    this.run_codex_session_command(&tab_id, "codex.thread.new", cx);
+                })),
+            )
+            .into_any_element()
+    }
+
+    fn render_codex_resume_picker(&self, tab_id: &str, cx: &mut Context<Self>) -> AnyElement {
+        let target_tab_id = tab_id.to_owned();
+        let tab_id_for_close = tab_id.to_owned();
+        let tab_id_for_more = tab_id.to_owned();
+        let workspace_label = if self.codex_resume_workspace_only {
+            "Workspace"
+        } else {
+            "All"
+        };
+        let body = div()
+            .id("codex-resume-picker")
+            .absolute()
+            .inset_0()
+            .flex()
+            .items_center()
+            .justify_center()
+            .bg(theme::overlay_scrim())
+            .on_mouse_down(MouseButton::Left, cx.listener(|this, _, _, cx| {
+                this.codex_resume_dialog_tab = None;
+                cx.notify();
+            }))
+            .child(
+                design_system::dialog_shell("codex-resume-dialog", "Resume Codex Thread", 620.0)
+                    .on_mouse_down(MouseButton::Left, |_, _, cx| cx.stop_propagation())
+                    .child(
+                        div()
+                            .flex()
+                            .gap_2()
+                            .child(
+                                design_system::button(
+                                    "codex-resume-workspace",
+                                    workspace_label,
+                                    if self.codex_resume_workspace_only {
+                                        ButtonKind::Filled
+                                    } else {
+                                        ButtonKind::Outlined
+                                    },
+                                    false,
+                                )
+                                .on_click(cx.listener(|this, _, _, cx| {
+                                    if !this.codex_resume_workspace_only {
+                                        this.codex_resume_workspace_only = true;
+                                        this.codex_resume_next_cursor = None;
+                                        if let Some(tab_id) = this.codex_resume_dialog_tab.clone() {
+                                            this.load_codex_resume_threads(tab_id, false, cx);
+                                        }
+                                        cx.notify();
+                                    }
+                                })),
+                            )
+                            .child(
+                                design_system::button(
+                                    "codex-resume-all",
+                                    "All",
+                                    if self.codex_resume_workspace_only {
+                                        ButtonKind::Outlined
+                                    } else {
+                                        ButtonKind::Filled
+                                    },
+                                    false,
+                                )
+                                .on_click(cx.listener(|this, _, _, cx| {
+                                    if this.codex_resume_workspace_only {
+                                        this.codex_resume_workspace_only = false;
+                                        this.codex_resume_next_cursor = None;
+                                        if let Some(tab_id) = this.codex_resume_dialog_tab.clone() {
+                                            this.load_codex_resume_threads(tab_id, false, cx);
+                                        }
+                                        cx.notify();
+                                    }
+                                })),
+                            )
+                            .child(div().flex_1())
+                            .child(
+                                design_system::icon_button(
+                                    "codex-resume-close",
+                                    "Close",
+                                    AleraIcon::Close,
+                                    false,
+                                    28.0,
+                                    None,
+                                    None,
+                                )
+                                .on_click(cx.listener(move |this, _, _, cx| {
+                                    if this.codex_resume_dialog_tab.as_deref()
+                                        == Some(tab_id_for_close.as_str())
+                                    {
+                                        this.codex_resume_dialog_tab = None;
+                                        cx.notify();
+                                    }
+                                })),
+                            ),
+                    )
+                    .child(Input::new(&self.codex_resume_search_input).h(px(34.0)))
+                    .child(
+                        div()
+                            .mt_2()
+                            .flex_1()
+                            .min_h(px(240.0))
+                            .overflow_y_scrollbar()
+                            .children(self.codex_resume_threads.iter().enumerate().map(
+                                |(index, thread)| {
+                                    let value = thread.clone();
+                                    let tab_id_for_row = target_tab_id.clone();
+                                    let title = thread
+                                        .get("title")
+                                        .or_else(|| thread.get("name"))
+                                        .or_else(|| thread.get("preview"))
+                                        .and_then(Value::as_str)
+                                        .unwrap_or("Untitled Codex Thread")
+                                        .to_owned();
+                                    let subtitle = [
+                                        thread
+                                            .get("workspaceName")
+                                            .and_then(Value::as_str)
+                                            .filter(|value| !value.is_empty()),
+                                        thread
+                                            .get("cwd")
+                                            .and_then(Value::as_str)
+                                            .filter(|value| !value.is_empty()),
+                                        (thread
+                                            .get("boundTabId")
+                                            .and_then(Value::as_str)
+                                            .filter(|value| !value.is_empty())
+                                            .is_some())
+                                        .then_some("Already Open"),
+                                    ]
+                                    .into_iter()
+                                    .flatten()
+                                    .collect::<Vec<_>>()
+                                    .join(" / ");
+                                    div()
+                                        .id(SharedString::from(format!(
+                                            "codex-resume-thread-{index}"
+                                        )))
+                                        .flex()
+                                        .items_center()
+                                        .gap_2()
+                                        .h(px(54.0))
+                                        .px_2()
+                                        .rounded_md()
+                                            .cursor(CursorStyle::PointingHand)
+                                            .hover(|style| style.bg(theme::surface_selected()))
+                                            .on_click(cx.listener(move |this, _, _, cx| {
+                                                this.resume_codex_thread(
+                                                &tab_id_for_row,
+                                                value.clone(),
+                                                cx,
+                                            );
+                                        }))
+                                        .child(
+                                            div()
+                                                .flex()
+                                                .flex_col()
+                                                .flex_1()
+                                                .overflow_hidden()
+                                                .child(title)
+                                                .child(
+                                                    div()
+                                                        .text_xs()
+                                                        .text_color(theme::text_faint())
+                                                        .text_ellipsis()
+                                                        .child(subtitle),
+                                                ),
+                                        )
+                                        .child(icon(
+                                            AleraIcon::ChevronRight,
+                                            14.0,
+                                            theme::text_muted(),
+                                        ))
+                                },
+                            )),
+                    )
+                    .when_some(self.codex_resume_error.clone(), |dialog, error| {
+                        dialog.child(div().mt_2().text_color(theme::danger()).child(error))
+                    })
+                    .when(self.codex_resume_loading, |dialog| {
+                        dialog.child(
+                            div()
+                                .mt_2()
+                                .flex()
+                                .items_center()
+                                .gap_2()
+                                .child(loading_indicator(14.0, theme::text_muted()))
+                                .child("Loading Threads"),
+                        )
+                    })
+                    .when(
+                        !self.codex_resume_loading
+                            && self.codex_resume_threads.is_empty()
+                            && self.codex_resume_error.is_none(),
+                        |dialog| dialog.child(div().mt_2().child("No Codex Threads Found")),
+                    )
+                    .when_some(self.codex_resume_next_cursor.clone(), |dialog, _| {
+                        dialog.child(
+                            design_system::button(
+                                "codex-resume-load-more",
+                                "Load More",
+                                ButtonKind::Outlined,
+                                self.codex_resume_loading,
+                            )
+                            .on_click(cx.listener(move |this, _, _, cx| {
+                                this.load_codex_resume_threads(tab_id_for_more.clone(), true, cx);
+                            })),
+                        )
+                    }),
+            );
+        // This keeps a stale menu's click from leaking into the workbench while
+        // the dialog is open, matching Flutter's modal barrier semantics.
+        body.into_any_element()
+    }
+
     pub(super) fn render_codex_surface(&self, cx: &mut Context<Self>) -> AnyElement {
         let Some(tab) = self
             .selected_tab_id
@@ -307,6 +850,13 @@ impl AleraApp {
             .min_h_0()
             .bg(theme::app_background())
             .child(self.render_codex_header(&tab_id, cx))
+            .when(
+                self.codex_resume_dialog_tab.as_deref() == Some(tab_id.as_str()),
+                |surface| surface.child(self.render_codex_resume_picker(&tab_id, cx)),
+            )
+            .when_some(self.codex_recovery.get(&tab_id).cloned(), |surface, recovery| {
+                surface.child(self.render_codex_recovery_banner(&tab_id, &recovery, cx))
+            })
             .child(
                 div()
                     .flex_1()
@@ -413,6 +963,7 @@ impl AleraApp {
         let menu_open = self.codex_menu_open.clone();
         let tab_for_compact = tab_id.to_owned();
         let tab_for_review = tab_id.to_owned();
+        let tab_for_plan = tab_id.to_owned();
         div()
             .id("codex-header")
             .relative()
@@ -455,12 +1006,13 @@ impl AleraApp {
             .child(self.codex_choice_button(tab_id, "permission", format!("Permission: {}", self.codex_permission_mode), cx))
             .child(
                 design_system::button("codex-plan-mode", "Plan", ButtonKind::Text, false)
-                    .on_click(cx.listener(|this, _, _, cx| {
+                    .on_click(cx.listener(move |this, _, _, cx| {
                         this.codex_plan_mode = !this.codex_plan_mode;
                         this.codex_collaboration_mode = this.codex_plan_mode
                             .then_some("plan".to_owned())
                             .or_else(|| this.codex_collaboration_mode.clone().filter(|mode| mode != "plan"));
                         this.persist_codex_chat_settings(cx);
+                        this.persist_codex_tab_configuration(&tab_for_plan, cx);
                         cx.notify();
                     })),
             )
@@ -545,6 +1097,7 @@ impl AleraApp {
                 let mut commands = [
                     ("new", "New Chat"),
                     ("clear", "Clear"),
+                    ("resume", "Resume Thread"),
                     ("compact", "Compact Context"),
                     ("review", "Start Review"),
                     ("plan", "Toggle Plan"),
@@ -637,7 +1190,18 @@ impl AleraApp {
             "permission" => self.codex_permission_mode = value.to_owned(),
             "skills" => self.insert_codex_token(tab_id, &format!("/skill {value}"), window, cx),
             "apps" => self.insert_codex_token(tab_id, &format!("/app {value}"), window, cx),
-            "commands" => self.insert_codex_token(tab_id, &format!("/{value} "), window, cx),
+            "commands" => match value {
+                "new" if self.codex_sessions_supported == Some(true) => {
+                    self.new_codex_thread(tab_id, cx)
+                }
+                "clear" if self.codex_sessions_supported == Some(true) => {
+                    self.clear_codex_thread(tab_id, cx)
+                }
+                "resume" if self.codex_sessions_supported == Some(true) => {
+                    self.open_codex_resume_picker(tab_id, cx)
+                }
+                _ => self.insert_codex_token(tab_id, &format!("/{value} "), window, cx),
+            },
             "collaboration" => {
                 self.codex_collaboration_mode = Some(value.to_owned());
                 self.codex_plan_mode = value.eq_ignore_ascii_case("plan");
@@ -660,6 +1224,32 @@ impl AleraApp {
             self.settings_state.shared_flutter_local_payload(),
             cx,
         );
+        if let Some(tab_id) = self
+            .selected_tab_id
+            .as_deref()
+            .filter(|tab_id| self.snapshot.tabs.iter().any(|tab| tab.id == *tab_id && tab.kind == CODEX_TAB_KIND))
+        {
+            self.persist_codex_tab_configuration(tab_id, cx);
+        }
+    }
+
+    fn persist_codex_tab_configuration(&self, tab_id: &str, cx: &mut Context<Self>) {
+        let bridge = self.bridge.clone();
+        let payload = json!({
+            "tabId": tab_id,
+            "configuration": {
+                "selectedModel": self.codex_selected_model.clone(),
+                "reasoningEffort": self.codex_reasoning_effort.clone(),
+                "speedMode": self.codex_speed_mode.clone(),
+                "permissionMode": self.codex_permission_mode.clone(),
+                "planMode": self.codex_plan_mode,
+                "collaborationMode": self.codex_collaboration_mode.clone(),
+            }
+        });
+        cx.spawn(async move |_, _| {
+            let _ = bridge.request("codex.tab.configure", payload).await;
+        })
+        .detach();
     }
 
     fn insert_codex_token(
@@ -1082,6 +1672,7 @@ impl AleraApp {
         let speed = self.codex_speed_mode.clone();
         let permission = self.codex_permission_mode.clone();
         let plan = self.codex_plan_mode;
+        let expected_thread_id = self.codex_thread_ids.get(&tab_id).cloned();
         let collaboration_mode = self
             .codex_collaboration_mode
             .clone()
@@ -1094,13 +1685,22 @@ impl AleraApp {
                     "codex.turn.start",
                     json!({
                         "tabId": tab_id,
+                        "expectedThreadId": expected_thread_id,
                         "input": [{"type": "text", "text": text}],
                         "model": model,
                         "reasoning": {"effort": reasoning},
                         "effort": reasoning,
                         "serviceTier": (speed == "fast").then_some("fast"),
                         "approvalPolicy": permission,
-                        "collaborationMode": collaboration_mode.map(|mode| json!({"mode": mode})),
+                        "collaborationMode": collaboration_mode.clone().map(|mode| json!({"mode": mode})),
+                        "configuration": {
+                            "selectedModel": model,
+                            "reasoningEffort": reasoning,
+                            "speedMode": speed,
+                            "permissionMode": permission,
+                            "planMode": plan,
+                            "collaborationMode": collaboration_mode,
+                        },
                     }),
                     Duration::from_secs(10),
                 )

@@ -50,6 +50,11 @@ impl AleraApp {
                 .placeholder("Search Files")
                 .clean_on_escape()
         });
+        let codex_resume_search_input = cx.new(|cx| {
+            InputState::new(window, cx)
+                .placeholder("Search Threads")
+                .clean_on_escape()
+        });
         let command_palette_input = cx.new(|cx| {
             InputState::new(window, cx)
                 .placeholder("Search Commands")
@@ -419,6 +424,18 @@ impl AleraApp {
             input.set_value("main", window, cx);
         });
         let mut subscriptions = vec![
+            cx.subscribe_in(
+                &codex_resume_search_input,
+                window,
+                |this, _, event: &InputEvent, _, cx| {
+                    if !matches!(event, InputEvent::Change) {
+                        return;
+                    }
+                    if let Some(tab_id) = this.codex_resume_dialog_tab.clone() {
+                        this.load_codex_resume_threads(tab_id, false, cx);
+                    }
+                },
+            ),
             cx.subscribe_in(
                 &editor_input,
                 window,
@@ -1060,6 +1077,19 @@ impl AleraApp {
             terminal_composer_attachment_counter: 0,
             codex_opening_tabs: BTreeSet::new(),
             codex_snapshots: BTreeMap::new(),
+            codex_thread_ids: BTreeMap::new(),
+            codex_recovery: BTreeMap::new(),
+            codex_sessions_supported: None,
+            codex_turn_policy_supported: None,
+            codex_capabilities_loading: false,
+            codex_session_action_busy: BTreeSet::new(),
+            codex_resume_dialog_tab: None,
+            codex_resume_threads: Vec::new(),
+            codex_resume_next_cursor: None,
+            codex_resume_workspace_only: true,
+            codex_resume_loading: false,
+            codex_resume_error: None,
+            codex_resume_search_input,
             codex_composer_inputs: BTreeMap::new(),
             codex_selected_model: settings_state.codex_chat_selected_model.clone(),
             codex_models: Vec::new(),
