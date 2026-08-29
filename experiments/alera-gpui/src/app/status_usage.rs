@@ -2,12 +2,13 @@ use std::collections::BTreeMap;
 
 use chrono::{Duration as ChronoDuration, Local, NaiveDate};
 use gpui::{
-    div, prelude::FluentBuilder as _, px, AnyElement, Context, CursorStyle,
+    div, prelude::FluentBuilder as _, px, AnyElement, AppContext as _, Context, CursorStyle,
     InteractiveElement as _, IntoElement, ParentElement as _, Role, SharedString,
     StatefulInteractiveElement as _, Styled as _,
 };
 use serde_json::{json, Value};
 use gpui_component::scroll::ScrollableElement;
+use gpui_component::tooltip::Tooltip;
 
 use super::status_data::QuotaSnapshot;
 use super::status_quota::provider_agent_icon;
@@ -733,11 +734,24 @@ impl AleraApp {
                 let claude_height = 150.0 * day.claude_tokens as f32 / maximum.max(1) as f32;
                 let codex_height = 150.0 * day.codex_tokens as f32 / maximum.max(1) as f32;
                 div()
+                    .id(SharedString::from(format!("usage-day-{}", day.day)))
                     .flex_1()
                     .flex()
                     .items_end()
                     .gap(px(1.0))
                     .h(px(150.0))
+                    .tooltip({
+                        let label = format!(
+                            "{}\nClaude Code: {}\nCodex: {}",
+                            format_usage_day(&day.day),
+                            format_tokens(day.claude_tokens),
+                            format_tokens(day.codex_tokens),
+                        );
+                        move |_, cx| {
+                            let label = label.clone();
+                            cx.new(move |_| Tooltip::new(label)).into()
+                        }
+                    })
                     .child(
                         div()
                             .flex_1()
@@ -762,13 +776,21 @@ impl AleraApp {
                     .mt_1()
                     .text_size(px(10.0))
                     .text_color(theme::text_faint())
-                    .child(days.first().map(|day| day.day.clone()).unwrap_or_default())
+                    .child(
+                        days.first()
+                            .map(|day| format_usage_day(&day.day))
+                            .unwrap_or_default(),
+                    )
                     .child(div().flex_1())
                     .child("Claude Code")
                     .child(div().w_3())
                     .child("Codex")
                     .child(div().flex_1())
-                    .child(days.last().map(|day| day.day.clone()).unwrap_or_default()),
+                    .child(
+                        days.last()
+                            .map(|day| format_usage_day(&day.day))
+                            .unwrap_or_default(),
+                    ),
             )
             .into_any_element()
     }
@@ -943,4 +965,21 @@ fn format_count(value: u64) -> String {
         result.push(character);
     }
     result
+}
+
+fn format_usage_day(value: &str) -> String {
+    let mut parts = value.split('-');
+    let _year = parts.next();
+    let month = parts.next().and_then(|month| month.parse::<usize>().ok());
+    let day = parts.next().and_then(|day| day.parse::<u32>().ok());
+    let months = [
+        "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov",
+        "Dec",
+    ];
+    match (month, day) {
+        (Some(month), Some(day)) if (1..=12).contains(&month) => {
+            format!("{} {day}", months[month - 1])
+        }
+        _ => value.to_owned(),
+    }
 }
