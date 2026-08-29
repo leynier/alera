@@ -163,7 +163,7 @@ commit so this file remains useful after context compaction.
 | 142 | `53e9339435036f8059e3605fc231e1e7d4da4470` | 2026-08-09 | fix: align codex catalog metadata | merged | Cherry-picked catalog overlay metadata alignment; GPUI's native menu already reserves its trailing metadata column and required no separate source change. |
 | 143 | `f8f6688f4fa399d1129f336958f9c8f60989d4db` | 2026-08-09 | fix: align codex context controls | merged | Cherry-picked context-control alignment and adapted GPUI with a context usage bar/percentage beside the Codex configuration; clicking it compacts the current thread. `cargo check --manifest-path experiments/alera-gpui/Cargo.toml` passed. |
 | 144 | `2e582b2b985b022625782bd9e5624b6d8e801ef5` | 2026-08-09 | fix: align codex catalog types | merged | Cherry-picked catalog type metadata alignment; GPUI's compact menu rows preserve their trailing metadata space and required no data-model change. |
-| 145 | `170707fc75ab48c69b37ab5a3811a1b9edb2defb` | 2026-08-09 | fix: tighten codex context spacing | pending | - |
+| 145 | `170707fc75ab48c69b37ab5a3811a1b9edb2defb` | 2026-08-09 | fix: tighten codex context spacing | in_progress | Replaying the tighter context-usage/configuration gap; GPUI's header uses the same compact spacing scale. |
 | 146 | `144737020cc893f1f865c16a304c2425eb1137d7` | 2026-08-09 | fix: refine codex timeline details | pending | - |
 | 147 | `4667d5cac8b0edd55d4b206524a4aea623cfa7f6` | 2026-08-09 | fix: deduplicate resumed codex messages | pending | - |
 | 148 | `538ca217cc73d8ff0f60f8a3d17b6afb58abd2a5` | 2026-08-09 | fix: restore codex working timeline | pending | - |
