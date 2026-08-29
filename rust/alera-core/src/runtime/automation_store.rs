@@ -108,13 +108,27 @@ impl RuntimeStore {
         &self,
         include_trashed: bool,
     ) -> Result<Vec<AutomationDefinition>> {
+        // The automation table stores the display name inside dataJson for
+        // compatibility with the original schema. Ordering by a physical
+        // `name` column fails on existing databases, so decode first and sort
+        // in memory just like the Flutter catalog does.
         let query = if include_trashed {
-            "SELECT state, revision, dataJson FROM automations ORDER BY name COLLATE NOCASE ASC"
+            "SELECT state, revision, dataJson FROM automations"
         } else {
-            "SELECT state, revision, dataJson FROM automations WHERE state <> 'trashed' ORDER BY name COLLATE NOCASE ASC"
+            "SELECT state, revision, dataJson FROM automations WHERE state <> 'trashed'"
         };
         let rows = sqlx::query(query).fetch_all(self.pool()).await?;
-        rows.into_iter().map(decode_definition).collect()
+        let mut definitions = rows
+            .into_iter()
+            .map(decode_definition)
+            .collect::<Result<Vec<_>>>()?;
+        definitions.sort_by(|left, right| {
+            left.name
+                .to_ascii_lowercase()
+                .cmp(&right.name.to_ascii_lowercase())
+                .then_with(|| left.id.cmp(&right.id))
+        });
+        Ok(definitions)
     }
 
     pub async fn find_automation(&self, id: &str) -> Result<Option<AutomationDefinition>> {
