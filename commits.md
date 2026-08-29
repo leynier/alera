@@ -168,7 +168,7 @@ commit so this file remains useful after context compaction.
 | 147 | `4667d5cac8b0edd55d4b206524a4aea623cfa7f6` | 2026-08-09 | fix: deduplicate resumed codex messages | merged | Cherry-picked resilient Codex resume identity/history deduplication and persisted timestamp metadata; GPUI consumes the corrected snapshots without a separate UI change. |
 | 148 | `538ca217cc73d8ff0f60f8a3d17b6afb58abd2a5` | 2026-08-09 | fix: restore codex working timeline | merged | Cherry-picked the Flutter Codex Working/Worked timeline fixes. Per current scope, Codex Chat is intentionally disabled in GPUI, so its implementation remains available only to Flutter/mobile while the runtime history stays aligned. |
 | 149 | `8724f6822ad29b20cddccc82045ba4f968abb467` | 2026-08-09 | fix: preserve codex timeline with prompts | merged | Cherry-picked prompt-control spacing and blocking-question layout fixes; Codex Chat remains intentionally unavailable in GPUI per current scope. |
-| 150 | `85de7bad8e323529d3d2094e19bffc903ed1f065` | 2026-08-09 | fix: keep declined plans in plan mode | pending | - |
+| 150 | `85de7bad8e323529d3d2094e19bffc903ed1f065` | 2026-08-09 | fix: keep declined plans in plan mode | in_progress | Replaying plan-decline state so a declined plan remains in plan mode for follow-up refinement; GPUI Codex Chat is intentionally disabled and receives no surface adaptation. |
 | 151 | `3b6d8708e93e28c20c3e47bcfc0c5e58a04427db` | 2026-08-09 | fix: scope codex question controls | pending | - |
 | 152 | `2b0c26389420ebc8a1a1793de7be7d0e1dcd4682` | 2026-08-09 | fix: refine codex review dialog | pending | - |
 | 153 | `7383d16c6e20dc27979dc1ec85faa3758aba4bde` | 2026-08-09 | refactor: split mobile codex files | pending | - |
