@@ -10,7 +10,7 @@ commit so this file remains useful after context compaction.
 
 - Base (last common commit): `04da54b2959578c49d737b835abe081337888cd2`
 - Main reference at ledger creation: `d29d279152f96d980a40e1bc77c99bda47b59991`
-- Current main reference: `a1265778d294a3ff8a0653a6410f4d2e3d72032f`
+- Current main reference: `09d33fe10c2de9c41da9a73a3df8476bdabb2d61`
 - Pending commits: 400
 - Scope: replicate desktop behavior and UI in `experiments/alera-gpui`; keep
   Flutter as the functional and visual reference.
@@ -435,4 +435,7 @@ commit so this file remains useful after context compaction.
 | 413 | `2e7370d4f1a3a7f5bf304625325280779626d645` | 2026-08-29 | Merge pull request #569 from leynier/fix/memory-leak | merged | Replayed the PR merge against parent 1 after #410-#412 and the GPUI cleanup adaptation were incorporated. |
 | 414 | `78aed094edf5cc772cb479517192448d53dc7501` | 2026-08-29 | fix: route linux tray primary click via activate filter | merged | Replayed Flutter Linux primary-click activation. No GPUI change by the explicit tray/badge exclusion. |
 | 415 | `230a695b2434b02d418c056c2f065d2176780f03` | 2026-08-29 | release: v0.75.2 | merged | Replayed Flutter v0.75.2 release and landing metadata. No GPUI feature adaptation is required. |
-| 416 | `a1265778d294a3ff8a0653a6410f4d2e3d72032f` | 2026-08-29 | Merge pull request #570 from leynier/release/version-v0.75.2 | merged | Replayed the release PR merge against parent 1 after #415. This is the current tip of local `main`; no commits remain in the inventory. |
+| 416 | `a1265778d294a3ff8a0653a6410f4d2e3d72032f` | 2026-08-29 | Merge pull request #570 from leynier/release/version-v0.75.2 | merged | Replayed the release PR merge against parent 1 after #415. This was the main tip at processing time; #417-#419 arrived during the final gate. |
+| 417 | `b363b5020591f11e915693cd865fe0b8a182be33` | 2026-08-29 | feat: show the pending review count on the linux tray icon (#571) | merged | Replayed Flutter Linux StatusNotifierItem, tray badge, fallback, settings and test splits. Tray/badge and Show Tray Badge remain explicitly excluded from GPUI. Moving `CodexChatSettings` to its own source file does not add Codex Chat support to GPUI. |
+| 418 | `635625bcd70b4f8fca00a172a9f1fd4a593e6525` | 2026-08-29 | release: v0.76.0 | pending | Pending source review and GPUI impact analysis. |
+| 419 | `09d33fe10c2de9c41da9a73a3df8476bdabb2d61` | 2026-08-29 | Merge pull request #572 from leynier/release/version-v0.76.0 | pending | Pending source review and GPUI impact analysis. |

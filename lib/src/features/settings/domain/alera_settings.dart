@@ -9,6 +9,7 @@ import 'package:dart_mappable/dart_mappable.dart';
 import 'package:flutter/foundation.dart';
 
 part 'agent_quota_settings.dart';
+part 'codex_chat_settings.dart';
 part 'alera_settings.mapper.dart';
 
 @MappableEnum()
@@ -301,6 +302,7 @@ class GeneralSettings with GeneralSettingsMappable {
     this.keepAliveEnabled = false,
     this.showTrayIcon = true,
     this.showDockBadge = true,
+    this.showTrayBadge = true,
   });
 
   /// User-configured root directory where new linked workspaces are created.
@@ -324,6 +326,9 @@ class GeneralSettings with GeneralSettingsMappable {
 
   /// Pending-review Dock / taskbar badge.
   final bool showDockBadge;
+
+  /// Pending-review count drawn onto the tray icon itself.
+  final bool showTrayBadge;
   static const GeneralSettings defaults = GeneralSettings();
 
   factory GeneralSettings.fromJson(Map<String, Object?> json) =>
@@ -430,28 +435,6 @@ class DiagnosticsSettings with DiagnosticsSettingsMappable {
 
   factory DiagnosticsSettings.fromJson(Map<String, Object?> json) =>
       DiagnosticsSettingsMapper.fromMap(Map<String, dynamic>.from(json));
-}
-
-@MappableClass()
-class CodexChatSettings with CodexChatSettingsMappable {
-  const CodexChatSettings({
-    this.selectedModel,
-    this.reasoningEffort = 'medium',
-    this.speedMode = 'normal',
-    this.permissionMode = 'on-request',
-    this.planMode = false,
-  });
-
-  final String? selectedModel;
-  final String reasoningEffort;
-  final String speedMode;
-  final String permissionMode;
-  final bool planMode;
-
-  static const CodexChatSettings defaults = CodexChatSettings();
-
-  factory CodexChatSettings.fromJson(Map<String, Object?> json) =>
-      CodexChatSettingsMapper.fromMap(Map<String, dynamic>.from(json));
 }
 
 @MappableClass(hook: _LegacyAgentSettingsHook())

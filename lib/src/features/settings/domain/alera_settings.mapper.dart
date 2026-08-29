@@ -1430,6 +1430,13 @@ class GeneralSettingsMapper extends ClassMapperBase<GeneralSettings> {
     opt: true,
     def: true,
   );
+  static bool _$showTrayBadge(GeneralSettings v) => v.showTrayBadge;
+  static const Field<GeneralSettings, bool> _f$showTrayBadge = Field(
+    'showTrayBadge',
+    _$showTrayBadge,
+    opt: true,
+    def: true,
+  );
 
   @override
   final MappableFields<GeneralSettings> fields = const {
@@ -1440,6 +1447,7 @@ class GeneralSettingsMapper extends ClassMapperBase<GeneralSettings> {
     #keepAliveEnabled: _f$keepAliveEnabled,
     #showTrayIcon: _f$showTrayIcon,
     #showDockBadge: _f$showDockBadge,
+    #showTrayBadge: _f$showTrayBadge,
   };
 
   static GeneralSettings _instantiate(DecodingData data) {
@@ -1451,6 +1459,7 @@ class GeneralSettingsMapper extends ClassMapperBase<GeneralSettings> {
       keepAliveEnabled: data.dec(_f$keepAliveEnabled),
       showTrayIcon: data.dec(_f$showTrayIcon),
       showDockBadge: data.dec(_f$showDockBadge),
+      showTrayBadge: data.dec(_f$showTrayBadge),
     );
   }
 
@@ -1524,6 +1533,7 @@ abstract class GeneralSettingsCopyWith<$R, $In extends GeneralSettings, $Out>
     bool? keepAliveEnabled,
     bool? showTrayIcon,
     bool? showDockBadge,
+    bool? showTrayBadge,
   });
   GeneralSettingsCopyWith<$R2, $In, $Out2> $chain<$R2, $Out2>(
     Then<$Out2, $R2> t,
@@ -1547,6 +1557,7 @@ class _GeneralSettingsCopyWithImpl<$R, $Out>
     bool? keepAliveEnabled,
     bool? showTrayIcon,
     bool? showDockBadge,
+    bool? showTrayBadge,
   }) => $apply(
     FieldCopyWithData({
       if (workspaceDirectory != $none) #workspaceDirectory: workspaceDirectory,
@@ -1558,6 +1569,7 @@ class _GeneralSettingsCopyWithImpl<$R, $Out>
       if (keepAliveEnabled != null) #keepAliveEnabled: keepAliveEnabled,
       if (showTrayIcon != null) #showTrayIcon: showTrayIcon,
       if (showDockBadge != null) #showDockBadge: showDockBadge,
+      if (showTrayBadge != null) #showTrayBadge: showTrayBadge,
     }),
   );
   @override
@@ -1578,6 +1590,7 @@ class _GeneralSettingsCopyWithImpl<$R, $Out>
     keepAliveEnabled: data.get(#keepAliveEnabled, or: $value.keepAliveEnabled),
     showTrayIcon: data.get(#showTrayIcon, or: $value.showTrayIcon),
     showDockBadge: data.get(#showDockBadge, or: $value.showDockBadge),
+    showTrayBadge: data.get(#showTrayBadge, or: $value.showTrayBadge),
   );
 
   @override
@@ -2845,196 +2858,6 @@ class _DiagnosticsSettingsCopyWithImpl<$R, $Out>
       _DiagnosticsSettingsCopyWithImpl<$R2, $Out2>($value, $cast, t);
 }
 
-class CodexChatSettingsMapper extends ClassMapperBase<CodexChatSettings> {
-  CodexChatSettingsMapper._();
-
-  static CodexChatSettingsMapper? _instance;
-  static CodexChatSettingsMapper ensureInitialized() {
-    if (_instance == null) {
-      MapperContainer.globals.use(_instance = CodexChatSettingsMapper._());
-    }
-    return _instance!;
-  }
-
-  @override
-  final String id = 'CodexChatSettings';
-
-  static String? _$selectedModel(CodexChatSettings v) => v.selectedModel;
-  static const Field<CodexChatSettings, String> _f$selectedModel = Field(
-    'selectedModel',
-    _$selectedModel,
-    opt: true,
-  );
-  static String _$reasoningEffort(CodexChatSettings v) => v.reasoningEffort;
-  static const Field<CodexChatSettings, String> _f$reasoningEffort = Field(
-    'reasoningEffort',
-    _$reasoningEffort,
-    opt: true,
-    def: 'medium',
-  );
-  static String _$speedMode(CodexChatSettings v) => v.speedMode;
-  static const Field<CodexChatSettings, String> _f$speedMode = Field(
-    'speedMode',
-    _$speedMode,
-    opt: true,
-    def: 'normal',
-  );
-  static String _$permissionMode(CodexChatSettings v) => v.permissionMode;
-  static const Field<CodexChatSettings, String> _f$permissionMode = Field(
-    'permissionMode',
-    _$permissionMode,
-    opt: true,
-    def: 'on-request',
-  );
-  static bool _$planMode(CodexChatSettings v) => v.planMode;
-  static const Field<CodexChatSettings, bool> _f$planMode = Field(
-    'planMode',
-    _$planMode,
-    opt: true,
-    def: false,
-  );
-
-  @override
-  final MappableFields<CodexChatSettings> fields = const {
-    #selectedModel: _f$selectedModel,
-    #reasoningEffort: _f$reasoningEffort,
-    #speedMode: _f$speedMode,
-    #permissionMode: _f$permissionMode,
-    #planMode: _f$planMode,
-  };
-
-  static CodexChatSettings _instantiate(DecodingData data) {
-    return CodexChatSettings(
-      selectedModel: data.dec(_f$selectedModel),
-      reasoningEffort: data.dec(_f$reasoningEffort),
-      speedMode: data.dec(_f$speedMode),
-      permissionMode: data.dec(_f$permissionMode),
-      planMode: data.dec(_f$planMode),
-    );
-  }
-
-  @override
-  final Function instantiate = _instantiate;
-
-  static CodexChatSettings fromMap(Map<String, dynamic> map) {
-    return ensureInitialized().decodeMap<CodexChatSettings>(map);
-  }
-
-  static CodexChatSettings fromJson(String json) {
-    return ensureInitialized().decodeJson<CodexChatSettings>(json);
-  }
-}
-
-mixin CodexChatSettingsMappable {
-  String toJson() {
-    return CodexChatSettingsMapper.ensureInitialized()
-        .encodeJson<CodexChatSettings>(this as CodexChatSettings);
-  }
-
-  Map<String, dynamic> toMap() {
-    return CodexChatSettingsMapper.ensureInitialized()
-        .encodeMap<CodexChatSettings>(this as CodexChatSettings);
-  }
-
-  CodexChatSettingsCopyWith<
-    CodexChatSettings,
-    CodexChatSettings,
-    CodexChatSettings
-  >
-  get copyWith =>
-      _CodexChatSettingsCopyWithImpl<CodexChatSettings, CodexChatSettings>(
-        this as CodexChatSettings,
-        $identity,
-        $identity,
-      );
-  @override
-  String toString() {
-    return CodexChatSettingsMapper.ensureInitialized().stringifyValue(
-      this as CodexChatSettings,
-    );
-  }
-
-  @override
-  bool operator ==(Object other) {
-    return CodexChatSettingsMapper.ensureInitialized().equalsValue(
-      this as CodexChatSettings,
-      other,
-    );
-  }
-
-  @override
-  int get hashCode {
-    return CodexChatSettingsMapper.ensureInitialized().hashValue(
-      this as CodexChatSettings,
-    );
-  }
-}
-
-extension CodexChatSettingsValueCopy<$R, $Out>
-    on ObjectCopyWith<$R, CodexChatSettings, $Out> {
-  CodexChatSettingsCopyWith<$R, CodexChatSettings, $Out>
-  get $asCodexChatSettings => $base.as(
-    (v, t, t2) => _CodexChatSettingsCopyWithImpl<$R, $Out>(v, t, t2),
-  );
-}
-
-abstract class CodexChatSettingsCopyWith<
-  $R,
-  $In extends CodexChatSettings,
-  $Out
->
-    implements ClassCopyWith<$R, $In, $Out> {
-  $R call({
-    String? selectedModel,
-    String? reasoningEffort,
-    String? speedMode,
-    String? permissionMode,
-    bool? planMode,
-  });
-  CodexChatSettingsCopyWith<$R2, $In, $Out2> $chain<$R2, $Out2>(
-    Then<$Out2, $R2> t,
-  );
-}
-
-class _CodexChatSettingsCopyWithImpl<$R, $Out>
-    extends ClassCopyWithBase<$R, CodexChatSettings, $Out>
-    implements CodexChatSettingsCopyWith<$R, CodexChatSettings, $Out> {
-  _CodexChatSettingsCopyWithImpl(super.value, super.then, super.then2);
-
-  @override
-  late final ClassMapperBase<CodexChatSettings> $mapper =
-      CodexChatSettingsMapper.ensureInitialized();
-  @override
-  $R call({
-    Object? selectedModel = $none,
-    String? reasoningEffort,
-    String? speedMode,
-    String? permissionMode,
-    bool? planMode,
-  }) => $apply(
-    FieldCopyWithData({
-      if (selectedModel != $none) #selectedModel: selectedModel,
-      if (reasoningEffort != null) #reasoningEffort: reasoningEffort,
-      if (speedMode != null) #speedMode: speedMode,
-      if (permissionMode != null) #permissionMode: permissionMode,
-      if (planMode != null) #planMode: planMode,
-    }),
-  );
-  @override
-  CodexChatSettings $make(CopyWithData data) => CodexChatSettings(
-    selectedModel: data.get(#selectedModel, or: $value.selectedModel),
-    reasoningEffort: data.get(#reasoningEffort, or: $value.reasoningEffort),
-    speedMode: data.get(#speedMode, or: $value.speedMode),
-    permissionMode: data.get(#permissionMode, or: $value.permissionMode),
-    planMode: data.get(#planMode, or: $value.planMode),
-  );
-
-  @override
-  CodexChatSettingsCopyWith<$R2, CodexChatSettings, $Out2> $chain<$R2, $Out2>(
-    Then<$Out2, $R2> t,
-  ) => _CodexChatSettingsCopyWithImpl<$R2, $Out2>($value, $cast, t);
-}
-
 class AleraSettingsMapper extends ClassMapperBase<AleraSettings> {
   AleraSettingsMapper._();
 
@@ -3339,5 +3162,195 @@ class _AleraSettingsCopyWithImpl<$R, $Out>
   AleraSettingsCopyWith<$R2, AleraSettings, $Out2> $chain<$R2, $Out2>(
     Then<$Out2, $R2> t,
   ) => _AleraSettingsCopyWithImpl<$R2, $Out2>($value, $cast, t);
+}
+
+class CodexChatSettingsMapper extends ClassMapperBase<CodexChatSettings> {
+  CodexChatSettingsMapper._();
+
+  static CodexChatSettingsMapper? _instance;
+  static CodexChatSettingsMapper ensureInitialized() {
+    if (_instance == null) {
+      MapperContainer.globals.use(_instance = CodexChatSettingsMapper._());
+    }
+    return _instance!;
+  }
+
+  @override
+  final String id = 'CodexChatSettings';
+
+  static String? _$selectedModel(CodexChatSettings v) => v.selectedModel;
+  static const Field<CodexChatSettings, String> _f$selectedModel = Field(
+    'selectedModel',
+    _$selectedModel,
+    opt: true,
+  );
+  static String _$reasoningEffort(CodexChatSettings v) => v.reasoningEffort;
+  static const Field<CodexChatSettings, String> _f$reasoningEffort = Field(
+    'reasoningEffort',
+    _$reasoningEffort,
+    opt: true,
+    def: 'medium',
+  );
+  static String _$speedMode(CodexChatSettings v) => v.speedMode;
+  static const Field<CodexChatSettings, String> _f$speedMode = Field(
+    'speedMode',
+    _$speedMode,
+    opt: true,
+    def: 'normal',
+  );
+  static String _$permissionMode(CodexChatSettings v) => v.permissionMode;
+  static const Field<CodexChatSettings, String> _f$permissionMode = Field(
+    'permissionMode',
+    _$permissionMode,
+    opt: true,
+    def: 'on-request',
+  );
+  static bool _$planMode(CodexChatSettings v) => v.planMode;
+  static const Field<CodexChatSettings, bool> _f$planMode = Field(
+    'planMode',
+    _$planMode,
+    opt: true,
+    def: false,
+  );
+
+  @override
+  final MappableFields<CodexChatSettings> fields = const {
+    #selectedModel: _f$selectedModel,
+    #reasoningEffort: _f$reasoningEffort,
+    #speedMode: _f$speedMode,
+    #permissionMode: _f$permissionMode,
+    #planMode: _f$planMode,
+  };
+
+  static CodexChatSettings _instantiate(DecodingData data) {
+    return CodexChatSettings(
+      selectedModel: data.dec(_f$selectedModel),
+      reasoningEffort: data.dec(_f$reasoningEffort),
+      speedMode: data.dec(_f$speedMode),
+      permissionMode: data.dec(_f$permissionMode),
+      planMode: data.dec(_f$planMode),
+    );
+  }
+
+  @override
+  final Function instantiate = _instantiate;
+
+  static CodexChatSettings fromMap(Map<String, dynamic> map) {
+    return ensureInitialized().decodeMap<CodexChatSettings>(map);
+  }
+
+  static CodexChatSettings fromJson(String json) {
+    return ensureInitialized().decodeJson<CodexChatSettings>(json);
+  }
+}
+
+mixin CodexChatSettingsMappable {
+  String toJson() {
+    return CodexChatSettingsMapper.ensureInitialized()
+        .encodeJson<CodexChatSettings>(this as CodexChatSettings);
+  }
+
+  Map<String, dynamic> toMap() {
+    return CodexChatSettingsMapper.ensureInitialized()
+        .encodeMap<CodexChatSettings>(this as CodexChatSettings);
+  }
+
+  CodexChatSettingsCopyWith<
+    CodexChatSettings,
+    CodexChatSettings,
+    CodexChatSettings
+  >
+  get copyWith =>
+      _CodexChatSettingsCopyWithImpl<CodexChatSettings, CodexChatSettings>(
+        this as CodexChatSettings,
+        $identity,
+        $identity,
+      );
+  @override
+  String toString() {
+    return CodexChatSettingsMapper.ensureInitialized().stringifyValue(
+      this as CodexChatSettings,
+    );
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return CodexChatSettingsMapper.ensureInitialized().equalsValue(
+      this as CodexChatSettings,
+      other,
+    );
+  }
+
+  @override
+  int get hashCode {
+    return CodexChatSettingsMapper.ensureInitialized().hashValue(
+      this as CodexChatSettings,
+    );
+  }
+}
+
+extension CodexChatSettingsValueCopy<$R, $Out>
+    on ObjectCopyWith<$R, CodexChatSettings, $Out> {
+  CodexChatSettingsCopyWith<$R, CodexChatSettings, $Out>
+  get $asCodexChatSettings => $base.as(
+    (v, t, t2) => _CodexChatSettingsCopyWithImpl<$R, $Out>(v, t, t2),
+  );
+}
+
+abstract class CodexChatSettingsCopyWith<
+  $R,
+  $In extends CodexChatSettings,
+  $Out
+>
+    implements ClassCopyWith<$R, $In, $Out> {
+  $R call({
+    String? selectedModel,
+    String? reasoningEffort,
+    String? speedMode,
+    String? permissionMode,
+    bool? planMode,
+  });
+  CodexChatSettingsCopyWith<$R2, $In, $Out2> $chain<$R2, $Out2>(
+    Then<$Out2, $R2> t,
+  );
+}
+
+class _CodexChatSettingsCopyWithImpl<$R, $Out>
+    extends ClassCopyWithBase<$R, CodexChatSettings, $Out>
+    implements CodexChatSettingsCopyWith<$R, CodexChatSettings, $Out> {
+  _CodexChatSettingsCopyWithImpl(super.value, super.then, super.then2);
+
+  @override
+  late final ClassMapperBase<CodexChatSettings> $mapper =
+      CodexChatSettingsMapper.ensureInitialized();
+  @override
+  $R call({
+    Object? selectedModel = $none,
+    String? reasoningEffort,
+    String? speedMode,
+    String? permissionMode,
+    bool? planMode,
+  }) => $apply(
+    FieldCopyWithData({
+      if (selectedModel != $none) #selectedModel: selectedModel,
+      if (reasoningEffort != null) #reasoningEffort: reasoningEffort,
+      if (speedMode != null) #speedMode: speedMode,
+      if (permissionMode != null) #permissionMode: permissionMode,
+      if (planMode != null) #planMode: planMode,
+    }),
+  );
+  @override
+  CodexChatSettings $make(CopyWithData data) => CodexChatSettings(
+    selectedModel: data.get(#selectedModel, or: $value.selectedModel),
+    reasoningEffort: data.get(#reasoningEffort, or: $value.reasoningEffort),
+    speedMode: data.get(#speedMode, or: $value.speedMode),
+    permissionMode: data.get(#permissionMode, or: $value.permissionMode),
+    planMode: data.get(#planMode, or: $value.planMode),
+  );
+
+  @override
+  CodexChatSettingsCopyWith<$R2, CodexChatSettings, $Out2> $chain<$R2, $Out2>(
+    Then<$Out2, $R2> t,
+  ) => _CodexChatSettingsCopyWithImpl<$R2, $Out2>($value, $cast, t);
 }
 

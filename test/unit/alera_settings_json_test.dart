@@ -16,6 +16,7 @@ void main() {
           keepAliveEnabled: true,
           showTrayIcon: false,
           showDockBadge: false,
+          showTrayBadge: false,
         ),
         agents: AgentSettings(
           agentStatusHooks: AgentStatusHookSettings(
@@ -99,6 +100,7 @@ void main() {
       expect(restored.general.keepAliveEnabled, isTrue);
       expect(restored.general.showTrayIcon, isFalse);
       expect(restored.general.showDockBadge, isFalse);
+      expect(restored.general.showTrayBadge, isFalse);
       expect(restored.agents.agentStatusHooks.codex, isTrue);
       expect(restored.agents.agentStatusHooks.claude, isTrue);
       expect(restored.agents.agentStatusHooks.copilot, isFalse);
