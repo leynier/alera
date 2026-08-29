@@ -124,7 +124,7 @@ commit so this file remains useful after context compaction.
 | 103 | `354e5a9dd7be46fe7ddbb1d7ff43743c6797f829` | 2026-08-06 | feat: add opencode models and quota tracking | merged | Cherry-picked the source OpenCode Go/Zen quota/model and amount snapshot implementation. GPUI provider ordering/icons/amount readings were adapted in `6739b64b`; source and GPUI payload contracts now match. |
 | 104 | `43b2d03c453b66376201d2116b9f51f652b372af` | 2026-08-06 | style: match hosted dart formatter | merged | Cherry-picked the hosted Dart formatting updates; no GPUI code change was required. |
 | 105 | `3031dae503a390ecd0eb5f845ccfb3c03ada0680` | 2026-08-06 | fix: satisfy quality gates | merged | Cherry-picked the quota snapshot extraction and OpenCode quality-gate fix; GPUI consumes the extracted amount/data-quality fields through the #103 parser adaptation. |
-| 106 | `0e341790642499ae30d11c2026368e2a9b91feb1` | 2026-08-06 | fix: satisfy mobile analysis | in_progress | Replaying source-only mobile analysis fixes; no GPUI code is expected. |
+| 106 | `0e341790642499ae30d11c2026368e2a9b91feb1` | 2026-08-06 | fix: satisfy mobile analysis | merged | Cherry-picked the source mobile analyzer cleanup; no GPUI code was expected. |
 | 107 | `52fb0e6fa8b35724dc4e1911e44e5ef1d615c553` | 2026-08-06 | fix: satisfy mobile lint | pending | - |
 | 108 | `9d463eb5f993f1e1193e83fb6545b105a4b1061c` | 2026-08-06 | fix: scope mobile lint suppression | pending | - |
 | 109 | `c5f89526657e560362be15e33b653748882f70ec` | 2026-08-06 | fix: update opencode quality checks | pending | - |
