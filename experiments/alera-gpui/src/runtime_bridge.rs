@@ -15,6 +15,9 @@ const EVENT_CAPACITY: usize = 256;
 const RECONNECT_DELAY: Duration = Duration::from_secs(2);
 const HOST_STARTUP_TIMEOUT: Duration = Duration::from_secs(30);
 const HOST_STARTUP_POLL: Duration = Duration::from_millis(100);
+const RUNTIME_MUTATION_RETRY_DELAY: Duration = Duration::from_millis(50);
+const RUNTIME_MUTATION_IN_PROGRESS: &str =
+    "A runtime mutation is in progress. Wait for it to finish and retry.";
 
 #[derive(Clone, Debug)]
 pub struct RuntimeHostStartConfig {
@@ -283,10 +286,27 @@ fn dispatch_request(
 ) {
     tokio::spawn(async move {
         let request_label = request_type.clone();
-        let result = handle
-            .request_with_timeout(request_type, &payload, deadline)
-            .await
-            .map_err(|error| error.to_string());
+        let started = tokio::time::Instant::now();
+        let result = loop {
+            let remaining = deadline.saturating_sub(started.elapsed());
+            if remaining.is_zero() {
+                break Err(format!("Runtime request {request_label} timed out."));
+            }
+            match handle
+                .request_with_timeout(request_type.clone(), &payload, remaining)
+                .await
+            {
+                Ok(value) => break Ok(value),
+                Err(error) if error.to_string() == RUNTIME_MUTATION_IN_PROGRESS => {
+                    let remaining = deadline.saturating_sub(started.elapsed());
+                    if remaining.is_zero() {
+                        break Err(format!("Runtime request {request_label} timed out."));
+                    }
+                    tokio::time::sleep(RUNTIME_MUTATION_RETRY_DELAY.min(remaining)).await;
+                }
+                Err(error) => break Err(error.to_string()),
+            }
+        };
         if let Err(error) = result.as_ref() {
             crate::app_log::warning(
                 "runtime_bridge",
