@@ -1,5 +1,5 @@
 use gpui::{
-    div, prelude::FluentBuilder as _, px, AnyElement, AppContext as _, Context, CursorStyle,
+    div, prelude::FluentBuilder as _, px, AnyElement, Context, CursorStyle,
     Entity, InteractiveElement as _, IntoElement, ParentElement as _, Role, SharedString,
     StatefulInteractiveElement as _, Styled as _, Toggled, Window,
 };
@@ -239,7 +239,7 @@ impl AleraApp {
         cx.notify();
     }
 
-    fn save_automation_editor(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+    fn save_automation_editor(&mut self, _window: &mut Window, cx: &mut Context<Self>) {
         let name = self
             .automation_editor_name_input
             .read(cx)
@@ -377,15 +377,6 @@ impl AleraApp {
         })
         .detach();
         cx.notify();
-    }
-
-    fn automation_revision(&self) -> i64 {
-        self.automation_detail
-            .as_ref()
-            .and_then(|detail| detail.get("automation"))
-            .and_then(|automation| automation.get("revision"))
-            .and_then(Value::as_i64)
-            .unwrap_or(0)
     }
 
     fn selected_automation(&self) -> Option<&Value> {
@@ -552,6 +543,18 @@ impl AleraApp {
                             .text_lg()
                             .font_weight(gpui::FontWeight::SEMIBOLD)
                             .child("Automations"),
+                    )
+                    .child(
+                        design_system::button_with_leading_icon(
+                            "automation-new",
+                            "New Automation",
+                            ButtonKind::Filled,
+                            self.automation_action_busy,
+                            icon(AleraIcon::Add, 14.0, theme::on_accent()),
+                        )
+                        .on_click(cx.listener(|this, _, window, cx| {
+                            this.open_automation_editor(None, window, cx);
+                        })),
                     )
                     .child(
                         design_system::icon_button(
@@ -905,9 +908,8 @@ impl AleraApp {
             let run_id = value_string(run, "id").unwrap_or_else(|| format!("run-{index}"));
             let final_status = AUTOMATION_FINAL_RUN_STATUSES.contains(&status.as_str());
             let target_identity = run.get("targetIdentity").cloned().unwrap_or_else(|| json!({}));
-            let cancel_id = self.automation_selected_id.clone().unwrap_or_default();
-            let wait_id = cancel_id.clone();
-            let extend_id = cancel_id;
+            let target_identity_for_wait = target_identity.clone();
+            let target_identity_for_extend = target_identity.clone();
             let run_for_cancel = run_id.clone();
             let run_for_wait = run_id.clone();
             let run_for_extend = run_id.clone();
@@ -928,8 +930,8 @@ impl AleraApp {
                         .child(design_system::button("automation-cancel-run", "Cancel", ButtonKind::Text, self.automation_action_busy).on_click(cx.listener(move |this, _, _, cx| this.run_automation_request("automation.cancel", json!({"run": run_for_cancel.clone(), "targetIdentity": target_identity.clone()}), "Automation cancellation requested", cx))))
                         .when(status == "waitingForUser", |actions| {
                             actions
-                                .child(design_system::button("automation-resume-waiting", "Resume Waiting", ButtonKind::Text, self.automation_action_busy).on_click(cx.listener(move |this, _, _, cx| this.run_automation_request("automation.wait", json!({"run": run_for_wait.clone(), "targetIdentity": json!({}), "waiting": false}), "Waiting run resumed", cx))))
-                                .child(design_system::button("automation-extend-waiting", "Extend", ButtonKind::Text, self.automation_action_busy).on_click(cx.listener(move |this, _, _, cx| this.run_automation_request("automation.extend", json!({"run": run_for_extend.clone(), "targetIdentity": json!({}), "seconds": 3600}), "Waiting run extended", cx))))
+                                .child(design_system::button("automation-resume-waiting", "Resume Waiting", ButtonKind::Text, self.automation_action_busy).on_click(cx.listener(move |this, _, _, cx| this.run_automation_request("automation.wait", json!({"run": run_for_wait.clone(), "targetIdentity": target_identity_for_wait.clone(), "waiting": false}), "Waiting run resumed", cx))))
+                                .child(design_system::button("automation-extend-waiting", "Extend", ButtonKind::Text, self.automation_action_busy).on_click(cx.listener(move |this, _, _, cx| this.run_automation_request("automation.extend", json!({"run": run_for_extend.clone(), "targetIdentity": target_identity_for_extend.clone(), "seconds": 3600}), "Waiting run extended", cx))))
                         }),
                 );
             }
