@@ -127,7 +127,7 @@ Workspace _workspace({required String id, required String path}) {
     path: path,
     createdAt: now,
     updatedAt: now,
-    kind: WorkspaceKind.main,
-    status: WorkspaceStatus.active,
+    kind: .main,
+    status: .active,
   );
 }

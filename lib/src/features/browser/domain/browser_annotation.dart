@@ -3,32 +3,20 @@ import 'package:flutter/foundation.dart';
 enum BrowserAnnotationKind { element, region }
 
 @immutable
-class BrowserAnnotationElement {
-  const BrowserAnnotationElement({required this.anchor});
-
-  final BrowserAnnotationAnchor anchor;
-}
+class const BrowserAnnotationElement({
+  required final BrowserAnnotationAnchor anchor,
+});
 
 @immutable
-class BrowserAnnotationAnchor {
-  const BrowserAnnotationAnchor({
-    required this.x,
-    required this.y,
-    required this.width,
-    required this.height,
-    this.role,
-    this.name,
-    this.tag,
-  });
-
-  final double x;
-  final double y;
-  final double width;
-  final double height;
-  final String? role;
-  final String? name;
-  final String? tag;
-
+class const BrowserAnnotationAnchor({
+  required final double x,
+  required final double y,
+  required final double width,
+  required final double height,
+  final String? role,
+  final String? name,
+  final String? tag,
+}) {
   String get geometry =>
       '${_percent(x)},${_percent(y)},${_percent(width)},${_percent(height)}';
 
@@ -47,19 +35,12 @@ class BrowserAnnotationAnchor {
 }
 
 @immutable
-class BrowserAnnotationComment {
-  const BrowserAnnotationComment({
-    required this.id,
-    required this.kind,
-    required this.anchor,
-    required this.text,
-  });
-
-  final String id;
-  final BrowserAnnotationKind kind;
-  final BrowserAnnotationAnchor anchor;
-  final String text;
-
+class const BrowserAnnotationComment({
+  required final String id,
+  required final BrowserAnnotationKind kind,
+  required final BrowserAnnotationAnchor anchor,
+  required final String text,
+}) {
   BrowserAnnotationComment copyWith({String? text}) => BrowserAnnotationComment(
     id: id,
     kind: kind,
@@ -77,25 +58,15 @@ class BrowserAnnotationComment {
 }
 
 @immutable
-class BrowserAnnotationCapture {
-  const BrowserAnnotationCapture({
-    required this.imagePath,
-    required this.url,
-    required this.title,
-    required this.viewportWidth,
-    required this.viewportHeight,
-    required this.comments,
-    required this.capturedAt,
-  });
-
-  final String imagePath;
-  final Uri url;
-  final String title;
-  final int viewportWidth;
-  final int viewportHeight;
-  final List<BrowserAnnotationComment> comments;
-  final DateTime capturedAt;
-
+class const BrowserAnnotationCapture({
+  required final String imagePath,
+  required final Uri url,
+  required final String title,
+  required final int viewportWidth,
+  required final int viewportHeight,
+  required final List<BrowserAnnotationComment> comments,
+  required final DateTime capturedAt,
+}) {
   BrowserAnnotationCapture copyWith({
     List<BrowserAnnotationComment>? comments,
   }) => BrowserAnnotationCapture(

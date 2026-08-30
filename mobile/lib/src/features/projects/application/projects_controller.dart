@@ -8,17 +8,11 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 part 'projects_controller.g.dart';
 
-class ProjectManagementSnapshot {
-  const ProjectManagementSnapshot({
-    required this.projects,
-    required this.cloneJobs,
-    required this.supported,
-  });
-
-  final List<ProjectSummary> projects;
-  final List<ProjectCloneJob> cloneJobs;
-  final bool supported;
-}
+class const ProjectManagementSnapshot({
+  required final List<ProjectSummary> projects,
+  required final List<ProjectCloneJob> cloneJobs,
+  required final bool supported,
+});
 
 @riverpod
 class ProjectsController extends _$ProjectsController {
@@ -111,12 +105,10 @@ class ProjectsController extends _$ProjectsController {
   }
 }
 
-class HostDirectoryBrowserData {
-  const HostDirectoryBrowserData({required this.roots, this.listing});
-
-  final List<HostDirectoryRoot> roots;
-  final HostDirectoryListing? listing;
-}
+class const HostDirectoryBrowserData({
+  required final List<HostDirectoryRoot> roots,
+  final HostDirectoryListing? listing,
+});
 
 @riverpod
 class HostDirectoryBrowserController extends _$HostDirectoryBrowserController {

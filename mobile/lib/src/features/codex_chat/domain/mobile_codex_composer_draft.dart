@@ -2,17 +2,12 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
 @immutable
-class MobileCodexComposerDraft {
-  const MobileCodexComposerDraft({
-    this.value = const TextEditingValue(),
-    this.attachments = const <Map<String, Object?>>[],
-    this.catalogSelections = const <Map<String, Object?>>[],
-  });
-
-  final TextEditingValue value;
-  final List<Map<String, Object?>> attachments;
-  final List<Map<String, Object?>> catalogSelections;
-
+class const MobileCodexComposerDraft({
+  final TextEditingValue value = const TextEditingValue(),
+  final List<Map<String, Object?>> attachments = const <Map<String, Object?>>[],
+  final List<Map<String, Object?>> catalogSelections =
+      const <Map<String, Object?>>[],
+}) {
   bool get isEmpty =>
       value.text.isEmpty && attachments.isEmpty && catalogSelections.isEmpty;
 

@@ -29,15 +29,9 @@ void _registerSettingsDialogAiAssistTests() {
           .commitMessage]?['gpt-5.5'],
       'high',
     );
+    expect(settings.thinkingForOperation(.commitMessage, 'gpt-5.5'), 'high');
     expect(
-      settings.thinkingForOperation(AiAssistOperation.commitMessage, 'gpt-5.5'),
-      'high',
-    );
-    expect(
-      settings.thinkingForOperation(
-        AiAssistOperation.pullRequestDetails,
-        'gpt-5.5',
-      ),
+      settings.thinkingForOperation(.pullRequestDetails, 'gpt-5.5'),
       isNull,
     );
     expect(settings.thinkingForModel('gpt-5.5'), isNull);

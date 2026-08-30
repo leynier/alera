@@ -45,7 +45,7 @@ extension _BrowserSessionRegistryLeases on BrowserSessionRegistry {
     BrowserObscurationReason reason,
   ) {
     _ensureOpen(entry);
-    final lifecycle = _acquireLifecycle(entry, BrowserLifecycleReason.overlay);
+    final lifecycle = _acquireLifecycle(entry, .overlay);
     final first = entry.obscurationCount++ == 0;
     final ready = first
         ? _queueObscuration(entry, () async {

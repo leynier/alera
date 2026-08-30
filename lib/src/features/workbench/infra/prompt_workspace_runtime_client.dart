@@ -1,44 +1,27 @@
 import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_protocol.dart';
 
-class GeneratedWorkspaceIdentity {
-  const GeneratedWorkspaceIdentity({
-    required this.workspaceName,
-    required this.branchName,
-  });
+class const GeneratedWorkspaceIdentity({
+  required final String workspaceName,
+  required final String branchName,
+});
 
-  final String workspaceName;
-  final String branchName;
-}
+class const AgentProfileLaunchResult({
+  required final String tabId,
+  required final String agentType,
+  required final String profileId,
+  required final bool idempotent,
+});
 
-class AgentProfileLaunchResult {
-  const AgentProfileLaunchResult({
-    required this.tabId,
-    required this.agentType,
-    required this.profileId,
-    required this.idempotent,
-  });
-
-  final String tabId;
-  final String agentType;
-  final String profileId;
-  final bool idempotent;
-}
-
-class NonIdempotentAgentLaunchFailure implements Exception {
-  const NonIdempotentAgentLaunchFailure(this.cause);
-
-  final Object cause;
-
+class const NonIdempotentAgentLaunchFailure(final Object cause)
+    implements Exception {
   @override
   String toString() => cause.toString();
 }
 
-class PromptWorkspaceRuntimeClient {
-  PromptWorkspaceRuntimeClient(this._client, {this.beforeAccess});
-
-  final RuntimeHostClient _client;
-  final Future<void> Function()? beforeAccess;
-
+class PromptWorkspaceRuntimeClient(
+  final RuntimeHostClient _client, {
+  final Future<void> Function()? beforeAccess,
+}) {
   Future<GeneratedWorkspaceIdentity> generateIdentity({
     required String operationId,
     required String projectId,

@@ -225,4 +225,3 @@ class _ProjectCopyWithImpl<$R, $Out>
   ProjectCopyWith<$R2, Project, $Out2> $chain<$R2, $Out2>(Then<$Out2, $R2> t) =>
       _ProjectCopyWithImpl<$R2, $Out2>($value, $cast, t);
 }
-

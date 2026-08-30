@@ -10,17 +10,11 @@ abstract interface class AgentHookReconciler {
   );
 }
 
-class AgentHookReconciliationService implements AgentHookReconciler {
-  const AgentHookReconciliationService({
-    required this.managedHooks,
-    required this.codexRuntimeHome,
-    required this.claudeRuntimeHome,
-  });
-
-  final ManagedAgentHookInstallService managedHooks;
-  final CodexRuntimeHomeService codexRuntimeHome;
-  final ClaudeRuntimeHomeService claudeRuntimeHome;
-
+class const AgentHookReconciliationService({
+  required final ManagedAgentHookInstallService managedHooks,
+  required final CodexRuntimeHomeService codexRuntimeHome,
+  required final ClaudeRuntimeHomeService claudeRuntimeHome,
+}) implements AgentHookReconciler {
   @override
   Future<List<ManagedAgentHookInstallStatus>> reconcile(
     AgentStatusHookSettings settings,
@@ -39,9 +33,9 @@ class AgentHookReconciliationService implements AgentHookReconciler {
           ? await claudeRuntimeHome.install()
           : await claudeRuntimeHome.remove(),
     );
-    results.add(managedHooks.remove(AgentType.opencode));
-    results.add(managedHooks.remove(AgentType.opencode2));
-    results.add(managedHooks.remove(AgentType.pi));
+    results.add(managedHooks.remove(.opencode));
+    results.add(managedHooks.remove(.opencode2));
+    results.add(managedHooks.remove(.pi));
     return results;
   }
 }

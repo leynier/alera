@@ -9,39 +9,40 @@ import 'package:http/http.dart' as http;
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
-class MobileAiDictationModel extends SpeechModelDescriptor {
-  MobileAiDictationModel({
-    required super.id,
-    required super.label,
-    required super.description,
-    String? fileName,
-    String? uri,
-    String? sha256,
-    int? sizeBytes,
-    List<SpeechModelArtifact>? artifacts,
-    super.languages = const <String>[],
-    super.supportsAutomaticLanguageDetection = true,
-    super.supportsInitialPrompt = true,
-    super.supportedProviders = const <SpeechExecutionProvider>{
-      SpeechExecutionProvider.cpu,
-    },
-    super.preferredProvider,
-    super.storageVersion = 1,
-    super.runtime = SpeechModelRuntime.whisperCpp,
-    super.mode = SpeechRecognitionMode.batch,
-  }) : super(
-         artifacts:
-             artifacts ??
-             <SpeechModelArtifact>[
-               SpeechModelArtifact(
-                 id: 'primary',
-                 relativePath: fileName!,
-                 uri: uri!,
-                 sha256: sha256!,
-                 sizeBytes: sizeBytes!,
-               ),
-             ],
-       );
+class MobileAiDictationModel({
+  required super.id,
+  required super.label,
+  required super.description,
+  String? fileName,
+  String? uri,
+  String? sha256,
+  int? sizeBytes,
+  List<SpeechModelArtifact>? artifacts,
+  super.languages = const <String>[],
+  super.supportsAutomaticLanguageDetection = true,
+  super.supportsInitialPrompt = true,
+  super.supportedProviders = const <SpeechExecutionProvider>{
+    SpeechExecutionProvider.cpu,
+  },
+  super.preferredProvider,
+  super.storageVersion = 1,
+  super.runtime = SpeechModelRuntime.whisperCpp,
+  super.mode = SpeechRecognitionMode.batch,
+}) extends SpeechModelDescriptor {
+  this
+    : super(
+        artifacts:
+            artifacts ??
+            <SpeechModelArtifact>[
+              SpeechModelArtifact(
+                id: 'primary',
+                relativePath: fileName!,
+                uri: uri!,
+                sha256: sha256!,
+                sizeBytes: sizeBytes!,
+              ),
+            ],
+      );
 
   SpeechModelArtifact get primaryArtifact => artifacts.first;
   String get fileName => primaryArtifact.relativePath;
@@ -52,15 +53,16 @@ class MobileAiDictationModel extends SpeechModelDescriptor {
       artifacts.fold<int>(0, (total, artifact) => total + artifact.sizeBytes);
 }
 
-class MobileAiDictationModelStore {
-  MobileAiDictationModelStore({
-    http.Client Function()? clientFactory,
-    Future<Directory> Function()? supportDirectory,
-    List<MobileAiDictationModel>? catalog,
-  }) : _clientFactory = clientFactory ?? http.Client.new,
-       _supportDirectory =
-           supportDirectory ?? (() => getApplicationSupportDirectory()),
-       catalog = catalog ?? models;
+class MobileAiDictationModelStore({
+  http.Client Function()? clientFactory,
+  Future<Directory> Function()? supportDirectory,
+  List<MobileAiDictationModel>? catalog,
+}) {
+  this
+    : _clientFactory = clientFactory ?? http.Client.new,
+      _supportDirectory =
+          supportDirectory ?? (() => getApplicationSupportDirectory()),
+      catalog = catalog ?? models;
 
   static final models = <MobileAiDictationModel>[
     MobileAiDictationModel(
@@ -68,8 +70,7 @@ class MobileAiDictationModelStore {
       label: 'Whisper Tiny',
       description: 'Fastest and lightest, with lower accuracy.',
       fileName: 'ggml-tiny.bin',
-      uri:
-          'https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-tiny.bin?download=true',
+      uri: 'https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-tiny.bin?download=true',
       sha256:
           'be07e048e1e599ad46341c8d2a135645097a538221678b7acdd1b1919c6e1b21',
       sizeBytes: 77691713,
@@ -79,8 +80,7 @@ class MobileAiDictationModelStore {
       label: 'Whisper Base',
       description: 'Balanced speed and accuracy. Recommended.',
       fileName: 'ggml-base.bin',
-      uri:
-          'https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base.bin?download=true',
+      uri: 'https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base.bin?download=true',
       sha256:
           '60ed5bc3dd14eea856493d334349b405782ddcaf0028d4b5df4088345fba2efe',
       sizeBytes: 147951465,
@@ -90,8 +90,7 @@ class MobileAiDictationModelStore {
       label: 'Whisper Small',
       description: 'More accurate, with higher memory and battery use.',
       fileName: 'ggml-small.bin',
-      uri:
-          'https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-small.bin?download=true',
+      uri: 'https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-small.bin?download=true',
       sha256:
           '1be3a9b2063867b937e64e2ec7483364a79917e157fa98c5d94b5c1fffea987b',
       sizeBytes: 487601967,
@@ -250,9 +249,8 @@ class MobileAiDictationModelStore {
           await destination.parent.create(recursive: true);
           if (await destination.exists()) await destination.delete();
           await partial.rename(destination.path);
-          await File(
-            '${destination.path}.sha256',
-          ).writeAsString(artifact.sha256, flush: true);
+          await File('${destination.path}.sha256')
+              .writeAsString(artifact.sha256, flush: true);
         } else {
           final destination = File(p.join(root, artifact.relativePath));
           await destination.parent.create(recursive: true);
@@ -428,9 +426,7 @@ class MobileAiDictationModelStore {
   }
 }
 
-class MobileAiModelDownloadCancelled implements Exception {
-  const MobileAiModelDownloadCancelled();
-}
+class const MobileAiModelDownloadCancelled() implements Exception;
 
 void _validateContentRange(
   http.StreamedResponse response,

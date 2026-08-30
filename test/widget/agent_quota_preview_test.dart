@@ -4,7 +4,6 @@ import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/features/agent_quota/domain/agent_quota.dart';
 import 'package:alera/src/features/agent_quota/presentation/agent_quota_status_bar_content.dart';
 import 'package:alera/src/features/settings/domain/alera_settings.dart';
-import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -33,8 +32,8 @@ void main() {
                   provider: provider,
                   accountId: 'default',
                   displayName: 'Default',
-                  status: AgentQuotaStatus.unavailable,
-                  updatedAt: DateTime.utc(2026),
+                  status: .unavailable,
+                  updatedAt: .utc(2026),
                   error: 'Preview account is offline',
                   windows: const [],
                   buckets: const [],
@@ -54,9 +53,9 @@ void main() {
       ),
     );
 
-    final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+    final mouse = await tester.createGesture(kind: .mouse);
     addTearDown(mouse.removePointer);
-    await mouse.addPointer(location: Offset.zero);
+    await mouse.addPointer(location: .zero);
     await mouse.moveTo(tester.getCenter(find.text('Default')));
     await tester.pump(AleraTokens.durationMid);
     await tester.pumpAndSettle();

@@ -1,14 +1,15 @@
 import 'dart:convert';
+
 import 'package:alera_mobile/src/features/configuration_sync/infra/mobile_configuration_preferences.dart';
 
 import 'package:alera_mobile/src/features/codex_chat/application/mobile_codex_preferences_repository.dart';
 import 'package:alera_mobile/src/features/codex_chat/domain/mobile_codex_preferences.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-class LocalMobileCodexPreferencesRepository
-    implements MobileCodexPreferencesRepository {
-  LocalMobileCodexPreferencesRepository({SharedPreferencesAsync? preferences})
-    : _preferences = preferences ?? SharedPreferencesAsync();
+class LocalMobileCodexPreferencesRepository({
+  SharedPreferencesAsync? preferences,
+}) implements MobileCodexPreferencesRepository {
+  this : _preferences = preferences ?? SharedPreferencesAsync();
 
   final SharedPreferencesAsync _preferences;
 

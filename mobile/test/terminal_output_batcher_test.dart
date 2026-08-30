@@ -83,7 +83,7 @@ void main() {
       expect(subject.debugFlushDeferred, isTrue);
       expect(frames, isEmpty);
 
-      await Future<void>.delayed(const Duration(milliseconds: 100));
+      await Future.pause(const Duration(milliseconds: 100));
 
       expect(subject.debugFlushDeferred, isFalse);
       expect(frames, hasLength(1));

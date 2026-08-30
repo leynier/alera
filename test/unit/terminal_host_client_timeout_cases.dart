@@ -127,7 +127,7 @@ void _registerTerminalHostClientTimeoutTests() {
     final server = await _TerminalHostTestServer.start(
       beforeResponse: (type) async {
         if (type == 'slow.request') {
-          await Future<void>.delayed(const Duration(milliseconds: 300));
+          await Future.pause(const Duration(milliseconds: 300));
         }
       },
     );
@@ -152,7 +152,7 @@ void _registerTerminalHostClientTimeoutTests() {
     final server = await _TerminalHostTestServer.start(
       beforeResponse: (type) async {
         if (type == 'slow.request' || type == 'status.get') {
-          await Future<void>.delayed(const Duration(milliseconds: 200));
+          await Future.pause(const Duration(milliseconds: 200));
         }
       },
     );
@@ -172,7 +172,7 @@ void _registerTerminalHostClientTimeoutTests() {
       throwsA(isA<TerminalHostRequestTimeoutException>()),
     );
     // Two probe intervals: below the three-failure limit, so no teardown.
-    await Future<void>.delayed(const Duration(milliseconds: 75));
+    await Future.pause(const Duration(milliseconds: 75));
 
     expect(server.acceptedConnections, 1);
   });
@@ -183,7 +183,7 @@ void _registerTerminalHostClientTimeoutTests() {
     final server = await _TerminalHostTestServer.start(
       beforeResponse: (type) async {
         if (type != 'hello') {
-          await Future<void>.delayed(const Duration(seconds: 5));
+          await Future.pause(const Duration(seconds: 5));
         }
       },
     );
@@ -202,7 +202,7 @@ void _registerTerminalHostClientTimeoutTests() {
       ),
       throwsA(isA<TerminalHostRequestTimeoutException>()),
     );
-    await Future<void>.delayed(const Duration(milliseconds: 200));
+    await Future.pause(const Duration(milliseconds: 200));
 
     // The dead connection was dropped, so the next request reconnects.
     await expectLater(

@@ -39,7 +39,7 @@ void main() {
 
       final controller = _FakeUpdateController(
         _state(
-          status: AleraUpdateStatus.manualDownloadRequired,
+          status: .manualDownloadRequired,
           latest: _latest().copyWith(platform: 'linux', installerKind: 'deb'),
           message: 'Update 1.2.3 is available through the package repository.',
         ),
@@ -48,7 +48,7 @@ void main() {
         tester,
         controller,
         packageInstall: const PackageManagerInstall(
-          method: PackageInstallMethod.linuxSystemPackage,
+          method: .linuxSystemPackage,
         ),
       );
 
@@ -72,7 +72,7 @@ void main() {
       final runtime = FakeCommandTerminalRuntime(running: false);
       final controller = _FakeUpdateController(
         _state(
-          status: AleraUpdateStatus.manualDownloadRequired,
+          status: .manualDownloadRequired,
           latest: _latest().copyWith(platform: 'linux', installerKind: 'deb'),
         ),
       );
@@ -81,7 +81,7 @@ void main() {
         controller,
         runtime: runtime,
         packageInstall: const PackageManagerInstall(
-          method: PackageInstallMethod.linuxSystemPackage,
+          method: .linuxSystemPackage,
         ),
       );
 
@@ -115,10 +115,7 @@ void main() {
         expect(find.text('Check for Updates'), findsOneWidget);
 
         controller.setState(
-          _state(
-            status: AleraUpdateStatus.checking,
-            message: 'Checking for updates.',
-          ),
+          _state(status: .checking, message: 'Checking for updates.'),
         );
         await tester.pump();
         expect(find.text('Checking for updates'), findsOneWidget);
@@ -126,7 +123,7 @@ void main() {
 
         controller.setState(
           _state(
-            status: AleraUpdateStatus.notAvailable,
+            status: .notAvailable,
             message: 'Alera is up to date.',
             currentVersion: '1.0.0',
             currentBuildNumber: '100',
@@ -139,7 +136,7 @@ void main() {
 
         controller.setState(
           _state(
-            status: AleraUpdateStatus.manualDownloadRequired,
+            status: .manualDownloadRequired,
             latest: _latest(),
             message: 'Manual download required.',
             currentVersion: '1.0.0',
@@ -154,7 +151,7 @@ void main() {
 
         controller.setState(
           _state(
-            status: AleraUpdateStatus.available,
+            status: .available,
             latest: _latest(),
             message: 'Ready to install.',
           ),
@@ -165,7 +162,7 @@ void main() {
 
         controller.setState(
           _state(
-            status: AleraUpdateStatus.downloading,
+            status: .downloading,
             latest: _latest(),
             message: 'Downloading update 1.2.3.',
             progress: 0.4,
@@ -177,7 +174,7 @@ void main() {
 
         controller.setState(
           _state(
-            status: AleraUpdateStatus.applying,
+            status: .applying,
             latest: _latest(),
             message: 'Installing update 1.2.3. Alera will restart.',
             progress: 1,
@@ -196,7 +193,7 @@ void main() {
 
         controller.setState(
           _state(
-            status: AleraUpdateStatus.downloaded,
+            status: .downloaded,
             latest: _latest(),
             message: 'Update handoff complete.',
             progress: 1,
@@ -208,7 +205,7 @@ void main() {
 
         controller.setState(
           _state(
-            status: AleraUpdateStatus.error,
+            status: .error,
             latest: _latest(),
             message: 'Update installation failed: boom',
           ),
@@ -231,27 +228,20 @@ void main() {
       expect(controller.checkForUpdatesCalls, 1);
 
       controller.setState(
-        _state(
-          status: AleraUpdateStatus.manualDownloadRequired,
-          latest: _latest(),
-        ),
+        _state(status: .manualDownloadRequired, latest: _latest()),
       );
       await tester.pump();
       await tester.tap(find.text('Download Manually'));
       await tester.pump();
       expect(controller.openDownloadPageCalls, 1);
 
-      controller.setState(
-        _state(status: AleraUpdateStatus.available, latest: _latest()),
-      );
+      controller.setState(_state(status: .available, latest: _latest()));
       await tester.pump();
       await tester.tap(find.text('Install Update'));
       await tester.pump();
       expect(controller.installLatestCalls, 1);
 
-      controller.setState(
-        _state(status: AleraUpdateStatus.error, latest: _latest()),
-      );
+      controller.setState(_state(status: .error, latest: _latest()));
       await tester.pump();
       await tester.tap(find.text('Try Again'));
       await tester.pump();
@@ -320,17 +310,14 @@ AleraUpdateConfig _config() {
   return AleraUpdateConfig(
     archiveUrl: Uri.parse('https://example.com/app-archive.json'),
     releasePageUrl: Uri.parse('https://example.com/releases'),
-    channel: AleraUpdateChannel.stable,
+    channel: .stable,
     autoInstallEnabled: true,
     signedRelease: true,
   );
 }
 
-class _FakeUpdateController extends AleraUpdateController {
-  _FakeUpdateController(this._seed);
-
-  final AleraUpdateState _seed;
-
+class _FakeUpdateController(final AleraUpdateState _seed)
+    extends AleraUpdateController {
   int checkForUpdatesCalls = 0;
   int installLatestCalls = 0;
   int openDownloadPageCalls = 0;
@@ -362,7 +349,7 @@ class _FakeUpdateController extends AleraUpdateController {
   @override
   void requireRestartAfterManualUpdate() {
     requireRestartCalls += 1;
-    state = state.copyWith(status: AleraUpdateStatus.restartRequired);
+    state = state.copyWith(status: .restartRequired);
   }
 
   @override

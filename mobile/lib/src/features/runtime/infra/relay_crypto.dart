@@ -10,21 +10,15 @@ const int relayRuntimeToClient = 1;
 const int _keyBytes = 32;
 const int _headerBytes = 1 + 1 + 8 + 12;
 
-class RelayCryptoException implements Exception {
-  const RelayCryptoException(this.message);
-
-  final String message;
-
+class const RelayCryptoException(final String message) implements Exception {
   @override
   String toString() => message;
 }
 
-class RelayIdentityKeyPair {
-  RelayIdentityKeyPair._(this.privateBytes, this.publicBytes);
-
-  final List<int> privateBytes;
-  final List<int> publicBytes;
-
+class RelayIdentityKeyPair._(
+  final List<int> privateBytes,
+  final List<int> publicBytes,
+) {
   static Future<RelayIdentityKeyPair> generate() async {
     return fromKeyPair(await X25519().newKeyPair());
   }
@@ -44,8 +38,8 @@ class RelayIdentityKeyPair {
     final privateBytes = await keyPair.extractPrivateKeyBytes();
     final publicKey = await keyPair.extractPublicKey();
     return RelayIdentityKeyPair._(
-      List<int>.unmodifiable(privateBytes),
-      List<int>.unmodifiable(publicKey.bytes),
+      List<int>.unmodifiableOf(privateBytes),
+      List<int>.unmodifiableOf(publicKey.bytes),
     );
   }
 
@@ -54,22 +48,14 @@ class RelayIdentityKeyPair {
   }
 }
 
-class RelayCryptoSession {
-  RelayCryptoSession._({
-    required this._sendKey,
-    required this._receiveKey,
-    required this._confirmationKey,
-    required this._transcriptHash,
-    required this._sendDirection,
-    required this._receiveDirection,
-  });
-
-  final List<int> _sendKey;
-  final List<int> _receiveKey;
-  final List<int> _confirmationKey;
-  final List<int> _transcriptHash;
-  final int _sendDirection;
-  final int _receiveDirection;
+class RelayCryptoSession._({
+  required final List<int> _sendKey,
+  required final List<int> _receiveKey,
+  required final List<int> _confirmationKey,
+  required final List<int> _transcriptHash,
+  required final int _sendDirection,
+  required final int _receiveDirection,
+}) {
   int _nextSendCounter = 0;
   int _nextReceiveCounter = 0;
   Future<void> _sendTail = Future<void>.value();
@@ -113,11 +99,8 @@ class RelayCryptoSession {
     final algorithm = X25519();
     final localStaticPair = await localStatic._keyPair();
     final localEphemeralPair = await localEphemeral._keyPair();
-    final peerStaticKey = SimplePublicKey(peerStatic, type: KeyPairType.x25519);
-    final peerEphemeralKey = SimplePublicKey(
-      peerEphemeral,
-      type: KeyPairType.x25519,
-    );
+    final peerStaticKey = SimplePublicKey(peerStatic, type: .x25519);
+    final peerEphemeralKey = SimplePublicKey(peerEphemeral, type: .x25519);
 
     Future<List<int>> shared(SimpleKeyPair pair, SimplePublicKey key) async {
       final secret = await algorithm.sharedSecretKey(
@@ -168,7 +151,7 @@ class RelayCryptoSession {
       ...staticEphemeral,
       ...ephemeralEphemeral,
     ];
-    final hkdf = Hkdf(hmac: Hmac.sha256(), outputLength: _keyBytes);
+    final hkdf = Hkdf(hmac: .sha256(), outputLength: _keyBytes);
     Future<List<int>> key(String label) async {
       final info = <int>[
         ..._utf8('alera-relay-key:'),

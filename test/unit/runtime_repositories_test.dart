@@ -56,7 +56,7 @@ void main() {
           ),
         ]),
       );
-      await Future<void>.delayed(Duration.zero);
+      await Future.pause(.zero);
       client.emit(
         const RuntimeHostEvent('projectsChanged', <String, Object?>{}),
       );
@@ -105,7 +105,7 @@ void main() {
     );
     final tags = await repository.listTags();
     final created = await repository.upsertTag(
-      WorkspaceTag.create(name: 'Mobile', now: DateTime.utc(2026, 6, 27)),
+      .create(name: 'Mobile', now: .utc(2026, 6, 27)),
     );
     await repository.assignTag(workspaceId: 'workspace-1', tagId: 'tag-1');
     await repository.unassignTag(workspaceId: 'workspace-1', tagId: 'tag-1');
@@ -172,7 +172,7 @@ void main() {
 
       final targets = await repository.list();
       final progressFuture = repository.watchBootstrapProgress().first;
-      await Future<void>.delayed(Duration.zero);
+      await Future.pause(.zero);
       client.emit(
         const RuntimeHostEvent('sshTargetBootstrapProgress', <String, Object?>{
           'jobId': 'job-1',
@@ -198,8 +198,7 @@ void main() {
       client,
       bootstrapDefaults: const RuntimeSshBootstrapDefaults(
         channel: 'rc',
-        archiveUrl:
-            'https://github.com/leynier/alera/releases/download/v1.2.4-rc.0/runtime-archive-rc.json',
+        archiveUrl: 'https://github.com/leynier/alera/releases/download/v1.2.4-rc.0/runtime-archive-rc.json',
         version: '1.2.4-rc.0',
       ),
     );
@@ -217,19 +216,18 @@ void main() {
     );
 
     expect(job.jobId, 'job-1');
-    expect(client.payloads['sshTarget.bootstrap.start']?.single, <
-      String,
-      Object?
-    >{
-      'targetId': 'remote-1',
-      'installDir': '/opt/alera/runtime',
-      'platform': 'linux',
-      'arch': 'arm64',
-      'channel': 'rc',
-      'archiveUrl':
-          'https://github.com/leynier/alera/releases/download/v1.2.4-rc.0/runtime-archive-rc.json',
-      'version': '1.2.4-rc.0',
-    });
+    expect(
+      client.payloads['sshTarget.bootstrap.start']?.single,
+      <String, Object?>{
+        'targetId': 'remote-1',
+        'installDir': '/opt/alera/runtime',
+        'platform': 'linux',
+        'arch': 'arm64',
+        'channel': 'rc',
+        'archiveUrl': 'https://github.com/leynier/alera/releases/download/v1.2.4-rc.0/runtime-archive-rc.json',
+        'version': '1.2.4-rc.0',
+      },
+    );
   });
 
   test('RuntimeStateMigration seeds legacy state once', () async {
@@ -304,7 +302,7 @@ Project _project({required String id, required String name}) {
     repoPath: '/tmp/$id',
     createdAt: _timestamp,
     updatedAt: _timestamp,
-    kind: ProjectKind.gitRepository,
+    kind: .gitRepository,
   );
 }
 
@@ -316,8 +314,8 @@ Workspace _workspace({required String id, required String projectId}) {
     path: '/tmp/$id',
     createdAt: _timestamp,
     updatedAt: _timestamp,
-    kind: WorkspaceKind.linked,
-    status: WorkspaceStatus.active,
+    kind: .linked,
+    status: .active,
   );
 }
 
@@ -494,7 +492,7 @@ final class _MemoryProjectConfigRepository implements ProjectConfigRepository {
 }
 
 final class _MemorySettingsRepository implements SettingsRepository {
-  AleraSettings settings = AleraSettings.defaults;
+  AleraSettings settings = .defaults;
 
   @override
   Future<AleraSettings> load() async => settings;

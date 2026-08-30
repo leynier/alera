@@ -1,38 +1,23 @@
 import 'package:alera_mobile/src/features/hosts/domain/paired_host_profile.dart';
 import 'package:alera_mobile/src/features/hosts/domain/pairing_offer.dart';
 
-sealed class PairingFlowState {
-  const PairingFlowState();
-}
+sealed class const PairingFlowState();
 
-class PairingScanning extends PairingFlowState {
-  const PairingScanning();
-}
+class const PairingScanning() extends PairingFlowState;
 
-class PairingOfferReady extends PairingFlowState {
-  const PairingOfferReady(this.offer);
+class const PairingOfferReady(final PairingOffer offer)
+    extends PairingFlowState;
 
-  final PairingOffer offer;
-}
+class const PairingInProgress(final PairingOffer offer)
+    extends PairingFlowState;
 
-class PairingInProgress extends PairingFlowState {
-  const PairingInProgress(this.offer);
+class const PairingSuccess(final PairedHostProfile host)
+    extends PairingFlowState;
 
-  final PairingOffer offer;
-}
-
-class PairingSuccess extends PairingFlowState {
-  const PairingSuccess(this.host);
-
-  final PairedHostProfile host;
-}
-
-class PairingFailure extends PairingFlowState {
-  const PairingFailure(this.reason, this.detail);
-
-  final PairingFailureReason reason;
-  final String detail;
-}
+class const PairingFailure(
+  final PairingFailureReason reason,
+  final String detail,
+) extends PairingFlowState;
 
 enum PairingFailureReason {
   invalidOffer,

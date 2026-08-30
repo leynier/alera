@@ -1,34 +1,24 @@
 import 'package:flutter/services.dart';
 
 /// Result of validating/parsing a keyboard chord string.
-sealed class KeyChordParseResult {
-  const KeyChordParseResult();
-}
+sealed class const KeyChordParseResult();
 
-final class KeyChordParseSuccess extends KeyChordParseResult {
-  const KeyChordParseSuccess(this.chord);
+final class const KeyChordParseSuccess(final KeyChord chord)
+    extends KeyChordParseResult;
 
-  final KeyChord chord;
-}
-
-final class KeyChordParseFailure extends KeyChordParseResult {
-  const KeyChordParseFailure(this.message);
-
-  final String message;
-}
+final class const KeyChordParseFailure(final String message)
+    extends KeyChordParseResult;
 
 /// Snapshot of the modifier keys held down when a key event fires. Kept as a
 /// plain value so chord matching stays pure and unit-testable without a live
 /// [HardwareKeyboard].
-class KeyModifierState {
-  const KeyModifierState({
-    this.meta = false,
-    this.control = false,
-    this.alt = false,
-    this.shift = false,
-  });
-
-  factory KeyModifierState.fromKeyboard(HardwareKeyboard keyboard) {
+class const KeyModifierState({
+  final bool meta = false,
+  final bool control = false,
+  final bool alt = false,
+  final bool shift = false,
+}) {
+  factory fromKeyboard(HardwareKeyboard keyboard) {
     return KeyModifierState(
       meta: keyboard.isMetaPressed,
       control: keyboard.isControlPressed,
@@ -36,11 +26,6 @@ class KeyModifierState {
       shift: keyboard.isShiftPressed,
     );
   }
-
-  final bool meta;
-  final bool control;
-  final bool alt;
-  final bool shift;
 }
 
 /// An immutable keyboard chord: a set of modifiers plus a single trigger key.
@@ -48,16 +33,14 @@ class KeyModifierState {
 /// The `Mod` modifier is platform-neutral and resolves to Command on macOS and
 /// Control elsewhere. It is resolved at match/format time, never stored as a
 /// concrete modifier, so the same chord serializes identically across platforms.
-class KeyChord {
-  const KeyChord({
-    required this.trigger,
-    this.useMod = false,
-    this.meta = false,
-    this.control = false,
-    this.alt = false,
-    this.shift = false,
-  });
-
+class const KeyChord({
+  required this.trigger,
+  this.useMod = false,
+  this.meta = false,
+  this.control = false,
+  this.alt = false,
+  this.shift = false,
+}) {
   /// Whether the platform-neutral `Mod` modifier is required.
   final bool useMod;
 

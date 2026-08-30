@@ -9,14 +9,12 @@ part 'terminal_host_pty_session_pulse.dart';
 part 'terminal_host_pty_session_lease.dart';
 part 'terminal_host_pty_session_errors.dart';
 
-final class TerminalHostPtySessionFactory implements TerminalPtySessionFactory {
-  factory TerminalHostPtySessionFactory({required TerminalHostClient client}) {
+final class TerminalHostPtySessionFactory._(final TerminalHostClient _client)
+    implements TerminalPtySessionFactory {
+  factory({required TerminalHostClient client}) {
     return TerminalHostPtySessionFactory._(client);
   }
 
-  TerminalHostPtySessionFactory._(this._client);
-
-  final TerminalHostClient _client;
   final _TerminalHostPtySessionLeases _leases = _TerminalHostPtySessionLeases();
 
   @override
@@ -35,13 +33,18 @@ final class TerminalHostPtySessionFactory implements TerminalPtySessionFactory {
   }
 }
 
-final class TerminalHostPtySession
-    with _TerminalPulsePtySessionSupport
+final class TerminalHostPtySession._(
+  this._client,
+  this._sessionId,
+  final String _workspaceId,
+  final String _tabId,
+  final _TerminalHostPtySessionLease? _lease,
+) with _TerminalPulsePtySessionSupport
     implements
         RecoverableTerminalPtySession,
         DeferredEnterTerminalPtySession,
         TerminalPulsePtySession {
-  factory TerminalHostPtySession({
+  factory({
     required TerminalHostClient client,
     required String sessionId,
     required String workspaceId,
@@ -56,21 +59,11 @@ final class TerminalHostPtySession
     );
   }
 
-  TerminalHostPtySession._(
-    this._client,
-    this._sessionId,
-    this._workspaceId,
-    this._tabId,
-    this._lease,
-  );
-
   @override
   final TerminalHostClient _client;
   @override
   final String _sessionId;
-  final String _workspaceId;
-  final String _tabId;
-  final _TerminalHostPtySessionLease? _lease;
+
   final StreamController<TerminalPtySessionEvent> _events =
       StreamController<TerminalPtySessionEvent>.broadcast();
 
@@ -239,9 +232,8 @@ final class TerminalHostPtySession
       return;
     }
     unawaited(
-      _enqueueAttachmentOperation(
-        () => _resize(cols: cols, rows: rows),
-      ).catchError(_emitHostError),
+      _enqueueAttachmentOperation(() => _resize(cols: cols, rows: rows))
+          .catchError(_emitHostError),
     );
   }
 

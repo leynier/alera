@@ -12,9 +12,8 @@ void main() {
   test('replaces precreated nested empty output directories', () async {
     final fixture = await _MaterializerFixture.create();
     addTearDown(fixture.dispose);
-    Directory(
-      p.join(fixture.output.path, 'android', 'scrcpy', '4.0'),
-    ).createSync(recursive: true);
+    Directory(p.join(fixture.output.path, 'android', 'scrcpy', '4.0'))
+        .createSync(recursive: true);
 
     await fixture.prepare();
 
@@ -72,15 +71,13 @@ void main() {
   );
 }
 
-final class _MaterializerFixture {
-  _MaterializerFixture({
-    required this.root,
-    required this.manifest,
-    required this.materializer,
-    required this.output,
-    required this.cache,
-  });
-
+final class _MaterializerFixture({
+  required final Directory root,
+  required final NativeHelperManifest manifest,
+  required final NativeHelperMaterializer materializer,
+  required final Directory output,
+  required final Directory cache,
+}) {
   static Future<_MaterializerFixture> create() async {
     final root = await Directory.systemTemp.createTemp(
       'alera-native-helper-output-',
@@ -89,12 +86,10 @@ final class _MaterializerFixture {
       ..createSync(recursive: true);
     final notices = Directory(p.join(repository.path, 'notices', 'licenses'))
       ..createSync(recursive: true);
-    File(
-      p.join(repository.path, 'notices', 'NOTICE.md'),
-    ).writeAsStringSync('Test notices.\n');
-    File(
-      p.join(notices.path, 'Apache-2.0.txt'),
-    ).writeAsStringSync('Test license.\n');
+    File(p.join(repository.path, 'notices', 'NOTICE.md'))
+        .writeAsStringSync('Test notices.\n');
+    File(p.join(notices.path, 'Apache-2.0.txt'))
+        .writeAsStringSync('Test license.\n');
     final payload = utf8.encode('scrcpy payload');
     final digest = sha256.convert(payload).toString();
     final manifest = NativeHelperManifest.read(
@@ -133,12 +128,6 @@ final class _MaterializerFixture {
       cache: Directory(p.join(root.path, 'cache')),
     );
   }
-
-  final Directory root;
-  final NativeHelperManifest manifest;
-  final NativeHelperMaterializer materializer;
-  final Directory output;
-  final Directory cache;
 
   Future<void> prepare() {
     return materializer.prepare(

@@ -6,7 +6,7 @@ import 'package:alera/src/features/workbench/domain/workspace.dart';
 import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-final DateTime _now = DateTime.utc(2026, 8, 21);
+final DateTime _now = .utc(2026, 8, 21);
 
 void main() {
   group('active workspace filter', () {
@@ -25,14 +25,10 @@ void main() {
         },
         tabsByWorkspace: <String, List<WorkspaceTabRecord>>{
           terminal.id: <WorkspaceTabRecord>[
-            _tab('t-terminal', terminal.id, WorkspaceTabKind.terminal),
+            _tab('t-terminal', terminal.id, .terminal),
           ],
-          codex.id: <WorkspaceTabRecord>[
-            _tab('t-codex', codex.id, WorkspaceTabKind.codex),
-          ],
-          editor.id: <WorkspaceTabRecord>[
-            _tab('t-editor', editor.id, WorkspaceTabKind.editor),
-          ],
+          codex.id: <WorkspaceTabRecord>[_tab('t-codex', codex.id, .codex)],
+          editor.id: <WorkspaceTabRecord>[_tab('t-editor', editor.id, .editor)],
         },
         viewPrefs: WorkbenchViewPrefs.defaults.copyWith(
           showActiveWorkspacesOnly: true,
@@ -60,7 +56,7 @@ void main() {
       final main = _workspace(
         'w-main',
         project.id,
-        kind: WorkspaceKind.main,
+        kind: .main,
         tagIds: <String>['review'],
       );
       final linked = _workspace(
@@ -74,16 +70,14 @@ void main() {
           project.id: <Workspace>[main, linked],
         },
         tabsByWorkspace: <String, List<WorkspaceTabRecord>>{
-          main.id: <WorkspaceTabRecord>[
-            _tab('t-main', main.id, WorkspaceTabKind.terminal),
-          ],
+          main.id: <WorkspaceTabRecord>[_tab('t-main', main.id, .terminal)],
           linked.id: <WorkspaceTabRecord>[
-            _tab('t-feature', linked.id, WorkspaceTabKind.terminal),
+            _tab('t-feature', linked.id, .terminal),
           ],
         },
         viewPrefs: WorkbenchViewPrefs.defaults.copyWith(
           showActiveWorkspacesOnly: true,
-          workspaceKindFilter: WorkspaceKindFilter.nonDefaultOnly,
+          workspaceKindFilter: .nonDefaultOnly,
           selectedTagIds: <String>{'review'},
         ),
         searchQuery: 'feature',
@@ -112,7 +106,7 @@ void main() {
         },
         tabsByWorkspace: <String, List<WorkspaceTabRecord>>{
           activeChild.id: <WorkspaceTabRecord>[
-            _tab('t-child', activeChild.id, WorkspaceTabKind.codex),
+            _tab('t-child', activeChild.id, .codex),
           ],
         },
         viewPrefs: WorkbenchViewPrefs.defaults.copyWith(
@@ -162,7 +156,7 @@ Workspace _workspace(
     createdAt: _now,
     updatedAt: _now,
     kind: kind,
-    status: WorkspaceStatus.active,
+    status: .active,
     tagIds: tagIds,
     parentWorkspaceId: parentWorkspaceId,
     isPinned: isPinned,

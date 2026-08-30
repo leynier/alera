@@ -14,8 +14,8 @@ void _registerWorkspaceExplorerCursorTests() {
 
     await _pumpExplorer(tester, service);
 
-    final gesture = await tester.createGesture(kind: PointerDeviceKind.mouse);
-    await gesture.addPointer(location: Offset.zero);
+    final gesture = await tester.createGesture(kind: .mouse);
+    await gesture.addPointer(location: .zero);
     addTearDown(gesture.removePointer);
     await tester.pump();
 

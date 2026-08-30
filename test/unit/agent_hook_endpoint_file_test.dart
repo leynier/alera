@@ -6,7 +6,7 @@ void main() {
     test('renders POSIX endpoint env files', () {
       expect(
         buildAgentHookEndpointFileContent(
-          kind: AgentHookEndpointFileKind.posix,
+          kind: .posix,
           port: 4567,
           token: 'abc-123',
         ),
@@ -17,13 +17,10 @@ void main() {
     });
 
     test('renders Windows endpoint cmd files', () {
-      expect(
-        agentHookEndpointFileName(kind: AgentHookEndpointFileKind.windows),
-        'endpoint.cmd',
-      );
+      expect(agentHookEndpointFileName(kind: .windows), 'endpoint.cmd');
       expect(
         buildAgentHookEndpointFileContent(
-          kind: AgentHookEndpointFileKind.windows,
+          kind: .windows,
           port: 4567,
           token: 'abc-123',
         ),
@@ -36,7 +33,7 @@ void main() {
     test('rejects shell-unsafe values', () {
       expect(
         () => buildAgentHookEndpointFileContent(
-          kind: AgentHookEndpointFileKind.posix,
+          kind: .posix,
           port: 4567,
           token: 'abc;rm',
         ),

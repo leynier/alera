@@ -8,18 +8,16 @@ part 'linked_review.mapper.dart';
 /// ignore while allowing a different review on the branch to be auto-detected.
 /// Legacy dismissals without provider/number remain readable.
 @MappableClass()
-class LinkedReview with LinkedReviewMappable {
-  const LinkedReview({
-    required this.workspaceId,
-    required this.linkedAt,
-    this.dismissed = false,
-    this.provider,
-    this.number,
-    this.url,
-  });
-
+class const LinkedReview({
+  required this.workspaceId,
+  required this.linkedAt,
+  this.dismissed = false,
+  this.provider,
+  this.number,
+  this.url,
+}) with LinkedReviewMappable {
   /// A concrete link to review [number].
-  factory LinkedReview.linked({
+  factory linked({
     required String workspaceId,
     required GitHostingProvider provider,
     required int number,
@@ -35,7 +33,7 @@ class LinkedReview with LinkedReviewMappable {
 
   /// A dismissal for one review. Optional identity fields preserve backwards
   /// compatibility with legacy records that suppressed the whole workspace.
-  factory LinkedReview.dismissal({
+  factory dismissal({
     required String workspaceId,
     GitHostingProvider? provider,
     int? number,
@@ -64,6 +62,6 @@ class LinkedReview with LinkedReviewMappable {
   bool get hasDismissedReview =>
       dismissed && number != null && provider != null;
 
-  factory LinkedReview.fromJson(Map<String, Object?> json) =>
+  factory fromJson(Map<String, Object?> json) =>
       LinkedReviewMapper.fromMap(Map<String, dynamic>.from(json));
 }

@@ -1,9 +1,7 @@
 part of 'alera_shell_page_test.dart';
 
-class _PinningShellTestWorkbenchController
+class _PinningShellTestWorkbenchController(super.bootstrapState)
     extends _ShellTestWorkbenchController {
-  _PinningShellTestWorkbenchController(super.bootstrapState);
-
   final List<({String workspaceId, bool isPinned})> pinUpdates =
       <({String workspaceId, bool isPinned})>[];
 
@@ -143,7 +141,7 @@ void _registerAleraShellPinningTests() {
             linked,
           ],
         },
-        viewPrefs: seeded.viewPrefs.copyWith(groupBy: WorkbenchGroupBy.none),
+        viewPrefs: seeded.viewPrefs.copyWith(groupBy: .none),
       ),
     );
 

@@ -1,10 +1,6 @@
 part of 'alera_debug.dart';
 
-final class _DebugContext {
-  _DebugContext(this._options);
-
-  final _Options _options;
-
+final class _DebugContext(final _Options _options) {
   // Builds the Rust sidecar (rust/alera-cli) and stages its runtime bundle so
   // ALERA_CLI_BUNDLE_DIR resolution finds every required asset.
   Future<int> buildCli({String? outputDir, bool release = true}) async {
@@ -341,9 +337,8 @@ final class _DebugContext {
   }
 
   String _pathBasename(String path) {
-    final normalized = _normalizeSeparators(
-      path,
-    ).replaceAll(RegExp(r'/+$'), '');
+    final normalized = _normalizeSeparators(path)
+        .replaceAll(RegExp(r'/+$'), '');
     final separator = normalized.lastIndexOf('/');
     if (separator < 0) {
       return normalized;

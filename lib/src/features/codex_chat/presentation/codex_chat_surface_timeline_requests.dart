@@ -1,11 +1,9 @@
 part of 'codex_chat_surface.dart';
 
-class _CodexPendingCard extends StatelessWidget {
-  const _CodexPendingCard({required this.request, required this.onReject});
-
-  final CodexPendingRequest request;
-  final Future<void> Function(CodexPendingRequest request) onReject;
-
+class const _CodexPendingCard({
+  required final CodexPendingRequest request,
+  required final Future<void> Function(CodexPendingRequest request) onReject,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) => _CodexRequestCard(
     title: request.requestTitle,
@@ -19,20 +17,15 @@ class _CodexPendingCard extends StatelessWidget {
   );
 }
 
-class _CodexElicitationCard extends StatefulWidget {
-  const _CodexElicitationCard({
-    required this.request,
-    required this.onElicitation,
-  });
-
-  final CodexPendingRequest request;
-  final Future<void> Function(
+class const _CodexElicitationCard({
+  required final CodexPendingRequest request,
+  required final Future<void> Function(
     CodexPendingRequest request, {
     required String action,
     Map<String, Object?> content,
   })
-  onElicitation;
-
+  onElicitation,
+}) extends StatefulWidget {
   @override
   State<_CodexElicitationCard> createState() => _CodexElicitationCardState();
 }
@@ -74,7 +67,7 @@ class _CodexElicitationCardState extends State<_CodexElicitationCard> {
     return _CodexRequestCard(
       title: 'MCP Server Needs Input',
       bodyWidget: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
+        crossAxisAlignment: .stretch,
         children: <Widget>[
           Text(widget.request.params['message']?.toString() ?? ''),
           if (!supported)
@@ -191,26 +184,19 @@ String? _codexElicitationSchemaValue(Object? schema, String key) {
 String? _codexElicitationType(Object? schema) =>
     _codexElicitationSchemaValue(schema, 'type');
 
-class _CodexRequestCard extends StatelessWidget {
-  const _CodexRequestCard({
-    required this.title,
-    this.body,
-    this.bodyWidget,
-    required this.actions,
-  });
-
-  final String title;
-  final String? body;
-  final Widget? bodyWidget;
-  final List<Widget> actions;
-
+class const _CodexRequestCard({
+  required final String title,
+  final String? body,
+  final Widget? bodyWidget,
+  required final List<Widget> actions,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Card(
     color: AleraTokens.surfaceElevated,
     child: Padding(
       padding: const EdgeInsets.all(AleraTokens.space12),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
+        crossAxisAlignment: .stretch,
         children: <Widget>[
           Text(title, style: Theme.of(context).textTheme.titleSmall),
           if (body != null) ...<Widget>[

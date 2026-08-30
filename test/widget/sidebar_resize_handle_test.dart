@@ -1,5 +1,4 @@
 import 'package:alera/src/features/projects/presentation/widgets/sidebar_resize_handle.dart';
-import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -28,7 +27,7 @@ void main() {
     final animated = find.byType(AnimatedContainer);
     expect(tester.getSize(animated).width, 1);
 
-    final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+    final mouse = await tester.createGesture(kind: .mouse);
     addTearDown(mouse.removePointer);
     await mouse.addPointer();
     await mouse.moveTo(tester.getCenter(find.byType(SidebarResizeHandle)));

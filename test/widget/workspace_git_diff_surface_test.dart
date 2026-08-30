@@ -6,7 +6,6 @@ import 'package:alera/src/app/providers.dart'
 import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/features/ai_assist/application/ai_assist_agent_runner.dart';
 import 'package:alera/src/features/ai_assist/application/ai_assist_errors.dart';
-import 'package:alera/src/features/ai_assist/domain/ai_assist_settings.dart';
 import 'package:alera/src/features/reading_diff/application/reading_diff_cache.dart';
 import 'package:alera/src/features/reading_diff/application/reading_diff_generation_progress.dart';
 import 'package:alera/src/features/reading_diff/application/reading_diff_providers.dart';
@@ -42,8 +41,8 @@ void main() {
         files: <GitDiffFile>[
           GitDiffFile(
             path: 'lib/large.dart',
-            area: GitChangeArea.unstaged,
-            status: GitChangeStatus.modified,
+            area: .unstaged,
+            status: .modified,
             lines: List<GitDiffLine>.generate(
               5000,
               (index) => GitDiffLine.addition('+line $index'),
@@ -83,8 +82,8 @@ void main() {
         files: <GitDiffFile>[
           GitDiffFile(
             path: 'lib/deleted.dart',
-            area: GitChangeArea.staged,
-            status: GitChangeStatus.deleted,
+            area: .staged,
+            status: .deleted,
             lines: <GitDiffLine>[GitDiffLine.deletion('-old')],
             added: 0,
             removed: 1,
@@ -98,7 +97,7 @@ void main() {
       tab: _diffTab(
         filePath: 'lib/deleted.dart',
         title: 'deleted.dart staged',
-        area: GitChangeArea.staged,
+        area: .staged,
       ),
     );
     await tester.pumpAndSettle();
@@ -116,8 +115,8 @@ void main() {
         files: <GitDiffFile>[
           GitDiffFile(
             path: 'modules/sample',
-            area: GitChangeArea.unstaged,
-            status: GitChangeStatus.modified,
+            area: .unstaged,
+            status: .modified,
             lines: <GitDiffLine>[
               GitDiffLine.addition('+Subproject commit abc123'),
             ],
@@ -134,7 +133,7 @@ void main() {
       tab: _diffTab(
         filePath: 'modules/sample',
         title: 'sample unstaged',
-        area: GitChangeArea.unstaged,
+        area: .unstaged,
       ),
     );
     await tester.pumpAndSettle();
@@ -152,8 +151,8 @@ void main() {
         files: <GitDiffFile>[
           GitDiffFile(
             path: 'lib/main.dart',
-            area: GitChangeArea.unstaged,
-            status: GitChangeStatus.modified,
+            area: .unstaged,
+            status: .modified,
             lines: <GitDiffLine>[GitDiffLine.addition('+new')],
             added: 1,
             removed: 0,
@@ -178,8 +177,8 @@ void main() {
           GitDiffFile(
             path: 'lib/foo.dart',
             oldPath: 'lib/foo.dart',
-            area: GitChangeArea.staged,
-            status: GitChangeStatus.renamed,
+            area: .staged,
+            status: .renamed,
             lines: <GitDiffLine>[
               GitDiffLine.header('rename from packages/app/lib/foo.dart'),
             ],
@@ -193,7 +192,7 @@ void main() {
       tab: _diffTab(
         filePath: 'lib/foo.dart',
         title: 'foo.dart staged',
-        area: GitChangeArea.staged,
+        area: .staged,
       ),
     );
     await tester.pumpAndSettle();
@@ -214,8 +213,8 @@ void main() {
           GitDiffFile(
             path: 'lib/new.dart',
             oldPath: 'lib/old.dart',
-            area: GitChangeArea.staged,
-            status: GitChangeStatus.renamed,
+            area: .staged,
+            status: .renamed,
             lines: <GitDiffLine>[GitDiffLine.header('rename to lib/new.dart')],
           ),
         ],
@@ -227,7 +226,7 @@ void main() {
       tab: _diffTab(
         filePath: 'lib/new.dart',
         title: 'new.dart staged',
-        area: GitChangeArea.staged,
+        area: .staged,
       ),
     );
     await tester.pumpAndSettle();
@@ -243,8 +242,8 @@ void main() {
           GitDiffFile(
             path: 'lib/new.dart',
             oldPath: 'lib/old.dart',
-            area: GitChangeArea.staged,
-            status: GitChangeStatus.renamed,
+            area: .staged,
+            status: .renamed,
             lines: <GitDiffLine>[GitDiffLine.header('rename to lib/new.dart')],
           ),
         ],
@@ -258,7 +257,7 @@ void main() {
       tab: _diffTab(
         filePath: 'lib/old.dart',
         title: 'old.dart staged',
-        area: GitChangeArea.staged,
+        area: .staged,
       ),
     );
     await tester.pumpAndSettle();
@@ -277,8 +276,8 @@ void main() {
         files: <GitDiffFile>[
           GitDiffFile(
             path: 'lib/main.dart',
-            area: GitChangeArea.unstaged,
-            status: GitChangeStatus.modified,
+            area: .unstaged,
+            status: .modified,
             lines: <GitDiffLine>[GitDiffLine.addition('+new')],
           ),
         ],
@@ -292,7 +291,7 @@ void main() {
       tab: _diffTab(
         filePath: 'packages/app/lib/main.dart',
         title: 'main.dart unstaged',
-        area: GitChangeArea.unstaged,
+        area: .unstaged,
         gitDiffRoot: 'packages/app',
       ),
     );
@@ -323,8 +322,8 @@ void main() {
         files: <GitDiffFile>[
           GitDiffFile(
             path: 'unrelated.dart',
-            area: GitChangeArea.unstaged,
-            status: GitChangeStatus.modified,
+            area: .unstaged,
+            status: .modified,
             lines: <GitDiffLine>[GitDiffLine.addition('+unrelated')],
           ),
         ],
@@ -334,7 +333,7 @@ void main() {
       tester,
       backend: backend,
       tab: _diffTab(
-        scope: WorkspaceGitDiffScope.fileAll,
+        scope: .fileAll,
         filePath: 'docs/main.dart',
         title: 'main.dart changes',
         area: null,
@@ -353,16 +352,16 @@ void main() {
         files: <GitDiffFile>[
           GitDiffFile(
             path: 'lib/added.dart',
-            area: GitChangeArea.untracked,
-            status: GitChangeStatus.untracked,
+            area: .untracked,
+            status: .untracked,
             lines: <GitDiffLine>[GitDiffLine.addition('+new')],
             added: 3,
             removed: 0,
           ),
           GitDiffFile(
             path: 'lib/deleted.dart',
-            area: GitChangeArea.staged,
-            status: GitChangeStatus.deleted,
+            area: .staged,
+            status: .deleted,
             lines: <GitDiffLine>[GitDiffLine.deletion('-old')],
             added: 0,
             removed: 2,
@@ -387,8 +386,8 @@ void main() {
         files: <GitDiffFile>[
           GitDiffFile(
             path: 'lib/main.dart',
-            area: GitChangeArea.staged,
-            status: GitChangeStatus.modified,
+            area: .staged,
+            status: .modified,
             lines: <GitDiffLine>[GitDiffLine.addition('+new')],
             sourceLabel: 'Commit',
           ),
@@ -399,10 +398,10 @@ void main() {
       tester,
       backend: backend,
       tab: _diffTab(
-        source: WorkspaceGitDiffSource.commit,
+        source: .commit,
         filePath: 'packages/app/lib/main.dart',
         title: 'main.dart abc1234',
-        scope: WorkspaceGitDiffScope.file,
+        scope: .file,
         area: null,
         gitDiffRoot: 'packages/app',
         commitOid: 'abc123456789',

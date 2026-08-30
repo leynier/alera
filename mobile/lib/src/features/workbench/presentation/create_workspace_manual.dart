@@ -110,7 +110,7 @@ extension _CreateWorkspaceManualForm on _CreateWorkspaceScreenState {
         const SizedBox(height: AleraTokens.spaceMd),
         CheckboxListTile(
           contentPadding: EdgeInsets.zero,
-          controlAffinity: ListTileControlAffinity.leading,
+          controlAffinity: .leading,
           value: _createAnother,
           onChanged: _creating
               ? null

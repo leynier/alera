@@ -32,7 +32,7 @@ void main() {
       flavor: 'dev',
       operatingSystem: 'linux',
       operatingSystemVersion: 'test-kernel',
-      collectedAt: DateTime.utc(2026, 7, 28, 12),
+      collectedAt: .utc(2026, 7, 28, 12),
       runtimeHostVersion: runtimeVersion,
       runtimeHostCommit: runtimeVersion == null ? null : 'abc1234',
       protocolVersion: runtimeVersion == null ? null : 4,
@@ -49,9 +49,8 @@ void main() {
 
   test('packs app and runtime logs under separate prefixes', () {
     File('${appLogs.path}/alera.log').writeAsStringSync('{"msg":"app line"}');
-    File(
-      '${runtimeLogs.path}/runtime.log',
-    ).writeAsStringSync('{"msg":"runtime line"}');
+    File('${runtimeLogs.path}/runtime.log')
+        .writeAsStringSync('{"msg":"runtime line"}');
 
     final archive = decode(
       const DiagnosticsBundleBuilder().build(
@@ -136,7 +135,7 @@ void main() {
 
   test('suggested file name is filesystem safe', () {
     final name = DiagnosticsBundleBuilder.suggestedFileName(
-      DateTime.utc(2026, 7, 28, 12, 30, 15),
+      .utc(2026, 7, 28, 12, 30, 15),
     );
 
     expect(name, 'alera-diagnostics-20260728T123015.zip');

@@ -22,7 +22,7 @@ void main() {
       ),
       const TextEditingValue(
         text: r'$shared',
-        selection: TextSelection.collapsed(offset: 0),
+        selection: .collapsed(offset: 0),
       ),
       <Map<String, Object?>>[skill, app],
     );

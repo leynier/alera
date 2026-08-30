@@ -35,17 +35,14 @@ enum OpenRepositoryOutcome {
 /// which keeps the feature working on Linux setups where url_launcher is
 /// misconfigured. Mirrors the fallback chain already used by
 /// [WorkspaceFolderOpener] for folders.
-class RepositoryBrowserOpener {
-  RepositoryBrowserOpener({
-    required this._gitBackend,
-    required this._launcher,
-    required this._processRunner,
-    WorkspaceFolderPlatform? platform,
-  }) : _platform = platform ?? currentWorkspaceFolderPlatform();
+class RepositoryBrowserOpener({
+  required final GitBackend _gitBackend,
+  required final ExternalUriLauncher _launcher,
+  required final ProcessRunner _processRunner,
+  WorkspaceFolderPlatform? platform,
+}) {
+  this : _platform = platform ?? currentWorkspaceFolderPlatform();
 
-  final GitBackend _gitBackend;
-  final ExternalUriLauncher _launcher;
-  final ProcessRunner _processRunner;
   final WorkspaceFolderPlatform _platform;
 
   /// Opens [repoPath]'s repository home page. Never throws: callers branch on

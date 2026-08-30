@@ -43,28 +43,22 @@ void main() {
     final repository = RuntimeAleraAccountRepository(client);
 
     expect(
-      await repository.startSignIn(AleraIdentityProvider.google),
+      await repository.startSignIn(.google),
       Uri.parse('https://accounts.example/sign-in'),
     );
     expect(
-      await repository.startLink(AleraIdentityProvider.github),
+      await repository.startLink(.github),
       Uri.parse('https://accounts.example/link'),
     );
     expect(client.calls[0].payload, <String, Object?>{'provider': 'google'});
     expect(client.calls[1].payload, <String, Object?>{'provider': 'github'});
 
     client.responses['account.signIn.start'] = const <String, Object?>{};
-    await expectLater(
-      repository.startSignIn(AleraIdentityProvider.google),
-      throwsFormatException,
-    );
+    await expectLater(repository.startSignIn(.google), throwsFormatException);
     client.responses['account.signIn.start'] = <String, Object?>{
       'authorizationUrl': 'relative',
     };
-    await expectLater(
-      repository.startSignIn(AleraIdentityProvider.google),
-      throwsFormatException,
-    );
+    await expectLater(repository.startSignIn(.google), throwsFormatException);
   });
 
   test('sends account mutations and complete push preferences', () async {
@@ -135,17 +129,13 @@ void main() {
   });
 }
 
-final class _RuntimeCall {
-  const _RuntimeCall(this.type, this.payload);
+final class const _RuntimeCall(
+  final String type,
+  final Map<String, Object?> payload,
+);
 
-  final String type;
-  final Map<String, Object?> payload;
-}
-
-final class _FakeRuntimeHostClient implements RuntimeHostClient {
-  _FakeRuntimeHostClient(this.responses);
-
-  final Map<String, Object?> responses;
+final class _FakeRuntimeHostClient(final Map<String, Object?> responses)
+    implements RuntimeHostClient {
   final List<_RuntimeCall> calls = <_RuntimeCall>[];
   final StreamController<RuntimeHostEvent> _events =
       StreamController<RuntimeHostEvent>.broadcast();

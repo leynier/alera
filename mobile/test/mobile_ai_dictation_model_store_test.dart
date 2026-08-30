@@ -105,8 +105,8 @@ void main() {
           id: 'streaming-model',
           label: 'Streaming Model',
           description: 'A synthetic multi-artifact model.',
-          runtime: SpeechModelRuntime.sherpaOnnx,
-          mode: SpeechRecognitionMode.streaming,
+          runtime: .sherpaOnnx,
+          mode: .streaming,
           artifacts: <SpeechModelArtifact>[
             SpeechModelArtifact(
               id: 'encoder',
@@ -172,8 +172,8 @@ void main() {
             id: 'broken-model',
             label: 'Broken Model',
             description: 'A synthetic model with a bad checksum.',
-            runtime: SpeechModelRuntime.sherpaOnnx,
-            mode: SpeechRecognitionMode.streaming,
+            runtime: .sherpaOnnx,
+            mode: .streaming,
             artifacts: <SpeechModelArtifact>[
               SpeechModelArtifact(
                 id: 'encoder',
@@ -237,12 +237,13 @@ MobileAiDictationModelStore _customStore(
   ],
 );
 
-final class _QueuedClient extends http.BaseClient {
-  _QueuedClient(Iterable<http.StreamedResponse> responses, this.requests)
-    : _responses = Queue<http.StreamedResponse>.of(responses);
+final class _QueuedClient(
+  Iterable<http.StreamedResponse> responses,
+  final List<http.BaseRequest> requests,
+) extends http.BaseClient {
+  this : _responses = Queue<http.StreamedResponse>.of(responses);
 
   final Queue<http.StreamedResponse> _responses;
-  final List<http.BaseRequest> requests;
 
   @override
   Future<http.StreamedResponse> send(http.BaseRequest request) async {

@@ -2,11 +2,10 @@ import 'package:alera/src/features/ai_dictation/application/ai_dictation_model_t
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-class AiDictationDownloadBootstrap extends ConsumerWidget {
-  const AiDictationDownloadBootstrap({super.key, required this.child});
-
-  final Widget child;
-
+class const AiDictationDownloadBootstrap({
+  super.key,
+  required final Widget child,
+}) extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     ref.watch(

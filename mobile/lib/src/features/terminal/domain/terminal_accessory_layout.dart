@@ -6,24 +6,18 @@ const int terminalAccessoryLayoutVersion = 1;
 
 /// A user-defined quick key: one special key or printable character plus
 /// modifiers, rendered through the shortcut builder.
-class TerminalCustomKey {
-  const TerminalCustomKey({
-    required this.id,
-    required this.key,
-    required this.modifiers,
-  });
-
-  final String id;
-  final String key;
-  final Set<TerminalShortcutModifier> modifiers;
-
+class const TerminalCustomKey({
+  required final String id,
+  required final String key,
+  required final Set<TerminalShortcutModifier> modifiers,
+}) {
   TerminalShortcutBuildResult? build() {
     return buildTerminalShortcutKey(
       TerminalShortcutBinding(key: key, modifiers: modifiers),
     );
   }
 
-  factory TerminalCustomKey.fromJson(Map<String, Object?> json) {
+  factory fromJson(Map<String, Object?> json) {
     return TerminalCustomKey(
       id: json.requiredString('id'),
       key: json.requiredString('key'),
@@ -50,17 +44,11 @@ class TerminalCustomKey {
 /// Persisted ordering, visibility, and custom keys for the accessory bar.
 /// Unknown ids are dropped at load time; built-ins added in newer app
 /// versions merge in next to their canonical neighbors.
-class TerminalAccessoryLayout {
-  const TerminalAccessoryLayout({
-    required this.orderedIds,
-    required this.hiddenIds,
-    required this.customKeys,
-  });
-
-  final List<String> orderedIds;
-  final Set<String> hiddenIds;
-  final List<TerminalCustomKey> customKeys;
-
+class const TerminalAccessoryLayout({
+  required final List<String> orderedIds,
+  required final Set<String> hiddenIds,
+  required final List<TerminalCustomKey> customKeys,
+}) {
   static TerminalAccessoryLayout defaults() {
     return TerminalAccessoryLayout(
       orderedIds: <String>[
@@ -71,7 +59,7 @@ class TerminalAccessoryLayout {
     );
   }
 
-  factory TerminalAccessoryLayout.fromJson(Map<String, Object?> json) {
+  factory fromJson(Map<String, Object?> json) {
     final customKeys = <TerminalCustomKey>[
       for (final item in json.objectList('customKeys'))
         if (item is Map) TerminalCustomKey.fromJson(asJsonMap(item)),

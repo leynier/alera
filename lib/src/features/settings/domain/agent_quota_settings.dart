@@ -28,14 +28,12 @@ extension AgentQuotaProviderIdLabel on AgentQuotaProviderId {
 }
 
 @MappableClass()
-class ClaudeQuotaProfileSettings with ClaudeQuotaProfileSettingsMappable {
-  const ClaudeQuotaProfileSettings({
-    required this.alias,
-    required this.profile,
-    this.showInUsage = true,
-    this.usageDisplayName,
-  });
-
+class const ClaudeQuotaProfileSettings({
+  required this.alias,
+  required this.profile,
+  this.showInUsage = true,
+  this.usageDisplayName,
+}) with ClaudeQuotaProfileSettingsMappable {
   final String alias;
   final String profile;
   final bool showInUsage;
@@ -46,20 +44,18 @@ class ClaudeQuotaProfileSettings with ClaudeQuotaProfileSettingsMappable {
     return configured == null || configured.isEmpty ? alias : configured;
   }
 
-  factory ClaudeQuotaProfileSettings.fromJson(Map<String, Object?> json) =>
+  factory fromJson(Map<String, Object?> json) =>
       ClaudeQuotaProfileSettingsMapper.fromMap(Map<String, dynamic>.from(json));
 }
 
 @MappableClass()
-class AgentQuotaEnvironmentSettings with AgentQuotaEnvironmentSettingsMappable {
-  const AgentQuotaEnvironmentSettings({
-    this.kimiApiKey = 'KIMI_API_KEY',
-    this.zaiApiKey = 'ZAI_API_KEY',
-    this.zaiBaseUrl = 'ZAI_BASE_URL',
-    this.minimaxApiKey = 'MINIMAX_API_KEY',
-    this.minimaxApiHost = 'MINIMAX_API_HOST',
-  });
-
+class const AgentQuotaEnvironmentSettings({
+  this.kimiApiKey = 'KIMI_API_KEY',
+  this.zaiApiKey = 'ZAI_API_KEY',
+  this.zaiBaseUrl = 'ZAI_BASE_URL',
+  this.minimaxApiKey = 'MINIMAX_API_KEY',
+  this.minimaxApiHost = 'MINIMAX_API_HOST',
+}) with AgentQuotaEnvironmentSettingsMappable {
   final String kimiApiKey;
   final String zaiApiKey;
   final String zaiBaseUrl;
@@ -69,24 +65,22 @@ class AgentQuotaEnvironmentSettings with AgentQuotaEnvironmentSettingsMappable {
   static const AgentQuotaEnvironmentSettings defaults =
       AgentQuotaEnvironmentSettings();
 
-  factory AgentQuotaEnvironmentSettings.fromJson(Map<String, Object?> json) =>
+  factory fromJson(Map<String, Object?> json) =>
       AgentQuotaEnvironmentSettingsMapper.fromMap(
         Map<String, dynamic>.from(json),
       );
 }
 
 @MappableClass()
-class AgentQuotaHostSettings with AgentQuotaHostSettingsMappable {
-  const AgentQuotaHostSettings({
-    this.enabledProviders = AgentQuotaProviderId.values,
-    this.claudeDefaultEnabled = true,
-    this.claudeDefaultShowInUsage = true,
-    this.claudeProfiles = const <ClaudeQuotaProfileSettings>[],
-    this.selectedClaudeProfile = 'default',
-    this.environment = AgentQuotaEnvironmentSettings.defaults,
-    this.unpinnedQuotaKeys = const <String>[],
-  });
-
+class const AgentQuotaHostSettings({
+  this.enabledProviders = AgentQuotaProviderId.values,
+  this.claudeDefaultEnabled = true,
+  this.claudeDefaultShowInUsage = true,
+  this.claudeProfiles = const <ClaudeQuotaProfileSettings>[],
+  this.selectedClaudeProfile = 'default',
+  this.environment = AgentQuotaEnvironmentSettings.defaults,
+  this.unpinnedQuotaKeys = const <String>[],
+}) with AgentQuotaHostSettingsMappable {
   final List<AgentQuotaProviderId> enabledProviders;
   final bool claudeDefaultEnabled;
   final bool claudeDefaultShowInUsage;
@@ -122,16 +116,14 @@ class AgentQuotaHostSettings with AgentQuotaHostSettingsMappable {
     );
   }
 
-  factory AgentQuotaHostSettings.fromJson(Map<String, Object?> json) =>
+  factory fromJson(Map<String, Object?> json) =>
       AgentQuotaHostSettingsMapper.fromMap(Map<String, dynamic>.from(json));
 }
 
 @MappableClass()
-class AgentQuotaSettings with AgentQuotaSettingsMappable {
-  const AgentQuotaSettings({
-    this.hosts = const <String, AgentQuotaHostSettings>{},
-  });
-
+class const AgentQuotaSettings({
+  this.hosts = const <String, AgentQuotaHostSettings>{},
+}) with AgentQuotaSettingsMappable {
   final Map<String, AgentQuotaHostSettings> hosts;
 
   static const AgentQuotaSettings defaults = AgentQuotaSettings();
@@ -145,6 +137,6 @@ class AgentQuotaSettings with AgentQuotaSettingsMappable {
     );
   }
 
-  factory AgentQuotaSettings.fromJson(Map<String, Object?> json) =>
+  factory fromJson(Map<String, Object?> json) =>
       AgentQuotaSettingsMapper.fromMap(Map<String, dynamic>.from(json));
 }

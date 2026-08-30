@@ -34,7 +34,7 @@ void main() {
 }
 
 final class _MemoryViewPrefsRepository implements WorkbenchViewPrefsRepository {
-  WorkbenchViewPrefs prefs = WorkbenchViewPrefs.defaults;
+  WorkbenchViewPrefs prefs = .defaults;
 
   @override
   Stream<WorkbenchViewPrefs> get changes =>

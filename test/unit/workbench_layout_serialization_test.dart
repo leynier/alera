@@ -10,7 +10,7 @@ void main() {
             tabIds: const <String>['tab-1'],
           ).splitWithGroup(
             targetGroupId: WorkbenchLayout.defaultGroupId('workspace-1'),
-            zone: WorkbenchDropZone.right,
+            zone: .right,
             newGroup: WorkbenchPaneGroup(
               id: 'group-2',
               tabIds: const <String>['tab-2'],
@@ -69,7 +69,7 @@ void main() {
       expect(
         () => WorkbenchLayout(
           workspaceId: '',
-          root: WorkbenchLayoutNode.leaf('group-a'),
+          root: .leaf('group-a'),
           groups: <String, WorkbenchPaneGroup>{'group-a': group},
           activeGroupId: 'group-a',
         ),
@@ -78,7 +78,7 @@ void main() {
       expect(
         () => WorkbenchLayout(
           workspaceId: 'workspace-1',
-          root: WorkbenchLayoutNode.leaf('group-a'),
+          root: .leaf('group-a'),
           groups: <String, WorkbenchPaneGroup>{'group-a': group},
           activeGroupId: '',
         ),

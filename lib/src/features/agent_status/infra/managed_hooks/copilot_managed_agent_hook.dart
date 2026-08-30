@@ -6,14 +6,14 @@ extension _CopilotManagedAgentHook on ManagedAgentHookInstallService {
     required String scriptPath,
   }) {
     return _AgentHookDescriptor(
-      agentType: AgentType.copilot,
+      agentType: .copilot,
       configPath: p.join(_copilotHome(), 'hooks', 'alera.json'),
       configLabel: 'Copilot hooks/alera.json',
       scriptFileName: scriptFileName,
       scriptPath: scriptPath,
       eventEnvVar: 'ALERA_COPILOT_HOOK_EVENT',
-      configShape: _AgentHookConfigShape.hooks,
-      definitionShape: _ManagedHookDefinitionShape.directCommand,
+      configShape: .hooks,
+      definitionShape: .directCommand,
       events: const <_ManagedHookEvent>[
         _ManagedHookEvent('SessionStart'),
         _ManagedHookEvent('SessionEnd'),

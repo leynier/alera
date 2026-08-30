@@ -13,20 +13,18 @@ abstract final class TerminalThemeNames {
   static const String ayuDark = 'Ayu Dark';
 }
 
-class TerminalThemeEntry {
-  const TerminalThemeEntry({required this.name, required this.theme});
-
-  final String name;
-  final xterm.TerminalTheme theme;
-}
+class const TerminalThemeEntry({
+  required final String name,
+  required final xterm.TerminalTheme theme,
+});
 
 final List<TerminalThemeEntry> terminalThemeCatalog =
-    List<TerminalThemeEntry>.unmodifiable(<TerminalThemeEntry>[
+    List<TerminalThemeEntry>.unmodifiableOf(<TerminalThemeEntry>[
       ...terminalThemeBasePalette,
       ...terminalThemeExtendedPalette,
     ]);
 
-final List<String> terminalThemeNames = List<String>.unmodifiable(
+final List<String> terminalThemeNames = List<String>.unmodifiableOf(
   terminalThemeCatalog.map((entry) => entry.name),
 );
 
@@ -55,34 +53,22 @@ String? terminalThemeNameFromLegacyPreset(Object? value) {
   };
 }
 
-class _AnsiColor {
-  const _AnsiColor(this.normal, [int? bright]) : bright = bright ?? normal;
+class const _AnsiColor(final int normal, [int? bright]) {
+  this : bright = bright ?? normal;
 
-  final int normal;
   final int bright;
 }
 
-class _AnsiPalette {
-  const _AnsiPalette({
-    required this.black,
-    required this.red,
-    required this.green,
-    required this.yellow,
-    required this.blue,
-    required this.magenta,
-    required this.cyan,
-    required this.white,
-  });
-
-  final _AnsiColor black;
-  final _AnsiColor red;
-  final _AnsiColor green;
-  final _AnsiColor yellow;
-  final _AnsiColor blue;
-  final _AnsiColor magenta;
-  final _AnsiColor cyan;
-  final _AnsiColor white;
-}
+class const _AnsiPalette({
+  required final _AnsiColor black,
+  required final _AnsiColor red,
+  required final _AnsiColor green,
+  required final _AnsiColor yellow,
+  required final _AnsiColor blue,
+  required final _AnsiColor magenta,
+  required final _AnsiColor cyan,
+  required final _AnsiColor white,
+});
 
 const _AnsiPalette _solarizedAnsiPalette = _AnsiPalette(
   black: _AnsiColor(0x073642, 0x002B36),

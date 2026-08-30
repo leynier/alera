@@ -83,20 +83,16 @@ void main() {
       expect(loopbackVerifier, contains("contains('[::1]:\$port')"));
       expect(loopbackVerifier, contains('InternetAddress.loopbackIPv4'));
       expect(loopbackVerifier, contains('_discoverLanAddresses()'));
-      final notice = File(
-        'third_party/native_helpers/NOTICE.md',
-      ).readAsStringSync();
+      final notice = File('third_party/native_helpers/NOTICE.md')
+          .readAsStringSync();
       expect(notice, contains('derived from the source revision'));
       expect(notice, contains('IPv6 loopback'));
       expect(notice, contains('Swifter'));
 
-      final rawManifest =
-          jsonDecode(
-                File(
-                  'tool/native_helpers/native_helper_assets.json',
-                ).readAsStringSync(),
-              )
-              as Map<String, Object?>;
+      final rawManifest = jsonDecode(
+        File('tool/native_helpers/native_helper_assets.json')
+            .readAsStringSync(),
+      ) as Map<String, Object?>;
       final rawServeSim = (rawManifest['assets']! as List<Object?>)
           .cast<Map<String, Object?>>()
           .singleWhere((asset) => asset['id'] == 'serve-sim');
@@ -143,19 +139,15 @@ void main() {
         ..createSync(recursive: true);
       final notices = Directory(p.join(repository.path, 'notices', 'licenses'))
         ..createSync(recursive: true);
-      File(
-        p.join(repository.path, 'notices', 'NOTICE.md'),
-      ).writeAsStringSync('Test notices.\n');
-      File(
-        p.join(notices.path, 'Apache-2.0.txt'),
-      ).writeAsStringSync('Test license.\n');
+      File(p.join(repository.path, 'notices', 'NOTICE.md'))
+          .writeAsStringSync('Test notices.\n');
+      File(p.join(notices.path, 'Apache-2.0.txt'))
+          .writeAsStringSync('Test license.\n');
 
       final directPayload = utf8.encode('scrcpy payload');
       final archivedPayload = utf8.encode('serve-sim payload');
       final archive = Archive()
-        ..addFile(
-          ArchiveFile.bytes('package/bin/serve-sim-bin', archivedPayload),
-        );
+        ..addFile(.bytes('package/bin/serve-sim-bin', archivedPayload));
       final archiveSource = const GZipEncoder().encodeBytes(
         TarEncoder().encodeBytes(archive),
       );
@@ -215,9 +207,8 @@ void main() {
       );
       expect(downloads, 2);
       expect(
-        File(
-          p.join(output.path, 'android', 'scrcpy', '4.0', 'scrcpy-server'),
-        ).readAsBytesSync(),
+        File(p.join(output.path, 'android', 'scrcpy', '4.0', 'scrcpy-server'))
+            .readAsBytesSync(),
         directPayload,
       );
       final serveSim = File(
@@ -278,13 +269,10 @@ void main() {
 
   group('video runtime packaging', () {
     test('pins non-GPL media runtimes and platform build dependencies', () {
-      final manifest =
-          jsonDecode(
-                File(
-                  'tool/native_helpers/video_runtime_assets.json',
-                ).readAsStringSync(),
-              )
-              as Map<String, Object?>;
+      final manifest = jsonDecode(
+        File('tool/native_helpers/video_runtime_assets.json')
+            .readAsStringSync(),
+      ) as Map<String, Object?>;
       final macos = manifest['macos']! as Map<String, Object?>;
       final windows = manifest['windows']! as Map<String, Object?>;
 
@@ -309,14 +297,12 @@ void main() {
         linuxCmake,
         contains('set(MIMALLOC_USE_STATIC_LIBS OFF CACHE BOOL'),
       );
-      final setup = File(
-        '.github/actions/setup-flutter-workspace/action.yml',
-      ).readAsStringSync();
+      final setup = File('.github/actions/setup-flutter-workspace/action.yml')
+          .readAsStringSync();
       expect(setup, contains('libepoxy-dev libmpv-dev'));
       expect(setup, contains('libvulkan-dev glslc'));
-      final linuxPackage = File(
-        'tool/release/package_linux.sh',
-      ).readAsStringSync();
+      final linuxPackage = File('tool/release/package_linux.sh')
+          .readAsStringSync();
       expect(linuxPackage, contains('libmpv2'));
       expect(linuxPackage, contains('mpv-libs'));
       expect(linuxPackage, contains('libvulkan1'));
@@ -380,9 +366,8 @@ void main() {
     () {
       final linux = File('linux/CMakeLists.txt').readAsStringSync();
       final windows = File('windows/CMakeLists.txt').readAsStringSync();
-      final macos = File(
-        'macos/Runner.xcodeproj/project.pbxproj',
-      ).readAsStringSync();
+      final macos = File('macos/Runner.xcodeproj/project.pbxproj')
+          .readAsStringSync();
       for (final buildFile in <String>[linux, windows]) {
         expect(
           buildFile,
@@ -404,15 +389,12 @@ void main() {
       );
       expect(macos, contains(r'$OUTPUT_DIR/emulator'));
 
-      final desktopBuild = File(
-        '.github/workflows/desktop-build.yml',
-      ).readAsStringSync();
-      final release = File(
-        '.github/workflows/release-cut.yml',
-      ).readAsStringSync();
-      final runtimePackager = File(
-        'tool/release/package_runtime_sidecars.dart',
-      ).readAsStringSync();
+      final desktopBuild = File('.github/workflows/desktop-build.yml')
+          .readAsStringSync();
+      final release = File('.github/workflows/release-cut.yml')
+          .readAsStringSync();
+      final runtimePackager = File('tool/release/package_runtime_sidecars.dart')
+          .readAsStringSync();
       expect(desktopBuild, contains('verify_desktop_runtime_bundle.dart'));
       expect(release, contains('verify_desktop_runtime_bundle.dart'));
       expect(
@@ -428,9 +410,8 @@ void main() {
         contains("'emulatorHelpers': 'emulator/manifest.json'"),
       );
 
-      final macosSigning = File(
-        'tool/release/sign_macos.sh',
-      ).readAsStringSync();
+      final macosSigning = File('tool/release/sign_macos.sh')
+          .readAsStringSync();
       expect(macosSigning, contains('-name "*.framework"'));
       expect(macosSigning, isNot(contains('codesign --force --deep')));
       expect(macosSigning, contains('codesign --verify --strict --deep'));
@@ -440,9 +421,8 @@ void main() {
   test(
     'canonical local CLI builds stage native helpers beside the sidecar',
     () {
-      final debugContext = File(
-        'tool/debug/alera_debug_context.dart',
-      ).readAsStringSync();
+      final debugContext = File('tool/debug/alera_debug_context.dart')
+          .readAsStringSync();
 
       expect(
         debugContext,

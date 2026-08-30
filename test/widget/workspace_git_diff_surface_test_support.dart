@@ -13,7 +13,7 @@ Future<void> _pumpDiffSurface(
       overrides: [
         gitBackendProvider.overrideWithValue(backend),
         if (settingsController == null)
-          settingsControllerProvider.overrideWithValue(AleraSettings.defaults)
+          settingsControllerProvider.overrideWithValue(.defaults)
         else
           settingsControllerProvider.overrideWith(() => settingsController),
         if (readingDiffService != null)
@@ -37,11 +37,8 @@ Future<void> _pumpDiffSurface(
   );
 }
 
-class _MutableSettingsController extends SettingsController {
-  _MutableSettingsController(this._settings);
-
-  final AleraSettings _settings;
-
+class _MutableSettingsController(final AleraSettings _settings)
+    extends SettingsController {
   @override
   AleraSettings build() => _settings;
 
@@ -67,8 +64,8 @@ Workspace _workspace() {
     path: '/tmp/project',
     createdAt: now,
     updatedAt: now,
-    kind: WorkspaceKind.main,
-    status: WorkspaceStatus.active,
+    kind: .main,
+    status: .active,
   );
 }
 
@@ -111,7 +108,7 @@ WorkspaceTabRecord _diffTab({
   return WorkspaceTabRecord(
     id: 'tab-1',
     workspaceId: 'workspace-1',
-    kind: WorkspaceTabKind.gitDiff,
+    kind: .gitDiff,
     title: title,
     createdAt: now,
     updatedAt: now,
@@ -137,7 +134,7 @@ class _GitDiffSurfaceTestController extends WorkbenchController {
     return WorkspaceTabRecord(
       id: 'editor-${openedRelativePaths.length}',
       workspaceId: workspace.id,
-      kind: WorkspaceTabKind.editor,
+      kind: .editor,
       title: relativePath.split('/').last,
       createdAt: now,
       updatedAt: now,

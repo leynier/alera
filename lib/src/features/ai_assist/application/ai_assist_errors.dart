@@ -1,12 +1,8 @@
-class AiAssistException implements Exception {
-  const AiAssistException(this.message);
-
-  final String message;
-
+class const AiAssistException(final String message) implements Exception {
   @override
   String toString() => message;
 }
 
-class AiAssistCanceledException extends AiAssistException {
-  const AiAssistCanceledException() : super('Generation canceled.');
+class const AiAssistCanceledException() extends AiAssistException {
+  this : super('Generation canceled.');
 }

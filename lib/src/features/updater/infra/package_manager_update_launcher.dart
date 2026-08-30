@@ -15,22 +15,21 @@ typedef PackageManagerUpgradeDirectory = Future<Directory> Function();
 /// Starts the helper, waits until it writes its handoff file, and only then
 /// closes the app. Exiting before the helper is ready would leave nothing
 /// running to perform the upgrade.
-class PackageManagerUpdateLauncher {
-  PackageManagerUpdateLauncher({
-    required this.processRunner,
-    int? processId,
-    AleraAppExit? exitApp,
-    PackageManagerUpgradeDirectory? upgradeDirectory,
-    this.handoffTimeout = const Duration(seconds: 30),
-  }) : _processId = processId ?? pid,
-       _exitApp = exitApp ?? _exitCurrentApp,
-       _upgradeDirectory = upgradeDirectory ?? _defaultUpgradeDirectory;
+class PackageManagerUpdateLauncher({
+  required final ProcessRunner processRunner,
+  int? processId,
+  AleraAppExit? exitApp,
+  PackageManagerUpgradeDirectory? upgradeDirectory,
+  final Duration handoffTimeout = const Duration(seconds: 30),
+}) {
+  this
+    : _processId = processId ?? pid,
+      _exitApp = exitApp ?? _exitCurrentApp,
+      _upgradeDirectory = upgradeDirectory ?? _defaultUpgradeDirectory;
 
-  final ProcessRunner processRunner;
   final int _processId;
   final AleraAppExit _exitApp;
   final PackageManagerUpgradeDirectory _upgradeDirectory;
-  final Duration handoffTimeout;
 
   /// The log the helper writes, so a failed upgrade is readable on next launch
   /// instead of vanishing with the process that produced it.
@@ -92,7 +91,7 @@ class PackageManagerUpdateLauncher {
               'The upgrade helper exited before it was ready.',
         );
       }
-      await Future<void>.delayed(const Duration(milliseconds: 50));
+      await Future.pause(const Duration(milliseconds: 50));
     }
     child.kill();
     throw TimeoutException(

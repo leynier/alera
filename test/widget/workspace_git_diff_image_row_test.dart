@@ -29,8 +29,8 @@ void main() {
         files: <GitDiffFile>[
           GitDiffFile(
             path: 'assets/logo.png',
-            area: GitChangeArea.unstaged,
-            status: GitChangeStatus.modified,
+            area: .unstaged,
+            status: .modified,
             lines: <GitDiffLine>[],
             isBinary: true,
           ),
@@ -75,8 +75,8 @@ void main() {
         files: <GitDiffFile>[
           GitDiffFile(
             path: 'assets/new.png',
-            area: GitChangeArea.untracked,
-            status: GitChangeStatus.untracked,
+            area: .untracked,
+            status: .untracked,
             lines: <GitDiffLine>[],
             isBinary: true,
           ),
@@ -89,7 +89,7 @@ void main() {
       tester,
       backend: backend,
       filePath: 'assets/new.png',
-      area: GitChangeArea.untracked,
+      area: .untracked,
     );
     await tester.pumpAndSettle();
 
@@ -105,8 +105,8 @@ void main() {
         files: <GitDiffFile>[
           GitDiffFile(
             path: 'assets/gone.png',
-            area: GitChangeArea.staged,
-            status: GitChangeStatus.deleted,
+            area: .staged,
+            status: .deleted,
             lines: <GitDiffLine>[],
             isBinary: true,
           ),
@@ -119,7 +119,7 @@ void main() {
       tester,
       backend: backend,
       filePath: 'assets/gone.png',
-      area: GitChangeArea.staged,
+      area: .staged,
     );
     await tester.pumpAndSettle();
 
@@ -133,8 +133,8 @@ void main() {
         files: <GitDiffFile>[
           GitDiffFile(
             path: 'assets/blob.bin',
-            area: GitChangeArea.unstaged,
-            status: GitChangeStatus.modified,
+            area: .unstaged,
+            status: .modified,
             lines: <GitDiffLine>[],
             isBinary: true,
           ),
@@ -163,8 +163,8 @@ void main() {
         files: <GitDiffFile>[
           GitDiffFile(
             path: 'assets/logo.png',
-            area: GitChangeArea.staged,
-            status: GitChangeStatus.modified,
+            area: .staged,
+            status: .modified,
             lines: <GitDiffLine>[],
             isBinary: true,
           ),
@@ -179,7 +179,7 @@ void main() {
       tester,
       backend: backend,
       filePath: 'assets/logo.png',
-      source: WorkspaceGitDiffSource.commit,
+      source: .commit,
       commitOid: 'abc123',
       parentOid: 'def456',
     );
@@ -241,8 +241,8 @@ Workspace _workspace() {
     path: '/tmp/project',
     createdAt: now,
     updatedAt: now,
-    kind: WorkspaceKind.main,
-    status: WorkspaceStatus.active,
+    kind: .main,
+    status: .active,
   );
 }
 
@@ -271,7 +271,7 @@ WorkspaceTabRecord _diffTab({
   return WorkspaceTabRecord(
     id: 'tab-1',
     workspaceId: 'workspace-1',
-    kind: WorkspaceTabKind.gitDiff,
+    kind: .gitDiff,
     title: 'diff',
     payload: payload,
     createdAt: now,

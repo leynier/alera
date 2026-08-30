@@ -55,7 +55,7 @@ void _registerSettingsDialogEditorTests() {
       ),
       '2',
     );
-    await tester.testTextInput.receiveAction(TextInputAction.done);
+    await tester.testTextInput.receiveAction(.done);
     await tester.pump(const Duration(milliseconds: 50));
 
     expect(container.read(settingsControllerProvider).editor.tabSize, 2);

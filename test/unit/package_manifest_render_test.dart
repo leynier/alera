@@ -74,9 +74,9 @@ void main() {
         ),
       );
 
-      final scoop =
-          jsonDecode(rendered['scoop/bucket/alera.json']!)
-              as Map<String, dynamic>;
+      final scoop = jsonDecode(
+        rendered['scoop/bucket/alera.json']!,
+      ) as Map<String, dynamic>;
       expect(scoop['version'], '1.2.3');
       final scoop64 =
           (scoop['architecture'] as Map<String, dynamic>)['64bit']
@@ -99,9 +99,8 @@ void main() {
     // The packages download straight from the GitHub release, so a rename in
     // the workflow has to fail here rather than turn every install into a 404.
     test('points at the exact assets the release workflow uploads', () {
-      final workflow = File(
-        '.github/workflows/release-cut.yml',
-      ).readAsStringSync();
+      final workflow = File('.github/workflows/release-cut.yml')
+          .readAsStringSync();
 
       expect(
         workflow,
@@ -123,9 +122,9 @@ void main() {
               .replaceFirst('1.2.3', r'#{version}'),
         ),
       );
-      final scoop =
-          jsonDecode(rendered['scoop/bucket/alera.json']!)
-              as Map<String, dynamic>;
+      final scoop = jsonDecode(
+        rendered['scoop/bucket/alera.json']!,
+      ) as Map<String, dynamic>;
       final scoop64 =
           (scoop['architecture'] as Map<String, dynamic>)['64bit']
               as Map<String, dynamic>;
@@ -141,9 +140,8 @@ void main() {
     });
 
     test('publishes the windows updater through the schema 3 manifest', () {
-      final workflow = File(
-        '.github/workflows/release-cut.yml',
-      ).readAsStringSync();
+      final workflow = File('.github/workflows/release-cut.yml')
+          .readAsStringSync();
 
       expect(workflow, contains('dart run desktop_updater:release publish'));
       expect(workflow, contains(r'pages/updates/$CHANNEL/app-archive.json'));
@@ -168,9 +166,9 @@ void main() {
         rendered['homebrew/Casks/alera.rb'],
         isNot(contains('depends_on macos: ">=')),
       );
-      final scoop =
-          jsonDecode(rendered['scoop/bucket/alera.json']!)
-              as Map<String, dynamic>;
+      final scoop = jsonDecode(
+        rendered['scoop/bucket/alera.json']!,
+      ) as Map<String, dynamic>;
       expect((scoop['architecture'] as Map<String, dynamic>).keys, <String>[
         '64bit',
       ]);

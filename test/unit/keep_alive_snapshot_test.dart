@@ -3,6 +3,35 @@ import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   group('KeepAliveSnapshot', () {
+    test('runtime snapshots preserve independent lock states and errors', () {
+      final create = KeepAliveSnapshot.new;
+      final snapshot = create(
+        active: true,
+        system: false,
+        display: true,
+        error: 'partial lock',
+      );
+
+      expect(snapshot.active, isTrue);
+      expect(snapshot.system, isFalse);
+      expect(snapshot.display, isTrue);
+      expect(snapshot.error, 'partial lock');
+      expect(snapshot.hasError, isTrue);
+    });
+
+    test('runtime active snapshots do not reuse the canonical constant', () {
+      final create = KeepAliveSnapshot.active;
+      final first = create();
+      final second = create();
+      const canonical = KeepAliveSnapshot.active();
+
+      expect(first.active && first.system && first.display, isTrue);
+      expect(first.hasError, isFalse);
+      expect(identical(first, second), isFalse);
+      expect(identical(first, canonical), isFalse);
+      expect(identical(canonical, const KeepAliveSnapshot.active()), isTrue);
+    });
+
     test('active snapshot reports system and display locks', () {
       const snapshot = KeepAliveSnapshot.active();
 

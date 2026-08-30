@@ -14,21 +14,14 @@ import 'package:alera/src/features/text_actions/presentation/text_action_list_ro
 import 'package:flutter/material.dart';
 import 'package:uuid/uuid.dart';
 
-class TextActionsSettingsPane extends StatefulWidget {
-  const TextActionsSettingsPane({
-    super.key,
-    required this.settings,
-    required this.aiAssistSettings,
-    required this.onChanged,
-    this.groupKeys = const <String, GlobalKey>{},
-  });
-
-  final TextActionsSettings settings;
-  final AiAssistSettings aiAssistSettings;
-  final ValueChanged<TextActionsSettings Function(TextActionsSettings)>
-  onChanged;
-  final Map<String, GlobalKey> groupKeys;
-
+class const TextActionsSettingsPane({
+  super.key,
+  required final TextActionsSettings settings,
+  required final AiAssistSettings aiAssistSettings,
+  required final ValueChanged<TextActionsSettings Function(TextActionsSettings)>
+  onChanged,
+  final Map<String, GlobalKey> groupKeys = const <String, GlobalKey>{},
+}) extends StatefulWidget {
   @override
   State<TextActionsSettingsPane> createState() =>
       _TextActionsSettingsPaneState();

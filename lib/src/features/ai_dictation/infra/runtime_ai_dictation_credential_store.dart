@@ -1,16 +1,10 @@
 import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_protocol.dart';
 
-class AiDictationCredentialStatus {
-  const AiDictationCredentialStatus({
-    required this.supported,
-    required this.configured,
-    required this.matchesBaseUrl,
-  });
-
-  final bool supported;
-  final bool configured;
-  final bool matchesBaseUrl;
-}
+class const AiDictationCredentialStatus({
+  required final bool supported,
+  required final bool configured,
+  required final bool matchesBaseUrl,
+});
 
 abstract interface class AiDictationCredentialStore {
   Future<AiDictationCredentialStatus> status(String? baseUrl);
@@ -20,11 +14,8 @@ abstract interface class AiDictationCredentialStore {
   Future<void> clearToken();
 }
 
-class RuntimeAiDictationCredentialStore implements AiDictationCredentialStore {
-  RuntimeAiDictationCredentialStore(this._client);
-
-  final RuntimeHostClient _client;
-
+class RuntimeAiDictationCredentialStore(final RuntimeHostClient _client)
+    implements AiDictationCredentialStore {
   @override
   Future<AiDictationCredentialStatus> status(String? baseUrl) async {
     if (_client case final RuntimeHostCapabilityClient capabilities) {

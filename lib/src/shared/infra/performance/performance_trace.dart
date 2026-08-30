@@ -5,9 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/widgets.dart';
 
-const bool kAleraPerformanceTraceEnabled = bool.fromEnvironment(
-  'ALERA_PERF_TRACE',
-);
+const bool kAleraPerformanceTraceEnabled = .fromEnvironment('ALERA_PERF_TRACE');
 
 abstract final class AleraPerformanceTrace {
   static final Stopwatch _startupStopwatch = Stopwatch();

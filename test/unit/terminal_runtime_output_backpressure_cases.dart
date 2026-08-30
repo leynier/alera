@@ -106,7 +106,7 @@ void _registerTerminalRuntimeOutputBackpressureTests() {
       queueTerminalOutputForTesting(session, 'second\r\n');
       expect(terminalOutputFlushDeferredForTesting(session), isTrue);
 
-      await Future<void>.delayed(terminalOutputMinFlushIntervalForTesting * 2);
+      await Future.pause(terminalOutputMinFlushIntervalForTesting * 2);
 
       expect(terminalOutputFlushDeferredForTesting(session), isFalse);
       expect(terminalOutputFlushScheduledForTesting(session), isTrue);
@@ -130,7 +130,7 @@ void _registerTerminalRuntimeOutputBackpressureTests() {
     expect(terminalOutputFlushDeferredForTesting(session), isTrue);
 
     visibility.dispose();
-    await Future<void>.delayed(terminalOutputMinFlushIntervalForTesting * 2);
+    await Future.pause(terminalOutputMinFlushIntervalForTesting * 2);
 
     // The backlog is kept, but a hidden terminal must not pay frame time for
     // it; it drains when it becomes visible again.

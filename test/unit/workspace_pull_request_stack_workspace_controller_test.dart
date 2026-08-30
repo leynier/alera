@@ -10,7 +10,6 @@ import 'package:alera/src/features/pull_requests/domain/hosted_review_stack.dart
 import 'package:alera/src/features/pull_requests/domain/review_merge_method.dart';
 import 'package:alera/src/features/pull_requests/domain/review_stack_workspace_models.dart';
 import 'package:alera/src/features/pull_requests/domain/workspace_pull_request_scope.dart';
-import 'package:alera/src/shared/git_hosting/domain/git_hosting_provider.dart';
 import 'package:alera/src/shared/git_hosting/domain/git_remote_identity.dart';
 import 'package:alera/src/shared/infra/git/git_providers.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -37,10 +36,10 @@ HostedReview _review(
   required String baseBranch,
 }) {
   return HostedReview(
-    provider: GitHostingProvider.github,
+    provider: .github,
     number: number,
     title: 'feat: layer $number',
-    state: HostedReviewState.open,
+    state: .open,
     url: 'https://github.com/leynier/alera/pull/$number',
     headBranch: branch,
     baseBranch: baseBranch,
@@ -329,7 +328,7 @@ void main() {
         ..branchReviews['feature/three'] = null
         ..createResults.add(
           const CreateReviewFailure(
-            code: CreateReviewErrorCode.blocked,
+            code: .blocked,
             message: 'permission denied',
           ),
         );

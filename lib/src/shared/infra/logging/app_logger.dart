@@ -17,9 +17,7 @@ const String kAppLogBaseName = 'alera';
 /// Logs go to a rotated file as well as stdout: a packaged desktop build has no
 /// console attached, so stdout alone means an error that happens on a user's
 /// machine leaves nothing behind to review.
-abstract final class AppLogger {
-  AppLogger._();
-
+abstract final class AppLogger._() {
   static bool _configured = false;
   static RotatingLogSink? _sink;
   static io.Directory? _directory;

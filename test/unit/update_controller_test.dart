@@ -35,7 +35,7 @@ void main() {
         config: AleraUpdateConfig(
           archiveUrl: _archiveUrl,
           releasePageUrl: _releasePageUrl,
-          channel: AleraUpdateChannel.stable,
+          channel: .stable,
           autoInstallEnabled: false,
           signedRelease: false,
         ),
@@ -61,7 +61,7 @@ void main() {
         config: AleraUpdateConfig(
           archiveUrl: _archiveUrl,
           releasePageUrl: _releasePageUrl,
-          channel: AleraUpdateChannel.rc,
+          channel: .rc,
           autoInstallEnabled: true,
           signedRelease: false,
         ),
@@ -161,7 +161,7 @@ void main() {
           config: AleraUpdateConfig(
             archiveUrl: _archiveUrl,
             releasePageUrl: _releasePageUrl,
-            channel: AleraUpdateChannel.rc,
+            channel: .rc,
             autoInstallEnabled: true,
             signedRelease: false,
           ),
@@ -196,7 +196,7 @@ void main() {
         config: AleraUpdateConfig(
           archiveUrl: _archiveUrl,
           releasePageUrl: _releasePageUrl,
-          channel: AleraUpdateChannel.rc,
+          channel: .rc,
           autoInstallEnabled: true,
           signedRelease: false,
         ),
@@ -230,7 +230,7 @@ void main() {
         config: AleraUpdateConfig(
           archiveUrl: _archiveUrl,
           releasePageUrl: _releasePageUrl,
-          channel: AleraUpdateChannel.rc,
+          channel: .rc,
           autoInstallEnabled: true,
           signedRelease: false,
         ),
@@ -264,13 +264,13 @@ void main() {
           config: AleraUpdateConfig(
             archiveUrl: _archiveUrl,
             releasePageUrl: _releasePageUrl,
-            channel: AleraUpdateChannel.stable,
+            channel: .stable,
             autoInstallEnabled: true,
             signedRelease: false,
           ),
           result: AleraUpdateCheckResult(latest: _update),
           packageInstall: const PackageManagerInstall(
-            method: PackageInstallMethod.homebrewCask,
+            method: .homebrewCask,
             managerExecutable: '/opt/homebrew/bin/brew',
             relaunchExecutable: '/usr/bin/open',
           ),
@@ -298,7 +298,7 @@ void main() {
       final service = _FakeUpdateService(
         result: AleraUpdateCheckResult(latest: _update),
         packageInstall: const PackageManagerInstall(
-          method: PackageInstallMethod.scoop,
+          method: .scoop,
           managerExecutable: r'C:\scoop\shims\scoop.cmd',
           relaunchExecutable: r'C:\scoop\apps\alera\current\Alera.exe',
         ),
@@ -323,9 +323,7 @@ void main() {
     test('never runs the upgrade for a Chocolatey install', () async {
       final service = _FakeUpdateService(
         result: AleraUpdateCheckResult(latest: _update),
-        packageInstall: const PackageManagerInstall(
-          method: PackageInstallMethod.chocolatey,
-        ),
+        packageInstall: const PackageManagerInstall(method: .chocolatey),
       );
       final container = ProviderContainer(
         overrides: [aleraUpdateServiceProvider.overrideWithValue(service)],
@@ -391,37 +389,32 @@ void main() {
   });
 }
 
-class _FakeUpdateService implements AleraUpdateService {
-  _FakeUpdateService({
-    this.result = const AleraUpdateCheckResult(),
-    AleraUpdateConfig? config,
-    this.checkError,
-    this.installError,
-    this.restartError,
-    this.packageInstall = PackageManagerInstall.unmanaged,
-    this.packageUpgradeError,
-  }) : config =
-           config ??
-           AleraUpdateConfig(
-             archiveUrl: _archiveUrl,
-             releasePageUrl: _releasePageUrl,
-             channel: AleraUpdateChannel.stable,
-             autoInstallEnabled: false,
-             signedRelease: false,
-           );
+class _FakeUpdateService({
+  final AleraUpdateCheckResult result = const AleraUpdateCheckResult(),
+  AleraUpdateConfig? config,
+  final Object? checkError,
+  final Object? installError,
+  final Object? restartError,
+  this.packageInstall = PackageManagerInstall.unmanaged,
+  final Object? packageUpgradeError,
+}) implements AleraUpdateService {
+  this
+    : config =
+          config ??
+          AleraUpdateConfig(
+            archiveUrl: _archiveUrl,
+            releasePageUrl: _releasePageUrl,
+            channel: .stable,
+            autoInstallEnabled: false,
+            signedRelease: false,
+          );
 
   @override
   final AleraUpdateConfig config;
 
-  final AleraUpdateCheckResult result;
-  final Object? checkError;
-  final Object? installError;
-  final Object? restartError;
-
   @override
   final PackageManagerInstall packageInstall;
 
-  final Object? packageUpgradeError;
   AleraUpdateInfo? openedUpdate;
   AleraUpdateInfo? installedUpdate;
   int restartCalls = 0;

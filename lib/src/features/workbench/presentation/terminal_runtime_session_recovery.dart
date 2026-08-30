@@ -58,7 +58,7 @@ Future<void> _reconnectTerminalSession(
   }
   await _recoverTerminalSession(
     handle,
-    operation: TerminalSessionOperation.reconnecting,
+    operation: .reconnecting,
     recover: session.reconnect,
   );
 }
@@ -68,7 +68,7 @@ Future<void> _restartTerminalSession(_XtermTerminalSessionHandle handle) async {
   if (session is RecoverableTerminalPtySession && session.supportsRestart) {
     await _recoverTerminalSession(
       handle,
-      operation: TerminalSessionOperation.restarting,
+      operation: .restarting,
       clearExitedGeneration: true,
       recover: () async {
         await session.restartProcess();

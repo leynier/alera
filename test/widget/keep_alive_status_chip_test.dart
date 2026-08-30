@@ -1,8 +1,6 @@
 import 'package:alera/src/app/theme/alera_dark_theme.dart';
 import 'package:alera/src/app/theme/alera_tokens.dart';
-import 'package:alera/src/features/keep_alive/domain/keep_alive_snapshot.dart';
 import 'package:alera/src/features/keep_alive/presentation/keep_alive_status_chip.dart';
-import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -14,7 +12,7 @@ void main() {
     await tester.pumpWidget(
       _wrap(
         const KeepAliveStatusChip(
-          snapshot: KeepAliveSnapshot.inactive(),
+          snapshot: .inactive(),
           enabled: false,
           onPressed: _noop,
         ),
@@ -24,9 +22,9 @@ void main() {
     expect(find.text('Keep Alive'), findsOneWidget);
     expect(_labelColor(tester), AleraTokens.foregroundMuted);
 
-    final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+    final mouse = await tester.createGesture(kind: .mouse);
     addTearDown(mouse.removePointer);
-    await mouse.addPointer(location: Offset.zero);
+    await mouse.addPointer(location: .zero);
     await mouse.moveTo(tester.getCenter(find.byType(KeepAliveStatusChip)));
     await tester.pumpAndSettle();
 
@@ -42,7 +40,7 @@ void main() {
     await tester.pumpWidget(
       _wrap(
         const KeepAliveStatusChip(
-          snapshot: KeepAliveSnapshot.active(),
+          snapshot: .active(),
           enabled: true,
           onPressed: _noop,
         ),
@@ -58,7 +56,7 @@ void main() {
     await tester.pumpWidget(
       _wrap(
         const KeepAliveStatusChip(
-          snapshot: KeepAliveSnapshot.inactive(error: 'not supported'),
+          snapshot: .inactive(error: 'not supported'),
           enabled: false,
           onPressed: _noop,
         ),
@@ -73,7 +71,7 @@ void main() {
     await tester.pumpWidget(
       _wrap(
         KeepAliveStatusChip(
-          snapshot: const KeepAliveSnapshot.inactive(),
+          snapshot: const .inactive(),
           enabled: false,
           onPressed: () => taps++,
         ),

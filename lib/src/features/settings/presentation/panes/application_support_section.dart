@@ -8,11 +8,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 const double kSupportControlHeight = 34;
 
-class SupportAleraSection extends ConsumerWidget {
-  const SupportAleraSection({super.key, required this.state});
-
-  final GitHubStarState state;
-
+class const SupportAleraSection({
+  super.key,
+  required final GitHubStarState state,
+}) extends ConsumerWidget {
   Future<void> _starFromSettings(WidgetRef ref) async {
     await ref.read(gitHubStarControllerProvider.notifier).star();
     if (ref.read(gitHubStarControllerProvider) != GitHubStarState.starred) {
@@ -25,7 +24,7 @@ class SupportAleraSection extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+      crossAxisAlignment: .stretch,
       children: <Widget>[
         Padding(
           padding: const EdgeInsets.only(
@@ -36,7 +35,7 @@ class SupportAleraSection extends ConsumerWidget {
             'Support Alera',
             style: theme.textTheme.titleSmall?.copyWith(
               color: AleraTokens.foreground,
-              fontWeight: FontWeight.w600,
+              fontWeight: .w600,
             ),
           ),
         ),
@@ -57,12 +56,10 @@ class SupportAleraSection extends ConsumerWidget {
   }
 }
 
-class _StarControl extends StatelessWidget {
-  const _StarControl({required this.state, required this.onStar});
-
-  final GitHubStarState state;
-  final VoidCallback onStar;
-
+class const _StarControl({
+  required final GitHubStarState state,
+  required final VoidCallback onStar,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Align(
@@ -75,7 +72,7 @@ class _StarControl extends StatelessWidget {
             child: SlideTransition(
               position: Tween<Offset>(
                 begin: const Offset(0.05, 0),
-                end: Offset.zero,
+                end: .zero,
               ).animate(animation),
               child: child,
             ),
@@ -124,18 +121,12 @@ Widget buildStarControlForTesting({
   return _StarControl(state: state, onStar: onStar);
 }
 
-class _StarButton extends StatelessWidget {
-  const _StarButton({
-    super.key,
-    required this.label,
-    this.onPressed,
-    this.busy = false,
-  });
-
-  final String label;
-  final VoidCallback? onPressed;
-  final bool busy;
-
+class const _StarButton({
+  super.key,
+  required final String label,
+  final VoidCallback? onPressed,
+  final bool busy = false,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
@@ -158,9 +149,7 @@ class _StarButton extends StatelessWidget {
   }
 }
 
-class _StarThanks extends StatelessWidget {
-  const _StarThanks({super.key});
-
+class const _StarThanks({super.key}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -170,7 +159,7 @@ class _StarThanks extends StatelessWidget {
       child: SizedBox(
         height: kSupportControlHeight,
         child: Row(
-          mainAxisSize: MainAxisSize.min,
+          mainAxisSize: .min,
           children: <Widget>[
             const Icon(AleraIcons.star, size: 16, color: AleraTokens.warning),
             const SizedBox(width: AleraTokens.space6),
@@ -178,7 +167,7 @@ class _StarThanks extends StatelessWidget {
               'Thanks for the support!',
               style: theme.textTheme.bodyMedium?.copyWith(
                 color: AleraTokens.warning,
-                fontWeight: FontWeight.w500,
+                fontWeight: .w500,
               ),
             ),
           ],
@@ -188,9 +177,7 @@ class _StarThanks extends StatelessWidget {
   }
 }
 
-class _StarSkeleton extends StatelessWidget {
-  const _StarSkeleton({super.key});
-
+class const _StarSkeleton({super.key}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(

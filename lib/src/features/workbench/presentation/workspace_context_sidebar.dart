@@ -10,62 +10,38 @@ import 'package:alera/src/features/workbench/domain/workspace_source_control_sco
 import 'package:alera/src/features/workbench/presentation/workspace_explorer.dart';
 import 'package:alera/src/features/workbench/presentation/workspace_git_diff_panel.dart';
 import 'package:alera/src/features/workbench/presentation/workspace_search_panel.dart';
-import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
 import 'package:flutter/material.dart';
 
-class WorkspaceContextSidebar extends StatelessWidget {
-  const WorkspaceContextSidebar({
-    super.key,
-    required this.workspace,
-    required this.prefs,
-    this.sourceControlScope,
-    this.focusedSourceControlRoot,
-    required this.onToggleVisible,
-    required this.onResize,
-    required this.onSetContextPanelTab,
-    required this.onSetExplorerMode,
-    required this.onSetGitDiffViewMode,
-    required this.onSetGitDiffGroupMode,
-    this.onFocusSourceControlFolder,
-    this.onClearSourceControlRoot,
-    required this.onOpenFile,
-    this.onOpenFilePermanently,
-    this.onRevealInExplorer,
-    required this.onOpenGitDiff,
-    required this.onOpenGitCommitDiff,
-    required this.onOpenSearchMatch,
-    required this.onPathMoved,
-    this.onFocusTerminal,
-    this.onOpenPullRequest,
-    this.onOpenArtifact,
-    this.onSourceControlAction,
-  });
-
-  final Workspace workspace;
-  final WorkbenchViewPrefs prefs;
-  final WorkspaceSourceControlScope? sourceControlScope;
-  final String? focusedSourceControlRoot;
-  final VoidCallback onToggleVisible;
-  final ValueChanged<double> onResize;
-  final ValueChanged<WorkbenchContextPanelTab> onSetContextPanelTab;
-  final ValueChanged<WorkspaceExplorerMode> onSetExplorerMode;
-  final ValueChanged<GitDiffViewMode> onSetGitDiffViewMode;
-  final ValueChanged<GitDiffGroupMode> onSetGitDiffGroupMode;
-  final Future<bool> Function(String relativePath)? onFocusSourceControlFolder;
-  final VoidCallback? onClearSourceControlRoot;
-  final ValueChanged<String> onOpenFile;
-  final ValueChanged<String>? onOpenFilePermanently;
-  final ValueChanged<String>? onRevealInExplorer;
-  final OpenGitDiffTabCallback onOpenGitDiff;
-  final OpenGitCommitDiffTabCallback onOpenGitCommitDiff;
-  final ValueChanged<WorkspaceSearchMatchTarget> onOpenSearchMatch;
-  final Future<void> Function(String oldRelativePath, String newRelativePath)
-  onPathMoved;
-  final AgentCanvasTerminalFocuser? onFocusTerminal;
-  final VoidCallback? onOpenPullRequest;
-  final AgentCanvasArtifactOpener? onOpenArtifact;
-  final AgentCanvasSourceControlAction? onSourceControlAction;
-
+class const WorkspaceContextSidebar({
+  super.key,
+  required final Workspace workspace,
+  required final WorkbenchViewPrefs prefs,
+  final WorkspaceSourceControlScope? sourceControlScope,
+  final String? focusedSourceControlRoot,
+  required final VoidCallback onToggleVisible,
+  required final ValueChanged<double> onResize,
+  required final ValueChanged<WorkbenchContextPanelTab> onSetContextPanelTab,
+  required final ValueChanged<WorkspaceExplorerMode> onSetExplorerMode,
+  required final ValueChanged<GitDiffViewMode> onSetGitDiffViewMode,
+  required final ValueChanged<GitDiffGroupMode> onSetGitDiffGroupMode,
+  final Future<bool> Function(String relativePath)? onFocusSourceControlFolder,
+  final VoidCallback? onClearSourceControlRoot,
+  required final ValueChanged<String> onOpenFile,
+  final ValueChanged<String>? onOpenFilePermanently,
+  final ValueChanged<String>? onRevealInExplorer,
+  required final OpenGitDiffTabCallback onOpenGitDiff,
+  required final OpenGitCommitDiffTabCallback onOpenGitCommitDiff,
+  required final ValueChanged<WorkspaceSearchMatchTarget> onOpenSearchMatch,
+  required final Future<void> Function(
+    String oldRelativePath,
+    String newRelativePath,
+  )
+  onPathMoved,
+  final AgentCanvasTerminalFocuser? onFocusTerminal,
+  final VoidCallback? onOpenPullRequest,
+  final AgentCanvasArtifactOpener? onOpenArtifact,
+  final AgentCanvasSourceControlAction? onSourceControlAction,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final sourceControlScope = this.sourceControlScope;
@@ -111,8 +87,7 @@ class WorkspaceContextSidebar extends StatelessWidget {
                             ? const AleraEmptyState(
                                 icon: AleraIcons.gitBranch,
                                 title: 'Source Control Unavailable',
-                                message:
-                                    'This workspace is not connected to a Git repository, so there are no changes to show.',
+                                message: 'This workspace is not connected to a Git repository, so there are no changes to show.',
                               )
                             : WorkspaceGitDiffPanel(
                                 workspace: workspace,
@@ -135,8 +110,7 @@ class WorkspaceContextSidebar extends StatelessWidget {
                             ? const AleraEmptyState(
                                 icon: AleraIcons.gitPullRequest,
                                 title: 'Pull Request Unavailable',
-                                message:
-                                    'This workspace is not connected to a Git repository, so there are no Pull Requests to show.',
+                                message: 'This workspace is not connected to a Git repository, so there are no Pull Requests to show.',
                               )
                             : WorkspacePullRequestsPanel(
                                 key: ValueKey<String>(
@@ -161,7 +135,7 @@ class WorkspaceContextSidebar extends StatelessWidget {
                           await onOpenGitDiff(
                             relativePath: sourceRelativePath,
                             gitDiffRoot: sourceControlScope.relativeRoot,
-                            scope: WorkspaceGitDiffScope.file,
+                            scope: .file,
                           );
                         },
                         onFocusTerminal: onFocusTerminal ?? (_) {},
@@ -187,17 +161,11 @@ class WorkspaceContextSidebar extends StatelessWidget {
   }
 }
 
-class _ResizableRightSidebar extends StatefulWidget {
-  const _ResizableRightSidebar({
-    required this.persistedWidth,
-    required this.onPersistWidth,
-    required this.child,
-  });
-
-  final double persistedWidth;
-  final ValueChanged<double> onPersistWidth;
-  final Widget child;
-
+class const _ResizableRightSidebar({
+  required final double persistedWidth,
+  required final ValueChanged<double> onPersistWidth,
+  required final Widget child,
+}) extends StatefulWidget {
   @override
   State<_ResizableRightSidebar> createState() => _ResizableRightSidebarState();
 }
@@ -210,7 +178,7 @@ class _ResizableRightSidebarState extends State<_ResizableRightSidebar> {
   @override
   Widget build(BuildContext context) {
     return Row(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+      crossAxisAlignment: .stretch,
       children: <Widget>[
         _RightResizeHandle(
           currentWidth: _width,
@@ -233,17 +201,11 @@ class _ResizableRightSidebarState extends State<_ResizableRightSidebar> {
   }
 }
 
-class _CollapsedContextRail extends StatelessWidget {
-  const _CollapsedContextRail({
-    required this.activeTab,
-    required this.onOpenTab,
-    required this.onToggleVisible,
-  });
-
-  final WorkbenchContextPanelTab activeTab;
-  final ValueChanged<WorkbenchContextPanelTab> onOpenTab;
-  final VoidCallback onToggleVisible;
-
+class const _CollapsedContextRail({
+  required final WorkbenchContextPanelTab activeTab,
+  required final ValueChanged<WorkbenchContextPanelTab> onOpenTab,
+  required final VoidCallback onToggleVisible,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
@@ -252,43 +214,43 @@ class _CollapsedContextRail extends StatelessWidget {
         children: <Widget>[
           const SizedBox(height: AleraTokens.space8),
           _ContextTabButton(
-            tab: WorkbenchContextPanelTab.explorer,
+            tab: .explorer,
             activeTab: activeTab,
             tooltip: 'Explorer',
             icon: AleraIcons.copyFiles,
-            onPressed: () => onOpenTab(WorkbenchContextPanelTab.explorer),
+            onPressed: () => onOpenTab(.explorer),
           ),
           const SizedBox(height: AleraTokens.space6),
           _ContextTabButton(
-            tab: WorkbenchContextPanelTab.search,
+            tab: .search,
             activeTab: activeTab,
             tooltip: 'Search',
             icon: AleraIcons.search,
-            onPressed: () => onOpenTab(WorkbenchContextPanelTab.search),
+            onPressed: () => onOpenTab(.search),
           ),
           const SizedBox(height: AleraTokens.space6),
           _ContextTabButton(
-            tab: WorkbenchContextPanelTab.gitDiff,
+            tab: .gitDiff,
             activeTab: activeTab,
             tooltip: 'Source Control',
             icon: AleraIcons.gitBranch,
-            onPressed: () => onOpenTab(WorkbenchContextPanelTab.gitDiff),
+            onPressed: () => onOpenTab(.gitDiff),
           ),
           const SizedBox(height: AleraTokens.space6),
           _ContextTabButton(
-            tab: WorkbenchContextPanelTab.pullRequests,
+            tab: .pullRequests,
             activeTab: activeTab,
             tooltip: 'Pull Request',
             icon: AleraIcons.gitPullRequest,
-            onPressed: () => onOpenTab(WorkbenchContextPanelTab.pullRequests),
+            onPressed: () => onOpenTab(.pullRequests),
           ),
           const SizedBox(height: AleraTokens.space6),
           _ContextTabButton(
-            tab: WorkbenchContextPanelTab.agentCanvas,
+            tab: .agentCanvas,
             activeTab: activeTab,
             tooltip: 'Agent Canvas',
             icon: AleraIcons.agent,
-            onPressed: () => onOpenTab(WorkbenchContextPanelTab.agentCanvas),
+            onPressed: () => onOpenTab(.agentCanvas),
           ),
           const Spacer(),
           Padding(
@@ -305,17 +267,11 @@ class _CollapsedContextRail extends StatelessWidget {
   }
 }
 
-class _ContextTabHeader extends StatelessWidget {
-  const _ContextTabHeader({
-    required this.activeTab,
-    required this.onSetActiveTab,
-    required this.onToggleVisible,
-  });
-
-  final WorkbenchContextPanelTab activeTab;
-  final ValueChanged<WorkbenchContextPanelTab> onSetActiveTab;
-  final VoidCallback onToggleVisible;
-
+class const _ContextTabHeader({
+  required final WorkbenchContextPanelTab activeTab,
+  required final ValueChanged<WorkbenchContextPanelTab> onSetActiveTab,
+  required final VoidCallback onToggleVisible,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return DecoratedBox(
@@ -330,48 +286,43 @@ class _ContextTabHeader extends StatelessWidget {
           child: Row(
             children: <Widget>[
               _ContextTabButton(
-                tab: WorkbenchContextPanelTab.explorer,
+                tab: .explorer,
                 activeTab: activeTab,
                 tooltip: 'Explorer',
                 icon: AleraIcons.copyFiles,
-                onPressed: () =>
-                    onSetActiveTab(WorkbenchContextPanelTab.explorer),
+                onPressed: () => onSetActiveTab(.explorer),
               ),
               const SizedBox(width: AleraTokens.space6),
               _ContextTabButton(
-                tab: WorkbenchContextPanelTab.search,
+                tab: .search,
                 activeTab: activeTab,
                 tooltip: 'Search',
                 icon: AleraIcons.search,
-                onPressed: () =>
-                    onSetActiveTab(WorkbenchContextPanelTab.search),
+                onPressed: () => onSetActiveTab(.search),
               ),
               const SizedBox(width: AleraTokens.space6),
               _ContextTabButton(
-                tab: WorkbenchContextPanelTab.gitDiff,
+                tab: .gitDiff,
                 activeTab: activeTab,
                 tooltip: 'Source Control',
                 icon: AleraIcons.gitBranch,
-                onPressed: () =>
-                    onSetActiveTab(WorkbenchContextPanelTab.gitDiff),
+                onPressed: () => onSetActiveTab(.gitDiff),
               ),
               const SizedBox(width: AleraTokens.space6),
               _ContextTabButton(
-                tab: WorkbenchContextPanelTab.pullRequests,
+                tab: .pullRequests,
                 activeTab: activeTab,
                 tooltip: 'Pull Request',
                 icon: AleraIcons.gitPullRequest,
-                onPressed: () =>
-                    onSetActiveTab(WorkbenchContextPanelTab.pullRequests),
+                onPressed: () => onSetActiveTab(.pullRequests),
               ),
               const SizedBox(width: AleraTokens.space6),
               _ContextTabButton(
-                tab: WorkbenchContextPanelTab.agentCanvas,
+                tab: .agentCanvas,
                 activeTab: activeTab,
                 tooltip: 'Agent Canvas',
                 icon: AleraIcons.agent,
-                onPressed: () =>
-                    onSetActiveTab(WorkbenchContextPanelTab.agentCanvas),
+                onPressed: () => onSetActiveTab(.agentCanvas),
               ),
               const Spacer(),
               AleraIconButton(
@@ -387,21 +338,13 @@ class _ContextTabHeader extends StatelessWidget {
   }
 }
 
-class _ContextTabButton extends StatelessWidget {
-  const _ContextTabButton({
-    required this.tab,
-    required this.activeTab,
-    required this.tooltip,
-    required this.icon,
-    required this.onPressed,
-  });
-
-  final WorkbenchContextPanelTab tab;
-  final WorkbenchContextPanelTab activeTab;
-  final String tooltip;
-  final IconData icon;
-  final VoidCallback onPressed;
-
+class const _ContextTabButton({
+  required final WorkbenchContextPanelTab tab,
+  required final WorkbenchContextPanelTab activeTab,
+  required final String tooltip,
+  required final IconData icon,
+  required final VoidCallback onPressed,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final active = tab == activeTab;
@@ -416,17 +359,11 @@ class _ContextTabButton extends StatelessWidget {
   }
 }
 
-class _RightResizeHandle extends StatefulWidget {
-  const _RightResizeHandle({
-    required this.currentWidth,
-    required this.onResize,
-    required this.onResizeEnd,
-  });
-
-  final double currentWidth;
-  final ValueChanged<double> onResize;
-  final ValueChanged<double> onResizeEnd;
-
+class const _RightResizeHandle({
+  required final double currentWidth,
+  required final ValueChanged<double> onResize,
+  required final ValueChanged<double> onResizeEnd,
+}) extends StatefulWidget {
   @override
   State<_RightResizeHandle> createState() => _RightResizeHandleState();
 }
@@ -444,7 +381,7 @@ class _RightResizeHandleState extends State<_RightResizeHandle> {
       onEnter: (_) => setState(() => _hovered = true),
       onExit: (_) => setState(() => _hovered = false),
       child: GestureDetector(
-        behavior: HitTestBehavior.translucent,
+        behavior: .translucent,
         onHorizontalDragStart: (_) {
           _dragWidth = widget.currentWidth;
           setState(() => _dragging = true);

@@ -15,9 +15,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 /// Status-bar entry point for the resource manager: a chip that opens the
 /// panel in an overlay anchored above it.
-class ResourceStatusBarControl extends ConsumerStatefulWidget {
-  const ResourceStatusBarControl({super.key});
-
+class const ResourceStatusBarControl({super.key})
+    extends ConsumerStatefulWidget {
   @override
   ConsumerState<ResourceStatusBarControl> createState() =>
       _ResourceStatusBarControlState();
@@ -26,7 +25,7 @@ class ResourceStatusBarControl extends ConsumerStatefulWidget {
 class _ResourceStatusBarControlState
     extends ConsumerState<ResourceStatusBarControl> {
   final AleraHoverCardController _hoverCard = AleraHoverCardController();
-  ResourceSortColumn _sortColumn = ResourceSortColumn.memory;
+  ResourceSortColumn _sortColumn = .memory;
   final Set<String> _collapsedProjectIds = <String>{};
 
   @override

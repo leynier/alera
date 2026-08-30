@@ -42,23 +42,14 @@ Future<void> main(List<String> args) async {
   stdout.writeln('Wrote ${bullets.length} entries to ${options.output}');
 }
 
-final class ReleaseNotesOptions {
-  const ReleaseNotesOptions({
-    required this.scope,
-    required this.repo,
-    required this.tag,
-    required this.target,
-    required this.output,
-    this.previousTag,
-  });
-
-  final String scope;
-  final String repo;
-  final String tag;
-  final String target;
-  final String output;
-  final String? previousTag;
-}
+final class const ReleaseNotesOptions({
+  required final String scope,
+  required final String repo,
+  required final String tag,
+  required final String target,
+  required final String output,
+  final String? previousTag,
+});
 
 ReleaseNotesOptions parseOptions(List<String> args) {
   final values = <String, String>{};
@@ -91,12 +82,10 @@ ReleaseNotesOptions parseOptions(List<String> args) {
   );
 }
 
-final class HistoryEntry {
-  const HistoryEntry({required this.sha, required this.subject});
-
-  final String sha;
-  final String subject;
-
+final class const HistoryEntry({
+  required final String sha,
+  required final String subject,
+}) {
   int? get pullRequestNumber {
     final match = RegExp(r'^Merge pull request #(\d+)\b').firstMatch(subject);
     return match == null ? null : int.parse(match.group(1)!);
@@ -161,11 +150,9 @@ Future<String?> _resolveBullet(
   Map<String, dynamic>? pull;
   if (prNumber == null) {
     // A squash-merged PR lands as a plain commit; attribute it to its PR.
-    final associated =
-        jsonDecode(
-              await _runGh(['api', 'repos/$repo/commits/${entry.sha}/pulls']),
-            )
-            as List<dynamic>;
+    final associated = jsonDecode(
+      await _runGh(['api', 'repos/$repo/commits/${entry.sha}/pulls']),
+    ) as List<dynamic>;
     if (associated.isNotEmpty) {
       pull = associated.first as Map<String, dynamic>;
       prNumber = pull['number'] as int;
@@ -175,17 +162,17 @@ Future<String?> _resolveBullet(
     if (!seenPullRequests.add(prNumber)) {
       return null;
     }
-    pull ??=
-        jsonDecode(await _runGh(['api', 'repos/$repo/pulls/$prNumber']))
-            as Map<String, dynamic>;
+    pull ??= jsonDecode(
+      await _runGh(['api', 'repos/$repo/pulls/$prNumber']),
+    ) as Map<String, dynamic>;
     final title = pull['title'] as String;
     final login = (pull['user'] as Map<String, dynamic>?)?['login'] as String?;
     final author = login == null ? '' : ' by @$login';
     return '* $title$author in https://github.com/$repo/pull/$prNumber';
   }
-  final commit =
-      jsonDecode(await _runGh(['api', 'repos/$repo/commits/${entry.sha}']))
-          as Map<String, dynamic>;
+  final commit = jsonDecode(
+    await _runGh(['api', 'repos/$repo/commits/${entry.sha}']),
+  ) as Map<String, dynamic>;
   final login =
       (commit['author'] as Map<String, dynamic>?)?['login'] as String?;
   final gitName =

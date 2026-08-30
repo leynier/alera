@@ -2,29 +2,20 @@ part of 'codex_chat_surface.dart';
 
 enum _CodexTimelineEntryKind { cell, turn, event, request }
 
-class _CodexTimelineViewState {
-  const _CodexTimelineViewState({
-    required this.loading,
-    required this.snapshot,
-    required this.activeCwd,
-    required this.historyNextCursor,
-    required this.error,
-  });
-
-  factory _CodexTimelineViewState.from(CodexChatState state) =>
-      _CodexTimelineViewState(
-        loading: state.loading,
-        snapshot: state.snapshot,
-        activeCwd: state.activeCwd,
-        historyNextCursor: state.historyNextCursor,
-        error: state.error,
-      );
-
-  final bool loading;
-  final CodexChatSnapshot snapshot;
-  final String? activeCwd;
-  final String? historyNextCursor;
-  final String? error;
+class const _CodexTimelineViewState({
+  required final bool loading,
+  required final CodexChatSnapshot snapshot,
+  required final String? activeCwd,
+  required final String? historyNextCursor,
+  required final String? error,
+}) {
+  factory from(CodexChatState state) => _CodexTimelineViewState(
+    loading: state.loading,
+    snapshot: state.snapshot,
+    activeCwd: state.activeCwd,
+    historyNextCursor: state.historyNextCursor,
+    error: state.error,
+  );
 
   @override
   bool operator ==(Object other) =>
@@ -46,18 +37,16 @@ class _CodexTimelineViewState {
   );
 }
 
-class _CodexFooterViewState {
-  const _CodexFooterViewState({
-    required this.state,
-    required this.pendingQuestions,
-    required this.hasBlockingQuestion,
-    required this.showLocalPlanQuestion,
-    required this.actionablePlanId,
-    required this.planProgress,
-    required this.mcpInitializing,
-  });
-
-  factory _CodexFooterViewState.from(CodexChatState state) {
+class const _CodexFooterViewState({
+  required final CodexChatState state,
+  required final List<CodexPendingRequest> pendingQuestions,
+  required final bool hasBlockingQuestion,
+  required final bool showLocalPlanQuestion,
+  required final String? actionablePlanId,
+  required final _CodexPlanProgressProjection? planProgress,
+  required final bool mcpInitializing,
+}) {
+  factory from(CodexChatState state) {
     final pendingQuestions = state.snapshot.pendingRequests
         .where((request) => request.isQuestion)
         .toList(growable: false);
@@ -76,14 +65,6 @@ class _CodexFooterViewState {
       mcpInitializing: state.snapshot.mcpInitializing,
     );
   }
-
-  final CodexChatState state;
-  final List<CodexPendingRequest> pendingQuestions;
-  final bool hasBlockingQuestion;
-  final bool showLocalPlanQuestion;
-  final String? actionablePlanId;
-  final _CodexPlanProgressProjection? planProgress;
-  final bool mcpInitializing;
 
   @override
   bool operator ==(Object other) =>
@@ -163,25 +144,25 @@ class _CodexFooterViewState {
 }
 
 class _CodexTimelineEntry {
-  const _CodexTimelineEntry.cell(this.cell)
+  const new cell(this.cell)
     : kind = _CodexTimelineEntryKind.cell,
       turn = null,
       event = null,
       request = null;
 
-  const _CodexTimelineEntry.turn(this.turn)
+  const new turn(this.turn)
     : kind = _CodexTimelineEntryKind.turn,
       cell = null,
       event = null,
       request = null;
 
-  const _CodexTimelineEntry.event(this.event)
+  const new event(this.event)
     : kind = _CodexTimelineEntryKind.event,
       cell = null,
       turn = null,
       request = null;
 
-  const _CodexTimelineEntry.request(this.request)
+  const new request(this.request)
     : kind = _CodexTimelineEntryKind.request,
       cell = null,
       turn = null,
@@ -209,15 +190,13 @@ class _CodexTimelineEntry {
   };
 }
 
-class _CodexTimelineProjection {
-  const _CodexTimelineProjection({
-    required this.entries,
-    required this.latestPlanId,
-    required this.history,
-    required this.live,
-  });
-
-  factory _CodexTimelineProjection.fromSnapshot(
+class const _CodexTimelineProjection({
+  required final _CodexTimelineEntries entries,
+  required final String? latestPlanId,
+  required final _CodexTimelineSegmentProjection history,
+  required final _CodexTimelineSegmentProjection live,
+}) {
+  factory fromSnapshot(
     CodexChatSnapshot snapshot, {
     required bool showRawLogs,
     _CodexTimelineProjection? previous,
@@ -278,22 +257,15 @@ class _CodexTimelineProjection {
       live: live,
     );
   }
-
-  final _CodexTimelineEntries entries;
-  final String? latestPlanId;
-  final _CodexTimelineSegmentProjection history;
-  final _CodexTimelineSegmentProjection live;
 }
 
-class _CodexTimelineSegmentProjection {
-  const _CodexTimelineSegmentProjection({
-    required this.sourceCells,
-    required this.topNotices,
-    required this.entries,
-    required this.entryKeys,
-    required this.latestPlanId,
-  });
-
+class const _CodexTimelineSegmentProjection({
+  required final List<CodexTimelineCell> sourceCells,
+  required final List<_CodexTimelineEntry> topNotices,
+  required final List<_CodexTimelineEntry> entries,
+  required final Set<String> entryKeys,
+  required final String? latestPlanId,
+}) {
   static const empty = _CodexTimelineSegmentProjection(
     sourceCells: <CodexTimelineCell>[],
     topNotices: <_CodexTimelineEntry>[],
@@ -302,7 +274,7 @@ class _CodexTimelineSegmentProjection {
     latestPlanId: null,
   );
 
-  factory _CodexTimelineSegmentProjection.fromCells(
+  factory fromCells(
     List<CodexTimelineCell> cells, {
     String? workingTurnId,
     _CodexTimelineSegmentProjection? previous,
@@ -313,7 +285,7 @@ class _CodexTimelineSegmentProjection {
     final seenTurns = <String>{};
     for (final cell in cells) {
       if (_isCodexTopNotice(cell)) {
-        topNotices.add(_CodexTimelineEntry.cell(cell));
+        topNotices.add(.cell(cell));
         continue;
       }
       final turnId = cell.turnId;
@@ -331,23 +303,24 @@ class _CodexTimelineSegmentProjection {
       for (final entry in previous?.entries ?? const <_CodexTimelineEntry>[])
         if (entry.turn case final _CodexTurnProjection turn) turn.turnId: turn,
     };
-    final entries =
-        List<_CodexTimelineEntry>.unmodifiable(<_CodexTimelineEntry>[
-          for (final item in order)
-            if (item is String)
-              _CodexTimelineEntry.turn(
-                _CodexTurnProjection.reuseOrCreate(
-                  previousTurns[item],
-                  turns[item]!,
-                  working: workingTurnId == item,
-                ),
-              )
-            else
-              _CodexTimelineEntry.cell(item as CodexTimelineCell),
-        ]);
+    final entries = List<_CodexTimelineEntry>.unmodifiableOf(
+      <_CodexTimelineEntry>[
+        for (final item in order)
+          if (item is String)
+            _CodexTimelineEntry.turn(
+              .reuseOrCreate(
+                previousTurns[item],
+                turns[item]!,
+                working: workingTurnId == item,
+              ),
+            )
+          else
+            _CodexTimelineEntry.cell(item as CodexTimelineCell),
+      ],
+    );
     return _CodexTimelineSegmentProjection(
       sourceCells: cells,
-      topNotices: List<_CodexTimelineEntry>.unmodifiable(topNotices),
+      topNotices: List<_CodexTimelineEntry>.unmodifiableOf(topNotices),
       entries: entries,
       entryKeys: Set<String>.unmodifiable(<String>{
         for (final entry in entries) entry.key,
@@ -355,12 +328,6 @@ class _CodexTimelineSegmentProjection {
       latestPlanId: _latestAuthoredPlanId(cells),
     );
   }
-
-  final List<CodexTimelineCell> sourceCells;
-  final List<_CodexTimelineEntry> topNotices;
-  final List<_CodexTimelineEntry> entries;
-  final Set<String> entryKeys;
-  final String? latestPlanId;
 }
 
 _CodexTimelineEntry? _mergeCodexTimelineBoundary(
@@ -375,30 +342,21 @@ _CodexTimelineEntry? _mergeCodexTimelineBoundary(
     return null;
   }
   return _CodexTimelineEntry.turn(
-    _CodexTurnProjection.reuseOrCreate(previous?.turn, <CodexTimelineCell>[
+    .reuseOrCreate(previous?.turn, <CodexTimelineCell>[
       ...before.sourceCells,
       ...after.sourceCells,
     ], working: before.turnId == workingTurnId),
   );
 }
 
-class _CodexTimelineEntries extends ListBase<_CodexTimelineEntry> {
-  _CodexTimelineEntries({
-    required this.topNotices,
-    required this.history,
-    required this.live,
-    required this.boundary,
-    required this.rawEvents,
-    required this.requests,
-  });
-
-  final List<_CodexTimelineEntry> topNotices;
-  final _CodexTimelineSegmentProjection history;
-  final _CodexTimelineSegmentProjection live;
-  final _CodexTimelineEntry? boundary;
-  final List<_CodexTimelineEntry> rawEvents;
-  final List<_CodexTimelineEntry> requests;
-
+class _CodexTimelineEntries({
+  required final List<_CodexTimelineEntry> topNotices,
+  required final _CodexTimelineSegmentProjection history,
+  required final _CodexTimelineSegmentProjection live,
+  required final _CodexTimelineEntry? boundary,
+  required final List<_CodexTimelineEntry> rawEvents,
+  required final List<_CodexTimelineEntry> requests,
+}) extends ListBase<_CodexTimelineEntry> {
   late final Set<String> _rawEventKeys = <String>{
     for (final entry in rawEvents) entry.key,
   };

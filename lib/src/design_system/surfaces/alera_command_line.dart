@@ -8,17 +8,13 @@ import 'package:flutter/material.dart';
 /// Selectable rather than plain text because the command is often the thing a
 /// user wants to take somewhere else, and a copy button is no help when they
 /// need only part of it.
-class AleraCommandLine extends StatelessWidget {
-  const AleraCommandLine({
-    super.key,
-    required this.command,
-    this.trailing,
-    this.backgroundColor = AleraTokens.surface,
-    this.singleLine = false,
-  });
-
-  final String command;
-
+class const AleraCommandLine({
+  super.key,
+  required final String command,
+  this.trailing,
+  this.backgroundColor = AleraTokens.surface,
+  this.singleLine = false,
+}) extends StatelessWidget {
   /// Action slot, rendered after the command. Typically a run or copy button.
   final Widget? trailing;
 
@@ -48,7 +44,7 @@ class AleraCommandLine extends StatelessWidget {
           Expanded(
             child: singleLine
                 ? SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
+                    scrollDirection: .horizontal,
                     child: commandText,
                   )
                 : commandText,

@@ -9,7 +9,6 @@ import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
 import 'package:alera/src/features/workbench/presentation/workbench_dialog_launchers.dart';
 import 'package:alera/src/rust/api/workspace_files.dart' as native;
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -40,7 +39,7 @@ void main() {
     expect(find.text('lib/main.dart'), findsNothing);
     expect(find.text('lib/main_test.dart'), findsOneWidget);
 
-    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+    await tester.sendKeyEvent(.enter);
     await tester.pumpAndSettle();
     expect(controller.openedFiles, <String>['lib/main_test.dart']);
   });
@@ -86,7 +85,7 @@ void main() {
 
     await tester.tap(find.text('Open Quick Open'));
     await tester.pump();
-    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.sendKeyEvent(.escape);
     await tester.pumpAndSettle();
 
     session.complete(_session('late-session', 0));
@@ -112,15 +111,15 @@ void main() {
 
     await tester.tap(find.text('Open Quick Open'));
     await tester.pumpAndSettle();
-    await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
-    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+    await tester.sendKeyEvent(.arrowDown);
+    await tester.sendKeyEvent(.enter);
     await tester.pumpAndSettle();
     expect(controller.openedFiles, <String>['b.dart']);
     expect(anchorFocus.hasFocus, isTrue);
 
     await tester.tap(find.text('Open Quick Open'));
     await tester.pumpAndSettle();
-    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.sendKeyEvent(.escape);
     await tester.pumpAndSettle();
     expect(find.text('Quick Open'), findsNothing);
     expect(anchorFocus.hasFocus, isTrue);
@@ -137,7 +136,7 @@ void main() {
     await tester.tap(find.text('Open Quick Open'));
     await tester.pumpAndSettle();
     for (var i = 0; i < 49; i++) {
-      await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
+      await tester.sendKeyEvent(.arrowDown);
     }
     await tester.pumpAndSettle();
 
@@ -159,7 +158,7 @@ void main() {
       find.text('No files are available in this workspace.'),
       findsOneWidget,
     );
-    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.sendKeyEvent(.escape);
     await tester.pumpAndSettle();
 
     await _pumpQuickOpen(
@@ -250,8 +249,8 @@ Workspace _workspace(String id, String name, String path) {
     path: path,
     createdAt: now,
     updatedAt: now,
-    kind: WorkspaceKind.main,
-    status: WorkspaceStatus.active,
+    kind: .main,
+    status: .active,
   );
 }
 
@@ -266,22 +265,16 @@ native.WorkspaceQuickOpenSession _session(String id, int indexedFileCount) {
   );
 }
 
-class _QuickOpenFileService extends WorkspaceFileService {
-  _QuickOpenFileService({
-    this.entries = const <String>[],
-    this.error,
-    this.session,
-    this.entriesByWorkspacePath = const <String, List<String>>{},
-    this.searchGates =
-        const <String, Completer<List<native.WorkspaceQuickOpenMatch>>>{},
-  });
-
-  final List<String> entries;
-  final Object? error;
-  final Completer<native.WorkspaceQuickOpenSession>? session;
-  final Map<String, List<String>> entriesByWorkspacePath;
+class _QuickOpenFileService({
+  final List<String> entries = const <String>[],
+  final Object? error,
+  final Completer<native.WorkspaceQuickOpenSession>? session,
+  final Map<String, List<String>> entriesByWorkspacePath =
+      const <String, List<String>>{},
   final Map<String, Completer<List<native.WorkspaceQuickOpenMatch>>>
-  searchGates;
+      searchGates =
+      const <String, Completer<List<native.WorkspaceQuickOpenMatch>>>{},
+}) extends WorkspaceFileService {
   final List<String> stoppedSessionIds = <String>[];
   final Map<String, List<String>> _entriesBySessionId =
       <String, List<String>>{};
@@ -343,10 +336,8 @@ class _QuickOpenFileService extends WorkspaceFileService {
   }
 }
 
-class _QuickOpenTestController extends WorkbenchController {
-  _QuickOpenTestController(this._seed);
-
-  final WorkbenchState _seed;
+class _QuickOpenTestController(final WorkbenchState _seed)
+    extends WorkbenchController {
   final List<String> openedFiles = <String>[];
 
   @override
@@ -367,7 +358,7 @@ class _QuickOpenTestController extends WorkbenchController {
     return WorkspaceTabRecord(
       id: 'tab-${openedFiles.length}',
       workspaceId: workspace.id,
-      kind: WorkspaceTabKind.editor,
+      kind: .editor,
       title: relativePath,
       createdAt: now,
       updatedAt: now,

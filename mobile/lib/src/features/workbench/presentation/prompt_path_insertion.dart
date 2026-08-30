@@ -34,7 +34,7 @@ void insertPromptPaths(TextEditingController controller, List<String> paths) {
       (afterSeparator ? 1 : 0);
   controller.value = value.copyWith(
     text: replacement,
-    selection: TextSelection.collapsed(offset: cursorOffset),
-    composing: TextRange.empty,
+    selection: .collapsed(offset: cursorOffset),
+    composing: .empty,
   );
 }

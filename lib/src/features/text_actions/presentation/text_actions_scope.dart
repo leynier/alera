@@ -16,11 +16,8 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-class TextActionsScope extends ConsumerStatefulWidget {
-  const TextActionsScope({super.key, required this.child});
-
-  final Widget child;
-
+class const TextActionsScope({super.key, required final Widget child})
+    extends ConsumerStatefulWidget {
   @override
   ConsumerState<TextActionsScope> createState() => _TextActionsScopeState();
 }
@@ -183,33 +180,27 @@ class _TextActionsScopeState extends ConsumerState<TextActionsScope> {
       )) {
         AleraToast.publish(
           message: 'Text action returned no replacement text.',
-          tone: AleraToastTone.error,
+          tone: .error,
         );
         return;
       }
       if (!target.applyReplacement(captured, result.text)) {
         AleraToast.publish(
           message: 'Text action could not update this field.',
-          tone: AleraToastTone.error,
+          tone: .error,
         );
         return;
       }
-      AleraToast.publish(
-        message: 'Text action applied.',
-        tone: AleraToastTone.success,
-      );
+      AleraToast.publish(message: 'Text action applied.', tone: .success);
     } on AiAssistCanceledException {
       AleraToast.publish(message: 'Text action was canceled.');
     } on AiAssistException catch (error) {
       AleraToast.publish(
         message: 'Text action failed: ${error.message}',
-        tone: AleraToastTone.error,
+        tone: .error,
       );
     } on Object catch (error) {
-      AleraToast.publish(
-        message: 'Text action failed: $error',
-        tone: AleraToastTone.error,
-      );
+      AleraToast.publish(message: 'Text action failed: $error', tone: .error);
     } finally {
       _runningTargets.remove(target.identity);
     }

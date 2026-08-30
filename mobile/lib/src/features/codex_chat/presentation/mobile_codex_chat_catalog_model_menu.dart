@@ -1,21 +1,13 @@
 part of 'mobile_codex_chat_screen.dart';
 
-class _MobileModelMenuButton extends StatelessWidget {
-  const _MobileModelMenuButton({
-    super.key,
-    required this.state,
-    required this.onModel,
-    required this.onReasoning,
-    required this.onSpeed,
-    required this.onCollaboration,
-  });
-
-  final MobileCodexState state;
-  final ValueChanged<String?> onModel;
-  final ValueChanged<String> onReasoning;
-  final ValueChanged<String> onSpeed;
-  final ValueChanged<String?> onCollaboration;
-
+class const _MobileModelMenuButton({
+  super.key,
+  required final MobileCodexState state,
+  required final ValueChanged<String?> onModel,
+  required final ValueChanged<String> onReasoning,
+  required final ValueChanged<String> onSpeed,
+  required final ValueChanged<String?> onCollaboration,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final model = state.models
@@ -42,7 +34,7 @@ class _MobileModelMenuButton extends StatelessWidget {
           ],
         ),
         maxLines: 1,
-        overflow: TextOverflow.ellipsis,
+        overflow: .ellipsis,
       ),
     );
   }
@@ -182,8 +174,11 @@ class _MobileModelMenuButton extends StatelessWidget {
   }
 }
 
-class _MobileModelMenuSelection {
-  _MobileModelMenuSelection.fromState(MobileCodexState state, this.model)
+class _MobileModelMenuSelection.fromState(
+  MobileCodexState state,
+  var MobileCodexModelOption? model,
+) {
+  this
     : effort = state.reasoningEffort,
       speed = state.speedMode,
       collaboration = state.collaborationMode,
@@ -196,7 +191,6 @@ class _MobileModelMenuSelection {
             value,
       }.toList(growable: false);
 
-  MobileCodexModelOption? model;
   String effort;
   String speed;
   String? collaboration;

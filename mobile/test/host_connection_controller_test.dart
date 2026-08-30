@@ -8,7 +8,6 @@ import 'package:alera_mobile/src/features/hosts/application/host_providers.dart'
 import 'package:alera_mobile/src/features/hosts/domain/paired_host_profile.dart';
 import 'package:alera_mobile/src/features/runtime/application/host_connection_controller.dart';
 import 'package:alera_mobile/src/features/terminal/application/terminal_providers.dart';
-import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -168,7 +167,7 @@ void main() {
     });
 
     expect(helloCount, 2);
-    await Future<void>.delayed(const Duration(milliseconds: 200));
+    await Future.pause(const Duration(milliseconds: 200));
     expect(helloCount, 2);
     final state = container.read(hostConnectionControllerProvider('runtime-1'));
     expect(state.hasValue, isTrue);
@@ -256,14 +255,14 @@ void main() {
       );
 
       await sockets.single.close();
-      await Future<void>.delayed(const Duration(milliseconds: 100));
+      await Future.pause(const Duration(milliseconds: 100));
       expect(helloCount, 1);
       expect(
         container.read(hostConnectionControllerProvider('runtime-1')).hasError,
         isTrue,
       );
 
-      lifecycle.setLifecycleState(AppLifecycleState.resumed);
+      lifecycle.setLifecycleState(.resumed);
       await reconnected.future.timeout(const Duration(seconds: 5));
       await _waitUntil(
         () => container
@@ -338,7 +337,7 @@ void main() {
       ),
       'token-1',
     );
-    final lifecycle = ControlledAppLifecycle(AppLifecycleState.resumed);
+    final lifecycle = ControlledAppLifecycle(.resumed);
     final container = ProviderContainer(
       overrides: [
         hostRepositoryProvider.overrideWithValue(repository),
@@ -356,8 +355,8 @@ void main() {
     addTearDown(connection.close);
     await container.read(hostConnectionControllerProvider('runtime-1').future);
 
-    lifecycle.setLifecycleState(AppLifecycleState.inactive);
-    lifecycle.setLifecycleState(AppLifecycleState.resumed);
+    lifecycle.setLifecycleState(.inactive);
+    lifecycle.setLifecycleState(.resumed);
     await reconnected.future.timeout(const Duration(seconds: 5));
     await _waitUntil(
       () => container
@@ -481,7 +480,7 @@ Future<void> _waitUntil(bool Function() condition) async {
     if (DateTime.now().isAfter(deadline)) {
       throw TimeoutException('Condition was not reached.');
     }
-    await Future<void>.delayed(const Duration(milliseconds: 10));
+    await Future.pause(const Duration(milliseconds: 10));
   }
 }
 

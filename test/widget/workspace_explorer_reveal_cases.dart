@@ -25,7 +25,7 @@ void _registerWorkspaceExplorerRevealTests() {
                   container = ProviderScope.containerOf(context);
                   return WorkspaceExplorer(
                     workspace: _workspace(),
-                    mode: WorkspaceExplorerMode.hideIgnored,
+                    mode: .hideIgnored,
                     onModeChanged: (_) {},
                     onOpenFile: (_) {},
                     onPathMoved: (_, _) async {},

@@ -2,38 +2,23 @@ import 'dart:typed_data';
 
 import 'speech_model_descriptor.dart';
 
-class SpeechPartialResult {
-  const SpeechPartialResult({required this.text, this.isFinal = false});
+class const SpeechPartialResult({
+  required final String text,
+  final bool isFinal = false,
+});
 
-  final String text;
-  final bool isFinal;
-}
+class const SpeechFinalResult({
+  required final String text,
+  final String? detectedLanguage,
+  final SpeechExecutionProvider executionProvider = SpeechExecutionProvider.cpu,
+});
 
-class SpeechFinalResult {
-  const SpeechFinalResult({
-    required this.text,
-    this.detectedLanguage,
-    this.executionProvider = SpeechExecutionProvider.cpu,
-  });
-
-  final String text;
-  final String? detectedLanguage;
-  final SpeechExecutionProvider executionProvider;
-}
-
-class SpeechTranscriptionRequest {
-  const SpeechTranscriptionRequest({
-    required this.requestId,
-    required this.audioPath,
-    this.language,
-    this.initialPrompt,
-  });
-
-  final String requestId;
-  final String audioPath;
-  final String? language;
-  final String? initialPrompt;
-}
+class const SpeechTranscriptionRequest({
+  required final String requestId,
+  required final String audioPath,
+  final String? language,
+  final String? initialPrompt,
+});
 
 abstract interface class StreamingSpeechSession {
   Stream<SpeechPartialResult> get partialResults;

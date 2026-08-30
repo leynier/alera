@@ -164,7 +164,7 @@ Future<void> _verifySignature(
     ...signature,
     'value': '',
   };
-  final publicKey = SimplePublicKey(publicKeyBytes, type: KeyPairType.ed25519);
+  final publicKey = SimplePublicKey(publicKeyBytes, type: .ed25519);
   final valid = await Ed25519().verify(
     utf8.encode(jsonEncode(_sortJson(canonicalDescriptor))),
     signature: Signature(

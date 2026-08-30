@@ -79,10 +79,9 @@ void main() {
   });
 }
 
-final class _SequencedRuntimeHostClient implements RuntimeHostClient {
-  _SequencedRuntimeHostClient(this._responses);
-
-  final List<Future<Object?> Function()> _responses;
+final class _SequencedRuntimeHostClient(
+  final List<Future<Object?> Function()> _responses,
+) implements RuntimeHostClient {
   final requests = <String>[];
   final payloads = <Map<String, Object?>>[];
 

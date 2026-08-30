@@ -11,26 +11,17 @@ part 'ai_assist_output_capabilities.dart';
 
 enum AiAssistDiffOnlyAccess { unsupported, toolFree, codexRestrictedFilesystem }
 
-class AiThinkingLevel {
-  const AiThinkingLevel({required this.id, required this.label});
+class const AiThinkingLevel({
+  required final String id,
+  required final String label,
+});
 
-  final String id;
-  final String label;
-}
-
-class AiAssistModel {
-  const AiAssistModel({
-    required this.id,
-    required this.label,
-    this.thinkingLevels = const <AiThinkingLevel>[],
-    this.defaultThinkingLevel,
-  });
-
-  final String id;
-  final String label;
-  final List<AiThinkingLevel> thinkingLevels;
-  final String? defaultThinkingLevel;
-
+class const AiAssistModel({
+  required final String id,
+  required final String label,
+  final List<AiThinkingLevel> thinkingLevels = const <AiThinkingLevel>[],
+  final String? defaultThinkingLevel,
+}) {
   bool get supportsThinking => thinkingLevels.isNotEmpty;
 
   AiAssistDiscoveredModel toDiscovered() {
@@ -58,47 +49,31 @@ AiAssistModel modelFromDiscovered(AiAssistDiscoveredModel model) {
   );
 }
 
-class AiAssistAgentSpec {
-  const AiAssistAgentSpec({
-    required this.agent,
-    required this.binary,
-    required this.promptDelivery,
-    required this.modelsCommand,
-    required this.parseModels,
-    required this.models,
-    required this.defaultModelId,
-    required this.buildArgs,
-    this.modelCanInherit = false,
-    this.nativeStructuredOutput = AiNativeStructuredOutput.none,
-    this.supportsRepositoryRead = false,
-    this.readOnlyGuarantee = false,
-    this.diffOnlyAccess = AiAssistDiffOnlyAccess.unsupported,
-    this.diffOnlyArgs = const <String>[],
-    this.maxPromptBytes = 1024 * 1024,
-  });
-
-  final AiAssistAgent agent;
-  final String binary;
-  final AiPromptDelivery promptDelivery;
-  final List<String>? modelsCommand;
-  final List<AiAssistModel> Function(String stdout) parseModels;
-  final List<AiAssistModel> models;
-  final String? defaultModelId;
-  final bool modelCanInherit;
-  final AiNativeStructuredOutput nativeStructuredOutput;
-  final bool supportsRepositoryRead;
-  final bool readOnlyGuarantee;
-  final AiAssistDiffOnlyAccess diffOnlyAccess;
-  final List<String> diffOnlyArgs;
-  final int maxPromptBytes;
-  final List<String> Function({
+class const AiAssistAgentSpec({
+  required final AiAssistAgent agent,
+  required final String binary,
+  required final AiPromptDelivery promptDelivery,
+  required final List<String>? modelsCommand,
+  required final List<AiAssistModel> Function(String stdout) parseModels,
+  required final List<AiAssistModel> models,
+  required final String? defaultModelId,
+  required final List<String> Function({
     required String prompt,
     required String model,
     String? thinkingLevel,
     required int timeoutSeconds,
   })
-  buildArgs;
-
+  buildArgs,
+  final bool modelCanInherit = false,
+  final AiNativeStructuredOutput nativeStructuredOutput =
+      AiNativeStructuredOutput.none,
+  final bool supportsRepositoryRead = false,
+  final bool readOnlyGuarantee = false,
+  final AiAssistDiffOnlyAccess diffOnlyAccess =
+      AiAssistDiffOnlyAccess.unsupported,
+  final List<String> diffOnlyArgs = const <String>[],
+  final int maxPromptBytes = 1024 * 1024,
+}) {
   String get label => agent.label;
 }
 
@@ -132,9 +107,9 @@ final Map<AiAssistAgent, AiAssistAgentSpec>
 aiAssistAgentSpecs = <AiAssistAgent, AiAssistAgentSpec>{
   AiAssistAgent.claude: claudeAiAssistAgentSpec,
   AiAssistAgent.codex: AiAssistAgentSpec(
-    agent: AiAssistAgent.codex,
+    agent: .codex,
     binary: 'codex',
-    promptDelivery: AiPromptDelivery.stdin,
+    promptDelivery: .stdin,
     modelsCommand: const <String>['debug', 'models'],
     parseModels: parseCodexModels,
     models: const <AiAssistModel>[
@@ -158,10 +133,10 @@ aiAssistAgentSpecs = <AiAssistAgent, AiAssistAgentSpec>{
       ),
     ],
     defaultModelId: 'gpt-5.5',
-    nativeStructuredOutput: AiNativeStructuredOutput.codexSchemaFile,
+    nativeStructuredOutput: .codexSchemaFile,
     supportsRepositoryRead: true,
     readOnlyGuarantee: true,
-    diffOnlyAccess: AiAssistDiffOnlyAccess.codexRestrictedFilesystem,
+    diffOnlyAccess: .codexRestrictedFilesystem,
     maxPromptBytes: 1024 * 1024,
     buildArgs:
         ({
@@ -182,9 +157,9 @@ aiAssistAgentSpecs = <AiAssistAgent, AiAssistAgentSpec>{
         ].where((arg) => arg.isNotEmpty).toList(growable: false),
   ),
   AiAssistAgent.copilot: AiAssistAgentSpec(
-    agent: AiAssistAgent.copilot,
+    agent: .copilot,
     binary: 'copilot',
-    promptDelivery: AiPromptDelivery.argv,
+    promptDelivery: .argv,
     modelsCommand: null,
     parseModels: parseLineModels,
     models: const <AiAssistModel>[
@@ -203,7 +178,7 @@ aiAssistAgentSpecs = <AiAssistAgent, AiAssistAgentSpec>{
       ),
     ],
     defaultModelId: 'gpt-5.4',
-    diffOnlyAccess: AiAssistDiffOnlyAccess.toolFree,
+    diffOnlyAccess: .toolFree,
     diffOnlyArgs: const <String>[
       '--available-tools=',
       '--excluded-tools=*',
@@ -231,9 +206,9 @@ aiAssistAgentSpecs = <AiAssistAgent, AiAssistAgentSpec>{
         ],
   ),
   AiAssistAgent.cursor: AiAssistAgentSpec(
-    agent: AiAssistAgent.cursor,
+    agent: .cursor,
     binary: 'cursor-agent',
-    promptDelivery: AiPromptDelivery.argv,
+    promptDelivery: .argv,
     modelsCommand: const <String>['--list-models'],
     parseModels: parseCursorModels,
     models: const <AiAssistModel>[AiAssistModel(id: 'auto', label: 'Auto')],
@@ -258,15 +233,15 @@ aiAssistAgentSpecs = <AiAssistAgent, AiAssistAgentSpec>{
         ],
   ),
   AiAssistAgent.agy: AiAssistAgentSpec(
-    agent: AiAssistAgent.agy,
+    agent: .agy,
     binary: 'agy',
-    promptDelivery: AiPromptDelivery.stdin,
+    promptDelivery: .stdin,
     modelsCommand: const <String>['models'],
     parseModels: parseAgyModels,
     models: const <AiAssistModel>[],
     defaultModelId: null,
     modelCanInherit: true,
-    nativeStructuredOutput: AiNativeStructuredOutput.jsonSchemaArgument,
+    nativeStructuredOutput: .jsonSchemaArgument,
     buildArgs:
         ({
           required model,
@@ -282,17 +257,17 @@ aiAssistAgentSpecs = <AiAssistAgent, AiAssistAgentSpec>{
         ],
   ),
   AiAssistAgent.opencode: openCodeAiAssistSpec(
-    agent: AiAssistAgent.opencode,
+    agent: .opencode,
     binary: 'opencode',
   ),
   AiAssistAgent.opencode2: openCodeAiAssistSpec(
-    agent: AiAssistAgent.opencode2,
+    agent: .opencode2,
     binary: 'opencode2',
   ),
   AiAssistAgent.pi: AiAssistAgentSpec(
-    agent: AiAssistAgent.pi,
+    agent: .pi,
     binary: 'pi',
-    promptDelivery: AiPromptDelivery.stdin,
+    promptDelivery: .stdin,
     modelsCommand: const <String>['--list-models'],
     parseModels: parsePiModels,
     models: const <AiAssistModel>[
@@ -304,7 +279,7 @@ aiAssistAgentSpecs = <AiAssistAgent, AiAssistAgentSpec>{
       ),
     ],
     defaultModelId: 'github-copilot/gpt-5.4-mini',
-    diffOnlyAccess: AiAssistDiffOnlyAccess.toolFree,
+    diffOnlyAccess: .toolFree,
     buildArgs:
         ({
           required model,
@@ -326,9 +301,9 @@ aiAssistAgentSpecs = <AiAssistAgent, AiAssistAgentSpec>{
         ],
   ),
   AiAssistAgent.amp: AiAssistAgentSpec(
-    agent: AiAssistAgent.amp,
+    agent: .amp,
     binary: 'amp',
-    promptDelivery: AiPromptDelivery.stdin,
+    promptDelivery: .stdin,
     modelsCommand: null,
     parseModels: parseLineModels,
     models: const <AiAssistModel>[

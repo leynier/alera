@@ -2,16 +2,11 @@ import 'package:alera/src/features/workbench/presentation/terminal_path_drop.dar
 import 'package:alera/src/features/workbench/presentation/terminal_runtime.dart';
 import 'package:flutter/material.dart';
 
-class TerminalComposerDropTarget extends StatelessWidget {
-  const TerminalComposerDropTarget({
-    super.key,
-    required this.session,
-    required this.child,
-  });
-
-  final TerminalSessionHandle session;
-  final Widget child;
-
+class const TerminalComposerDropTarget({
+  super.key,
+  required final TerminalSessionHandle session,
+  required final Widget child,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final composer = session.composerController;

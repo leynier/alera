@@ -6,9 +6,8 @@ void main() {
   final script = File('tool/release/upload_release_assets.sh');
 
   test('routes desktop and mobile uploads through the resilient script', () {
-    final workflow = File(
-      '.github/workflows/release-cut.yml',
-    ).readAsStringSync();
+    final workflow = File('.github/workflows/release-cut.yml')
+        .readAsStringSync();
 
     expect(
       'bash tool/release/upload_release_assets.sh'.allMatches(workflow).length,

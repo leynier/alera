@@ -6,18 +6,16 @@ enum BrowserSecurityLevel {
   certificateFailure,
 }
 
-final class BrowserCertificateChallenge {
-  const BrowserCertificateChallenge({
-    required this.id,
-    required this.host,
-    required this.port,
-    required this.errorCode,
-    required this.expiresAt,
-    this.fingerprint,
-    this.canProceed = false,
-  });
-
-  factory BrowserCertificateChallenge.fromJson(Map<String, Object?> json) {
+final class const BrowserCertificateChallenge({
+  required final String id,
+  required final String host,
+  required final int port,
+  required final String errorCode,
+  required final DateTime expiresAt,
+  final String? fingerprint,
+  final bool canProceed = false,
+}) {
+  factory fromJson(Map<String, Object?> json) {
     final id = json['id'];
     final host = json['host'];
     final port = json['port'];
@@ -41,14 +39,6 @@ final class BrowserCertificateChallenge {
     );
   }
 
-  final String id;
-  final String host;
-  final int port;
-  final String errorCode;
-  final String? fingerprint;
-  final DateTime expiresAt;
-  final bool canProceed;
-
   Map<String, Object?> toJson() => <String, Object?>{
     'id': id,
     'host': host,
@@ -60,14 +50,12 @@ final class BrowserCertificateChallenge {
   };
 }
 
-final class BrowserSecurityState {
-  const BrowserSecurityState({
-    this.level = BrowserSecurityLevel.unknown,
-    this.origin,
-    this.challenge,
-  });
-
-  factory BrowserSecurityState.fromJson(Map<String, Object?> json) {
+final class const BrowserSecurityState({
+  final BrowserSecurityLevel level = BrowserSecurityLevel.unknown,
+  final String? origin,
+  final BrowserCertificateChallenge? challenge,
+}) {
+  factory fromJson(Map<String, Object?> json) {
     final challenge = json['challenge'];
     return BrowserSecurityState(
       level: BrowserSecurityLevel.values.firstWhere(
@@ -85,10 +73,6 @@ final class BrowserSecurityState {
 
   static const unknown = BrowserSecurityState();
 
-  final BrowserSecurityLevel level;
-  final String? origin;
-  final BrowserCertificateChallenge? challenge;
-
   bool get isSecure =>
       level == BrowserSecurityLevel.secure ||
       level == BrowserSecurityLevel.local;
@@ -100,33 +84,19 @@ final class BrowserSecurityState {
   };
 }
 
-final class BrowserTlsRequest {
-  const BrowserTlsRequest({
-    required this.pageId,
-    required this.requestedAt,
-    required this.host,
-    required this.fingerprintSha256,
-    this.url,
-    this.description,
-    this.subject,
-    this.issuer,
-    this.validFrom,
-    this.validTo,
-    this.errors = const <BrowserTlsErrorType>{},
-  });
-
-  final String pageId;
-  final String host;
-  final String fingerprintSha256;
-  final Uri? url;
-  final String? description;
-  final String? subject;
-  final String? issuer;
-  final DateTime? validFrom;
-  final DateTime? validTo;
-  final Set<BrowserTlsErrorType> errors;
-  final DateTime requestedAt;
-}
+final class const BrowserTlsRequest({
+  required final String pageId,
+  required final DateTime requestedAt,
+  required final String host,
+  required final String fingerprintSha256,
+  final Uri? url,
+  final String? description,
+  final String? subject,
+  final String? issuer,
+  final DateTime? validFrom,
+  final DateTime? validTo,
+  final Set<BrowserTlsErrorType> errors = const <BrowserTlsErrorType>{},
+});
 
 enum BrowserTlsErrorType {
   untrustedIssuer,

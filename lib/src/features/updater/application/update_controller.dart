@@ -30,7 +30,7 @@ class AleraUpdateController extends _$AleraUpdateController {
       return;
     }
     state = state.copyWith(
-      status: AleraUpdateStatus.checking,
+      status: .checking,
       progress: 0,
       message: 'Checking for updates.',
       latest: null,
@@ -44,7 +44,7 @@ class AleraUpdateController extends _$AleraUpdateController {
       final latest = result.latest;
       if (latest == null) {
         state = state.copyWith(
-          status: AleraUpdateStatus.notAvailable,
+          status: .notAvailable,
           message: result.message ?? 'Alera is up to date.',
           latest: null,
           progress: 0,
@@ -74,7 +74,7 @@ class AleraUpdateController extends _$AleraUpdateController {
         return;
       }
       state = state.copyWith(
-        status: AleraUpdateStatus.error,
+        status: .error,
         message: 'Update check failed: $error',
         progress: 0,
       );
@@ -96,7 +96,7 @@ class AleraUpdateController extends _$AleraUpdateController {
     }
 
     state = state.copyWith(
-      status: AleraUpdateStatus.downloading,
+      status: .downloading,
       message: 'Downloading update ${latest.version}.',
       progress: 0,
     );
@@ -115,7 +115,7 @@ class AleraUpdateController extends _$AleraUpdateController {
         return;
       }
       state = state.copyWith(
-        status: AleraUpdateStatus.applying,
+        status: .applying,
         message: 'Installing update ${latest.version}. Alera will restart.',
         progress: 1,
       );
@@ -124,7 +124,7 @@ class AleraUpdateController extends _$AleraUpdateController {
         return;
       }
       state = state.copyWith(
-        status: AleraUpdateStatus.downloaded,
+        status: .downloaded,
         message: 'Update handoff complete. Alera will restart shortly.',
         progress: 1,
       );
@@ -136,7 +136,7 @@ class AleraUpdateController extends _$AleraUpdateController {
         return;
       }
       state = state.copyWith(
-        status: AleraUpdateStatus.error,
+        status: .error,
         message:
             'Update installation failed: $error '
             'Alera is still running. Try again.',
@@ -155,7 +155,7 @@ class AleraUpdateController extends _$AleraUpdateController {
     }
     final manager = packageManagerLabel(_service.packageInstall.method);
     state = state.copyWith(
-      status: AleraUpdateStatus.applying,
+      status: .applying,
       message: 'Upgrading through $manager. Alera will close and reopen.',
       progress: 0,
     );
@@ -166,7 +166,7 @@ class AleraUpdateController extends _$AleraUpdateController {
         return;
       }
       state = state.copyWith(
-        status: AleraUpdateStatus.error,
+        status: .error,
         message:
             'The $manager upgrade could not be started: $error '
             'Alera is still running. Try the command below instead.',
@@ -184,7 +184,7 @@ class AleraUpdateController extends _$AleraUpdateController {
       return;
     }
     state = state.copyWith(
-      status: AleraUpdateStatus.restartRequired,
+      status: .restartRequired,
       message: 'Restart Alera to load any update installed by the command.',
       progress: 0,
     );
@@ -195,7 +195,7 @@ class AleraUpdateController extends _$AleraUpdateController {
       return;
     }
     state = state.copyWith(
-      status: AleraUpdateStatus.applying,
+      status: .applying,
       message: 'Restarting Alera.',
       progress: 0,
     );
@@ -207,7 +207,7 @@ class AleraUpdateController extends _$AleraUpdateController {
         return;
       }
       state = state.copyWith(
-        status: AleraUpdateStatus.error,
+        status: .error,
         message: 'Alera could not restart: $error',
         progress: 0,
       );

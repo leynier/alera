@@ -5,13 +5,12 @@ import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_p
 import 'package:alera/src/shared/infra/runtime/runtime_change_coalescer.dart';
 import 'package:alera/src/shared/infra/runtime/runtime_snapshot_stream.dart';
 
-class RuntimeAgentCanvasRepository {
-  RuntimeAgentCanvasRepository(
-    this._client, {
-    RuntimeChangeCoalescer? coalescer,
-  }) : _coalescer = coalescer ?? RuntimeChangeCoalescer();
+class RuntimeAgentCanvasRepository(
+  final RuntimeHostClient _client, {
+  RuntimeChangeCoalescer? coalescer,
+}) {
+  this : _coalescer = coalescer ?? RuntimeChangeCoalescer();
 
-  final RuntimeHostClient _client;
   final RuntimeChangeCoalescer _coalescer;
 
   Future<List<AgentCanvas>> list(
@@ -63,18 +62,20 @@ class RuntimeAgentCanvasRepository {
     int? expectedRevision,
     AgentCanvasState? state,
   }) async {
-    final payload = await _client
-        .runtimeRequest('agentCanvas.publish', <String, Object?>{
-          'workspaceId': workspaceId,
-          'terminalSessionId': terminalSessionId,
-          'tabId': ?tabId,
-          'agentType': ?agentType,
-          'title': ?title,
-          'canvasId': ?canvasId,
-          'expectedRevision': ?expectedRevision,
-          'state': ?state?.name,
-          'document': document,
-        });
+    final payload = await _client.runtimeRequest(
+      'agentCanvas.publish',
+      <String, Object?>{
+        'workspaceId': workspaceId,
+        'terminalSessionId': terminalSessionId,
+        'tabId': ?tabId,
+        'agentType': ?agentType,
+        'title': ?title,
+        'canvasId': ?canvasId,
+        'expectedRevision': ?expectedRevision,
+        'state': ?state?.name,
+        'document': document,
+      },
+    );
     return AgentCanvas.fromJson(_map(_map(payload)['canvas']));
   }
 
@@ -102,7 +103,7 @@ class RuntimeAgentCanvasRepository {
       if (_map(payload)['ready'] == true) {
         return true;
       }
-      await Future<void>.delayed(const Duration(milliseconds: 250));
+      await Future.pause(const Duration(milliseconds: 250));
     }
     return false;
   }

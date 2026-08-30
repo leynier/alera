@@ -1,10 +1,8 @@
 part of 'mobile_codex_chat_screen.dart';
 
-class _MobileCodexToolDetails extends StatefulWidget {
-  const _MobileCodexToolDetails({required this.cell});
-
-  final MobileCodexTimelineCell cell;
-
+class const _MobileCodexToolDetails({
+  required final MobileCodexTimelineCell cell,
+}) extends StatefulWidget {
   @override
   State<_MobileCodexToolDetails> createState() =>
       _MobileCodexToolDetailsState();
@@ -29,7 +27,7 @@ class _MobileCodexToolDetailsState extends State<_MobileCodexToolDetails> {
 
   @override
   Widget build(BuildContext context) => Column(
-    crossAxisAlignment: CrossAxisAlignment.stretch,
+    crossAxisAlignment: .stretch,
     children: <Widget>[
       for (final (label, value) in _projection.overview)
         _MobileCodexToolScalar(label: label, value: value),
@@ -61,17 +59,15 @@ class _MobileCodexToolDetailsState extends State<_MobileCodexToolDetails> {
   );
 }
 
-class _MobileCodexToolProjection {
-  const _MobileCodexToolProjection({
-    required this.overview,
-    required this.arguments,
-    required this.commandActions,
-    required this.response,
-    required this.responseLabel,
-    required this.fallback,
-  });
-
-  factory _MobileCodexToolProjection.fromCell(MobileCodexTimelineCell cell) {
+class const _MobileCodexToolProjection({
+  required final List<(String, String)> overview,
+  required final Object? arguments,
+  required final Object? commandActions,
+  required final Object? response,
+  required final String responseLabel,
+  required final Object? fallback,
+}) {
+  factory fromCell(MobileCodexTimelineCell cell) {
     final metadata = cell.metadata;
     final arguments = _decodeMobileToolValue(metadata['arguments']);
     final commandActions = _decodeMobileToolValue(metadata['commandActions']);
@@ -166,13 +162,6 @@ class _MobileCodexToolProjection {
       fallback: fallback,
     );
   }
-
-  final List<(String, String)> overview;
-  final Object? arguments;
-  final Object? commandActions;
-  final Object? response;
-  final String responseLabel;
-  final Object? fallback;
 }
 
 String? _mobileCodexToolAppLabel(Object? value) {
@@ -225,25 +214,22 @@ String? _mobileEffectiveDetailsSource(Map<String, Object?> metadata) {
 bool _isMobileDetailsFieldPresent(Object? value) =>
     value != null && (value is! String || value.isNotEmpty);
 
-class _MobileCodexToolScalar extends StatelessWidget {
-  const _MobileCodexToolScalar({required this.label, required this.value});
-
-  final String label;
-  final String value;
-
+class const _MobileCodexToolScalar({
+  required final String label,
+  required final String value,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Padding(
     padding: const EdgeInsets.only(bottom: AleraTokens.space6),
     child: Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: .start,
       children: <Widget>[
         SizedBox(
           width: AleraTokens.space48 * 2,
           child: Text(
             label,
-            style: Theme.of(context).textTheme.labelSmall?.copyWith(
-              color: AleraTokens.foregroundMuted,
-            ),
+            style: Theme.of(context).textTheme.labelSmall
+                ?.copyWith(color: AleraTokens.foregroundMuted),
           ),
         ),
         const SizedBox(width: AleraTokens.space8),
@@ -253,36 +239,29 @@ class _MobileCodexToolScalar extends StatelessWidget {
   );
 }
 
-class _MobileCodexToolSection extends StatelessWidget {
-  const _MobileCodexToolSection({
-    required this.label,
-    required this.value,
-    required this.paginationId,
-  });
-
-  final String label;
-  final Object value;
-  final String paginationId;
-
+class const _MobileCodexToolSection({
+  required final String label,
+  required final Object value,
+  required final String paginationId,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Padding(
     padding: const EdgeInsets.only(bottom: AleraTokens.space8),
     child: Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+      crossAxisAlignment: .stretch,
       children: <Widget>[
         Row(
           children: <Widget>[
             Expanded(
               child: Text(
                 label,
-                style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                  color: AleraTokens.foregroundFaint,
-                ),
+                style: Theme.of(context).textTheme.labelSmall
+                    ?.copyWith(color: AleraTokens.foregroundFaint),
               ),
             ),
             IconButton(
               tooltip: 'Copy $label',
-              visualDensity: VisualDensity.compact,
+              visualDensity: .compact,
               onPressed: () => unawaited(_copyMobileCodexToolValue(value)),
               icon: const Icon(AleraIcons.copy, size: AleraTokens.space16),
             ),

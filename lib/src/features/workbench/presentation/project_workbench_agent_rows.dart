@@ -1,21 +1,13 @@
 part of 'project_workbench_sidebar.dart';
 
-class _AgentRunRow extends StatefulWidget {
-  const _AgentRunRow({
-    super.key,
-    required this.tab,
-    required this.status,
-    required this.isActive,
-    required this.onTap,
-    required this.onClose,
-  });
-
-  final WorkspaceTabRecord tab;
-  final AgentStatusEntry status;
-  final bool isActive;
-  final VoidCallback onTap;
-  final VoidCallback onClose;
-
+class const _AgentRunRow({
+  super.key,
+  required final WorkspaceTabRecord tab,
+  required final AgentStatusEntry status,
+  required final bool isActive,
+  required final VoidCallback onTap,
+  required final VoidCallback onClose,
+}) extends StatefulWidget {
   @override
   State<_AgentRunRow> createState() => _AgentRunRowState();
 }
@@ -33,7 +25,7 @@ class _AgentRunRowState extends State<_AgentRunRow> {
       onEnter: (_) => setState(() => _hovered = true),
       onExit: (_) => setState(() => _hovered = false),
       child: AnimatedContainer(
-        width: double.infinity,
+        width: .infinity,
         duration: AleraTokens.durationFast,
         decoration: BoxDecoration(
           color: isActive
@@ -44,14 +36,14 @@ class _AgentRunRowState extends State<_AgentRunRow> {
         child: InkWell(
           onTap: widget.onTap,
           mouseCursor: SystemMouseCursors.click,
-          borderRadius: BorderRadius.circular(AleraTokens.radiusSm),
+          borderRadius: .circular(AleraTokens.radiusSm),
           child: Padding(
             padding: const EdgeInsets.symmetric(
               horizontal: AleraTokens.space6,
               vertical: AleraTokens.space4,
             ),
             child: Row(
-              crossAxisAlignment: CrossAxisAlignment.center,
+              crossAxisAlignment: .center,
               children: <Widget>[
                 AgentRunStateIndicator(status: widget.status, size: 12),
                 const SizedBox(width: AleraTokens.space6),
@@ -67,7 +59,7 @@ class _AgentRunRowState extends State<_AgentRunRow> {
                   child: Text(
                     description,
                     maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
+                    overflow: .ellipsis,
                     style: theme.textTheme.labelSmall?.copyWith(
                       color: isActive
                           ? AleraTokens.foreground

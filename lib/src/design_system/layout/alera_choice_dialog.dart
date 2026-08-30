@@ -8,28 +8,17 @@ import 'package:flutter/material.dart';
 /// Pops [primaryValue] / [secondaryValue] / `null` (cancel) from the
 /// [Navigator]. Pass [destructiveSecondary] when the secondary action removes
 /// or terminates work so it uses the error button style.
-class AleraChoiceDialog<T> extends StatelessWidget {
-  const AleraChoiceDialog({
-    super.key,
-    required this.title,
-    required this.message,
-    required this.primaryLabel,
-    required this.primaryValue,
-    this.cancelLabel = 'Cancel',
-    this.secondaryLabel,
-    this.secondaryValue,
-    this.destructiveSecondary = false,
-  });
-
-  final String title;
-  final String message;
-  final String primaryLabel;
-  final T primaryValue;
-  final String cancelLabel;
-  final String? secondaryLabel;
-  final T? secondaryValue;
-  final bool destructiveSecondary;
-
+class const AleraChoiceDialog<T>({
+  super.key,
+  required final String title,
+  required final String message,
+  required final String primaryLabel,
+  required final T primaryValue,
+  final String cancelLabel = 'Cancel',
+  final String? secondaryLabel,
+  final T? secondaryValue,
+  final bool destructiveSecondary = false,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -45,8 +34,8 @@ class AleraChoiceDialog<T> extends StatelessWidget {
       child: Padding(
         padding: const EdgeInsets.all(AleraTokens.space20),
         child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: .min,
+          crossAxisAlignment: .start,
           children: <Widget>[
             Text(title, style: theme.textTheme.titleMedium),
             const SizedBox(height: AleraTokens.space12),
@@ -59,7 +48,7 @@ class AleraChoiceDialog<T> extends StatelessWidget {
             const SizedBox(height: AleraTokens.space20),
             if (hasSecondary) ...<Widget>[
               SizedBox(
-                width: double.infinity,
+                width: .infinity,
                 child: FilledButton(
                   onPressed: () =>
                       Navigator.of(context).pop(secondaryValue as T),
@@ -67,7 +56,7 @@ class AleraChoiceDialog<T> extends StatelessWidget {
                   child: Text(
                     secondaryLabel!,
                     maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
+                    overflow: .ellipsis,
                   ),
                 ),
               ),
@@ -78,22 +67,14 @@ class AleraChoiceDialog<T> extends StatelessWidget {
                 Expanded(
                   child: TextButton(
                     onPressed: () => Navigator.of(context).pop(),
-                    child: Text(
-                      cancelLabel,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
+                    child: Text(cancelLabel, maxLines: 1, overflow: .ellipsis),
                   ),
                 ),
                 const SizedBox(width: AleraTokens.space8),
                 Expanded(
                   child: FilledButton(
                     onPressed: () => Navigator.of(context).pop(primaryValue),
-                    child: Text(
-                      primaryLabel,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
+                    child: Text(primaryLabel, maxLines: 1, overflow: .ellipsis),
                   ),
                 ),
               ],

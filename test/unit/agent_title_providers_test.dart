@@ -3,7 +3,6 @@ import 'dart:async';
 import 'package:alera/src/features/ai_assist/application/agent_title_providers.dart';
 import 'package:alera/src/features/ai_assist/application/agent_title_service.dart';
 import 'package:alera/src/features/settings/application/settings_controller.dart';
-import 'package:alera/src/features/settings/domain/alera_settings.dart';
 import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_protocol.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -17,9 +16,7 @@ void main() {
         addTearDown(client.events.close);
         final container = ProviderContainer.test(
           overrides: [
-            settingsControllerProvider.overrideWithValue(
-              AleraSettings.defaults,
-            ),
+            settingsControllerProvider.overrideWithValue(.defaults),
             agentTitleServiceProvider.overrideWithValue(
               AgentTitleService(client),
             ),

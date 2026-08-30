@@ -1,16 +1,9 @@
-class RuntimePushPreferences {
-  const RuntimePushPreferences({
-    this.enabled = true,
-    this.attention = true,
-    this.done = false,
-    this.terminalExit = false,
-  });
-
-  final bool enabled;
-  final bool attention;
-  final bool done;
-  final bool terminalExit;
-
+class const RuntimePushPreferences({
+  final bool enabled = true,
+  final bool attention = true,
+  final bool done = false,
+  final bool terminalExit = false,
+}) {
   bool get hasEnabledCategory => enabled && (attention || done || terminalExit);
 
   RuntimePushPreferences copyWith({
@@ -27,7 +20,7 @@ class RuntimePushPreferences {
     );
   }
 
-  factory RuntimePushPreferences.fromJson(Map<String, Object?> json) {
+  factory fromJson(Map<String, Object?> json) {
     return RuntimePushPreferences(
       enabled: json['enabled'] != false,
       attention: json['attention'] != false,

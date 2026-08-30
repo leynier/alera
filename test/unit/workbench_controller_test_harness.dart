@@ -1,6 +1,6 @@
 part of 'workbench_controller_test.dart';
 
-Future<void> _flush() => Future<void>.delayed(Duration.zero);
+Future<void> _flush() => Future.pause(.zero);
 Future<Workspace> _selectMainWorkspace(
   WorkbenchController controller,
   _WorkbenchHarness harness,
@@ -27,8 +27,8 @@ Future<void> _flushUntil(bool Function() condition, {int attempts = 20}) async {
   throw StateError('condition was not met');
 }
 
-class _WorkbenchHarness {
-  _WorkbenchHarness([ManagedWorkspaceRuntime? runtime]) {
+class _WorkbenchHarness([ManagedWorkspaceRuntime? runtime]) {
+  this {
     tempDir = Directory.systemTemp.createTempSync(
       'alera-workbench-_controller-',
     );
@@ -38,8 +38,8 @@ class _WorkbenchHarness {
       id: 'project-1',
       name: 'Alera',
       repoPath: repoPath,
-      createdAt: DateTime.utc(2026, 5, 22),
-      updatedAt: DateTime.utc(2026, 5, 22),
+      createdAt: .utc(2026, 5, 22),
+      updatedAt: .utc(2026, 5, 22),
     );
     projectRepository = _FakeProjectRepository(<Project>[project]);
     workbenchRepository = _FakeWorkbenchRepository();
@@ -118,8 +118,8 @@ class _WorkbenchHarness {
       id: id,
       name: name,
       repoPath: repoPath,
-      createdAt: DateTime.utc(2026, 5, 22),
-      updatedAt: DateTime.utc(2026, 5, 22),
+      createdAt: .utc(2026, 5, 22),
+      updatedAt: .utc(2026, 5, 22),
     );
     await projectRepository.add(newProject);
     return newProject;
@@ -207,7 +207,7 @@ class _FakeWorkspaceGraphRepository implements WorkspaceGraphRepository {
       parentInstanceId: 'instance-$parentWorkspaceId',
       childWorkspaceId: childWorkspaceId,
       childInstanceId: 'instance-$childWorkspaceId',
-      createdAt: DateTime.utc(2026, 5, 22),
+      createdAt: .utc(2026, 5, 22),
     );
     relations.add(relation);
     return relation;
@@ -231,7 +231,7 @@ class _FakeWorkspaceGraphRepository implements WorkspaceGraphRepository {
 }
 
 class _FakeWorktreeSetupRunner implements WorktreeSetupRunner {
-  WorktreeSetupReport report = WorktreeSetupReport.empty;
+  WorktreeSetupReport report = .empty;
   final List<({Project project, Workspace workspace, ProjectConfig config})>
   calls = <({Project project, Workspace workspace, ProjectConfig config})>[];
 
@@ -246,10 +246,8 @@ class _FakeWorktreeSetupRunner implements WorktreeSetupRunner {
   }
 }
 
-class _FakeProjectRepository implements ProjectRepository {
-  _FakeProjectRepository(this._projects);
-
-  final List<Project> _projects;
+class _FakeProjectRepository(final List<Project> _projects)
+    implements ProjectRepository {
   final StreamController<List<Project>> _projectsController =
       StreamController<List<Project>>.broadcast();
   Object? listAllError;

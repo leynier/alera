@@ -6,58 +6,32 @@ import 'package:flutter/services.dart';
 ///
 /// - Default ([dense] == false): relies on the global `inputDecorationTheme`.
 /// - [dense] == true: compact surface-filled variant for narrow toolbars.
-class AleraTextField extends StatelessWidget {
-  const AleraTextField({
-    super.key,
-    this.controller,
-    this.focusNode,
-    this.labelText,
-    this.hintText,
-    this.errorText,
-    this.helperText,
-    this.prefixIcon,
-    this.suffix,
-    this.keyboardType,
-    this.minLines,
-    this.maxLines = 1,
-    this.inputFormatters,
-    this.onChanged,
-    this.onSubmitted,
-    this.onEditingComplete,
-    this.onTap,
-    this.autofocus = false,
-    this.dense = false,
-    this.readOnly = false,
-    this.enabled,
-    this.obscureText = false,
-    this.enableSuggestions = true,
-    this.autocorrect = true,
-  });
-
-  final TextEditingController? controller;
-  final FocusNode? focusNode;
-  final String? labelText;
-  final String? hintText;
-  final String? errorText;
-  final String? helperText;
-  final IconData? prefixIcon;
-  final Widget? suffix;
-  final TextInputType? keyboardType;
-  final int? minLines;
-  final int? maxLines;
-  final List<TextInputFormatter>? inputFormatters;
-  final ValueChanged<String>? onChanged;
-  final ValueChanged<String>? onSubmitted;
-  final VoidCallback? onEditingComplete;
-  final VoidCallback? onTap;
-  final bool autofocus;
-  final bool dense;
-  final bool readOnly;
-  final bool? enabled;
-  final bool obscureText;
-  final bool enableSuggestions;
-  final bool autocorrect;
-
+class const AleraTextField({
+  super.key,
+  final TextEditingController? controller,
+  final FocusNode? focusNode,
+  final String? labelText,
+  final String? hintText,
+  final String? errorText,
+  final String? helperText,
+  final IconData? prefixIcon,
+  final Widget? suffix,
+  final TextInputType? keyboardType,
+  final int? minLines,
+  final int? maxLines = 1,
+  final List<TextInputFormatter>? inputFormatters,
+  final ValueChanged<String>? onChanged,
+  final ValueChanged<String>? onSubmitted,
+  final VoidCallback? onEditingComplete,
+  final VoidCallback? onTap,
+  final bool autofocus = false,
+  final bool dense = false,
+  final bool readOnly = false,
+  final bool? enabled,
+  final bool obscureText = false,
+  final bool enableSuggestions = true,
+  final bool autocorrect = true,
+}) extends StatelessWidget {
   /// Fixed height of the dense variant: `space32 + space8`.
   static const double denseHeight = AleraTokens.space32 + AleraTokens.space8;
 
@@ -113,7 +87,7 @@ class AleraTextField extends StatelessWidget {
         obscureText: obscureText,
         enableSuggestions: enableSuggestions,
         autocorrect: autocorrect,
-        textAlignVertical: TextAlignVertical.center,
+        textAlignVertical: .center,
         style: theme.textTheme.bodySmall?.copyWith(
           color: AleraTokens.foreground,
         ),
@@ -162,7 +136,7 @@ class AleraTextField extends StatelessWidget {
   }
 
   OutlineInputBorder _denseBorder(Color color) => OutlineInputBorder(
-    borderRadius: BorderRadius.circular(AleraTokens.radiusLg),
+    borderRadius: .circular(AleraTokens.radiusLg),
     borderSide: BorderSide(color: color),
   );
 }

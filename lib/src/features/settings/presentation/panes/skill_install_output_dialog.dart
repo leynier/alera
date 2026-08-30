@@ -8,16 +8,11 @@ import 'package:flutter/services.dart';
 
 /// Full, selectable installer output. The settings row can only show a single
 /// line, and the line that names an installer failure is rarely the first one.
-class SkillInstallOutputDialog extends StatelessWidget {
-  const SkillInstallOutputDialog({
-    super.key,
-    required this.title,
-    required this.output,
-  });
-
-  final String title;
-  final String output;
-
+class const SkillInstallOutputDialog({
+  super.key,
+  required final String title,
+  required final String output,
+}) extends StatelessWidget {
   static Future<void> show(
     BuildContext context, {
     required String title,
@@ -38,8 +33,8 @@ class SkillInstallOutputDialog extends StatelessWidget {
       child: Padding(
         padding: const EdgeInsets.all(AleraTokens.space16),
         child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
+          mainAxisSize: .min,
+          crossAxisAlignment: .stretch,
           children: <Widget>[
             AleraDialogHeader(
               title: title,
@@ -48,7 +43,7 @@ class SkillInstallOutputDialog extends StatelessWidget {
             const SizedBox(height: AleraTokens.space12),
             Flexible(
               child: Container(
-                width: double.infinity,
+                width: .infinity,
                 padding: const EdgeInsets.all(AleraTokens.space12),
                 decoration: BoxDecoration(
                   color: AleraTokens.surfaceVariant,
@@ -68,7 +63,7 @@ class SkillInstallOutputDialog extends StatelessWidget {
             ),
             const SizedBox(height: AleraTokens.space12),
             Row(
-              mainAxisAlignment: MainAxisAlignment.end,
+              mainAxisAlignment: .end,
               children: <Widget>[
                 OutlinedButton.icon(
                   onPressed: () =>

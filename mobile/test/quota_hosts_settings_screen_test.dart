@@ -258,24 +258,18 @@ PairedHostProfile _host(
     displayName: name,
     endpoint: remote ? 'relay://$runtimeId' : 'ws://127.0.0.1:6768',
     deviceId: 'device-1',
-    pairedAt: DateTime.utc(2026),
+    pairedAt: .utc(2026),
     isRemote: remote,
   );
 }
 
-class _TestAvailableHosts extends AvailableHosts {
-  _TestAvailableHosts(this.hosts);
-
-  final List<PairedHostProfile> hosts;
-
+class _TestAvailableHosts(final List<PairedHostProfile> hosts)
+    extends AvailableHosts {
   @override
   Future<List<PairedHostProfile>> build() async => hosts;
 }
 
-class _Quotas extends AgentQuotaController {
-  _Quotas(this.reads);
-  final List<String> reads;
-
+class _Quotas(final List<String> reads) extends AgentQuotaController {
   @override
   Future<QuotaSnapshotState> build(String hostId) async {
     reads.add(hostId);
@@ -287,10 +281,7 @@ class _Quotas extends AgentQuotaController {
   }
 }
 
-class _Settings extends HostSettingsController {
-  _Settings(this.reads);
-  final List<String> reads;
-
+class _Settings(final List<String> reads) extends HostSettingsController {
   @override
   Future<PortableHostSettings> build(String hostId) async {
     reads.add(hostId);
@@ -298,10 +289,8 @@ class _Settings extends HostSettingsController {
   }
 }
 
-class _DelayedVisibility extends QuotaHostVisibilityController {
-  _DelayedVisibility(this.selection);
-  final Future<Set<String>> selection;
-
+class _DelayedVisibility(final Future<Set<String>> selection)
+    extends QuotaHostVisibilityController {
   @override
   Future<Set<String>> build() => selection;
 }

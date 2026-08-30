@@ -49,8 +49,10 @@ List<MobileCodexTimelineCell> _mobileCellsWithoutClaimedMatches(
   ];
 }
 
-final class _MobileCodexTimelineIdentityIndex {
-  _MobileCodexTimelineIdentityIndex(this.cells) {
+final class _MobileCodexTimelineIdentityIndex(
+  final List<MobileCodexTimelineCell> cells,
+) {
+  this {
     for (var index = 0; index < cells.length; index++) {
       final cell = cells[index];
       _add(ids, cell.id, index);
@@ -58,7 +60,6 @@ final class _MobileCodexTimelineIdentityIndex {
     }
   }
 
-  final List<MobileCodexTimelineCell> cells;
   final Set<int> claimed = <int>{};
   final Map<String, ListQueue<int>> ids = <String, ListQueue<int>>{};
   final Map<String, ListQueue<int>> canonicalIds = <String, ListQueue<int>>{};

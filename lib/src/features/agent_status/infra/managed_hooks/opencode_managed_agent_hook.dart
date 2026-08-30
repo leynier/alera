@@ -3,7 +3,7 @@ part of '../managed_agent_hook_installer.dart';
 extension _OpenCodeManagedAgentHook on ManagedAgentHookInstallService {
   _ManagedHookArtifact _opencodeArtifact() {
     return _ManagedHookArtifact(
-      agentType: AgentType.opencode,
+      agentType: .opencode,
       label: 'OpenCode status plugin',
       path: p.join(_opencodeConfigDir(), 'plugins', 'alera-agent-status.js'),
       content: _opencodePluginSource(),

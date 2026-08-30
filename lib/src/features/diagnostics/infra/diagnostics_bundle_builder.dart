@@ -10,9 +10,7 @@ import 'package:path/path.dart' as p;
 /// A single file is what actually gets attached to a report; asking a user to
 /// find two log directories and note their versions loses most of the context
 /// that makes a log readable.
-class DiagnosticsBundleBuilder {
-  const DiagnosticsBundleBuilder();
-
+class const DiagnosticsBundleBuilder() {
   static const String appLogPrefix = 'app';
   static const String runtimeLogPrefix = 'runtime';
   static const String metadataEntryName = 'meta.json';

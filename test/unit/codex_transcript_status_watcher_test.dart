@@ -62,7 +62,7 @@ void main() {
             }),
           },
         })}\n',
-        mode: FileMode.append,
+        mode: .append,
       );
       await watcher.scanNowForTesting('session-1');
 
@@ -108,7 +108,7 @@ void main() {
           'type': 'response_item',
           'payload': <String, Object?>{'type': 'function_call_output', 'call_id': 'call-1', 'output': '{}'},
         })}\n',
-        mode: FileMode.append,
+        mode: .append,
       );
       await watcher.scanNowForTesting('session-1');
 
@@ -120,60 +120,57 @@ void main() {
       expect(sink.events.last.payload['tool_name'], 'request_permissions');
     });
 
-    test(
-      'reads hook names from payloads and handles event message waits',
-      () async {
-        transcript.writeAsStringSync('');
-        watcher.observeHookEvent(
-          _event(
-            hookEventName: null,
-            payload: <String, Object?>{
-              'hook_event_name': 'UserPromptSubmit',
-              'turn_id': 'turn-1',
-              'transcript_path': transcript.path,
-            },
-          ),
-        );
-        await watcher.scanNowForTesting('session-1');
+    test('reads hook names from payloads and handles event message waits', () async {
+      transcript.writeAsStringSync('');
+      watcher.observeHookEvent(
+        _event(
+          hookEventName: null,
+          payload: <String, Object?>{
+            'hook_event_name': 'UserPromptSubmit',
+            'turn_id': 'turn-1',
+            'transcript_path': transcript.path,
+          },
+        ),
+      );
+      await watcher.scanNowForTesting('session-1');
 
-        transcript.writeAsStringSync(
-          '${jsonEncode(<String, Object?>{
-            'type': 'turn_context',
-            'payload': <String, Object?>{'turn_id': 'turn-1'},
-          })}\n'
-          '${jsonEncode(<String, Object?>{
-            'type': 'event_msg',
-            'payload': <String, Object?>{
-              'type': 'request_user_input',
-              'call_id': 'input-1',
-              'questions': <Object?>[
-                <String, Object?>{'question': 'Continue?'},
-              ],
-            },
-          })}\n'
-          '${jsonEncode(<String, Object?>{
-            'type': 'event_msg',
-            'payload': <String, Object?>{'type': 'request_permissions', 'call_id': 'permission-1', 'reason': 'Need access'},
-          })}\n',
-          mode: FileMode.append,
-        );
-        await watcher.scanNowForTesting('session-1');
+      transcript.writeAsStringSync(
+        '${jsonEncode(<String, Object?>{
+          'type': 'turn_context',
+          'payload': <String, Object?>{'turn_id': 'turn-1'},
+        })}\n'
+        '${jsonEncode(<String, Object?>{
+          'type': 'event_msg',
+          'payload': <String, Object?>{
+            'type': 'request_user_input',
+            'call_id': 'input-1',
+            'questions': <Object?>[
+              <String, Object?>{'question': 'Continue?'},
+            ],
+          },
+        })}\n'
+        '${jsonEncode(<String, Object?>{
+          'type': 'event_msg',
+          'payload': <String, Object?>{'type': 'request_permissions', 'call_id': 'permission-1', 'reason': 'Need access'},
+        })}\n',
+        mode: .append,
+      );
+      await watcher.scanNowForTesting('session-1');
 
-        expect(sink.events.map((event) => event.payload['tool_name']), <String>[
-          'request_user_input',
-          'request_permissions',
-        ]);
-        expect(sink.events.first.payload['tool_input'], <String, Object?>{
-          'questions': <Object?>[
-            <String, Object?>{'question': 'Continue?'},
-          ],
-        });
-        expect(
-          sink.events.last.payload['tool_input'],
-          containsPair('reason', 'Need access'),
-        );
-      },
-    );
+      expect(sink.events.map((event) => event.payload['tool_name']), <String>[
+        'request_user_input',
+        'request_permissions',
+      ]);
+      expect(sink.events.first.payload['tool_input'], <String, Object?>{
+        'questions': <Object?>[
+          <String, Object?>{'question': 'Continue?'},
+        ],
+      });
+      expect(
+        sink.events.last.payload['tool_input'],
+        containsPair('reason', 'Need access'),
+      );
+    });
 
     test('deduplicates request aliases and clears watches on stop', () async {
       transcript.writeAsStringSync('');
@@ -193,12 +190,12 @@ void main() {
           'arguments': 'raw approval',
         },
       });
-      transcript.writeAsStringSync('$call\n$call\n', mode: FileMode.append);
+      transcript.writeAsStringSync('$call\n$call\n', mode: .append);
       await watcher.scanNowForTesting('session-1');
       watcher.observeHookEvent(
         _event(hookEventName: 'Stop', payload: const <String, Object?>{}),
       );
-      transcript.writeAsStringSync('$call\n', mode: FileMode.append);
+      transcript.writeAsStringSync('$call\n', mode: .append);
       await watcher.scanNowForTesting('session-1');
 
       expect(sink.events, hasLength(1));
@@ -232,7 +229,7 @@ void main() {
           'type': 'response_item',
           'payload': <String, Object?>{'type': 'function_call', 'name': 'request_user_input', 'call_id': 'call-1', 'arguments': '{}'},
         })}\n',
-        mode: FileMode.append,
+        mode: .append,
       );
       await watcher.scanNowForTesting('session-1');
 
@@ -246,7 +243,7 @@ void main() {
           terminalSessionId: 'session-2',
           workspaceId: 'workspace-1',
           tabId: 'tab-1',
-          agentType: AgentType.claude,
+          agentType: .claude,
           hookEventName: 'UserPromptSubmit',
           payload: <String, Object?>{'transcript_path': transcript.path},
         ),
@@ -270,71 +267,65 @@ void main() {
       expect(sink.events, isEmpty);
     });
 
-    test(
-      'marks interrupted turn as stopped after permission cancellation',
-      () async {
-        transcript.writeAsStringSync('');
-        watcher.observeHookEvent(
-          _event(
-            hookEventName: 'UserPromptSubmit',
-            payload: <String, Object?>{
-              'turn_id': 'turn-1',
-              'transcript_path': transcript.path,
-              'prompt': 'write a file',
-            },
-          ),
-        );
-        await watcher.scanNowForTesting('session-1');
+    test('marks interrupted turn as stopped after permission cancellation', () async {
+      transcript.writeAsStringSync('');
+      watcher.observeHookEvent(
+        _event(
+          hookEventName: 'UserPromptSubmit',
+          payload: <String, Object?>{
+            'turn_id': 'turn-1',
+            'transcript_path': transcript.path,
+            'prompt': 'write a file',
+          },
+        ),
+      );
+      await watcher.scanNowForTesting('session-1');
 
-        transcript.writeAsStringSync(
-          '${jsonEncode(<String, Object?>{
-            'type': 'event_msg',
-            'payload': <String, Object?>{'type': 'turn_aborted', 'turn_id': 'turn-1', 'reason': 'interrupted'},
-          })}\n',
-          mode: FileMode.append,
-        );
-        await watcher.scanNowForTesting('session-1');
+      transcript.writeAsStringSync(
+        '${jsonEncode(<String, Object?>{
+          'type': 'event_msg',
+          'payload': <String, Object?>{'type': 'turn_aborted', 'turn_id': 'turn-1', 'reason': 'interrupted'},
+        })}\n',
+        mode: .append,
+      );
+      await watcher.scanNowForTesting('session-1');
 
-        expect(sink.events, hasLength(1));
-        final event = sink.events.single;
-        expect(event.hookEventName, 'Stop');
-        expect(event.version, 'codex-transcript');
-        expect(event.payload['is_interrupt'], isTrue);
-      },
-    );
+      expect(sink.events, hasLength(1));
+      final event = sink.events.single;
+      expect(event.hookEventName, 'Stop');
+      expect(event.version, 'codex-transcript');
+      expect(event.payload['is_interrupt'], isTrue);
+    });
 
-    test(
-      'marks completed transcript turn as stopped with last message',
-      () async {
-        transcript.writeAsStringSync('');
-        watcher.observeHookEvent(
-          _event(
-            hookEventName: 'UserPromptSubmit',
-            payload: <String, Object?>{
-              'turn_id': 'turn-1',
-              'transcript_path': transcript.path,
-              'prompt': 'finish',
-            },
-          ),
-        );
-        await watcher.scanNowForTesting('session-1');
+    test('marks completed transcript turn as stopped with last message', () async {
+      transcript.writeAsStringSync('');
+      watcher.observeHookEvent(
+        _event(
+          hookEventName: 'UserPromptSubmit',
+          payload: <String, Object?>{
+            'turn_id': 'turn-1',
+            'transcript_path': transcript.path,
+            'prompt': 'finish',
+          },
+        ),
+      );
+      await watcher.scanNowForTesting('session-1');
 
-        transcript.writeAsStringSync(
-          '${jsonEncode(<String, Object?>{
-            'type': 'event_msg',
-            'payload': <String, Object?>{'type': 'task_complete', 'turn_id': 'turn-1', 'last_agent_message': 'Done.'},
-          })}\n',
-          mode: FileMode.append,
-        );
-        await watcher.scanNowForTesting('session-1');
+      transcript.writeAsStringSync(
+        '${jsonEncode(<String, Object?>{
+          'type': 'event_msg',
+          'payload': <String, Object?>{'type': 'task_complete', 'turn_id': 'turn-1', 'last_agent_message': 'Done.'},
+        })}\n',
+        mode: .append,
+      );
+      await watcher.scanNowForTesting('session-1');
 
-        expect(sink.events, hasLength(1));
-        final event = sink.events.single;
-        expect(event.hookEventName, 'Stop');
-        expect(event.payload['is_interrupt'], isFalse);
-        expect(event.payload['last_assistant_message'], 'Done.');
-      },
-    );
+      expect(sink.events, hasLength(1));
+      final event = sink.events.single;
+      expect(event.hookEventName, 'Stop');
+      expect(event.payload['is_interrupt'], isFalse);
+      expect(event.payload['last_assistant_message'], 'Done.');
+    });
 
     test('clearTerminal drops the watch for a closed terminal', () async {
       transcript.writeAsStringSync('');
@@ -366,7 +357,7 @@ void main() {
             }),
           },
         })}\n',
-        mode: FileMode.append,
+        mode: .append,
       );
       await watcher.scanNowForTesting('session-1');
 
@@ -383,7 +374,7 @@ AgentHookEvent _event({
     terminalSessionId: 'session-1',
     workspaceId: 'workspace-1',
     tabId: 'tab-1',
-    agentType: AgentType.codex,
+    agentType: .codex,
     hookEventName: hookEventName,
     payload: payload,
   );

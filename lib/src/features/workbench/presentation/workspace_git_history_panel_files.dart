@@ -1,16 +1,14 @@
 part of 'workspace_git_diff_panel.dart';
 
 class _CommitFilesState {
-  const _CommitFilesState.loading()
+  const new loading()
     : entries = const <GitCommitChangeEntry>[],
       error = null,
       loading = true;
 
-  const _CommitFilesState.ready({required this.entries})
-    : error = null,
-      loading = false;
+  const new ready({required this.entries}) : error = null, loading = false;
 
-  const _CommitFilesState.error({required this.error})
+  const new error({required this.error})
     : entries = const <GitCommitChangeEntry>[],
       loading = false;
 
@@ -19,21 +17,13 @@ class _CommitFilesState {
   final bool loading;
 }
 
-class _CommitFiles extends StatelessWidget {
-  const _CommitFiles({
-    required this.state,
-    required this.author,
-    required this.timestamp,
-    required this.onOpenAll,
-    required this.onOpenFile,
-  });
-
-  final _CommitFilesState state;
-  final String? author;
-  final DateTime? timestamp;
-  final VoidCallback onOpenAll;
-  final ValueChanged<GitCommitChangeEntry> onOpenFile;
-
+class const _CommitFiles({
+  required final _CommitFilesState state,
+  required final String? author,
+  required final DateTime? timestamp,
+  required final VoidCallback onOpenAll,
+  required final ValueChanged<GitCommitChangeEntry> onOpenFile,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final meta = <String>[
@@ -43,7 +33,7 @@ class _CommitFiles extends StatelessWidget {
     return DecoratedBox(
       decoration: const BoxDecoration(color: AleraTokens.surface),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
+        crossAxisAlignment: .stretch,
         children: <Widget>[
           if (meta.isNotEmpty)
             Padding(
@@ -55,9 +45,8 @@ class _CommitFiles extends StatelessWidget {
               ),
               child: Text(
                 meta,
-                style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                  color: AleraTokens.foregroundFaint,
-                ),
+                style: Theme.of(context).textTheme.labelSmall
+                    ?.copyWith(color: AleraTokens.foregroundFaint),
               ),
             ),
           if (state.loading)
@@ -70,9 +59,8 @@ class _CommitFiles extends StatelessWidget {
               padding: const EdgeInsets.fromLTRB(40, 4, 8, 6),
               child: Text(
                 state.error!,
-                style: Theme.of(
-                  context,
-                ).textTheme.bodySmall?.copyWith(color: AleraTokens.error),
+                style: Theme.of(context).textTheme.bodySmall
+                    ?.copyWith(color: AleraTokens.error),
               ),
             )
           else if (state.entries.isEmpty)
@@ -100,9 +88,8 @@ class _CommitFiles extends StatelessWidget {
                       const SizedBox(width: AleraTokens.space6),
                       Text(
                         'Open All Changes',
-                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                          color: AleraTokens.foregroundMuted,
-                        ),
+                        style: Theme.of(context).textTheme.labelSmall
+                            ?.copyWith(color: AleraTokens.foregroundMuted),
                       ),
                     ],
                   ),
@@ -122,12 +109,10 @@ class _CommitFiles extends StatelessWidget {
   }
 }
 
-class _CommitFileRow extends StatelessWidget {
-  const _CommitFileRow({required this.entry, required this.onOpen});
-
-  final GitCommitChangeEntry entry;
-  final VoidCallback onOpen;
-
+class const _CommitFileRow({
+  required final GitCommitChangeEntry entry,
+  required final VoidCallback onOpen,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final label = entry.oldPath == null
@@ -142,17 +127,13 @@ class _CommitFileRow extends StatelessWidget {
           padding: const EdgeInsets.fromLTRB(40, 4, 8, 4),
           child: Row(
             children: <Widget>[
-              AleraFileIcon(
-                pathOrName: entry.path,
-                kind: AleraFileIconKind.file,
-                size: 14,
-              ),
+              AleraFileIcon(pathOrName: entry.path, kind: .file, size: 14),
               const SizedBox(width: AleraTokens.space6),
               Expanded(
                 child: Text(
                   label,
                   maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+                  overflow: .ellipsis,
                   style: AleraTokens.monoStyle.copyWith(
                     color: AleraTokens.foregroundMuted,
                     fontSize: 11,
@@ -170,16 +151,13 @@ class _CommitFileRow extends StatelessWidget {
   }
 }
 
-class _CommitStats extends StatelessWidget {
-  const _CommitStats({required this.entry});
-
-  final GitCommitChangeEntry entry;
-
+class const _CommitStats({required final GitCommitChangeEntry entry})
+    extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final style = Theme.of(context).textTheme.labelSmall;
     return Row(
-      mainAxisSize: MainAxisSize.min,
+      mainAxisSize: .min,
       children: <Widget>[
         if (entry.added case final added? when added > 0)
           Text('+$added', style: style?.copyWith(color: AleraTokens.success)),
@@ -192,28 +170,22 @@ class _CommitStats extends StatelessWidget {
   }
 }
 
-class _HistoryLoadingMessage extends StatelessWidget {
-  const _HistoryLoadingMessage();
-
+class const _HistoryLoadingMessage() extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return const Center(child: CircularProgressIndicator());
   }
 }
 
-class _HistoryMessage extends StatelessWidget {
-  const _HistoryMessage({required this.message});
-
-  final String message;
-
+class const _HistoryMessage({required final String message})
+    extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Center(
       child: Text(
         message,
-        style: Theme.of(
-          context,
-        ).textTheme.bodySmall?.copyWith(color: AleraTokens.foregroundMuted),
+        style: Theme.of(context).textTheme.bodySmall
+            ?.copyWith(color: AleraTokens.foregroundMuted),
       ),
     );
   }

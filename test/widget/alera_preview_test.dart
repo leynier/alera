@@ -10,7 +10,7 @@ void main() {
     late ThemeData theme;
     await tester.pumpWidget(
       Directionality(
-        textDirection: TextDirection.ltr,
+        textDirection: .ltr,
         child: Builder(
           builder: (context) => preview.theme!().apply(
             context,

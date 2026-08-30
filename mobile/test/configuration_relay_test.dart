@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:typed_data';
+
 import 'package:alera_configuration/alera_configuration.dart';
 import 'package:alera_mobile/src/features/runtime/infra/relay_wire.dart';
 import 'package:flutter_test/flutter_test.dart';

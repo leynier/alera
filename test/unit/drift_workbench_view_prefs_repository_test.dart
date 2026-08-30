@@ -32,7 +32,7 @@ void main() {
       addTearDown(db.close);
       final repository = DriftWorkbenchViewPrefsRepository(db);
       final prefs = WorkbenchViewPrefs.defaults.copyWith(
-        groupBy: WorkbenchGroupBy.none,
+        groupBy: .none,
         selectedProjectIds: <String>{'project-1'},
         expandedWorkspaceIds: <String>{'workspace-1'},
       );

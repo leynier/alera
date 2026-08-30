@@ -2,11 +2,8 @@ import 'package:alera/src/features/workbench/application/workspace_activity_repo
 import 'package:alera/src/shared/infra/storage/drift_database.dart';
 import 'package:drift/drift.dart' show Value;
 
-class DriftWorkspaceActivityRepository implements WorkspaceActivityRepository {
-  DriftWorkspaceActivityRepository(this._db);
-
-  final AleraDatabase _db;
-
+class DriftWorkspaceActivityRepository(final AleraDatabase _db)
+    implements WorkspaceActivityRepository {
   @override
   Future<Map<String, DateTime>> loadAll() async {
     final rows = await _db.select(_db.workspaceActivityTable).get();

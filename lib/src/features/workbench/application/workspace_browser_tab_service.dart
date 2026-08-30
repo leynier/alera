@@ -7,16 +7,13 @@ import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
 import 'package:alera_browser/alera_browser.dart';
 import 'package:uuid/uuid.dart';
 
-class WorkspaceBrowserTabService {
-  WorkspaceBrowserTabService({
-    required WorkbenchRepository repository,
-    BrowserClosedTabsService? closedTabsService,
-    Uuid uuid = const Uuid(),
-    DateTime Function()? now,
-  }) : _repository = repository,
-       _closedTabsService = closedTabsService,
-       _uuid = uuid,
-       _now = now ?? _defaultNow;
+class WorkspaceBrowserTabService({
+  required this._repository,
+  this._closedTabsService,
+  this._uuid = const Uuid(),
+  DateTime Function()? now,
+}) {
+  this : _now = now ?? _defaultNow;
 
   final WorkbenchRepository _repository;
   final BrowserClosedTabsService? _closedTabsService;
@@ -58,7 +55,7 @@ class WorkspaceBrowserTabService {
     final tab = WorkspaceTabRecord(
       id: normalizedPageId ?? _uuid.v4(),
       workspaceId: workspaceId,
-      kind: WorkspaceTabKind.browser,
+      kind: .browser,
       title: 'New Tab',
       createdAt: now,
       updatedAt: now,

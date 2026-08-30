@@ -5,13 +5,9 @@ import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   test('canonical video runtime pins are lowercase SHA-256 digests', () {
-    final manifest =
-        jsonDecode(
-              File(
-                'tool/native_helpers/video_runtime_assets.json',
-              ).readAsStringSync(),
-            )
-            as Map<String, Object?>;
+    final manifest = jsonDecode(
+      File('tool/native_helpers/video_runtime_assets.json').readAsStringSync(),
+    ) as Map<String, Object?>;
     final windows = manifest['windows']! as Map<String, Object?>;
     final sha256 = RegExp(r'^[0-9a-f]{64}$');
 

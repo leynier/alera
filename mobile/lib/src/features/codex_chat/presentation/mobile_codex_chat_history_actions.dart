@@ -108,7 +108,7 @@ extension _MobileCodexHistoryActions on _MobileCodexChatScreenState {
     if (mounted) {
       setState(
         () => _historyRowsOverride =
-            List<MobileCodexPresentationRow>.unmodifiable(next),
+            List<MobileCodexPresentationRow>.unmodifiableOf(next),
       );
     }
   }
@@ -126,7 +126,7 @@ extension _MobileCodexHistoryActions on _MobileCodexChatScreenState {
   double? get _historyAnchorTop {
     final renderObject = _historyAnchorKey.currentContext?.findRenderObject();
     if (renderObject is! RenderBox || !renderObject.attached) return null;
-    return renderObject.localToGlobal(Offset.zero).dy;
+    return renderObject.localToGlobal(.zero).dy;
   }
 
   void _finishLoadingEarlier() {
@@ -147,8 +147,8 @@ extension _MobileCodexHistoryActions on _MobileCodexChatScreenState {
 
   void _scrollToBottom() => _scheduleTimelinePin(animate: true);
 
-  Future<void> _openPlan(MobileCodexTimelineCell cell) =>
-      Navigator.of(context).push(
+  Future<void> _openPlan(MobileCodexTimelineCell cell) => Navigator.of(context)
+      .push(
         MaterialPageRoute<void>(
           builder: (context) => _MobileExpandedPlanScreen(
             hostId: widget.hostId,

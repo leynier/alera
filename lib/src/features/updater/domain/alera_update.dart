@@ -18,9 +18,7 @@ enum AleraUpdateChannel {
   }
 }
 
-class _UriStringHook extends MappingHook {
-  const _UriStringHook();
-
+class const _UriStringHook() extends MappingHook {
   @override
   Object? beforeDecode(Object? value) {
     if (value is String) {
@@ -39,17 +37,15 @@ class _UriStringHook extends MappingHook {
 }
 
 @MappableClass()
-class AleraUpdateConfig with AleraUpdateConfigMappable {
-  const AleraUpdateConfig({
-    required this.archiveUrl,
-    required this.releasePageUrl,
-    required this.channel,
-    required this.autoInstallEnabled,
-    required this.signedRelease,
-    this.manifestPublicKey = '',
-    this.manifestPublicKeyId = 'alera-release-v1',
-  });
-
+class const AleraUpdateConfig({
+  required this.archiveUrl,
+  required this.releasePageUrl,
+  required this.channel,
+  required this.autoInstallEnabled,
+  required this.signedRelease,
+  this.manifestPublicKey = '',
+  this.manifestPublicKeyId = 'alera-release-v1',
+}) with AleraUpdateConfigMappable {
   static final Uri defaultArchiveUrl = Uri.parse(
     'https://updates.alera.build/updates/stable/app-archive.json',
   );
@@ -122,16 +118,16 @@ class AleraUpdateConfig with AleraUpdateConfigMappable {
     );
   }
 
-  factory AleraUpdateConfig.fromEnvironment() {
+  factory fromEnvironment() {
     final archiveUrl = Uri.tryParse(
-      const String.fromEnvironment(
+      const .fromEnvironment(
         'ALERA_UPDATE_ARCHIVE_URL',
         defaultValue:
             'https://updates.alera.build/updates/stable/app-archive.json',
       ),
     );
     final releasePageUrl = Uri.tryParse(
-      const String.fromEnvironment(
+      const .fromEnvironment(
         'ALERA_RELEASE_PAGE_URL',
         defaultValue: 'https://github.com/leynier/alera/releases',
       ),
@@ -140,26 +136,23 @@ class AleraUpdateConfig with AleraUpdateConfigMappable {
       archiveUrl: archiveUrl,
       releasePageUrl: releasePageUrl,
       channel: AleraUpdateChannel.parse(
-        const String.fromEnvironment(
-          'ALERA_UPDATE_CHANNEL',
-          defaultValue: 'stable',
-        ),
+        const .fromEnvironment('ALERA_UPDATE_CHANNEL', defaultValue: 'stable'),
       ),
       autoInstallEnabled: effectiveAutoInstallEnabled(
-        const bool.fromEnvironment('ALERA_UPDATE_AUTO_INSTALL_ENABLED'),
+        const .fromEnvironment('ALERA_UPDATE_AUTO_INSTALL_ENABLED'),
       ),
-      signedRelease: const bool.fromEnvironment('ALERA_SIGNED_RELEASE'),
-      manifestPublicKey: const String.fromEnvironment(
+      signedRelease: const .fromEnvironment('ALERA_SIGNED_RELEASE'),
+      manifestPublicKey: const .fromEnvironment(
         'ALERA_UPDATE_MANIFEST_PUBLIC_KEY',
       ),
-      manifestPublicKeyId: const String.fromEnvironment(
+      manifestPublicKeyId: const .fromEnvironment(
         'ALERA_UPDATE_MANIFEST_PUBLIC_KEY_ID',
         defaultValue: 'alera-release-v1',
       ),
     );
   }
 
-  factory AleraUpdateConfig.fromJson(Map<String, Object?> json) =>
+  factory fromJson(Map<String, Object?> json) =>
       AleraUpdateConfigMapper.fromMap(Map<String, dynamic>.from(json));
 }
 
@@ -265,22 +258,20 @@ enum AleraUpdateStatus {
 }
 
 @MappableClass()
-class AleraUpdateInfo with AleraUpdateInfoMappable {
-  const AleraUpdateInfo({
-    required this.version,
-    required this.shortVersion,
-    required this.date,
-    required this.mandatory,
-    required this.url,
-    required this.platform,
-    required this.changes,
-    this.installerKind = 'directory',
-    this.sha256,
-    this.size,
-    this.signatureBundleUrl,
-    this.provenanceUrl,
-  });
-
+class const AleraUpdateInfo({
+  required this.version,
+  required this.shortVersion,
+  required this.date,
+  required this.mandatory,
+  required this.url,
+  required this.platform,
+  required this.changes,
+  this.installerKind = 'directory',
+  this.sha256,
+  this.size,
+  this.signatureBundleUrl,
+  this.provenanceUrl,
+}) with AleraUpdateInfoMappable {
   final String version;
   final int shortVersion;
   final String date;
@@ -299,27 +290,25 @@ class AleraUpdateInfo with AleraUpdateInfoMappable {
 
   bool get isPrerelease => version.contains('-');
 
-  factory AleraUpdateInfo.fromJson(Map<String, Object?> json) =>
+  factory fromJson(Map<String, Object?> json) =>
       AleraUpdateInfoMapper.fromMap(Map<String, dynamic>.from(json));
 }
 
 @MappableClass()
-class AleraUpdateState with AleraUpdateStateMappable {
-  const AleraUpdateState({
-    required this.status,
-    required this.config,
-    this.latest,
-    this.message,
-    this.progress = 0,
-    this.currentVersion,
-    this.currentBuildNumber,
-  });
-
-  factory AleraUpdateState.idle(AleraUpdateConfig config) {
-    return AleraUpdateState(status: AleraUpdateStatus.idle, config: config);
+class const AleraUpdateState({
+  required this.status,
+  required this.config,
+  this.latest,
+  this.message,
+  this.progress = 0,
+  this.currentVersion,
+  this.currentBuildNumber,
+}) with AleraUpdateStateMappable {
+  factory idle(AleraUpdateConfig config) {
+    return AleraUpdateState(status: .idle, config: config);
   }
 
-  factory AleraUpdateState.fromJson(Map<String, Object?> json) =>
+  factory fromJson(Map<String, Object?> json) =>
       AleraUpdateStateMapper.fromMap(Map<String, dynamic>.from(json));
 
   final AleraUpdateStatus status;

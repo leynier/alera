@@ -1,17 +1,11 @@
 part of 'mobile_codex_chat_screen.dart';
 
-class _MobileCodexWorkspaceScope extends InheritedWidget {
-  const _MobileCodexWorkspaceScope({
-    required this.hostId,
-    required this.workspaceId,
-    required this.cwd,
-    required super.child,
-  });
-
-  final String hostId;
-  final String workspaceId;
-  final String? cwd;
-
+class const _MobileCodexWorkspaceScope({
+  required final String hostId,
+  required final String workspaceId,
+  required final String? cwd,
+  required super.child,
+}) extends InheritedWidget {
   static _MobileCodexWorkspaceScope? maybeOf(BuildContext context) =>
       context.dependOnInheritedWidgetOfExactType<_MobileCodexWorkspaceScope>();
 
@@ -23,17 +17,11 @@ class _MobileCodexWorkspaceScope extends InheritedWidget {
 }
 
 @visibleForTesting
-class MobileCodexWorkspaceLinkTarget {
-  const MobileCodexWorkspaceLinkTarget({
-    required this.path,
-    this.line,
-    this.displayName,
-  });
-
-  final String path;
-  final int? line;
-  final String? displayName;
-}
+class const MobileCodexWorkspaceLinkTarget({
+  required final String path,
+  final int? line,
+  final String? displayName,
+});
 
 Future<void> _openMobileCodexPath(
   BuildContext context,
@@ -57,7 +45,7 @@ Future<void> _openMobileCodexPath(
       uri != null &&
       mobileCodexShouldLaunchExternalUri(value, uri)) {
     try {
-      final opened = await launchUrl(uri, mode: LaunchMode.externalApplication);
+      final opened = await launchUrl(uri, mode: .externalApplication);
       if (!opened && context.mounted) {
         _reportMobileCodexLinkFailure(context, uri);
       }
@@ -78,9 +66,8 @@ Future<void> _openMobileCodexPath(
     final scope = _MobileCodexWorkspaceScope.maybeOf(context);
     if (scope == null) return;
     if (target.path.isEmpty) return;
-    final client = await ProviderScope.containerOf(
-      context,
-    ).read(mobileCodexClientProvider(scope.hostId).future);
+    final client = await ProviderScope.containerOf(context)
+        .read(mobileCodexClientProvider(scope.hostId).future);
     if (!context.mounted) return;
     if (client is! MobileCodexWorkspaceClient) {
       _reportMobileCodexPreviewUnavailable(context);
@@ -139,9 +126,8 @@ Future<void> _openMobileCodexPath(
 void _reportMobileCodexPreviewUnavailable(BuildContext context) {
   const message = 'File preview requires a newer Alera runtime.';
   _MobileCodexChatScreenState._logger.warning(message);
-  ScaffoldMessenger.maybeOf(
-    context,
-  )?.showSnackBar(const SnackBar(content: Text(message)));
+  ScaffoldMessenger.maybeOf(context)
+      ?.showSnackBar(const SnackBar(content: Text(message)));
 }
 
 @visibleForTesting
@@ -193,9 +179,8 @@ void _reportMobileCodexLinkFailure(
     );
   }
   if (!context.mounted) return;
-  ScaffoldMessenger.maybeOf(
-    context,
-  )?.showSnackBar(const SnackBar(content: Text(message)));
+  ScaffoldMessenger.maybeOf(context)
+      ?.showSnackBar(const SnackBar(content: Text(message)));
 }
 
 bool _isAbsoluteMobileCodexPath(String value) =>
@@ -205,7 +190,7 @@ bool _isAbsoluteMobileCodexPath(String value) =>
 Rect mobileCodexSharePositionOrigin(BuildContext context) {
   final renderObject = context.findRenderObject();
   if (renderObject is RenderBox && renderObject.hasSize) {
-    final bounds = renderObject.localToGlobal(Offset.zero) & renderObject.size;
+    final bounds = renderObject.localToGlobal(.zero) & renderObject.size;
     if (!bounds.isEmpty) return bounds;
   }
   return Offset.zero & MediaQuery.sizeOf(context);

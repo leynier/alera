@@ -20,12 +20,10 @@ enum PushCoordinationStatus {
   error,
 }
 
-class PushCoordinationState {
-  const PushCoordinationState(this.status, {this.detail});
-
-  final PushCoordinationStatus status;
-  final String? detail;
-}
+class const PushCoordinationState(
+  final PushCoordinationStatus status, {
+  final String? detail,
+});
 
 @Riverpod(keepAlive: true)
 class PushCoordinator extends _$PushCoordinator {
@@ -76,7 +74,7 @@ class PushCoordinator extends _$PushCoordinator {
     }
     if (!messaging.isAvailable) {
       return const PushCoordinationState(
-        PushCoordinationStatus.unavailable,
+        .unavailable,
         detail: 'Firebase configuration is missing',
       );
     }
@@ -105,9 +103,7 @@ class PushCoordinator extends _$PushCoordinator {
         if (_disposed) {
           return;
         }
-        state = const AsyncData(
-          PushCoordinationState(PushCoordinationStatus.syncing),
-        );
+        state = const AsyncData(PushCoordinationState(.syncing));
         final sessions = await ref.read(cloudAccountsControllerProvider.future);
         final synchronized = await _synchronize(sessions);
         if (_disposed) {
@@ -134,7 +130,7 @@ class PushCoordinator extends _$PushCoordinator {
     final api = ref.read(aleraCloudApiProvider);
     if (!messaging.isAvailable) {
       return const PushCoordinationState(
-        PushCoordinationStatus.unavailable,
+        .unavailable,
         detail: 'Firebase configuration is missing',
       );
     }
@@ -142,7 +138,7 @@ class PushCoordinator extends _$PushCoordinator {
     for (var session in sessions) {
       final current = await accounts.sessionForRequest(session.account.id);
       if (_disposed) {
-        return const PushCoordinationState(PushCoordinationStatus.idle);
+        return const PushCoordinationState(.idle);
       }
       if (current == null) {
         continue;
@@ -168,31 +164,31 @@ class PushCoordinator extends _$PushCoordinator {
         )
         .toList(growable: false);
     if (active.isEmpty) {
-      return const PushCoordinationState(PushCoordinationStatus.idle);
+      return const PushCoordinationState(.idle);
     }
     final permission = await messaging.requestPermission();
     if (_disposed) {
-      return const PushCoordinationState(PushCoordinationStatus.idle);
+      return const PushCoordinationState(.idle);
     }
     if (permission != PushPermissionState.authorized) {
       return const PushCoordinationState(
-        PushCoordinationStatus.permissionDenied,
+        .permissionDenied,
         detail: 'Notification permission is off',
       );
     }
     final token = await messaging.token();
     if (_disposed) {
-      return const PushCoordinationState(PushCoordinationStatus.idle);
+      return const PushCoordinationState(.idle);
     }
     if (token == null || token.trim().isEmpty) {
       return const PushCoordinationState(
-        PushCoordinationStatus.error,
+        .error,
         detail: 'Firebase did not return a device token',
       );
     }
     for (final session in active) {
       if (_disposed) {
-        return const PushCoordinationState(PushCoordinationStatus.idle);
+        return const PushCoordinationState(.idle);
       }
       await api.registerPushToken(
         session: session,
@@ -201,7 +197,7 @@ class PushCoordinator extends _$PushCoordinator {
       );
       for (final entry in session.subscriptions.entries) {
         if (_disposed) {
-          return const PushCoordinationState(PushCoordinationStatus.idle);
+          return const PushCoordinationState(.idle);
         }
         if (!entry.value.hasEnabledCategory) {
           continue;
@@ -213,7 +209,7 @@ class PushCoordinator extends _$PushCoordinator {
         );
       }
     }
-    return const PushCoordinationState(PushCoordinationStatus.ready);
+    return const PushCoordinationState(.ready);
   }
 
   String _platformName() {

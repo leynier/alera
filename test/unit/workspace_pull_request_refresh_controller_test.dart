@@ -5,7 +5,6 @@ import 'package:alera/src/features/pull_requests/application/forge_provider.dart
 import 'package:alera/src/features/pull_requests/application/forge_provider_registry.dart';
 import 'package:alera/src/features/pull_requests/application/pull_request_providers.dart';
 import 'package:alera/src/features/pull_requests/application/workspace_pull_request_controller.dart';
-import 'package:alera/src/shared/git_hosting/domain/git_hosting_provider.dart';
 import 'package:alera/src/features/pull_requests/domain/hosted_review.dart';
 import 'package:alera/src/features/pull_requests/domain/linked_review.dart';
 import 'package:alera/src/features/pull_requests/domain/review_check.dart';
@@ -18,10 +17,10 @@ import 'fake_forge_provider.dart';
 import 'fake_git_backend.dart';
 
 HostedReview _review(int number) => HostedReview(
-  provider: GitHostingProvider.github,
+  provider: .github,
   number: number,
   title: 'feat: $number',
-  state: HostedReviewState.open,
+  state: .open,
   url: 'https://github.com/leynier/alera/pull/$number',
   headBranch: 'feature',
 );
@@ -66,7 +65,7 @@ Future<void> _waitUntil(bool Function() condition) async {
     if (condition()) {
       return;
     }
-    await Future<void>.delayed(Duration.zero);
+    await Future.pause(.zero);
   }
   fail('Condition was not reached after draining asynchronous work.');
 }
@@ -87,8 +86,8 @@ void main() {
     () async {
       const initialCheck = ReviewCheck(
         name: 'build',
-        status: ReviewCheckStatus.completed,
-        conclusion: ReviewCheckConclusion.success,
+        status: .completed,
+        conclusion: .success,
       );
       final forge = FakeForgeProvider()
         ..branchReview = _review(123)
@@ -136,8 +135,8 @@ void main() {
         ..checks = <ReviewCheck>[
           const ReviewCheck(
             name: 'build',
-            status: ReviewCheckStatus.completed,
-            conclusion: ReviewCheckConclusion.success,
+            status: .completed,
+            conclusion: .success,
           ),
         ];
       final container = _container(forge: forge);
@@ -218,7 +217,7 @@ void main() {
     final linkedReviews = FakeLinkedReviewRepository()
       ..store['w1'] = LinkedReview.dismissal(
         workspaceId: 'w1',
-        provider: GitHostingProvider.github,
+        provider: .github,
         number: 123,
         url: 'https://github.com/leynier/alera/pull/123',
       );

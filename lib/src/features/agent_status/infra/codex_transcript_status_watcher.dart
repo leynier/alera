@@ -9,16 +9,11 @@ import 'package:alera/src/features/app_window/domain/app_foreground.dart';
 
 part 'codex_transcript_watch.dart';
 
-class CodexTranscriptStatusWatcher {
-  CodexTranscriptStatusWatcher(
-    this._statusSink, [
-    this._watchdogInterval = const Duration(seconds: 5),
-    this._appForeground = const AlwaysForeground(),
-  ]);
-
-  final AgentStatusSink _statusSink;
-  final Duration _watchdogInterval;
-  final AppForeground _appForeground;
+class CodexTranscriptStatusWatcher(
+  final AgentStatusSink _statusSink, [
+  final Duration _watchdogInterval = const Duration(seconds: 5),
+  final AppForeground _appForeground = const AlwaysForeground(),
+]) {
   final Map<String, _CodexTranscriptWatch> _watches =
       <String, _CodexTranscriptWatch>{};
 

@@ -6,20 +6,13 @@ import 'package:flutter/material.dart';
 
 /// Confirmation step shown once an offer parses: host identity, endpoint,
 /// a live expiry countdown, and an optional device name before pairing.
-class PairingConfirmCard extends StatefulWidget {
-  const PairingConfirmCard({
-    super.key,
-    required this.offer,
-    required this.pairing,
-    required this.onPair,
-    required this.onScanAgain,
-  });
-
-  final PairingOffer offer;
-  final bool pairing;
-  final ValueChanged<String?> onPair;
-  final VoidCallback onScanAgain;
-
+class const PairingConfirmCard({
+  super.key,
+  required final PairingOffer offer,
+  required final bool pairing,
+  required final ValueChanged<String?> onPair,
+  required final VoidCallback onScanAgain,
+}) extends StatefulWidget {
   @override
   State<PairingConfirmCard> createState() => _PairingConfirmCardState();
 }
@@ -66,7 +59,7 @@ class _PairingConfirmCardState extends State<PairingConfirmCard> {
           child: Padding(
             padding: AleraTokens.contentPadding,
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+              crossAxisAlignment: .start,
               children: <Widget>[
                 Row(
                   children: <Widget>[
@@ -89,18 +82,18 @@ class _PairingConfirmCardState extends State<PairingConfirmCard> {
                     const SizedBox(width: AleraTokens.spaceMd),
                     Expanded(
                       child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                        crossAxisAlignment: .start,
                         children: <Widget>[
                           Text(
                             widget.offer.hostName,
                             style: Theme.of(context).textTheme.titleMedium,
-                            overflow: TextOverflow.ellipsis,
+                            overflow: .ellipsis,
                           ),
                           const SizedBox(height: AleraTokens.spaceXs),
                           Text(
                             '${endpoint.host}:${endpoint.port}',
                             style: Theme.of(context).textTheme.bodySmall,
-                            overflow: TextOverflow.ellipsis,
+                            overflow: .ellipsis,
                           ),
                         ],
                       ),

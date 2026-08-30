@@ -8,59 +8,38 @@ import 'package:alera_mobile/src/features/workbench/domain/mobile_view_prefs.dar
 /// Flattened list model for the mobile workspace list, mirroring the desktop
 /// sidebar sections: an optional pinned section on top, then either project
 /// groups or one flat tree.
-sealed class MobileWorkspaceRow {
-  const MobileWorkspaceRow();
-}
+sealed class const MobileWorkspaceRow();
 
-class MobilePinnedHeaderRow extends MobileWorkspaceRow {
-  const MobilePinnedHeaderRow({required this.count, required this.collapsed});
+class const MobilePinnedHeaderRow({
+  required final int count,
+  required final bool collapsed,
+}) extends MobileWorkspaceRow;
 
-  final int count;
-  final bool collapsed;
-}
+class const MobileProjectHeaderRow({
+  required final String projectId,
+  required final String projectName,
+  required final int count,
+  required final bool collapsed,
+}) extends MobileWorkspaceRow;
 
-class MobileProjectHeaderRow extends MobileWorkspaceRow {
-  const MobileProjectHeaderRow({
-    required this.projectId,
-    required this.projectName,
-    required this.count,
-    required this.collapsed,
-  });
+class const MobileAllHeaderRow({
+  required final int count,
+  required final bool collapsed,
+}) extends MobileWorkspaceRow;
 
-  final String projectId;
-  final String projectName;
-  final int count;
-  final bool collapsed;
-}
-
-class MobileAllHeaderRow extends MobileWorkspaceRow {
-  const MobileAllHeaderRow({required this.count, required this.collapsed});
-
-  final int count;
-  final bool collapsed;
-}
-
-class MobileWorkspaceEntryRow extends MobileWorkspaceRow {
-  const MobileWorkspaceEntryRow({
-    required this.entry,
-    this.isPinnedCopy = false,
-  });
-
-  final WorkspaceTreeEntry entry;
-
+class const MobileWorkspaceEntryRow({
+  required final WorkspaceTreeEntry entry,
+  this.isPinnedCopy = false,
+}) extends MobileWorkspaceRow {
   /// True for the flat copy rendered inside the pinned section.
   final bool isPinnedCopy;
 }
 
-class _PreparedWorkspaceListing {
-  const _PreparedWorkspaceListing({
-    required this.orderedWorkspaces,
-    required this.directActivityByWorkspaceId,
-  });
-
-  final List<WorkspaceSummary> orderedWorkspaces;
-  final Map<String, MobileAgentActivityRank?> directActivityByWorkspaceId;
-}
+class const _PreparedWorkspaceListing({
+  required final List<WorkspaceSummary> orderedWorkspaces,
+  required final Map<String, MobileAgentActivityRank?>
+  directActivityByWorkspaceId,
+});
 
 List<MobileWorkspaceRow> buildMobileWorkspaceRows({
   required List<WorkspaceSummary> workspaces,

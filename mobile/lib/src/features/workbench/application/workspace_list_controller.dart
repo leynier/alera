@@ -23,39 +23,24 @@ const Set<String> _refreshEvents = <String>{
   'agentPresenceChanged',
 };
 
-class WorkspaceListData {
-  const WorkspaceListData({
-    required this.workspaces,
-    required this.projects,
-    required this.supportsMutations,
-    this.supportsPromptWorkspaceCreation = true,
-    this.supportsPromptImageUpload = false,
-    this.supportsPromptFileUpload = false,
-    this.supportsWorkspaceFiles = false,
-    required this.tags,
-    required this.activity,
-    required this.confirmWorkspaceRemoval,
-    required this.agentPresence,
-    this.defaultAgentProfileId,
-    this.terminalTabCountByWorkspaceId = const <String, int>{},
-  });
-
-  final List<WorkspaceSummary> workspaces;
-  final List<ProjectSummary> projects;
-
+class const WorkspaceListData({
+  required final List<WorkspaceSummary> workspaces,
+  required final List<ProjectSummary> projects,
+  required this.supportsMutations,
+  final bool supportsPromptWorkspaceCreation = true,
+  final bool supportsPromptImageUpload = false,
+  final bool supportsPromptFileUpload = false,
+  final bool supportsWorkspaceFiles = false,
+  required final List<WorkspaceTagSummary> tags,
+  required final Map<String, DateTime> activity,
+  required final bool confirmWorkspaceRemoval,
+  required final List<AgentPresenceSummary> agentPresence,
+  final String? defaultAgentProfileId,
+  final Map<String, int> terminalTabCountByWorkspaceId = const <String, int>{},
+}) {
   /// False against runtimes that predate the mobile mutation allowlist; the
   /// UI hides mutating actions in that case.
   final bool supportsMutations;
-  final bool supportsPromptWorkspaceCreation;
-  final bool supportsPromptImageUpload;
-  final bool supportsPromptFileUpload;
-  final bool supportsWorkspaceFiles;
-  final List<WorkspaceTagSummary> tags;
-  final Map<String, DateTime> activity;
-  final bool confirmWorkspaceRemoval;
-  final List<AgentPresenceSummary> agentPresence;
-  final String? defaultAgentProfileId;
-  final Map<String, int> terminalTabCountByWorkspaceId;
 
   WorkspaceSummary? workspaceById(String id) {
     for (final workspace in workspaces) {

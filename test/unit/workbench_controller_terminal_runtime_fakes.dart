@@ -85,12 +85,11 @@ class _FakeTerminalRuntime implements TerminalRuntime {
   Future<void> dispose() => _exits.close();
 }
 
-class _FakeTerminalSessionHandle extends TerminalSessionHandle {
-  _FakeTerminalSessionHandle({
-    required this.tabId,
-    required this.workspaceId,
-    required this.displayTitle,
-  });
+class _FakeTerminalSessionHandle({
+  required this.tabId,
+  required this.workspaceId,
+  required this.displayTitle,
+}) extends TerminalSessionHandle {
   @override
   final String tabId;
 

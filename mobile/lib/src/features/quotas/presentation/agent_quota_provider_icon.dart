@@ -5,18 +5,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
 /// Provider glyph matching desktop [AgentQuotaProviderIcon].
-class AgentQuotaProviderIcon extends StatelessWidget {
-  const AgentQuotaProviderIcon({
-    super.key,
-    required this.provider,
-    this.size = 18,
-    this.showTooltip = true,
-  });
-
-  final String provider;
-  final double size;
-  final bool showTooltip;
-
+class const AgentQuotaProviderIcon({
+  super.key,
+  required final String provider,
+  final double size = 18,
+  final bool showTooltip = true,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final label = quotaProviderDisplayLabel(provider);

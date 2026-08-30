@@ -9,7 +9,7 @@ AgentStatusEntry _snapshotEntry({
     terminalSessionId: terminalSessionId,
     workspaceId: 'workspace-1',
     tabId: 'tab-1',
-    agentType: AgentType.codex,
+    agentType: .codex,
     state: state,
     prompt: 'Run tests',
     updatedAt: updatedAt,
@@ -62,7 +62,7 @@ void _registerAgentStatusSnapshotTests(ProviderContainer Function() container) {
   test('a genuinely newer snapshot wins over the local resolution', () {
     final controller = container().read(agentStatusControllerProvider.notifier);
     controller.replaceRuntimeSnapshot(<AgentStatusEntry>[
-      _snapshotEntry(updatedAt: DateTime.utc(2026, 5, 26, 0, 30)),
+      _snapshotEntry(updatedAt: .utc(2026, 5, 26, 0, 30)),
     ]);
     controller.markTerminalExited(
       workspaceId: 'workspace-1',
@@ -71,7 +71,7 @@ void _registerAgentStatusSnapshotTests(ProviderContainer Function() container) {
     );
 
     controller.replaceRuntimeSnapshot(<AgentStatusEntry>[
-      _snapshotEntry(updatedAt: DateTime.utc(2026, 5, 26, 9)),
+      _snapshotEntry(updatedAt: .utc(2026, 5, 26, 9)),
     ]);
 
     expect(controller.state['session-1']!.state, AgentStatusState.working);
@@ -97,13 +97,13 @@ void _registerAgentStatusSnapshotTests(ProviderContainer Function() container) {
   test('a clear is forgotten once the host stops reporting the session', () {
     final controller = container().read(agentStatusControllerProvider.notifier);
     controller.replaceRuntimeSnapshot(<AgentStatusEntry>[
-      _snapshotEntry(updatedAt: DateTime.utc(2026, 5, 26, 0, 30)),
+      _snapshotEntry(updatedAt: .utc(2026, 5, 26, 0, 30)),
     ]);
     controller.clearTerminal('session-1');
 
     controller.replaceRuntimeSnapshot(const <AgentStatusEntry>[]);
     controller.replaceRuntimeSnapshot(<AgentStatusEntry>[
-      _snapshotEntry(updatedAt: DateTime.utc(2026, 5, 26, 0, 30)),
+      _snapshotEntry(updatedAt: .utc(2026, 5, 26, 0, 30)),
     ]);
 
     expect(controller.state['session-1'], isNotNull);

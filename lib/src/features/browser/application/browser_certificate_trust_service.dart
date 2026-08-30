@@ -10,10 +10,9 @@ abstract interface class BrowserCertificateTrustService {
   Future<bool> remove(BrowserTrustedCertificate certificate);
 }
 
-final class BrowserCertificateTrustRegistry {
-  BrowserCertificateTrustRegistry(this._service);
-
-  final BrowserCertificateTrustService _service;
+final class BrowserCertificateTrustRegistry(
+  final BrowserCertificateTrustService _service,
+) {
   final Set<String> _sessionTrust = <String>{};
   List<BrowserTrustedCertificate>? _persistentTrust;
 

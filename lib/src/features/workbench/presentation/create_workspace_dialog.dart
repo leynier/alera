@@ -26,25 +26,11 @@ part 'create_workspace_dialog_selection_step.dart';
 part 'create_workspace_dialog_settings_step.dart';
 part 'create_workspace_dialog_submission.dart';
 
-class CreateWorkspaceDialog extends StatefulWidget {
-  const CreateWorkspaceDialog({
-    super.key,
-    required this.projects,
-    required this.loadBranches,
-    required this.onCreateWorkspace,
-    required this.checkBranchExists,
-    required this.getProjectActiveBranch,
-    required this.getProjectWorkspaceBranches,
-    this.parentCandidates = const <WorkspaceParentCandidate>[],
-    this.initialProject,
-    this.onAddProject,
-    this.onWorkspaceCreated,
-  });
-
-  final List<Project> projects;
-  final Project? initialProject;
-  final Future<List<String>> Function(Project project) loadBranches;
-  final Future<WorkspaceCreationResult> Function({
+class const CreateWorkspaceDialog({
+  super.key,
+  required final List<Project> projects,
+  required final Future<List<String>> Function(Project project) loadBranches,
+  required final Future<WorkspaceCreationResult> Function({
     required Project project,
     required String sourceBranch,
     required String newBranchName,
@@ -52,28 +38,26 @@ class CreateWorkspaceDialog extends StatefulWidget {
     String? name,
     String? parentWorkspaceId,
   })
-  onCreateWorkspace;
-  final Future<bool> Function(Project project, String branchName)
-  checkBranchExists;
-  final String? Function(Project project) getProjectActiveBranch;
-  final Set<String> Function(Project project) getProjectWorkspaceBranches;
-  final List<WorkspaceParentCandidate> parentCandidates;
-  final VoidCallback? onAddProject;
-  final ValueChanged<WorkspaceCreationResult>? onWorkspaceCreated;
-
+  onCreateWorkspace,
+  required final Future<bool> Function(Project project, String branchName)
+  checkBranchExists,
+  required final String? Function(Project project) getProjectActiveBranch,
+  required final Set<String> Function(Project project)
+  getProjectWorkspaceBranches,
+  final List<WorkspaceParentCandidate> parentCandidates =
+      const <WorkspaceParentCandidate>[],
+  final Project? initialProject,
+  final VoidCallback? onAddProject,
+  final ValueChanged<WorkspaceCreationResult>? onWorkspaceCreated,
+}) extends StatefulWidget {
   @override
   State<CreateWorkspaceDialog> createState() => _CreateWorkspaceDialogState();
 }
 
-class WorkspaceParentCandidate {
-  const WorkspaceParentCandidate({
-    required this.project,
-    required this.workspace,
-  });
-
-  final Project project;
-  final Workspace workspace;
-}
+class const WorkspaceParentCandidate({
+  required final Project project,
+  required final Workspace workspace,
+});
 
 class _CreateWorkspaceDialogState extends State<CreateWorkspaceDialog> {
   final TextEditingController _projectSearchController =

@@ -6,7 +6,6 @@ import 'package:alera/src/features/agent_profiles/domain/agent_profile.dart';
 import 'package:alera/src/features/browser/application/browser_providers.dart';
 import 'package:alera/src/features/browser/domain/browser_engine_models.dart';
 import 'package:alera/src/features/keyboard/application/keyboard_command_dispatcher.dart';
-import 'package:alera/src/features/keyboard/domain/keyboard_action.dart';
 import 'package:alera/src/features/keyboard/presentation/keyboard_command_palette_dialog.dart';
 import 'package:alera/src/features/projects/domain/project.dart';
 import 'package:alera/src/features/settings/domain/alera_settings.dart';
@@ -91,7 +90,7 @@ void main() {
     KeyboardCommandDispatcher(
       ref: dispatcherRef,
       context: dispatcherContext,
-    ).dispatch(KeyboardActionId.splitRight);
+    ).dispatch(.splitRight);
 
     showHost.value = false;
     await tester.pump();
@@ -144,21 +143,21 @@ void main() {
       tab: firstTab,
     );
 
-    dispatcher.dispatch(KeyboardActionId.toggleTerminalComposer);
+    dispatcher.dispatch(.toggleTerminalComposer);
     expect(activeSession.composerController.visible, isTrue);
 
-    dispatcher.dispatch(KeyboardActionId.newTerminalTab);
+    dispatcher.dispatch(.newTerminalTab);
     await tester.pump();
-    dispatcher.dispatch(KeyboardActionId.newBrowserTab);
-    await tester.pump();
-
-    dispatcher.dispatch(KeyboardActionId.nextTab);
-    dispatcher.dispatch(KeyboardActionId.previousTab);
-    dispatcher.dispatch(KeyboardActionId.goToTab2);
-    dispatcher.dispatch(KeyboardActionId.goToTab9);
+    dispatcher.dispatch(.newBrowserTab);
     await tester.pump();
 
-    dispatcher.dispatch(KeyboardActionId.closeTab);
+    dispatcher.dispatch(.nextTab);
+    dispatcher.dispatch(.previousTab);
+    dispatcher.dispatch(.goToTab2);
+    dispatcher.dispatch(.goToTab9);
+    await tester.pump();
+
+    dispatcher.dispatch(.closeTab);
     await tester.pump();
 
     expect(controller.createdTerminalWorkspaceIds, <String>[workspace.id]);
@@ -190,8 +189,8 @@ void main() {
       context: harness.context,
     );
 
-    dispatcher.dispatch(KeyboardActionId.navigateBack);
-    dispatcher.dispatch(KeyboardActionId.navigateForward);
+    dispatcher.dispatch(.navigateBack);
+    dispatcher.dispatch(.navigateForward);
     await tester.pump();
 
     expect(controller.navigationCalls, <String>['back', 'forward']);
@@ -227,7 +226,7 @@ void main() {
     KeyboardCommandDispatcher(
       ref: singleHarness.ref,
       context: singleHarness.context,
-    ).dispatch(KeyboardActionId.closeSplit);
+    ).dispatch(.closeSplit);
     await tester.pump();
 
     expect(singleController.mergedSplits, isEmpty);
@@ -238,7 +237,7 @@ void main() {
           tabIds: <String>[firstTab.id],
         ).splitWithGroup(
           targetGroupId: WorkbenchLayout.defaultGroupId(workspace.id),
-          zone: WorkbenchDropZone.right,
+          zone: .right,
           newGroup: WorkbenchPaneGroup(
             id: 'group-2',
             tabIds: <String>[secondTab.id],
@@ -266,7 +265,7 @@ void main() {
     KeyboardCommandDispatcher(
       ref: splitHarness.ref,
       context: splitHarness.context,
-    ).dispatch(KeyboardActionId.closeSplit);
+    ).dispatch(.closeSplit);
     await tester.pump();
 
     expect(
@@ -310,7 +309,7 @@ void main() {
     KeyboardCommandDispatcher(
       ref: harness.ref,
       context: harness.context,
-    ).dispatch(KeyboardActionId.splitDown);
+    ).dispatch(.splitDown);
     await tester.pump();
 
     controller.completeSplit(splitTab);
@@ -353,29 +352,29 @@ void main() {
       context: harness.context,
     );
 
-    dispatcher.dispatch(KeyboardActionId.toggleSidebar);
+    dispatcher.dispatch(.toggleSidebar);
     expect(controller.state.collapsed, isTrue);
 
-    dispatcher.dispatch(KeyboardActionId.openSettings);
+    dispatcher.dispatch(.openSettings);
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
     expect(find.text('Application'), findsWidgets);
     Navigator.of(harness.context).pop();
     await tester.pumpAndSettle();
 
-    dispatcher.dispatch(KeyboardActionId.openCommandPalette);
+    dispatcher.dispatch(.openCommandPalette);
     await tester.pumpAndSettle();
     expect(find.byType(KeyboardCommandPaletteDialog), findsOneWidget);
     Navigator.of(harness.context).pop();
     await tester.pumpAndSettle();
 
-    dispatcher.dispatch(KeyboardActionId.addProject);
+    dispatcher.dispatch(.addProject);
     await tester.pumpAndSettle();
     expect(find.widgetWithText(TextField, 'Project Path'), findsOneWidget);
     Navigator.of(harness.context).pop();
     await tester.pumpAndSettle();
 
-    dispatcher.dispatch(KeyboardActionId.createWorkspace);
+    dispatcher.dispatch(.createWorkspace);
     await tester.pumpAndSettle();
     expect(find.text('From Prompt'), findsOneWidget);
   });

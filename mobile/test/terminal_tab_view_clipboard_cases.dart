@@ -35,9 +35,7 @@ void _registerTerminalClipboardSecurityTests() {
       client.writes.clear();
       client.emitOutput(
         'session-tab-1',
-        Uint8List.fromList(
-          utf8.encode('\x1b]52;c;?\x07\x1b]52;c;$payload\x07'),
-        ),
+        .fromList(utf8.encode('\x1b]52;c;?\x07\x1b]52;c;$payload\x07')),
       );
       await tester.pumpAndSettle();
       expect(clipboardCalls, isEmpty);
@@ -46,7 +44,7 @@ void _registerTerminalClipboardSecurityTests() {
       if (generation == 0) {
         client.emitOutput(
           'session-tab-1',
-          Uint8List.fromList(utf8.encode('restored')),
+          .fromList(utf8.encode('restored')),
           replacesScrollback: true,
         );
         await tester.pumpAndSettle();

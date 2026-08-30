@@ -4,9 +4,8 @@ import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   test('Windows Whisper cargo env passes /FS to cl.exe', () {
-    final cargokit = File(
-      'rust_builder/cargokit/cmake/cargokit.cmake',
-    ).readAsStringSync();
+    final cargokit = File('rust_builder/cargokit/cmake/cargokit.cmake')
+        .readAsStringSync();
     final windowsCmake = File('windows/CMakeLists.txt').readAsStringSync();
 
     for (final source in <String>[cargokit, windowsCmake]) {
@@ -33,33 +32,29 @@ void main() {
     expect(File('windows/stage_alera_sidecar.cmake').existsSync(), isTrue);
   });
 
-  test(
-    'Windows native cargo target keeps vulkan TryCompile objects under MAX_PATH',
-    () {
-      // Source path from Warm CI 32543025980, plus CMake's inner
-      // CMakeFiles/cmTC_XXXXXXXX.dir/testCCompiler.c.obj. cl.exe reports
-      // C1083 with an empty generated-file name when this object exceeds
-      // MAX_PATH. The previous test measured vc140.pdb with a short cmTC
-      // id and accepted R:\c\alera_native, which still fails in CI.
-      const nestedObj =
-          r'x86_64-pc-windows-msvc\release\build\whisper-rs-sys-e163708acab93780\out\build\ggml\src\ggml-vulkan\vulkan-shaders-gen-prefix\src\vulkan-shaders-gen-build\CMakeFiles\CMakeScratch\TryCompile-v0i3yp\CMakeFiles\cmTC_12345678.dir\testCCompiler.c.obj';
-      expect(
-        r'R:\c\alera_native'.length + 1 + nestedObj.length,
-        greaterThan(260),
-      );
-      expect(
-        r'C:\c\alera_native'.length + 1 + nestedObj.length,
-        greaterThan(260),
-      );
-      expect(r'R:\c\n'.length + 1 + nestedObj.length, lessThan(260));
-      expect(r'C:\c\n'.length + 1 + nestedObj.length, lessThan(260));
-      expect(r'R:\c\cli'.length + 1 + nestedObj.length, lessThan(260));
+  test('Windows native cargo target keeps vulkan TryCompile objects under MAX_PATH', () {
+    // Source path from Warm CI 32543025980, plus CMake's inner
+    // CMakeFiles/cmTC_XXXXXXXX.dir/testCCompiler.c.obj. cl.exe reports
+    // C1083 with an empty generated-file name when this object exceeds
+    // MAX_PATH. The previous test measured vc140.pdb with a short cmTC
+    // id and accepted R:\c\alera_native, which still fails in CI.
+    const nestedObj =
+        r'x86_64-pc-windows-msvc\release\build\whisper-rs-sys-e163708acab93780\out\build\ggml\src\ggml-vulkan\vulkan-shaders-gen-prefix\src\vulkan-shaders-gen-build\CMakeFiles\CMakeScratch\TryCompile-v0i3yp\CMakeFiles\cmTC_12345678.dir\testCCompiler.c.obj';
+    expect(
+      r'R:\c\alera_native'.length + 1 + nestedObj.length,
+      greaterThan(260),
+    );
+    expect(
+      r'C:\c\alera_native'.length + 1 + nestedObj.length,
+      greaterThan(260),
+    );
+    expect(r'R:\c\n'.length + 1 + nestedObj.length, lessThan(260));
+    expect(r'C:\c\n'.length + 1 + nestedObj.length, lessThan(260));
+    expect(r'R:\c\cli'.length + 1 + nestedObj.length, lessThan(260));
 
-      final tune = File(
-        '.github/actions/tune-windows-build/action.yml',
-      ).readAsStringSync();
-      expect(tune, contains(r"$scratchPath = 'R:\c'"));
-      expect(tune, contains(r'R:\c\n'));
-    },
-  );
+    final tune = File('.github/actions/tune-windows-build/action.yml')
+        .readAsStringSync();
+    expect(tune, contains(r"$scratchPath = 'R:\c'"));
+    expect(tune, contains(r'R:\c\n'));
+  });
 }

@@ -9,8 +9,8 @@ void main() {
         terminalSessionId: 'session-1',
         workspaceId: 'workspace-1',
         tabId: 'tab-1',
-        agentType: AgentType.codex,
-        state: AgentStatusState.done,
+        agentType: .codex,
+        state: .done,
       ).encode();
 
       final decoded = decodeAgentStatusNotificationPayload(payload);
@@ -35,65 +35,41 @@ void main() {
 
     test('composes attention and done notifications only', () {
       final waiting = composeAgentStatusNotification(
-        entry: _entry(AgentStatusState.waiting, prompt: 'Review command'),
+        entry: _entry(.waiting, prompt: 'Review command'),
         includeFinished: true,
         projectName: 'Alera',
         workspaceName: 'main',
         tabTitle: 'Codex',
       );
       final blocked = composeAgentStatusNotification(
-        entry: _entry(
-          AgentStatusState.blocked,
-          agentType: AgentType.copilot,
-          prompt: 'Choose target',
-        ),
+        entry: _entry(.blocked, agentType: .copilot, prompt: 'Choose target'),
         includeFinished: true,
       );
       final done = composeAgentStatusNotification(
-        entry: _entry(
-          AgentStatusState.done,
-          agentType: AgentType.agy,
-          prompt: '',
-        ),
+        entry: _entry(.done, agentType: .agy, prompt: ''),
         includeFinished: true,
         projectName: 'Alera',
         workspaceName: 'main',
         tabTitle: 'Claude',
       );
       final cursorDone = composeAgentStatusNotification(
-        entry: _entry(
-          AgentStatusState.done,
-          agentType: AgentType.cursor,
-          prompt: 'Ship Cursor',
-        ),
+        entry: _entry(.done, agentType: .cursor, prompt: 'Ship Cursor'),
         includeFinished: true,
       );
       final working = composeAgentStatusNotification(
-        entry: _entry(AgentStatusState.working),
+        entry: _entry(.working),
         includeFinished: true,
       );
       final openCodeDone = composeAgentStatusNotification(
-        entry: _entry(
-          AgentStatusState.done,
-          agentType: AgentType.opencode,
-          prompt: 'Finish plugin',
-        ),
+        entry: _entry(.done, agentType: .opencode, prompt: 'Finish plugin'),
         includeFinished: true,
       );
       final piWaiting = composeAgentStatusNotification(
-        entry: _entry(
-          AgentStatusState.waiting,
-          agentType: AgentType.pi,
-          prompt: 'Approve command',
-        ),
+        entry: _entry(.waiting, agentType: .pi, prompt: 'Approve command'),
         includeFinished: true,
       );
       final ampDone = composeAgentStatusNotification(
-        entry: _entry(
-          AgentStatusState.done,
-          agentType: AgentType.amp,
-          prompt: 'Ship plugin',
-        ),
+        entry: _entry(.done, agentType: .amp, prompt: 'Ship plugin'),
         includeFinished: true,
       );
 
@@ -116,15 +92,15 @@ void main() {
 
     test('skips done notifications unless finished notifications are on', () {
       final done = composeAgentStatusNotification(
-        entry: _entry(AgentStatusState.done),
+        entry: _entry(.done),
         includeFinished: false,
       );
       final waiting = composeAgentStatusNotification(
-        entry: _entry(AgentStatusState.waiting),
+        entry: _entry(.waiting),
         includeFinished: false,
       );
       final blocked = composeAgentStatusNotification(
-        entry: _entry(AgentStatusState.blocked),
+        entry: _entry(.blocked),
         includeFinished: false,
       );
 
@@ -135,12 +111,12 @@ void main() {
 
     test('composes fallback notification titles and location bodies', () {
       final workspaceOnly = composeAgentStatusNotification(
-        entry: _entry(AgentStatusState.waiting),
+        entry: _entry(.waiting),
         includeFinished: true,
         workspaceName: 'feature/login',
       );
       final tabOnly = composeAgentStatusNotification(
-        entry: _entry(AgentStatusState.done),
+        entry: _entry(.done),
         includeFinished: true,
         tabTitle: 'Terminal 2',
       );
@@ -152,13 +128,13 @@ void main() {
 
     test('drops the project when it repeats the workspace name', () {
       final sameName = composeAgentStatusNotification(
-        entry: _entry(AgentStatusState.waiting),
+        entry: _entry(.waiting),
         includeFinished: true,
         projectName: 'alera',
         workspaceName: 'alera',
       );
       final sameNameDifferentCase = composeAgentStatusNotification(
-        entry: _entry(AgentStatusState.done),
+        entry: _entry(.done),
         includeFinished: true,
         projectName: 'Alera',
         workspaceName: ' alera ',

@@ -1,23 +1,18 @@
 part of 'codex_chat_surface.dart';
 
-class _CodexPlanViewScope extends InheritedWidget {
-  const _CodexPlanViewScope({
-    required this.onMaximize,
-    required this.flyingPlanId,
-    required this.latestPlanId,
-    required this.overflowingPreviewIds,
-    required this.onPreviewOverflowChanged,
-    required super.child,
-  });
-
-  final void Function(CodexTimelineCell cell, BuildContext sourceContext)
-  onMaximize;
-  final String? flyingPlanId;
-  final String? latestPlanId;
-  final Set<String> overflowingPreviewIds;
-  final void Function(String planId, {required bool overflowing})
-  onPreviewOverflowChanged;
-
+class const _CodexPlanViewScope({
+  required final void Function(
+    CodexTimelineCell cell,
+    BuildContext sourceContext,
+  )
+  onMaximize,
+  required final String? flyingPlanId,
+  required final String? latestPlanId,
+  required final Set<String> overflowingPreviewIds,
+  required final void Function(String planId, {required bool overflowing})
+  onPreviewOverflowChanged,
+  required super.child,
+}) extends InheritedWidget {
   static _CodexPlanViewScope? maybeOf(BuildContext context) =>
       context.dependOnInheritedWidgetOfExactType<_CodexPlanViewScope>();
 
@@ -29,17 +24,11 @@ class _CodexPlanViewScope extends InheritedWidget {
       overflowingPreviewIds != oldWidget.overflowingPreviewIds;
 }
 
-class _CodexPlanCell extends StatelessWidget {
-  const _CodexPlanCell({
-    required this.cell,
-    this.maximized = false,
-    this.onRestore,
-  });
-
-  final CodexTimelineCell cell;
-  final bool maximized;
-  final VoidCallback? onRestore;
-
+class const _CodexPlanCell({
+  required final CodexTimelineCell cell,
+  final bool maximized = false,
+  final VoidCallback? onRestore,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final planScope = _CodexPlanViewScope.maybeOf(context);
@@ -70,14 +59,14 @@ class _CodexPlanCell extends StatelessWidget {
           margin: maximized
               ? EdgeInsets.zero
               : const EdgeInsets.symmetric(vertical: AleraTokens.space4),
-          clipBehavior: Clip.antiAlias,
+          clipBehavior: .antiAlias,
           decoration: BoxDecoration(
             color: AleraTokens.surface,
             borderRadius: BorderRadius.circular(AleraTokens.radiusLg),
             border: Border.all(color: AleraTokens.border),
           ),
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
+            crossAxisAlignment: .stretch,
             children: <Widget>[
               _CodexPlanHeader(
                 title: previous
@@ -123,20 +112,13 @@ class _CodexPlanCell extends StatelessWidget {
   }
 }
 
-class _CodexPlanPreview extends StatefulWidget {
-  const _CodexPlanPreview({
-    super.key,
-    required this.initiallyOverflowing,
-    required this.preserveOverflow,
-    required this.onOverflowChanged,
-    required this.content,
-  });
-
-  final bool initiallyOverflowing;
-  final bool preserveOverflow;
-  final ValueChanged<bool> onOverflowChanged;
-  final Widget content;
-
+class const _CodexPlanPreview({
+  super.key,
+  required final bool initiallyOverflowing,
+  required final bool preserveOverflow,
+  required final ValueChanged<bool> onOverflowChanged,
+  required final Widget content,
+}) extends StatefulWidget {
   @override
   State<_CodexPlanPreview> createState() => _CodexPlanPreviewState();
 }
@@ -212,25 +194,15 @@ class _CodexPlanPreviewState extends State<_CodexPlanPreview> {
   }
 }
 
-class _CodexPlanHeader extends StatelessWidget {
-  const _CodexPlanHeader({
-    required this.title,
-    required this.loading,
-    required this.compact,
-    required this.maximized,
-    required this.onDownload,
-    required this.onCopy,
-    required this.onToggleSize,
-  });
-
-  final String title;
-  final bool loading;
-  final bool compact;
-  final bool maximized;
-  final VoidCallback? onDownload;
-  final VoidCallback? onCopy;
-  final VoidCallback? onToggleSize;
-
+class const _CodexPlanHeader({
+  required final String title,
+  required final bool loading,
+  required final bool compact,
+  required final bool maximized,
+  required final VoidCallback? onDownload,
+  required final VoidCallback? onCopy,
+  required final VoidCallback? onToggleSize,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Padding(
     padding: EdgeInsets.fromLTRB(
@@ -253,7 +225,7 @@ class _CodexPlanHeader extends StatelessWidget {
             text: title,
             style: Theme.of(context).textTheme.titleSmall?.copyWith(
               color: AleraTokens.foregroundMuted,
-              fontWeight: FontWeight.w500,
+              fontWeight: .w500,
             ),
           )
         else
@@ -261,7 +233,7 @@ class _CodexPlanHeader extends StatelessWidget {
             title,
             style: Theme.of(context).textTheme.titleSmall?.copyWith(
               color: AleraTokens.foregroundMuted,
-              fontWeight: FontWeight.w500,
+              fontWeight: .w500,
             ),
           ),
         const Spacer(),
@@ -285,23 +257,14 @@ class _CodexPlanHeader extends StatelessWidget {
   );
 }
 
-class _CodexPlanFlight extends StatefulWidget {
-  const _CodexPlanFlight({
-    required this.plan,
-    required this.animation,
-    required this.selectionAreaKey,
-    required this.sourceRect,
-    required this.currentSourceRect,
-    required this.onRestore,
-  });
-
-  final CodexTimelineCell plan;
-  final AnimationController animation;
-  final GlobalKey<SelectionAreaState> selectionAreaKey;
-  final Rect sourceRect;
-  final Rect? Function() currentSourceRect;
-  final VoidCallback onRestore;
-
+class const _CodexPlanFlight({
+  required final CodexTimelineCell plan,
+  required final AnimationController animation,
+  required final GlobalKey<SelectionAreaState> selectionAreaKey,
+  required final Rect sourceRect,
+  required final Rect? Function() currentSourceRect,
+  required final VoidCallback onRestore,
+}) extends StatefulWidget {
   @override
   State<_CodexPlanFlight> createState() => _CodexPlanFlightState();
 }
@@ -353,7 +316,7 @@ class _CodexPlanFlightState extends State<_CodexPlanFlight> {
             ),
           );
           return Stack(
-            fit: StackFit.expand,
+            fit: .expand,
             children: <Widget>[
               FadeTransition(
                 opacity: _curved,
@@ -423,18 +386,14 @@ Future<void> _downloadCodexPlan(BuildContext context, String markdown) async {
     if (location == null) return;
     await File(location.path).writeAsString(markdown, flush: true);
     if (context.mounted) {
-      AleraToast.show(
-        context,
-        message: 'Plan downloaded',
-        tone: AleraToastTone.success,
-      );
+      AleraToast.show(context, message: 'Plan downloaded', tone: .success);
     }
   } catch (error) {
     if (context.mounted) {
       AleraToast.show(
         context,
         message: 'Could not download the plan: $error',
-        tone: AleraToastTone.error,
+        tone: .error,
       );
     }
   }

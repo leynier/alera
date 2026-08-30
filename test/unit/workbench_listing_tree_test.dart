@@ -2,7 +2,7 @@ import 'package:alera/src/features/workbench/application/workbench_listing_tree.
 import 'package:alera/src/features/workbench/domain/workspace.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-final DateTime _t0 = DateTime.utc(2026, 5, 1);
+final DateTime _t0 = .utc(2026, 5, 1);
 
 Workspace _workspace(String id, {String? parentId}) {
   return Workspace(
@@ -13,8 +13,8 @@ Workspace _workspace(String id, {String? parentId}) {
     path: '/repo/$id',
     createdAt: _t0,
     updatedAt: _t0,
-    kind: WorkspaceKind.linked,
-    status: WorkspaceStatus.active,
+    kind: .linked,
+    status: .active,
     parentWorkspaceId: parentId,
   );
 }

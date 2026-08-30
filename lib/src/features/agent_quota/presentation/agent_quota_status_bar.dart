@@ -22,11 +22,8 @@ export 'agent_quota_status_bar_content.dart' show AgentQuotaPinToggle;
 part 'agent_quota_codex_reset.dart';
 part 'agent_quota_claude_tui.dart';
 
-class AgentQuotaStatusBar extends ConsumerWidget {
-  const AgentQuotaStatusBar({super.key, this.trailing});
-
-  final Widget? trailing;
-
+class const AgentQuotaStatusBar({super.key, final Widget? trailing})
+    extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final hostId = ref.watch(
@@ -107,24 +104,25 @@ class AgentQuotaStatusBar extends ConsumerWidget {
 }
 
 // Keep runtime actions outside the library compiled by Flutter web previews.
-class AgentQuotaStatusBarView extends AgentQuotaStatusBarContent {
-  const AgentQuotaStatusBarView({
-    super.key,
-    required super.hostId,
-    required super.snapshots,
-    required super.settings,
-    required super.onRefresh,
-    required super.onTogglePinned,
-    super.loading,
-    super.error,
-    super.trailing,
-    super.onOpenUsage,
-  }) : super(
-         actions: const AgentQuotaInlineActions(
-           codexReset: _buildCodexReset,
-           claudeTui: _buildClaudeTui,
-         ),
-       );
+class const AgentQuotaStatusBarView({
+  super.key,
+  required super.hostId,
+  required super.snapshots,
+  required super.settings,
+  required super.onRefresh,
+  required super.onTogglePinned,
+  super.loading,
+  super.error,
+  super.trailing,
+  super.onOpenUsage,
+}) extends AgentQuotaStatusBarContent {
+  this
+    : super(
+        actions: const AgentQuotaInlineActions(
+          codexReset: _buildCodexReset,
+          claudeTui: _buildClaudeTui,
+        ),
+      );
 }
 
 Widget _buildCodexReset({

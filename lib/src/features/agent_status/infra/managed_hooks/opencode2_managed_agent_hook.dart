@@ -3,7 +3,7 @@ part of '../managed_agent_hook_installer.dart';
 extension _OpenCode2ManagedAgentHook on ManagedAgentHookInstallService {
   _ManagedHookArtifact _opencode2Artifact() {
     return _ManagedHookArtifact(
-      agentType: AgentType.opencode2,
+      agentType: .opencode2,
       label: 'OpenCode 2 status plugin',
       path: p.join(
         _opencode2ConfigDir(),

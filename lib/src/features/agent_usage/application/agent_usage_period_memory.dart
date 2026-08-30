@@ -1,5 +1,5 @@
-class AgentUsagePeriodMemory {
-  AgentUsagePeriodMemory({int initialDays = 7}) : _days = initialDays {
+class AgentUsagePeriodMemory({int initialDays = 7}) {
+  this : _days = initialDays {
     _validate(initialDays);
   }
 

@@ -11,22 +11,14 @@ const double _kSidebarIconSize = 16;
 const double _kActiveBarWidth = 2;
 const double _kActiveBarHeight = 16;
 
-class SettingsSidebar extends StatelessWidget {
-  const SettingsSidebar({
-    super.key,
-    required this.queryController,
-    required this.visibleSections,
-    required this.activeSectionId,
-    required this.onSelect,
-    this.query = '',
-  });
-
-  final TextEditingController queryController;
-  final List<SettingsSectionData> visibleSections;
-  final String? activeSectionId;
-  final ValueChanged<String> onSelect;
-  final String query;
-
+class const SettingsSidebar({
+  super.key,
+  required final TextEditingController queryController,
+  required final List<SettingsSectionData> visibleSections,
+  required final String? activeSectionId,
+  required final ValueChanged<String> onSelect,
+  final String query = '',
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -35,7 +27,7 @@ class SettingsSidebar extends StatelessWidget {
       child: ColoredBox(
         color: AleraTokens.surfaceVariant,
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
+          crossAxisAlignment: .stretch,
           children: <Widget>[
             SizedBox(
               height: AleraTokens.sidebarHeaderHeight,
@@ -49,7 +41,7 @@ class SettingsSidebar extends StatelessWidget {
                     'Settings',
                     style: theme.textTheme.titleSmall?.copyWith(
                       color: AleraTokens.foreground,
-                      fontWeight: FontWeight.w600,
+                      fontWeight: .w600,
                     ),
                   ),
                 ),
@@ -119,19 +111,13 @@ class SettingsSidebar extends StatelessWidget {
   }
 }
 
-class SettingsNavItem extends StatelessWidget {
-  const SettingsNavItem({
-    super.key,
-    required this.section,
-    required this.active,
-    required this.onTap,
-    this.matchCount = 0,
-  });
-
-  final SettingsSectionData section;
-  final bool active;
-  final VoidCallback onTap;
-
+class const SettingsNavItem({
+  super.key,
+  required final SettingsSectionData section,
+  required final bool active,
+  required final VoidCallback onTap,
+  this.matchCount = 0,
+}) extends StatelessWidget {
   /// Number of matching search entries; shown as a badge while searching.
   final int matchCount;
 
@@ -146,7 +132,7 @@ class SettingsNavItem extends StatelessWidget {
           FocusManager.instance.primaryFocus?.unfocus();
           onTap();
         },
-        borderRadius: BorderRadius.circular(AleraTokens.radiusMd),
+        borderRadius: .circular(AleraTokens.radiusMd),
         mouseCursor: SystemMouseCursors.click,
         child: Container(
           decoration: BoxDecoration(
@@ -182,7 +168,7 @@ class SettingsNavItem extends StatelessWidget {
                   section.title,
                   style: theme.textTheme.bodyMedium?.copyWith(
                     color: AleraTokens.foreground,
-                    fontWeight: FontWeight.w500,
+                    fontWeight: .w500,
                   ),
                 ),
               ),

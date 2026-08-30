@@ -7,18 +7,12 @@ import 'package:alera/src/features/automations/domain/automation_models.dart';
 import 'package:alera/src/features/automations/presentation/automation_detail_tabs.dart';
 import 'package:flutter/material.dart';
 
-class AutomationDialogHeader extends StatelessWidget {
-  const AutomationDialogHeader({
-    required this.onClose,
-    this.onImport,
-    this.onExport,
-    super.key,
-  });
-
-  final VoidCallback onClose;
-  final VoidCallback? onImport;
-  final VoidCallback? onExport;
-
+class const AutomationDialogHeader({
+  required final VoidCallback onClose,
+  final VoidCallback? onImport,
+  final VoidCallback? onExport,
+  super.key,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -49,18 +43,12 @@ class AutomationDialogHeader extends StatelessWidget {
   }
 }
 
-class AutomationListRow extends StatelessWidget {
-  const AutomationListRow({
-    required this.automation,
-    required this.selected,
-    required this.onTap,
-    super.key,
-  });
-
-  final AutomationRecord automation;
-  final bool selected;
-  final VoidCallback onTap;
-
+class const AutomationListRow({
+  required final AutomationRecord automation,
+  required final bool selected,
+  required final VoidCallback onTap,
+  super.key,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -68,15 +56,11 @@ class AutomationListRow extends StatelessWidget {
       selected: selected,
       selectedTileColor: AleraTokens.accentSubtle,
       onTap: onTap,
-      title: Text(
-        automation.name,
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-      ),
+      title: Text(automation.name, maxLines: 1, overflow: .ellipsis),
       subtitle: Text(
         '${automation.state} · ${automation.scheduleKind}',
         maxLines: 1,
-        overflow: TextOverflow.ellipsis,
+        overflow: .ellipsis,
         style: theme.textTheme.bodySmall?.copyWith(
           color: AleraTokens.foregroundMuted,
         ),
@@ -92,38 +76,22 @@ class AutomationListRow extends StatelessWidget {
   }
 }
 
-class AutomationDetailPane extends StatelessWidget {
-  const AutomationDetailPane({
-    required this.future,
-    required this.onRefresh,
-    required this.onEdit,
-    required this.onApprove,
-    required this.onRunNow,
-    required this.onPause,
-    required this.onResume,
-    required this.onTrash,
-    this.onCancel,
-    this.onResumeWaiting,
-    this.onExtendWaiting,
-    this.onRestore,
-    this.onClone,
-    super.key,
-  });
-
-  final Future<AutomationDetail> future;
-  final VoidCallback onRefresh;
-  final VoidCallback onEdit;
-  final VoidCallback? onApprove;
-  final VoidCallback onRunNow;
-  final VoidCallback? onPause;
-  final VoidCallback? onResume;
-  final VoidCallback? onTrash;
-  final ValueChanged<AutomationRunRecord>? onCancel;
-  final ValueChanged<AutomationRunRecord>? onResumeWaiting;
-  final ValueChanged<AutomationRunRecord>? onExtendWaiting;
-  final VoidCallback? onRestore;
-  final VoidCallback? onClone;
-
+class const AutomationDetailPane({
+  required final Future<AutomationDetail> future,
+  required final VoidCallback onRefresh,
+  required final VoidCallback onEdit,
+  required final VoidCallback? onApprove,
+  required final VoidCallback onRunNow,
+  required final VoidCallback? onPause,
+  required final VoidCallback? onResume,
+  required final VoidCallback? onTrash,
+  final ValueChanged<AutomationRunRecord>? onCancel,
+  final ValueChanged<AutomationRunRecord>? onResumeWaiting,
+  final ValueChanged<AutomationRunRecord>? onExtendWaiting,
+  final VoidCallback? onRestore,
+  final VoidCallback? onClone,
+  super.key,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return FutureBuilder<AutomationDetail>(
@@ -169,44 +137,28 @@ class AutomationDetailPane extends StatelessWidget {
   }
 }
 
-class AutomationDetailContent extends StatelessWidget {
-  const AutomationDetailContent({
-    required this.detail,
-    required this.onRefresh,
-    required this.onEdit,
-    required this.onApprove,
-    required this.onRunNow,
-    required this.onPause,
-    required this.onResume,
-    required this.onTrash,
-    this.onCancel,
-    this.onResumeWaiting,
-    this.onExtendWaiting,
-    this.onRestore,
-    this.onClone,
-    super.key,
-  });
-
-  final AutomationDetail detail;
-  final VoidCallback onRefresh;
-  final VoidCallback onEdit;
-  final VoidCallback? onApprove;
-  final VoidCallback onRunNow;
-  final VoidCallback? onPause;
-  final VoidCallback? onResume;
-  final VoidCallback? onTrash;
-  final ValueChanged<AutomationRunRecord>? onCancel;
-  final ValueChanged<AutomationRunRecord>? onResumeWaiting;
-  final ValueChanged<AutomationRunRecord>? onExtendWaiting;
-  final VoidCallback? onRestore;
-  final VoidCallback? onClone;
-
+class const AutomationDetailContent({
+  required final AutomationDetail detail,
+  required final VoidCallback onRefresh,
+  required final VoidCallback onEdit,
+  required final VoidCallback? onApprove,
+  required final VoidCallback onRunNow,
+  required final VoidCallback? onPause,
+  required final VoidCallback? onResume,
+  required final VoidCallback? onTrash,
+  final ValueChanged<AutomationRunRecord>? onCancel,
+  final ValueChanged<AutomationRunRecord>? onResumeWaiting,
+  final ValueChanged<AutomationRunRecord>? onExtendWaiting,
+  final VoidCallback? onRestore,
+  final VoidCallback? onClone,
+  super.key,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final automation = detail.automation;
     final theme = Theme.of(context);
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+      crossAxisAlignment: .stretch,
       children: <Widget>[
         Row(
           children: <Widget>[
@@ -295,11 +247,10 @@ class AutomationDetailContent extends StatelessWidget {
   }
 }
 
-class AutomationInfoPanel extends StatelessWidget {
-  const AutomationInfoPanel({required this.automation, super.key});
-
-  final AutomationRecord automation;
-
+class const AutomationInfoPanel({
+  required final AutomationRecord automation,
+  super.key,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final schedule =
@@ -366,30 +317,23 @@ class AutomationInfoPanel extends StatelessWidget {
   }
 }
 
-class AutomationInfoRow extends StatelessWidget {
-  const AutomationInfoRow({
-    required this.label,
-    required this.value,
-    super.key,
-  });
-
-  final String label;
-  final String value;
-
+class const AutomationInfoRow({
+  required final String label,
+  required final String value,
+  super.key,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: AleraTokens.space6),
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: .start,
         children: <Widget>[
           SizedBox(
             width: AleraTokens.automationInfoLabelWidth,
             child: Text(label, style: Theme.of(context).textTheme.bodySmall),
           ),
-          Expanded(
-            child: Text(value, maxLines: 4, overflow: TextOverflow.ellipsis),
-          ),
+          Expanded(child: Text(value, maxLines: 4, overflow: .ellipsis)),
         ],
       ),
     );

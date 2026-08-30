@@ -9,7 +9,6 @@ import 'package:alera/src/design_system/menus/alera_dropdown_entry.dart';
 import 'package:alera/src/features/ai_assist/application/ai_assist_prompt.dart';
 import 'package:alera/src/features/ai_assist/application/ai_assist_providers.dart';
 import 'package:alera/src/features/ai_assist/application/ai_assist_service.dart';
-import 'package:alera/src/features/ai_assist/domain/ai_assist_settings.dart';
 import 'package:alera/src/features/ai_dictation/presentation/ai_dictation_field_overlay.dart';
 import 'package:alera/src/features/pull_requests/domain/hosted_review.dart';
 import 'package:alera/src/features/pull_requests/presentation/pull_request_field_decoration.dart';
@@ -23,57 +22,33 @@ part 'pull_request_composer_actions.dart';
 part 'pull_request_composer_form.dart';
 
 /// User-entered result of the inline create-pull-request form.
-class CreateReviewDraft {
-  const CreateReviewDraft({
-    required this.title,
-    required this.baseBranch,
-    required this.body,
-    required this.draft,
-  });
-
-  final String title;
-  final String baseBranch;
-  final String? body;
-  final bool draft;
-}
+class const CreateReviewDraft({
+  required final String title,
+  required final String baseBranch,
+  required final String? body,
+  required final bool draft,
+});
 
 enum _ComposerMode { create, link }
 
 /// Inline create / link form for the Checks panel when no review is linked.
-class PullRequestComposer extends ConsumerStatefulWidget {
-  const PullRequestComposer({
-    super.key,
-    required this.repoPath,
-    required this.headBranch,
-    required this.baseBranches,
-    required this.suggestedBaseBranch,
-    required this.canCreate,
-    required this.busy,
-    required this.suggestedReview,
-    required this.createAction,
-    required this.onCreate,
-    required this.onLink,
-    required this.onCreateActionChanged,
-    this.canCreateStack = false,
-    this.creatingStack = false,
-    this.onCreateStack,
-  });
-
-  final String repoPath;
-  final String? headBranch;
-  final List<String> baseBranches;
-  final String suggestedBaseBranch;
-  final bool canCreate;
-  final bool busy;
-  final HostedReview? suggestedReview;
-  final PullRequestCreateAction createAction;
-  final ValueChanged<CreateReviewDraft> onCreate;
-  final ValueChanged<String> onLink;
-  final ValueChanged<PullRequestCreateAction> onCreateActionChanged;
-  final bool canCreateStack;
-  final bool creatingStack;
-  final Future<void> Function(CreateReviewDraft draft)? onCreateStack;
-
+class const PullRequestComposer({
+  super.key,
+  required final String repoPath,
+  required final String? headBranch,
+  required final List<String> baseBranches,
+  required final String suggestedBaseBranch,
+  required final bool canCreate,
+  required final bool busy,
+  required final HostedReview? suggestedReview,
+  required final PullRequestCreateAction createAction,
+  required final ValueChanged<CreateReviewDraft> onCreate,
+  required final ValueChanged<String> onLink,
+  required final ValueChanged<PullRequestCreateAction> onCreateActionChanged,
+  final bool canCreateStack = false,
+  final bool creatingStack = false,
+  final Future<void> Function(CreateReviewDraft draft)? onCreateStack,
+}) extends ConsumerStatefulWidget {
   @override
   ConsumerState<PullRequestComposer> createState() =>
       _PullRequestComposerState();
@@ -118,10 +93,7 @@ class _PullRequestComposerState extends ConsumerState<PullRequestComposer> {
       }
     }
     if (oldWidget.repoPath != widget.repoPath && _generating) {
-      _aiAssistService.cancel(
-        oldWidget.repoPath,
-        AiAssistOperation.pullRequestDetails,
-      );
+      _aiAssistService.cancel(oldWidget.repoPath, .pullRequestDetails);
       _generationId += 1;
       _generating = false;
     }
@@ -130,10 +102,7 @@ class _PullRequestComposerState extends ConsumerState<PullRequestComposer> {
   @override
   void dispose() {
     if (_generating) {
-      _aiAssistService.cancel(
-        widget.repoPath,
-        AiAssistOperation.pullRequestDetails,
-      );
+      _aiAssistService.cancel(widget.repoPath, .pullRequestDetails);
     }
     _titleController.dispose();
     _bodyController.dispose();
@@ -243,7 +212,7 @@ class _PullRequestComposerState extends ConsumerState<PullRequestComposer> {
     try {
       final result = await _aiAssistService.generate(
         AiAssistRequest(
-          operation: AiAssistOperation.pullRequestDetails,
+          operation: .pullRequestDetails,
           workspacePath: requestPath,
           settings: settings,
           baseBranch: _baseBranch,
@@ -269,14 +238,14 @@ class _PullRequestComposerState extends ConsumerState<PullRequestComposer> {
         AleraToast.show(
           context,
           message: 'Pull request details generated with ${result.agentLabel}',
-          tone: AleraToastTone.success,
+          tone: .success,
         );
       } else {
         AleraToast.show(
           context,
           message:
               'Generated details were not applied because the fields changed.',
-          tone: AleraToastTone.info,
+          tone: .info,
         );
       }
     } on AiAssistCanceledException {
@@ -286,11 +255,7 @@ class _PullRequestComposerState extends ConsumerState<PullRequestComposer> {
         workspacePath: requestPath,
         generationId: generationId,
       )) {
-        AleraToast.show(
-          context,
-          message: error.toString(),
-          tone: AleraToastTone.error,
-        );
+        AleraToast.show(context, message: error.toString(), tone: .error);
       }
     } finally {
       if (_isCurrentGeneration(
@@ -312,10 +277,7 @@ class _PullRequestComposerState extends ConsumerState<PullRequestComposer> {
   }
 
   void _cancelGenerate() {
-    _aiAssistService.cancel(
-      widget.repoPath,
-      AiAssistOperation.pullRequestDetails,
-    );
+    _aiAssistService.cancel(widget.repoPath, .pullRequestDetails);
   }
 
   void _update(VoidCallback callback) => setState(callback);
@@ -331,7 +293,7 @@ class _PullRequestComposerState extends ConsumerState<PullRequestComposer> {
     return Padding(
       padding: const EdgeInsets.all(AleraTokens.space12),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
+        crossAxisAlignment: .stretch,
         children: <Widget>[
           Expanded(
             child: ListView(
@@ -415,15 +377,13 @@ class _PullRequestComposerState extends ConsumerState<PullRequestComposer> {
             TextButton(
               onPressed: widget.busy || _generating
                   ? null
-                  : () => _switchMode(_ComposerMode.link),
+                  : () => _switchMode(.link),
               child: const Text('Link Existing Pull Request'),
             ),
           ] else if (widget.canCreate) ...<Widget>[
             const SizedBox(height: AleraTokens.space8),
             TextButton(
-              onPressed: widget.busy
-                  ? null
-                  : () => _switchMode(_ComposerMode.create),
+              onPressed: widget.busy ? null : () => _switchMode(.create),
               child: const Text('Create Pull Request'),
             ),
           ],

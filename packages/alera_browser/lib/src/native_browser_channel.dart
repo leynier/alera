@@ -2,15 +2,14 @@ import 'package:flutter/services.dart';
 
 import 'browser_errors.dart';
 
-final class AleraBrowserNativeChannel {
-  const AleraBrowserNativeChannel({
-    this.methodChannel = const MethodChannel('dev.leynier.alera/browser'),
-    this.eventChannel = const EventChannel('dev.leynier.alera/browser/events'),
-  });
-
-  final MethodChannel methodChannel;
-  final EventChannel eventChannel;
-
+final class const AleraBrowserNativeChannel({
+  final MethodChannel methodChannel = const MethodChannel(
+    'dev.leynier.alera/browser',
+  ),
+  final EventChannel eventChannel = const EventChannel(
+    'dev.leynier.alera/browser/events',
+  ),
+}) {
   Stream<Map<Object?, Object?>> get events => eventChannel
       .receiveBroadcastStream()
       .where((event) => event is Map<Object?, Object?>)

@@ -5,9 +5,8 @@ import 'package:flutter_test/flutter_test.dart';
 void main() {
   test('development runtime uses an isolated debug bundle and flavor', () {
     final makefile = File('makefile').readAsStringSync();
-    final debugContext = File(
-      'tool/debug/alera_debug_context.dart',
-    ).readAsStringSync();
+    final debugContext = File('tool/debug/alera_debug_context.dart')
+        .readAsStringSync();
     expect(
       makefile,
       contains('ALERA_RUNTIME_DEV_BUNDLE_DIR ?= .dart_tool/alera-dev'),

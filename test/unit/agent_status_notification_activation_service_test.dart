@@ -1,6 +1,5 @@
 import 'package:alera/src/features/agent_status/application/agent_status_notification_activation_service.dart';
 import 'package:alera/src/features/agent_status/application/agent_status_notifications.dart';
-import 'package:alera/src/features/agent_status/domain/agent_status.dart';
 import 'package:alera/src/features/projects/domain/project.dart';
 import 'package:alera/src/features/workbench/application/workbench_state.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
@@ -78,8 +77,8 @@ AgentStatusNotificationPayload _payload() {
     terminalSessionId: 'session-1',
     workspaceId: 'workspace-1',
     tabId: 'tab-1',
-    agentType: AgentType.codex,
-    state: AgentStatusState.done,
+    agentType: .codex,
+    state: .done,
   );
 }
 
@@ -105,8 +104,8 @@ _fixture() {
     path: '/workspace/alera',
     createdAt: now,
     updatedAt: now,
-    kind: WorkspaceKind.main,
-    status: WorkspaceStatus.active,
+    kind: .main,
+    status: .active,
   );
   final tab = WorkspaceTabRecord(
     id: 'tab-1',
@@ -140,10 +139,8 @@ class _FakeWindowActivator implements AgentNotificationWindowActivator {
   }
 }
 
-class _FakeNavigator implements AgentNotificationWorkbenchNavigator {
-  _FakeNavigator(this._state);
-
-  WorkbenchState _state;
+class _FakeNavigator(var WorkbenchState _state)
+    implements AgentNotificationWorkbenchNavigator {
   final List<String> selectedProjectIds = <String>[];
   final List<String> selectedWorkspaceIds = <String>[];
   final Map<String, String> activeTabs = <String, String>{};

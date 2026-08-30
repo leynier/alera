@@ -4,7 +4,7 @@ NormalizedAgentStatus? _normalizeStopWithTranscript(List<String> lines) {
   final file = _transcript(lines);
   return normalizeAgentHookEvent(
     _event(
-      agentType: AgentType.codex,
+      agentType: .codex,
       hookEventName: 'Stop',
       payload: <String, Object?>{'transcript_path': file.path},
     ),
@@ -15,7 +15,7 @@ NormalizedAgentStatus? _normalizeAgyPromptWithTranscript(List<String> lines) {
   final file = _transcript(lines);
   return normalizeAgentHookEvent(
     _event(
-      agentType: AgentType.agy,
+      agentType: .agy,
       hookEventName: 'PreInvocation',
       payload: <String, Object?>{'transcriptPath': file.path},
     ),

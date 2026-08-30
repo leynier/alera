@@ -11,19 +11,12 @@ part 'host_dashboard_controller.g.dart';
 /// How many projects get branch details eagerly loaded for the dashboard.
 const int dashboardProjectBranchLimit = 3;
 
-class HostDashboardData {
-  const HostDashboardData({
-    required this.status,
-    required this.projects,
-    required this.workspaces,
-    required this.branchesByProject,
-  });
-
-  final MobileRuntimeStatus status;
-  final List<ProjectSummary> projects;
-  final List<WorkspaceSummary> workspaces;
-  final Map<String, ProjectBranches> branchesByProject;
-}
+class const HostDashboardData({
+  required final MobileRuntimeStatus status,
+  required final List<ProjectSummary> projects,
+  required final List<WorkspaceSummary> workspaces,
+  required final Map<String, ProjectBranches> branchesByProject,
+});
 
 @riverpod
 Future<HostDashboardData> hostDashboardData(Ref ref, String hostId) async {

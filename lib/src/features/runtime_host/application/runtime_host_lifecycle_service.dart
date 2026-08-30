@@ -6,18 +6,16 @@ import 'package:alera/src/features/runtime_host/infra/bundled_sidecar_version_pr
 import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_client.dart';
 import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_protocol.dart';
 
-typedef RuntimeHostForceConfirm =
-    Future<bool> Function({
-      required String title,
-      required String message,
-      required String confirmLabel,
-    });
+typedef RuntimeHostForceConfirm = Future<bool> Function({
+  required String title,
+  required String message,
+  required String confirmLabel,
+});
 
-typedef RuntimeHostBusyQuitConfirm =
-    Future<RuntimeHostQuitDecision> Function({
-      required String title,
-      required String message,
-    });
+typedef RuntimeHostBusyQuitConfirm = Future<RuntimeHostQuitDecision> Function({
+  required String title,
+  required String message,
+});
 
 abstract interface class RuntimeHostLifecycleClient {
   Future<Map<String, Object?>?> probeRuntimeStatus();
@@ -27,12 +25,9 @@ abstract interface class RuntimeHostLifecycleClient {
   Future<void> ensureStarted({required TerminalHostConfig config});
 }
 
-final class SocketRuntimeHostLifecycleClient
-    implements RuntimeHostLifecycleClient {
-  SocketRuntimeHostLifecycleClient(this._client);
-
-  final SocketTerminalHostClient _client;
-
+final class SocketRuntimeHostLifecycleClient(
+  final SocketTerminalHostClient _client,
+) implements RuntimeHostLifecycleClient {
   @override
   Future<Map<String, Object?>?> probeRuntimeStatus() =>
       _client.probeRuntimeStatus();
@@ -46,19 +41,12 @@ final class SocketRuntimeHostLifecycleClient
       _client.ensureStarted(config: config);
 }
 
-final class RuntimeHostLifecycleService {
-  RuntimeHostLifecycleService({
-    required this._client,
-    required this._bundledVersionProbe,
-    required this._readConfig,
-    this._shutdownSettleTimeout = const Duration(seconds: 8),
-  });
-
-  final RuntimeHostLifecycleClient _client;
-  final BundledSidecarVersionProbe _bundledVersionProbe;
-  final TerminalHostConfig Function() _readConfig;
-  final Duration _shutdownSettleTimeout;
-
+final class RuntimeHostLifecycleService({
+  required final RuntimeHostLifecycleClient _client,
+  required final BundledSidecarVersionProbe _bundledVersionProbe,
+  required final TerminalHostConfig Function() _readConfig,
+  final Duration _shutdownSettleTimeout = const Duration(seconds: 8),
+}) {
   Future<RuntimeHostStatusSnapshot> loadStatus() async {
     BundledSidecarVersion bundled;
     try {
@@ -225,7 +213,7 @@ final class RuntimeHostLifecycleService {
           rethrow;
         }
       }
-      await Future<void>.delayed(const Duration(milliseconds: 100));
+      await Future.pause(const Duration(milliseconds: 100));
     }
     throw StateError('The runtime host did not stop in time.');
   }

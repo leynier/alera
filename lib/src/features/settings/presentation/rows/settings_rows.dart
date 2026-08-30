@@ -23,24 +23,15 @@ List<String> filterOrdered(Iterable<String> values, String query) {
   return matches;
 }
 
-class SettingsTextRow extends StatefulWidget {
-  const SettingsTextRow({
-    super.key,
-    required this.title,
-    required this.description,
-    required this.value,
-    required this.onChanged,
-    this.hintText,
-    this.trimValue = true,
-  });
-
-  final String title;
-  final String description;
-  final String value;
-  final ValueChanged<String> onChanged;
-  final String? hintText;
-  final bool trimValue;
-
+class const SettingsTextRow({
+  super.key,
+  required final String title,
+  required final String description,
+  required final String value,
+  required final ValueChanged<String> onChanged,
+  final String? hintText,
+  final bool trimValue = true,
+}) extends StatefulWidget {
   @override
   State<SettingsTextRow> createState() => _SettingsTextRowState();
 }
@@ -90,18 +81,12 @@ class _SettingsTextRowState extends State<SettingsTextRow> {
   }
 }
 
-class SettingsAutocompleteMenu extends StatelessWidget {
-  const SettingsAutocompleteMenu({
-    super.key,
-    required this.emptyText,
-    required this.itemCount,
-    required this.itemBuilder,
-  });
-
-  final String emptyText;
-  final int itemCount;
-  final IndexedWidgetBuilder itemBuilder;
-
+class const SettingsAutocompleteMenu({
+  super.key,
+  required final String emptyText,
+  required final int itemCount,
+  required final IndexedWidgetBuilder itemBuilder,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -134,28 +119,17 @@ class SettingsAutocompleteMenu extends StatelessWidget {
   }
 }
 
-class SettingsNumberRow extends StatelessWidget {
-  const SettingsNumberRow({
-    super.key,
-    required this.title,
-    required this.description,
-    required this.value,
-    required this.min,
-    required this.max,
-    required this.step,
-    required this.onChanged,
-    this.suffix,
-  });
-
-  final String title;
-  final String description;
-  final double value;
-  final double min;
-  final double max;
-  final double step;
-  final String? suffix;
-  final ValueChanged<double> onChanged;
-
+class const SettingsNumberRow({
+  super.key,
+  required final String title,
+  required final String description,
+  required final double value,
+  required final double min,
+  required final double max,
+  required final double step,
+  required final ValueChanged<double> onChanged,
+  final String? suffix,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return AleraSettingRow(
@@ -173,28 +147,17 @@ class SettingsNumberRow extends StatelessWidget {
   }
 }
 
-class SettingsIntegerRow extends StatelessWidget {
-  const SettingsIntegerRow({
-    super.key,
-    required this.title,
-    required this.description,
-    required this.value,
-    required this.min,
-    required this.max,
-    required this.step,
-    this.suffix,
-    required this.onChanged,
-  });
-
-  final String title;
-  final String description;
-  final int value;
-  final int min;
-  final int max;
-  final int step;
-  final String? suffix;
-  final ValueChanged<int> onChanged;
-
+class const SettingsIntegerRow({
+  super.key,
+  required final String title,
+  required final String description,
+  required final int value,
+  required final int min,
+  required final int max,
+  required final int step,
+  final String? suffix,
+  required final ValueChanged<int> onChanged,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return AleraSettingRow(
@@ -215,20 +178,13 @@ class SettingsIntegerRow extends StatelessWidget {
 /// A settings row whose control is an action button. The button shows a spinner
 /// and disables itself while [onPressed] is running, so callers only supply the
 /// async action and the row owns the in-flight state.
-class SettingsButtonRow extends StatefulWidget {
-  const SettingsButtonRow({
-    super.key,
-    required this.title,
-    required this.description,
-    required this.buttonLabel,
-    this.onPressed,
-  });
-
-  final String title;
-  final String description;
-  final String buttonLabel;
-  final Future<void> Function()? onPressed;
-
+class const SettingsButtonRow({
+  super.key,
+  required final String title,
+  required final String description,
+  required final String buttonLabel,
+  final Future<void> Function()? onPressed,
+}) extends StatefulWidget {
   @override
   State<SettingsButtonRow> createState() => _SettingsButtonRowState();
 }
@@ -274,21 +230,14 @@ class _SettingsButtonRowState extends State<SettingsButtonRow> {
   }
 }
 
-class SettingsSwitchRow extends StatelessWidget {
-  const SettingsSwitchRow({
-    super.key,
-    required this.title,
-    required this.description,
-    required this.value,
-    required this.onChanged,
-    this.secondary,
-  });
-
-  final String title;
-  final String description;
-  final bool value;
-  final ValueChanged<bool>? onChanged;
-
+class const SettingsSwitchRow({
+  super.key,
+  required final String title,
+  required final String description,
+  required final bool value,
+  required final ValueChanged<bool>? onChanged,
+  this.secondary,
+}) extends StatelessWidget {
   /// Optional control rendered before the switch (e.g., a pin toggle).
   final Widget? secondary;
 
@@ -300,7 +249,7 @@ class SettingsSwitchRow extends StatelessWidget {
       child: Align(
         alignment: Alignment.centerRight,
         child: Row(
-          mainAxisSize: MainAxisSize.min,
+          mainAxisSize: .min,
           children: <Widget>[
             ?secondary,
             Switch(value: value, onChanged: onChanged),

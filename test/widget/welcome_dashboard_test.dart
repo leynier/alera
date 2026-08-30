@@ -27,7 +27,7 @@ void main() {
             () => controller ?? _WelcomeDashboardController(state),
           ),
           settingsControllerProvider.overrideWith(
-            () => _WelcomeDashboardSettingsController(AleraSettings.defaults),
+            () => _WelcomeDashboardSettingsController(.defaults),
           ),
           agentProfilesProvider.overrideWith(
             () => _WelcomeDashboardAgentProfiles(),
@@ -86,8 +86,8 @@ void main() {
       path: project.repoPath,
       createdAt: now,
       updatedAt: now,
-      kind: WorkspaceKind.main,
-      status: WorkspaceStatus.active,
+      kind: .main,
+      status: .active,
     );
 
     final controller = _WelcomeDashboardController(
@@ -144,11 +144,8 @@ class _WelcomeDashboardAgentProfiles extends AgentProfiles {
   Future<List<AgentProfile>> build() async => const <AgentProfile>[];
 }
 
-class _WelcomeDashboardController extends WorkbenchController {
-  _WelcomeDashboardController(this._seed);
-
-  final WorkbenchState _seed;
-
+class _WelcomeDashboardController(final WorkbenchState _seed)
+    extends WorkbenchController {
   @override
   WorkbenchState build() => _seed;
 
@@ -161,11 +158,8 @@ class _WelcomeDashboardController extends WorkbenchController {
   }
 }
 
-class _WelcomeDashboardSettingsController extends SettingsController {
-  _WelcomeDashboardSettingsController(this._seed);
-
-  final AleraSettings _seed;
-
+class _WelcomeDashboardSettingsController(final AleraSettings _seed)
+    extends SettingsController {
   @override
   AleraSettings build() => _seed;
 }

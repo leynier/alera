@@ -11,28 +11,17 @@ import 'package:alera/src/features/workbench/presentation/terminal_pulse_dialog.
 import 'package:alera/src/features/workbench/presentation/terminal_runtime.dart';
 import 'package:flutter/material.dart';
 
-class TerminalSurfaceToolbar extends StatefulWidget {
-  const TerminalSurfaceToolbar({
-    super.key,
-    required this.session,
-    required this.viewportSize,
-    required this.corner,
-    required this.hasCanvas,
-    required this.refreshing,
-    required this.onRefresh,
-    required this.onShowAgentCanvas,
-    this.onCornerChanged,
-  });
-
-  final TerminalSessionHandle session;
-  final Size viewportSize;
-  final TerminalToolbarCorner corner;
-  final bool hasCanvas;
-  final bool refreshing;
-  final VoidCallback onRefresh;
-  final VoidCallback onShowAgentCanvas;
-  final ValueChanged<TerminalToolbarCorner>? onCornerChanged;
-
+class const TerminalSurfaceToolbar({
+  super.key,
+  required final TerminalSessionHandle session,
+  required final Size viewportSize,
+  required final TerminalToolbarCorner corner,
+  required final bool hasCanvas,
+  required final bool refreshing,
+  required final VoidCallback onRefresh,
+  required final VoidCallback onShowAgentCanvas,
+  final ValueChanged<TerminalToolbarCorner>? onCornerChanged,
+}) extends StatefulWidget {
   @override
   State<TerminalSurfaceToolbar> createState() => _TerminalSurfaceToolbarState();
 }
@@ -68,8 +57,8 @@ class _TerminalSurfaceToolbarState extends State<TerminalSurfaceToolbar> {
         Overlay.of(context).context.findRenderObject()! as RenderBox;
     final selected = await showMenu<TerminalToolbarCorner>(
       context: context,
-      position: RelativeRect.fromRect(
-        Rect.fromPoints(globalPosition, globalPosition),
+      position: .fromRect(
+        .fromPoints(globalPosition, globalPosition),
         Offset.zero & overlay.size,
       ),
       items: <PopupMenuEntry<TerminalToolbarCorner>>[
@@ -203,7 +192,7 @@ class _TerminalSurfaceToolbarState extends State<TerminalSurfaceToolbar> {
       },
       child: Row(
         key: _toolbarKey,
-        mainAxisSize: MainAxisSize.min,
+        mainAxisSize: .min,
         spacing: AleraTokens.space2,
         children: <Widget>[
           if (_corner.isRight) handle,
@@ -240,17 +229,11 @@ class _TerminalSurfaceToolbarState extends State<TerminalSurfaceToolbar> {
   }
 }
 
-class _MoveToolbarHandle extends StatelessWidget {
-  const _MoveToolbarHandle({
-    required this.onPanStart,
-    required this.onPanUpdate,
-    required this.onPanEnd,
-  });
-
-  final GestureDragStartCallback onPanStart;
-  final GestureDragUpdateCallback onPanUpdate;
-  final GestureDragEndCallback onPanEnd;
-
+class const _MoveToolbarHandle({
+  required final GestureDragStartCallback onPanStart,
+  required final GestureDragUpdateCallback onPanUpdate,
+  required final GestureDragEndCallback onPanEnd,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MouseRegion(

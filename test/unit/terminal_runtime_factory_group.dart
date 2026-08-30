@@ -79,7 +79,7 @@ void _registerTerminalRuntimeFactoryGroup() {
         handlePosixReadMessageForTesting(posix, const <Object?, Object?>{
           'type': 'done',
         });
-        await Future<void>.delayed(Duration.zero);
+        await Future.pause(.zero);
 
         expect(posixEvents.whereType<TerminalPtyOutputEvent>(), hasLength(1));
         expect(posixEvents.whereType<TerminalPtyErrorEvent>(), hasLength(1));
@@ -92,7 +92,7 @@ void _registerTerminalRuntimeFactoryGroup() {
         ghostty.resize(80, 24, 8, 16);
         handleGhosttyEventForTesting(
           ghostty,
-          GhosttyTerminalPtyOutputEvent(Uint8List.fromList(<int>[66])),
+          GhosttyTerminalPtyOutputEvent(.fromList(<int>[66])),
         );
         handleGhosttyEventForTesting(
           ghostty,
@@ -104,12 +104,9 @@ void _registerTerminalRuntimeFactoryGroup() {
         );
         handleGhosttyEventForTesting(
           ghostty,
-          const GhosttyTerminalPtyStateChangeEvent(
-            GhosttyTerminalPtySessionState.idle,
-            GhosttyTerminalPtySessionState.running,
-          ),
+          const GhosttyTerminalPtyStateChangeEvent(.idle, .running),
         );
-        await Future<void>.delayed(Duration.zero);
+        await Future.pause(.zero);
 
         expect(ghosttyEvents.whereType<TerminalPtyOutputEvent>(), hasLength(1));
         expect(

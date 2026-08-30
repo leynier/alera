@@ -7,11 +7,8 @@ import 'package:alera/src/features/workbench/domain/workspace.dart';
 import 'package:alera/src/shared/infra/storage/drift_database.dart';
 import 'package:drift/drift.dart';
 
-class DriftWorkbenchRepository implements WorkbenchRepository {
-  DriftWorkbenchRepository(this._db);
-
-  final AleraDatabase _db;
-
+class DriftWorkbenchRepository(final AleraDatabase _db)
+    implements WorkbenchRepository {
   @override
   Future<List<Workspace>> listWorkspaces(String projectId) async {
     final rows =
@@ -299,5 +296,5 @@ List<Workspace> _sortWorkspaces(List<Workspace> workspaces) {
     }
     return left.name.toLowerCase().compareTo(right.name.toLowerCase());
   });
-  return List<Workspace>.unmodifiable(workspaces);
+  return List<Workspace>.unmodifiableOf(workspaces);
 }

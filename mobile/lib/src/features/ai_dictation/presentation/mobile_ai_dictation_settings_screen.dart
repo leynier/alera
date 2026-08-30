@@ -25,9 +25,8 @@ const _remoteWhisperModels = <({String id, String label})>[
   (id: 'whisper-large-v3-turbo-q5-0', label: 'Whisper Large V3 Turbo (Q5)'),
 ];
 
-class MobileAiDictationSettingsScreen extends ConsumerWidget {
-  const MobileAiDictationSettingsScreen({super.key});
-
+class const MobileAiDictationSettingsScreen({super.key})
+    extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final settingsValue = ref.watch(
@@ -43,7 +42,7 @@ class MobileAiDictationSettingsScreen extends ConsumerWidget {
               padding: AleraTokens.pagePadding,
               child: Text(
                 'AI Dictation settings could not be loaded: $error',
-                textAlign: TextAlign.center,
+                textAlign: .center,
               ),
             ),
           ),
@@ -54,11 +53,8 @@ class MobileAiDictationSettingsScreen extends ConsumerWidget {
   }
 }
 
-class _SettingsList extends ConsumerWidget {
-  const _SettingsList({required this.settings});
-
-  final MobileAiDictationSettings settings;
-
+class const _SettingsList({required final MobileAiDictationSettings settings})
+    extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final controller = ref.read(
@@ -103,7 +99,7 @@ class _SettingsList extends ConsumerWidget {
           child: Padding(
             padding: AleraTokens.contentPadding,
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
+              crossAxisAlignment: .stretch,
               children: <Widget>[
                 Text(
                   'Processing Location',
@@ -112,14 +108,14 @@ class _SettingsList extends ConsumerWidget {
                 const SizedBox(height: AleraTokens.spaceSm),
                 SegmentedButton<MobileAiDictationLocation>(
                   showSelectedIcon: false,
-                  expandedInsets: EdgeInsets.zero,
+                  expandedInsets: .zero,
                   segments: const <ButtonSegment<MobileAiDictationLocation>>[
                     ButtonSegment<MobileAiDictationLocation>(
-                      value: MobileAiDictationLocation.thisDevice,
+                      value: .thisDevice,
                       label: Text('This Device'),
                     ),
                     ButtonSegment<MobileAiDictationLocation>(
-                      value: MobileAiDictationLocation.pairedDevice,
+                      value: .pairedDevice,
                       label: Text('Paired Device'),
                     ),
                   ],
@@ -263,14 +259,13 @@ class _SettingsList extends ConsumerWidget {
         const SizedBox(height: AleraTokens.spaceXl),
         _SectionTitle(
           title: 'Speech Processing',
-          description:
-              'Optionally improve the finished transcript with the agent configured for Speech Messages.',
+          description: 'Optionally improve the finished transcript with the agent configured for Speech Messages.',
         ),
         Card(
           child: Padding(
             padding: AleraTokens.contentPadding,
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
+              crossAxisAlignment: .stretch,
               children: <Widget>[
                 Text(
                   'Automatic Processing',
@@ -279,18 +274,18 @@ class _SettingsList extends ConsumerWidget {
                 const SizedBox(height: AleraTokens.spaceSm),
                 SegmentedButton<MobileAiDictationRewriteMode>(
                   showSelectedIcon: false,
-                  expandedInsets: EdgeInsets.zero,
+                  expandedInsets: .zero,
                   segments: const <ButtonSegment<MobileAiDictationRewriteMode>>[
                     ButtonSegment<MobileAiDictationRewriteMode>(
-                      value: MobileAiDictationRewriteMode.off,
+                      value: .off,
                       label: Text('Off'),
                     ),
                     ButtonSegment<MobileAiDictationRewriteMode>(
-                      value: MobileAiDictationRewriteMode.cleanUp,
+                      value: .cleanUp,
                       label: Text('Clean Up'),
                     ),
                     ButtonSegment<MobileAiDictationRewriteMode>(
-                      value: MobileAiDictationRewriteMode.summarize,
+                      value: .summarize,
                       label: Text('Summarize'),
                     ),
                   ],
@@ -330,10 +325,8 @@ String _engineDescription(
   MobileAiDictationLocation location,
   MobileAiDictationEngine engine,
 ) => switch ((location, engine)) {
-  (MobileAiDictationLocation.thisDevice, MobileAiDictationEngine.whisper) =>
-    'Record, review, and transcribe with a Whisper model stored on this device.',
-  (MobileAiDictationLocation.pairedDevice, MobileAiDictationEngine.whisper) =>
-    'Record and review here, then transcribe with Whisper on the paired device.',
+  (MobileAiDictationLocation.thisDevice, MobileAiDictationEngine.whisper) => 'Record, review, and transcribe with a Whisper model stored on this device.',
+  (MobileAiDictationLocation.pairedDevice, MobileAiDictationEngine.whisper) => 'Record and review here, then transcribe with Whisper on the paired device.',
   (
     MobileAiDictationLocation.thisDevice,
     MobileAiDictationEngine.openAiCompatible,
@@ -344,8 +337,7 @@ String _engineDescription(
     MobileAiDictationEngine.openAiCompatible,
   ) =>
     'Send the reviewed recording to the paired runtime, which calls the configured API.',
-  (_, MobileAiDictationEngine.codexSubscription) =>
-    'Transcribe through the authenticated experimental Codex app-server in the paired runtime.',
+  (_, MobileAiDictationEngine.codexSubscription) => 'Transcribe through the authenticated experimental Codex app-server in the paired runtime.',
   (_, MobileAiDictationEngine.systemOnDevice) =>
     'Use the platform recognizer only when it guarantees offline processing.',
   (_, MobileAiDictationEngine.systemRecognition) =>

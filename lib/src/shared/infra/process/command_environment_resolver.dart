@@ -9,11 +9,14 @@ const String shellPathHydrationDelimiter = '__ALERA_SHELL_PATH__';
 const String shellVariableHydrationDelimiter = '__ALERA_SHELL_VAR__';
 const Duration shellPathHydrationTimeout = Duration(seconds: 5);
 
-typedef ShellPathHydrator =
-    Future<CommandEnvironmentHydrationResult> Function(String shell);
+typedef ShellPathHydrator = Future<CommandEnvironmentHydrationResult> Function(
+  String shell,
+);
 
-typedef ShellVariablesHydrator =
-    Future<Map<String, String>> Function(String shell, List<String> names);
+typedef ShellVariablesHydrator = Future<Map<String, String>> Function(
+  String shell,
+  List<String> names,
+);
 
 enum CommandEnvironmentHydrationFailureReason {
   none,
@@ -23,31 +26,20 @@ enum CommandEnvironmentHydrationFailureReason {
   emptyPath,
 }
 
-class CommandEnvironmentHydrationResult {
-  const CommandEnvironmentHydrationResult._({
-    required this.ok,
-    required this.segments,
-    required this.failureReason,
-  });
+class const CommandEnvironmentHydrationResult._({
+  required final bool ok,
+  required final List<String> segments,
+  required final CommandEnvironmentHydrationFailureReason failureReason,
+}) {
+  const new success(List<String> segments)
+    : this._(ok: true, segments: segments, failureReason: .none);
 
-  const CommandEnvironmentHydrationResult.success(List<String> segments)
+  const new failure(CommandEnvironmentHydrationFailureReason failureReason)
     : this._(
-        ok: true,
-        segments: segments,
-        failureReason: CommandEnvironmentHydrationFailureReason.none,
-      );
-
-  const CommandEnvironmentHydrationResult.failure(
-    CommandEnvironmentHydrationFailureReason failureReason,
-  ) : this._(
         ok: false,
         segments: const <String>[],
         failureReason: failureReason,
       );
-
-  final bool ok;
-  final List<String> segments;
-  final CommandEnvironmentHydrationFailureReason failureReason;
 }
 
 abstract interface class CommandEnvironmentResolver {
@@ -61,22 +53,14 @@ abstract interface class CommandEnvironmentResolver {
   Future<Map<String, String>> environmentVariables(List<String> names);
 }
 
-class UserCommandEnvironmentResolver implements CommandEnvironmentResolver {
-  UserCommandEnvironmentResolver({
-    this.platformEnvironment,
-    this.isWindows,
-    this.isMacOS,
-    this.hydrator,
-    this.variablesHydrator,
-    this.processRunner = const RustProcessRunner(),
-  });
-
-  final Map<String, String>? platformEnvironment;
-  final bool? isWindows;
-  final bool? isMacOS;
-  final ShellPathHydrator? hydrator;
-  final ShellVariablesHydrator? variablesHydrator;
-  final ProcessRunner processRunner;
+class UserCommandEnvironmentResolver({
+  final Map<String, String>? platformEnvironment,
+  final bool? isWindows,
+  final bool? isMacOS,
+  final ShellPathHydrator? hydrator,
+  final ShellVariablesHydrator? variablesHydrator,
+  final ProcessRunner processRunner = const RustProcessRunner(),
+}) implements CommandEnvironmentResolver {
   Future<CommandEnvironmentHydrationResult>? _hydration;
   final Map<String, Future<Map<String, String>>> _variableHydrations =
       <String, Future<Map<String, String>>>{};
@@ -106,9 +90,7 @@ class UserCommandEnvironmentResolver implements CommandEnvironmentResolver {
     final shell = _pickShell();
     if (shell == null) {
       return _hydration = Future<CommandEnvironmentHydrationResult>.value(
-        const CommandEnvironmentHydrationResult.failure(
-          CommandEnvironmentHydrationFailureReason.noShell,
-        ),
+        const CommandEnvironmentHydrationResult.failure(.noShell),
       );
     }
     final hydrate = hydrator;
@@ -257,9 +239,7 @@ Future<CommandEnvironmentHydrationResult> hydrateShellPath(
   try {
     process = await processRunner.start(shell, <String>['-ilc', command]);
   } catch (_) {
-    return const CommandEnvironmentHydrationResult.failure(
-      CommandEnvironmentHydrationFailureReason.spawnError,
-    );
+    return const CommandEnvironmentHydrationResult.failure(.spawnError);
   }
 
   final stdout = StringBuffer();
@@ -276,22 +256,16 @@ Future<CommandEnvironmentHydrationResult> hydrateShellPath(
     );
     await Future.wait(<Future<void>>[stdoutDone, stderrDone]);
   } on TimeoutException {
-    return const CommandEnvironmentHydrationResult.failure(
-      CommandEnvironmentHydrationFailureReason.timeout,
-    );
+    return const CommandEnvironmentHydrationResult.failure(.timeout);
   } catch (_) {
     // The runner reports a spawn that failed after `start` returned through
     // the exit code, where `Process.start` used to throw from the call itself.
-    return const CommandEnvironmentHydrationResult.failure(
-      CommandEnvironmentHydrationFailureReason.spawnError,
-    );
+    return const CommandEnvironmentHydrationResult.failure(.spawnError);
   }
 
   final segments = parseHydratedShellPath(stdout.toString());
   if (segments.isEmpty) {
-    return const CommandEnvironmentHydrationResult.failure(
-      CommandEnvironmentHydrationFailureReason.emptyPath,
-    );
+    return const CommandEnvironmentHydrationResult.failure(.emptyPath);
   }
   return CommandEnvironmentHydrationResult.success(segments);
 }

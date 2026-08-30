@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+
 import 'package:alera_mobile/src/features/accounts/domain/cloud_account_session.dart';
 import 'package:alera_mobile/src/features/runtime/infra/mobile_runtime_client.dart';
 import 'package:alera_mobile/src/features/runtime/infra/relay_crypto.dart';
@@ -14,9 +15,7 @@ void main() {
     () async {
       final http = HttpClient();
       addTearDown(() => http.close(force: true));
-      final identity = await RelayIdentityKeyPair.fromPrivate(
-        List.filled(32, 7),
-      );
+      final identity = await RelayIdentityKeyPair.fromPrivate(.filled(32, 7));
       Future<CloudRelayGrant> grant(String id) async {
         final response = await (await http.getUrl(
           Uri.parse('$origin/fixture/grant?role=mobile&client=$id'),
@@ -80,7 +79,7 @@ void main() {
           }),
         );
         sequence++;
-        await Future<void>.delayed(const Duration(milliseconds: 150));
+        await Future.pause(const Duration(milliseconds: 150));
       }
       expect(await closedHandshake, isFalse);
       expect(blocked.socket.closeCode, 1013);
@@ -117,9 +116,7 @@ void main() {
         }
         http.close(force: true);
       });
-      final identity = await RelayIdentityKeyPair.fromPrivate(
-        List.filled(32, 7),
-      );
+      final identity = await RelayIdentityKeyPair.fromPrivate(.filled(32, 7));
       Future<MobileRuntimeClient> connect(String id) async {
         final response = await (await http.getUrl(
           Uri.parse(origin!).replace(
@@ -175,13 +172,12 @@ void main() {
   );
 }
 
-class _RawPeer {
-  _RawPeer(this.socket, this.messages, this.id, this.session);
-  final WebSocket socket;
-  final StreamIterator<dynamic> messages;
-  final String id;
-  final RelayCryptoSession? session;
-
+class _RawPeer(
+  final WebSocket socket,
+  final StreamIterator<dynamic> messages,
+  final String id,
+  final RelayCryptoSession? session,
+) {
   static Future<_RawPeer> open(
     CloudRelayGrant grant,
     RelayIdentityKeyPair identity, {

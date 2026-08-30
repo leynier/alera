@@ -17,9 +17,8 @@ void main() {
   });
 
   test('keeps the pinned fingerprint in step with the release script', () {
-    final releaseScript = File(
-      'tool/release/build_linux_repositories.sh',
-    ).readAsStringSync();
+    final releaseScript = File('tool/release/build_linux_repositories.sh')
+        .readAsStringSync();
 
     expect(
       releaseScript,
@@ -314,19 +313,12 @@ void main() {
 /// `PATH` is replaced rather than prepended so the script sees exactly the
 /// package managers a case declares: probing for `apt-get` is the branch under
 /// test, and the developer machine always has one.
-class _InstallFixture {
-  _InstallFixture._({
-    required this.root,
-    required this.sysroot,
-    required this.binDir,
-    required this.commandLog,
-  });
-
-  final Directory root;
-  final Directory sysroot;
-  final Directory binDir;
-  final File commandLog;
-
+class _InstallFixture._({
+  required final Directory root,
+  required final Directory sysroot,
+  required final Directory binDir,
+  required final File commandLog,
+}) {
   static const List<String> _borrowedTools = <String>[
     'awk',
     'cat',

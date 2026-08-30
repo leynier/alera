@@ -20,23 +20,15 @@ Future<void> showWorkspaceViewOptionsSheet(
   );
 }
 
-class _WorkspaceViewOptions extends ConsumerWidget {
-  const _WorkspaceViewOptions({required this.hostId, required this.data});
-
-  final String hostId;
-  final WorkspaceListData data;
-
+class const _WorkspaceViewOptions({
+  required final String hostId,
+  required final WorkspaceListData data,
+}) extends ConsumerWidget {
   static const List<AleraDropdownFieldEntry<MobileWorkbenchSortBy>>
   _sortEntries = <AleraDropdownFieldEntry<MobileWorkbenchSortBy>>[
-    AleraDropdownFieldEntry(value: MobileWorkbenchSortBy.name, label: 'Name'),
-    AleraDropdownFieldEntry(
-      value: MobileWorkbenchSortBy.recent,
-      label: 'Recent',
-    ),
-    AleraDropdownFieldEntry(
-      value: MobileWorkbenchSortBy.activity,
-      label: 'Agent Activity',
-    ),
+    AleraDropdownFieldEntry(value: .name, label: 'Name'),
+    AleraDropdownFieldEntry(value: .recent, label: 'Recent'),
+    AleraDropdownFieldEntry(value: .activity, label: 'Agent Activity'),
   ];
 
   @override
@@ -99,16 +91,13 @@ class _WorkspaceViewOptions extends ConsumerWidget {
               onChanged: controller.setKindFilter,
               entries:
                   const <AleraDropdownFieldEntry<MobileWorkspaceKindFilter>>[
+                    AleraDropdownFieldEntry(value: .all, label: 'All'),
                     AleraDropdownFieldEntry(
-                      value: MobileWorkspaceKindFilter.all,
-                      label: 'All',
-                    ),
-                    AleraDropdownFieldEntry(
-                      value: MobileWorkspaceKindFilter.defaultOnly,
+                      value: .defaultOnly,
                       label: 'Default Only',
                     ),
                     AleraDropdownFieldEntry(
-                      value: MobileWorkspaceKindFilter.nonDefaultOnly,
+                      value: .nonDefaultOnly,
                       label: 'Non-Default Only',
                     ),
                   ],

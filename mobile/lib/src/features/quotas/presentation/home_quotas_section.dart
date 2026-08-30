@@ -17,11 +17,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 /// Compact per-host quota summaries for the Home screen.
-class HomeQuotasSection extends ConsumerWidget {
-  const HomeQuotasSection({super.key, required this.hosts});
-
-  final List<PairedHostProfile> hosts;
-
+class const HomeQuotasSection({
+  super.key,
+  required final List<PairedHostProfile> hosts,
+}) extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final visibility = ref.watch(quotaHostVisibilityControllerProvider);
@@ -55,7 +54,7 @@ class HomeQuotasSection extends ConsumerWidget {
     }
 
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+      crossAxisAlignment: .stretch,
       children: <Widget>[
         const SizedBox(height: AleraTokens.spaceLg),
         AleraSectionHeader(
@@ -166,12 +165,10 @@ class HomeQuotasSection extends ConsumerWidget {
   }
 }
 
-class _HomeQuotaCard extends StatelessWidget {
-  const _HomeQuotaCard({required this.snapshot, required this.onTap});
-
-  final QuotaSnapshot snapshot;
-  final VoidCallback onTap;
-
+class const _HomeQuotaCard({
+  required final QuotaSnapshot snapshot,
+  required final VoidCallback onTap,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final meters = sortedQuotaMeters(snapshot);
@@ -183,12 +180,12 @@ class _HomeQuotaCard extends StatelessWidget {
 
     return Card(
       child: InkWell(
-        borderRadius: BorderRadius.circular(AleraTokens.radiusSm),
+        borderRadius: .circular(AleraTokens.radiusSm),
         onTap: onTap,
         child: Padding(
           padding: AleraTokens.contentPadding,
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
+            crossAxisAlignment: .stretch,
             children: <Widget>[
               Row(
                 children: <Widget>[
@@ -198,7 +195,7 @@ class _HomeQuotaCard extends StatelessWidget {
                     child: Text(
                       title,
                       style: Theme.of(context).textTheme.titleMedium,
-                      overflow: TextOverflow.ellipsis,
+                      overflow: .ellipsis,
                     ),
                   ),
                   QuotaStatusPill(status: snapshot.status),
@@ -223,12 +220,10 @@ class _HomeQuotaCard extends StatelessWidget {
   }
 }
 
-class _HomeQuotaMeterRow extends StatelessWidget {
-  const _HomeQuotaMeterRow({required this.provider, required this.meter});
-
-  final String provider;
-  final QuotaMeter meter;
-
+class const _HomeQuotaMeterRow({
+  required final String provider,
+  required final QuotaMeter meter,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final remaining = meter.remainingPercent;
@@ -238,26 +233,23 @@ class _HomeQuotaMeterRow extends StatelessWidget {
         ? AleraTokens.warning
         : AleraTokens.success;
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+      crossAxisAlignment: .stretch,
       children: <Widget>[
         Row(
           children: <Widget>[
             Expanded(
               child: Text(
                 quotaMeterDisplayLabel(provider, meter.label),
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: AleraTokens.foregroundMuted,
-                ),
-                overflow: TextOverflow.ellipsis,
+                style: Theme.of(context).textTheme.bodySmall
+                    ?.copyWith(color: AleraTokens.foregroundMuted),
+                overflow: .ellipsis,
               ),
             ),
             Text(
               meter.displayValue ??
                   '${remaining.toStringAsFixed(0)}% Remaining',
-              style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                color: color,
-                fontWeight: FontWeight.w600,
-              ),
+              style: Theme.of(context).textTheme.labelSmall
+                  ?.copyWith(color: color, fontWeight: .w600),
             ),
           ],
         ),
@@ -277,32 +269,25 @@ class _HomeQuotaMeterRow extends StatelessWidget {
   }
 }
 
-class _HomeQuotaErrorCard extends StatelessWidget {
-  const _HomeQuotaErrorCard({
-    required this.message,
-    required this.onRetry,
-    required this.onOpen,
-  });
-
-  final String message;
-  final VoidCallback onRetry;
-  final VoidCallback onOpen;
-
+class const _HomeQuotaErrorCard({
+  required final String message,
+  required final VoidCallback onRetry,
+  required final VoidCallback onOpen,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Card(
       child: Padding(
         padding: AleraTokens.contentPadding,
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
+          crossAxisAlignment: .stretch,
           children: <Widget>[
             Text(
               message,
-              style: Theme.of(
-                context,
-              ).textTheme.bodySmall?.copyWith(color: AleraTokens.error),
+              style: Theme.of(context).textTheme.bodySmall
+                  ?.copyWith(color: AleraTokens.error),
               maxLines: 2,
-              overflow: TextOverflow.ellipsis,
+              overflow: .ellipsis,
             ),
             const SizedBox(height: AleraTokens.spaceSm),
             Row(

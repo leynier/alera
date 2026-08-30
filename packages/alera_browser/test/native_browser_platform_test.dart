@@ -339,11 +339,8 @@ void main() {
       await platform.importCookies(
         AleraBrowserNativeCookieImportRequest(
           profileId: 'target',
-          gestureToken: AleraBrowserUserGestureToken.internal(
-            'gesture',
-            DateTime.utc(2026, 7, 27),
-          ),
-          source: AleraBrowserCookieImportSource.chrome,
+          gestureToken: .internal('gesture', .utc(2026, 7, 27)),
+          source: .chrome,
           sourceProfileName: 'Profile 1',
         ),
       );

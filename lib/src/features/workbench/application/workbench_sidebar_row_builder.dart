@@ -1,19 +1,16 @@
 part of 'workbench_listing.dart';
 
-class _WorkbenchSidebarRowBuilder {
-  _WorkbenchSidebarRowBuilder(
-    this.state, {
-    required this.agentStatuses,
-    required this.lastActivityByWorkspaceId,
-    required this.now,
-  }) : prefs = state.viewPrefs,
-       query = state.searchQuery.trim().toLowerCase();
+class _WorkbenchSidebarRowBuilder(
+  final WorkbenchState state, {
+  required final Map<String, AgentStatusEntry> agentStatuses,
+  required final Map<String, DateTime> lastActivityByWorkspaceId,
+  required final DateTime now,
+}) {
+  this
+    : prefs = state.viewPrefs, query = state.searchQuery.trim().toLowerCase();
 
-  final WorkbenchState state;
   final WorkbenchViewPrefs prefs;
-  final Map<String, AgentStatusEntry> agentStatuses;
-  final Map<String, DateTime> lastActivityByWorkspaceId;
-  final DateTime now;
+
   final String query;
 
   final _attentionByWorkspaceId = <String, WorkspaceAttention>{};

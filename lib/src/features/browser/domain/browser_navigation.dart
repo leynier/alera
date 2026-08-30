@@ -6,44 +6,34 @@ enum BrowserSearchEngine { google, duckDuckGo, bing, kagi }
 
 enum BrowserNavigationKind { blank, url, search }
 
-final class BrowserNavigationTarget {
-  const BrowserNavigationTarget({
-    required this.url,
-    required this.kind,
-    required this.originalInput,
-  });
+final class const BrowserNavigationTarget({
+  required final Uri url,
+  required final BrowserNavigationKind kind,
+  required final String originalInput,
+});
 
-  final Uri url;
-  final BrowserNavigationKind kind;
-  final String originalInput;
-}
-
-final class BrowserNavigationPolicy {
-  const BrowserNavigationPolicy({
-    this.searchEngine = BrowserSearchEngine.google,
-  });
-
-  final BrowserSearchEngine searchEngine;
-
+final class const BrowserNavigationPolicy({
+  final BrowserSearchEngine searchEngine = BrowserSearchEngine.google,
+}) {
   BrowserNavigationTarget resolve(String input) {
     final normalized = input.trim();
     if (normalized.isEmpty) {
       return BrowserNavigationTarget(
         url: Uri.parse('about:blank'),
-        kind: BrowserNavigationKind.blank,
+        kind: .blank,
         originalInput: input,
       );
     }
     if (normalized.length > maxBrowserAddressLength) {
       throw const BrowserFailure(
-        code: BrowserErrorCode.invalidUrl,
+        code: .invalidUrl,
         message: 'The browser address is too long.',
         recoverable: true,
       );
     }
     if (_looksLikeFilePath(normalized)) {
       throw const BrowserFailure(
-        code: BrowserErrorCode.navigationBlocked,
+        code: .navigationBlocked,
         message: 'Local file paths cannot be opened in browser tabs.',
         recoverable: true,
       );
@@ -56,7 +46,7 @@ final class BrowserNavigationPolicy {
       }
       return BrowserNavigationTarget(
         url: uri,
-        kind: BrowserNavigationKind.url,
+        kind: .url,
         originalInput: input,
       );
     }
@@ -70,7 +60,7 @@ final class BrowserNavigationPolicy {
       if (!_allowedSchemes.contains(scheme) ||
           (scheme == 'about' && uri.toString() != 'about:blank')) {
         throw BrowserFailure(
-          code: BrowserErrorCode.navigationBlocked,
+          code: .navigationBlocked,
           message: 'The "$scheme" browser address is not allowed.',
           recoverable: true,
         );
@@ -88,7 +78,7 @@ final class BrowserNavigationPolicy {
     }
     return BrowserNavigationTarget(
       url: _searchUri(normalized),
-      kind: BrowserNavigationKind.search,
+      kind: .search,
       originalInput: input,
     );
   }
@@ -104,9 +94,7 @@ final class BrowserNavigationPolicy {
   }
 }
 
-final class BrowserHistorySensitivityFilter {
-  const BrowserHistorySensitivityFilter();
-
+final class const BrowserHistorySensitivityFilter() {
   bool shouldPersist(Uri url) {
     if (url.scheme != 'http' && url.scheme != 'https') {
       return false;
@@ -213,7 +201,7 @@ bool _containsSensitiveFragment(String value) {
 }
 
 BrowserFailure _invalidAddress() => const BrowserFailure(
-  code: BrowserErrorCode.invalidUrl,
+  code: .invalidUrl,
   message: 'The browser address is invalid.',
   recoverable: true,
 );

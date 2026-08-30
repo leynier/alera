@@ -45,8 +45,8 @@ Future<String?> showParentPickerSheet(
     context: context,
     builder: (context) => SafeArea(
       child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
+        mainAxisSize: .min,
+        crossAxisAlignment: .stretch,
         children: <Widget>[
           Padding(
             padding: AleraTokens.contentPadding,
@@ -76,13 +76,10 @@ Future<String?> showParentPickerSheet(
                           ? Icons.home_outlined
                           : Icons.account_tree_outlined,
                     ),
-                    title: Text(
-                      workspace.name,
-                      overflow: TextOverflow.ellipsis,
-                    ),
+                    title: Text(workspace.name, overflow: .ellipsis),
                     subtitle: Text(
                       workspace.branch ?? workspace.path,
-                      overflow: TextOverflow.ellipsis,
+                      overflow: .ellipsis,
                     ),
                     onTap: () => Navigator.of(context).pop(workspace.id),
                   );

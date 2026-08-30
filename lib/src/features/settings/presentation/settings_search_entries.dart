@@ -22,8 +22,7 @@ applicationSearchEntries = buildSettingsSearchEntryCatalog(const {
   },
   'desktop': {
     'Show Tray Icon': SettingsSearchEntryDetails(
-      description:
-          'Keep Alera in the menu extra, notification area, or Ubuntu status bar.',
+      description: 'Keep Alera in the menu extra, notification area, or Ubuntu status bar.',
       keywords: <String>[
         'tray',
         'status bar',
@@ -158,8 +157,7 @@ agentsSearchEntries = buildSettingsSearchEntryCatalog(const {
       keywords: <String>['codex', 'skill', 'cli', 'agent', 'workspace'],
     ),
     'Agent Canvas Skill': SettingsSearchEntryDetails(
-      description:
-          'Install agent instructions for publishing structured updates in Agent Canvas.',
+      description: 'Install agent instructions for publishing structured updates in Agent Canvas.',
       keywords: <String>[
         'agent canvas',
         'canvas',
@@ -369,8 +367,7 @@ const List<SettingsSearchEntry> editorSearchEntries = <SettingsSearchEntry>[
 const List<SettingsSearchEntry> aiAssistSearchEntries = <SettingsSearchEntry>[
   SettingsSearchEntry(
     title: 'AI Assist',
-    description:
-        'Run short local agent jobs for source control, workspace identity, and speech.',
+    description: 'Run short local agent jobs for source control, workspace identity, and speech.',
     keywords: <String>['ai', 'assist', 'commit', 'pull request', 'branch'],
     groupId: 'generation',
   ),
@@ -394,8 +391,7 @@ const List<SettingsSearchEntry> aiAssistSearchEntries = <SettingsSearchEntry>[
   ),
   SettingsSearchEntry(
     title: 'AI Assist Commit Messages',
-    description:
-        'Choose the agent, model, reasoning and instructions for commit messages.',
+    description: 'Choose the agent, model, reasoning and instructions for commit messages.',
     keywords: <String>[
       'prompt',
       'instructions',
@@ -410,8 +406,7 @@ const List<SettingsSearchEntry> aiAssistSearchEntries = <SettingsSearchEntry>[
   ),
   SettingsSearchEntry(
     title: 'AI Assist Pull Request Details',
-    description:
-        'Choose the agent, model, reasoning and instructions for pull request details.',
+    description: 'Choose the agent, model, reasoning and instructions for pull request details.',
     keywords: <String>[
       'prompt',
       'instructions',
@@ -427,8 +422,7 @@ const List<SettingsSearchEntry> aiAssistSearchEntries = <SettingsSearchEntry>[
   ),
   SettingsSearchEntry(
     title: 'AI Assist Agent Titles',
-    description:
-        'Configure automatic conversation titles, provider, model and instructions.',
+    description: 'Configure automatic conversation titles, provider, model and instructions.',
     keywords: <String>[
       'title',
       'name',
@@ -442,8 +436,7 @@ const List<SettingsSearchEntry> aiAssistSearchEntries = <SettingsSearchEntry>[
   ...readingDiffSearchEntries,
   SettingsSearchEntry(
     title: 'AI Assist Workspace Identity',
-    description:
-        'Choose the agent, model, reasoning and instructions for workspace identity.',
+    description: 'Choose the agent, model, reasoning and instructions for workspace identity.',
     keywords: <String>[
       'prompt',
       'instructions',

@@ -136,7 +136,7 @@ void main() {
       final received = <MobileAccessStatus>[];
       final subscription = repository.watchStatus().listen(received.add);
       addTearDown(subscription.cancel);
-      await Future<void>.delayed(const Duration(milliseconds: 250));
+      await Future.pause(const Duration(milliseconds: 250));
       expect(received, hasLength(1), reason: 'initial fetch');
 
       for (final name in <String>[
@@ -149,7 +149,7 @@ void main() {
       ]) {
         client.emit(RuntimeHostEvent(name, const <String, Object?>{}));
       }
-      await Future<void>.delayed(const Duration(milliseconds: 250));
+      await Future.pause(const Duration(milliseconds: 250));
 
       // The five mobile events collapse into a single refetch; the non-mobile
       // event must not trigger one at all.
@@ -194,7 +194,7 @@ void main() {
 
       final settings = await repository.updateSettings(
         enabled: true,
-        endpointMode: MobileEndpointMode.tailscale,
+        endpointMode: .tailscale,
       );
 
       expect(settings.endpointMode, MobileEndpointMode.tailscale);
@@ -219,8 +219,8 @@ void main() {
         final repository = RuntimeMobileAccessRepository(client);
 
         final settings = await repository.updateSettings(
-          endpointMode: MobileEndpointMode.netbird,
-          netbirdEndpoint: MobileNetbirdEndpoint.dns,
+          endpointMode: .netbird,
+          netbirdEndpoint: .dns,
         );
 
         expect(settings.netbirdEndpoint, MobileNetbirdEndpoint.dns);

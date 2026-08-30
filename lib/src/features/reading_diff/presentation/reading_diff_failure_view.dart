@@ -3,16 +3,11 @@ import 'package:alera/src/design_system/buttons/alera_icon_button.dart';
 import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:flutter/material.dart';
 
-class ReadingDiffFailureView extends StatelessWidget {
-  const ReadingDiffFailureView({
-    super.key,
-    required this.message,
-    required this.onDismiss,
-  });
-
-  final String message;
-  final VoidCallback onDismiss;
-
+class const ReadingDiffFailureView({
+  super.key,
+  required final String message,
+  required final VoidCallback onDismiss,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -24,7 +19,7 @@ class ReadingDiffFailureView extends StatelessWidget {
           vertical: AleraTokens.space8,
         ),
         child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment: .start,
           children: <Widget>[
             const Padding(
               padding: EdgeInsets.only(top: AleraTokens.space2),
@@ -37,7 +32,7 @@ class ReadingDiffFailureView extends StatelessWidget {
             const SizedBox(width: AleraTokens.space8),
             Expanded(
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+                crossAxisAlignment: .start,
                 children: <Widget>[
                   Text(
                     'Reading diff generation failed',

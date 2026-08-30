@@ -28,8 +28,8 @@ Workspace _workspace(
   path: '/repos/$projectId/$id',
   createdAt: _now,
   updatedAt: _now,
-  kind: WorkspaceKind.linked,
-  status: WorkspaceStatus.active,
+  kind: .linked,
+  status: .active,
   hostId: hostId,
 );
 
@@ -226,7 +226,7 @@ void main() {
         projects: <Project>[_project('p1', 'Alera')],
         workspaces: <Workspace>[_workspace('w1', 'Main')],
         tabs: <WorkspaceTabRecord>[
-          _tab('s1', 'w1', sessionId: 's1', kind: WorkspaceTabKind.editor),
+          _tab('s1', 'w1', sessionId: 's1', kind: .editor),
         ],
       );
 
@@ -349,9 +349,12 @@ void main() {
     );
 
     test('memory sorts descending with unmeasured rows last', () {
-      final sessions = buildWithSort(
-        ResourceSortColumn.memory,
-      ).projects.single.workspaces.single.sessions;
+      final sessions = buildWithSort(.memory)
+          .projects
+          .single
+          .workspaces
+          .single
+          .sessions;
 
       expect(sessions.map((session) => session.label), <String>[
         'Alpha',
@@ -361,9 +364,12 @@ void main() {
     });
 
     test('cpu sorts descending with unmeasured rows last', () {
-      final sessions = buildWithSort(
-        ResourceSortColumn.cpu,
-      ).projects.single.workspaces.single.sessions;
+      final sessions = buildWithSort(.cpu)
+          .projects
+          .single
+          .workspaces
+          .single
+          .sessions;
 
       expect(sessions.last.label, 'Charlie');
       expect(sessions.first.label, 'Alpha');
@@ -373,7 +379,7 @@ void main() {
       // Dividing every row by the same number cannot change their order, so a
       // 16-core machine ranks terminals the same way a single-core one does.
       List<String> labels(int cores) => buildWithSort(
-        ResourceSortColumn.cpu,
+        .cpu,
         cpuCoreCount: cores,
       ).projects.single.workspaces.single.sessions.map((s) => s.label).toList();
 
@@ -381,9 +387,12 @@ void main() {
     });
 
     test('name sorts alphabetically regardless of usage', () {
-      final sessions = buildWithSort(
-        ResourceSortColumn.name,
-      ).projects.single.workspaces.single.sessions;
+      final sessions = buildWithSort(.name)
+          .projects
+          .single
+          .workspaces
+          .single
+          .sessions;
 
       expect(sessions.map((session) => session.label), <String>[
         'Alpha',

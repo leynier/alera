@@ -189,12 +189,8 @@ Future<void> _showAgentStatusNotifications({
   await presenter.show(notification);
 }
 
-class _RiverpodAgentNotificationWorkbenchNavigator
+class _RiverpodAgentNotificationWorkbenchNavigator(final Ref _ref)
     implements AgentNotificationWorkbenchNavigator {
-  _RiverpodAgentNotificationWorkbenchNavigator(this._ref);
-
-  final Ref _ref;
-
   @override
   WorkbenchState get state => _ref.read(workbenchControllerProvider);
 
@@ -216,12 +212,8 @@ class _RiverpodAgentNotificationWorkbenchNavigator
   }
 }
 
-class _RiverpodAgentNotificationTerminalFocusRequester
+class _RiverpodAgentNotificationTerminalFocusRequester(final Ref _ref)
     implements AgentNotificationTerminalFocusRequester {
-  _RiverpodAgentNotificationTerminalFocusRequester(this._ref);
-
-  final Ref _ref;
-
   @override
   void requestTerminalFocus({
     required Workspace workspace,

@@ -5,7 +5,6 @@ import 'package:alera/src/features/keyboard/presentation/keyboard_settings_pane.
 import 'package:alera/src/features/settings/application/settings_repository.dart';
 import 'package:alera/src/features/settings/domain/alera_settings.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -83,18 +82,17 @@ void main() {
     await tester.tap(changeShortcut);
     await tester.pump();
 
-    await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
-    await tester.sendKeyDownEvent(LogicalKeyboardKey.shiftLeft);
-    await tester.sendKeyDownEvent(LogicalKeyboardKey.keyK);
-    await tester.sendKeyUpEvent(LogicalKeyboardKey.keyK);
-    await tester.sendKeyUpEvent(LogicalKeyboardKey.shiftLeft);
-    await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+    await tester.sendKeyDownEvent(.controlLeft);
+    await tester.sendKeyDownEvent(.shiftLeft);
+    await tester.sendKeyDownEvent(.keyK);
+    await tester.sendKeyUpEvent(.keyK);
+    await tester.sendKeyUpEvent(.shiftLeft);
+    await tester.sendKeyUpEvent(.controlLeft);
     await tester.pump();
 
-    expect(
-      keyboardOf(container).overrideFor(KeyboardActionId.newTerminalTab),
-      <String>['Mod+Shift+K'],
-    );
+    expect(keyboardOf(container).overrideFor(.newTerminalTab), <String>[
+      'Mod+Shift+K',
+    ]);
   });
 
   testWidgets('recording a conflicting chord blocks and can reassign', (
@@ -116,10 +114,10 @@ void main() {
     await tester.tap(changeShortcut);
     await tester.pump();
 
-    await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
-    await tester.sendKeyDownEvent(LogicalKeyboardKey.keyW);
-    await tester.sendKeyUpEvent(LogicalKeyboardKey.keyW);
-    await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+    await tester.sendKeyDownEvent(.controlLeft);
+    await tester.sendKeyDownEvent(.keyW);
+    await tester.sendKeyUpEvent(.keyW);
+    await tester.sendKeyUpEvent(.controlLeft);
     await tester.pump();
 
     expect(find.text('Shortcut already in use'), findsOneWidget);
@@ -127,15 +125,11 @@ void main() {
     await tester.tap(find.text('Reassign'));
     await tester.pumpAndSettle();
 
-    expect(
-      keyboardOf(container).overrideFor(KeyboardActionId.newTerminalTab),
-      <String>['Mod+W'],
-    );
+    expect(keyboardOf(container).overrideFor(.newTerminalTab), <String>[
+      'Mod+W',
+    ]);
     // The previous owner loses the chord.
-    expect(
-      keyboardOf(container).overrideFor(KeyboardActionId.closeTab),
-      isEmpty,
-    );
+    expect(keyboardOf(container).overrideFor(.closeTab), isEmpty);
   });
 
   testWidgets(
@@ -172,17 +166,17 @@ void main() {
       expect(find.text('Press keys… (Esc to cancel)'), findsNothing);
 
       await startRecording();
-      await tester.sendKeyDownEvent(LogicalKeyboardKey.escape);
-      await tester.sendKeyUpEvent(LogicalKeyboardKey.escape);
+      await tester.sendKeyDownEvent(.escape);
+      await tester.sendKeyUpEvent(.escape);
       await tester.pump();
       expect(find.text('Press keys… (Esc to cancel)'), findsNothing);
 
       await startRecording();
-      await tester.sendKeyDownEvent(LogicalKeyboardKey.keyA);
-      await tester.sendKeyUpEvent(LogicalKeyboardKey.keyA);
+      await tester.sendKeyDownEvent(.keyA);
+      await tester.sendKeyUpEvent(.keyA);
       await tester.pump();
-      await tester.sendKeyDownEvent(LogicalKeyboardKey.escape);
-      await tester.sendKeyUpEvent(LogicalKeyboardKey.escape);
+      await tester.sendKeyDownEvent(.escape);
+      await tester.sendKeyUpEvent(.escape);
       await tester.pump();
 
       expect(find.text('Include at least one modifier key.'), findsOneWidget);
@@ -194,7 +188,7 @@ void main() {
   ) async {
     final initialSettings = AleraSettings.defaults.copyWith(
       keyboard: AleraSettings.defaults.keyboard.copyWithOverride(
-        KeyboardActionId.newTerminalTab,
+        .newTerminalTab,
         <String>['Mod+Shift+K'],
       ),
     );
@@ -213,10 +207,7 @@ void main() {
     await tester.tap(resetNewTab);
     await tester.pump();
 
-    expect(
-      keyboardOf(container).overrideFor(KeyboardActionId.newTerminalTab),
-      isNull,
-    );
+    expect(keyboardOf(container).overrideFor(.newTerminalTab), isNull);
 
     final closeTabRow = find.ancestor(
       of: find.text('Close Tab'),
@@ -231,10 +222,7 @@ void main() {
     await tester.tap(disableCloseTab);
     await tester.pump();
 
-    expect(
-      keyboardOf(container).overrideFor(KeyboardActionId.closeTab),
-      isEmpty,
-    );
+    expect(keyboardOf(container).overrideFor(.closeTab), isEmpty);
     expect(find.text('Disabled'), findsOneWidget);
   });
 
@@ -243,7 +231,7 @@ void main() {
   ) async {
     final initialSettings = AleraSettings.defaults.copyWith(
       keyboard: AleraSettings.defaults.keyboard.copyWithOverride(
-        KeyboardActionId.newTerminalTab,
+        .newTerminalTab,
         <String>['definitely not a shortcut'],
       ),
     );
@@ -255,11 +243,7 @@ void main() {
 }
 
 /// Thin reader over the container's keyboard settings for assertions.
-class KeyboardShortcutSettingsReader {
-  KeyboardShortcutSettingsReader(this.container);
-
-  final ProviderContainer container;
-
+class KeyboardShortcutSettingsReader(final ProviderContainer container) {
   TerminalShortcutPolicy get policy =>
       container.read(settingsControllerProvider).keyboard.terminalPolicy;
 
@@ -267,9 +251,9 @@ class KeyboardShortcutSettingsReader {
       container.read(settingsControllerProvider).keyboard.overrides[id];
 }
 
-class _FakeSettingsRepository implements SettingsRepository {
-  _FakeSettingsRepository([AleraSettings? initialSettings])
-    : _settings = initialSettings ?? AleraSettings.defaults;
+class _FakeSettingsRepository([AleraSettings? initialSettings])
+    implements SettingsRepository {
+  this : _settings = initialSettings ?? AleraSettings.defaults;
 
   AleraSettings _settings;
 

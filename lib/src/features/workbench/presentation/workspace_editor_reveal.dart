@@ -95,15 +95,10 @@ WorkspaceEditorDisplayRevealRange workspaceEditorDisplayRevealRange({
 }
 
 @visibleForTesting
-class WorkspaceEditorDisplayRevealRange {
-  const WorkspaceEditorDisplayRevealRange({
-    required this.columnIndex,
-    required this.matchLength,
-  });
-
-  final int columnIndex;
-  final int matchLength;
-}
+class const WorkspaceEditorDisplayRevealRange({
+  required final int columnIndex,
+  required final int matchLength,
+});
 
 String? _rawLineAt(String? rawText, int lineNumber) {
   if (rawText == null || lineNumber < 1) {
@@ -156,19 +151,15 @@ int _displayUtf16OffsetForRawColumn({
   return utf16Offset;
 }
 
-class _EditorMessage extends StatelessWidget {
-  const _EditorMessage({required this.message});
-
-  final String message;
-
+class const _EditorMessage({required final String message})
+    extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Center(
       child: Text(
         message,
-        style: Theme.of(
-          context,
-        ).textTheme.bodyMedium?.copyWith(color: AleraTokens.foregroundMuted),
+        style: Theme.of(context).textTheme.bodyMedium
+            ?.copyWith(color: AleraTokens.foregroundMuted),
       ),
     );
   }

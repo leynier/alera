@@ -21,13 +21,12 @@ import 'package:alera/src/features/workbench/presentation/terminal_path_drop.dar
 import 'package:alera/src/rust/api/workspace_files.dart' as native;
 import 'package:alera/src/shared/infra/git/git_providers.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/gestures.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:gpt_markdown/gpt_markdown.dart';
 import 'package:path/path.dart' as p;
+
 import '../unit/fake_git_backend.dart';
 
 part 'codex_chat_surface_session_test_cases.dart';
@@ -90,12 +89,9 @@ void main() {
         home: Scaffold(body: GptMarkdown('[**README**](https://example.com)')),
       ),
     );
-    final mouse = await tester.createGesture(
-      kind: PointerDeviceKind.mouse,
-      pointer: 11,
-    );
+    final mouse = await tester.createGesture(kind: .mouse, pointer: 11);
     addTearDown(mouse.removePointer);
-    await mouse.addPointer(location: Offset.zero);
+    await mouse.addPointer(location: .zero);
     final formattedLink = find.byWidgetPredicate(
       (widget) =>
           widget is RichText && widget.text.toPlainText().contains('README'),
@@ -214,9 +210,9 @@ void main() {
     final contextIndicator = find.byWidgetPredicate(
       (widget) => widget is CircularProgressIndicator && widget.value == 0.1,
     );
-    final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+    final mouse = await tester.createGesture(kind: .mouse);
     addTearDown(mouse.removePointer);
-    await mouse.addPointer(location: Offset.zero);
+    await mouse.addPointer(location: .zero);
     await mouse.moveTo(tester.getCenter(contextIndicator));
     await tester.pump();
     expect(find.text('Context Window'), findsOneWidget);
@@ -410,12 +406,10 @@ void main() {
     target.onAcceptWithDetails!(
       DragTargetDetails<TerminalPathDragPayload>(
         data: const TerminalPathDragData(paths: <String>['/tmp/notes.md']),
-        offset: Offset.zero,
+        offset: .zero,
       ),
     );
-    await tester.runAsync(
-      () => Future<void>.delayed(const Duration(milliseconds: 20)),
-    );
+    await tester.runAsync(() => Future.pause(const Duration(milliseconds: 20)));
     await tester.pump();
 
     expect(

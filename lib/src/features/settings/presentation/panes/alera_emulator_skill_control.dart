@@ -4,17 +4,13 @@ import 'package:alera/src/features/settings/presentation/panes/alera_skill_termi
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-class AleraEmulatorSkillControl extends ConsumerWidget {
-  const AleraEmulatorSkillControl({super.key});
-
+class const AleraEmulatorSkillControl({super.key}) extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return AleraSkillTerminalInstallControl(
       dialogTitle: 'Install Emulator Skill',
-      commandFor: (runner) => aleraCliSkillInstallCommand(
-        runner: runner,
-        skill: AleraAgentSkill.emulator,
-      ),
+      commandFor: (runner) =>
+          aleraCliSkillInstallCommand(runner: runner, skill: .emulator),
       runCommand: (context, request) =>
           showCommandTerminalDialog(context, ref, request),
     );

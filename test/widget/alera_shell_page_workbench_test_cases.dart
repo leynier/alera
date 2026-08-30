@@ -35,7 +35,7 @@ void _registerAleraShellWorkbenchTests() {
           terminalSessionId: 'tab-1',
           workspaceId: 'workspace-1',
           tabId: 'tab-1',
-          state: AgentStatusState.waiting,
+          state: .waiting,
         ),
       },
     );
@@ -274,10 +274,10 @@ void _registerAleraShellWorkbenchTests() {
     await tester.tap(find.byType(TextField).first);
     await tester.pumpAndSettle();
 
-    await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
-    await tester.sendKeyDownEvent(LogicalKeyboardKey.keyT);
-    await tester.sendKeyUpEvent(LogicalKeyboardKey.keyT);
-    await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+    await tester.sendKeyDownEvent(.controlLeft);
+    await tester.sendKeyDownEvent(.keyT);
+    await tester.sendKeyUpEvent(.keyT);
+    await tester.sendKeyUpEvent(.controlLeft);
     await tester.pumpAndSettle();
 
     expect(harness.runtime.totalFocusRequests, 1);
@@ -290,12 +290,12 @@ void _registerAleraShellWorkbenchTests() {
     await tester.pumpAndSettle();
 
     // Ctrl+Shift+D is the split-right default off macOS.
-    await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
-    await tester.sendKeyDownEvent(LogicalKeyboardKey.shiftLeft);
-    await tester.sendKeyDownEvent(LogicalKeyboardKey.keyD);
-    await tester.sendKeyUpEvent(LogicalKeyboardKey.keyD);
-    await tester.sendKeyUpEvent(LogicalKeyboardKey.shiftLeft);
-    await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+    await tester.sendKeyDownEvent(.controlLeft);
+    await tester.sendKeyDownEvent(.shiftLeft);
+    await tester.sendKeyDownEvent(.keyD);
+    await tester.sendKeyUpEvent(.keyD);
+    await tester.sendKeyUpEvent(.shiftLeft);
+    await tester.sendKeyUpEvent(.controlLeft);
     await tester.pumpAndSettle();
 
     expect(harness.runtime.totalFocusRequests, 1);
@@ -306,7 +306,7 @@ void _registerAleraShellWorkbenchTests() {
   ) async {
     final opener = WorkspaceFolderOpener(
       processRunner: _NoopProcessRunner(),
-      platform: WorkspaceFolderPlatform.macos,
+      platform: .macos,
       directoryExists: (_) async => true,
     );
     await _pumpShell(
@@ -348,10 +348,10 @@ void _registerAleraShellWorkbenchTests() {
     final editorTab = WorkspaceTabRecord(
       id: 'editor-1',
       workspaceId: workspace.id,
-      kind: WorkspaceTabKind.editor,
+      kind: .editor,
       title: 'Notes',
-      createdAt: DateTime.utc(2026, 5, 22),
-      updatedAt: DateTime.utc(2026, 5, 22),
+      createdAt: .utc(2026, 5, 22),
+      updatedAt: .utc(2026, 5, 22),
       payload: const <String, Object?>{
         workspaceTabFilePathPayloadKey: 'notes.txt',
       },
@@ -379,7 +379,7 @@ void _registerAleraShellWorkbenchTests() {
       editorSessionRegistry: registry,
       workspaceFolderOpener: WorkspaceFolderOpener(
         processRunner: _NoopProcessRunner(),
-        platform: WorkspaceFolderPlatform.macos,
+        platform: .macos,
         directoryExists: (_) async => true,
       ),
     );

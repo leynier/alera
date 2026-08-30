@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:math';
+
 import 'package:alera_mobile/src/features/runtime/domain/connection_attempt.dart';
 import 'package:alera_mobile/src/features/accounts/infra/alera_cloud_api.dart';
 
@@ -43,8 +44,11 @@ part 'mobile_terminal_output_resync.dart';
 part 'mobile_runtime_codex_requests.dart';
 part 'mobile_runtime_codex_workspace_requests.dart';
 
-class MobileRuntimeClient
-    with
+class MobileRuntimeClient._(
+  this._channel, {
+  this._requestTimeout = _defaultRequestTimeout,
+  final Duration _transportCloseTimeout = _defaultTransportCloseTimeout,
+}) with
         MobileRuntimeWorkspaceSidebarClient,
         MobileRuntimeWorkspaceClient,
         MobileRuntimeProjectClient,
@@ -61,11 +65,7 @@ class MobileRuntimeClient
         MobileAgentTitleClient,
         MobileCodexClient,
         MobileCodexWorkspaceClient {
-  MobileRuntimeClient._(
-    this._channel, {
-    this._requestTimeout = _defaultRequestTimeout,
-    this._transportCloseTimeout = _defaultTransportCloseTimeout,
-  }) {
+  this {
     _subscription = _channel.stream.listen(
       _handleMessage,
       onError: _handleSocketError,
@@ -73,7 +73,7 @@ class MobileRuntimeClient
     );
   }
 
-  MobileRuntimeClient.forTesting(
+  new forTesting(
     WebSocketChannel channel, {
     Duration requestTimeout = _defaultRequestTimeout,
     Duration transportCloseTimeout = _defaultTransportCloseTimeout,
@@ -107,7 +107,7 @@ class MobileRuntimeClient
   final WebSocketChannel _channel;
   @override
   final Duration _requestTimeout;
-  final Duration _transportCloseTimeout;
+
   final Map<int, Completer<Object?>> _pending = <int, Completer<Object?>>{};
   final StreamController<MobileRuntimeEvent> _events =
       StreamController<MobileRuntimeEvent>.broadcast();

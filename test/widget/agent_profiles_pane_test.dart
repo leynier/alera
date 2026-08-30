@@ -19,11 +19,7 @@ void main() {
     final runtime = FakeCommandTerminalRuntime(running: false);
     addTearDown(runtime.dispose);
 
-    await _pumpPane(
-      tester,
-      runtime,
-      _profile(launchMode: AgentProfileLaunchMode.command),
-    );
+    await _pumpPane(tester, runtime, _profile(launchMode: .command));
 
     await tester.tap(find.text('Test Command'));
     await tester.pumpAndSettle();
@@ -47,8 +43,8 @@ void main() {
       tester,
       runtime,
       _profile(
-        adapter: AgentType.amp,
-        launchMode: AgentProfileLaunchMode.managed,
+        adapter: .amp,
+        launchMode: .managed,
         managedConfig: const <String, Object?>{'mode': 'ultra', 'fast': true},
       ),
     );
@@ -74,22 +70,10 @@ void main() {
     final controller = await _pumpPane(
       tester,
       runtime,
-      _profile(
-        id: 'profile-1',
-        name: 'Alpha',
-        launchMode: AgentProfileLaunchMode.command,
-      ),
+      _profile(id: 'profile-1', name: 'Alpha', launchMode: .command),
       profiles: <AgentProfile>[
-        _profile(
-          id: 'profile-1',
-          name: 'Alpha',
-          launchMode: AgentProfileLaunchMode.command,
-        ),
-        _profile(
-          id: 'profile-2',
-          name: 'Beta',
-          launchMode: AgentProfileLaunchMode.command,
-        ),
+        _profile(id: 'profile-1', name: 'Alpha', launchMode: .command),
+        _profile(id: 'profile-2', name: 'Beta', launchMode: .command),
       ],
     );
 
@@ -108,7 +92,7 @@ void main() {
     final controller = await _pumpPane(
       tester,
       runtime,
-      _profile(launchMode: AgentProfileLaunchMode.command),
+      _profile(launchMode: .command),
     );
 
     await tester.ensureVisible(find.text('Remove'));
@@ -127,7 +111,7 @@ void main() {
     final controller = await _pumpPane(
       tester,
       runtime,
-      _profile(launchMode: AgentProfileLaunchMode.command),
+      _profile(launchMode: .command),
     );
 
     await tester.ensureVisible(find.text('Remove'));
@@ -145,7 +129,7 @@ void main() {
     final controller = await _pumpPane(
       tester,
       runtime,
-      _profile(launchMode: AgentProfileLaunchMode.command),
+      _profile(launchMode: .command),
       removalImpact: const AgentProfileRemovalImpact(
         profileId: 'profile-1',
         exists: true,
@@ -231,8 +215,11 @@ Future<_TestAgentProfiles> _pumpPane(
   return controller;
 }
 
-class _TestAgentProfiles extends AgentProfiles {
-  _TestAgentProfiles(this.profiles, {AgentProfileRemovalImpact? removalImpact})
+class _TestAgentProfiles(
+  final List<AgentProfile> profiles, {
+  AgentProfileRemovalImpact? removalImpact,
+}) extends AgentProfiles {
+  this
     : configuredRemovalImpact =
           removalImpact ??
           const AgentProfileRemovalImpact(
@@ -245,7 +232,6 @@ class _TestAgentProfiles extends AgentProfiles {
             tabs: <AgentProfileTabReference>[],
           );
 
-  final List<AgentProfile> profiles;
   final AgentProfileRemovalImpact configuredRemovalImpact;
   List<String>? reorderedIds;
   String? removedId;

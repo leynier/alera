@@ -2,20 +2,13 @@ import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/design_system/forms/alera_search_field.dart';
 import 'package:flutter/material.dart';
 
-class SidebarSearchBar extends StatefulWidget {
-  const SidebarSearchBar({
-    super.key,
-    required this.initialQuery,
-    required this.onChanged,
-    required this.focusNode,
-    this.hintText = 'Search projects',
-  });
-
-  final String initialQuery;
-  final ValueChanged<String> onChanged;
-  final FocusNode focusNode;
-  final String hintText;
-
+class const SidebarSearchBar({
+  super.key,
+  required final String initialQuery,
+  required final ValueChanged<String> onChanged,
+  required final FocusNode focusNode,
+  final String hintText = 'Search projects',
+}) extends StatefulWidget {
   @override
   State<SidebarSearchBar> createState() => _SidebarSearchBarState();
 }
@@ -36,7 +29,7 @@ class _SidebarSearchBarState extends State<SidebarSearchBar> {
     if (widget.initialQuery != _controller.text) {
       _controller.value = TextEditingValue(
         text: widget.initialQuery,
-        selection: TextSelection.collapsed(offset: widget.initialQuery.length),
+        selection: .collapsed(offset: widget.initialQuery.length),
       );
     }
   }

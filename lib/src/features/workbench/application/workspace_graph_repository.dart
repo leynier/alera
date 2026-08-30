@@ -1,15 +1,13 @@
 import 'package:uuid/uuid.dart';
 
-class WorkspaceTag {
-  const WorkspaceTag({
-    required this.id,
-    required this.name,
-    required this.createdAt,
-    required this.updatedAt,
-    this.color,
-  });
-
-  factory WorkspaceTag.create({
+class const WorkspaceTag({
+  required final String id,
+  required final String name,
+  required final DateTime createdAt,
+  required final DateTime updatedAt,
+  final String? color,
+}) {
+  factory create({
     required String name,
     String color = defaultColor,
     DateTime? now,
@@ -25,7 +23,7 @@ class WorkspaceTag {
     );
   }
 
-  factory WorkspaceTag.fromJson(Map<String, Object?> json) {
+  factory fromJson(Map<String, Object?> json) {
     return WorkspaceTag(
       id: json['id'] as String,
       name: json['name'] as String,
@@ -36,12 +34,6 @@ class WorkspaceTag {
   }
 
   static const String defaultColor = '#3b82f6';
-
-  final String id;
-  final String name;
-  final String? color;
-  final DateTime createdAt;
-  final DateTime updatedAt;
 
   Map<String, Object?> toJson() {
     return <String, Object?>{
@@ -54,17 +46,15 @@ class WorkspaceTag {
   }
 }
 
-class WorkspaceRelation {
-  const WorkspaceRelation({
-    required this.id,
-    required this.parentWorkspaceId,
-    required this.parentInstanceId,
-    required this.childWorkspaceId,
-    required this.childInstanceId,
-    required this.createdAt,
-  });
-
-  factory WorkspaceRelation.fromJson(Map<String, Object?> json) {
+class const WorkspaceRelation({
+  required final String id,
+  required final String parentWorkspaceId,
+  required final String parentInstanceId,
+  required final String childWorkspaceId,
+  required final String childInstanceId,
+  required final DateTime createdAt,
+}) {
+  factory fromJson(Map<String, Object?> json) {
     return WorkspaceRelation(
       id: json['id'] as String,
       parentWorkspaceId: json['parentWorkspaceId'] as String,
@@ -74,13 +64,6 @@ class WorkspaceRelation {
       createdAt: DateTime.parse(json['createdAt'] as String).toUtc(),
     );
   }
-
-  final String id;
-  final String parentWorkspaceId;
-  final String parentInstanceId;
-  final String childWorkspaceId;
-  final String childInstanceId;
-  final DateTime createdAt;
 }
 
 abstract interface class WorkspaceGraphRepository {

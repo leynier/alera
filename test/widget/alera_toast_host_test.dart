@@ -15,7 +15,7 @@ void main() {
         AleraToast.show(
           context,
           message: 'Project added',
-          tone: AleraToastTone.success,
+          tone: .success,
           duration: const Duration(milliseconds: 20),
         );
       },

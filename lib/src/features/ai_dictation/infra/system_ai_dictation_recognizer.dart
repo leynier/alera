@@ -18,9 +18,8 @@ Future<bool> aiDictationOnDeviceAvailable(Ref ref, String? localeId) async {
   return SystemAiDictationRecognizer.supportsOnDevice(localeId);
 }
 
-class SystemAiDictationRecognizer {
-  SystemAiDictationRecognizer({SpeechToText? speech})
-    : _speech = speech ?? SpeechToText();
+class SystemAiDictationRecognizer({SpeechToText? speech}) {
+  this : _speech = speech ?? SpeechToText();
 
   static Future<bool> supportsOnDevice(String? localeId) async {
     if (!Platform.isMacOS) return false;
@@ -64,7 +63,7 @@ class SystemAiDictationRecognizer {
       onResult: _handleResult,
       listenOptions: SpeechListenOptions(
         localeId: localeId,
-        listenMode: ListenMode.dictation,
+        listenMode: .dictation,
         partialResults: true,
         cancelOnError: true,
         onDevice: onDevice,
@@ -75,7 +74,7 @@ class SystemAiDictationRecognizer {
 
   Future<String> stop() async {
     await _speech.stop();
-    await Future<void>.delayed(const Duration(milliseconds: 150));
+    await Future.pause(const Duration(milliseconds: 150));
     return _text.trim();
   }
 

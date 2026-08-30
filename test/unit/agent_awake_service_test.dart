@@ -14,7 +14,7 @@ void main() {
 
       await service.setHookSettings(const AgentStatusHookSettings(codex: true));
       await service.setStatuses(<String, AgentStatusEntry>{
-        'session-1': _entry(state: AgentStatusState.working),
+        'session-1': _entry(state: .working),
       });
 
       expect(displayLock.states, isEmpty);
@@ -29,7 +29,7 @@ void main() {
       await service.setHookSettings(const AgentStatusHookSettings(codex: true));
       await service.setEnabled(true);
       await service.setStatuses(<String, AgentStatusEntry>{
-        'session-1': _entry(state: AgentStatusState.working),
+        'session-1': _entry(state: .working),
       });
       await service.setStatuses(const <String, AgentStatusEntry>{});
 
@@ -48,11 +48,8 @@ void main() {
         const AgentStatusHookSettings(claude: true),
       );
       await service.setStatuses(<String, AgentStatusEntry>{
-        'session-1': _entry(state: AgentStatusState.waiting),
-        'session-2': _entry(
-          terminalSessionId: 'session-2',
-          state: AgentStatusState.working,
-        ),
+        'session-1': _entry(state: .waiting),
+        'session-2': _entry(terminalSessionId: 'session-2', state: .working),
       });
 
       expect(displayLock.states, isEmpty);
@@ -75,7 +72,7 @@ void main() {
       await service.setHookSettings(const AgentStatusHookSettings(codex: true));
       await service.setEnabled(true);
       await service.setStatuses(<String, AgentStatusEntry>{
-        'session-1': _entry(state: AgentStatusState.working, updatedAt: base),
+        'session-1': _entry(state: .working, updatedAt: base),
       });
 
       now = base.add(staleAfter).add(const Duration(milliseconds: 1));
@@ -94,7 +91,7 @@ void main() {
       await service.setHookSettings(const AgentStatusHookSettings(codex: true));
       await service.setEnabled(true);
       await service.setStatuses(<String, AgentStatusEntry>{
-        'session-1': _entry(state: AgentStatusState.working),
+        'session-1': _entry(state: .working),
       });
       await service.setEnabled(false);
 
@@ -117,7 +114,7 @@ void main() {
         );
         await service.setEnabled(true);
         final working = service.setStatuses(<String, AgentStatusEntry>{
-          'session-1': _entry(state: AgentStatusState.working),
+          'session-1': _entry(state: .working),
         });
         await _waitForAssertionStarts(assertion, 1);
         final idle = service.setStatuses(const <String, AgentStatusEntry>{});
@@ -176,18 +173,18 @@ void main() {
       await service.setStatuses(<String, AgentStatusEntry>{
         'late': _entry(
           terminalSessionId: 'late',
-          agentType: AgentType.codex,
+          agentType: .codex,
           updatedAt: base,
         ),
         'early': _entry(
           terminalSessionId: 'early',
-          agentType: AgentType.claude,
+          agentType: .claude,
           updatedAt: base.subtract(const Duration(milliseconds: 15)),
         ),
       });
 
       now = base.add(const Duration(milliseconds: 6));
-      await Future<void>.delayed(const Duration(milliseconds: 10));
+      await Future.pause(const Duration(milliseconds: 10));
 
       expect(displayLock.states, <bool>[true]);
       expect(assertion.starts, contains('stale-expiry'));
@@ -291,7 +288,7 @@ Future<void> _waitForAssertionStarts(
     if (assertion.starts.length >= count) {
       return;
     }
-    await Future<void>.delayed(const Duration(milliseconds: 5));
+    await Future.pause(const Duration(milliseconds: 5));
   }
   fail('Expected at least $count assertion starts.');
 }
@@ -306,7 +303,7 @@ Future<void> _waitForAssertionStop(
     if (assertion.stops.contains(reason)) {
       return;
     }
-    await Future<void>.delayed(const Duration(milliseconds: 5));
+    await Future.pause(const Duration(milliseconds: 5));
   }
   fail('Expected an assertion stop for $reason.');
 }

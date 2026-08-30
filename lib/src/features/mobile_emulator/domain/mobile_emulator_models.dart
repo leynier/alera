@@ -1,31 +1,20 @@
 import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
 
-class MobileEmulatorTarget {
-  const MobileEmulatorTarget({required this.tabId, required this.workspaceId});
-
-  final String tabId;
-  final String workspaceId;
-
+class const MobileEmulatorTarget({
+  required final String tabId,
+  required final String workspaceId,
+}) {
   Map<String, Object?> toTabRequest() => <String, Object?>{'tabId': tabId};
 }
 
-class MobileEmulatorDevice {
-  const MobileEmulatorDevice({
-    required this.id,
-    required this.platform,
-    required this.name,
-    required this.state,
-    required this.available,
-    this.runtime,
-  });
-
-  final String id;
-  final MobileEmulatorPlatform platform;
-  final String name;
-  final String state;
-  final bool available;
-  final String? runtime;
-
+class const MobileEmulatorDevice({
+  required final String id,
+  required final MobileEmulatorPlatform platform,
+  required final String name,
+  required final String state,
+  required final bool available,
+  final String? runtime,
+}) {
   static MobileEmulatorDevice? fromJson(Object? value) {
     if (value is! Map) {
       return null;
@@ -47,15 +36,10 @@ class MobileEmulatorDevice {
   }
 }
 
-class MobileEmulatorCapability {
-  const MobileEmulatorCapability({
-    required this.available,
-    required this.message,
-  });
-
-  final bool available;
-  final String message;
-
+class const MobileEmulatorCapability({
+  required final bool available,
+  required final String message,
+}) {
   static MobileEmulatorCapability fromJson(Object? value) {
     if (value is! Map) {
       return const MobileEmulatorCapability(
@@ -72,19 +56,12 @@ class MobileEmulatorCapability {
   }
 }
 
-class MobileEmulatorStream {
-  const MobileEmulatorStream({
-    required this.url,
-    required this.codec,
-    this.width,
-    this.height,
-  });
-
-  final Uri url;
-  final String codec;
-  final int? width;
-  final int? height;
-
+class const MobileEmulatorStream({
+  required final Uri url,
+  required final String codec,
+  final int? width,
+  final int? height,
+}) {
   static MobileEmulatorStream? fromJson(Object? value) {
     if (value is! Map || value['url'] is! String) {
       return null;
@@ -105,21 +82,13 @@ class MobileEmulatorStream {
   }
 }
 
-class MobileEmulatorSession {
-  const MobileEmulatorSession({
-    required this.id,
-    required this.state,
-    required this.platform,
-    required this.deviceId,
-    this.stream,
-  });
-
-  final String id;
-  final String state;
-  final MobileEmulatorPlatform platform;
-  final String deviceId;
-  final MobileEmulatorStream? stream;
-
+class const MobileEmulatorSession({
+  required final String id,
+  required final String state,
+  required final MobileEmulatorPlatform platform,
+  required final String deviceId,
+  final MobileEmulatorStream? stream,
+}) {
   bool get isReady => stream != null && state != 'failed';
 
   static MobileEmulatorSession? fromJson(Object? value) {
@@ -142,12 +111,10 @@ class MobileEmulatorSession {
   }
 }
 
-class MobileEmulatorAttachment {
-  const MobileEmulatorAttachment({required this.tab, required this.session});
-
-  final WorkspaceTabRecord tab;
-  final MobileEmulatorSession session;
-}
+class const MobileEmulatorAttachment({
+  required final WorkspaceTabRecord tab,
+  required final MobileEmulatorSession session,
+});
 
 enum MobileEmulatorRuntimeChangeAction { ignore, refresh, stopped }
 
@@ -164,17 +131,11 @@ MobileEmulatorRuntimeChangeAction resolveMobileEmulatorRuntimeChange({
   return MobileEmulatorRuntimeChangeAction.refresh;
 }
 
-class MobileEmulatorException implements Exception {
-  const MobileEmulatorException({
-    required this.code,
-    required this.message,
-    this.nextSteps = const <String>[],
-  });
-
-  final String code;
-  final String message;
-  final List<String> nextSteps;
-
+class const MobileEmulatorException({
+  required final String code,
+  required final String message,
+  final List<String> nextSteps = const <String>[],
+}) implements Exception {
   @override
   String toString() => message;
 }

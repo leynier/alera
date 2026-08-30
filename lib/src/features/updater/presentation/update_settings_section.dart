@@ -14,9 +14,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-class UpdateSettingsSection extends ConsumerWidget {
-  const UpdateSettingsSection({super.key});
-
+class const UpdateSettingsSection({super.key}) extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(aleraUpdateControllerProvider);
@@ -41,7 +39,7 @@ class UpdateSettingsSection extends ConsumerWidget {
         packageInstall.canRunUpgrade &&
         !state.isBusy;
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+      crossAxisAlignment: .stretch,
       children: <Widget>[
         Padding(
           padding: const EdgeInsets.only(
@@ -52,7 +50,7 @@ class UpdateSettingsSection extends ConsumerWidget {
             'Updates',
             style: theme.textTheme.titleSmall?.copyWith(
               color: AleraTokens.foreground,
-              fontWeight: FontWeight.w600,
+              fontWeight: .w600,
             ),
           ),
         ),
@@ -64,10 +62,10 @@ class UpdateSettingsSection extends ConsumerWidget {
           ),
           padding: const EdgeInsets.all(AleraTokens.space16),
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
+            crossAxisAlignment: .stretch,
             children: <Widget>[
               Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
+                crossAxisAlignment: .start,
                 children: <Widget>[
                   AleraStatusIndicator(
                     icon: _iconForStatus(state.status),
@@ -102,7 +100,7 @@ class UpdateSettingsSection extends ConsumerWidget {
               ],
               const SizedBox(height: AleraTokens.space16),
               Wrap(
-                alignment: WrapAlignment.end,
+                alignment: .end,
                 spacing: AleraTokens.space8,
                 runSpacing: AleraTokens.space8,
                 children: <Widget>[
@@ -172,11 +170,8 @@ class UpdateSettingsSection extends ConsumerWidget {
 /// `Run Update` runs it in a terminal dialog rather than leaving the user to
 /// paste it somewhere. These commands are the ones that need `sudo`, and a
 /// dialog with a real PTY is somewhere a password can actually be typed.
-class _UpgradeCommand extends ConsumerWidget {
-  const _UpgradeCommand({required this.command});
-
-  final String command;
-
+class const _UpgradeCommand({required final String command})
+    extends ConsumerWidget {
   Future<void> _run(BuildContext context, WidgetRef ref) async {
     await showCommandTerminalDialog(
       context,
@@ -200,7 +195,7 @@ class _UpgradeCommand extends ConsumerWidget {
     return AleraCommandLine(
       command: command,
       trailing: Row(
-        mainAxisSize: MainAxisSize.min,
+        mainAxisSize: .min,
         children: <Widget>[
           AleraIconButton(
             tooltip: 'Copy Command',
@@ -220,11 +215,8 @@ class _UpgradeCommand extends ConsumerWidget {
   }
 }
 
-class _UpdateStatusCopy extends StatelessWidget {
-  const _UpdateStatusCopy({required this.state});
-
-  final AleraUpdateState state;
-
+class const _UpdateStatusCopy({required final AleraUpdateState state})
+    extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -232,13 +224,13 @@ class _UpdateStatusCopy extends StatelessWidget {
     final currentVersion = state.currentVersion?.trim();
     final currentBuildNumber = state.currentBuildNumber?.trim();
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: .start,
       children: <Widget>[
         Text(
           _titleForStatus(state.status),
           style: theme.textTheme.bodyMedium?.copyWith(
             color: AleraTokens.foreground,
-            fontWeight: FontWeight.w500,
+            fontWeight: .w500,
           ),
         ),
         if (currentVersion != null && currentVersion.isNotEmpty) ...<Widget>[

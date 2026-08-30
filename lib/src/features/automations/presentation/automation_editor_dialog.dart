@@ -24,11 +24,8 @@ Future<JsonMap?> showAutomationEditorDialog(
   );
 }
 
-class AutomationEditorDialog extends ConsumerStatefulWidget {
-  const AutomationEditorDialog({super.key, this.initial});
-
-  final AutomationRecord? initial;
-
+class const AutomationEditorDialog({super.key, final AutomationRecord? initial})
+    extends ConsumerStatefulWidget {
   @override
   ConsumerState<AutomationEditorDialog> createState() =>
       _AutomationEditorDialogState();
@@ -239,7 +236,7 @@ class _AutomationEditorDialogState
       child: Padding(
         padding: const EdgeInsets.all(AleraTokens.space20),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
+          crossAxisAlignment: .stretch,
           children: <Widget>[
             Text(
               widget.initial == null ? 'New Automation' : 'Edit Automation',
@@ -249,7 +246,7 @@ class _AutomationEditorDialogState
             Expanded(
               child: SingleChildScrollView(
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  crossAxisAlignment: .stretch,
                   children: <Widget>[
                     _text(_name, 'Name'),
                     const SizedBox(height: AleraTokens.space12),
@@ -468,7 +465,7 @@ class _AutomationEditorDialogState
             ),
             const SizedBox(height: AleraTokens.space16),
             Row(
-              mainAxisAlignment: MainAxisAlignment.end,
+              mainAxisAlignment: .end,
               children: <Widget>[
                 TextButton(
                   onPressed: () => Navigator.of(context).pop(),

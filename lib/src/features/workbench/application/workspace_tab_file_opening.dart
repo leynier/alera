@@ -26,7 +26,7 @@ extension WorkspaceTabFileOpening on WorkspaceTabService {
     return _openOrCreateFileTab(
       workspaceId: workspaceId,
       relativePath: relativePath,
-      kind: WorkspaceTabKind.editor,
+      kind: .editor,
       preview: preview,
       replacePreviewTabId: replacePreviewTabId,
     );
@@ -41,7 +41,7 @@ extension WorkspaceTabFileOpening on WorkspaceTabService {
     return _openOrCreateFileTab(
       workspaceId: workspaceId,
       relativePath: relativePath,
-      kind: WorkspaceTabKind.pdf,
+      kind: .pdf,
       preview: preview,
       replacePreviewTabId: replacePreviewTabId,
     );
@@ -60,7 +60,7 @@ extension WorkspaceTabFileOpening on WorkspaceTabService {
     return _openOrCreateFileTab(
       workspaceId: workspaceId,
       relativePath: normalizedPath,
-      kind: WorkspaceTabKind.markdownViewer,
+      kind: .markdownViewer,
       preview: preview,
       replacePreviewTabId: replacePreviewTabId,
     );

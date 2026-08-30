@@ -5,9 +5,7 @@ import 'package:alera/src/rust/api/workspace_files.dart' as native;
 
 /// In-memory [SourceControlWatcher] for tests: lets a test drive watch signals
 /// without touching the filesystem or the native bridge.
-class FakeSourceControlWatcher extends SourceControlWatcher {
-  FakeSourceControlWatcher();
-
+class FakeSourceControlWatcher() extends SourceControlWatcher {
   final StreamController<native.SourceControlWatchSignal> _signals =
       StreamController<native.SourceControlWatchSignal>.broadcast();
 

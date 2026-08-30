@@ -12,9 +12,9 @@ const List<AiThinkingLevel> grokThinkingLevels = <AiThinkingLevel>[
 ];
 
 final AiAssistAgentSpec grokAiAssistAgentSpec = AiAssistAgentSpec(
-  agent: AiAssistAgent.grok,
+  agent: .grok,
   binary: 'grok',
-  promptDelivery: AiPromptDelivery.promptFile,
+  promptDelivery: .promptFile,
   modelsCommand: const <String>['models'],
   parseModels: parseGrokModels,
   models: const <AiAssistModel>[
@@ -26,8 +26,8 @@ final AiAssistAgentSpec grokAiAssistAgentSpec = AiAssistAgentSpec(
     ),
   ],
   defaultModelId: 'grok-4.6',
-  nativeStructuredOutput: AiNativeStructuredOutput.jsonSchemaArgument,
-  diffOnlyAccess: AiAssistDiffOnlyAccess.toolFree,
+  nativeStructuredOutput: .jsonSchemaArgument,
+  diffOnlyAccess: .toolFree,
   buildArgs:
       ({
         required model,

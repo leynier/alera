@@ -8,9 +8,8 @@ void _registerMobileCodexTimelineTests() {
     addTearDown(client.dispose);
     final container = ProviderContainer(
       overrides: [
-        mobileCodexClientProvider(
-          'host-draft',
-        ).overrideWith((ref) async => client),
+        mobileCodexClientProvider('host-draft')
+            .overrideWith((ref) async => client),
       ],
     );
     addTearDown(container.dispose);

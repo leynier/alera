@@ -3,26 +3,17 @@ import 'package:alera/src/shared/infra/git/git_diff_models.dart';
 const String gitHistoryIncomingChangesId = 'git-history-incoming-changes';
 const String gitHistoryOutgoingChangesId = 'git-history-outgoing-changes';
 
-class GitHistoryGraphNode {
-  const GitHistoryGraphNode({required this.id, required this.color});
+class const GitHistoryGraphNode({
+  required final String id,
+  required final GitHistoryGraphColorId color,
+});
 
-  final String id;
-  final GitHistoryGraphColorId color;
-}
-
-class GitHistoryItemViewModel {
-  const GitHistoryItemViewModel({
-    required this.historyItem,
-    required this.inputSwimlanes,
-    required this.outputSwimlanes,
-    required this.kind,
-  });
-
-  final GitHistoryItem historyItem;
-  final List<GitHistoryGraphNode> inputSwimlanes;
-  final List<GitHistoryGraphNode> outputSwimlanes;
-  final GitHistoryItemViewModelKind kind;
-
+class const GitHistoryItemViewModel({
+  required final GitHistoryItem historyItem,
+  required final List<GitHistoryGraphNode> inputSwimlanes,
+  required final List<GitHistoryGraphNode> outputSwimlanes,
+  required final GitHistoryItemViewModelKind kind,
+}) {
   GitHistoryItemViewModel copyWith({
     List<GitHistoryGraphNode>? inputSwimlanes,
     List<GitHistoryGraphNode>? outputSwimlanes,
@@ -174,8 +165,10 @@ List<GitHistoryItemViewModel> buildGitHistoryViewModelsFromItems(
     viewModels.add(
       GitHistoryItemViewModel(
         historyItem: historyItem.copyWith(references: references),
-        inputSwimlanes: List<GitHistoryGraphNode>.unmodifiable(inputSwimlanes),
-        outputSwimlanes: List<GitHistoryGraphNode>.unmodifiable(
+        inputSwimlanes: List<GitHistoryGraphNode>.unmodifiableOf(
+          inputSwimlanes,
+        ),
+        outputSwimlanes: List<GitHistoryGraphNode>.unmodifiableOf(
           outputSwimlanes,
         ),
         kind: kind,
@@ -348,9 +341,11 @@ void _addIncomingChangesHistoryItem(
         displayId: List<String>.filled(displayIdLength, '0').join(),
         author: remoteRef.name,
       ),
-      inputSwimlanes: List<GitHistoryGraphNode>.unmodifiable(inputSwimlanes),
-      outputSwimlanes: List<GitHistoryGraphNode>.unmodifiable(outputSwimlanes),
-      kind: GitHistoryItemViewModelKind.incomingChanges,
+      inputSwimlanes: List<GitHistoryGraphNode>.unmodifiableOf(inputSwimlanes),
+      outputSwimlanes: List<GitHistoryGraphNode>.unmodifiableOf(
+        outputSwimlanes,
+      ),
+      kind: .incomingChanges,
     ),
   );
   viewModels[afterIndex + 1] = after.copyWith(
@@ -400,8 +395,10 @@ void _addOutgoingChangesHistoryItem(
         author: currentRef.name,
       ),
       inputSwimlanes: inputSwimlanes,
-      outputSwimlanes: List<GitHistoryGraphNode>.unmodifiable(outputSwimlanes),
-      kind: GitHistoryItemViewModelKind.outgoingChanges,
+      outputSwimlanes: List<GitHistoryGraphNode>.unmodifiableOf(
+        outputSwimlanes,
+      ),
+      kind: .outgoingChanges,
     ),
   );
   viewModels[anchorIndex + 1] = viewModels[anchorIndex + 1].copyWith(

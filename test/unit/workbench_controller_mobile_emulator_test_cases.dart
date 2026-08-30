@@ -12,7 +12,7 @@ void _registerWorkbenchControllerMobileEmulatorTests() {
 
       final opened = await _controller.openMobileEmulatorTab(
         workspace: workspace,
-        platform: MobileEmulatorPlatform.android,
+        platform: .android,
         deviceId: 'android:Pixel_9',
         targetGroupId: originalGroupId,
       );
@@ -53,14 +53,14 @@ void _registerWorkbenchControllerMobileEmulatorTests() {
     final emulatorTab = WorkspaceTabRecord(
       id: 'persisted-emulator-tab',
       workspaceId: workspace.id,
-      kind: WorkspaceTabKind.mobileEmulator,
+      kind: .mobileEmulator,
       title: 'Pixel 9',
       createdAt: now,
       updatedAt: now,
       payload: <String, Object?>{
         workspaceTabMobileEmulatorPayloadKey:
             const WorkspaceMobileEmulatorPayload(
-              platform: MobileEmulatorPlatform.android,
+              platform: .android,
               deviceId: 'android:Pixel_9',
             ).toJson(),
       },
@@ -95,7 +95,7 @@ void _registerWorkbenchControllerMobileEmulatorTests() {
     final workspace = await _selectMainWorkspace(_controller, _harness);
     final tab = await _controller.openMobileEmulatorTab(
       workspace: workspace,
-      platform: MobileEmulatorPlatform.android,
+      platform: .android,
       deviceId: 'android:Pixel_9',
     );
     final leases = _harness.container.read(

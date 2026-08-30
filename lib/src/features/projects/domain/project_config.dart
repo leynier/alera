@@ -4,13 +4,11 @@ import 'package:dart_mappable/dart_mappable.dart';
 part 'project_config.mapper.dart';
 
 @MappableClass()
-class ProjectConfig with ProjectConfigMappable {
-  const ProjectConfig({
-    this.worktree = WorktreeSetupConfig.defaults,
-    this.newWorkspace = NewWorkspaceConfig.defaults,
-    this.gitHostingProvider,
-  });
-
+class const ProjectConfig({
+  this.worktree = WorktreeSetupConfig.defaults,
+  this.newWorkspace = NewWorkspaceConfig.defaults,
+  this.gitHostingProvider,
+}) with ProjectConfigMappable {
   final WorktreeSetupConfig worktree;
   final NewWorkspaceConfig newWorkspace;
 
@@ -23,14 +21,13 @@ class ProjectConfig with ProjectConfigMappable {
 
   static const ProjectConfig empty = ProjectConfig();
 
-  factory ProjectConfig.fromJson(Map<String, Object?> json) =>
+  factory fromJson(Map<String, Object?> json) =>
       ProjectConfigMapper.fromMap(Map<String, dynamic>.from(json));
 }
 
 @MappableClass()
-class NewWorkspaceConfig with NewWorkspaceConfigMappable {
-  const NewWorkspaceConfig({this.promptAppend = ''});
-
+class const NewWorkspaceConfig({this.promptAppend = ''})
+    with NewWorkspaceConfigMappable {
   final String promptAppend;
 
   bool get isEmpty => promptAppend.trim().isEmpty;
@@ -39,12 +36,10 @@ class NewWorkspaceConfig with NewWorkspaceConfigMappable {
 }
 
 @MappableClass()
-class WorktreeSetupConfig with WorktreeSetupConfigMappable {
-  const WorktreeSetupConfig({
-    this.copy = const <WorktreeCopyRule>[],
-    this.setup = const <String>[],
-  });
-
+class const WorktreeSetupConfig({
+  this.copy = const <WorktreeCopyRule>[],
+  this.setup = const <String>[],
+}) with WorktreeSetupConfigMappable {
   final List<WorktreeCopyRule> copy;
   final List<String> setup;
 
@@ -54,9 +49,11 @@ class WorktreeSetupConfig with WorktreeSetupConfigMappable {
 }
 
 @MappableClass()
-class WorktreeCopyRule with WorktreeCopyRuleMappable {
-  const WorktreeCopyRule({required this.from, this.to, this.overwrite = false});
-
+class const WorktreeCopyRule({
+  required this.from,
+  this.to,
+  this.overwrite = false,
+}) with WorktreeCopyRuleMappable {
   final String from;
   final String? to;
   final bool overwrite;

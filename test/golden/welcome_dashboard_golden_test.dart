@@ -3,7 +3,6 @@ import 'dart:convert';
 import 'package:alchemist/alchemist.dart';
 import 'package:alera/src/app/providers.dart';
 import 'package:alera/src/features/projects/domain/project.dart';
-import 'package:alera/src/features/settings/domain/alera_settings.dart';
 import 'package:alera/src/features/workbench/application/workbench_state.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
 import 'package:alera/src/features/workbench/presentation/welcome_dashboard.dart';
@@ -20,7 +19,7 @@ void main() {
       goldenTest(
         'renders populated desktop dashboard',
         fileName: 'welcome_dashboard_populated_desktop',
-        constraints: const BoxConstraints.tightFor(width: 980, height: 720),
+        constraints: const .tightFor(width: 980, height: 720),
         pumpBeforeTest: precacheImages,
         builder: () => _GoldenDashboardFrame(state: _populatedState()),
       );
@@ -28,7 +27,7 @@ void main() {
       goldenTest(
         'renders empty compact dashboard',
         fileName: 'welcome_dashboard_empty_compact',
-        constraints: const BoxConstraints.tightFor(width: 390, height: 760),
+        constraints: const .tightFor(width: 390, height: 760),
         pumpBeforeTest: precacheImages,
         builder: () => const _GoldenDashboardFrame(
           state: WorkbenchState(bootstrapped: true),
@@ -38,11 +37,8 @@ void main() {
   });
 }
 
-class _GoldenDashboardFrame extends StatelessWidget {
-  const _GoldenDashboardFrame({required this.state});
-
-  final WorkbenchState state;
-
+class const _GoldenDashboardFrame({required final WorkbenchState state})
+    extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return DefaultAssetBundle(
@@ -50,7 +46,7 @@ class _GoldenDashboardFrame extends StatelessWidget {
       child: ProviderScope(
         overrides: [
           workbenchControllerProvider.overrideWithValue(state),
-          settingsControllerProvider.overrideWithValue(AleraSettings.defaults),
+          settingsControllerProvider.overrideWithValue(.defaults),
         ],
         child: const WelcomeDashboard(),
       ),
@@ -60,7 +56,7 @@ class _GoldenDashboardFrame extends StatelessWidget {
 
 class _GoldenLogoAssetBundle extends CachingAssetBundle {
   static const String _logoPath = 'assets/logo/alera-logo-white.png';
-  static final ByteData _logoBytes = ByteData.sublistView(
+  static final ByteData _logoBytes = .sublistView(
     base64Decode(
       'iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAALklEQVR42u3OQQEAAAQEMPQPeU2I4bMlWCfZejT1TEBAQEBAQEBAQEBAQEBA4ABySAPfxFCIhQAAAABJRU5ErkJggg==',
     ),
@@ -93,8 +89,8 @@ WorkbenchState _populatedState() {
     path: project.repoPath,
     createdAt: now,
     updatedAt: now,
-    kind: WorkspaceKind.main,
-    status: WorkspaceStatus.active,
+    kind: .main,
+    status: .active,
   );
 
   return WorkbenchState(

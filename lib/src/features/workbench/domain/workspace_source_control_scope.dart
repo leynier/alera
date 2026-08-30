@@ -3,19 +3,12 @@ import 'package:alera/src/features/workbench/domain/workbench_view_prefs.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
 import 'package:path/path.dart' as p;
 
-class WorkspaceSourceControlScope {
-  const WorkspaceSourceControlScope({
-    required this.workspaceId,
-    required this.workspacePath,
-    required this.path,
-    this.relativeRoot,
-  });
-
-  final String workspaceId;
-  final String workspacePath;
-  final String path;
-  final String? relativeRoot;
-
+class const WorkspaceSourceControlScope({
+  required final String workspaceId,
+  required final String workspacePath,
+  required final String path,
+  final String? relativeRoot,
+}) {
   bool get isWorkspaceRoot => relativeRoot == null;
 
   String get displayPath => relativeRoot ?? '';

@@ -5,20 +5,15 @@ import 'package:alera/src/shared/infra/git/git_backend.dart';
 import 'package:alera/src/shared/infra/git/git_exception.dart';
 import 'package:path/path.dart' as p;
 
-class ProjectValidationResult {
-  const ProjectValidationResult._({
-    required this.isValidGitRepository,
-    this.message,
-  });
-
-  final bool isValidGitRepository;
-  final String? message;
-
-  factory ProjectValidationResult.ok() {
+class const ProjectValidationResult._({
+  required final bool isValidGitRepository,
+  final String? message,
+}) {
+  factory ok() {
     return const ProjectValidationResult._(isValidGitRepository: true);
   }
 
-  factory ProjectValidationResult.fail(String message) {
+  factory fail(String message) {
     return ProjectValidationResult._(
       isValidGitRepository: false,
       message: message,
@@ -26,28 +21,22 @@ class ProjectValidationResult {
   }
 }
 
-class LocalProjectInspectionResult {
-  const LocalProjectInspectionResult._({required this.kind, this.message});
-
-  final ProjectKind? kind;
-  final String? message;
-
+class const LocalProjectInspectionResult._({
+  required final ProjectKind? kind,
+  final String? message,
+}) {
   bool get isValid => kind != null;
 
-  factory LocalProjectInspectionResult.ok(ProjectKind kind) {
+  factory ok(ProjectKind kind) {
     return LocalProjectInspectionResult._(kind: kind);
   }
 
-  factory LocalProjectInspectionResult.fail(String message) {
+  factory fail(String message) {
     return LocalProjectInspectionResult._(kind: null, message: message);
   }
 }
 
-class ProjectService {
-  ProjectService(this._gitBackend);
-
-  final GitBackend _gitBackend;
-
+class ProjectService(final GitBackend _gitBackend) {
   Future<bool> isGitRepository(String path) async {
     final result = await validateGitRepository(path);
     return result.isValidGitRepository;
@@ -95,9 +84,9 @@ class ProjectService {
     }
     final gitValidation = await validateGitRepository(path);
     if (gitValidation.isValidGitRepository) {
-      return LocalProjectInspectionResult.ok(ProjectKind.gitRepository);
+      return LocalProjectInspectionResult.ok(.gitRepository);
     }
-    return LocalProjectInspectionResult.ok(ProjectKind.folder);
+    return LocalProjectInspectionResult.ok(.folder);
   }
 
   Future<void> cloneGitRepository({

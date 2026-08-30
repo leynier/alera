@@ -1,6 +1,5 @@
 import 'package:alera/src/features/agent_profiles/domain/agent_profile.dart';
 import 'package:alera/src/features/settings/presentation/panes/agent_profile_list_row.dart';
-import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -30,10 +29,7 @@ void main() {
       ),
     );
 
-    final mouse = await tester.createGesture(
-      kind: PointerDeviceKind.mouse,
-      pointer: 1,
-    );
+    final mouse = await tester.createGesture(kind: .mouse, pointer: 1);
     addTearDown(mouse.removePointer);
     await mouse.addPointer(location: tester.getCenter(find.text('Codex')));
     await tester.pump();

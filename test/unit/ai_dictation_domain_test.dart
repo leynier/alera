@@ -52,14 +52,12 @@ void main() {
 
   test('recording plan keeps the engine selected when recording started', () {
     final plan = AiDictationRecordingPlan(
-      AiDictationSettings.defaults.copyWith(
-        transcriptionEngine: AiDictationTranscriptionEngine.localWhisper,
-      ),
+      AiDictationSettings.defaults.copyWith(transcriptionEngine: .localWhisper),
     );
 
     plan.validateBeforeTranscription(
       AiDictationSettings.defaults.copyWith(
-        transcriptionEngine: AiDictationTranscriptionEngine.openAiCompatible,
+        transcriptionEngine: .openAiCompatible,
         remoteConsentVersion: 1,
       ),
     );
@@ -73,13 +71,13 @@ void main() {
   test('recording plan rejects remote upload after consent is revoked', () {
     final plan = AiDictationRecordingPlan(
       AiDictationSettings.defaults.copyWith(
-        transcriptionEngine: AiDictationTranscriptionEngine.openAiCompatible,
+        transcriptionEngine: .openAiCompatible,
         remoteConsentVersion: 1,
       ),
     );
 
     expect(
-      () => plan.validateBeforeTranscription(AiDictationSettings.defaults),
+      () => plan.validateBeforeTranscription(.defaults),
       throwsA(
         isA<AiDictationException>().having(
           (error) => error.kind,
@@ -108,7 +106,7 @@ void main() {
 
   test('exposes exception details', () {
     const exception = AiDictationException(
-      AiDictationErrorKind.cancelled,
+      .cancelled,
       'Dictation cancelled.',
       cause: 'test',
     );
@@ -120,7 +118,7 @@ void main() {
 
   test('constructs transcription request and result values', () {
     final request = AiDictationRequest(
-      requestId: String.fromCharCodes('request-1'.codeUnits),
+      requestId: .fromCharCodes('request-1'.codeUnits),
       audioPath: '/tmp/audio.wav',
       modelPath: '/tmp/ggml-base.bin',
       language: 'en',

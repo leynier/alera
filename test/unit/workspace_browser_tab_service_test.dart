@@ -47,10 +47,10 @@ void main() {
         WorkspaceTabRecord(
           id: 'browser-1',
           workspaceId: 'workspace-1',
-          kind: WorkspaceTabKind.browser,
+          kind: .browser,
           title: 'Docs',
-          createdAt: DateTime.utc(2026, 7, 27),
-          updatedAt: DateTime.utc(2026, 7, 27),
+          createdAt: .utc(2026, 7, 27),
+          updatedAt: .utc(2026, 7, 27),
           payload: const <String, Object?>{
             workspaceTabManualTitlePayloadKey: true,
             workspaceTabBrowserProfileIdPayloadKey: 'default',
@@ -78,10 +78,10 @@ void main() {
         WorkspaceTabRecord(
           id: 'browser-1',
           workspaceId: 'workspace-1',
-          kind: WorkspaceTabKind.browser,
+          kind: .browser,
           title: 'New Tab',
-          createdAt: DateTime.utc(2026, 7, 27),
-          updatedAt: DateTime.utc(2026, 7, 27),
+          createdAt: .utc(2026, 7, 27),
+          updatedAt: .utc(2026, 7, 27),
         ),
       );
     final service = WorkspaceBrowserTabService(repository: repository);
@@ -114,10 +114,10 @@ void main() {
         WorkspaceTabRecord(
           id: 'browser-1',
           workspaceId: 'workspace-1',
-          kind: WorkspaceTabKind.browser,
+          kind: .browser,
           title: 'Safe Documentation',
-          createdAt: DateTime.utc(2026, 7, 27),
-          updatedAt: DateTime.utc(2026, 7, 27),
+          createdAt: .utc(2026, 7, 27),
+          updatedAt: .utc(2026, 7, 27),
           payload: const <String, Object?>{
             workspaceTabBrowserProfileIdPayloadKey: 'default',
             workspaceTabBrowserUrlPayloadKey: 'https://example.com/docs',
@@ -145,10 +145,10 @@ void main() {
         WorkspaceTabRecord(
           id: 'browser-1',
           workspaceId: 'workspace-1',
-          kind: WorkspaceTabKind.browser,
+          kind: .browser,
           title: 'Safe Documentation',
-          createdAt: DateTime.utc(2026, 7, 27),
-          updatedAt: DateTime.utc(2026, 7, 27),
+          createdAt: .utc(2026, 7, 27),
+          updatedAt: .utc(2026, 7, 27),
           payload: const <String, Object?>{
             workspaceTabBrowserProfileIdPayloadKey: 'default',
             workspaceTabBrowserUrlPayloadKey: 'https://example.com/docs',

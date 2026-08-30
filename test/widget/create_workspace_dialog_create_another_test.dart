@@ -55,10 +55,10 @@ void main() {
                                 path: project.repoPath,
                                 createdAt: now,
                                 updatedAt: now,
-                                kind: WorkspaceKind.linked,
-                                status: WorkspaceStatus.active,
+                                kind: .linked,
+                                status: .active,
                               ),
-                              setupReport: WorktreeSetupReport.empty,
+                              setupReport: .empty,
                             );
                           },
                       onWorkspaceCreated: (_) => createdCallbacks += 1,

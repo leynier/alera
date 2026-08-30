@@ -1,21 +1,20 @@
 part of 'ai_assist_registry.dart';
 
 final AiAssistAgentSpec fxAiAssistAgentSpec = AiAssistAgentSpec(
-  agent: AiAssistAgent.fx,
+  agent: .fx,
   binary: 'fx',
-  promptDelivery: AiPromptDelivery.stdin,
+  promptDelivery: .stdin,
   modelsCommand: const <String>['models', '--json'],
   parseModels: parseFxModels,
   models: const <AiAssistModel>[],
   defaultModelId: null,
   modelCanInherit: true,
-  buildArgs:
-      ({
-        required model,
-        thinkingLevel,
-        required prompt,
-        required timeoutSeconds,
-      }) => const <String>['ask', '--no-save'],
+  buildArgs: ({
+    required model,
+    thinkingLevel,
+    required prompt,
+    required timeoutSeconds,
+  }) => const <String>['ask', '--no-save'],
 );
 
 List<AiAssistModel> parseFxModels(String stdout) {

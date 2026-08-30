@@ -9,9 +9,8 @@ void main() {
     // one.
     expect(File('landing/src/pages/download.astro').existsSync(), isTrue);
     expect(
-      File(
-        'lib/src/features/updater/domain/alera_update.dart',
-      ).readAsStringSync(),
+      File('lib/src/features/updater/domain/alera_update.dart')
+          .readAsStringSync(),
       contains('https://alera.build/download'),
     );
   });

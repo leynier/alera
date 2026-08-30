@@ -255,14 +255,12 @@ Future<String> _ghApi(
   return stdoutText;
 }
 
-final class _Options {
-  const _Options({
-    required this.repository,
-    required this.dryRunRunId,
-    required this.apply,
-  });
-
-  factory _Options.parse(List<String> arguments) {
+final class const _Options({
+  required final String repository,
+  required final int dryRunRunId,
+  required final bool apply,
+}) {
+  factory parse(List<String> arguments) {
     var apply = false;
     final values = <String, String>{};
     for (var index = 0; index < arguments.length; index++) {
@@ -288,10 +286,6 @@ final class _Options {
     }
     return _Options(repository: repository, dryRunRunId: runId, apply: apply);
   }
-
-  final String repository;
-  final int dryRunRunId;
-  final bool apply;
 }
 
 Map<String, dynamic> _jsonObject(Object? value, String name) {

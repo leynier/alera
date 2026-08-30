@@ -2,13 +2,11 @@ import 'package:alera_mobile/src/core/json_payload_fields.dart';
 import 'package:alera_mobile/src/features/runtime/domain/project_summary.dart';
 import 'package:alera_mobile/src/features/runtime/domain/workspace_summary.dart';
 
-class HostDirectoryRoot {
-  const HostDirectoryRoot({required this.name, required this.path});
-
-  final String name;
-  final String path;
-
-  factory HostDirectoryRoot.fromJson(Map<String, Object?> json) {
+class const HostDirectoryRoot({
+  required final String name,
+  required final String path,
+}) {
+  factory fromJson(Map<String, Object?> json) {
     return HostDirectoryRoot(
       name: json.requiredString('name'),
       path: json.requiredString('path'),
@@ -16,18 +14,12 @@ class HostDirectoryRoot {
   }
 }
 
-class HostDirectoryEntry {
-  const HostDirectoryEntry({
-    required this.name,
-    required this.path,
-    required this.isSymlink,
-  });
-
-  final String name;
-  final String path;
-  final bool isSymlink;
-
-  factory HostDirectoryEntry.fromJson(Map<String, Object?> json) {
+class const HostDirectoryEntry({
+  required final String name,
+  required final String path,
+  required final bool isSymlink,
+}) {
+  factory fromJson(Map<String, Object?> json) {
     return HostDirectoryEntry(
       name: json.requiredString('name'),
       path: json.requiredString('path'),
@@ -36,18 +28,12 @@ class HostDirectoryEntry {
   }
 }
 
-class HostDirectoryListing {
-  const HostDirectoryListing({
-    required this.path,
-    required this.entries,
-    this.parentPath,
-  });
-
-  final String path;
-  final String? parentPath;
-  final List<HostDirectoryEntry> entries;
-
-  factory HostDirectoryListing.fromJson(Map<String, Object?> json) {
+class const HostDirectoryListing({
+  required final String path,
+  required final List<HostDirectoryEntry> entries,
+  final String? parentPath,
+}) {
+  factory fromJson(Map<String, Object?> json) {
     return HostDirectoryListing(
       path: json.requiredString('path'),
       parentPath: json.optionalString('parentPath'),
@@ -60,42 +46,27 @@ class HostDirectoryListing {
   }
 }
 
-class ProjectRegistrationResult {
-  const ProjectRegistrationResult({
-    required this.project,
-    required this.mainWorkspace,
-    required this.created,
-  });
-
-  final ProjectSummary project;
-  final WorkspaceSummary mainWorkspace;
-  final bool created;
-
-  factory ProjectRegistrationResult.fromJson(Map<String, Object?> json) {
+class const ProjectRegistrationResult({
+  required final ProjectSummary project,
+  required final WorkspaceSummary mainWorkspace,
+  required final bool created,
+}) {
+  factory fromJson(Map<String, Object?> json) {
     return ProjectRegistrationResult(
-      project: ProjectSummary.fromJson(asJsonMap(json['project'])),
-      mainWorkspace: WorkspaceSummary.fromJson(
-        asJsonMap(json['mainWorkspace']),
-      ),
+      project: .fromJson(asJsonMap(json['project'])),
+      mainWorkspace: .fromJson(asJsonMap(json['mainWorkspace'])),
       created: json['created'] == true,
     );
   }
 }
 
-class ProjectRemovalPreview {
-  const ProjectRemovalPreview({
-    required this.workspaceCount,
-    required this.tabCount,
-    required this.activeSessionCount,
-    required this.hasConfigOverride,
-  });
-
-  final int workspaceCount;
-  final int tabCount;
-  final int activeSessionCount;
-  final bool hasConfigOverride;
-
-  factory ProjectRemovalPreview.fromJson(Map<String, Object?> json) {
+class const ProjectRemovalPreview({
+  required final int workspaceCount,
+  required final int tabCount,
+  required final int activeSessionCount,
+  required final bool hasConfigOverride,
+}) {
+  factory fromJson(Map<String, Object?> json) {
     return ProjectRemovalPreview(
       workspaceCount: json['workspaceCount'] as int? ?? 0,
       tabCount: json['tabCount'] as int? ?? 0,
@@ -107,38 +78,24 @@ class ProjectRemovalPreview {
 
 enum ProjectCloneJobStatus { queued, running, completed, failed, cancelled }
 
-class ProjectCloneJob {
-  const ProjectCloneJob({
-    required this.id,
-    required this.source,
-    required this.destinationPath,
-    required this.status,
-    required this.phase,
-    required this.updatedAt,
-    this.progressPercent,
-    this.message,
-    this.error,
-    this.projectId,
-    this.workspaceId,
-  });
-
-  final String id;
-  final String source;
-  final String destinationPath;
-  final ProjectCloneJobStatus status;
-  final String phase;
-  final int? progressPercent;
-  final String? message;
-  final String? error;
-  final String? projectId;
-  final String? workspaceId;
-  final DateTime updatedAt;
-
+class const ProjectCloneJob({
+  required final String id,
+  required final String source,
+  required final String destinationPath,
+  required final ProjectCloneJobStatus status,
+  required final String phase,
+  required final DateTime updatedAt,
+  final int? progressPercent,
+  final String? message,
+  final String? error,
+  final String? projectId,
+  final String? workspaceId,
+}) {
   bool get isActive =>
       status == ProjectCloneJobStatus.queued ||
       status == ProjectCloneJobStatus.running;
 
-  factory ProjectCloneJob.fromJson(Map<String, Object?> json) {
+  factory fromJson(Map<String, Object?> json) {
     return ProjectCloneJob(
       id: json.requiredString('id'),
       source: json.requiredString('source'),
@@ -158,18 +115,12 @@ class ProjectCloneJob {
   }
 }
 
-class ProjectConfigCopyRule {
-  const ProjectConfigCopyRule({
-    required this.from,
-    this.to,
-    this.overwrite = false,
-  });
-
-  final String from;
-  final String? to;
-  final bool overwrite;
-
-  factory ProjectConfigCopyRule.fromJson(Map<String, Object?> json) {
+class const ProjectConfigCopyRule({
+  required final String from,
+  final String? to,
+  final bool overwrite = false,
+}) {
+  factory fromJson(Map<String, Object?> json) {
     return ProjectConfigCopyRule(
       from: json.requiredString('from'),
       to: json.optionalString('to'),
@@ -184,20 +135,13 @@ class ProjectConfigCopyRule {
   };
 }
 
-class MobileProjectConfig {
-  const MobileProjectConfig({
-    this.copyRules = const <ProjectConfigCopyRule>[],
-    this.setupCommands = const <String>[],
-    this.promptAppend = '',
-    this.gitHostingProvider,
-  });
-
-  final List<ProjectConfigCopyRule> copyRules;
-  final List<String> setupCommands;
-  final String promptAppend;
-  final String? gitHostingProvider;
-
-  factory MobileProjectConfig.fromJson(Map<String, Object?> json) {
+class const MobileProjectConfig({
+  final List<ProjectConfigCopyRule> copyRules = const <ProjectConfigCopyRule>[],
+  final List<String> setupCommands = const <String>[],
+  final String promptAppend = '',
+  final String? gitHostingProvider,
+}) {
+  factory fromJson(Map<String, Object?> json) {
     final worktree = asJsonMap(json['worktree']);
     final newWorkspace = asJsonMap(json['newWorkspace']);
     return MobileProjectConfig(
@@ -220,24 +164,18 @@ class MobileProjectConfig {
       'setup': setupCommands,
     },
     'newWorkspace': <String, Object?>{'promptAppend': promptAppend.trim()},
-    if (gitHostingProvider != null) 'gitHostingProvider': gitHostingProvider,
+    'gitHostingProvider': ?gitHostingProvider,
   };
 }
 
-class EffectiveMobileProjectConfig {
-  const EffectiveMobileProjectConfig({
-    required this.config,
-    required this.origin,
-    this.error,
-  });
-
-  final MobileProjectConfig config;
-  final String origin;
-  final String? error;
-
-  factory EffectiveMobileProjectConfig.fromJson(Map<String, Object?> json) {
+class const EffectiveMobileProjectConfig({
+  required final MobileProjectConfig config,
+  required final String origin,
+  final String? error,
+}) {
+  factory fromJson(Map<String, Object?> json) {
     return EffectiveMobileProjectConfig(
-      config: MobileProjectConfig.fromJson(asJsonMap(json['config'])),
+      config: .fromJson(asJsonMap(json['config'])),
       origin: json.optionalString('origin') ?? 'none',
       error: json.optionalString('error'),
     );

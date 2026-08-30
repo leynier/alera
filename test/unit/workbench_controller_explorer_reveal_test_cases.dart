@@ -4,7 +4,7 @@ void _registerWorkbenchControllerExplorerRevealTests() {
   test('revealInExplorer switches to explorer and queues the path', () async {
     await _controller.bootstrap();
     final workspace = await _selectMainWorkspace(_controller, _harness);
-    _controller.setContextPanelTab(WorkbenchContextPanelTab.gitDiff);
+    _controller.setContextPanelTab(.gitDiff);
     await _flush();
 
     _controller.revealInExplorer(

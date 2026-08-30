@@ -22,9 +22,7 @@ typedef WindowsExecutionStateSetter = int Function(int flags);
 // coverage:ignore-start
 // Thin adapter to wakelock_plus. Unit tests cover AgentAwakeDisplayLock through
 // injected fakes; plugin behavior belongs to desktop integration coverage.
-class WakelockAgentAwakeDisplayLock implements AgentAwakeDisplayLock {
-  const WakelockAgentAwakeDisplayLock();
-
+class const WakelockAgentAwakeDisplayLock() implements AgentAwakeDisplayLock {
   @override
   Future<void> setEnabled(bool enabled) {
     return WakelockPlus.toggle(enable: enabled);
@@ -32,56 +30,59 @@ class WakelockAgentAwakeDisplayLock implements AgentAwakeDisplayLock {
 }
 // coverage:ignore-end
 
-class MacosSystemSleepAssertion extends _ProcessBackedAwakeAssertion {
-  MacosSystemSleepAssertion({
-    required super.processRunner,
-    super.now,
-    super.logger,
-    super.platform,
-    super.retryDelay = macosSystemSleepAssertionRetryDelay,
-  }) : super(
-         executable: '/usr/bin/caffeinate',
-         arguments: const <String>['-i', '-s'],
-         supportedPlatform: 'macos',
-         label: 'macOS system sleep assertion',
-       );
+class MacosSystemSleepAssertion({
+  required super.processRunner,
+  super.now,
+  super.logger,
+  super.platform,
+  super.retryDelay = macosSystemSleepAssertionRetryDelay,
+}) extends _ProcessBackedAwakeAssertion {
+  this
+    : super(
+        executable: '/usr/bin/caffeinate',
+        arguments: const <String>['-i', '-s'],
+        supportedPlatform: 'macos',
+        label: 'macOS system sleep assertion',
+      );
 }
 
-class LinuxLidSleepAssertion extends _ProcessBackedAwakeAssertion {
-  LinuxLidSleepAssertion({
-    required super.processRunner,
-    int? processId,
-    super.now,
-    super.logger,
-    super.platform,
-    super.retryDelay = linuxLidSleepAssertionRetryDelay,
-  }) : super(
-         executable: 'systemd-inhibit',
-         arguments: <String>[
-           '--what=sleep:handle-lid-switch',
-           '--who=Alera',
-           '--why=Agents are working',
-           '--mode=block',
-           'tail',
-           '--pid=${processId ?? pid}',
-           '-f',
-           '/dev/null',
-         ],
-         supportedPlatform: 'linux',
-         label: 'Linux lid sleep assertion',
-         isUnavailableError: _isMissingExecutable,
-         isUnavailableExitCode: (code) => code == 127,
-       );
+class LinuxLidSleepAssertion({
+  required super.processRunner,
+  int? processId,
+  super.now,
+  super.logger,
+  super.platform,
+  super.retryDelay = linuxLidSleepAssertionRetryDelay,
+}) extends _ProcessBackedAwakeAssertion {
+  this
+    : super(
+        executable: 'systemd-inhibit',
+        arguments: <String>[
+          '--what=sleep:handle-lid-switch',
+          '--who=Alera',
+          '--why=Agents are working',
+          '--mode=block',
+          'tail',
+          '--pid=${processId ?? pid}',
+          '-f',
+          '/dev/null',
+        ],
+        supportedPlatform: 'linux',
+        label: 'Linux lid sleep assertion',
+        isUnavailableError: _isMissingExecutable,
+        isUnavailableExitCode: (code) => code == 127,
+      );
 }
 
-class WindowsSystemSleepAssertion implements AgentAwakeAssertion {
-  WindowsSystemSleepAssertion({
-    String? platform,
-    WindowsExecutionStateSetter? setExecutionState,
-    Logger? logger,
-  }) : _platform = platform ?? Platform.operatingSystem,
-       _setExecutionState = setExecutionState ?? _setThreadExecutionState,
-       _logger = logger ?? Logger('AgentAwakeAssertion');
+class WindowsSystemSleepAssertion({
+  String? platform,
+  WindowsExecutionStateSetter? setExecutionState,
+  Logger? logger,
+}) implements AgentAwakeAssertion {
+  this
+    : _platform = platform ?? Platform.operatingSystem,
+      _setExecutionState = setExecutionState ?? _setThreadExecutionState,
+      _logger = logger ?? Logger('AgentAwakeAssertion');
 
   final String _platform;
   final WindowsExecutionStateSetter _setExecutionState;
@@ -132,31 +133,26 @@ class WindowsSystemSleepAssertion implements AgentAwakeAssertion {
   }
 }
 
-class _ProcessBackedAwakeAssertion implements AgentAwakeAssertion {
-  _ProcessBackedAwakeAssertion({
-    required this.processRunner,
-    required this.executable,
-    required this.arguments,
-    required this.supportedPlatform,
-    required this.label,
-    required this.retryDelay,
-    DateTime Function()? now,
-    Logger? logger,
-    String? platform,
-    bool Function(Object error)? isUnavailableError,
-    bool Function(int exitCode)? isUnavailableExitCode,
-  }) : _now = now ?? (() => DateTime.now().toUtc()),
-       _logger = logger ?? Logger('AgentAwakeAssertion'),
-       _platform = platform ?? Platform.operatingSystem,
-       _isUnavailableError = isUnavailableError ?? ((_) => false),
-       _isUnavailableExitCode = isUnavailableExitCode ?? ((_) => false);
+class _ProcessBackedAwakeAssertion({
+  required final ProcessRunner processRunner,
+  required final String executable,
+  required final List<String> arguments,
+  required final String supportedPlatform,
+  required final String label,
+  required final Duration retryDelay,
+  DateTime Function()? now,
+  Logger? logger,
+  String? platform,
+  bool Function(Object error)? isUnavailableError,
+  bool Function(int exitCode)? isUnavailableExitCode,
+}) implements AgentAwakeAssertion {
+  this
+    : _now = now ?? (() => DateTime.now().toUtc()),
+      _logger = logger ?? Logger('AgentAwakeAssertion'),
+      _platform = platform ?? Platform.operatingSystem,
+      _isUnavailableError = isUnavailableError ?? ((_) => false),
+      _isUnavailableExitCode = isUnavailableExitCode ?? ((_) => false);
 
-  final ProcessRunner processRunner;
-  final String executable;
-  final List<String> arguments;
-  final String supportedPlatform;
-  final String label;
-  final Duration retryDelay;
   final DateTime Function() _now;
   final Logger _logger;
   final String _platform;

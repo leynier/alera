@@ -105,7 +105,7 @@ void main() {
     expect(
       workspaceEditorHasTextActionSelection(
         text: 'Selected text',
-        selection: const TextSelection.collapsed(offset: 4),
+        selection: const .collapsed(offset: 4),
       ),
       isFalse,
     );
@@ -128,7 +128,7 @@ Workspace _workspace() {
     path: '/repo/alera',
     createdAt: now,
     updatedAt: now,
-    kind: WorkspaceKind.main,
-    status: WorkspaceStatus.active,
+    kind: .main,
+    status: .active,
   );
 }

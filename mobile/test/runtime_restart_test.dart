@@ -138,13 +138,11 @@ Future<void> _pumpUntil(
   }
 }
 
-final class _RuntimeRestartHarness {
-  _RuntimeRestartHarness._(
-    this._server,
-    this._subscription,
-    this.busyOnSoftRestart,
-  );
-
+final class _RuntimeRestartHarness._(
+  final HttpServer _server,
+  final StreamSubscription<HttpRequest> _subscription,
+  final bool busyOnSoftRestart,
+) {
   static Future<_RuntimeRestartHarness> start({
     required bool busyOnSoftRestart,
   }) async {
@@ -159,9 +157,6 @@ final class _RuntimeRestartHarness {
     return harness;
   }
 
-  final HttpServer _server;
-  final StreamSubscription<HttpRequest> _subscription;
-  final bool busyOnSoftRestart;
   final List<WebSocket> _sockets = <WebSocket>[];
   final List<Map<String, Object?>> requests = <Map<String, Object?>>[];
 
@@ -179,8 +174,7 @@ final class _RuntimeRestartHarness {
         jsonEncode(<String, Object?>{
           'id': request['id'],
           'ok': false,
-          'error':
-              'Runtime host has 2 active agent(s), 1 active terminal session(s), 0 active background job(s), and 0 active push subscription(s). Retry with --force to stop it.',
+          'error': 'Runtime host has 2 active agent(s), 1 active terminal session(s), 0 active background job(s), and 0 active push subscription(s). Retry with --force to stop it.',
         }),
       );
       return;
@@ -226,11 +220,8 @@ final class _RuntimeRestartHarness {
   }
 }
 
-final class _TestHostConnection extends HostConnectionController {
-  _TestHostConnection(this.client);
-
-  final MobileRuntimeClient client;
-
+final class _TestHostConnection(final MobileRuntimeClient client)
+    extends HostConnectionController {
   @override
   Future<MobileRuntimeClient> build(String hostId) async => client;
 
@@ -239,8 +230,8 @@ final class _TestHostConnection extends HostConnectionController {
       client.restartRuntime(force: force);
 }
 
-final class _RuntimeRestartChannel implements WebSocketChannel {
-  _RuntimeRestartChannel() {
+final class _RuntimeRestartChannel() implements WebSocketChannel {
+  this {
     _outgoing.stream.listen(_handle);
   }
 
@@ -260,8 +251,7 @@ final class _RuntimeRestartChannel implements WebSocketChannel {
         jsonEncode(<String, Object?>{
           'id': request['id'],
           'ok': false,
-          'error':
-              'Runtime host has 2 active agent(s), 1 active terminal session(s), 0 active background job(s), and 0 active push subscription(s). Retry with --force to stop it.',
+          'error': 'Runtime host has 2 active agent(s), 1 active terminal session(s), 0 active background job(s), and 0 active push subscription(s). Retry with --force to stop it.',
         }),
       );
       return;
@@ -325,11 +315,8 @@ final class _RuntimeRestartChannel implements WebSocketChannel {
   }
 }
 
-final class _TestWebSocketSink implements WebSocketSink {
-  _TestWebSocketSink(this._sink);
-
-  final StreamSink<Object?> _sink;
-
+final class _TestWebSocketSink(final StreamSink<Object?> _sink)
+    implements WebSocketSink {
   @override
   Future<void> get done => _sink.done;
 

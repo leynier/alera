@@ -15,8 +15,8 @@ void _registerWorkspaceServiceRemovalTests() {
           id: 'tab-1',
           workspaceId: linkedWorkspace.id,
           title: 'Terminal 1',
-          createdAt: DateTime.utc(2026, 5, 20),
-          updatedAt: DateTime.utc(2026, 5, 20),
+          createdAt: .utc(2026, 5, 20),
+          updatedAt: .utc(2026, 5, 20),
         ),
       );
 
@@ -150,36 +150,33 @@ void _registerWorkspaceServiceRemovalTests() {
     );
   });
 
-  test(
-    'removeWorkspace removes stale metadata when worktree and branch are missing',
-    () async {
-      gitBackend.sourceBranches = <String>['main'];
-      final linkedWorkspace = (await service.createLinkedWorkspace(
-        project: project,
-        sourceBranch: 'main',
-        newBranchName: 'feature/stale',
-      )).workspace;
-      gitBackend.removeWorktreeError = WorktreeNotFoundException(
-        linkedWorkspace.path,
-      );
-      gitBackend.deleteBranchError = const BranchNotFoundException(
-        'feature/stale',
-      );
+  test('removeWorkspace removes stale metadata when worktree and branch are missing', () async {
+    gitBackend.sourceBranches = <String>['main'];
+    final linkedWorkspace = (await service.createLinkedWorkspace(
+      project: project,
+      sourceBranch: 'main',
+      newBranchName: 'feature/stale',
+    )).workspace;
+    gitBackend.removeWorktreeError = WorktreeNotFoundException(
+      linkedWorkspace.path,
+    );
+    gitBackend.deleteBranchError = const BranchNotFoundException(
+      'feature/stale',
+    );
 
-      await service.removeWorkspace(
-        project: project,
-        workspace: linkedWorkspace,
-        deleteBranch: true,
-      );
+    await service.removeWorkspace(
+      project: project,
+      workspace: linkedWorkspace,
+      deleteBranch: true,
+    );
 
-      expect(
-        repository.workspaces.any(
-          (workspace) => workspace.id == linkedWorkspace.id,
-        ),
-        isFalse,
-      );
-    },
-  );
+    expect(
+      repository.workspaces.any(
+        (workspace) => workspace.id == linkedWorkspace.id,
+      ),
+      isFalse,
+    );
+  });
 
   test('removeWorkspace preserves an unregistered filesystem entry', () async {
     gitBackend.sourceBranches = <String>['main'];
@@ -268,10 +265,10 @@ void _registerWorkspaceServiceRemovalTests() {
       name: 'Detached',
       branch: '',
       path: p.join(tempDir.path, 'detached'),
-      createdAt: DateTime.utc(2026, 5, 20),
-      updatedAt: DateTime.utc(2026, 5, 20),
-      kind: WorkspaceKind.linked,
-      status: WorkspaceStatus.active,
+      createdAt: .utc(2026, 5, 20),
+      updatedAt: .utc(2026, 5, 20),
+      kind: .linked,
+      status: .active,
     );
 
     await expectLater(

@@ -8,8 +8,10 @@ import 'package:alera/src/features/settings/presentation/panes/application_suppo
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-typedef AleraSkillTerminalRunner =
-    Future<void> Function(BuildContext context, CommandTerminalRequest request);
+typedef AleraSkillTerminalRunner = Future<void> Function(
+  BuildContext context,
+  CommandTerminalRequest request,
+);
 
 /// Work that still has to happen in Dart once the installer command is done,
 /// such as reconciling agent status hooks. Returning null leaves the status
@@ -24,24 +26,15 @@ typedef AleraSkillTerminalFollowUp =
 /// There is no `View Output` here because the output is no longer something
 /// that happens offscreen and gets shown afterwards. The external Copy action
 /// remains available for users who want to run the command themselves.
-class AleraSkillTerminalInstallControl extends StatefulWidget {
-  const AleraSkillTerminalInstallControl({
-    super.key,
-    required this.dialogTitle,
-    required this.commandFor,
-    required this.runCommand,
-    this.followUp,
-    this.installLabel = 'Install / Update',
-    this.runningLabel = 'Running',
-  });
-
-  final String dialogTitle;
-  final AleraSkillCommandBuilder commandFor;
-  final AleraSkillTerminalRunner runCommand;
-  final AleraSkillTerminalFollowUp? followUp;
-  final String installLabel;
-  final String runningLabel;
-
+class const AleraSkillTerminalInstallControl({
+  super.key,
+  required final String dialogTitle,
+  required final AleraSkillCommandBuilder commandFor,
+  required final AleraSkillTerminalRunner runCommand,
+  final AleraSkillTerminalFollowUp? followUp,
+  final String installLabel = 'Install / Update',
+  final String runningLabel = 'Running',
+}) extends StatefulWidget {
   @override
   State<AleraSkillTerminalInstallControl> createState() =>
       _AleraSkillTerminalInstallControlState();
@@ -53,7 +46,7 @@ class _AleraSkillTerminalInstallControlState
       GlobalKey<PopupMenuButtonState<AleraCliSkillRunner>>();
   bool _running = false;
   AleraSkillInstallStatus? _status;
-  AleraCliSkillRunner _runner = AleraCliSkillRunner.auto;
+  AleraCliSkillRunner _runner = .auto;
 
   Future<void> _copyCommand() async {
     await Clipboard.setData(ClipboardData(text: widget.commandFor(_runner)));
@@ -111,11 +104,11 @@ class _AleraSkillTerminalInstallControlState
   Widget build(BuildContext context) {
     final status = _status;
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.end,
-      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: .end,
+      mainAxisSize: .min,
       children: <Widget>[
         Wrap(
-          alignment: WrapAlignment.end,
+          alignment: .end,
           spacing: AleraTokens.space8,
           runSpacing: AleraTokens.space8,
           children: <Widget>[
@@ -179,9 +172,9 @@ class _AleraSkillTerminalInstallControlState
           const SizedBox(height: AleraTokens.space6),
           Text(
             status.summary,
-            textAlign: TextAlign.right,
+            textAlign: .right,
             maxLines: 2,
-            overflow: TextOverflow.ellipsis,
+            overflow: .ellipsis,
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
               color: status.needsAttention
                   ? AleraTokens.error

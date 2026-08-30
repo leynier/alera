@@ -13,19 +13,12 @@ enum CreateReviewErrorCode {
 
 /// Outcome of a create-review request. Discriminated so callers handle success
 /// and typed failure explicitly, never a bare null.
-sealed class CreateReviewResult {
-  const CreateReviewResult();
-}
+sealed class const CreateReviewResult();
 
-class CreateReviewSuccess extends CreateReviewResult {
-  const CreateReviewSuccess(this.review);
+class const CreateReviewSuccess(final HostedReview review)
+    extends CreateReviewResult;
 
-  final HostedReview review;
-}
-
-class CreateReviewFailure extends CreateReviewResult {
-  const CreateReviewFailure({required this.code, required this.message});
-
-  final CreateReviewErrorCode code;
-  final String message;
-}
+class const CreateReviewFailure({
+  required final CreateReviewErrorCode code,
+  required final String message,
+}) extends CreateReviewResult;

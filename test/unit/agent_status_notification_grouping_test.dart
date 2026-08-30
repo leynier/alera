@@ -8,7 +8,7 @@ void main() {
       final notification = composeAgentStatusNotifications(
         locations: <AgentStatusNotificationLocation>[
           AgentStatusNotificationLocation(
-            entry: _entry(AgentStatusState.waiting),
+            entry: _entry(.waiting),
             projectName: 'Alera',
             workspaceName: 'main',
           ),
@@ -24,15 +24,11 @@ void main() {
       final notification = composeAgentStatusNotifications(
         locations: <AgentStatusNotificationLocation>[
           AgentStatusNotificationLocation(
-            entry: _entry(AgentStatusState.waiting, sessionId: 'session-1'),
+            entry: _entry(.waiting, sessionId: 'session-1'),
             workspaceName: 'main',
           ),
           AgentStatusNotificationLocation(
-            entry: _entry(
-              AgentStatusState.blocked,
-              sessionId: 'session-2',
-              agentType: AgentType.claude,
-            ),
+            entry: _entry(.blocked, sessionId: 'session-2', agentType: .claude),
             workspaceName: 'feature/login',
           ),
         ],
@@ -47,11 +43,11 @@ void main() {
       final finished = composeAgentStatusNotifications(
         locations: <AgentStatusNotificationLocation>[
           AgentStatusNotificationLocation(
-            entry: _entry(AgentStatusState.done, sessionId: 'session-1'),
+            entry: _entry(.done, sessionId: 'session-1'),
             workspaceName: 'main',
           ),
           AgentStatusNotificationLocation(
-            entry: _entry(AgentStatusState.done, sessionId: 'session-2'),
+            entry: _entry(.done, sessionId: 'session-2'),
             workspaceName: 'docs',
           ),
         ],
@@ -60,11 +56,11 @@ void main() {
       final mixed = composeAgentStatusNotifications(
         locations: <AgentStatusNotificationLocation>[
           AgentStatusNotificationLocation(
-            entry: _entry(AgentStatusState.done, sessionId: 'session-1'),
+            entry: _entry(.done, sessionId: 'session-1'),
             workspaceName: 'main',
           ),
           AgentStatusNotificationLocation(
-            entry: _entry(AgentStatusState.waiting, sessionId: 'session-2'),
+            entry: _entry(.waiting, sessionId: 'session-2'),
             workspaceName: 'docs',
           ),
         ],
@@ -80,10 +76,7 @@ void main() {
         locations: <AgentStatusNotificationLocation>[
           for (var index = 0; index < 5; index++)
             AgentStatusNotificationLocation(
-              entry: _entry(
-                AgentStatusState.waiting,
-                sessionId: 'session-$index',
-              ),
+              entry: _entry(.waiting, sessionId: 'session-$index'),
               workspaceName: 'workspace-$index',
             ),
         ],
@@ -101,15 +94,11 @@ void main() {
       final notification = composeAgentStatusNotifications(
         locations: <AgentStatusNotificationLocation>[
           AgentStatusNotificationLocation(
-            entry: _entry(AgentStatusState.waiting, sessionId: 'session-1'),
+            entry: _entry(.waiting, sessionId: 'session-1'),
             tabTitle: 'Terminal 1',
           ),
           AgentStatusNotificationLocation(
-            entry: _entry(
-              AgentStatusState.waiting,
-              sessionId: 'session-2',
-              agentType: AgentType.claude,
-            ),
+            entry: _entry(.waiting, sessionId: 'session-2', agentType: .claude),
           ),
         ],
         includeFinished: false,
@@ -122,11 +111,11 @@ void main() {
       final notification = composeAgentStatusNotifications(
         locations: <AgentStatusNotificationLocation>[
           AgentStatusNotificationLocation(
-            entry: _entry(AgentStatusState.done, sessionId: 'session-1'),
+            entry: _entry(.done, sessionId: 'session-1'),
             workspaceName: 'main',
           ),
           AgentStatusNotificationLocation(
-            entry: _entry(AgentStatusState.waiting, sessionId: 'session-2'),
+            entry: _entry(.waiting, sessionId: 'session-2'),
             workspaceName: 'docs',
           ),
         ],
@@ -135,7 +124,7 @@ void main() {
       final onlyFinished = composeAgentStatusNotifications(
         locations: <AgentStatusNotificationLocation>[
           AgentStatusNotificationLocation(
-            entry: _entry(AgentStatusState.done, sessionId: 'session-1'),
+            entry: _entry(.done, sessionId: 'session-1'),
             workspaceName: 'main',
           ),
         ],
@@ -151,14 +140,14 @@ void main() {
       final notification = composeAgentStatusNotifications(
         locations: <AgentStatusNotificationLocation>[
           AgentStatusNotificationLocation(
-            entry: _entry(AgentStatusState.waiting, sessionId: 'session-1'),
+            entry: _entry(.waiting, sessionId: 'session-1'),
             workspaceName: 'main',
           ),
           AgentStatusNotificationLocation(
             entry: _entry(
-              AgentStatusState.waiting,
+              .waiting,
               sessionId: 'session-2',
-              updatedAt: DateTime.utc(2026, 5, 26, 12, 5),
+              updatedAt: .utc(2026, 5, 26, 12, 5),
             ),
             workspaceName: 'docs',
           ),

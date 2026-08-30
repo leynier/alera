@@ -287,7 +287,7 @@ mixin _WorkbenchControllerProjects
         return existing;
       }
       final tag = await _workspaceGraphRepository.upsertTag(
-        WorkspaceTag.create(name: trimmed),
+        .create(name: trimmed),
       );
       state = state.copyWith(error: null);
       return tag;

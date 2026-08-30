@@ -1,19 +1,12 @@
 part of 'mobile_codex_chat_screen.dart';
 
-class _MobilePlanPreview extends StatefulWidget {
-  const _MobilePlanPreview({
-    super.key,
-    required this.initiallyOverflowing,
-    required this.preserveOverflow,
-    required this.onOverflowChanged,
-    required this.child,
-  });
-
-  final bool initiallyOverflowing;
-  final bool preserveOverflow;
-  final ValueChanged<bool> onOverflowChanged;
-  final Widget child;
-
+class const _MobilePlanPreview({
+  super.key,
+  required final bool initiallyOverflowing,
+  required final bool preserveOverflow,
+  required final ValueChanged<bool> onOverflowChanged,
+  required final Widget child,
+}) extends StatefulWidget {
   @override
   State<_MobilePlanPreview> createState() => _MobilePlanPreviewState();
 }
