@@ -9,6 +9,7 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'support/controlled_app_lifecycle.dart';
 import 'support/fake_terminal_client.dart';
 
 void main() {
@@ -21,7 +22,7 @@ void main() {
           fakeTab(id: 'tab-1', title: 'Terminal 1'),
         ]
         ..probeCompletion = probe.future;
-      final lifecycle = _TestAppLifecycleController(AppLifecycleState.resumed);
+      final lifecycle = ControlledAppLifecycle(AppLifecycleState.resumed);
       final container = ProviderContainer(
         overrides: [
           terminalClientProvider('host-1').overrideWith((ref) async => client),
@@ -89,7 +90,7 @@ void main() {
         ..tabs = <WorkspaceTabSummary>[
           fakeTab(id: 'tab-1', title: 'Terminal 1'),
         ];
-      final lifecycle = _TestAppLifecycleController(AppLifecycleState.resumed);
+      final lifecycle = ControlledAppLifecycle(AppLifecycleState.resumed);
       final container = ProviderContainer(
         overrides: [
           terminalClientProvider('host-1').overrideWith((ref) async => client),
@@ -139,7 +140,7 @@ void main() {
     // disposes the compose bar and the attachment pick it is waiting on.
     final client = FakeTerminalClient()
       ..tabs = <WorkspaceTabSummary>[fakeTab(id: 'tab-1', title: 'Terminal 1')];
-    final lifecycle = _TestAppLifecycleController(AppLifecycleState.resumed);
+    final lifecycle = ControlledAppLifecycle(AppLifecycleState.resumed);
     final container = ProviderContainer(
       overrides: [
         terminalClientProvider('host-1').overrideWith((ref) async => client),
@@ -176,7 +177,7 @@ void main() {
         ..tabs = <WorkspaceTabSummary>[
           fakeTab(id: 'tab-1', title: 'Terminal 1'),
         ];
-      final lifecycle = _TestAppLifecycleController(AppLifecycleState.resumed);
+      final lifecycle = ControlledAppLifecycle(AppLifecycleState.resumed);
       final container = ProviderContainer(
         overrides: [
           terminalClientProvider('host-1').overrideWith((ref) async => client),
@@ -393,19 +394,6 @@ void main() {
       expect(client.writes, isEmpty);
     },
   );
-}
-
-class _TestAppLifecycleController extends AppLifecycleController {
-  _TestAppLifecycleController(this.initialState);
-
-  final AppLifecycleState initialState;
-
-  @override
-  AppLifecycleState build() => initialState;
-
-  void setLifecycleState(AppLifecycleState next) {
-    state = next;
-  }
 }
 
 Future<void> _waitUntil(bool Function() condition) async {

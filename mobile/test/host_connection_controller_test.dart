@@ -12,6 +12,7 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'support/controlled_app_lifecycle.dart';
 import 'support/memory_cloud_account_repository.dart';
 import 'support/memory_host_repository.dart';
 
@@ -230,7 +231,7 @@ void main() {
         ),
         'token-1',
       );
-      final lifecycle = _TestAppLifecycleController();
+      final lifecycle = ControlledAppLifecycle();
       final container = ProviderContainer(
         overrides: [
           hostRepositoryProvider.overrideWithValue(repository),
@@ -337,7 +338,7 @@ void main() {
       ),
       'token-1',
     );
-    final lifecycle = _TestAppLifecycleController(AppLifecycleState.resumed);
+    final lifecycle = ControlledAppLifecycle(AppLifecycleState.resumed);
     final container = ProviderContainer(
       overrides: [
         hostRepositoryProvider.overrideWithValue(repository),
@@ -472,19 +473,6 @@ void main() {
       throwsA(isA<StateError>()),
     );
   });
-}
-
-class _TestAppLifecycleController extends AppLifecycleController {
-  _TestAppLifecycleController([this.initialState = AppLifecycleState.paused]);
-
-  final AppLifecycleState initialState;
-
-  @override
-  AppLifecycleState build() => initialState;
-
-  void setLifecycleState(AppLifecycleState next) {
-    state = next;
-  }
 }
 
 Future<void> _waitUntil(bool Function() condition) async {
