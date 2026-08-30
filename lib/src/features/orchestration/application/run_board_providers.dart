@@ -13,7 +13,10 @@ RuntimeRunBoardRepository runBoardRepository(Ref ref) =>
       ref.watch(runtimeChangeCoalescerProvider),
     );
 
-@riverpod
+// Recovery is explicit or event-driven, including unsupported/disconnected hosts.
+Duration? _noRunBoardRetry(int retryCount, Object error) => null;
+
+@Riverpod(retry: _noRunBoardRetry)
 Stream<RunBoardSnapshot> runBoardSnapshot(
   Ref ref, {
   String? projectId,
@@ -31,6 +34,6 @@ Stream<RunBoardSnapshot> runBoardSnapshot(
       ),
     );
 
-@riverpod
+@Riverpod(retry: _noRunBoardRetry)
 Stream<RunSnapshot> orchestrationRunSnapshot(Ref ref, String runId) =>
     ref.watch(runBoardRepositoryProvider).watchRun(runId);

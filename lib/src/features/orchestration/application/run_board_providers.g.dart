@@ -78,7 +78,7 @@ final class RunBoardSnapshotProvider
     })
     super.argument,
   }) : super(
-         retry: null,
+         retry: _noRunBoardRetry,
          name: r'runBoardSnapshotProvider',
          isAutoDispose: true,
          dependencies: null,
@@ -131,7 +131,7 @@ final class RunBoardSnapshotProvider
   }
 }
 
-String _$runBoardSnapshotHash() => r'e7b22a7013dd09e0ac85162328246c93cdc76086';
+String _$runBoardSnapshotHash() => r'5abfe652b82abbfb2e2ffd6167a1777f9cd1c8d1';
 
 final class RunBoardSnapshotFamily extends $Family
     with
@@ -146,7 +146,7 @@ final class RunBoardSnapshotFamily extends $Family
         > {
   RunBoardSnapshotFamily._()
     : super(
-        retry: null,
+        retry: _noRunBoardRetry,
         name: r'runBoardSnapshotProvider',
         dependencies: null,
         $allTransitiveDependencies: null,
@@ -187,7 +187,7 @@ final class OrchestrationRunSnapshotProvider
     required OrchestrationRunSnapshotFamily super.from,
     required String super.argument,
   }) : super(
-         retry: null,
+         retry: _noRunBoardRetry,
          name: r'orchestrationRunSnapshotProvider',
          isAutoDispose: true,
          dependencies: null,
@@ -229,13 +229,13 @@ final class OrchestrationRunSnapshotProvider
 }
 
 String _$orchestrationRunSnapshotHash() =>
-    r'aceeb80c3fe4d29025cf6083e6c314c029f6a641';
+    r'9f4c58428b2b65c2eb92847b201def50edeb3360';
 
 final class OrchestrationRunSnapshotFamily extends $Family
     with $FunctionalFamilyOverride<Stream<RunSnapshot>, String> {
   OrchestrationRunSnapshotFamily._()
     : super(
-        retry: null,
+        retry: _noRunBoardRetry,
         name: r'orchestrationRunSnapshotProvider',
         dependencies: null,
         $allTransitiveDependencies: null,
