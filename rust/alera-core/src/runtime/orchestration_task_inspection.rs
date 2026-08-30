@@ -262,12 +262,15 @@ fn inspect_result(raw: Option<&str>, mut truncated: bool) -> TaskResultInspectio
     let completion_kind = field_text("completionKind");
     let artifacts = result_entries(fields.get("artifacts"), &mut truncated);
     let validation = result_entries(fields.get("validation"), &mut truncated);
+    let preview = summary
+        .is_none()
+        .then(|| bounded_text(raw, 16384, &mut truncated));
     TaskResultInspection {
         summary,
         completion_kind,
         artifacts,
         validation,
-        preview: None,
+        preview,
         truncated,
     }
 }

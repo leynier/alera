@@ -99,7 +99,7 @@ final class RunBoardListPageProvider
   }
 }
 
-String _$runBoardListPageHash() => r'0dcebf9e5203ea260ade8118aced375ff3721933';
+String _$runBoardListPageHash() => r'f1387b5d0b493e9593425cdce59cb73623e14959';
 
 final class RunBoardListPageFamily extends $Family
     with
@@ -237,7 +237,7 @@ final class RunTaskPageProvider
   }
 }
 
-String _$runTaskPageHash() => r'0863be7942f24c91a3af8437594b8b3ee6a1fb58';
+String _$runTaskPageHash() => r'7f0e8a4a5df26091a36ed76ec9863f271b1023ea';
 
 final class RunTaskPageFamily extends $Family
     with
@@ -340,7 +340,7 @@ final class RunTaskInspectionPageProvider
 }
 
 String _$runTaskInspectionPageHash() =>
-    r'999026397c59cbe1d046587f9acd87ba690515f2';
+    r'393facb6876ec5eaaeafbd19cdfb7ce0502bd892';
 
 final class RunTaskInspectionPageFamily extends $Family
     with

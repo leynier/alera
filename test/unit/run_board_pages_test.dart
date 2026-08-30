@@ -4,6 +4,7 @@ import 'package:alera/src/features/orchestration/application/run_board_navigatio
 import 'package:alera/src/features/orchestration/application/run_board_pages.dart';
 import 'package:alera/src/features/orchestration/application/run_board_providers.dart';
 import 'package:alera/src/features/orchestration/domain/run_board_snapshot.dart';
+import 'package:alera/src/features/orchestration/domain/run_snapshot.dart';
 import 'package:alera/src/features/orchestration/domain/task_inspection.dart';
 import 'package:alera/src/features/orchestration/infra/runtime_run_board_repository.dart';
 import 'package:fake_async/fake_async.dart';
@@ -12,6 +13,105 @@ import 'package:flutter_test/flutter_test.dart';
 import '../support/run_board_fixtures.dart';
 
 void main() {
+  for (final pageFails in [false, true]) {
+    test(
+      'late pagination cannot replace watcher errors (fails: $pageFails)',
+      () {
+        fakeAsync((time) {
+          final f = _Fixture();
+          f.repository.board = boardSnapshot(
+            nextCursor: const RunBoardCursor('now', 'r1', 1),
+          );
+          f.repository.run = boardRunDetail(nextTaskId: 'task-3');
+          f.repository.task = boardTask(
+            nextCursor: const TaskHistoryCursor('now', 'a', 1),
+          );
+          final board = Completer<RunBoardSnapshot>();
+          final run = Completer<RunSnapshot>();
+          final task = Completer<TaskInspection>();
+          f.repository.nextBoard = board.future;
+          f.repository.nextRun = run.future;
+          f.repository.nextTask = task.future;
+          final boardProvider = runBoardListPageProvider();
+          final runProvider = runTaskPageProvider('run-1');
+          final taskProvider = runTaskInspectionPageProvider('run-1', 'task-2');
+          f.container.listen(boardProvider, (_, _) {});
+          f.container.listen(runProvider, (_, _) {});
+          f.container.listen(taskProvider, (_, _) {});
+          time.flushMicrotasks();
+          unawaited(f.container.read(boardProvider.notifier).loadMore());
+          unawaited(f.container.read(runProvider.notifier).loadMore());
+          unawaited(f.container.read(taskProvider.notifier).loadMore());
+          final disconnect = StateError('host disconnected');
+          f.repository.error = disconnect;
+          f.repository.events.add(null);
+          time.flushMicrotasks();
+          expect(f.container.read(boardProvider).error, same(disconnect));
+          expect(f.container.read(runProvider).error, same(disconnect));
+          expect(f.container.read(taskProvider).error, same(disconnect));
+          if (pageFails) {
+            board.completeError(StateError('page failed'));
+            run.completeError(StateError('page failed'));
+            task.completeError(StateError('page failed'));
+          } else {
+            board.complete(boardSnapshot());
+            run.complete(boardRunDetail());
+            task.complete(boardTask());
+          }
+          time.flushMicrotasks();
+          expect(f.container.read(boardProvider).error, same(disconnect));
+          expect(f.container.read(runProvider).error, same(disconnect));
+          expect(f.container.read(taskProvider).error, same(disconnect));
+          f.dispose();
+          time.flushMicrotasks();
+        });
+      },
+    );
+  }
+
+  test('pagination cannot start from retained data in a watcher error', () {
+    fakeAsync((time) {
+      final f = _Fixture();
+      f.repository.board = boardSnapshot(
+        nextCursor: const RunBoardCursor('now', 'r1', 1),
+      );
+      f.repository.run = boardRunDetail(nextTaskId: 'task-3');
+      f.repository.task = boardTask(
+        nextCursor: const TaskHistoryCursor('now', 'a', 1),
+      );
+      final board = runBoardListPageProvider();
+      final run = runTaskPageProvider('run-1');
+      final task = runTaskInspectionPageProvider('run-1', 'task-2');
+      f.container.listen(board, (_, _) {});
+      f.container.listen(run, (_, _) {});
+      f.container.listen(task, (_, _) {});
+      time.flushMicrotasks();
+      final disconnect = StateError('host disconnected');
+      f.repository.error = disconnect;
+      f.repository.events.add(null);
+      time.flushMicrotasks();
+      final reads = [
+        f.repository.boardReads,
+        f.repository.runReads,
+        f.repository.taskReads,
+      ];
+      unawaited(f.container.read(board.notifier).loadMore());
+      unawaited(f.container.read(run.notifier).loadMore());
+      unawaited(f.container.read(task.notifier).loadMore());
+      time.flushMicrotasks();
+      expect([
+        f.repository.boardReads,
+        f.repository.runReads,
+        f.repository.taskReads,
+      ], reads);
+      expect(f.container.read(board).error, same(disconnect));
+      expect(f.container.read(run).error, same(disconnect));
+      expect(f.container.read(task).error, same(disconnect));
+      f.dispose();
+      time.flushMicrotasks();
+    });
+  });
+
   test(
     'navigation survives closing without retaining a runtime subscription',
     () {

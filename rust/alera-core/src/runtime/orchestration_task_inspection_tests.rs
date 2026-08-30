@@ -119,6 +119,36 @@ async fn task_inspection_selects_last_inserted_dispatch_with_tied_timestamps() {
 }
 
 #[tokio::test]
+async fn task_inspection_preserves_bounded_legacy_json_results_without_a_summary() {
+    let (_dir, store) = store().await;
+    for result in [
+        json!({
+            "completedBy": "worker",
+            "filesModified": ["src/export.rs"],
+            "completedAt": "2026-08-30 10:00:00"
+        }),
+        json!({"artifacts": ["src/export.rs"]}),
+        json!({"legacyEvidence": "界".repeat(20000)}),
+    ] {
+        let raw = result.to_string();
+        sqlx::query(
+            "UPDATE orchestrationTasks SET result = ?, status = 'completed' WHERE id = 'task'",
+        )
+        .bind(&raw)
+        .execute(store.pool())
+        .await
+        .unwrap();
+        let snapshot = store.orchestration_task_inspection(&query()).await.unwrap();
+        assert_eq!(
+            snapshot.result.preview,
+            Some(raw.chars().take(16384).collect())
+        );
+        assert_eq!(snapshot.result.truncated, raw.chars().count() > 16384);
+        assert!(snapshot.result.summary.is_none());
+    }
+}
+
+#[tokio::test]
 async fn task_history_pages_share_a_revision_and_audits_invalidate_cursors() {
     let (_dir, store) = store().await;
     for index in 0..5 {

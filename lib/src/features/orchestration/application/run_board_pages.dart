@@ -61,7 +61,7 @@ class RunBoardListPage extends _$RunBoardListPage {
   }
 
   Future<void> loadMore() async {
-    final current = state.value;
+    final current = state.asData?.value;
     if (current == null ||
         current.loadingMore ||
         current.data.nextCursor == null) {
@@ -81,7 +81,7 @@ class RunBoardListPage extends _$RunBoardListPage {
               cursor: data.nextCursor,
             ),
           );
-      if (!ref.mounted || !identical(state.value?.data, data)) return;
+      if (!ref.mounted || !identical(state.asData?.value.data, data)) return;
       if (next.revision != data.revision) {
         throw StateError('The run list changed. Refresh to continue.');
       }
@@ -96,7 +96,7 @@ class RunBoardListPage extends _$RunBoardListPage {
         ),
       );
     } on Object catch (error) {
-      if (ref.mounted && identical(state.value?.data, data)) {
+      if (ref.mounted && identical(state.asData?.value.data, data)) {
         state = AsyncData(RunBoardRead(data, pageError: error));
       }
     }
@@ -115,7 +115,7 @@ class RunTaskPage extends _$RunTaskPage {
   }
 
   Future<void> loadMore() async {
-    final current = state.value;
+    final current = state.asData?.value;
     if (current == null ||
         current.loadingMore ||
         current.data.nextTaskId == null) {
@@ -131,7 +131,7 @@ class RunTaskPage extends _$RunTaskPage {
             afterTaskId: data.nextTaskId,
             revision: data.revision,
           );
-      if (!ref.mounted || !identical(state.value?.data, data)) return;
+      if (!ref.mounted || !identical(state.asData?.value.data, data)) return;
       if (next.revision != data.revision) {
         throw StateError('Tasks changed. Refresh to continue.');
       }
@@ -148,7 +148,7 @@ class RunTaskPage extends _$RunTaskPage {
         ),
       );
     } on Object catch (error) {
-      if (ref.mounted && identical(state.value?.data, data)) {
+      if (ref.mounted && identical(state.asData?.value.data, data)) {
         state = AsyncData(RunBoardRead(data, pageError: error));
       }
     }
@@ -173,7 +173,7 @@ class RunTaskInspectionPage extends _$RunTaskInspectionPage {
   }
 
   Future<void> loadMore() async {
-    final current = state.value;
+    final current = state.asData?.value;
     if (current == null ||
         current.loadingMore ||
         current.data.nextCursor == null) {
@@ -185,7 +185,7 @@ class RunTaskInspectionPage extends _$RunTaskInspectionPage {
       final next = await ref
           .read(runBoardRepositoryProvider)
           .readTask(runId, taskId, cursor: data.nextCursor);
-      if (!ref.mounted || !identical(state.value?.data, data)) return;
+      if (!ref.mounted || !identical(state.asData?.value.data, data)) return;
       if (next.revision != data.inspection.revision) {
         throw StateError('History changed. Refresh to continue.');
       }
@@ -199,7 +199,7 @@ class RunTaskInspectionPage extends _$RunTaskInspectionPage {
         ),
       );
     } on Object catch (error) {
-      if (ref.mounted && identical(state.value?.data, data)) {
+      if (ref.mounted && identical(state.asData?.value.data, data)) {
         state = AsyncData(RunBoardRead(data, pageError: error));
       }
     }
