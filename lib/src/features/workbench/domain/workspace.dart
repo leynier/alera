@@ -26,6 +26,7 @@ class const Workspace({
   this.isPinned = false,
   this.tagIds = const <String>[],
   this.tagNames = const <String>[],
+  this.sectionId,
   this.parentWorkspaceId,
   this.childCount = 0,
 }) with WorkspaceMappable {
@@ -45,6 +46,7 @@ class const Workspace({
   final bool isPinned;
   final List<String> tagIds;
   final List<String> tagNames;
+  final String? sectionId;
   final String? parentWorkspaceId;
   final int childCount;
 

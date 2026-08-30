@@ -51,6 +51,7 @@ class const _SectionLabel({required final String text})
 }
 
 class const _GroupBySegmented({
+  final bool supportsSections = false,
   required final WorkbenchGroupBy value,
   required final ValueChanged<WorkbenchGroupBy> onChanged,
 }) extends StatelessWidget {
@@ -66,9 +67,11 @@ class const _GroupBySegmented({
       textStyle: Theme.of(context).textTheme.labelSmall,
       selected: value,
       onSelectionChanged: onChanged,
-      segments: const <ButtonSegment<WorkbenchGroupBy>>[
-        ButtonSegment(value: .none, label: Text('None')),
-        ButtonSegment(value: .project, label: Text('Project')),
+      segments: <ButtonSegment<WorkbenchGroupBy>>[
+        const ButtonSegment(value: .none, label: Text('None')),
+        const ButtonSegment(value: .project, label: Text('Project')),
+        if (supportsSections)
+          const ButtonSegment(value: .section, label: Text('Section')),
       ],
     );
   }

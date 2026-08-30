@@ -52,22 +52,40 @@ class const _WorkspaceViewOptions({
           children: <Widget>[
             Text('View Options', style: Theme.of(context).textTheme.titleLarge),
             const SizedBox(height: AleraTokens.space12),
-            SwitchListTile(
-              contentPadding: EdgeInsets.zero,
-              title: const Text('Group By Project'),
-              value: groupByProject,
-              onChanged: (value) => controller.setGroupBy(
-                value
-                    ? MobileWorkspaceGroupBy.project
-                    : MobileWorkspaceGroupBy.none,
-              ),
+            AleraDropdownField<MobileWorkspaceGroupBy>(
+              labelText: 'Group By',
+              value:
+                  !data.supportsSections &&
+                      prefs.groupBy == MobileWorkspaceGroupBy.section
+                  ? MobileWorkspaceGroupBy.project
+                  : prefs.groupBy,
+              entries: [
+                const AleraDropdownFieldEntry(
+                  value: MobileWorkspaceGroupBy.none,
+                  label: 'None',
+                ),
+                const AleraDropdownFieldEntry(
+                  value: MobileWorkspaceGroupBy.project,
+                  label: 'Project',
+                ),
+                if (data.supportsSections)
+                  const AleraDropdownFieldEntry(
+                    value: MobileWorkspaceGroupBy.section,
+                    label: 'Section',
+                  ),
+              ],
+              onChanged: controller.setGroupBy,
             ),
             const SizedBox(height: AleraTokens.space8),
-            if (groupByProject) ...<Widget>[
+            if (prefs.groupBy != MobileWorkspaceGroupBy.none) ...<Widget>[
               AleraDropdownField<MobileWorkbenchSortBy>(
-                labelText: 'Sort Projects By',
-                value: prefs.projectSort,
-                onChanged: controller.setProjectSort,
+                labelText: groupByProject
+                    ? 'Sort Projects By'
+                    : 'Sort Sections By',
+                value: groupByProject ? prefs.projectSort : prefs.sectionSort,
+                onChanged: groupByProject
+                    ? controller.setProjectSort
+                    : controller.setSectionSort,
                 entries: _sortEntries,
               ),
               const SizedBox(height: AleraTokens.space12),

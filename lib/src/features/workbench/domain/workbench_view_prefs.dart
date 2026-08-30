@@ -4,7 +4,7 @@ import 'package:dart_mappable/dart_mappable.dart';
 part 'workbench_view_prefs.mapper.dart';
 
 @MappableEnum()
-enum WorkbenchGroupBy { none, project }
+enum WorkbenchGroupBy { none, project, section }
 
 @MappableEnum()
 enum WorkbenchSortBy { name, recent, activity }
@@ -40,6 +40,9 @@ enum WorkspaceKindFilter { all, defaultOnly, nonDefaultOnly }
 
 @MappableClass()
 class const WorkbenchViewPrefs({
+  this.sectionSort = WorkbenchSortBy.name,
+  this.collapsedSectionIds = const <String>{},
+  this.othersSectionCollapsed = false,
   required this.groupBy,
   required this.projectSort,
   required this.workspaceSort,
@@ -64,6 +67,9 @@ class const WorkbenchViewPrefs({
   this.showActiveWorkspacesOnly = false,
 }) with WorkbenchViewPrefsMappable {
   final WorkbenchGroupBy groupBy;
+  final WorkbenchSortBy sectionSort;
+  final Set<String> collapsedSectionIds;
+  final bool othersSectionCollapsed;
   final WorkbenchSortBy projectSort;
   final WorkbenchSortBy workspaceSort;
 

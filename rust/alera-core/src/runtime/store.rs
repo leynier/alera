@@ -70,6 +70,9 @@ impl RuntimeStore {
         for statement in RUNTIME_SCHEMA {
             sqlx::query(*statement).execute(&self.pool).await?;
         }
+        for statement in super::workspace_section_store::SECTION_SCHEMA {
+            sqlx::query(*statement).execute(&self.pool).await?;
+        }
         for statement in super::project_clone_job_store::PROJECT_CLONE_JOB_SCHEMA {
             sqlx::query(*statement).execute(&self.pool).await?;
         }
@@ -1559,7 +1562,7 @@ impl RuntimeStore {
         .await?
         .try_get("childCount")?;
         Ok(Workspace {
-            id,
+            id: id.clone(),
             instance_id: row.try_get("instanceId")?,
             host_id: row.try_get("hostId")?,
             project_id: row.try_get("projectId")?,
@@ -1576,6 +1579,7 @@ impl RuntimeStore {
             tag_ids,
             tag_names,
             parent_workspace_id,
+            section_id: self.workspace_section_id(&id).await?,
             child_count,
         })
     }
@@ -1850,6 +1854,7 @@ mod tests {
             tag_ids: Vec::new(),
             tag_names: Vec::new(),
             parent_workspace_id: None,
+            section_id: None,
             child_count: 0,
         }
     }

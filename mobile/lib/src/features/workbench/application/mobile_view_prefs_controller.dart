@@ -41,6 +41,17 @@ class MobileViewPrefsController extends _$MobileViewPrefsController {
     );
   }
 
+  Future<void> setSectionSort(MobileWorkbenchSortBy value) =>
+      _update((prefs) => prefs.copyWith(sectionSort: value));
+
+  Future<void> toggleSectionCollapsed(String? id) => _update(
+    (prefs) => id == null
+        ? prefs.copyWith(othersSectionCollapsed: !prefs.othersSectionCollapsed)
+        : prefs.copyWith(
+            collapsedSectionIds: _toggled(prefs.collapsedSectionIds, id),
+          ),
+  );
+
   Future<void> setProjectSort(MobileWorkbenchSortBy value) {
     return _update((prefs) => prefs.copyWith(projectSort: value));
   }

@@ -1,3 +1,5 @@
+import 'package:alera_mobile/src/features/workbench/presentation/section_picker_sheet.dart';
+
 import 'dart:async';
 
 import 'package:alera_mobile/src/app/theme/alera_tokens.dart';
@@ -247,6 +249,7 @@ class const _WorkspaceListBody({
         ref.watch(workspaceAgentExpansionControllerProvider(hostId)).value ??
         const <String>{};
     final rows = buildMobileWorkspaceRows(
+      sections: data.sections,
       workspaces: data.workspaces,
       projects: data.projects,
       prefs: prefs,
@@ -290,6 +293,11 @@ class const _WorkspaceListBody({
               delegate: SliverChildBuilderDelegate((context, index) {
                 final row = rows[index];
                 return switch (row) {
+                  MobileCustomSectionHeaderRow() => MobileCustomSectionHeader(
+                    hostId: hostId,
+                    row: row,
+                    supportsSections: data.supportsSections,
+                  ),
                   MobilePinnedHeaderRow(:final count, :final collapsed) =>
                     MobileSectionHeader(
                       label: 'Pinned',

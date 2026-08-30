@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:alera_mobile/src/features/runtime/domain/workspace_section_summary.dart';
 import 'package:alera_mobile/src/features/runtime/domain/project_summary.dart';
 import 'package:alera_mobile/src/features/runtime/domain/workspace_creation_result.dart';
 import 'package:alera_mobile/src/features/runtime/domain/workspace_summary.dart';
@@ -9,10 +10,12 @@ import 'package:alera_mobile/src/features/terminal/application/terminal_provider
 import 'package:alera_mobile/src/features/workbench/application/deferred_workspace_setup_launcher.dart';
 import 'package:alera_mobile/src/features/workbench/application/workbench_providers.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
+import 'package:logging/logging.dart';
 
 part 'workspace_list_controller.g.dart';
 
 const Set<String> _refreshEvents = <String>{
+  'workspaceSectionsChanged',
   'workspacesChanged',
   'workspaceRelationsChanged',
   'workspaceTabsChanged',
@@ -24,6 +27,8 @@ const Set<String> _refreshEvents = <String>{
 };
 
 class const WorkspaceListData({
+  final List<WorkspaceSectionSummary> sections = const [],
+  final bool supportsSections = false,
   required final List<WorkspaceSummary> workspaces,
   required final List<ProjectSummary> projects,
   required this.supportsMutations,
@@ -72,6 +77,10 @@ class WorkspaceListController extends _$WorkspaceListController {
     }
     final snapshot = await client.workspaceSidebarSnapshot();
     return WorkspaceListData(
+      sections: snapshot.sections,
+      supportsSections:
+          client is MobileWorkspaceSectionClient &&
+          (client as MobileWorkspaceSectionClient).supportsWorkspaceSections,
       workspaces: snapshot.workspaces,
       projects: snapshot.projects,
       supportsMutations: client.supportsWorkspaceMutations,
@@ -92,6 +101,35 @@ class WorkspaceListController extends _$WorkspaceListController {
       defaultAgentProfileId: snapshot.defaultAgentProfileId,
       terminalTabCountByWorkspaceId: snapshot.terminalTabCountByWorkspaceId,
     );
+  }
+
+  Future<void> setSection(String workspaceId, String? sectionId) async {
+    try {
+      final client = await ref.read(workspaceClientProvider(hostId).future);
+      await (client as MobileWorkspaceSectionClient).setWorkspaceSection(
+        workspaceId,
+        sectionId,
+      );
+      _invalidateIfMounted();
+    } catch (error, stack) {
+      Logger('WorkspaceListController')
+          .warning('Could not set workspace section', error, stack);
+      rethrow;
+    }
+  }
+
+  Future<void> removeSection(String sectionId) async {
+    try {
+      final client = await ref.read(workspaceClientProvider(hostId).future);
+      await (client as MobileWorkspaceSectionClient).removeWorkspaceSection(
+        sectionId,
+      );
+      _invalidateIfMounted();
+    } catch (error, stack) {
+      Logger('WorkspaceListController')
+          .warning('Could not delete workspace section', error, stack);
+      rethrow;
+    }
   }
 
   Future<void> setPinned(String workspaceId, bool isPinned) async {

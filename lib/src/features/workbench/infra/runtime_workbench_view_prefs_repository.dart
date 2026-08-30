@@ -28,11 +28,11 @@ class RuntimeWorkbenchViewPrefsRepository({
       _revision = (record['revision'] as num?)?.toInt() ?? 0;
       if (record['desktopInitialized'] != true) {
         await _writeShared(local);
-        return local;
+        return await _forRuntime(local);
       }
       final merged = _mergeShared(local, _asMap(record['prefs']));
       await legacyRepository.save(merged);
-      return merged;
+      return await _forRuntime(merged);
     } catch (error, stackTrace) {
       // The local prefs still render, so the only visible symptom is that a
       // change made on another device never arrives.
@@ -41,8 +41,24 @@ class RuntimeWorkbenchViewPrefsRepository({
         error,
         stackTrace,
       );
-      return local;
+      return _forRuntime(local);
     }
+  }
+
+  Future<WorkbenchViewPrefs> _forRuntime(WorkbenchViewPrefs prefs) async {
+    if (prefs.groupBy != WorkbenchGroupBy.section) return prefs;
+    try {
+      if (client is RuntimeHostCapabilityClient &&
+          await (client as RuntimeHostCapabilityClient)
+              .supportsRuntimeCapability(
+                aleraRuntimeHostWorkspaceSectionsCapability,
+              )) {
+        return prefs;
+      }
+    } catch (error, stack) {
+      _log.warning('Could not check section support', error, stack);
+    }
+    return prefs.copyWith(groupBy: WorkbenchGroupBy.project);
   }
 
   @override
@@ -53,13 +69,23 @@ class RuntimeWorkbenchViewPrefsRepository({
   }
 
   Future<void> _writeShared(WorkbenchViewPrefs prefs) async {
+    final shared = _sharedJson(prefs);
+    if (client is! RuntimeHostCapabilityClient ||
+        !await (client as RuntimeHostCapabilityClient)
+            .supportsRuntimeCapability(
+              aleraRuntimeHostWorkspaceSectionsCapability,
+            )) {
+      shared.remove('sectionSort');
+      shared.remove('collapsedSectionIds');
+      shared.remove('othersSectionCollapsed');
+      if (prefs.groupBy == WorkbenchGroupBy.section) {
+        shared['groupBy'] = 'project';
+      }
+    }
     final record = _asMap(
       await client.runtimeRequest(
         'workbenchViewPrefs.update',
-        <String, Object?>{
-          'expectedRevision': _revision,
-          'prefs': _sharedJson(prefs),
-        },
+        <String, Object?>{'expectedRevision': _revision, 'prefs': shared},
       ),
     );
     _revision = (record['revision'] as num?)?.toInt() ?? _revision;
@@ -69,6 +95,9 @@ class RuntimeWorkbenchViewPrefsRepository({
 Map<String, Object?> _sharedJson(WorkbenchViewPrefs prefs) {
   return <String, Object?>{
     'groupBy': prefs.groupBy.name,
+    'sectionSort': prefs.sectionSort.name,
+    'collapsedSectionIds': prefs.collapsedSectionIds.toList(),
+    'othersSectionCollapsed': prefs.othersSectionCollapsed,
     'projectSort': prefs.projectSort.name,
     'workspaceSort': prefs.workspaceSort.name,
     'selectedProjectIds': prefs.selectedProjectIds.toList(),
@@ -93,6 +122,17 @@ WorkbenchViewPrefs _mergeShared(
       shared['groupBy'],
       local.groupBy,
     ),
+    sectionSort: _enumByName(
+      WorkbenchSortBy.values,
+      shared['sectionSort'],
+      local.sectionSort,
+    ),
+    collapsedSectionIds: shared.containsKey('collapsedSectionIds')
+        ? _stringSet(shared['collapsedSectionIds'])
+        : local.collapsedSectionIds,
+    othersSectionCollapsed:
+        shared['othersSectionCollapsed'] as bool? ??
+        local.othersSectionCollapsed,
     projectSort: _enumByName(
       WorkbenchSortBy.values,
       shared['projectSort'],

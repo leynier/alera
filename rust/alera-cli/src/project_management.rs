@@ -103,6 +103,7 @@ pub async fn register_project(
         tag_ids: Vec::new(),
         tag_names: Vec::new(),
         parent_workspace_id: None,
+        section_id: None,
         child_count: 0,
     };
     store.upsert_project(project.clone()).await?;
@@ -312,6 +313,7 @@ async fn ensure_main_workspace(store: &RuntimeStore, project: &Project) -> Resul
             tag_ids: Vec::new(),
             tag_names: Vec::new(),
             parent_workspace_id: None,
+            section_id: None,
             child_count: 0,
         })
         .await
