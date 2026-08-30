@@ -1,3 +1,4 @@
+import 'package:alera_mobile/src/features/workbench/presentation/section_picker_sheet.dart';
 import 'package:alera_mobile/src/app/theme/alera_tokens.dart';
 import 'package:alera_mobile/src/design_system/chips/alera_chip.dart';
 import 'package:alera_mobile/src/design_system/icons/alera_icons.dart';
@@ -19,6 +20,8 @@ enum _WorkspaceAction {
   tags,
   configureParent,
   unlinkParent,
+  setSection,
+  clearSection,
   openRepository,
   copyPath,
   sleep,
@@ -46,7 +49,7 @@ Future<void> showWorkspaceActionsSheet(
           maxHeight: MediaQuery.sizeOf(context).height * 0.85,
         ),
         child: Column(
-          mainAxisSize: MainAxisSize.min,
+          mainAxisSize: .min,
           children: <Widget>[
             _WorkspaceActionsHeader(workspace: workspace),
             const Divider(height: 1),
@@ -83,24 +86,36 @@ Future<void> showWorkspaceActionsSheet(
                   ListTile(
                     leading: const Icon(AleraIcons.link, size: 20),
                     title: const Text('Set Parent Workspace'),
-                    onTap: () => Navigator.of(
-                      context,
-                    ).pop(_WorkspaceAction.configureParent),
+                    onTap: () =>
+                        Navigator.of(context)
+                            .pop(_WorkspaceAction.configureParent),
                   ),
                   if (workspace.hasParent)
                     ListTile(
                       leading: const Icon(AleraIcons.close, size: 20),
                       title: const Text('Clear Parent Workspace'),
-                      onTap: () => Navigator.of(
-                        context,
-                      ).pop(_WorkspaceAction.unlinkParent),
+                      onTap: () =>
+                          Navigator.of(context)
+                              .pop(_WorkspaceAction.unlinkParent),
+                    ),
+                  if (data.supportsSections)
+                    ListTile(
+                      title: const Text('Set Section'),
+                      onTap: () =>
+                          Navigator.pop(context, _WorkspaceAction.setSection),
+                    ),
+                  if (data.supportsSections && workspace.sectionId != null)
+                    ListTile(
+                      title: const Text('Clear Section'),
+                      onTap: () =>
+                          Navigator.pop(context, _WorkspaceAction.clearSection),
                     ),
                   ListTile(
                     leading: const Icon(AleraIcons.external, size: 20),
                     title: const Text('Open in Browser'),
-                    onTap: () => Navigator.of(
-                      context,
-                    ).pop(_WorkspaceAction.openRepository),
+                    onTap: () =>
+                        Navigator.of(context)
+                            .pop(_WorkspaceAction.openRepository),
                   ),
                   ListTile(
                     leading: const Icon(AleraIcons.copy, size: 20),
@@ -166,6 +181,14 @@ Future<void> showWorkspaceActionsSheet(
         }
       case _WorkspaceAction.unlinkParent:
         await controller.unlinkParent(workspace);
+      case _WorkspaceAction.setSection:
+        await showSectionPickerSheet(
+          context,
+          hostId: hostId,
+          workspace: workspace,
+        );
+      case _WorkspaceAction.clearSection:
+        await controller.setSection(workspace.id, null);
       case _WorkspaceAction.tags:
         await showWorkspaceTagsSheet(
           context,
@@ -207,11 +230,8 @@ Future<void> showWorkspaceActionsSheet(
   }
 }
 
-class _WorkspaceActionsHeader extends StatelessWidget {
-  const _WorkspaceActionsHeader({required this.workspace});
-
-  final WorkspaceSummary workspace;
-
+class const _WorkspaceActionsHeader({required final WorkspaceSummary workspace})
+    extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -225,7 +245,7 @@ class _WorkspaceActionsHeader extends StatelessWidget {
         AleraTokens.space12,
       ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: .start,
         children: <Widget>[
           Row(
             children: <Widget>[
@@ -233,9 +253,9 @@ class _WorkspaceActionsHeader extends StatelessWidget {
                 child: Text(
                   workspace.name,
                   maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+                  overflow: .ellipsis,
                   style: theme.textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w600,
+                    fontWeight: .w600,
                   ),
                 ),
               ),
@@ -263,7 +283,7 @@ class _WorkspaceActionsHeader extends StatelessWidget {
                   child: Text(
                     branch,
                     maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
+                    overflow: .ellipsis,
                     style: theme.textTheme.bodyMedium?.copyWith(
                       color: AleraTokens.foregroundMuted,
                       fontFamily: AleraTokens.monoFontFamily,

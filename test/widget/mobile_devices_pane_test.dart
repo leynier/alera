@@ -459,9 +459,7 @@ final class _FakeMobileRuntimeHostClient implements RuntimeHostClient {
   }
 }
 
-final class _Request {
-  const _Request(this.type, this.payload);
-
-  final String type;
-  final Map<String, Object?> payload;
-}
+final class const _Request(
+  final String type,
+  final Map<String, Object?> payload,
+);

@@ -15,8 +15,8 @@ CodexTimelineCell _cell({
   turnId: turnId,
   kind: kind,
   status: status,
-  createdAt: DateTime.utc(2026),
-  updatedAt: DateTime.utc(2026),
+  createdAt: .utc(2026),
+  updatedAt: .utc(2026),
   isStreaming: streaming,
 );
 

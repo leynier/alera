@@ -92,6 +92,7 @@ impl ServerActor {
             "projects": projects,
             "workspaces": workspaces,
             "tags": tags,
+            "sections": self.runtime_store.list_workspace_sections().await.map_err(state_error)?,
             "activity": activity,
             "viewPrefs": view_prefs,
             "runtimeSettings": runtime_settings,
@@ -159,8 +160,26 @@ impl ServerActor {
         payload: &Value,
     ) -> HostResult<Value> {
         self.require_auth(client_id)?;
+        let mut compatible = payload.clone();
+        let current = self
+            .runtime_store
+            .shared_workbench_view_prefs()
+            .await
+            .map_err(state_error)?;
+        let current_json = serde_json::to_value(current.prefs).map_err(state_error)?;
+        if let Some(prefs) = compatible.get_mut("prefs").and_then(Value::as_object_mut) {
+            for key in [
+                "sectionSort",
+                "collapsedSectionIds",
+                "othersSectionCollapsed",
+            ] {
+                if !prefs.contains_key(key) {
+                    prefs.insert(key.to_string(), current_json[key].clone());
+                }
+            }
+        }
         let request: UpdateViewPrefsRequest =
-            serde_json::from_value(payload.clone()).map_err(format_error)?;
+            serde_json::from_value(compatible).map_err(format_error)?;
         let writer = if self.is_mobile_client(client_id) {
             SharedWorkbenchPrefsWriter::Mobile
         } else {

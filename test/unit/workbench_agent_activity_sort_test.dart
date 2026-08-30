@@ -3,13 +3,13 @@ import 'package:alera/src/features/workbench/application/workbench_agent_activit
 import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-final DateTime _now = DateTime.utc(2026, 7, 4, 12);
+final DateTime _now = .utc(2026, 7, 4, 12);
 
 WorkspaceTabRecord _tab(String id, String workspaceId) {
   return WorkspaceTabRecord(
     id: id,
     workspaceId: workspaceId,
-    kind: WorkspaceTabKind.terminal,
+    kind: .terminal,
     title: id,
     createdAt: _now,
     updatedAt: _now,
@@ -26,7 +26,7 @@ AgentStatusEntry _status(
     terminalSessionId: tab.terminalSessionId,
     workspaceId: tab.workspaceId,
     tabId: tab.id,
-    agentType: AgentType.claude,
+    agentType: .claude,
     state: state,
     prompt: 'Prompt',
     updatedAt: _now.subtract(age),
@@ -59,11 +59,7 @@ void main() {
       final attention = workspaceAttention(
         tabs: <WorkspaceTabRecord>[tab],
         agentStatuses: <String, AgentStatusEntry>{
-          tab.terminalSessionId: _status(
-            tab,
-            state: AgentStatusState.done,
-            interrupted: true,
-          ),
+          tab.terminalSessionId: _status(tab, state: .done, interrupted: true),
         },
         now: _now,
       );
@@ -77,7 +73,7 @@ void main() {
         agentStatuses: <String, AgentStatusEntry>{
           tab.terminalSessionId: _status(
             tab,
-            state: AgentStatusState.waiting,
+            state: .waiting,
             age: agentActivityStaleness + const Duration(minutes: 1),
           ),
         },
@@ -92,13 +88,10 @@ void main() {
       final attention = workspaceAttention(
         tabs: <WorkspaceTabRecord>[working, waiting],
         agentStatuses: <String, AgentStatusEntry>{
-          working.terminalSessionId: _status(
-            working,
-            state: AgentStatusState.working,
-          ),
+          working.terminalSessionId: _status(working, state: .working),
           waiting.terminalSessionId: _status(
             waiting,
-            state: AgentStatusState.waiting,
+            state: .waiting,
             age: const Duration(minutes: 5),
           ),
         },
@@ -113,12 +106,12 @@ void main() {
     test('lower class ranks first regardless of recency', () {
       final result = compareByAgentActivity(
         aActivity: AgentActivityRank(
-          attentionClass: AgentAttentionClass.working,
+          attentionClass: .working,
           activityAt: _now,
         ),
         aName: 'a',
         bActivity: AgentActivityRank(
-          attentionClass: AgentAttentionClass.needsYou,
+          attentionClass: .needsYou,
           activityAt: _now.subtract(const Duration(days: 1)),
         ),
         bName: 'b',
@@ -128,13 +121,10 @@ void main() {
 
     test('same class ranks by recency then name', () {
       final result = compareByAgentActivity(
-        aActivity: AgentActivityRank(
-          attentionClass: AgentAttentionClass.done,
-          activityAt: _now,
-        ),
+        aActivity: AgentActivityRank(attentionClass: .done, activityAt: _now),
         aName: 'a',
         bActivity: AgentActivityRank(
-          attentionClass: AgentAttentionClass.done,
+          attentionClass: .done,
           activityAt: _now.subtract(const Duration(minutes: 1)),
         ),
         bName: 'b',
@@ -146,10 +136,7 @@ void main() {
       'terminal activity ranks before an alphabetically earlier inactive',
       () {
         final result = compareByAgentActivity(
-          aActivity: AgentActivityRank(
-            attentionClass: AgentAttentionClass.idle,
-            activityAt: _now,
-          ),
+          aActivity: AgentActivityRank(attentionClass: .idle, activityAt: _now),
           aName: 'zebra',
           bActivity: null,
           bName: 'alpha',
@@ -172,11 +159,11 @@ void main() {
   group('aggregateAgentActivityBySubtree', () {
     test('promotes an ancestor using its best descendant activity', () {
       final working = AgentActivityRank(
-        attentionClass: AgentAttentionClass.working,
+        attentionClass: .working,
         activityAt: _now,
       );
       final waiting = AgentActivityRank(
-        attentionClass: AgentAttentionClass.needsYou,
+        attentionClass: .needsYou,
         activityAt: _now.subtract(const Duration(minutes: 5)),
       );
       final ranks = aggregateAgentActivityBySubtree(
@@ -198,7 +185,7 @@ void main() {
 
     test('terminates when parent relationships contain a cycle', () {
       final activity = AgentActivityRank(
-        attentionClass: AgentAttentionClass.working,
+        attentionClass: .working,
         activityAt: _now,
       );
       final ranks = aggregateAgentActivityBySubtree(

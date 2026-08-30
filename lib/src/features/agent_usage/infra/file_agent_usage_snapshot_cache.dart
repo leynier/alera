@@ -9,11 +9,12 @@ import 'package:path_provider/path_provider.dart';
 
 typedef AgentUsageSupportDirectoryResolver = Future<Directory> Function();
 
-class FileAgentUsageSnapshotCache implements AgentUsageSnapshotCache {
-  FileAgentUsageSnapshotCache({
-    AgentUsageSupportDirectoryResolver? applicationSupportDirectory,
-  }) : _applicationSupportDirectory =
-           applicationSupportDirectory ?? getApplicationSupportDirectory;
+class FileAgentUsageSnapshotCache({
+  AgentUsageSupportDirectoryResolver? applicationSupportDirectory,
+}) implements AgentUsageSnapshotCache {
+  this
+    : _applicationSupportDirectory =
+          applicationSupportDirectory ?? getApplicationSupportDirectory;
 
   // Older apps map unknown providers to Codex; they must reject Grok snapshots.
   static const int _schemaVersion = 2;

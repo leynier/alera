@@ -6,6 +6,7 @@ pub enum SharedWorkbenchGroupBy {
     None,
     #[default]
     Project,
+    Section,
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default)]
@@ -30,6 +31,12 @@ pub enum SharedWorkspaceKindFilter {
 #[serde(rename_all = "camelCase")]
 pub struct SharedWorkbenchViewPrefs {
     pub group_by: SharedWorkbenchGroupBy,
+    #[serde(default)]
+    pub section_sort: SharedWorkbenchSortBy,
+    #[serde(default)]
+    pub collapsed_section_ids: Vec<String>,
+    #[serde(default)]
+    pub others_section_collapsed: bool,
     pub project_sort: SharedWorkbenchSortBy,
     pub workspace_sort: SharedWorkbenchSortBy,
     #[serde(default)]
@@ -59,6 +66,9 @@ impl Default for SharedWorkbenchViewPrefs {
     fn default() -> Self {
         Self {
             group_by: SharedWorkbenchGroupBy::Project,
+            section_sort: SharedWorkbenchSortBy::Name,
+            collapsed_section_ids: Vec::new(),
+            others_section_collapsed: false,
             project_sort: SharedWorkbenchSortBy::Name,
             workspace_sort: SharedWorkbenchSortBy::Name,
             selected_project_ids: Vec::new(),

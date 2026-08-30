@@ -74,7 +74,7 @@ void main() {
           path: destination.path,
           mimeType: 'image/png',
           sizeBytes: 3,
-          expiresAt: DateTime.utc(2026, 1, 2),
+          expiresAt: .utc(2026, 1, 2),
         ),
       );
 

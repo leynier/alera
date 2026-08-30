@@ -49,18 +49,18 @@ void main() {
   test('identical labels use the stable action id as a tie breaker', () {
     final definitions = <KeybindingDefinition>[
       const KeybindingDefinition(
-        id: KeyboardActionId.openSettings,
+        id: .openSettings,
         label: 'Same Action',
-        group: KeyboardActionGroup.global,
+        group: .global,
         description: 'First.',
-        defaultBindings: PlatformBindings.uniform(<String>['Mod+1']),
+        defaultBindings: .uniform(<String>['Mod+1']),
       ),
       const KeybindingDefinition(
-        id: KeyboardActionId.addProject,
+        id: .addProject,
         label: 'Same Action',
-        group: KeyboardActionGroup.global,
+        group: .global,
         description: 'Second.',
-        defaultBindings: PlatformBindings.uniform(<String>['Mod+2']),
+        defaultBindings: .uniform(<String>['Mod+2']),
       ),
     ];
 
@@ -78,27 +78,27 @@ void main() {
   test('command results are bounded with stable label ordering', () {
     final definitions = <KeybindingDefinition>[
       const KeybindingDefinition(
-        id: KeyboardActionId.openSettings,
+        id: .openSettings,
         label: 'Alpha Action',
-        group: KeyboardActionGroup.global,
+        group: .global,
         description: 'Run the same command.',
-        defaultBindings: PlatformBindings.uniform(<String>['Mod+1']),
+        defaultBindings: .uniform(<String>['Mod+1']),
         searchKeywords: <String>['shared'],
       ),
       const KeybindingDefinition(
-        id: KeyboardActionId.addProject,
+        id: .addProject,
         label: 'Beta Action',
-        group: KeyboardActionGroup.global,
+        group: .global,
         description: 'Run the same command.',
-        defaultBindings: PlatformBindings.uniform(<String>['Mod+2']),
+        defaultBindings: .uniform(<String>['Mod+2']),
         searchKeywords: <String>['shared'],
       ),
       const KeybindingDefinition(
-        id: KeyboardActionId.toggleSidebar,
+        id: .toggleSidebar,
         label: 'Gamma Action',
-        group: KeyboardActionGroup.global,
+        group: .global,
         description: 'Run the same command.',
-        defaultBindings: PlatformBindings.uniform(<String>['Mod+3']),
+        defaultBindings: .uniform(<String>['Mod+3']),
         searchKeywords: <String>['shared'],
       ),
     ];

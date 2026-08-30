@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:alera/src/features/ai_assist/application/agent_title_providers.dart';
 import 'package:alera/src/design_system/feedback/alera_toast.dart';
+
 import 'dart:math' as math;
 
 import 'package:alera/src/app/theme/alera_tokens.dart';
@@ -46,40 +47,48 @@ part 'workspace_workbench_tab_chips.dart';
 part 'workspace_workbench_tab_menu.dart';
 part 'workspace_workbench_resize_handle.dart';
 
-typedef CreateTerminalTabCallback =
-    Future<void> Function({String? targetGroupId});
-typedef CreateBrowserTabCallback =
-    Future<void> Function({String? targetGroupId});
+typedef CreateTerminalTabCallback = Future<void> Function({
+  String? targetGroupId,
+});
+typedef CreateBrowserTabCallback = Future<void> Function({
+  String? targetGroupId,
+});
 typedef CreateCodexTabCallback = Future<void> Function({String? targetGroupId});
-typedef OpenMobileEmulatorTabCallback =
-    Future<void> Function({String? targetGroupId});
-typedef OpenFileTabCallback =
-    Future<void> Function({
-      required String relativePath,
-      String? targetGroupId,
-    });
-typedef SelectWorkspaceTabCallback =
-    void Function({required String groupId, required String tabId});
-typedef MoveWorkspaceTabCallback =
-    Future<void> Function({
-      required String tabId,
-      required String targetGroupId,
-      required WorkbenchDropZone zone,
-      int? index,
-    });
-typedef SplitWorkbenchGroupCallback =
-    Future<void> Function({
-      required String groupId,
-      required WorkbenchDropZone zone,
-    });
-typedef MergeWorkbenchGroupCallback =
-    Future<void> Function({required String groupId});
-typedef ActivateWorkbenchGroupCallback =
-    void Function({required String groupId});
-typedef UpdateWorkbenchSplitRatioCallback =
-    void Function({required List<int> nodePath, required double ratio});
-typedef RenameWorkspaceTabCallback =
-    Future<void> Function({required String tabId, required String title});
+typedef OpenMobileEmulatorTabCallback = Future<void> Function({
+  String? targetGroupId,
+});
+typedef OpenFileTabCallback = Future<void> Function({
+  required String relativePath,
+  String? targetGroupId,
+});
+typedef SelectWorkspaceTabCallback = void Function({
+  required String groupId,
+  required String tabId,
+});
+typedef MoveWorkspaceTabCallback = Future<void> Function({
+  required String tabId,
+  required String targetGroupId,
+  required WorkbenchDropZone zone,
+  int? index,
+});
+typedef SplitWorkbenchGroupCallback = Future<void> Function({
+  required String groupId,
+  required WorkbenchDropZone zone,
+});
+typedef MergeWorkbenchGroupCallback = Future<void> Function({
+  required String groupId,
+});
+typedef ActivateWorkbenchGroupCallback = void Function({
+  required String groupId,
+});
+typedef UpdateWorkbenchSplitRatioCallback = void Function({
+  required List<int> nodePath,
+  required double ratio,
+});
+typedef RenameWorkspaceTabCallback = Future<void> Function({
+  required String tabId,
+  required String title,
+});
 typedef OpenWorkspaceFileCallback = Future<void> Function(String relativePath);
 
 @visibleForTesting
@@ -175,71 +184,41 @@ bool splitDirectionPainterShouldRepaintForTesting(
   WorkbenchDropZone previousZone,
   WorkbenchDropZone nextZone,
 ) {
-  return _SplitDirectionPainter(
-    zone: nextZone,
-  ).shouldRepaint(_SplitDirectionPainter(zone: previousZone));
+  return _SplitDirectionPainter(zone: nextZone)
+      .shouldRepaint(_SplitDirectionPainter(zone: previousZone));
 }
 
-class WorkspaceWorkbenchView extends StatefulWidget {
-  const WorkspaceWorkbenchView({
-    super.key,
-    required this.project,
-    required this.workspace,
-    this.sourceControlScope,
-    required this.tabs,
-    required this.layout,
-    required this.terminalRuntime,
-    this.mobileDriverPresence,
-    required this.agentStatuses,
-    required this.completionAcknowledgements,
-    required this.onCreateTab,
-    required this.onCreateBrowserTab,
-    this.onCreateCodexTab,
-    this.onOpenMobileEmulator,
-    required this.onOpenEditorTab,
-    required this.onOpenMarkdownViewerTab,
-    required this.onSelectTab,
-    required this.onCloseTab,
-    required this.onCloseTabs,
-    required this.onRenameTab,
-    required this.onOpenEditor,
-    required this.onOpenMermanPreview,
-    required this.onMoveTab,
-    required this.onSplitGroup,
-    required this.onMergeGroup,
-    required this.onActivateGroup,
-    required this.onUpdateSplitRatio,
-    this.onKeepPreviewTab,
-  });
-
-  final Project project;
-  final Workspace workspace;
-  final WorkspaceSourceControlScope? sourceControlScope;
-  final List<WorkspaceTabRecord> tabs;
-  final WorkbenchLayout? layout;
-  final TerminalRuntime terminalRuntime;
-  final WorkbenchMobileDriverPresence? mobileDriverPresence;
-  final Map<String, AgentStatusEntry> agentStatuses;
-  final WorkbenchTabCompletionAcknowledgements completionAcknowledgements;
-  final CreateTerminalTabCallback onCreateTab;
-  final CreateBrowserTabCallback? onCreateBrowserTab;
-  final CreateCodexTabCallback? onCreateCodexTab;
-  final OpenMobileEmulatorTabCallback? onOpenMobileEmulator;
-  final OpenFileTabCallback onOpenEditorTab;
-  final OpenFileTabCallback onOpenMarkdownViewerTab;
-  final SelectWorkspaceTabCallback onSelectTab;
-  final ValueChanged<String> onCloseTab;
-  final ValueChanged<List<String>> onCloseTabs;
-  final RenameWorkspaceTabCallback onRenameTab;
-  final OpenWorkspaceFileCallback onOpenEditor;
-  final OpenWorkspaceFileCallback onOpenMermanPreview;
-  final MoveWorkspaceTabCallback onMoveTab;
-  final SplitWorkbenchGroupCallback onSplitGroup;
-  final MergeWorkbenchGroupCallback onMergeGroup;
-  final ActivateWorkbenchGroupCallback onActivateGroup;
-  final UpdateWorkbenchSplitRatioCallback onUpdateSplitRatio;
-  final ValueChanged<String>? onKeepPreviewTab;
-
+class const WorkspaceWorkbenchView({
+  super.key,
+  required final Project project,
+  required final Workspace workspace,
+  final WorkspaceSourceControlScope? sourceControlScope,
+  required final List<WorkspaceTabRecord> tabs,
+  required final WorkbenchLayout? layout,
+  required final TerminalRuntime terminalRuntime,
+  final WorkbenchMobileDriverPresence? mobileDriverPresence,
+  required final Map<String, AgentStatusEntry> agentStatuses,
+  required final WorkbenchTabCompletionAcknowledgements
+  completionAcknowledgements,
+  required final CreateTerminalTabCallback onCreateTab,
+  required final CreateBrowserTabCallback? onCreateBrowserTab,
+  final CreateCodexTabCallback? onCreateCodexTab,
+  final OpenMobileEmulatorTabCallback? onOpenMobileEmulator,
+  required final OpenFileTabCallback onOpenEditorTab,
+  required final OpenFileTabCallback onOpenMarkdownViewerTab,
+  required final SelectWorkspaceTabCallback onSelectTab,
+  required final ValueChanged<String> onCloseTab,
+  required final ValueChanged<List<String>> onCloseTabs,
+  required final RenameWorkspaceTabCallback onRenameTab,
+  required final OpenWorkspaceFileCallback onOpenEditor,
+  required final OpenWorkspaceFileCallback onOpenMermanPreview,
+  required final MoveWorkspaceTabCallback onMoveTab,
+  required final SplitWorkbenchGroupCallback onSplitGroup,
+  required final MergeWorkbenchGroupCallback onMergeGroup,
+  required final ActivateWorkbenchGroupCallback onActivateGroup,
+  required final UpdateWorkbenchSplitRatioCallback onUpdateSplitRatio,
+  final ValueChanged<String>? onKeepPreviewTab,
+}) extends StatefulWidget {
   @override
   State<WorkspaceWorkbenchView> createState() => _WorkspaceWorkbenchViewState();
 }
@@ -301,8 +280,8 @@ class _WorkspaceWorkbenchViewState extends State<WorkspaceWorkbenchView> {
   }
 }
 
-class _WorkbenchTabDragController extends ValueNotifier<bool> {
-  _WorkbenchTabDragController() : super(false);
+class _WorkbenchTabDragController() extends ValueNotifier<bool> {
+  this : super(false);
 
   var _generation = 0;
   var _disposed = false;
@@ -335,10 +314,10 @@ class _WorkbenchTabDragController extends ValueNotifier<bool> {
   }
 }
 
-class _WorkbenchTabDragScope
-    extends InheritedNotifier<_WorkbenchTabDragController> {
-  const _WorkbenchTabDragScope({required super.notifier, required super.child});
-
+class const _WorkbenchTabDragScope({
+  required super.notifier,
+  required super.child,
+}) extends InheritedNotifier<_WorkbenchTabDragController> {
   static _WorkbenchTabDragController controllerOf(BuildContext context) {
     final element = context
         .getElementForInheritedWidgetOfExactType<_WorkbenchTabDragScope>();
@@ -355,11 +334,10 @@ class _WorkbenchTabDragScope
   }
 }
 
-class _MobileEmulatorOpenScope extends InheritedWidget {
-  const _MobileEmulatorOpenScope({required this.onOpen, required super.child});
-
-  final OpenMobileEmulatorTabCallback? onOpen;
-
+class const _MobileEmulatorOpenScope({
+  required final OpenMobileEmulatorTabCallback? onOpen,
+  required super.child,
+}) extends InheritedWidget {
   static OpenMobileEmulatorTabCallback? maybeOf(BuildContext context) {
     return context
         .dependOnInheritedWidgetOfExactType<_MobileEmulatorOpenScope>()
@@ -371,11 +349,10 @@ class _MobileEmulatorOpenScope extends InheritedWidget {
       onOpen != oldWidget.onOpen;
 }
 
-class _KeepPreviewTabScope extends InheritedWidget {
-  const _KeepPreviewTabScope({required this.onKeep, required super.child});
-
-  final ValueChanged<String>? onKeep;
-
+class const _KeepPreviewTabScope({
+  required final ValueChanged<String>? onKeep,
+  required super.child,
+}) extends InheritedWidget {
   static ValueChanged<String>? maybeOf(BuildContext context) {
     return context
         .dependOnInheritedWidgetOfExactType<_KeepPreviewTabScope>()

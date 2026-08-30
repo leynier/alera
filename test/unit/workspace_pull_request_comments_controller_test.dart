@@ -4,7 +4,6 @@ import 'package:alera/src/features/pull_requests/application/forge_provider.dart
 import 'package:alera/src/features/pull_requests/application/forge_provider_registry.dart';
 import 'package:alera/src/features/pull_requests/application/pull_request_providers.dart';
 import 'package:alera/src/features/pull_requests/application/workspace_pull_request_controller.dart';
-import 'package:alera/src/shared/git_hosting/domain/git_hosting_provider.dart';
 import 'package:alera/src/features/pull_requests/domain/hosted_review.dart';
 import 'package:alera/src/features/pull_requests/domain/review_comment.dart';
 import 'package:alera/src/features/pull_requests/domain/workspace_pull_request_scope.dart';
@@ -22,10 +21,10 @@ const _scope = WorkspacePullRequestScope(
 );
 
 const _review = HostedReview(
-  provider: GitHostingProvider.github,
+  provider: .github,
   number: 123,
   title: 'feat: comments',
-  state: HostedReviewState.open,
+  state: .open,
   url: 'https://github.com/leynier/alera/pull/123',
   headBranch: 'feature',
 );
@@ -62,8 +61,8 @@ void main() {
           id: 'c1',
           author: 'reviewer',
           body: 'Looks good',
-          createdAt: DateTime.utc(2026, 7, 16),
-          kind: ReviewCommentKind.conversation,
+          createdAt: .utc(2026, 7, 16),
+          kind: .conversation,
         ),
       ];
     final container = _container(forge);
@@ -104,8 +103,8 @@ void main() {
       id: 'c1',
       author: 'reviewer',
       body: 'Please update this',
-      createdAt: DateTime.utc(2026, 7, 16),
-      kind: ReviewCommentKind.review,
+      createdAt: .utc(2026, 7, 16),
+      kind: .review,
       path: 'lib/a.dart',
       line: 12,
     );
@@ -137,10 +136,10 @@ void main() {
         id: 'c1',
         author: 'reviewer',
         body: '- [ ] first',
-        createdAt: DateTime.utc(2026, 7, 16),
-        kind: ReviewCommentKind.conversation,
+        createdAt: .utc(2026, 7, 16),
+        kind: .conversation,
         locator: const ReviewCommentLocator(
-          source: ReviewCommentSource.conversation,
+          source: .conversation,
           commentId: '1',
         ),
       );
@@ -148,10 +147,10 @@ void main() {
         id: 'c2',
         author: 'reviewer',
         body: '- [ ] second',
-        createdAt: DateTime.utc(2026, 7, 16, 1),
-        kind: ReviewCommentKind.review,
+        createdAt: .utc(2026, 7, 16, 1),
+        kind: .review,
         locator: const ReviewCommentLocator(
-          source: ReviewCommentSource.reviewThread,
+          source: .reviewThread,
           commentId: '2',
           parentId: 'thread-2',
         ),
@@ -171,7 +170,7 @@ void main() {
         workspacePullRequestControllerProvider(_scope).notifier,
       );
       final firstSave = controller.toggleReviewCommentTask('c1', 0);
-      await Future<void>.delayed(Duration.zero);
+      await Future.pause(.zero);
 
       var state = container
           .read(workspacePullRequestControllerProvider(_scope))
@@ -185,7 +184,7 @@ void main() {
       expect(forge.updateCommentCalls, 1);
 
       final secondSave = controller.toggleReviewCommentTask('c2', 0);
-      await Future<void>.delayed(Duration.zero);
+      await Future.pause(.zero);
       expect(forge.updateCommentCalls, 2);
       expect(
         container
@@ -215,10 +214,10 @@ void main() {
         id: 'c1',
         author: 'reviewer',
         body: '- [ ] first',
-        createdAt: DateTime.utc(2026, 7, 16),
-        kind: ReviewCommentKind.conversation,
+        createdAt: .utc(2026, 7, 16),
+        kind: .conversation,
         locator: const ReviewCommentLocator(
-          source: ReviewCommentSource.conversation,
+          source: .conversation,
           commentId: '1',
         ),
       );
@@ -250,10 +249,10 @@ void main() {
       id: 'c1',
       author: 'reviewer',
       body: '- [ ] first',
-      createdAt: DateTime.utc(2026, 7, 16),
-      kind: ReviewCommentKind.conversation,
+      createdAt: .utc(2026, 7, 16),
+      kind: .conversation,
       locator: const ReviewCommentLocator(
-        source: ReviewCommentSource.conversation,
+        source: .conversation,
         commentId: '1',
       ),
     );

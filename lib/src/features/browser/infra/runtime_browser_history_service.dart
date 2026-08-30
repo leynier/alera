@@ -3,11 +3,8 @@ import 'package:alera/src/features/browser/domain/browser_history.dart';
 import 'package:alera/src/features/browser/infra/runtime_browser_payload.dart';
 import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_protocol.dart';
 
-final class RuntimeBrowserHistoryService implements BrowserHistoryService {
-  const RuntimeBrowserHistoryService(this._client);
-
-  final RuntimeHostClient _client;
-
+final class const RuntimeBrowserHistoryService(final RuntimeHostClient _client)
+    implements BrowserHistoryService {
   @override
   Future<List<BrowserHistoryEntry>> list({
     String? profileId,

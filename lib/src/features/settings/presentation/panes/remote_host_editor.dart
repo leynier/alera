@@ -8,58 +8,32 @@ import 'package:alera/src/design_system/surfaces/alera_panel.dart';
 import 'package:alera/src/features/remote_hosts/domain/ssh_target.dart';
 import 'package:flutter/material.dart';
 
-class RemoteHostEditor extends StatelessWidget {
-  const RemoteHostEditor({
-    super.key,
-    required this.aliasController,
-    required this.hostController,
-    required this.portController,
-    required this.usernameController,
-    required this.installDirController,
-    required this.platform,
-    required this.arch,
-    required this.authKind,
-    required this.hasSelection,
-    required this.saving,
-    required this.planning,
-    required this.bootstrapping,
-    required this.onPlatformChanged,
-    required this.onArchChanged,
-    required this.onAuthKindChanged,
-    required this.onSave,
-    required this.onRemove,
-    required this.onPlan,
-    required this.onBootstrap,
-    required this.onCancel,
-    this.error,
-    this.plan,
-    this.progress,
-  });
-
-  final TextEditingController aliasController;
-  final TextEditingController hostController;
-  final TextEditingController portController;
-  final TextEditingController usernameController;
-  final TextEditingController installDirController;
-  final String platform;
-  final String arch;
-  final SshAuthKind authKind;
-  final bool hasSelection;
-  final bool saving;
-  final bool planning;
-  final bool bootstrapping;
-  final ValueChanged<String> onPlatformChanged;
-  final ValueChanged<String> onArchChanged;
-  final ValueChanged<SshAuthKind> onAuthKindChanged;
-  final VoidCallback onSave;
-  final VoidCallback? onRemove;
-  final VoidCallback? onPlan;
-  final VoidCallback? onBootstrap;
-  final VoidCallback? onCancel;
-  final String? error;
-  final SshTargetBootstrapPlan? plan;
-  final SshTargetBootstrapProgress? progress;
-
+class const RemoteHostEditor({
+  super.key,
+  required final TextEditingController aliasController,
+  required final TextEditingController hostController,
+  required final TextEditingController portController,
+  required final TextEditingController usernameController,
+  required final TextEditingController installDirController,
+  required final String platform,
+  required final String arch,
+  required final SshAuthKind authKind,
+  required final bool hasSelection,
+  required final bool saving,
+  required final bool planning,
+  required final bool bootstrapping,
+  required final ValueChanged<String> onPlatformChanged,
+  required final ValueChanged<String> onArchChanged,
+  required final ValueChanged<SshAuthKind> onAuthKindChanged,
+  required final VoidCallback onSave,
+  required final VoidCallback? onRemove,
+  required final VoidCallback? onPlan,
+  required final VoidCallback? onBootstrap,
+  required final VoidCallback? onCancel,
+  final String? error,
+  final SshTargetBootstrapPlan? plan,
+  final SshTargetBootstrapProgress? progress,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -74,7 +48,7 @@ class RemoteHostEditor extends StatelessWidget {
         progress?.status == SshBootstrapStatus.failed;
     return SingleChildScrollView(
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
+        crossAxisAlignment: .stretch,
         children: <Widget>[
           AleraSettingsGroup(
             title: 'Connection',
@@ -104,7 +78,7 @@ class RemoteHostEditor extends StatelessWidget {
                 second: AleraTextField(
                   controller: portController,
                   labelText: 'Port',
-                  keyboardType: TextInputType.number,
+                  keyboardType: .number,
                   prefixIcon: AleraIcons.terminal,
                   enabled: !bootstrapping,
                 ),
@@ -120,15 +94,15 @@ class RemoteHostEditor extends StatelessWidget {
                   // must use agent or key auth.
                   entries: const <AleraDropdownFieldEntry<SshAuthKind>>[
                     AleraDropdownFieldEntry<SshAuthKind>(
-                      value: SshAuthKind.agent,
+                      value: .agent,
                       label: 'Agent',
                     ),
                     AleraDropdownFieldEntry<SshAuthKind>(
-                      value: SshAuthKind.key,
+                      value: .key,
                       label: 'Key',
                     ),
                     AleraDropdownFieldEntry<SshAuthKind>(
-                      value: SshAuthKind.password,
+                      value: .password,
                       label: 'Password',
                       enabled: false,
                     ),
@@ -246,13 +220,13 @@ class RemoteHostEditor extends StatelessWidget {
                 Padding(
                   padding: const EdgeInsets.all(AleraTokens.space12),
                   child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                    crossAxisAlignment: .start,
                     children: <Widget>[
                       Text(
                         progress?.message ?? 'Remote runtime error',
                         style: theme.textTheme.titleSmall?.copyWith(
                           color: AleraTokens.foreground,
-                          fontWeight: FontWeight.w600,
+                          fontWeight: .w600,
                         ),
                       ),
                       const SizedBox(height: AleraTokens.space4),
@@ -276,12 +250,10 @@ class RemoteHostEditor extends StatelessWidget {
   }
 }
 
-class _InlineFieldRow extends StatelessWidget {
-  const _InlineFieldRow({required this.first, required this.second});
-
-  final Widget first;
-  final Widget second;
-
+class const _InlineFieldRow({
+  required final Widget first,
+  required final Widget second,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
@@ -300,26 +272,18 @@ class _InlineFieldRow extends StatelessWidget {
 /// Labeled [AleraDropdownField] used by the connection and bootstrap groups.
 /// [fieldKey] keeps the `Label:value` key scheme so the field reseeds when
 /// the selected target changes.
-class _RemoteHostDropdown<T> extends StatelessWidget {
-  const _RemoteHostDropdown({
-    required this.label,
-    required this.fieldKey,
-    required this.value,
-    required this.entries,
-    required this.onChanged,
-  });
-
-  final String label;
-  final Key fieldKey;
-  final T value;
-  final List<AleraDropdownFieldEntry<T>> entries;
-  final ValueChanged<T>? onChanged;
-
+class const _RemoteHostDropdown<T>({
+  required final String label,
+  required final Key fieldKey,
+  required final T value,
+  required final List<AleraDropdownFieldEntry<T>> entries,
+  required final ValueChanged<T>? onChanged,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: .start,
       children: <Widget>[
         Text(
           label,
@@ -340,11 +304,8 @@ class _RemoteHostDropdown<T> extends StatelessWidget {
   }
 }
 
-class _RemoteHostPlanPanel extends StatelessWidget {
-  const _RemoteHostPlanPanel({required this.plan});
-
-  final SshTargetBootstrapPlan plan;
-
+class const _RemoteHostPlanPanel({required final SshTargetBootstrapPlan plan})
+    extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -355,13 +316,13 @@ class _RemoteHostPlanPanel extends StatelessWidget {
         Padding(
           padding: const EdgeInsets.all(AleraTokens.space12),
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            crossAxisAlignment: .start,
             children: <Widget>[
               Text(
                 '${plan.trust} from ${plan.artifactSource}',
                 style: theme.textTheme.bodyMedium?.copyWith(
                   color: AleraTokens.foreground,
-                  fontWeight: FontWeight.w600,
+                  fontWeight: .w600,
                 ),
               ),
               const SizedBox(height: AleraTokens.space8),
@@ -395,11 +356,8 @@ class _RemoteHostPlanPanel extends StatelessWidget {
   }
 }
 
-class RemoteHostError extends StatelessWidget {
-  const RemoteHostError({super.key, required this.message});
-
-  final String message;
-
+class const RemoteHostError({super.key, required final String message})
+    extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return AleraEmptyState(

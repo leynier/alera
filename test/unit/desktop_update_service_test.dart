@@ -156,10 +156,7 @@ void main() {
     // exactly the installation Alera may replace in place.
     test('installs in place on a distribution with no package', () async {
       final service = DesktopAleraUpdateService(
-        config: _config(
-          channel: AleraUpdateChannel.rc,
-          autoInstallEnabled: true,
-        ),
+        config: _config(channel: .rc, autoInstallEnabled: true),
         loadPackageInfo: () async => _packageInfo('1'),
         loadLinuxInstallerKind: () async => null,
         platform: 'linux',
@@ -243,7 +240,7 @@ void main() {
         },
         platform: 'macos',
         packageInstall: const PackageManagerInstall(
-          method: PackageInstallMethod.homebrewCask,
+          method: .homebrewCask,
           managerExecutable: '/opt/homebrew/bin/brew',
           relaunchExecutable: '/usr/bin/open',
         ),
@@ -370,11 +367,10 @@ void main() {
   });
 }
 
-class _FakeDesktopUpdaterBackend implements AleraDesktopUpdaterBackend {
-  _FakeDesktopUpdaterBackend({this.candidate, this.checkError});
-
-  final DesktopUpdaterReleaseCandidate? candidate;
-  final Object? checkError;
+class _FakeDesktopUpdaterBackend({
+  final DesktopUpdaterReleaseCandidate? candidate,
+  final Object? checkError,
+}) implements AleraDesktopUpdaterBackend {
   int checkCount = 0;
   _BackendCheck? lastCheck;
   DesktopUpdaterReleaseCandidate? stagedCandidate;
@@ -513,7 +509,7 @@ DesktopUpdaterReleaseCandidate _candidate({
   return DesktopUpdaterReleaseCandidate(
     version: version,
     buildNumber: 2,
-    generatedAt: DateTime.utc(2026, 7, 27),
+    generatedAt: .utc(2026, 7, 27),
     mandatory: false,
     platform: platform,
     artifactKind: 'zip',

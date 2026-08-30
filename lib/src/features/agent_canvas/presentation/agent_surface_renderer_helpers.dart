@@ -1,11 +1,9 @@
 part of 'agent_surface_renderer.dart';
 
-class _SurfaceCard extends StatelessWidget {
-  const _SurfaceCard({required this.child, this.emphasized = false});
-
-  final Widget child;
-  final bool emphasized;
-
+class const _SurfaceCard({
+  required final Widget child,
+  final bool emphasized = false,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return DecoratedBox(
@@ -24,11 +22,7 @@ class _SurfaceCard extends StatelessWidget {
   }
 }
 
-class _StatusPill extends StatelessWidget {
-  const _StatusPill(this.value);
-
-  final String value;
-
+class const _StatusPill(final String value) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return DecoratedBox(
@@ -47,21 +41,15 @@ class _StatusPill extends StatelessWidget {
   }
 }
 
-class _KeyValueRows extends StatelessWidget {
-  const _KeyValueRows({
-    required this.title,
-    required this.values,
-    required this.keys,
-  });
-
-  final String title;
-  final Map<String, Object?> values;
-  final List<String> keys;
-
+class const _KeyValueRows({
+  required final String title,
+  required final Map<String, Object?> values,
+  required final List<String> keys,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+      crossAxisAlignment: .stretch,
       children: <Widget>[
         Text(title),
         const SizedBox(height: AleraTokens.space6),

@@ -116,7 +116,7 @@ void main() {
     ]);
     final queued = List.generate(
       4,
-      (_) => client.seal(List.filled(1024 * 1024, 0)),
+      (_) => client.seal(.filled(1024 * 1024, 0)),
     );
     final rejected = client.seal([1]);
     client.close();

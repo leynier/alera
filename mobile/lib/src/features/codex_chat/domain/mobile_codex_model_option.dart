@@ -1,19 +1,17 @@
 part of 'mobile_codex_state.dart';
 
 @immutable
-class MobileCodexModelOption {
-  const MobileCodexModelOption({
-    required this.id,
-    required this.label,
-    this.isDefault = false,
-    this.contextWindowTokens,
-    this.supportsFastMode = false,
-    this.reasoningEfforts = const <String>[],
-    this.defaultReasoningEffort,
-    this.metadata = const <String, Object?>{},
-  });
-
-  factory MobileCodexModelOption.fromJson(Object? value) {
+class const MobileCodexModelOption({
+  required final String id,
+  required final String label,
+  final bool isDefault = false,
+  final int? contextWindowTokens,
+  final bool supportsFastMode = false,
+  final List<String> reasoningEfforts = const <String>[],
+  final String? defaultReasoningEffort,
+  final Map<String, Object?> metadata = const <String, Object?>{},
+}) {
+  factory fromJson(Object? value) {
     final json = _map(value);
     final id = _first(<Object?>[json['id'], json['model'], json['name']]);
     return MobileCodexModelOption(
@@ -46,13 +44,4 @@ class MobileCodexModelOption {
       metadata: json,
     );
   }
-
-  final String id;
-  final String label;
-  final bool isDefault;
-  final int? contextWindowTokens;
-  final bool supportsFastMode;
-  final List<String> reasoningEfforts;
-  final String? defaultReasoningEffort;
-  final Map<String, Object?> metadata;
 }

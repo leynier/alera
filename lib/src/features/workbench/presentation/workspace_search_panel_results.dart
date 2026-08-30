@@ -2,45 +2,28 @@ part of 'workspace_search_panel.dart';
 
 final p.Context _searchPathContext = p.Context(style: p.Style.posix);
 
-sealed class _SearchRow {
-  const _SearchRow();
-}
+sealed class const _SearchRow();
 
-class _SearchFileRow extends _SearchRow {
-  const _SearchFileRow(this.file, {required this.depth});
+class const _SearchFileRow(
+  final native.WorkspaceSearchFileResult file, {
+  required final int depth,
+}) extends _SearchRow;
 
-  final native.WorkspaceSearchFileResult file;
-  final int depth;
-}
+class const _SearchMatchRow(
+  final native.WorkspaceSearchFileResult file,
+  final native.WorkspaceSearchMatch match, {
+  required final int depth,
+}) extends _SearchRow;
 
-class _SearchMatchRow extends _SearchRow {
-  const _SearchMatchRow(this.file, this.match, {required this.depth});
+class const _SearchDirectoryRow({
+  required final String name,
+  required final String path,
+  required final int depth,
+  required final int matchCount,
+}) extends _SearchRow;
 
-  final native.WorkspaceSearchFileResult file;
-  final native.WorkspaceSearchMatch match;
-  final int depth;
-}
-
-class _SearchDirectoryRow extends _SearchRow {
-  const _SearchDirectoryRow({
-    required this.name,
-    required this.path,
-    required this.depth,
-    required this.matchCount,
-  });
-
-  final String name;
-  final String path;
-  final int depth;
-  final int matchCount;
-}
-
-class _SearchRows {
-  const _SearchRows(this.items);
-
-  final List<_SearchRow> items;
-
-  factory _SearchRows.from(
+class const _SearchRows(final List<_SearchRow> items) {
+  factory from(
     native.WorkspaceSearchResult? result, {
     required Set<String> collapsedResultNodeKeys,
     required bool viewAsTree,
@@ -144,11 +127,7 @@ List<String> _pathSegments(String relativePath) {
       .toList(growable: false);
 }
 
-class _SearchTreeDirectory {
-  _SearchTreeDirectory(this.name, this.path);
-
-  final String name;
-  final String path;
+class _SearchTreeDirectory(final String name, final String path) {
   int matchCount = 0;
   final Map<String, _SearchTreeDirectory> directories =
       <String, _SearchTreeDirectory>{};

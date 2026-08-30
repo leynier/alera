@@ -1,58 +1,32 @@
 part of 'workspace_workbench_view.dart';
 
-class _WorkbenchPane extends StatelessWidget {
-  const _WorkbenchPane({
-    required this.workspace,
-    required this.sourceControlScope,
-    required this.tabs,
-    required this.layout,
-    required this.groupId,
-    required this.terminalRuntime,
-    required this.mobileDriverPresence,
-    required this.agentStatuses,
-    required this.completionAcknowledgements,
-    required this.onCreateTab,
-    required this.onCreateBrowserTab,
-    required this.onCreateCodexTab,
-    required this.onOpenEditorTab,
-    required this.onOpenMarkdownViewerTab,
-    required this.onSelectTab,
-    required this.onCloseTab,
-    required this.onCloseTabs,
-    required this.onRenameTab,
-    required this.onOpenEditor,
-    required this.onOpenMermanPreview,
-    required this.onMoveTab,
-    required this.onSplitGroup,
-    required this.onMergeGroup,
-    required this.onActivateGroup,
-  });
-
-  final Workspace workspace;
-  final WorkspaceSourceControlScope? sourceControlScope;
-  final List<WorkspaceTabRecord> tabs;
-  final WorkbenchLayout layout;
-  final String groupId;
-  final TerminalRuntime terminalRuntime;
-  final WorkbenchMobileDriverPresence? mobileDriverPresence;
-  final Map<String, AgentStatusEntry> agentStatuses;
-  final WorkbenchTabCompletionAcknowledgements completionAcknowledgements;
-  final CreateTerminalTabCallback onCreateTab;
-  final CreateBrowserTabCallback? onCreateBrowserTab;
-  final CreateCodexTabCallback? onCreateCodexTab;
-  final OpenFileTabCallback onOpenEditorTab;
-  final OpenFileTabCallback onOpenMarkdownViewerTab;
-  final SelectWorkspaceTabCallback onSelectTab;
-  final ValueChanged<String> onCloseTab;
-  final ValueChanged<List<String>> onCloseTabs;
-  final RenameWorkspaceTabCallback onRenameTab;
-  final OpenWorkspaceFileCallback onOpenEditor;
-  final OpenWorkspaceFileCallback onOpenMermanPreview;
-  final MoveWorkspaceTabCallback onMoveTab;
-  final SplitWorkbenchGroupCallback onSplitGroup;
-  final MergeWorkbenchGroupCallback onMergeGroup;
-  final ActivateWorkbenchGroupCallback onActivateGroup;
-
+class const _WorkbenchPane({
+  required final Workspace workspace,
+  required final WorkspaceSourceControlScope? sourceControlScope,
+  required final List<WorkspaceTabRecord> tabs,
+  required final WorkbenchLayout layout,
+  required final String groupId,
+  required final TerminalRuntime terminalRuntime,
+  required final WorkbenchMobileDriverPresence? mobileDriverPresence,
+  required final Map<String, AgentStatusEntry> agentStatuses,
+  required final WorkbenchTabCompletionAcknowledgements
+  completionAcknowledgements,
+  required final CreateTerminalTabCallback onCreateTab,
+  required final CreateBrowserTabCallback? onCreateBrowserTab,
+  required final CreateCodexTabCallback? onCreateCodexTab,
+  required final OpenFileTabCallback onOpenEditorTab,
+  required final OpenFileTabCallback onOpenMarkdownViewerTab,
+  required final SelectWorkspaceTabCallback onSelectTab,
+  required final ValueChanged<String> onCloseTab,
+  required final ValueChanged<List<String>> onCloseTabs,
+  required final RenameWorkspaceTabCallback onRenameTab,
+  required final OpenWorkspaceFileCallback onOpenEditor,
+  required final OpenWorkspaceFileCallback onOpenMermanPreview,
+  required final MoveWorkspaceTabCallback onMoveTab,
+  required final SplitWorkbenchGroupCallback onSplitGroup,
+  required final MergeWorkbenchGroupCallback onMergeGroup,
+  required final ActivateWorkbenchGroupCallback onActivateGroup,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final group = layout.groups[groupId];
@@ -89,7 +63,7 @@ class _WorkbenchPane extends StatelessWidget {
             ),
           ),
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
+            crossAxisAlignment: .stretch,
             children: <Widget>[
               _WorkspaceTabStrip(
                 workspace: workspace,
@@ -277,21 +251,13 @@ Rect _centerDropRect(Size paneSize) {
   );
 }
 
-class _PaneDropTarget extends StatefulWidget {
-  const _PaneDropTarget({
-    required this.workspaceId,
-    required this.groupId,
-    required this.tabCount,
-    required this.onMoveTab,
-    required this.child,
-  });
-
-  final String workspaceId;
-  final String groupId;
-  final int tabCount;
-  final MoveWorkspaceTabCallback onMoveTab;
-  final Widget child;
-
+class const _PaneDropTarget({
+  required final String workspaceId,
+  required final String groupId,
+  required final int tabCount,
+  required final MoveWorkspaceTabCallback onMoveTab,
+  required final Widget child,
+}) extends StatefulWidget {
   @override
   State<_PaneDropTarget> createState() => _PaneDropTargetState();
 }
@@ -332,7 +298,7 @@ class _PaneDropTargetState extends State<_PaneDropTarget> {
       },
       builder: (context, _, _) {
         return Stack(
-          fit: StackFit.expand,
+          fit: .expand,
           children: <Widget>[
             widget.child,
             if (_hoverZone != null)
@@ -372,11 +338,8 @@ class _PaneDropTargetState extends State<_PaneDropTarget> {
   }
 }
 
-class _DropZoneOverlay extends StatelessWidget {
-  const _DropZoneOverlay({required this.zone});
-
-  final WorkbenchDropZone zone;
-
+class const _DropZoneOverlay({required final WorkbenchDropZone zone})
+    extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return LayoutBuilder(
@@ -390,7 +353,7 @@ class _DropZoneOverlay extends StatelessWidget {
           paneSize: size,
         );
         return Stack(
-          fit: StackFit.expand,
+          fit: .expand,
           children: <Widget>[
             Positioned.fromRect(
               rect: rect,

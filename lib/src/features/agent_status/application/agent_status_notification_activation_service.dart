@@ -26,16 +26,17 @@ abstract interface class AgentNotificationTerminalFocusRequester {
   });
 }
 
-class AgentStatusNotificationActivationService {
-  AgentStatusNotificationActivationService({
-    required AgentNotificationWindowActivator windowActivator,
-    required AgentNotificationWorkbenchNavigator navigator,
-    required AgentNotificationTerminalFocusRequester terminalFocusRequester,
-  }) : _dependencies = _AgentStatusNotificationActivationDependencies(
-         windowActivator: windowActivator,
-         navigator: navigator,
-         terminalFocusRequester: terminalFocusRequester,
-       );
+class AgentStatusNotificationActivationService({
+  required AgentNotificationWindowActivator windowActivator,
+  required AgentNotificationWorkbenchNavigator navigator,
+  required AgentNotificationTerminalFocusRequester terminalFocusRequester,
+}) {
+  this
+    : _dependencies = _AgentStatusNotificationActivationDependencies(
+        windowActivator: windowActivator,
+        navigator: navigator,
+        terminalFocusRequester: terminalFocusRequester,
+      );
 
   final _AgentStatusNotificationActivationDependencies _dependencies;
 
@@ -106,14 +107,8 @@ class AgentStatusNotificationActivationService {
   }
 }
 
-class _AgentStatusNotificationActivationDependencies {
-  const _AgentStatusNotificationActivationDependencies({
-    required this.windowActivator,
-    required this.navigator,
-    required this.terminalFocusRequester,
-  });
-
-  final AgentNotificationWindowActivator windowActivator;
-  final AgentNotificationWorkbenchNavigator navigator;
-  final AgentNotificationTerminalFocusRequester terminalFocusRequester;
-}
+class const _AgentStatusNotificationActivationDependencies({
+  required final AgentNotificationWindowActivator windowActivator,
+  required final AgentNotificationWorkbenchNavigator navigator,
+  required final AgentNotificationTerminalFocusRequester terminalFocusRequester,
+});

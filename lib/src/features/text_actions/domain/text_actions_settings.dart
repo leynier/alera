@@ -5,17 +5,15 @@ part 'text_actions_settings.mapper.dart';
 
 /// A user-authored instruction that can replace the current text selection.
 @MappableClass()
-class TextAction with TextActionMappable {
-  const TextAction({
-    required this.id,
-    required this.name,
-    required this.prompt,
-    this.enabled = true,
-    this.agentOverride,
-    this.modelOverride,
-    this.reasoningByModel = const <String, String>{},
-  });
-
+class const TextAction({
+  required this.id,
+  required this.name,
+  required this.prompt,
+  this.enabled = true,
+  this.agentOverride,
+  this.modelOverride,
+  this.reasoningByModel = const <String, String>{},
+}) with TextActionMappable {
   final String id;
   final String name;
   final String prompt;
@@ -52,14 +50,13 @@ class TextAction with TextActionMappable {
     return settings.thinkingForModel(modelId);
   }
 
-  factory TextAction.fromJson(Map<String, Object?> json) =>
+  factory fromJson(Map<String, Object?> json) =>
       TextActionMapper.fromMap(Map<String, dynamic>.from(json));
 }
 
 @MappableClass()
-class TextActionsSettings with TextActionsSettingsMappable {
-  const TextActionsSettings({this.actions = const <TextAction>[]});
-
+class const TextActionsSettings({this.actions = const <TextAction>[]})
+    with TextActionsSettingsMappable {
   final List<TextAction> actions;
 
   List<TextAction> get enabledActions =>
@@ -67,7 +64,7 @@ class TextActionsSettings with TextActionsSettingsMappable {
 
   static const TextActionsSettings defaults = TextActionsSettings();
 
-  factory TextActionsSettings.fromJson(Map<String, Object?> json) =>
+  factory fromJson(Map<String, Object?> json) =>
       TextActionsSettingsMapper.fromMap(Map<String, dynamic>.from(json));
 }
 

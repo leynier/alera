@@ -1,8 +1,6 @@
 part of 'mobile_ai_dictation_settings_screen.dart';
 
-class _LocalModelList extends ConsumerWidget {
-  const _LocalModelList();
-
+class const _LocalModelList() extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final settings = ref
@@ -43,27 +41,16 @@ class _LocalModelList extends ConsumerWidget {
   }
 }
 
-class _ModelTile extends StatelessWidget {
-  const _ModelTile({
-    required this.model,
-    required this.transfer,
-    required this.selected,
-    required this.busy,
-    required this.onDownload,
-    required this.onCancel,
-    required this.onSelect,
-    required this.onRemove,
-  });
-
-  final MobileAiDictationModel model;
-  final MobileAiModelTransfer transfer;
-  final bool selected;
-  final bool busy;
-  final Future<void> Function() onDownload;
-  final Future<void> Function() onCancel;
-  final Future<void> Function() onSelect;
-  final Future<void> Function() onRemove;
-
+class const _ModelTile({
+  required final MobileAiDictationModel model,
+  required final MobileAiModelTransfer transfer,
+  required final bool selected,
+  required final bool busy,
+  required final Future<void> Function() onDownload,
+  required final Future<void> Function() onCancel,
+  required final Future<void> Function() onSelect,
+  required final Future<void> Function() onRemove,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -74,7 +61,7 @@ class _ModelTile extends StatelessWidget {
       child: Padding(
         padding: AleraTokens.contentPadding,
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
+          crossAxisAlignment: .stretch,
           children: <Widget>[
             Row(
               children: <Widget>[
@@ -118,7 +105,7 @@ class _ModelTile extends StatelessWidget {
             ],
             const SizedBox(height: AleraTokens.space8),
             Wrap(
-              alignment: WrapAlignment.end,
+              alignment: .end,
               spacing: AleraTokens.space8,
               runSpacing: AleraTokens.space8,
               children: <Widget>[

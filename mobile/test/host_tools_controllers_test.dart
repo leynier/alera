@@ -140,17 +140,14 @@ String _operationId(Map<String, Object?> request) {
   return payload['operationId']! as String;
 }
 
-final class _TestHostConnection extends HostConnectionController {
-  _TestHostConnection(this.client);
-
-  final MobileRuntimeClient client;
-
+final class _TestHostConnection(final MobileRuntimeClient client)
+    extends HostConnectionController {
   @override
   Future<MobileRuntimeClient> build(String hostId) async => client;
 }
 
-final class _SkillInstallChannel implements WebSocketChannel {
-  _SkillInstallChannel() {
+final class _SkillInstallChannel() implements WebSocketChannel {
+  this {
     _outgoing.stream.listen(_handleRequest);
   }
 
@@ -261,11 +258,8 @@ final class _SkillInstallChannel implements WebSocketChannel {
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
-final class _TestWebSocketSink implements WebSocketSink {
-  _TestWebSocketSink(this._sink);
-
-  final StreamSink<Object?> _sink;
-
+final class _TestWebSocketSink(final StreamSink<Object?> _sink)
+    implements WebSocketSink {
   @override
   Future<void> get done => _sink.done;
 

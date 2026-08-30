@@ -37,11 +37,9 @@ void main() {
       linux: <String>['Ctrl+Shift+K'],
     );
 
-    expect(bindings.forPlatform(KeyboardPlatform.macos), <String>['Meta+K']);
-    expect(bindings.forPlatform(KeyboardPlatform.windows), <String>['Ctrl+K']);
-    expect(bindings.forPlatform(KeyboardPlatform.linux), <String>[
-      'Ctrl+Shift+K',
-    ]);
+    expect(bindings.forPlatform(.macos), <String>['Meta+K']);
+    expect(bindings.forPlatform(.windows), <String>['Ctrl+K']);
+    expect(bindings.forPlatform(.linux), <String>['Ctrl+Shift+K']);
   });
 
   test('KeyboardActionId.tabIndex only applies to go-to-tab actions', () {

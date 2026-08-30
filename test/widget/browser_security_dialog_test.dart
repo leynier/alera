@@ -17,14 +17,14 @@ void main() {
                 context: context,
                 builder: (_) => BrowserSecurityDialog(
                   security: BrowserSecurityState(
-                    level: BrowserSecurityLevel.certificateFailure,
+                    level: .certificateFailure,
                     origin: 'https://localhost:8443',
                     challenge: BrowserCertificateChallenge(
                       id: 'challenge-1',
                       host: 'localhost',
                       port: 8443,
                       errorCode: 'untrusted',
-                      expiresAt: DateTime.utc(2026, 7, 27, 1),
+                      expiresAt: .utc(2026, 7, 27, 1),
                       canProceed: true,
                     ),
                   ),
@@ -51,14 +51,14 @@ void main() {
       MaterialApp(
         home: BrowserSecurityDialog(
           security: BrowserSecurityState(
-            level: BrowserSecurityLevel.certificateFailure,
+            level: .certificateFailure,
             origin: 'https://example.com',
             challenge: BrowserCertificateChallenge(
               id: 'challenge-1',
               host: 'example.com',
               port: 443,
               errorCode: 'expired',
-              expiresAt: DateTime.utc(2026, 7, 27, 1),
+              expiresAt: .utc(2026, 7, 27, 1),
             ),
           ),
         ),

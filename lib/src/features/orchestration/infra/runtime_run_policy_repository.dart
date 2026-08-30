@@ -3,12 +3,10 @@ import 'dart:async';
 import 'package:alera/src/features/orchestration/domain/run_execution_policy.dart';
 import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_protocol.dart';
 
-class RuntimeRunPolicyRepository {
-  RuntimeRunPolicyRepository(this._client, {this.beforeAccess});
-
-  final RuntimeHostClient _client;
-  final Future<void> Function()? beforeAccess;
-
+class RuntimeRunPolicyRepository(
+  final RuntimeHostClient _client, {
+  final Future<void> Function()? beforeAccess,
+}) {
   /// Runs the app can review, newest first. Only runs that actually carry a
   /// plan are returned: a run without one needs no decision.
   Future<List<RunExecutionPolicy>> listPolicies() async {

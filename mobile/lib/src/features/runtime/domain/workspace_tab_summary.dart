@@ -1,22 +1,13 @@
 import 'package:alera_mobile/src/core/json_payload_fields.dart';
 
-class WorkspaceTabSummary {
-  const WorkspaceTabSummary({
-    required this.id,
-    required this.workspaceId,
-    required this.kind,
-    required this.title,
-    required this.payload,
-    this.runtimeTitle,
-  });
-
-  final String id;
-  final String workspaceId;
-  final String kind;
-  final String title;
-  final Map<String, Object?> payload;
-  final String? runtimeTitle;
-
+class const WorkspaceTabSummary({
+  required final String id,
+  required final String workspaceId,
+  required final String kind,
+  required final String title,
+  required final Map<String, Object?> payload,
+  final String? runtimeTitle,
+}) {
   bool get isTerminal => kind == 'terminal';
 
   bool get isCodex => kind == 'codex';
@@ -42,7 +33,7 @@ class WorkspaceTabSummary {
   String get terminalSessionId =>
       payload.optionalString('terminalSessionId') ?? id;
 
-  factory WorkspaceTabSummary.fromJson(Map<String, Object?> json) {
+  factory fromJson(Map<String, Object?> json) {
     return WorkspaceTabSummary(
       id: json.requiredString('id'),
       workspaceId: json.requiredString('workspaceId'),
@@ -65,29 +56,21 @@ class WorkspaceTabSummary {
   }
 }
 
-class MobileTerminalAttachment {
-  const MobileTerminalAttachment({
-    required this.sessionId,
-    required this.created,
-    required this.running,
-    required this.snapshot,
-    this.snapshotCols,
-    this.snapshotRows,
-  });
-
-  final String sessionId;
-  final bool created;
-  final bool running;
-  final List<int> snapshot;
-
+class const MobileTerminalAttachment({
+  required final String sessionId,
+  required final bool created,
+  required final bool running,
+  required final List<int> snapshot,
+  this.snapshotCols,
+  final int? snapshotRows,
+}) {
   /// The size [snapshot] was written at, absent on a host that predates the
   /// field. Replaying the bytes at any other width lands every absolute cursor
   /// move and hard wrap in the wrong column, so a narrower client replays here
   /// and then resizes, letting its emulator reflow the wrapped lines.
   final int? snapshotCols;
-  final int? snapshotRows;
 
-  factory MobileTerminalAttachment.fromJson(Map<String, Object?> json) {
+  factory fromJson(Map<String, Object?> json) {
     return MobileTerminalAttachment(
       sessionId: json.requiredString('sessionId'),
       created: json['created'] == true,
@@ -99,18 +82,14 @@ class MobileTerminalAttachment {
   }
 }
 
-class MobileTerminalSession {
-  const MobileTerminalSession({required this.tab, required this.attachment});
-
-  final WorkspaceTabSummary tab;
-  final MobileTerminalAttachment attachment;
-
-  factory MobileTerminalSession.fromJson(Map<String, Object?> json) {
+class const MobileTerminalSession({
+  required final WorkspaceTabSummary tab,
+  required final MobileTerminalAttachment attachment,
+}) {
+  factory fromJson(Map<String, Object?> json) {
     return MobileTerminalSession(
-      tab: WorkspaceTabSummary.fromJson(json.mapValue('tab')),
-      attachment: MobileTerminalAttachment.fromJson(
-        json.mapValue('attachment'),
-      ),
+      tab: .fromJson(json.mapValue('tab')),
+      attachment: .fromJson(json.mapValue('attachment')),
     );
   }
 }

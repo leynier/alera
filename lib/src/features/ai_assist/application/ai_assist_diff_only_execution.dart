@@ -6,15 +6,10 @@ import 'package:alera/src/features/ai_assist/domain/ai_assist_settings.dart';
 import 'package:path/path.dart' as p;
 import 'package:toml/toml.dart';
 
-class AiAssistDiffOnlyExecution {
-  const AiAssistDiffOnlyExecution({
-    required this.arguments,
-    required this.environment,
-  });
-
-  final List<String> arguments;
-  final Map<String, String> environment;
-}
+class const AiAssistDiffOnlyExecution({
+  required final List<String> arguments,
+  required final Map<String, String> environment,
+});
 
 bool supportsDiffOnlyAiAssistAgent(AiAssistAgent agent) {
   return switch (aiAssistAgentSpecs[agent]?.diffOnlyAccess) {
@@ -41,7 +36,7 @@ Set<AiAssistAgent> aiAssistAgentsForModelDiscovery(
 };
 
 AiAssistAgent readingDiffAgentForSettings(AiAssistSettings settings) {
-  final prompt = settings.promptSettingsFor(AiAssistOperation.readingDiff);
+  final prompt = settings.promptSettingsFor(.readingDiff);
   final configured = prompt.agent ?? settings.agent;
   if (supportsDiffOnlyAiAssistAgent(configured)) {
     return configured;
@@ -53,7 +48,7 @@ String? readingDiffModelForSettings(
   AiAssistSettings settings,
   AiAssistAgent agent,
 ) {
-  final prompt = settings.promptSettingsFor(AiAssistOperation.readingDiff);
+  final prompt = settings.promptSettingsFor(.readingDiff);
   final configuredAgent = prompt.agent ?? settings.agent;
   if (configuredAgent != agent) {
     return settings.modelFor(agent);

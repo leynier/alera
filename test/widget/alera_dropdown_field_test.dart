@@ -1,7 +1,6 @@
 import 'package:alera/src/design_system/forms/alera_dropdown_field.dart';
 import 'package:alera/src/design_system/menus/alera_menu_item.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 Widget _wrap(Widget child) {
@@ -268,11 +267,11 @@ void main() {
     await _openFilterable(tester);
     // Highlight starts on the selected entry ('alpha'); two downs move past
     // 'beta' and wrap around the disabled 'blocked' onto 'No Parent'.
-    await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
+    await tester.sendKeyEvent(.arrowDown);
     await tester.pump();
-    await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
+    await tester.sendKeyEvent(.arrowDown);
     await tester.pump();
-    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+    await tester.sendKeyEvent(.enter);
     await tester.pump();
 
     expect(picked, isNull);
@@ -287,7 +286,7 @@ void main() {
     await _openFilterable(tester);
     expect(find.byType(AleraMenuItem), findsNWidgets(4));
 
-    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.sendKeyEvent(.escape);
     await tester.pump();
 
     expect(find.byType(AleraMenuItem), findsNothing);

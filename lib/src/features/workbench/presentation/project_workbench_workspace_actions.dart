@@ -22,6 +22,8 @@ const String _removeAction = 'remove';
 /// action for the main (non-deletable) workspace.
 List<PopupMenuEntry<String>> workspaceContextMenuEntries({
   required String fileManagerLabel,
+  bool supportsSections = false,
+  bool hasSection = false,
   required bool hasClearParent,
   required bool canRemove,
   required bool isPinned,
@@ -52,6 +54,16 @@ List<PopupMenuEntry<String>> workspaceContextMenuEntries({
         value: _clearParentAction,
         leading: Icon(AleraIcons.close, size: 16),
         label: 'Clear Parent Workspace',
+      ),
+    if (supportsSections)
+      const AleraDropdownEntry<String>(
+        value: 'set-section',
+        label: 'Set Section',
+      ),
+    if (supportsSections && hasSection)
+      const AleraDropdownEntry<String>(
+        value: 'clear-section',
+        label: 'Clear Section',
       ),
     const PopupMenuDivider(height: AleraTokens.space8),
     const AleraDropdownEntry<String>(
@@ -113,7 +125,7 @@ mixin _WorkspaceSidebarActions on ConsumerState<ProjectWorkbenchSidebar> {
       AleraToast.show(
         context,
         message: result.message ?? 'Could not open workspace folder.',
-        tone: AleraToastTone.error,
+        tone: .error,
       );
     }
   }
@@ -123,11 +135,7 @@ mixin _WorkspaceSidebarActions on ConsumerState<ProjectWorkbenchSidebar> {
     if (!mounted) {
       return;
     }
-    AleraToast.show(
-      context,
-      message: 'Workspace path copied',
-      tone: AleraToastTone.success,
-    );
+    AleraToast.show(context, message: 'Workspace path copied', tone: .success);
   }
 
   /// Opens the workspace's repository home page in the system browser. The
@@ -138,9 +146,8 @@ mixin _WorkspaceSidebarActions on ConsumerState<ProjectWorkbenchSidebar> {
     try {
       override = await ref
           .read(
-            effectiveHostingProviderOverrideProvider(
-              workspace.projectId,
-            ).future,
+            effectiveHostingProviderOverrideProvider(workspace.projectId)
+                .future,
           )
           .timeout(const Duration(seconds: 2));
     } catch (_) {
@@ -159,7 +166,7 @@ mixin _WorkspaceSidebarActions on ConsumerState<ProjectWorkbenchSidebar> {
       AleraToast.show(
         context,
         message: 'Could not open the repository: $error',
-        tone: AleraToastTone.error,
+        tone: .error,
       );
       return;
     }
@@ -173,7 +180,7 @@ mixin _WorkspaceSidebarActions on ConsumerState<ProjectWorkbenchSidebar> {
         AleraToast.show(
           context,
           message: 'No git remote configured for this workspace.',
-          tone: AleraToastTone.info,
+          tone: .info,
         );
       case OpenRepositoryOutcome.undetectable:
         AleraToast.show(
@@ -181,13 +188,13 @@ mixin _WorkspaceSidebarActions on ConsumerState<ProjectWorkbenchSidebar> {
           message:
               'Could not detect a supported git hosting provider '
               '(GitHub or Azure DevOps).',
-          tone: AleraToastTone.info,
+          tone: .info,
         );
       case OpenRepositoryOutcome.openFailed:
         AleraToast.show(
           context,
           message: 'Could not open the browser.',
-          tone: AleraToastTone.error,
+          tone: .error,
         );
     }
   }
@@ -233,11 +240,7 @@ mixin _WorkspaceSidebarActions on ConsumerState<ProjectWorkbenchSidebar> {
       if (!mounted) {
         return;
       }
-      AleraToast.show(
-        context,
-        message: 'Workspace slept',
-        tone: AleraToastTone.success,
-      );
+      AleraToast.show(context, message: 'Workspace slept', tone: .success);
     } catch (error) {
       if (!mounted) {
         return;
@@ -245,7 +248,7 @@ mixin _WorkspaceSidebarActions on ConsumerState<ProjectWorkbenchSidebar> {
       AleraToast.show(
         context,
         message: 'Could not sleep workspace: $error',
-        tone: AleraToastTone.error,
+        tone: .error,
       );
     }
   }

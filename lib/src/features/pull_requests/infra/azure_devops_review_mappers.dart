@@ -1,5 +1,4 @@
 import 'package:alera/src/shared/git_hosting/application/repository_web_url.dart';
-import 'package:alera/src/shared/git_hosting/domain/git_hosting_provider.dart';
 import 'package:alera/src/shared/git_hosting/domain/git_remote_identity.dart';
 import 'package:alera/src/features/pull_requests/domain/hosted_review.dart';
 import 'package:alera/src/features/pull_requests/domain/review_check.dart';
@@ -25,7 +24,7 @@ HostedReview mapAzureReview(
   final lastMergeTarget = json['lastMergeTargetCommit'];
   final sourceRepository = json['sourceRepository'];
   return HostedReview(
-    provider: GitHostingProvider.azureDevops,
+    provider: .azureDevops,
     number: number,
     title: json['title'] as String? ?? '',
     state: _mapState(status, isDraft),

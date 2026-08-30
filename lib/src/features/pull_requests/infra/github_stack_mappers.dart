@@ -1,6 +1,5 @@
 import 'package:alera/src/features/pull_requests/domain/hosted_review.dart';
 import 'package:alera/src/features/pull_requests/domain/hosted_review_stack.dart';
-import 'package:alera/src/shared/git_hosting/domain/git_hosting_provider.dart';
 
 /// Maps the GitHub stacks REST response into the provider-neutral domain model.
 HostedReviewStack mapGitHubStack(
@@ -51,7 +50,7 @@ HostedReview _mapGitHubStackReview(
           _ => draft ? HostedReviewState.draft : HostedReviewState.open,
         };
   return HostedReview(
-    provider: GitHostingProvider.github,
+    provider: .github,
     number: number,
     title: _stringValue(json['title']) ?? headBranch ?? 'Pull Request #$number',
     state: state,

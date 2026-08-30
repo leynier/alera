@@ -1,33 +1,26 @@
-class AgentProfileTabReference {
-  const AgentProfileTabReference({
-    required this.workspaceId,
-    required this.tabId,
-  });
-
-  factory AgentProfileTabReference.fromJson(Map<String, Object?> json) {
+class const AgentProfileTabReference({
+  required final String workspaceId,
+  required final String tabId,
+}) {
+  factory fromJson(Map<String, Object?> json) {
     return AgentProfileTabReference(
       workspaceId: json['workspaceId'] as String,
       tabId: json['tabId'] as String,
     );
   }
-
-  final String workspaceId;
-  final String tabId;
 }
 
-class AgentProfileRemovalImpact {
-  const AgentProfileRemovalImpact({
-    required this.profileId,
-    required this.exists,
-    this.revision,
-    required this.isDefault,
-    required this.automationIds,
-    required this.hasAutomationPolicy,
-    required this.executionPolicyRunIds,
-    required this.tabs,
-  });
-
-  factory AgentProfileRemovalImpact.fromJson(Map<String, Object?> json) {
+class const AgentProfileRemovalImpact({
+  required final String profileId,
+  required final bool exists,
+  final int? revision,
+  required final bool isDefault,
+  required final List<String> automationIds,
+  required final bool hasAutomationPolicy,
+  required final List<String> executionPolicyRunIds,
+  required final List<AgentProfileTabReference> tabs,
+}) {
+  factory fromJson(Map<String, Object?> json) {
     final automationIds = json['automationIds'];
     final executionPolicyRunIds = json['executionPolicyRunIds'];
     final tabs = json['tabs'];
@@ -54,15 +47,6 @@ class AgentProfileRemovalImpact {
           : const <AgentProfileTabReference>[],
     );
   }
-
-  final String profileId;
-  final bool exists;
-  final int? revision;
-  final bool isDefault;
-  final List<String> automationIds;
-  final bool hasAutomationPolicy;
-  final List<String> executionPolicyRunIds;
-  final List<AgentProfileTabReference> tabs;
 
   bool get hasBlockingReferences =>
       automationIds.isNotEmpty ||

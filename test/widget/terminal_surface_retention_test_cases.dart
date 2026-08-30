@@ -19,9 +19,8 @@ void _registerTerminalSurfaceRetentionTests() {
           await tester.pumpWidget(
             ProviderScope(
               overrides: [
-                agentCanvasesProvider(
-                  first.workspaceId,
-                ).overrideWith((ref) => Stream.value(const [])),
+                agentCanvasesProvider(first.workspaceId)
+                    .overrideWith((ref) => Stream.value(const [])),
                 settingsControllerProvider.overrideWith(
                   () => _FakeSettingsController(AleraSettings.defaults),
                 ),

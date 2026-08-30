@@ -13,9 +13,8 @@ void main() {
       );
       final container = ProviderContainer(
         overrides: [
-          mobileCodexClientProvider(
-            'host-queue-catalog',
-          ).overrideWith((ref) async => client),
+          mobileCodexClientProvider('host-queue-catalog')
+              .overrideWith((ref) async => client),
         ],
       );
       addTearDown(() {

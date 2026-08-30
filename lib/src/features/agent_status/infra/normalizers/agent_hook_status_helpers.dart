@@ -118,25 +118,15 @@ const Map<String, List<String>> _toolInputKeysByTool = <String, List<String>>{
 
 const int _transcriptMaxScanBytes = 4 * 1000 * 1000;
 
-class _NestedToolCall {
-  const _NestedToolCall({this.toolName, this.toolInputSource});
+class const _NestedToolCall({
+  final String? toolName,
+  final Object? toolInputSource,
+});
 
-  final String? toolName;
-  final Object? toolInputSource;
-}
-
-class _ToolSnapshot {
-  const _ToolSnapshot({
-    this.toolName,
-    this.toolInput,
-    this.lastAssistantMessage,
-    this.hasToolUpdate = false,
-    this.hasToolInput = false,
-  });
-
-  final String? toolName;
-  final String? toolInput;
-  final String? lastAssistantMessage;
-  final bool hasToolUpdate;
-  final bool hasToolInput;
-}
+class const _ToolSnapshot({
+  final String? toolName,
+  final String? toolInput,
+  final String? lastAssistantMessage,
+  final bool hasToolUpdate = false,
+  final bool hasToolInput = false,
+});

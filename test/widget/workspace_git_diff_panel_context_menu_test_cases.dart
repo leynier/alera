@@ -9,8 +9,8 @@ void _registerWorkspaceGitDiffPanelContextMenuTests() {
         entries: <GitChangeEntry>[
           GitChangeEntry(
             path: 'lib/src/dirty.dart',
-            area: GitChangeArea.unstaged,
-            status: GitChangeStatus.modified,
+            area: .unstaged,
+            status: .modified,
           ),
         ],
       );
@@ -19,7 +19,7 @@ void _registerWorkspaceGitDiffPanelContextMenuTests() {
     await _pumpPanel(
       tester,
       backend: backend,
-      viewMode: GitDiffViewMode.tree,
+      viewMode: .tree,
       onOpenFile: opened.add,
     );
     await tester.pumpAndSettle();
@@ -45,13 +45,13 @@ void _registerWorkspaceGitDiffPanelContextMenuTests() {
         entries: <GitChangeEntry>[
           GitChangeEntry(
             path: 'lib/src/dirty.dart',
-            area: GitChangeArea.unstaged,
-            status: GitChangeStatus.modified,
+            area: .unstaged,
+            status: .modified,
           ),
         ],
       );
 
-    await _pumpPanel(tester, backend: backend, viewMode: GitDiffViewMode.tree);
+    await _pumpPanel(tester, backend: backend, viewMode: .tree);
     await tester.pumpAndSettle();
 
     await tester.tap(find.text('src'), buttons: kSecondaryMouseButton);
@@ -80,8 +80,8 @@ void _registerWorkspaceGitDiffPanelContextMenuTests() {
         entries: <GitChangeEntry>[
           GitChangeEntry(
             path: 'lib/src/dirty.dart',
-            area: GitChangeArea.unstaged,
-            status: GitChangeStatus.modified,
+            area: .unstaged,
+            status: .modified,
           ),
         ],
       );
@@ -90,7 +90,7 @@ void _registerWorkspaceGitDiffPanelContextMenuTests() {
     await _pumpPanel(
       tester,
       backend: backend,
-      viewMode: GitDiffViewMode.tree,
+      viewMode: .tree,
       sourceControlScope: const WorkspaceSourceControlScope(
         workspaceId: 'workspace-1',
         workspacePath: '/tmp/project',

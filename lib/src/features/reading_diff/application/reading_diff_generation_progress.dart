@@ -6,19 +6,12 @@ enum ReadingDiffGenerationStage {
   combining,
 }
 
-class ReadingDiffGenerationProgress {
-  const ReadingDiffGenerationProgress({
-    required this.stage,
-    required this.completedChunks,
-    required this.totalChunks,
-    this.currentChunk,
-  });
-
-  final ReadingDiffGenerationStage stage;
-  final int completedChunks;
-  final int totalChunks;
-  final int? currentChunk;
-
+class const ReadingDiffGenerationProgress({
+  required final ReadingDiffGenerationStage stage,
+  required final int completedChunks,
+  required final int totalChunks,
+  final int? currentChunk,
+}) {
   double? get fraction {
     if (totalChunks <= 0) {
       return null;

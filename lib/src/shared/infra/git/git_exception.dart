@@ -1,9 +1,7 @@
 /// Domain-level git failures raised by [GitBackend]. This sealed hierarchy keeps
 /// callers (and tests) free of the flutter_rust_bridge generated types: the
 /// `RustGitBackend` translates the native `GitError` into one of these.
-sealed class GitException implements Exception {
-  const GitException(this.context);
-
+sealed class const GitException(this.context) implements Exception {
   /// The relevant detail for this failure (an offending path, branch name, or
   /// the underlying git message).
   final String context;
@@ -13,86 +11,52 @@ sealed class GitException implements Exception {
 }
 
 /// The path is not a git repository.
-class NotARepositoryException extends GitException {
-  const NotARepositoryException(super.context);
-}
+class const NotARepositoryException(super.context) extends GitException;
 
 /// The operating system denied access to the path (e.g. macOS sandbox).
-class AccessDeniedException extends GitException {
-  const AccessDeniedException(super.context);
-}
+class const AccessDeniedException(super.context) extends GitException;
 
 /// The requested branch does not exist.
-class BranchNotFoundException extends GitException {
-  const BranchNotFoundException(super.context);
-}
+class const BranchNotFoundException(super.context) extends GitException;
 
 /// A branch with the requested name already exists.
-class BranchAlreadyExistsException extends GitException {
-  const BranchAlreadyExistsException(super.context);
-}
+class const BranchAlreadyExistsException(super.context) extends GitException;
 
 /// The branch name is not a valid git ref name.
-class InvalidBranchNameException extends GitException {
-  const InvalidBranchNameException(super.context);
-}
+class const InvalidBranchNameException(super.context) extends GitException;
 
 /// A worktree already exists at the requested location.
-class WorktreeAlreadyExistsException extends GitException {
-  const WorktreeAlreadyExistsException(super.context);
-}
+class const WorktreeAlreadyExistsException(super.context) extends GitException;
 
 /// No worktree was found at the requested location.
-class WorktreeNotFoundException extends GitException {
-  const WorktreeNotFoundException(super.context);
-}
+class const WorktreeNotFoundException(super.context) extends GitException;
 
 /// `git clone` failed.
-class CloneFailedException extends GitException {
-  const CloneFailedException(super.context);
-}
+class const CloneFailedException(super.context) extends GitException;
 
 /// A delegated `git` CLI invocation failed.
-class GitCliException extends GitException {
-  const GitCliException(super.context);
-}
+class const GitCliException(super.context) extends GitException;
 
 /// The current checkout is detached and the requested operation needs a branch.
-class DetachedHeadException extends GitException {
-  const DetachedHeadException(super.context);
-}
+class const DetachedHeadException(super.context) extends GitException;
 
 /// The current branch does not have an upstream configured.
-class NoUpstreamException extends GitException {
-  const NoUpstreamException(super.context);
-}
+class const NoUpstreamException(super.context) extends GitException;
 
 /// The requested remote does not exist.
-class RemoteNotFoundException extends GitException {
-  const RemoteNotFoundException(super.context);
-}
+class const RemoteNotFoundException(super.context) extends GitException;
 
 /// There is nothing staged or stashed for the requested operation.
-class NothingToCommitException extends GitException {
-  const NothingToCommitException(super.context);
-}
+class const NothingToCommitException(super.context) extends GitException;
 
 /// The requested workspace-scoped operation would affect hidden repo changes.
-class WorkspaceScopeException extends GitException {
-  const WorkspaceScopeException(super.context);
-}
+class const WorkspaceScopeException(super.context) extends GitException;
 
 /// Git user.name or user.email is missing for commit authoring.
-class MissingIdentityException extends GitException {
-  const MissingIdentityException(super.context);
-}
+class const MissingIdentityException(super.context) extends GitException;
 
 /// The repository has unresolved merge conflicts.
-class GitConflictException extends GitException {
-  const GitConflictException(super.context);
-}
+class const GitConflictException(super.context) extends GitException;
 
 /// An unclassified libgit2 failure.
-class GitInternalException extends GitException {
-  const GitInternalException(super.context);
-}
+class const GitInternalException(super.context) extends GitException;

@@ -4,6 +4,7 @@ import 'package:alera_configuration/alera_configuration.dart';
 import 'package:alera_mobile/src/features/ai_dictation/domain/mobile_ai_dictation_settings.dart';
 import 'package:alera_mobile/src/features/codex_chat/domain/mobile_codex_preferences.dart';
 import 'package:alera_mobile/src/features/terminal/domain/terminal_accessory_layout.dart';
+
 import 'mobile_configuration_quick_keys.dart';
 
 const mobileConfigurationDocumentKey = 'alera.configuration.mobile.document';

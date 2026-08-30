@@ -27,22 +27,15 @@ const int terminalHostFrameHeaderLength = 5;
 /// round-trip and mis-parses whatever arrived in between.
 const String terminalHostBinaryFramesEnabledLine = 'binaryFramesEnabled';
 
-sealed class TerminalHostFrame {
-  const TerminalHostFrame();
-}
+sealed class const TerminalHostFrame();
 
-final class TerminalHostJsonFrame extends TerminalHostFrame {
-  const TerminalHostJsonFrame(this.json);
+final class const TerminalHostJsonFrame(final String json)
+    extends TerminalHostFrame;
 
-  final String json;
-}
-
-final class TerminalHostOutputFrame extends TerminalHostFrame {
-  const TerminalHostOutputFrame(this.sessionId, this.data);
-
-  final String sessionId;
-  final Uint8List data;
-}
+final class const TerminalHostOutputFrame(
+  final String sessionId,
+  final Uint8List data,
+) extends TerminalHostFrame;
 
 /// Incremental reader over a byte stream that may switch mid-connection.
 ///

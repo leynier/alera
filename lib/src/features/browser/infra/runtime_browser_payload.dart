@@ -11,7 +11,7 @@ Map<String, Object?> browserRuntimeSuccessMap(Object? payload, String label) {
   final error = map['error'];
   if (error is! Map) {
     throw BrowserFailure(
-      code: BrowserErrorCode.hostProtocol,
+      code: .hostProtocol,
       message: '$label failed without a structured error.',
     );
   }

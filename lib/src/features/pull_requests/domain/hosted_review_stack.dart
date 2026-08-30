@@ -2,21 +2,13 @@ import 'package:alera/src/features/pull_requests/domain/hosted_review.dart';
 
 /// One GitHub-native stack of pull requests, ordered from the bottom layer to
 /// the top layer. This is transient forge state and is not persisted locally.
-class HostedReviewStack {
-  const HostedReviewStack({
-    required this.number,
-    required this.baseBranch,
-    required this.open,
-    required this.entries,
-    this.createdAt,
-  });
-
-  final int number;
-  final String baseBranch;
-  final bool open;
-  final DateTime? createdAt;
-  final List<HostedReviewStackEntry> entries;
-
+class const HostedReviewStack({
+  required final int number,
+  required final String baseBranch,
+  required final bool open,
+  required final List<HostedReviewStackEntry> entries,
+  final DateTime? createdAt,
+}) {
   HostedReviewStackEntry? entryForReview(int reviewNumber) {
     for (final entry in entries) {
       if (entry.review.number == reviewNumber) {
@@ -42,11 +34,10 @@ class HostedReviewStack {
   }
 }
 
-class HostedReviewStackEntry {
-  const HostedReviewStackEntry({required this.review, required this.position});
-
-  final HostedReview review;
-
+class const HostedReviewStackEntry({
+  required final HostedReview review,
+  required this.position,
+}) {
   /// One-based position from the bottom of the stack.
   final int position;
 }

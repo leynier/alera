@@ -154,7 +154,7 @@ void main() {
               child: SizedBox(
                 width: 320,
                 child: Column(
-                  mainAxisSize: MainAxisSize.min,
+                  mainAxisSize: .min,
                   children: <Widget>[
                     TerminalAccessoryBar(
                       keys: const <TerminalAccessoryKey>[],
@@ -202,7 +202,7 @@ void main() {
               child: SizedBox(
                 width: 320,
                 child: Column(
-                  mainAxisSize: MainAxisSize.min,
+                  mainAxisSize: .min,
                   children: <Widget>[
                     TerminalAccessoryBar(
                       keys: <TerminalAccessoryKey>[

@@ -217,9 +217,8 @@ extension on CliAiAssistAgentRunner {
   }
 
   List<String> _tokenizeCommandTemplate(String template) {
-    final matches = RegExp(
-      r'''"([^"]*)"|'([^']*)'|(\S+)''',
-    ).allMatches(template);
+    final matches = RegExp(r'''"([^"]*)"|'([^']*)'|(\S+)''')
+        .allMatches(template);
     return matches
         .map((match) => match.group(1) ?? match.group(2) ?? match.group(3)!)
         .toList(growable: false);
@@ -235,33 +234,22 @@ Future<void> _deleteTemporaryDirectory(Directory directory) async {
       return;
     } catch (_) {
       if (attempt < 2) {
-        await Future<void>.delayed(const Duration(milliseconds: 100));
+        await Future.pause(const Duration(milliseconds: 100));
       }
     }
   }
 }
 
-class _AiAssistAgentCommandPlan {
-  const _AiAssistAgentCommandPlan({
-    required this.binary,
-    required this.args,
-    required this.stdinPayload,
-    required this.label,
-    this.environmentOverrides = const <String, String>{},
-    this.exactEnvironment,
-    this.promptDirectory,
-    this.outputFile,
-  });
-
-  final String binary;
-  final List<String> args;
-  final String? stdinPayload;
-  final String label;
-  final Map<String, String> environmentOverrides;
-  final Map<String, String>? exactEnvironment;
-  final Directory? promptDirectory;
-  final File? outputFile;
-
+class const _AiAssistAgentCommandPlan({
+  required final String binary,
+  required final List<String> args,
+  required final String? stdinPayload,
+  required final String label,
+  final Map<String, String> environmentOverrides = const <String, String>{},
+  final Map<String, String>? exactEnvironment,
+  final Directory? promptDirectory,
+  final File? outputFile,
+}) {
   Future<void> dispose() async {
     final directory = promptDirectory;
     if (directory == null) {

@@ -1,10 +1,7 @@
 part of 'codex_chat_surface.dart';
 
-class _CodexToolDetails extends StatefulWidget {
-  const _CodexToolDetails({required this.cell});
-
-  final CodexTimelineCell cell;
-
+class const _CodexToolDetails({required final CodexTimelineCell cell})
+    extends StatefulWidget {
   @override
   State<_CodexToolDetails> createState() => _CodexToolDetailsState();
 }
@@ -30,7 +27,7 @@ class _CodexToolDetailsState extends State<_CodexToolDetails> {
   Widget build(BuildContext context) {
     final projection = _projection;
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+      crossAxisAlignment: .stretch,
       children: <Widget>[
         if (projection.overview.isNotEmpty)
           for (final (label, value) in projection.overview)
@@ -108,12 +105,10 @@ class _CodexToolDetailsState extends State<_CodexToolDetails> {
   }
 }
 
-class _CodexToolField extends StatelessWidget {
-  const _CodexToolField({required this.label, required this.value});
-
-  final String label;
-  final String value;
-
+class const _CodexToolField({
+  required final String label,
+  required final String value,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Padding(
     padding: const EdgeInsets.only(bottom: AleraTokens.space8),
@@ -121,24 +116,21 @@ class _CodexToolField extends StatelessWidget {
   );
 }
 
-class _CodexToolPayload extends StatelessWidget {
-  const _CodexToolPayload({required this.label, required this.value});
-
-  final String label;
-  final String value;
-
+class const _CodexToolPayload({
+  required final String label,
+  required final String value,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Column(
-    crossAxisAlignment: CrossAxisAlignment.stretch,
+    crossAxisAlignment: .stretch,
     children: <Widget>[
       Row(
         children: <Widget>[
           Expanded(
             child: Text(
               label,
-              style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                color: AleraTokens.foregroundFaint,
-              ),
+              style: Theme.of(context).textTheme.labelSmall
+                  ?.copyWith(color: AleraTokens.foregroundFaint),
             ),
           ),
           AleraIconButton(
@@ -153,24 +145,21 @@ class _CodexToolPayload extends StatelessWidget {
   );
 }
 
-class _CodexDiffDetails extends StatelessWidget {
-  const _CodexDiffDetails({required this.diff, required this.lines});
-
-  final String diff;
-  final List<String> lines;
-
+class const _CodexDiffDetails({
+  required final String diff,
+  required final List<String> lines,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Column(
-    crossAxisAlignment: CrossAxisAlignment.stretch,
+    crossAxisAlignment: .stretch,
     children: <Widget>[
       Row(
         children: <Widget>[
           Expanded(
             child: Text(
               'File Changes',
-              style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                color: AleraTokens.foregroundFaint,
-              ),
+              style: Theme.of(context).textTheme.labelSmall
+                  ?.copyWith(color: AleraTokens.foregroundFaint),
             ),
           ),
           AleraIconButton(
@@ -183,7 +172,7 @@ class _CodexDiffDetails extends StatelessWidget {
       ClipRRect(
         borderRadius: BorderRadius.circular(AleraTokens.radiusSm),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
+          crossAxisAlignment: .stretch,
           children: <Widget>[
             for (final line in lines) _CodexDiffLine(text: line),
           ],
@@ -193,11 +182,8 @@ class _CodexDiffDetails extends StatelessWidget {
   );
 }
 
-class _CodexDiffLine extends StatelessWidget {
-  const _CodexDiffLine({required this.text});
-
-  final String text;
-
+class const _CodexDiffLine({required final String text})
+    extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final (background, foreground) = switch (text) {

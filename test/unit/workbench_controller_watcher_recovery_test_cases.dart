@@ -31,8 +31,8 @@ void _registerWorkbenchControllerWatcherRecoveryTests() {
           id: 'tab-after-recovery',
           workspaceId: workspace.id,
           title: 'Terminal 1',
-          createdAt: DateTime.utc(2026, 5, 22),
-          updatedAt: DateTime.utc(2026, 5, 22),
+          createdAt: .utc(2026, 5, 22),
+          updatedAt: .utc(2026, 5, 22),
         ),
       );
       await _flushUntil(

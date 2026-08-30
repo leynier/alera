@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+
 import 'package:alera_mobile/src/features/accounts/infra/alera_cloud_api.dart';
 import 'package:alera_mobile/src/features/runtime/domain/connection_attempt.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -107,7 +108,7 @@ class _ProxyFailureClient extends http.BaseClient {
   @override
   Future<http.StreamedResponse> send(http.BaseRequest request) async =>
       http.StreamedResponse(
-        Stream.value(utf8.encode('<html>Temporarily unavailable</html>')),
+        .value(utf8.encode('<html>Temporarily unavailable</html>')),
         503,
         headers: {'retry-after': '90'},
       );

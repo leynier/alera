@@ -51,7 +51,7 @@ Workspace _workspace({
     branch: branch,
     path: '/repo/$projectId/$id',
     kind: kind,
-    status: WorkspaceStatus.active,
+    status: .active,
     createdAt: now,
     updatedAt: now,
   );

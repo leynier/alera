@@ -7,18 +7,12 @@ import 'package:alera/src/design_system/layout/alera_dialog.dart';
 import 'package:alera/src/features/browser/domain/browser_profile.dart';
 import 'package:flutter/material.dart';
 
-class BrowserProfilePickerDialog extends StatelessWidget {
-  const BrowserProfilePickerDialog({
-    super.key,
-    required this.profiles,
-    required this.currentProfileId,
-    required this.onManageProfiles,
-  });
-
-  final List<BrowserProfile> profiles;
-  final String currentProfileId;
-  final VoidCallback onManageProfiles;
-
+class const BrowserProfilePickerDialog({
+  super.key,
+  required final List<BrowserProfile> profiles,
+  required final String currentProfileId,
+  required final VoidCallback onManageProfiles,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -28,7 +22,7 @@ class BrowserProfilePickerDialog extends StatelessWidget {
       child: Padding(
         padding: const EdgeInsets.all(AleraTokens.space20),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
+          crossAxisAlignment: .stretch,
           children: <Widget>[
             Row(
               children: <Widget>[
@@ -93,17 +87,11 @@ class BrowserProfilePickerDialog extends StatelessWidget {
   }
 }
 
-class _BrowserProfileRow extends StatelessWidget {
-  const _BrowserProfileRow({
-    required this.profile,
-    required this.selected,
-    required this.onTap,
-  });
-
-  final BrowserProfile profile;
-  final bool selected;
-  final VoidCallback onTap;
-
+class const _BrowserProfileRow({
+  required final BrowserProfile profile,
+  required final bool selected,
+  required final VoidCallback onTap,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -118,11 +106,7 @@ class _BrowserProfileRow extends StatelessWidget {
       title: Row(
         children: <Widget>[
           Flexible(
-            child: Text(
-              profile.label,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
+            child: Text(profile.label, maxLines: 1, overflow: .ellipsis),
           ),
           if (profile.isDefault) ...<Widget>[
             const SizedBox(width: AleraTokens.space8),
@@ -133,7 +117,7 @@ class _BrowserProfileRow extends StatelessWidget {
       subtitle: Text(
         _profileDescription(profile),
         maxLines: 1,
-        overflow: TextOverflow.ellipsis,
+        overflow: .ellipsis,
         style: theme.textTheme.bodySmall?.copyWith(
           color: AleraTokens.foregroundMuted,
         ),

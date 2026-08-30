@@ -107,16 +107,13 @@ void main() {
   });
 }
 
-class _FakeGitHubStarService extends GitHubStarService {
-  _FakeGitHubStarService({
-    this.checkStarredResult,
-    this.checkStarredFuture,
-    this.starResult = true,
-  }) : super(_NoopProcessRunner());
+class _FakeGitHubStarService({
+  final bool? checkStarredResult,
+  final Future<bool?>? checkStarredFuture,
+  final bool starResult = true,
+}) extends GitHubStarService {
+  this : super(_NoopProcessRunner());
 
-  final bool? checkStarredResult;
-  final Future<bool?>? checkStarredFuture;
-  final bool starResult;
   int starCalls = 0;
 
   @override

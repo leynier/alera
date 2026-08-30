@@ -1,14 +1,12 @@
 part of 'codex_chat_models.dart';
 
 @immutable
-class CodexCwdOption {
-  const CodexCwdOption({
-    required this.workspaceId,
-    required this.name,
-    required this.path,
-  });
-
-  factory CodexCwdOption.fromJson(Object? value) {
+class const CodexCwdOption({
+  required final String workspaceId,
+  required final String name,
+  required final String path,
+}) {
+  factory fromJson(Object? value) {
     final json = _threadMap(value);
     return CodexCwdOption(
       workspaceId: json['workspaceId']?.toString() ?? '',
@@ -16,10 +14,6 @@ class CodexCwdOption {
       path: json['path']?.toString() ?? '',
     );
   }
-
-  final String workspaceId;
-  final String name;
-  final String path;
 
   @override
   bool operator ==(Object other) =>
@@ -33,26 +27,24 @@ class CodexCwdOption {
 }
 
 @immutable
-class CodexThreadSummary {
-  const CodexThreadSummary({
-    required this.id,
-    required this.title,
-    this.preview,
-    this.cwd,
-    this.workspaceId,
-    this.workspaceName,
-    this.sourceKind,
-    this.status,
-    this.createdAt,
-    this.updatedAt,
-    this.recencyAt,
-    this.isPinned = false,
-    this.boundTabId,
-    this.boundWorkspaceId,
-    this.canResume = true,
-  });
-
-  factory CodexThreadSummary.fromJson(Object? value) {
+class const CodexThreadSummary({
+  required final String id,
+  required final String title,
+  final String? preview,
+  final String? cwd,
+  final String? workspaceId,
+  final String? workspaceName,
+  final String? sourceKind,
+  final Object? status,
+  final DateTime? createdAt,
+  final DateTime? updatedAt,
+  final DateTime? recencyAt,
+  final bool isPinned = false,
+  final String? boundTabId,
+  final String? boundWorkspaceId,
+  final bool canResume = true,
+}) {
+  factory fromJson(Object? value) {
     final json = _threadMap(value);
     final id = (json['threadId'] ?? json['id'])?.toString() ?? '';
     final title =
@@ -79,35 +71,17 @@ class CodexThreadSummary {
     );
   }
 
-  final String id;
-  final String title;
-  final String? preview;
-  final String? cwd;
-  final String? workspaceId;
-  final String? workspaceName;
-  final String? sourceKind;
-  final Object? status;
-  final DateTime? createdAt;
-  final DateTime? updatedAt;
-  final DateTime? recencyAt;
-  final bool isPinned;
-  final String? boundTabId;
-  final String? boundWorkspaceId;
-  final bool canResume;
-
   bool get isBound => boundTabId != null && boundTabId!.isNotEmpty;
 }
 
 @immutable
-class CodexThreadPage {
-  const CodexThreadPage({
-    this.items = const <CodexThreadSummary>[],
-    this.nextCursor,
-    this.backwardsCursor,
-    this.cwdOptions = const <CodexCwdOption>[],
-  });
-
-  factory CodexThreadPage.fromJson(Object? value) {
+class const CodexThreadPage({
+  final List<CodexThreadSummary> items = const <CodexThreadSummary>[],
+  final String? nextCursor,
+  final String? backwardsCursor,
+  final List<CodexCwdOption> cwdOptions = const <CodexCwdOption>[],
+}) {
+  factory fromJson(Object? value) {
     final json = _threadMap(value);
     final raw = json['items'] ?? json['threads'] ?? json['data'];
     return CodexThreadPage(
@@ -125,11 +99,6 @@ class CodexThreadPage {
     );
   }
 
-  final List<CodexThreadSummary> items;
-  final String? nextCursor;
-  final String? backwardsCursor;
-  final List<CodexCwdOption> cwdOptions;
-
   CodexThreadPage append(CodexThreadPage next) => CodexThreadPage(
     items: <CodexThreadSummary>[...items, ...next.items],
     nextCursor: next.nextCursor,
@@ -139,20 +108,18 @@ class CodexThreadPage {
 }
 
 @immutable
-class CodexThreadHistoryPage {
-  const CodexThreadHistoryPage({
-    required this.snapshot,
-    this.items = const <Map<String, Object?>>[],
-    this.nextCursor,
-    this.backwardsCursor,
-    this.cwd,
-  });
-
-  factory CodexThreadHistoryPage.fromJson(Object? value) {
+class const CodexThreadHistoryPage({
+  required final CodexChatSnapshot snapshot,
+  final List<Map<String, Object?>> items = const <Map<String, Object?>>[],
+  final String? nextCursor,
+  final String? backwardsCursor,
+  final String? cwd,
+}) {
+  factory fromJson(Object? value) {
     final json = _threadMap(value);
     final raw = json['items'] ?? json['data'];
     return CodexThreadHistoryPage(
-      snapshot: CodexChatSnapshot.fromJson(json['snapshot']),
+      snapshot: .fromJson(json['snapshot']),
       items: <Map<String, Object?>>[
         if (raw is List)
           for (final item in raw)
@@ -163,12 +130,6 @@ class CodexThreadHistoryPage {
       cwd: _threadString(json, 'cwd'),
     );
   }
-
-  final CodexChatSnapshot snapshot;
-  final List<Map<String, Object?>> items;
-  final String? nextCursor;
-  final String? backwardsCursor;
-  final String? cwd;
 }
 
 Map<String, Object?> _threadMap(Object? value) =>

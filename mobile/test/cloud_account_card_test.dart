@@ -16,7 +16,7 @@ void main() {
       ),
       accessToken: 'access-token',
       refreshToken: 'refresh-token',
-      accessTokenExpiresAt: DateTime.utc(2030),
+      accessTokenExpiresAt: .utc(2030),
       subscriptions: const <String, RuntimePushPreferences>{
         'runtime-1': RuntimePushPreferences(),
       },
@@ -24,7 +24,7 @@ void main() {
 
     await tester.pumpWidget(
       MaterialApp(
-        theme: ThemeData.dark(),
+        theme: .dark(),
         home: Scaffold(
           body: ListView(
             children: <Widget>[

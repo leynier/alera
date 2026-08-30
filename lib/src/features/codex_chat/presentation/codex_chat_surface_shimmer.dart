@@ -1,10 +1,7 @@
 part of 'codex_chat_surface.dart';
 
-class _CodexShimmerScope extends StatefulWidget {
-  const _CodexShimmerScope({required this.child});
-
-  final Widget child;
-
+class const _CodexShimmerScope({required final Widget child})
+    extends StatefulWidget {
   static _CodexShimmerScopeState? maybeOf(BuildContext context) =>
       context.dependOnInheritedWidgetOfExactType<_CodexShimmerPhase>()?.owner;
 
@@ -89,30 +86,22 @@ class _CodexShimmerScopeState extends State<_CodexShimmerScope>
       _CodexShimmerPhase(owner: this, child: widget.child);
 }
 
-class _CodexShimmerPhase extends InheritedWidget {
-  const _CodexShimmerPhase({required this.owner, required super.child});
-
-  final _CodexShimmerScopeState owner;
-
+class const _CodexShimmerPhase({
+  required final _CodexShimmerScopeState owner,
+  required super.child,
+}) extends InheritedWidget {
   @override
   bool updateShouldNotify(_CodexShimmerPhase oldWidget) =>
       !identical(owner, oldWidget.owner);
 }
 
-class _CodexShimmerText extends StatefulWidget {
-  const _CodexShimmerText({
-    super.key,
-    required this.text,
-    this.style,
-    this.maxLines,
-    this.overflow,
-  });
-
-  final String text;
-  final TextStyle? style;
-  final int? maxLines;
-  final TextOverflow? overflow;
-
+class const _CodexShimmerText({
+  super.key,
+  required final String text,
+  final TextStyle? style,
+  final int? maxLines,
+  final TextOverflow? overflow,
+}) extends StatefulWidget {
   @override
   State<_CodexShimmerText> createState() => _CodexShimmerTextState();
 }
@@ -154,7 +143,7 @@ class _CodexShimmerTextState extends State<_CodexShimmerText> {
         valueListenable: phase,
         child: text,
         builder: (context, value, child) => ShaderMask(
-          blendMode: BlendMode.srcIn,
+          blendMode: .srcIn,
           shaderCallback: (bounds) {
             final width = bounds.width;
             final left = bounds.left - width + (width * 2 * value);
@@ -164,9 +153,7 @@ class _CodexShimmerTextState extends State<_CodexShimmerText> {
                 AleraTokens.foreground,
                 AleraTokens.foregroundFaint,
               ],
-            ).createShader(
-              Rect.fromLTWH(left, bounds.top, width, bounds.height),
-            );
+            ).createShader(.fromLTWH(left, bounds.top, width, bounds.height));
           },
           child: child,
         ),

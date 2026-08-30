@@ -1,7 +1,5 @@
 import 'package:alera/src/app/theme/alera_dark_theme.dart';
-import 'package:alera/src/features/remote_hosts/domain/ssh_target.dart';
 import 'package:alera/src/features/settings/presentation/panes/remote_host_editor.dart';
-import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -31,7 +29,7 @@ void main() {
             installDirController: installDirController,
             platform: '',
             arch: '',
-            authKind: SshAuthKind.agent,
+            authKind: .agent,
             hasSelection: false,
             saving: false,
             planning: false,
@@ -53,10 +51,7 @@ void main() {
     await tester.ensureVisible(saveButton);
     await tester.pump();
 
-    final mouse = await tester.createGesture(
-      kind: PointerDeviceKind.mouse,
-      pointer: 1,
-    );
+    final mouse = await tester.createGesture(kind: .mouse, pointer: 1);
     addTearDown(mouse.removePointer);
     await mouse.addPointer(location: tester.getCenter(saveButton));
     await tester.pump();

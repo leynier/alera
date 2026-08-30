@@ -862,13 +862,13 @@ jobs:
           done
 
       - name: Package standalone runtimes
-        working-directory: tool/release
+        working-directory: tool/release/runtime_packager
         env:
           RELEASE_VERSION: ${{ needs.plan.outputs.desktop_release_version }}
         run: |
           set -euo pipefail
           dart pub get
-          dart package_runtime_sidecars.dart \
+          dart --packages=.dart_tool/package_config.json ../package_runtime_sidecars.dart \
             --version "$RELEASE_VERSION" \
             --input "$GITHUB_WORKSPACE/runtime-inputs" \
             --output "$GITHUB_WORKSPACE/release-assets"

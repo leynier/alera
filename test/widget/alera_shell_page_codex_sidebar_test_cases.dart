@@ -9,7 +9,7 @@ void _registerAleraShellCodexSidebarTests() {
     final codexTab = WorkspaceTabRecord(
       id: terminal.id,
       workspaceId: terminal.workspaceId,
-      kind: WorkspaceTabKind.codex,
+      kind: .codex,
       title: 'Codex',
       createdAt: terminal.createdAt,
       updatedAt: terminal.updatedAt,
@@ -29,7 +29,7 @@ void _registerAleraShellCodexSidebarTests() {
           terminalSessionId: handle,
           workspaceId: codexTab.workspaceId,
           tabId: codexTab.id,
-          state: AgentStatusState.waiting,
+          state: .waiting,
           prompt: 'Review the workspace',
         ),
       },
@@ -45,7 +45,7 @@ void _registerAleraShellCodexSidebarTests() {
     );
     expect(harness.runtime.focusedTabIds, isNot(contains(codexTab.id)));
 
-    final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+    final mouse = await tester.createGesture(kind: .mouse);
     addTearDown(mouse.removePointer);
     await mouse.addPointer();
     await mouse.moveTo(tester.getCenter(find.text(description)));

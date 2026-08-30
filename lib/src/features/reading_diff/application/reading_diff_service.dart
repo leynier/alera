@@ -16,15 +16,13 @@ import 'package:alera/src/shared/infra/git/git_backend.dart';
 import 'package:alera/src/shared/infra/git/git_exception.dart';
 import 'package:crypto/crypto.dart';
 
-class ReadingDiffService {
-  ReadingDiffService({
-    required this.gitBackend,
-    required this.runner,
-    ReadingDiffCache? cache,
-  }) : cache = cache ?? const FileReadingDiffCache();
+class ReadingDiffService({
+  required final GitBackend gitBackend,
+  required final AgentTaskRunner runner,
+  ReadingDiffCache? cache,
+}) {
+  this : cache = cache ?? const FileReadingDiffCache();
 
-  final GitBackend gitBackend;
-  final AgentTaskRunner runner;
   final ReadingDiffCache cache;
   final Set<String> _pending = <String>{};
   final Map<String, String> _activeRunByLane = <String, String>{};
@@ -75,7 +73,7 @@ class ReadingDiffService {
     try {
       compiler = await rust.prepareReadingDiff(
         diff: rawDiff,
-        maxChunkBytes: BigInt.from(chunkLimit),
+        maxChunkBytes: .from(chunkLimit),
       );
     } on rust.ReadingDiffError catch (error) {
       throw AiAssistException(error.message);
@@ -108,7 +106,7 @@ class ReadingDiffService {
       agent: agent,
       model: model.id,
       effort: effort,
-      accessPolicy: AgentTaskAccessPolicy.diffOnly,
+      accessPolicy: .diffOnly,
       cacheKey: cacheKey,
       cachedResult: request.ignoreCache ? null : await cache.read(cacheKey),
     );
@@ -122,7 +120,7 @@ class ReadingDiffService {
     if (cached != null) {
       onProgress?.call(
         ReadingDiffGenerationProgress(
-          stage: ReadingDiffGenerationStage.cached,
+          stage: .cached,
           completedChunks: preparation.chunkCount,
           totalChunks: preparation.chunkCount,
         ),
@@ -145,7 +143,7 @@ class ReadingDiffService {
         _throwIfCanceled(lane);
         onProgress?.call(
           ReadingDiffGenerationProgress(
-            stage: ReadingDiffGenerationStage.generating,
+            stage: .generating,
             completedChunks: compiled.length,
             totalChunks: preparation.chunkCount,
             currentChunk: chunk.index + 1,
@@ -155,7 +153,7 @@ class ReadingDiffService {
           preparation: preparation.compiler,
           chunk: chunk,
           customInstructions: preparation.request.settings.instructionsFor(
-            AiAssistOperation.readingDiff,
+            .readingDiff,
           ),
         );
         var plan = await _runPlan(preparation, lane, chunk.index, prompt);
@@ -169,7 +167,7 @@ class ReadingDiffService {
         } on rust.ReadingDiffError catch (error) {
           onProgress?.call(
             ReadingDiffGenerationProgress(
-              stage: ReadingDiffGenerationStage.repairing,
+              stage: .repairing,
               completedChunks: compiled.length,
               totalChunks: preparation.chunkCount,
               currentChunk: chunk.index + 1,
@@ -220,7 +218,7 @@ class ReadingDiffService {
       _throwIfCanceled(lane);
       onProgress?.call(
         ReadingDiffGenerationProgress(
-          stage: ReadingDiffGenerationStage.combining,
+          stage: .combining,
           completedChunks: preparation.chunkCount,
           totalChunks: preparation.chunkCount,
         ),
@@ -287,7 +285,7 @@ class ReadingDiffService {
         model: preparation.model,
         reasoning: preparation.effort,
         accessPolicy: preparation.accessPolicy,
-        outputContract: AgentTaskOutputContract.readingDiffPlanV1,
+        outputContract: .readingDiffPlanV1,
         outputSchema: preparation.compiler.planSchema,
       ),
     );

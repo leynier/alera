@@ -9,13 +9,15 @@ const int posixPrivateFileMode = 0x180; // 0o600
 
 /// `mode_t` is 16 bits on Darwin and 32 on Linux. Passing 32 is safe for both:
 /// the callee reads the low bits, and every mode used here fits in 16.
-typedef _ChmodNative =
-    ffi.Int32 Function(ffi.Pointer<Utf8> path, ffi.Uint32 mode);
+typedef _ChmodNative = ffi.Int32 Function(
+  ffi.Pointer<Utf8> path,
+  ffi.Uint32 mode,
+);
 typedef _ChmodDart = int Function(ffi.Pointer<Utf8> path, int mode);
 
 /// Resolved from the running process rather than a named library, because the
 /// libc file name differs between glibc, musl and macOS.
-final ffi.DynamicLibrary _libc = ffi.DynamicLibrary.process();
+final ffi.DynamicLibrary _libc = .process();
 final _ChmodDart _chmod = _libc.lookupFunction<_ChmodNative, _ChmodDart>(
   'chmod',
 );

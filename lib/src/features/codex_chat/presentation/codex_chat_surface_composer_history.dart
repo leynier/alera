@@ -36,7 +36,7 @@ extension _CodexComposerHistory on _CodexComposerState {
     _applyingHistory = true;
     widget.controller.value = TextEditingValue(
       text: text,
-      selection: TextSelection.collapsed(offset: text.length),
+      selection: .collapsed(offset: text.length),
     );
     _applyingHistory = false;
   }

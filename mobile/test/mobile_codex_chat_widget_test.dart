@@ -159,11 +159,10 @@ Future<void> _pumpScreen(
 }) async {
   final child = MaterialApp(
     debugShowCheckedModeBanner: false,
-    theme: ThemeData.dark(),
+    theme: .dark(),
     home: MediaQuery(
-      data: MediaQueryData.fromView(
-        tester.view,
-      ).copyWith(disableAnimations: disableAnimations),
+      data: MediaQueryData.fromView(tester.view)
+          .copyWith(disableAnimations: disableAnimations),
       child: Scaffold(
         body: MobileCodexChatScreen(
           hostId: hostId,
@@ -178,9 +177,8 @@ Future<void> _pumpScreen(
     container == null
         ? ProviderScope(
             overrides: [
-              mobileCodexClientProvider(
-                hostId,
-              ).overrideWith((ref) async => client),
+              mobileCodexClientProvider(hostId)
+                  .overrideWith((ref) async => client),
             ],
             child: child,
           )

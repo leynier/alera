@@ -77,17 +77,14 @@ void main() {
   });
 }
 
-final class _FakeHostConnection extends HostConnectionController {
-  _FakeHostConnection(this.client);
-
-  final Future<MobileRuntimeClient> client;
-
+final class _FakeHostConnection(final Future<MobileRuntimeClient> client)
+    extends HostConnectionController {
   @override
   Future<MobileRuntimeClient> build(String hostId) => client;
 }
 
-final class _FakeMobileRuntimeClient extends MobileRuntimeClient {
-  _FakeMobileRuntimeClient() : super.forTesting(_PassiveWebSocketChannel());
+final class _FakeMobileRuntimeClient() extends MobileRuntimeClient {
+  this : super.forTesting(_PassiveWebSocketChannel());
 
   @override
   bool get supportsAgentQuotas => true;
@@ -132,11 +129,8 @@ final class _PassiveWebSocketChannel implements WebSocketChannel {
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
-final class _PassiveWebSocketSink implements WebSocketSink {
-  _PassiveWebSocketSink(this._sink);
-
-  final StreamSink<Object?> _sink;
-
+final class _PassiveWebSocketSink(final StreamSink<Object?> _sink)
+    implements WebSocketSink {
   @override
   Future<void> get done => _sink.done;
 

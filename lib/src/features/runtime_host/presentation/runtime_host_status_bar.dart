@@ -12,9 +12,8 @@ import 'package:alera/src/shared/infra/logging/app_logger.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-class RuntimeHostStatusBarControl extends ConsumerStatefulWidget {
-  const RuntimeHostStatusBarControl({super.key});
-
+class const RuntimeHostStatusBarControl({super.key})
+    extends ConsumerStatefulWidget {
   @override
   ConsumerState<RuntimeHostStatusBarControl> createState() =>
       _RuntimeHostStatusBarControlState();
@@ -91,11 +90,7 @@ class _RuntimeHostStatusBarControlState
         context: 'RuntimeHostStatusBarControl',
       );
       if (mounted) {
-        AleraToast.show(
-          context,
-          message: _messageFor(error),
-          tone: AleraToastTone.error,
-        );
+        AleraToast.show(context, message: _messageFor(error), tone: .error);
       }
     } finally {
       if (mounted) {
@@ -133,18 +128,12 @@ class _RuntimeHostStatusBarControlState
 }
 
 /// Presentational host for widget previews and tests.
-class RuntimeHostStatusBarControlView extends StatelessWidget {
-  const RuntimeHostStatusBarControlView({
-    super.key,
-    required this.snapshot,
-    required this.loading,
-    required this.onPressed,
-  });
-
-  final RuntimeHostStatusSnapshot? snapshot;
-  final bool loading;
-  final VoidCallback onPressed;
-
+class const RuntimeHostStatusBarControlView({
+  super.key,
+  required final RuntimeHostStatusSnapshot? snapshot,
+  required final bool loading,
+  required final VoidCallback onPressed,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return RuntimeHostStatusChip(

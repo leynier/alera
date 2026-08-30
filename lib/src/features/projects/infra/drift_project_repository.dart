@@ -3,11 +3,8 @@ import 'package:alera/src/features/projects/domain/project.dart';
 import 'package:alera/src/shared/infra/storage/drift_database.dart';
 import 'package:drift/drift.dart';
 
-class DriftProjectRepository implements ProjectRepository {
-  DriftProjectRepository(this._db);
-
-  final AleraDatabase _db;
-
+class DriftProjectRepository(final AleraDatabase _db)
+    implements ProjectRepository {
   @override
   Future<List<Project>> listAll() async {
     final query = _db.select(_db.projectsTable)

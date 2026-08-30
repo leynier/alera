@@ -20,8 +20,8 @@ List<CodexTimelineCell>? _reduceModernCodexNotification(
       id: itemId.isEmpty ? 'diff-$turnId' : 'item-$itemId',
       itemId: itemId.isEmpty ? null : itemId,
       turnId: turnId,
-      kind: CodexTimelineKind.diff,
-      status: CodexTimelineStatus.inProgress,
+      kind: .diff,
+      status: .inProgress,
       timestamp: timestamp,
       title: 'File changes',
       isStreaming: true,
@@ -47,8 +47,8 @@ List<CodexTimelineCell>? _reduceModernCodexNotification(
     _newCell(
       id: 'model-verification-$turnId',
       turnId: turnId,
-      kind: CodexTimelineKind.systemNotice,
-      status: CodexTimelineStatus.info,
+      kind: .systemNotice,
+      status: .info,
       timestamp: timestamp,
       title: 'Account verification',
       markdownText: _verificationMarkdown(params['verifications']),
@@ -99,8 +99,8 @@ List<CodexTimelineCell> _completeContextCompaction(
       _newCell(
         id: 'compaction-$turnId',
         turnId: turnId,
-        kind: CodexTimelineKind.toolCall,
-        status: CodexTimelineStatus.completed,
+        kind: .toolCall,
+        status: .completed,
         timestamp: timestamp,
         title: 'Compacted',
         metadata: const <String, Object?>{'itemType': 'contextCompaction'},
@@ -111,7 +111,7 @@ List<CodexTimelineCell> _completeContextCompaction(
     for (var position = 0; position < cells.length; position++)
       position == index
           ? cells[position].copyWith(
-              status: CodexTimelineStatus.completed,
+              status: .completed,
               title: 'Compacted',
               isStreaming: false,
               updatedAt: timestamp,
@@ -140,7 +140,7 @@ List<CodexTimelineCell> _reduceSafetyBuffering(
     _newCell(
       id: 'safety-buffering-$turnId',
       turnId: turnId,
-      kind: CodexTimelineKind.systemNotice,
+      kind: .systemNotice,
       status: visible
           ? CodexTimelineStatus.inProgress
           : CodexTimelineStatus.completed,
@@ -175,7 +175,7 @@ List<CodexTimelineCell> _reduceMcpStartup(
     _newCell(
       id: 'mcp-startup-${name?.isNotEmpty == true ? name : 'MCP'}',
       turnId: turnId.isEmpty ? null : turnId,
-      kind: CodexTimelineKind.toolCall,
+      kind: .toolCall,
       status: failed
           ? CodexTimelineStatus.failed
           : starting
@@ -216,7 +216,7 @@ List<CodexTimelineCell> _reduceModernPlan(
     _newCell(
       id: 'plan-$turnId',
       turnId: turnId,
-      kind: CodexTimelineKind.plan,
+      kind: .plan,
       status: complete
           ? CodexTimelineStatus.completed
           : CodexTimelineStatus.inProgress,
@@ -264,8 +264,8 @@ List<CodexTimelineCell> _reduceModelReroute(
     _newCell(
       id: 'model-reroute-$turnId',
       turnId: turnId,
-      kind: CodexTimelineKind.systemNotice,
-      status: CodexTimelineStatus.info,
+      kind: .systemNotice,
+      status: .info,
       timestamp: timestamp,
       title: 'Model changed',
       markdownText:
@@ -304,8 +304,8 @@ List<CodexTimelineCell> _reduceCodexNotice(
     _newCell(
       id: 'notice-${timestamp.microsecondsSinceEpoch}',
       turnId: turnId.isEmpty ? null : turnId,
-      kind: CodexTimelineKind.systemNotice,
-      status: CodexTimelineStatus.info,
+      kind: .systemNotice,
+      status: .info,
       timestamp: timestamp,
       title: title,
       subtitle: params['path']?.toString(),

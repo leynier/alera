@@ -14,20 +14,17 @@ void main() {
     _registerWorkspaceTabPathMoveTests();
     _registerWorkspaceTabGitPreviewTests();
 
-    test(
-      'ensureInitialTerminalTab creates the first terminal workspace tab when none exist',
-      () async {
-        final repository = _FakeWorkbenchRepository();
-        final service = WorkspaceTabService(
-          repository: repository,
-          now: () => DateTime.utc(2026, 5, 21),
-        );
-        final tab = await service.ensureInitialTerminalTab('workspace-1');
-        expect(tab.title, 'Terminal 1');
-        expect(tab.terminalSessionId, tab.id);
-        expect(repository.tabs.single.title, 'Terminal 1');
-      },
-    );
+    test('ensureInitialTerminalTab creates the first terminal workspace tab when none exist', () async {
+      final repository = _FakeWorkbenchRepository();
+      final service = WorkspaceTabService(
+        repository: repository,
+        now: () => DateTime.utc(2026, 5, 21),
+      );
+      final tab = await service.ensureInitialTerminalTab('workspace-1');
+      expect(tab.title, 'Terminal 1');
+      expect(tab.terminalSessionId, tab.id);
+      expect(repository.tabs.single.title, 'Terminal 1');
+    });
 
     test(
       'createTerminalTab picks the next available terminal ordinal',
@@ -38,15 +35,15 @@ void main() {
               id: 'tab-1',
               workspaceId: 'workspace-1',
               title: 'Terminal 1',
-              createdAt: DateTime.utc(2026, 5, 21),
-              updatedAt: DateTime.utc(2026, 5, 21),
+              createdAt: .utc(2026, 5, 21),
+              updatedAt: .utc(2026, 5, 21),
             ),
             WorkspaceTabRecord(
               id: 'tab-3',
               workspaceId: 'workspace-1',
               title: 'Terminal 3',
-              createdAt: DateTime.utc(2026, 5, 21),
-              updatedAt: DateTime.utc(2026, 5, 21),
+              createdAt: .utc(2026, 5, 21),
+              updatedAt: .utc(2026, 5, 21),
             ),
           ]);
         final service = WorkspaceTabService(
@@ -167,10 +164,10 @@ void main() {
           WorkspaceTabRecord(
             id: 'preview-tab',
             workspaceId: 'workspace-1',
-            kind: WorkspaceTabKind.editor,
+            kind: .editor,
             title: 'diagram.mmd preview',
-            createdAt: DateTime.utc(2026, 5, 21),
-            updatedAt: DateTime.utc(2026, 5, 21),
+            createdAt: .utc(2026, 5, 21),
+            updatedAt: .utc(2026, 5, 21),
             payload: const <String, Object?>{
               workspaceTabFilePathPayloadKey: 'docs/diagram.mmd',
               workspaceTabFileRolePayloadKey: workspaceTabFileRoleMermanPreview,
@@ -280,10 +277,10 @@ void main() {
           WorkspaceTabRecord(
             id: 'tab-1',
             workspaceId: 'workspace-1',
-            kind: WorkspaceTabKind.editor,
+            kind: .editor,
             title: 'guide.pdf',
-            createdAt: DateTime.utc(2026, 5, 21),
-            updatedAt: DateTime.utc(2026, 5, 21),
+            createdAt: .utc(2026, 5, 21),
+            updatedAt: .utc(2026, 5, 21),
             payload: const <String, Object?>{
               workspaceTabFilePathPayloadKey: 'docs/guide.pdf',
             },
@@ -313,10 +310,10 @@ void main() {
           WorkspaceTabRecord(
             id: 'tab-1',
             workspaceId: 'workspace-1',
-            kind: WorkspaceTabKind.pdf,
+            kind: .pdf,
             title: 'guide.pdf',
-            createdAt: DateTime.utc(2026, 5, 21),
-            updatedAt: DateTime.utc(2026, 5, 21),
+            createdAt: .utc(2026, 5, 21),
+            updatedAt: .utc(2026, 5, 21),
             payload: const <String, Object?>{
               workspaceTabFilePathPayloadKey: 'docs/guide.pdf',
             },
@@ -376,14 +373,14 @@ void main() {
       final first = await service.openOrCreateGitDiffTab(
         workspaceId: 'workspace-1',
         relativePath: './lib\\main.dart',
-        area: GitChangeArea.unstaged,
-        scope: WorkspaceGitDiffScope.file,
+        area: .unstaged,
+        scope: .file,
       );
       final second = await service.openOrCreateGitDiffTab(
         workspaceId: 'workspace-1',
         relativePath: 'lib/main.dart',
-        area: GitChangeArea.unstaged,
-        scope: WorkspaceGitDiffScope.file,
+        area: .unstaged,
+        scope: .file,
       );
 
       expect(first.kind, WorkspaceTabKind.gitDiff);
@@ -404,7 +401,7 @@ void main() {
 
       final tab = await service.openOrCreateGitDiffTab(
         workspaceId: 'workspace-1',
-        scope: WorkspaceGitDiffScope.all,
+        scope: .all,
       );
 
       expect(tab.kind, WorkspaceTabKind.gitDiff);
@@ -423,16 +420,16 @@ void main() {
 
       final rootTab = await service.openOrCreateGitDiffTab(
         workspaceId: 'workspace-1',
-        scope: WorkspaceGitDiffScope.all,
+        scope: .all,
         gitDiffRoot: './packages\\app',
       );
       final workspaceTab = await service.openOrCreateGitDiffTab(
         workspaceId: 'workspace-1',
-        scope: WorkspaceGitDiffScope.all,
+        scope: .all,
       );
       final rootAgain = await service.openOrCreateGitDiffTab(
         workspaceId: 'workspace-1',
-        scope: WorkspaceGitDiffScope.all,
+        scope: .all,
         gitDiffRoot: 'packages/app',
       );
 
@@ -443,62 +440,59 @@ void main() {
       expect(repository.tabs, hasLength(2));
     });
 
-    test(
-      'openOrCreateGitCommitDiffTab creates and reuses commit diff tabs independently',
-      () async {
-        final repository = _FakeWorkbenchRepository();
-        final service = WorkspaceTabService(
-          repository: repository,
-          now: () => DateTime.utc(2026, 5, 21, 1),
-        );
+    test('openOrCreateGitCommitDiffTab creates and reuses commit diff tabs independently', () async {
+      final repository = _FakeWorkbenchRepository();
+      final service = WorkspaceTabService(
+        repository: repository,
+        now: () => DateTime.utc(2026, 5, 21, 1),
+      );
 
-        final workingTreeTab = await service.openOrCreateGitDiffTab(
-          workspaceId: 'workspace-1',
-          relativePath: 'packages/app/lib/main.dart',
-          area: GitChangeArea.unstaged,
-          scope: WorkspaceGitDiffScope.file,
-          gitDiffRoot: 'packages/app',
-        );
-        final first = await service.openOrCreateGitCommitDiffTab(
-          workspaceId: 'workspace-1',
-          relativePath: './packages\\app\\lib\\main.dart',
-          oldPath: './packages\\app\\lib\\old_main.dart',
-          scope: WorkspaceGitDiffScope.file,
-          gitDiffRoot: './packages\\app',
-          commitOid: 'abc123456789',
-          parentOid: 'def987654321',
-          compareRef: 'abc1234',
-          subject: 'Add Main',
-          message: 'Add Main\n\nBody',
-        );
-        final second = await service.openOrCreateGitCommitDiffTab(
-          workspaceId: 'workspace-1',
-          relativePath: 'packages/app/lib/main.dart',
-          oldPath: 'packages/app/lib/old_main.dart',
-          scope: WorkspaceGitDiffScope.file,
-          gitDiffRoot: 'packages/app',
-          commitOid: 'abc123456789',
-          parentOid: 'def987654321',
-          compareRef: 'abc1234',
-        );
+      final workingTreeTab = await service.openOrCreateGitDiffTab(
+        workspaceId: 'workspace-1',
+        relativePath: 'packages/app/lib/main.dart',
+        area: .unstaged,
+        scope: .file,
+        gitDiffRoot: 'packages/app',
+      );
+      final first = await service.openOrCreateGitCommitDiffTab(
+        workspaceId: 'workspace-1',
+        relativePath: './packages\\app\\lib\\main.dart',
+        oldPath: './packages\\app\\lib\\old_main.dart',
+        scope: .file,
+        gitDiffRoot: './packages\\app',
+        commitOid: 'abc123456789',
+        parentOid: 'def987654321',
+        compareRef: 'abc1234',
+        subject: 'Add Main',
+        message: 'Add Main\n\nBody',
+      );
+      final second = await service.openOrCreateGitCommitDiffTab(
+        workspaceId: 'workspace-1',
+        relativePath: 'packages/app/lib/main.dart',
+        oldPath: 'packages/app/lib/old_main.dart',
+        scope: .file,
+        gitDiffRoot: 'packages/app',
+        commitOid: 'abc123456789',
+        parentOid: 'def987654321',
+        compareRef: 'abc1234',
+      );
 
-        expect(first.id, isNot(workingTreeTab.id));
-        expect(second.id, first.id);
-        expect(first.kind, WorkspaceTabKind.gitDiff);
-        expect(first.title, 'main.dart abc1234');
-        expect(first.gitDiffSource, WorkspaceGitDiffSource.commit);
-        expect(first.gitDiffScope, WorkspaceGitDiffScope.file);
-        expect(first.filePath, 'packages/app/lib/main.dart');
-        expect(first.gitDiffOldPath, 'packages/app/lib/old_main.dart');
-        expect(first.gitDiffRoot, 'packages/app');
-        expect(first.gitDiffCommitOid, 'abc123456789');
-        expect(first.gitDiffParentOid, 'def987654321');
-        expect(first.gitDiffCompareRef, 'abc1234');
-        expect(first.gitDiffCommitSubject, 'Add Main');
-        expect(first.gitDiffCommitMessage, 'Add Main\n\nBody');
-        expect(repository.tabs, hasLength(2));
-      },
-    );
+      expect(first.id, isNot(workingTreeTab.id));
+      expect(second.id, first.id);
+      expect(first.kind, WorkspaceTabKind.gitDiff);
+      expect(first.title, 'main.dart abc1234');
+      expect(first.gitDiffSource, WorkspaceGitDiffSource.commit);
+      expect(first.gitDiffScope, WorkspaceGitDiffScope.file);
+      expect(first.filePath, 'packages/app/lib/main.dart');
+      expect(first.gitDiffOldPath, 'packages/app/lib/old_main.dart');
+      expect(first.gitDiffRoot, 'packages/app');
+      expect(first.gitDiffCommitOid, 'abc123456789');
+      expect(first.gitDiffParentOid, 'def987654321');
+      expect(first.gitDiffCompareRef, 'abc1234');
+      expect(first.gitDiffCommitSubject, 'Add Main');
+      expect(first.gitDiffCommitMessage, 'Add Main\n\nBody');
+      expect(repository.tabs, hasLength(2));
+    });
 
     test(
       'openOrCreateGitPullRequestDiffTab stores and reuses the PR range',
@@ -556,10 +550,10 @@ void main() {
           WorkspaceTabRecord(
             id: 'tab-1',
             workspaceId: 'workspace-1',
-            kind: WorkspaceTabKind.gitDiff,
+            kind: .gitDiff,
             title: 'app changes',
-            createdAt: DateTime.utc(2026, 5, 21),
-            updatedAt: DateTime.utc(2026, 5, 21),
+            createdAt: .utc(2026, 5, 21),
+            updatedAt: .utc(2026, 5, 21),
             payload: const <String, Object?>{
               workspaceTabGitDiffScopePayloadKey: 'all',
               workspaceTabGitDiffRootPayloadKey: 'packages/app',
@@ -590,10 +584,10 @@ void main() {
             WorkspaceTabRecord(
               id: 'working-tree-tab',
               workspaceId: 'workspace-1',
-              kind: WorkspaceTabKind.gitDiff,
+              kind: .gitDiff,
               title: 'app changes',
-              createdAt: DateTime.utc(2026, 5, 21),
-              updatedAt: DateTime.utc(2026, 5, 21),
+              createdAt: .utc(2026, 5, 21),
+              updatedAt: .utc(2026, 5, 21),
               payload: const <String, Object?>{
                 workspaceTabGitDiffScopePayloadKey: 'all',
                 workspaceTabGitDiffRootPayloadKey: 'packages/app',
@@ -602,10 +596,10 @@ void main() {
             WorkspaceTabRecord(
               id: 'commit-tab',
               workspaceId: 'workspace-1',
-              kind: WorkspaceTabKind.gitDiff,
+              kind: .gitDiff,
               title: 'main.dart abc1234',
-              createdAt: DateTime.utc(2026, 5, 21),
-              updatedAt: DateTime.utc(2026, 5, 21),
+              createdAt: .utc(2026, 5, 21),
+              updatedAt: .utc(2026, 5, 21),
               payload: const <String, Object?>{
                 workspaceTabGitDiffSourcePayloadKey: 'commit',
                 workspaceTabFilePathPayloadKey: 'packages/app/lib/main.dart',
@@ -621,10 +615,10 @@ void main() {
             WorkspaceTabRecord(
               id: 'pull-request-tab',
               workspaceId: 'workspace-1',
-              kind: WorkspaceTabKind.gitDiff,
+              kind: .gitDiff,
               title: 'Pull request #385',
-              createdAt: DateTime.utc(2026, 5, 21),
-              updatedAt: DateTime.utc(2026, 5, 21),
+              createdAt: .utc(2026, 5, 21),
+              updatedAt: .utc(2026, 5, 21),
               payload: const <String, Object?>{
                 workspaceTabGitDiffSourcePayloadKey: 'pullRequest',
                 workspaceTabGitDiffScopePayloadKey: 'all',
@@ -675,10 +669,10 @@ void main() {
           WorkspaceTabRecord(
             id: 'tab-1',
             workspaceId: 'workspace-1',
-            kind: WorkspaceTabKind.gitDiff,
+            kind: .gitDiff,
             title: 'main.dart unstaged',
-            createdAt: DateTime.utc(2026, 5, 21),
-            updatedAt: DateTime.utc(2026, 5, 21),
+            createdAt: .utc(2026, 5, 21),
+            updatedAt: .utc(2026, 5, 21),
             payload: const <String, Object?>{
               workspaceTabFilePathPayloadKey: 'packages/app/lib/main.dart',
               workspaceTabGitDiffScopePayloadKey: 'file',
@@ -713,15 +707,15 @@ void main() {
         service.openOrCreateGitDiffTab(
           workspaceId: 'workspace-1',
           relativePath: 'lib/main.dart',
-          scope: WorkspaceGitDiffScope.file,
+          scope: .file,
         ),
         throwsStateError,
       );
       await expectLater(
         service.openOrCreateGitDiffTab(
           workspaceId: 'workspace-1',
-          area: GitChangeArea.staged,
-          scope: WorkspaceGitDiffScope.file,
+          area: .staged,
+          scope: .file,
         ),
         throwsStateError,
       );
@@ -734,8 +728,8 @@ void main() {
             id: 'tab-1',
             workspaceId: 'workspace-1',
             title: 'Terminal 1',
-            createdAt: DateTime.utc(2026, 5, 21),
-            updatedAt: DateTime.utc(2026, 5, 21),
+            createdAt: .utc(2026, 5, 21),
+            updatedAt: .utc(2026, 5, 21),
             payload: const <String, Object?>{'source': 'test'},
           ),
         );

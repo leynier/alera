@@ -26,10 +26,7 @@ extension MobileAiDictationTranscription on MobileAiDictationController {
     );
     if (!_isCurrentGeneration(generation)) return;
     _validateSettings(settings);
-    state = state.copyWith(
-      stage: MobileAiDictationStage.transcribing,
-      clearWarning: true,
-    );
+    state = state.copyWith(stage: .transcribing, clearWarning: true);
     final requestId =
         'mobile-dictation-${DateTime.now().microsecondsSinceEpoch}';
     try {
@@ -151,7 +148,7 @@ extension MobileAiDictationTranscription on MobileAiDictationController {
       if (!_isCurrentGeneration(generation)) return;
       _log.warning('mobile dictation transcription failed', error, stackTrace);
       state = state.copyWith(
-        stage: MobileAiDictationStage.recorded,
+        stage: .recorded,
         warning: 'Transcription failed: $error',
       );
     }
@@ -189,7 +186,7 @@ extension MobileAiDictationTranscription on MobileAiDictationController {
 
   Future<void> _restartSystemRecognition(int generation) async {
     try {
-      await Future<void>.delayed(const Duration(milliseconds: 100));
+      await Future.pause(const Duration(milliseconds: 100));
       final settings = _systemSettings;
       if (settings == null ||
           _systemStopRequested ||
@@ -265,7 +262,7 @@ extension MobileAiDictationTranscription on MobileAiDictationController {
     }
     if (!_canContinue(generation)) return;
     if (settings.rewriteMode != MobileAiDictationRewriteMode.off) {
-      state = state.copyWith(stage: MobileAiDictationStage.improving);
+      state = state.copyWith(stage: .improving);
       try {
         final client = await ref.read(
           hostConnectionControllerProvider(hostId).future,

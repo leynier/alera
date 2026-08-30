@@ -8,13 +8,13 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
 
 const PackageManagerInstall _homebrew = PackageManagerInstall(
-  method: PackageInstallMethod.homebrewCask,
+  method: .homebrewCask,
   managerExecutable: '/opt/homebrew/bin/brew',
   relaunchExecutable: '/usr/bin/open',
 );
 
 const PackageManagerInstall _scoop = PackageManagerInstall(
-  method: PackageInstallMethod.scoop,
+  method: .scoop,
   managerExecutable: r'C:\scoop\shims\scoop.cmd',
   relaunchExecutable: r'C:\scoop\apps\alera\current\Alera.exe',
 );
@@ -88,9 +88,10 @@ void main() {
       final runner = _RecordingProcessRunner();
 
       await expectLater(
-        launcher(runner, onExit: () {}).upgradeAndRestart(
-          const PackageManagerInstall(method: PackageInstallMethod.chocolatey),
-        ),
+        launcher(
+          runner,
+          onExit: () {},
+        ).upgradeAndRestart(const PackageManagerInstall(method: .chocolatey)),
         throwsA(isA<StateError>()),
       );
       expect(runner.starts, isEmpty);
@@ -202,9 +203,4 @@ class _RecordingProcessRunner implements ProcessRunner {
   }
 }
 
-class _Invocation {
-  const _Invocation(this.executable, this.arguments);
-
-  final String executable;
-  final List<String> arguments;
-}
+class const _Invocation(final String executable, final List<String> arguments);

@@ -2,12 +2,9 @@ import 'dart:async';
 
 enum MobileEmulatorPlaybackRecoveryAction { retry, fail }
 
-class MobileEmulatorPlaybackRecoveryPolicy {
-  MobileEmulatorPlaybackRecoveryPolicy({
-    this.stabilityWindow = const Duration(seconds: 30),
-  });
-
-  final Duration stabilityWindow;
+class MobileEmulatorPlaybackRecoveryPolicy({
+  final Duration stabilityWindow = const Duration(seconds: 30),
+}) {
   Timer? _stabilityTimer;
   bool _automaticRetryUsed = false;
 
@@ -35,14 +32,14 @@ class MobileEmulatorPlaybackRecoveryPolicy {
   void dispose() => reset();
 }
 
-class MobileEmulatorPlaybackMonitor {
-  MobileEmulatorPlaybackMonitor({
-    required Stream<String> errors,
-    required Stream<bool> completions,
-    required this.onWarning,
-    required this.onFailure,
-    this.retryDelay = const Duration(milliseconds: 500),
-  }) {
+class MobileEmulatorPlaybackMonitor({
+  required Stream<String> errors,
+  required Stream<bool> completions,
+  required final void Function(String warning) onWarning,
+  required final void Function() onFailure,
+  final Duration retryDelay = const Duration(milliseconds: 500),
+}) {
+  this {
     _errorSubscription = errors.listen(_reportWarning);
     _completionSubscription = completions.listen((completed) {
       if (completed) {
@@ -51,9 +48,6 @@ class MobileEmulatorPlaybackMonitor {
     });
   }
 
-  final void Function(String warning) onWarning;
-  final void Function() onFailure;
-  final Duration retryDelay;
   late final StreamSubscription<String> _errorSubscription;
   late final StreamSubscription<bool> _completionSubscription;
   Timer? _failureTimer;

@@ -4,22 +4,21 @@ import 'package:alera/src/features/keyboard/domain/keyboard_shortcut_settings.da
 import 'package:flutter/services.dart';
 
 /// A matched action plus the definition that owns it.
-class ResolvedShortcut {
-  const ResolvedShortcut({required this.id, required this.allowInTerminal});
-
-  final KeyboardActionId id;
-  final bool allowInTerminal;
-}
+class const ResolvedShortcut({
+  required final KeyboardActionId id,
+  required final bool allowInTerminal,
+});
 
 /// Pure matching over the registry and a [KeyboardShortcutSettings] snapshot.
 ///
 /// Holds no listeners or mutable state; construct one per resolution with the
 /// current settings and platform.
-class KeybindingResolver {
-  KeybindingResolver({required this.settings, KeyboardPlatform? platform})
-    : platform = platform ?? KeyboardPlatform.current;
+class KeybindingResolver({
+  required final KeyboardShortcutSettings settings,
+  KeyboardPlatform? platform,
+}) {
+  this : platform = platform ?? KeyboardPlatform.current;
 
-  final KeyboardShortcutSettings settings;
   final KeyboardPlatform platform;
 
   /// The chords that are effective for [id]: the user override when present,

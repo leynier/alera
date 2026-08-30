@@ -6,20 +6,13 @@ import 'package:alera/src/design_system/layout/alera_dialog.dart';
 import 'package:alera/src/features/browser/domain/browser_download.dart';
 import 'package:flutter/material.dart';
 
-class BrowserDownloadsDialog extends StatelessWidget {
-  const BrowserDownloadsDialog({
-    super.key,
-    required this.downloads,
-    this.onCancel,
-    required this.onOpen,
-    required this.onReveal,
-  });
-
-  final List<BrowserDownload> downloads;
-  final ValueChanged<BrowserDownload>? onCancel;
-  final ValueChanged<BrowserDownload> onOpen;
-  final ValueChanged<BrowserDownload> onReveal;
-
+class const BrowserDownloadsDialog({
+  super.key,
+  required final List<BrowserDownload> downloads,
+  final ValueChanged<BrowserDownload>? onCancel,
+  required final ValueChanged<BrowserDownload> onOpen,
+  required final ValueChanged<BrowserDownload> onReveal,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -29,7 +22,7 @@ class BrowserDownloadsDialog extends StatelessWidget {
       child: Padding(
         padding: const EdgeInsets.all(AleraTokens.space20),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
+          crossAxisAlignment: .stretch,
           children: <Widget>[
             Row(
               children: <Widget>[
@@ -84,19 +77,12 @@ class BrowserDownloadsDialog extends StatelessWidget {
   }
 }
 
-class _BrowserDownloadRow extends StatelessWidget {
-  const _BrowserDownloadRow({
-    required this.download,
-    this.onCancel,
-    required this.onOpen,
-    required this.onReveal,
-  });
-
-  final BrowserDownload download;
-  final VoidCallback? onCancel;
-  final VoidCallback onOpen;
-  final VoidCallback onReveal;
-
+class const _BrowserDownloadRow({
+  required final BrowserDownload download,
+  final VoidCallback? onCancel,
+  required final VoidCallback onOpen,
+  required final VoidCallback onReveal,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -108,7 +94,7 @@ class _BrowserDownloadRow extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: AleraTokens.space12),
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: .start,
         children: <Widget>[
           Icon(
             _statusIcon(download.status),
@@ -118,12 +104,12 @@ class _BrowserDownloadRow extends StatelessWidget {
           const SizedBox(width: AleraTokens.space12),
           Expanded(
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
+              crossAxisAlignment: .stretch,
               children: <Widget>[
                 Text(
                   download.fileName,
                   maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+                  overflow: .ellipsis,
                   style: theme.textTheme.bodyMedium?.copyWith(
                     color: AleraTokens.foreground,
                   ),
@@ -132,7 +118,7 @@ class _BrowserDownloadRow extends StatelessWidget {
                 Text(
                   _statusLabel(download),
                   maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+                  overflow: .ellipsis,
                   style: theme.textTheme.bodySmall?.copyWith(
                     color: AleraTokens.foregroundMuted,
                   ),

@@ -123,11 +123,7 @@ Future<void> showAddProjectFlow(BuildContext context, WidgetRef ref) async {
         if (!context.mounted) {
           return;
         }
-        AleraToast.show(
-          context,
-          message: 'Project added',
-          tone: AleraToastTone.success,
-        );
+        AleraToast.show(context, message: 'Project added', tone: .success);
       case CloneProjectResult():
         await _runWithProgress(
           context,
@@ -141,37 +137,22 @@ Future<void> showAddProjectFlow(BuildContext context, WidgetRef ref) async {
         if (!context.mounted) {
           return;
         }
-        AleraToast.show(
-          context,
-          message: 'Project cloned',
-          tone: AleraToastTone.success,
-        );
+        AleraToast.show(context, message: 'Project cloned', tone: .success);
     }
   } catch (error) {
     if (!context.mounted) {
       return;
     }
-    AleraToast.show(
-      context,
-      message: error.toString(),
-      tone: AleraToastTone.error,
-    );
+    AleraToast.show(context, message: error.toString(), tone: .error);
   }
 }
 
-class _RenameDialog extends StatefulWidget {
-  const _RenameDialog({
-    required this.title,
-    required this.labelText,
-    required this.initialValue,
-    required this.confirmLabel,
-  });
-
-  final String title;
-  final String labelText;
-  final String initialValue;
-  final String confirmLabel;
-
+class const _RenameDialog({
+  required final String title,
+  required final String labelText,
+  required final String initialValue,
+  required final String confirmLabel,
+}) extends StatefulWidget {
   @override
   State<_RenameDialog> createState() => _RenameDialogState();
 }
@@ -213,8 +194,8 @@ class _RenameDialogState extends State<_RenameDialog> {
       child: Padding(
         padding: const EdgeInsets.all(AleraTokens.space20),
         child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: .min,
+          crossAxisAlignment: .start,
           children: <Widget>[
             Text(widget.title, style: theme.textTheme.titleMedium),
             const SizedBox(height: AleraTokens.space16),
@@ -232,7 +213,7 @@ class _RenameDialogState extends State<_RenameDialog> {
             ),
             const SizedBox(height: AleraTokens.space20),
             Row(
-              mainAxisAlignment: MainAxisAlignment.end,
+              mainAxisAlignment: .end,
               children: <Widget>[
                 TextButton(
                   onPressed: () => Navigator.of(context).pop(),
@@ -443,7 +424,7 @@ void _showWorkspaceCreationToast(
       context,
       message:
           'Workspace created with setup warnings: ${result.setupReport.summary}',
-      tone: AleraToastTone.error,
+      tone: .error,
       duration: const Duration(seconds: 6),
     );
     return;
@@ -452,16 +433,12 @@ void _showWorkspaceCreationToast(
     AleraToast.show(
       context,
       message: 'Workspace created, but parent link failed',
-      tone: AleraToastTone.error,
+      tone: .error,
       duration: const Duration(seconds: 6),
     );
     return;
   }
-  AleraToast.show(
-    context,
-    message: 'Workspace created',
-    tone: AleraToastTone.success,
-  );
+  AleraToast.show(context, message: 'Workspace created', tone: .success);
 }
 
 Future<T> _runWithProgress<T>(
@@ -477,7 +454,7 @@ Future<T> _runWithProgress<T>(
       builder: (_) => AddProjectProgressDialog(message: message),
     ).whenComplete(() => progressOpen = false),
   );
-  await Future<void>.delayed(Duration.zero);
+  await Future.pause(.zero);
   try {
     return await action();
   } finally {

@@ -7,17 +7,13 @@ import 'package:alera/src/features/settings/presentation/panes/alera_skill_termi
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-class AleraOrchestrationSkillControl extends ConsumerWidget {
-  const AleraOrchestrationSkillControl({super.key});
-
+class const AleraOrchestrationSkillControl({super.key}) extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return AleraSkillTerminalInstallControl(
       dialogTitle: 'Install Orchestration Skill',
-      commandFor: (runner) => aleraCliSkillInstallCommand(
-        runner: runner,
-        skill: AleraAgentSkill.orchestration,
-      ),
+      commandFor: (runner) =>
+          aleraCliSkillInstallCommand(runner: runner, skill: .orchestration),
       runCommand: (context, request) =>
           showCommandTerminalDialog(context, ref, request),
       // Orchestration is the one skill whose setup does not end with the

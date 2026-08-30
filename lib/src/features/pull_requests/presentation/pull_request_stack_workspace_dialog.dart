@@ -12,28 +12,17 @@ import 'package:flutter/material.dart';
 
 part 'pull_request_stack_workspace_layer_card.dart';
 
-class PullRequestStackWorkspaceDialog extends StatefulWidget {
-  const PullRequestStackWorkspaceDialog({
-    super.key,
-    required this.currentTitle,
-    required this.currentDraft,
-    required this.candidates,
-    required this.baseBranches,
-    required this.suggestedBaseBranch,
-    required this.defaultDraft,
-    this.currentBody,
-    this.stack,
-  });
-
-  final String currentTitle;
-  final String? currentBody;
-  final bool currentDraft;
-  final HostedReviewStack? stack;
-  final List<ReviewStackWorkspaceCandidate> candidates;
-  final List<String> baseBranches;
-  final String suggestedBaseBranch;
-  final bool defaultDraft;
-
+class const PullRequestStackWorkspaceDialog({
+  super.key,
+  required final String currentTitle,
+  required final bool currentDraft,
+  required final List<ReviewStackWorkspaceCandidate> candidates,
+  required final List<String> baseBranches,
+  required final String suggestedBaseBranch,
+  required final bool defaultDraft,
+  final String? currentBody,
+  final HostedReviewStack? stack,
+}) extends StatefulWidget {
   @override
   State<PullRequestStackWorkspaceDialog> createState() =>
       _PullRequestStackWorkspaceDialogState();
@@ -262,7 +251,7 @@ class _PullRequestStackWorkspaceDialogState
       child: Padding(
         padding: const EdgeInsets.all(AleraTokens.space20),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
+          crossAxisAlignment: .stretch,
           children: <Widget>[
             AleraDialogHeader(
               title: _appending
@@ -348,7 +337,7 @@ class _PullRequestStackWorkspaceDialogState
             ],
             const SizedBox(height: AleraTokens.space16),
             Row(
-              mainAxisAlignment: MainAxisAlignment.end,
+              mainAxisAlignment: .end,
               children: <Widget>[
                 TextButton(
                   onPressed: () => Navigator.of(context).pop(),

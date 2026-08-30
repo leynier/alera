@@ -1,13 +1,11 @@
 import 'package:alera_mobile/src/core/json_payload_fields.dart';
 
-class QuotaSnapshotState {
-  const QuotaSnapshotState({
-    required this.snapshots,
-    required this.environment,
-    required this.fetchedAt,
-  });
-
-  factory QuotaSnapshotState.fromJson(Map<String, Object?> json) {
+class const QuotaSnapshotState({
+  required final List<QuotaSnapshot> snapshots,
+  required final Map<String, bool> environment,
+  required final DateTime fetchedAt,
+}) {
+  factory fromJson(Map<String, Object?> json) {
     return QuotaSnapshotState(
       snapshots: <QuotaSnapshot>[
         for (final item in json.objectList('snapshots'))
@@ -20,34 +18,28 @@ class QuotaSnapshotState {
       fetchedAt: DateTime.now().toUtc(),
     );
   }
-
-  final List<QuotaSnapshot> snapshots;
-  final Map<String, bool> environment;
-  final DateTime fetchedAt;
 }
 
-class QuotaSnapshot {
-  const QuotaSnapshot({
-    required this.provider,
-    required this.accountId,
-    required this.displayName,
-    required this.status,
-    required this.updatedAt,
-    required this.error,
-    required this.windows,
-    required this.buckets,
-    this.rateLimitResetCredits,
-    this.dataQuality,
-    this.amounts = const <QuotaAmount>[],
-  });
-
-  factory QuotaSnapshot.fromJson(Map<String, Object?> json) {
+class const QuotaSnapshot({
+  required final String provider,
+  required final String accountId,
+  required final String displayName,
+  required final String status,
+  required final DateTime updatedAt,
+  required final String? error,
+  required final List<QuotaMeter> windows,
+  required final List<QuotaMeter> buckets,
+  final CodexResetCredits? rateLimitResetCredits,
+  final String? dataQuality,
+  final List<QuotaAmount> amounts = const <QuotaAmount>[],
+}) {
+  factory fromJson(Map<String, Object?> json) {
     return QuotaSnapshot(
       provider: json['provider'] as String? ?? 'unknown',
       accountId: json['accountId'] as String? ?? 'default',
       displayName: json['displayName'] as String? ?? 'Default',
       status: json['status'] as String? ?? 'error',
-      updatedAt: DateTime.fromMillisecondsSinceEpoch(
+      updatedAt: .fromMillisecondsSinceEpoch(
         json['updatedAt'] as int? ?? 0,
         isUtc: true,
       ),
@@ -73,29 +65,15 @@ class QuotaSnapshot {
       ],
     );
   }
-
-  final String provider;
-  final String accountId;
-  final String displayName;
-  final String status;
-  final DateTime updatedAt;
-  final String? error;
-  final List<QuotaMeter> windows;
-  final List<QuotaMeter> buckets;
-  final CodexResetCredits? rateLimitResetCredits;
-  final String? dataQuality;
-  final List<QuotaAmount> amounts;
 }
 
-class CodexResetCredits {
-  const CodexResetCredits({
-    required this.availableCount,
-    required this.nextExpiresAt,
-    required this.offerRevision,
-    required this.canConsume,
-  });
-
-  factory CodexResetCredits.fromJson(Map<String, Object?> json) {
+class const CodexResetCredits({
+  required final int availableCount,
+  required final DateTime? nextExpiresAt,
+  required final String offerRevision,
+  required final bool canConsume,
+}) {
+  factory fromJson(Map<String, Object?> json) {
     final expiry = json['nextExpiresAt'] as int?;
     return CodexResetCredits(
       availableCount: switch (json['availableCount']) {
@@ -109,22 +87,15 @@ class CodexResetCredits {
       canConsume: json['canConsume'] == true,
     );
   }
-
-  final int availableCount;
-  final DateTime? nextExpiresAt;
-  final String offerRevision;
-  final bool canConsume;
 }
 
-class CodexResetConsumeResult {
-  const CodexResetConsumeResult({
-    required this.status,
-    required this.outcome,
-    required this.reason,
-    required this.snapshot,
-  });
-
-  factory CodexResetConsumeResult.fromJson(Map<String, Object?> json) {
+class const CodexResetConsumeResult({
+  required final String status,
+  required final String? outcome,
+  required final String? reason,
+  required final QuotaSnapshot snapshot,
+}) {
+  factory fromJson(Map<String, Object?> json) {
     final rawSnapshot = json['snapshot'];
     if (rawSnapshot is! Map) {
       throw const FormatException('Codex reset response missing snapshot.');
@@ -133,29 +104,19 @@ class CodexResetConsumeResult {
       status: json['status'] as String? ?? 'rejected',
       outcome: json['outcome'] as String?,
       reason: json['reason'] as String?,
-      snapshot: QuotaSnapshot.fromJson(asJsonMap(rawSnapshot)),
+      snapshot: .fromJson(asJsonMap(rawSnapshot)),
     );
   }
-
-  final String status;
-  final String? outcome;
-  final String? reason;
-  final QuotaSnapshot snapshot;
 }
 
-class QuotaMeter {
-  const QuotaMeter({
-    required this.label,
-    required this.usedPercent,
-    required this.resetsAt,
-    required this.resetDescription,
-    this.displayValue,
-  });
-
-  factory QuotaMeter.fromJson(
-    Map<String, Object?> json, {
-    required String labelKey,
-  }) {
+class const QuotaMeter({
+  required final String label,
+  required final double usedPercent,
+  required final DateTime? resetsAt,
+  required final String? resetDescription,
+  final String? displayValue,
+}) {
+  factory fromJson(Map<String, Object?> json, {required String labelKey}) {
     final used = switch (json['usedPercent']) {
       final num value => value.toDouble(),
       _ => 0.0,
@@ -172,27 +133,19 @@ class QuotaMeter {
     );
   }
 
-  final String label;
-  final double usedPercent;
-  final DateTime? resetsAt;
-  final String? resetDescription;
-  final String? displayValue;
-
   double get remainingPercent => (100 - usedPercent).clamp(0, 100);
 }
 
-class QuotaAmount {
-  const QuotaAmount({
-    required this.label,
-    required this.currency,
-    required this.spentAmount,
-    required this.remainingAmount,
-    required this.limitAmount,
-    required this.resetsAt,
-    required this.resetDescription,
-  });
-
-  factory QuotaAmount.fromJson(Map<String, Object?> json) {
+class const QuotaAmount({
+  required final String label,
+  required final String currency,
+  required final double? spentAmount,
+  required final double? remainingAmount,
+  required final double? limitAmount,
+  required final DateTime? resetsAt,
+  required final String? resetDescription,
+}) {
+  factory fromJson(Map<String, Object?> json) {
     double? number(Object? value) => switch (value) {
       final num n => n.toDouble(),
       final String raw => double.tryParse(raw),
@@ -211,12 +164,4 @@ class QuotaAmount {
       resetDescription: json['resetDescription'] as String?,
     );
   }
-
-  final String label;
-  final String currency;
-  final double? spentAmount;
-  final double? remainingAmount;
-  final double? limitAmount;
-  final DateTime? resetsAt;
-  final String? resetDescription;
 }

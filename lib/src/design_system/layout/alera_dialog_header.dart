@@ -5,18 +5,12 @@ import 'package:flutter/material.dart';
 
 /// Header row for dialogs and popovers: a [title] on the left, an optional
 /// [trailing] action, and a trailing close button wired to [onClose].
-class AleraDialogHeader extends StatelessWidget {
-  const AleraDialogHeader({
-    super.key,
-    required this.title,
-    required this.onClose,
-    this.trailing,
-  });
-
-  final String title;
-  final VoidCallback onClose;
-  final Widget? trailing;
-
+class const AleraDialogHeader({
+  super.key,
+  required final String title,
+  required final VoidCallback onClose,
+  final Widget? trailing,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -27,7 +21,7 @@ class AleraDialogHeader extends StatelessWidget {
             title,
             style: theme.textTheme.titleSmall?.copyWith(
               color: AleraTokens.foreground,
-              fontWeight: FontWeight.w600,
+              fontWeight: .w600,
             ),
           ),
         ),

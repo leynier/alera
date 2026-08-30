@@ -105,7 +105,7 @@ void main() {
       expect(
         normalizeAgentHookEvent(
           _event(
-            agentType: AgentType.codex,
+            agentType: .codex,
             hookEventName: 'Stop',
             payload: const <String, Object?>{'transcript_path': ''},
           ),
@@ -117,7 +117,7 @@ void main() {
       expect(
         normalizeAgentHookEvent(
           _event(
-            agentType: AgentType.codex,
+            agentType: .codex,
             hookEventName: 'Stop',
             payload: <String, Object?>{'transcript_path': empty.path},
           ),
@@ -129,7 +129,7 @@ void main() {
       expect(
         normalizeAgentHookEvent(
           _event(
-            agentType: AgentType.codex,
+            agentType: .codex,
             hookEventName: 'Stop',
             payload: <String, Object?>{'transcriptPath': missingPath},
           ),
@@ -148,7 +148,7 @@ void main() {
       expect(
         normalizeAgentHookEvent(
           _event(
-            agentType: AgentType.codex,
+            agentType: .codex,
             hookEventName: 'Stop',
             payload: <String, Object?>{'transcript_path': large.path},
           ),
@@ -161,7 +161,7 @@ void main() {
       expect(
         normalizeAgentHookEvent(
           _event(
-            agentType: AgentType.copilot,
+            agentType: .copilot,
             hookEventName: '',
             payload: const <String, Object?>{'initial_prompt': 'Plan the work'},
           ),
@@ -172,7 +172,7 @@ void main() {
       expect(
         normalizeAgentHookEvent(
           _event(
-            agentType: AgentType.copilot,
+            agentType: .copilot,
             hookEventName: '',
             payload: const <String, Object?>{'prompt': 'Ship it'},
           ),
@@ -183,7 +183,7 @@ void main() {
       expect(
         normalizeAgentHookEvent(
           _event(
-            agentType: AgentType.copilot,
+            agentType: .copilot,
             hookEventName: '',
             payload: const <String, Object?>{
               'notification_type': 'permission_prompt',
@@ -197,7 +197,7 @@ void main() {
       expect(
         normalizeAgentHookEvent(
           _event(
-            agentType: AgentType.copilot,
+            agentType: .copilot,
             hookEventName: '',
             payload: const <String, Object?>{
               'stop_reason': 'done',
@@ -211,7 +211,7 @@ void main() {
       expect(
         normalizeAgentHookEvent(
           _event(
-            agentType: AgentType.copilot,
+            agentType: .copilot,
             hookEventName: '',
             payload: const <String, Object?>{
               'error_context': 'network',
@@ -224,7 +224,7 @@ void main() {
 
       final postTool = normalizeAgentHookEvent(
         _event(
-          agentType: AgentType.copilot,
+          agentType: .copilot,
           hookEventName: '',
           payload: const <String, Object?>{
             'toolCalls': <Object?>[
@@ -247,7 +247,7 @@ void main() {
       expect(
         normalizeAgentHookEvent(
           _event(
-            agentType: AgentType.claude,
+            agentType: .claude,
             hookEventName: 'AskUserQuestion',
             payload: const <String, Object?>{},
           ),
@@ -258,7 +258,7 @@ void main() {
       expect(
         normalizeAgentHookEvent(
           _event(
-            agentType: AgentType.claude,
+            agentType: .claude,
             hookEventName: 'PreToolUse',
             payload: const <String, Object?>{
               'tool_name': 'AskUserQuestion',
@@ -274,7 +274,7 @@ void main() {
       expect(
         normalizeAgentHookEvent(
           _event(
-            agentType: AgentType.codex,
+            agentType: .codex,
             hookEventName: 'PreToolUse',
             payload: const <String, Object?>{
               'tool_calls': <Object?>[
@@ -292,7 +292,7 @@ void main() {
       expect(
         normalizeAgentHookEvent(
           _event(
-            agentType: AgentType.codex,
+            agentType: .codex,
             hookEventName: 'PreToolUse',
             payload: const <String, Object?>{
               'toolCall': <String, Object?>{
@@ -312,7 +312,7 @@ void main() {
       expect(
         normalizeAgentHookEvent(
           _event(
-            agentType: AgentType.codex,
+            agentType: .codex,
             hookEventName: 'PreToolUse',
             payload: const <String, Object?>{
               'tool_name': 'List',
@@ -326,7 +326,7 @@ void main() {
       expect(
         normalizeAgentHookEvent(
           _event(
-            agentType: AgentType.codex,
+            agentType: .codex,
             hookEventName: 'PreToolUse',
             payload: const <String, Object?>{
               'tool_calls': <Object?>[
@@ -344,7 +344,7 @@ void main() {
       expect(
         normalizeAgentHookEvent(
           _event(
-            agentType: AgentType.codex,
+            agentType: .codex,
             hookEventName: 'PreToolUse',
             payload: const <String, Object?>{
               'tool_name': 'NumberList',
@@ -360,7 +360,7 @@ void main() {
       expect(
         normalizeAgentHookEvent(
           _event(
-            agentType: AgentType.copilot,
+            agentType: .copilot,
             hookEventName: 'PreToolUse',
             payload: const <String, Object?>{
               'tool_name': 'AskUser',
@@ -373,7 +373,7 @@ void main() {
 
       final response = normalizeAgentHookEvent(
         _event(
-          agentType: AgentType.copilot,
+          agentType: .copilot,
           hookEventName: '',
           payload: const <String, Object?>{
             'name': 'Shell',
@@ -386,7 +386,7 @@ void main() {
 
       final camelResponse = normalizeAgentHookEvent(
         _event(
-          agentType: AgentType.copilot,
+          agentType: .copilot,
           hookEventName: '',
           payload: const <String, Object?>{
             'toolName': 'Shell',
@@ -398,7 +398,7 @@ void main() {
 
       final argsFallback = normalizeAgentHookEvent(
         _event(
-          agentType: AgentType.copilot,
+          agentType: .copilot,
           hookEventName: '',
           payload: const <String, Object?>{
             'toolCalls': <Object?>[
@@ -414,7 +414,7 @@ void main() {
 
       final rawArgumentsFallback = normalizeAgentHookEvent(
         _event(
-          agentType: AgentType.copilot,
+          agentType: .copilot,
           hookEventName: '',
           payload: const <String, Object?>{
             'toolCalls': <Object?>[
@@ -431,7 +431,7 @@ void main() {
       expect(
         normalizeAgentHookEvent(
           _event(
-            agentType: AgentType.copilot,
+            agentType: .copilot,
             hookEventName: 'UserPromptSubmit',
             payload: <String, Object?>{'prompt': longPrompt},
           ),
@@ -444,7 +444,7 @@ void main() {
       expect(
         normalizeAgentHookEvent(
           _event(
-            agentType: AgentType.amp,
+            agentType: .amp,
             hookEventName: 'agent.end',
             payload: <String, Object?>{
               'messages': <Object?>[
@@ -459,7 +459,7 @@ void main() {
       expect(
         normalizeAgentHookEvent(
           _event(
-            agentType: AgentType.codex,
+            agentType: .codex,
             hookEventName: 'PreToolUse',
             payload: const <String, Object?>{
               'tool_name': 'Custom',
@@ -475,7 +475,7 @@ void main() {
       expect(
         normalizeAgentHookEvent(
           _event(
-            agentType: AgentType.copilot,
+            agentType: .copilot,
             hookEventName: 'Notification',
             payload: const <String, Object?>{
               'notification_type': 'permission_prompt',
@@ -490,7 +490,7 @@ void main() {
     test('ends the Cursor approval wait when the execution starts', () {
       final shell = normalizeAgentHookEvent(
         _event(
-          agentType: AgentType.cursor,
+          agentType: .cursor,
           hookEventName: 'afterShellExecution',
           payload: const <String, Object?>{'command': 'sleep 30'},
         ),
@@ -501,7 +501,7 @@ void main() {
 
       final mcp = normalizeAgentHookEvent(
         _event(
-          agentType: AgentType.cursor,
+          agentType: .cursor,
           hookEventName: 'afterMCPExecution',
           payload: const <String, Object?>{'tool_name': 'Browser'},
         ),
@@ -513,7 +513,7 @@ void main() {
     test('extracts Cursor shell, MCP, and tool response snapshots', () {
       final shell = normalizeAgentHookEvent(
         _event(
-          agentType: AgentType.cursor,
+          agentType: .cursor,
           hookEventName: 'beforeShellExecution',
           payload: const <String, Object?>{'command': 'flutter test'},
         ),
@@ -525,7 +525,7 @@ void main() {
       expect(
         normalizeAgentHookEvent(
           _event(
-            agentType: AgentType.cursor,
+            agentType: .cursor,
             hookEventName: 'beforeMCPExecution',
             payload: const <String, Object?>{
               'toolName': 'Browser',
@@ -539,7 +539,7 @@ void main() {
       expect(
         normalizeAgentHookEvent(
           _event(
-            agentType: AgentType.cursor,
+            agentType: .cursor,
             hookEventName: 'postToolUse',
             payload: const <String, Object?>{'output': 'tool done'},
           ),
@@ -550,7 +550,7 @@ void main() {
       expect(
         normalizeAgentHookEvent(
           _event(
-            agentType: AgentType.cursor,
+            agentType: .cursor,
             hookEventName: 'postToolUseFailure',
             payload: const <String, Object?>{'error': 'tool failed'},
           ),
@@ -561,7 +561,7 @@ void main() {
       expect(
         normalizeAgentHookEvent(
           _event(
-            agentType: AgentType.cursor,
+            agentType: .cursor,
             hookEventName: 'preToolUse',
             payload: const <String, Object?>{
               'toolName': 'JsonFallback',
@@ -577,7 +577,7 @@ void main() {
       expect(
         normalizeAgentHookEvent(
           _event(
-            agentType: AgentType.agy,
+            agentType: .agy,
             hookEventName: 'PostInvocation',
             payload: const <String, Object?>{},
           ),
@@ -587,7 +587,7 @@ void main() {
       expect(
         normalizeAgentHookEvent(
           _event(
-            agentType: AgentType.agy,
+            agentType: .agy,
             hookEventName: 'Unknown',
             payload: const <String, Object?>{},
           ),
@@ -599,17 +599,17 @@ void main() {
         terminalSessionId: 'session-1',
         workspaceId: 'workspace-1',
         tabId: 'tab-1',
-        agentType: AgentType.cursor,
-        state: AgentStatusState.done,
+        agentType: .cursor,
+        state: .done,
         prompt: 'old prompt',
-        updatedAt: DateTime.utc(2026, 5, 26),
-        stateStartedAt: DateTime.utc(2026, 5, 26),
+        updatedAt: .utc(2026, 5, 26),
+        stateStartedAt: .utc(2026, 5, 26),
         interrupted: true,
       );
       expect(
         normalizeAgentHookEvent(
           _event(
-            agentType: AgentType.cursor,
+            agentType: .cursor,
             hookEventName: 'afterAgentResponse',
             payload: const <String, Object?>{'message': 'done again'},
           ),
@@ -622,7 +622,7 @@ void main() {
     test('detects Amp new turn and prompt on agent.start', () {
       final normalized = normalizeAgentHookEvent(
         _event(
-          agentType: AgentType.amp,
+          agentType: .amp,
           hookEventName: 'agent.start',
           payload: const <String, Object?>{'message': 'Ship the feature'},
         ),
@@ -632,7 +632,7 @@ void main() {
       expect(
         normalizeAgentHookEvent(
           _event(
-            agentType: AgentType.amp,
+            agentType: .amp,
             hookEventName: 'session.start',
             payload: const <String, Object?>{'threadId': 'thread-1'},
           ),

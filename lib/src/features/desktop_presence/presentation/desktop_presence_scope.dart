@@ -5,11 +5,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 /// Watches agent status and desktop settings so the tray icon and dock badge
 /// stay in sync. Mounted once at the app root.
-class DesktopPresenceScope extends ConsumerWidget {
-  const DesktopPresenceScope({super.key, required this.child});
-
-  final Widget child;
-
+class const DesktopPresenceScope({super.key, required final Widget child})
+    extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     if (supportsDesktopAppWindowState) {

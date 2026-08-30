@@ -9,20 +9,14 @@ import 'package:flutter/material.dart';
 /// Compact tray control for a workspace's agent runs: agents grouped by state,
 /// each group showing its state glyph plus up to three overlapping identity
 /// icons. Tapping toggles the expanded per-agent rows under the workspace.
-class MobileWorkspaceAgentCompactSummary extends StatelessWidget {
-  const MobileWorkspaceAgentCompactSummary({
-    super.key,
-    required this.groups,
-    required this.expanded,
-    required this.onToggle,
-    this.tooltipOverride,
-    this.fillHeight = false,
-  });
-
-  final List<WorkspaceAgentRunGroup> groups;
-  final bool expanded;
-  final VoidCallback onToggle;
-
+class const MobileWorkspaceAgentCompactSummary({
+  super.key,
+  required final List<WorkspaceAgentRunGroup> groups,
+  required final bool expanded,
+  required final VoidCallback onToggle,
+  this.tooltipOverride,
+  this.fillHeight = false,
+}) extends StatelessWidget {
   /// Optional tooltip; defaults to Show/Hide Agent Runs.
   final String? tooltipOverride;
 
@@ -44,7 +38,7 @@ class MobileWorkspaceAgentCompactSummary extends StatelessWidget {
     final tooltip =
         tooltipOverride ?? (expanded ? 'Hide Agent Runs' : 'Show Agent Runs');
     final content = Row(
-      mainAxisSize: MainAxisSize.min,
+      mainAxisSize: .min,
       children: <Widget>[
         for (final (index, group) in visibleGroups.indexed) ...<Widget>[
           if (index > 0) const SizedBox(width: AleraTokens.space6),
@@ -71,7 +65,7 @@ class MobileWorkspaceAgentCompactSummary extends StatelessWidget {
       message: tooltip,
       child: InkWell(
         onTap: onToggle,
-        borderRadius: BorderRadius.circular(AleraTokens.radiusSm),
+        borderRadius: .circular(AleraTokens.radiusSm),
         child: ConstrainedBox(
           constraints: const BoxConstraints(minWidth: AleraTokens.minTapTarget),
           child: Padding(
@@ -87,23 +81,20 @@ class MobileWorkspaceAgentCompactSummary extends StatelessWidget {
   }
 }
 
-class _GroupCluster extends StatelessWidget {
-  const _GroupCluster({required this.group});
-
-  final WorkspaceAgentRunGroup group;
-
+class const _GroupCluster({required final WorkspaceAgentRunGroup group})
+    extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     const iconSize = MobileWorkspaceAgentCompactSummary._iconSize;
     const overlap = MobileWorkspaceAgentCompactSummary._iconOverlap;
-    final iconRuns = _representativeRunsByAgentType(
-      group.runs,
-    ).take(MobileWorkspaceAgentCompactSummary._maxIconsPerGroup).toList();
+    final iconRuns = _representativeRunsByAgentType(group.runs)
+        .take(MobileWorkspaceAgentCompactSummary._maxIconsPerGroup)
+        .toList();
     final hiddenCount = group.runs.length - iconRuns.length;
     final width = iconSize + (iconRuns.length - 1) * (iconSize - overlap);
     return Row(
-      mainAxisSize: MainAxisSize.min,
+      mainAxisSize: .min,
       children: <Widget>[
         AgentRunStateIndicator(status: group.runs.first, size: 11),
         const SizedBox(width: AleraTokens.space2),
@@ -120,7 +111,7 @@ class _GroupCluster extends StatelessWidget {
                     height: iconSize,
                     decoration: BoxDecoration(
                       color: AleraTokens.surfaceVariant,
-                      shape: BoxShape.circle,
+                      shape: .circle,
                       border: Border.all(color: AleraTokens.borderSubtle),
                     ),
                     child: Center(

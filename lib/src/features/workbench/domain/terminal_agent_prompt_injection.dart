@@ -43,9 +43,9 @@ bool terminalShellSupportsBracketedPaste(String shell) {
 
 /// Build shell-neutral startup input without terminal control markers.
 List<int> buildPlainStartupCommandBytes(String command) {
-  final singleLine = sanitizeAgentPromptText(
-    command,
-  ).replaceAll('\n', '<LF>').replaceAll('\t', '<TAB>');
+  final singleLine = sanitizeAgentPromptText(command)
+      .replaceAll('\n', '<LF>')
+      .replaceAll('\t', '<TAB>');
   return utf8.encode('$singleLine\r');
 }
 

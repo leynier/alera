@@ -87,7 +87,7 @@ void main() {
     ]) {
       expect(
         mobileEmulatorInteractiveKey(
-          logicalKey: LogicalKeyboardKey.enter,
+          logicalKey: .enter,
           controlPressed: modifiers.control,
           metaPressed: modifiers.meta,
           altPressed: modifiers.alt,
@@ -98,7 +98,7 @@ void main() {
     }
     expect(
       mobileEmulatorInteractiveKey(
-        logicalKey: LogicalKeyboardKey.f1,
+        logicalKey: .f1,
         controlPressed: false,
         metaPressed: false,
         altPressed: false,

@@ -1,26 +1,18 @@
 part of 'workspace_git_diff_panel.dart';
 
-class _GitFileActions extends StatelessWidget {
-  const _GitFileActions({
-    required this.entry,
-    required this.busy,
-    required this.onStage,
-    required this.onUnstage,
-    required this.onDiscard,
-  });
-
-  final GitChangeEntry entry;
-  final bool busy;
-  final ValueChanged<GitChangeEntry> onStage;
-  final ValueChanged<GitChangeEntry> onUnstage;
-  final ValueChanged<GitChangeEntry> onDiscard;
-
+class const _GitFileActions({
+  required final GitChangeEntry entry,
+  required final bool busy,
+  required final ValueChanged<GitChangeEntry> onStage,
+  required final ValueChanged<GitChangeEntry> onUnstage,
+  required final ValueChanged<GitChangeEntry> onDiscard,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
       width: 58,
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.end,
+        mainAxisAlignment: .end,
         children: <Widget>[
           if (entry.canUnstageFromParent)
             AleraIconButton(
@@ -46,31 +38,21 @@ class _GitFileActions extends StatelessWidget {
   }
 }
 
-class _AreaActions extends StatelessWidget {
-  const _AreaActions({
-    required this.busy,
-    required this.onStage,
-    required this.onUnstage,
-    required this.onDiscard,
-    required this.canStage,
-    required this.canUnstage,
-    required this.canDiscard,
-  });
-
-  final bool busy;
-  final VoidCallback onStage;
-  final VoidCallback onUnstage;
-  final VoidCallback onDiscard;
-  final bool canStage;
-  final bool canUnstage;
-  final bool canDiscard;
-
+class const _AreaActions({
+  required final bool busy,
+  required final VoidCallback onStage,
+  required final VoidCallback onUnstage,
+  required final VoidCallback onDiscard,
+  required final bool canStage,
+  required final bool canUnstage,
+  required final bool canDiscard,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
       width: 58,
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.end,
+        mainAxisAlignment: .end,
         children: <Widget>[
           if (canUnstage)
             AleraIconButton(

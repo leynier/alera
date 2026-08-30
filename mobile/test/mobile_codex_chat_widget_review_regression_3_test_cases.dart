@@ -202,9 +202,8 @@ void _registerMobileCodexReviewRegression3Tests() {
       );
       final container = ProviderContainer(
         overrides: [
-          mobileCodexClientProvider(
-            'host-footer-scroll',
-          ).overrideWith((ref) async => client),
+          mobileCodexClientProvider('host-footer-scroll')
+              .overrideWith((ref) async => client),
         ],
       );
       addTearDown(() {

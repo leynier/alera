@@ -1,10 +1,7 @@
 part of 'codex_chat_surface.dart';
 
-class _CodexReasoningCell extends StatefulWidget {
-  const _CodexReasoningCell({required this.cell});
-
-  final CodexTimelineCell cell;
-
+class const _CodexReasoningCell({required final CodexTimelineCell cell})
+    extends StatefulWidget {
   @override
   State<_CodexReasoningCell> createState() => _CodexReasoningCellState();
 }
@@ -18,7 +15,7 @@ class _CodexReasoningCellState extends State<_CodexReasoningCell> {
     final text =
         widget.cell.renderedMarkdownText ?? widget.cell.markdownText ?? '';
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: .start,
       children: <Widget>[
         MouseRegion(
           cursor: text.trim().isEmpty
@@ -33,11 +30,11 @@ class _CodexReasoningCellState extends State<_CodexReasoningCell> {
             mouseCursor: text.trim().isEmpty
                 ? SystemMouseCursors.basic
                 : SystemMouseCursors.click,
-            borderRadius: BorderRadius.circular(AleraTokens.radiusLg),
+            borderRadius: .circular(AleraTokens.radiusLg),
             child: Padding(
               padding: const EdgeInsets.symmetric(vertical: AleraTokens.space4),
               child: Row(
-                mainAxisSize: MainAxisSize.min,
+                mainAxisSize: .min,
                 children: <Widget>[
                   const Icon(
                     AleraIcons.ai,
@@ -48,16 +45,14 @@ class _CodexReasoningCellState extends State<_CodexReasoningCell> {
                   if (widget.cell.isStreaming)
                     _CodexShimmerText(
                       text: widget.cell.title ?? 'Thinking',
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: AleraTokens.foregroundMuted,
-                      ),
+                      style: Theme.of(context).textTheme.bodySmall
+                          ?.copyWith(color: AleraTokens.foregroundMuted),
                     )
                   else
                     Text(
                       widget.cell.title ?? 'Thinking',
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: AleraTokens.foregroundMuted,
-                      ),
+                      style: Theme.of(context).textTheme.bodySmall
+                          ?.copyWith(color: AleraTokens.foregroundMuted),
                     ),
                   if (text.trim().isNotEmpty) ...<Widget>[
                     const SizedBox(width: AleraTokens.space4),
@@ -94,9 +89,8 @@ class _CodexReasoningCellState extends State<_CodexReasoningCell> {
               ),
             ),
             child: DefaultTextStyle.merge(
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: AleraTokens.foregroundMuted,
-              ),
+              style: Theme.of(context).textTheme.bodySmall
+                  ?.copyWith(color: AleraTokens.foregroundMuted),
               child: _CodexMarkdownText(text: text),
             ),
           ),
@@ -105,11 +99,8 @@ class _CodexReasoningCellState extends State<_CodexReasoningCell> {
   }
 }
 
-class _CodexToolCell extends StatefulWidget {
-  const _CodexToolCell({required this.cell});
-
-  final CodexTimelineCell cell;
-
+class const _CodexToolCell({required final CodexTimelineCell cell})
+    extends StatefulWidget {
   @override
   State<_CodexToolCell> createState() => _CodexToolCellState();
 }
@@ -132,7 +123,7 @@ class _CodexToolCellState extends State<_CodexToolCell> {
         ? '${cell.title ?? _toolFallback(cell)} · ${cell.subtitle}'
         : cell.title ?? _toolFallback(cell);
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: .start,
       children: <Widget>[
         MouseRegion(
           cursor: !hasDetails
@@ -147,20 +138,20 @@ class _CodexToolCellState extends State<_CodexToolCell> {
             mouseCursor: !hasDetails
                 ? SystemMouseCursors.basic
                 : SystemMouseCursors.click,
-            borderRadius: BorderRadius.circular(AleraTokens.radiusLg),
+            borderRadius: .circular(AleraTokens.radiusLg),
             child: Padding(
               padding: const EdgeInsets.symmetric(
                 horizontal: AleraTokens.space6,
                 vertical: AleraTokens.space4,
               ),
               child: Row(
-                mainAxisSize: MainAxisSize.min,
+                mainAxisSize: .min,
                 children: <Widget>[
                   Container(
                     width: AleraTokens.codexStatusDotSize,
                     height: AleraTokens.codexStatusDotSize,
                     decoration: BoxDecoration(
-                      shape: BoxShape.circle,
+                      shape: .circle,
                       color: _statusColor(cell.status),
                     ),
                   ),
@@ -169,10 +160,9 @@ class _CodexToolCellState extends State<_CodexToolCell> {
                     child: Text(
                       label,
                       maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: AleraTokens.foregroundMuted,
-                      ),
+                      overflow: .ellipsis,
+                      style: Theme.of(context).textTheme.bodySmall
+                          ?.copyWith(color: AleraTokens.foregroundMuted),
                     ),
                   ),
                   if (hasDetails) ...<Widget>[
@@ -213,11 +203,8 @@ class _CodexToolCellState extends State<_CodexToolCell> {
   }
 }
 
-class _CodexContextCompactionCell extends StatelessWidget {
-  const _CodexContextCompactionCell({required this.cell});
-
-  final CodexTimelineCell cell;
-
+class const _CodexContextCompactionCell({required final CodexTimelineCell cell})
+    extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final active =
@@ -239,7 +226,7 @@ class _CodexContextCompactionCell extends StatelessWidget {
         vertical: AleraTokens.space4,
       ),
       child: Row(
-        mainAxisSize: MainAxisSize.min,
+        mainAxisSize: .min,
         children: <Widget>[
           Icon(
             AleraIcons.contextCompact,
@@ -264,11 +251,8 @@ bool _isContextCompaction(CodexTimelineCell cell) => cell.metadata['itemType']
     .toLowerCase()
     .contains('contextcompaction');
 
-class _CodexSubAgentCell extends StatefulWidget {
-  const _CodexSubAgentCell({required this.cell});
-
-  final CodexTimelineCell cell;
-
+class const _CodexSubAgentCell({required final CodexTimelineCell cell})
+    extends StatefulWidget {
   @override
   State<_CodexSubAgentCell> createState() => _CodexSubAgentCellState();
 }
@@ -281,7 +265,7 @@ class _CodexSubAgentCellState extends State<_CodexSubAgentCell> {
     final text =
         widget.cell.renderedMarkdownText ?? widget.cell.markdownText ?? '';
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: .start,
       children: <Widget>[
         InkWell(
           onTap: () => setState(() => _collapsed = !_collapsed),
@@ -289,7 +273,7 @@ class _CodexSubAgentCellState extends State<_CodexSubAgentCell> {
           child: Padding(
             padding: const EdgeInsets.symmetric(vertical: AleraTokens.space4),
             child: Row(
-              mainAxisSize: MainAxisSize.min,
+              mainAxisSize: .min,
               children: <Widget>[
                 const Icon(AleraIcons.agent, size: AleraTokens.iconSm),
                 const SizedBox(width: AleraTokens.space6),
@@ -313,11 +297,8 @@ class _CodexSubAgentCellState extends State<_CodexSubAgentCell> {
   }
 }
 
-class _CodexQuestionAnswerCell extends StatefulWidget {
-  const _CodexQuestionAnswerCell({required this.cell});
-
-  final CodexTimelineCell cell;
-
+class const _CodexQuestionAnswerCell({required final CodexTimelineCell cell})
+    extends StatefulWidget {
   @override
   State<_CodexQuestionAnswerCell> createState() =>
       _CodexQuestionAnswerCellState();
@@ -337,7 +318,7 @@ class _CodexQuestionAnswerCellState extends State<_CodexQuestionAnswerCell> {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: AleraTokens.space6),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: .start,
         children: <Widget>[
           MouseRegion(
             cursor: SystemMouseCursors.click,
@@ -345,13 +326,13 @@ class _CodexQuestionAnswerCellState extends State<_CodexQuestionAnswerCell> {
               key: const ValueKey<String>('codex-question-answer-header'),
               onTap: () => setState(() => _collapsed = !_collapsed),
               mouseCursor: SystemMouseCursors.click,
-              borderRadius: BorderRadius.circular(AleraTokens.radiusLg),
+              borderRadius: .circular(AleraTokens.radiusLg),
               child: Padding(
                 padding: const EdgeInsets.symmetric(
                   vertical: AleraTokens.space4,
                 ),
                 child: Row(
-                  mainAxisSize: MainAxisSize.min,
+                  mainAxisSize: .min,
                   children: <Widget>[
                     const Icon(
                       AleraIcons.question,
@@ -361,9 +342,8 @@ class _CodexQuestionAnswerCellState extends State<_CodexQuestionAnswerCell> {
                     const SizedBox(width: AleraTokens.space8),
                     Text(
                       label,
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: AleraTokens.foregroundMuted,
-                      ),
+                      style: Theme.of(context).textTheme.bodyMedium
+                          ?.copyWith(color: AleraTokens.foregroundMuted),
                     ),
                     const SizedBox(width: AleraTokens.space6),
                     Icon(
@@ -383,7 +363,7 @@ class _CodexQuestionAnswerCellState extends State<_CodexQuestionAnswerCell> {
               key: const ValueKey<String>('codex-question-answer-details'),
               padding: const EdgeInsets.only(top: AleraTokens.space12),
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+                crossAxisAlignment: .start,
                 children: <Widget>[
                   for (final answer in answers)
                     Padding(
@@ -391,7 +371,7 @@ class _CodexQuestionAnswerCellState extends State<_CodexQuestionAnswerCell> {
                         bottom: AleraTokens.space16,
                       ),
                       child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                        crossAxisAlignment: .start,
                         children: <Widget>[
                           Text(
                             answer.question,

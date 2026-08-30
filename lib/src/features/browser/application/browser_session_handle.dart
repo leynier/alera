@@ -1,11 +1,9 @@
 part of 'browser_session_registry.dart';
 
-final class BrowserSessionHandle {
-  const BrowserSessionHandle._(this._registry, this._entry);
-
-  final BrowserSessionRegistry _registry;
-  final _BrowserSessionEntry _entry;
-
+final class const BrowserSessionHandle._(
+  final BrowserSessionRegistry _registry,
+  final _BrowserSessionEntry _entry,
+) {
   BrowserPageState get state => _entry.state.value;
 
   ValueListenable<BrowserPageState> get stateListenable => _entry.state;
@@ -34,7 +32,7 @@ final class BrowserSessionHandle {
     BrowserOperationGuard? guard,
   }) => _registry._runCommand<Object?>(
     _entry,
-    BrowserLifecycleReason.automation,
+    .automation,
     () => _registry._engine.evaluateJavaScript(pageId, expression),
     guard: guard,
   );
@@ -45,7 +43,7 @@ final class BrowserSessionHandle {
     BrowserOperationGuard? guard,
   }) => _registry._runCommand<BrowserAutomationSnapshot>(
     _entry,
-    BrowserLifecycleReason.automation,
+    .automation,
     () => _registry._engine.snapshot(
       pageId,
       interactiveOnly: interactiveOnly,
@@ -59,7 +57,7 @@ final class BrowserSessionHandle {
     BrowserOperationGuard? guard,
   }) => _registry._runCommand<void>(
     _entry,
-    BrowserLifecycleReason.automation,
+    .automation,
     () => _registry._engine.performAction(pageId, action),
     guard: guard,
   );
@@ -69,7 +67,7 @@ final class BrowserSessionHandle {
     BrowserOperationGuard? guard,
   }) => _registry._runCommand<List<BrowserCookie>>(
     _entry,
-    BrowserLifecycleReason.automation,
+    .automation,
     () => _registry._engine.getCookies(pageId, url: url),
     guard: guard,
   );
@@ -82,7 +80,7 @@ final class BrowserSessionHandle {
     BrowserOperationGuard? guard,
   }) => _registry._runCommand<void>(
     _entry,
-    BrowserLifecycleReason.automation,
+    .automation,
     () => _registry._engine.deleteCookies(
       pageId,
       name: name,
@@ -100,7 +98,7 @@ final class BrowserSessionHandle {
     BrowserOperationGuard? guard,
   }) => _registry._runCommand<BrowserArtifactResult>(
     _entry,
-    BrowserLifecycleReason.capture,
+    .capture,
     () => _registry._engine.captureScreenshot(
       pageId,
       destinationPath: destinationPath,
@@ -116,7 +114,7 @@ final class BrowserSessionHandle {
     BrowserOperationGuard? guard,
   }) => _registry._runCommand<BrowserArtifactResult>(
     _entry,
-    BrowserLifecycleReason.capture,
+    .capture,
     () => _registry._engine.printToPdf(
       pageId,
       destinationPath: destinationPath,
@@ -150,23 +148,18 @@ final class BrowserSessionHandle {
   Future<void> _command(
     Future<void> Function() operation, {
     BrowserOperationGuard? guard,
-  }) => _registry._runCommand<void>(
-    _entry,
-    BrowserLifecycleReason.command,
-    operation,
-    guard: guard,
-  );
+  }) => _registry._runCommand<void>(_entry, .command, operation, guard: guard);
 }
 
-final class BrowserVisibilityLease {
-  BrowserVisibilityLease._({
-    required this.reason,
-    required this.ready,
-    required Future<void> Function() release,
-  }) : _release = release; // ignore: prefer_initializing_formals
+final class BrowserVisibilityLease._({
+  required this.reason,
+  required final Future<void> ready,
+  required this._release,
+}) {
+  // ignore: prefer_initializing_formals
 
   final BrowserVisibilityReason reason;
-  final Future<void> ready;
+
   final Future<void> Function() _release;
   var _disposed = false;
 
@@ -179,15 +172,15 @@ final class BrowserVisibilityLease {
   }
 }
 
-final class BrowserObscurationLease {
-  BrowserObscurationLease._({
-    required this.reason,
-    required this.ready,
-    required Future<void> Function() release,
-  }) : _release = release; // ignore: prefer_initializing_formals
+final class BrowserObscurationLease._({
+  required this.reason,
+  required final Future<void> ready,
+  required this._release,
+}) {
+  // ignore: prefer_initializing_formals
 
   final BrowserObscurationReason reason;
-  final Future<void> ready;
+
   final Future<void> Function() _release;
   var _disposed = false;
 
@@ -200,11 +193,11 @@ final class BrowserObscurationLease {
   }
 }
 
-final class BrowserLifecycleLease {
-  BrowserLifecycleLease._({
-    required this.reason,
-    required Future<void> Function() release,
-  }) : _release = release; // ignore: prefer_initializing_formals
+final class BrowserLifecycleLease._({
+  required this.reason,
+  required this._release,
+}) {
+  // ignore: prefer_initializing_formals
 
   final BrowserLifecycleReason reason;
   final Future<void> Function() _release;

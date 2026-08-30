@@ -1,31 +1,18 @@
 import 'package:alera/src/features/runtime_host/domain/runtime_host_version.dart';
 
 /// Snapshot of the local desktop runtime host for status-bar controls.
-final class RuntimeHostStatusSnapshot {
-  const RuntimeHostStatusSnapshot({
-    required this.running,
-    required this.bundledVersion,
-    this.bundledCommit,
-    this.runtimeHostVersion,
-    this.runtimeHostCommit,
-    this.persistent = false,
-    this.activeSessions = 0,
-    this.activeAgents = 0,
-    this.activePushSubscriptions = 0,
-    this.error,
-  });
-
-  final bool running;
-  final String bundledVersion;
-  final String? bundledCommit;
-  final String? runtimeHostVersion;
-  final String? runtimeHostCommit;
-  final bool persistent;
-  final int activeSessions;
-  final int activeAgents;
-  final int activePushSubscriptions;
-  final String? error;
-
+final class const RuntimeHostStatusSnapshot({
+  required final bool running,
+  required final String bundledVersion,
+  final String? bundledCommit,
+  final String? runtimeHostVersion,
+  final String? runtimeHostCommit,
+  final bool persistent = false,
+  final int activeSessions = 0,
+  final int activeAgents = 0,
+  final int activePushSubscriptions = 0,
+  final String? error,
+}) {
   bool get hasBuildMismatch {
     final runningVersion = runtimeHostVersion;
     if (!running ||
@@ -63,17 +50,15 @@ String? _knownRuntimeHostCommit(String? value) {
   return commit;
 }
 
-final class RuntimeHostShutdownResult {
-  const RuntimeHostShutdownResult({
-    required this.stopped,
-    required this.forced,
-    this.activeSessions = 0,
-    this.activeJobs = 0,
-    this.activeAgents = 0,
-    this.activePushSubscriptions = 0,
-  });
-
-  factory RuntimeHostShutdownResult.fromJson(Map<String, Object?> json) {
+final class const RuntimeHostShutdownResult({
+  required final bool stopped,
+  required final bool forced,
+  final int activeSessions = 0,
+  final int activeJobs = 0,
+  final int activeAgents = 0,
+  final int activePushSubscriptions = 0,
+}) {
+  factory fromJson(Map<String, Object?> json) {
     return RuntimeHostShutdownResult(
       stopped: json['stopped'] == true,
       forced: json['forced'] == true,
@@ -89,37 +74,20 @@ final class RuntimeHostShutdownResult {
           : 0,
     );
   }
-
-  final bool stopped;
-  final bool forced;
-  final int activeSessions;
-  final int activeJobs;
-  final int activeAgents;
-  final int activePushSubscriptions;
 }
 
-final class RuntimeHostBusyException implements Exception {
-  const RuntimeHostBusyException({
-    required this.message,
-    this.activeSessions = 0,
-    this.activeJobs = 0,
-    this.activeAgents = 0,
-    this.activePushSubscriptions = 0,
-  });
-
-  final String message;
-  final int activeSessions;
-  final int activeJobs;
-  final int activeAgents;
-  final int activePushSubscriptions;
-
+final class const RuntimeHostBusyException({
+  required final String message,
+  final int activeSessions = 0,
+  final int activeJobs = 0,
+  final int activeAgents = 0,
+  final int activePushSubscriptions = 0,
+}) implements Exception {
   @override
   String toString() => message;
 }
 
-final class BundledSidecarVersion {
-  const BundledSidecarVersion({required this.version, this.commit});
-
-  final String version;
-  final String? commit;
-}
+final class const BundledSidecarVersion({
+  required final String version,
+  final String? commit,
+});

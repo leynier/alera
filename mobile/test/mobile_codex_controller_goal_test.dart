@@ -28,9 +28,8 @@ void main() {
     );
     final container = ProviderContainer(
       overrides: [
-        mobileCodexClientProvider(
-          'host-goal-retry',
-        ).overrideWith((ref) async => client),
+        mobileCodexClientProvider('host-goal-retry')
+            .overrideWith((ref) async => client),
       ],
     );
     addTearDown(() {
@@ -136,9 +135,8 @@ void main() {
     );
     final container = ProviderContainer(
       overrides: [
-        mobileCodexClientProvider(
-          'host-goal-snapshot',
-        ).overrideWith((ref) async => client),
+        mobileCodexClientProvider('host-goal-snapshot')
+            .overrideWith((ref) async => client),
       ],
     );
     addTearDown(() {
@@ -166,7 +164,7 @@ void main() {
         'snapshot': <String, Object?>{'timelineCells': <Object?>[]},
       }),
     );
-    await Future<void>.delayed(Duration.zero);
+    await Future.pause(.zero);
 
     expect(container.read(provider).value!.goal, isNull);
   });
@@ -202,7 +200,7 @@ void main() {
         'status': 'ready',
       }),
     );
-    await Future<void>.delayed(Duration.zero);
+    await Future.pause(.zero);
     client.emit(
       const MobileRuntimeEvent('codexServerChanged', <String, Object?>{
         'status': 'error',
@@ -212,7 +210,7 @@ void main() {
     recovery.complete(<String, Object?>{
       'goal': _mobileGoal('thread-goal-latest'),
     });
-    await Future<void>.delayed(Duration.zero);
+    await Future.pause(.zero);
 
     final state = container.read(provider).value!;
     expect(state.goal?.objective, 'Ship the release');
@@ -305,7 +303,7 @@ void main() {
     final replacing = container
         .read(provider.notifier)
         .replaceGoal('New objective');
-    await Future<void>.delayed(Duration.zero);
+    await Future.pause(.zero);
     expect(setRequests, 1);
     client.emit(
       const MobileRuntimeEvent('codexThreadChanged', <String, Object?>{
@@ -314,7 +312,7 @@ void main() {
         'snapshot': <String, Object?>{'timelineCells': <Object?>[]},
       }),
     );
-    await Future<void>.delayed(Duration.zero);
+    await Future.pause(.zero);
     replacement.completeError(StateError('replacement failed'));
 
     expect(await replacing, isFalse);

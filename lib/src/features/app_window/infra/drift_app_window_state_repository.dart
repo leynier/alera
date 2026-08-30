@@ -5,11 +5,8 @@ import 'package:alera/src/features/app_window/domain/app_window_state.dart';
 import 'package:alera/src/shared/infra/storage/drift_database.dart';
 import 'package:drift/drift.dart' show Value;
 
-class DriftAppWindowStateRepository implements AppWindowStateRepository {
-  DriftAppWindowStateRepository(this._db);
-
-  final AleraDatabase _db;
-
+class DriftAppWindowStateRepository(final AleraDatabase _db)
+    implements AppWindowStateRepository {
   static const int _rowId = 1;
 
   @override

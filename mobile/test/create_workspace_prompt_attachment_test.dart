@@ -420,10 +420,8 @@ WorkspaceSummary _workspace({
   kind: isMain ? 'main' : 'linked',
 );
 
-class _FakePromptFilePicker implements PromptFilePicker {
-  _FakePromptFilePicker(this.file);
-
-  final PromptFile? file;
+class _FakePromptFilePicker(final PromptFile? file)
+    implements PromptFilePicker {
   var pickCount = 0;
 
   @override
@@ -444,10 +442,8 @@ Future<void> _waitFor(WidgetTester tester, bool Function() condition) async {
   fail('condition did not become true');
 }
 
-class _FakePromptImagePicker implements PromptImagePicker {
-  _FakePromptImagePicker(this.images);
-
-  final List<PromptImageFile> images;
+class _FakePromptImagePicker(final List<PromptImageFile> images)
+    implements PromptImagePicker {
   final Completer<void> release = Completer<void>();
   Future<List<PromptImageFile>> Function()? result;
 

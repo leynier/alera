@@ -416,11 +416,8 @@ void registerCodexTimelineInteractionTests() {
   });
 }
 
-final class _TimelineSegmentSettings extends SettingsController {
-  _TimelineSegmentSettings({required this.planMode});
-
-  final bool planMode;
-
+final class _TimelineSegmentSettings({required final bool planMode})
+    extends SettingsController {
   @override
   AleraSettings build() => AleraSettings.defaults.copyWith(
     codexChat: CodexChatSettings(planMode: planMode),

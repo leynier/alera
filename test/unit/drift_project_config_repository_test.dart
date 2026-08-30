@@ -24,7 +24,7 @@ void main() {
         await repository.save(
           projectId: 'project-1',
           config: config,
-          updatedAt: DateTime.utc(2026, 6, 27),
+          updatedAt: .utc(2026, 6, 27),
         );
 
         expect(await repository.findByProjectId('project-1'), config);

@@ -65,10 +65,8 @@ void main() {
   });
 }
 
-class _FakeWorkspaceFileService extends WorkspaceFileService {
-  _FakeWorkspaceFileService({this.unsupportedText = false});
-
-  final bool unsupportedText;
+class _FakeWorkspaceFileService({final bool unsupportedText = false})
+    extends WorkspaceFileService {
   final List<String> readTextPaths = <String>[];
   final List<String> resolvedPaths = <String>[];
 
@@ -88,7 +86,7 @@ class _FakeWorkspaceFileService extends WorkspaceFileService {
       content: 'text',
       contentToken: 'token',
       modifiedMillis: 0,
-      size: BigInt.from(4),
+      size: .from(4),
     );
   }
 

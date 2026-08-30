@@ -40,9 +40,8 @@ void main() {
       );
       final container = ProviderContainer(
         overrides: [
-          mobileCodexClientProvider(
-            'host-paginated-history',
-          ).overrideWith((ref) async => client),
+          mobileCodexClientProvider('host-paginated-history')
+              .overrideWith((ref) async => client),
         ],
       );
       addTearDown(() {
@@ -88,7 +87,7 @@ void main() {
           },
         }),
       );
-      await Future<void>.delayed(Duration.zero);
+      await Future.pause(.zero);
 
       final cells = container.read(provider).value!.timelineCells;
       expect(cells, hasLength(483));
@@ -123,9 +122,8 @@ void main() {
     );
     final container = ProviderContainer(
       overrides: [
-        mobileCodexClientProvider(
-          'host-bounded-snapshot',
-        ).overrideWith((ref) async => client),
+        mobileCodexClientProvider('host-bounded-snapshot')
+            .overrideWith((ref) async => client),
       ],
     );
     addTearDown(() {
@@ -143,7 +141,7 @@ void main() {
     );
     addTearDown(listener.close);
     while (!client.calls.any((call) => call.type == 'codex.model.list')) {
-      await Future<void>.delayed(Duration.zero);
+      await Future.pause(.zero);
     }
 
     client.emit(
@@ -213,8 +211,8 @@ void main() {
     models.complete(const <String, Object?>{'data': <Object?>[]});
 
     await container.read(provider.future);
-    await Future<void>.delayed(Duration.zero);
-    await Future<void>.delayed(Duration.zero);
+    await Future.pause(.zero);
+    await Future.pause(.zero);
 
     final cells = container.read(provider).value!.timelineCells;
     expect(cells.map((cell) => cell.id), <String>[
@@ -245,9 +243,8 @@ void main() {
     );
     final container = ProviderContainer(
       overrides: [
-        mobileCodexClientProvider(
-          'host-replacement-snapshot',
-        ).overrideWith((ref) async => client),
+        mobileCodexClientProvider('host-replacement-snapshot')
+            .overrideWith((ref) async => client),
       ],
     );
     addTearDown(() {
@@ -265,7 +262,7 @@ void main() {
     );
     addTearDown(listener.close);
     while (!client.calls.any((call) => call.type == 'codex.model.list')) {
-      await Future<void>.delayed(Duration.zero);
+      await Future.pause(.zero);
     }
 
     client.emit(
@@ -323,8 +320,8 @@ void main() {
     models.complete(const <String, Object?>{'data': <Object?>[]});
 
     await container.read(provider.future);
-    await Future<void>.delayed(Duration.zero);
-    await Future<void>.delayed(Duration.zero);
+    await Future.pause(.zero);
+    await Future.pause(.zero);
 
     expect(
       container.read(provider).value!.timelineCells.map((cell) => cell.id),

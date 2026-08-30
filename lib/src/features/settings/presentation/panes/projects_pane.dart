@@ -15,11 +15,8 @@ import 'package:alera/src/features/settings/presentation/panes/project_config_ed
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-class ProjectSettingsPane extends ConsumerStatefulWidget {
-  const ProjectSettingsPane({super.key, this.initialProjectId});
-
-  final String? initialProjectId;
-
+class const ProjectSettingsPane({super.key, final String? initialProjectId})
+    extends ConsumerStatefulWidget {
   @override
   ConsumerState<ProjectSettingsPane> createState() =>
       _ProjectSettingsPaneState();
@@ -83,7 +80,7 @@ class _ProjectSettingsPaneState extends ConsumerState<ProjectSettingsPane> {
               ),
               detail: SingleChildScrollView(
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  crossAxisAlignment: .stretch,
                   children: <Widget>[
                     ProjectConfigEditorLoader(
                       project: selected,
@@ -333,19 +330,12 @@ class _ProjectSettingsPaneState extends ConsumerState<ProjectSettingsPane> {
   }
 }
 
-class _ProjectConfigProjectList extends StatelessWidget {
-  const _ProjectConfigProjectList({
-    required this.projects,
-    required this.selectedProjectId,
-    required this.overrideProjectIds,
-    required this.onSelect,
-  });
-
-  final List<Project> projects;
-  final String selectedProjectId;
-  final Set<String> overrideProjectIds;
-  final ValueChanged<Project> onSelect;
-
+class const _ProjectConfigProjectList({
+  required final List<Project> projects,
+  required final String selectedProjectId,
+  required final Set<String> overrideProjectIds,
+  required final ValueChanged<Project> onSelect,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -372,14 +362,14 @@ class _ProjectConfigProjectList extends StatelessWidget {
                   const SizedBox(width: AleraTokens.space8),
                   Expanded(
                     child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                      crossAxisAlignment: .start,
                       children: <Widget>[
                         Text(
                           project.name,
-                          overflow: TextOverflow.ellipsis,
+                          overflow: .ellipsis,
                           style: theme.textTheme.bodyMedium?.copyWith(
                             color: AleraTokens.foreground,
-                            fontWeight: FontWeight.w500,
+                            fontWeight: .w500,
                           ),
                         ),
                         const SizedBox(height: AleraTokens.space2),
@@ -387,7 +377,7 @@ class _ProjectConfigProjectList extends StatelessWidget {
                           overrideProjectIds.contains(project.id)
                               ? 'UI Override'
                               : 'Repo File',
-                          overflow: TextOverflow.ellipsis,
+                          overflow: .ellipsis,
                           style: theme.textTheme.labelSmall?.copyWith(
                             color: AleraTokens.foregroundMuted,
                           ),
@@ -404,11 +394,8 @@ class _ProjectConfigProjectList extends StatelessWidget {
   }
 }
 
-class _ProjectSettingsError extends StatelessWidget {
-  const _ProjectSettingsError({required this.message});
-
-  final String message;
-
+class const _ProjectSettingsError({required final String message})
+    extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);

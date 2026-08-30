@@ -7,30 +7,24 @@ import 'package:alera/src/features/settings/presentation/rows/settings_font_auto
 import 'package:alera/src/features/settings/presentation/rows/settings_rows.dart';
 import 'package:flutter/material.dart';
 
-class TerminalSettingsPane extends StatelessWidget {
-  const TerminalSettingsPane({
-    super.key,
-    required this.settings,
-    required this.fontSuggestions,
-    required this.onChanged,
-    this.onReloadShellEnvironment,
-    this.groupKeys = const <String, GlobalKey>{},
-  });
-
-  final TerminalSettings settings;
-  final List<String> fontSuggestions;
-  final ValueChanged<TerminalSettings Function(TerminalSettings)> onChanged;
-
+class const TerminalSettingsPane({
+  super.key,
+  required final TerminalSettings settings,
+  required final List<String> fontSuggestions,
+  required final ValueChanged<TerminalSettings Function(TerminalSettings)>
+  onChanged,
+  this.onReloadShellEnvironment,
+  final Map<String, GlobalKey> groupKeys = const <String, GlobalKey>{},
+}) extends StatelessWidget {
   /// Re-probes the login shell so a tool installed mid-session resolves without
   /// restarting the runtime. When null the row is omitted.
   final Future<void> Function()? onReloadShellEnvironment;
-  final Map<String, GlobalKey> groupKeys;
 
   @override
   Widget build(BuildContext context) {
     final overrides = settings.colorOverrides;
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+      crossAxisAlignment: .stretch,
       children: <Widget>[
         KeyedSubtree(
           key: groupKeys['typography'],
@@ -234,8 +228,7 @@ class TerminalSettingsPane extends StatelessWidget {
             children: <Widget>[
               SettingsIntegerRow(
                 title: 'TUI Scroll Speed',
-                description:
-                    'Mouse reports sent per wheel step while a TUI owns scrolling.',
+                description: 'Mouse reports sent per wheel step while a TUI owns scrolling.',
                 value: settings.tuiScrollSensitivity,
                 min: 1,
                 max: 10,
@@ -264,8 +257,7 @@ class TerminalSettingsPane extends StatelessWidget {
               ),
               SettingsSwitchRow(
                 title: 'Show Terminal Composer By Default',
-                description:
-                    'Open the prompt composer when a new terminal session starts.',
+                description: 'Open the prompt composer when a new terminal session starts.',
                 value: settings.showComposerByDefault,
                 onChanged: (value) => onChanged(
                   (settings) => settings.copyWith(showComposerByDefault: value),
@@ -284,8 +276,7 @@ class TerminalSettingsPane extends StatelessWidget {
             children: <Widget>[
               SettingsSwitchRow(
                 title: 'Use Login Shell',
-                description:
-                    'Start shells as login shells so profile files such as ~/.zprofile and ~/.profile are loaded.',
+                description: 'Start shells as login shells so profile files such as ~/.zprofile and ~/.profile are loaded.',
                 value: settings.resolvedLoginShell,
                 onChanged: (value) => onChanged(
                   (settings) => settings.copyWith(loginShell: value),
@@ -294,8 +285,7 @@ class TerminalSettingsPane extends StatelessWidget {
               if (onReloadShellEnvironment != null)
                 SettingsButtonRow(
                   title: 'Reload Shell Environment',
-                  description:
-                      'Re-read the login shell PATH so tools installed since the runtime started resolve in new terminals.',
+                  description: 'Re-read the login shell PATH so tools installed since the runtime started resolve in new terminals.',
                   buttonLabel: 'Reload',
                   onPressed: onReloadShellEnvironment,
                 ),

@@ -1,17 +1,11 @@
 import 'package:alera_mobile/src/features/accounts/domain/runtime_push_preferences.dart';
 
-class CloudAccountProfile {
-  const CloudAccountProfile({
-    required this.id,
-    required this.email,
-    this.providers = const <String>[],
-  });
-
-  final String id;
-  final String email;
-  final List<String> providers;
-
-  factory CloudAccountProfile.fromJson(Map<String, Object?> json) {
+class const CloudAccountProfile({
+  required final String id,
+  required final String email,
+  final List<String> providers = const <String>[],
+}) {
+  factory fromJson(Map<String, Object?> json) {
     final identityProviders = _identityProviders(json['identities']);
     return CloudAccountProfile(
       id: _requiredString(json, 'id', fallbackKey: 'accountId'),
@@ -27,21 +21,14 @@ class CloudAccountProfile {
   }
 }
 
-class CloudAccountSession {
-  const CloudAccountSession({
-    required this.account,
-    required this.accessToken,
-    required this.refreshToken,
-    required this.accessTokenExpiresAt,
-    this.subscriptions = const <String, RuntimePushPreferences>{},
-  });
-
-  final CloudAccountProfile account;
-  final String accessToken;
-  final String refreshToken;
-  final DateTime accessTokenExpiresAt;
-  final Map<String, RuntimePushPreferences> subscriptions;
-
+class const CloudAccountSession({
+  required final CloudAccountProfile account,
+  required final String accessToken,
+  required final String refreshToken,
+  required final DateTime accessTokenExpiresAt,
+  final Map<String, RuntimePushPreferences> subscriptions =
+      const <String, RuntimePushPreferences>{},
+}) {
   bool expiresWithin(Duration duration, DateTime now) {
     return !accessTokenExpiresAt.isAfter(now.toUtc().add(duration));
   }
@@ -74,14 +61,12 @@ class CloudAccountSession {
     );
   }
 
-  factory CloudAccountSession.fromJson(Map<String, Object?> json) {
+  factory fromJson(Map<String, Object?> json) {
     final accountJson = _map(json['account']);
     final tokenJson = _map(json['session']);
     final subscriptionsJson = _map(json['subscriptions']);
     return CloudAccountSession(
-      account: CloudAccountProfile.fromJson(
-        accountJson.isEmpty ? json : accountJson,
-      ),
+      account: .fromJson(accountJson.isEmpty ? json : accountJson),
       accessToken: _requiredString(
         tokenJson.isEmpty ? json : tokenJson,
         'accessToken',
@@ -113,22 +98,14 @@ class CloudAccountSession {
   }
 }
 
-class CloudRuntimeProfile {
-  const CloudRuntimeProfile({
-    required this.id,
-    required this.name,
-    required this.lastSeenAt,
-    required this.relayPublicKey,
-    required this.relayKeyVersion,
-  });
-
-  final String id;
-  final String name;
-  final DateTime lastSeenAt;
-  final String relayPublicKey;
-  final int relayKeyVersion;
-
-  factory CloudRuntimeProfile.fromJson(Map<String, Object?> json) {
+class const CloudRuntimeProfile({
+  required final String id,
+  required final String name,
+  required final DateTime lastSeenAt,
+  required final String relayPublicKey,
+  required final int relayKeyVersion,
+}) {
+  factory fromJson(Map<String, Object?> json) {
     return CloudRuntimeProfile(
       id: _requiredString(json, 'id'),
       name: _requiredString(json, 'name'),
@@ -139,20 +116,13 @@ class CloudRuntimeProfile {
   }
 }
 
-class CloudAuthTransaction {
-  const CloudAuthTransaction({
-    required this.transactionId,
-    required this.state,
-    required this.authorizationUrl,
-    required this.expiresAt,
-  });
-
-  final String transactionId;
-  final String state;
-  final Uri authorizationUrl;
-  final DateTime expiresAt;
-
-  factory CloudAuthTransaction.fromJson(Map<String, Object?> json) {
+class const CloudAuthTransaction({
+  required final String transactionId,
+  required final String state,
+  required final Uri authorizationUrl,
+  required final DateTime expiresAt,
+}) {
+  factory fromJson(Map<String, Object?> json) {
     return CloudAuthTransaction(
       transactionId: _requiredString(json, 'transactionId'),
       state: _requiredString(json, 'state'),
@@ -162,20 +132,13 @@ class CloudAuthTransaction {
   }
 }
 
-class CloudRelayIdentityRegistration {
-  const CloudRelayIdentityRegistration({
-    required this.clientId,
-    required this.clientKind,
-    required this.publicKey,
-    required this.keyVersion,
-  });
-
-  final String clientId;
-  final String clientKind;
-  final String publicKey;
-  final int keyVersion;
-
-  factory CloudRelayIdentityRegistration.fromJson(Map<String, Object?> json) {
+class const CloudRelayIdentityRegistration({
+  required final String clientId,
+  required final String clientKind,
+  required final String publicKey,
+  required final int keyVersion,
+}) {
+  factory fromJson(Map<String, Object?> json) {
     return CloudRelayIdentityRegistration(
       clientId: _requiredString(json, 'clientId'),
       clientKind: _requiredString(json, 'clientKind'),
@@ -185,32 +148,19 @@ class CloudRelayIdentityRegistration {
   }
 }
 
-class CloudRelayGrant {
-  const CloudRelayGrant({
-    required this.grant,
-    required this.relayUrl,
-    required this.expiresIn,
-    required this.accountId,
-    required this.runtimeId,
-    required this.clientId,
-    required this.clientKind,
-    required this.clientKeyVersion,
-    required this.clientPublicKey,
-    required this.runtimePublicKey,
-  });
-
-  final String grant;
-  final Uri relayUrl;
-  final int expiresIn;
-  final String accountId;
-  final String runtimeId;
-  final String clientId;
-  final String clientKind;
-  final int clientKeyVersion;
-  final String clientPublicKey;
-  final String? runtimePublicKey;
-
-  factory CloudRelayGrant.fromJson(Map<String, Object?> json) {
+class const CloudRelayGrant({
+  required final String grant,
+  required final Uri relayUrl,
+  required final int expiresIn,
+  required final String accountId,
+  required final String runtimeId,
+  required final String clientId,
+  required final String clientKind,
+  required final int clientKeyVersion,
+  required final String clientPublicKey,
+  required final String? runtimePublicKey,
+}) {
+  factory fromJson(Map<String, Object?> json) {
     return CloudRelayGrant(
       grant: _requiredString(json, 'grant'),
       relayUrl: Uri.parse(_requiredString(json, 'relayUrl')),
@@ -226,13 +176,11 @@ class CloudRelayGrant {
   }
 }
 
-class CloudEnrollmentResult {
-  const CloudEnrollmentResult({required this.session, required this.runtimeId});
-
-  final CloudAccountSession session;
-  final String runtimeId;
-
-  factory CloudEnrollmentResult.fromJson(Map<String, Object?> json) {
+class const CloudEnrollmentResult({
+  required final CloudAccountSession session,
+  required final String runtimeId,
+}) {
+  factory fromJson(Map<String, Object?> json) {
     final session = CloudAccountSession.fromJson(json);
     final runtimeId =
         _optionalString(json, 'runtimeId') ??

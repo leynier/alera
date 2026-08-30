@@ -38,7 +38,7 @@ void _registerTerminalSurfaceComposerTests() {
     );
 
     await tester.enterText(find.byType(TextField), 'Review this change');
-    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+    await tester.sendKeyEvent(.enter);
     await tester.pump();
 
     expect(session.submittedTexts, <String>['Review this change']);
@@ -133,10 +133,7 @@ void _registerTerminalSurfaceComposerTests() {
     final focusContext = tester.binding.focusManager.primaryFocus?.context;
     expect(focusContext, isNotNull);
 
-    Actions.invoke(
-      focusContext!,
-      const PasteTextIntent(SelectionChangedCause.keyboard),
-    );
+    Actions.invoke(focusContext!, const PasteTextIntent(.keyboard));
     await tester.pump();
     await tester.pump();
 
@@ -180,7 +177,7 @@ void _registerTerminalSurfaceComposerTests() {
   ) async {
     final session = _ImmediateNotifySessionHandle(tabId: 'tab-1');
     session.composerController.addAttachment(
-      kind: TerminalComposerAttachmentKind.image,
+      kind: .image,
       path: '/tmp/remove-me.png',
       displayName: 'remove-me.png',
     );
@@ -210,12 +207,12 @@ void _registerTerminalSurfaceComposerTests() {
   ) async {
     final session = _ImmediateNotifySessionHandle(tabId: 'tab-1');
     session.composerController.addAttachment(
-      kind: TerminalComposerAttachmentKind.image,
+      kind: .image,
       path: '/tmp/review.png',
       displayName: 'review.png',
     );
     session.composerController.addAttachment(
-      kind: TerminalComposerAttachmentKind.file,
+      kind: .file,
       path: '/tmp/report.pdf',
       displayName: 'report.pdf',
     );
@@ -245,7 +242,7 @@ void _registerTerminalSurfaceComposerTests() {
   ) async {
     final session = _ImmediateNotifySessionHandle(tabId: 'tab-1');
     session.composerController.addAttachment(
-      kind: TerminalComposerAttachmentKind.image,
+      kind: .image,
       path: '/tmp/image-only.png',
       displayName: 'image-only.png',
     );
@@ -291,10 +288,7 @@ void _registerTerminalSurfaceComposerTests() {
     final focusContext = tester.binding.focusManager.primaryFocus?.context;
     expect(focusContext, isNotNull);
 
-    Actions.invoke(
-      focusContext!,
-      const PasteTextIntent(SelectionChangedCause.keyboard),
-    );
+    Actions.invoke(focusContext!, const PasteTextIntent(.keyboard));
     await tester.pump();
     await tester.pump();
 
@@ -332,7 +326,7 @@ void _registerTerminalSurfaceComposerTests() {
   ) async {
     final session = _ImmediateNotifySessionHandle(tabId: 'tab-1');
     session.composerController.addAttachment(
-      kind: TerminalComposerAttachmentKind.file,
+      kind: .file,
       path: '/workspace/lib/main.dart',
       displayName: 'main.dart',
     );
@@ -399,10 +393,7 @@ void _registerTerminalSurfaceComposerTests() {
     final focusContext = tester.binding.focusManager.primaryFocus?.context;
     expect(focusContext, isNotNull);
 
-    Actions.invoke(
-      focusContext!,
-      const PasteTextIntent(SelectionChangedCause.keyboard),
-    );
+    Actions.invoke(focusContext!, const PasteTextIntent(.keyboard));
     await tester.pump();
     await tester.pumpAndSettle();
 
@@ -415,16 +406,11 @@ void _registerTerminalSurfaceComposerTests() {
   });
 }
 
-final class _FakeComposerClipboard implements TerminalClipboard {
-  _FakeComposerClipboard({
-    this.text,
-    this.imagePath,
-    this.filePaths = const <String>[],
-  });
-
-  final String? text;
-  final String? imagePath;
-  final List<String> filePaths;
+final class _FakeComposerClipboard({
+  final String? text,
+  final String? imagePath,
+  final List<String> filePaths = const <String>[],
+}) implements TerminalClipboard {
   int fileReads = 0;
   int imageReads = 0;
 

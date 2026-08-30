@@ -5,33 +5,19 @@ import 'package:cryptography/cryptography.dart';
 import 'package:desktop_updater/desktop_updater.dart';
 import 'package:http/http.dart' as http;
 
-class DesktopUpdateIndexNotFound implements Exception {
-  const DesktopUpdateIndexNotFound();
-}
+class const DesktopUpdateIndexNotFound() implements Exception;
 
-class DesktopUpdaterReleaseCandidate {
-  const DesktopUpdaterReleaseCandidate({
-    required this.version,
-    required this.buildNumber,
-    required this.generatedAt,
-    required this.mandatory,
-    required this.platform,
-    required this.artifactKind,
-    required this.artifactUrl,
-    required this.artifactSha256,
-    required this.artifactLength,
-  });
-
-  final String version;
-  final int? buildNumber;
-  final DateTime generatedAt;
-  final bool mandatory;
-  final String platform;
-  final String artifactKind;
-  final Uri artifactUrl;
-  final String artifactSha256;
-  final int artifactLength;
-}
+class const DesktopUpdaterReleaseCandidate({
+  required final String version,
+  required final int? buildNumber,
+  required final DateTime generatedAt,
+  required final bool mandatory,
+  required final String platform,
+  required final String artifactKind,
+  required final Uri artifactUrl,
+  required final String artifactSha256,
+  required final int artifactLength,
+});
 
 abstract interface class AleraDesktopUpdaterBackend {
   Future<DesktopUpdaterReleaseCandidate?> checkForUpdate({
@@ -58,8 +44,9 @@ abstract interface class AleraDesktopUpdaterBackend {
   void dispose();
 }
 
-class DesktopUpdaterBackend implements AleraDesktopUpdaterBackend {
-  DesktopUpdaterBackend({DesktopUpdater? updater, http.Client? client})
+class DesktopUpdaterBackend({DesktopUpdater? updater, http.Client? client})
+    implements AleraDesktopUpdaterBackend {
+  this
     : _updater = updater ?? DesktopUpdater(),
       _client = client ?? http.Client(),
       _ownsClient = client == null;
@@ -255,7 +242,7 @@ Future<void> _verifyDescriptorSignature({
       'The release descriptor signature or public key is not valid base64.',
     );
   }
-  final publicKey = SimplePublicKey(publicKeyBytes, type: KeyPairType.ed25519);
+  final publicKey = SimplePublicKey(publicKeyBytes, type: .ed25519);
   final valid = await Ed25519().verify(
     descriptor.canonicalSignatureBytes(),
     signature: Signature(signatureBytes, publicKey: publicKey),

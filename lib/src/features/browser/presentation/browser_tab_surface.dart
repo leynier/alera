@@ -33,18 +33,12 @@ import 'package:uuid/uuid.dart';
 
 part 'browser_tab_annotation.dart';
 
-class BrowserTabSurface extends ConsumerStatefulWidget {
-  const BrowserTabSurface({
-    super.key,
-    required this.tab,
-    this.autofocus = false,
-    this.pageObscured = false,
-  });
-
-  final WorkspaceTabRecord tab;
-  final bool autofocus;
-  final bool pageObscured;
-
+class const BrowserTabSurface({
+  super.key,
+  required final WorkspaceTabRecord tab,
+  final bool autofocus = false,
+  final bool pageObscured = false,
+}) extends ConsumerStatefulWidget {
   @override
   ConsumerState<BrowserTabSurface> createState() => _BrowserTabSurfaceState();
 }
@@ -60,8 +54,7 @@ class _BrowserTabSurfaceState extends ConsumerState<BrowserTabSurface> {
   bool _wantsNativeVisibility = false;
   bool _wantsNativeObscuration = false;
   bool _annotationMode = false;
-  BrowserAnnotationInputMode _annotationInputMode =
-      BrowserAnnotationInputMode.element;
+  BrowserAnnotationInputMode _annotationInputMode = .element;
   BrowserAnnotationCapture? _annotationCapture;
   List<BrowserAnnotationElement> _annotationElements =
       const <BrowserAnnotationElement>[];
@@ -130,8 +123,8 @@ class _BrowserTabSurfaceState extends ConsumerState<BrowserTabSurface> {
         BrowserProfile(
           id: defaultBrowserProfileId,
           label: 'Default',
-          kind: BrowserProfileKind.defaultProfile,
-          createdAt: DateTime.fromMillisecondsSinceEpoch(0, isUtc: true),
+          kind: .defaultProfile,
+          createdAt: .fromMillisecondsSinceEpoch(0, isUtc: true),
         ),
       ];
     }
@@ -170,7 +163,7 @@ class _BrowserTabSurfaceState extends ConsumerState<BrowserTabSurface> {
             return Center(
               child: Text(
                 'Browser session unavailable: ${snapshot.error}',
-                textAlign: TextAlign.center,
+                textAlign: .center,
               ),
             );
           }
@@ -192,7 +185,7 @@ class _BrowserTabSurfaceState extends ConsumerState<BrowserTabSurface> {
               widget.pageObscured || _annotationMode,
             );
             return Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
+              crossAxisAlignment: .stretch,
               children: <Widget>[
                 BrowserToolbar(
                   state: state,
@@ -228,7 +221,7 @@ class _BrowserTabSurfaceState extends ConsumerState<BrowserTabSurface> {
                 const Divider(height: AleraTokens.dividerExtent),
                 Expanded(
                   child: Stack(
-                    fit: StackFit.expand,
+                    fit: .expand,
                     children: <Widget>[
                       BrowserPageBody(
                         state: state,
@@ -250,18 +243,15 @@ class _BrowserTabSurfaceState extends ConsumerState<BrowserTabSurface> {
                               setState(() => _annotationInputMode = mode),
                           onElementSelected: (rect) =>
                               _selectAnnotationElement(handle, rect),
-                          onRegionSelected: (rect) => _addAnnotationComment(
-                            handle,
-                            BrowserAnnotationKind.region,
-                            rect,
-                          ),
+                          onRegionSelected: (rect) =>
+                              _addAnnotationComment(handle, .region, rect),
                           onDelete: (comment) => setState(() {
                             final current = _annotationCapture!;
                             final comments = current.comments.toList()
                               ..removeWhere((item) => item.id == comment.id);
                             _annotationCapture = current.copyWith(
                               comments:
-                                  List<BrowserAnnotationComment>.unmodifiable(
+                                  List<BrowserAnnotationComment>.unmodifiableOf(
                                     comments,
                                   ),
                             );
@@ -300,7 +290,7 @@ class _BrowserTabSurfaceState extends ConsumerState<BrowserTabSurface> {
     if (identity == null || !_visibilityAcquisitions.add(identity)) {
       return;
     }
-    final lease = handle.tryAcquireVisibility(BrowserVisibilityReason.user);
+    final lease = handle.tryAcquireVisibility(.user);
     if (lease == null) {
       _visibilityAcquisitions.remove(identity);
       return;
@@ -374,7 +364,7 @@ class _BrowserTabSurfaceState extends ConsumerState<BrowserTabSurface> {
     if (_addressController.text != value) {
       _addressController.value = TextEditingValue(
         text: value,
-        selection: TextSelection.collapsed(offset: value.length),
+        selection: .collapsed(offset: value.length),
       );
     }
   }
@@ -477,13 +467,13 @@ class _BrowserTabSurfaceState extends ConsumerState<BrowserTabSurface> {
           onOpen: (download) {
             final path = download.savePath;
             if (path != null) {
-              unawaited(_openExternally(Uri.file(path)));
+              unawaited(_openExternally(.file(path)));
             }
           },
           onReveal: (download) {
             final path = download.savePath;
             if (path != null) {
-              unawaited(_openExternally(Uri.directory(p.dirname(path))));
+              unawaited(_openExternally(.directory(p.dirname(path))));
             }
           },
         ),

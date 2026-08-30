@@ -25,32 +25,23 @@ class AleraHoverCardController {
 /// The card appears on hover after [hoverDelay] and, when [pinOnTap] is set,
 /// also on tap. A tapped card stays pinned until the next tap on the trigger or
 /// outside of it, so its contents stay reachable without holding the pointer.
-class AleraHoverCard extends StatefulWidget {
-  const AleraHoverCard({
-    super.key,
-    required this.semanticsLabel,
-    required this.card,
-    required this.child,
-    this.hoverDelay = AleraTokens.durationSlow,
-    this.pinOnTap = true,
-    this.controller,
-    this.onVisibilityChanged,
-    this.mouseCursor = MouseCursor.defer,
-  });
-
-  final String semanticsLabel;
-  final Widget card;
-  final Widget child;
-  final Duration hoverDelay;
-  final bool pinOnTap;
-
+class const AleraHoverCard({
+  super.key,
+  required final String semanticsLabel,
+  required final Widget card,
+  required final Widget child,
+  final Duration hoverDelay = AleraTokens.durationSlow,
+  final bool pinOnTap = true,
+  this.controller,
+  this.onVisibilityChanged,
+  final MouseCursor mouseCursor = MouseCursor.defer,
+}) extends StatefulWidget {
   /// Set together with `pinOnTap: false` when the trigger owns its own taps.
   final AleraHoverCardController? controller;
 
   /// Fires on each visibility edge, so an owner can start and stop work that
   /// only matters while the card is on screen.
   final ValueChanged<bool>? onVisibilityChanged;
-  final MouseCursor mouseCursor;
 
   @override
   State<AleraHoverCard> createState() => _AleraHoverCardState();
@@ -230,7 +221,7 @@ class _AleraHoverCardState extends State<AleraHoverCard>
     }
     final target = MatrixUtils.transformPoint(
       info.childPaintTransform,
-      info.childSize.center(Offset.zero),
+      info.childSize.center(.zero),
     );
     return Positioned.fill(
       bottom: MediaQuery.maybeViewInsetsOf(context)?.bottom ?? 0.0,
@@ -273,12 +264,8 @@ class _AleraHoverCardState extends State<AleraHoverCard>
       cursor: widget.mouseCursor,
       onEnter: _handleTriggerEnter,
       onExit: _handleTriggerExit,
-      hitTestBehavior: HitTestBehavior.opaque,
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onTap: onTap,
-        child: trigger,
-      ),
+      hitTestBehavior: .opaque,
+      child: GestureDetector(behavior: .opaque, onTap: onTap, child: trigger),
     );
     return TapRegion(
       groupId: this,
@@ -292,12 +279,10 @@ class _AleraHoverCardState extends State<AleraHoverCard>
   }
 }
 
-class _AleraHoverCardLayout extends SingleChildLayoutDelegate {
-  const _AleraHoverCardLayout({required this.target, required this.targetSize});
-
-  final Offset target;
-  final Size targetSize;
-
+class const _AleraHoverCardLayout({
+  required final Offset target,
+  required final Size targetSize,
+}) extends SingleChildLayoutDelegate {
   @override
   BoxConstraints getConstraintsForChild(BoxConstraints constraints) {
     return constraints.loosen();

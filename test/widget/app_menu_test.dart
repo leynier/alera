@@ -31,10 +31,7 @@ void main() {
       tester,
     ) async {
       final updateController = FakeUpdateController(
-        AleraUpdateState(
-          status: AleraUpdateStatus.idle,
-          config: updateConfig(),
-        ),
+        AleraUpdateState(status: .idle, config: updateConfig()),
       );
       final toastMessages = <String>[];
       final sub = AleraToast.stream.listen((data) {
@@ -119,10 +116,7 @@ void main() {
       tester,
     ) async {
       final updateController = FakeUpdateController(
-        AleraUpdateState(
-          status: AleraUpdateStatus.idle,
-          config: updateConfig(),
-        ),
+        AleraUpdateState(status: .idle, config: updateConfig()),
       );
       final toastMessages = <String>[];
       final sub = AleraToast.stream.listen((data) {
@@ -204,10 +198,7 @@ void main() {
         testWidgets('native channel runs the update check', (tester) async {
           await withPlatform(platform, () async {
             final updateController = FakeUpdateController(
-              AleraUpdateState(
-                status: AleraUpdateStatus.idle,
-                config: updateConfig(),
-              ),
+              AleraUpdateState(status: .idle, config: updateConfig()),
             );
             final toastMessages = <String>[];
             final sub = AleraToast.stream.listen((data) {
@@ -303,7 +294,7 @@ void main() {
     testWidgets('uses PlatformMenuBar on macOS without in-window MenuBar', (
       tester,
     ) async {
-      await withPlatform(TargetPlatform.macOS, () async {
+      await withPlatform(.macOS, () async {
         await pumpMenuScope(tester);
 
         expect(find.byType(PlatformMenuBar), findsOneWidget);

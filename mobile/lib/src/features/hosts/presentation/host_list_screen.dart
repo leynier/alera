@@ -1,4 +1,5 @@
 import 'dart:async';
+
 import 'package:alera_mobile/src/features/runtime/application/host_connection_health.dart';
 
 import 'package:alera_mobile/src/app/theme/alera_tokens.dart';
@@ -16,9 +17,7 @@ import 'package:alera_mobile/src/features/workbench/presentation/runtime_workspa
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-class HostListScreen extends ConsumerWidget {
-  const HostListScreen({super.key});
-
+class const HostListScreen({super.key}) extends ConsumerWidget {
   Future<void> _pairHost(BuildContext context) async {
     await Navigator.of(context).push<bool>(
       MaterialPageRoute<bool>(builder: (_) => const PairHostScreen()),
@@ -68,7 +67,7 @@ class HostListScreen extends ConsumerWidget {
       context: context,
       builder: (context) => SafeArea(
         child: Column(
-          mainAxisSize: MainAxisSize.min,
+          mainAxisSize: .min,
           children: <Widget>[
             ListTile(
               leading: const Icon(Icons.drive_file_rename_outline),
@@ -107,8 +106,8 @@ class HostListScreen extends ConsumerWidget {
           padding: EdgeInsets.all(AleraTokens.space12),
           child: Image(
             image: AssetImage('assets/branding/alera-logo-white.png'),
-            fit: BoxFit.contain,
-            filterQuality: FilterQuality.medium,
+            fit: .contain,
+            filterQuality: .medium,
           ),
         ),
         title: const Text('Alera'),
@@ -192,14 +191,12 @@ class HostListScreen extends ConsumerWidget {
   }
 }
 
-class _HomeLoading extends StatelessWidget {
-  const _HomeLoading();
-
+class const _HomeLoading() extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Center(
       child: Column(
-        mainAxisSize: MainAxisSize.min,
+        mainAxisSize: .min,
         children: <Widget>[
           const CircularProgressIndicator(),
           const SizedBox(height: AleraTokens.spaceMd),
@@ -210,18 +207,15 @@ class _HomeLoading extends StatelessWidget {
   }
 }
 
-class _EmptyHosts extends StatelessWidget {
-  const _EmptyHosts({required this.onPairHost});
-
-  final VoidCallback onPairHost;
-
+class const _EmptyHosts({required final VoidCallback onPairHost})
+    extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Center(
       child: Padding(
         padding: AleraTokens.contentPadding,
         child: Column(
-          mainAxisSize: MainAxisSize.min,
+          mainAxisSize: .min,
           children: <Widget>[
             Icon(
               Icons.devices_other,
@@ -248,27 +242,20 @@ class _EmptyHosts extends StatelessWidget {
 
 enum _HostAction { rename, remove }
 
-class _HostCard extends ConsumerWidget {
-  const _HostCard({
-    super.key,
-    required this.host,
-    required this.onOpen,
-    required this.onRemove,
-    required this.onLongPress,
-  });
-
-  final PairedHostProfile host;
-  final VoidCallback onOpen;
-  final VoidCallback onRemove;
-  final VoidCallback onLongPress;
-
+class const _HostCard({
+  super.key,
+  required final PairedHostProfile host,
+  required final VoidCallback onOpen,
+  required final VoidCallback onRemove,
+  required final VoidCallback onLongPress,
+}) extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final connection = ref.watch(hostConnectionControllerProvider(host.id));
     final health = ref.watch(hostConnectionHealthControllerProvider(host.id));
     return Card(
       child: InkWell(
-        borderRadius: BorderRadius.circular(AleraTokens.radiusSm),
+        borderRadius: .circular(AleraTokens.radiusSm),
         onTap: onOpen,
         onLongPress: onLongPress,
         child: Padding(
@@ -279,9 +266,8 @@ class _HostCard extends ConsumerWidget {
                 width: AleraTokens.iconLg,
                 height: AleraTokens.iconLg,
                 decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.primary.withValues(
-                    alpha: AleraTokens.emphasisOverlayAlpha,
-                  ),
+                  color: Theme.of(context).colorScheme.primary
+                      .withValues(alpha: AleraTokens.emphasisOverlayAlpha),
                   borderRadius: BorderRadius.circular(AleraTokens.radiusSm),
                 ),
                 child: Icon(
@@ -292,26 +278,26 @@ class _HostCard extends ConsumerWidget {
               const SizedBox(width: AleraTokens.spaceMd),
               Expanded(
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                  crossAxisAlignment: .start,
                   children: <Widget>[
                     Text(
                       host.effectiveName,
                       style: Theme.of(context).textTheme.titleMedium,
-                      overflow: TextOverflow.ellipsis,
+                      overflow: .ellipsis,
                     ),
                     if (host.alias != null) ...<Widget>[
                       const SizedBox(height: AleraTokens.spaceXs),
                       Text(
                         host.displayName,
                         style: Theme.of(context).textTheme.bodySmall,
-                        overflow: TextOverflow.ellipsis,
+                        overflow: .ellipsis,
                       ),
                     ],
                     const SizedBox(height: AleraTokens.spaceXs),
                     Text(
                       host.endpoint,
                       style: Theme.of(context).textTheme.bodySmall,
-                      overflow: TextOverflow.ellipsis,
+                      overflow: .ellipsis,
                     ),
                     const SizedBox(height: AleraTokens.spaceSm),
                     if (host.discoveryStale)
@@ -326,9 +312,8 @@ class _HostCard extends ConsumerWidget {
                       onRetry: () => unawaited(
                         ref
                             .read(
-                              hostConnectionControllerProvider(
-                                host.id,
-                              ).notifier,
+                              hostConnectionControllerProvider(host.id)
+                                  .notifier,
                             )
                             .reconnectNow(),
                       ),
@@ -349,19 +334,12 @@ class _HostCard extends ConsumerWidget {
   }
 }
 
-class _HostConnectionStatus extends StatelessWidget {
-  const _HostConnectionStatus({
-    required this.connecting,
-    required this.ready,
-    required this.onRetry,
-    required this.health,
-  });
-
-  final bool connecting;
-  final bool ready;
-  final VoidCallback onRetry;
-  final HostConnectionHealth health;
-
+class const _HostConnectionStatus({
+  required final bool connecting,
+  required final bool ready,
+  required final VoidCallback onRetry,
+  required final HostConnectionHealth health,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final label = health.phase == 'blocked'

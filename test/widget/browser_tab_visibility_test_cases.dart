@@ -8,6 +8,7 @@ import 'package:alera_browser/alera_browser.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+
 import '../unit/features/browser/fake_browser_engine.dart';
 
 void registerNativeBrowserVisibilityTest() {

@@ -1,10 +1,7 @@
 part of 'workspace_git_diff_panel.dart';
 
-class _StashPickerDialog extends StatelessWidget {
-  const _StashPickerDialog({required this.stashes});
-
-  final List<GitStashEntry> stashes;
-
+class const _StashPickerDialog({required final List<GitStashEntry> stashes})
+    extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return AleraDialog(
@@ -12,8 +9,8 @@ class _StashPickerDialog extends StatelessWidget {
       child: Padding(
         padding: const EdgeInsets.all(AleraTokens.space20),
         child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
+          mainAxisSize: .min,
+          crossAxisAlignment: .stretch,
           children: <Widget>[
             Text('Stash pop', style: Theme.of(context).textTheme.titleMedium),
             const SizedBox(height: AleraTokens.space12),
@@ -32,7 +29,7 @@ class _StashPickerDialog extends StatelessWidget {
                     subtitle: Text(
                       stash.message,
                       maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
+                      overflow: .ellipsis,
                     ),
                     onTap: () => Navigator.of(context).pop(stash),
                   );

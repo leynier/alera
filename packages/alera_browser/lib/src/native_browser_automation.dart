@@ -4,22 +4,18 @@ import 'browser_errors.dart';
 import 'browser_models.dart';
 import 'dom_automation.dart';
 
-typedef AleraBrowserJavaScriptEvaluator =
-    Future<Object?> Function(String pageId, String script);
+typedef AleraBrowserJavaScriptEvaluator = Future<Object?> Function(
+  String pageId,
+  String script,
+);
 typedef AleraBrowserAutomationGeneration = int Function(String pageId);
 
-final class AleraNativeBrowserAutomation {
-  AleraNativeBrowserAutomation({
-    required this.evaluate,
-    required this.generation,
-    required this.now,
-    required this.namespace,
-  });
-
-  final AleraBrowserJavaScriptEvaluator evaluate;
-  final AleraBrowserAutomationGeneration generation;
-  final DateTime Function() now;
-  final String namespace;
+final class AleraNativeBrowserAutomation({
+  required final AleraBrowserJavaScriptEvaluator evaluate,
+  required final AleraBrowserAutomationGeneration generation,
+  required final DateTime Function() now,
+  required final String namespace,
+}) {
   final Map<String, int> _snapshotSequences = <String, int>{};
 
   void invalidate(String pageId) {
@@ -84,7 +80,7 @@ final class AleraNativeBrowserAutomation {
       if (decodeAleraBrowserJavaScriptJson(raw) == true) {
         return;
       }
-      await Future<void>.delayed(const Duration(milliseconds: 50));
+      await Future.pause(const Duration(milliseconds: 50));
     }
     throw AleraBrowserStateError(
       'wait_timeout',

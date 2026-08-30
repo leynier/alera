@@ -14,15 +14,10 @@ Future<String?> _showMobileReviewBranchPicker(
       _MobileReviewBranchPicker(branches: branches, selected: selected),
 );
 
-class _MobileReviewBranchPicker extends StatefulWidget {
-  const _MobileReviewBranchPicker({
-    required this.branches,
-    required this.selected,
-  });
-
-  final List<String> branches;
-  final String? selected;
-
+class const _MobileReviewBranchPicker({
+  required final List<String> branches,
+  required final String? selected,
+}) extends StatefulWidget {
   @override
   State<_MobileReviewBranchPicker> createState() =>
       _MobileReviewBranchPickerState();
@@ -49,7 +44,7 @@ class _MobileReviewBranchPickerState extends State<_MobileReviewBranchPicker> {
           AleraTokens.space16,
         ),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
+          crossAxisAlignment: .stretch,
           children: <Widget>[
             Text(
               'Select Base Branch',
@@ -76,11 +71,7 @@ class _MobileReviewBranchPickerState extends State<_MobileReviewBranchPicker> {
                         return ListTile(
                           minTileHeight: AleraTokens.minTapTarget,
                           selected: branch == widget.selected,
-                          title: Text(
-                            branch,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
+                          title: Text(branch, maxLines: 1, overflow: .ellipsis),
                           trailing: branch == widget.selected
                               ? const Icon(
                                   AleraIcons.check,

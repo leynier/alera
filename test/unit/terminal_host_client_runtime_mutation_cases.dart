@@ -1,6 +1,35 @@
 part of 'terminal_host_client_test.dart';
 
 void _registerTerminalHostClientRuntimeMutationTests() {
+  for (final supported in [false, true]) {
+    test('socket client detects workspace sections ($supported)', () async {
+      final tempDir = await Directory.systemTemp.createTemp(
+        'alera-sections-capability-',
+      );
+      addTearDown(() => tempDir.delete(recursive: true));
+      final server = await _TerminalHostTestServer.start();
+      addTearDown(server.dispose);
+      await _writeControlFile(
+        tempDir: tempDir,
+        port: server.port,
+        token: server.token,
+        includeWorkspaceSectionsCapability: supported,
+      );
+      final client = SocketTerminalHostClient(
+        launcher: _NoopTerminalHostLauncher(),
+        applicationSupportDirectory: () async => tempDir,
+      );
+      addTearDown(client.dispose);
+      expect(
+        await client.supportsRuntimeCapability(
+          aleraRuntimeHostWorkspaceSectionsCapability,
+        ),
+        supported,
+      );
+      expect(await client.supportsRuntimeCapability('unknown'), isFalse);
+    });
+  }
+
   test(
     'status.get updates crash reports with the connected host version',
     () async {

@@ -1,30 +1,17 @@
 part of 'pull_request_review_view.dart';
 
-class _PullRequestReviewActions extends StatefulWidget {
-  const _PullRequestReviewActions({
-    required this.review,
-    required this.stack,
-    required this.mergeMethods,
-    required this.canCloseReview,
-    required this.canChangeDraftStatus,
-    required this.action,
-    required this.onMerge,
-    required this.onClose,
-    required this.onDraftStatusChanged,
-    required this.onUnlink,
-  });
-
-  final HostedReview review;
-  final HostedReviewStack? stack;
-  final List<ReviewMergeMethod> mergeMethods;
-  final bool canCloseReview;
-  final bool canChangeDraftStatus;
-  final PullRequestAction? action;
-  final Future<void> Function(ReviewMergeMethod method) onMerge;
-  final Future<void> Function() onClose;
-  final Future<void> Function(bool draft) onDraftStatusChanged;
-  final Future<void> Function() onUnlink;
-
+class const _PullRequestReviewActions({
+  required final HostedReview review,
+  required final HostedReviewStack? stack,
+  required final List<ReviewMergeMethod> mergeMethods,
+  required final bool canCloseReview,
+  required final bool canChangeDraftStatus,
+  required final PullRequestAction? action,
+  required final Future<void> Function(ReviewMergeMethod method) onMerge,
+  required final Future<void> Function() onClose,
+  required final Future<void> Function(bool draft) onDraftStatusChanged,
+  required final Future<void> Function() onUnlink,
+}) extends StatefulWidget {
   @override
   State<_PullRequestReviewActions> createState() =>
       _PullRequestReviewActionsState();
@@ -245,7 +232,7 @@ enum _PullRequestReviewAction {
   close,
   unlink;
 
-  factory _PullRequestReviewAction.fromMergeMethod(ReviewMergeMethod method) {
+  factory fromMergeMethod(ReviewMergeMethod method) {
     return switch (method) {
       ReviewMergeMethod.providerDefault =>
         _PullRequestReviewAction.providerDefault,
@@ -293,27 +280,16 @@ enum _PullRequestReviewAction {
   bool get destructive => this == _PullRequestReviewAction.close;
 }
 
-class _PullRequestActionButton extends StatelessWidget {
-  const _PullRequestActionButton({
-    required this.action,
-    required this.actions,
-    required this.busy,
-    required this.primaryEnabled,
-    required this.menuEnabled,
-    required this.labelFor,
-    required this.onPressed,
-    required this.onSelected,
-  });
-
-  final _PullRequestReviewAction action;
-  final List<_PullRequestReviewAction> actions;
-  final bool busy;
-  final bool primaryEnabled;
-  final bool menuEnabled;
-  final String Function(_PullRequestReviewAction action) labelFor;
-  final VoidCallback onPressed;
-  final ValueChanged<_PullRequestReviewAction> onSelected;
-
+class const _PullRequestActionButton({
+  required final _PullRequestReviewAction action,
+  required final List<_PullRequestReviewAction> actions,
+  required final bool busy,
+  required final bool primaryEnabled,
+  required final bool menuEnabled,
+  required final String Function(_PullRequestReviewAction action) labelFor,
+  required final VoidCallback onPressed,
+  required final ValueChanged<_PullRequestReviewAction> onSelected,
+}) extends StatelessWidget {
   static const double _height = 34;
 
   @override
@@ -324,9 +300,8 @@ class _PullRequestActionButton extends StatelessWidget {
     final foreground = action.destructive
         ? AleraTokens.onError
         : AleraTokens.onAccent;
-    final textStyle = Theme.of(
-      context,
-    ).textTheme.labelLarge?.copyWith(color: foreground);
+    final textStyle = Theme.of(context).textTheme.labelLarge
+        ?.copyWith(color: foreground);
     final primaryCursor = primaryEnabled
         ? SystemMouseCursors.click
         : SystemMouseCursors.basic;
@@ -352,7 +327,7 @@ class _PullRequestActionButton extends StatelessWidget {
                       onTap: primaryEnabled ? onPressed : null,
                       child: Center(
                         child: Row(
-                          mainAxisSize: MainAxisSize.min,
+                          mainAxisSize: .min,
                           children: <Widget>[
                             if (busy)
                               SizedBox(
@@ -370,7 +345,7 @@ class _PullRequestActionButton extends StatelessWidget {
                               child: Text(
                                 labelFor(action),
                                 maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
+                                overflow: .ellipsis,
                                 style: textStyle,
                               ),
                             ),
@@ -421,9 +396,9 @@ class _PullRequestActionButton extends StatelessWidget {
     if (renderBox == null || overlay is! RenderBox) {
       return;
     }
-    final topLeft = renderBox.localToGlobal(Offset.zero, ancestor: overlay);
+    final topLeft = renderBox.localToGlobal(.zero, ancestor: overlay);
     final bottomRight = renderBox.localToGlobal(
-      renderBox.size.bottomRight(Offset.zero),
+      renderBox.size.bottomRight(.zero),
       ancestor: overlay,
     );
     final readyActions = actions.where(
@@ -437,8 +412,8 @@ class _PullRequestActionButton extends StatelessWidget {
     );
     final selected = await showMenu<_PullRequestReviewAction>(
       context: context,
-      position: RelativeRect.fromRect(
-        Rect.fromPoints(topLeft, bottomRight),
+      position: .fromRect(
+        .fromPoints(topLeft, bottomRight),
         Offset.zero & overlay.size,
       ),
       color: AleraTokens.surface,

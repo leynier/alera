@@ -1,9 +1,11 @@
 import 'dart:async';
+
 import 'package:code_forge/code_forge.dart' as code_forge;
 import 'package:alera/src/features/orchestration/application/run_board_navigation.dart';
 import 'package:alera/src/features/orchestration/application/run_board_providers.dart';
 import 'package:alera/src/features/orchestration/presentation/run_board_page.dart';
 import 'package:alera/src/features/workbench/presentation/workspace_editor_surface.dart';
+
 import '../support/run_board_fixtures.dart';
 import '../support/run_board_widget_harness.dart';
 
@@ -158,8 +160,8 @@ WorkbenchState _stackedWorkbenchState() {
     path: project.repoPath,
     createdAt: now,
     updatedAt: now,
-    kind: WorkspaceKind.main,
-    status: WorkspaceStatus.active,
+    kind: .main,
+    status: .active,
   );
   final firstTab = WorkspaceTabRecord(
     id: 'tab-1',
@@ -213,8 +215,8 @@ WorkbenchState _populatedWorkbenchState() {
     path: project.repoPath,
     createdAt: now,
     updatedAt: now,
-    kind: WorkspaceKind.main,
-    status: WorkspaceStatus.active,
+    kind: .main,
+    status: .active,
   );
   final tab = WorkspaceTabRecord(
     id: 'tab-1',
@@ -261,8 +263,8 @@ WorkbenchState _splitWorkbenchState() {
     path: project.repoPath,
     createdAt: now,
     updatedAt: now,
-    kind: WorkspaceKind.main,
-    status: WorkspaceStatus.active,
+    kind: .main,
+    status: .active,
   );
   final firstTab = WorkspaceTabRecord(
     id: 'tab-1',
@@ -284,7 +286,7 @@ WorkbenchState _splitWorkbenchState() {
         tabIds: <String>[firstTab.id],
       ).splitWithGroup(
         targetGroupId: WorkbenchLayout.defaultGroupId(workspace.id),
-        zone: WorkbenchDropZone.right,
+        zone: .right,
         newGroup: WorkbenchPaneGroup(
           id: 'group-2',
           tabIds: <String>[secondTab.id],
@@ -327,8 +329,8 @@ WorkbenchState _linkedWorkbenchState({
     path: project.repoPath,
     createdAt: now,
     updatedAt: now,
-    kind: WorkspaceKind.main,
-    status: WorkspaceStatus.active,
+    kind: .main,
+    status: .active,
   );
   final linkedWorkspace = Workspace(
     id: 'workspace-2',
@@ -339,8 +341,8 @@ WorkbenchState _linkedWorkbenchState({
     path: '/repo/alera-feature-login',
     createdAt: now,
     updatedAt: now,
-    kind: WorkspaceKind.linked,
-    status: WorkspaceStatus.active,
+    kind: .linked,
+    status: .active,
   );
   final mainTab = WorkspaceTabRecord(
     id: 'tab-1',
@@ -408,14 +410,14 @@ AgentStatusEntry _agentStatusEntry({
     terminalSessionId: terminalSessionId,
     workspaceId: workspaceId,
     tabId: tabId,
-    agentType: AgentType.codex,
+    agentType: .codex,
     state: state,
     prompt: prompt,
     toolName: toolName,
     toolInput: toolInput,
     lastAssistantMessage: lastAssistantMessage,
     interrupted: interrupted,
-    updatedAt: DateTime.utc(2026, 5, 22),
-    stateStartedAt: DateTime.utc(2026, 5, 22),
+    updatedAt: .utc(2026, 5, 22),
+    stateStartedAt: .utc(2026, 5, 22),
   );
 }

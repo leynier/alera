@@ -9,19 +9,19 @@ Future<void> _deliverTerminalProcessStartup({
 }) async {
   final setupCommand = launch.setupCommand;
   if (setupCommand != null && setupCommand.isNotEmpty) {
-    await Future<void>.delayed(const Duration(milliseconds: 120));
+    await Future.pause(const Duration(milliseconds: 120));
     if (!isCurrent()) {
       return;
     }
     if (!await session.writeBytesAndWait(utf8.encode(setupCommand))) {
       return;
     }
-    await Future<void>.delayed(const Duration(milliseconds: 120));
+    await Future.pause(const Duration(milliseconds: 120));
   }
   if (initialCommand == null || initialCommand.isEmpty) {
     return;
   }
-  await Future<void>.delayed(const Duration(milliseconds: 120));
+  await Future.pause(const Duration(milliseconds: 120));
   if (!isCurrent()) {
     return;
   }
@@ -32,7 +32,7 @@ Future<void> _deliverTerminalProcessStartup({
     )) {
       return;
     }
-    await Future<void>.delayed(terminalAgentPromptSubmitDelay);
+    await Future.pause(terminalAgentPromptSubmitDelay);
     if (isCurrent()) {
       await session.writeBytesAndWait(utf8.encode('\r'));
     }

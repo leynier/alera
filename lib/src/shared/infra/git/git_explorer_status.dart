@@ -1,11 +1,10 @@
 enum GitExplorerStatus { untracked, added, modified }
 
 class GitExplorerStatusSnapshot {
-  GitExplorerStatusSnapshot(Map<String, GitExplorerStatus> statuses)
-    : statuses = Map<String, GitExplorerStatus>.unmodifiable(statuses);
+  new(Map<String, GitExplorerStatus> statuses)
+    : statuses = Map<String, GitExplorerStatus>.unmodifiableOf(statuses);
 
-  const GitExplorerStatusSnapshot.empty()
-    : statuses = const <String, GitExplorerStatus>{};
+  const new empty() : statuses = const <String, GitExplorerStatus>{};
 
   final Map<String, GitExplorerStatus> statuses;
 

@@ -114,13 +114,11 @@ void main() {
   });
 }
 
-class _FakeAppForeground implements AppForeground {
-  _FakeAppForeground([this._isForeground = true]);
-
+class _FakeAppForeground([var bool _isForeground = true])
+    implements AppForeground {
   final StreamController<bool> _changes = StreamController<bool>.broadcast(
     sync: true,
   );
-  bool _isForeground;
 
   @override
   bool get isForeground => _isForeground;

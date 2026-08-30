@@ -58,7 +58,7 @@ void main() {
             url: 'https://github.mycorp.com:8443/t/svc.git',
           ),
         ],
-        override: GitHostingProvider.github,
+        override: .github,
       );
       final resolved = result as HostingProviderResolved;
       expect(resolved.fromOverride, isTrue);
@@ -99,7 +99,7 @@ void main() {
         remotes: const <GitRemote>[
           GitRemote(name: 'origin', url: 'git@example.com:owner/repo.git'),
         ],
-        override: GitHostingProvider.azureDevops,
+        override: .azureDevops,
       );
       final undetectable = result as HostingProviderUndetectable;
       expect(undetectable.attemptedOverride, GitHostingProvider.azureDevops);

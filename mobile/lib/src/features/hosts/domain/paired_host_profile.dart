@@ -4,39 +4,24 @@ import 'package:alera_mobile/src/features/hosts/domain/pairing_endpoint_rules.da
 import 'package:alera_mobile/src/features/hosts/domain/pairing_offer.dart';
 import 'package:alera_mobile/src/features/accounts/domain/cloud_account_session.dart';
 
-class PairedHostProfile {
-  const PairedHostProfile({
-    required this.id,
-    required this.displayName,
-    required this.endpoint,
-    required this.runtimeId,
-    required this.deviceId,
-    required this.pairedAt,
-    this.serverPublicKeyB64,
-    this.endpointNetwork,
-    this.alias,
-    this.isRemote = false,
-    this.accountId,
-    this.discoveryStale = false,
-    this.discoveredAt,
-  });
-
-  final String id;
-  final String displayName;
-  final String endpoint;
-  final String runtimeId;
-  final String deviceId;
-  final String? serverPublicKeyB64;
-  final String? endpointNetwork;
-  final DateTime pairedAt;
-
+class const PairedHostProfile({
+  required final String id,
+  required final String displayName,
+  required final String endpoint,
+  required final String runtimeId,
+  required final String deviceId,
+  required final DateTime pairedAt,
+  final String? serverPublicKeyB64,
+  final String? endpointNetwork,
+  this.alias,
+  final bool isRemote = false,
+  final String? accountId,
+  final bool discoveryStale = false,
+  final DateTime? discoveredAt,
+}) {
   /// Local, user-chosen name for this host. Never sent to the runtime; the
   /// desktop keeps advertising its own host name.
   final String? alias;
-  final bool isRemote;
-  final String? accountId;
-  final bool discoveryStale;
-  final DateTime? discoveredAt;
 
   PairedHostProfile withDiscovery({required bool stale, DateTime? at}) =>
       PairedHostProfile(
@@ -93,10 +78,7 @@ class PairedHostProfile {
     );
   }
 
-  factory PairedHostProfile.fromCloudRuntime(
-    String accountId,
-    CloudRuntimeProfile runtime,
-  ) {
+  factory fromCloudRuntime(String accountId, CloudRuntimeProfile runtime) {
     return PairedHostProfile(
       id: runtime.id,
       displayName: runtime.name,
@@ -110,7 +92,7 @@ class PairedHostProfile {
     );
   }
 
-  factory PairedHostProfile.fromPairingResult(
+  factory fromPairingResult(
     PairingOffer offer,
     PairedDeviceCredentials credentials,
   ) {
@@ -134,7 +116,7 @@ class PairedHostProfile {
     );
   }
 
-  factory PairedHostProfile.fromJson(Map<String, Object?> json) {
+  factory fromJson(Map<String, Object?> json) {
     final isRemote = json['isRemote'] == true;
     final endpoint = json.requiredString('endpoint');
     final endpointNetwork = json.optionalString('endpointNetwork');
@@ -164,11 +146,11 @@ class PairedHostProfile {
       'runtimeId': runtimeId,
       'deviceId': deviceId,
       'serverPublicKeyB64': serverPublicKeyB64,
-      if (endpointNetwork != null) 'endpointNetwork': endpointNetwork,
+      'endpointNetwork': ?endpointNetwork,
       'pairedAt': pairedAt.toUtc().toIso8601String(),
-      if (alias != null) 'alias': alias,
+      'alias': ?alias,
       'isRemote': isRemote,
-      if (accountId != null) 'accountId': accountId,
+      'accountId': ?accountId,
     };
   }
 }

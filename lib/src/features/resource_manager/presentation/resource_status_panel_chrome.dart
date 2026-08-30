@@ -4,9 +4,7 @@ part of 'resource_status_panel.dart';
 // sortable column header. Everything here frames the tree without knowing what
 // is in it.
 
-class _PanelHeader extends StatelessWidget {
-  const _PanelHeader();
-
+class const _PanelHeader() extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -29,9 +27,8 @@ class _PanelHeader extends StatelessWidget {
           const SizedBox(width: AleraTokens.space8),
           Text(
             'Resource Manager',
-            style: Theme.of(
-              context,
-            ).textTheme.labelLarge?.copyWith(color: AleraTokens.foreground),
+            style: Theme.of(context).textTheme.labelLarge
+                ?.copyWith(color: AleraTokens.foreground),
           ),
         ],
       ),
@@ -41,9 +38,7 @@ class _PanelHeader extends StatelessWidget {
 
 /// The host is unreachable, so the panel points at the runtime host control
 /// rather than duplicating its Start/Stop/Restart flow.
-class _HostUnreachableNotice extends StatelessWidget {
-  const _HostUnreachableNotice();
-
+class const _HostUnreachableNotice() extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -60,9 +55,8 @@ class _HostUnreachableNotice extends StatelessWidget {
             child: Text(
               'The runtime host is not responding. Use the host chip to '
               'restart it.',
-              style: Theme.of(
-                context,
-              ).textTheme.bodySmall?.copyWith(color: AleraTokens.warning),
+              style: Theme.of(context).textTheme.bodySmall
+                  ?.copyWith(color: AleraTokens.warning),
             ),
           ),
         ],
@@ -71,11 +65,8 @@ class _HostUnreachableNotice extends StatelessWidget {
   }
 }
 
-class _TotalsRow extends StatelessWidget {
-  const _TotalsRow({required this.snapshot});
-
-  final ResourceSnapshot snapshot;
-
+class const _TotalsRow({required final ResourceSnapshot snapshot})
+    extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final warming = !snapshot.hasReading;
@@ -119,7 +110,7 @@ class _TotalsRow extends StatelessWidget {
                   memory,
                   snapshot.host.totalMemoryBytes,
                 ),
-                overflow: TextOverflow.ellipsis,
+                overflow: .ellipsis,
                 style: AleraTokens.monoStyle.copyWith(fontSize: 10),
               ),
             ),
@@ -130,29 +121,22 @@ class _TotalsRow extends StatelessWidget {
   }
 }
 
-class _TotalsValue extends StatelessWidget {
-  const _TotalsValue({
-    required this.label,
-    required this.value,
-    required this.tooltip,
-  });
-
-  final String label;
-  final String value;
-  final String tooltip;
-
+class const _TotalsValue({
+  required final String label,
+  required final String value,
+  required final String tooltip,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Tooltip(
       message: tooltip,
       child: Row(
-        mainAxisSize: MainAxisSize.min,
+        mainAxisSize: .min,
         children: <Widget>[
           Text(
             label,
-            style: Theme.of(
-              context,
-            ).textTheme.bodySmall?.copyWith(color: AleraTokens.foregroundFaint),
+            style: Theme.of(context).textTheme.bodySmall
+                ?.copyWith(color: AleraTokens.foregroundFaint),
           ),
           const SizedBox(width: AleraTokens.space6),
           Text(
@@ -168,15 +152,10 @@ class _TotalsValue extends StatelessWidget {
   }
 }
 
-class _SortHeader extends StatelessWidget {
-  const _SortHeader({
-    required this.sortColumn,
-    required this.onSortColumnChanged,
-  });
-
-  final ResourceSortColumn sortColumn;
-  final ValueChanged<ResourceSortColumn> onSortColumnChanged;
-
+class const _SortHeader({
+  required final ResourceSortColumn sortColumn,
+  required final ValueChanged<ResourceSortColumn> onSortColumnChanged,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -192,30 +171,30 @@ class _SortHeader extends StatelessWidget {
           Expanded(
             child: _SortButton(
               label: 'Name',
-              column: ResourceSortColumn.name,
+              column: .name,
               sortColumn: sortColumn,
               onPressed: onSortColumnChanged,
-              alignment: Alignment.centerLeft,
+              alignment: .centerLeft,
             ),
           ),
           SizedBox(
             width: _metricColumnWidth,
             child: _SortButton(
               label: 'CPU',
-              column: ResourceSortColumn.cpu,
+              column: .cpu,
               sortColumn: sortColumn,
               onPressed: onSortColumnChanged,
-              alignment: Alignment.centerRight,
+              alignment: .centerRight,
             ),
           ),
           SizedBox(
             width: _metricColumnWidth,
             child: _SortButton(
               label: 'Memory',
-              column: ResourceSortColumn.memory,
+              column: .memory,
               sortColumn: sortColumn,
               onPressed: onSortColumnChanged,
-              alignment: Alignment.centerRight,
+              alignment: .centerRight,
             ),
           ),
           const SizedBox(width: _actionColumnWidth),
@@ -225,21 +204,13 @@ class _SortHeader extends StatelessWidget {
   }
 }
 
-class _SortButton extends StatelessWidget {
-  const _SortButton({
-    required this.label,
-    required this.column,
-    required this.sortColumn,
-    required this.onPressed,
-    required this.alignment,
-  });
-
-  final String label;
-  final ResourceSortColumn column;
-  final ResourceSortColumn sortColumn;
-  final ValueChanged<ResourceSortColumn> onPressed;
-  final Alignment alignment;
-
+class const _SortButton({
+  required final String label,
+  required final ResourceSortColumn column,
+  required final ResourceSortColumn sortColumn,
+  required final ValueChanged<ResourceSortColumn> onPressed,
+  required final Alignment alignment,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final selected = column == sortColumn;

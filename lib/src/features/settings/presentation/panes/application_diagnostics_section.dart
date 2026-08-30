@@ -1,5 +1,3 @@
-import 'dart:typed_data';
-
 import 'package:alera/src/design_system/feedback/alera_toast.dart';
 import 'package:alera/src/design_system/forms/alera_dropdown_field.dart';
 import 'package:alera/src/design_system/forms/alera_setting_row.dart';
@@ -14,11 +12,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 /// Diagnostics controls: where logs live, how to export them, and whether
 /// crashes are reported.
-class DiagnosticsSettingsSection extends ConsumerWidget {
-  const DiagnosticsSettingsSection({super.key, required this.diagnostics});
-
-  final DiagnosticsSettings diagnostics;
-
+class const DiagnosticsSettingsSection({
+  super.key,
+  required final DiagnosticsSettings diagnostics,
+}) extends ConsumerWidget {
   static String logLevelLabel(DiagnosticsLogLevel level) {
     return switch (level) {
       DiagnosticsLogLevel.error => 'Errors only',
@@ -94,7 +91,7 @@ class DiagnosticsSettingsSection extends ConsumerWidget {
     AleraToast.show(
       context,
       message: 'Could not open the logs folder.',
-      tone: AleraToastTone.error,
+      tone: .error,
     );
   }
 
@@ -115,17 +112,13 @@ class DiagnosticsSettingsSection extends ConsumerWidget {
       return;
     }
     await XFile.fromData(
-      Uint8List.fromList(bytes),
+      .fromList(bytes),
       mimeType: 'application/zip',
     ).saveTo(location.path);
 
     if (!context.mounted) {
       return;
     }
-    AleraToast.show(
-      context,
-      message: 'Diagnostics exported.',
-      tone: AleraToastTone.success,
-    );
+    AleraToast.show(context, message: 'Diagnostics exported.', tone: .success);
   }
 }

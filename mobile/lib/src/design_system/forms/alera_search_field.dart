@@ -9,26 +9,16 @@ import 'package:flutter/services.dart';
 /// Canonical search input: search prefix, a clear button once text is present,
 /// optional [debounce] before reporting changes, and escape-to-clear /
 /// escape-to-unfocus. Pass [dense] for the compact toolbar variant.
-class AleraSearchField extends StatefulWidget {
-  const AleraSearchField({
-    super.key,
-    this.controller,
-    this.focusNode,
-    this.hintText = 'Search',
-    this.onChanged,
-    this.debounce,
-    this.dense = false,
-    this.autofocus = false,
-  });
-
-  final TextEditingController? controller;
-  final FocusNode? focusNode;
-  final String hintText;
-  final ValueChanged<String>? onChanged;
-  final Duration? debounce;
-  final bool dense;
-  final bool autofocus;
-
+class const AleraSearchField({
+  super.key,
+  final TextEditingController? controller,
+  final FocusNode? focusNode,
+  final String hintText = 'Search',
+  final ValueChanged<String>? onChanged,
+  final Duration? debounce,
+  final bool dense = false,
+  final bool autofocus = false,
+}) extends StatefulWidget {
   @override
   State<AleraSearchField> createState() => _AleraSearchFieldState();
 }
@@ -110,7 +100,7 @@ class _AleraSearchFieldState extends State<AleraSearchField> {
               color: AleraTokens.foregroundFaint,
             ),
             onPressed: _clear,
-            visualDensity: VisualDensity.compact,
+            visualDensity: .compact,
             padding: EdgeInsets.zero,
             constraints: const BoxConstraints(
               minWidth: 24,

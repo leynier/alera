@@ -8,8 +8,8 @@ import 'package:flutter_test/flutter_test.dart';
 
 const _check = ReviewCheck(
   name: 'build',
-  status: ReviewCheckStatus.completed,
-  conclusion: ReviewCheckConclusion.success,
+  status: .completed,
+  conclusion: .success,
 );
 
 Widget _wrap(
@@ -48,7 +48,7 @@ void main() {
       ReviewCheckDetails(
         workflow: 'CI',
         event: 'push',
-        startedAt: DateTime.utc(2026, 7, 15, 10),
+        startedAt: .utc(2026, 7, 15, 10),
       ),
     );
     await tester.pumpAndSettle();

@@ -13,8 +13,8 @@ void _registerWorkspacePullRequestsPanelReadingDiffTests() {
       path: '/repo',
       createdAt: now,
       updatedAt: now,
-      kind: WorkspaceKind.linked,
-      status: WorkspaceStatus.active,
+      kind: .linked,
+      status: .active,
     );
     final review = _review(385);
     final forge = FakeForgeProvider()..branchReview = review;
@@ -120,15 +120,15 @@ void _registerWorkspacePullRequestsPanelReadingDiffTests() {
       path: '/repo',
       createdAt: now,
       updatedAt: now,
-      kind: WorkspaceKind.linked,
-      status: WorkspaceStatus.active,
+      kind: .linked,
+      status: .active,
     );
     const sourceUrl = 'https://dev.azure.com/myorg/fork/_git/alera';
     final review = HostedReview(
-      provider: GitHostingProvider.azureDevops,
+      provider: .azureDevops,
       number: 42,
       title: 'feat: fork',
-      state: HostedReviewState.open,
+      state: .open,
       url: 'https://dev.azure.com/myorg/project/_git/alera/pullrequest/42',
       baseBranch: 'main',
       headBranch: 'feature',
@@ -207,8 +207,8 @@ void _registerWorkspacePullRequestsPanelReadingDiffTests() {
       path: '/repo',
       createdAt: now,
       updatedAt: now,
-      kind: WorkspaceKind.linked,
-      status: WorkspaceStatus.active,
+      kind: .linked,
+      status: .active,
     );
     final forge = FakeForgeProvider()..branchReview = _review(385);
     final git = FakeGitBackend()

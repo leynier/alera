@@ -1,11 +1,9 @@
 import 'package:alera_mobile/src/app/lifecycle/app_lifecycle_controller.dart';
 import 'package:flutter/widgets.dart';
 
-class ControlledAppLifecycle extends AppLifecycleController {
-  ControlledAppLifecycle([this.initialState = AppLifecycleState.paused]);
-
-  final AppLifecycleState initialState;
-
+class ControlledAppLifecycle([
+  final AppLifecycleState initialState = AppLifecycleState.paused,
+]) extends AppLifecycleController {
   @override
   AppLifecycleState build() => initialState;
 

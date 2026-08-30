@@ -47,7 +47,7 @@ void main() {
       final container = ProviderContainer(
         overrides: [
           workbenchControllerProvider.overrideWithValue(const WorkbenchState()),
-          settingsControllerProvider.overrideWithValue(AleraSettings.defaults),
+          settingsControllerProvider.overrideWithValue(.defaults),
           sshTargetsProvider.overrideWith(
             (ref) => Stream<List<SshTarget>>.value(const <SshTarget>[]),
           ),
@@ -70,7 +70,7 @@ void main() {
         fireImmediately: true,
       );
       async.flushMicrotasks();
-      async.elapse(Duration.zero);
+      async.elapse(.zero);
       async.flushMicrotasks();
       expect(container.read(agentQuotaStateProvider).hasValue, isTrue);
 
@@ -282,14 +282,11 @@ void main() {
       hostId: 'local',
       snapshots: <AgentQuotaSnapshot>[snapshot],
       environment: const <String, bool>{},
-      fetchedAt: DateTime.utc(2026),
+      fetchedAt: .utc(2026),
     );
 
-    expect(
-      state.snapshot(AgentQuotaProviderId.claude, accountId: 'ccdev'),
-      same(snapshot),
-    );
-    expect(state.snapshot(AgentQuotaProviderId.codex), isNull);
+    expect(state.snapshot(.claude, accountId: 'ccdev'), same(snapshot));
+    expect(state.snapshot(.codex), isNull);
   });
 
   test('creates an empty quota state at the epoch', () {
@@ -391,7 +388,7 @@ void main() {
       final state = await service.fetch(
         hostId: 'local',
         target: null,
-        settings: AgentQuotaHostSettings.defaults,
+        settings: .defaults,
       );
 
       expect(state.error, isNull);
@@ -416,7 +413,7 @@ void main() {
     final state = await service.fetch(
       hostId: 'local',
       target: null,
-      settings: AgentQuotaHostSettings.defaults,
+      settings: .defaults,
     );
 
     expect(state.error, isNull);
@@ -424,11 +421,8 @@ void main() {
   });
 }
 
-final class _FixedQuotaRuntimeHostClient implements RuntimeHostClient {
-  _FixedQuotaRuntimeHostClient(this.payload);
-
-  final Map<String, Object?> payload;
-
+final class _FixedQuotaRuntimeHostClient(final Map<String, Object?> payload)
+    implements RuntimeHostClient {
   @override
   Stream<RuntimeHostEvent> get runtimeEvents => const Stream.empty();
 

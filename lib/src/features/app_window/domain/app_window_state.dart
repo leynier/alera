@@ -1,18 +1,11 @@
 import 'dart:ui';
 
-class AppWindowBounds {
-  const AppWindowBounds({
-    required this.left,
-    required this.top,
-    required this.width,
-    required this.height,
-  });
-
-  final double left;
-  final double top;
-  final double width;
-  final double height;
-
+class const AppWindowBounds({
+  required final double left,
+  required final double top,
+  required final double width,
+  required final double height,
+}) {
   bool get isValid =>
       left.isFinite &&
       top.isFinite &&
@@ -72,17 +65,11 @@ class AppWindowBounds {
   int get hashCode => Object.hash(left, top, width, height);
 }
 
-class AppWindowState {
-  const AppWindowState({
-    this.normalBounds,
-    this.maximized = false,
-    this.fullScreen = false,
-  });
-
-  final AppWindowBounds? normalBounds;
-  final bool maximized;
-  final bool fullScreen;
-
+class const AppWindowState({
+  final AppWindowBounds? normalBounds,
+  final bool maximized = false,
+  final bool fullScreen = false,
+}) {
   Map<String, Object?> toJson() => <String, Object?>{
     'normalBounds': normalBounds?.toJson(),
     'maximized': maximized,

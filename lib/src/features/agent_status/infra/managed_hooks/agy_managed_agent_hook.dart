@@ -12,22 +12,16 @@ extension _AgyManagedAgentHook on ManagedAgentHookInstallService {
     // `PreToolUse` is deliberately absent: AGY requires a `decision` from it, so
     // registering it would put this observational hook in the permission path.
     final events = const <_ManagedHookEvent>[
-      _ManagedHookEvent(
-        'PreInvocation',
-        definitionShape: _ManagedHookDefinitionShape.agyLifecycleCommand,
-      ),
+      _ManagedHookEvent('PreInvocation', definitionShape: .agyLifecycleCommand),
       _ManagedHookEvent(
         'PostInvocation',
-        definitionShape: _ManagedHookDefinitionShape.agyLifecycleCommand,
+        definitionShape: .agyLifecycleCommand,
       ),
-      _ManagedHookEvent(
-        'Stop',
-        definitionShape: _ManagedHookDefinitionShape.agyLifecycleCommand,
-      ),
+      _ManagedHookEvent('Stop', definitionShape: .agyLifecycleCommand),
       _ManagedHookEvent(
         'PostToolUse',
         matcher: '*',
-        definitionShape: _ManagedHookDefinitionShape.agyToolCommand,
+        definitionShape: .agyToolCommand,
       ),
     ];
     final wrappers = <String, String>{};
@@ -38,14 +32,14 @@ extension _AgyManagedAgentHook on ManagedAgentHookInstallService {
       }
     }
     return _AgentHookDescriptor(
-      agentType: AgentType.agy,
+      agentType: .agy,
       configPath: p.join(_homeDirectory, '.gemini', 'config', 'hooks.json'),
       configLabel: 'Antigravity hooks.json',
       scriptFileName: scriptFileName,
       scriptPath: scriptPath,
       eventEnvVar: 'ALERA_AGY_EVENT',
-      configShape: _AgentHookConfigShape.agyBundle,
-      definitionShape: _ManagedHookDefinitionShape.agyLifecycleCommand,
+      configShape: .agyBundle,
+      definitionShape: .agyLifecycleCommand,
       bundleName: 'alera-status',
       managedScriptFileNames: <String>[
         scriptFileName,

@@ -18,12 +18,12 @@ abstract interface class TerminalShellStartupPreparer {
   );
 }
 
-final class AleraTerminalShellStartupPreparer
-    implements TerminalShellStartupPreparer {
-  AleraTerminalShellStartupPreparer({
-    TerminalShellStartupDirectoryResolver? applicationSupportDirectory,
-  }) : _applicationSupportDirectory =
-           applicationSupportDirectory ?? getApplicationSupportDirectory;
+final class AleraTerminalShellStartupPreparer({
+  TerminalShellStartupDirectoryResolver? applicationSupportDirectory,
+}) implements TerminalShellStartupPreparer {
+  this
+    : _applicationSupportDirectory =
+          applicationSupportDirectory ?? getApplicationSupportDirectory;
 
   final TerminalShellStartupDirectoryResolver _applicationSupportDirectory;
 

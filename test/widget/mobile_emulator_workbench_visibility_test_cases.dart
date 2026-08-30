@@ -102,8 +102,12 @@ Widget _emulatorWorkbench(TerminalRuntime runtime) => WorkspaceWorkbenchView(
   onRenameTab: ({required tabId, required title}) async {},
   onOpenEditor: (_) async {},
   onOpenMermanPreview: (_) async {},
-  onMoveTab:
-      ({required tabId, required targetGroupId, required zone, index}) async {},
+  onMoveTab: ({
+    required tabId,
+    required targetGroupId,
+    required zone,
+    index,
+  }) async {},
   onSplitGroup: ({required groupId, required zone}) async {},
   onMergeGroup: ({required groupId}) async {},
   onActivateGroup: ({required groupId}) {},

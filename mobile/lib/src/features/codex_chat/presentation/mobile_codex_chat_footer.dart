@@ -12,7 +12,7 @@ Widget _buildMobileCodexFooter(
     activeTurnId: state.activeTurnId,
   );
   Widget buildUpperContent() => Column(
-    mainAxisSize: MainAxisSize.min,
+    mainAxisSize: .min,
     children: <Widget>[
       if (state.error != null)
         MaterialBanner(
@@ -76,13 +76,9 @@ Widget _buildMobileCodexFooter(
         if (objective != null) await controller.editGoal(objective);
       },
       onPauseResume: state.goal!.status.canPause
-          ? () => unawaited(
-              controller.updateGoalStatus(MobileCodexGoalStatus.paused),
-            )
+          ? () => unawaited(controller.updateGoalStatus(.paused))
           : state.goal!.status.canResume
-          ? () => unawaited(
-              controller.updateGoalStatus(MobileCodexGoalStatus.active),
-            )
+          ? () => unawaited(controller.updateGoalStatus(.active))
           : null,
       onClear: () => unawaited(controller.clearGoal()),
     ),
@@ -141,7 +137,7 @@ Widget _buildMobileCodexFooter(
       constraints: BoxConstraints(maxHeight: availableHeight),
       child: SingleChildScrollView(
         child: Column(
-          mainAxisSize: MainAxisSize.min,
+          mainAxisSize: .min,
           children: <Widget>[
             buildUpperContent(),
             if (state.queuedMessages.isNotEmpty) buildQueue(),
@@ -157,10 +153,10 @@ Widget _buildMobileCodexFooter(
       maxHeight: AleraTokens.codexChatFooterMaxHeight,
     ),
     child: Column(
-      mainAxisSize: MainAxisSize.min,
+      mainAxisSize: .min,
       children: <Widget>[
         Flexible(
-          fit: FlexFit.loose,
+          fit: .loose,
           child: SingleChildScrollView(child: buildUpperContent()),
         ),
         if (state.queuedMessages.isNotEmpty) buildQueue(),

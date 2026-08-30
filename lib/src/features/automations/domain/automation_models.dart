@@ -1,38 +1,36 @@
 typedef JsonMap = Map<String, Object?>;
 
-class AutomationRecord {
-  const AutomationRecord({
-    required this.id,
-    required this.slug,
-    required this.name,
-    required this.description,
-    required this.promptTemplate,
-    required this.schedule,
-    required this.target,
-    required this.state,
-    required this.revision,
-    required this.approvedRevision,
-    required this.updatedAt,
-    this.projectId,
-    this.tagIds = const <String>[],
-    this.setupPolicy = 'wait',
-    this.cleanupPolicy,
-    this.overlapPolicy = 'skip',
-    this.queueCap = 10,
-    this.inactivityTimeoutSeconds = 7200,
-    this.heartbeatIntervalSeconds = 60,
-    this.misfireGraceSeconds = 900,
-    this.misfirePolicy = 'skip',
-    this.retryMaxAttempts = 3,
-    this.retryBackoffSeconds = 60,
-    this.circuitFailureThreshold = 3,
-    this.circuitOpenSeconds = 900,
-    this.precheck,
-    this.notifyOnSuccess = false,
-    this.raw = const <String, Object?>{},
-  });
-
-  factory AutomationRecord.fromJson(Object? value) {
+class const AutomationRecord({
+  required final String id,
+  required final String slug,
+  required final String name,
+  required final String description,
+  required final String promptTemplate,
+  required final JsonMap schedule,
+  required final JsonMap target,
+  required final String state,
+  required final int revision,
+  required final int? approvedRevision,
+  required final DateTime? updatedAt,
+  final String? projectId,
+  final List<String> tagIds = const <String>[],
+  final String setupPolicy = 'wait',
+  final String? cleanupPolicy,
+  final String overlapPolicy = 'skip',
+  final int queueCap = 10,
+  final int inactivityTimeoutSeconds = 7200,
+  final int heartbeatIntervalSeconds = 60,
+  final int misfireGraceSeconds = 900,
+  final String misfirePolicy = 'skip',
+  final int retryMaxAttempts = 3,
+  final int retryBackoffSeconds = 60,
+  final int circuitFailureThreshold = 3,
+  final int circuitOpenSeconds = 900,
+  final JsonMap? precheck,
+  final bool notifyOnSuccess = false,
+  final JsonMap raw = const <String, Object?>{},
+}) {
+  factory fromJson(Object? value) {
     final map = _asMap(value);
     final record = AutomationRecord(
       id: _string(map['id']),
@@ -73,35 +71,6 @@ class AutomationRecord {
     return record;
   }
 
-  final String id;
-  final String slug;
-  final String name;
-  final String description;
-  final String promptTemplate;
-  final JsonMap schedule;
-  final JsonMap target;
-  final String state;
-  final int revision;
-  final int? approvedRevision;
-  final DateTime? updatedAt;
-  final String? projectId;
-  final List<String> tagIds;
-  final String setupPolicy;
-  final String? cleanupPolicy;
-  final String overlapPolicy;
-  final int queueCap;
-  final int inactivityTimeoutSeconds;
-  final int heartbeatIntervalSeconds;
-  final int misfireGraceSeconds;
-  final String misfirePolicy;
-  final int retryMaxAttempts;
-  final int retryBackoffSeconds;
-  final int circuitFailureThreshold;
-  final int circuitOpenSeconds;
-  final JsonMap? precheck;
-  final bool notifyOnSuccess;
-  final JsonMap raw;
-
   bool get isApproved => approvedRevision == revision;
 
   String get scheduleKind {
@@ -122,21 +91,19 @@ class AutomationRecord {
   }
 }
 
-class AutomationRunRecord {
-  const AutomationRunRecord({
-    required this.id,
-    required this.automationId,
-    required this.number,
-    required this.status,
-    required this.trigger,
-    required this.summary,
-    required this.error,
-    required this.scheduledAt,
-    required this.finishedAt,
-    this.targetIdentity = const <String, Object?>{},
-  });
-
-  factory AutomationRunRecord.fromJson(Object? value) {
+class const AutomationRunRecord({
+  required final String id,
+  required final String automationId,
+  required final int number,
+  required final String status,
+  required final String trigger,
+  required final String? summary,
+  required final String? error,
+  required final DateTime? scheduledAt,
+  required final DateTime? finishedAt,
+  final JsonMap targetIdentity = const <String, Object?>{},
+}) {
+  factory fromJson(Object? value) {
     final map = _asMap(value);
     return AutomationRunRecord(
       id: _string(map['id']),
@@ -151,44 +118,25 @@ class AutomationRunRecord {
       targetIdentity: _asMap(map['targetIdentity']),
     );
   }
-
-  final String id;
-  final String automationId;
-  final int number;
-  final String status;
-  final String trigger;
-  final String? summary;
-  final String? error;
-  final DateTime? scheduledAt;
-  final DateTime? finishedAt;
-  final JsonMap targetIdentity;
 }
 
-class AutomationDetail {
-  const AutomationDetail({
-    required this.automation,
-    required this.runs,
-    required this.audit,
-    required this.occurrences,
-    this.effectivePolicies = const <String, Object?>{},
-  });
-
-  factory AutomationDetail.fromJson(Object? value) {
+class const AutomationDetail({
+  required final AutomationRecord automation,
+  required final List<AutomationRunRecord> runs,
+  required final List<JsonMap> audit,
+  required final List<JsonMap> occurrences,
+  final JsonMap effectivePolicies = const <String, Object?>{},
+}) {
+  factory fromJson(Object? value) {
     final map = _asMap(value);
     return AutomationDetail(
-      automation: AutomationRecord.fromJson(map['automation']),
+      automation: .fromJson(map['automation']),
       runs: _asList(map['runs']).map(AutomationRunRecord.fromJson).toList(),
       audit: _asList(map['audit']).map(_asMap).toList(),
       occurrences: _asList(map['occurrences']).map(_asMap).toList(),
       effectivePolicies: _asMap(map['effectivePolicies']),
     );
   }
-
-  final AutomationRecord automation;
-  final List<AutomationRunRecord> runs;
-  final List<JsonMap> audit;
-  final List<JsonMap> occurrences;
-  final JsonMap effectivePolicies;
 }
 
 JsonMap _asMap(Object? value) {

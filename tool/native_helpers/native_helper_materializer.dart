@@ -11,27 +11,23 @@ import 'native_helper_manifest.dart';
 import 'native_helper_swift_builder.dart';
 
 typedef NativeHelperDownloader = Future<void> Function(Uri source, File output);
-typedef NativeHelperDerivedPayloadBuilder =
-    Future<Uint8List> Function({
-      required NativeHelperAsset asset,
-      required NativeHelperDerivation derivation,
-      required File source,
-      required Directory cache,
-      required bool offline,
-    });
+typedef NativeHelperDerivedPayloadBuilder = Future<Uint8List> Function({
+  required NativeHelperAsset asset,
+  required NativeHelperDerivation derivation,
+  required File source,
+  required Directory cache,
+  required bool offline,
+});
 
-final class NativeHelperMaterializer {
-  NativeHelperMaterializer({
-    required this.repositoryRoot,
-    required this.manifest,
-    NativeHelperDownloader? downloader,
-    this.derivedPayloadBuilder,
-  }) : _downloader = downloader ?? downloadNativeHelper;
+final class NativeHelperMaterializer({
+  required final Directory repositoryRoot,
+  required final NativeHelperManifest manifest,
+  NativeHelperDownloader? downloader,
+  final NativeHelperDerivedPayloadBuilder? derivedPayloadBuilder,
+}) {
+  this : _downloader = downloader ?? downloadNativeHelper;
 
-  final Directory repositoryRoot;
-  final NativeHelperManifest manifest;
   final NativeHelperDownloader _downloader;
-  final NativeHelperDerivedPayloadBuilder? derivedPayloadBuilder;
 
   Future<void> prepare({
     required String platform,
@@ -457,7 +453,7 @@ Future<void> downloadNativeHelper(Uri source, File output) async {
         await output.delete();
       }
       if (attempt < 3) {
-        await Future<void>.delayed(Duration(seconds: attempt));
+        await Future.pause(Duration(seconds: attempt));
       }
     }
   }

@@ -143,7 +143,7 @@ final value = 1;
     final errorWidget = image.errorBuilder!(
       tester.element(imageFinder),
       StateError('network failed'),
-      StackTrace.empty,
+      .empty,
     );
     await tester.pumpWidget(MaterialApp(home: Scaffold(body: errorWidget)));
 

@@ -4,11 +4,10 @@ import 'package:alera/src/features/resource_manager/application/resource_manager
 import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_protocol.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-final class _FakeRuntimeHostClient implements RuntimeHostClient {
-  _FakeRuntimeHostClient({this.payload, this.failure});
-
-  final Object? payload;
-  final Object? failure;
+final class _FakeRuntimeHostClient({
+  final Object? payload,
+  final Object? failure,
+}) implements RuntimeHostClient {
   final List<Map<String, Object?>> requests = <Map<String, Object?>>[];
   final List<String> types = <String>[];
 

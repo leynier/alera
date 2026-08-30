@@ -19,7 +19,7 @@ Widget buildMarkdownViewerImage({
       imageUrl,
       width: width,
       height: height,
-      fit: BoxFit.contain,
+      fit: .contain,
       errorBuilder: (_, _, _) =>
           _MarkdownViewerImagePlaceholder(width: width, height: height),
     );
@@ -134,21 +134,13 @@ bool _startsWithWindowsDrive(String path) {
   return RegExp(r'^[a-zA-Z]:[\\/]').hasMatch(path);
 }
 
-class _MarkdownViewerLocalImage extends StatefulWidget {
-  const _MarkdownViewerLocalImage({
-    required this.workspacePath,
-    required this.markdownPath,
-    required this.imageUrl,
-    this.width,
-    this.height,
-  });
-
-  final String workspacePath;
-  final String markdownPath;
-  final String imageUrl;
-  final double? width;
-  final double? height;
-
+class const _MarkdownViewerLocalImage({
+  required final String workspacePath,
+  required final String markdownPath,
+  required final String imageUrl,
+  final double? width,
+  final double? height,
+}) extends StatefulWidget {
   @override
   State<_MarkdownViewerLocalImage> createState() =>
       _MarkdownViewerLocalImageState();
@@ -190,7 +182,7 @@ class _MarkdownViewerLocalImageState extends State<_MarkdownViewerLocalImage> {
           File(imagePath),
           width: widget.width,
           height: widget.height,
-          fit: BoxFit.contain,
+          fit: .contain,
           errorBuilder: (_, _, _) => _MarkdownViewerImagePlaceholder(
             width: widget.width,
             height: widget.height,
@@ -209,12 +201,10 @@ class _MarkdownViewerLocalImageState extends State<_MarkdownViewerLocalImage> {
   }
 }
 
-class _MarkdownViewerImagePlaceholder extends StatelessWidget {
-  const _MarkdownViewerImagePlaceholder({this.width, this.height});
-
-  final double? width;
-  final double? height;
-
+class const _MarkdownViewerImagePlaceholder({
+  final double? width,
+  final double? height,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(

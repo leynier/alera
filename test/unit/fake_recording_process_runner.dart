@@ -3,10 +3,8 @@ import 'package:alera/src/shared/infra/process/process_runner.dart';
 /// A [ProcessRunner] that records each `run` invocation and replays queued
 /// results (a [ProcessRunOutput] to return, or an [Object] to throw). Shared by
 /// the forge-provider command-construction suites.
-class FakeRecordingProcessRunner implements ProcessRunner {
-  FakeRecordingProcessRunner(this._results);
-
-  final List<Object> _results;
+class FakeRecordingProcessRunner(final List<Object> _results)
+    implements ProcessRunner {
   final List<RecordedProcessCall> calls = <RecordedProcessCall>[];
 
   @override
@@ -45,19 +43,12 @@ class FakeRecordingProcessRunner implements ProcessRunner {
   }
 }
 
-class RecordedProcessCall {
-  const RecordedProcessCall({
-    required this.executable,
-    required this.arguments,
-    required this.workingDirectory,
-    required this.environment,
-  });
-
-  final String executable;
-  final List<String> arguments;
-  final String? workingDirectory;
-  final Map<String, String>? environment;
-
+class const RecordedProcessCall({
+  required final String executable,
+  required final List<String> arguments,
+  required final String? workingDirectory,
+  required final Map<String, String>? environment,
+}) {
   /// The value passed to `--$flag`, or null when the flag is absent.
   String? optionValue(String flag) {
     final index = arguments.indexOf('--$flag');

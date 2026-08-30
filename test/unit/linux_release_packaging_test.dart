@@ -6,12 +6,10 @@ import 'package:path/path.dart' as p;
 
 void main() {
   test('packages Linux releases as packages plus one tarball', () {
-    final workflow = File(
-      '.github/workflows/release-cut.yml',
-    ).readAsStringSync();
-    final packageScript = File(
-      'tool/release/package_linux.sh',
-    ).readAsStringSync();
+    final workflow = File('.github/workflows/release-cut.yml')
+        .readAsStringSync();
+    final packageScript = File('tool/release/package_linux.sh')
+        .readAsStringSync();
 
     expect(workflow, contains('- name: Package Linux release'));
     expect(workflow, isNot(contains('- name: Package RC Linux release')));
@@ -212,27 +210,16 @@ printf 'rpm fixture\\n' >"\$topdir/RPMS/x86_64/alera-test.rpm"
 /// `apt-ftparchive` and `createrepo_c` are stubbed on `PATH` because the script
 /// only needs them to produce files it then signs, and neither is installed on
 /// a developer machine by default.
-class _LinuxRepositoryFixture {
-  _LinuxRepositoryFixture._({
-    required this.root,
-    required this.publicDir,
-    required this.releaseAssets,
-    required this.tempRoot,
-    required this.gpgHome,
-    required this.fingerprint,
-    required this.privateKeyBase64,
-    required this.fakeBin,
-  });
-
-  final Directory root;
-  final Directory publicDir;
-  final Directory releaseAssets;
-  final Directory tempRoot;
-  final Directory gpgHome;
-  final String fingerprint;
-  final String privateKeyBase64;
-  final Directory fakeBin;
-
+class _LinuxRepositoryFixture._({
+  required final Directory root,
+  required final Directory publicDir,
+  required final Directory releaseAssets,
+  required final Directory tempRoot,
+  required final Directory gpgHome,
+  required final String fingerprint,
+  required final String privateKeyBase64,
+  required final Directory fakeBin,
+}) {
   static Future<_LinuxRepositoryFixture> create() async {
     final root = await Directory.systemTemp.createTemp('alera-linux-repo-');
     final gpgHome = Directory(p.join(root.path, 'gpg'))..createSync();
@@ -275,12 +262,10 @@ class _LinuxRepositoryFixture {
     final publicDir = Directory(p.join(root.path, 'public'))..createSync();
     final releaseAssets = Directory(p.join(root.path, 'release-assets'))
       ..createSync();
-    File(
-      p.join(releaseAssets.path, 'alera-1.0.0-linux.deb'),
-    ).writeAsStringSync('deb');
-    File(
-      p.join(releaseAssets.path, 'alera-1.0.0-linux.rpm'),
-    ).writeAsStringSync('rpm');
+    File(p.join(releaseAssets.path, 'alera-1.0.0-linux.deb'))
+        .writeAsStringSync('deb');
+    File(p.join(releaseAssets.path, 'alera-1.0.0-linux.rpm'))
+        .writeAsStringSync('rpm');
 
     final fakeBin = Directory(p.join(root.path, 'bin'))..createSync();
     _writeExecutable(p.join(fakeBin.path, 'apt-ftparchive'), '''

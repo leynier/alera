@@ -199,6 +199,7 @@ pub async fn create_managed_workspace(
         tag_ids: Vec::new(),
         tag_names: Vec::new(),
         parent_workspace_id: None,
+        section_id: None,
         child_count: 0,
     };
     let mut workspace = store.upsert_workspace(workspace).await?;
@@ -746,6 +747,7 @@ mod tests {
                 tag_ids: Vec::new(),
                 tag_names: Vec::new(),
                 parent_workspace_id: None,
+                section_id: None,
                 child_count: 0,
             })
             .await
@@ -870,6 +872,7 @@ mod tests {
                 tag_ids: Vec::new(),
                 tag_names: Vec::new(),
                 parent_workspace_id: None,
+                section_id: None,
                 child_count: 0,
             })
             .await

@@ -26,38 +26,31 @@ enum PullRequestAction {
 }
 
 /// Immutable state of the pull-request panel for one workspace.
-class WorkspacePullRequestState {
-  const WorkspacePullRequestState({
-    this.identity,
-    this.unavailableReason,
-    this.authStatus = ForgeAuthStatus.unknown,
-    this.review,
-    this.suggestedReview,
-    this.stack,
-    this.stackSupported = false,
-    this.stackErrorMessage,
-    this.checks = const <ReviewCheck>[],
-    this.comments = const <ReviewComment>[],
-    this.linkedManually = false,
-    this.dismissed = false,
-    this.currentBranch,
-    this.baseBranches = const <String>[],
-    this.suggestedBaseBranch,
-    this.mergeMethods = const <ReviewMergeMethod>[],
-    this.canCloseReview = false,
-    this.canChangeDraftStatus = false,
-    this.canComment = false,
-    this.canEditComments = false,
-    this.savingCommentIds = const <String>{},
-    this.action,
-    this.errorMessage,
-  });
-
-  final GitRemoteIdentity? identity;
-  final PullRequestUnavailableReason? unavailableReason;
-  final ForgeAuthStatus authStatus;
-  final HostedReview? review;
-
+class const WorkspacePullRequestState({
+  final GitRemoteIdentity? identity,
+  final PullRequestUnavailableReason? unavailableReason,
+  final ForgeAuthStatus authStatus = ForgeAuthStatus.unknown,
+  final HostedReview? review,
+  this.suggestedReview,
+  this.stack,
+  this.stackSupported = false,
+  this.stackErrorMessage,
+  final List<ReviewCheck> checks = const <ReviewCheck>[],
+  final List<ReviewComment> comments = const <ReviewComment>[],
+  final bool linkedManually = false,
+  this.dismissed = false,
+  this.currentBranch,
+  this.baseBranches = const <String>[],
+  this.suggestedBaseBranch,
+  final List<ReviewMergeMethod> mergeMethods = const <ReviewMergeMethod>[],
+  final bool canCloseReview = false,
+  final bool canChangeDraftStatus = false,
+  final bool canComment = false,
+  final bool canEditComments = false,
+  final Set<String> savingCommentIds = const <String>{},
+  final PullRequestAction? action,
+  final String? errorMessage,
+}) {
   /// Active branch review currently ignored by the workspace. The link form
   /// offers it as an explicit suggestion without displaying it automatically.
   final HostedReview? suggestedReview;
@@ -70,10 +63,6 @@ class WorkspacePullRequestState {
 
   /// A stack-specific load failure that does not hide the pull request itself.
   final String? stackErrorMessage;
-
-  final List<ReviewCheck> checks;
-  final List<ReviewComment> comments;
-  final bool linkedManually;
 
   /// Whether the workspace currently carries a dismissal record that applies
   /// to the active branch review or no active review exists yet.
@@ -88,15 +77,6 @@ class WorkspacePullRequestState {
 
   /// Resolved default base branch for the create form.
   final String? suggestedBaseBranch;
-
-  final List<ReviewMergeMethod> mergeMethods;
-  final bool canCloseReview;
-  final bool canChangeDraftStatus;
-  final bool canComment;
-  final bool canEditComments;
-  final Set<String> savingCommentIds;
-  final PullRequestAction? action;
-  final String? errorMessage;
 
   bool get isBusy => action != null;
   bool get isRefreshing => action == PullRequestAction.refresh;

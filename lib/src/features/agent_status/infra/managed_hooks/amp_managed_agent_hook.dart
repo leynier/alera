@@ -3,7 +3,7 @@ part of '../managed_agent_hook_installer.dart';
 extension _AmpManagedAgentHook on ManagedAgentHookInstallService {
   _ManagedHookArtifact _ampArtifact() {
     return _ManagedHookArtifact(
-      agentType: AgentType.amp,
+      agentType: .amp,
       label: 'Amp status plugin',
       path: p.join(_ampConfigDir(), 'plugins', 'alera-agent-status.ts'),
       content: _ampPluginSource(),

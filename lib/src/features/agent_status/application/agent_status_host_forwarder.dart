@@ -26,20 +26,17 @@ AgentStatusHostForwarder agentStatusHostForwarder(Ref ref) {
   return forwarder;
 }
 
-class AgentStatusHostForwarder {
-  AgentStatusHostForwarder({
-    required this.client,
-    this.debounce = const Duration(milliseconds: 100),
-  }) {
+class AgentStatusHostForwarder({
+  required final RuntimeHostClient client,
+  final Duration debounce = const Duration(milliseconds: 100),
+}) {
+  this {
     _runtimeEventSub = client.runtimeEvents.listen((event) {
       if (event.name == aleraRuntimeHostConnectedEvent) {
         replayPresenceSnapshot();
       }
     });
   }
-
-  final RuntimeHostClient client;
-  final Duration debounce;
 
   final Map<String, Map<String, Object?>> _pending =
       <String, Map<String, Object?>>{};

@@ -5,18 +5,15 @@ import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_p
 import 'package:alera/src/shared/infra/runtime/runtime_change_coalescer.dart';
 import 'package:alera/src/shared/infra/runtime/runtime_snapshot_stream.dart';
 
-class RuntimeSshTargetRepository {
-  RuntimeSshTargetRepository(
-    this._client, {
-    this.beforeAccess,
-    this.bootstrapDefaults =
-        const RuntimeSshBootstrapDefaults.fromEnvironment(),
-    RuntimeChangeCoalescer? coalescer,
-  }) : _coalescer = coalescer ?? RuntimeChangeCoalescer();
+class RuntimeSshTargetRepository(
+  final RuntimeHostClient _client, {
+  final Future<void> Function()? beforeAccess,
+  final RuntimeSshBootstrapDefaults bootstrapDefaults =
+      const RuntimeSshBootstrapDefaults.fromEnvironment(),
+  RuntimeChangeCoalescer? coalescer,
+}) {
+  this : _coalescer = coalescer ?? RuntimeChangeCoalescer();
 
-  final RuntimeHostClient _client;
-  final Future<void> Function()? beforeAccess;
-  final RuntimeSshBootstrapDefaults bootstrapDefaults;
   final RuntimeChangeCoalescer _coalescer;
 
   Future<List<SshTarget>> list() async {
@@ -124,19 +121,12 @@ class RuntimeSshTargetRepository {
   }
 }
 
-final class RuntimeSshBootstrapDefaults {
-  const RuntimeSshBootstrapDefaults({
-    required this.channel,
-    required this.archiveUrl,
-    required this.version,
-  });
-
-  const factory RuntimeSshBootstrapDefaults.fromEnvironment() =
-      RuntimeSshBootstrapDefaultsEnvironment;
-
-  final String channel;
-  final String archiveUrl;
-  final String version;
+final class const RuntimeSshBootstrapDefaults({
+  required final String channel,
+  required final String archiveUrl,
+  required final String version,
+}) {
+  const factory fromEnvironment() = RuntimeSshBootstrapDefaultsEnvironment;
 
   void addTo(Map<String, Object?> payload) {
     _putIfNotEmpty(payload, 'channel', channel);
@@ -145,16 +135,16 @@ final class RuntimeSshBootstrapDefaults {
   }
 }
 
-final class RuntimeSshBootstrapDefaultsEnvironment
+final class const RuntimeSshBootstrapDefaultsEnvironment()
     extends RuntimeSshBootstrapDefaults {
-  const RuntimeSshBootstrapDefaultsEnvironment()
+  this
     : super(
-        channel: const String.fromEnvironment(
+        channel: const .fromEnvironment(
           'ALERA_UPDATE_CHANNEL',
           defaultValue: 'stable',
         ),
-        archiveUrl: const String.fromEnvironment('ALERA_RUNTIME_ARCHIVE_URL'),
-        version: const String.fromEnvironment('ALERA_RUNTIME_VERSION'),
+        archiveUrl: const .fromEnvironment('ALERA_RUNTIME_ARCHIVE_URL'),
+        version: const .fromEnvironment('ALERA_RUNTIME_VERSION'),
       );
 }
 

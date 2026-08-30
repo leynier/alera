@@ -13,19 +13,17 @@ part 'codex_chat_snapshot_delta.dart';
 part 'codex_timeline_event.dart';
 
 @immutable
-class CodexModelOption {
-  const CodexModelOption({
-    required this.id,
-    required this.label,
-    this.isDefault = false,
-    this.contextWindowTokens,
-    this.supportsFastMode = false,
-    this.reasoningEfforts = const <String>[],
-    this.defaultReasoningEffort,
-    this.metadata = const <String, Object?>{},
-  });
-
-  factory CodexModelOption.fromJson(Map<String, Object?> json) {
+class const CodexModelOption({
+  required final String id,
+  required final String label,
+  final bool isDefault = false,
+  final int? contextWindowTokens,
+  final bool supportsFastMode = false,
+  final List<String> reasoningEfforts = const <String>[],
+  final String? defaultReasoningEffort,
+  final Map<String, Object?> metadata = const <String, Object?>{},
+}) {
+  factory fromJson(Map<String, Object?> json) {
     final id = _firstString(<Object?>[json['id'], json['model'], json['name']]);
     final label = _firstString(<Object?>[
       json['displayName'],
@@ -58,53 +56,27 @@ class CodexModelOption {
       metadata: json,
     );
   }
-
-  final String id;
-  final String label;
-  final bool isDefault;
-  final int? contextWindowTokens;
-  final bool supportsFastMode;
-  final List<String> reasoningEfforts;
-  final String? defaultReasoningEffort;
-  final Map<String, Object?> metadata;
 }
 
 @immutable
-class CodexInputAttachment {
-  const CodexInputAttachment({
-    this.id,
-    required this.path,
-    required this.isImage,
-    this.mimeType,
-    this.displayName,
-    this.sizeBytes,
-    this.detail,
-    this.isDirectory = false,
-    this.origin = CodexInputAttachmentOrigin.attachment,
-    this.tokenText,
-    this.tokenStart,
-    this.annotationContext,
-    this.annotationUrl,
-    this.annotationTitle,
-    this.annotationCount,
-  });
-
-  final String? id;
-  final String path;
-  final bool isImage;
-  final String? mimeType;
-  final String? displayName;
-  final int? sizeBytes;
-  final String? detail;
-  final bool isDirectory;
-  final CodexInputAttachmentOrigin origin;
-  final String? tokenText;
-  final int? tokenStart;
-  final String? annotationContext;
-  final String? annotationUrl;
-  final String? annotationTitle;
-  final int? annotationCount;
-
+class const CodexInputAttachment({
+  final String? id,
+  required final String path,
+  required final bool isImage,
+  final String? mimeType,
+  final String? displayName,
+  final int? sizeBytes,
+  final String? detail,
+  final bool isDirectory = false,
+  final CodexInputAttachmentOrigin origin =
+      CodexInputAttachmentOrigin.attachment,
+  final String? tokenText,
+  final int? tokenStart,
+  final String? annotationContext,
+  final String? annotationUrl,
+  final String? annotationTitle,
+  final int? annotationCount,
+}) {
   bool get isBrowserAnnotation => annotationContext != null;
 
   CodexInputAttachment copyWith({int? sizeBytes, bool? isDirectory}) =>
@@ -132,25 +104,15 @@ enum CodexInputAttachmentOrigin { attachment, mention }
 enum CodexDraftItemKind { skill, app, mention }
 
 @immutable
-class CodexDraftItem {
-  const CodexDraftItem({
-    required this.id,
-    required this.kind,
-    required this.name,
-    required this.path,
-    this.tokenText,
-    this.tokenStart,
-    this.iconUrl,
-  });
-
-  final String id;
-  final CodexDraftItemKind kind;
-  final String name;
-  final String path;
-  final String? tokenText;
-  final int? tokenStart;
-  final String? iconUrl;
-
+class const CodexDraftItem({
+  required final String id,
+  required final CodexDraftItemKind kind,
+  required final String name,
+  required final String path,
+  final String? tokenText,
+  final int? tokenStart,
+  final String? iconUrl,
+}) {
   CodexDraftItem copyWith({int? tokenStart}) => CodexDraftItem(
     id: id,
     kind: kind,
@@ -163,49 +125,38 @@ class CodexDraftItem {
 }
 
 @immutable
-class CodexQueuedMessage {
-  const CodexQueuedMessage({
-    required this.text,
-    this.attachments = const <CodexInputAttachment>[],
-    this.draftItems = const <CodexDraftItem>[],
-    this.id,
-  });
-
-  final String text;
-  final List<CodexInputAttachment> attachments;
-  final List<CodexDraftItem> draftItems;
-  final String? id;
-}
+class const CodexQueuedMessage({
+  required final String text,
+  final List<CodexInputAttachment> attachments = const <CodexInputAttachment>[],
+  final List<CodexDraftItem> draftItems = const <CodexDraftItem>[],
+  final String? id,
+});
 
 @immutable
-class CodexQuestionOption {
-  const CodexQuestionOption({required this.label, this.description});
-
-  factory CodexQuestionOption.fromJson(Object? value) {
+class const CodexQuestionOption({
+  required final String label,
+  final String? description,
+}) {
+  factory fromJson(Object? value) {
     final json = _map(value);
     return CodexQuestionOption(
       label: _firstString(<Object?>[json['label'], json['value'], value]),
       description: _string(json['description']),
     );
   }
-
-  final String label;
-  final String? description;
 }
 
 @immutable
-class CodexQuestion {
-  const CodexQuestion({
-    required this.id,
-    required this.question,
-    this.header,
-    this.options = const <CodexQuestionOption>[],
-    this.isOther = false,
-    this.isSecret = false,
-    this.isMultiSelect = false,
-  });
-
-  factory CodexQuestion.fromJson(Object? value, {int index = 0}) {
+class const CodexQuestion({
+  required final String id,
+  required final String question,
+  final String? header,
+  final List<CodexQuestionOption> options = const <CodexQuestionOption>[],
+  final bool isOther = false,
+  final bool isSecret = false,
+  final bool isMultiSelect = false,
+}) {
+  factory fromJson(Object? value, {int index = 0}) {
     final json = _map(value);
     return CodexQuestion(
       id: _firstString(<Object?>[json['id'], json['key'], 'question-$index']),
@@ -227,25 +178,15 @@ class CodexQuestion {
           json['isMultiSelect'] == true || json['multiSelect'] == true,
     );
   }
-
-  final String id;
-  final String question;
-  final String? header;
-  final List<CodexQuestionOption> options;
-  final bool isOther;
-  final bool isSecret;
-  final bool isMultiSelect;
 }
 
 @immutable
-class CodexPendingRequest {
-  const CodexPendingRequest({
-    required this.id,
-    required this.method,
-    required this.params,
-  });
-
-  factory CodexPendingRequest.fromJson(Object? value) {
+class const CodexPendingRequest({
+  required final Object id,
+  required final String method,
+  required final Map<String, Object?> params,
+}) {
+  factory fromJson(Object? value) {
     final json = _map(value);
     return CodexPendingRequest(
       id: json['id'] ?? '',
@@ -253,10 +194,6 @@ class CodexPendingRequest {
       params: _map(json['params']),
     );
   }
-
-  final Object id;
-  final String method;
-  final Map<String, Object?> params;
 
   bool get isApproval {
     final methodName = method.toLowerCase();

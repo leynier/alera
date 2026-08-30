@@ -7,8 +7,8 @@ WorkspaceTabRecord _tab(String id) => WorkspaceTabRecord(
   id: id,
   workspaceId: 'workspace-1',
   title: id,
-  createdAt: DateTime.utc(2026, 7, 26),
-  updatedAt: DateTime.utc(2026, 7, 26),
+  createdAt: .utc(2026, 7, 26),
+  updatedAt: .utc(2026, 7, 26),
 );
 
 void main() {

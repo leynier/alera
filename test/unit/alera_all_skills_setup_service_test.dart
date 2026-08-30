@@ -1,5 +1,4 @@
 import 'package:alera/src/features/agent_status/application/agent_hook_reconciliation_service.dart';
-import 'package:alera/src/features/agent_status/domain/agent_status.dart';
 import 'package:alera/src/features/agent_status/infra/managed_agent_hook_installer.dart';
 import 'package:alera/src/features/settings/domain/alera_settings.dart';
 import 'package:alera/src/features/settings/infra/alera_all_skills_setup_service.dart';
@@ -16,7 +15,7 @@ void main() {
     final result = await AleraAllSkillsSetupService(
       skillService: skillService,
       hookReconciliationService: hookReconciler,
-    ).installOrUpdate(hooks: hooks, runner: AleraCliSkillRunner.bunx);
+    ).installOrUpdate(hooks: hooks, runner: .bunx);
 
     expect(skillService.skills, AleraAgentSkill.values);
     expect(skillService.runners, everyElement(AleraCliSkillRunner.bunx));
@@ -30,9 +29,7 @@ void main() {
   });
 
   test('continues installing remaining skills after one throws', () async {
-    final skillService = _RecordingSkillService(
-      throwingSkill: AleraAgentSkill.computerUse,
-    );
+    final skillService = _RecordingSkillService(throwingSkill: .computerUse);
     final result = await AleraAllSkillsSetupService(
       skillService: skillService,
       hookReconciliationService: _RecordingHookReconciler(),
@@ -49,14 +46,14 @@ void main() {
   });
 }
 
-class _RecordingSkillService extends AleraCliSkillService {
-  _RecordingSkillService({this.throwingSkill})
+class _RecordingSkillService({final AleraAgentSkill? throwingSkill})
+    extends AleraCliSkillService {
+  this
     : super(
         processRunner: _NoopProcessRunner(),
         commandEnvironmentResolver: const _EmptyCommandEnvironmentResolver(),
       );
 
-  final AleraAgentSkill? throwingSkill;
   final List<AleraAgentSkill> skills = <AleraAgentSkill>[];
   final List<AleraCliSkillRunner> runners = <AleraCliSkillRunner>[];
 
@@ -97,8 +94,8 @@ class _RecordingHookReconciler implements AgentHookReconciler {
     this.settings = settings;
     return <ManagedAgentHookInstallStatus>[
       const ManagedAgentHookInstallStatus(
-        agentType: AgentType.codex,
-        state: ManagedAgentHookInstallState.installed,
+        agentType: .codex,
+        state: .installed,
         configPath: '/tmp/codex',
         managedHooksPresent: true,
       ),
@@ -129,9 +126,8 @@ class _NoopProcessRunner implements ProcessRunner {
   }
 }
 
-class _EmptyCommandEnvironmentResolver implements CommandEnvironmentResolver {
-  const _EmptyCommandEnvironmentResolver();
-
+class const _EmptyCommandEnvironmentResolver()
+    implements CommandEnvironmentResolver {
   @override
   Future<Map<String, String>> environment() async => const <String, String>{};
 

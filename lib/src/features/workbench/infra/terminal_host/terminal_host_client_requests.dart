@@ -50,7 +50,7 @@ Future<Object?> _sendTerminalHostRequestWithMutationRetry(
           ? delayRemaining
           : _runtimeMutationRetryDelay;
       if (delay > Duration.zero) {
-        await Future<void>.delayed(delay);
+        await Future.pause(delay);
       }
     }
   }

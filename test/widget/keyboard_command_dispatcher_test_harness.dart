@@ -5,8 +5,8 @@ Project _project() {
     id: 'project-1',
     name: 'Alera',
     repoPath: '/tmp/alera',
-    createdAt: DateTime.utc(2026),
-    updatedAt: DateTime.utc(2026),
+    createdAt: .utc(2026),
+    updatedAt: .utc(2026),
   );
 }
 
@@ -17,10 +17,10 @@ Workspace _workspace() {
     name: 'Main',
     branch: 'main',
     path: '/tmp/alera',
-    createdAt: DateTime.utc(2026),
-    updatedAt: DateTime.utc(2026),
-    kind: WorkspaceKind.main,
-    status: WorkspaceStatus.active,
+    createdAt: .utc(2026),
+    updatedAt: .utc(2026),
+    kind: .main,
+    status: .active,
   );
 }
 
@@ -29,17 +29,17 @@ WorkspaceTabRecord _tab({required String id}) {
     id: id,
     workspaceId: 'ws-1',
     title: 'Terminal',
-    createdAt: DateTime.utc(2026),
-    updatedAt: DateTime.utc(2026),
+    createdAt: .utc(2026),
+    updatedAt: .utc(2026),
   );
 }
 
-class _DispatcherTestWorkbenchController extends WorkbenchController {
-  _DispatcherTestWorkbenchController(this._seed, {this.createdTab})
-    : _splitCompleter = Completer<WorkspaceTabRecord>();
+class _DispatcherTestWorkbenchController(
+  final WorkbenchState _seed, {
+  final WorkspaceTabRecord? createdTab,
+}) extends WorkbenchController {
+  this : _splitCompleter = Completer<WorkspaceTabRecord>();
 
-  final WorkbenchState _seed;
-  final WorkspaceTabRecord? createdTab;
   final List<String> sourceBranches = <String>['main'];
 
   final Completer<WorkspaceTabRecord> _splitCompleter;
@@ -126,10 +126,10 @@ class _DispatcherTestWorkbenchController extends WorkbenchController {
     return WorkspaceTabRecord(
       id: 'browser-tab-new',
       workspaceId: workspace.id,
-      kind: WorkspaceTabKind.browser,
+      kind: .browser,
       title: 'New Tab',
-      createdAt: DateTime.utc(2026),
-      updatedAt: DateTime.utc(2026),
+      createdAt: .utc(2026),
+      updatedAt: .utc(2026),
       payload: <String, Object?>{
         workspaceTabBrowserProfileIdPayloadKey: profileId,
       },
@@ -273,16 +273,11 @@ class _FakeTerminalRuntime implements TerminalRuntime {
   }
 }
 
-class _FakeTerminalSessionHandle extends TerminalSessionHandle {
-  _FakeTerminalSessionHandle({
-    required this.workspace,
-    required this.tab,
-    required this.onFocus,
-  });
-
-  final Workspace workspace;
-  final WorkspaceTabRecord tab;
-  final VoidCallback onFocus;
+class _FakeTerminalSessionHandle({
+  required final Workspace workspace,
+  required final WorkspaceTabRecord tab,
+  required final VoidCallback onFocus,
+}) extends TerminalSessionHandle {
   int requestFocusCalls = 0;
 
   @override
@@ -334,12 +329,10 @@ class _FakeTerminalSessionHandle extends TerminalSessionHandle {
   }
 }
 
-class _DispatcherPumpHarness {
-  const _DispatcherPumpHarness({required this.ref, required this.context});
-
-  final WidgetRef ref;
-  final BuildContext context;
-}
+class const _DispatcherPumpHarness({
+  required final WidgetRef ref,
+  required final BuildContext context,
+});
 
 Future<_DispatcherPumpHarness> _pumpDispatcherHarness(
   WidgetTester tester, {
@@ -355,7 +348,7 @@ Future<_DispatcherPumpHarness> _pumpDispatcherHarness(
         (ref) => _stableBrowserCapabilities,
       ),
       settingsControllerProvider.overrideWith(
-        () => _DispatcherSettingsController(AleraSettings.defaults),
+        () => _DispatcherSettingsController(.defaults),
       ),
     ],
   );
@@ -411,11 +404,8 @@ const BrowserEngineCapabilities _stableBrowserCapabilities =
       requiredNativeCookieImportSources: <String>{'test', 'manualJson'},
     );
 
-class _DispatcherSettingsController extends SettingsController {
-  _DispatcherSettingsController(this._seed);
-
-  final AleraSettings _seed;
-
+class _DispatcherSettingsController(final AleraSettings _seed)
+    extends SettingsController {
   @override
   AleraSettings build() => _seed;
 }

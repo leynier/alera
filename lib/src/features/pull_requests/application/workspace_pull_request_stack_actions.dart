@@ -63,7 +63,7 @@ mixin _WorkspacePullRequestStackActions on _$WorkspacePullRequestController {
 
     await controller._run(
       scope: controller.scope,
-      action: PullRequestAction.linkStack,
+      action: .linkStack,
       reloadAfterFailure: true,
       body: () async {
         final reviews = <HostedReview>[];
@@ -95,7 +95,7 @@ mixin _WorkspacePullRequestStackActions on _$WorkspacePullRequestController {
         );
         if (!current.linkedManually) {
           await controller._linkedReviews.save(
-            LinkedReview.linked(
+            .linked(
               workspaceId: controller.scope.workspaceId,
               provider: identity.provider,
               number: currentReview.number,
@@ -197,7 +197,7 @@ mixin _WorkspacePullRequestStackActions on _$WorkspacePullRequestController {
 
     await controller._run(
       scope: controller.scope,
-      action: PullRequestAction.createStack,
+      action: .createStack,
       reloadAfterFailure: true,
       body: () async {
         await _validateStackWorkspaceRepositories(
@@ -266,7 +266,7 @@ mixin _WorkspacePullRequestStackActions on _$WorkspacePullRequestController {
 
           reviewNumbers.add(review.number);
           await controller._linkedReviews.save(
-            LinkedReview.linked(
+            .linked(
               workspaceId: layer.workspaceId,
               provider: identity.provider,
               number: review.number,
@@ -334,7 +334,7 @@ mixin _WorkspacePullRequestStackActions on _$WorkspacePullRequestController {
 
     await controller._run(
       scope: controller.scope,
-      action: PullRequestAction.mergeStack,
+      action: .mergeStack,
       reloadAfterFailure: true,
       body: () async {
         await stackProvider.mergeReviewStack(
@@ -345,7 +345,7 @@ mixin _WorkspacePullRequestStackActions on _$WorkspacePullRequestController {
         );
         if (!current.linkedManually) {
           await controller._linkedReviews.save(
-            LinkedReview.linked(
+            .linked(
               workspaceId: controller.scope.workspaceId,
               provider: identity.provider,
               number: review.number,

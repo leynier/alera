@@ -11,8 +11,9 @@ typedef AleraCliRegistrationSupportDirectoryResolver =
     Future<Directory> Function();
 typedef AleraCliRegistrationCommandEnvironmentResolverFactory =
     CommandEnvironmentResolver Function();
-typedef AleraCliRegistrationExecutableChecker =
-    Future<bool> Function(String path);
+typedef AleraCliRegistrationExecutableChecker = Future<bool> Function(
+  String path,
+);
 
 enum AleraCliRegistrationState {
   installed,
@@ -26,27 +27,16 @@ enum AleraCliRegistrationInstallMethod { wrapper }
 
 final Logger _log = Logger('AleraCliRegistrationService');
 
-class AleraCliRegistrationStatus {
-  const AleraCliRegistrationStatus({
-    required this.commandName,
-    required this.commandPath,
-    required this.pathDirectory,
-    required this.pathConfigured,
-    required this.launcherPath,
-    required this.installMethod,
-    required this.state,
-    required this.detail,
-  });
-
-  final String commandName;
-  final String? commandPath;
-  final String? pathDirectory;
-  final bool pathConfigured;
-  final String? launcherPath;
-  final AleraCliRegistrationInstallMethod? installMethod;
-  final AleraCliRegistrationState state;
-  final String? detail;
-
+class const AleraCliRegistrationStatus({
+  required final String commandName,
+  required final String? commandPath,
+  required final String? pathDirectory,
+  required final bool pathConfigured,
+  required final String? launcherPath,
+  required final AleraCliRegistrationInstallMethod? installMethod,
+  required final AleraCliRegistrationState state,
+  required final String? detail,
+}) {
   bool get supported => state != AleraCliRegistrationState.unsupported;
 
   bool get ready =>
@@ -66,35 +56,36 @@ class AleraCliRegistrationStatus {
   }
 }
 
-class AleraCliRegistrationService {
-  AleraCliRegistrationService({
-    AleraCliResolver? cliResolver,
-    CommandEnvironmentResolver? commandEnvironmentResolver,
-    AleraCliRegistrationCommandEnvironmentResolverFactory?
-    commandEnvironmentResolverFactory,
-    required this.processRunner,
-    AleraCliRegistrationSupportDirectoryResolver? applicationSupportDirectory,
-    Map<String, String>? environment,
-    String? operatingSystem,
-    this.homePath,
-    this.localAppDataPath,
-    AleraCliRegistrationExecutableChecker? executableChecker,
-    String? pathListSeparator,
-  }) : _cliResolver = cliResolver ?? DefaultAleraCliResolver(),
-       _commandEnvironmentResolverFactory =
-           commandEnvironmentResolverFactory ??
-           (() =>
-               commandEnvironmentResolver ?? UserCommandEnvironmentResolver()),
-       _applicationSupportDirectory =
-           applicationSupportDirectory ?? getApplicationSupportDirectory,
-       _environment = environment ?? Platform.environment,
-       _operatingSystem = operatingSystem ?? Platform.operatingSystem,
-       _executableChecker = executableChecker ?? _hostFileIsExecutable,
-       _pathListSeparator =
-           pathListSeparator ??
-           ((operatingSystem ?? Platform.operatingSystem) == 'windows'
-               ? ';'
-               : ':');
+class AleraCliRegistrationService({
+  AleraCliResolver? cliResolver,
+  CommandEnvironmentResolver? commandEnvironmentResolver,
+  AleraCliRegistrationCommandEnvironmentResolverFactory?
+  commandEnvironmentResolverFactory,
+  required final ProcessRunner processRunner,
+  AleraCliRegistrationSupportDirectoryResolver? applicationSupportDirectory,
+  Map<String, String>? environment,
+  String? operatingSystem,
+  final String? homePath,
+  final String? localAppDataPath,
+  AleraCliRegistrationExecutableChecker? executableChecker,
+  String? pathListSeparator,
+}) {
+  this
+    : _cliResolver = cliResolver ?? DefaultAleraCliResolver(),
+      _commandEnvironmentResolverFactory =
+          commandEnvironmentResolverFactory ??
+          (() =>
+              commandEnvironmentResolver ?? UserCommandEnvironmentResolver()),
+      _applicationSupportDirectory =
+          applicationSupportDirectory ?? getApplicationSupportDirectory,
+      _environment = environment ?? Platform.environment,
+      _operatingSystem = operatingSystem ?? Platform.operatingSystem,
+      _executableChecker = executableChecker ?? _hostFileIsExecutable,
+      _pathListSeparator =
+          pathListSeparator ??
+          ((operatingSystem ?? Platform.operatingSystem) == 'windows'
+              ? ';'
+              : ':');
 
   static const String commandName = 'alera';
   static const String _wrapperMarker = 'ALERA_CLI_WRAPPER=1';
@@ -108,9 +99,6 @@ class AleraCliRegistrationService {
   final String _operatingSystem;
   final AleraCliRegistrationExecutableChecker _executableChecker;
   final String _pathListSeparator;
-  final ProcessRunner processRunner;
-  final String? homePath;
-  final String? localAppDataPath;
 
   Future<AleraCliRegistrationStatus> status() async {
     final spec = await _spec();
@@ -122,7 +110,7 @@ class AleraCliRegistrationService {
         pathConfigured: false,
         launcherPath: null,
         installMethod: null,
-        state: AleraCliRegistrationState.unsupported,
+        state: .unsupported,
         detail: 'CLI registration is not supported on this platform.',
       );
     }
@@ -135,7 +123,7 @@ class AleraCliRegistrationService {
       return _statusFor(
         spec,
         pathConfigured: pathConfigured,
-        state: AleraCliRegistrationState.notInstalled,
+        state: .notInstalled,
         detail:
             'Register the Alera command to use it from terminals and agents.',
       );
@@ -155,7 +143,7 @@ class AleraCliRegistrationService {
       return _statusFor(
         spec,
         pathConfigured: pathConfigured,
-        state: AleraCliRegistrationState.conflict,
+        state: .conflict,
         detail: '${spec.commandPath} exists but is not readable as text.',
       );
     }
@@ -164,7 +152,7 @@ class AleraCliRegistrationService {
         return _statusFor(
           spec,
           pathConfigured: false,
-          state: AleraCliRegistrationState.stale,
+          state: .stale,
           detail:
               '${spec.commandPath} is registered but is not executable. Update registration to repair permissions.',
         );
@@ -174,7 +162,7 @@ class AleraCliRegistrationService {
         return _statusFor(
           spec,
           pathConfigured: false,
-          state: AleraCliRegistrationState.conflict,
+          state: .conflict,
           detail:
               '$shadowingCommandPath is earlier on PATH than ${spec.commandPath}.',
         );
@@ -182,7 +170,7 @@ class AleraCliRegistrationService {
       return _statusFor(
         spec,
         pathConfigured: pathConfigured,
-        state: AleraCliRegistrationState.installed,
+        state: .installed,
         detail: pathConfigured
             ? 'Registered at ${spec.commandPath}.'
             : 'Registered at ${spec.commandPath}. Add ${p.dirname(spec.commandPath)} to PATH.',
@@ -192,14 +180,14 @@ class AleraCliRegistrationService {
       return _statusFor(
         spec,
         pathConfigured: pathConfigured,
-        state: AleraCliRegistrationState.stale,
+        state: .stale,
         detail: '${spec.commandPath} points to an older Alera launcher.',
       );
     }
     return _statusFor(
       spec,
       pathConfigured: pathConfigured,
-      state: AleraCliRegistrationState.conflict,
+      state: .conflict,
       detail: '${spec.commandPath} exists but is not managed by Alera.',
     );
   }
@@ -225,7 +213,7 @@ class AleraCliRegistrationService {
         return _statusFor(
           spec,
           pathConfigured: (await _resolvePath(spec.commandPath)).pathConfigured,
-          state: AleraCliRegistrationState.stale,
+          state: .stale,
           detail: chmod.stderr.trim().isEmpty
               ? 'Registered file was written, but permissions update failed.'
               : 'Registered file was written, but permissions update failed: ${chmod.stderr.trim()}',
@@ -374,7 +362,7 @@ class AleraCliRegistrationService {
       pathDirectory: p.dirname(spec.commandPath),
       pathConfigured: pathConfigured,
       launcherPath: spec.launcher.executable,
-      installMethod: AleraCliRegistrationInstallMethod.wrapper,
+      installMethod: .wrapper,
       state: state,
       detail: detail,
     );
@@ -422,27 +410,16 @@ Future<bool> _hostFileIsExecutable(String path) async {
   return (stat.mode & executeMask) != 0;
 }
 
-class _AleraCliRegistrationSpec {
-  const _AleraCliRegistrationSpec({
-    required this.commandPath,
-    required this.runtimeDir,
-    required this.launcher,
-  });
+class const _AleraCliRegistrationSpec({
+  required final String commandPath,
+  required final String runtimeDir,
+  required final AleraCliCommand launcher,
+});
 
-  final String commandPath;
-  final String runtimeDir;
-  final AleraCliCommand launcher;
-}
-
-class _AleraCliPathResolution {
-  const _AleraCliPathResolution({
-    required this.pathConfigured,
-    this.shadowingCommandPath,
-  });
-
-  final bool pathConfigured;
-  final String? shadowingCommandPath;
-}
+class const _AleraCliPathResolution({
+  required final bool pathConfigured,
+  final String? shadowingCommandPath,
+});
 
 String? _nonBlank(String? value) {
   final trimmed = value?.trim();

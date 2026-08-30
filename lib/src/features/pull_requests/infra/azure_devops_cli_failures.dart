@@ -24,13 +24,13 @@ bool _looksUnauthenticated(String stderr) {
 CreateReviewFailure mapAzureCreateFailure(ProcessRunOutput result) {
   if (azLooksLikeMissingCli(result)) {
     return const CreateReviewFailure(
-      code: CreateReviewErrorCode.cliMissing,
+      code: .cliMissing,
       message: 'The az CLI or azure-devops extension is not installed.',
     );
   }
   if (_looksUnauthenticated(result.stderr)) {
     return const CreateReviewFailure(
-      code: CreateReviewErrorCode.notAuthenticated,
+      code: .notAuthenticated,
       message: 'Run `az login` to authenticate.',
     );
   }
@@ -38,12 +38,12 @@ CreateReviewFailure mapAzureCreateFailure(ProcessRunOutput result) {
   if (stderr.contains('already exists') ||
       stderr.contains('active pull request')) {
     return const CreateReviewFailure(
-      code: CreateReviewErrorCode.alreadyExists,
+      code: .alreadyExists,
       message: 'A pull request already exists for this branch.',
     );
   }
   return CreateReviewFailure(
-    code: CreateReviewErrorCode.unknown,
+    code: .unknown,
     message: result.stderr.trim().isEmpty
         ? 'az repos pr create failed.'
         : result.stderr.trim(),
@@ -53,18 +53,18 @@ CreateReviewFailure mapAzureCreateFailure(ProcessRunOutput result) {
 UpdateReviewFailure mapAzureUpdateFailure(ProcessRunOutput result) {
   if (azLooksLikeMissingCli(result)) {
     return const UpdateReviewFailure(
-      code: UpdateReviewErrorCode.cliMissing,
+      code: .cliMissing,
       message: 'The az CLI or azure-devops extension is not installed.',
     );
   }
   if (_looksUnauthenticated(result.stderr)) {
     return const UpdateReviewFailure(
-      code: UpdateReviewErrorCode.notAuthenticated,
+      code: .notAuthenticated,
       message: 'Run `az login` to authenticate.',
     );
   }
   return UpdateReviewFailure(
-    code: UpdateReviewErrorCode.unknown,
+    code: .unknown,
     message: result.stderr.trim().isEmpty
         ? 'az repos pr update failed.'
         : result.stderr.trim(),

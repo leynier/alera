@@ -165,14 +165,12 @@ class _FakeManagedWorkspaceRuntime implements ManagedWorkspaceRuntime {
   }
 }
 
-class _FailingProjectConfigReader implements ProjectConfigReader {
-  const _FailingProjectConfigReader();
-
+class const _FailingProjectConfigReader() implements ProjectConfigReader {
   @override
   Future<EffectiveProjectConfig> resolve(Project project) async {
     return EffectiveProjectConfig(
-      config: ProjectConfig.empty,
-      origin: ProjectConfigOrigin.repoFile,
+      config: .empty,
+      origin: .repoFile,
       error: ProjectConfigException('Invalid Config'),
     );
   }

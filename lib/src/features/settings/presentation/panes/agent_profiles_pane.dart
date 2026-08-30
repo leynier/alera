@@ -28,9 +28,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 part 'agent_profiles_pane_discovery.dart';
 part 'agent_profiles_pane_profile_actions.dart';
 
-class AgentProfilesSettingsPane extends ConsumerStatefulWidget {
-  const AgentProfilesSettingsPane({super.key});
-
+class const AgentProfilesSettingsPane({super.key})
+    extends ConsumerStatefulWidget {
   @override
   ConsumerState<AgentProfilesSettingsPane> createState() =>
       _AgentProfilesSettingsPaneState();
@@ -46,11 +45,11 @@ class _AgentProfilesSettingsPaneState
   String? _selectedProfileId;
   int? _selectedProfileRevision;
   bool _creatingNew = false;
-  AgentType _adapter = AgentType.codex;
-  AgentProfileLaunchMode _launchMode = AgentProfileLaunchMode.managed;
+  AgentType _adapter = .codex;
+  AgentProfileLaunchMode _launchMode = .managed;
   Map<String, Object?> _managedConfig = <String, Object?>{};
-  AgentType _originalAdapter = AgentType.codex;
-  AgentProfileLaunchMode _originalLaunchMode = AgentProfileLaunchMode.managed;
+  AgentType _originalAdapter = .codex;
+  AgentProfileLaunchMode _originalLaunchMode = .managed;
   Map<String, Object?> _originalManagedConfig = <String, Object?>{};
   final Map<AgentType, List<ManagedAgentOption>> _discoveredModels =
       <AgentType, List<ManagedAgentOption>>{};
@@ -161,7 +160,7 @@ class _AgentProfilesSettingsPaneState
                 ),
           detail: SingleChildScrollView(
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
+              crossAxisAlignment: .stretch,
               children: <Widget>[
                 AgentProfileEditor(
                   nameController: _nameController,

@@ -247,9 +247,7 @@ void registerCodexToolLimitsTests() {
   });
 }
 
-class _CountingToolIterable extends Iterable<String> {
-  _CountingToolIterable(this.length);
-
+class _CountingToolIterable(this.length) extends Iterable<String> {
   @override
   final int length;
   int moveNextCalls = 0;
@@ -258,10 +256,8 @@ class _CountingToolIterable extends Iterable<String> {
   Iterator<String> get iterator => _CountingToolIterator(this);
 }
 
-class _CountingToolIterator implements Iterator<String> {
-  _CountingToolIterator(this.source);
-
-  final _CountingToolIterable source;
+class _CountingToolIterator(final _CountingToolIterable source)
+    implements Iterator<String> {
   var _index = -1;
 
   @override

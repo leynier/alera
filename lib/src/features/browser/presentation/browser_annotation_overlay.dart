@@ -8,28 +8,17 @@ import 'package:flutter/material.dart';
 
 enum BrowserAnnotationInputMode { element, region }
 
-class BrowserAnnotationOverlay extends StatefulWidget {
-  const BrowserAnnotationOverlay({
-    super.key,
-    required this.capture,
-    required this.mode,
-    required this.onModeChanged,
-    required this.onElementSelected,
-    required this.onRegionSelected,
-    required this.onDelete,
-    required this.onCancel,
-    required this.onDone,
-  });
-
-  final BrowserAnnotationCapture capture;
-  final BrowserAnnotationInputMode mode;
-  final ValueChanged<BrowserAnnotationInputMode> onModeChanged;
-  final ValueChanged<Rect> onElementSelected;
-  final ValueChanged<Rect> onRegionSelected;
-  final ValueChanged<BrowserAnnotationComment> onDelete;
-  final VoidCallback onCancel;
-  final VoidCallback onDone;
-
+class const BrowserAnnotationOverlay({
+  super.key,
+  required final BrowserAnnotationCapture capture,
+  required final BrowserAnnotationInputMode mode,
+  required final ValueChanged<BrowserAnnotationInputMode> onModeChanged,
+  required final ValueChanged<Rect> onElementSelected,
+  required final ValueChanged<Rect> onRegionSelected,
+  required final ValueChanged<BrowserAnnotationComment> onDelete,
+  required final VoidCallback onCancel,
+  required final VoidCallback onDone,
+}) extends StatefulWidget {
   @override
   State<BrowserAnnotationOverlay> createState() =>
       _BrowserAnnotationOverlayState();
@@ -89,12 +78,12 @@ class _BrowserAnnotationOverlayState extends State<BrowserAnnotationOverlay> {
         return Material(
           color: AleraTokens.bg,
           child: Stack(
-            fit: StackFit.expand,
+            fit: .expand,
             children: <Widget>[
               Image.file(
                 File(widget.capture.imagePath),
-                fit: BoxFit.contain,
-                filterQuality: FilterQuality.high,
+                fit: .contain,
+                filterQuality: .high,
                 errorBuilder: (_, _, _) => const ColoredBox(
                   color: AleraTokens.bg,
                   child: Center(child: Text('Annotation preview unavailable.')),
@@ -108,7 +97,7 @@ class _BrowserAnnotationOverlayState extends State<BrowserAnnotationOverlay> {
                 ),
               ),
               GestureDetector(
-                behavior: HitTestBehavior.translucent,
+                behavior: .translucent,
                 onTapUp: widget.mode == BrowserAnnotationInputMode.element
                     ? (details) => widget.onElementSelected(
                         _selectionFromPoint(details.localPosition, imageRect),
@@ -190,21 +179,13 @@ class _BrowserAnnotationOverlayState extends State<BrowserAnnotationOverlay> {
   );
 }
 
-class _AnnotationToolbar extends StatelessWidget {
-  const _AnnotationToolbar({
-    required this.mode,
-    required this.commentCount,
-    required this.onModeChanged,
-    required this.onCancel,
-    required this.onDone,
-  });
-
-  final BrowserAnnotationInputMode mode;
-  final int commentCount;
-  final ValueChanged<BrowserAnnotationInputMode> onModeChanged;
-  final VoidCallback onCancel;
-  final VoidCallback onDone;
-
+class const _AnnotationToolbar({
+  required final BrowserAnnotationInputMode mode,
+  required final int commentCount,
+  required final ValueChanged<BrowserAnnotationInputMode> onModeChanged,
+  required final VoidCallback onCancel,
+  required final VoidCallback onDone,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) => DecoratedBox(
     decoration: BoxDecoration(
@@ -225,14 +206,8 @@ class _AnnotationToolbar extends StatelessWidget {
           const SizedBox(width: AleraTokens.space12),
           SegmentedButton<BrowserAnnotationInputMode>(
             segments: const <ButtonSegment<BrowserAnnotationInputMode>>[
-              ButtonSegment(
-                value: BrowserAnnotationInputMode.element,
-                label: Text('Element'),
-              ),
-              ButtonSegment(
-                value: BrowserAnnotationInputMode.region,
-                label: Text('Region'),
-              ),
+              ButtonSegment(value: .element, label: Text('Element')),
+              ButtonSegment(value: .region, label: Text('Region')),
             ],
             selected: <BrowserAnnotationInputMode>{mode},
             onSelectionChanged: (values) => onModeChanged(values.first),
@@ -248,20 +223,15 @@ class _AnnotationToolbar extends StatelessWidget {
   );
 }
 
-class _AnnotationCommentStrip extends StatelessWidget {
-  const _AnnotationCommentStrip({
-    required this.comments,
-    required this.onDelete,
-  });
-
-  final List<BrowserAnnotationComment> comments;
-  final ValueChanged<BrowserAnnotationComment> onDelete;
-
+class const _AnnotationCommentStrip({
+  required final List<BrowserAnnotationComment> comments,
+  required final ValueChanged<BrowserAnnotationComment> onDelete,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) => ConstrainedBox(
     constraints: const BoxConstraints(maxHeight: 120),
     child: ListView.separated(
-      scrollDirection: Axis.horizontal,
+      scrollDirection: .horizontal,
       itemCount: comments.length,
       separatorBuilder: (_, _) => const SizedBox(width: AleraTokens.space6),
       itemBuilder: (context, index) {
@@ -275,7 +245,7 @@ class _AnnotationCommentStrip extends StatelessWidget {
             border: Border.all(color: AleraTokens.borderSubtle),
           ),
           child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            crossAxisAlignment: .start,
             children: <Widget>[
               CircleAvatar(
                 radius: AleraTokens.space8,
@@ -286,11 +256,7 @@ class _AnnotationCommentStrip extends StatelessWidget {
               ),
               const SizedBox(width: AleraTokens.space6),
               Expanded(
-                child: Text(
-                  comment.text,
-                  maxLines: 3,
-                  overflow: TextOverflow.ellipsis,
-                ),
+                child: Text(comment.text, maxLines: 3, overflow: .ellipsis),
               ),
               AleraIconButton(
                 tooltip: 'Remove Comment',
@@ -305,17 +271,11 @@ class _AnnotationCommentStrip extends StatelessWidget {
   );
 }
 
-class _BrowserAnnotationPainter extends CustomPainter {
-  const _BrowserAnnotationPainter({
-    required this.imageRect,
-    required this.comments,
-    this.selection,
-  });
-
-  final Rect imageRect;
-  final List<BrowserAnnotationComment> comments;
-  final Rect? selection;
-
+class const _BrowserAnnotationPainter({
+  required final Rect imageRect,
+  required final List<BrowserAnnotationComment> comments,
+  final Rect? selection,
+}) extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final stroke = Paint()
@@ -336,7 +296,7 @@ class _BrowserAnnotationPainter extends CustomPainter {
           text: '${index + 1}',
           style: const TextStyle(color: AleraTokens.onAccent, fontSize: 11),
         ),
-        textDirection: TextDirection.ltr,
+        textDirection: .ltr,
       )..layout();
       final badge = Rect.fromLTWH(rect.left, rect.top, 18, 18);
       canvas.drawRect(badge, Paint()..color = AleraTokens.info);

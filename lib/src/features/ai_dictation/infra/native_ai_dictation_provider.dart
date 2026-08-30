@@ -13,7 +13,7 @@ class NativeAiDictationProvider implements AiDictationProvider {
     final modelPath = request.modelPath;
     if (modelPath == null || modelPath.trim().isEmpty) {
       throw const AiDictationException(
-        AiDictationErrorKind.invalidRequest,
+        .invalidRequest,
         'A local Whisper model is required for local transcription.',
       );
     }

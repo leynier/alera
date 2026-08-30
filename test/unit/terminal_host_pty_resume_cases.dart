@@ -57,7 +57,7 @@ void _registerTerminalHostPtyResumeTests() {
             )
             ..resume = TerminalHostResume(
               isDelta: false,
-              snapshot: Uint8List.fromList(<int>[83, 78, 65, 80]),
+              snapshot: .fromList(<int>[83, 78, 65, 80]),
             );
       final session = TerminalHostPtySession(
         client: client,

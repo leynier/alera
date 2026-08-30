@@ -53,8 +53,8 @@ void main() {
       path: '/repo/alera',
       createdAt: now,
       updatedAt: now,
-      kind: WorkspaceKind.main,
-      status: WorkspaceStatus.active,
+      kind: .main,
+      status: .active,
     );
     final repository = Project(
       id: 'project-1',
@@ -63,12 +63,12 @@ void main() {
       createdAt: now,
       updatedAt: now,
     );
-    final folder = repository.copyWith(kind: ProjectKind.folder);
+    final folder = repository.copyWith(kind: .folder);
 
     final repositoryScope = WorkspaceSourceControlScope.resolve(
       project: repository,
       workspace: workspace,
-      prefs: WorkbenchViewPrefs.defaults,
+      prefs: .defaults,
     );
     expect(repositoryScope?.isWorkspaceRoot, isTrue);
     expect(repositoryScope?.displayPath, isEmpty);
@@ -88,7 +88,7 @@ void main() {
       WorkspaceSourceControlScope.resolve(
         project: folder,
         workspace: workspace,
-        prefs: WorkbenchViewPrefs.defaults,
+        prefs: .defaults,
       ),
       isNull,
     );
@@ -96,7 +96,7 @@ void main() {
       WorkspaceSourceControlScope.resolve(
         project: null,
         workspace: workspace,
-        prefs: WorkbenchViewPrefs.defaults,
+        prefs: .defaults,
       ),
       isNull,
     );

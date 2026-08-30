@@ -1,6 +1,5 @@
 import 'package:alera/src/features/projects/domain/project.dart';
 import 'package:alera/src/features/projects/presentation/widgets/sidebar_collapsed_rail.dart';
-import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -60,9 +59,9 @@ void main() {
 
     expect(decorationOf().color, Colors.transparent);
 
-    final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+    final mouse = await tester.createGesture(kind: .mouse);
     addTearDown(mouse.removePointer);
-    await mouse.addPointer(location: Offset.zero);
+    await mouse.addPointer(location: .zero);
     await tester.pump();
 
     await mouse.moveTo(tester.getCenter(find.text('O')));
@@ -86,11 +85,7 @@ Project _project() {
   );
 }
 
-class _Host extends StatelessWidget {
-  const _Host({required this.child});
-
-  final Widget child;
-
+class const _Host({required final Widget child}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(

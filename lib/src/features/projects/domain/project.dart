@@ -6,16 +6,14 @@ part 'project.mapper.dart';
 enum ProjectKind { gitRepository, folder }
 
 @MappableClass()
-class Project with ProjectMappable {
-  const Project({
-    required this.id,
-    required this.name,
-    required this.repoPath,
-    required this.createdAt,
-    required this.updatedAt,
-    this.kind = ProjectKind.gitRepository,
-  });
-
+class const Project({
+  required this.id,
+  required this.name,
+  required this.repoPath,
+  required this.createdAt,
+  required this.updatedAt,
+  this.kind = ProjectKind.gitRepository,
+}) with ProjectMappable {
   final String id;
   final String name;
   final String repoPath;
@@ -29,6 +27,6 @@ class Project with ProjectMappable {
 
   bool get supportsLinkedWorkspaces => isGitRepository;
 
-  factory Project.fromJson(Map<String, Object?> json) =>
+  factory fromJson(Map<String, Object?> json) =>
       ProjectMapper.fromMap(Map<String, dynamic>.from(json));
 }

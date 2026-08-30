@@ -4,20 +4,13 @@ import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/features/browser/domain/browser_page_state.dart';
 import 'package:flutter/material.dart';
 
-class BrowserPageBody extends StatelessWidget {
-  const BrowserPageBody({
-    super.key,
-    required this.state,
-    required this.surface,
-    required this.onRetry,
-    required this.onOpenExternally,
-  });
-
-  final BrowserPageState state;
-  final Widget surface;
-  final VoidCallback onRetry;
-  final VoidCallback? onOpenExternally;
-
+class const BrowserPageBody({
+  super.key,
+  required final BrowserPageState state,
+  required final Widget surface,
+  required final VoidCallback onRetry,
+  required final VoidCallback? onOpenExternally,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final availability = state.engineAvailability;
@@ -54,7 +47,7 @@ class BrowserPageBody extends StatelessWidget {
           action: Wrap(
             spacing: AleraTokens.space8,
             runSpacing: AleraTokens.space8,
-            alignment: WrapAlignment.center,
+            alignment: .center,
             children: <Widget>[
               FilledButton.icon(
                 onPressed: onRetry,

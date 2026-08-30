@@ -28,6 +28,8 @@ mixin _RuntimeHostCapabilitySupport
       aleraRuntimeHostRemoteAiDictationCapability =>
         connection.supportsRemoteAiDictation,
       aleraRuntimeHostRunBoardCapability => connection.supportsRunBoard,
+      aleraRuntimeHostWorkspaceSectionsCapability =>
+        connection.supportsWorkspaceSections,
       _ => false,
     };
   }

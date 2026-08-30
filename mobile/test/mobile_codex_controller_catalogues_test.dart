@@ -10,9 +10,8 @@ void main() {
     final client = FakeMobileCodexClient(initialThreadId: 'thread-old');
     final container = ProviderContainer(
       overrides: [
-        mobileCodexClientProvider(
-          'host-thread-precondition',
-        ).overrideWith((ref) async => client),
+        mobileCodexClientProvider('host-thread-precondition')
+            .overrideWith((ref) async => client),
       ],
     );
     addTearDown(() {
@@ -47,7 +46,7 @@ void main() {
         'historyNextCursor': null,
       }),
     );
-    await Future<void>.delayed(Duration.zero);
+    await Future.pause(.zero);
     await container.read(provider.notifier).send('Second message');
     expect(
       client.calls
@@ -89,9 +88,8 @@ void main() {
       );
       final container = ProviderContainer(
         overrides: [
-          mobileCodexClientProvider(
-            'host-history-broadcast',
-          ).overrideWith((ref) async => client),
+          mobileCodexClientProvider('host-history-broadcast')
+              .overrideWith((ref) async => client),
         ],
       );
       addTearDown(() {
@@ -127,7 +125,7 @@ void main() {
           },
         }),
       );
-      await Future<void>.delayed(Duration.zero);
+      await Future.pause(.zero);
       var current = container.read(provider).value!;
       expect(current.timelineCells.map((cell) => cell.id), <String>[
         'older',
@@ -144,7 +142,7 @@ void main() {
           'historyNextCursor': null,
         }),
       );
-      await Future<void>.delayed(Duration.zero);
+      await Future.pause(.zero);
       current = container.read(provider).value!;
       expect(current.timelineCells, isEmpty);
       expect(current.historyNextCursor, isNull);
@@ -178,9 +176,8 @@ void main() {
       );
       final container = ProviderContainer(
         overrides: [
-          mobileCodexClientProvider(
-            'host-grouped-skills',
-          ).overrideWith((ref) async => client),
+          mobileCodexClientProvider('host-grouped-skills')
+              .overrideWith((ref) async => client),
         ],
       );
       addTearDown(() {

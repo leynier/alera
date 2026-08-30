@@ -6,16 +6,11 @@ import 'package:alera_mobile/src/features/ai_dictation/application/mobile_ai_dic
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-class MobileAiDictationReviewBar extends ConsumerWidget {
-  const MobileAiDictationReviewBar({
-    super.key,
-    required this.hostId,
-    required this.targetKey,
-  });
-
-  final String hostId;
-  final String targetKey;
-
+class const MobileAiDictationReviewBar({
+  super.key,
+  required final String hostId,
+  required final String targetKey,
+}) extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final provider = mobileAiDictationControllerProvider(hostId, targetKey);
@@ -36,25 +31,15 @@ class MobileAiDictationReviewBar extends ConsumerWidget {
   }
 }
 
-class _RecordingBar extends StatelessWidget {
-  const _RecordingBar({
-    required this.state,
-    required this.onStop,
-    required this.onPlayPause,
-    required this.onSeek,
-    required this.onTranscribe,
-    required this.onRemove,
-    required this.onCancel,
-  });
-
-  final MobileAiDictationState state;
-  final Future<void> Function() onStop;
-  final Future<void> Function() onPlayPause;
-  final Future<void> Function(Duration position) onSeek;
-  final Future<void> Function() onTranscribe;
-  final Future<void> Function() onRemove;
-  final Future<void> Function() onCancel;
-
+class const _RecordingBar({
+  required final MobileAiDictationState state,
+  required final Future<void> Function() onStop,
+  required final Future<void> Function() onPlayPause,
+  required final Future<void> Function(Duration position) onSeek,
+  required final Future<void> Function() onTranscribe,
+  required final Future<void> Function() onRemove,
+  required final Future<void> Function() onCancel,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final processing =
@@ -72,7 +57,7 @@ class _RecordingBar extends StatelessWidget {
         border: Border.all(color: AleraTokens.border),
       ),
       child: Column(
-        mainAxisSize: MainAxisSize.min,
+        mainAxisSize: .min,
         children: <Widget>[
           Row(
             children: <Widget>[
@@ -104,9 +89,8 @@ class _RecordingBar extends StatelessWidget {
                 const SizedBox(width: AleraTokens.space4),
                 Text(
                   '${state.segmentCount} segments',
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: AleraTokens.foregroundMuted,
-                  ),
+                  style: Theme.of(context).textTheme.bodySmall
+                      ?.copyWith(color: AleraTokens.foregroundMuted),
                 ),
               ],
               const SizedBox(width: AleraTokens.space8),
@@ -115,7 +99,7 @@ class _RecordingBar extends StatelessWidget {
               if (state.stage == MobileAiDictationStage.recording)
                 IconButton(
                   tooltip: 'Stop Recording',
-                  visualDensity: VisualDensity.compact,
+                  visualDensity: .compact,
                   onPressed: () => unawaited(onStop()),
                   icon: const Icon(Icons.stop),
                 )
@@ -124,7 +108,7 @@ class _RecordingBar extends StatelessWidget {
                   tooltip: state.stage == MobileAiDictationStage.playing
                       ? 'Pause Recording'
                       : 'Play Recording',
-                  visualDensity: VisualDensity.compact,
+                  visualDensity: .compact,
                   onPressed: () => unawaited(onPlayPause()),
                   icon: Icon(
                     state.stage == MobileAiDictationStage.playing
@@ -134,7 +118,7 @@ class _RecordingBar extends StatelessWidget {
                 ),
                 IconButton(
                   tooltip: 'Remove Recording',
-                  visualDensity: VisualDensity.compact,
+                  visualDensity: .compact,
                   onPressed: () => unawaited(onRemove()),
                   icon: const Icon(Icons.delete_outline),
                 ),
@@ -158,9 +142,8 @@ class _RecordingBar extends StatelessWidget {
               alignment: Alignment.centerLeft,
               child: Text(
                 warning,
-                style: Theme.of(
-                  context,
-                ).textTheme.bodySmall?.copyWith(color: AleraTokens.warning),
+                style: Theme.of(context).textTheme.bodySmall
+                    ?.copyWith(color: AleraTokens.warning),
               ),
             ),
         ],

@@ -10,24 +10,15 @@ import 'package:flutter/services.dart';
 /// top and the matching entries below. Entries starting with the query sort
 /// before entries that merely contain it. Arrow keys move the highlight,
 /// Enter picks the highlighted entry, Escape dismisses.
-class AleraDropdownFilterPopover<T> extends StatefulWidget {
-  const AleraDropdownFilterPopover({
-    super.key,
-    required this.entries,
-    required this.selectedValue,
-    required this.width,
-    required this.filterHintText,
-    required this.onSelected,
-    required this.onDismiss,
-  });
-
-  final List<AleraDropdownFieldEntry<T>> entries;
-  final T? selectedValue;
-  final double width;
-  final String filterHintText;
-  final ValueChanged<T> onSelected;
-  final VoidCallback onDismiss;
-
+class const AleraDropdownFilterPopover<T>({
+  super.key,
+  required final List<AleraDropdownFieldEntry<T>> entries,
+  required final T? selectedValue,
+  required final double width,
+  required final String filterHintText,
+  required final ValueChanged<T> onSelected,
+  required final VoidCallback onDismiss,
+}) extends StatefulWidget {
   static const double _listMaxHeight = 220;
 
   @override
@@ -171,7 +162,7 @@ class _AleraDropdownFilterPopoverState<T>
             border: Border.all(color: AleraTokens.border),
           ),
           child: Column(
-            mainAxisSize: MainAxisSize.min,
+            mainAxisSize: .min,
             children: <Widget>[
               Padding(
                 padding: const EdgeInsets.all(AleraTokens.space8),

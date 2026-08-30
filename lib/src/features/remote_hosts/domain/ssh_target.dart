@@ -34,30 +34,28 @@ enum SshBootstrapStatus {
   bool get isBusy => this == SshBootstrapStatus.installing;
 }
 
-class SshTarget {
-  const SshTarget({
-    required this.id,
-    required this.alias,
-    required this.host,
-    required this.port,
-    required this.username,
-    required this.authKind,
-    required this.createdAt,
-    required this.updatedAt,
-    this.platform,
-    this.arch,
-    this.lastStatus,
-    this.installDir,
-    this.runtimeVersion,
-    this.runtimePlatform,
-    this.runtimeArch,
-    this.bootstrapStatus = SshBootstrapStatus.notInstalled,
-    this.lastBootstrapAt,
-    this.lastCheckedAt,
-    this.lastError,
-  });
-
-  factory SshTarget.fromJson(Map<String, Object?> json) {
+class const SshTarget({
+  required final String id,
+  required final String alias,
+  required final String host,
+  required final int port,
+  required final String username,
+  required final SshAuthKind authKind,
+  required final DateTime createdAt,
+  required final DateTime updatedAt,
+  final String? platform,
+  final String? arch,
+  final String? lastStatus,
+  final String? installDir,
+  final String? runtimeVersion,
+  final String? runtimePlatform,
+  final String? runtimeArch,
+  final SshBootstrapStatus bootstrapStatus = SshBootstrapStatus.notInstalled,
+  final DateTime? lastBootstrapAt,
+  final DateTime? lastCheckedAt,
+  final String? lastError,
+}) {
+  factory fromJson(Map<String, Object?> json) {
     return SshTarget(
       id: _requiredString(json, 'id'),
       alias: _requiredString(json, 'alias'),
@@ -80,26 +78,6 @@ class SshTarget {
       lastError: _optionalString(json['lastError']),
     );
   }
-
-  final String id;
-  final String alias;
-  final String host;
-  final int port;
-  final String username;
-  final String? platform;
-  final String? arch;
-  final SshAuthKind authKind;
-  final DateTime createdAt;
-  final DateTime updatedAt;
-  final String? lastStatus;
-  final String? installDir;
-  final String? runtimeVersion;
-  final String? runtimePlatform;
-  final String? runtimeArch;
-  final SshBootstrapStatus bootstrapStatus;
-  final DateTime? lastBootstrapAt;
-  final DateTime? lastCheckedAt;
-  final String? lastError;
 
   Map<String, Object?> toJson() {
     return <String, Object?>{
@@ -160,20 +138,18 @@ class SshTarget {
   }
 }
 
-class SshTargetBootstrapPlan {
-  const SshTargetBootstrapPlan({
-    required this.targetId,
-    required this.platform,
-    required this.arch,
-    required this.installDir,
-    required this.channel,
-    required this.artifactSource,
-    required this.trust,
-    required this.steps,
-    this.version,
-  });
-
-  factory SshTargetBootstrapPlan.fromJson(Map<String, Object?> json) {
+class const SshTargetBootstrapPlan({
+  required final String targetId,
+  required final String platform,
+  required final String arch,
+  required final String installDir,
+  required final String channel,
+  required final String artifactSource,
+  required final String trust,
+  required final List<String> steps,
+  final String? version,
+}) {
+  factory fromJson(Map<String, Object?> json) {
     return SshTargetBootstrapPlan(
       targetId: _requiredString(json, 'targetId'),
       platform: _requiredString(json, 'platform'),
@@ -189,49 +165,31 @@ class SshTargetBootstrapPlan {
       ],
     );
   }
-
-  final String targetId;
-  final String platform;
-  final String arch;
-  final String installDir;
-  final String channel;
-  final String artifactSource;
-  final String trust;
-  final String? version;
-  final List<String> steps;
 }
 
-class SshTargetBootstrapJob {
-  const SshTargetBootstrapJob({
-    required this.jobId,
-    required this.targetId,
-    required this.status,
-  });
-
-  factory SshTargetBootstrapJob.fromJson(Map<String, Object?> json) {
+class const SshTargetBootstrapJob({
+  required final String jobId,
+  required final String targetId,
+  required final SshBootstrapStatus status,
+}) {
+  factory fromJson(Map<String, Object?> json) {
     return SshTargetBootstrapJob(
       jobId: _requiredString(json, 'jobId'),
       targetId: _requiredString(json, 'targetId'),
       status: SshBootstrapStatus.parse(json['status']),
     );
   }
-
-  final String jobId;
-  final String targetId;
-  final SshBootstrapStatus status;
 }
 
-class SshTargetBootstrapProgress {
-  const SshTargetBootstrapProgress({
-    required this.jobId,
-    required this.targetId,
-    required this.status,
-    required this.stage,
-    required this.message,
-    this.error,
-  });
-
-  factory SshTargetBootstrapProgress.fromJson(Map<String, Object?> json) {
+class const SshTargetBootstrapProgress({
+  required final String jobId,
+  required final String targetId,
+  required final SshBootstrapStatus status,
+  required final String stage,
+  required final String message,
+  final String? error,
+}) {
+  factory fromJson(Map<String, Object?> json) {
     return SshTargetBootstrapProgress(
       jobId: _requiredString(json, 'jobId'),
       targetId: _requiredString(json, 'targetId'),
@@ -241,13 +199,6 @@ class SshTargetBootstrapProgress {
       error: _optionalString(json['error']),
     );
   }
-
-  final String jobId;
-  final String targetId;
-  final SshBootstrapStatus status;
-  final String stage;
-  final String message;
-  final String? error;
 }
 
 String _requiredString(Map<String, Object?> json, String key) {

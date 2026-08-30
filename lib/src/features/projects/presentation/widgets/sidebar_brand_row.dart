@@ -5,17 +5,12 @@ import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/features/app_menu/presentation/alera_app_menu_scope.dart';
 import 'package:flutter/material.dart';
 
-class SidebarBrandRow extends StatelessWidget {
-  const SidebarBrandRow({
-    super.key,
-    required this.collapsed,
-    required this.onToggleCollapsed,
-    this.onAddProject,
-  });
-
-  final bool collapsed;
-  final VoidCallback onToggleCollapsed;
-
+class const SidebarBrandRow({
+  super.key,
+  required final bool collapsed,
+  required final VoidCallback onToggleCollapsed,
+  this.onAddProject,
+}) extends StatelessWidget {
   /// Optional add-project handler. The expanded workbench sidebar moves this
   /// action to the footer, while older callers can still wire it here.
   final VoidCallback? onAddProject;
@@ -43,7 +38,7 @@ class SidebarBrandRow extends StatelessWidget {
             'assets/logo/alera-logo-white.png',
             width: AleraTokens.space16,
             height: AleraTokens.space16,
-            filterQuality: FilterQuality.medium,
+            filterQuality: .medium,
           ),
           const SizedBox(width: AleraTokens.space8),
           // The logo leaves the name less room, so it yields first when the
@@ -52,10 +47,10 @@ class SidebarBrandRow extends StatelessWidget {
             child: Text(
               kAleraAppName,
               maxLines: 1,
-              overflow: TextOverflow.ellipsis,
+              overflow: .ellipsis,
               style: theme.textTheme.titleSmall?.copyWith(
                 color: AleraTokens.foreground,
-                fontWeight: FontWeight.w600,
+                fontWeight: .w600,
               ),
             ),
           ),

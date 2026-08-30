@@ -5,46 +5,28 @@ import 'package:alera/src/design_system/menus/alera_dropdown_entry.dart';
 import 'package:flutter/material.dart';
 
 /// One selectable option of an [AleraDropdownField].
-class AleraDropdownFieldEntry<T> {
-  const AleraDropdownFieldEntry({
-    required this.value,
-    required this.label,
-    this.leading,
-    this.enabled = true,
-  });
-
-  final T value;
-  final String label;
-  final Widget? leading;
-  final bool enabled;
-}
+class const AleraDropdownFieldEntry<T>({
+  required final T value,
+  required final String label,
+  final Widget? leading,
+  final bool enabled = true,
+});
 
 /// Tokenized select field: a text-field-like trigger that opens an Alera
 /// popover menu of [AleraDropdownFieldEntry] options and reports the picked
 /// value through [onChanged]. When [filterable], the popover carries a search
 /// field that narrows the options as the user types.
-class AleraDropdownField<T> extends StatefulWidget {
-  const AleraDropdownField({
-    super.key,
-    required this.value,
-    required this.entries,
-    required this.onChanged,
-    this.hintText,
-    this.labelText,
-    this.enabled = true,
-    this.filterable = false,
-    this.filterHintText = 'Search',
-  });
-
-  final T? value;
-  final List<AleraDropdownFieldEntry<T>> entries;
-  final ValueChanged<T> onChanged;
-  final String? hintText;
-  final String? labelText;
-  final bool enabled;
-  final bool filterable;
-  final String filterHintText;
-
+class const AleraDropdownField<T>({
+  super.key,
+  required final T? value,
+  required final List<AleraDropdownFieldEntry<T>> entries,
+  required final ValueChanged<T> onChanged,
+  final String? hintText,
+  final String? labelText,
+  final bool enabled = true,
+  final bool filterable = false,
+  final String filterHintText = 'Search',
+}) extends StatefulWidget {
   static const double _height = 34;
 
   @override
@@ -65,7 +47,7 @@ class _AleraDropdownFieldState<T> extends State<AleraDropdownField<T>> {
     final box = context.findRenderObject()! as RenderBox;
     final overlay =
         Overlay.of(context).context.findRenderObject()! as RenderBox;
-    final origin = box.localToGlobal(Offset.zero, ancestor: overlay);
+    final origin = box.localToGlobal(.zero, ancestor: overlay);
     final position = RelativeRect.fromLTRB(
       origin.dx,
       origin.dy + box.size.height + AleraTokens.space4,
@@ -139,15 +121,15 @@ class _AleraDropdownFieldState<T> extends State<AleraDropdownField<T>> {
         children: <Widget>[
           Positioned.fill(
             child: GestureDetector(
-              behavior: HitTestBehavior.opaque,
+              behavior: .opaque,
               onTap: _closeFilterOverlay,
               child: const SizedBox.shrink(),
             ),
           ),
           CompositedTransformFollower(
             link: _fieldLink,
-            targetAnchor: Alignment.bottomLeft,
-            followerAnchor: Alignment.topLeft,
+            targetAnchor: .bottomLeft,
+            followerAnchor: .topLeft,
             offset: const Offset(0, AleraTokens.space4),
             child: AleraDropdownFilterPopover<T>(
               entries: List<AleraDropdownFieldEntry<T>>.of(widget.entries),
@@ -212,7 +194,7 @@ class _AleraDropdownFieldState<T> extends State<AleraDropdownField<T>> {
             ? () =>
                   widget.filterable ? _openFilterOverlay() : _openMenu(context)
             : null,
-        borderRadius: BorderRadius.circular(AleraTokens.radiusMd),
+        borderRadius: .circular(AleraTokens.radiusMd),
         mouseCursor: widget.enabled
             ? SystemMouseCursors.click
             : SystemMouseCursors.basic,
@@ -238,7 +220,7 @@ class _AleraDropdownFieldState<T> extends State<AleraDropdownField<T>> {
                   child: Text(
                     current?.label ?? widget.hintText ?? '',
                     maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
+                    overflow: .ellipsis,
                     style: theme.textTheme.bodyMedium?.copyWith(
                       color: labelColor,
                     ),
@@ -263,8 +245,8 @@ class _AleraDropdownFieldState<T> extends State<AleraDropdownField<T>> {
       return field;
     }
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: .start,
+      mainAxisSize: .min,
       children: <Widget>[
         Text(
           label,

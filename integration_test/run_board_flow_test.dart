@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'dart:ui' as ui;
+
 import 'package:alera/src/features/orchestration/application/run_board_navigation.dart';
 import 'package:alera/src/features/orchestration/domain/run_board_snapshot.dart';
 import 'package:alera/src/features/orchestration/infra/runtime_run_board_repository.dart';
@@ -10,6 +11,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:path/path.dart' as p;
 import 'package:window_manager/window_manager.dart';
+
 import '../test/support/run_board_fixtures.dart';
 import '../test/support/run_board_widget_harness.dart';
 

@@ -6,14 +6,12 @@ import 'package:cryptography/cryptography.dart';
 const String aleraManifestSignatureKey = 'signature';
 const String aleraManifestSignatureAlgorithm = 'ed25519';
 
-class AleraManifestSignature {
-  const AleraManifestSignature({
-    required this.algorithm,
-    required this.publicKeyId,
-    required this.signature,
-  });
-
-  factory AleraManifestSignature.fromJson(Object? value) {
+class const AleraManifestSignature({
+  required final String algorithm,
+  required final String publicKeyId,
+  required final String signature,
+}) {
+  factory fromJson(Object? value) {
     if (value is! Map) {
       throw const FormatException('Manifest signature must be an object.');
     }
@@ -30,10 +28,6 @@ class AleraManifestSignature {
       signature: _requiredString(json, 'signature'),
     );
   }
-
-  final String algorithm;
-  final String publicKeyId;
-  final String signature;
 
   Map<String, Object?> toJson() {
     return <String, Object?>{
@@ -68,7 +62,7 @@ Future<bool> verifyAleraManifestSignature({
     utf8.encode(payload),
     signature: Signature(
       signatureBytes,
-      publicKey: SimplePublicKey(publicKeyBytes, type: KeyPairType.ed25519),
+      publicKey: SimplePublicKey(publicKeyBytes, type: .ed25519),
     ),
   );
 }
@@ -89,8 +83,8 @@ Future<Map<String, Object?>> signAleraManifest({
   final publicKeyBytes = base64Decode(publicKeyBase64);
   final keyPair = SimpleKeyPairData(
     privateKeyBytes,
-    publicKey: SimplePublicKey(publicKeyBytes, type: KeyPairType.ed25519),
-    type: KeyPairType.ed25519,
+    publicKey: SimplePublicKey(publicKeyBytes, type: .ed25519),
+    type: .ed25519,
   );
   final signature = await Ed25519().sign(
     utf8.encode(canonicalAleraManifestPayload(unsigned)),

@@ -74,7 +74,7 @@ void main() {
       if (DateTime.now().isAfter(metadataDeadline)) {
         throw TimeoutException('Runtime metadata did not finish.');
       }
-      await Future<void>.delayed(const Duration(milliseconds: 10));
+      await Future.pause(const Duration(milliseconds: 10));
     }
     await pumpEventQueue();
 

@@ -5,13 +5,13 @@ class _FakeUpdateService implements AleraUpdateService {
   final AleraUpdateConfig config = AleraUpdateConfig(
     archiveUrl: Uri.parse('https://example.com/app-archive.json'),
     releasePageUrl: Uri.parse('https://github.com/leynier/alera'),
-    channel: AleraUpdateChannel.stable,
+    channel: .stable,
     autoInstallEnabled: false,
     signedRelease: false,
   );
 
   @override
-  final PackageManagerInstall packageInstall = PackageManagerInstall.unmanaged;
+  final PackageManagerInstall packageInstall = .unmanaged;
 
   @override
   Future<AleraUpdateCheckResult> checkForUpdates() async {
@@ -37,9 +37,9 @@ class _FakeUpdateService implements AleraUpdateService {
   void dispose() {}
 }
 
-class _FakeSettingsRepository implements SettingsRepository {
-  _FakeSettingsRepository([AleraSettings? initialSettings])
-    : _settings = initialSettings ?? AleraSettings.defaults;
+class _FakeSettingsRepository([AleraSettings? initialSettings])
+    implements SettingsRepository {
+  this : _settings = initialSettings ?? AleraSettings.defaults;
 
   AleraSettings _settings;
 
@@ -52,11 +52,8 @@ class _FakeSettingsRepository implements SettingsRepository {
   }
 }
 
-class _FakeProjectRepository implements ProjectRepository {
-  _FakeProjectRepository(this._projects);
-
-  final List<Project> _projects;
-
+class _FakeProjectRepository(final List<Project> _projects)
+    implements ProjectRepository {
   @override
   Future<Project> add(Project project) {
     throw UnimplementedError();
@@ -83,19 +80,14 @@ class _FakeProjectRepository implements ProjectRepository {
   }
 }
 
-class _FakeSystemFontService implements SystemFontService {
-  const _FakeSystemFontService(this.fonts);
-
-  final List<String> fonts;
-
+class const _FakeSystemFontService(final List<String> fonts)
+    implements SystemFontService {
   @override
   Future<List<String>> listFontFamilies() async => fonts;
 }
 
-class _FakeAiAssistModelDiscoveryService
+class const _FakeAiAssistModelDiscoveryService()
     implements AiAssistModelDiscoveryService {
-  const _FakeAiAssistModelDiscoveryService();
-
   static const List<AiAssistModel> _models = <AiAssistModel>[
     AiAssistModel(
       id: 'gpt-5.5',
@@ -122,21 +114,16 @@ class _FakeAiAssistModelDiscoveryService
   }
 }
 
-class _DelayedSystemFontService implements SystemFontService {
-  _DelayedSystemFontService(this.futureFonts);
-
-  final Future<List<String>> futureFonts;
-
+class _DelayedSystemFontService(final Future<List<String>> futureFonts)
+    implements SystemFontService {
   @override
   Future<List<String>> listFontFamilies() => futureFonts;
 }
 
-class _FakeGitHubStarController extends GitHubStarController {
-  _FakeGitHubStarController(this.initialState, {this.nextStarState});
-
-  final GitHubStarState initialState;
-  final GitHubStarState? nextStarState;
-
+class _FakeGitHubStarController(
+  final GitHubStarState initialState, {
+  final GitHubStarState? nextStarState,
+}) extends GitHubStarController {
   @override
   GitHubStarState build() => initialState;
 
@@ -153,11 +140,9 @@ class _FakeGitHubStarController extends GitHubStarController {
   }
 }
 
-class _FakeFileSelectorPlatform extends FileSelectorPlatform
+class _FakeFileSelectorPlatform(final List<Object?> responses)
+    extends FileSelectorPlatform
     with MockPlatformInterfaceMixin {
-  _FakeFileSelectorPlatform(this.responses);
-
-  final List<Object?> responses;
   final List<_DirectoryRequest> requests = <_DirectoryRequest>[];
 
   @override
@@ -180,30 +165,18 @@ class _FakeFileSelectorPlatform extends FileSelectorPlatform
   }
 }
 
-class _DirectoryRequest {
-  const _DirectoryRequest({
-    required this.initialDirectory,
-    required this.confirmButtonText,
-    required this.canCreateDirectories,
-  });
+class const _DirectoryRequest({
+  required final String? initialDirectory,
+  required final String? confirmButtonText,
+  required final bool? canCreateDirectories,
+});
 
-  final String? initialDirectory;
-  final String? confirmButtonText;
-  final bool? canCreateDirectories;
-}
-
-class _FakeRuntimeHostClient implements RuntimeHostClient {
-  _FakeRuntimeHostClient(
-    this.targets, {
-    this.bootstrapPlanGate,
-    this.bootstrapStartGate,
-    this.bootstrapCancelGate,
-  });
-
-  final List<SshTarget> targets;
-  final Completer<void>? bootstrapPlanGate;
-  final Completer<void>? bootstrapStartGate;
-  final Completer<void>? bootstrapCancelGate;
+class _FakeRuntimeHostClient(
+  final List<SshTarget> targets, {
+  final Completer<void>? bootstrapPlanGate,
+  final Completer<void>? bootstrapStartGate,
+  final Completer<void>? bootstrapCancelGate,
+}) implements RuntimeHostClient {
   final List<_RuntimeRequest> requests = <_RuntimeRequest>[];
   final StreamController<RuntimeHostEvent> _events =
       StreamController<RuntimeHostEvent>.broadcast();
@@ -286,7 +259,7 @@ class _FakeRuntimeHostClient implements RuntimeHostClient {
           runtimeVersion: target.runtimeVersion,
           runtimePlatform: target.runtimePlatform,
           runtimeArch: target.runtimeArch,
-          bootstrapStatus: SshBootstrapStatus.cancelled,
+          bootstrapStatus: .cancelled,
           lastBootstrapAt: target.lastBootstrapAt,
           lastCheckedAt: target.lastCheckedAt,
           lastError: null,
@@ -304,18 +277,13 @@ class _FakeRuntimeHostClient implements RuntimeHostClient {
   Future<void> dispose() => _events.close();
 }
 
-class _RuntimeRequest {
-  const _RuntimeRequest(this.type, this.payload);
-
-  final String type;
-  final Map<String, Object?> payload;
-}
+class const _RuntimeRequest(
+  final String type,
+  final Map<String, Object?> payload,
+);
 
 /// These dialog tests assert UI behavior, not event coalescing, so they drive
 /// the runtime watchers without a debounce window to wait out.
 RuntimeChangeCoalescer _immediateCoalescer() {
-  return RuntimeChangeCoalescer(
-    debounce: Duration.zero,
-    maxDelay: Duration.zero,
-  );
+  return RuntimeChangeCoalescer(debounce: .zero, maxDelay: .zero);
 }

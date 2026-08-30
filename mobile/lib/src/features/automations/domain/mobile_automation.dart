@@ -1,21 +1,19 @@
-class MobileAutomation {
-  const MobileAutomation({
-    required this.id,
-    required this.name,
-    required this.slug,
-    required this.state,
-    required this.revision,
-    required this.approvedRevision,
-    required this.schedule,
-    required this.target,
-    this.description = '',
-    this.projectId,
-    this.tagIds = const <String>[],
-    this.promptTemplate = '',
-    this.raw = const <String, Object?>{},
-  });
-
-  factory MobileAutomation.fromJson(Object? value) {
+class const MobileAutomation({
+  required final String id,
+  required final String name,
+  required final String slug,
+  required final String state,
+  required final int revision,
+  required final int? approvedRevision,
+  required final Map<String, Object?> schedule,
+  required final Map<String, Object?> target,
+  final String description = '',
+  final String? projectId,
+  final List<String> tagIds = const <String>[],
+  final String promptTemplate = '',
+  final Map<String, Object?> raw = const <String, Object?>{},
+}) {
+  factory fromJson(Object? value) {
     final map = _map(value);
     return MobileAutomation(
       id: _string(map['id']),
@@ -38,20 +36,6 @@ class MobileAutomation {
     );
   }
 
-  final String id;
-  final String name;
-  final String slug;
-  final String state;
-  final int revision;
-  final int? approvedRevision;
-  final Map<String, Object?> schedule;
-  final Map<String, Object?> target;
-  final String description;
-  final String? projectId;
-  final List<String> tagIds;
-  final String promptTemplate;
-  final Map<String, Object?> raw;
-
   int get heartbeatIntervalSeconds {
     final value = _int(raw['heartbeatIntervalSeconds']);
     return value > 0 ? value : 60;
@@ -60,31 +44,23 @@ class MobileAutomation {
   bool get isApproved => revision == approvedRevision;
 }
 
-class MobileAutomationDetail {
-  const MobileAutomationDetail({
-    required this.automation,
-    required this.runs,
-    required this.audit,
-    required this.occurrences,
-    required this.effectivePolicies,
-  });
-
-  factory MobileAutomationDetail.fromJson(Object? value) {
+class const MobileAutomationDetail({
+  required final MobileAutomation automation,
+  required final List<Map<String, Object?>> runs,
+  required final List<Map<String, Object?>> audit,
+  required final List<Map<String, Object?>> occurrences,
+  required final Map<String, Object?> effectivePolicies,
+}) {
+  factory fromJson(Object? value) {
     final map = _map(value);
     return MobileAutomationDetail(
-      automation: MobileAutomation.fromJson(map['automation']),
+      automation: .fromJson(map['automation']),
       runs: _list(map['runs']).map(_map).toList(growable: false),
       audit: _list(map['audit']).map(_map).toList(growable: false),
       occurrences: _list(map['occurrences']).map(_map).toList(growable: false),
       effectivePolicies: _map(map['effectivePolicies']),
     );
   }
-
-  final MobileAutomation automation;
-  final List<Map<String, Object?>> runs;
-  final List<Map<String, Object?>> audit;
-  final List<Map<String, Object?>> occurrences;
-  final Map<String, Object?> effectivePolicies;
 }
 
 Map<String, Object?> _map(Object? value) => value is Map

@@ -82,16 +82,13 @@ WorkbenchViewPrefsRepository workbenchViewPrefsRepository(Ref ref) {
 }
 
 /// The sidebar row list, recomputed once per state change instead of once per
-/// widget rebuild.
-///
-/// `buildSidebarRows` filters and multi-key sorts every workspace, and the
-/// sidebar used to run it inline on every rebuild while also mutating the
-/// order memory during build.
+/// widget rebuild. Filtering and sorting stay out of widget build methods.
 @Riverpod(keepAlive: true)
 List<WorkbenchSidebarRow> workbenchSidebarRows(Ref ref) {
   final state = ref.watch(
     workbenchControllerProvider.select(
       (state) => (
+        sections: state.sections,
         projects: state.projects,
         searchQuery: state.searchQuery,
         tabsByWorkspace: state.tabsByWorkspace,
@@ -102,6 +99,7 @@ List<WorkbenchSidebarRow> workbenchSidebarRows(Ref ref) {
   );
   return buildSidebarRows(
     WorkbenchState(
+      sections: state.sections,
       projects: state.projects,
       workspacesByProject: state.workspacesByProject,
       tabsByWorkspace: state.tabsByWorkspace,
@@ -445,9 +443,8 @@ WorkspaceTabRecord? findTabById(
 /// that never warmed up. Recorded at warning level rather than severe: the app
 /// keeps working, it is the follow-up work that did not happen.
 void _ignoreProviderAsyncError(Object error, StackTrace stackTrace) {
-  Logger(
-    'WorkbenchProviders',
-  ).warning('background provider work failed', error, stackTrace);
+  Logger('WorkbenchProviders')
+      .warning('background provider work failed', error, stackTrace);
 }
 // coverage:ignore-end
 

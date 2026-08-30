@@ -7,11 +7,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 /// Mounted in the shell rather than read at startup because settings load
 /// asynchronously: without this, the values chosen at boot would stay in force
 /// for the whole session and toggling the setting would do nothing.
-class DiagnosticsSettingsScope extends ConsumerWidget {
-  const DiagnosticsSettingsScope({super.key, required this.child});
-
-  final Widget child;
-
+class const DiagnosticsSettingsScope({super.key, required final Widget child})
+    extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     ref.watch(diagnosticsSettingsApplierProvider);

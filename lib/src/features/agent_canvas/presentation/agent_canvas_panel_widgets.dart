@@ -1,16 +1,10 @@
 part of 'agent_canvas_panel.dart';
 
-class _PanelToolbar extends StatelessWidget {
-  const _PanelToolbar({
-    required this.showHistory,
-    required this.hasHistory,
-    required this.onShowHistoryChanged,
-  });
-
-  final bool showHistory;
-  final bool hasHistory;
-  final ValueChanged<bool> onShowHistoryChanged;
-
+class const _PanelToolbar({
+  required final bool showHistory,
+  required final bool hasHistory,
+  required final ValueChanged<bool> onShowHistoryChanged,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
@@ -51,23 +45,14 @@ class _PanelToolbar extends StatelessWidget {
   }
 }
 
-class _CanvasList extends StatelessWidget {
-  const _CanvasList({
-    required this.pinned,
-    required this.waiting,
-    required this.live,
-    required this.history,
-    required this.selectedCanvasId,
-    required this.onSelect,
-  });
-
-  final List<AgentCanvas> pinned;
-  final List<AgentCanvas> waiting;
-  final List<AgentCanvas> live;
-  final List<AgentCanvas> history;
-  final String? selectedCanvasId;
-  final ValueChanged<AgentCanvas> onSelect;
-
+class const _CanvasList({
+  required final List<AgentCanvas> pinned,
+  required final List<AgentCanvas> waiting,
+  required final List<AgentCanvas> live,
+  required final List<AgentCanvas> history,
+  required final String? selectedCanvasId,
+  required final ValueChanged<AgentCanvas> onSelect,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final children = <Widget>[];
@@ -100,10 +85,8 @@ class _CanvasList extends StatelessWidget {
         ),
         child: Text(
           title,
-          style: Theme.of(context).textTheme.labelSmall?.copyWith(
-            fontWeight: FontWeight.w600,
-            color: AleraTokens.foregroundMuted,
-          ),
+          style: Theme.of(context).textTheme.labelSmall
+              ?.copyWith(fontWeight: .w600, color: AleraTokens.foregroundMuted),
         ),
       ),
     );
@@ -119,17 +102,11 @@ class _CanvasList extends StatelessWidget {
   }
 }
 
-class _CanvasListTile extends StatelessWidget {
-  const _CanvasListTile({
-    required this.canvas,
-    required this.selected,
-    required this.onTap,
-  });
-
-  final AgentCanvas canvas;
-  final bool selected;
-  final VoidCallback onTap;
-
+class const _CanvasListTile({
+  required final AgentCanvas canvas,
+  required final bool selected,
+  required final VoidCallback onTap,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListTile(
@@ -145,43 +122,28 @@ class _CanvasListTile extends StatelessWidget {
             ? AleraTokens.warning
             : AleraTokens.foregroundMuted,
       ),
-      title: Text(canvas.title, maxLines: 1, overflow: TextOverflow.ellipsis),
-      subtitle: Text(
-        canvas.agentType,
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-      ),
+      title: Text(canvas.title, maxLines: 1, overflow: .ellipsis),
+      subtitle: Text(canvas.agentType, maxLines: 1, overflow: .ellipsis),
       trailing: AleraBadge(label: 'r${canvas.revision}'),
       onTap: onTap,
     );
   }
 }
 
-class _CanvasDetails extends StatelessWidget {
-  const _CanvasDetails({
-    required this.canvas,
-    required this.busy,
-    required this.renderer,
-    required this.onPinChanged,
-    required this.onComplete,
-    required this.onClose,
-    required this.onRemove,
-    required this.onAction,
-  });
-
-  final AgentCanvas canvas;
-  final bool busy;
-  final AgentSurfaceRenderer renderer;
-  final ValueChanged<bool> onPinChanged;
-  final VoidCallback? onComplete;
-  final VoidCallback? onClose;
-  final VoidCallback? onRemove;
-  final AgentCanvasActionCallback onAction;
-
+class const _CanvasDetails({
+  required final AgentCanvas canvas,
+  required final bool busy,
+  required final AgentSurfaceRenderer renderer,
+  required final ValueChanged<bool> onPinChanged,
+  required final VoidCallback? onComplete,
+  required final VoidCallback? onClose,
+  required final VoidCallback? onRemove,
+  required final AgentCanvasActionCallback onAction,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+      crossAxisAlignment: .stretch,
       children: <Widget>[
         Padding(
           padding: const EdgeInsets.fromLTRB(
@@ -196,7 +158,7 @@ class _CanvasDetails extends StatelessWidget {
                 child: Text(
                   canvas.title,
                   maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+                  overflow: .ellipsis,
                   style: Theme.of(context).textTheme.titleSmall,
                 ),
               ),

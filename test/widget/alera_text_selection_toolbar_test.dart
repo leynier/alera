@@ -12,7 +12,7 @@ void main() {
     var copied = false;
     await tester.pumpWidget(
       MaterialApp(
-        theme: buildAleraDarkTheme().copyWith(platform: TargetPlatform.linux),
+        theme: buildAleraDarkTheme().copyWith(platform: .linux),
         home: Scaffold(
           body: AleraTextSelectionToolbar(
             anchors: const TextSelectionToolbarAnchors(
@@ -20,13 +20,10 @@ void main() {
             ),
             buttonItems: <ContextMenuButtonItem>[
               ContextMenuButtonItem(
-                type: ContextMenuButtonType.copy,
+                type: .copy,
                 onPressed: () => copied = true,
               ),
-              ContextMenuButtonItem(
-                type: ContextMenuButtonType.selectAll,
-                onPressed: () {},
-              ),
+              ContextMenuButtonItem(type: .selectAll, onPressed: () {}),
             ],
           ),
         ),
@@ -74,17 +71,14 @@ void main() {
   ) async {
     await tester.pumpWidget(
       MaterialApp(
-        theme: buildAleraDarkTheme().copyWith(platform: TargetPlatform.android),
+        theme: buildAleraDarkTheme().copyWith(platform: .android),
         home: Scaffold(
           body: AleraTextSelectionToolbar(
             anchors: const TextSelectionToolbarAnchors(
               primaryAnchor: Offset(240, 180),
             ),
             buttonItems: <ContextMenuButtonItem>[
-              ContextMenuButtonItem(
-                type: ContextMenuButtonType.copy,
-                onPressed: () {},
-              ),
+              ContextMenuButtonItem(type: .copy, onPressed: () {}),
             ],
           ),
         ),

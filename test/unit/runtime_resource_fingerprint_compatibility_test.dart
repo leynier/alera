@@ -3,7 +3,6 @@ import 'dart:io';
 
 import 'package:alera/src/features/agent_status/infra/claude_runtime_home_service.dart';
 import 'package:alera/src/features/agent_status/infra/codex_runtime_home_service.dart';
-import 'package:alera/src/features/agent_status/infra/managed_agent_hook_installer.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
 
@@ -105,7 +104,7 @@ Future<String> _prepareRuntime(
     final preparation = await CodexRuntimeHomeService(
       homeDirectory: home.path,
       applicationSupportDirectory: () async => support,
-      platform: ManagedAgentHookPlatform.posix,
+      platform: .posix,
       environment: <String, String>{'HOME': home.path},
       resourceLinkCreator: failLinks,
     ).prepareForTerminalLaunch();
@@ -114,7 +113,7 @@ Future<String> _prepareRuntime(
   final preparation = await ClaudeRuntimeHomeService(
     homeDirectory: home.path,
     applicationSupportDirectory: () async => support,
-    platform: ManagedAgentHookPlatform.posix,
+    platform: .posix,
     environment: <String, String>{'HOME': home.path},
     resourceLinkCreator: failLinks,
     syncMacOSKeychainCredentials: false,

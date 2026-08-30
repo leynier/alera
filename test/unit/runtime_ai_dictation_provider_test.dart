@@ -20,7 +20,7 @@ void main() {
       const AiDictationRequest(
         requestId: 'request-1',
         audioPath: '/tmp/audio.wav',
-        remoteEngine: AiDictationRemoteEngine.openAiCompatible,
+        remoteEngine: .openAiCompatible,
         providerBaseUrl: 'https://api.example.test/v1',
         providerModel: 'speech-model',
         language: 'es',
@@ -55,7 +55,7 @@ void main() {
       const AiDictationRequest(
         requestId: 'request-2',
         audioPath: '/tmp/audio.wav',
-        remoteEngine: AiDictationRemoteEngine.codexSubscription,
+        remoteEngine: .codexSubscription,
         providerModel: 'realtime-model',
       ),
     );
@@ -99,15 +99,10 @@ void main() {
   });
 }
 
-class _FakeRuntimeHostClient
-    implements RuntimeHostClient, RuntimeHostCapabilityClient {
-  _FakeRuntimeHostClient(
-    this.response, {
-    this.supportsRemoteAiDictation = true,
-  });
-
-  final Object? response;
-  final bool supportsRemoteAiDictation;
+class _FakeRuntimeHostClient(
+  final Object? response, {
+  final bool supportsRemoteAiDictation = true,
+}) implements RuntimeHostClient, RuntimeHostCapabilityClient {
   String? lastType;
   Map<String, Object?>? lastPayload;
 

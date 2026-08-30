@@ -9,8 +9,8 @@ List<CodexTimelineCell>? _reduceTurnLifecycle(_CodexTimelineEvent event) {
       _newCell(
         id: 'turn-${event.turnId}',
         turnId: event.turnId,
-        kind: CodexTimelineKind.turnSeparator,
-        status: CodexTimelineStatus.info,
+        kind: .turnSeparator,
+        status: .info,
         timestamp: event.timestamp,
         title: 'Turn started',
         metadata: <String, Object?>{

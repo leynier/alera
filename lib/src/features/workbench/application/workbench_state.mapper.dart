@@ -15,6 +15,7 @@ class WorkbenchStateMapper extends ClassMapperBase<WorkbenchState> {
   static WorkbenchStateMapper ensureInitialized() {
     if (_instance == null) {
       MapperContainer.globals.use(_instance = WorkbenchStateMapper._());
+      WorkspaceSectionMapper.ensureInitialized();
       ProjectMapper.ensureInitialized();
       WorkspaceMapper.ensureInitialized();
       WorkspaceTabRecordMapper.ensureInitialized();
@@ -27,6 +28,16 @@ class WorkbenchStateMapper extends ClassMapperBase<WorkbenchState> {
   @override
   final String id = 'WorkbenchState';
 
+  static List<WorkspaceSection> _$sections(WorkbenchState v) => v.sections;
+  static const Field<WorkbenchState, List<WorkspaceSection>> _f$sections =
+      Field('sections', _$sections, opt: true, def: const <WorkspaceSection>[]);
+  static bool _$supportsSections(WorkbenchState v) => v.supportsSections;
+  static const Field<WorkbenchState, bool> _f$supportsSections = Field(
+    'supportsSections',
+    _$supportsSections,
+    opt: true,
+    def: false,
+  );
   static List<Project> _$projects(WorkbenchState v) => v.projects;
   static const Field<WorkbenchState, List<Project>> _f$projects = Field(
     'projects',
@@ -120,6 +131,8 @@ class WorkbenchStateMapper extends ClassMapperBase<WorkbenchState> {
 
   @override
   final MappableFields<WorkbenchState> fields = const {
+    #sections: _f$sections,
+    #supportsSections: _f$supportsSections,
     #projects: _f$projects,
     #workspacesByProject: _f$workspacesByProject,
     #tabsByWorkspace: _f$tabsByWorkspace,
@@ -136,6 +149,8 @@ class WorkbenchStateMapper extends ClassMapperBase<WorkbenchState> {
 
   static WorkbenchState _instantiate(DecodingData data) {
     return WorkbenchState(
+      sections: data.dec(_f$sections),
+      supportsSections: data.dec(_f$supportsSections),
       projects: data.dec(_f$projects),
       workspacesByProject: data.dec(_f$workspacesByProject),
       tabsByWorkspace: data.dec(_f$tabsByWorkspace),
@@ -213,6 +228,12 @@ extension WorkbenchStateValueCopy<$R, $Out>
 
 abstract class WorkbenchStateCopyWith<$R, $In extends WorkbenchState, $Out>
     implements ClassCopyWith<$R, $In, $Out> {
+  ListCopyWith<
+    $R,
+    WorkspaceSection,
+    WorkspaceSectionCopyWith<$R, WorkspaceSection, WorkspaceSection>
+  >
+  get sections;
   ListCopyWith<$R, Project, ProjectCopyWith<$R, Project, Project>> get projects;
   MapCopyWith<
     $R,
@@ -240,6 +261,8 @@ abstract class WorkbenchStateCopyWith<$R, $In extends WorkbenchState, $Out>
   MapCopyWith<$R, String, String, ObjectCopyWith<$R, String, String>>
   get activeTabIdByWorkspace;
   $R call({
+    List<WorkspaceSection>? sections,
+    bool? supportsSections,
     List<Project>? projects,
     Map<String, List<Workspace>>? workspacesByProject,
     Map<String, List<WorkspaceTabRecord>>? tabsByWorkspace,
@@ -266,6 +289,17 @@ class _WorkbenchStateCopyWithImpl<$R, $Out>
   @override
   late final ClassMapperBase<WorkbenchState> $mapper =
       WorkbenchStateMapper.ensureInitialized();
+  @override
+  ListCopyWith<
+    $R,
+    WorkspaceSection,
+    WorkspaceSectionCopyWith<$R, WorkspaceSection, WorkspaceSection>
+  >
+  get sections => ListCopyWith(
+    $value.sections,
+    (v, t) => v.copyWith.$chain(t),
+    (v) => call(sections: v),
+  );
   @override
   ListCopyWith<$R, Project, ProjectCopyWith<$R, Project, Project>>
   get projects => ListCopyWith(
@@ -321,6 +355,8 @@ class _WorkbenchStateCopyWithImpl<$R, $Out>
   );
   @override
   $R call({
+    List<WorkspaceSection>? sections,
+    bool? supportsSections,
     List<Project>? projects,
     Map<String, List<Workspace>>? workspacesByProject,
     Map<String, List<WorkspaceTabRecord>>? tabsByWorkspace,
@@ -335,6 +371,8 @@ class _WorkbenchStateCopyWithImpl<$R, $Out>
     bool? collapsed,
   }) => $apply(
     FieldCopyWithData({
+      if (sections != null) #sections: sections,
+      if (supportsSections != null) #supportsSections: supportsSections,
       if (projects != null) #projects: projects,
       if (workspacesByProject != null)
         #workspacesByProject: workspacesByProject,
@@ -353,6 +391,8 @@ class _WorkbenchStateCopyWithImpl<$R, $Out>
   );
   @override
   WorkbenchState $make(CopyWithData data) => WorkbenchState(
+    sections: data.get(#sections, or: $value.sections),
+    supportsSections: data.get(#supportsSections, or: $value.supportsSections),
     projects: data.get(#projects, or: $value.projects),
     workspacesByProject: data.get(
       #workspacesByProject,
@@ -384,4 +424,3 @@ class _WorkbenchStateCopyWithImpl<$R, $Out>
     Then<$Out2, $R2> t,
   ) => _WorkbenchStateCopyWithImpl<$R2, $Out2>($value, $cast, t);
 }
-

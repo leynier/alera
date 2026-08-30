@@ -8,9 +8,7 @@ import 'package:alera/src/shared/infra/logging/app_logger.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-class KeepAliveStatusBarControl extends ConsumerWidget {
-  const KeepAliveStatusBarControl({super.key});
-
+class const KeepAliveStatusBarControl({super.key}) extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final snapshot = ref.watch(keepAliveControllerProvider);
@@ -38,7 +36,7 @@ class KeepAliveStatusBarControl extends ConsumerWidget {
         AleraToast.show(
           context,
           message: 'Could not keep this computer awake. ${snapshot.error}',
-          tone: AleraToastTone.error,
+          tone: .error,
         );
       }
     } catch (error, stackTrace) {
@@ -51,7 +49,7 @@ class KeepAliveStatusBarControl extends ConsumerWidget {
         AleraToast.show(
           context,
           message: 'Could not keep this computer awake.',
-          tone: AleraToastTone.error,
+          tone: .error,
         );
       }
     }

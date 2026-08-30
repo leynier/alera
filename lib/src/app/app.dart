@@ -11,9 +11,7 @@ import 'package:alera/src/features/desktop_presence/presentation/desktop_presenc
 import 'package:alera/src/features/runtime_host/presentation/runtime_host_quit_gate_scope.dart';
 import 'package:flutter/material.dart';
 
-class AleraApp extends StatelessWidget {
-  const AleraApp({super.key});
-
+class const AleraApp({super.key}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
@@ -40,7 +38,7 @@ class AleraApp extends StatelessWidget {
       },
       theme: aleraDarkTheme,
       darkTheme: aleraDarkTheme,
-      themeMode: ThemeMode.dark,
+      themeMode: .dark,
     );
   }
 }

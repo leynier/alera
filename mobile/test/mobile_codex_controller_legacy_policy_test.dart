@@ -9,9 +9,8 @@ void main() {
     final client = FakeMobileCodexClient(supportsCodexTurnPolicy: false);
     final container = ProviderContainer(
       overrides: [
-        mobileCodexClientProvider(
-          'host-legacy',
-        ).overrideWith((ref) async => client),
+        mobileCodexClientProvider('host-legacy')
+            .overrideWith((ref) async => client),
       ],
     );
     addTearDown(() {

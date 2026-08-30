@@ -19,7 +19,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'fake_recording_process_runner.dart';
 
 const _identity = GitRemoteIdentity(
-  provider: GitHostingProvider.gitlab,
+  provider: .gitlab,
   host: 'gitlab.acme.test:8443',
   owner: 'platform/mobile',
   repo: 'alera',
@@ -134,9 +134,8 @@ ${_reviewJson.trim()}
 {"head_pipeline":{"id":100,"status":"success","web_url":"https://gitlab.acme.test:8443/pipelines/100"}}
 '''),
       ]);
-      final checks = await GitLabForgeProvider(
-        runner,
-      ).getChecks(identity: _identity, repoPath: '/repo', number: 42);
+      final checks = await GitLabForgeProvider(runner)
+          .getChecks(identity: _identity, repoPath: '/repo', number: 42);
       expect(checks, hasLength(1));
       expect(checks.single.name, 'Pipeline #100');
       expect(checks.single.conclusion, ReviewCheckConclusion.success);
@@ -225,7 +224,7 @@ ${_reviewJson.trim()}
           repoPath: '/repo',
           number: 42,
           locator: const ReviewCommentLocator(
-            source: ReviewCommentSource.conversation,
+            source: .conversation,
             commentId: '7',
           ),
           body: '- [x] exact',
@@ -248,7 +247,7 @@ ${_reviewJson.trim()}
           repoPath: '/repo',
           number: 42,
           locator: const ReviewCommentLocator(
-            source: ReviewCommentSource.reviewThread,
+            source: .reviewThread,
             commentId: '8',
             parentId: 'discussion-1',
           ),
@@ -276,7 +275,7 @@ ${_reviewJson.trim()}
         identity: _identity,
         repoPath: '/repo',
         input: const CreateReviewInput(
-          provider: GitHostingProvider.gitlab,
+          provider: .gitlab,
           title: 'feat: gitlab',
           baseBranch: 'main',
           headBranch: 'feature',
@@ -340,7 +339,7 @@ ${_reviewJson.trim()}
           identity: _identity,
           repoPath: '/repo',
           number: 42,
-          method: ReviewMergeMethod.rebase,
+          method: .rebase,
         ),
         throwsA(isA<ForgeRequestFailed>()),
       );

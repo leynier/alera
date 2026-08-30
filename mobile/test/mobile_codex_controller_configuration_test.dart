@@ -18,9 +18,8 @@ void mobileCodexConfigurationTest() {
     );
     final container = ProviderContainer(
       overrides: [
-        mobileCodexClientProvider(
-          'host-config',
-        ).overrideWith((ref) async => client),
+        mobileCodexClientProvider('host-config')
+            .overrideWith((ref) async => client),
       ],
     );
     addTearDown(() {

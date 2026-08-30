@@ -1,4 +1,5 @@
 import 'dart:convert';
+
 import 'package:alera_mobile/src/features/accounts/application/cloud_account_providers.dart';
 import 'package:alera_mobile/src/features/accounts/application/cloud_relay_identity_repository.dart';
 import 'package:alera_mobile/src/features/accounts/application/relay_identity_controller.dart';
@@ -6,54 +7,47 @@ import 'package:alera_mobile/src/features/accounts/domain/cloud_account_session.
 import 'package:alera_mobile/src/features/accounts/infra/alera_cloud_api.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+
 import 'support/memory_cloud_account_repository.dart';
 
 void main() {
-  test(
-    'Concurrent connections share registration and recover a version conflict once',
-    () async {
-      final repository = _IdentityRepository();
-      final api = _RelayApi();
-      final session = CloudAccountSession(
-        account: const CloudAccountProfile(
-          id: 'account',
-          email: 'a@example.test',
+  test('Concurrent connections share registration and recover a version conflict once', () async {
+    final repository = _IdentityRepository();
+    final api = _RelayApi();
+    final session = CloudAccountSession(
+      account: const CloudAccountProfile(
+        id: 'account',
+        email: 'a@example.test',
+      ),
+      accessToken: 'access',
+      refreshToken: 'refresh',
+      accessTokenExpiresAt: DateTime.now().add(const Duration(hours: 1)),
+    );
+    final container = ProviderContainer(
+      overrides: [
+        cloudAccountRepositoryProvider.overrideWithValue(
+          MemoryCloudAccountRepository([session]),
         ),
-        accessToken: 'access',
-        refreshToken: 'refresh',
-        accessTokenExpiresAt: DateTime.now().add(const Duration(hours: 1)),
-      );
-      final container = ProviderContainer(
-        overrides: [
-          cloudAccountRepositoryProvider.overrideWithValue(
-            MemoryCloudAccountRepository([session]),
-          ),
-          cloudRelayIdentityRepositoryProvider.overrideWithValue(repository),
-          aleraRelayCloudApiProvider.overrideWithValue(api),
-        ],
-      );
-      addTearDown(container.dispose);
-      final controller = container.read(
-        relayIdentityControllerProvider.notifier,
-      );
-      final identities = await Future.wait(
-        List.generate(8, (_) => controller.requireIdentity('account')),
-      );
-      expect(api.versions, [1, 2]);
-      expect(repository.rotations, 1);
-      expect(
-        identities.every((key) => identical(key, identities.first)),
-        isTrue,
-      );
-      await controller.requireIdentity('account');
-      expect(api.versions, [1, 2]);
-    },
-  );
+        cloudRelayIdentityRepositoryProvider.overrideWithValue(repository),
+        aleraRelayCloudApiProvider.overrideWithValue(api),
+      ],
+    );
+    addTearDown(container.dispose);
+    final controller = container.read(relayIdentityControllerProvider.notifier);
+    final identities = await Future.wait(
+      List.generate(8, (_) => controller.requireIdentity('account')),
+    );
+    expect(api.versions, [1, 2]);
+    expect(repository.rotations, 1);
+    expect(identities.every((key) => identical(key, identities.first)), isTrue);
+    await controller.requireIdentity('account');
+    expect(api.versions, [1, 2]);
+  });
 }
 
 class _IdentityRepository implements VersionedCloudRelayIdentityRepository {
   CloudRelayIdentity value = CloudRelayIdentity(
-    base64UrlEncode(List.filled(32, 7)),
+    base64UrlEncode(.filled(32, 7)),
     1,
   );
   int rotations = 0;
@@ -70,7 +64,7 @@ class _IdentityRepository implements VersionedCloudRelayIdentityRepository {
   ) async {
     rotations++;
     return value = CloudRelayIdentity(
-      base64UrlEncode(List.filled(32, 8)),
+      base64UrlEncode(.filled(32, 8)),
       previous.keyVersion + 1,
     );
   }

@@ -1,3 +1,5 @@
+import 'package:alera_mobile/src/features/workbench/presentation/section_picker_sheet.dart';
+
 import 'dart:async';
 
 import 'package:alera_mobile/src/app/theme/alera_tokens.dart';
@@ -35,11 +37,10 @@ enum _ScreenMenuAction { projects, quotas, settings, hostDetails, renameHost }
 
 /// Host detail screen: the workspace list mirroring the desktop sidebar,
 /// with pinning, project grouping, and the parent/child tree.
-class RuntimeWorkspacesScreen extends ConsumerWidget {
-  const RuntimeWorkspacesScreen({super.key, required this.host});
-
-  final PairedHostProfile host;
-
+class const RuntimeWorkspacesScreen({
+  super.key,
+  required final PairedHostProfile host,
+}) extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final data = ref.watch(workspaceListControllerProvider(host.id));
@@ -56,9 +57,9 @@ class RuntimeWorkspacesScreen extends ConsumerWidget {
       appBar: AppBar(
         centerTitle: true,
         title: Stack(
-          clipBehavior: Clip.none,
+          clipBehavior: .none,
           children: <Widget>[
-            Text(currentHost.effectiveName, overflow: TextOverflow.ellipsis),
+            Text(currentHost.effectiveName, overflow: .ellipsis),
             Positioned(
               right: -AleraTokens.space12,
               top: -AleraTokens.space2,
@@ -79,23 +80,23 @@ class RuntimeWorkspacesScreen extends ConsumerWidget {
                 _handleMenu(context, ref, action, currentHost),
             itemBuilder: (context) => const <PopupMenuEntry<_ScreenMenuAction>>[
               PopupMenuItem<_ScreenMenuAction>(
-                value: _ScreenMenuAction.projects,
+                value: .projects,
                 child: Text('Projects'),
               ),
               PopupMenuItem<_ScreenMenuAction>(
-                value: _ScreenMenuAction.quotas,
+                value: .quotas,
                 child: Text('Quotas'),
               ),
               PopupMenuItem<_ScreenMenuAction>(
-                value: _ScreenMenuAction.settings,
+                value: .settings,
                 child: Text('Settings'),
               ),
               PopupMenuItem<_ScreenMenuAction>(
-                value: _ScreenMenuAction.hostDetails,
+                value: .hostDetails,
                 child: Text('Host Details'),
               ),
               PopupMenuItem<_ScreenMenuAction>(
-                value: _ScreenMenuAction.renameHost,
+                value: .renameHost,
                 child: Text('Rename Host'),
               ),
             ],
@@ -237,23 +238,18 @@ class RuntimeWorkspacesScreen extends ConsumerWidget {
   }
 }
 
-class _WorkspaceListBody extends ConsumerWidget {
-  const _WorkspaceListBody({
-    required this.hostId,
-    required this.data,
-    required this.prefs,
-  });
-
-  final String hostId;
-  final WorkspaceListData data;
-  final MobileViewPrefs prefs;
-
+class const _WorkspaceListBody({
+  required final String hostId,
+  required final WorkspaceListData data,
+  required final MobileViewPrefs prefs,
+}) extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final expandedWorkspaceIds =
         ref.watch(workspaceAgentExpansionControllerProvider(hostId)).value ??
         const <String>{};
     final rows = buildMobileWorkspaceRows(
+      sections: data.sections,
       workspaces: data.workspaces,
       projects: data.projects,
       prefs: prefs,
@@ -287,7 +283,7 @@ class _WorkspaceListBody extends ConsumerWidget {
             titleSpacing: 0,
             centerTitle: false,
             title: SizedBox(
-              width: double.infinity,
+              width: .infinity,
               child: _WorkspaceToolbar(hostId: hostId, data: data),
             ),
           ),
@@ -297,6 +293,11 @@ class _WorkspaceListBody extends ConsumerWidget {
               delegate: SliverChildBuilderDelegate((context, index) {
                 final row = rows[index];
                 return switch (row) {
+                  MobileCustomSectionHeaderRow() => MobileCustomSectionHeader(
+                    hostId: hostId,
+                    row: row,
+                    supportsSections: data.supportsSections,
+                  ),
                   MobilePinnedHeaderRow(:final count, :final collapsed) =>
                     MobileSectionHeader(
                       label: 'Pinned',
@@ -348,9 +349,8 @@ class _WorkspaceListBody extends ConsumerWidget {
                     ),
                     onToggleAgents: () => ref
                         .read(
-                          workspaceAgentExpansionControllerProvider(
-                            hostId,
-                          ).notifier,
+                          workspaceAgentExpansionControllerProvider(hostId)
+                              .notifier,
                         )
                         .toggle(row.entry.workspace.id),
                     onAgentTap: (status) {
@@ -408,12 +408,10 @@ class _WorkspaceListBody extends ConsumerWidget {
   }
 }
 
-class _WorkspaceToolbar extends ConsumerWidget {
-  const _WorkspaceToolbar({required this.hostId, required this.data});
-
-  final String hostId;
-  final WorkspaceListData? data;
-
+class const _WorkspaceToolbar({
+  required final String hostId,
+  required final WorkspaceListData? data,
+}) extends ConsumerWidget {
   /// Dense search row plus vertical padding; drives [SliverAppBar.toolbarHeight].
   static const double extent =
       AleraTextField.denseHeight + AleraTokens.spaceSm * 2;
@@ -463,12 +461,10 @@ class _WorkspaceToolbar extends ConsumerWidget {
   }
 }
 
-class _ConnectionError extends StatelessWidget {
-  const _ConnectionError({required this.error, required this.onRetry});
-
-  final Object error;
-  final VoidCallback onRetry;
-
+class const _ConnectionError({
+  required final Object error,
+  required final VoidCallback onRetry,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final updateRequired = error is UnsupportedError;

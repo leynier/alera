@@ -522,6 +522,13 @@ impl ServerActor {
                 }
                 self.apply_mobile_runtime_settings(payload).await
             }
+            "workspaceSection.list"
+            | "workspaceSection.create"
+            | "workspaceSection.setForWorkspace"
+            | "workspaceSection.remove" => {
+                self.workspace_section_request(client_id, request_type, payload)
+                    .await
+            }
             "workspaceSidebar.snapshot" => self.workspace_sidebar_snapshot(client_id).await,
             "workbenchViewPrefs.get" => self.workbench_view_prefs(client_id).await,
             "workbenchViewPrefs.update" => {

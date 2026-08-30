@@ -2,12 +2,10 @@ import 'package:alera_mobile/src/app/theme/alera_tokens.dart';
 import 'package:alera_mobile/src/features/terminal/domain/terminal_shortcut_builder.dart';
 import 'package:flutter/material.dart';
 
-class CustomKeySelection {
-  const CustomKeySelection({required this.key, required this.modifiers});
-
-  final String key;
-  final Set<TerminalShortcutModifier> modifiers;
-}
+class const CustomKeySelection({
+  required final String key,
+  required final Set<TerminalShortcutModifier> modifiers,
+});
 
 /// Picker for a custom quick key: a special key or single character plus
 /// Ctrl/Alt/Shift toggles, with a live preview of the resulting label.
@@ -18,9 +16,7 @@ Future<CustomKeySelection?> showCustomKeyDialog(BuildContext context) {
   );
 }
 
-class _CustomKeyDialog extends StatefulWidget {
-  const _CustomKeyDialog();
-
+class const _CustomKeyDialog() extends StatefulWidget {
   @override
   State<_CustomKeyDialog> createState() => _CustomKeyDialogState();
 }
@@ -61,8 +57,8 @@ class _CustomKeyDialogState extends State<_CustomKeyDialog> {
       title: const Text('Add Custom Key'),
       content: SingleChildScrollView(
         child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: .min,
+          crossAxisAlignment: .start,
           children: <Widget>[
             DropdownButtonFormField<String?>(
               initialValue: _specialKey,
@@ -124,9 +120,8 @@ class _CustomKeyDialogState extends State<_CustomKeyDialog> {
             const SizedBox(height: AleraTokens.spaceMd),
             Text(
               preview == null ? 'Pick A Key' : preview.label,
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                fontFamily: AleraTokens.monoFontFamily,
-              ),
+              style: Theme.of(context).textTheme.titleMedium
+                  ?.copyWith(fontFamily: AleraTokens.monoFontFamily),
             ),
           ],
         ),

@@ -266,9 +266,9 @@ extension _MobileCodexScreenActions on _MobileCodexChatScreenState {
       if (!controller.supportsGoals) return false;
       switch (argument?.toLowerCase()) {
         case 'pause':
-          await controller.updateGoalStatus(MobileCodexGoalStatus.paused);
+          await controller.updateGoalStatus(.paused);
         case 'resume':
-          await controller.updateGoalStatus(MobileCodexGoalStatus.active);
+          await controller.updateGoalStatus(.active);
         case 'clear':
           await controller.clearGoal();
         case 'edit':
@@ -480,8 +480,4 @@ extension _MobileCodexScreenActions on _MobileCodexChatScreenState {
       ).hasMatch(draftText.trim());
 }
 
-class _MobileResumeCwdChoice {
-  const _MobileResumeCwdChoice(this.cwd);
-
-  final String? cwd;
-}
+class const _MobileResumeCwdChoice(final String? cwd);

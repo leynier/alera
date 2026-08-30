@@ -19,16 +19,13 @@ void main() {
     );
   });
 
-  test(
-    'browser title normalization drops trailing whitespace without growth',
-    () {
-      final normalized = normalizeAleraBrowserTitle(
-        '  Account${List.filled(aleraBrowserTitleMaximumBytes * 2, ' ').join()}',
-      );
+  test('browser title normalization drops trailing whitespace without growth', () {
+    final normalized = normalizeAleraBrowserTitle(
+      '  Account${List.filled(aleraBrowserTitleMaximumBytes * 2, ' ').join()}',
+    );
 
-      expect(normalized, 'Account');
-    },
-  );
+    expect(normalized, 'Account');
+  });
 
   test('browser title does not expose boundary whitespace as trailing', () {
     final normalized = normalizeAleraBrowserTitle(

@@ -7,8 +7,8 @@ extension _CodexSurfaceDialogs on _CodexChatSurfaceState {
         builder: (context) => AlertDialog(
           title: const Text('Codex Status'),
           content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: .min,
+            crossAxisAlignment: .start,
             children: <Widget>[
               Text('Workspace: ${state.activeCwd ?? widget.workspace.path}'),
               Text('Thread: ${widget.tab.title}'),

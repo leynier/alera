@@ -3,24 +3,15 @@ import 'package:flutter/material.dart';
 
 /// Base modal scaffold with Alera's surface, inset padding, radius and subtle
 /// border. Optionally constrains the content via [maxWidth] / [maxHeight].
-class AleraDialog extends StatelessWidget {
-  const AleraDialog({
-    super.key,
-    required this.child,
-    this.maxWidth,
-    this.maxHeight,
-    this.backgroundColor,
-    this.insetPadding,
-    this.elevation,
-  });
-
-  final Widget child;
-  final double? maxWidth;
-  final double? maxHeight;
-  final Color? backgroundColor;
-  final EdgeInsets? insetPadding;
-  final double? elevation;
-
+class const AleraDialog({
+  super.key,
+  required final Widget child,
+  final double? maxWidth,
+  final double? maxHeight,
+  final Color? backgroundColor,
+  final EdgeInsets? insetPadding,
+  final double? elevation,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     var constrained = child;

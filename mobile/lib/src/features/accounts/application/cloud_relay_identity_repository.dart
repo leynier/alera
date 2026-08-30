@@ -2,11 +2,7 @@ abstract interface class CloudRelayIdentityRepository {
   Future<String> getOrCreatePrivateKey(String accountId);
 }
 
-class CloudRelayIdentity {
-  const CloudRelayIdentity(this.privateKey, this.keyVersion);
-  final String privateKey;
-  final int keyVersion;
-}
+class const CloudRelayIdentity(final String privateKey, final int keyVersion);
 
 abstract interface class VersionedCloudRelayIdentityRepository
     implements CloudRelayIdentityRepository {

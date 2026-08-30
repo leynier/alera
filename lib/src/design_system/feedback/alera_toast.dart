@@ -4,17 +4,11 @@ import 'package:flutter/material.dart';
 
 enum AleraToastTone { success, error, info }
 
-class AleraToastData {
-  const AleraToastData({
-    required this.message,
-    required this.tone,
-    required this.duration,
-  });
-
-  final String message;
-  final AleraToastTone tone;
-  final Duration duration;
-}
+class const AleraToastData({
+  required final String message,
+  required final AleraToastTone tone,
+  required final Duration duration,
+});
 
 abstract final class AleraToast {
   static final StreamController<AleraToastData> _controller =

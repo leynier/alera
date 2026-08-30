@@ -1,36 +1,31 @@
 import 'dart:convert';
+
 import 'package:alera_configuration/alera_configuration.dart';
 import 'package:alera_mobile/src/app/theme/alera_tokens.dart';
 import 'package:flutter/material.dart';
 
-class AleraConfigurationReview extends StatelessWidget {
-  const AleraConfigurationReview({
-    super.key,
-    required this.target,
-    required this.state,
-    required this.onRefresh,
-    required this.onHistory,
-    required this.onRestore,
-    required this.onChoice,
-    required this.onRename,
-    required this.onChooseAll,
-    required this.onApply,
-    required this.onRetry,
-  });
-  final String target;
-  final ConfigurationScreenState state;
+class const AleraConfigurationReview({
+  super.key,
+  required final String target,
+  required final ConfigurationScreenState state,
+  required this.onRefresh,
+  required this.onHistory,
+  required final ValueChanged<int> onRestore,
+  required final void Function(ConfigurationDifference, ConfigurationChoice)
+  onChoice,
+  required final void Function(ConfigurationDifference, String) onRename,
+  required final ValueChanged<ConfigurationChoice> onChooseAll,
+  required final ValueChanged<bool> onApply,
+  required this.onRetry,
+}) extends StatelessWidget {
   final VoidCallback onRefresh, onHistory, onRetry;
-  final ValueChanged<int> onRestore;
-  final void Function(ConfigurationDifference, ConfigurationChoice) onChoice;
-  final void Function(ConfigurationDifference, String) onRename;
-  final ValueChanged<ConfigurationChoice> onChooseAll;
-  final ValueChanged<bool> onApply;
+
   @override
   Widget build(BuildContext context) {
     final review = state.review;
     final differences = review?.merge.differences ?? [];
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+      crossAxisAlignment: .stretch,
       children: [
         Text('Target: $target', style: Theme.of(context).textTheme.titleMedium),
         const SizedBox(height: AleraTokens.space12),
@@ -78,15 +73,11 @@ class AleraConfigurationReview extends StatelessWidget {
             spacing: AleraTokens.space8,
             children: [
               TextButton(
-                onPressed: state.busy
-                    ? null
-                    : () => onChooseAll(ConfigurationChoice.local),
+                onPressed: state.busy ? null : () => onChooseAll(.local),
                 child: const Text('Keep All Local'),
               ),
               TextButton(
-                onPressed: state.busy
-                    ? null
-                    : () => onChooseAll(ConfigurationChoice.remote),
+                onPressed: state.busy ? null : () => onChooseAll(.remote),
                 child: const Text('Keep All Remote'),
               ),
             ],
@@ -98,7 +89,7 @@ class AleraConfigurationReview extends StatelessWidget {
                 child: Padding(
                   padding: const EdgeInsets.all(AleraTokens.space12),
                   child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    crossAxisAlignment: .stretch,
                     children: [
                       Text(
                         difference.label,
@@ -118,11 +109,11 @@ class AleraConfigurationReview extends StatelessWidget {
                         hint: const Text('Choose A Value'),
                         items: const [
                           DropdownMenuItem(
-                            value: ConfigurationChoice.local,
+                            value: .local,
                             child: Text('Keep Local'),
                           ),
                           DropdownMenuItem(
-                            value: ConfigurationChoice.remote,
+                            value: .remote,
                             child: Text('Keep Remote'),
                           ),
                         ],
@@ -207,8 +198,7 @@ class AleraConfigurationReview extends StatelessWidget {
     if (local ? difference.localAbsent : difference.remoteAbsent) {
       return '(Removed)';
     }
-    return const JsonEncoder.withIndent(
-      '  ',
-    ).convert(local ? difference.local : difference.remote);
+    return const JsonEncoder.withIndent('  ')
+        .convert(local ? difference.local : difference.remote);
   }
 }

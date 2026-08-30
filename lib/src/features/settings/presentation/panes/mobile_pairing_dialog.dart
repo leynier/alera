@@ -12,23 +12,18 @@ import 'package:flutter/services.dart';
 /// Shows the one-time pairing payload as a QR plus copyable JSON. The pairing
 /// secret cannot be recovered after this dialog closes; only cancel and
 /// regenerate remain possible from the offers list.
-class MobilePairingDialog extends StatefulWidget {
-  const MobilePairingDialog({
-    super.key,
-    required this.grant,
-    required this.onCancelOffer,
-  });
-
-  final MobilePairingOfferGrant grant;
-  final Future<void> Function() onCancelOffer;
-
+class const MobilePairingDialog({
+  super.key,
+  required final MobilePairingOfferGrant grant,
+  required final Future<void> Function() onCancelOffer,
+}) extends StatefulWidget {
   @override
   State<MobilePairingDialog> createState() => _MobilePairingDialogState();
 }
 
 class _MobilePairingDialogState extends State<MobilePairingDialog> {
   Timer? _ticker;
-  Duration _remaining = Duration.zero;
+  Duration _remaining = .zero;
   bool _copied = false;
   bool _cancelling = false;
 
@@ -94,8 +89,8 @@ class _MobilePairingDialogState extends State<MobilePairingDialog> {
       child: Padding(
         padding: const EdgeInsets.all(AleraTokens.space20),
         child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
+          mainAxisSize: .min,
+          crossAxisAlignment: .stretch,
           children: <Widget>[
             AleraDialogHeader(
               title: 'Link Mobile Device',
@@ -108,7 +103,7 @@ class _MobilePairingDialogState extends State<MobilePairingDialog> {
                       width: 240,
                       height: 240,
                       child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
+                        mainAxisAlignment: .center,
                         children: <Widget>[
                           const Icon(
                             AleraIcons.qrCode,
@@ -118,7 +113,7 @@ class _MobilePairingDialogState extends State<MobilePairingDialog> {
                           const SizedBox(height: AleraTokens.space12),
                           Text(
                             'Offer expired - generate a new one',
-                            textAlign: TextAlign.center,
+                            textAlign: .center,
                             style: theme.textTheme.bodyMedium?.copyWith(
                               color: AleraTokens.foregroundMuted,
                             ),
@@ -131,18 +126,18 @@ class _MobilePairingDialogState extends State<MobilePairingDialog> {
             const SizedBox(height: AleraTokens.space16),
             Text(
               'Scan with the Alera mobile app',
-              textAlign: TextAlign.center,
+              textAlign: .center,
               style: theme.textTheme.bodyMedium?.copyWith(
                 color: AleraTokens.foreground,
-                fontWeight: FontWeight.w600,
+                fontWeight: .w600,
               ),
             ),
             const SizedBox(height: AleraTokens.space4),
             Text(
               '${widget.grant.hostName} · ${widget.grant.endpoint}',
-              textAlign: TextAlign.center,
+              textAlign: .center,
               maxLines: 1,
-              overflow: TextOverflow.ellipsis,
+              overflow: .ellipsis,
               style: theme.textTheme.bodySmall?.copyWith(
                 color: AleraTokens.foregroundMuted,
               ),
@@ -150,7 +145,7 @@ class _MobilePairingDialogState extends State<MobilePairingDialog> {
             const SizedBox(height: AleraTokens.space4),
             Text(
               _expired ? 'Offer expired' : _countdownLabel,
-              textAlign: TextAlign.center,
+              textAlign: .center,
               style: theme.textTheme.bodySmall?.copyWith(
                 color: _expired ? AleraTokens.error : AleraTokens.warning,
               ),

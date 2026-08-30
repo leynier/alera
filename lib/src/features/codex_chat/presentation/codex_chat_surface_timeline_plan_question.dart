@@ -1,19 +1,12 @@
 part of 'codex_chat_surface.dart';
 
-class _CodexPlanQuestionCard extends StatefulWidget {
-  const _CodexPlanQuestionCard({
-    super.key,
-    required this.onInteraction,
-    required this.onImplement,
-    required this.onDecline,
-    required this.onRefine,
-  });
-
-  final VoidCallback onInteraction;
-  final Future<void> Function() onImplement;
-  final Future<void> Function() onDecline;
-  final Future<void> Function(String refinement) onRefine;
-
+class const _CodexPlanQuestionCard({
+  super.key,
+  required final VoidCallback onInteraction,
+  required final Future<void> Function() onImplement,
+  required final Future<void> Function() onDecline,
+  required final Future<void> Function(String refinement) onRefine,
+}) extends StatefulWidget {
   @override
   State<_CodexPlanQuestionCard> createState() => _CodexPlanQuestionCardState();
 }
@@ -38,8 +31,8 @@ class _CodexPlanQuestionCardState extends State<_CodexPlanQuestionCard> {
       closeTooltip: 'Decline Plan',
     ),
     body: Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: .min,
+      crossAxisAlignment: .stretch,
       children: <Widget>[
         _CodexPromptOptionRow(
           index: 1,

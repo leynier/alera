@@ -22,13 +22,9 @@ part 'gitlab_review_actions.dart';
 part 'gitlab_review_comments.dart';
 
 /// GitLab forge integration backed by the official `glab` CLI.
-class GitLabForgeProvider
+class const GitLabForgeProvider(final ProcessRunner _processRunner)
     with _GitLabReviewActions, _GitLabReviewComments
     implements ForgeProvider {
-  const GitLabForgeProvider(this._processRunner);
-
-  final ProcessRunner _processRunner;
-
   @override
   GitHostingProvider get id => GitHostingProvider.gitlab;
 
@@ -192,7 +188,7 @@ class GitLabForgeProvider
     ], repoPath);
     if (result == null) {
       return const CreateReviewFailure(
-        code: CreateReviewErrorCode.cliMissing,
+        code: .cliMissing,
         message: 'The glab CLI was not found on PATH.',
       );
     }
@@ -215,7 +211,7 @@ class GitLabForgeProvider
       return CreateReviewSuccess(review);
     }
     return const CreateReviewFailure(
-      code: CreateReviewErrorCode.unknown,
+      code: .unknown,
       message: 'The merge request was created but could not be read back.',
     );
   }
@@ -242,7 +238,7 @@ class GitLabForgeProvider
     ], repoPath);
     if (result == null) {
       return const UpdateReviewFailure(
-        code: UpdateReviewErrorCode.cliMissing,
+        code: .cliMissing,
         message: 'The glab CLI was not found on PATH.',
       );
     }
@@ -256,7 +252,7 @@ class GitLabForgeProvider
     );
     return review == null
         ? const UpdateReviewFailure(
-            code: UpdateReviewErrorCode.unknown,
+            code: .unknown,
             message:
                 'The merge request was updated but could not be read back.',
           )
@@ -393,13 +389,13 @@ class GitLabForgeProvider
   CreateReviewFailure _mapCreateFailure(ProcessRunOutput result) {
     if (_looksMissing(result)) {
       return const CreateReviewFailure(
-        code: CreateReviewErrorCode.cliMissing,
+        code: .cliMissing,
         message: 'The glab CLI was not found on PATH.',
       );
     }
     if (_looksUnauthenticated(result.stderr)) {
       return const CreateReviewFailure(
-        code: CreateReviewErrorCode.notAuthenticated,
+        code: .notAuthenticated,
         message: 'Run `glab auth login` to authenticate.',
       );
     }
@@ -407,12 +403,12 @@ class GitLabForgeProvider
     if (lower.contains('already exists') ||
         lower.contains('another open merge request')) {
       return const CreateReviewFailure(
-        code: CreateReviewErrorCode.alreadyExists,
+        code: .alreadyExists,
         message: 'A merge request already exists for this branch.',
       );
     }
     return CreateReviewFailure(
-      code: CreateReviewErrorCode.unknown,
+      code: .unknown,
       message: result.stderr.trim().isEmpty
           ? 'glab mr create failed.'
           : result.stderr.trim(),
@@ -422,18 +418,18 @@ class GitLabForgeProvider
   UpdateReviewFailure _mapUpdateFailure(ProcessRunOutput result) {
     if (_looksMissing(result)) {
       return const UpdateReviewFailure(
-        code: UpdateReviewErrorCode.cliMissing,
+        code: .cliMissing,
         message: 'The glab CLI was not found on PATH.',
       );
     }
     if (_looksUnauthenticated(result.stderr)) {
       return const UpdateReviewFailure(
-        code: UpdateReviewErrorCode.notAuthenticated,
+        code: .notAuthenticated,
         message: 'Run `glab auth login` to authenticate.',
       );
     }
     return UpdateReviewFailure(
-      code: UpdateReviewErrorCode.unknown,
+      code: .unknown,
       message: result.stderr.trim().isEmpty
           ? 'glab mr update failed.'
           : result.stderr.trim(),

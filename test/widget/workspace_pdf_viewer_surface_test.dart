@@ -109,8 +109,8 @@ Workspace _workspace() {
     path: '/repo/alera',
     createdAt: now,
     updatedAt: now,
-    kind: WorkspaceKind.main,
-    status: WorkspaceStatus.active,
+    kind: .main,
+    status: .active,
   );
 }
 
@@ -120,7 +120,7 @@ WorkspaceTabRecord _tab(String id, String filePath) {
     id: id,
     workspaceId: 'workspace-1',
     title: filePath,
-    kind: WorkspaceTabKind.pdf,
+    kind: .pdf,
     payload: <String, Object?>{workspaceTabFilePathPayloadKey: filePath},
     createdAt: now,
     updatedAt: now,

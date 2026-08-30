@@ -15,10 +15,10 @@ import 'fake_forge_provider.dart';
 import 'fake_git_backend.dart';
 
 HostedReview _review(int number, {DateTime? createdAt}) => HostedReview(
-  provider: GitHostingProvider.github,
+  provider: .github,
   number: number,
   title: 'feat: $number',
-  state: HostedReviewState.open,
+  state: .open,
   url: 'https://github.com/leynier/alera/pull/$number',
   headBranch: 'feature',
   createdAt: createdAt,
@@ -112,11 +112,7 @@ void main() {
     final forge = FakeForgeProvider()
       ..branchReview = _review(123)
       ..checks = const <ReviewCheck>[
-        ReviewCheck(
-          name: 'build',
-          status: ReviewCheckStatus.completed,
-          conclusion: ReviewCheckConclusion.success,
-        ),
+        ReviewCheck(name: 'build', status: .completed, conclusion: .success),
       ];
     final repo = FakeLinkedReviewRepository();
     final container = _container(forge: forge, repo: repo);
@@ -160,7 +156,7 @@ void main() {
   test('legacy dismissals ignore old PRs but allow newer PRs', () async {
     final dismissalTime = DateTime.utc(2026, 7, 10);
     final forge = FakeForgeProvider()
-      ..branchReview = _review(123, createdAt: DateTime.utc(2026, 7, 9));
+      ..branchReview = _review(123, createdAt: .utc(2026, 7, 9));
     final repo = FakeLinkedReviewRepository()
       ..store['w1'] = LinkedReview.dismissal(
         workspaceId: 'w1',
@@ -175,7 +171,7 @@ void main() {
     expect(initial.review, isNull);
     expect(initial.suggestedReview?.number, 123);
 
-    forge.branchReview = _review(124, createdAt: DateTime.utc(2026, 7, 11));
+    forge.branchReview = _review(124, createdAt: .utc(2026, 7, 11));
     await container
         .read(workspacePullRequestControllerProvider(_scope).notifier)
         .refresh();
