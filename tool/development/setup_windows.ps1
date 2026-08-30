@@ -9,8 +9,8 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
 $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path
-$requiredFlutterVersion = [version]'3.44.8'
-$minimumDartVersion = [version]'3.12.1'
+$requiredFlutterVersion = [version]'3.47.2'
+$minimumDartVersion = [version]'3.13.2'
 $requiredZigVersion = [version]'0.16.0'
 $requiredRustToolchain = '1.96'
 $requiredVulkanSdkVersion = '1.4.350.0'

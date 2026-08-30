@@ -326,11 +326,11 @@ class _MobileQuestionCardState extends State<_MobileQuestionCard> {
   Future<void> _skip() async {
     if (_submitting) return;
     setState(() => _submitting = true);
-    await widget.controller
-        .respondQuestion(widget.request, <String, List<String>>{
-          for (final question in widget.request.questions)
-            question.id: const <String>[],
-        });
+    final answers = <String, List<String>>{
+      for (final question in widget.request.questions)
+        question.id: const <String>[],
+    };
+    await widget.controller.respondQuestion(widget.request, answers);
     if (mounted) setState(() => _submitting = false);
   }
 

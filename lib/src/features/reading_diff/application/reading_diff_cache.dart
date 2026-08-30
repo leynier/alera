@@ -53,7 +53,7 @@ class FileReadingDiffCache implements ReadingDiffCache {
         return null;
       }
       final encoded = await file.readAsString();
-      return Isolate.run(() => _decodeReadingDiffResult(encoded));
+      return await Isolate.run(() => _decodeReadingDiffResult(encoded));
     } catch (_) {
       return null;
     }

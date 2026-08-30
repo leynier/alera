@@ -1,13 +1,13 @@
 import 'package:alera/src/design_system/alera_preview.dart';
 import 'package:alera/src/features/agent_quota/domain/agent_quota.dart';
-import 'package:alera/src/features/agent_quota/presentation/agent_quota_status_bar.dart';
+import 'package:alera/src/features/agent_quota/presentation/agent_quota_status_bar_content.dart';
 import 'package:alera/src/features/settings/domain/alera_settings.dart';
 import 'package:flutter/material.dart';
 
 @AleraPreview(name: 'Agent Quotas', group: 'Status Bar')
 Widget agentQuotaStatusBarPreview() => SizedBox(
   width: 1100,
-  child: AgentQuotaStatusBarView(
+  child: AgentQuotaStatusBarContent(
     hostId: 'local',
     settings: const AgentQuotaHostSettings(
       claudeProfiles: <ClaudeQuotaProfileSettings>[
@@ -25,7 +25,7 @@ Widget agentQuotaStatusBarPreview() => SizedBox(
 @AleraPreview(name: 'Agent Quotas - Unpinned', group: 'Status Bar')
 Widget agentQuotaStatusBarUnpinnedPreview() => SizedBox(
   width: 1100,
-  child: AgentQuotaStatusBarView(
+  child: AgentQuotaStatusBarContent(
     hostId: 'local',
     settings: const AgentQuotaHostSettings(
       claudeProfiles: <ClaudeQuotaProfileSettings>[

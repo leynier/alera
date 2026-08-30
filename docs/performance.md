@@ -81,6 +81,20 @@ flutter test integration_test/terminal_flush_cadence_benchmark.dart -d linux
 
 The first drives xterm directly and pumps its own frames, reporting what a frame costs (`BENCH_PUMP_MS` sets the cadence). The second feeds output through `XtermTerminalRuntime` and lets the runtime schedule the flushes, reporting flushes per second and process CPU. The 2026-08-01 five-sample comparison reduced the median from 29.0 to 19.5 flushes/s and from 89.9% to 76.7% of one core. Neither is a pass/fail test; run one before and after a rendering change and compare.
 
+## Flutter 3.47 Linux Renderer
+
+Linux explicitly retains Skia in `linux/runner/my_application.cc`. Flutter 3.47 enables Impeller by default, but the upgrade comparison on the development machine found substantially higher terminal CPU and raster time. This uses Flutter's [supported Linux renderer opt-out](https://docs.flutter.dev/perf/impeller); macOS, Windows, and mobile retain their SDK defaults.
+
+The initial comparison used Flutter 3.44.8 and 3.47.2, the same xterm2 revision (`45d34138`), native Linux debug builds, a 162x44-cell terminal, the default 16 ms pump delay, and five eight-second samples per scenario. Values below are medians; CPU is a percentage of one core, not the whole machine.
+
+| Scenario | 3.44.8 CPU | 3.47.2 Impeller CPU | 3.44.8 Raster | 3.47.2 Impeller Raster |
+| --- | ---: | ---: | ---: | ---: |
+| One line per frame | 47.1% | 84.2% | 4.67 ms | 15.77 ms |
+| One screenful per frame | 53.0% | 91.3% | 5.71 ms | 16.92 ms |
+| Runtime flush cadence | 65.6% | 116.9% | 5.57 ms | 13.40 ms |
+
+The host is an Intel Core Ultra 9 285H with 16 logical CPUs and Intel graphics on Ubuntu 26.04.1 / Mesa 26.0.8. It is a shared development desktop, not a dedicated benchmark runner. Separate SDK batches showed appreciable variation, so the final comparison alternates SDK order and reports raw samples, medians, and MAD. The no-output render scenario deliberately pumps frames; it must not be presented as idle application CPU. Final comparison results and their source revision are recorded in [upgrade PR #585](https://github.com/leynier/alera/pull/585). Keep the existing three-second restore target and investigate reproducible median CPU or latency regressions above 10% without changing benchmark budgets.
+
 ## Terminal Restore Harness
 
 Run:

@@ -250,14 +250,12 @@ mixin MobileRuntimeWorkspaceClient {
               ? start + maxPromptImageChunkBytes
               : bytes.length;
           final chunk = bytes.sublist(start, end);
-          final response = await requestMap(
-            'mobile.promptImage.chunk',
-            <String, Object?>{
-              'uploadId': uploadId,
-              'offset': offset,
-              'dataBase64': base64Encode(chunk),
-            },
-          );
+          final response =
+              await requestMap('mobile.promptImage.chunk', <String, Object?>{
+                'uploadId': uploadId,
+                'offset': offset,
+                'dataBase64': base64Encode(chunk),
+              });
           final nextOffset = response['nextOffset'];
           final expectedOffset = offset + chunk.length;
           if (nextOffset is! int || nextOffset != expectedOffset) {

@@ -143,53 +143,33 @@ class _AutomationsDialogState extends ConsumerState<AutomationsDialog> {
                         spacing: AleraTokens.space8,
                         runSpacing: AleraTokens.space8,
                         children: <Widget>[
-                          _filter(
-                            'State',
-                            _stateFilter,
-                            <String?>[
-                              null,
-                              'draft',
-                              'active',
-                              'paused',
-                              'blocked',
-                              'archived',
-                              'trashed',
-                            ],
-                            (value) => setState(() => _stateFilter = value),
-                          ),
-                          _filter(
-                            'Project',
-                            _projectFilter,
-                            <String?>[
-                              null,
-                              ...items
-                                  .map((item) => item.projectId)
-                                  .whereType<String>()
-                                  .toSet(),
-                            ],
-                            (value) => setState(() => _projectFilter = value),
-                          ),
-                          _filter(
-                            'Profile',
-                            _profileFilter,
-                            <String?>[
-                              null,
-                              ...items
-                                  .map(_profileId)
-                                  .whereType<String>()
-                                  .toSet(),
-                            ],
-                            (value) => setState(() => _profileFilter = value),
-                          ),
-                          _filter(
-                            'Tag',
-                            _tagFilter,
-                            <String?>[
-                              null,
-                              ...items.expand((item) => item.tagIds).toSet(),
-                            ],
-                            (value) => setState(() => _tagFilter = value),
-                          ),
+                          _filter('State', _stateFilter, <String?>[
+                            null,
+                            'draft',
+                            'active',
+                            'paused',
+                            'blocked',
+                            'archived',
+                            'trashed',
+                          ], (value) => setState(() => _stateFilter = value)),
+                          _filter('Project', _projectFilter, <String?>[
+                            null,
+                            ...items
+                                .map((item) => item.projectId)
+                                .whereType<String>()
+                                .toSet(),
+                          ], (value) => setState(() => _projectFilter = value)),
+                          _filter('Profile', _profileFilter, <String?>[
+                            null,
+                            ...items
+                                .map(_profileId)
+                                .whereType<String>()
+                                .toSet(),
+                          ], (value) => setState(() => _profileFilter = value)),
+                          _filter('Tag', _tagFilter, <String?>[
+                            null,
+                            ...items.expand((item) => item.tagIds).toSet(),
+                          ], (value) => setState(() => _tagFilter = value)),
                           FilterChip(
                             label: const Text('Trash'),
                             selected: _includeTrashed,

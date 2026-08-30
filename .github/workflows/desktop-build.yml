@@ -111,6 +111,7 @@ jobs:
         uses: ./.github/actions/setup-flutter-workspace
         with:
           rust: 'true'
+          xvfb: 'true'
 
       - name: Tune Windows build environment
         if: runner.os == 'Windows'
@@ -132,6 +133,49 @@ jobs:
 
       - name: Build desktop app
         run: flutter build ${{ matrix.platform }} --release --dart-define=ALERA_FLAVOR=release
+
+      - name: Capture native typography at three scales
+        shell: bash
+        env:
+          # Flutter's test launcher expects the default development binary.
+          ALERA_FLAVOR: dev
+          PLATFORM: ${{ matrix.platform }}
+          ALERA_VISUAL_REVIEW_DIR: ${{ github.workspace }}/build/typography-review
+        run: |
+          set -euo pipefail
+          if [[ "$PLATFORM" == "linux" ]]; then
+            xvfb-run -a flutter test integration_test/typography_rendering_test.dart -d linux --reporter expanded
+          else
+            flutter test integration_test/typography_rendering_test.dart -d "$PLATFORM" --reporter expanded
+          fi
+
+      - name: Upload native typography captures
+        uses: actions/upload-artifact@v7
+        with:
+          name: typography-${{ matrix.platform }}
+          path: build/typography-review/*.png
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Verify macOS startup and desktop presence
+        if: matrix.platform == 'macos'
+        env:
+          ALERA_FLAVOR: dev
+        run: flutter test integration_test/desktop_presence_macos_test.dart -d macos --reporter expanded
+
+      - name: Verify Windows single-instance runner
+        if: matrix.platform == 'windows'
+        shell: pwsh
+        run: |
+          $cache = Get-Content build/windows/x64/CMakeCache.txt
+          $generator = ($cache | Select-String '^CMAKE_GENERATOR:INTERNAL=').Line.Split('=', 2)[1]
+          if (-not $generator) { throw 'Flutter CMake generator was not found' }
+          cmake -S windows/runner/tests -B build/windows-runner-tests -G $generator -A x64
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          cmake --build build/windows-runner-tests --config Release
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          ctest --test-dir build/windows-runner-tests -C Release --output-on-failure
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: Verify bundled helper and video runtimes
         shell: bash

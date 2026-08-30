@@ -288,6 +288,9 @@ static void my_application_activate(GApplication* application) {
   gtk_container_add(GTK_CONTAINER(window), box);
 
   g_autoptr(FlDartProject) project = fl_dart_project_new();
+  // Impeller regresses terminal streaming CPU and raster time on Linux.
+  // See docs/performance.md for the Flutter SDK comparison.
+  fl_dart_project_set_enable_impeller(project, FALSE);
   fl_dart_project_set_dart_entrypoint_arguments(
       project, self->dart_entrypoint_arguments);
 

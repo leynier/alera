@@ -20,6 +20,7 @@ version: 0.32.1+184
 
 environment:
   sdk: ^3.12.2
+  flutter: ">=3.47.2"
 
 # Dependencies specify other packages that your package needs in order to work.
 # To automatically upgrade your package dependencies to the latest versions
@@ -93,7 +94,8 @@ dev_dependencies:
 
 # The following section is specific to Flutter packages.
 flutter:
-
+  config:
+    enable-swift-package-manager: false
   # The following line ensures that the Material Icons font is
   # included with your application, so that you can use the icons in
   # the material Icons class.

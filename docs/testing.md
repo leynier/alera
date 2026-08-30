@@ -2,6 +2,8 @@
 
 This guide defines the default testing layers for Alera and the commands that should be used before shipping features, UI changes, and refactors.
 
+Native text rendering is covered by `flutter test integration_test/typography_rendering_test.dart -d <linux|macos|windows>`. Set `ALERA_VISUAL_REVIEW_DIR` to an absolute output directory to save PNG captures at 1x, 1.5x, and 2x text scales. `Desktop Builds` uploads these as `typography-<platform>` artifacts; review them alongside the goldens because the goldens obscure text and cannot validate native glyph rendering.
+
 ## Test Layers
 
 - Unit tests cover pure domain logic, controllers, repositories, command construction, parsers, and platform branches with the smallest possible setup.
@@ -49,6 +51,12 @@ flutter test integration_test -d macos
 ```
 
 Use `-d linux` or `-d windows` on those platforms. The checked-in E2E flow must use temporary directories, temporary databases, fake process runners, and fake terminal runtimes unless the test explicitly needs a native boundary.
+
+## Mobile Build Checks
+
+`Mobile Builds` validates changes to Flutter, mobile, and shared native dependencies on pull requests. It builds an Android release APK with the debug signing fallback, verifies its bundled native dependencies, and builds both an unsigned iOS device release and a debug simulator app on macOS. These checks use no distribution credentials and publish no applications. Desktop release compilation remains in the existing `Desktop Builds` workflow.
+
+Run the Android equivalent from `mobile/` with `flutter build apk --release`, then run `bash tool/release/verify_android_native_dependencies.sh mobile/build/app/outputs/flutter-apk` from the repository root. On macOS, run `flutter build ios --release --no-codesign` and `flutter build ios --simulator --debug --no-codesign` from `mobile/`. Keep APKs signed with the debug fallback off release channels; they cannot update release-signed installations.
 
 ## Performance Checks
 
