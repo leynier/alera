@@ -340,6 +340,10 @@ class _TerminalSurfaceState extends State<_TerminalSurface> {
       maxLines: mobileTerminalScrollbackLines,
       preserveOrphanCombiningMarks: true,
       allowITerm2ClipboardCapture: false,
+      allowKittyClipboard: false,
+      // Unset callbacks let TerminalView grant remote system clipboard access.
+      onClipboardStore: (_, _) {},
+      onClipboardQuery: (_) => null,
       onOutput: (data) => widget.onInput(data),
       onResize: (width, height, _, _) => _handleViewportResize(width, height),
       // This emulator is filled from restored history, and the program that

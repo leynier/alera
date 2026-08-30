@@ -6,7 +6,7 @@ Desktop and mobile now use `xterm2` 5.3.0 from the existing `third_party/xterm` 
 
 | Fork | Final `next` SHA | Purpose |
 | --- | --- | --- |
-| `leynier/xterm2` | `cd99d34fbcc4b2001418546c94dd7e3533251a12` | Upstream base plus focused compatibility, regression tests and renderer cache optimization |
+| `leynier/xterm2` | `45d341383e4d4e137c7e70efad0441babd74c561` | Upstream base plus focused compatibility, regression tests and renderer cache optimization |
 | `leynier/xterm.dart` | `dd37dbe3cb0ea5f2de529ba158395af062351e62` | Preserves legacy code through `14ebe14844b5f35cff20c582f09fd97dd6bedc28`, plus branch policy and CI documentation |
 | `leynier/dart_terminal` | `7bfb6c57f8da75742891ac27b568cc651f77501a` | Preserves `dca082113f7e7a04d465431440a765e71468d3ee`, plus branch links and workflow updates |
 
@@ -20,7 +20,7 @@ The [21-change preservation matrix](../third_party/xterm/ALERA_PATCHES.md) ident
 - Scrollback compaction preserves combining marks, wide-cell placeholders, hyperlink IDs and underline metadata. Copying blank columns preserves spaces without inserting spaces after wide glyphs or changing tab expansion.
 - Injected clipboard callbacks, contextual Ctrl+C, Shift selection during mouse reporting, wheel sensitivity, font weight and cursor blink settings remain available. Unnegotiated Shift+Enter retains CSI-u; negotiated Kitty/modifyOtherKeys behavior stays upstream.
 - OSC 8 links use native cell metadata instead of a second anchor tracker. Text URL detection, allowed URI schemes and activation modifiers remain in Alera, with tests for wrapping, overwrite, scrollback eviction and graphemes.
-- Native OSC 52 callbacks use Alera's strict decoder: existing permission gate, explicit selector validation, 128 KiB encoded-payload limit and no clipboard reads. Alera disables iTerm2 clipboard capture and does not attach a clipboard-query callback. Mobile gains no remote clipboard callback.
+- Native OSC 52 callbacks use Alera's strict decoder: existing permission gate, explicit selector validation, 128 KiB encoded-payload limit and no clipboard reads. Alera disables iTerm2 and Kitty clipboard extensions and supplies an explicit deny callback for clipboard queries. Mobile explicitly denies both remote clipboard callbacks, preventing TerminalView from installing system defaults.
 - Closing or replacing an emulator calls `Terminal.dispose()` in desktop and mobile, including snapshot rebuilds and reconnects. This cancels xterm2 timers and releases its additional resources.
 - The renderer keeps a bounded 2,048-entry paragraph cache with explicit native paragraph disposal. Linked LRU promotion and a plain ASCII cache hit avoid repeated hash removal/insertion and decoration work; styled/Unicode/selection rendering keeps the general path.
 
@@ -31,10 +31,10 @@ Local application validation uses isolated Flutter 3.44.8 / Dart 3.12.2 without 
 | Check | Result |
 | --- | --- |
 | xterm2 upstream baseline | 742 passed, two skipped, two existing text-scaler golden failures |
-| xterm2 fork | 851 non-golden tests passed, two skipped; static analysis clean |
-| xterm2 CI | [Final pinned commit CI](https://github.com/leynier/xterm2/actions/runs/33292022130) passed on Linux, macOS and Windows using Flutter 3.44.8 |
-| Alera desktop suite | Final complete run: 3,353 passed, one skipped (`flutter test --concurrency 2`) |
-| Alera mobile suite | 575 passed again against the final pin, including lifecycle/reconnect assertions |
+| xterm2 fork | 863 non-golden tests passed, two skipped; static analysis clean |
+| xterm2 CI | [Final pinned commit CI](https://github.com/leynier/xterm2/actions/runs/33293168080) passed on Linux, macOS and Windows using Flutter 3.44.8 |
+| Alera desktop suite | Final complete run: 3,356 passed, one skipped (`flutter test --concurrency 2`) |
+| Alera mobile suite | 576 passed against the reviewed pin with concurrency two, including focused clipboard denial and lifecycle/reconnect assertions |
 | Static analysis | Complete desktop and mobile analysis clean |
 | Link regressions | 14 passed, including native OSC 8 overwrite/reflow and grapheme URL offsets |
 | dart_terminal build/cache tests | 25 passed from the package directory |
@@ -50,7 +50,7 @@ Local application validation uses isolated Flutter 3.44.8 / Dart 3.12.2 without 
 
 The two upstream text-scaler golden tests retain their original images and are tagged `platform-golden`. CI gates all other tests and runs those goldens in a separate non-blocking step; unfiltered `flutter test` still reports their failures. They are not presented as passing checks.
 
-The final branch-policy commits change documentation and the disabled autotag workflow only. Runtime source and tests are identical to the validated xterm2 `52fec4dae89c9b8af6e7071096673fe4a5af4ba1` and dart_terminal `e7028139cd90a0676c0323b2ec5f4312d14c4932` pins.
+The initial branch-policy commits changed documentation and the disabled autotag workflow only. The platform build/input checks above predate the review corrections below; those application fixes are validated by Linux-hosted Flutter tests. The dart_terminal runtime remains identical to `e7028139cd90a0676c0323b2ec5f4312d14c4932`.
 
 For a repeatable local check, activate Flutter 3.44.8 only in the current process environment, initialize submodules, and run these commands from the indicated package directories. Native builds also require the project's platform toolchains; the Mac currently lacks CocoaPods.
 
@@ -82,6 +82,20 @@ The snapshot replay benchmark restored 2,560,000 bytes with a 1 MiB live backlog
 Before the final cache optimization, the cadence benchmark measured 18.7 versus 18.1 flushes/s and CPU 181.2% versus 180.7%, but raster median increased from 7.93 to 13.28 ms. Two later final-cache runs passed functionally but overlapped substantial compilation/test activity in other worktrees (33 then 30 input writes/s versus 74 at baseline, 35.02 then 47.91 ms raster; host load approximately 35 on 16 cores). They are not controlled comparisons and must not be used to attribute a regression to xterm2. Production pacing constants were not changed. Re-run cadence/restoration on an idle machine for a reliable final performance sign-off.
 
 An identical 20,000-line short-output scenario retaining 10,000 rows measured 687,616 bytes in cell backing buffers for both forks, unchanged after resizing 120 to 80 columns. This measures retained typed cell buffers only, not total process heap, native paragraphs or hyperlink-table memory. Compaction tests separately cover hyperlink and grapheme metadata preservation.
+
+## Review corrections
+
+A Codex review using `gpt-5.6-sol` with high effort against `origin/main` found three reproducible issues that the initial tests missed. The fixes passed 3,356 desktop tests (one skip), 576 mobile tests, and 863 fork tests (two skips, excluding the two inherited goldens), plus static analysis and fork CI on Linux/macOS/Windows. The review fixes preserve the migration policy:
+
+- Focused xterm2 views install system clipboard handlers when callbacks are unset. Desktop now explicitly denies queries while retaining gated writes; mobile explicitly denies both. Mounted, focused-view tests cover desktop permissions and mobile emulator replacement.
+- The generic 8 KiB OSC parser cap prevented larger authorized copies from reaching Alera's decoder. OSC 52 now permits the existing 128 KiB encoded payload after a bounded header, rejects extra fields, and preserves parser recovery across BEL/ST overflow boundaries. Other OSC sequences keep their original cap. A separate switch disables OSC 5522 in Alera, so it cannot bypass the policy limiting supported clipboard protocols.
+- At 4,096 retained native hyperlinks, upstream scanned both buffers for each subsequent allocation. Pruning now waits 256 rejected allocation attempts between scans, including when a scan reclaims only one slot. Storage remains bounded and referenced links remain intact; reclaiming erased links can lag by that bounded number of attempts. Regression tests cover eventual recovery and reset.
+
+The same 7,000-link scenario measured roughly 278-300 ms per 1,000 links after capacity before the fix and 4-25 ms afterward. This is a targeted parser benchmark, not a substitute for the render/cadence measurements above. Reproduce it from the fork with `dart run script/hyperlink_capacity_benchmark.dart`.
+
+An additional mobile full-suite run intermittently failed `A closed socket ends both streams` in `mobile_runtime_terminal_client_test.dart`; all eight cases passed in isolation, and the complete 576-test suite then passed with concurrency two. The socket implementation and its tests were not changed.
+
+The shared Puro Flutter 3.44.8 environment was removed externally during the review's first full desktop run, causing missing `flutter_tester` errors. That interrupted run is not a validation result. Subsequent review commands use a task-owned Flutter 3.44.8 / Dart 3.12.2 checkout under the backup directory's `flutter-sdk/`; this task did not change the global Flutter selection.
 
 ## Branch conservation and recovery
 

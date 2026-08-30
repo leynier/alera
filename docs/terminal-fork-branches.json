@@ -1,5 +1,5 @@
 {
-  "verifiedAt": "2026-08-30T04:17:55.272Z",
+  "verifiedAt": "2026-08-30T04:49:32.705Z",
   "backupDirectory": "/home/leynier/.codex/artifacts/alera-terminal-forks-20260829-6e04",
   "repositories": [
     {
@@ -129,7 +129,7 @@
     {
       "repository": "leynier/xterm2",
       "defaultBranch": "next",
-      "next": "cd99d34fbcc4b2001418546c94dd7e3533251a12",
+      "next": "45d341383e4d4e137c7e70efad0441babd74c561",
       "deleteBranchOnMerge": true,
       "archived": false,
       "tagsPreserved": 0,

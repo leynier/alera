@@ -97,6 +97,9 @@ xterm.Terminal _createSessionTerminal(_XtermTerminalSessionHandle handle) {
     reflowWithHiddenCursor: false,
     preserveOrphanCombiningMarks: true,
     allowITerm2ClipboardCapture: false,
+    allowKittyClipboard: false,
+    // An unset callback lets TerminalView install its system clipboard reader.
+    onClipboardQuery: (_) => null,
     clipboardDecoder: decodeTerminalOsc52Payload,
     maxLines: handle._settings.scrollbackLines,
     platform: _xtermTargetPlatform,

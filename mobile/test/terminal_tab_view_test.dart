@@ -16,7 +16,10 @@ import 'package:xterm2/xterm.dart';
 import 'support/fake_terminal_client.dart';
 import 'support/memory_accessory_layout_repository.dart';
 
+part 'terminal_tab_view_clipboard_cases.dart';
+
 void main() {
+  _registerTerminalClipboardSecurityTests();
   testWidgets(
     'Refresh control remounts the view and preserves terminal state',
     (tester) async {
