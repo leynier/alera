@@ -186,7 +186,7 @@ extension MobileAiDictationTranscription on MobileAiDictationController {
 
   Future<void> _restartSystemRecognition(int generation) async {
     try {
-      await Future<void>.delayed(const Duration(milliseconds: 100));
+      await Future.pause(const Duration(milliseconds: 100));
       final settings = _systemSettings;
       if (settings == null ||
           _systemStopRequested ||

@@ -55,7 +55,7 @@ final class NativeHelperManifest({
     return NativeHelperManifest(
       schemaVersion: 1,
       noticeDirectory: noticeDirectory,
-      assets: .unmodifiable(assets),
+      assets: .unmodifiableOf(assets),
     );
   }
 

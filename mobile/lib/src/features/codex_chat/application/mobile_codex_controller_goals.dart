@@ -22,7 +22,7 @@ extension MobileCodexControllerGoals on MobileCodexController {
         });
       } on Object catch (error, stackTrace) {
         if (attempt == 0) {
-          await Future<void>.delayed(.zero);
+          await Future.pause(.zero);
           continue;
         }
         if (_isUnsupportedMobileGoalApiError(error)) {

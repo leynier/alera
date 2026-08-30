@@ -162,7 +162,7 @@ void main() {
         .read(pushCoordinatorProvider.notifier)
         .reconcile()
         .whenComplete(() => secondFinished = true);
-    await Future<void>.delayed(const Duration(milliseconds: 10));
+    await Future.pause(const Duration(milliseconds: 10));
     expect(secondFinished, isFalse);
 
     api.registerGate!.complete();
@@ -195,7 +195,7 @@ Future<void> _waitFor(bool Function() predicate) async {
     if (predicate()) {
       return;
     }
-    await Future<void>.delayed(const Duration(milliseconds: 10));
+    await Future.pause(const Duration(milliseconds: 10));
   }
   fail('Condition Was Not Reached');
 }

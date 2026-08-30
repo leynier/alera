@@ -72,7 +72,7 @@ class RuntimeProjectManagementClient(final RuntimeHostClient _client) {
         case 'cancelled':
           throw StateError('Project clone was cancelled.');
       }
-      await Future<void>.delayed(const Duration(milliseconds: 300));
+      await Future.pause(const Duration(milliseconds: 300));
     }
     throw TimeoutException(
       'Project clone timed out.',

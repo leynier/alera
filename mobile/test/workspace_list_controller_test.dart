@@ -27,7 +27,7 @@ void main() {
 
     client.workspaces = <WorkspaceSummary>[_workspace('a'), _workspace('b')];
     client.emit('workspacesChanged');
-    await Future<void>.delayed(.zero);
+    await Future.pause(.zero);
 
     final refreshed = await container.read(
       workspaceListControllerProvider('host-1').future,
@@ -85,7 +85,7 @@ void main() {
       final completion = Completer<void>();
       client.pinCompletion = completion;
       final operation = notifier.setPinned('a', true);
-      await Future<void>.delayed(.zero);
+      await Future.pause(.zero);
       container.dispose();
 
       completion.complete();

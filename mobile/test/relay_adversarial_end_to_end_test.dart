@@ -79,7 +79,7 @@ void main() {
           }),
         );
         sequence++;
-        await Future<void>.delayed(const Duration(milliseconds: 150));
+        await Future.pause(const Duration(milliseconds: 150));
       }
       expect(await closedHandshake, isFalse);
       expect(blocked.socket.closeCode, 1013);

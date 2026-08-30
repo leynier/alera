@@ -46,7 +46,7 @@ void main() {
         'historyNextCursor': null,
       }),
     );
-    await Future<void>.delayed(.zero);
+    await Future.pause(.zero);
     await container.read(provider.notifier).send('Second message');
     expect(
       client.calls
@@ -125,7 +125,7 @@ void main() {
           },
         }),
       );
-      await Future<void>.delayed(.zero);
+      await Future.pause(.zero);
       var current = container.read(provider).value!;
       expect(current.timelineCells.map((cell) => cell.id), <String>[
         'older',
@@ -142,7 +142,7 @@ void main() {
           'historyNextCursor': null,
         }),
       );
-      await Future<void>.delayed(.zero);
+      await Future.pause(.zero);
       current = container.read(provider).value!;
       expect(current.timelineCells, isEmpty);
       expect(current.historyNextCursor, isNull);

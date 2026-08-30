@@ -132,7 +132,7 @@ class HostConnectionController extends _$HostConnectionController {
         stackTrace,
       );
     }
-    await Future<void>.delayed(_runtimeRestartReconnectDelay);
+    await Future.pause(_runtimeRestartReconnectDelay);
     if (!_disposed) {
       await reconnectNow();
     }

@@ -213,7 +213,7 @@ final class RuntimeHostLifecycleService({
           rethrow;
         }
       }
-      await Future<void>.delayed(const Duration(milliseconds: 100));
+      await Future.pause(const Duration(milliseconds: 100));
     }
     throw StateError('The runtime host did not stop in time.');
   }

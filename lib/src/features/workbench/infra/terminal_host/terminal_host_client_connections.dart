@@ -142,7 +142,7 @@ extension _SocketTerminalHostClientConnections on SocketTerminalHostClient {
       if (_disposed || _appQuitInProgress) {
         throw const TerminalHostConnectionClosedException();
       }
-      await Future<void>.delayed(const Duration(milliseconds: 100));
+      await Future.pause(const Duration(milliseconds: 100));
       final nextControl = await _readControl(controlFile);
       if (nextControl == null ||
           nextControl.token != token ||

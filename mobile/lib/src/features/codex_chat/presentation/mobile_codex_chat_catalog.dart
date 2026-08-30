@@ -284,7 +284,7 @@ class _MobileComposerCatalogState extends State<_MobileComposerCatalog> {
   void _setItems(List<_MobileCatalogItem> items) {
     if (!mounted) return;
     setState(() {
-      _items = List<_MobileCatalogItem>.unmodifiable(items);
+      _items = List<_MobileCatalogItem>.unmodifiableOf(items);
       _selected = _items.isEmpty ? 0 : _selected.clamp(0, _items.length - 1);
     });
   }

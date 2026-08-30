@@ -19,12 +19,12 @@ class const TerminalThemeEntry({
 });
 
 final List<TerminalThemeEntry> terminalThemeCatalog =
-    List<TerminalThemeEntry>.unmodifiable(<TerminalThemeEntry>[
+    List<TerminalThemeEntry>.unmodifiableOf(<TerminalThemeEntry>[
       ...terminalThemeBasePalette,
       ...terminalThemeExtendedPalette,
     ]);
 
-final List<String> terminalThemeNames = List<String>.unmodifiable(
+final List<String> terminalThemeNames = List<String>.unmodifiableOf(
   terminalThemeCatalog.map((entry) => entry.name),
 );
 

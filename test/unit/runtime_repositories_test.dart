@@ -56,7 +56,7 @@ void main() {
           ),
         ]),
       );
-      await Future<void>.delayed(.zero);
+      await Future.pause(.zero);
       client.emit(
         const RuntimeHostEvent('projectsChanged', <String, Object?>{}),
       );
@@ -172,7 +172,7 @@ void main() {
 
       final targets = await repository.list();
       final progressFuture = repository.watchBootstrapProgress().first;
-      await Future<void>.delayed(.zero);
+      await Future.pause(.zero);
       client.emit(
         const RuntimeHostEvent('sshTargetBootstrapProgress', <String, Object?>{
           'jobId': 'job-1',

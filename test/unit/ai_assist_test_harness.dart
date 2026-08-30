@@ -151,6 +151,6 @@ Future<void> untilCalled(bool Function() predicate) async {
     if (DateTime.now().isAfter(deadline)) {
       fail('Timed out waiting for call');
     }
-    await Future<void>.delayed(const Duration(milliseconds: 5));
+    await Future.pause(const Duration(milliseconds: 5));
   }
 }

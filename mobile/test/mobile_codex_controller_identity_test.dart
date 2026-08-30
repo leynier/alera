@@ -78,7 +78,7 @@ void main() {
           },
         }),
       );
-      await Future<void>.delayed(.zero);
+      await Future.pause(.zero);
 
       final progress = container
           .read(provider)
@@ -169,7 +169,7 @@ void main() {
         },
       }),
     );
-    await Future<void>.delayed(.zero);
+    await Future.pause(.zero);
 
     final userIds = container
         .read(provider)
@@ -250,7 +250,7 @@ void main() {
         },
       }),
     );
-    await Future<void>.delayed(.zero);
+    await Future.pause(.zero);
 
     final agentIds = container
         .read(provider)
@@ -364,7 +364,7 @@ void main() {
         },
       }),
     );
-    await Future<void>.delayed(.zero);
+    await Future.pause(.zero);
 
     expect(
       container.read(provider).value!.timelineCells.map((cell) => cell.id),
@@ -427,7 +427,7 @@ Future<List<MobileCodexTimelineCell>> _mobilePhaseReconciliation({
         },
       }),
     );
-    await Future<void>.delayed(.zero);
+    await Future.pause(.zero);
     return container.read(provider).value!.timelineCells;
   } finally {
     listener.close();

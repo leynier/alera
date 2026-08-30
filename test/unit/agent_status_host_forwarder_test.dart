@@ -82,7 +82,7 @@ void main() {
   });
 
   Future<void> pumpDebounce() async {
-    await Future<void>.delayed(const Duration(milliseconds: 5));
+    await Future.pause(const Duration(milliseconds: 5));
   }
 
   List<Map<String, Object?>> sentEntries() {
@@ -157,7 +157,7 @@ void main() {
       {'s1': _entry('s1')},
       {'s1': _entry('s1', state: .waiting)},
     );
-    await Future<void>.delayed(const Duration(milliseconds: 60));
+    await Future.pause(const Duration(milliseconds: 60));
 
     final entries = sentEntries();
     // The later transition supersedes the earlier one for the same session.

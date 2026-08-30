@@ -35,28 +35,28 @@ void _registerTerminalRuntimeSnapshotTests() {
         await session.ensureStarted();
 
         fakeSession.emitOutput(utf8.encode('visible\r\n'));
-        await Future<void>.delayed(.zero);
+        await Future.pause(.zero);
         flushTerminalOutputForTesting(session);
         expect(terminalBufferTextForTesting(session), contains('visible'));
         visibility.dispose();
         visibility = null;
-        await Future<void>.delayed(.zero);
+        await Future.pause(.zero);
         expect(fakeSession.outputPausedCalls, contains(true));
         fakeSession.emitOutput(utf8.encode('hidden\r\n'));
-        await Future<void>.delayed(.zero);
+        await Future.pause(.zero);
         expect(
           terminalBufferTextForTesting(session),
           isNot(contains('hidden')),
         );
         resumedVisibility = acquireTerminalVisibilityForTesting(session);
-        await Future<void>.delayed(.zero);
+        await Future.pause(.zero);
         expect(fakeSession.outputPausedCalls.last, isFalse);
         fakeSession.emitSnapshot(
           utf8.encode(
             '\x1b[?1h\x1b[?25l\x1b[?1004h\x1b=\x1b[?1000h\x1b[?2004h\x1b[?1049hvisible\r\nhidden\r\n',
           ),
         );
-        await Future<void>.delayed(.zero);
+        await Future.pause(.zero);
         flushTerminalOutputForTesting(session);
         final restored = terminalBufferTextForTesting(session);
         expect(restored, contains('visible'));
@@ -99,12 +99,12 @@ void _registerTerminalRuntimeSnapshotTests() {
 
       // Three frames' worth, so one drain cannot finish the restore.
       fakeSession.emitSnapshot(utf8.encode('a' * (64 * 1024 * 3)));
-      await Future<void>.delayed(.zero);
+      await Future.pause(.zero);
       flushTerminalOutputForTesting(session);
       expect(session.restoreProgress.value, isNotNull);
 
       fakeSession.emitExit(0);
-      await Future<void>.delayed(.zero);
+      await Future.pause(.zero);
 
       expect(session.restoreProgress.value, isNull);
     } finally {
@@ -131,7 +131,7 @@ void _registerTerminalRuntimeSnapshotTests() {
       await session.ensureStarted();
 
       fakeSession.emitSnapshot(utf8.encode('\x1b[?1000h\x1b[?1006hactive tui'));
-      await Future<void>.delayed(.zero);
+      await Future.pause(.zero);
 
       expect(terminalPointerInputSuspendedForTesting(session), isTrue);
 
@@ -170,9 +170,9 @@ void _registerTerminalRuntimeSnapshotTests() {
       );
 
       fakeSession.emitSnapshot(utf8.encode(snapshot));
-      await Future<void>.delayed(.zero);
+      await Future.pause(.zero);
       fakeSession.emitOutput(utf8.encode('$liveMarker\r\n'));
-      await Future<void>.delayed(.zero);
+      await Future.pause(.zero);
 
       expect(
         pendingRestoreTerminalOutputCharsForTesting(session),
@@ -244,7 +244,7 @@ void _registerTerminalRuntimeSnapshotTests() {
           utf8.encode(snapshot),
           resetInteractionModes: true,
         );
-        await Future<void>.delayed(.zero);
+        await Future.pause(.zero);
         flushTerminalOutputForTesting(session);
         final restoreAfterFirstFlush =
             pendingRestoreTerminalOutputCharsForTesting(session);
@@ -259,7 +259,7 @@ void _registerTerminalRuntimeSnapshotTests() {
         );
         fakeSession.emitOutput(utf8.encode(oldLive));
         fakeSession.emitOutput(utf8.encode(newLive));
-        await Future<void>.delayed(.zero);
+        await Future.pause(.zero);
 
         expect(
           pendingRestoreTerminalOutputCharsForTesting(session),

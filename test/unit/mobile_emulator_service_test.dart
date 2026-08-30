@@ -245,7 +245,7 @@ void main() {
           <String, Object?>{},
         ),
       );
-      await Future<void>.delayed(.zero);
+      await Future.pause(.zero);
       await service.devices();
 
       expect(client.statusRequests, 2);

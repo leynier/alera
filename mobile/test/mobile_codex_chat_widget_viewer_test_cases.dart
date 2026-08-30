@@ -33,7 +33,7 @@ void _registerMobileCodexViewerTests() {
     await tester.tap(find.text('empty.md'));
     await tester.pump();
     await tester.runAsync(
-      () => Future<void>.delayed(const Duration(milliseconds: 100)),
+      () => Future.pause(const Duration(milliseconds: 100)),
     );
     await tester.pump(const Duration(milliseconds: 300));
 
@@ -84,7 +84,7 @@ void _registerMobileCodexViewerTests() {
     await tester.tap(find.text('long.md'));
     await tester.pump();
     await tester.runAsync(
-      () => Future<void>.delayed(const Duration(milliseconds: 100)),
+      () => Future.pause(const Duration(milliseconds: 100)),
     );
     for (var index = 0; index < 4; index++) {
       await tester.pump(const Duration(milliseconds: 100));

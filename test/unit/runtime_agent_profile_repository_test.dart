@@ -324,7 +324,7 @@ void main() {
         (profiles) => seen.add(profiles.length),
       );
 
-      await Future<void>.delayed(const Duration(milliseconds: 250));
+      await Future.pause(const Duration(milliseconds: 250));
       expect(seen, <int>[1], reason: 'initial fetch');
       client.responses['agentProfile.list'] = <String, Object?>{
         'kind': 'agentProfiles',
@@ -337,7 +337,7 @@ void main() {
       client.emit(
         const RuntimeHostEvent('agentProfilesChanged', <String, Object?>{}),
       );
-      await Future<void>.delayed(const Duration(milliseconds: 250));
+      await Future.pause(const Duration(milliseconds: 250));
 
       expect(seen, containsAllInOrder(<int>[1, 2]));
       await subscription.cancel();
@@ -391,7 +391,7 @@ void main() {
       client.emit(
         const RuntimeHostEvent('agentProfilesChanged', <String, Object?>{}),
       );
-      await Future<void>.delayed(const Duration(milliseconds: 250));
+      await Future.pause(const Duration(milliseconds: 250));
 
       expect(
         container.read(agentProfilesProvider).requireValue.single.name,

@@ -124,7 +124,7 @@ class _FakeTimers {
     final callback = _pending;
     _pending = null;
     callback?.call();
-    await Future<void>.delayed(.zero);
+    await Future.pause(.zero);
   }
 }
 

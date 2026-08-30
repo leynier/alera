@@ -152,7 +152,7 @@ List<String> fallbackTerminalFontFamilies([String? platform]) {
 }
 
 List<String> _uniqueSorted(Iterable<String?> values) {
-  return List<String>.unmodifiable(
+  return List<String>.unmodifiableOf(
     Set<String>.from(
       values
           .map((value) => value?.trim() ?? '')

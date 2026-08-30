@@ -184,7 +184,7 @@ void main() {
       });
 
       now = base.add(const Duration(milliseconds: 6));
-      await Future<void>.delayed(const Duration(milliseconds: 10));
+      await Future.pause(const Duration(milliseconds: 10));
 
       expect(displayLock.states, <bool>[true]);
       expect(assertion.starts, contains('stale-expiry'));
@@ -288,7 +288,7 @@ Future<void> _waitForAssertionStarts(
     if (assertion.starts.length >= count) {
       return;
     }
-    await Future<void>.delayed(const Duration(milliseconds: 5));
+    await Future.pause(const Duration(milliseconds: 5));
   }
   fail('Expected at least $count assertion starts.');
 }
@@ -303,7 +303,7 @@ Future<void> _waitForAssertionStop(
     if (assertion.stops.contains(reason)) {
       return;
     }
-    await Future<void>.delayed(const Duration(milliseconds: 5));
+    await Future.pause(const Duration(milliseconds: 5));
   }
   fail('Expected an assertion stop for $reason.');
 }

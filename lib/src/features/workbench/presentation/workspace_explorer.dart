@@ -376,7 +376,7 @@ class _WorkspaceExplorerState extends ConsumerState<WorkspaceExplorer> {
               ),
           };
     return tree.TreeData(
-      nodes: Map<String, tree.TreeNode>.unmodifiable(nodes),
+      nodes: Map<String, tree.TreeNode>.unmodifiableOf(nodes),
       rootId: _rootId,
       visibleRootId: _rootId,
       omitContainerRowAtRoot: true,

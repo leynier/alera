@@ -104,7 +104,7 @@ void main() {
       );
 
       final closing = notifier.closeTab(client.tabs.single);
-      await Future<void>.delayed(.zero);
+      await Future.pause(.zero);
       container.dispose();
       termination.complete();
 
@@ -290,7 +290,7 @@ void main() {
     );
     client.emitOutput('session-tab-1', .fromList(<int>[104, 105]));
     client.emitOutput('other-session', .fromList(<int>[120]));
-    await Future<void>.delayed(.zero);
+    await Future.pause(.zero);
     expect(received, hasLength(1));
     await outputSub.cancel();
 
@@ -308,7 +308,7 @@ void main() {
     expect(client.calls, isNot(contains('resize session-tab-1 0 22')));
 
     subscription.close();
-    await Future<void>.delayed(.zero);
+    await Future.pause(.zero);
     expect(client.calls, contains('detach session-tab-1'));
   });
 
@@ -440,7 +440,7 @@ void main() {
       'session-tab-1',
       .fromList(<int>[114, 101, 97, 100, 121]),
     );
-    await Future<void>.delayed(.zero);
+    await Future.pause(.zero);
     expect(output.single, Uint8List.fromList(<int>[114, 101, 97, 100, 121]));
   });
 
@@ -463,7 +463,7 @@ void main() {
 
       // A driver change for another session is ignored.
       client.emitDriverChanged('other-session', 'desktop');
-      await Future<void>.delayed(.zero);
+      await Future.pause(.zero);
       expect(
         container.read(terminalSessionControllerProvider('host-1', 'tab-1')),
         isA<AsyncData<Object?>>(),
@@ -471,14 +471,14 @@ void main() {
 
       // A mobile driver change (another phone claiming) does not eject.
       client.emitDriverChanged('session-tab-1', 'mobile');
-      await Future<void>.delayed(.zero);
+      await Future.pause(.zero);
       expect(
         container.read(terminalSessionControllerProvider('host-1', 'tab-1')),
         isA<AsyncData<Object?>>(),
       );
 
       client.emitDriverChanged('session-tab-1', 'desktop');
-      await Future<void>.delayed(.zero);
+      await Future.pause(.zero);
       final state = container.read(
         terminalSessionControllerProvider('host-1', 'tab-1'),
       );

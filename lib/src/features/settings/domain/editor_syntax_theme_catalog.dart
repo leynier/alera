@@ -29,7 +29,7 @@ class const EditorSyntaxThemeEntry({
 });
 
 final List<EditorSyntaxThemeEntry> editorSyntaxThemeCatalog =
-    List<EditorSyntaxThemeEntry>.unmodifiable(<EditorSyntaxThemeEntry>[
+    List<EditorSyntaxThemeEntry>.unmodifiableOf(<EditorSyntaxThemeEntry>[
       const EditorSyntaxThemeEntry(
         name: EditorSyntaxThemeNames.alera,
         theme: _aleraEditorSyntaxTheme,
@@ -72,7 +72,7 @@ final List<EditorSyntaxThemeEntry> editorSyntaxThemeCatalog =
       ),
     ]);
 
-final List<String> editorSyntaxThemeNames = List<String>.unmodifiable(
+final List<String> editorSyntaxThemeNames = List<String>.unmodifiableOf(
   editorSyntaxThemeCatalog.map((entry) => entry.name),
 );
 

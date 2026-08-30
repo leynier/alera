@@ -141,7 +141,7 @@ void main() {
 
       await assertion.start('status-change');
       await assertion.stop('settings-change');
-      await Future<void>.delayed(const Duration(milliseconds: 10));
+      await Future.pause(const Duration(milliseconds: 10));
 
       expect(first.killCalls, 1);
       expect(runner.calls, hasLength(1));
@@ -160,7 +160,7 @@ void main() {
       await assertion.start('status-change');
       await assertion.stop('settings-change');
       first.completeExit(143);
-      await Future<void>.delayed(const Duration(milliseconds: 10));
+      await Future.pause(const Duration(milliseconds: 10));
 
       expect(first.killCalls, 1);
       expect(runner.calls, hasLength(1));
@@ -350,7 +350,7 @@ Future<void> _waitForStartCalls(
     if (runner.calls.length >= count) {
       return;
     }
-    await Future<void>.delayed(const Duration(milliseconds: 5));
+    await Future.pause(const Duration(milliseconds: 5));
   }
 }
 

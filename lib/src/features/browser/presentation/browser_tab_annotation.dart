@@ -123,7 +123,7 @@ extension _BrowserAnnotationActions on _BrowserTabSurfaceState {
     ];
     _updateAnnotationState(
       () => _annotationCapture = capture.copyWith(
-        comments: List<BrowserAnnotationComment>.unmodifiable(next),
+        comments: List<BrowserAnnotationComment>.unmodifiableOf(next),
       ),
     );
   }
@@ -286,7 +286,7 @@ _BrowserAnnotationSnapshot _decodeAnnotationSnapshot(Object? raw) {
   return _BrowserAnnotationSnapshot(
     viewportWidth: viewportWidth,
     viewportHeight: viewportHeight,
-    elements: List<BrowserAnnotationElement>.unmodifiable(elements),
+    elements: List<BrowserAnnotationElement>.unmodifiableOf(elements),
   );
 }
 

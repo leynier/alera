@@ -38,7 +38,7 @@ void _registerWorkbenchControllerLayoutPersistenceTests() {
         ),
         attempts: 100,
       );
-      await Future<void>.delayed(const Duration(milliseconds: 10));
+      await Future.pause(const Duration(milliseconds: 10));
 
       expect(_harness.workbenchRepository.upsertWorkbenchLayoutCalls, 0);
     },

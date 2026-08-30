@@ -91,7 +91,7 @@ ProviderContainer _container({
 Future<void> _waitUntil(bool Function() condition) async {
   for (var attempt = 0; attempt < 100; attempt += 1) {
     if (condition()) return;
-    await Future<void>.delayed(const Duration(milliseconds: 1));
+    await Future.pause(const Duration(milliseconds: 1));
   }
   fail('Condition was not met.');
 }

@@ -85,7 +85,7 @@ class DesktopPresenceCoordinator({
   }
 
   Future<void> _recoverIfStillUninstalled() async {
-    await Future<void>.delayed(.zero);
+    await Future.pause(.zero);
     if (_trayInstalled) {
       return;
     }

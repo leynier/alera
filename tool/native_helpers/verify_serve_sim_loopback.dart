@@ -98,7 +98,7 @@ Future<void> _waitForHealthyLoopback(
         return;
       }
     } catch (_) {
-      await Future<void>.delayed(const Duration(milliseconds: 150));
+      await Future.pause(const Duration(milliseconds: 150));
     } finally {
       client.close(force: true);
     }

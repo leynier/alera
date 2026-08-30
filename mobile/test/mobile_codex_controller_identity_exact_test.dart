@@ -70,7 +70,7 @@ void main() {
         },
       }),
     );
-    await Future<void>.delayed(.zero);
+    await Future.pause(.zero);
 
     expect(
       container

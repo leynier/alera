@@ -428,7 +428,7 @@ Future<T> _runWithProgress<T>(
       builder: (_) => AddProjectProgressDialog(message: message),
     ).whenComplete(() => progressOpen = false),
   );
-  await Future<void>.delayed(.zero);
+  await Future.pause(.zero);
   try {
     return await action();
   } finally {

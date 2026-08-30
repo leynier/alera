@@ -253,7 +253,7 @@ final class TerminalSearchController._(
       final lineOrder = a.lineIndex.compareTo(b.lineIndex);
       return lineOrder == 0 ? a.start.compareTo(b.start) : lineOrder;
     });
-    _matches = List<TerminalSearchMatch>.unmodifiable(next);
+    _matches = List<TerminalSearchMatch>.unmodifiableOf(next);
 
     if (_matches.isEmpty) {
       _selectedIndex = -1;

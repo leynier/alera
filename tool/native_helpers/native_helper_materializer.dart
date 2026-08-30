@@ -453,7 +453,7 @@ Future<void> downloadNativeHelper(Uri source, File output) async {
         await output.delete();
       }
       if (attempt < 3) {
-        await Future<void>.delayed(Duration(seconds: attempt));
+        await Future.pause(Duration(seconds: attempt));
       }
     }
   }

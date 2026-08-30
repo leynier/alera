@@ -351,7 +351,7 @@ Future<void> _waitForServerRequestCount(
   final deadline = DateTime.now().add(const Duration(seconds: 1));
   while (server.requests.length < expected &&
       DateTime.now().isBefore(deadline)) {
-    await Future<void>.delayed(const Duration(milliseconds: 1));
+    await Future.pause(const Duration(milliseconds: 1));
   }
   expect(server.requests.length, greaterThanOrEqualTo(expected));
 }

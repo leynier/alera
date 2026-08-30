@@ -24,7 +24,7 @@ void registerCodexChatControllerLifecycleTests() {
       fireImmediately: true,
     );
     addTearDown(listener.close);
-    await Future<void>.delayed(.zero);
+    await Future.pause(.zero);
 
     client.emit(
       const RuntimeHostEvent('codexThreadChanged', <String, Object?>{
@@ -42,7 +42,7 @@ void registerCodexChatControllerLifecycleTests() {
         },
       }),
     );
-    await Future<void>.delayed(.zero);
+    await Future.pause(.zero);
     opening.complete(<String, Object?>{
       'threadId': 'thread-current',
       'snapshot': <String, Object?>{
@@ -84,7 +84,7 @@ void registerCodexChatControllerLifecycleTests() {
       fireImmediately: true,
     );
     addTearDown(listener.close);
-    await Future<void>.delayed(.zero);
+    await Future.pause(.zero);
 
     client.emit(
       const RuntimeHostEvent('codexThreadChanged', <String, Object?>{
@@ -151,7 +151,7 @@ void registerCodexChatControllerLifecycleTests() {
       fireImmediately: true,
     );
     addTearDown(listener.close);
-    await Future<void>.delayed(.zero);
+    await Future.pause(.zero);
 
     client.emit(
       const RuntimeHostEvent('codexThreadChanged', <String, Object?>{
@@ -169,7 +169,7 @@ void registerCodexChatControllerLifecycleTests() {
         'snapshot': <String, Object?>{'timelineCells': <Object?>[]},
       }),
     );
-    await Future<void>.delayed(.zero);
+    await Future.pause(.zero);
     opening.complete(<String, Object?>{
       'threadId': 'thread-old',
       'cwd': '/workspace/open',

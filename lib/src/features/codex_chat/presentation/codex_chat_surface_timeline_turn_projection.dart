@@ -87,14 +87,14 @@ class const _CodexTurnProjection({
     ];
     return _CodexTurnProjection(
       turnId: cells.first.turnId ?? cells.first.id,
-      users: List<CodexTimelineCell>.unmodifiable(users),
-      assistants: List<CodexTimelineCell>.unmodifiable(assistants),
-      secondaryRows: List<_CodexSecondaryRowProjection>.unmodifiable(rows),
-      outside: List<CodexTimelineCell>.unmodifiable(outside),
+      users: List<CodexTimelineCell>.unmodifiableOf(users),
+      assistants: List<CodexTimelineCell>.unmodifiableOf(assistants),
+      secondaryRows: List<_CodexSecondaryRowProjection>.unmodifiableOf(rows),
+      outside: List<CodexTimelineCell>.unmodifiableOf(outside),
       working: working,
       workedLabel: _workedFor(cells),
       startedAt: _codexTurnStartedAt(cells),
-      sourceCells: List<CodexTimelineCell>.unmodifiable(cells),
+      sourceCells: List<CodexTimelineCell>.unmodifiableOf(cells),
     );
   }
 
@@ -131,7 +131,7 @@ class _CodexSecondaryRowProjection {
     }
     final actions = cells.map(_codexWorkedAction).toList(growable: false);
     return _CodexSecondaryRowProjection.actions(
-      List<_CodexWorkedAction>.unmodifiable(actions),
+      List<_CodexWorkedAction>.unmodifiableOf(actions),
       summary: _codexWorkedSummary(actions),
       summaryIcon: _codexWorkedSummaryIcon(actions),
       streaming: waiting || cells.any((cell) => cell.isStreaming),

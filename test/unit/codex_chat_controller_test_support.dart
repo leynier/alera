@@ -1,8 +1,8 @@
 part of 'codex_chat_controller_test.dart';
 
 Future<void> _settle() async {
-  await Future<void>.delayed(.zero);
-  await Future<void>.delayed(const Duration(milliseconds: 10));
+  await Future.pause(.zero);
+  await Future.pause(const Duration(milliseconds: 10));
 }
 
 final class _FakeCodexRuntimeClient({

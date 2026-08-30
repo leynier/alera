@@ -95,7 +95,7 @@ class const _CodexPlanProgressProjection({
       }
       return _CodexPlanProgressProjection(
         cell: cell,
-        steps: List<(String, String)>.unmodifiable(steps),
+        steps: List<(String, String)>.unmodifiableOf(steps),
         current: active >= 0 ? active + 1 : completed.clamp(1, steps.length),
         completed: completed,
       );

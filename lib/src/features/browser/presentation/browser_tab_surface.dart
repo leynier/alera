@@ -253,7 +253,7 @@ class _BrowserTabSurfaceState extends ConsumerState<BrowserTabSurface> {
                               ..removeWhere((item) => item.id == comment.id);
                             _annotationCapture = current.copyWith(
                               comments:
-                                  List<BrowserAnnotationComment>.unmodifiable(
+                                  List<BrowserAnnotationComment>.unmodifiableOf(
                                     comments,
                                   ),
                             );

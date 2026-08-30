@@ -43,7 +43,7 @@ void main() {
     final container = _container(client);
 
     expect(container.read(terminalDriverPresenceControllerProvider), isEmpty);
-    await Future<void>.delayed(.zero);
+    await Future.pause(.zero);
 
     final drivers = container.read(terminalDriverPresenceControllerProvider);
     expect(drivers.keys, <String>['session-1']);
@@ -63,7 +63,7 @@ void main() {
         rows: 22,
       ),
     );
-    await Future<void>.delayed(.zero);
+    await Future.pause(.zero);
     expect(
       container.read(terminalDriverPresenceControllerProvider)['session-1'],
       isNotNull,
@@ -77,7 +77,7 @@ void main() {
         rows: 40,
       ),
     );
-    await Future<void>.delayed(.zero);
+    await Future.pause(.zero);
     expect(container.read(terminalDriverPresenceControllerProvider), isEmpty);
   });
 
@@ -101,7 +101,7 @@ void main() {
         rows: 22,
       ),
     );
-    await Future<void>.delayed(.zero);
+    await Future.pause(.zero);
 
     final controller = container.read(
       terminalDriverPresenceControllerProvider.notifier,

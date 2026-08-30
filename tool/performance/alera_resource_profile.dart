@@ -73,7 +73,7 @@ final class MacOsResourceProfiler({
       if (stopwatch.elapsed + remaining > duration) {
         break;
       }
-      await Future<void>.delayed(remaining);
+      await Future.pause(remaining);
     }
     stopwatch.stop();
 

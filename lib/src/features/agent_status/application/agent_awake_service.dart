@@ -24,7 +24,7 @@ class AgentAwakeService({
   Logger? logger,
 }) {
   this
-    : _assertions = List<AgentAwakeAssertion>.unmodifiable(assertions),
+    : _assertions = List<AgentAwakeAssertion>.unmodifiableOf(assertions),
       _now = now ?? (() => DateTime.now().toUtc()),
       _logger = logger ?? Logger('AgentAwakeService');
 
@@ -58,7 +58,7 @@ class AgentAwakeService({
   }
 
   Future<void> setStatuses(Map<String, AgentStatusEntry> statuses) async {
-    _statuses = Map<String, AgentStatusEntry>.unmodifiable(statuses);
+    _statuses = Map<String, AgentStatusEntry>.unmodifiableOf(statuses);
     await _refresh('status-change');
   }
 

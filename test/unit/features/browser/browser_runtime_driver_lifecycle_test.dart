@@ -30,7 +30,7 @@ void main() {
     });
 
     final starting = driver.start();
-    await Future<void>.delayed(.zero);
+    await Future.pause(.zero);
     await driver.dispose();
     capabilities.complete(stableBrowserCapabilities);
     await starting;

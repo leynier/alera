@@ -381,7 +381,7 @@ MobileCodexState _reconcileMobileSameThreadSnapshot(
   final boundedLiveCells = liveCells.length <= retainedLiveCellLimit
       ? liveCells
       : liveCells.sublist(liveCells.length - retainedLiveCellLimit);
-  final retainedCells = List<MobileCodexTimelineCell>.unmodifiable(
+  final retainedCells = List<MobileCodexTimelineCell>.unmodifiableOf(
     <MobileCodexTimelineCell>[...historyCells, ...boundedLiveCells],
   );
   final paginatedHistoryCellIds =

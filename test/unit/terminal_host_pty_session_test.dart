@@ -49,7 +49,7 @@ void main() {
         cols: 80,
         rows: 24,
       );
-      await Future<void>.delayed(.zero);
+      await Future.pause(.zero);
 
       expect(session.startedNewProcess, isFalse);
       expect(client.attachedWorkingDirectory, '/repo');
@@ -90,7 +90,7 @@ void main() {
 
       expect(session.writeBytes(<int>[1, 2]), isTrue);
       session.resize(120, 40, 8, 16);
-      await Future<void>.delayed(.zero);
+      await Future.pause(.zero);
 
       expect(client.writes, <List<int>>[
         <int>[1, 2],
@@ -98,7 +98,7 @@ void main() {
       expect(client.resizes, <(String, int, int)>[('session-1', 120, 40)]);
 
       session.dispose();
-      await Future<void>.delayed(.zero);
+      await Future.pause(.zero);
       expect(client.detached, <String>['session-1']);
 
       final second = TerminalHostPtySession(
@@ -114,7 +114,7 @@ void main() {
         rows: 24,
       );
       second.terminate();
-      await Future<void>.delayed(.zero);
+      await Future.pause(.zero);
 
       expect(client.terminated, <String>['session-2']);
     },
@@ -195,7 +195,7 @@ void main() {
         cols: 80,
         rows: 24,
       );
-      await Future<void>.delayed(.zero);
+      await Future.pause(.zero);
 
       expect(session.writeBytes(<int>[1]), isFalse);
       session.resize(100, 30, 8, 16);
@@ -373,7 +373,7 @@ void main() {
       client.emit(const TerminalHostErrorEvent('session-1', 'host failed'));
       client.writeError = StateError('write failed');
       expect(session.writeBytes(<int>[9]), isTrue);
-      await Future<void>.delayed(.zero);
+      await Future.pause(.zero);
 
       expect(events.whereType<TerminalPtyOutputEvent>().single.data, <int>[67]);
       expect(events.whereType<TerminalPtyExitEvent>().single.exitCode, 4);
@@ -474,6 +474,6 @@ GhosttyTerminalShellLaunch _launch() {
 }
 
 Future<void> _flushAsync() async {
-  await Future<void>.delayed(.zero);
-  await Future<void>.delayed(.zero);
+  await Future.pause(.zero);
+  await Future.pause(.zero);
 }

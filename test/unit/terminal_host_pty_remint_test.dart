@@ -242,6 +242,6 @@ GhosttyTerminalShellLaunch _launch() {
 
 Future<void> _flushAsync() async {
   for (var i = 0; i < 10; i++) {
-    await Future<void>.delayed(.zero);
+    await Future.pause(.zero);
   }
 }

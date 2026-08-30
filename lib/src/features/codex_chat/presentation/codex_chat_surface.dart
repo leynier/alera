@@ -227,8 +227,8 @@ class _CodexChatSurfaceState extends ConsumerState<CodexChatSurface> {
       tabId,
       CodexComposerDraft(
         value: _composer.value,
-        attachments: List<CodexInputAttachment>.unmodifiable(_attachments),
-        draftItems: List<CodexDraftItem>.unmodifiable(_draftItems),
+        attachments: List<CodexInputAttachment>.unmodifiableOf(_attachments),
+        draftItems: List<CodexDraftItem>.unmodifiableOf(_draftItems),
       ),
     );
   }

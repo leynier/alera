@@ -111,7 +111,7 @@ void main() {
     final firstOverlay = handle.withFlutterOverlay(() => first.future);
     final secondOverlay = handle.withFlutterOverlay(() => second.future);
 
-    await Future<void>.delayed(.zero);
+    await Future.pause(.zero);
     expect(
       engine.calls.where((call) => call.startsWith('obscured:')).toList(),
       <String>['obscured:page-1:true'],
@@ -139,7 +139,7 @@ void main() {
     final overlayBarrier = Completer<void>();
     final overlay = handle.withFlutterOverlay(() => overlayBarrier.future);
 
-    await Future<void>.delayed(.zero);
+    await Future.pause(.zero);
     await drag.dispose();
     expect(
       engine.calls.where((call) => call.startsWith('obscured:')).toList(),
@@ -160,7 +160,7 @@ void main() {
     var closed = false;
     final closing = handle.close().then((_) => closed = true);
 
-    await Future<void>.delayed(.zero);
+    await Future.pause(.zero);
     expect(closed, isFalse);
     await lease.dispose();
     await closing;
@@ -176,7 +176,7 @@ void main() {
       final lifecycle = handle.acquireLifecycle(.popup);
       final closing = handle.close();
 
-      await Future<void>.delayed(.zero);
+      await Future.pause(.zero);
 
       expect(handle.tryAcquireVisibility(.user), isNull);
       expect(
@@ -203,12 +203,12 @@ void main() {
       engine.snapshotCompleter = snapshot;
       final command = handle.snapshot();
       while (engine.lastSnapshotMaxNodes == null) {
-        await Future<void>.delayed(.zero);
+        await Future.pause(.zero);
       }
       var disposed = false;
       final disposal = registry.dispose().then((_) => disposed = true);
 
-      await Future<void>.delayed(.zero);
+      await Future.pause(.zero);
       expect(disposed, isFalse);
       expect(engine.calls, isNot(contains('close:page-1')));
 
@@ -261,7 +261,7 @@ void main() {
       engine.closePageCompleters[first.pageId] = nativeClose;
       final closing = first.close();
       while (!engine.calls.contains('close:page-1')) {
-        await Future<void>.delayed(.zero);
+        await Future.pause(.zero);
       }
 
       var recreated = false;
@@ -269,7 +269,7 @@ void main() {
         recreated = true;
         return handle;
       });
-      await Future<void>.delayed(.zero);
+      await Future.pause(.zero);
       expect(recreated, isFalse);
 
       nativeClose.complete();
@@ -361,7 +361,7 @@ void main() {
     engine.createPageCompleters['blocker'] = blocker;
     reconciler.schedule(<WorkspaceTabRecord>[_tab(pageId: 'blocker')]);
     while (!engine.calls.contains('createPage:blocker:false')) {
-      await Future<void>.delayed(.zero);
+      await Future.pause(.zero);
     }
 
     reconciler.schedule(const <WorkspaceTabRecord>[]);

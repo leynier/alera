@@ -106,7 +106,7 @@ class _BrowserNativeCallbackScopeState
     required BrowserPermissionType permission,
     required BrowserPermissionDecision decision,
   }) async {
-    await Future<void>.delayed(.zero);
+    await Future.pause(.zero);
     if (cancellation.isCancelled) {
       return;
     }

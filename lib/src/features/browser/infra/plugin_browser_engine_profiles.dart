@@ -80,7 +80,7 @@ final class _PluginBrowserProfiles({
             source: _importSourceFromPlugin(value.source),
             supported: value.supported,
             available: value.available,
-            profileNames: List<String>.unmodifiable(value.profileNames),
+            profileNames: List<String>.unmodifiableOf(value.profileNames),
             detailCode: value.detailCode,
           ),
       ];

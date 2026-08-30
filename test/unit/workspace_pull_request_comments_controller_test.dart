@@ -170,7 +170,7 @@ void main() {
         workspacePullRequestControllerProvider(_scope).notifier,
       );
       final firstSave = controller.toggleReviewCommentTask('c1', 0);
-      await Future<void>.delayed(.zero);
+      await Future.pause(.zero);
 
       var state = container
           .read(workspacePullRequestControllerProvider(_scope))
@@ -184,7 +184,7 @@ void main() {
       expect(forge.updateCommentCalls, 1);
 
       final secondSave = controller.toggleReviewCommentTask('c2', 0);
-      await Future<void>.delayed(.zero);
+      await Future.pause(.zero);
       expect(forge.updateCommentCalls, 2);
       expect(
         container

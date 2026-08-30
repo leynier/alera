@@ -409,9 +409,7 @@ void main() {
         offset: .zero,
       ),
     );
-    await tester.runAsync(
-      () => Future<void>.delayed(const Duration(milliseconds: 20)),
-    );
+    await tester.runAsync(() => Future.pause(const Duration(milliseconds: 20)));
     await tester.pump();
 
     expect(

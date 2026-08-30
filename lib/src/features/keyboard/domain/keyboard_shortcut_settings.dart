@@ -34,10 +34,10 @@ class const KeyboardShortcutSettings({
     if (chords == null) {
       next.remove(id);
     } else {
-      next[id] = List<String>.unmodifiable(chords);
+      next[id] = List<String>.unmodifiableOf(chords);
     }
     return KeyboardShortcutSettings(
-      overrides: Map<KeyboardActionId, List<String>>.unmodifiable(next),
+      overrides: Map<KeyboardActionId, List<String>>.unmodifiableOf(next),
       terminalPolicy: terminalPolicy,
     );
   }

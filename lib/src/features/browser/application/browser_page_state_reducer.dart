@@ -115,5 +115,5 @@ List<BrowserDownload> _replaceDownload(
   if (existing == null) {
     values.add(replacement);
   }
-  return List<BrowserDownload>.unmodifiable(values);
+  return List<BrowserDownload>.unmodifiableOf(values);
 }

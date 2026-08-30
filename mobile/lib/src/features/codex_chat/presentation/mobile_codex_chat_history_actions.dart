@@ -108,7 +108,7 @@ extension _MobileCodexHistoryActions on _MobileCodexChatScreenState {
     if (mounted) {
       setState(
         () => _historyRowsOverride =
-            List<MobileCodexPresentationRow>.unmodifiable(next),
+            List<MobileCodexPresentationRow>.unmodifiableOf(next),
       );
     }
   }

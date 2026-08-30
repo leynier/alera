@@ -136,7 +136,7 @@ void main() {
       final received = <MobileAccessStatus>[];
       final subscription = repository.watchStatus().listen(received.add);
       addTearDown(subscription.cancel);
-      await Future<void>.delayed(const Duration(milliseconds: 250));
+      await Future.pause(const Duration(milliseconds: 250));
       expect(received, hasLength(1), reason: 'initial fetch');
 
       for (final name in <String>[
@@ -149,7 +149,7 @@ void main() {
       ]) {
         client.emit(RuntimeHostEvent(name, const <String, Object?>{}));
       }
-      await Future<void>.delayed(const Duration(milliseconds: 250));
+      await Future.pause(const Duration(milliseconds: 250));
 
       // The five mobile events collapse into a single refetch; the non-mobile
       // event must not trigger one at all.

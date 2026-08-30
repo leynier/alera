@@ -153,8 +153,8 @@ extension WorkspaceTabPathMoves on WorkspaceTabService {
       trackUpdated(next);
     }
     return WorkspaceFileTabPathMoveResult(
-      updatedTabs: List<WorkspaceTabRecord>.unmodifiable(updatedById.values),
-      closedTabIds: List<String>.unmodifiable(closed),
+      updatedTabs: List<WorkspaceTabRecord>.unmodifiableOf(updatedById.values),
+      closedTabIds: List<String>.unmodifiableOf(closed),
     );
   }
 

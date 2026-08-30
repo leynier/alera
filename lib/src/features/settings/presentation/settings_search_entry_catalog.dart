@@ -8,7 +8,7 @@ final class const SettingsSearchEntryDetails({
 List<SettingsSearchEntry> buildSettingsSearchEntryCatalog(
   Map<String, Map<String, SettingsSearchEntryDetails>> groups,
 ) {
-  return List<SettingsSearchEntry>.unmodifiable(<SettingsSearchEntry>[
+  return List<SettingsSearchEntry>.unmodifiableOf(<SettingsSearchEntry>[
     for (final group in groups.entries)
       for (final entry in group.value.entries)
         SettingsSearchEntry(

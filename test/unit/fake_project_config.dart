@@ -17,12 +17,12 @@ class FakeProjectConfigRepository implements ProjectConfigRepository {
 
   @override
   Future<Map<String, ProjectConfig>> loadAll() async {
-    return Map<String, ProjectConfig>.unmodifiable(configs);
+    return Map<String, ProjectConfig>.unmodifiableOf(configs);
   }
 
   @override
   Stream<Map<String, ProjectConfig>> watchAll() async* {
-    yield Map<String, ProjectConfig>.unmodifiable(configs);
+    yield Map<String, ProjectConfig>.unmodifiableOf(configs);
     yield* _controller.stream;
   }
 
@@ -47,7 +47,7 @@ class FakeProjectConfigRepository implements ProjectConfigRepository {
   }
 
   void _emit() {
-    _controller.add(Map<String, ProjectConfig>.unmodifiable(configs));
+    _controller.add(Map<String, ProjectConfig>.unmodifiableOf(configs));
   }
 }
 

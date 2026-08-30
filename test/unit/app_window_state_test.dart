@@ -420,7 +420,7 @@ Future<void> _waitFor(bool Function() condition) async {
     if (condition()) {
       return;
     }
-    await Future<void>.delayed(.zero);
+    await Future.pause(.zero);
   }
   fail('condition was not met');
 }

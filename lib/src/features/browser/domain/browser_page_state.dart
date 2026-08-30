@@ -84,7 +84,7 @@ final class const BrowserPageState({
       canGoForward: canGoForward ?? this.canGoForward,
       security: security ?? this.security,
       error: clearError ? null : (error ?? this.error),
-      downloads: List<BrowserDownload>.unmodifiable(
+      downloads: List<BrowserDownload>.unmodifiableOf(
         downloads ?? this.downloads,
       ),
       engineAvailability: engineAvailability ?? this.engineAvailability,

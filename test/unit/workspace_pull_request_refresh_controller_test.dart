@@ -65,7 +65,7 @@ Future<void> _waitUntil(bool Function() condition) async {
     if (condition()) {
       return;
     }
-    await Future<void>.delayed(.zero);
+    await Future.pause(.zero);
   }
   fail('Condition was not reached after draining asynchronous work.');
 }

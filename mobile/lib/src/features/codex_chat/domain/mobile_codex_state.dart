@@ -405,7 +405,7 @@ const Object _keepRecovery = Object();
 const Object _keepCollaborationMode = Object();
 
 List<String> mobileCodexPromptHistory(List<MobileCodexTimelineCell> cells) =>
-    List<String>.unmodifiable(<String>[
+    List<String>.unmodifiableOf(<String>[
       for (final cell in cells)
         if (cell.kind == 'userMessage' &&
             cell.metadata['isSteering'] != true &&

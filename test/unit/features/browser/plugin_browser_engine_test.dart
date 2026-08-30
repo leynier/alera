@@ -109,7 +109,7 @@ void main() {
         url: Uri.parse('https://example.test/next'),
       ),
     );
-    await Future<void>.delayed(.zero);
+    await Future.pause(.zero);
 
     await expectLater(
       engine.performAction(

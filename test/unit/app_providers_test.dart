@@ -147,7 +147,7 @@ void main() {
         settingsController.setState(
           settingsController.state.copyWith(terminal: updatedTerminal),
         );
-        await Future<void>.delayed(.zero);
+        await Future.pause(.zero);
 
         expect(container.read(terminalRuntimeProvider), same(runtime));
       },
@@ -294,7 +294,7 @@ void main() {
       addTearDown(container.dispose);
 
       container.read(terminalHostWarmupCoordinatorProvider);
-      await Future<void>.delayed(.zero);
+      await Future.pause(.zero);
 
       // What the mapping produces is terminal_host_settings_config_test's
       // job; this only checks the warmup sends it.
@@ -336,8 +336,8 @@ void main() {
               payload: <String, Object?>{'prompt': 'Run tests'},
             ),
           );
-      await Future<void>.delayed(.zero);
-      await Future<void>.delayed(.zero);
+      await Future.pause(.zero);
+      await Future.pause(.zero);
 
       expect(displayLock.states, <bool>[true]);
       expect(assertion.starts, isNotEmpty);
@@ -354,8 +354,8 @@ void main() {
               payload: <String, Object?>{'prompt': 'Run tests'},
             ),
           );
-      await Future<void>.delayed(.zero);
-      await Future<void>.delayed(.zero);
+      await Future.pause(.zero);
+      await Future.pause(.zero);
 
       expect(displayLock.states, <bool>[true, false]);
       expect(assertion.stops, isNotEmpty);
@@ -402,8 +402,8 @@ void main() {
               payload: <String, Object?>{'prompt': 'Run tests'},
             ),
           );
-      await Future<void>.delayed(.zero);
-      await Future<void>.delayed(.zero);
+      await Future.pause(.zero);
+      await Future.pause(.zero);
 
       expect(displayLock.states, contains(true));
       expect(assertion.starts, isNotEmpty);
@@ -415,8 +415,8 @@ void main() {
           ),
         ),
       );
-      await Future<void>.delayed(.zero);
-      await Future<void>.delayed(.zero);
+      await Future.pause(.zero);
+      await Future.pause(.zero);
 
       expect(displayLock.states.last, isFalse);
       expect(assertion.stops, isNotEmpty);
@@ -588,7 +588,7 @@ void main() {
 
         container.read(agentHookReceiverLifecycleCoordinatorProvider);
         for (var attempt = 0; attempt < 20 && !receiver.isRunning; attempt++) {
-          await Future<void>.delayed(const Duration(milliseconds: 10));
+          await Future.pause(const Duration(milliseconds: 10));
         }
 
         expect(receiver.isRunning, isTrue);
@@ -657,8 +657,8 @@ void main() {
           ),
         ),
       );
-      await Future<void>.delayed(.zero);
-      await Future<void>.delayed(.zero);
+      await Future.pause(.zero);
+      await Future.pause(.zero);
 
       expect(
         File(p.join(home.path, '.alera', 'agent-hooks', 'alera-agy-hook.sh'))
@@ -683,8 +683,8 @@ void main() {
           ),
         ),
       );
-      await Future<void>.delayed(.zero);
-      await Future<void>.delayed(.zero);
+      await Future.pause(.zero);
+      await Future.pause(.zero);
 
       expect(
         (await codexRuntimeHome.status()).state,
@@ -962,7 +962,7 @@ void main() {
             exitCode: 0,
           ),
         );
-        await Future<void>.delayed(.zero);
+        await Future.pause(.zero);
 
         expect(runtime.closedTabIds, <String>['tab-1']);
       },
@@ -1022,7 +1022,7 @@ void main() {
             autoCloseOnSuccess: true,
           ),
         );
-        await Future<void>.delayed(.zero);
+        await Future.pause(.zero);
 
         expect(runtime.closedTabIds, isEmpty);
       },
@@ -1049,7 +1049,7 @@ void main() {
           exitCode: 0,
         ),
       );
-      await Future<void>.delayed(.zero);
+      await Future.pause(.zero);
 
       // The dialog owns that session, and closing it here would wipe the output
       // the moment the shell exited.

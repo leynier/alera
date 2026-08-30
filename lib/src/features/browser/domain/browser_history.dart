@@ -90,5 +90,5 @@ Map<String, Object?> _historyMap(Object? value) {
   if (value is! Map) {
     return const <String, Object?>{};
   }
-  return Map<String, Object?>.unmodifiable(Map<String, Object?>.from(value));
+  return Map<String, Object?>.unmodifiableOf(Map<String, Object?>.from(value));
 }

@@ -219,10 +219,10 @@ class _MobileCodexChatScreenState extends ConsumerState<MobileCodexChatScreen> {
       widget.tabId,
       MobileCodexComposerDraft(
         value: nextValue,
-        attachments: List<Map<String, Object?>>.unmodifiable(
+        attachments: List<Map<String, Object?>>.unmodifiableOf(
           _attachments.map(Map<String, Object?>.unmodifiable),
         ),
-        catalogSelections: List<Map<String, Object?>>.unmodifiable(
+        catalogSelections: List<Map<String, Object?>>.unmodifiableOf(
           _activeCatalogSelections().map(Map<String, Object?>.unmodifiable),
         ),
       ),

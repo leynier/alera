@@ -74,7 +74,7 @@ class SystemAiDictationRecognizer({SpeechToText? speech}) {
 
   Future<String> stop() async {
     await _speech.stop();
-    await Future<void>.delayed(const Duration(milliseconds: 150));
+    await Future.pause(const Duration(milliseconds: 150));
     return _text.trim();
   }
 

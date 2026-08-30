@@ -167,7 +167,7 @@ void main() {
     });
 
     expect(helloCount, 2);
-    await Future<void>.delayed(const Duration(milliseconds: 200));
+    await Future.pause(const Duration(milliseconds: 200));
     expect(helloCount, 2);
     final state = container.read(hostConnectionControllerProvider('runtime-1'));
     expect(state.hasValue, isTrue);
@@ -255,7 +255,7 @@ void main() {
       );
 
       await sockets.single.close();
-      await Future<void>.delayed(const Duration(milliseconds: 100));
+      await Future.pause(const Duration(milliseconds: 100));
       expect(helloCount, 1);
       expect(
         container.read(hostConnectionControllerProvider('runtime-1')).hasError,
@@ -480,7 +480,7 @@ Future<void> _waitUntil(bool Function() condition) async {
     if (DateTime.now().isAfter(deadline)) {
       throw TimeoutException('Condition was not reached.');
     }
-    await Future<void>.delayed(const Duration(milliseconds: 10));
+    await Future.pause(const Duration(milliseconds: 10));
   }
 }
 

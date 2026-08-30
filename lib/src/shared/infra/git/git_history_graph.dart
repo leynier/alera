@@ -165,8 +165,10 @@ List<GitHistoryItemViewModel> buildGitHistoryViewModelsFromItems(
     viewModels.add(
       GitHistoryItemViewModel(
         historyItem: historyItem.copyWith(references: references),
-        inputSwimlanes: List<GitHistoryGraphNode>.unmodifiable(inputSwimlanes),
-        outputSwimlanes: List<GitHistoryGraphNode>.unmodifiable(
+        inputSwimlanes: List<GitHistoryGraphNode>.unmodifiableOf(
+          inputSwimlanes,
+        ),
+        outputSwimlanes: List<GitHistoryGraphNode>.unmodifiableOf(
           outputSwimlanes,
         ),
         kind: kind,
@@ -339,8 +341,10 @@ void _addIncomingChangesHistoryItem(
         displayId: List<String>.filled(displayIdLength, '0').join(),
         author: remoteRef.name,
       ),
-      inputSwimlanes: List<GitHistoryGraphNode>.unmodifiable(inputSwimlanes),
-      outputSwimlanes: List<GitHistoryGraphNode>.unmodifiable(outputSwimlanes),
+      inputSwimlanes: List<GitHistoryGraphNode>.unmodifiableOf(inputSwimlanes),
+      outputSwimlanes: List<GitHistoryGraphNode>.unmodifiableOf(
+        outputSwimlanes,
+      ),
       kind: .incomingChanges,
     ),
   );
@@ -391,7 +395,9 @@ void _addOutgoingChangesHistoryItem(
         author: currentRef.name,
       ),
       inputSwimlanes: inputSwimlanes,
-      outputSwimlanes: List<GitHistoryGraphNode>.unmodifiable(outputSwimlanes),
+      outputSwimlanes: List<GitHistoryGraphNode>.unmodifiableOf(
+        outputSwimlanes,
+      ),
       kind: .outgoingChanges,
     ),
   );

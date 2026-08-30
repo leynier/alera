@@ -1,6 +1,6 @@
 part of 'workbench_controller_test.dart';
 
-Future<void> _flush() => Future<void>.delayed(.zero);
+Future<void> _flush() => Future.pause(.zero);
 Future<Workspace> _selectMainWorkspace(
   WorkbenchController controller,
   _WorkbenchHarness harness,

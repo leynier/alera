@@ -160,8 +160,8 @@ class CodexChatController extends _$CodexChatController {
     if (trimmed.isEmpty && attachments.isEmpty && draftItems.isEmpty) return;
     final message = CodexQueuedMessage(
       text: trimmed,
-      attachments: List<CodexInputAttachment>.unmodifiable(attachments),
-      draftItems: List<CodexDraftItem>.unmodifiable(draftItems),
+      attachments: List<CodexInputAttachment>.unmodifiableOf(attachments),
+      draftItems: List<CodexDraftItem>.unmodifiableOf(draftItems),
       id: _newClientMessageId(),
     );
     if (state.loading ||
@@ -430,8 +430,8 @@ class CodexChatController extends _$CodexChatController {
     next[index] = CodexQueuedMessage(
       id: next[index].id,
       text: text.trim(),
-      attachments: List<CodexInputAttachment>.unmodifiable(attachments),
-      draftItems: List<CodexDraftItem>.unmodifiable(draftItems),
+      attachments: List<CodexInputAttachment>.unmodifiableOf(attachments),
+      draftItems: List<CodexDraftItem>.unmodifiableOf(draftItems),
     );
     if (next[index].text.isEmpty &&
         next[index].attachments.isEmpty &&

@@ -72,7 +72,7 @@ class _CodexTimelineState extends State<_CodexTimeline>
       _timelineHasSelection = false;
     }
     if (!oldWidget.loadingEarlier && widget.loadingEarlier) {
-      _frozenHistoryLiveCells = List<CodexTimelineCell>.unmodifiable(
+      _frozenHistoryLiveCells = List<CodexTimelineCell>.unmodifiableOf(
         _projection.live.sourceCells,
       );
     }

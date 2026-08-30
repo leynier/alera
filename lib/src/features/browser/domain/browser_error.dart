@@ -49,10 +49,12 @@ final class const BrowserFailure({
 
 Map<String, Object?> _browserErrorMap(Object? value) {
   if (value is Map<String, Object?>) {
-    return Map<String, Object?>.unmodifiable(value);
+    return Map<String, Object?>.unmodifiableOf(value);
   }
   if (value is Map) {
-    return Map<String, Object?>.unmodifiable(Map<String, Object?>.from(value));
+    return Map<String, Object?>.unmodifiableOf(
+      Map<String, Object?>.from(value),
+    );
   }
   return const <String, Object?>{};
 }

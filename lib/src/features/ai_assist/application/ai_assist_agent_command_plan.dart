@@ -234,7 +234,7 @@ Future<void> _deleteTemporaryDirectory(Directory directory) async {
       return;
     } catch (_) {
       if (attempt < 2) {
-        await Future<void>.delayed(const Duration(milliseconds: 100));
+        await Future.pause(const Duration(milliseconds: 100));
       }
     }
   }

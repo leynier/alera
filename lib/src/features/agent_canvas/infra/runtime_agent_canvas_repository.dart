@@ -103,7 +103,7 @@ class RuntimeAgentCanvasRepository(
       if (_map(payload)['ready'] == true) {
         return true;
       }
-      await Future<void>.delayed(const Duration(milliseconds: 250));
+      await Future.pause(const Duration(milliseconds: 250));
     }
     return false;
   }

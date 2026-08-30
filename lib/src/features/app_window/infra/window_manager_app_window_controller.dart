@@ -59,7 +59,7 @@ class WindowManagerAppWindowController({WindowManager? manager})
       if (DateTime.now().isAfter(deadline)) {
         return false;
       }
-      await Future<void>.delayed(const Duration(milliseconds: 16));
+      await Future.pause(const Duration(milliseconds: 16));
     }
     return true;
   }

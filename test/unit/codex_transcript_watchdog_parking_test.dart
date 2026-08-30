@@ -66,7 +66,7 @@ void main() {
     }
 
     Future<void> waitOutSeveralIntervals() async {
-      await Future<void>.delayed(watchdogInterval * 8);
+      await Future.pause(watchdogInterval * 8);
     }
 
     /// Kill the file watch so polling is the only thing left driving scans.
@@ -77,9 +77,9 @@ void main() {
     /// the file watch delivered anyway.
     Future<void> forcePollingFallback() async {
       transcript.deleteSync();
-      await Future<void>.delayed(watchdogInterval * 3);
+      await Future.pause(watchdogInterval * 3);
       transcript.writeAsStringSync(_turnStart);
-      await Future<void>.delayed(watchdogInterval * 3);
+      await Future.pause(watchdogInterval * 3);
     }
 
     test('a backgrounded app stops polling the transcript', () async {
@@ -106,20 +106,20 @@ void main() {
       await waitOutSeveralIntervals();
 
       foreground.setForeground(true);
-      await Future<void>.delayed(watchdogInterval * 3);
+      await Future.pause(watchdogInterval * 3);
 
       expect(sink.events.map((event) => event.hookEventName), contains('Stop'));
     });
 
     test('returning to the foreground catches up on what was missed', () async {
       startWatching();
-      await Future<void>.delayed(watchdogInterval * 2);
+      await Future.pause(watchdogInterval * 2);
       foreground.setForeground(false);
       completeTurnOnDisk();
       await waitOutSeveralIntervals();
 
       foreground.setForeground(true);
-      await Future<void>.delayed(watchdogInterval * 2);
+      await Future.pause(watchdogInterval * 2);
 
       // Nothing is lost by parking: the scan resumes from the same byte offset,
       // so the completion written while hidden is read on return.
@@ -131,7 +131,7 @@ void main() {
       // what a stale foreground subscription would do.
       startWatching();
       completeTurnOnDisk();
-      await Future<void>.delayed(watchdogInterval * 3);
+      await Future.pause(watchdogInterval * 3);
       final afterStop = sink.events.length;
 
       foreground.setForeground(false);

@@ -168,7 +168,7 @@ abstract final class MobileCodexTimelineProjection {
               id: 'activity-${visible.first.id}',
               turnId: turnId,
               turnActivityCount: collapsibleActivityCount(turnId),
-              activityCells: List<MobileCodexTimelineCell>.unmodifiable(
+              activityCells: List<MobileCodexTimelineCell>.unmodifiableOf(
                 activity,
               ),
             ),
@@ -195,7 +195,7 @@ abstract final class MobileCodexTimelineProjection {
         ),
       );
     }
-    return List<MobileCodexPresentationRow>.unmodifiable(rows);
+    return List<MobileCodexPresentationRow>.unmodifiableOf(rows);
   }
 
   static bool _isGroupedActivity(MobileCodexTimelineCell cell) =>

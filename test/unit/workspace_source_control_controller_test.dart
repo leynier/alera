@@ -44,7 +44,7 @@ Future<(ProviderContainer, WorkspaceSourceControlController)> _boot(
   addTearDown(container.dispose);
   await container.read(provider.future);
   // Let the best-effort, unawaited watcher subscription attach.
-  await Future<void>.delayed(const Duration(milliseconds: 10));
+  await Future.pause(const Duration(milliseconds: 10));
   return (container, container.read(provider.notifier));
 }
 
@@ -62,7 +62,7 @@ void main() {
     // Simulate an external change picked up by the native watcher.
     backend.gitStatusResult = _statusWith(3);
     watcher.emitChange();
-    await Future<void>.delayed(const Duration(milliseconds: 350));
+    await Future.pause(const Duration(milliseconds: 350));
 
     expect(container.read(provider).requireValue.status.entries, hasLength(3));
   });
@@ -76,13 +76,13 @@ void main() {
     final provider = workspaceSourceControlControllerProvider(_workspacePath);
 
     final fetchFuture = controller.fetch();
-    await Future<void>.delayed(const Duration(milliseconds: 10));
+    await Future.pause(const Duration(milliseconds: 10));
     expect(container.read(provider).requireValue.isBusy, isTrue);
 
     // External change arrives mid-action: it must not reload yet.
     backend.gitStatusResult = _statusWith(5);
     watcher.emitChange();
-    await Future<void>.delayed(const Duration(milliseconds: 350));
+    await Future.pause(const Duration(milliseconds: 350));
     expect(container.read(provider).requireValue.status.entries, hasLength(1));
     expect(container.read(provider).requireValue.isBusy, isTrue);
 
@@ -107,13 +107,13 @@ void main() {
       backend.statusGates.add(gate);
       backend.gitStatusResult = _statusWith(2);
       watcher.emitChange();
-      await Future<void>.delayed(const Duration(milliseconds: 350));
+      await Future.pause(const Duration(milliseconds: 350));
 
       backend.gitStatusResult = _statusWith(3);
       watcher.emitChange();
-      await Future<void>.delayed(const Duration(milliseconds: 10));
+      await Future.pause(const Duration(milliseconds: 10));
       gate.complete();
-      await Future<void>.delayed(const Duration(milliseconds: 450));
+      await Future.pause(const Duration(milliseconds: 450));
 
       expect(
         container.read(provider).requireValue.status.entries,
@@ -139,12 +139,12 @@ void main() {
     final provider = workspaceSourceControlControllerProvider(_workspacePath);
     final subscription = container.listen(provider, (_, _) {});
     await container.read(provider.future);
-    await Future<void>.delayed(const Duration(milliseconds: 10));
+    await Future.pause(const Duration(milliseconds: 10));
     expect(watcher.startCount, 1);
 
     subscription.close();
     container.dispose();
-    await Future<void>.delayed(const Duration(milliseconds: 10));
+    await Future.pause(const Duration(milliseconds: 10));
 
     expect(watcher.stopCount, 1);
   });

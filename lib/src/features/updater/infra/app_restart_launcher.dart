@@ -80,7 +80,7 @@ class AppRestartLauncher({
       if (helperExited) {
         throw StateError('The app restart helper exited before it was ready.');
       }
-      await Future<void>.delayed(const Duration(milliseconds: 50));
+      await Future.pause(const Duration(milliseconds: 50));
     }
     child.kill();
     throw TimeoutException(

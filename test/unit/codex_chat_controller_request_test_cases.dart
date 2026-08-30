@@ -81,7 +81,7 @@ void registerCodexChatControllerRequestTests() {
           <String, Object?>{},
         ),
       );
-      await Future<void>.delayed(.zero);
+      await Future.pause(.zero);
 
       expect(await host.supportsSessions(), isTrue);
       expect(statusAttempts, 2);

@@ -516,7 +516,7 @@ void _registerTerminalRuntimeHelperGroup() {
               throw StateError('resize failed'),
           events: events,
         );
-        await Future<void>.delayed(.zero);
+        await Future.pause(.zero);
 
         expect(emitted.whereType<TerminalPtyErrorEvent>(), hasLength(2));
       },

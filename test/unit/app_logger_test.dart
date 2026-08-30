@@ -167,7 +167,7 @@ void main() {
           OSError('The handle is invalid', 6),
         ),
       );
-      await Future<void>.delayed(.zero);
+      await Future.pause(.zero);
       Logger('Workbench').info('after console failure');
 
       final records = await readRecords();

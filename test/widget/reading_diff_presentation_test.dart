@@ -81,7 +81,7 @@ void main() {
     expect(find.textContaining('does not identify bugs'), findsOneWidget);
     expect(find.text('+new'), findsNothing);
 
-    await tester.runAsync(() => Future<void>.delayed(.zero));
+    await tester.runAsync(() => Future.pause(.zero));
     await tester.tap(find.text('Condensed Diff'));
     await tester.pumpAndSettle();
 

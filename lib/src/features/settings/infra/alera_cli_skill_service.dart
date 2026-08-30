@@ -230,7 +230,7 @@ class AleraCliSkillService({
     return AleraCliSkillInstallResult(
       runner: runner,
       skill: skill,
-      attempts: List<AleraCliSkillInstallAttempt>.unmodifiable(attempts),
+      attempts: List<AleraCliSkillInstallAttempt>.unmodifiableOf(attempts),
     );
   }
 

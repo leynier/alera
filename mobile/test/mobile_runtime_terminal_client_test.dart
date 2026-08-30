@@ -86,7 +86,7 @@ Future<void> _waitUntil(
     if (DateTime.now().isAfter(deadline)) {
       fail('Condition was not met within $timeout.');
     }
-    await Future<void>.delayed(const Duration(milliseconds: 5));
+    await Future.pause(const Duration(milliseconds: 5));
   }
 }
 

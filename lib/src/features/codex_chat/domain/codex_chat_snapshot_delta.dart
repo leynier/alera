@@ -136,7 +136,7 @@ final class _MutableCodexTimeline(List<CodexTimelineCell> cells) {
 
   List<CodexTimelineCell> build() {
     if (_history.isEmpty) {
-      return List<CodexTimelineCell>.unmodifiable(_live);
+      return List<CodexTimelineCell>.unmodifiableOf(_live);
     }
     if (_historyChanged || _segmented == null) {
       return CodexTimelineCells.segmented(history: _history, live: _live);

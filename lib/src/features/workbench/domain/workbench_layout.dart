@@ -18,7 +18,7 @@ class WorkbenchPaneGroup({
   required List<String> tabIds,
   required this.activeTabId,
 }) with WorkbenchPaneGroupMappable {
-  this : tabIds = List<String>.unmodifiable(tabIds) {
+  this : tabIds = List<String>.unmodifiableOf(tabIds) {
     if (id.isEmpty) {
       throw ArgumentError.value(
         id,
@@ -186,7 +186,7 @@ class WorkbenchLayout({
   required Map<String, WorkbenchPaneGroup> groups,
   required this.activeGroupId,
 }) with WorkbenchLayoutMappable {
-  this : groups = Map<String, WorkbenchPaneGroup>.unmodifiable(groups) {
+  this : groups = Map<String, WorkbenchPaneGroup>.unmodifiableOf(groups) {
     if (workspaceId.isEmpty) {
       throw ArgumentError.value(
         workspaceId,

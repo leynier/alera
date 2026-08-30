@@ -151,7 +151,7 @@ final class BrowserSessionRegistry({
           // A failed close restores the existing entry for the next loop.
         }
       } else {
-        await Future<void>.delayed(.zero);
+        await Future.pause(.zero);
       }
     }
     final entry = _BrowserSessionEntry(

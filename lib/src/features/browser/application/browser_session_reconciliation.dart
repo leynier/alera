@@ -93,7 +93,7 @@ final class BrowserPersistentSessionReconciler(
     if (_disposed) {
       return;
     }
-    final snapshot = List<WorkspaceTabRecord>.unmodifiable(tabs);
+    final snapshot = List<WorkspaceTabRecord>.unmodifiableOf(tabs);
     final generation = ++_generation;
     _tail = _tail.catchError((Object _) {}).then((_) async {
       if (!_isCurrent(generation)) {

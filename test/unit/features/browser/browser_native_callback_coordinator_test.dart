@@ -121,7 +121,7 @@ void main() {
     coordinator.register(
       BrowserNativeCallbackHandlers(
         tls: (_, _) async {
-          await Future<void>.delayed(const Duration(milliseconds: 10));
+          await Future.pause(const Duration(milliseconds: 10));
           return true;
         },
       ),

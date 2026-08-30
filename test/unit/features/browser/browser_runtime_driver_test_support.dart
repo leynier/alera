@@ -67,7 +67,7 @@ Future<void> waitForBrowserRuntime(bool Function() predicate) async {
     if (predicate()) {
       return;
     }
-    await Future<void>.delayed(const Duration(milliseconds: 1));
+    await Future.pause(const Duration(milliseconds: 1));
   }
   fail('Condition was not reached.');
 }

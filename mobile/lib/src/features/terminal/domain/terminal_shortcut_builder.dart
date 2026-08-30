@@ -126,7 +126,7 @@ const Map<String, int> _csiTildeSpecialKeys = <String, int>{
 };
 
 /// Ids selectable in the custom-key picker, in display order.
-final List<String> terminalShortcutSpecialKeys = List<String>.unmodifiable(
+final List<String> terminalShortcutSpecialKeys = List<String>.unmodifiableOf(
   _specialKeyLabels.keys,
 );
 

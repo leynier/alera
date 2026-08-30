@@ -46,7 +46,7 @@ void main() {
     );
     addTearDown(listener.close);
     while (!client.calls.any((call) => call.type == 'codex.model.list')) {
-      await Future<void>.delayed(.zero);
+      await Future.pause(.zero);
     }
 
     client.emit(
@@ -78,8 +78,8 @@ void main() {
     models.complete(const <String, Object?>{'data': <Object?>[]});
 
     await container.read(provider.future);
-    await Future<void>.delayed(.zero);
-    await Future<void>.delayed(.zero);
+    await Future.pause(.zero);
+    await Future.pause(.zero);
 
     expect(
       container.read(provider).value!.timelineCells.map((cell) => cell.id),

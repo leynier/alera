@@ -39,8 +39,8 @@ void _registerAgentNotificationCoordinatorTests() {
                 payload: <String, Object?>{'prompt': 'Run tests'},
               ),
             );
-        await Future<void>.delayed(.zero);
-        await Future<void>.delayed(.zero);
+        await Future.pause(.zero);
+        await Future.pause(.zero);
 
         expect(presenter.initializeCalls, 1);
         expect(presenter.notifications, hasLength(1));
@@ -82,8 +82,8 @@ void _registerAgentNotificationCoordinatorTests() {
             payload: <String, Object?>{'prompt': 'Run tests'},
           ),
         );
-        await Future<void>.delayed(.zero);
-        await Future<void>.delayed(.zero);
+        await Future.pause(.zero);
+        await Future.pause(.zero);
 
         expect(presenter.notifications, isEmpty);
 
@@ -97,8 +97,8 @@ void _registerAgentNotificationCoordinatorTests() {
             payload: <String, Object?>{'prompt': 'Run tests'},
           ),
         );
-        await Future<void>.delayed(.zero);
-        await Future<void>.delayed(.zero);
+        await Future.pause(.zero);
+        await Future.pause(.zero);
 
         expect(presenter.notifications, hasLength(1));
         expect(presenter.notifications.single.title, 'Codex needs attention');
@@ -144,8 +144,8 @@ void _registerAgentNotificationCoordinatorTests() {
         }
 
         requestPermission();
-        await Future<void>.delayed(.zero);
-        await Future<void>.delayed(.zero);
+        await Future.pause(.zero);
+        await Future.pause(.zero);
         expect(presenter.notifications, hasLength(1));
 
         // Toggling a hook used to rebuild the coordinator, which dropped the
@@ -171,8 +171,8 @@ void _registerAgentNotificationCoordinatorTests() {
           ),
         );
         requestPermission();
-        await Future<void>.delayed(.zero);
-        await Future<void>.delayed(.zero);
+        await Future.pause(.zero);
+        await Future.pause(.zero);
 
         expect(presenter.notifications, hasLength(1));
       },
@@ -250,14 +250,14 @@ void _registerAgentNotificationCoordinatorTests() {
               payload: <String, Object?>{'prompt': 'Run tests'},
             ),
           );
-      await Future<void>.delayed(.zero);
-      await Future<void>.delayed(.zero);
+      await Future.pause(.zero);
+      await Future.pause(.zero);
 
       expect(presenter.notifications, hasLength(1));
       expect(presenter.notifications.single.body, 'Workspace Main in Alera');
 
       presenter.onSelected!(presenter.notifications.single.payload);
-      await Future<void>.delayed(.zero);
+      await Future.pause(.zero);
 
       expect(windowActivator.calls, 1);
       expect(controller.selectedWorkspaceIds, <String>['workspace-1']);

@@ -83,7 +83,7 @@ final class PluginBrowserEngine(
         requiredNativeCookieImportSources: Set<String>.unmodifiable(
           value.requiredNativeCookieImportSources,
         ),
-        limitations: List<String>.unmodifiable(value.limitations),
+        limitations: List<String>.unmodifiableOf(value.limitations),
       );
     });
   }

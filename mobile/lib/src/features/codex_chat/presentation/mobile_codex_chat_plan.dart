@@ -341,7 +341,7 @@ class const _MobilePlanProgress({
       return _MobilePlanProgress(
         current: (completed + 1).clamp(1, items.length),
         total: items.length,
-        items: List<Map<String, Object?>>.unmodifiable(items),
+        items: List<Map<String, Object?>>.unmodifiableOf(items),
       );
     }
     return null;

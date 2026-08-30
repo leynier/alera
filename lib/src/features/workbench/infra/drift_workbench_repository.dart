@@ -296,5 +296,5 @@ List<Workspace> _sortWorkspaces(List<Workspace> workspaces) {
     }
     return left.name.toLowerCase().compareTo(right.name.toLowerCase());
   });
-  return List<Workspace>.unmodifiable(workspaces);
+  return List<Workspace>.unmodifiableOf(workspaces);
 }

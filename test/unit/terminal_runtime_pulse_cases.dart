@@ -21,10 +21,10 @@ void _registerTerminalRuntimePulseTests() {
     try {
       final startup = session.ensureStarted();
       while (pty.statusCalls == 0) {
-        await Future<void>.delayed(.zero);
+        await Future.pause(.zero);
       }
       pty.emitExit(7);
-      await Future<void>.delayed(.zero);
+      await Future.pause(.zero);
       delayedStatus.complete(_pulseState);
       await startup;
 
@@ -57,10 +57,10 @@ void _registerTerminalRuntimePulseTests() {
 
       final restart = session.restart();
       while (pty.statusCalls < 2) {
-        await Future<void>.delayed(.zero);
+        await Future.pause(.zero);
       }
       pty.emitExit(7);
-      await Future<void>.delayed(.zero);
+      await Future.pause(.zero);
       expect(session.isRunning, isFalse);
       expect(session.supportsTerminalPulse, isFalse);
       expect(session.terminalPulseState.value.armed, isFalse);

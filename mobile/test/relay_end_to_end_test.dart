@@ -75,7 +75,7 @@ void main() {
           }),
         );
         sequence++;
-        await Future<void>.delayed(const Duration(milliseconds: 250));
+        await Future.pause(const Duration(milliseconds: 250));
       }
       connectionTimes.sort();
       roundTrips.sort();

@@ -23,9 +23,7 @@ void registerCodexComposerFoundationTests() {
     await tester.tap(
       find.byKey(const ValueKey<String>('composer-action-button')),
     );
-    await tester.runAsync(
-      () => Future<void>.delayed(const Duration(milliseconds: 20)),
-    );
+    await tester.runAsync(() => Future.pause(const Duration(milliseconds: 20)));
     await tester.pump();
 
     expect(client.startTurnPayloads, hasLength(1));
@@ -195,9 +193,7 @@ void registerCodexComposerFoundationTests() {
     await tester.enterText(composer, '@logo');
     await tester.pump(const Duration(milliseconds: 250));
     await tester.tap(find.text('assets/logo.png'));
-    await tester.runAsync(
-      () => Future<void>.delayed(const Duration(milliseconds: 20)),
-    );
+    await tester.runAsync(() => Future.pause(const Duration(milliseconds: 20)));
     await tester.pump();
 
     final attachmentKey = ValueKey<String>(

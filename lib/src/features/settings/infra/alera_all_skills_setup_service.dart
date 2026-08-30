@@ -78,7 +78,7 @@ class const AleraAllSkillsSetupService({
       }
     }
     return AleraAllSkillsSetupResult(
-      List<AleraSkillSetupOutcome>.unmodifiable(outcomes),
+      List<AleraSkillSetupOutcome>.unmodifiableOf(outcomes),
     );
   }
 

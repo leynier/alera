@@ -154,7 +154,7 @@ void main() {
       );
       addTearDown(listener.close);
       while (modelRequests == 0) {
-        await Future<void>.delayed(.zero);
+        await Future.pause(.zero);
       }
 
       client.emit(
@@ -162,7 +162,7 @@ void main() {
           'catalog': 'account',
         }),
       );
-      await Future<void>.delayed(.zero);
+      await Future.pause(.zero);
       initialModels.complete(_modelsPayload);
 
       final state = await container.read(provider.future);
@@ -222,7 +222,7 @@ void main() {
       );
       addTearDown(listener.close);
       while (configureRequests == 0) {
-        await Future<void>.delayed(.zero);
+        await Future.pause(.zero);
       }
 
       client.emit(
@@ -230,7 +230,7 @@ void main() {
           'catalog': 'account',
         }),
       );
-      await Future<void>.delayed(.zero);
+      await Future.pause(.zero);
       initialConfigure.complete(const <String, Object?>{});
 
       final state = await container.read(provider.future);
@@ -288,7 +288,7 @@ void main() {
         'catalog': 'account',
       }),
     );
-    await Future<void>.delayed(.zero);
+    await Future.pause(.zero);
 
     final controller = container.read(provider.notifier);
     controller.setModel('gpt-alternate');
@@ -296,7 +296,7 @@ void main() {
     controller.setSpeed('fast');
     controller.setCollaborationMode('plan');
     modelRefresh.complete(_modelsPayload);
-    await Future<void>.delayed(.zero);
+    await Future.pause(.zero);
 
     final state = container.read(provider).value!;
     expect(state.selectedModel, 'gpt-alternate');
@@ -438,7 +438,7 @@ final class const _TestPreferencesRepository()
 
 Future<void> _settleCatalogueRefresh() async {
   for (var index = 0; index < 4; index += 1) {
-    await Future<void>.delayed(.zero);
+    await Future.pause(.zero);
   }
 }
 

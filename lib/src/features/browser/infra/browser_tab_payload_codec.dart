@@ -66,7 +66,7 @@ final class const BrowserTabPayloadCodec() {
           ? null
           : normalizeAleraBrowserTitle(runtimeTitle),
     );
-    return Map<String, Object?>.unmodifiable(payload);
+    return Map<String, Object?>.unmodifiableOf(payload);
   }
 
   Uri _uri(String value) {

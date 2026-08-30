@@ -170,7 +170,7 @@ class WorkspaceTabRecord({
   this.kind = WorkspaceTabKind.terminal,
   Map<String, Object?> payload = const <String, Object?>{},
 }) with WorkspaceTabRecordMappable {
-  this : payload = Map<String, Object?>.unmodifiable(payload);
+  this : payload = Map<String, Object?>.unmodifiableOf(payload);
 
   final String id;
   final String workspaceId;

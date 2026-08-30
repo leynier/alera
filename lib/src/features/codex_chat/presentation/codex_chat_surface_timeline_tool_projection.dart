@@ -104,19 +104,19 @@ class const _CodexToolDetailsProjection({
                 ) &&
                 !_sameCodexStructuredValue(decodedDetails, action));
     return _CodexToolDetailsProjection(
-      overview: List<(String, String)>.unmodifiable(overview),
+      overview: List<(String, String)>.unmodifiableOf(overview),
       arguments: effectiveArguments,
       commandActions: commandActions,
       response: response,
       responseLabel: responseLabel,
-      images: List<String>.unmodifiable(
+      images: List<String>.unmodifiableOf(
         _codexDetailImages(<Object?>[details, ...metadata.values]),
       ),
       details: details,
       showDetails: showDetails,
       isDiff: isDiff,
       diffLines: isDiff
-          ? List<String>.unmodifiable(details.split('\n'))
+          ? List<String>.unmodifiableOf(details.split('\n'))
           : const <String>[],
     );
   }

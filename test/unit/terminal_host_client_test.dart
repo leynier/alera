@@ -266,7 +266,7 @@ void main() {
       final warmup = client.ensureStarted(config: .defaults);
       await _waitForLauncherStart(launcher);
       final runtimeRequest = client.runtimeRequest('project.list');
-      await Future<void>.delayed(const Duration(milliseconds: 10));
+      await Future.pause(const Duration(milliseconds: 10));
 
       expect(launcher.starts, 1);
 
@@ -306,7 +306,7 @@ void main() {
     final runtimeRequest = client.runtimeRequest('project.list');
     await _waitForLauncherStart(launcher);
     final warmup = client.ensureStarted(config: .defaults);
-    await Future<void>.delayed(const Duration(milliseconds: 10));
+    await Future.pause(const Duration(milliseconds: 10));
 
     expect(launcher.starts, 1);
 
@@ -949,7 +949,7 @@ void main() {
     );
     await _waitForServerRequestCount(legacyServer, 1);
     final runtimeRequest = client.runtimeRequest('project.list');
-    await Future<void>.delayed(const Duration(milliseconds: 10));
+    await Future.pause(const Duration(milliseconds: 10));
 
     releaseHello.complete();
     await expectLater(orchestrationRequest, throwsA(isA<StateError>()));
@@ -1080,7 +1080,7 @@ GhosttyTerminalShellLaunch _launch({String? setupCommand}) {
 Future<void> _waitForLauncherStart(_FakeTerminalHostLauncher launcher) async {
   final deadline = DateTime.now().add(const Duration(seconds: 1));
   while (launcher.starts == 0 && DateTime.now().isBefore(deadline)) {
-    await Future<void>.delayed(const Duration(milliseconds: 1));
+    await Future.pause(const Duration(milliseconds: 1));
   }
   expect(launcher.starts, greaterThan(0));
 }
@@ -1091,7 +1091,7 @@ Future<void> _waitForQueuedLauncherStarts(
 ) async {
   final deadline = DateTime.now().add(const Duration(seconds: 1));
   while (launcher.starts < expected && DateTime.now().isBefore(deadline)) {
-    await Future<void>.delayed(const Duration(milliseconds: 1));
+    await Future.pause(const Duration(milliseconds: 1));
   }
   expect(launcher.starts, greaterThanOrEqualTo(expected));
 }

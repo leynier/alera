@@ -44,7 +44,7 @@ class SpeechModelDescriptor({
   final int storageVersion = 1,
 }) {
   this
-    : artifacts = List<SpeechModelArtifact>.unmodifiable(artifacts),
+    : artifacts = List<SpeechModelArtifact>.unmodifiableOf(artifacts),
       preferredProvider =
           preferredProvider ??
           (supportedProviders.contains(SpeechExecutionProvider.auto)

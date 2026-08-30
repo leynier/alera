@@ -144,7 +144,7 @@ void _registerMobileCodexReviewRegression2Tests() {
     await tester.tap(find.widgetWithText(FilledButton, 'Retry'));
     await tester.pump();
     await tester.runAsync(
-      () => Future<void>.delayed(const Duration(milliseconds: 100)),
+      () => Future.pause(const Duration(milliseconds: 100)),
     );
     await tester.pump(const Duration(milliseconds: 300));
 

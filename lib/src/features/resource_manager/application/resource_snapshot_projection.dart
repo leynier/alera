@@ -79,7 +79,7 @@ ResourceTree buildResourceTree({
       name: workspace.name,
       projectId: workspace.projectId,
       remote: workspace.hostId != 'local',
-      sessions: List<ResourceSessionRow>.unmodifiable(sessions),
+      sessions: List<ResourceSessionRow>.unmodifiableOf(sessions),
     );
     workspacesByProject
         .putIfAbsent(workspace.projectId, () => <ResourceWorkspaceRow>[])
@@ -94,7 +94,7 @@ ResourceTree buildResourceTree({
       ResourceProjectGroup(
         projectId: entry.key,
         name: project?.name ?? entry.key,
-        workspaces: List<ResourceWorkspaceRow>.unmodifiable(rows),
+        workspaces: List<ResourceWorkspaceRow>.unmodifiableOf(rows),
       ),
     );
   }
@@ -102,8 +102,8 @@ ResourceTree buildResourceTree({
   orphans.sort(_sessionComparator(sortColumn));
 
   return ResourceTree(
-    projects: List<ResourceProjectGroup>.unmodifiable(groups),
-    orphanSessions: List<ResourceSessionRow>.unmodifiable(orphans),
+    projects: List<ResourceProjectGroup>.unmodifiableOf(groups),
+    orphanSessions: List<ResourceSessionRow>.unmodifiableOf(orphans),
   );
 }
 

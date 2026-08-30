@@ -19,7 +19,7 @@ void _registerXtermRuntimeClipboardTests() {
       final text = 'a' * size;
       final payload = base64.encode(utf8.encode(text));
       handlePrivateOscForTesting(session, '52', ['c', payload]);
-      await Future<void>.delayed(.zero);
+      await Future.pause(.zero);
       expect(clipboard.writes, [text]);
     });
   }
@@ -41,7 +41,7 @@ void _registerXtermRuntimeClipboardTests() {
     final payload = base64.encode(utf8.encode('from tui'));
     handlePrivateOscForTesting(session, '52', <String>['c', payload]);
     handlePrivateOscForTesting(session, '52', <String>['c', payload]);
-    await Future<void>.delayed(.zero);
+    await Future.pause(.zero);
 
     expect(clipboard.writes, isEmpty);
     expect(notices, hasLength(1));
@@ -50,7 +50,7 @@ void _registerXtermRuntimeClipboardTests() {
       TerminalSettings.defaults.copyWith(allowOsc52Clipboard: true),
     );
     handlePrivateOscForTesting(session, '52', <String>['c', payload]);
-    await Future<void>.delayed(.zero);
+    await Future.pause(.zero);
 
     expect(clipboard.writes, <String>['from tui']);
     handlePrivateOscForTesting(session, '52', ['', payload]);
@@ -63,7 +63,7 @@ void _registerXtermRuntimeClipboardTests() {
       session,
       '\x1b]1337;CopyToClipboard=c\x07secret\x1b]1337;EndCopy\x07',
     );
-    await Future<void>.delayed(.zero);
+    await Future.pause(.zero);
     expect(clipboard.writes, <String>['from tui']);
   });
 
@@ -205,7 +205,7 @@ void _registerXtermRuntimeClipboardTests() {
       const xterm.CellOffset(0, 0),
       const xterm.CellOffset(8, 0),
     );
-    await Future<void>.delayed(const Duration(milliseconds: 120));
+    await Future.pause(const Duration(milliseconds: 120));
 
     expect(clipboard.writes, <String>['selected']);
   });

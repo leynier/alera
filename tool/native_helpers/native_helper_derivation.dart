@@ -55,7 +55,7 @@ final class NativeHelperDerivation({
       packageDirectory: _requiredRelativePath(value, 'packageDirectory'),
       product: _requiredString(value, 'product'),
       buildOutput: _requiredRelativePath(value, 'buildOutput'),
-      architectures: .unmodifiable(architectures),
+      architectures: .unmodifiableOf(architectures),
       dependencyLockPath: _requiredRelativePath(value, 'dependencyLockPath'),
       dependencyLockSha256: _requiredSha256(
         value,
@@ -64,13 +64,13 @@ final class NativeHelperDerivation({
       ),
       patchPath: _requiredRelativePath(value, 'patchPath'),
       patchSha256: _requiredSha256(value, 'patchSha256', assetId),
-      patchTargets: .unmodifiable(
+      patchTargets: .unmodifiableOf(
         rawTargets.map(
           (target) =>
               NativeHelperPatchTarget.fromJson(target, assetId: assetId),
         ),
       ),
-      dependencies: .unmodifiable(
+      dependencies: .unmodifiableOf(
         rawDependencies.map(
           (dependency) =>
               NativeHelperDependency.fromJson(dependency, assetId: assetId),

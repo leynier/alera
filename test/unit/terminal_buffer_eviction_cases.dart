@@ -15,7 +15,7 @@ Future<void> _settleUntil(bool Function() condition) async {
     if (condition()) {
       return;
     }
-    await Future<void>.delayed(.zero);
+    await Future.pause(.zero);
   }
 }
 

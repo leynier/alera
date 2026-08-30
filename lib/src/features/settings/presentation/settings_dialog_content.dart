@@ -103,7 +103,7 @@ class _SettingsContentState extends State<SettingsContent> {
                     TextButton(
                       onPressed: () async {
                         FocusManager.instance.primaryFocus?.unfocus();
-                        await Future<void>.delayed(.zero);
+                        await Future.pause(.zero);
                         await section.onReset!();
                       },
                       child: Text('Reset ${section.title}'),

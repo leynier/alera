@@ -7,12 +7,12 @@ final class CodexTimelineCells extends ListBase<CodexTimelineCell> {
   new segmented({
     required List<CodexTimelineCell> history,
     required List<CodexTimelineCell> live,
-  }) : _history = List<CodexTimelineCell>.unmodifiable(history),
-       _live = List<CodexTimelineCell>.unmodifiable(live),
-       _historyPromptHistory = List<String>.unmodifiable(
+  }) : _history = List<CodexTimelineCell>.unmodifiableOf(history),
+       _live = List<CodexTimelineCell>.unmodifiableOf(live),
+       _historyPromptHistory = List<String>.unmodifiableOf(
          _codexPromptHistory(history),
        ),
-       _historyIndexById = Map<String, int>.unmodifiable(<String, int>{
+       _historyIndexById = Map<String, int>.unmodifiableOf(<String, int>{
          for (var index = 0; index < history.length; index++)
            history[index].id: index,
        }),
@@ -30,7 +30,7 @@ final class CodexTimelineCells extends ListBase<CodexTimelineCell> {
     this._historyPromptHistory,
     this._historyIndexById,
     this._historyItemIds,
-  ) : _live = List<CodexTimelineCell>.unmodifiable(live);
+  ) : _live = List<CodexTimelineCell>.unmodifiableOf(live);
 
   final List<CodexTimelineCell> _history;
   final List<CodexTimelineCell> _live;
@@ -96,7 +96,7 @@ final class CodexPromptHistory._withLive(
   final List<String> _history,
   List<String> live,
 ) extends ListBase<String> {
-  this : _live = List<String>.unmodifiable(live);
+  this : _live = List<String>.unmodifiableOf(live);
 
   final List<String> _live;
 
@@ -286,7 +286,7 @@ List<CodexPendingRequest> _codexPendingRequests(Object? value) =>
     ];
 
 List<String> _codexPromptHistory(List<CodexTimelineCell> cells) =>
-    List<String>.unmodifiable(<String>[
+    List<String>.unmodifiableOf(<String>[
       for (final cell in cells)
         if (cell.kind == CodexTimelineKind.userMessage &&
             cell.metadata[CodexTimelineMetadata.isSteering] != true &&

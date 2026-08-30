@@ -374,7 +374,7 @@ void main() {
           'correlationId': 'cancelled-call',
         }),
       );
-      await Future<void>.delayed(const Duration(milliseconds: 10));
+      await Future.pause(const Duration(milliseconds: 10));
       expect(driver.debugActiveCallCount, 1);
 
       client.events.add(
@@ -408,7 +408,7 @@ void main() {
 
       var closed = false;
       final close = registry.closePage('page-1').then((_) => closed = true);
-      await Future<void>.delayed(const Duration(milliseconds: 10));
+      await Future.pause(const Duration(milliseconds: 10));
       expect(closed, isFalse);
 
       snapshot.complete(
@@ -450,11 +450,11 @@ void main() {
       }),
     );
 
-    await Future<void>.delayed(const Duration(milliseconds: 20));
+    await Future.pause(const Duration(milliseconds: 20));
     expect(driver.debugActiveCallCount, 1);
     var closed = false;
     final close = registry.closePage('page-1').then((_) => closed = true);
-    await Future<void>.delayed(const Duration(milliseconds: 10));
+    await Future.pause(const Duration(milliseconds: 10));
     expect(closed, isFalse);
 
     snapshot.complete(

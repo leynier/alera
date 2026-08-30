@@ -38,8 +38,8 @@ class RelayIdentityKeyPair._(
     final privateBytes = await keyPair.extractPrivateKeyBytes();
     final publicKey = await keyPair.extractPublicKey();
     return RelayIdentityKeyPair._(
-      List<int>.unmodifiable(privateBytes),
-      List<int>.unmodifiable(publicKey.bytes),
+      List<int>.unmodifiableOf(privateBytes),
+      List<int>.unmodifiableOf(publicKey.bytes),
     );
   }
 

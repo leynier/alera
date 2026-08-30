@@ -329,7 +329,7 @@ class MobileAiDictationController extends _$MobileAiDictationController {
     if (_audioPaths.isEmpty) {
       _systemStopRequested = true;
       await _speech.stop();
-      await Future<void>.delayed(const Duration(milliseconds: 150));
+      await Future.pause(const Duration(milliseconds: 150));
       if (!_isCurrentGeneration(generation)) return;
       if (_systemText.trim().isEmpty) {
         state = const MobileAiDictationState(

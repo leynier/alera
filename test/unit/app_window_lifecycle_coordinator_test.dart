@@ -97,7 +97,7 @@ void main() {
       finishSave.complete();
       await _waitFor(() => records.isNotEmpty);
       gate.complete(false);
-      await Future<void>.delayed(.zero);
+      await Future.pause(.zero);
 
       expect(records.single.message, 'failed to save app window state');
       expect(window.destroyCalls, 0);
@@ -173,7 +173,7 @@ void main() {
         expect(gateCalls, 0);
 
         final quit = coordinator.requestQuit();
-        await Future<void>.delayed(.zero);
+        await Future.pause(.zero);
         expect(gateCalls, 0);
         expect(window.hideCalls, 0);
         expect(window.destroyCalls, 0);
@@ -217,7 +217,7 @@ void main() {
       expect(gateCalls, 0);
 
       final quit = coordinator.requestQuit();
-      await Future<void>.delayed(.zero);
+      await Future.pause(.zero);
       expect(gateCalls, 0);
       expect(window.destroyCalls, 0);
 
@@ -400,6 +400,6 @@ Future<void> _waitFor(bool Function() predicate) async {
     if (DateTime.now().isAfter(deadline)) {
       throw TimeoutException('condition was not reached');
     }
-    await Future<void>.delayed(.zero);
+    await Future.pause(.zero);
   }
 }

@@ -80,7 +80,7 @@ final class AleraNativeBrowserAutomation({
       if (decodeAleraBrowserJavaScriptJson(raw) == true) {
         return;
       }
-      await Future<void>.delayed(const Duration(milliseconds: 50));
+      await Future.pause(const Duration(milliseconds: 50));
     }
     throw AleraBrowserStateError(
       'wait_timeout',

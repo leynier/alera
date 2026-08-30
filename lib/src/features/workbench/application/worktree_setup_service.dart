@@ -65,7 +65,7 @@ class WorktreeSetupService._(
       );
       steps.add(report);
       if (!report.succeeded) {
-        return WorktreeSetupReport(steps: .unmodifiable(steps));
+        return WorktreeSetupReport(steps: .unmodifiableOf(steps));
       }
     }
 
@@ -76,11 +76,11 @@ class WorktreeSetupService._(
       );
       steps.add(report);
       if (!report.succeeded) {
-        return WorktreeSetupReport(steps: .unmodifiable(steps));
+        return WorktreeSetupReport(steps: .unmodifiableOf(steps));
       }
     }
 
-    return WorktreeSetupReport(steps: .unmodifiable(steps));
+    return WorktreeSetupReport(steps: .unmodifiableOf(steps));
   }
 
   Future<WorktreeSetupStepReport> _copyRule({

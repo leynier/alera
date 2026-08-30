@@ -303,7 +303,7 @@ class const _CodexTimelineSegmentProjection({
       for (final entry in previous?.entries ?? const <_CodexTimelineEntry>[])
         if (entry.turn case final _CodexTurnProjection turn) turn.turnId: turn,
     };
-    final entries = List<_CodexTimelineEntry>.unmodifiable(
+    final entries = List<_CodexTimelineEntry>.unmodifiableOf(
       <_CodexTimelineEntry>[
         for (final item in order)
           if (item is String)
@@ -320,7 +320,7 @@ class const _CodexTimelineSegmentProjection({
     );
     return _CodexTimelineSegmentProjection(
       sourceCells: cells,
-      topNotices: List<_CodexTimelineEntry>.unmodifiable(topNotices),
+      topNotices: List<_CodexTimelineEntry>.unmodifiableOf(topNotices),
       entries: entries,
       entryKeys: Set<String>.unmodifiable(<String>{
         for (final entry in entries) entry.key,
