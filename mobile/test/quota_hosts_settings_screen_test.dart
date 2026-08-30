@@ -26,7 +26,9 @@ void main() {
     tester,
   ) async {
     final container = ProviderContainer(
-      overrides: [availableHostsProvider.overrideWith((ref) async => _hosts)],
+      overrides: [
+        availableHostsProvider.overrideWith(() => _TestAvailableHosts(_hosts)),
+      ],
     );
     addTearDown(container.dispose);
     await _pump(tester, container, const AppSettingsScreen());
@@ -162,7 +164,9 @@ void main() {
 
   testWidgets('empty host list explains how to add a source', (tester) async {
     final container = ProviderContainer(
-      overrides: [availableHostsProvider.overrideWith((ref) async => [])],
+      overrides: [
+        availableHostsProvider.overrideWith(() => _TestAvailableHosts([])),
+      ],
     );
     addTearDown(container.dispose);
     await _pump(tester, container, const QuotaHostsSettingsScreen());
@@ -178,7 +182,7 @@ void main() {
   ) async {
     final container = ProviderContainer(
       overrides: [
-        availableHostsProvider.overrideWith((ref) async => _hosts),
+        availableHostsProvider.overrideWith(() => _TestAvailableHosts(_hosts)),
         quotaHostVisibilityControllerProvider.overrideWith(
           _FailedSaveVisibility.new,
         ),
@@ -225,7 +229,7 @@ ProviderContainer _quotaContainer(
 ) {
   return ProviderContainer(
     overrides: [
-      availableHostsProvider.overrideWith((ref) async => _hosts),
+      availableHostsProvider.overrideWith(() => _TestAvailableHosts(_hosts)),
       agentQuotaControllerProvider.overrideWith2((_) => _Quotas(quotaReads)),
       hostConnectionControllerProvider.overrideWith2(
         (_) => _PendingConnection(),
@@ -257,6 +261,15 @@ PairedHostProfile _host(
     pairedAt: DateTime.utc(2026),
     isRemote: remote,
   );
+}
+
+class _TestAvailableHosts extends AvailableHosts {
+  _TestAvailableHosts(this.hosts);
+
+  final List<PairedHostProfile> hosts;
+
+  @override
+  Future<List<PairedHostProfile>> build() async => hosts;
 }
 
 class _Quotas extends AgentQuotaController {
