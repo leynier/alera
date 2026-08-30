@@ -107,13 +107,11 @@ void main() {
   });
 
   test('markdown viewer image builder creates explicit non-local widgets', () {
-    final remoteImage =
-        buildMarkdownViewerImage(
-              workspacePath: '/repo/alera',
-              markdownPath: 'docs/readme.md',
-              imageUrl: 'https://example.com/diagram.png',
-            )
-            as Image;
+    final remoteImage = buildMarkdownViewerImage(
+      workspacePath: '/repo/alera',
+      markdownPath: 'docs/readme.md',
+      imageUrl: 'https://example.com/diagram.png',
+    ) as Image;
     expect(remoteImage.image, isA<NetworkImage>());
     expect(
       (remoteImage.image as NetworkImage).url,
@@ -187,9 +185,8 @@ void main() {
       await tempRoot.delete(recursive: true);
     });
     final workspace = await Directory('${tempRoot.path}/workspace').create();
-    final image = await File(
-      '${workspace.path}/docs/images/diagram.png',
-    ).create(recursive: true);
+    final image = await File('${workspace.path}/docs/images/diagram.png')
+        .create(recursive: true);
     await image.writeAsBytes(const <int>[0]);
 
     final resolved = await resolveWorkspaceMarkdownImageFilePath(

@@ -11,14 +11,13 @@ import 'native_helper_manifest.dart';
 import 'native_helper_swift_builder.dart';
 
 typedef NativeHelperDownloader = Future<void> Function(Uri source, File output);
-typedef NativeHelperDerivedPayloadBuilder =
-    Future<Uint8List> Function({
-      required NativeHelperAsset asset,
-      required NativeHelperDerivation derivation,
-      required File source,
-      required Directory cache,
-      required bool offline,
-    });
+typedef NativeHelperDerivedPayloadBuilder = Future<Uint8List> Function({
+  required NativeHelperAsset asset,
+  required NativeHelperDerivation derivation,
+  required File source,
+  required Directory cache,
+  required bool offline,
+});
 
 final class NativeHelperMaterializer {
   NativeHelperMaterializer({

@@ -407,9 +407,8 @@ void _registerMobileCodexReviewRegressionTests() {
     );
     final container = ProviderContainer(
       overrides: [
-        mobileCodexClientProvider(
-          'host-queue-edit',
-        ).overrideWith((ref) async => client),
+        mobileCodexClientProvider('host-queue-edit')
+            .overrideWith((ref) async => client),
       ],
     );
     addTearDown(() {

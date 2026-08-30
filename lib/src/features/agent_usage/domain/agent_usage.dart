@@ -200,12 +200,12 @@ class AgentUsageSnapshot {
       ),
       sinceDay: json['sinceDay'] as String? ?? '',
       untilDay: json['untilDay'] as String? ?? '',
-      buckets: _objects(
-        json['buckets'],
-      ).map(AgentUsageBucket.fromJson).toList(growable: false),
-      sources: _objects(
-        json['sources'],
-      ).map(AgentUsageSource.fromJson).toList(growable: false),
+      buckets: _objects(json['buckets'])
+          .map(AgentUsageBucket.fromJson)
+          .toList(growable: false),
+      sources: _objects(json['sources'])
+          .map(AgentUsageSource.fromJson)
+          .toList(growable: false),
       pricing: AgentUsagePricing.fromJson(_object(json['pricing'])),
       scanDurationMs: _nonNegativeInt(json['scanDurationMs']),
     );

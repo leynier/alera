@@ -296,12 +296,9 @@ void registerCodexChatControllerInputTests() {
           'docs/my notes.md',
         ]),
       );
-      final annotationPresentation =
-          presentedAttachments.firstWhere(
-                (value) =>
-                    (value as Map)['path'] == '/tmp/browser-annotation.png',
-              )
-              as Map;
+      final annotationPresentation = presentedAttachments.firstWhere(
+        (value) => (value as Map)['path'] == '/tmp/browser-annotation.png',
+      ) as Map;
       expect(annotationPresentation['annotationUrl'], 'https://example.com');
       expect(annotationPresentation['annotationTitle'], 'Example');
       expect(annotationPresentation['annotationCount'], 1);

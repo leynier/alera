@@ -63,18 +63,20 @@ class RuntimeAgentCanvasRepository {
     int? expectedRevision,
     AgentCanvasState? state,
   }) async {
-    final payload = await _client
-        .runtimeRequest('agentCanvas.publish', <String, Object?>{
-          'workspaceId': workspaceId,
-          'terminalSessionId': terminalSessionId,
-          'tabId': ?tabId,
-          'agentType': ?agentType,
-          'title': ?title,
-          'canvasId': ?canvasId,
-          'expectedRevision': ?expectedRevision,
-          'state': ?state?.name,
-          'document': document,
-        });
+    final payload = await _client.runtimeRequest(
+      'agentCanvas.publish',
+      <String, Object?>{
+        'workspaceId': workspaceId,
+        'terminalSessionId': terminalSessionId,
+        'tabId': ?tabId,
+        'agentType': ?agentType,
+        'title': ?title,
+        'canvasId': ?canvasId,
+        'expectedRevision': ?expectedRevision,
+        'state': ?state?.name,
+        'document': document,
+      },
+    );
     return AgentCanvas.fromJson(_map(_map(payload)['canvas']));
   }
 

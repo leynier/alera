@@ -40,9 +40,8 @@ void main() {
       );
       final container = ProviderContainer(
         overrides: [
-          mobileCodexClientProvider(
-            'host-paginated-history',
-          ).overrideWith((ref) async => client),
+          mobileCodexClientProvider('host-paginated-history')
+              .overrideWith((ref) async => client),
         ],
       );
       addTearDown(() {
@@ -123,9 +122,8 @@ void main() {
     );
     final container = ProviderContainer(
       overrides: [
-        mobileCodexClientProvider(
-          'host-bounded-snapshot',
-        ).overrideWith((ref) async => client),
+        mobileCodexClientProvider('host-bounded-snapshot')
+            .overrideWith((ref) async => client),
       ],
     );
     addTearDown(() {
@@ -245,9 +243,8 @@ void main() {
     );
     final container = ProviderContainer(
       overrides: [
-        mobileCodexClientProvider(
-          'host-replacement-snapshot',
-        ).overrideWith((ref) async => client),
+        mobileCodexClientProvider('host-replacement-snapshot')
+            .overrideWith((ref) async => client),
       ],
     );
     addTearDown(() {

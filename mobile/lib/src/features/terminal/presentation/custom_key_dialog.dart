@@ -124,9 +124,8 @@ class _CustomKeyDialogState extends State<_CustomKeyDialog> {
             const SizedBox(height: AleraTokens.spaceMd),
             Text(
               preview == null ? 'Pick A Key' : preview.label,
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                fontFamily: AleraTokens.monoFontFamily,
-              ),
+              style: Theme.of(context).textTheme.titleMedium
+                  ?.copyWith(fontFamily: AleraTokens.monoFontFamily),
             ),
           ],
         ),

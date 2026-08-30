@@ -340,9 +340,8 @@ Duration? _durationFromResetDescription(String description) {
     return null;
   }
   var minutes = 0;
-  final matches = RegExp(
-    r'(\d+)\s*(days?|d|hours?|hrs?|h|minutes?|mins?|m)\b',
-  ).allMatches(lower);
+  final matches = RegExp(r'(\d+)\s*(days?|d|hours?|hrs?|h|minutes?|mins?|m)\b')
+      .allMatches(lower);
   for (final match in matches) {
     final value = int.tryParse(match.group(1) ?? '');
     final unit = match.group(2);

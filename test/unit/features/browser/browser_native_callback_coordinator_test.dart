@@ -136,8 +136,7 @@ void main() {
         BrowserTlsRequest(
           pageId: 'page',
           host: 'localhost',
-          fingerprintSha256:
-              'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+          fingerprintSha256: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
           requestedAt: DateTime.utc(2026),
         ),
       ),

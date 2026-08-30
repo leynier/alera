@@ -300,9 +300,8 @@ class _SectionTitle extends StatelessWidget {
           Text(title, style: Theme.of(context).textTheme.titleMedium),
           Text(
             description,
-            style: Theme.of(
-              context,
-            ).textTheme.bodySmall?.copyWith(color: AleraTokens.foregroundMuted),
+            style: Theme.of(context).textTheme.bodySmall
+                ?.copyWith(color: AleraTokens.foregroundMuted),
           ),
         ],
       ),

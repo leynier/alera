@@ -257,12 +257,9 @@ void main() {
               adapter: managedAgentRiskWarning(adapter, const {}),
         },
         <AgentType, String>{
-          AgentType.claude:
-              'This profile lets Claude continue with reduced permission prompts.',
-          AgentType.copilot:
-              'This profile lets Copilot take broader actions with less supervision.',
-          AgentType.cursor:
-              'This profile reduces Cursor review, sandbox, or trust protections.',
+          AgentType.claude: 'This profile lets Claude continue with reduced permission prompts.',
+          AgentType.copilot: 'This profile lets Copilot take broader actions with less supervision.',
+          AgentType.cursor: 'This profile reduces Cursor review, sandbox, or trust protections.',
           AgentType.agy:
               'This profile lets Antigravity skip permission checks.',
           AgentType.opencode:
@@ -271,8 +268,7 @@ void main() {
               'This profile lets OpenCode approve actions automatically.',
           AgentType.pi: 'This profile pre-approves project trust for Pi.',
           AgentType.amp: '',
-          AgentType.grok:
-              'This profile lets Grok Build continue with reduced permission prompts.',
+          AgentType.grok: 'This profile lets Grok Build continue with reduced permission prompts.',
           AgentType.fx: '',
         },
       );

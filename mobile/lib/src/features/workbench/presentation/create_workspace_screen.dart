@@ -291,9 +291,8 @@ class _CreateWorkspaceScreenState extends ConsumerState<CreateWorkspaceScreen> {
         : creation.parentLinkError != null
         ? 'Workspace created, but parent link failed'
         : 'Workspace created';
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text(message)));
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(message)));
   }
 
   @override

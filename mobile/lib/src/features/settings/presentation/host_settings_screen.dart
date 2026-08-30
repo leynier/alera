@@ -23,9 +23,8 @@ class HostSettingsScreen extends ConsumerWidget {
     final settingsValue = settings.value;
     ref.listen(hostSettingsControllerProvider(host.id), (previous, next) {
       if (next.hasError && previous?.error != next.error) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(next.error.toString())));
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(next.error.toString())));
       }
     });
     return Scaffold(
@@ -206,8 +205,7 @@ Future<void> _restartRuntime(
     context: context,
     builder: (_) => const AleraConfirmDialog(
       title: 'Restart Runtime?',
-      message:
-          'Restarting disconnects every client. Active terminals, agents, emulators, and background jobs must stop first.',
+      message: 'Restarting disconnects every client. Active terminals, agents, emulators, and background jobs must stop first.',
       confirmLabel: 'Restart Runtime',
     ),
   );
@@ -251,16 +249,14 @@ Future<void> _restartRuntime(
     return;
   }
   if (context.mounted) {
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(const SnackBar(content: Text('Runtime restarting')));
+    ScaffoldMessenger.of(context)
+        .showSnackBar(const SnackBar(content: Text('Runtime restarting')));
   }
 }
 
 void _showRestartFailure(BuildContext context) {
-  ScaffoldMessenger.of(
-    context,
-  ).showSnackBar(const SnackBar(content: Text('Could not restart runtime')));
+  ScaffoldMessenger.of(context)
+      .showSnackBar(const SnackBar(content: Text('Could not restart runtime')));
 }
 
 class _ScopeBanner extends StatelessWidget {

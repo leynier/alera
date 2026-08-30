@@ -4,8 +4,9 @@ import 'package:alera_mobile/src/features/push_notifications/domain/push_navigat
 import 'package:alera_mobile/src/features/push_notifications/infra/push_messaging_service.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
-typedef PushNotificationSelectionHandler =
-    void Function(PushNavigationIntent intent);
+typedef PushNotificationSelectionHandler = void Function(
+  PushNavigationIntent intent,
+);
 
 abstract interface class MobileLocalNotificationService {
   Future<void> initialize({

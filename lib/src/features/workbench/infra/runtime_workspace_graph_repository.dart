@@ -60,9 +60,9 @@ class RuntimeWorkspaceGraphRepository implements WorkspaceGraphRepository {
   Future<List<WorkspaceRelation>> listRelations() async {
     await _ensureReady();
     final payload = await _client.runtimeRequest('workspaceRelation.list');
-    return _asList(
-      payload,
-    ).map(WorkspaceRelation.fromJson).toList(growable: false);
+    return _asList(payload)
+        .map(WorkspaceRelation.fromJson)
+        .toList(growable: false);
   }
 
   @override

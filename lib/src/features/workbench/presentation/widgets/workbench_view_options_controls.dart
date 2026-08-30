@@ -326,9 +326,8 @@ class _AvailableProjectRowState extends State<_AvailableProjectRow> {
                   widget.project.name,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: AleraTokens.foreground,
-                  ),
+                  style: Theme.of(context).textTheme.bodySmall
+                      ?.copyWith(color: AleraTokens.foreground),
                 ),
               ),
             ],

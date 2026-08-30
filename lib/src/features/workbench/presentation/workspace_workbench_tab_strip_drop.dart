@@ -31,8 +31,10 @@ int? resolveWorkbenchTabStripDropIndex({
   return adjusted == sourceIndex ? null : adjusted;
 }
 
-typedef _TabStripGapDragCallback =
-    void Function(_WorkspaceTabDragData data, int gapIndex);
+typedef _TabStripGapDragCallback = void Function(
+  _WorkspaceTabDragData data,
+  int gapIndex,
+);
 
 class _TabStripChipDropTarget extends StatelessWidget {
   const _TabStripChipDropTarget({

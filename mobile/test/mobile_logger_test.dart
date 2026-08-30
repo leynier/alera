@@ -64,9 +64,8 @@ void main() {
       await MobileLogger.configure(directory: root);
       registerLogSecret('device-token-abcdef123456');
 
-      Logger(
-        'MobileRuntimeClient',
-      ).info('authenticated with device-token-abcdef123456');
+      Logger('MobileRuntimeClient')
+          .info('authenticated with device-token-abcdef123456');
 
       await MobileLogger.flush();
       final contents = MobileLogger.sink!.fileFor(0).readAsStringSync();

@@ -343,9 +343,8 @@ class _WorkspaceExplorerState extends ConsumerState<WorkspaceExplorer> {
   }
 
   int _compareDirectoryDepth(String left, String right) {
-    final depthComparison = _directoryDepth(
-      left,
-    ).compareTo(_directoryDepth(right));
+    final depthComparison = _directoryDepth(left)
+        .compareTo(_directoryDepth(right));
     if (depthComparison != 0) {
       return depthComparison;
     }

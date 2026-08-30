@@ -28,9 +28,8 @@ void main() {
     );
     final container = ProviderContainer(
       overrides: [
-        mobileCodexClientProvider(
-          'host-goal-retry',
-        ).overrideWith((ref) async => client),
+        mobileCodexClientProvider('host-goal-retry')
+            .overrideWith((ref) async => client),
       ],
     );
     addTearDown(() {
@@ -136,9 +135,8 @@ void main() {
     );
     final container = ProviderContainer(
       overrides: [
-        mobileCodexClientProvider(
-          'host-goal-snapshot',
-        ).overrideWith((ref) async => client),
+        mobileCodexClientProvider('host-goal-snapshot')
+            .overrideWith((ref) async => client),
       ],
     );
     addTearDown(() {

@@ -241,9 +241,8 @@ class _MobileCodexToolScalar extends StatelessWidget {
           width: AleraTokens.space48 * 2,
           child: Text(
             label,
-            style: Theme.of(context).textTheme.labelSmall?.copyWith(
-              color: AleraTokens.foregroundMuted,
-            ),
+            style: Theme.of(context).textTheme.labelSmall
+                ?.copyWith(color: AleraTokens.foregroundMuted),
           ),
         ),
         const SizedBox(width: AleraTokens.space8),
@@ -275,9 +274,8 @@ class _MobileCodexToolSection extends StatelessWidget {
             Expanded(
               child: Text(
                 label,
-                style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                  color: AleraTokens.foregroundFaint,
-                ),
+                style: Theme.of(context).textTheme.labelSmall
+                    ?.copyWith(color: AleraTokens.foregroundFaint),
               ),
             ),
             IconButton(

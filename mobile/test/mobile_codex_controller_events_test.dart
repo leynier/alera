@@ -38,9 +38,8 @@ void main() {
     );
     final container = ProviderContainer(
       overrides: [
-        mobileCodexClientProvider(
-          'host-history',
-        ).overrideWith((ref) async => client),
+        mobileCodexClientProvider('host-history')
+            .overrideWith((ref) async => client),
       ],
     );
     addTearDown(() {
@@ -80,9 +79,8 @@ void main() {
     );
     final container = ProviderContainer(
       overrides: [
-        mobileCodexClientProvider(
-          'host-recovery-cwd',
-        ).overrideWith((ref) async => client),
+        mobileCodexClientProvider('host-recovery-cwd')
+            .overrideWith((ref) async => client),
       ],
     );
     addTearDown(() {
@@ -137,9 +135,8 @@ void main() {
     );
     final container = ProviderContainer(
       overrides: [
-        mobileCodexClientProvider(
-          'host-delta',
-        ).overrideWith((ref) async => client),
+        mobileCodexClientProvider('host-delta')
+            .overrideWith((ref) async => client),
       ],
     );
     addTearDown(() {
@@ -195,9 +192,8 @@ void main() {
       );
       final container = ProviderContainer(
         overrides: [
-          mobileCodexClientProvider(
-            'host-identity-only',
-          ).overrideWith((ref) async => client),
+          mobileCodexClientProvider('host-identity-only')
+              .overrideWith((ref) async => client),
         ],
       );
       addTearDown(() {
@@ -276,9 +272,8 @@ void main() {
       );
       final container = ProviderContainer(
         overrides: [
-          mobileCodexClientProvider(
-            'host-catalogue-resume',
-          ).overrideWith((ref) async => client),
+          mobileCodexClientProvider('host-catalogue-resume')
+              .overrideWith((ref) async => client),
         ],
       );
       addTearDown(() {
@@ -340,9 +335,8 @@ void main() {
       );
       final container = ProviderContainer(
         overrides: [
-          mobileCodexClientProvider(
-            'host-initial-event',
-          ).overrideWith((ref) async => client),
+          mobileCodexClientProvider('host-initial-event')
+              .overrideWith((ref) async => client),
         ],
       );
       addTearDown(() {
@@ -403,9 +397,8 @@ void main() {
       );
       final container = ProviderContainer(
         overrides: [
-          mobileCodexClientProvider(
-            'host-initial-order',
-          ).overrideWith((ref) async => client),
+          mobileCodexClientProvider('host-initial-order')
+              .overrideWith((ref) async => client),
         ],
       );
       addTearDown(() {

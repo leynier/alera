@@ -40,9 +40,8 @@ class _ReadingDiffViewState extends State<ReadingDiffView> {
               children: <Widget>[
                 Text(
                   'A reading diff is an AI-guided, non-applicable abbreviation of the original diff.',
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: AleraTokens.foregroundMuted,
-                  ),
+                  style: Theme.of(context).textTheme.bodySmall
+                      ?.copyWith(color: AleraTokens.foregroundMuted),
                 ),
                 const SizedBox(height: AleraTokens.space8),
                 Align(
@@ -180,9 +179,8 @@ class _ReadingDiffChunkSummaryCard extends StatelessWidget {
           children: <Widget>[
             Text(
               'Chunk ${chunk.index + 1} of $totalChunks',
-              style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                color: AleraTokens.foregroundMuted,
-              ),
+              style: Theme.of(context).textTheme.labelMedium
+                  ?.copyWith(color: AleraTokens.foregroundMuted),
             ),
             const SizedBox(height: AleraTokens.space4),
             SelectableText(

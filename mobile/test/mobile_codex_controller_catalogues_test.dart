@@ -10,9 +10,8 @@ void main() {
     final client = FakeMobileCodexClient(initialThreadId: 'thread-old');
     final container = ProviderContainer(
       overrides: [
-        mobileCodexClientProvider(
-          'host-thread-precondition',
-        ).overrideWith((ref) async => client),
+        mobileCodexClientProvider('host-thread-precondition')
+            .overrideWith((ref) async => client),
       ],
     );
     addTearDown(() {
@@ -89,9 +88,8 @@ void main() {
       );
       final container = ProviderContainer(
         overrides: [
-          mobileCodexClientProvider(
-            'host-history-broadcast',
-          ).overrideWith((ref) async => client),
+          mobileCodexClientProvider('host-history-broadcast')
+              .overrideWith((ref) async => client),
         ],
       );
       addTearDown(() {
@@ -178,9 +176,8 @@ void main() {
       );
       final container = ProviderContainer(
         overrides: [
-          mobileCodexClientProvider(
-            'host-grouped-skills',
-          ).overrideWith((ref) async => client),
+          mobileCodexClientProvider('host-grouped-skills')
+              .overrideWith((ref) async => client),
         ],
       );
       addTearDown(() {

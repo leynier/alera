@@ -224,9 +224,8 @@ class _StatusRow extends StatelessWidget {
             width: _statusLabelWidth,
             child: Text(
               label,
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: AleraTokens.foregroundMuted,
-              ),
+              style: Theme.of(context).textTheme.bodySmall
+                  ?.copyWith(color: AleraTokens.foregroundMuted),
             ),
           ),
           const SizedBox(width: AleraTokens.space8),

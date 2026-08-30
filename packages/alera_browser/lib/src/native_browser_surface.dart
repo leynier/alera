@@ -2,8 +2,10 @@ import 'dart:async';
 
 import 'package:flutter/widgets.dart';
 
-typedef AleraBrowserBoundsChanged =
-    Future<void> Function(Rect bounds, double scale);
+typedef AleraBrowserBoundsChanged = Future<void> Function(
+  Rect bounds,
+  double scale,
+);
 
 final class AleraNativeBrowserSurface extends StatefulWidget {
   const AleraNativeBrowserSurface({required this.onBoundsChanged, super.key});

@@ -62,9 +62,8 @@ void main() {
       );
       final container = ProviderContainer(
         overrides: [
-          mobileCodexClientProvider(
-            'host-session-race',
-          ).overrideWith((ref) async => client),
+          mobileCodexClientProvider('host-session-race')
+              .overrideWith((ref) async => client),
         ],
       );
       addTearDown(() {

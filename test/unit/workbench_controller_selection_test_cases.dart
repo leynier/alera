@@ -1,54 +1,51 @@
 part of 'workbench_controller_test.dart';
 
 void _registerWorkbenchControllerSelectionTests() {
-  test(
-    'syncing a merman rename to text removes redundant preview tabs from state and layout',
-    () async {
-      await _controller.bootstrap();
-      final workspace = await _selectMainWorkspace(_controller, _harness);
+  test('syncing a merman rename to text removes redundant preview tabs from state and layout', () async {
+    await _controller.bootstrap();
+    final workspace = await _selectMainWorkspace(_controller, _harness);
 
-      final editor = await _controller.openEditorTab(
-        workspace: workspace,
-        relativePath: 'docs/diagram.mmd',
-      );
-      final preview = await _controller.openMermanPreviewTab(
-        workspace: workspace,
-        relativePath: 'docs/diagram.mmd',
-      );
-      await _flush();
+    final editor = await _controller.openEditorTab(
+      workspace: workspace,
+      relativePath: 'docs/diagram.mmd',
+    );
+    final preview = await _controller.openMermanPreviewTab(
+      workspace: workspace,
+      relativePath: 'docs/diagram.mmd',
+    );
+    await _flush();
 
-      await _controller.syncFileTabsAfterPathMove(
-        workspace: workspace,
-        oldRelativePath: 'docs/diagram.mmd',
-        newRelativePath: 'docs/diagram.txt',
-      );
-      await _flush();
+    await _controller.syncFileTabsAfterPathMove(
+      workspace: workspace,
+      oldRelativePath: 'docs/diagram.mmd',
+      newRelativePath: 'docs/diagram.txt',
+    );
+    await _flush();
 
-      final tabs = _controller.state.tabsFor(workspace.id);
-      expect(tabs.map((tab) => tab.id), isNot(contains(preview.id)));
-      expect(
-        tabs.singleWhere((tab) => tab.id == editor.id).filePath,
-        'docs/diagram.txt',
-      );
-      expect(
-        tabs.singleWhere((tab) => tab.id == editor.id).isMermanPreview,
-        isFalse,
-      );
-      final layout = _controller.state.layoutFor(workspace.id);
-      expect(
-        layout?.groups.values.expand((group) => group.tabIds),
-        isNot(contains(preview.id)),
-      );
-      expect(
-        _harness.workbenchRepository
-            .peekWorkbenchLayout(workspace.id)
-            ?.groups
-            .values
-            .expand((group) => group.tabIds),
-        isNot(contains(preview.id)),
-      );
-    },
-  );
+    final tabs = _controller.state.tabsFor(workspace.id);
+    expect(tabs.map((tab) => tab.id), isNot(contains(preview.id)));
+    expect(
+      tabs.singleWhere((tab) => tab.id == editor.id).filePath,
+      'docs/diagram.txt',
+    );
+    expect(
+      tabs.singleWhere((tab) => tab.id == editor.id).isMermanPreview,
+      isFalse,
+    );
+    final layout = _controller.state.layoutFor(workspace.id);
+    expect(
+      layout?.groups.values.expand((group) => group.tabIds),
+      isNot(contains(preview.id)),
+    );
+    expect(
+      _harness.workbenchRepository
+          .peekWorkbenchLayout(workspace.id)
+          ?.groups
+          .values
+          .expand((group) => group.tabIds),
+      isNot(contains(preview.id)),
+    );
+  });
 
   test(
     'deleting a workspace removes it from state without lingering',
@@ -216,28 +213,25 @@ void _registerWorkbenchControllerSelectionTests() {
       isNotNull,
     );
     expect(
-      (await _harness.workbenchRepository.findWorkbenchLayout(
-        workspace.id,
-      ))!.root.ratio,
+      (await _harness.workbenchRepository.findWorkbenchLayout(workspace.id))!
+          .root
+          .ratio,
       0.8,
     );
   });
 
-  test(
-    'setActiveTab falls back to direct workspace selection when the layout has no group for the tab',
-    () async {
-      await _controller.bootstrap();
-      final workspace = await _selectMainWorkspace(_controller, _harness);
+  test('setActiveTab falls back to direct workspace selection when the layout has no group for the tab', () async {
+    await _controller.bootstrap();
+    final workspace = await _selectMainWorkspace(_controller, _harness);
 
-      _controller.setActiveTab(workspaceId: workspace.id, tabId: 'missing-tab');
-      await _flush();
+    _controller.setActiveTab(workspaceId: workspace.id, tabId: 'missing-tab');
+    await _flush();
 
-      expect(
-        _controller.state.activeTabIdByWorkspace[workspace.id],
-        'missing-tab',
-      );
-    },
-  );
+    expect(
+      _controller.state.activeTabIdByWorkspace[workspace.id],
+      'missing-tab',
+    );
+  });
 
   test('selecting a workspace preserves the saved active tab', () async {
     final workspace = Workspace(

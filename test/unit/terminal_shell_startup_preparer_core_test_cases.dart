@@ -31,9 +31,8 @@ void _registerTerminalShellStartupPreparerCoreTests() {
         containsPair('ALERA_ORIG_ZDOTDIR', '/Users/tester'),
       );
 
-      final zshenv = await File(
-        p.join(expectedZdotdir, '.zshenv'),
-      ).readAsString();
+      final zshenv = await File(p.join(expectedZdotdir, '.zshenv'))
+          .readAsString();
       expect(zshenv, contains('unset ZDOTDIR'));
       expect(zshenv, contains('source "\$_alera_user_zdotdir/.zshenv"'));
       expect(
@@ -44,9 +43,8 @@ void _registerTerminalShellStartupPreparerCoreTests() {
       );
       expect(zshenv, contains("export ZDOTDIR='$expectedZdotdir'"));
 
-      final zshrc = await File(
-        p.join(expectedZdotdir, '.zshrc'),
-      ).readAsString();
+      final zshrc = await File(p.join(expectedZdotdir, '.zshrc'))
+          .readAsString();
       expect(zshrc, contains('source "\$_alera_orig_zdotdir/.zshrc"'));
       expect(zshrc, contains('export CODEX_HOME="\${ALERA_CODEX_HOME}"'));
       expect(

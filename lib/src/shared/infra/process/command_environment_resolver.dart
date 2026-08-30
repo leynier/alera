@@ -9,11 +9,14 @@ const String shellPathHydrationDelimiter = '__ALERA_SHELL_PATH__';
 const String shellVariableHydrationDelimiter = '__ALERA_SHELL_VAR__';
 const Duration shellPathHydrationTimeout = Duration(seconds: 5);
 
-typedef ShellPathHydrator =
-    Future<CommandEnvironmentHydrationResult> Function(String shell);
+typedef ShellPathHydrator = Future<CommandEnvironmentHydrationResult> Function(
+  String shell,
+);
 
-typedef ShellVariablesHydrator =
-    Future<Map<String, String>> Function(String shell, List<String> names);
+typedef ShellVariablesHydrator = Future<Map<String, String>> Function(
+  String shell,
+  List<String> names,
+);
 
 enum CommandEnvironmentHydrationFailureReason {
   none,

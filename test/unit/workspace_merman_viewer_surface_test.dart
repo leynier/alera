@@ -104,8 +104,7 @@ class _FakeWorkspaceFileService extends WorkspaceFileService {
   }) async {
     renderCalls += 1;
     return merman_native.MermanWorkspaceRender(
-      svg:
-          '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"><rect width="10" height="10"/></svg>',
+      svg: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"><rect width="10" height="10"/></svg>',
       contentToken: 'token-$renderCalls',
       modifiedMillis: renderCalls,
       size: BigInt.from(10),

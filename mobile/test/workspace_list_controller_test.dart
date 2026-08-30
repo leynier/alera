@@ -51,9 +51,8 @@ void main() {
       final clientReady = Completer<MobileWorkspaceClient>();
       final container = ProviderContainer(
         overrides: [
-          workspaceClientProvider(
-            'host-disposed-build',
-          ).overrideWith((ref) => clientReady.future),
+          workspaceClientProvider('host-disposed-build')
+              .overrideWith((ref) => clientReady.future),
         ],
       );
       final provider = workspaceListControllerProvider('host-disposed-build');

@@ -124,9 +124,8 @@ class AiDictationCoreMlStore {
         );
       }
       if (isCancelled()) throw const AiDictationDownloadCancelled();
-      await File(
-        p.join(extracted.path, '.archive.sha256'),
-      ).writeAsString(digest, flush: true);
+      await File(p.join(extracted.path, '.archive.sha256'))
+          .writeAsString(digest, flush: true);
       final destination = Directory(encoderPath(modelPath, encoder));
       if (await destination.exists()) await destination.delete(recursive: true);
       await extracted.rename(destination.path);

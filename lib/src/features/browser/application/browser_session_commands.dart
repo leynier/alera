@@ -96,9 +96,8 @@ extension _BrowserSessionRegistryCommands on BrowserSessionRegistry {
     BrowserOperationGuard? guard,
   }) async {
     final searchEngine = await _readSearchEngine();
-    final target = BrowserNavigationPolicy(
-      searchEngine: searchEngine,
-    ).resolve(input);
+    final target = BrowserNavigationPolicy(searchEngine: searchEngine)
+        .resolve(input);
     await _runCommand<void>(
       entry,
       BrowserLifecycleReason.command,

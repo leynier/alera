@@ -21,8 +21,7 @@ class _EmptyProjectsDialog extends StatelessWidget {
             AleraEmptyState(
               icon: AleraIcons.folderOff,
               title: 'No Git projects yet',
-              message:
-                  'Linked workspaces require a Git project. Add one to get started.',
+              message: 'Linked workspaces require a Git project. Add one to get started.',
               action: onAddProject != null
                   ? FilledButton.icon(
                       onPressed: onAddProject,

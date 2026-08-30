@@ -31,17 +31,18 @@ final class PluginBrowserCallbackBridge {
     if (request.resources.isEmpty) {
       return AleraBrowserPermissionDecision.deny;
     }
-    final decision = await _coordinator
-        .decidePermissions(<BrowserPermissionRequest>[
-          for (final resource in request.resources)
-            BrowserPermissionRequest(
-              requestId: 'permission-${++_requestSequence}',
-              pageId: request.pageId,
-              origin: request.origin?.toString() ?? '',
-              permission: browserPermissionTypeFromWire(resource),
-              requestedAt: _now(),
-            ),
-        ]);
+    final decision = await _coordinator.decidePermissions(
+      <BrowserPermissionRequest>[
+        for (final resource in request.resources)
+          BrowserPermissionRequest(
+            requestId: 'permission-${++_requestSequence}',
+            pageId: request.pageId,
+            origin: request.origin?.toString() ?? '',
+            permission: browserPermissionTypeFromWire(resource),
+            requestedAt: _now(),
+          ),
+      ],
+    );
     return decision == BrowserPermissionDecision.allow
         ? AleraBrowserPermissionDecision.allow
         : AleraBrowserPermissionDecision.deny;

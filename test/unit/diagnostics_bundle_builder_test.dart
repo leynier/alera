@@ -49,9 +49,8 @@ void main() {
 
   test('packs app and runtime logs under separate prefixes', () {
     File('${appLogs.path}/alera.log').writeAsStringSync('{"msg":"app line"}');
-    File(
-      '${runtimeLogs.path}/runtime.log',
-    ).writeAsStringSync('{"msg":"runtime line"}');
+    File('${runtimeLogs.path}/runtime.log')
+        .writeAsStringSync('{"msg":"runtime line"}');
 
     final archive = decode(
       const DiagnosticsBundleBuilder().build(

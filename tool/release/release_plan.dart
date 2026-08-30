@@ -67,9 +67,8 @@ final class ReleaseTag implements Comparable<ReleaseTag> {
 }
 
 ReleaseTag? parseReleaseTag(String name) {
-  final match = RegExp(
-    r'^v(\d+)\.(\d+)\.(\d+)(?:-rc\.(\d+))?(-mobile)?$',
-  ).firstMatch(name);
+  final match = RegExp(r'^v(\d+)\.(\d+)\.(\d+)(?:-rc\.(\d+))?(-mobile)?$')
+      .firstMatch(name);
   if (match == null) return null;
   return ReleaseTag(
     name: name,
@@ -380,14 +379,9 @@ Future<List<ReleaseChange>> _readChanges(
     var body = fields.sublist(2).join('\x1f').trim();
     final merge = RegExp(r'^Merge pull request #(\d+)\b').firstMatch(subject);
     if (merge != null) {
-      final pull =
-          jsonDecode(
-                await _run('gh', [
-                  'api',
-                  'repos/$repository/pulls/${merge.group(1)}',
-                ]),
-              )
-              as Map<String, dynamic>;
+      final pull = jsonDecode(
+        await _run('gh', ['api', 'repos/$repository/pulls/${merge.group(1)}']),
+      ) as Map<String, dynamic>;
       subject = pull['title'] as String;
       body = pull['body'] as String? ?? '';
     }

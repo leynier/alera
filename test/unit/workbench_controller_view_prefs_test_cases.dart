@@ -208,56 +208,53 @@ void _registerWorkbenchControllerViewPrefsTests() {
     expect(_harness.viewPrefsRepository.saveCount, greaterThan(0));
   });
 
-  test(
-    'selecting a folder workspace preserves source control and pull request tabs',
-    () async {
-      await _controller.bootstrap();
-      final gitWorkspace = await _selectMainWorkspace(_controller, _harness);
-      final folderPath = p.join(_harness.tempDir.path, 'notes');
-      Directory(folderPath).createSync(recursive: true);
-      final now = DateTime.utc(2026, 5, 22);
-      final folderProject = Project(
-        id: 'project-folder',
-        name: 'Notes',
-        repoPath: folderPath,
-        createdAt: now,
-        updatedAt: now,
-        kind: ProjectKind.folder,
+  test('selecting a folder workspace preserves source control and pull request tabs', () async {
+    await _controller.bootstrap();
+    final gitWorkspace = await _selectMainWorkspace(_controller, _harness);
+    final folderPath = p.join(_harness.tempDir.path, 'notes');
+    Directory(folderPath).createSync(recursive: true);
+    final now = DateTime.utc(2026, 5, 22);
+    final folderProject = Project(
+      id: 'project-folder',
+      name: 'Notes',
+      repoPath: folderPath,
+      createdAt: now,
+      updatedAt: now,
+      kind: ProjectKind.folder,
+    );
+
+    await _harness.projectRepository.add(folderProject);
+    await _flushUntil(
+      () => _controller.state.workspacesFor(folderProject.id).isNotEmpty,
+    );
+    final folderWorkspace = _controller.state
+        .workspacesFor(folderProject.id)
+        .single;
+    for (final tab in <WorkbenchContextPanelTab>[
+      WorkbenchContextPanelTab.gitDiff,
+      WorkbenchContextPanelTab.pullRequests,
+    ]) {
+      _controller.setContextPanelTab(tab);
+      await _flush();
+
+      await _controller.selectWorkspace(
+        project: folderProject,
+        workspace: folderWorkspace,
       );
+      await _flush();
 
-      await _harness.projectRepository.add(folderProject);
-      await _flushUntil(
-        () => _controller.state.workspacesFor(folderProject.id).isNotEmpty,
+      expect(_controller.state.viewPrefs.activeContextPanelTab, tab);
+      expect(_harness.viewPrefsRepository.prefs.activeContextPanelTab, tab);
+
+      await _controller.selectWorkspace(
+        project: _harness.project,
+        workspace: gitWorkspace,
       );
-      final folderWorkspace = _controller.state
-          .workspacesFor(folderProject.id)
-          .single;
-      for (final tab in <WorkbenchContextPanelTab>[
-        WorkbenchContextPanelTab.gitDiff,
-        WorkbenchContextPanelTab.pullRequests,
-      ]) {
-        _controller.setContextPanelTab(tab);
-        await _flush();
+      await _flush();
 
-        await _controller.selectWorkspace(
-          project: folderProject,
-          workspace: folderWorkspace,
-        );
-        await _flush();
-
-        expect(_controller.state.viewPrefs.activeContextPanelTab, tab);
-        expect(_harness.viewPrefsRepository.prefs.activeContextPanelTab, tab);
-
-        await _controller.selectWorkspace(
-          project: _harness.project,
-          workspace: gitWorkspace,
-        );
-        await _flush();
-
-        expect(_controller.state.viewPrefs.activeContextPanelTab, tab);
-      }
-    },
-  );
+      expect(_controller.state.viewPrefs.activeContextPanelTab, tab);
+    }
+  });
 
   test('selecting a git workspace keeps source control active', () async {
     await _controller.bootstrap();

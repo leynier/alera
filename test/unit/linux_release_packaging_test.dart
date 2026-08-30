@@ -6,12 +6,10 @@ import 'package:path/path.dart' as p;
 
 void main() {
   test('packages Linux releases as packages plus one tarball', () {
-    final workflow = File(
-      '.github/workflows/release-cut.yml',
-    ).readAsStringSync();
-    final packageScript = File(
-      'tool/release/package_linux.sh',
-    ).readAsStringSync();
+    final workflow = File('.github/workflows/release-cut.yml')
+        .readAsStringSync();
+    final packageScript = File('tool/release/package_linux.sh')
+        .readAsStringSync();
 
     expect(workflow, contains('- name: Package Linux release'));
     expect(workflow, isNot(contains('- name: Package RC Linux release')));
@@ -275,12 +273,10 @@ class _LinuxRepositoryFixture {
     final publicDir = Directory(p.join(root.path, 'public'))..createSync();
     final releaseAssets = Directory(p.join(root.path, 'release-assets'))
       ..createSync();
-    File(
-      p.join(releaseAssets.path, 'alera-1.0.0-linux.deb'),
-    ).writeAsStringSync('deb');
-    File(
-      p.join(releaseAssets.path, 'alera-1.0.0-linux.rpm'),
-    ).writeAsStringSync('rpm');
+    File(p.join(releaseAssets.path, 'alera-1.0.0-linux.deb'))
+        .writeAsStringSync('deb');
+    File(p.join(releaseAssets.path, 'alera-1.0.0-linux.rpm'))
+        .writeAsStringSync('rpm');
 
     final fakeBin = Directory(p.join(root.path, 'bin'))..createSync();
     _writeExecutable(p.join(fakeBin.path, 'apt-ftparchive'), '''

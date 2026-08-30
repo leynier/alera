@@ -467,9 +467,9 @@ class _PromptWorkspaceDialogState extends State<PromptWorkspaceDialog> {
         Align(
           alignment: Alignment.centerRight,
           child: FilledButton(
-            onPressed: () => Navigator.of(
-              context,
-            ).pop(const PromptWorkspaceDialogResult(openManual: true)),
+            onPressed: () =>
+                Navigator.of(context)
+                    .pop(const PromptWorkspaceDialogResult(openManual: true)),
             child: const Text('Continue Manually'),
           ),
         ),

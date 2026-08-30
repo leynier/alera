@@ -87,13 +87,11 @@ class _AiAssistSettingsPaneState extends ConsumerState<AiAssistSettingsPane> {
           key: widget.groupKeys['generation'],
           child: AleraSettingsGroup(
             title: 'Generation',
-            description:
-                'Local agent CLIs run short background jobs from source control and workspace context.',
+            description: 'Local agent CLIs run short background jobs from source control and workspace context.',
             children: <Widget>[
               SettingsSwitchRow(
                 title: 'Enable AI Assist',
-                description:
-                    'Generate text for source control, workspaces, and agent conversations.',
+                description: 'Generate text for source control, workspaces, and agent conversations.',
                 value: widget.settings.enabled,
                 onChanged: (value) => widget.onChanged(
                   (settings) => settings.copyWith(enabled: value),
@@ -101,8 +99,7 @@ class _AiAssistSettingsPaneState extends ConsumerState<AiAssistSettingsPane> {
               ),
               SettingsSwitchRow(
                 title: 'Auto-Generate Agent Titles',
-                description:
-                    'Name new agent conversations from their first prompt or recent context.',
+                description: 'Name new agent conversations from their first prompt or recent context.',
                 value: settings.autoGenerateAgentTitles,
                 onChanged: (value) => widget.onChanged(
                   (settings) =>
@@ -116,8 +113,7 @@ class _AiAssistSettingsPaneState extends ConsumerState<AiAssistSettingsPane> {
               if (agent == AiAssistAgent.custom)
                 SettingsTextRow(
                   title: 'Custom Command',
-                  description:
-                      'Use {prompt} to pass the prompt as an argument; otherwise Alera sends it on stdin.',
+                  description: 'Use {prompt} to pass the prompt as an argument; otherwise Alera sends it on stdin.',
                   value: settings.customCommand,
                   hintText: 'llm --system commit-message',
                   onChanged: (value) => widget.onChanged(
@@ -172,8 +168,7 @@ class _AiAssistSettingsPaneState extends ConsumerState<AiAssistSettingsPane> {
                   ))
                 SettingsTextRow(
                   title: 'Custom Command',
-                  description:
-                      'Used by prompts that override the global agent with custom command.',
+                  description: 'Used by prompts that override the global agent with custom command.',
                   value: settings.customCommand,
                   hintText: 'llm --system commit-message',
                   onChanged: (value) => widget.onChanged(
@@ -188,8 +183,7 @@ class _AiAssistSettingsPaneState extends ConsumerState<AiAssistSettingsPane> {
             key: widget.groupKeys[operation.key],
             child: AleraSettingsGroup(
               title: operation.label,
-              description:
-                  'Configure the agent, model, reasoning and instructions for this prompt.',
+              description: 'Configure the agent, model, reasoning and instructions for this prompt.',
               children: <Widget>[
                 ..._promptOverrideRows(settings, operation),
                 ..._thinkingRows(settings, operation),

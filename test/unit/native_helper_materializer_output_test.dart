@@ -12,9 +12,8 @@ void main() {
   test('replaces precreated nested empty output directories', () async {
     final fixture = await _MaterializerFixture.create();
     addTearDown(fixture.dispose);
-    Directory(
-      p.join(fixture.output.path, 'android', 'scrcpy', '4.0'),
-    ).createSync(recursive: true);
+    Directory(p.join(fixture.output.path, 'android', 'scrcpy', '4.0'))
+        .createSync(recursive: true);
 
     await fixture.prepare();
 
@@ -89,12 +88,10 @@ final class _MaterializerFixture {
       ..createSync(recursive: true);
     final notices = Directory(p.join(repository.path, 'notices', 'licenses'))
       ..createSync(recursive: true);
-    File(
-      p.join(repository.path, 'notices', 'NOTICE.md'),
-    ).writeAsStringSync('Test notices.\n');
-    File(
-      p.join(notices.path, 'Apache-2.0.txt'),
-    ).writeAsStringSync('Test license.\n');
+    File(p.join(repository.path, 'notices', 'NOTICE.md'))
+        .writeAsStringSync('Test notices.\n');
+    File(p.join(notices.path, 'Apache-2.0.txt'))
+        .writeAsStringSync('Test license.\n');
     final payload = utf8.encode('scrcpy payload');
     final digest = sha256.convert(payload).toString();
     final manifest = NativeHelperManifest.read(

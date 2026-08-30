@@ -102,9 +102,8 @@ class _CodexPendingQuestionQueueState
                   children: <Widget>[
                     Text(
                       'Request ${index + 1} of ${widget.requests.length}',
-                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                        color: AleraTokens.foregroundMuted,
-                      ),
+                      style: Theme.of(context).textTheme.labelSmall
+                          ?.copyWith(color: AleraTokens.foregroundMuted),
                     ),
                     const SizedBox(width: AleraTokens.space4),
                     AleraIconButton(

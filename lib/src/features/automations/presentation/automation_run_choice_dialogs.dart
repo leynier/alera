@@ -68,9 +68,9 @@ class _AutomationRunNowChoiceDialogState
           child: const Text('Cancel'),
         ),
         FilledButton(
-          onPressed: () => Navigator.of(
-            context,
-          ).pop((_precheck, _overlap, _draftTest, _exactRevision)),
+          onPressed: () =>
+              Navigator.of(context)
+                  .pop((_precheck, _overlap, _draftTest, _exactRevision)),
           child: const Text('Run'),
         ),
       ],

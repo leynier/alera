@@ -64,9 +64,8 @@ class _CodexPermissionEntryState extends State<_CodexPermissionEntry> {
                     children: <Widget>[
                       Text(
                         widget.label,
-                        style: Theme.of(
-                          context,
-                        ).textTheme.labelMedium?.copyWith(color: accent),
+                        style: Theme.of(context).textTheme.labelMedium
+                            ?.copyWith(color: accent),
                       ),
                       Text(
                         widget.description,

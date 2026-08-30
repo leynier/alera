@@ -139,9 +139,10 @@ class AgentProfilePersonaDiscovery {
       output
           .split(RegExp(r'\r?\n'))
           .map(
-            (line) => RegExp(
-              r'^\s*([A-Za-z0-9_.-]+)\s+\((?:primary|subagent|all)\)',
-            ).firstMatch(line)?.group(1),
+            (line) =>
+                RegExp(r'^\s*([A-Za-z0-9_.-]+)\s+\((?:primary|subagent|all)\)')
+                    .firstMatch(line)
+                    ?.group(1),
           )
           .whereType<String>(),
     );

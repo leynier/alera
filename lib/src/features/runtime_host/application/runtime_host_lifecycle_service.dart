@@ -6,18 +6,16 @@ import 'package:alera/src/features/runtime_host/infra/bundled_sidecar_version_pr
 import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_client.dart';
 import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_protocol.dart';
 
-typedef RuntimeHostForceConfirm =
-    Future<bool> Function({
-      required String title,
-      required String message,
-      required String confirmLabel,
-    });
+typedef RuntimeHostForceConfirm = Future<bool> Function({
+  required String title,
+  required String message,
+  required String confirmLabel,
+});
 
-typedef RuntimeHostBusyQuitConfirm =
-    Future<RuntimeHostQuitDecision> Function({
-      required String title,
-      required String message,
-    });
+typedef RuntimeHostBusyQuitConfirm = Future<RuntimeHostQuitDecision> Function({
+  required String title,
+  required String message,
+});
 
 abstract interface class RuntimeHostLifecycleClient {
   Future<Map<String, Object?>?> probeRuntimeStatus();

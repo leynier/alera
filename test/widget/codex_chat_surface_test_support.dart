@@ -189,8 +189,7 @@ final class _SurfaceRuntimeClient implements RuntimeHostClient {
                   'status': 'completed',
                   'createdAt': '2026-08-02T12:00:00Z',
                   'updatedAt': '2026-08-02T12:00:00Z',
-                  'markdownText':
-                      'Answer from Codex\n\n![Malformed](data:not-valid)\n\n```dart\nvoid main() {}\n```',
+                  'markdownText': 'Answer from Codex\n\n![Malformed](data:not-valid)\n\n```dart\nvoid main() {}\n```',
                 },
                 <String, Object?>{
                   'id': 'reasoning',

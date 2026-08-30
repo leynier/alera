@@ -391,9 +391,8 @@ Future<void> _sharePlan(BuildContext context, String text) async {
     sharePositionOrigin: mobileCodexSharePositionOrigin(context),
   );
   if (!shared && context.mounted) {
-    ScaffoldMessenger.maybeOf(
-      context,
-    )?.showSnackBar(const SnackBar(content: Text('Could not share plan.')));
+    ScaffoldMessenger.maybeOf(context)
+        ?.showSnackBar(const SnackBar(content: Text('Could not share plan.')));
   }
 }
 

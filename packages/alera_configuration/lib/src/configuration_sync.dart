@@ -1,5 +1,6 @@
 import 'dart:math';
 import 'dart:isolate';
+
 import 'configuration_document.dart';
 import 'configuration_merge.dart';
 import 'portable_settings.dart';

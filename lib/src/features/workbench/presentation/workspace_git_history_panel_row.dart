@@ -127,9 +127,8 @@ class _GitHistoryCommitRow extends StatelessWidget {
                       const SizedBox(width: AleraTokens.space4),
                       Text(
                         '+$hiddenRefCount',
-                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                          color: AleraTokens.foregroundFaint,
-                        ),
+                        style: Theme.of(context).textTheme.labelSmall
+                            ?.copyWith(color: AleraTokens.foregroundFaint),
                       ),
                     ],
                     if (onOpenActions != null)

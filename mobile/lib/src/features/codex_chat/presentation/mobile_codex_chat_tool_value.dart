@@ -64,9 +64,8 @@ class _MobileCodexToolValueState extends State<_MobileCodexToolValue> {
     _paginationRestored = true;
     final paginationId = widget.paginationId;
     if (paginationId == null) return;
-    final stored = PageStorage.maybeOf(
-      context,
-    )?.readState(context, identifier: paginationId);
+    final stored = PageStorage.maybeOf(context)
+        ?.readState(context, identifier: paginationId);
     if (stored is int && stored > _visibleItemCount) {
       _visibleItemCount = stored;
     }
@@ -89,9 +88,8 @@ class _MobileCodexToolValueState extends State<_MobileCodexToolValue> {
           const SizedBox(height: AleraTokens.space4),
           Text(
             '${value.hiddenCharacters} additional characters hidden. Copy the section to access the complete value.',
-            style: Theme.of(
-              context,
-            ).textTheme.bodySmall?.copyWith(color: AleraTokens.foregroundFaint),
+            style: Theme.of(context).textTheme.bodySmall
+                ?.copyWith(color: AleraTokens.foregroundFaint),
           ),
         ],
       );
@@ -274,9 +272,8 @@ class _MobileCodexToolEntry extends StatelessWidget {
               children: <Widget>[
                 Text(
                   label,
-                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                    color: AleraTokens.foregroundMuted,
-                  ),
+                  style: Theme.of(context).textTheme.labelSmall
+                      ?.copyWith(color: AleraTokens.foregroundMuted),
                 ),
                 const SizedBox(height: AleraTokens.space4),
                 Padding(
@@ -297,9 +294,8 @@ class _MobileCodexToolEntry extends StatelessWidget {
                   width: AleraTokens.space48 * 2,
                   child: Text(
                     label,
-                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                      color: AleraTokens.foregroundMuted,
-                    ),
+                    style: Theme.of(context).textTheme.labelSmall
+                        ?.copyWith(color: AleraTokens.foregroundMuted),
                   ),
                 ),
                 const SizedBox(width: AleraTokens.space8),

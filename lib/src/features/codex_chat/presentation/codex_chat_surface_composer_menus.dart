@@ -146,8 +146,7 @@ class _CodexComposerControls extends StatelessWidget {
             _CodexPermissionEntry(
               value: 'never',
               label: 'Full Access',
-              description:
-                  'Unrestricted access to the internet and any file on your computer.',
+              description: 'Unrestricted access to the internet and any file on your computer.',
               icon: AleraIcons.warning,
               selected: state.permissionMode == 'never',
               warning: true,
@@ -327,9 +326,8 @@ class _CodexComposerChip extends StatelessWidget {
                     when secondary.isNotEmpty)
                   TextSpan(
                     text: ' $secondary',
-                    style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                      color: AleraTokens.foregroundMuted,
-                    ),
+                    style: Theme.of(context).textTheme.labelMedium
+                        ?.copyWith(color: AleraTokens.foregroundMuted),
                   ),
               ],
             ),

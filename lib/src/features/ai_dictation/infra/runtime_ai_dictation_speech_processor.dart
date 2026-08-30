@@ -25,14 +25,16 @@ class RuntimeAiDictationSpeechProcessor implements AiDictationSpeechProcessor {
     required AiDictationRewriteMode mode,
     required AiDictationTarget target,
   }) async {
-    final value = await _client
-        .runtimeRequest('aiText.speechMessage.generate', <String, Object?>{
-          'operationId': operationId,
-          'text': text,
-          'mode': mode.name,
-          'workspaceId': ?target.workspaceId,
-          'tabId': ?target.tabId,
-        });
+    final value = await _client.runtimeRequest(
+      'aiText.speechMessage.generate',
+      <String, Object?>{
+        'operationId': operationId,
+        'text': text,
+        'mode': mode.name,
+        'workspaceId': ?target.workspaceId,
+        'tabId': ?target.tabId,
+      },
+    );
     if (value is! Map) {
       throw StateError('The speech processing response was invalid.');
     }

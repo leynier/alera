@@ -1,12 +1,11 @@
 import 'package:alera/src/features/agent_quota/domain/agent_quota.dart';
 import 'package:flutter/widgets.dart';
 
-typedef AgentQuotaActionBuilder =
-    Widget Function({
-      required String hostId,
-      required AgentQuotaSnapshot snapshot,
-      required bool compact,
-    });
+typedef AgentQuotaActionBuilder = Widget Function({
+  required String hostId,
+  required AgentQuotaSnapshot snapshot,
+  required bool compact,
+});
 
 /// Optional runtime controls supplied by the native feature wrapper.
 class AgentQuotaInlineActions {

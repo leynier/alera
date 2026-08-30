@@ -33,12 +33,10 @@ Available models:
       addTearDown(() => userHome.delete(recursive: true));
       final configuredGrokHome = Directory('${userHome.path}/.grok');
       await configuredGrokHome.create();
-      await File(
-        '${configuredGrokHome.path}/auth.json',
-      ).writeAsString('{"token":"test-token"}');
-      await File(
-        '${configuredGrokHome.path}/config.toml',
-      ).writeAsString('[models]\ndefault = "custom-model"');
+      await File('${configuredGrokHome.path}/auth.json')
+          .writeAsString('{"token":"test-token"}');
+      await File('${configuredGrokHome.path}/config.toml')
+          .writeAsString('[models]\ndefault = "custom-model"');
       final git = FakeGitBackend()
         ..gitRepositoryStateResult = const GitRepositoryState(
           branch: 'feature/grok-build',

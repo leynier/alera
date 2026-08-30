@@ -94,11 +94,10 @@ void main() {
     final rules = ruleset['rules']! as List<Object?>;
     final checks =
         (rules.singleWhere(
-                  (rule) =>
-                      (rule! as Map<String, Object?>)['type'] ==
-                      'required_status_checks',
-                )
-                as Map<String, Object?>)['parameters']!
+              (rule) =>
+                  (rule! as Map<String, Object?>)['type'] ==
+                  'required_status_checks',
+            ) as Map<String, Object?>)['parameters']!
             as Map<String, Object?>;
 
     expect(bypass, [

@@ -206,8 +206,7 @@ class _TerminalPulseDialogState extends State<TerminalPulseDialog> {
                       children: <Widget>[
                         AleraSettingRow(
                           title: 'Armed',
-                          description:
-                              'Disarms automatically when this terminal process restarts.',
+                          description: 'Disarms automatically when this terminal process restarts.',
                           child: Align(
                             alignment: Alignment.centerRight,
                             child: Switch(
@@ -256,8 +255,7 @@ class _TerminalPulseDialogState extends State<TerminalPulseDialog> {
                         ),
                         AleraSettingRow(
                           title: 'Wait',
-                          description:
-                              'Starts with the first change and is not extended by later changes.',
+                          description: 'Starts with the first change and is not extended by later changes.',
                           child: IgnorePointer(
                             ignoring: _saving,
                             child: AleraNumberField(

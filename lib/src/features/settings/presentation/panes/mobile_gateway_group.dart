@@ -71,8 +71,7 @@ class MobileGatewayGroup extends StatelessWidget {
         ),
         SettingsSwitchRow(
           title: 'Enable Remote Access',
-          description:
-              'Allow signed-in Alera mobile devices to discover this runtime and use the encrypted relay.',
+          description: 'Allow signed-in Alera mobile devices to discover this runtime and use the encrypted relay.',
           value: settings.remoteAccessEnabled,
           onChanged: applying ? (_) {} : onRemoteAccessChanged,
         ),

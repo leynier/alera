@@ -185,8 +185,10 @@ void main() {
   );
 }
 
-typedef _RuntimeHandler =
-    Object? Function(String type, Map<String, Object?> payload);
+typedef _RuntimeHandler = Object? Function(
+  String type,
+  Map<String, Object?> payload,
+);
 
 final class _FakeRuntimeHostClient implements RuntimeHostClient {
   const _FakeRuntimeHostClient(this._handler);

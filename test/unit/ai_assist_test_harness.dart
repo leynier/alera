@@ -79,9 +79,8 @@ class _FakeProcessRunner implements ProcessRunner {
     }
     final outputSchemaIndex = arguments.indexOf('--output-schema');
     if (outputSchemaIndex >= 0 && outputSchemaIndex + 1 < arguments.length) {
-      outputSchemaText = File(
-        arguments[outputSchemaIndex + 1],
-      ).readAsStringSync();
+      outputSchemaText = File(arguments[outputSchemaIndex + 1])
+          .readAsStringSync();
     }
     final outputFileIndex = arguments.indexOf('--output-last-message');
     if (outputFileIndex >= 0 && outputFileIndex + 1 < arguments.length) {

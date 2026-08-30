@@ -163,9 +163,8 @@ String cleanGeneratedText(String raw) {
       text = text.substring(firstNewline + 1).trim();
     }
   }
-  final fenced = RegExp(
-    r'^```[a-zA-Z0-9_-]*\n([\s\S]*?)\n```$',
-  ).firstMatch(text);
+  final fenced = RegExp(r'^```[a-zA-Z0-9_-]*\n([\s\S]*?)\n```$')
+      .firstMatch(text);
   if (fenced != null) {
     text = fenced.group(1)!.trim();
   }

@@ -643,9 +643,8 @@ class _PdfOutlinePanel extends StatelessWidget {
                     Expanded(
                       child: Text(
                         'Outline',
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: AleraTokens.foregroundMuted,
-                        ),
+                        style: Theme.of(context).textTheme.bodySmall
+                            ?.copyWith(color: AleraTokens.foregroundMuted),
                       ),
                     ),
                     AleraIconButton(
@@ -752,9 +751,8 @@ class _PdfViewerMessage extends StatelessWidget {
       child: Text(
         message,
         textAlign: TextAlign.center,
-        style: Theme.of(
-          context,
-        ).textTheme.bodyMedium?.copyWith(color: AleraTokens.foregroundMuted),
+        style: Theme.of(context).textTheme.bodyMedium
+            ?.copyWith(color: AleraTokens.foregroundMuted),
       ),
     );
   }

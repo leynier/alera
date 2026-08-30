@@ -249,9 +249,8 @@ class _CodexReviewDialogState extends State<_CodexReviewDialog> {
           const SizedBox(height: AleraTokens.space6),
           Text(
             'Branches could not be loaded. Enter the branch name manually.',
-            style: Theme.of(
-              context,
-            ).textTheme.bodySmall?.copyWith(color: AleraTokens.warning),
+            style: Theme.of(context).textTheme.bodySmall
+                ?.copyWith(color: AleraTokens.warning),
           ),
         ],
       ],

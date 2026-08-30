@@ -753,9 +753,8 @@ class _WorkspaceGitDiffPanelState extends ConsumerState<WorkspaceGitDiffPanel> {
   }
 
   WorkspaceSourceControlController get _notifier => ref.read(
-    workspaceSourceControlControllerProvider(
-      widget.sourceControlScope.path,
-    ).notifier,
+    workspaceSourceControlControllerProvider(widget.sourceControlScope.path)
+        .notifier,
   );
 
   _GitHistoryPanelLoadState get _historyPanelState {

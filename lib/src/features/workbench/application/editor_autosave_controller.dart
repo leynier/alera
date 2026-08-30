@@ -4,8 +4,10 @@ import 'dart:async';
 // private state fields with the corresponding values.
 // ignore_for_file: prefer_initializing_formals
 
-typedef EditorAutosaveTimerFactory =
-    Timer Function(Duration delay, void Function() callback);
+typedef EditorAutosaveTimerFactory = Timer Function(
+  Duration delay,
+  void Function() callback,
+);
 
 /// Schedules one trailing autosave for a dirty editor and keeps failures
 /// paused until an explicit user action resumes it.

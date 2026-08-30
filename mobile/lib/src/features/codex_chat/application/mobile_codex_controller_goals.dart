@@ -65,16 +65,18 @@ extension MobileCodexControllerGoals on MobileCodexController {
     final expectedThreadId = _threadId;
     final generation = _threadGeneration;
     try {
-      final response = await client
-          .codexRequest('codex.goal.set', <String, Object?>{
-            'tabId': tabId,
-            'expectedThreadId': expectedThreadId,
-            'objective': trimmed,
-            'status': MobileCodexGoalStatus.active.wireName,
-            'recordUserMessage': recordUserMessage,
-            if (recordUserMessage) 'clientUserMessageId': _newClientMessageId(),
-            'configuration': _mobileConfigurationPayload(current),
-          });
+      final response = await client.codexRequest(
+        'codex.goal.set',
+        <String, Object?>{
+          'tabId': tabId,
+          'expectedThreadId': expectedThreadId,
+          'objective': trimmed,
+          'status': MobileCodexGoalStatus.active.wireName,
+          'recordUserMessage': recordUserMessage,
+          if (recordUserMessage) 'clientUserMessageId': _newClientMessageId(),
+          'configuration': _mobileConfigurationPayload(current),
+        },
+      );
       if (response['goal'] is! Map) return false;
       final goal = MobileCodexGoal.fromJson(response['goal']);
       if (!_goalSetResponseIsCurrent(
@@ -118,13 +120,15 @@ extension MobileCodexControllerGoals on MobileCodexController {
       final status => status,
     };
     try {
-      final response = await client
-          .codexRequest('codex.goal.set', <String, Object?>{
-            'tabId': tabId,
-            'expectedThreadId': expectedThreadId,
-            'objective': trimmed,
-            'status': status.wireName,
-          });
+      final response = await client.codexRequest(
+        'codex.goal.set',
+        <String, Object?>{
+          'tabId': tabId,
+          'expectedThreadId': expectedThreadId,
+          'objective': trimmed,
+          'status': status.wireName,
+        },
+      );
       if (!_goalOperationIsCurrent(expectedThreadId, generation) ||
           response['goal'] is! Map) {
         return false;
@@ -151,12 +155,14 @@ extension MobileCodexControllerGoals on MobileCodexController {
     final generation = _threadGeneration;
     if (client == null || !supportsGoals || state.value?.goal == null) return;
     try {
-      final response = await client
-          .codexRequest('codex.goal.set', <String, Object?>{
-            'tabId': tabId,
-            'expectedThreadId': expectedThreadId,
-            'status': status.wireName,
-          });
+      final response = await client.codexRequest(
+        'codex.goal.set',
+        <String, Object?>{
+          'tabId': tabId,
+          'expectedThreadId': expectedThreadId,
+          'status': status.wireName,
+        },
+      );
       if (!_goalOperationIsCurrent(expectedThreadId, generation) ||
           response['goal'] is! Map) {
         return;

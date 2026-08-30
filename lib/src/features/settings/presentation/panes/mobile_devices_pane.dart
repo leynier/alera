@@ -106,8 +106,7 @@ class _MobileDevicesSettingsPaneState
                       const SizedBox(height: AleraTokens.space16),
                       AleraSettingsGroup(
                         title: 'Connected Remote Devices',
-                        description:
-                            'Connected through your Alera account. Disable Remote Access to disconnect these devices.',
+                        description: 'Connected through your Alera account. Disable Remote Access to disconnect these devices.',
                         children: <Widget>[
                           for (final device in status.connectedRelayDevices)
                             MobileDeviceListRow(
@@ -127,9 +126,8 @@ class _MobileDevicesSettingsPaneState
                 const SizedBox(height: AleraTokens.space12),
                 Text(
                   _error!,
-                  style: Theme.of(
-                    context,
-                  ).textTheme.bodySmall?.copyWith(color: AleraTokens.error),
+                  style: Theme.of(context).textTheme.bodySmall
+                      ?.copyWith(color: AleraTokens.error),
                 ),
               ],
             ],

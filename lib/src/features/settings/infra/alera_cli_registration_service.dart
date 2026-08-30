@@ -11,8 +11,9 @@ typedef AleraCliRegistrationSupportDirectoryResolver =
     Future<Directory> Function();
 typedef AleraCliRegistrationCommandEnvironmentResolverFactory =
     CommandEnvironmentResolver Function();
-typedef AleraCliRegistrationExecutableChecker =
-    Future<bool> Function(String path);
+typedef AleraCliRegistrationExecutableChecker = Future<bool> Function(
+  String path,
+);
 
 enum AleraCliRegistrationState {
   installed,

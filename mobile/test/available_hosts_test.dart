@@ -28,34 +28,31 @@ void main() {
     expect((await hosts).map((host) => host.id), ['paired']);
   });
 
-  test(
-    'Initial discovery waits for accounts and credential rotation keeps hosts mounted',
-    () async {
-      final accounts = _Accounts();
-      final api = _Discovery();
-      final container = _container(accounts, api);
-      addTearDown(container.dispose);
-      final published = <List<PairedHostProfile>>[];
-      container.listen(availableHostsProvider, (_, next) {
-        if (!next.isLoading && next.hasValue) published.add(next.requireValue);
-      });
-      await pumpEventQueue();
-      expect(published, isEmpty);
-      expect(api.calls, 0);
+  test('Initial discovery waits for accounts and credential rotation keeps hosts mounted', () async {
+    final accounts = _Accounts();
+    final api = _Discovery();
+    final container = _container(accounts, api);
+    addTearDown(container.dispose);
+    final published = <List<PairedHostProfile>>[];
+    container.listen(availableHostsProvider, (_, next) {
+      if (!next.isLoading && next.hasValue) published.add(next.requireValue);
+    });
+    await pumpEventQueue();
+    expect(published, isEmpty);
+    expect(api.calls, 0);
 
-      accounts.initial.complete([_session()]);
-      final hosts = await container.read(availableHostsProvider.future);
-      expect(hosts.map((host) => host.id), ['paired', 'remote']);
-      expect(published, hasLength(1));
-      expect(api.calls, 1);
+    accounts.initial.complete([_session()]);
+    final hosts = await container.read(availableHostsProvider.future);
+    expect(hosts.map((host) => host.id), ['paired', 'remote']);
+    expect(published, hasLength(1));
+    expect(api.calls, 1);
 
-      accounts.replace([_session(token: 'rotated')]);
-      await pumpEventQueue();
-      expect(api.calls, 1);
-      expect(published, hasLength(1));
-      expect(container.read(availableHostsProvider).requireValue, same(hosts));
-    },
-  );
+    accounts.replace([_session(token: 'rotated')]);
+    await pumpEventQueue();
+    expect(api.calls, 1);
+    expect(published, hasLength(1));
+    expect(container.read(availableHostsProvider).requireValue, same(hosts));
+  });
 
   test(
     'Discovery outages retain known hosts, but sign-out removes them',
@@ -74,9 +71,8 @@ void main() {
       accounts.replace([]);
       await pumpEventQueue();
       expect(
-        (await container.read(
-          availableHostsProvider.future,
-        )).map((host) => host.id),
+        (await container.read(availableHostsProvider.future))
+            .map((host) => host.id),
         ['paired'],
       );
     },

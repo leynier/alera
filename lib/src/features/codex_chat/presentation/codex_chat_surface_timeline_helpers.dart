@@ -100,16 +100,14 @@ class _WorkedForDividerState extends State<_WorkedForDivider>
                     text: widget.startedAt == null
                         ? 'Working'
                         : _workingFor(widget.startedAt!, DateTime.now()),
-                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                      color: AleraTokens.foregroundMuted,
-                    ),
+                    style: Theme.of(context).textTheme.labelSmall
+                        ?.copyWith(color: AleraTokens.foregroundMuted),
                   )
                 else
                   Text(
                     widget.label,
-                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                      color: AleraTokens.foregroundMuted,
-                    ),
+                    style: Theme.of(context).textTheme.labelSmall
+                        ?.copyWith(color: AleraTokens.foregroundMuted),
                   ),
                 if (widget.canToggle) ...<Widget>[
                   const SizedBox(width: AleraTokens.space6),

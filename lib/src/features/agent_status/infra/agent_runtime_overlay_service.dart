@@ -16,8 +16,10 @@ part 'agent_runtime_overlay_shell.dart';
 
 typedef AgentOverlayApplicationSupportDirectoryResolver =
     Future<Directory> Function();
-typedef AgentOverlayResourceLinkCreator =
-    void Function({required String sourcePath, required String targetPath});
+typedef AgentOverlayResourceLinkCreator = void Function({
+  required String sourcePath,
+  required String targetPath,
+});
 
 final class AgentRuntimeOverlayPreparation {
   const AgentRuntimeOverlayPreparation({

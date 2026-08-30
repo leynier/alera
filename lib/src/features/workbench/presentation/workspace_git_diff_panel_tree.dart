@@ -289,9 +289,8 @@ class _GitDiffDirectoryRow extends StatelessWidget {
                       row.name,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: AleraTokens.foregroundMuted,
-                      ),
+                      style: Theme.of(context).textTheme.bodySmall
+                          ?.copyWith(color: AleraTokens.foregroundMuted),
                     ),
                   ),
                 ],
@@ -300,9 +299,8 @@ class _GitDiffDirectoryRow extends StatelessWidget {
           ),
           Text(
             '${row.fileCount}',
-            style: Theme.of(context).textTheme.labelSmall?.copyWith(
-              color: AleraTokens.foregroundFaint,
-            ),
+            style: Theme.of(context).textTheme.labelSmall
+                ?.copyWith(color: AleraTokens.foregroundFaint),
           ),
           const SizedBox(width: AleraTokens.space6),
           _AreaActions(
@@ -418,9 +416,8 @@ class _GitDiffFileRow extends StatelessWidget {
                           : entry.path.split('/').last,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: AleraTokens.foregroundMuted,
-                      ),
+                      style: Theme.of(context).textTheme.bodySmall
+                          ?.copyWith(color: AleraTokens.foregroundMuted),
                     ),
                   ),
                 ],
@@ -432,9 +429,8 @@ class _GitDiffFileRow extends StatelessWidget {
               message: 'Manage inside submodule',
               child: Text(
                 'Inside',
-                style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                  color: AleraTokens.foregroundFaint,
-                ),
+                style: Theme.of(context).textTheme.labelSmall
+                    ?.copyWith(color: AleraTokens.foregroundFaint),
               ),
             ),
           if (entry.isSubmoduleWorktreeOnly)

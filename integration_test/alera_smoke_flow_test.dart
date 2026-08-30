@@ -17,6 +17,7 @@ import 'package:alera/src/shared/infra/git/git_providers.dart';
 import 'package:alera/src/shared/infra/storage/drift_database.dart';
 
 import 'e2e_git_backend.dart';
+
 import 'package:drift/native.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';

@@ -58,9 +58,8 @@ class AgentPresenceSummary {
       stateStartedAt: DateTime.tryParse(
         json.optionalString('stateStartedAt') ?? '',
       )?.toUtc(),
-      updatedAt: DateTime.tryParse(
-        json.optionalString('updatedAt') ?? '',
-      )?.toUtc(),
+      updatedAt: DateTime.tryParse(json.optionalString('updatedAt') ?? '')
+          ?.toUtc(),
       prompt: json.optionalString('prompt') ?? '',
       toolName: json.optionalString('toolName'),
       toolInput: json.optionalString('toolInput'),

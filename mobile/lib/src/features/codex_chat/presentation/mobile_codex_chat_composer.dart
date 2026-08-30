@@ -195,8 +195,7 @@ class _MobileComposerState extends State<_MobileComposer> {
                           ),
                           hintText: widget.state.mcpInitializing
                               ? 'Starting MCP Servers...'
-                              : widget.blockedMessage ??
-                                    'Ask Codex anything, @ for files, \$ for skills and apps, / for commands',
+                              : widget.blockedMessage ?? 'Ask Codex anything, @ for files, \$ for skills and apps, / for commands',
                         ),
                       ),
                     ),

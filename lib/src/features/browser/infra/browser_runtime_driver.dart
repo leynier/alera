@@ -254,19 +254,21 @@ final class BrowserRuntimeDriver {
       }
     }
     final response = browserRuntimeSuccessMap(
-      await _client
-          .runtimeRequest('browser.driver.pageChanged', <String, Object?>{
-            'driverInstanceId': driverInstanceId,
-            'pageId': state.pageId,
-            'generation': generation,
-            'profileId': state.profileId,
-            'url': state.url.toString(),
-            'title': _reportedBrowserTitle(state),
-            'documentChanged': documentChanged,
-            'documentGeneration': documentGeneration,
-            'navigationCompleted': navigationCompleted,
-            'navigationCorrelationId': ?navigationCorrelationId,
-          }),
+      await _client.runtimeRequest(
+        'browser.driver.pageChanged',
+        <String, Object?>{
+          'driverInstanceId': driverInstanceId,
+          'pageId': state.pageId,
+          'generation': generation,
+          'profileId': state.profileId,
+          'url': state.url.toString(),
+          'title': _reportedBrowserTitle(state),
+          'documentChanged': documentChanged,
+          'documentGeneration': documentGeneration,
+          'navigationCompleted': navigationCompleted,
+          'navigationCorrelationId': ?navigationCorrelationId,
+        },
+      ),
       'Browser driver page change',
     );
     final page = response['page'];

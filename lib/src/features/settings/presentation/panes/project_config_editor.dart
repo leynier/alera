@@ -113,8 +113,7 @@ class ProjectConfigEditor extends StatelessWidget {
           children: <Widget>[
             AleraSettingRow(
               title: 'Hosting Provider',
-              description:
-                  'Auto-detect uses public hosts. Select GitHub for GitHub Enterprise Server.',
+              description: 'Auto-detect uses public hosts. Select GitHub for GitHub Enterprise Server.',
               child: AleraDropdownField<GitHostingProvider?>(
                 value: gitHostingProvider,
                 onChanged: onGitHostingProviderChanged,
@@ -136,8 +135,7 @@ class ProjectConfigEditor extends StatelessWidget {
         const SizedBox(height: AleraTokens.space16),
         AleraSettingsGroup(
           title: 'Copy Rules',
-          description:
-              'Files copied from the main worktree. Gitignored matches from .worktreeinclude are copied too.',
+          description: 'Files copied from the main worktree. Gitignored matches from .worktreeinclude are copied too.',
           children: <Widget>[
             if (copyRules.isEmpty)
               const _ProjectConfigEmptyRow(message: 'No copy rules')

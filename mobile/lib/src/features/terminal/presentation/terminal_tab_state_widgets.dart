@@ -154,9 +154,8 @@ class _SessionLoadingState extends State<_SessionLoading> {
             const SizedBox(height: AleraTokens.spaceSm),
             Text(
               'Elapsed: ${elapsed}s',
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: AleraTokens.foregroundMuted,
-              ),
+              style: Theme.of(context).textTheme.bodySmall
+                  ?.copyWith(color: AleraTokens.foregroundMuted),
             ),
           ],
         ],

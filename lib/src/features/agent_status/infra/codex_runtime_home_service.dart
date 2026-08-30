@@ -20,8 +20,10 @@ part 'codex_runtime_text_files.dart';
 part 'codex_runtime_toml.dart';
 
 typedef CodexApplicationSupportDirectoryResolver = Future<Directory> Function();
-typedef CodexResourceLinkCreator =
-    void Function({required String sourcePath, required String targetPath});
+typedef CodexResourceLinkCreator = void Function({
+  required String sourcePath,
+  required String targetPath,
+});
 
 final class CodexRuntimeHomePreparation {
   const CodexRuntimeHomePreparation({

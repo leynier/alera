@@ -149,8 +149,7 @@ extension _AgentProfilesPaneProfileActions on _AgentProfilesSettingsPaneState {
       CommandTerminalRequest(
         title: 'Test Agent Profile',
         command: command,
-        description:
-            'The profile command runs here. It does not receive a dispatched task.',
+        description: 'The profile command runs here. It does not receive a dispatched task.',
       ),
     );
   }

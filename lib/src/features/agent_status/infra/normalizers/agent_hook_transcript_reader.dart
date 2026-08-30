@@ -107,9 +107,8 @@ String? _userPromptTextFromLine(String line) {
     if ((source == 'USER_EXPLICIT' || source == 'USER') &&
         (type == 'USER_INPUT' || type == 'REQUEST') &&
         content is String) {
-      final match = RegExp(
-        r'<USER_REQUEST>\s*([\s\S]*?)\s*</USER_REQUEST>',
-      ).firstMatch(content);
+      final match = RegExp(r'<USER_REQUEST>\s*([\s\S]*?)\s*</USER_REQUEST>')
+          .firstMatch(content);
       final text = (match?.group(1) ?? content).trim();
       return text.isEmpty ? null : text;
     }

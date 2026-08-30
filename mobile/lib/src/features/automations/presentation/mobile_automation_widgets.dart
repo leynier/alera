@@ -103,9 +103,8 @@ class MobileAutomationCard extends StatelessWidget {
     );
     if (choice == null) return;
     try {
-      await MobileRuntimeAutomationRepository(
-        await clientFuture,
-      ).pause(automation.id, activeRuns: choice);
+      await MobileRuntimeAutomationRepository(await clientFuture)
+          .pause(automation.id, activeRuns: choice);
       onChanged();
     } on Object catch (error) {
       if (context.mounted) _show(context, error.toString(), error: true);

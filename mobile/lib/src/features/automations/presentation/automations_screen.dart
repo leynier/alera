@@ -186,9 +186,8 @@ class _AutomationsScreenState extends ConsumerState<AutomationsScreen> {
                               const SizedBox(height: AleraTokens.spaceSm),
                           itemBuilder: (context, index) => MobileAutomationCard(
                             clientFuture: ref.watch(
-                              hostConnectionControllerProvider(
-                                widget.host.id,
-                              ).future,
+                              hostConnectionControllerProvider(widget.host.id)
+                                  .future,
                             ),
                             automation: visible[index],
                             onChanged: _refresh,

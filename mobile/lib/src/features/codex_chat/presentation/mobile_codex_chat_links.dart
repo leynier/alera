@@ -78,9 +78,8 @@ Future<void> _openMobileCodexPath(
     final scope = _MobileCodexWorkspaceScope.maybeOf(context);
     if (scope == null) return;
     if (target.path.isEmpty) return;
-    final client = await ProviderScope.containerOf(
-      context,
-    ).read(mobileCodexClientProvider(scope.hostId).future);
+    final client = await ProviderScope.containerOf(context)
+        .read(mobileCodexClientProvider(scope.hostId).future);
     if (!context.mounted) return;
     if (client is! MobileCodexWorkspaceClient) {
       _reportMobileCodexPreviewUnavailable(context);
@@ -139,9 +138,8 @@ Future<void> _openMobileCodexPath(
 void _reportMobileCodexPreviewUnavailable(BuildContext context) {
   const message = 'File preview requires a newer Alera runtime.';
   _MobileCodexChatScreenState._logger.warning(message);
-  ScaffoldMessenger.maybeOf(
-    context,
-  )?.showSnackBar(const SnackBar(content: Text(message)));
+  ScaffoldMessenger.maybeOf(context)
+      ?.showSnackBar(const SnackBar(content: Text(message)));
 }
 
 @visibleForTesting
@@ -193,9 +191,8 @@ void _reportMobileCodexLinkFailure(
     );
   }
   if (!context.mounted) return;
-  ScaffoldMessenger.maybeOf(
-    context,
-  )?.showSnackBar(const SnackBar(content: Text(message)));
+  ScaffoldMessenger.maybeOf(context)
+      ?.showSnackBar(const SnackBar(content: Text(message)));
 }
 
 bool _isAbsoluteMobileCodexPath(String value) =>

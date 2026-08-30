@@ -312,9 +312,8 @@ Future<List<File>> _writeDesktopChannelFixture(
       'publicKeyId': 'test-key',
       'value': base64Encode(signature.bytes),
     };
-    File(
-      p.join(releaseDirectory.path, 'release.json'),
-    ).writeAsStringSync(jsonEncode(descriptorJson));
+    File(p.join(releaseDirectory.path, 'release.json'))
+        .writeAsStringSync(jsonEncode(descriptorJson));
     File(p.join(fragments.path, '$platform.json')).writeAsStringSync(
       jsonEncode(<String, dynamic>{
         'schemaVersion': 3,

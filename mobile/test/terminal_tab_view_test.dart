@@ -227,9 +227,8 @@ void main() {
     final client = FakeTerminalClient()
       ..tabs = <WorkspaceTabSummary>[fakeTab(id: 'tab-1', title: 'Terminal 1')]
       ..attachmentSnapshot = utf8.encode(
-        <String>[
-          for (var line = 0; line < 8000; line++) 'line-$line',
-        ].join('\r\n'),
+        <String>[for (var line = 0; line < 8000; line++) 'line-$line']
+            .join('\r\n'),
       )
       ..attachmentSnapshotCols = 200
       ..attachmentSnapshotRows = 50;

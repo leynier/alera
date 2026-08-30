@@ -175,10 +175,8 @@ void main() {
       BrowserPageClosed(pageId: 'page-1', occurredAt: DateTime.utc(2026)),
     );
 
-    await Future.wait(<Future<BrowserRegistryEvent>>[
-      popupClosed,
-      openerClosed,
-    ]).timeout(const Duration(seconds: 1));
+    await Future.wait(<Future<BrowserRegistryEvent>>[popupClosed, openerClosed])
+        .timeout(const Duration(seconds: 1));
 
     expect(registry.handleForPageId('page-1'), isNull);
     expect(registry.handleForPageId('popup-native-opener-close'), isNull);

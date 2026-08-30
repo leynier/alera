@@ -344,9 +344,8 @@ class _CodexOverlayRow extends StatelessWidget {
                   textAlign: subtitleTextAlign,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: AleraTokens.foregroundMuted,
-                  ),
+                  style: Theme.of(context).textTheme.bodySmall
+                      ?.copyWith(color: AleraTokens.foregroundMuted),
                 ),
               ),
             ],
@@ -354,9 +353,8 @@ class _CodexOverlayRow extends StatelessWidget {
               const SizedBox(width: AleraTokens.space8),
               Text(
                 trailing!,
-                style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                  color: AleraTokens.foregroundFaint,
-                ),
+                style: Theme.of(context).textTheme.labelSmall
+                    ?.copyWith(color: AleraTokens.foregroundFaint),
               ),
             ],
           ],

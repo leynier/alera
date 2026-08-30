@@ -234,8 +234,7 @@ class TerminalSettingsPane extends StatelessWidget {
             children: <Widget>[
               SettingsIntegerRow(
                 title: 'TUI Scroll Speed',
-                description:
-                    'Mouse reports sent per wheel step while a TUI owns scrolling.',
+                description: 'Mouse reports sent per wheel step while a TUI owns scrolling.',
                 value: settings.tuiScrollSensitivity,
                 min: 1,
                 max: 10,
@@ -264,8 +263,7 @@ class TerminalSettingsPane extends StatelessWidget {
               ),
               SettingsSwitchRow(
                 title: 'Show Terminal Composer By Default',
-                description:
-                    'Open the prompt composer when a new terminal session starts.',
+                description: 'Open the prompt composer when a new terminal session starts.',
                 value: settings.showComposerByDefault,
                 onChanged: (value) => onChanged(
                   (settings) => settings.copyWith(showComposerByDefault: value),
@@ -284,8 +282,7 @@ class TerminalSettingsPane extends StatelessWidget {
             children: <Widget>[
               SettingsSwitchRow(
                 title: 'Use Login Shell',
-                description:
-                    'Start shells as login shells so profile files such as ~/.zprofile and ~/.profile are loaded.',
+                description: 'Start shells as login shells so profile files such as ~/.zprofile and ~/.profile are loaded.',
                 value: settings.resolvedLoginShell,
                 onChanged: (value) => onChanged(
                   (settings) => settings.copyWith(loginShell: value),
@@ -294,8 +291,7 @@ class TerminalSettingsPane extends StatelessWidget {
               if (onReloadShellEnvironment != null)
                 SettingsButtonRow(
                   title: 'Reload Shell Environment',
-                  description:
-                      'Re-read the login shell PATH so tools installed since the runtime started resolve in new terminals.',
+                  description: 'Re-read the login shell PATH so tools installed since the runtime started resolve in new terminals.',
                   buttonLabel: 'Reload',
                   onPressed: onReloadShellEnvironment,
                 ),

@@ -268,9 +268,8 @@ class _TextActionsMenu extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: AleraTokens.space8),
             child: Text(
               'Select Text Action',
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: AleraTokens.foregroundFaint,
-              ),
+              style: Theme.of(context).textTheme.bodySmall
+                  ?.copyWith(color: AleraTokens.foregroundFaint),
             ),
           ),
           for (final action in actions)

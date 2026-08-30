@@ -134,8 +134,8 @@ class RotatingLogSink {
 
   /// Existing log files, newest first, for collection into a bundle.
   List<File> existingFiles() {
-    return <File>[
-      for (var index = 0; index < maxFiles; index++) fileFor(index),
-    ].where((file) => file.existsSync()).toList();
+    return <File>[for (var index = 0; index < maxFiles; index++) fileFor(index)]
+        .where((file) => file.existsSync())
+        .toList();
   }
 }

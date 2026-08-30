@@ -78,9 +78,8 @@ class _SearchSummary extends StatelessWidget {
           Expanded(
             child: Text(
               text,
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: AleraTokens.foregroundMuted,
-              ),
+              style: Theme.of(context).textTheme.bodySmall
+                  ?.copyWith(color: AleraTokens.foregroundMuted),
               overflow: TextOverflow.ellipsis,
             ),
           ),
@@ -118,9 +117,8 @@ class _SearchEmptyState extends StatelessWidget {
     return Center(
       child: Text(
         'No results',
-        style: Theme.of(
-          context,
-        ).textTheme.bodySmall?.copyWith(color: AleraTokens.foregroundMuted),
+        style: Theme.of(context).textTheme.bodySmall
+            ?.copyWith(color: AleraTokens.foregroundMuted),
       ),
     );
   }

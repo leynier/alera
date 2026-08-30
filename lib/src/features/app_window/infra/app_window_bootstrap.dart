@@ -41,9 +41,8 @@ Future<AppWindowBootstrapResult> bootstrapAppWindowBeforeRunApp() async {
       displays: ScreenRetrieverAppWindowDisplayProvider(),
     ).restore();
   } catch (error, stackTrace) {
-    Logger(
-      'AppWindowBootstrap',
-    ).warning('failed to restore app window state', error, stackTrace);
+    Logger('AppWindowBootstrap')
+        .warning('failed to restore app window state', error, stackTrace);
   }
   return AppWindowBootstrapResult(database: db);
 }

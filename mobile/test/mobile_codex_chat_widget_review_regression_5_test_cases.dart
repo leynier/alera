@@ -54,9 +54,8 @@ void _registerMobileCodexReviewRegression5Tests() {
     );
     final container = ProviderContainer(
       overrides: [
-        mobileCodexClientProvider(
-          'host-command-race',
-        ).overrideWith((ref) async => client),
+        mobileCodexClientProvider('host-command-race')
+            .overrideWith((ref) async => client),
       ],
     );
     addTearDown(() {

@@ -120,8 +120,7 @@ class CodexChatController extends _$CodexChatController {
     final expectedThreadId = _threadId;
     if (expectedThreadId == null) {
       state = state.copyWith(
-        error:
-            'The Codex conversation changed before recovery. Review the current conversation and try again.',
+        error: 'The Codex conversation changed before recovery. Review the current conversation and try again.',
       );
       return;
     }

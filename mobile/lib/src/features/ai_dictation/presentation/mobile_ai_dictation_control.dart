@@ -33,9 +33,8 @@ class MobileAiDictationControl extends ConsumerWidget {
     final state = ref.watch(provider);
     ref.listen(provider.select((value) => value.warning), (previous, warning) {
       if (warning != null && warning != previous && context.mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(warning)));
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(warning)));
       }
     });
     final notifier = ref.read(provider.notifier);
@@ -83,9 +82,8 @@ class MobileAiDictationControl extends ConsumerWidget {
       }
     } on Object catch (error) {
       if (context.mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(error.toString())));
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(error.toString())));
       }
     }
   }

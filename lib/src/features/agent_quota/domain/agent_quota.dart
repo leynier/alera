@@ -161,12 +161,12 @@ class AgentQuotaSnapshot {
           _dateFromMillis(json['updatedAt']) ??
           DateTime.fromMillisecondsSinceEpoch(0, isUtc: true),
       error: json['error'] as String?,
-      windows: _objectList(
-        json['windows'],
-      ).map(AgentQuotaWindow.fromJson).toList(growable: false),
-      buckets: _objectList(
-        json['buckets'],
-      ).map(AgentQuotaBucket.fromJson).toList(growable: false),
+      windows: _objectList(json['windows'])
+          .map(AgentQuotaWindow.fromJson)
+          .toList(growable: false),
+      buckets: _objectList(json['buckets'])
+          .map(AgentQuotaBucket.fromJson)
+          .toList(growable: false),
       rateLimitResetCredits: switch (json['rateLimitResetCredits']) {
         final Map value => CodexResetCredits.fromJson(
           Map<String, Object?>.from(value),
@@ -175,9 +175,9 @@ class AgentQuotaSnapshot {
       },
       dataQuality: json['dataQuality'] as String?,
       scope: json['scope'] as String?,
-      amounts: _objectList(
-        json['amounts'],
-      ).map(AgentQuotaAmount.fromJson).toList(growable: false),
+      amounts: _objectList(json['amounts'])
+          .map(AgentQuotaAmount.fromJson)
+          .toList(growable: false),
     );
   }
 

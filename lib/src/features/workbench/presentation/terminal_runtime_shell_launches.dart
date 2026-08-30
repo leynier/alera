@@ -356,9 +356,9 @@ void _removePathEntries(
   if (path == null || path.isEmpty) {
     return;
   }
-  final entries = _splitPathList(
-    path,
-  ).where((entry) => !remove.contains(entry)).toList(growable: false);
+  final entries = _splitPathList(path)
+      .where((entry) => !remove.contains(entry))
+      .toList(growable: false);
   if (entries.isEmpty) {
     environment.remove('PATH');
   } else {

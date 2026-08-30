@@ -166,17 +166,16 @@ void _registerTerminalRuntimeHelperGroup() {
         r'C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe',
         r'C:\Windows\System32\cmd.exe',
       };
-      final launches = windowsTerminalShellLaunchesForTesting(const <
-        String,
-        String
-      >{
-        'Path':
-            r'C:\Program Files\PowerShell\7;C:\Windows\System32\WindowsPowerShell\v1.0',
-        'ProgramFiles': r'C:\Program Files',
-        'SystemRoot': r'C:\Windows',
-        'ComSpec': r'C:\Windows\System32\cmd.exe',
-        'USERPROFILE': r'C:\Users\alera',
-      }, fileExists: existing.contains);
+      final launches = windowsTerminalShellLaunchesForTesting(
+        const <String, String>{
+          'Path': r'C:\Program Files\PowerShell\7;C:\Windows\System32\WindowsPowerShell\v1.0',
+          'ProgramFiles': r'C:\Program Files',
+          'SystemRoot': r'C:\Windows',
+          'ComSpec': r'C:\Windows\System32\cmd.exe',
+          'USERPROFILE': r'C:\Users\alera',
+        },
+        fileExists: existing.contains,
+      );
 
       expect(launches.map((launch) => launch.label), <String>[
         'PowerShell 7',
@@ -213,72 +212,63 @@ void _registerTerminalRuntimeHelperGroup() {
       expect(fallbackLaunches.last.shell, r'C:\Custom\cmd.exe');
     });
 
-    test(
-      'launch helpers cover blank, shell, PowerShell, and cmd working-directory branches',
-      () {
-        final launch = _launch('shell', shell: '/bin/zsh');
-        expect(launchInWorkingDirectoryForTesting(launch, '   '), same(launch));
+    test('launch helpers cover blank, shell, PowerShell, and cmd working-directory branches', () {
+      final launch = _launch('shell', shell: '/bin/zsh');
+      expect(launchInWorkingDirectoryForTesting(launch, '   '), same(launch));
 
-        final shellLaunch = launchInWorkingDirectoryForTesting(
-          _launch(
-            'shell',
-            shell: '/bin/zsh',
-            arguments: const <String>['-l', '-i'],
-          ),
-          '/tmp/alera repo',
-        );
-        expect(shellLaunch.shell, '/bin/sh');
-        expect(shellLaunch.arguments, hasLength(2));
-        expect(shellLaunch.arguments.first, '-c');
-        expect(shellLaunch.arguments.last, contains("cd '/tmp/alera repo'"));
-        expect(
-          shellLaunch.arguments.last,
-          contains("exec '/bin/zsh' '-l' '-i'"),
-        );
+      final shellLaunch = launchInWorkingDirectoryForTesting(
+        _launch(
+          'shell',
+          shell: '/bin/zsh',
+          arguments: const <String>['-l', '-i'],
+        ),
+        '/tmp/alera repo',
+      );
+      expect(shellLaunch.shell, '/bin/sh');
+      expect(shellLaunch.arguments, hasLength(2));
+      expect(shellLaunch.arguments.first, '-c');
+      expect(shellLaunch.arguments.last, contains("cd '/tmp/alera repo'"));
+      expect(shellLaunch.arguments.last, contains("exec '/bin/zsh' '-l' '-i'"));
 
-        final cmdLaunch = launchInWorkingDirectoryForTesting(
-          _launch(
-            'cmd',
-            shell: r'C:\Windows\System32\cmd.exe',
-            arguments: const <String>['/q'],
-          ),
-          r'C:\Users\Alera Workspace',
-        );
-        expect(cmdLaunch.shell, r'C:\Windows\System32\cmd.exe');
-        expect(
-          cmdLaunch.arguments,
-          containsAllInOrder(<String>[
-            '/q',
-            '/d',
-            '/s',
-            '/k',
-            'cd /d "C:\\Users\\Alera Workspace"',
-          ]),
-        );
-        final powerShellLaunch = launchInWorkingDirectoryForTesting(
-          _launch(
-            'PowerShell 7',
-            shell: r'C:\Program Files\PowerShell\7\pwsh.exe',
-            setupCommand: 'Write-Host ready\r\n',
-          ),
-          r"C:\Users\O'Brien\Alera Workspace",
-        );
-        expect(
-          powerShellLaunch.shell,
-          r'C:\Program Files\PowerShell\7\pwsh.exe',
-        );
-        expect(powerShellLaunch.arguments, isEmpty);
-        expect(
-          powerShellLaunch.setupCommand,
-          "Set-Location -LiteralPath 'C:\\Users\\O''Brien\\Alera Workspace'\r\n"
-          'Write-Host ready\r\n',
-        );
-        expect(
-          powerShellQuoteForTesting(r"C:\Users\O'Brien"),
-          r"'C:\Users\O''Brien'",
-        );
-      },
-    );
+      final cmdLaunch = launchInWorkingDirectoryForTesting(
+        _launch(
+          'cmd',
+          shell: r'C:\Windows\System32\cmd.exe',
+          arguments: const <String>['/q'],
+        ),
+        r'C:\Users\Alera Workspace',
+      );
+      expect(cmdLaunch.shell, r'C:\Windows\System32\cmd.exe');
+      expect(
+        cmdLaunch.arguments,
+        containsAllInOrder(<String>[
+          '/q',
+          '/d',
+          '/s',
+          '/k',
+          'cd /d "C:\\Users\\Alera Workspace"',
+        ]),
+      );
+      final powerShellLaunch = launchInWorkingDirectoryForTesting(
+        _launch(
+          'PowerShell 7',
+          shell: r'C:\Program Files\PowerShell\7\pwsh.exe',
+          setupCommand: 'Write-Host ready\r\n',
+        ),
+        r"C:\Users\O'Brien\Alera Workspace",
+      );
+      expect(powerShellLaunch.shell, r'C:\Program Files\PowerShell\7\pwsh.exe');
+      expect(powerShellLaunch.arguments, isEmpty);
+      expect(
+        powerShellLaunch.setupCommand,
+        "Set-Location -LiteralPath 'C:\\Users\\O''Brien\\Alera Workspace'\r\n"
+        'Write-Host ready\r\n',
+      );
+      expect(
+        powerShellQuoteForTesting(r"C:\Users\O'Brien"),
+        r"'C:\Users\O''Brien'",
+      );
+    });
 
     test(
       'agent hook launch env strips inherited metadata before injection',

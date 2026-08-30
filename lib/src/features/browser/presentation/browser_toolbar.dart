@@ -194,9 +194,8 @@ class _BrowserDownloadsButton extends StatelessWidget {
                   child: Text(
                     count > 9 ? '9+' : '$count',
                     textAlign: TextAlign.center,
-                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                      color: AleraTokens.onAccent,
-                    ),
+                    style: Theme.of(context).textTheme.labelSmall
+                        ?.copyWith(color: AleraTokens.onAccent),
                   ),
                 ),
               ),

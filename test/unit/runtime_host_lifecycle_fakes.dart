@@ -62,8 +62,7 @@ final class FakeRuntimeHostLifecycleClient
     shutdownCalls.add(force);
     if (!force && busyOnSoftStop) {
       throw const RuntimeHostBusyException(
-        message:
-            'Runtime host has 1 active agent(s), 1 active terminal session(s) and 0 active background job(s).',
+        message: 'Runtime host has 1 active agent(s), 1 active terminal session(s) and 0 active background job(s).',
         activeAgents: 1,
         activeSessions: 1,
       );

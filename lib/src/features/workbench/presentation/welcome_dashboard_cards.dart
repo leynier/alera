@@ -79,9 +79,8 @@ class _ActionRow extends StatelessWidget {
                   const SizedBox(height: AleraTokens.space2),
                   Text(
                     description,
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: AleraTokens.foregroundMuted,
-                    ),
+                    style: Theme.of(context).textTheme.bodySmall
+                        ?.copyWith(color: AleraTokens.foregroundMuted),
                   ),
                 ],
               ),
@@ -134,9 +133,8 @@ class _ShortcutsCard extends ConsumerWidget {
                       shortcuts[i].$2,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: AleraTokens.foregroundMuted,
-                      ),
+                      style: Theme.of(context).textTheme.bodyMedium
+                          ?.copyWith(color: AleraTokens.foregroundMuted),
                     ),
                   ),
                   const SizedBox(width: AleraTokens.space12),

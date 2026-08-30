@@ -166,9 +166,8 @@ class _EditorMessage extends StatelessWidget {
     return Center(
       child: Text(
         message,
-        style: Theme.of(
-          context,
-        ).textTheme.bodyMedium?.copyWith(color: AleraTokens.foregroundMuted),
+        style: Theme.of(context).textTheme.bodyMedium
+            ?.copyWith(color: AleraTokens.foregroundMuted),
       ),
     );
   }

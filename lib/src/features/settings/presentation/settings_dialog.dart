@@ -288,8 +288,7 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
       SettingsSectionData(
         id: 'aiAssist',
         title: 'AI Assist',
-        description:
-            'Local agent assistance for commits, pull requests, diffs, workspace identity, and speech.',
+        description: 'Local agent assistance for commits, pull requests, diffs, workspace identity, and speech.',
         icon: AleraIcons.ai,
         entries: aiAssistSearchEntries,
         groups: aiAssistGroups,

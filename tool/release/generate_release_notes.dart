@@ -161,11 +161,9 @@ Future<String?> _resolveBullet(
   Map<String, dynamic>? pull;
   if (prNumber == null) {
     // A squash-merged PR lands as a plain commit; attribute it to its PR.
-    final associated =
-        jsonDecode(
-              await _runGh(['api', 'repos/$repo/commits/${entry.sha}/pulls']),
-            )
-            as List<dynamic>;
+    final associated = jsonDecode(
+      await _runGh(['api', 'repos/$repo/commits/${entry.sha}/pulls']),
+    ) as List<dynamic>;
     if (associated.isNotEmpty) {
       pull = associated.first as Map<String, dynamic>;
       prNumber = pull['number'] as int;
@@ -175,17 +173,17 @@ Future<String?> _resolveBullet(
     if (!seenPullRequests.add(prNumber)) {
       return null;
     }
-    pull ??=
-        jsonDecode(await _runGh(['api', 'repos/$repo/pulls/$prNumber']))
-            as Map<String, dynamic>;
+    pull ??= jsonDecode(
+      await _runGh(['api', 'repos/$repo/pulls/$prNumber']),
+    ) as Map<String, dynamic>;
     final title = pull['title'] as String;
     final login = (pull['user'] as Map<String, dynamic>?)?['login'] as String?;
     final author = login == null ? '' : ' by @$login';
     return '* $title$author in https://github.com/$repo/pull/$prNumber';
   }
-  final commit =
-      jsonDecode(await _runGh(['api', 'repos/$repo/commits/${entry.sha}']))
-          as Map<String, dynamic>;
+  final commit = jsonDecode(
+    await _runGh(['api', 'repos/$repo/commits/${entry.sha}']),
+  ) as Map<String, dynamic>;
   final login =
       (commit['author'] as Map<String, dynamic>?)?['login'] as String?;
   final gitName =

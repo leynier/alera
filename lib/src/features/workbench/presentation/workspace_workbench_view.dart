@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:alera/src/features/ai_assist/application/agent_title_providers.dart';
 import 'package:alera/src/design_system/feedback/alera_toast.dart';
+
 import 'dart:math' as math;
 
 import 'package:alera/src/app/theme/alera_tokens.dart';
@@ -46,40 +47,48 @@ part 'workspace_workbench_tab_chips.dart';
 part 'workspace_workbench_tab_menu.dart';
 part 'workspace_workbench_resize_handle.dart';
 
-typedef CreateTerminalTabCallback =
-    Future<void> Function({String? targetGroupId});
-typedef CreateBrowserTabCallback =
-    Future<void> Function({String? targetGroupId});
+typedef CreateTerminalTabCallback = Future<void> Function({
+  String? targetGroupId,
+});
+typedef CreateBrowserTabCallback = Future<void> Function({
+  String? targetGroupId,
+});
 typedef CreateCodexTabCallback = Future<void> Function({String? targetGroupId});
-typedef OpenMobileEmulatorTabCallback =
-    Future<void> Function({String? targetGroupId});
-typedef OpenFileTabCallback =
-    Future<void> Function({
-      required String relativePath,
-      String? targetGroupId,
-    });
-typedef SelectWorkspaceTabCallback =
-    void Function({required String groupId, required String tabId});
-typedef MoveWorkspaceTabCallback =
-    Future<void> Function({
-      required String tabId,
-      required String targetGroupId,
-      required WorkbenchDropZone zone,
-      int? index,
-    });
-typedef SplitWorkbenchGroupCallback =
-    Future<void> Function({
-      required String groupId,
-      required WorkbenchDropZone zone,
-    });
-typedef MergeWorkbenchGroupCallback =
-    Future<void> Function({required String groupId});
-typedef ActivateWorkbenchGroupCallback =
-    void Function({required String groupId});
-typedef UpdateWorkbenchSplitRatioCallback =
-    void Function({required List<int> nodePath, required double ratio});
-typedef RenameWorkspaceTabCallback =
-    Future<void> Function({required String tabId, required String title});
+typedef OpenMobileEmulatorTabCallback = Future<void> Function({
+  String? targetGroupId,
+});
+typedef OpenFileTabCallback = Future<void> Function({
+  required String relativePath,
+  String? targetGroupId,
+});
+typedef SelectWorkspaceTabCallback = void Function({
+  required String groupId,
+  required String tabId,
+});
+typedef MoveWorkspaceTabCallback = Future<void> Function({
+  required String tabId,
+  required String targetGroupId,
+  required WorkbenchDropZone zone,
+  int? index,
+});
+typedef SplitWorkbenchGroupCallback = Future<void> Function({
+  required String groupId,
+  required WorkbenchDropZone zone,
+});
+typedef MergeWorkbenchGroupCallback = Future<void> Function({
+  required String groupId,
+});
+typedef ActivateWorkbenchGroupCallback = void Function({
+  required String groupId,
+});
+typedef UpdateWorkbenchSplitRatioCallback = void Function({
+  required List<int> nodePath,
+  required double ratio,
+});
+typedef RenameWorkspaceTabCallback = Future<void> Function({
+  required String tabId,
+  required String title,
+});
 typedef OpenWorkspaceFileCallback = Future<void> Function(String relativePath);
 
 @visibleForTesting
@@ -175,9 +184,8 @@ bool splitDirectionPainterShouldRepaintForTesting(
   WorkbenchDropZone previousZone,
   WorkbenchDropZone nextZone,
 ) {
-  return _SplitDirectionPainter(
-    zone: nextZone,
-  ).shouldRepaint(_SplitDirectionPainter(zone: previousZone));
+  return _SplitDirectionPainter(zone: nextZone)
+      .shouldRepaint(_SplitDirectionPainter(zone: previousZone));
 }
 
 class WorkspaceWorkbenchView extends StatefulWidget {

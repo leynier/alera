@@ -1,4 +1,5 @@
 import 'dart:async';
+
 import 'package:alera_mobile/src/features/runtime/application/host_connection_health.dart';
 
 import 'package:alera_mobile/src/app/theme/alera_tokens.dart';
@@ -279,9 +280,8 @@ class _HostCard extends ConsumerWidget {
                 width: AleraTokens.iconLg,
                 height: AleraTokens.iconLg,
                 decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.primary.withValues(
-                    alpha: AleraTokens.emphasisOverlayAlpha,
-                  ),
+                  color: Theme.of(context).colorScheme.primary
+                      .withValues(alpha: AleraTokens.emphasisOverlayAlpha),
                   borderRadius: BorderRadius.circular(AleraTokens.radiusSm),
                 ),
                 child: Icon(
@@ -326,9 +326,8 @@ class _HostCard extends ConsumerWidget {
                       onRetry: () => unawaited(
                         ref
                             .read(
-                              hostConnectionControllerProvider(
-                                host.id,
-                              ).notifier,
+                              hostConnectionControllerProvider(host.id)
+                                  .notifier,
                             )
                             .reconnectNow(),
                       ),

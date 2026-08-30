@@ -45,9 +45,9 @@ printf '%s\n' "$PODS_TARGET_SRCROOT" "$1" "$2" > "$CAPTURE_FILE"
       final podspec = File(
         'mobile/rust_builder/ios/alera_mobile_native.podspec',
       ).readAsStringSync();
-      final script = RegExp(
-        r":script => <<-'SCRIPT',\n([\s\S]*?)\nSCRIPT",
-      ).firstMatch(podspec)!.group(1)!;
+      final script = RegExp(r":script => <<-'SCRIPT',\n([\s\S]*?)\nSCRIPT")
+          .firstMatch(podspec)!
+          .group(1)!;
 
       final result = await Process.run(
         'sh',
@@ -63,9 +63,8 @@ printf '%s\n' "$PODS_TARGET_SRCROOT" "$1" "$2" > "$CAPTURE_FILE"
       expect(arguments.first, ios.resolveSymbolicLinksSync());
       expect(arguments[2], 'alera_mobile_native');
       expect(
-        File(
-          p.join(arguments[0], arguments[1], 'Cargo.toml'),
-        ).resolveSymbolicLinksSync(),
+        File(p.join(arguments[0], arguments[1], 'Cargo.toml'))
+            .resolveSymbolicLinksSync(),
         cargo.resolveSymbolicLinksSync(),
       );
     }, skip: Platform.isWindows ? 'CocoaPods runs on POSIX hosts.' : false);

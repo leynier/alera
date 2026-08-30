@@ -203,9 +203,8 @@ class CodexChatHostClient {
   }) async {
     final effectiveCollaborationMode =
         collaborationMode ?? (planMode ? 'plan' : 'default');
-    final supportsTurnPolicy = (await _capabilities(
-      retryAfterFailure: true,
-    )).contains(aleraRuntimeHostCodexTurnPolicyCapability);
+    final supportsTurnPolicy = (await _capabilities(retryAfterFailure: true))
+        .contains(aleraRuntimeHostCodexTurnPolicyCapability);
     final wirePermissionMode =
         !supportsTurnPolicy && permissionMode == 'auto-review'
         ? 'on-request'

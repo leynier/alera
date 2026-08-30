@@ -48,16 +48,14 @@ class _CodexReasoningCellState extends State<_CodexReasoningCell> {
                   if (widget.cell.isStreaming)
                     _CodexShimmerText(
                       text: widget.cell.title ?? 'Thinking',
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: AleraTokens.foregroundMuted,
-                      ),
+                      style: Theme.of(context).textTheme.bodySmall
+                          ?.copyWith(color: AleraTokens.foregroundMuted),
                     )
                   else
                     Text(
                       widget.cell.title ?? 'Thinking',
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: AleraTokens.foregroundMuted,
-                      ),
+                      style: Theme.of(context).textTheme.bodySmall
+                          ?.copyWith(color: AleraTokens.foregroundMuted),
                     ),
                   if (text.trim().isNotEmpty) ...<Widget>[
                     const SizedBox(width: AleraTokens.space4),
@@ -94,9 +92,8 @@ class _CodexReasoningCellState extends State<_CodexReasoningCell> {
               ),
             ),
             child: DefaultTextStyle.merge(
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: AleraTokens.foregroundMuted,
-              ),
+              style: Theme.of(context).textTheme.bodySmall
+                  ?.copyWith(color: AleraTokens.foregroundMuted),
               child: _CodexMarkdownText(text: text),
             ),
           ),
@@ -170,9 +167,8 @@ class _CodexToolCellState extends State<_CodexToolCell> {
                       label,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: AleraTokens.foregroundMuted,
-                      ),
+                      style: Theme.of(context).textTheme.bodySmall
+                          ?.copyWith(color: AleraTokens.foregroundMuted),
                     ),
                   ),
                   if (hasDetails) ...<Widget>[
@@ -361,9 +357,8 @@ class _CodexQuestionAnswerCellState extends State<_CodexQuestionAnswerCell> {
                     const SizedBox(width: AleraTokens.space8),
                     Text(
                       label,
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: AleraTokens.foregroundMuted,
-                      ),
+                      style: Theme.of(context).textTheme.bodyMedium
+                          ?.copyWith(color: AleraTokens.foregroundMuted),
                     ),
                     const SizedBox(width: AleraTokens.space6),
                     Icon(

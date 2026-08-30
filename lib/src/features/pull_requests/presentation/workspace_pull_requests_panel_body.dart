@@ -173,8 +173,7 @@ class _PullRequestBody extends StatelessWidget {
       PullRequestUnavailableReason.undetectable => const _MessageBody(
         icon: AleraIcons.gitPullRequest,
         title: 'Provider not detected',
-        message:
-            'Could not detect the git hosting provider. Set it in project settings.',
+        message: 'Could not detect the git hosting provider. Set it in project settings.',
       ),
       PullRequestUnavailableReason.unsupported => const _MessageBody(
         icon: AleraIcons.gitPullRequest,

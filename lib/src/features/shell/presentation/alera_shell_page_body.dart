@@ -255,8 +255,7 @@ class _AleraShellPageBodyState extends ConsumerState<_AleraShellPageBody> {
                               if (tab == null) {
                                 AleraToast.show(
                                   context,
-                                  message:
-                                      'The Agent Canvas terminal is no longer open.',
+                                  message: 'The Agent Canvas terminal is no longer open.',
                                   tone: AleraToastTone.error,
                                 );
                                 return;

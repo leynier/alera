@@ -212,9 +212,8 @@ class _SourceControlToolbar extends StatelessWidget {
               _repoSummary(state, sourceControlRootLabel),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                color: AleraTokens.foregroundFaint,
-              ),
+              style: Theme.of(context).textTheme.labelSmall
+                  ?.copyWith(color: AleraTokens.foregroundFaint),
             ),
           ],
           if (filterVisible) ...<Widget>[
@@ -433,9 +432,8 @@ class _PrimaryActionButton extends StatelessWidget {
     final label = action == null ? 'Fetch' : _actionLabel(action);
     final icon = action == null ? AleraIcons.gitFetch : _actionIcon(action);
     final enabled = onPressed != null && !busy;
-    final textStyle = Theme.of(
-      context,
-    ).textTheme.labelLarge?.copyWith(color: AleraTokens.onAccent);
+    final textStyle = Theme.of(context).textTheme.labelLarge
+        ?.copyWith(color: AleraTokens.onAccent);
     final cursor = busy ? SystemMouseCursors.basic : SystemMouseCursors.click;
     return MouseRegion(
       cursor: cursor,

@@ -47,9 +47,8 @@ class HostAgentToolsSection extends ConsumerWidget {
                           ? null
                           : ref
                                 .read(
-                                  cliRegistrationControllerProvider(
-                                    hostId,
-                                  ).notifier,
+                                  cliRegistrationControllerProvider(hostId)
+                                      .notifier,
                                 )
                                 .install,
                       child: Text(

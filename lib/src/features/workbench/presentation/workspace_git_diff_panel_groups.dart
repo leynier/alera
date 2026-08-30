@@ -288,16 +288,14 @@ class _GitDiffGroupHeader extends StatelessWidget {
           Expanded(
             child: Text(
               group.label,
-              style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                color: AleraTokens.foregroundMuted,
-              ),
+              style: Theme.of(context).textTheme.labelSmall
+                  ?.copyWith(color: AleraTokens.foregroundMuted),
             ),
           ),
           Text(
             '${group.entries.length}',
-            style: Theme.of(context).textTheme.labelSmall?.copyWith(
-              color: AleraTokens.foregroundFaint,
-            ),
+            style: Theme.of(context).textTheme.labelSmall
+                ?.copyWith(color: AleraTokens.foregroundFaint),
           ),
           const SizedBox(width: AleraTokens.space6),
           _AreaActions(
@@ -328,9 +326,8 @@ class _GitDiffMessage extends StatelessWidget {
         child: Text(
           message,
           textAlign: TextAlign.center,
-          style: Theme.of(
-            context,
-          ).textTheme.bodySmall?.copyWith(color: AleraTokens.foregroundMuted),
+          style: Theme.of(context).textTheme.bodySmall
+              ?.copyWith(color: AleraTokens.foregroundMuted),
         ),
       ),
     );

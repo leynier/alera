@@ -20,8 +20,9 @@ class AleraSkillInstallStatus {
   final bool needsAttention;
 }
 
-typedef AleraSkillInstaller =
-    Future<AleraSkillInstallStatus> Function(AleraCliSkillRunner runner);
+typedef AleraSkillInstaller = Future<AleraSkillInstallStatus> Function(
+  AleraCliSkillRunner runner,
+);
 typedef AleraSkillCommandBuilder = String Function(AleraCliSkillRunner runner);
 
 /// Installs in process and reports afterwards, for setup that is more than one

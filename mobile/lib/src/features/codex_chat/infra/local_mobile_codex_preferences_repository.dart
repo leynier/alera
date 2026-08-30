@@ -1,4 +1,5 @@
 import 'dart:convert';
+
 import 'package:alera_mobile/src/features/configuration_sync/infra/mobile_configuration_preferences.dart';
 
 import 'package:alera_mobile/src/features/codex_chat/application/mobile_codex_preferences_repository.dart';

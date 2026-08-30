@@ -288,9 +288,8 @@ class _MobileContextCompactionCell extends StatelessWidget {
     final color = cell.status == 'failed'
         ? AleraTokens.error
         : AleraTokens.foregroundMuted;
-    final style = Theme.of(
-      context,
-    ).textTheme.labelMedium?.copyWith(color: color);
+    final style = Theme.of(context).textTheme.labelMedium
+        ?.copyWith(color: color);
     return Padding(
       key: ValueKey<String>('mobile-context-compaction-${cell.id}'),
       padding: const EdgeInsets.only(bottom: AleraTokens.space8),
@@ -346,9 +345,8 @@ class _MobileMessageActions extends StatelessWidget {
       if (cell.createdAt != null)
         Text(
           _mobileTimestamp(cell.createdAt!),
-          style: Theme.of(
-            context,
-          ).textTheme.labelSmall?.copyWith(color: AleraTokens.foregroundFaint),
+          style: Theme.of(context).textTheme.labelSmall
+              ?.copyWith(color: AleraTokens.foregroundFaint),
         ),
     ],
   );

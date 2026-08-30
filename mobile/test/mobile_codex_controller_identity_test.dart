@@ -28,9 +28,8 @@ void main() {
       );
       final container = ProviderContainer(
         overrides: [
-          mobileCodexClientProvider(
-            'host-progress-identity',
-          ).overrideWith((ref) async => client),
+          mobileCodexClientProvider('host-progress-identity')
+              .overrideWith((ref) async => client),
         ],
       );
       addTearDown(() {
@@ -114,9 +113,8 @@ void main() {
     );
     final container = ProviderContainer(
       overrides: [
-        mobileCodexClientProvider(
-          'host-repeated-user-message',
-        ).overrideWith((ref) async => client),
+        mobileCodexClientProvider('host-repeated-user-message')
+            .overrideWith((ref) async => client),
       ],
     );
     addTearDown(() {
@@ -202,9 +200,8 @@ void main() {
     );
     final container = ProviderContainer(
       overrides: [
-        mobileCodexClientProvider(
-          'host-repeated-agent',
-        ).overrideWith((ref) async => client),
+        mobileCodexClientProvider('host-repeated-agent')
+            .overrideWith((ref) async => client),
       ],
     );
     addTearDown(() {
@@ -329,9 +326,8 @@ void main() {
     );
     final container = ProviderContainer(
       overrides: [
-        mobileCodexClientProvider(
-          'host-ambiguous-prefix',
-        ).overrideWith((ref) async => client),
+        mobileCodexClientProvider('host-ambiguous-prefix')
+            .overrideWith((ref) async => client),
       ],
     );
     addTearDown(() {
@@ -402,9 +398,8 @@ Future<List<MobileCodexTimelineCell>> _mobilePhaseReconciliation({
   );
   final container = ProviderContainer(
     overrides: [
-      mobileCodexClientProvider(
-        'host-phase-$kind-$modernPhase',
-      ).overrideWith((ref) async => client),
+      mobileCodexClientProvider('host-phase-$kind-$modernPhase')
+          .overrideWith((ref) async => client),
     ],
   );
   final provider = mobileCodexControllerProvider(

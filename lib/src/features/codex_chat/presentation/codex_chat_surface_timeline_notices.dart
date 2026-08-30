@@ -57,17 +57,14 @@ class _CodexSystemNotice extends StatelessWidget {
               children: <Widget>[
                 Text(
                   cell.title ?? 'Codex Warning',
-                  style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                    color: tone,
-                    fontWeight: FontWeight.w600,
-                  ),
+                  style: Theme.of(context).textTheme.labelMedium
+                      ?.copyWith(color: tone, fontWeight: FontWeight.w600),
                 ),
                 const SizedBox(height: AleraTokens.space2),
                 Text(
                   message,
-                  style: Theme.of(
-                    context,
-                  ).textTheme.bodySmall?.copyWith(color: tone),
+                  style: Theme.of(context).textTheme.bodySmall
+                      ?.copyWith(color: tone),
                 ),
               ],
             ),
@@ -124,9 +121,8 @@ class _CodexMcpStatusCell extends StatelessWidget {
                   const SizedBox(height: AleraTokens.space2),
                   Text(
                     details,
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: AleraTokens.foregroundMuted,
-                    ),
+                    style: Theme.of(context).textTheme.bodySmall
+                        ?.copyWith(color: AleraTokens.foregroundMuted),
                   ),
                 ],
               ],
@@ -137,9 +133,8 @@ class _CodexMcpStatusCell extends StatelessWidget {
             _CodexShimmerText(
               key: const ValueKey<String>('codex-mcp-loading-indicator'),
               text: _codexStatusLabel(status),
-              style: Theme.of(
-                context,
-              ).textTheme.labelSmall?.copyWith(color: tone),
+              style: Theme.of(context).textTheme.labelSmall
+                  ?.copyWith(color: tone),
             )
           else ...<Widget>[
             Icon(
@@ -152,9 +147,8 @@ class _CodexMcpStatusCell extends StatelessWidget {
             const SizedBox(width: AleraTokens.space4),
             Text(
               _codexStatusLabel(status),
-              style: Theme.of(
-                context,
-              ).textTheme.labelSmall?.copyWith(color: tone),
+              style: Theme.of(context).textTheme.labelSmall
+                  ?.copyWith(color: tone),
             ),
           ],
         ],

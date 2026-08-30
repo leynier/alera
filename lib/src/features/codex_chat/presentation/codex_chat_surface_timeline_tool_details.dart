@@ -136,9 +136,8 @@ class _CodexToolPayload extends StatelessWidget {
           Expanded(
             child: Text(
               label,
-              style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                color: AleraTokens.foregroundFaint,
-              ),
+              style: Theme.of(context).textTheme.labelSmall
+                  ?.copyWith(color: AleraTokens.foregroundFaint),
             ),
           ),
           AleraIconButton(
@@ -168,9 +167,8 @@ class _CodexDiffDetails extends StatelessWidget {
           Expanded(
             child: Text(
               'File Changes',
-              style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                color: AleraTokens.foregroundFaint,
-              ),
+              style: Theme.of(context).textTheme.labelSmall
+                  ?.copyWith(color: AleraTokens.foregroundFaint),
             ),
           ),
           AleraIconButton(

@@ -9,13 +9,12 @@ final AiAssistAgentSpec fxAiAssistAgentSpec = AiAssistAgentSpec(
   models: const <AiAssistModel>[],
   defaultModelId: null,
   modelCanInherit: true,
-  buildArgs:
-      ({
-        required model,
-        thinkingLevel,
-        required prompt,
-        required timeoutSeconds,
-      }) => const <String>['ask', '--no-save'],
+  buildArgs: ({
+    required model,
+    thinkingLevel,
+    required prompt,
+    required timeoutSeconds,
+  }) => const <String>['ask', '--no-save'],
 );
 
 List<AiAssistModel> parseFxModels(String stdout) {

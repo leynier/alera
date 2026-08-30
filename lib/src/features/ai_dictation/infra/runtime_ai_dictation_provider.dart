@@ -22,20 +22,23 @@ class RuntimeAiDictationProvider implements AiDictationProvider {
       );
     }
     try {
-      final value = await _client
-          .runtimeRequest('aiDictation.transcribe', <String, Object?>{
-            'requestId': request.requestId,
-            'audioPath': request.audioPath,
-            'engine': switch (engine) {
-              AiDictationRemoteEngine.codexSubscription => 'codexSubscription',
-              AiDictationRemoteEngine.openAiCompatible => 'openAiCompatible',
-            },
-            'baseUrl': request.providerBaseUrl,
-            'modelId': request.providerModel,
-            'language': request.language,
-            'initialPrompt': request.initialPrompt,
-            'timeoutSeconds': request.timeout?.inSeconds,
-          }, request.timeout);
+      final value = await _client.runtimeRequest(
+        'aiDictation.transcribe',
+        <String, Object?>{
+          'requestId': request.requestId,
+          'audioPath': request.audioPath,
+          'engine': switch (engine) {
+            AiDictationRemoteEngine.codexSubscription => 'codexSubscription',
+            AiDictationRemoteEngine.openAiCompatible => 'openAiCompatible',
+          },
+          'baseUrl': request.providerBaseUrl,
+          'modelId': request.providerModel,
+          'language': request.language,
+          'initialPrompt': request.initialPrompt,
+          'timeoutSeconds': request.timeout?.inSeconds,
+        },
+        request.timeout,
+      );
       if (value is! Map) {
         throw const FormatException('Invalid runtime dictation response.');
       }

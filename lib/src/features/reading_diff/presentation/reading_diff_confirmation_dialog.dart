@@ -125,17 +125,15 @@ class _ReadingDiffDetail extends StatelessWidget {
             width: AleraTokens.space48 * 2,
             child: Text(
               label,
-              style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                color: AleraTokens.foregroundMuted,
-              ),
+              style: Theme.of(context).textTheme.labelMedium
+                  ?.copyWith(color: AleraTokens.foregroundMuted),
             ),
           ),
           Expanded(
             child: Text(
               value,
-              style: Theme.of(
-                context,
-              ).textTheme.bodySmall?.copyWith(fontFamily: 'JetBrains Mono'),
+              style: Theme.of(context).textTheme.bodySmall
+                  ?.copyWith(fontFamily: 'JetBrains Mono'),
             ),
           ),
         ],

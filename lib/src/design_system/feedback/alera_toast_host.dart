@@ -140,9 +140,8 @@ class _ToastCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final icon = _iconForTone(entry.data.tone);
     final iconColor = _colorForTone(entry.data.tone);
-    final textStyle = Theme.of(
-      context,
-    ).textTheme.bodyMedium?.copyWith(color: AleraTokens.foreground);
+    final textStyle = Theme.of(context).textTheme.bodyMedium
+        ?.copyWith(color: AleraTokens.foreground);
 
     return AnimatedOpacity(
       opacity: entry.exiting ? 0 : 1,

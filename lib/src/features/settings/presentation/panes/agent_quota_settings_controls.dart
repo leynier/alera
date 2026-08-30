@@ -42,9 +42,8 @@ class _ProviderOrderControl extends StatelessWidget {
       return Text(
         'No quota providers enabled',
         textAlign: TextAlign.right,
-        style: Theme.of(
-          context,
-        ).textTheme.bodySmall?.copyWith(color: AleraTokens.foregroundFaint),
+        style: Theme.of(context).textTheme.bodySmall
+            ?.copyWith(color: AleraTokens.foregroundFaint),
       );
     }
     return Column(
@@ -125,9 +124,8 @@ class _ClaudeProfilesControl extends StatelessWidget {
           Text(
             'No CCS profiles configured',
             textAlign: TextAlign.right,
-            style: Theme.of(
-              context,
-            ).textTheme.bodySmall?.copyWith(color: AleraTokens.foregroundFaint),
+            style: Theme.of(context).textTheme.bodySmall
+                ?.copyWith(color: AleraTokens.foregroundFaint),
           ),
         for (final (index, profile) in profiles.indexed) ...<Widget>[
           if (index > 0) const SizedBox(height: AleraTokens.space8),
@@ -154,9 +152,8 @@ class _ClaudeProfilesControl extends StatelessWidget {
                           ? 'Usage: ${profile.usageLabel}'
                           : 'Not shown in Usage',
                       overflow: TextOverflow.ellipsis,
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: AleraTokens.foregroundFaint,
-                      ),
+                      style: Theme.of(context).textTheme.bodySmall
+                          ?.copyWith(color: AleraTokens.foregroundFaint),
                     ),
                   ],
                 ),
@@ -368,9 +365,8 @@ class _ClaudeProfileDialogState extends State<_ClaudeProfileDialog> {
               const SizedBox(height: AleraTokens.space8),
               Text(
                 error,
-                style: Theme.of(
-                  context,
-                ).textTheme.bodySmall?.copyWith(color: AleraTokens.error),
+                style: Theme.of(context).textTheme.bodySmall
+                    ?.copyWith(color: AleraTokens.error),
               ),
             ],
             const SizedBox(height: AleraTokens.space20),

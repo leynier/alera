@@ -32,9 +32,8 @@ void main() {
     );
     final container = ProviderContainer(
       overrides: [
-        mobileCodexClientProvider(
-          'host-exact-identity',
-        ).overrideWith((ref) async => client),
+        mobileCodexClientProvider('host-exact-identity')
+            .overrideWith((ref) async => client),
       ],
     );
     addTearDown(() {

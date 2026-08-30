@@ -98,9 +98,8 @@ class _SubmoduleFeedbackRow extends StatelessWidget {
       message,
       maxLines: 1,
       overflow: TextOverflow.ellipsis,
-      style: Theme.of(
-        context,
-      ).textTheme.labelSmall?.copyWith(color: AleraTokens.foregroundFaint),
+      style: Theme.of(context).textTheme.labelSmall
+          ?.copyWith(color: AleraTokens.foregroundFaint),
     );
     return Padding(
       padding: EdgeInsets.only(

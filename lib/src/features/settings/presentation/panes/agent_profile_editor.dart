@@ -162,8 +162,7 @@ class AgentProfileEditor extends StatelessWidget {
                   children: <Widget>[
                     AleraSettingRow(
                       title: 'Command Preview',
-                      description:
-                          'The host quotes these arguments for the actual platform shell.',
+                      description: 'The host quotes these arguments for the actual platform shell.',
                       controlWidth: 320,
                       child: SelectableText(
                         managedCommandPreview,

@@ -239,9 +239,8 @@ final class TerminalHostPtySession
       return;
     }
     unawaited(
-      _enqueueAttachmentOperation(
-        () => _resize(cols: cols, rows: rows),
-      ).catchError(_emitHostError),
+      _enqueueAttachmentOperation(() => _resize(cols: cols, rows: rows))
+          .catchError(_emitHostError),
     );
   }
 

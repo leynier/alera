@@ -183,9 +183,8 @@ class TextActionEditor extends StatelessWidget {
             const SizedBox(height: AleraTokens.space12),
             Text(
               error,
-              style: Theme.of(
-                context,
-              ).textTheme.bodySmall?.copyWith(color: AleraTokens.error),
+              style: Theme.of(context).textTheme.bodySmall
+                  ?.copyWith(color: AleraTokens.error),
             ),
           ],
           const SizedBox(height: AleraTokens.space16),

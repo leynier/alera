@@ -337,9 +337,10 @@ void _registerWorkbenchControllerLifecycleTests() {
         workspaceTabSpawnOnCreatePayloadKey: true,
       },
     );
-    final session =
-        _harness.terminalRuntime.sessionFor(workspace: workspace, tab: tab)
-            as _FakeTerminalSessionHandle;
+    final session = _harness.terminalRuntime.sessionFor(
+      workspace: workspace,
+      tab: tab,
+    ) as _FakeTerminalSessionHandle;
 
     await _harness.workbenchRepository.upsertWorkspaceTab(tab);
     await _flushUntil(

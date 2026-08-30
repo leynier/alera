@@ -111,8 +111,7 @@ class WorkspaceContextSidebar extends StatelessWidget {
                             ? const AleraEmptyState(
                                 icon: AleraIcons.gitBranch,
                                 title: 'Source Control Unavailable',
-                                message:
-                                    'This workspace is not connected to a Git repository, so there are no changes to show.',
+                                message: 'This workspace is not connected to a Git repository, so there are no changes to show.',
                               )
                             : WorkspaceGitDiffPanel(
                                 workspace: workspace,
@@ -135,8 +134,7 @@ class WorkspaceContextSidebar extends StatelessWidget {
                             ? const AleraEmptyState(
                                 icon: AleraIcons.gitPullRequest,
                                 title: 'Pull Request Unavailable',
-                                message:
-                                    'This workspace is not connected to a Git repository, so there are no Pull Requests to show.',
+                                message: 'This workspace is not connected to a Git repository, so there are no Pull Requests to show.',
                               )
                             : WorkspacePullRequestsPanel(
                                 key: ValueKey<String>(

@@ -169,23 +169,20 @@ void main() {
     expect(cloud.writes, 0);
     expect(target.backup!.json['desktop'], {'font': 12});
   });
-  test(
-    'lost publication response can retry without duplicate revision or losing later local edits',
-    () async {
-      final cloud = Cloud()..loseResponse = true;
-      final target = Target();
-      final sync = ConfigurationSyncService(cloud: cloud, target: target);
-      final review = await sync.review();
-      await expectLater(sync.apply(review, upload: true), throwsStateError);
-      expect(target.pending, isNotNull);
-      target.document = doc(20);
-      await sync.retryPending();
-      expect(cloud.writes, 1);
-      expect(target.pending, isNull);
-      expect(target.document.json['desktop'], {'font': 20});
-      expect(target.base!.document.json['desktop'], {'font': 12});
-    },
-  );
+  test('lost publication response can retry without duplicate revision or losing later local edits', () async {
+    final cloud = Cloud()..loseResponse = true;
+    final target = Target();
+    final sync = ConfigurationSyncService(cloud: cloud, target: target);
+    final review = await sync.review();
+    await expectLater(sync.apply(review, upload: true), throwsStateError);
+    expect(target.pending, isNotNull);
+    target.document = doc(20);
+    await sync.retryPending();
+    expect(cloud.writes, 1);
+    expect(target.pending, isNull);
+    expect(target.document.json['desktop'], {'font': 20});
+    expect(target.base!.document.json['desktop'], {'font': 12});
+  });
   test(
     'remote and local races invalidate an already prepared review',
     () async {

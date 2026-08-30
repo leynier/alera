@@ -11,9 +11,8 @@ int? parseReviewReference(String input) {
     return int.tryParse(plain.group(1)!);
   }
   // GitHub: /pull/123 ; GitLab: /-/merge_requests/123 ; Azure: /pullrequest/123
-  final url = RegExp(
-    r'/(?:pull|pullrequest|-/merge_requests)/(\d+)',
-  ).firstMatch(trimmed);
+  final url = RegExp(r'/(?:pull|pullrequest|-/merge_requests)/(\d+)')
+      .firstMatch(trimmed);
   if (url != null) {
     return int.tryParse(url.group(1)!);
   }

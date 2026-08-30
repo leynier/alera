@@ -207,9 +207,8 @@ class _CreatePullRequestButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final textStyle = Theme.of(
-      context,
-    ).textTheme.labelLarge?.copyWith(color: AleraTokens.onAccent);
+    final textStyle = Theme.of(context).textTheme.labelLarge
+        ?.copyWith(color: AleraTokens.onAccent);
     final cursor = busy ? SystemMouseCursors.basic : SystemMouseCursors.click;
     return MouseRegion(
       cursor: cursor,

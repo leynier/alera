@@ -336,9 +336,8 @@ class _OrphanFooter extends StatelessWidget {
           Expanded(
             child: Text(
               '$count orphan terminal${count == 1 ? '' : 's'}',
-              style: Theme.of(
-                context,
-              ).textTheme.bodySmall?.copyWith(color: AleraTokens.warning),
+              style: Theme.of(context).textTheme.bodySmall
+                  ?.copyWith(color: AleraTokens.warning),
             ),
           ),
           TextButton(onPressed: onKillOrphans, child: const Text('Kill All')),

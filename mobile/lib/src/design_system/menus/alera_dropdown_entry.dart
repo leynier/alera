@@ -59,9 +59,8 @@ class _AleraDropdownEntryState<T> extends State<AleraDropdownEntry<T>> {
               Expanded(
                 child: Text(
                   widget.label,
-                  style: Theme.of(
-                    context,
-                  ).textTheme.bodyMedium?.copyWith(color: color),
+                  style: Theme.of(context).textTheme.bodyMedium
+                      ?.copyWith(color: color),
                 ),
               ),
               if (widget.selected)

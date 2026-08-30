@@ -109,9 +109,8 @@ class MobileOpenAiDictationProvider {
 String _errorSuffix(String body) {
   try {
     final decoded = jsonDecode(body);
-    if (decoded case {
-      'error': {'message': final String message},
-    } when message.trim().isNotEmpty) {
+    if (decoded case {'error': {'message': final String message}}
+        when message.trim().isNotEmpty) {
       return ': ${message.trim()}';
     }
   } on FormatException {

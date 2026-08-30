@@ -55,9 +55,8 @@ class _CommitFiles extends StatelessWidget {
               ),
               child: Text(
                 meta,
-                style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                  color: AleraTokens.foregroundFaint,
-                ),
+                style: Theme.of(context).textTheme.labelSmall
+                    ?.copyWith(color: AleraTokens.foregroundFaint),
               ),
             ),
           if (state.loading)
@@ -70,9 +69,8 @@ class _CommitFiles extends StatelessWidget {
               padding: const EdgeInsets.fromLTRB(40, 4, 8, 6),
               child: Text(
                 state.error!,
-                style: Theme.of(
-                  context,
-                ).textTheme.bodySmall?.copyWith(color: AleraTokens.error),
+                style: Theme.of(context).textTheme.bodySmall
+                    ?.copyWith(color: AleraTokens.error),
               ),
             )
           else if (state.entries.isEmpty)
@@ -100,9 +98,8 @@ class _CommitFiles extends StatelessWidget {
                       const SizedBox(width: AleraTokens.space6),
                       Text(
                         'Open All Changes',
-                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                          color: AleraTokens.foregroundMuted,
-                        ),
+                        style: Theme.of(context).textTheme.labelSmall
+                            ?.copyWith(color: AleraTokens.foregroundMuted),
                       ),
                     ],
                   ),
@@ -211,9 +208,8 @@ class _HistoryMessage extends StatelessWidget {
     return Center(
       child: Text(
         message,
-        style: Theme.of(
-          context,
-        ).textTheme.bodySmall?.copyWith(color: AleraTokens.foregroundMuted),
+        style: Theme.of(context).textTheme.bodySmall
+            ?.copyWith(color: AleraTokens.foregroundMuted),
       ),
     );
   }

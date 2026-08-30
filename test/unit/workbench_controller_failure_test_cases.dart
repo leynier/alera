@@ -335,58 +335,55 @@ void _registerWorkbenchControllerFailureTests() {
     },
   );
 
-  test(
-    'workspace watchers recover invalid selections and surface layout load failures',
-    () async {
-      await _controller.bootstrap();
-      final workspace = await _selectMainWorkspace(_controller, _harness);
-      final secondProject = await _harness.addProject('project-2', 'Beta');
-      await _flushUntil(
-        () => _controller.state.workspacesFor(secondProject.id).isNotEmpty,
-      );
-      final secondWorkspace = _controller.state
-          .workspacesFor(secondProject.id)
-          .single;
+  test('workspace watchers recover invalid selections and surface layout load failures', () async {
+    await _controller.bootstrap();
+    final workspace = await _selectMainWorkspace(_controller, _harness);
+    final secondProject = await _harness.addProject('project-2', 'Beta');
+    await _flushUntil(
+      () => _controller.state.workspacesFor(secondProject.id).isNotEmpty,
+    );
+    final secondWorkspace = _controller.state
+        .workspacesFor(secondProject.id)
+        .single;
 
-      _controller.state = _controller.state.copyWith(
-        activeProjectId: 'missing-project',
-        activeWorkspaceId: secondWorkspace.id,
-      );
-      await _harness.workbenchRepository.upsertWorkspace(
-        secondWorkspace.copyWith(updatedAt: DateTime.utc(2026, 5, 23)),
-      );
-      await _flush();
+    _controller.state = _controller.state.copyWith(
+      activeProjectId: 'missing-project',
+      activeWorkspaceId: secondWorkspace.id,
+    );
+    await _harness.workbenchRepository.upsertWorkspace(
+      secondWorkspace.copyWith(updatedAt: DateTime.utc(2026, 5, 23)),
+    );
+    await _flush();
 
-      expect(_controller.state.activeProjectId, secondProject.id);
+    expect(_controller.state.activeProjectId, secondProject.id);
 
-      _controller.state = _controller.state.copyWith(
-        activeProjectId: null,
-        activeWorkspaceId: secondWorkspace.id,
-      );
-      await _harness.workbenchRepository.upsertWorkspace(
-        secondWorkspace.copyWith(updatedAt: DateTime.utc(2026, 5, 24)),
-      );
-      await _flush();
+    _controller.state = _controller.state.copyWith(
+      activeProjectId: null,
+      activeWorkspaceId: secondWorkspace.id,
+    );
+    await _harness.workbenchRepository.upsertWorkspace(
+      secondWorkspace.copyWith(updatedAt: DateTime.utc(2026, 5, 24)),
+    );
+    await _flush();
 
-      expect(_controller.state.activeWorkspaceId, secondWorkspace.id);
+    expect(_controller.state.activeWorkspaceId, secondWorkspace.id);
 
-      _controller.state = _controller.state.copyWith(
-        activeProjectId: workspace.projectId,
-        activeWorkspaceId: workspace.id,
-        layoutByWorkspace: <String, WorkbenchLayout>{},
-      );
-      await _harness.workbenchRepository.removeWorkbenchLayout(workspace.id);
-      _harness.workbenchRepository.upsertWorkbenchLayoutError = StateError(
-        'bad layout',
-      );
-      _harness.workbenchRepository.emitTabs(workspace.id);
-      await _flushUntil(() => _controller.state.error != null);
-      _harness.workbenchRepository.upsertWorkbenchLayoutError = null;
+    _controller.state = _controller.state.copyWith(
+      activeProjectId: workspace.projectId,
+      activeWorkspaceId: workspace.id,
+      layoutByWorkspace: <String, WorkbenchLayout>{},
+    );
+    await _harness.workbenchRepository.removeWorkbenchLayout(workspace.id);
+    _harness.workbenchRepository.upsertWorkbenchLayoutError = StateError(
+      'bad layout',
+    );
+    _harness.workbenchRepository.emitTabs(workspace.id);
+    await _flushUntil(() => _controller.state.error != null);
+    _harness.workbenchRepository.upsertWorkbenchLayoutError = null;
 
-      expect(_controller.state.error, contains('bad layout'));
-      expect(_controller.state.activeWorkspaceId, workspace.id);
-    },
-  );
+    expect(_controller.state.error, contains('bad layout'));
+    expect(_controller.state.activeWorkspaceId, workspace.id);
+  });
 
   test('tab operations fall back when no layout exists', () async {
     await _controller.bootstrap();

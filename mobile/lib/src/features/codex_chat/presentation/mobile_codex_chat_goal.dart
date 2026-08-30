@@ -97,9 +97,8 @@ class _MobileCodexGoalBarState extends State<_MobileCodexGoalBar> {
                   widget.goal.objective,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: AleraTokens.foregroundMuted,
-                  ),
+                  style: Theme.of(context).textTheme.bodySmall
+                      ?.copyWith(color: AleraTokens.foregroundMuted),
                 ),
               ],
             ),

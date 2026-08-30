@@ -58,9 +58,8 @@ class _CodexRecoveryQuestionCardState
     frameKey: const ValueKey<String>('codex-thread-recovery'),
     header: Text(
       'Continue in a new thread?',
-      style: Theme.of(
-        context,
-      ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
+      style: Theme.of(context).textTheme.titleSmall
+          ?.copyWith(fontWeight: FontWeight.w600),
     ),
     body: _CodexPromptOptionRow(
       index: 1,

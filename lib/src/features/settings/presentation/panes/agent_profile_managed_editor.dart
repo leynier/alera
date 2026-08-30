@@ -102,8 +102,7 @@ class AgentProfileManagedEditor extends StatelessWidget {
     ];
     return AleraSettingsGroup(
       title: 'Managed Options',
-      description:
-          'Alera builds the interactive command from these agent-specific settings.',
+      description: 'Alera builds the interactive command from these agent-specific settings.',
       children: <Widget>[
         ...controls,
         if (discoveryError != null)
@@ -111,9 +110,8 @@ class AgentProfileManagedEditor extends StatelessWidget {
             padding: const EdgeInsets.all(AleraTokens.space16),
             child: Text(
               discoveryError!,
-              style: Theme.of(
-                context,
-              ).textTheme.bodySmall?.copyWith(color: AleraTokens.warning),
+              style: Theme.of(context).textTheme.bodySmall
+                  ?.copyWith(color: AleraTokens.warning),
             ),
           ),
       ],
@@ -266,8 +264,7 @@ class AgentProfileManagedEditor extends StatelessWidget {
       AgentType.amp => <Widget>[
         _choiceRow(
           title: 'Mode',
-          description:
-              'Amp permission rules continue to come from the global Amp configuration.',
+          description: 'Amp permission rules continue to come from the global Amp configuration.',
           keyName: 'mode',
           options: ampModeOptions,
         ),

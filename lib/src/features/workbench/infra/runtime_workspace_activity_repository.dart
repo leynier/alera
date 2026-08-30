@@ -48,11 +48,13 @@ class RuntimeWorkspaceActivityRepository
   Future<void> upsertAll(Map<String, DateTime> entries) async {
     await legacyRepository.upsertAll(entries);
     await beforeAccess?.call();
-    await client
-        .runtimeRequest('workspaceActivity.upsertAll', <String, Object?>{
-          for (final entry in entries.entries)
-            entry.key: entry.value.toUtc().toIso8601String(),
-        });
+    await client.runtimeRequest(
+      'workspaceActivity.upsertAll',
+      <String, Object?>{
+        for (final entry in entries.entries)
+          entry.key: entry.value.toUtc().toIso8601String(),
+      },
+    );
   }
 
   @override

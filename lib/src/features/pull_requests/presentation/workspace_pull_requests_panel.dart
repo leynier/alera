@@ -214,8 +214,7 @@ class _VisiblePullRequestsPanelState
     if (baseRef.isEmpty || headRef.isEmpty) {
       AleraToast.show(
         context,
-        message:
-            'The linked pull request does not expose a comparable branch range.',
+        message: 'The linked pull request does not expose a comparable branch range.',
         tone: AleraToastTone.error,
       );
       return;

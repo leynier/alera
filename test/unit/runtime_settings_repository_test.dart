@@ -304,39 +304,32 @@ void main() {
       expect(loadedFromNewHost.textActions.actions, isEmpty);
     },
   );
-  test(
-    'restoring absent portable settings uses defaults and preserves local fields',
-    () async {
-      final client = _RecordingRuntimeHostClient()
-        ..configurationSupported = true;
-      final legacy = _MemorySettingsRepository();
-      legacy.settings = AleraSettings.defaults.copyWith(
-        terminal: AleraSettings.defaults.terminal.copyWith(
-          fontSize: 20,
-          scrollbackLines: 1234,
-        ),
-        general: AleraSettings.defaults.general.copyWith(
-          workspaceDirectory: '/local',
-        ),
-      );
-      client.responses['configuration.settings.get'] = <String, Object?>{
-        'terminal': <String, Object?>{},
-      };
-      client.responses['runtimeSettings.get'] = <String, Object?>{
-        'workspaceDirectory': '/local',
-      };
-      final actual = await RuntimeSettingsRepository(
-        client: client,
-        legacyRepository: legacy,
-      ).load();
-      expect(
-        actual.terminal.fontSize,
-        AleraSettings.defaults.terminal.fontSize,
-      );
-      expect(actual.terminal.scrollbackLines, 1234);
-      expect(actual.general.workspaceDirectory, '/local');
-    },
-  );
+  test('restoring absent portable settings uses defaults and preserves local fields', () async {
+    final client = _RecordingRuntimeHostClient()..configurationSupported = true;
+    final legacy = _MemorySettingsRepository();
+    legacy.settings = AleraSettings.defaults.copyWith(
+      terminal: AleraSettings.defaults.terminal.copyWith(
+        fontSize: 20,
+        scrollbackLines: 1234,
+      ),
+      general: AleraSettings.defaults.general.copyWith(
+        workspaceDirectory: '/local',
+      ),
+    );
+    client.responses['configuration.settings.get'] = <String, Object?>{
+      'terminal': <String, Object?>{},
+    };
+    client.responses['runtimeSettings.get'] = <String, Object?>{
+      'workspaceDirectory': '/local',
+    };
+    final actual = await RuntimeSettingsRepository(
+      client: client,
+      legacyRepository: legacy,
+    ).load();
+    expect(actual.terminal.fontSize, AleraSettings.defaults.terminal.fontSize);
+    expect(actual.terminal.scrollbackLines, 1234);
+    expect(actual.general.workspaceDirectory, '/local');
+  });
   test(
     'unknown shortcuts do not prevent known portable preferences loading',
     () async {

@@ -363,33 +363,30 @@ void main() {
       },
     );
 
-    test(
-      'removeTab falls back to a single layout when the remaining root is stale',
-      () {
-        final layout = WorkbenchLayout(
-          workspaceId: 'workspace-1',
-          root: WorkbenchLayoutNode.leaf('missing-group'),
-          groups: <String, WorkbenchPaneGroup>{
-            'group-a': WorkbenchPaneGroup(
-              id: 'group-a',
-              tabIds: const <String>['tab-a', 'tab-b'],
-              activeTabId: 'tab-b',
-            ),
-          },
-          activeGroupId: 'group-a',
-        );
+    test('removeTab falls back to a single layout when the remaining root is stale', () {
+      final layout = WorkbenchLayout(
+        workspaceId: 'workspace-1',
+        root: WorkbenchLayoutNode.leaf('missing-group'),
+        groups: <String, WorkbenchPaneGroup>{
+          'group-a': WorkbenchPaneGroup(
+            id: 'group-a',
+            tabIds: const <String>['tab-a', 'tab-b'],
+            activeTabId: 'tab-b',
+          ),
+        },
+        activeGroupId: 'group-a',
+      );
 
-        final removed = layout.removeTab('tab-a');
+      final removed = layout.removeTab('tab-a');
 
-        expect(removed.paneGroupIds, <String>[
-          WorkbenchLayout.defaultGroupId('workspace-1'),
-        ]);
-        expect(
-          removed.groups[WorkbenchLayout.defaultGroupId('workspace-1')]?.tabIds,
-          <String>['tab-b'],
-        );
-      },
-    );
+      expect(removed.paneGroupIds, <String>[
+        WorkbenchLayout.defaultGroupId('workspace-1'),
+      ]);
+      expect(
+        removed.groups[WorkbenchLayout.defaultGroupId('workspace-1')]?.tabIds,
+        <String>['tab-b'],
+      );
+    });
 
     test(
       'moveTab falls back to the active group when the target is missing',

@@ -3,18 +3,21 @@ import 'dart:async';
 import 'package:alera/src/design_system/menus/alera_text_selection_toolbar.dart';
 import 'package:flutter/material.dart';
 
-typedef AleraTextActionsContextMenuHandler =
-    void Function(
-      BuildContext context,
-      AleraTextActionTarget target,
-      Offset globalAnchor,
-    );
+typedef AleraTextActionsContextMenuHandler = void Function(
+  BuildContext context,
+  AleraTextActionTarget target,
+  Offset globalAnchor,
+);
 
-typedef AleraTextActionHandler =
-    void Function(AleraTextActionTarget target, String actionId);
+typedef AleraTextActionHandler = void Function(
+  AleraTextActionTarget target,
+  String actionId,
+);
 
-typedef AleraTextActionReplacementHandler =
-    bool Function(TextEditingValue captured, String replacement);
+typedef AleraTextActionReplacementHandler = bool Function(
+  TextEditingValue captured,
+  String replacement,
+);
 
 class AleraTextActionTarget {
   /// Adapts any editable surface to the shared Text Actions runner.

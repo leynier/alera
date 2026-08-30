@@ -146,12 +146,9 @@ String _description(BrowserSecurityLevel level) {
   return switch (level) {
     BrowserSecurityLevel.secure =>
       'The page is using an encrypted HTTPS connection.',
-    BrowserSecurityLevel.local =>
-      'The page is served from a local host. Certificate trust is scoped to the active browser profile.',
-    BrowserSecurityLevel.insecure =>
-      'The page is not using an encrypted connection. Do not enter sensitive information.',
-    BrowserSecurityLevel.certificateFailure =>
-      'Alera rejected the certificate. Public hosts cannot bypass certificate failures.',
+    BrowserSecurityLevel.local => 'The page is served from a local host. Certificate trust is scoped to the active browser profile.',
+    BrowserSecurityLevel.insecure => 'The page is not using an encrypted connection. Do not enter sensitive information.',
+    BrowserSecurityLevel.certificateFailure => 'Alera rejected the certificate. Public hosts cannot bypass certificate failures.',
     BrowserSecurityLevel.unknown =>
       'Connection security has not been established yet.',
   };

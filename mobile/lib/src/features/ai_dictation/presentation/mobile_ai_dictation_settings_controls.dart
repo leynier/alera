@@ -137,9 +137,8 @@ class _SectionTitle extends StatelessWidget {
           const SizedBox(height: AleraTokens.space4),
           Text(
             description,
-            style: Theme.of(
-              context,
-            ).textTheme.bodySmall?.copyWith(color: AleraTokens.foregroundMuted),
+            style: Theme.of(context).textTheme.bodySmall
+                ?.copyWith(color: AleraTokens.foregroundMuted),
           ),
         ],
       ),
@@ -156,9 +155,8 @@ class _HelperText extends StatelessWidget {
   Widget build(BuildContext context) {
     return Text(
       text,
-      style: Theme.of(
-        context,
-      ).textTheme.bodySmall?.copyWith(color: AleraTokens.foregroundMuted),
+      style: Theme.of(context).textTheme.bodySmall
+          ?.copyWith(color: AleraTokens.foregroundMuted),
     );
   }
 }

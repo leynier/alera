@@ -167,9 +167,8 @@ class _WorkspaceSearchPanelState extends ConsumerState<WorkspaceSearchPanel> {
             ),
             child: Text(
               error,
-              style: Theme.of(
-                context,
-              ).textTheme.bodySmall?.copyWith(color: AleraTokens.error),
+              style: Theme.of(context).textTheme.bodySmall
+                  ?.copyWith(color: AleraTokens.error),
             ),
           ),
         const Divider(height: 1, color: AleraTokens.borderSubtle),

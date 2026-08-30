@@ -242,9 +242,8 @@ class _CodexComposerState extends State<_CodexComposer> {
                                   controller: _composerScrollController,
                                   thumbVisibility: true,
                                   child: ScrollConfiguration(
-                                    behavior: ScrollConfiguration.of(
-                                      context,
-                                    ).copyWith(scrollbars: false),
+                                    behavior: ScrollConfiguration.of(context)
+                                        .copyWith(scrollbars: false),
                                     child: TextField(
                                       key: const ValueKey<String>(
                                         'codex-composer-text-field',
@@ -259,8 +258,7 @@ class _CodexComposerState extends State<_CodexComposer> {
                                       maxLines: 6,
                                       textInputAction: TextInputAction.newline,
                                       decoration: const InputDecoration(
-                                        hintText:
-                                            'Ask Codex anything, @ for files, \$ for skills and apps, / for commands',
+                                        hintText: 'Ask Codex anything, @ for files, \$ for skills and apps, / for commands',
                                         filled: true,
                                         fillColor: Colors.transparent,
                                         hoverColor: Colors.transparent,

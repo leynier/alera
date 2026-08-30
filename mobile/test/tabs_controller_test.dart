@@ -382,9 +382,8 @@ void main() {
     var currentClient = firstClient;
     final container = ProviderContainer(
       overrides: [
-        terminalClientProvider(
-          'host-1',
-        ).overrideWith((ref) async => currentClient),
+        terminalClientProvider('host-1')
+            .overrideWith((ref) async => currentClient),
       ],
     );
     addTearDown(firstClient.dispose);

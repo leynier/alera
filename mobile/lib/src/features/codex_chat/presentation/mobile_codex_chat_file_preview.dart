@@ -26,9 +26,8 @@ Map<String, Object?> decodeMobileCodexTextChunks(Map<String, Object?> input) {
     final combined = <int>[...carry, ...chunk];
     final trailing = _incompleteUtf8TrailingBytes(combined);
     final decodeEnd = combined.length - trailing;
-    final decoded = const Utf8Decoder(
-      allowMalformed: true,
-    ).convert(combined, 0, decodeEnd);
+    final decoded = const Utf8Decoder(allowMalformed: true)
+        .convert(combined, 0, decodeEnd);
     final parts = '$remainder$decoded'.split('\n');
     remainder = parts.removeLast();
     completed.addAll(parts);

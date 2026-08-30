@@ -138,9 +138,8 @@ mixin _WorkspaceSidebarActions on ConsumerState<ProjectWorkbenchSidebar> {
     try {
       override = await ref
           .read(
-            effectiveHostingProviderOverrideProvider(
-              workspace.projectId,
-            ).future,
+            effectiveHostingProviderOverrideProvider(workspace.projectId)
+                .future,
           )
           .timeout(const Duration(seconds: 2));
     } catch (_) {

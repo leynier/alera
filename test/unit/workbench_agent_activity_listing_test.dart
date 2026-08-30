@@ -211,9 +211,9 @@ void main() {
     );
 
     expect(
-      buildSidebarRows(
-        state,
-      ).whereType<WorkbenchProjectHeaderRow>().map((row) => row.project.id),
+      buildSidebarRows(state)
+          .whereType<WorkbenchProjectHeaderRow>()
+          .map((row) => row.project.id),
       <String>['p-alpha', 'p-zeta'],
     );
   });

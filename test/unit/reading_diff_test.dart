@@ -325,18 +325,17 @@ void main() {
       '${directory.path}${Platform.pathSeparator}reading-diffs',
     );
     await cacheDirectory.create(recursive: true);
-    await File(
-      '${cacheDirectory.path}${Platform.pathSeparator}legacy.json',
-    ).writeAsString(
-      jsonEncode(<String, Object>{
-        'version': 1,
-        'diff': base64Encode(<int>[1, 2, 3]),
-        'summary': 'Legacy result.',
-        'changedLines': 2,
-        'retainedChangedLines': 1,
-        'agentLabel': 'Codex',
-      }),
-    );
+    await File('${cacheDirectory.path}${Platform.pathSeparator}legacy.json')
+        .writeAsString(
+          jsonEncode(<String, Object>{
+            'version': 1,
+            'diff': base64Encode(<int>[1, 2, 3]),
+            'summary': 'Legacy result.',
+            'changedLines': 2,
+            'retainedChangedLines': 1,
+            'agentLabel': 'Codex',
+          }),
+        );
     final cache = FileReadingDiffCache(
       directoryProvider: () async => directory,
     );

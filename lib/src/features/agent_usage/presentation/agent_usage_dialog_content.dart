@@ -85,9 +85,8 @@ class _AgentUsageContentState extends State<_AgentUsageContent> {
           const SizedBox(height: AleraTokens.space4),
           Text(
             'Tokens read from Claude Code, Codex, and Grok Build transcripts on this host.',
-            style: Theme.of(
-              context,
-            ).textTheme.bodySmall?.copyWith(color: AleraTokens.foregroundMuted),
+            style: Theme.of(context).textTheme.bodySmall
+                ?.copyWith(color: AleraTokens.foregroundMuted),
           ),
           const SizedBox(height: AleraTokens.space12),
           AgentUsageDailyChart(days: snapshot.days),
@@ -142,8 +141,7 @@ class _UsageBreakdownTable extends StatelessWidget {
     if (values.isEmpty) {
       return const AleraEmptyState(
         title: 'No Activity',
-        message:
-            'No Claude Code, Codex, or Grok Build usage was found in this range.',
+        message: 'No Claude Code, Codex, or Grok Build usage was found in this range.',
       );
     }
     return AleraPanel(
@@ -251,9 +249,8 @@ class _UsageSourceSummary extends StatelessWidget {
   Widget build(BuildContext context) {
     return Text(
       'Scanned ${snapshot.sources.fold(0, (sum, source) => sum + source.scannedFiles)} files in ${snapshot.scanDurationMs} ms. Transcript content stays on this host.',
-      style: Theme.of(
-        context,
-      ).textTheme.bodySmall?.copyWith(color: AleraTokens.foregroundFaint),
+      style: Theme.of(context).textTheme.bodySmall
+          ?.copyWith(color: AleraTokens.foregroundFaint),
     );
   }
 }
@@ -274,8 +271,7 @@ class _UsageCoverageNotice extends StatelessWidget {
     final messages = <String>[
       for (final source in sourceIssues)
         '${_usageProviderLabel(source.provider)} ${source.displayName} is partial.',
-      if (snapshot.pricing.status == AgentUsagePricingStatus.unavailable)
-        'Some model costs may be unavailable because pricing could not be loaded.',
+      if (snapshot.pricing.status == AgentUsagePricingStatus.unavailable) 'Some model costs may be unavailable because pricing could not be loaded.',
     ];
     return Container(
       padding: const EdgeInsets.all(AleraTokens.space12),
@@ -286,9 +282,8 @@ class _UsageCoverageNotice extends StatelessWidget {
       ),
       child: Text(
         messages.join(' '),
-        style: Theme.of(
-          context,
-        ).textTheme.bodySmall?.copyWith(color: AleraTokens.foregroundMuted),
+        style: Theme.of(context).textTheme.bodySmall
+            ?.copyWith(color: AleraTokens.foregroundMuted),
       ),
     );
   }

@@ -75,9 +75,8 @@ class _GitPathDragFeedback extends StatelessWidget {
                 label,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: Theme.of(
-                  context,
-                ).textTheme.bodySmall?.copyWith(color: AleraTokens.foreground),
+                style: Theme.of(context).textTheme.bodySmall
+                    ?.copyWith(color: AleraTokens.foreground),
               ),
             ),
           ],
@@ -204,9 +203,8 @@ class _GitStatusLabel extends StatelessWidget {
           child: Text(
             label,
             textAlign: TextAlign.center,
-            style: Theme.of(
-              context,
-            ).textTheme.labelSmall?.copyWith(color: color),
+            style: Theme.of(context).textTheme.labelSmall
+                ?.copyWith(color: color),
           ),
         ),
         if (areaMarker != null)

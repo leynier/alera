@@ -331,20 +331,21 @@ class _CodexTimelineSegmentProjection {
       for (final entry in previous?.entries ?? const <_CodexTimelineEntry>[])
         if (entry.turn case final _CodexTurnProjection turn) turn.turnId: turn,
     };
-    final entries =
-        List<_CodexTimelineEntry>.unmodifiable(<_CodexTimelineEntry>[
-          for (final item in order)
-            if (item is String)
-              _CodexTimelineEntry.turn(
-                _CodexTurnProjection.reuseOrCreate(
-                  previousTurns[item],
-                  turns[item]!,
-                  working: workingTurnId == item,
-                ),
-              )
-            else
-              _CodexTimelineEntry.cell(item as CodexTimelineCell),
-        ]);
+    final entries = List<_CodexTimelineEntry>.unmodifiable(
+      <_CodexTimelineEntry>[
+        for (final item in order)
+          if (item is String)
+            _CodexTimelineEntry.turn(
+              _CodexTurnProjection.reuseOrCreate(
+                previousTurns[item],
+                turns[item]!,
+                working: workingTurnId == item,
+              ),
+            )
+          else
+            _CodexTimelineEntry.cell(item as CodexTimelineCell),
+      ],
+    );
     return _CodexTimelineSegmentProjection(
       sourceCells: cells,
       topNotices: List<_CodexTimelineEntry>.unmodifiable(topNotices),

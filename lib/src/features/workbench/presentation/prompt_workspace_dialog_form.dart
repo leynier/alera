@@ -136,9 +136,8 @@ extension _PromptWorkspaceDialogForm on _PromptWorkspaceDialogState {
                     ),
                 ] else if (created != null) ...<Widget>[
                   OutlinedButton(
-                    onPressed: () => Navigator.of(
-                      context,
-                    ).pop(PromptWorkspaceDialogResult(creation: created)),
+                    onPressed: () => Navigator.of(context)
+                        .pop(PromptWorkspaceDialogResult(creation: created)),
                     child: const Text('Open Workspace'),
                   ),
                   const SizedBox(width: AleraTokens.space8),

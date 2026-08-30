@@ -189,8 +189,7 @@ void _registerMobileCodexRequestTests() {
               'kind': 'assistantMessage',
               'status': 'inProgress',
               'turnId': 'turn-stream',
-              'markdownText':
-                  'Latest streamed message with enough text to extend the timeline.',
+              'markdownText': 'Latest streamed message with enough text to extend the timeline.',
               'isStreaming': true,
             },
           ],

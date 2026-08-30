@@ -1,6 +1,7 @@
 import 'package:alera_configuration/alera_configuration.dart';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
 import 'mobile_configuration_codec.dart';
 import 'mobile_configuration_preferences.dart';
 

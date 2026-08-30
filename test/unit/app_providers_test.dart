@@ -280,35 +280,32 @@ void main() {
       },
     );
 
-    test(
-      'terminalHostWarmupCoordinatorProvider starts the host with settings config',
-      () async {
-        final client = _FakeTerminalHostClient();
-        final settings = AleraSettings.defaults.copyWith(
-          terminal: AleraSettings.defaults.terminal.copyWith(
-            hostEmptyShutdownDelaySeconds: 7,
-            hostDetachedSessionShutdownDelaySeconds: 14,
-            hostScrollbackBytes: 4096,
-          ),
-        );
-        final container = ProviderContainer(
-          overrides: [
-            settingsControllerProvider.overrideWithValue(settings),
-            terminalHostClientProvider.overrideWithValue(client),
-          ],
-        );
-        addTearDown(container.dispose);
+    test('terminalHostWarmupCoordinatorProvider starts the host with settings config', () async {
+      final client = _FakeTerminalHostClient();
+      final settings = AleraSettings.defaults.copyWith(
+        terminal: AleraSettings.defaults.terminal.copyWith(
+          hostEmptyShutdownDelaySeconds: 7,
+          hostDetachedSessionShutdownDelaySeconds: 14,
+          hostScrollbackBytes: 4096,
+        ),
+      );
+      final container = ProviderContainer(
+        overrides: [
+          settingsControllerProvider.overrideWithValue(settings),
+          terminalHostClientProvider.overrideWithValue(client),
+        ],
+      );
+      addTearDown(container.dispose);
 
-        container.read(terminalHostWarmupCoordinatorProvider);
-        await Future<void>.delayed(Duration.zero);
+      container.read(terminalHostWarmupCoordinatorProvider);
+      await Future<void>.delayed(Duration.zero);
 
-        // What the mapping produces is terminal_host_settings_config_test's
-        // job; this only checks the warmup sends it.
-        expect(client.ensureStartedConfigs.map((c) => c.toJson()), <Object?>[
-          terminalHostConfigFor(settings.terminal).toJson(),
-        ]);
-      },
-    );
+      // What the mapping produces is terminal_host_settings_config_test's
+      // job; this only checks the warmup sends it.
+      expect(client.ensureStartedConfigs.map((c) => c.toJson()), <Object?>[
+        terminalHostConfigFor(settings.terminal).toJson(),
+      ]);
+    });
 
     test('agent awake coordinator follows working agent statuses', () async {
       final displayLock = _FakeAwakeDisplayLock();
@@ -668,21 +665,18 @@ void main() {
       await Future<void>.delayed(Duration.zero);
 
       expect(
-        File(
-          p.join(home.path, '.alera', 'agent-hooks', 'alera-agy-hook.sh'),
-        ).existsSync(),
+        File(p.join(home.path, '.alera', 'agent-hooks', 'alera-agy-hook.sh'))
+            .existsSync(),
         isTrue,
       );
       expect(
-        File(
-          p.join(home.path, '.alera', 'agent-hooks', 'alera-codex-hook.sh'),
-        ).existsSync(),
+        File(p.join(home.path, '.alera', 'agent-hooks', 'alera-codex-hook.sh'))
+            .existsSync(),
         isTrue,
       );
       expect(
-        File(
-          p.join(home.path, '.alera', 'agent-hooks', 'alera-claude-hook.sh'),
-        ).existsSync(),
+        File(p.join(home.path, '.alera', 'agent-hooks', 'alera-claude-hook.sh'))
+            .existsSync(),
         isTrue,
       );
 
@@ -1066,45 +1060,39 @@ void main() {
       expect(runtime.closedTabIds, isEmpty);
     });
 
-    test(
-      'database and launcher providers create disposable concrete implementations',
-      () async {
-        final tempDir = await Directory.systemTemp.createTemp(
-          'alera-app-providers-',
-        );
-        addTearDown(() async {
-          try {
-            if (await tempDir.exists()) {
-              await tempDir.delete(recursive: true);
-            }
-          } on PathNotFoundException {
-            // Some provider disposal paths can race the test cleanup after the
-            // fake app-support directory has already been removed.
+    test('database and launcher providers create disposable concrete implementations', () async {
+      final tempDir = await Directory.systemTemp.createTemp(
+        'alera-app-providers-',
+      );
+      addTearDown(() async {
+        try {
+          if (await tempDir.exists()) {
+            await tempDir.delete(recursive: true);
           }
-        });
-        final previousPlatform = PathProviderPlatform.instance;
-        PathProviderPlatform.instance = _FakePathProviderPlatform(tempDir.path);
-        addTearDown(() => PathProviderPlatform.instance = previousPlatform);
+        } on PathNotFoundException {
+          // Some provider disposal paths can race the test cleanup after the
+          // fake app-support directory has already been removed.
+        }
+      });
+      final previousPlatform = PathProviderPlatform.instance;
+      PathProviderPlatform.instance = _FakePathProviderPlatform(tempDir.path);
+      addTearDown(() => PathProviderPlatform.instance = previousPlatform);
 
-        final container = ProviderContainer();
-        final db = await container.read(aleraDatabaseProvider.future);
+      final container = ProviderContainer();
+      final db = await container.read(aleraDatabaseProvider.future);
 
-        expect(
-          container.read(externalUriLauncherProvider),
-          isA<UrlLauncherExternalUriLauncher>(),
-        );
-        expect(container.read(projectRepositoryProvider), isNotNull);
-        expect(container.read(workbenchRepositoryProvider), isNotNull);
-        expect(container.read(settingsRepositoryProvider), isNotNull);
-        expect(container.read(projectsServiceProvider), isNotNull);
-        expect(
-          await db.customSelect('SELECT 1 AS value').getSingle(),
-          isNotNull,
-        );
+      expect(
+        container.read(externalUriLauncherProvider),
+        isA<UrlLauncherExternalUriLauncher>(),
+      );
+      expect(container.read(projectRepositoryProvider), isNotNull);
+      expect(container.read(workbenchRepositoryProvider), isNotNull);
+      expect(container.read(settingsRepositoryProvider), isNotNull);
+      expect(container.read(projectsServiceProvider), isNotNull);
+      expect(await db.customSelect('SELECT 1 AS value').getSingle(), isNotNull);
 
-        await db.close();
-        container.dispose();
-      },
-    );
+      await db.close();
+      container.dispose();
+    });
   });
 }

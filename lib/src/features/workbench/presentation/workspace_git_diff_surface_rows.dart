@@ -251,9 +251,8 @@ class _DiffBanner extends StatelessWidget {
       padding: const EdgeInsets.all(AleraTokens.space12),
       child: Text(
         message,
-        style: Theme.of(
-          context,
-        ).textTheme.bodySmall?.copyWith(color: AleraTokens.foregroundMuted),
+        style: Theme.of(context).textTheme.bodySmall
+            ?.copyWith(color: AleraTokens.foregroundMuted),
       ),
     );
   }
@@ -269,9 +268,8 @@ class _DiffMessage extends StatelessWidget {
     return Center(
       child: Text(
         message,
-        style: Theme.of(
-          context,
-        ).textTheme.bodySmall?.copyWith(color: AleraTokens.foregroundMuted),
+        style: Theme.of(context).textTheme.bodySmall
+            ?.copyWith(color: AleraTokens.foregroundMuted),
       ),
     );
   }

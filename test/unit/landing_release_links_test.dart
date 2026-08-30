@@ -11,9 +11,9 @@ const String _updateScript = 'tool/release/update_landing_release_links.dart';
 void main() {
   group('landing release links', () {
     test('pins a stable version and a matching tag per product', () {
-      final data =
-          jsonDecode(File(_dataPath).readAsStringSync())
-              as Map<String, dynamic>;
+      final data = jsonDecode(
+        File(_dataPath).readAsStringSync(),
+      ) as Map<String, dynamic>;
 
       final desktop = data['desktop'] as Map<String, dynamic>;
       final mobile = data['mobile'] as Map<String, dynamic>;

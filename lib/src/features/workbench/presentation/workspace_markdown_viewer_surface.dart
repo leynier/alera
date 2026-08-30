@@ -99,10 +99,8 @@ class _WorkspaceMarkdownViewerSurfaceState
             ),
             child: DefaultTextStyle(
               style:
-                  Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: AleraTokens.foreground,
-                    height: 1.45,
-                  ) ??
+                  Theme.of(context).textTheme.bodyMedium
+                      ?.copyWith(color: AleraTokens.foreground, height: 1.45) ??
                   const TextStyle(color: AleraTokens.foreground, height: 1.45),
               child: GptMarkdown(
                 _content ?? '',
@@ -383,9 +381,8 @@ class _MarkdownViewerMessage extends StatelessWidget {
     return Center(
       child: Text(
         message,
-        style: Theme.of(
-          context,
-        ).textTheme.bodyMedium?.copyWith(color: AleraTokens.foregroundMuted),
+        style: Theme.of(context).textTheme.bodyMedium
+            ?.copyWith(color: AleraTokens.foregroundMuted),
       ),
     );
   }

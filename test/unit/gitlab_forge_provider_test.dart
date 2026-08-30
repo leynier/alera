@@ -134,9 +134,8 @@ ${_reviewJson.trim()}
 {"head_pipeline":{"id":100,"status":"success","web_url":"https://gitlab.acme.test:8443/pipelines/100"}}
 '''),
       ]);
-      final checks = await GitLabForgeProvider(
-        runner,
-      ).getChecks(identity: _identity, repoPath: '/repo', number: 42);
+      final checks = await GitLabForgeProvider(runner)
+          .getChecks(identity: _identity, repoPath: '/repo', number: 42);
       expect(checks, hasLength(1));
       expect(checks.single.name, 'Pipeline #100');
       expect(checks.single.conclusion, ReviewCheckConclusion.success);

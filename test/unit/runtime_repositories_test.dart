@@ -198,8 +198,7 @@ void main() {
       client,
       bootstrapDefaults: const RuntimeSshBootstrapDefaults(
         channel: 'rc',
-        archiveUrl:
-            'https://github.com/leynier/alera/releases/download/v1.2.4-rc.0/runtime-archive-rc.json',
+        archiveUrl: 'https://github.com/leynier/alera/releases/download/v1.2.4-rc.0/runtime-archive-rc.json',
         version: '1.2.4-rc.0',
       ),
     );
@@ -217,19 +216,18 @@ void main() {
     );
 
     expect(job.jobId, 'job-1');
-    expect(client.payloads['sshTarget.bootstrap.start']?.single, <
-      String,
-      Object?
-    >{
-      'targetId': 'remote-1',
-      'installDir': '/opt/alera/runtime',
-      'platform': 'linux',
-      'arch': 'arm64',
-      'channel': 'rc',
-      'archiveUrl':
-          'https://github.com/leynier/alera/releases/download/v1.2.4-rc.0/runtime-archive-rc.json',
-      'version': '1.2.4-rc.0',
-    });
+    expect(
+      client.payloads['sshTarget.bootstrap.start']?.single,
+      <String, Object?>{
+        'targetId': 'remote-1',
+        'installDir': '/opt/alera/runtime',
+        'platform': 'linux',
+        'arch': 'arm64',
+        'channel': 'rc',
+        'archiveUrl': 'https://github.com/leynier/alera/releases/download/v1.2.4-rc.0/runtime-archive-rc.json',
+        'version': '1.2.4-rc.0',
+      },
+    );
   });
 
   test('RuntimeStateMigration seeds legacy state once', () async {

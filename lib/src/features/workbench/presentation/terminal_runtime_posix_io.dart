@@ -1,11 +1,10 @@
 part of 'terminal_runtime.dart';
 
-typedef _ReadNative =
-    ffi.IntPtr Function(
-      ffi.Int32 fd,
-      ffi.Pointer<ffi.Uint8> buf,
-      ffi.UintPtr nbyte,
-    );
+typedef _ReadNative = ffi.IntPtr Function(
+  ffi.Int32 fd,
+  ffi.Pointer<ffi.Uint8> buf,
+  ffi.UintPtr nbyte,
+);
 typedef _ReadDart = int Function(int fd, ffi.Pointer<ffi.Uint8> buf, int nbyte);
 
 typedef _ErrnoLocationNative = ffi.Pointer<ffi.Int32> Function();

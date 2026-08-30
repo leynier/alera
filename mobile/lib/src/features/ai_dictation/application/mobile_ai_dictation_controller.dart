@@ -353,9 +353,8 @@ class MobileAiDictationController extends _$MobileAiDictationController {
     }
     final filesExist =
         _audioPaths.isNotEmpty &&
-        (await Future.wait(
-          _audioPaths.map((value) => File(value).exists()),
-        )).every((value) => value);
+        (await Future.wait(_audioPaths.map((value) => File(value).exists())))
+            .every((value) => value);
     if (!_isCurrentGeneration(generation)) return;
     if (!filesExist) {
       await _reset(deleteRecording: true);

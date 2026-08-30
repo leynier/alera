@@ -22,8 +22,10 @@ typedef AgentCanvasFileOpener = Future<void> Function(String relativePath);
 typedef AgentCanvasPathOpener = Future<void> Function(String relativePath);
 typedef AgentCanvasTerminalFocuser = void Function(String terminalSessionId);
 typedef AgentCanvasArtifactOpener = void Function(String artifactId);
-typedef AgentCanvasSourceControlAction =
-    Future<void> Function(String kind, Map<String, Object?> action);
+typedef AgentCanvasSourceControlAction = Future<void> Function(
+  String kind,
+  Map<String, Object?> action,
+);
 
 class AgentCanvasPanel extends ConsumerStatefulWidget {
   const AgentCanvasPanel({
@@ -84,8 +86,7 @@ class _AgentCanvasPanelState extends ConsumerState<AgentCanvasPanel> {
         capabilities.asData?.value['supported'] != true) {
       return const AleraEmptyState(
         title: 'Agent Canvas Unavailable',
-        message:
-            'This runtime host does not support Agent Canvas. Restart Alera to use Agent Canvas.',
+        message: 'This runtime host does not support Agent Canvas. Restart Alera to use Agent Canvas.',
         icon: AleraIcons.agent,
       );
     }
@@ -138,8 +139,7 @@ class _AgentCanvasPanelState extends ConsumerState<AgentCanvasPanel> {
           const Expanded(
             child: AleraEmptyState(
               title: 'No Agent Canvases',
-              message:
-                  'Publish a run from an agent terminal to see its progress here.',
+              message: 'Publish a run from an agent terminal to see its progress here.',
               icon: AleraIcons.agent,
             ),
           )
@@ -234,8 +234,7 @@ class _AgentCanvasPanelState extends ConsumerState<AgentCanvasPanel> {
   Future<void> _close(AgentCanvas canvas) async {
     final confirmed = await _confirm(
       title: 'Close Agent Canvas?',
-      message:
-          'Closing freezes the current revision and stops live updates for this canvas.',
+      message: 'Closing freezes the current revision and stops live updates for this canvas.',
       confirmLabel: 'Close Canvas',
     );
     if (!confirmed) {

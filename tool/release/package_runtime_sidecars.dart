@@ -108,9 +108,8 @@ void packageRuntimeSidecars({
       final asset = File(p.join(outputDirectory.path, assetName));
       asset.writeAsBytesSync(compressed, flush: true);
       final digest = sha256.convert(compressed);
-      File(
-        '${asset.path}.sha256',
-      ).writeAsStringSync('$digest  $assetName\n', flush: true);
+      File('${asset.path}.sha256')
+          .writeAsStringSync('$digest  $assetName\n', flush: true);
       stdout.writeln('Wrote ${asset.path}');
     }
   }

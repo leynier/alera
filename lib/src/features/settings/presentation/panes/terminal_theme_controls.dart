@@ -216,8 +216,7 @@ class ToolbarCornerRow extends StatelessWidget {
   Widget build(BuildContext context) {
     return AleraSettingRow(
       title: 'Toolbar Corner',
-      description:
-          'Where the pulse, composer, and refresh buttons sit on the terminal tab.',
+      description: 'Where the pulse, composer, and refresh buttons sit on the terminal tab.',
       child: AleraDropdownField<TerminalToolbarCorner>(
         key: ValueKey<String>('terminal-toolbar-corner-${value.name}'),
         value: value,

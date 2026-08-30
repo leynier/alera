@@ -113,15 +113,17 @@ class _MobileWorkspaceFileViewerState
       await rasterSink?.close();
       rasterSink = null;
       if (next.isText && textChunks.isNotEmpty) {
-        final decoded =
-            await compute(decodeMobileCodexTextChunks, <String, Object?>{
-              'carry': _utf8Carry,
-              'remainder': _lineRemainder,
-              'chunks': textChunks,
-              'flush':
-                  next.nextOffset >= next.totalBytes ||
-                  next.nextOffset >= maxMobileWorkspacePreviewBytes,
-            });
+        final decoded = await compute(
+          decodeMobileCodexTextChunks,
+          <String, Object?>{
+            'carry': _utf8Carry,
+            'remainder': _lineRemainder,
+            'chunks': textChunks,
+            'flush':
+                next.nextOffset >= next.totalBytes ||
+                next.nextOffset >= maxMobileWorkspacePreviewBytes,
+          },
+        );
         _completedLines.addAll((decoded['lines']! as List).cast<String>());
         _utf8Carry = (decoded['carry']! as List).cast<int>();
         _lineRemainder = decoded['remainder']! as String;

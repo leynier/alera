@@ -59,9 +59,8 @@ void main() {
     );
     final container = ProviderContainer(
       overrides: [
-        mobileCodexClientProvider(
-          'host-session',
-        ).overrideWith((ref) async => client),
+        mobileCodexClientProvider('host-session')
+            .overrideWith((ref) async => client),
       ],
     );
     addTearDown(() {
@@ -141,9 +140,8 @@ void main() {
     );
     final container = ProviderContainer(
       overrides: [
-        mobileCodexClientProvider(
-          'host-session-queue',
-        ).overrideWith((ref) async => client),
+        mobileCodexClientProvider('host-session-queue')
+            .overrideWith((ref) async => client),
       ],
     );
     addTearDown(() {
@@ -189,9 +187,8 @@ void main() {
     );
     final container = ProviderContainer(
       overrides: [
-        mobileCodexClientProvider(
-          'host-transition-queue',
-        ).overrideWith((ref) async => client),
+        mobileCodexClientProvider('host-transition-queue')
+            .overrideWith((ref) async => client),
       ],
     );
     addTearDown(() {
@@ -239,9 +236,8 @@ void main() {
     );
     final container = ProviderContainer(
       overrides: [
-        mobileCodexClientProvider(
-          'host-disposed-transition',
-        ).overrideWith((ref) async => client),
+        mobileCodexClientProvider('host-disposed-transition')
+            .overrideWith((ref) async => client),
       ],
     );
     addTearDown(client.dispose);
@@ -282,9 +278,8 @@ void main() {
       );
       final container = ProviderContainer(
         overrides: [
-          mobileCodexClientProvider(
-            'host-overlapping-transition',
-          ).overrideWith((ref) async => client),
+          mobileCodexClientProvider('host-overlapping-transition')
+              .overrideWith((ref) async => client),
         ],
       );
       addTearDown(() {
@@ -354,9 +349,8 @@ void main() {
       );
       final container = ProviderContainer(
         overrides: [
-          mobileCodexClientProvider(
-            'host-overlapping-failed-transition',
-          ).overrideWith((ref) async => client),
+          mobileCodexClientProvider('host-overlapping-failed-transition')
+              .overrideWith((ref) async => client),
         ],
       );
       addTearDown(() {
@@ -425,9 +419,8 @@ void main() {
     );
     final container = ProviderContainer(
       overrides: [
-        mobileCodexClientProvider(
-          'host-history-race',
-        ).overrideWith((ref) async => client),
+        mobileCodexClientProvider('host-history-race')
+            .overrideWith((ref) async => client),
       ],
     );
     addTearDown(() {

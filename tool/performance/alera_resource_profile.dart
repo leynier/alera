@@ -194,9 +194,8 @@ Future<List<ProcessRecord>> _readProcessTable() async {
 }
 
 ProcessRecord? _parseProcessRecord(String line) {
-  final match = RegExp(
-    r'^\s*(\d+)\s+(\d+)\s+([\d.]+)\s+(\d+)\s+(.+)$',
-  ).firstMatch(line);
+  final match = RegExp(r'^\s*(\d+)\s+(\d+)\s+([\d.]+)\s+(\d+)\s+(.+)$')
+      .firstMatch(line);
   if (match == null) {
     return null;
   }

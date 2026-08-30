@@ -2,8 +2,10 @@ import 'configuration_transfer.dart';
 import 'configuration_document.dart';
 import 'configuration_sync.dart';
 
-typedef ConfigurationRequest =
-    Future<Object?> Function(String action, JsonMap payload);
+typedef ConfigurationRequest = Future<Object?> Function(
+  String action,
+  JsonMap payload,
+);
 
 class RpcConfigurationCloud implements ConfigurationCloud {
   RpcConfigurationCloud(this.request);

@@ -117,9 +117,9 @@ WorkspaceCreationResult _creationResultFromJson(Map<String, Object?> json) {
 }
 
 WorktreeSetupReport _setupReportFromJson(Map<String, Object?> json) {
-  final steps = _asList(
-    json['steps'],
-  ).map(_setupStepReportFromJson).toList(growable: false);
+  final steps = _asList(json['steps'])
+      .map(_setupStepReportFromJson)
+      .toList(growable: false);
   return WorktreeSetupReport(steps: steps);
 }
 

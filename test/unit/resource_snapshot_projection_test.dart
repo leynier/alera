@@ -349,9 +349,12 @@ void main() {
     );
 
     test('memory sorts descending with unmeasured rows last', () {
-      final sessions = buildWithSort(
-        ResourceSortColumn.memory,
-      ).projects.single.workspaces.single.sessions;
+      final sessions = buildWithSort(ResourceSortColumn.memory)
+          .projects
+          .single
+          .workspaces
+          .single
+          .sessions;
 
       expect(sessions.map((session) => session.label), <String>[
         'Alpha',
@@ -361,9 +364,12 @@ void main() {
     });
 
     test('cpu sorts descending with unmeasured rows last', () {
-      final sessions = buildWithSort(
-        ResourceSortColumn.cpu,
-      ).projects.single.workspaces.single.sessions;
+      final sessions = buildWithSort(ResourceSortColumn.cpu)
+          .projects
+          .single
+          .workspaces
+          .single
+          .sessions;
 
       expect(sessions.last.label, 'Charlie');
       expect(sessions.first.label, 'Alpha');
@@ -381,9 +387,12 @@ void main() {
     });
 
     test('name sorts alphabetically regardless of usage', () {
-      final sessions = buildWithSort(
-        ResourceSortColumn.name,
-      ).projects.single.workspaces.single.sessions;
+      final sessions = buildWithSort(ResourceSortColumn.name)
+          .projects
+          .single
+          .workspaces
+          .single
+          .sessions;
 
       expect(sessions.map((session) => session.label), <String>[
         'Alpha',

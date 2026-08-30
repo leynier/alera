@@ -75,12 +75,10 @@ class AleraCliTerminalShimService {
       'exit /b %ERRORLEVEL%',
       '',
     ].join('\r\n');
-    await File(
-      p.join(shimDir.path, 'alera.cmd'),
-    ).writeAsString(content, flush: true);
-    await File(
-      p.join(shimDir.path, 'alera.bat'),
-    ).writeAsString(content, flush: true);
+    await File(p.join(shimDir.path, 'alera.cmd'))
+        .writeAsString(content, flush: true);
+    await File(p.join(shimDir.path, 'alera.bat'))
+        .writeAsString(content, flush: true);
   }
 }
 

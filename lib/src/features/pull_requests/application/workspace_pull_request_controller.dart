@@ -339,9 +339,8 @@ class WorkspacePullRequestController extends _$WorkspacePullRequestController
         final reloaded = await _loader.load(scope);
         if (!_disposed) {
           state = AsyncData(
-            _applyPendingCommentBodies(
-              reloaded,
-            ).copyWith(clearAction: true, errorMessage: message),
+            _applyPendingCommentBodies(reloaded)
+                .copyWith(clearAction: true, errorMessage: message),
           );
           _resetPollInterval();
           return;

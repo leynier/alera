@@ -324,9 +324,8 @@ class _PullRequestActionButton extends StatelessWidget {
     final foreground = action.destructive
         ? AleraTokens.onError
         : AleraTokens.onAccent;
-    final textStyle = Theme.of(
-      context,
-    ).textTheme.labelLarge?.copyWith(color: foreground);
+    final textStyle = Theme.of(context).textTheme.labelLarge
+        ?.copyWith(color: foreground);
     final primaryCursor = primaryEnabled
         ? SystemMouseCursors.click
         : SystemMouseCursors.basic;

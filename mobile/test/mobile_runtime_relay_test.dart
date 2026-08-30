@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:async';
 import 'dart:io';
+
 import 'package:alera_mobile/src/features/accounts/infra/alera_cloud_api.dart';
 import 'package:alera_mobile/src/features/runtime/domain/host_reachability.dart';
 
@@ -49,143 +50,135 @@ void main() {
       );
     }
   });
-  test(
-    'Relay renews runtime then edge without reconnecting or resetting encryption',
-    () async {
-      final runtimeIdentity = await RelayIdentityKeyPair.generate();
-      final mobileIdentity = await RelayIdentityKeyPair.generate();
-      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
-      final hellos = <Map<String, Object?>>[];
-      final order = <String>[];
-      final sockets = <WebSocket>[];
-      final served = <Future<void>>[];
-      final renewed = Completer<void>();
-      final listener = server.listen((request) async {
-        final socket = await WebSocketTransformer.upgrade(
-          request,
-          protocolSelector: (protocols) => relayControlProtocol,
-        );
-        sockets.add(socket);
-        served.add(
-          _serve(
-            socket,
-            runtimeIdentity,
-            hellos,
-            renewalOrder: order,
-            renewed: renewed,
-          ),
-        );
-      });
-      CloudRelayGrant grant(int seconds) => CloudRelayGrant(
-        grant: _grantToken(
-          DateTime.now().millisecondsSinceEpoch ~/ 1000 + seconds,
-        ),
-        relayUrl: Uri.parse('ws://127.0.0.1:${server.port}'),
-        expiresIn: seconds,
-        accountId: 'account',
-        runtimeId: 'runtime',
-        clientId: 'phone',
-        clientKind: 'mobile',
-        clientKeyVersion: 1,
-        clientPublicKey: base64UrlNoPadding(mobileIdentity.publicBytes),
-        runtimePublicKey: base64UrlNoPadding(runtimeIdentity.publicBytes),
+  test('Relay renews runtime then edge without reconnecting or resetting encryption', () async {
+    final runtimeIdentity = await RelayIdentityKeyPair.generate();
+    final mobileIdentity = await RelayIdentityKeyPair.generate();
+    final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+    final hellos = <Map<String, Object?>>[];
+    final order = <String>[];
+    final sockets = <WebSocket>[];
+    final served = <Future<void>>[];
+    final renewed = Completer<void>();
+    final listener = server.listen((request) async {
+      final socket = await WebSocketTransformer.upgrade(
+        request,
+        protocolSelector: (protocols) => relayControlProtocol,
       );
-      final client = await MobileRuntimeClient.connectRelay(
-        grant: grant(31),
-        identity: mobileIdentity,
-        requestGrant: () async => grant(120),
-      );
-      addTearDown(() async {
-        await client.dispose();
-        for (final socket in sockets) {
-          await socket.close();
-        }
-        await listener.cancel();
-        await server.close(force: true);
-        await Future.wait(served);
-      });
-      await client.authenticateRelay();
-      expect(await client.requestMap('echo', {'before': true}), {
-        'before': true,
-      });
-      await renewed.future.timeout(const Duration(seconds: 5));
-      expect(await client.requestMap('echo', {'after': true}), {'after': true});
-      expect(order, ['runtime', 'edge']);
-      expect(hellos, hasLength(1));
-      expect(sockets, hasLength(1));
-      expect(client.isConnectionUsable, isTrue);
-      final failure = client.connectionFailures.first;
-      sockets.single.add(
-        wrapRelayFrame(
-          'phone',
-          fragmentRelayPayload(List.filled(70000, 0)).first,
+      sockets.add(socket);
+      served.add(
+        _serve(
+          socket,
+          runtimeIdentity,
+          hellos,
+          renewalOrder: order,
+          renewed: renewed,
         ),
       );
-      expect(
-        (await failure.timeout(const Duration(seconds: 12))).$1,
-        isA<HostUnreachableException>(),
-      );
-      expect(client.isConnectionUsable, isFalse);
-    },
-  );
-
-  test(
-    'Relay authenticates, preserves Codex support and reconnects with fresh encryption',
-    () async {
-      final runtimeIdentity = await RelayIdentityKeyPair.generate();
-      final mobileIdentity = await RelayIdentityKeyPair.generate();
-      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
-      final sockets = <WebSocket>[];
-      final hellos = <Map<String, Object?>>[];
-      final connections = <Future<void>>[];
-      final listener = server.listen((request) async {
-        expect(request.headers.value('authorization'), 'Bearer test-grant');
-        final socket = await WebSocketTransformer.upgrade(request);
-        sockets.add(socket);
-        connections.add(_serve(socket, runtimeIdentity, hellos));
-      });
-      addTearDown(() async {
-        for (final socket in sockets) {
-          await socket.close();
-        }
-        await listener.cancel();
-        await server.close(force: true);
-        await Future.wait(connections);
-      });
-      final grant = CloudRelayGrant(
-        grant: 'test-grant',
-        relayUrl: Uri.parse('ws://127.0.0.1:${server.port}'),
-        expiresIn: 120,
-        accountId: 'account',
-        runtimeId: 'runtime',
-        clientId: 'phone',
-        clientKind: 'mobile',
-        clientKeyVersion: 1,
-        clientPublicKey: base64UrlNoPadding(mobileIdentity.publicBytes),
-        runtimePublicKey: base64UrlNoPadding(runtimeIdentity.publicBytes),
-      );
-      for (var connection = 0; connection < 2; connection++) {
-        final client = await MobileRuntimeClient.connectRelay(
-          grant: grant,
-          identity: mobileIdentity,
-        );
-        await client.authenticateRelay(cloudDeviceId: 'phone');
-        expect(hellos.last['supportedTabKinds'], ['codex']);
-        expect(hellos.last['cloudDeviceId'], 'phone');
-        final messages = List.generate(
-          4,
-          (index) => '$connection:$index:${'x' * 65000}',
-        );
-        final results = await Future.wait(
-          messages.map((text) => client.requestMap('echo', {'text': text})),
-        );
-        expect(results.map((result) => result['text']), messages);
-        expect(client.isConnectionUsable, isTrue);
-        await client.dispose();
+    });
+    CloudRelayGrant grant(int seconds) => CloudRelayGrant(
+      grant: _grantToken(
+        DateTime.now().millisecondsSinceEpoch ~/ 1000 + seconds,
+      ),
+      relayUrl: Uri.parse('ws://127.0.0.1:${server.port}'),
+      expiresIn: seconds,
+      accountId: 'account',
+      runtimeId: 'runtime',
+      clientId: 'phone',
+      clientKind: 'mobile',
+      clientKeyVersion: 1,
+      clientPublicKey: base64UrlNoPadding(mobileIdentity.publicBytes),
+      runtimePublicKey: base64UrlNoPadding(runtimeIdentity.publicBytes),
+    );
+    final client = await MobileRuntimeClient.connectRelay(
+      grant: grant(31),
+      identity: mobileIdentity,
+      requestGrant: () async => grant(120),
+    );
+    addTearDown(() async {
+      await client.dispose();
+      for (final socket in sockets) {
+        await socket.close();
       }
-      expect(hellos, hasLength(2));
-    },
-  );
+      await listener.cancel();
+      await server.close(force: true);
+      await Future.wait(served);
+    });
+    await client.authenticateRelay();
+    expect(await client.requestMap('echo', {'before': true}), {'before': true});
+    await renewed.future.timeout(const Duration(seconds: 5));
+    expect(await client.requestMap('echo', {'after': true}), {'after': true});
+    expect(order, ['runtime', 'edge']);
+    expect(hellos, hasLength(1));
+    expect(sockets, hasLength(1));
+    expect(client.isConnectionUsable, isTrue);
+    final failure = client.connectionFailures.first;
+    sockets.single.add(
+      wrapRelayFrame(
+        'phone',
+        fragmentRelayPayload(List.filled(70000, 0)).first,
+      ),
+    );
+    expect(
+      (await failure.timeout(const Duration(seconds: 12))).$1,
+      isA<HostUnreachableException>(),
+    );
+    expect(client.isConnectionUsable, isFalse);
+  });
+
+  test('Relay authenticates, preserves Codex support and reconnects with fresh encryption', () async {
+    final runtimeIdentity = await RelayIdentityKeyPair.generate();
+    final mobileIdentity = await RelayIdentityKeyPair.generate();
+    final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+    final sockets = <WebSocket>[];
+    final hellos = <Map<String, Object?>>[];
+    final connections = <Future<void>>[];
+    final listener = server.listen((request) async {
+      expect(request.headers.value('authorization'), 'Bearer test-grant');
+      final socket = await WebSocketTransformer.upgrade(request);
+      sockets.add(socket);
+      connections.add(_serve(socket, runtimeIdentity, hellos));
+    });
+    addTearDown(() async {
+      for (final socket in sockets) {
+        await socket.close();
+      }
+      await listener.cancel();
+      await server.close(force: true);
+      await Future.wait(connections);
+    });
+    final grant = CloudRelayGrant(
+      grant: 'test-grant',
+      relayUrl: Uri.parse('ws://127.0.0.1:${server.port}'),
+      expiresIn: 120,
+      accountId: 'account',
+      runtimeId: 'runtime',
+      clientId: 'phone',
+      clientKind: 'mobile',
+      clientKeyVersion: 1,
+      clientPublicKey: base64UrlNoPadding(mobileIdentity.publicBytes),
+      runtimePublicKey: base64UrlNoPadding(runtimeIdentity.publicBytes),
+    );
+    for (var connection = 0; connection < 2; connection++) {
+      final client = await MobileRuntimeClient.connectRelay(
+        grant: grant,
+        identity: mobileIdentity,
+      );
+      await client.authenticateRelay(cloudDeviceId: 'phone');
+      expect(hellos.last['supportedTabKinds'], ['codex']);
+      expect(hellos.last['cloudDeviceId'], 'phone');
+      final messages = List.generate(
+        4,
+        (index) => '$connection:$index:${'x' * 65000}',
+      );
+      final results = await Future.wait(
+        messages.map((text) => client.requestMap('echo', {'text': text})),
+      );
+      expect(results.map((result) => result['text']), messages);
+      expect(client.isConnectionUsable, isTrue);
+      await client.dispose();
+    }
+    expect(hellos, hasLength(2));
+  });
 }
 
 Future<void> _serve(
@@ -204,13 +197,9 @@ Future<void> _serve(
       final request = jsonDecode(utf8.decode(wire.sublist(2))) as Map;
       renewalOrder?.add('edge');
       final token = request['grant'] as String;
-      final claims =
-          jsonDecode(
-                utf8.decode(
-                  base64Url.decode(base64Url.normalize(token.split('.')[1])),
-                ),
-              )
-              as Map;
+      final claims = jsonDecode(
+        utf8.decode(base64Url.decode(base64Url.normalize(token.split('.')[1]))),
+      ) as Map;
       socket.add([
         0,
         0,
@@ -271,13 +260,9 @@ Future<void> _serve(
     if (request['type'] == 'mobile.relayAuthorization.renew') {
       renewalOrder?.add('runtime');
       final token = payload['grant'] as String;
-      final claims =
-          jsonDecode(
-                utf8.decode(
-                  base64Url.decode(base64Url.normalize(token.split('.')[1])),
-                ),
-              )
-              as Map;
+      final claims = jsonDecode(
+        utf8.decode(base64Url.decode(base64Url.normalize(token.split('.')[1]))),
+      ) as Map;
       renewalPayload = {'expiresAt': claims['exp']};
     }
     if (request['type'] == 'mobile.hello') hellos.add(payload);

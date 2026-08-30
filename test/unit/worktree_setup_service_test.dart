@@ -50,9 +50,8 @@ void main() {
     test('copies files and runs setup commands in order', () async {
       await File(p.join(repoDir.path, '.env')).writeAsString('TOKEN=1\n');
       await Directory(p.join(repoDir.path, '.config')).create();
-      await File(
-        p.join(repoDir.path, '.config', 'tool.json'),
-      ).writeAsString('{}');
+      await File(p.join(repoDir.path, '.config', 'tool.json'))
+          .writeAsString('{}');
       final service = WorktreeSetupService(
         processRunner: processRunner,
         operatingSystem: WorktreeSetupOperatingSystem.posix,
@@ -78,9 +77,8 @@ void main() {
         'TOKEN=1\n',
       );
       expect(
-        await File(
-          p.join(workspaceDir.path, '.copied-config', 'tool.json'),
-        ).readAsString(),
+        await File(p.join(workspaceDir.path, '.copied-config', 'tool.json'))
+            .readAsString(),
         '{}',
       );
       expect(processRunner.calls.map((call) => call.arguments.last), <String>[

@@ -347,9 +347,8 @@ void main() {
       await repository.upsertWorkspace(alpha);
 
       expect(
-        (await repository.listWorkspaces(
-          'project-1',
-        )).map((workspace) => workspace.name),
+        (await repository.listWorkspaces('project-1'))
+            .map((workspace) => workspace.name),
         <String>['alpha', 'zebra'],
       );
     });

@@ -17,9 +17,8 @@ void main() {
   });
 
   test('keeps the pinned fingerprint in step with the release script', () {
-    final releaseScript = File(
-      'tool/release/build_linux_repositories.sh',
-    ).readAsStringSync();
+    final releaseScript = File('tool/release/build_linux_repositories.sh')
+        .readAsStringSync();
 
     expect(
       releaseScript,

@@ -45,12 +45,15 @@ mixin MobileRuntimeClientHostTools {
     required String accountId,
     String? displayName,
   }) async {
-    final payload =
-        await requestMap('agentQuota.fetchClaudeTui', <String, Object?>{
-          'accountId': accountId,
-          if (displayName != null && displayName.trim().isNotEmpty)
-            'displayName': displayName.trim(),
-        }, const Duration(seconds: 60));
+    final payload = await requestMap(
+      'agentQuota.fetchClaudeTui',
+      <String, Object?>{
+        'accountId': accountId,
+        if (displayName != null && displayName.trim().isNotEmpty)
+          'displayName': displayName.trim(),
+      },
+      const Duration(seconds: 60),
+    );
     final raw = payload['snapshot'];
     if (raw is! Map) {
       throw const FormatException('Claude TUI response missing snapshot.');

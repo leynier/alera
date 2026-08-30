@@ -70,14 +70,16 @@ extension _BrowserRuntimeDriverDispatch on BrowserRuntimeDriver {
   ) async {
     try {
       browserRuntimeSuccessMap(
-        await _client
-            .runtimeRequest('browser.driver.complete', <String, Object?>{
-              'driverInstanceId': driverInstanceId,
-              'correlationId': call.correlationId,
-              'pageId': call.pageId,
-              'generation': call.generation,
-              'outcome': outcome,
-            }),
+        await _client.runtimeRequest(
+          'browser.driver.complete',
+          <String, Object?>{
+            'driverInstanceId': driverInstanceId,
+            'correlationId': call.correlationId,
+            'pageId': call.pageId,
+            'generation': call.generation,
+            'outcome': outcome,
+          },
+        ),
         'Browser driver completion',
       );
     } on Object {

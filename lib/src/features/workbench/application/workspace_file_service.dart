@@ -276,9 +276,8 @@ class WorkspaceFileService {
     final normalizedRelativePath = _normalizeRelativeFilePath(relativePath);
     late final String workspaceCanonicalPath;
     try {
-      workspaceCanonicalPath = await Directory(
-        workspacePath,
-      ).resolveSymbolicLinks();
+      workspaceCanonicalPath = await Directory(workspacePath)
+          .resolveSymbolicLinks();
     } on FileSystemException catch (error) {
       throw native.WorkspaceFileError(
         kind: native.WorkspaceFileErrorKind.io,

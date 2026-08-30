@@ -201,9 +201,8 @@ void main() {
       await AppLogger.configure(directory: root);
       registerLogSecret('runtime-host-token-abc123');
 
-      Logger(
-        'TerminalHost',
-      ).info('launching host with runtime-host-token-abc123');
+      Logger('TerminalHost')
+          .info('launching host with runtime-host-token-abc123');
 
       await AppLogger.flush();
       final contents = AppLogger.sink!.fileFor(0).readAsStringSync();

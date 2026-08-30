@@ -133,12 +133,15 @@ class AgentQuotaService {
           : const <String, String>{};
       final payload = hostId == 'local' && _runtimeClient != null
           ? _mapValue(
-              await _runtimeClient
-                  .runtimeRequest('agentQuota.snapshot', <String, Object?>{
-                    'forceRefresh': forceRefresh,
-                    if (environmentValues.isNotEmpty)
-                      'environmentValues': environmentValues,
-                  }, const Duration(seconds: 45)),
+              await _runtimeClient.runtimeRequest(
+                'agentQuota.snapshot',
+                <String, Object?>{
+                  'forceRefresh': forceRefresh,
+                  if (environmentValues.isNotEmpty)
+                    'environmentValues': environmentValues,
+                },
+                const Duration(seconds: 45),
+              ),
             )
           : await _client.request(
               hostId: hostId,
@@ -229,12 +232,15 @@ class AgentQuotaService {
   }) async {
     final payload = hostId == 'local' && _runtimeClient != null
         ? _mapValue(
-            await _runtimeClient
-                .runtimeRequest('agentQuota.fetchClaudeTui', <String, Object?>{
-                  'accountId': accountId,
-                  if (displayName != null && displayName.trim().isNotEmpty)
-                    'displayName': displayName.trim(),
-                }, const Duration(seconds: 60)),
+            await _runtimeClient.runtimeRequest(
+              'agentQuota.fetchClaudeTui',
+              <String, Object?>{
+                'accountId': accountId,
+                if (displayName != null && displayName.trim().isNotEmpty)
+                  'displayName': displayName.trim(),
+              },
+              const Duration(seconds: 60),
+            ),
           )
         : await _client.request(
             hostId: hostId,

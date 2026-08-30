@@ -103,9 +103,8 @@ void main() {
       );
       expect(_managedCommandCount(runtimeHooks, 'alera-claude-hook.sh'), 6);
       expect(
-        File(
-          p.join(home.path, '.alera', 'agent-hooks', 'alera-claude-hook.sh'),
-        ).existsSync(),
+        File(p.join(home.path, '.alera', 'agent-hooks', 'alera-claude-hook.sh'))
+            .existsSync(),
         isTrue,
       );
 
@@ -153,9 +152,8 @@ void main() {
         );
         expect(runtimeSettings['theme'], 'dark');
         expect(
-          File(
-            p.join(preparation.runtimeHomePath, '.claude.json'),
-          ).existsSync(),
+          File(p.join(preparation.runtimeHomePath, '.claude.json'))
+              .existsSync(),
           isFalse,
         );
       },
@@ -267,9 +265,8 @@ void main() {
         await fallbackService.prepareForTerminalLaunch();
 
         expect(
-          File(
-            p.join(preparation.runtimeHomePath, 'plugins', 'demo.md'),
-          ).readAsStringSync(),
+          File(p.join(preparation.runtimeHomePath, 'plugins', 'demo.md'))
+              .readAsStringSync(),
           sourcePluginFile.readAsStringSync(),
         );
         expect(runtimeOnlyFile.existsSync(), isTrue);
@@ -299,16 +296,14 @@ void main() {
         );
         final fingerprintBefore = _markerFingerprint(marker);
 
-        File(
-          p.join(sourcePluginsPath, 'new.md'),
-        ).writeAsStringSync('new source');
+        File(p.join(sourcePluginsPath, 'new.md'))
+            .writeAsStringSync('new source');
         await fallbackService.prepareForTerminalLaunch();
 
         expect(runtimeOnlyFile.existsSync(), isFalse);
         expect(
-          File(
-            p.join(preparation.runtimeHomePath, 'plugins', 'new.md'),
-          ).existsSync(),
+          File(p.join(preparation.runtimeHomePath, 'plugins', 'new.md'))
+              .existsSync(),
           isTrue,
         );
         expect(_markerFingerprint(marker), isNot(fingerprintBefore));
@@ -411,9 +406,8 @@ void main() {
       Link(p.join(runtimeHome.path, 'plugins')).createSync(wrongSource.path);
       final brokenSourcePath = p.join(home.path, '.claude', 'broken-link');
       Link(brokenSourcePath).createSync(p.join(root.path, 'missing-source'));
-      File(
-        p.join(runtimeHome.path, '.alera-copied-broken-link.json'),
-      ).writeAsStringSync('{}\n');
+      File(p.join(runtimeHome.path, '.alera-copied-broken-link.json'))
+          .writeAsStringSync('{}\n');
 
       await service.prepareForTerminalLaunch();
 
@@ -429,9 +423,8 @@ void main() {
         sourcePlugins.path,
       );
       expect(
-        File(
-          p.join(runtimeHome.path, '.alera-copied-broken-link.json'),
-        ).existsSync(),
+        File(p.join(runtimeHome.path, '.alera-copied-broken-link.json'))
+            .existsSync(),
         isFalse,
       );
     });
@@ -484,9 +477,8 @@ void main() {
           p.join(preparation.runtimeHomePath, '.alera-copied-plugins.json'),
         );
         final firstFingerprint = _markerFingerprint(pluginMarker);
-        File(
-          p.join(nested.path, 'next.md'),
-        ).writeAsStringSync('changed nested source');
+        File(p.join(nested.path, 'next.md'))
+            .writeAsStringSync('changed nested source');
 
         await fallbackService.prepareForTerminalLaunch();
         expect(_markerFingerprint(pluginMarker), isNot(firstFingerprint));
@@ -518,8 +510,7 @@ void main() {
                 'hooks': <Object?>[
                   <String, Object?>{
                     'type': 'command',
-                    'command':
-                        "if [ -x '/tmp/alera-claude-hook.sh' ]; then ALERA_AGENT_HOOK_EVENT='UserPromptSubmit' /bin/sh '/home/user/.alera/agent-hooks/alera-claude-hook.sh'; fi",
+                    'command': "if [ -x '/tmp/alera-claude-hook.sh' ]; then ALERA_AGENT_HOOK_EVENT='UserPromptSubmit' /bin/sh '/home/user/.alera/agent-hooks/alera-claude-hook.sh'; fi",
                   },
                 ],
               },

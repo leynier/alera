@@ -8,26 +8,22 @@ import 'package:alera/src/features/browser/domain/browser_popup.dart';
 import 'package:alera/src/features/browser/domain/browser_security.dart';
 import 'package:path/path.dart' as p;
 
-typedef BrowserPermissionHandler =
-    Future<BrowserPermissionDecision> Function(
-      BrowserPermissionRequest request,
-      BrowserCallbackCancellation cancellation,
-    );
-typedef BrowserTlsHandler =
-    Future<bool> Function(
-      BrowserTlsRequest request,
-      BrowserCallbackCancellation cancellation,
-    );
-typedef BrowserPopupHandler =
-    Future<BrowserPopupDecision> Function(
-      BrowserPopupRequest request,
-      BrowserCallbackCancellation cancellation,
-    );
-typedef BrowserDownloadHandler =
-    Future<BrowserDownloadDecision> Function(
-      BrowserDownloadRequest request,
-      BrowserCallbackCancellation cancellation,
-    );
+typedef BrowserPermissionHandler = Future<BrowserPermissionDecision> Function(
+  BrowserPermissionRequest request,
+  BrowserCallbackCancellation cancellation,
+);
+typedef BrowserTlsHandler = Future<bool> Function(
+  BrowserTlsRequest request,
+  BrowserCallbackCancellation cancellation,
+);
+typedef BrowserPopupHandler = Future<BrowserPopupDecision> Function(
+  BrowserPopupRequest request,
+  BrowserCallbackCancellation cancellation,
+);
+typedef BrowserDownloadHandler = Future<BrowserDownloadDecision> Function(
+  BrowserDownloadRequest request,
+  BrowserCallbackCancellation cancellation,
+);
 
 final class BrowserCallbackCancellation {
   final Completer<void> _cancelled = Completer<void>();

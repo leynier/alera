@@ -66,8 +66,7 @@ class _CodexResetCreditsPanelState
           context: context,
           builder: (context) => const AleraConfirmDialog(
             title: 'Use Codex Reset',
-            message:
-                'Use one Codex rate-limit reset credit? Alera will re-check the active account and offer before applying it.',
+            message: 'Use one Codex rate-limit reset credit? Alera will re-check the active account and offer before applying it.',
             confirmLabel: 'Use Reset',
           ),
         ) ??

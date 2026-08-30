@@ -49,9 +49,8 @@ class _ClaudeQuotaProfileDialogState extends State<ClaudeQuotaProfileDialog> {
     } else if (duplicate) {
       setState(() => _error = 'Alias and profile must be unique.');
     } else {
-      Navigator.of(
-        context,
-      ).pop(ClaudeQuotaProfile(alias: alias, profile: profile));
+      Navigator.of(context)
+          .pop(ClaudeQuotaProfile(alias: alias, profile: profile));
     }
   }
 

@@ -259,11 +259,13 @@ typedef TerminalLaunchEnvironmentBuilder =
       required String tabId,
     });
 
-typedef TerminalSessionCleanup =
-    FutureOr<void> Function(String terminalSessionId);
+typedef TerminalSessionCleanup = FutureOr<void> Function(
+  String terminalSessionId,
+);
 
-typedef TerminalProcessCreated =
-    FutureOr<void> Function(String terminalSessionId);
+typedef TerminalProcessCreated = FutureOr<void> Function(
+  String terminalSessionId,
+);
 
 final class TerminalRuntimeExitEvent {
   const TerminalRuntimeExitEvent({

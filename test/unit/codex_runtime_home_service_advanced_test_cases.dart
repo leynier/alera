@@ -29,9 +29,8 @@ void _registerCodexRuntimeHomeServiceAdvancedTests() {
         'PreToolUse': <Object?>[_userHook(userCommand)],
       },
     });
-    final canonicalSystemHooksPath = File(
-      systemHooksPath,
-    ).resolveSymbolicLinksSync();
+    final canonicalSystemHooksPath = File(systemHooksPath)
+        .resolveSymbolicLinksSync();
     final systemTrustKey = '$canonicalSystemHooksPath:pre_tool_use:0:0';
     final systemTrustedHash = computeCodexTrustedHashForTesting(
       sourcePath: systemHooksPath,
@@ -51,13 +50,11 @@ void _registerCodexRuntimeHomeServiceAdvancedTests() {
     final preparation = await service.prepareForTerminalLaunch();
 
     final runtimeHooksPath = p.join(preparation.runtimeHomePath, 'hooks.json');
-    final canonicalRuntimeHooksPath = File(
-      runtimeHooksPath,
-    ).resolveSymbolicLinksSync();
+    final canonicalRuntimeHooksPath = File(runtimeHooksPath)
+        .resolveSymbolicLinksSync();
     final runtimeTrustKey = '$canonicalRuntimeHooksPath:pre_tool_use:0:0';
-    final runtimeToml = File(
-      p.join(preparation.runtimeHomePath, 'config.toml'),
-    ).readAsStringSync();
+    final runtimeToml = File(p.join(preparation.runtimeHomePath, 'config.toml'))
+        .readAsStringSync();
     expect(
       runtimeToml,
       contains('[hooks.state."${_escapeTomlString(runtimeTrustKey)}"]'),
@@ -103,9 +100,8 @@ trusted_hash = "sha256:escaped\n\r\t\b\f\"\\z"
   test('removes stale runtime trust entries when hooks change', () async {
     final preparation = await service.prepareForTerminalLaunch();
     final runtimeHooksPath = p.join(preparation.runtimeHomePath, 'hooks.json');
-    final canonicalRuntimeHooksPath = File(
-      runtimeHooksPath,
-    ).resolveSymbolicLinksSync();
+    final canonicalRuntimeHooksPath = File(runtimeHooksPath)
+        .resolveSymbolicLinksSync();
     final runtimeTomlPath = p.join(preparation.runtimeHomePath, 'config.toml');
     File(runtimeTomlPath).writeAsStringSync(
       _trustBlock(
@@ -153,9 +149,8 @@ trusted_hash = "sha256:escaped\n\r\t\b\f\"\\z"
 
     final preparation = await service.prepareForTerminalLaunch();
 
-    final runtimeToml = File(
-      p.join(preparation.runtimeHomePath, 'config.toml'),
-    ).readAsStringSync();
+    final runtimeToml = File(p.join(preparation.runtimeHomePath, 'config.toml'))
+        .readAsStringSync();
     expect(runtimeToml, contains('[hooks.state."fake-system"]'));
     expect(runtimeToml, contains('trusted_hash = "not-a-section"'));
     expect(runtimeToml, contains('[hooks.state."runtime-hooks:stop:0:0"]'));
@@ -219,9 +214,8 @@ trusted_hash = "sha256:escaped\n\r\t\b\f\"\\z"
         'PreToolUse': <Object?>[_userHook(userCommand)],
       },
     });
-    final canonicalSystemHooksPath = File(
-      systemHooksPath,
-    ).resolveSymbolicLinksSync();
+    final canonicalSystemHooksPath = File(systemHooksPath)
+        .resolveSymbolicLinksSync();
     final systemTrustKey = '$canonicalSystemHooksPath:pre_tool_use:0:0';
     final systemTrustedHash = computeCodexTrustedHashForTesting(
       sourcePath: systemHooksPath,
@@ -243,13 +237,11 @@ trusted_hash = "sha256:escaped\n\r\t\b\f\"\\z"
     final preparation = await service.prepareForTerminalLaunch();
 
     final runtimeHooksPath = p.join(preparation.runtimeHomePath, 'hooks.json');
-    final canonicalRuntimeHooksPath = File(
-      runtimeHooksPath,
-    ).resolveSymbolicLinksSync();
+    final canonicalRuntimeHooksPath = File(runtimeHooksPath)
+        .resolveSymbolicLinksSync();
     final runtimeTrustKey = '$canonicalRuntimeHooksPath:pre_tool_use:0:0';
-    final runtimeToml = File(
-      p.join(preparation.runtimeHomePath, 'config.toml'),
-    ).readAsStringSync();
+    final runtimeToml = File(p.join(preparation.runtimeHomePath, 'config.toml'))
+        .readAsStringSync();
     expect(
       runtimeToml,
       isNot(contains('[hooks.state."${_escapeTomlString(runtimeTrustKey)}"]')),
@@ -329,9 +321,8 @@ trusted_hash = "sha256:escaped\n\r\t\b\f\"\\z"
 
       expect(runtimeOnlyFile.existsSync(), isFalse);
       expect(
-        File(
-          p.join(preparation.runtimeHomePath, 'skills', 'nested', 'new.md'),
-        ).existsSync(),
+        File(p.join(preparation.runtimeHomePath, 'skills', 'nested', 'new.md'))
+            .existsSync(),
         isTrue,
       );
       expect(_markerFingerprint(marker), isNot(fingerprintBefore));
@@ -422,9 +413,8 @@ trusted_hash = "sha256:escaped\n\r\t\b\f\"\\z"
       final targetPath = p.join(home.path, 'missing-theme-target.toml');
       final sourceThemes = Directory(p.join(home.path, '.codex', 'themes'))
         ..createSync(recursive: true);
-      Link(
-        p.join(sourceThemes.path, 'linked-theme.toml'),
-      ).createSync(targetPath);
+      Link(p.join(sourceThemes.path, 'linked-theme.toml'))
+          .createSync(targetPath);
       final fallbackService = _serviceWithFailingResourceLinks(
         home: home,
         support: support,

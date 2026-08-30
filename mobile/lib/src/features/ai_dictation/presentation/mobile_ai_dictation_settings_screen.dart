@@ -263,8 +263,7 @@ class _SettingsList extends ConsumerWidget {
         const SizedBox(height: AleraTokens.spaceXl),
         _SectionTitle(
           title: 'Speech Processing',
-          description:
-              'Optionally improve the finished transcript with the agent configured for Speech Messages.',
+          description: 'Optionally improve the finished transcript with the agent configured for Speech Messages.',
         ),
         Card(
           child: Padding(
@@ -330,10 +329,8 @@ String _engineDescription(
   MobileAiDictationLocation location,
   MobileAiDictationEngine engine,
 ) => switch ((location, engine)) {
-  (MobileAiDictationLocation.thisDevice, MobileAiDictationEngine.whisper) =>
-    'Record, review, and transcribe with a Whisper model stored on this device.',
-  (MobileAiDictationLocation.pairedDevice, MobileAiDictationEngine.whisper) =>
-    'Record and review here, then transcribe with Whisper on the paired device.',
+  (MobileAiDictationLocation.thisDevice, MobileAiDictationEngine.whisper) => 'Record, review, and transcribe with a Whisper model stored on this device.',
+  (MobileAiDictationLocation.pairedDevice, MobileAiDictationEngine.whisper) => 'Record and review here, then transcribe with Whisper on the paired device.',
   (
     MobileAiDictationLocation.thisDevice,
     MobileAiDictationEngine.openAiCompatible,
@@ -344,8 +341,7 @@ String _engineDescription(
     MobileAiDictationEngine.openAiCompatible,
   ) =>
     'Send the reviewed recording to the paired runtime, which calls the configured API.',
-  (_, MobileAiDictationEngine.codexSubscription) =>
-    'Transcribe through the authenticated experimental Codex app-server in the paired runtime.',
+  (_, MobileAiDictationEngine.codexSubscription) => 'Transcribe through the authenticated experimental Codex app-server in the paired runtime.',
   (_, MobileAiDictationEngine.systemOnDevice) =>
     'Use the platform recognizer only when it guarantees offline processing.',
   (_, MobileAiDictationEngine.systemRecognition) =>

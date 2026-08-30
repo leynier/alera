@@ -866,4 +866,3 @@ class _AgentCanvasEventCopyWithImpl<$R, $Out>
     Then<$Out2, $R2> t,
   ) => _AgentCanvasEventCopyWithImpl<$R2, $Out2>($value, $cast, t);
 }
-

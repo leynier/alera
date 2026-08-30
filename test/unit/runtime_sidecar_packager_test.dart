@@ -69,9 +69,9 @@ void main() {
           expect(entries.keys, contains('emulator/bin/helper'));
           expect(entries.keys, contains('runtime-manifest.json'));
 
-          final manifest =
-              jsonDecode(utf8.decode(entries['runtime-manifest.json']!.content))
-                  as Map<String, Object?>;
+          final manifest = jsonDecode(
+            utf8.decode(entries['runtime-manifest.json']!.content),
+          ) as Map<String, Object?>;
           expect(manifest, <String, Object?>{
             'name': 'alera-runtime',
             'version': '1.2.3',
@@ -91,9 +91,8 @@ void main() {
     test('rejects a missing architecture', () async {
       final fixture = await _RuntimeFixture.create();
       addTearDown(fixture.dispose);
-      Directory(
-        p.join(fixture.input.path, 'linux', 'arm64'),
-      ).deleteSync(recursive: true);
+      Directory(p.join(fixture.input.path, 'linux', 'arm64'))
+          .deleteSync(recursive: true);
 
       expect(
         () => packageRuntimeSidecars(
@@ -114,9 +113,8 @@ void main() {
     test('rejects unsupported platforms and architectures', () async {
       final fixture = await _RuntimeFixture.create();
       addTearDown(fixture.dispose);
-      Directory(
-        p.join(fixture.input.path, 'freebsd', 'x64'),
-      ).createSync(recursive: true);
+      Directory(p.join(fixture.input.path, 'freebsd', 'x64'))
+          .createSync(recursive: true);
 
       expect(
         () => packageRuntimeSidecars(
@@ -140,9 +138,8 @@ void main() {
       final duplicate = Directory(
         p.join(fixture.input.path, 'macos', 'x64', 'emulator'),
       )..createSync(recursive: true);
-      File(
-        p.join(duplicate.path, 'manifest.json'),
-      ).writeAsStringSync('{"schemaVersion":1}');
+      File(p.join(duplicate.path, 'manifest.json'))
+          .writeAsStringSync('{"schemaVersion":1}');
 
       expect(
         () => packageRuntimeSidecars(
@@ -165,9 +162,8 @@ void main() {
     test('rejects an absent runtime binary', () async {
       final fixture = await _RuntimeFixture.create();
       addTearDown(fixture.dispose);
-      File(
-        p.join(fixture.input.path, 'windows', 'arm64', 'alera.exe'),
-      ).deleteSync();
+      File(p.join(fixture.input.path, 'windows', 'arm64', 'alera.exe'))
+          .deleteSync();
 
       expect(
         () => packageRuntimeSidecars(
@@ -211,17 +207,15 @@ final class _RuntimeFixture {
         final directory = Directory(p.join(input.path, platform, architecture))
           ..createSync(recursive: true);
         final binaryName = platform == 'windows' ? 'alera.exe' : 'alera';
-        File(
-          p.join(directory.path, binaryName),
-        ).writeAsStringSync('$platform/$architecture');
+        File(p.join(directory.path, binaryName))
+            .writeAsStringSync('$platform/$architecture');
         if (architecture != nativeArchitecture) {
           continue;
         }
         final helpers = Directory(p.join(directory.path, 'emulator', 'bin'))
           ..createSync(recursive: true);
-        File(
-          p.join(directory.path, 'emulator', 'manifest.json'),
-        ).writeAsStringSync('{"schemaVersion":1}');
+        File(p.join(directory.path, 'emulator', 'manifest.json'))
+            .writeAsStringSync('{"schemaVersion":1}');
         final helper = File(p.join(helpers.path, 'helper'))
           ..writeAsStringSync('helper');
         if (!Platform.isWindows) {

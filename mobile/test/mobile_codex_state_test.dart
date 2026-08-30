@@ -390,9 +390,8 @@ void mobileCodexStateTests() {
       isTrue,
     );
     expect(
-      request(
-        'Which plan should implementation prioritize?',
-      ).isImplementPlanQuestion,
+      request('Which plan should implementation prioritize?')
+          .isImplementPlanQuestion,
       isFalse,
     );
   });

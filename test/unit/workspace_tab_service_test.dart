@@ -14,20 +14,17 @@ void main() {
     _registerWorkspaceTabPathMoveTests();
     _registerWorkspaceTabGitPreviewTests();
 
-    test(
-      'ensureInitialTerminalTab creates the first terminal workspace tab when none exist',
-      () async {
-        final repository = _FakeWorkbenchRepository();
-        final service = WorkspaceTabService(
-          repository: repository,
-          now: () => DateTime.utc(2026, 5, 21),
-        );
-        final tab = await service.ensureInitialTerminalTab('workspace-1');
-        expect(tab.title, 'Terminal 1');
-        expect(tab.terminalSessionId, tab.id);
-        expect(repository.tabs.single.title, 'Terminal 1');
-      },
-    );
+    test('ensureInitialTerminalTab creates the first terminal workspace tab when none exist', () async {
+      final repository = _FakeWorkbenchRepository();
+      final service = WorkspaceTabService(
+        repository: repository,
+        now: () => DateTime.utc(2026, 5, 21),
+      );
+      final tab = await service.ensureInitialTerminalTab('workspace-1');
+      expect(tab.title, 'Terminal 1');
+      expect(tab.terminalSessionId, tab.id);
+      expect(repository.tabs.single.title, 'Terminal 1');
+    });
 
     test(
       'createTerminalTab picks the next available terminal ordinal',
@@ -443,62 +440,59 @@ void main() {
       expect(repository.tabs, hasLength(2));
     });
 
-    test(
-      'openOrCreateGitCommitDiffTab creates and reuses commit diff tabs independently',
-      () async {
-        final repository = _FakeWorkbenchRepository();
-        final service = WorkspaceTabService(
-          repository: repository,
-          now: () => DateTime.utc(2026, 5, 21, 1),
-        );
+    test('openOrCreateGitCommitDiffTab creates and reuses commit diff tabs independently', () async {
+      final repository = _FakeWorkbenchRepository();
+      final service = WorkspaceTabService(
+        repository: repository,
+        now: () => DateTime.utc(2026, 5, 21, 1),
+      );
 
-        final workingTreeTab = await service.openOrCreateGitDiffTab(
-          workspaceId: 'workspace-1',
-          relativePath: 'packages/app/lib/main.dart',
-          area: GitChangeArea.unstaged,
-          scope: WorkspaceGitDiffScope.file,
-          gitDiffRoot: 'packages/app',
-        );
-        final first = await service.openOrCreateGitCommitDiffTab(
-          workspaceId: 'workspace-1',
-          relativePath: './packages\\app\\lib\\main.dart',
-          oldPath: './packages\\app\\lib\\old_main.dart',
-          scope: WorkspaceGitDiffScope.file,
-          gitDiffRoot: './packages\\app',
-          commitOid: 'abc123456789',
-          parentOid: 'def987654321',
-          compareRef: 'abc1234',
-          subject: 'Add Main',
-          message: 'Add Main\n\nBody',
-        );
-        final second = await service.openOrCreateGitCommitDiffTab(
-          workspaceId: 'workspace-1',
-          relativePath: 'packages/app/lib/main.dart',
-          oldPath: 'packages/app/lib/old_main.dart',
-          scope: WorkspaceGitDiffScope.file,
-          gitDiffRoot: 'packages/app',
-          commitOid: 'abc123456789',
-          parentOid: 'def987654321',
-          compareRef: 'abc1234',
-        );
+      final workingTreeTab = await service.openOrCreateGitDiffTab(
+        workspaceId: 'workspace-1',
+        relativePath: 'packages/app/lib/main.dart',
+        area: GitChangeArea.unstaged,
+        scope: WorkspaceGitDiffScope.file,
+        gitDiffRoot: 'packages/app',
+      );
+      final first = await service.openOrCreateGitCommitDiffTab(
+        workspaceId: 'workspace-1',
+        relativePath: './packages\\app\\lib\\main.dart',
+        oldPath: './packages\\app\\lib\\old_main.dart',
+        scope: WorkspaceGitDiffScope.file,
+        gitDiffRoot: './packages\\app',
+        commitOid: 'abc123456789',
+        parentOid: 'def987654321',
+        compareRef: 'abc1234',
+        subject: 'Add Main',
+        message: 'Add Main\n\nBody',
+      );
+      final second = await service.openOrCreateGitCommitDiffTab(
+        workspaceId: 'workspace-1',
+        relativePath: 'packages/app/lib/main.dart',
+        oldPath: 'packages/app/lib/old_main.dart',
+        scope: WorkspaceGitDiffScope.file,
+        gitDiffRoot: 'packages/app',
+        commitOid: 'abc123456789',
+        parentOid: 'def987654321',
+        compareRef: 'abc1234',
+      );
 
-        expect(first.id, isNot(workingTreeTab.id));
-        expect(second.id, first.id);
-        expect(first.kind, WorkspaceTabKind.gitDiff);
-        expect(first.title, 'main.dart abc1234');
-        expect(first.gitDiffSource, WorkspaceGitDiffSource.commit);
-        expect(first.gitDiffScope, WorkspaceGitDiffScope.file);
-        expect(first.filePath, 'packages/app/lib/main.dart');
-        expect(first.gitDiffOldPath, 'packages/app/lib/old_main.dart');
-        expect(first.gitDiffRoot, 'packages/app');
-        expect(first.gitDiffCommitOid, 'abc123456789');
-        expect(first.gitDiffParentOid, 'def987654321');
-        expect(first.gitDiffCompareRef, 'abc1234');
-        expect(first.gitDiffCommitSubject, 'Add Main');
-        expect(first.gitDiffCommitMessage, 'Add Main\n\nBody');
-        expect(repository.tabs, hasLength(2));
-      },
-    );
+      expect(first.id, isNot(workingTreeTab.id));
+      expect(second.id, first.id);
+      expect(first.kind, WorkspaceTabKind.gitDiff);
+      expect(first.title, 'main.dart abc1234');
+      expect(first.gitDiffSource, WorkspaceGitDiffSource.commit);
+      expect(first.gitDiffScope, WorkspaceGitDiffScope.file);
+      expect(first.filePath, 'packages/app/lib/main.dart');
+      expect(first.gitDiffOldPath, 'packages/app/lib/old_main.dart');
+      expect(first.gitDiffRoot, 'packages/app');
+      expect(first.gitDiffCommitOid, 'abc123456789');
+      expect(first.gitDiffParentOid, 'def987654321');
+      expect(first.gitDiffCompareRef, 'abc1234');
+      expect(first.gitDiffCommitSubject, 'Add Main');
+      expect(first.gitDiffCommitMessage, 'Add Main\n\nBody');
+      expect(repository.tabs, hasLength(2));
+    });
 
     test(
       'openOrCreateGitPullRequestDiffTab stores and reuses the PR range',

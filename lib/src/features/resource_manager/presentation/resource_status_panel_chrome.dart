@@ -29,9 +29,8 @@ class _PanelHeader extends StatelessWidget {
           const SizedBox(width: AleraTokens.space8),
           Text(
             'Resource Manager',
-            style: Theme.of(
-              context,
-            ).textTheme.labelLarge?.copyWith(color: AleraTokens.foreground),
+            style: Theme.of(context).textTheme.labelLarge
+                ?.copyWith(color: AleraTokens.foreground),
           ),
         ],
       ),
@@ -60,9 +59,8 @@ class _HostUnreachableNotice extends StatelessWidget {
             child: Text(
               'The runtime host is not responding. Use the host chip to '
               'restart it.',
-              style: Theme.of(
-                context,
-              ).textTheme.bodySmall?.copyWith(color: AleraTokens.warning),
+              style: Theme.of(context).textTheme.bodySmall
+                  ?.copyWith(color: AleraTokens.warning),
             ),
           ),
         ],
@@ -150,9 +148,8 @@ class _TotalsValue extends StatelessWidget {
         children: <Widget>[
           Text(
             label,
-            style: Theme.of(
-              context,
-            ).textTheme.bodySmall?.copyWith(color: AleraTokens.foregroundFaint),
+            style: Theme.of(context).textTheme.bodySmall
+                ?.copyWith(color: AleraTokens.foregroundFaint),
           ),
           const SizedBox(width: AleraTokens.space6),
           Text(

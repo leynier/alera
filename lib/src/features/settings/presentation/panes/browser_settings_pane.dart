@@ -249,9 +249,8 @@ class _BrowserSettingsPaneState extends ConsumerState<BrowserSettingsPane> {
           const SizedBox(height: AleraTokens.space12),
           Text(
             _error!,
-            style: Theme.of(
-              context,
-            ).textTheme.bodySmall?.copyWith(color: AleraTokens.error),
+            style: Theme.of(context).textTheme.bodySmall
+                ?.copyWith(color: AleraTokens.error),
           ),
         ],
       ],

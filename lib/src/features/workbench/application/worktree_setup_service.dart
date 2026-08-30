@@ -98,12 +98,10 @@ class WorktreeSetupService implements WorktreeSetupRunner {
   }) async {
     final label = '${rule.from} -> ${rule.destination}';
     try {
-      final projectRoot = Directory(
-        project.repoPath,
-      ).resolveSymbolicLinksSync();
-      final workspaceRoot = Directory(
-        workspace.path,
-      ).resolveSymbolicLinksSync();
+      final projectRoot = Directory(project.repoPath)
+          .resolveSymbolicLinksSync();
+      final workspaceRoot = Directory(workspace.path)
+          .resolveSymbolicLinksSync();
       final sourcePath = _joinConfigPath(
         projectRoot,
         normalizeProjectConfigPath(rule.from, 'copy source'),

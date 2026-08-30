@@ -31,12 +31,10 @@ void main() {
     final editableFinder = find.byType(EditableText);
     final editable = tester.state<EditableTextState>(editableFinder);
     final nativeItems = editable.contextMenuButtonItems;
-    final toolbar =
-        AleraTextActionsScope.buildContextMenu(
-              tester.element(editableFinder),
-              editable,
-            )
-            as AleraTextSelectionToolbar;
+    final toolbar = AleraTextActionsScope.buildContextMenu(
+      tester.element(editableFinder),
+      editable,
+    ) as AleraTextSelectionToolbar;
     final items = toolbar.buttonItems;
 
     expect(
@@ -89,13 +87,11 @@ void main() {
       );
       final finder = find.byType(EditableText);
       final editable = tester.state<EditableTextState>(finder);
-      final toolbar =
-          AleraTextActionsScope.buildContextMenu(
-                tester.element(finder),
-                editable,
-                textActionsEnabled: textActionsEnabled,
-              )
-              as AleraTextSelectionToolbar;
+      final toolbar = AleraTextActionsScope.buildContextMenu(
+        tester.element(finder),
+        editable,
+        textActionsEnabled: textActionsEnabled,
+      ) as AleraTextSelectionToolbar;
       return toolbar.buttonItems;
     }
 
@@ -143,9 +139,10 @@ void main() {
     final editableFinder = find.byType(EditableText);
     final editable = tester.state<EditableTextState>(editableFinder);
     final field = tester.widget<TextField>(find.byType(TextField));
-    final toolbar =
-        field.contextMenuBuilder!(tester.element(editableFinder), editable)
-            as AleraTextSelectionToolbar;
+    final toolbar = field.contextMenuBuilder!(
+      tester.element(editableFinder),
+      editable,
+    ) as AleraTextSelectionToolbar;
     final paste = toolbar.buttonItems.firstWhere(
       (item) => item.type == ContextMenuButtonType.paste,
     );
@@ -182,9 +179,10 @@ void main() {
     final editableFinder = find.byType(EditableText);
     final editable = tester.state<EditableTextState>(editableFinder);
     final field = tester.widget<TextField>(find.byType(TextField));
-    final toolbar =
-        field.contextMenuBuilder!(tester.element(editableFinder), editable)
-            as AleraTextSelectionToolbar;
+    final toolbar = field.contextMenuBuilder!(
+      tester.element(editableFinder),
+      editable,
+    ) as AleraTextSelectionToolbar;
 
     expect(
       toolbar.buttonItems.any((item) => item.label == 'Text Actions'),

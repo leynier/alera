@@ -17,8 +17,10 @@ part 'claude_runtime_hooks.dart';
 
 typedef ClaudeApplicationSupportDirectoryResolver =
     Future<Directory> Function();
-typedef ClaudeResourceLinkCreator =
-    void Function({required String sourcePath, required String targetPath});
+typedef ClaudeResourceLinkCreator = void Function({
+  required String sourcePath,
+  required String targetPath,
+});
 
 abstract interface class ClaudeKeychainCredentialsStore {
   Future<String?> readLegacyCredentials();

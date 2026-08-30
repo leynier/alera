@@ -93,8 +93,7 @@ void _registerFxAiAssistTests() {
 
   test('discovers fx models through JSON output', () async {
     final runner = _FakeProcessRunner(
-      stdout:
-          '{"kind":"models","count":1,"models":[{"id":"xai/grok-4.1-fast","source":"pi"}]}',
+      stdout: '{"kind":"models","count":1,"models":[{"id":"xai/grok-4.1-fast","source":"pi"}]}',
     );
     final service = CliAiAssistModelDiscoveryService(processRunner: runner);
 

@@ -87,9 +87,8 @@ class _CodexMessageTimestamp extends StatelessWidget {
     return Text(
       '${weekdays[local.weekday - 1]} $time',
       key: const ValueKey<String>('codex-message-timestamp'),
-      style: Theme.of(
-        context,
-      ).textTheme.labelSmall?.copyWith(color: AleraTokens.foregroundFaint),
+      style: Theme.of(context).textTheme.labelSmall
+          ?.copyWith(color: AleraTokens.foregroundFaint),
     );
   }
 }

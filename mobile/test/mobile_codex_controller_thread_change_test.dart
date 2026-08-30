@@ -27,9 +27,8 @@ void main() {
     );
     final container = ProviderContainer(
       overrides: [
-        mobileCodexClientProvider(
-          'host-thread-change',
-        ).overrideWith((ref) async => client),
+        mobileCodexClientProvider('host-thread-change')
+            .overrideWith((ref) async => client),
       ],
     );
     addTearDown(() {

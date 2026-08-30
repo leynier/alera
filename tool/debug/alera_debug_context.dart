@@ -341,9 +341,8 @@ final class _DebugContext {
   }
 
   String _pathBasename(String path) {
-    final normalized = _normalizeSeparators(
-      path,
-    ).replaceAll(RegExp(r'/+$'), '');
+    final normalized = _normalizeSeparators(path)
+        .replaceAll(RegExp(r'/+$'), '');
     final separator = normalized.lastIndexOf('/');
     if (separator < 0) {
       return normalized;

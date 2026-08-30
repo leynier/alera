@@ -348,9 +348,8 @@ class _WorkspaceListBody extends ConsumerWidget {
                     ),
                     onToggleAgents: () => ref
                         .read(
-                          workspaceAgentExpansionControllerProvider(
-                            hostId,
-                          ).notifier,
+                          workspaceAgentExpansionControllerProvider(hostId)
+                              .notifier,
                         )
                         .toggle(row.entry.workspace.id),
                     onAgentTap: (status) {

@@ -4,8 +4,10 @@ import 'browser_errors.dart';
 import 'browser_models.dart';
 import 'dom_automation.dart';
 
-typedef AleraBrowserJavaScriptEvaluator =
-    Future<Object?> Function(String pageId, String script);
+typedef AleraBrowserJavaScriptEvaluator = Future<Object?> Function(
+  String pageId,
+  String script,
+);
 typedef AleraBrowserAutomationGeneration = int Function(String pageId);
 
 final class AleraNativeBrowserAutomation {

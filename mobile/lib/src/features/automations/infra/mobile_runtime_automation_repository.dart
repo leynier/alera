@@ -17,15 +17,17 @@ class MobileRuntimeAutomationRepository {
     String? tag,
   }) async {
     try {
-      final payload = await _client
-          .requestMap('automation.list', <String, Object?>{
-            'includeTrashed': includeTrashed,
-            'state': ?state,
-            'search': ?search,
-            'projectId': ?projectId,
-            'profileId': ?profileId,
-            'tag': ?tag,
-          });
+      final payload = await _client.requestMap(
+        'automation.list',
+        <String, Object?>{
+          'includeTrashed': includeTrashed,
+          'state': ?state,
+          'search': ?search,
+          'projectId': ?projectId,
+          'profileId': ?profileId,
+          'tag': ?tag,
+        },
+      );
       final items = payload['items'];
       if (items is! List) {
         return const <MobileAutomation>[];

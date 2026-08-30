@@ -55,9 +55,8 @@ class AleraDropdownMenuItem extends StatelessWidget {
                     child: Text(
                       label,
                       overflow: TextOverflow.ellipsis,
-                      style: Theme.of(
-                        context,
-                      ).textTheme.bodyMedium?.copyWith(color: color),
+                      style: Theme.of(context).textTheme.bodyMedium
+                          ?.copyWith(color: color),
                     ),
                   ),
                   if (selected)

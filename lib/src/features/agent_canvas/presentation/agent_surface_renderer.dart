@@ -5,8 +5,9 @@ import 'package:flutter/material.dart';
 
 part 'agent_surface_renderer_helpers.dart';
 
-typedef AgentCanvasActionCallback =
-    Future<void> Function(Map<String, Object?> action);
+typedef AgentCanvasActionCallback = Future<void> Function(
+  Map<String, Object?> action,
+);
 
 abstract interface class AgentSurfaceRenderer {
   Widget build(

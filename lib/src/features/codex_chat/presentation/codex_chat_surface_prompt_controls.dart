@@ -140,9 +140,8 @@ class _CodexPromptOptionRowState extends State<_CodexPromptOptionRow> {
                       const SizedBox(height: AleraTokens.space4),
                       Text(
                         description,
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: AleraTokens.foregroundMuted,
-                        ),
+                        style: Theme.of(context).textTheme.bodySmall
+                            ?.copyWith(color: AleraTokens.foregroundMuted),
                       ),
                     ],
                   ],
@@ -252,9 +251,8 @@ class _CodexPromptInlineAnswerRowState
                   AleraTokens.space8,
                 ),
                 child: ScrollConfiguration(
-                  behavior: ScrollConfiguration.of(
-                    context,
-                  ).copyWith(scrollbars: false),
+                  behavior: ScrollConfiguration.of(context)
+                      .copyWith(scrollbars: false),
                   child: TextField(
                     controller: widget.controller,
                     scrollController: _scrollController,

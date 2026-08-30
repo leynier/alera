@@ -22,9 +22,8 @@ class _CodexStructuredToolPayload extends StatelessWidget {
             Expanded(
               child: Text(
                 label,
-                style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                  color: AleraTokens.foregroundFaint,
-                ),
+                style: Theme.of(context).textTheme.labelSmall
+                    ?.copyWith(color: AleraTokens.foregroundFaint),
               ),
             ),
             AleraIconButton(
@@ -107,9 +106,8 @@ class _CodexStructuredToolValueState extends State<_CodexStructuredToolValue> {
     _paginationRestored = true;
     final paginationId = widget.paginationId;
     if (paginationId == null) return;
-    final stored = PageStorage.maybeOf(
-      context,
-    )?.readState(context, identifier: paginationId);
+    final stored = PageStorage.maybeOf(context)
+        ?.readState(context, identifier: paginationId);
     if (stored is int && stored > _visibleItemCount) {
       _visibleItemCount = stored;
     }
@@ -132,9 +130,8 @@ class _CodexStructuredToolValueState extends State<_CodexStructuredToolValue> {
           const SizedBox(height: AleraTokens.space4),
           Text(
             '${value.hiddenCharacters} additional characters hidden. Copy the section to access the complete value.',
-            style: Theme.of(
-              context,
-            ).textTheme.bodySmall?.copyWith(color: AleraTokens.foregroundFaint),
+            style: Theme.of(context).textTheme.bodySmall
+                ?.copyWith(color: AleraTokens.foregroundFaint),
           ),
         ],
       );
@@ -364,9 +361,8 @@ class _CodexStructuredToolEntry extends StatelessWidget {
               children: <Widget>[
                 Text(
                   label,
-                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                    color: AleraTokens.foregroundMuted,
-                  ),
+                  style: Theme.of(context).textTheme.labelSmall
+                      ?.copyWith(color: AleraTokens.foregroundMuted),
                 ),
                 const SizedBox(height: AleraTokens.space4),
                 Padding(
@@ -389,9 +385,8 @@ class _CodexStructuredToolEntry extends StatelessWidget {
                   ),
                   child: Text(
                     label,
-                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                      color: AleraTokens.foregroundMuted,
-                    ),
+                    style: Theme.of(context).textTheme.labelSmall
+                        ?.copyWith(color: AleraTokens.foregroundMuted),
                   ),
                 ),
                 const SizedBox(width: AleraTokens.space8),

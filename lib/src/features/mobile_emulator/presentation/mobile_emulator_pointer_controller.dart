@@ -4,8 +4,11 @@ import 'dart:ui';
 import 'package:alera/src/features/mobile_emulator/domain/mobile_emulator_models.dart';
 import 'package:flutter/gestures.dart';
 
-typedef MobileEmulatorPointerDispatch =
-    void Function(String type, Offset position, MobileEmulatorTarget target);
+typedef MobileEmulatorPointerDispatch = void Function(
+  String type,
+  Offset position,
+  MobileEmulatorTarget target,
+);
 
 class MobileEmulatorPointerController {
   MobileEmulatorPointerController({required this.onPointer});

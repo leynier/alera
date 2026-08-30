@@ -1,4 +1,5 @@
 import 'dart:io';
+
 import 'package:alera/src/core/build_flavor.dart';
 
 import 'package:alera/src/features/workbench/infra/terminal_host/alera_cli_sidecar.dart';

@@ -393,9 +393,8 @@ class _MobileChoiceRow extends StatelessWidget {
                     const SizedBox(height: AleraTokens.space2),
                     Text(
                       description!,
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: AleraTokens.foregroundMuted,
-                      ),
+                      style: Theme.of(context).textTheme.bodySmall
+                          ?.copyWith(color: AleraTokens.foregroundMuted),
                     ),
                   ],
                 ],
@@ -472,9 +471,8 @@ class _MobileInlineAnswer extends StatelessWidget {
                     )
                   : Text(
                       hintText,
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: AleraTokens.foregroundMuted,
-                      ),
+                      style: Theme.of(context).textTheme.bodyMedium
+                          ?.copyWith(color: AleraTokens.foregroundMuted),
                     ),
             ),
             const SizedBox(width: AleraTokens.space8),

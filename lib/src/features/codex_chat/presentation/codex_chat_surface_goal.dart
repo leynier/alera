@@ -111,18 +111,16 @@ class _CodexGoalBarState extends State<_CodexGoalBar> {
                     widget.goal.objective,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: AleraTokens.foregroundMuted,
-                    ),
+                    style: Theme.of(context).textTheme.bodySmall
+                        ?.copyWith(color: AleraTokens.foregroundMuted),
                   ),
                 ),
                 const SizedBox(width: AleraTokens.space6),
                 Text(
                   '• ${formatCodexGoalElapsed(_elapsedSeconds)}',
                   key: const ValueKey<String>('codex-goal-elapsed'),
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: AleraTokens.foregroundMuted,
-                  ),
+                  style: Theme.of(context).textTheme.bodySmall
+                      ?.copyWith(color: AleraTokens.foregroundMuted),
                 ),
               ],
             ),

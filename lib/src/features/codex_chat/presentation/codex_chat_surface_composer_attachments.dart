@@ -95,9 +95,8 @@ class _CodexDraftChip extends StatelessWidget {
                   item.tokenText ?? item.name,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                    color: AleraTokens.foregroundMuted,
-                  ),
+                  style: Theme.of(context).textTheme.labelSmall
+                      ?.copyWith(color: AleraTokens.foregroundMuted),
                 ),
               ),
             ],
@@ -354,9 +353,8 @@ class _CodexQueueBar extends StatelessWidget {
           children: <Widget>[
             Text(
               '${messages.length} Queued ${messages.length == 1 ? 'Message' : 'Messages'}',
-              style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                color: AleraTokens.foregroundMuted,
-              ),
+              style: Theme.of(context).textTheme.labelSmall
+                  ?.copyWith(color: AleraTokens.foregroundMuted),
             ),
             for (final (index, message) in messages.indexed)
               InkWell(

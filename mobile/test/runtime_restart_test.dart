@@ -179,8 +179,7 @@ final class _RuntimeRestartHarness {
         jsonEncode(<String, Object?>{
           'id': request['id'],
           'ok': false,
-          'error':
-              'Runtime host has 2 active agent(s), 1 active terminal session(s), 0 active background job(s), and 0 active push subscription(s). Retry with --force to stop it.',
+          'error': 'Runtime host has 2 active agent(s), 1 active terminal session(s), 0 active background job(s), and 0 active push subscription(s). Retry with --force to stop it.',
         }),
       );
       return;
@@ -260,8 +259,7 @@ final class _RuntimeRestartChannel implements WebSocketChannel {
         jsonEncode(<String, Object?>{
           'id': request['id'],
           'ok': false,
-          'error':
-              'Runtime host has 2 active agent(s), 1 active terminal session(s), 0 active background job(s), and 0 active push subscription(s). Retry with --force to stop it.',
+          'error': 'Runtime host has 2 active agent(s), 1 active terminal session(s), 0 active background job(s), and 0 active push subscription(s). Retry with --force to stop it.',
         }),
       );
       return;

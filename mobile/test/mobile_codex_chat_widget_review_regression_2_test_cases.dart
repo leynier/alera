@@ -39,9 +39,8 @@ void _registerMobileCodexReviewRegression2Tests() {
       );
       final container = ProviderContainer(
         overrides: [
-          mobileCodexClientProvider(
-            'host-pending-prompt',
-          ).overrideWith((ref) async => client),
+          mobileCodexClientProvider('host-pending-prompt')
+              .overrideWith((ref) async => client),
         ],
       );
       addTearDown(() {
@@ -188,9 +187,8 @@ void _registerMobileCodexReviewRegression2Tests() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
-          mobileCodexClientProvider(
-            'host-short-body',
-          ).overrideWith((ref) async => client),
+          mobileCodexClientProvider('host-short-body')
+              .overrideWith((ref) async => client),
         ],
         child: MaterialApp(
           theme: ThemeData.dark(),

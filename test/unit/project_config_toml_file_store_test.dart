@@ -109,9 +109,8 @@ copy = [{ from = " C:\tmp\.env " }]
     test('loads repo-root alera.toml when present', () async {
       final tempDir = Directory.systemTemp.createTempSync('alera-config-test-');
       addTearDown(() => tempDir.deleteSync(recursive: true));
-      await File(
-        p.join(tempDir.path, aleraProjectConfigFileName),
-      ).writeAsString('''
+      await File(p.join(tempDir.path, aleraProjectConfigFileName))
+          .writeAsString('''
 [worktree]
 setup = ["dart pub get"]
 ''');

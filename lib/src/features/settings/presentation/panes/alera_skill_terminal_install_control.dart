@@ -8,8 +8,10 @@ import 'package:alera/src/features/settings/presentation/panes/application_suppo
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-typedef AleraSkillTerminalRunner =
-    Future<void> Function(BuildContext context, CommandTerminalRequest request);
+typedef AleraSkillTerminalRunner = Future<void> Function(
+  BuildContext context,
+  CommandTerminalRequest request,
+);
 
 /// Work that still has to happen in Dart once the installer command is done,
 /// such as reconciling agent status hooks. Returning null leaves the status

@@ -8,14 +8,13 @@ import 'package:path/path.dart' as p;
 import 'native_helper_derivation.dart';
 import 'native_helper_manifest.dart';
 
-typedef NativeHelperPinnedSourceResolver =
-    Future<File> Function(
-      String id,
-      Uri sourceUrl,
-      String sourceSha256,
-      Directory cache,
-      bool offline,
-    );
+typedef NativeHelperPinnedSourceResolver = Future<File> Function(
+  String id,
+  Uri sourceUrl,
+  String sourceSha256,
+  Directory cache,
+  bool offline,
+);
 
 final class NativeHelperSwiftBuilder {
   NativeHelperSwiftBuilder({

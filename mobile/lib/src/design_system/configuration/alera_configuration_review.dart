@@ -1,4 +1,5 @@
 import 'dart:convert';
+
 import 'package:alera_configuration/alera_configuration.dart';
 import 'package:alera_mobile/src/app/theme/alera_tokens.dart';
 import 'package:flutter/material.dart';
@@ -207,8 +208,7 @@ class AleraConfigurationReview extends StatelessWidget {
     if (local ? difference.localAbsent : difference.remoteAbsent) {
       return '(Removed)';
     }
-    return const JsonEncoder.withIndent(
-      '  ',
-    ).convert(local ? difference.local : difference.remote);
+    return const JsonEncoder.withIndent('  ')
+        .convert(local ? difference.local : difference.remote);
   }
 }

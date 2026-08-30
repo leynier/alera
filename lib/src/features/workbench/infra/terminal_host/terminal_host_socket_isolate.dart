@@ -83,9 +83,8 @@ Future<void> terminalHostSocketIsolateMain(
     final sink = decoders.putIfAbsent(sessionId, () {
       // fromStringSink, not withCallback: the latter only delivers on close,
       // which for a long-lived PTY means never.
-      return const Utf8Decoder(
-        allowMalformed: true,
-      ).startChunkedConversion(StringConversionSink.fromStringSink(buffer));
+      return const Utf8Decoder(allowMalformed: true)
+          .startChunkedConversion(StringConversionSink.fromStringSink(buffer));
     });
     sink.add(bytes);
     if (buffer.isEmpty) {

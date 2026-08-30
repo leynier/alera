@@ -65,9 +65,8 @@ class _TerminalOperationStateState extends State<_TerminalOperationState> {
               const SizedBox(height: AleraTokens.space8),
               Text(
                 'Elapsed: ${elapsed}s',
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: AleraTokens.foregroundMuted,
-                ),
+                style: Theme.of(context).textTheme.bodySmall
+                    ?.copyWith(color: AleraTokens.foregroundMuted),
               ),
             ],
           ],

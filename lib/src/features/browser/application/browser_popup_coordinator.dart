@@ -9,13 +9,12 @@ import 'package:alera/src/features/browser/domain/browser_popup.dart';
 import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
 import 'package:flutter/foundation.dart';
 
-typedef BrowserWorkspaceTabCreator =
-    Future<WorkspaceTabRecord> Function({
-      required String pageId,
-      required String workspaceId,
-      required String profileId,
-      required String initialUrl,
-    });
+typedef BrowserWorkspaceTabCreator = Future<WorkspaceTabRecord> Function({
+  required String pageId,
+  required String workspaceId,
+  required String profileId,
+  required String initialUrl,
+});
 
 final class BrowserPopupCoordinator {
   BrowserPopupCoordinator({

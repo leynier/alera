@@ -32,17 +32,15 @@ class RemoteDirectoryPickerScreen extends ConsumerWidget {
                         if (parent == null) {
                           ref
                               .read(
-                                hostDirectoryBrowserControllerProvider(
-                                  hostId,
-                                ).notifier,
+                                hostDirectoryBrowserControllerProvider(hostId)
+                                    .notifier,
                               )
                               .showRoots();
                         } else {
                           ref
                               .read(
-                                hostDirectoryBrowserControllerProvider(
-                                  hostId,
-                                ).notifier,
+                                hostDirectoryBrowserControllerProvider(hostId)
+                                    .notifier,
                               )
                               .open(parent);
                         }
@@ -92,9 +90,8 @@ class RemoteDirectoryPickerScreen extends ConsumerWidget {
                             trailing: const Icon(Icons.chevron_right),
                             onTap: () => ref
                                 .read(
-                                  hostDirectoryBrowserControllerProvider(
-                                    hostId,
-                                  ).notifier,
+                                  hostDirectoryBrowserControllerProvider(hostId)
+                                      .notifier,
                                 )
                                 .open(entry.path),
                           );

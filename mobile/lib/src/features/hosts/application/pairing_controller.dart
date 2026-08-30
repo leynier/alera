@@ -9,11 +9,10 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 part 'pairing_controller.g.dart';
 
-typedef PairDeviceFunction =
-    Future<PairedDeviceCredentials> Function(
-      PairingOffer offer, {
-      String? deviceName,
-    });
+typedef PairDeviceFunction = Future<PairedDeviceCredentials> Function(
+  PairingOffer offer, {
+  String? deviceName,
+});
 
 /// Indirection over the static pairing call so tests can drive the pairing
 /// flow without a live runtime gateway.

@@ -181,15 +181,13 @@ void _registerAgyHookInstallerTests(
     expect(stopCommand.startsWith('"'), isTrue);
     expect(stopCommand.endsWith('"'), isTrue);
     expect(
-      File(
-        p.join(home.path, '.alera', 'agent-hooks', 'alera-agy-stop.cmd'),
-      ).readAsStringSync(),
+      File(p.join(home.path, '.alera', 'agent-hooks', 'alera-agy-stop.cmd'))
+          .readAsStringSync(),
       contains('ALERA_AGY_EVENT=Stop'),
     );
     expect(
-      File(
-        p.join(home.path, '.alera', 'agent-hooks', 'alera-agy-hook.cmd'),
-      ).readAsStringSync(),
+      File(p.join(home.path, '.alera', 'agent-hooks', 'alera-agy-hook.cmd'))
+          .readAsStringSync(),
       allOf(
         contains('/hook/agy'),
         contains(

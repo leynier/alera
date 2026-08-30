@@ -55,9 +55,8 @@ class ProjectsScreen extends ConsumerWidget {
                             onCancel: job.isActive
                                 ? () => ref
                                       .read(
-                                        projectsControllerProvider(
-                                          host.id,
-                                        ).notifier,
+                                        projectsControllerProvider(host.id)
+                                            .notifier,
                                       )
                                       .cancelClone(job.id)
                                 : null,
@@ -289,9 +288,8 @@ class ProjectsScreen extends ConsumerWidget {
   }
 
   void _showError(BuildContext context, Object error) {
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text(error.toString())));
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(error.toString())));
   }
 }
 

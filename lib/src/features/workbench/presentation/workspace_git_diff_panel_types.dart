@@ -25,25 +25,23 @@ String _messageFor(Object? error) {
   return 'Git operation failed.';
 }
 
-typedef OpenGitDiffTabCallback =
-    Future<void> Function({
-      String? relativePath,
-      GitChangeArea? area,
-      String? gitDiffRoot,
-      required WorkspaceGitDiffScope scope,
-      bool preview,
-    });
+typedef OpenGitDiffTabCallback = Future<void> Function({
+  String? relativePath,
+  GitChangeArea? area,
+  String? gitDiffRoot,
+  required WorkspaceGitDiffScope scope,
+  bool preview,
+});
 
-typedef OpenGitCommitDiffTabCallback =
-    Future<void> Function({
-      String? relativePath,
-      String? oldPath,
-      required WorkspaceGitDiffScope scope,
-      String? gitDiffRoot,
-      required String commitOid,
-      String? parentOid,
-      required String compareRef,
-      String? subject,
-      String? message,
-      bool preview,
-    });
+typedef OpenGitCommitDiffTabCallback = Future<void> Function({
+  String? relativePath,
+  String? oldPath,
+  required WorkspaceGitDiffScope scope,
+  String? gitDiffRoot,
+  required String commitOid,
+  String? parentOid,
+  required String compareRef,
+  String? subject,
+  String? message,
+  bool preview,
+});

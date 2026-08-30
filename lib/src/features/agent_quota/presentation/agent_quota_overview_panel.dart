@@ -111,9 +111,8 @@ class _AgentQuotaOverviewPanel extends StatelessWidget {
                     padding: const EdgeInsets.all(AleraTokens.space12),
                     child: Text(
                       _normalizeQuotaText(emptyMessage),
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: AleraTokens.foregroundMuted,
-                      ),
+                      style: Theme.of(context).textTheme.bodySmall
+                          ?.copyWith(color: AleraTokens.foregroundMuted),
                     ),
                   ),
                 for (final snapshot in snapshots)

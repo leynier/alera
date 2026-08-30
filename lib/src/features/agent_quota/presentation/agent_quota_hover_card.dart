@@ -45,9 +45,8 @@ class _AgentQuotaHoverCard extends StatelessWidget {
                   padding: const EdgeInsets.all(AleraTokens.space12),
                   child: Text(
                     _normalizeQuotaText('Quota data unavailable'),
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: AleraTokens.foregroundMuted,
-                    ),
+                    style: Theme.of(context).textTheme.bodySmall
+                        ?.copyWith(color: AleraTokens.foregroundMuted),
                   ),
                 ),
               for (final (index, snapshot) in snapshots.indexed) ...<Widget>[
@@ -228,9 +227,8 @@ class _QuotaHoverEmptyState extends StatelessWidget {
       snapshot.error == null
           ? 'Quota data unavailable'
           : _normalizeQuotaText(snapshot.error!),
-      style: Theme.of(
-        context,
-      ).textTheme.bodySmall?.copyWith(color: AleraTokens.foregroundMuted),
+      style: Theme.of(context).textTheme.bodySmall
+          ?.copyWith(color: AleraTokens.foregroundMuted),
     );
   }
 }

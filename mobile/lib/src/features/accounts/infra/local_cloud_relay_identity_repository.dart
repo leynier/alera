@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:math';
 import 'dart:typed_data';
+
 import 'package:logging/logging.dart';
 
 import 'package:alera_mobile/src/features/accounts/application/cloud_relay_identity_repository.dart';

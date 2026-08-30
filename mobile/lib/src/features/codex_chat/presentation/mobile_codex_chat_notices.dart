@@ -24,9 +24,8 @@ class _MobileWorkedRow extends StatelessWidget {
         children: <Widget>[
           Text(
             duration == null ? 'Worked' : 'Worked for $duration',
-            style: Theme.of(context).textTheme.labelSmall?.copyWith(
-              color: AleraTokens.foregroundMuted,
-            ),
+            style: Theme.of(context).textTheme.labelSmall
+                ?.copyWith(color: AleraTokens.foregroundMuted),
           ),
           if (canToggle) ...<Widget>[
             const SizedBox(width: AleraTokens.space6),
@@ -79,9 +78,8 @@ class _MobileWarningNotice extends StatelessWidget {
             children: <Widget>[
               Text(
                 cell.title ?? 'Codex Warning',
-                style: Theme.of(
-                  context,
-                ).textTheme.labelMedium?.copyWith(color: AleraTokens.warning),
+                style: Theme.of(context).textTheme.labelMedium
+                    ?.copyWith(color: AleraTokens.warning),
               ),
               const SizedBox(height: AleraTokens.space2),
               _MobileCodexMarkdown(text: cell.displayText),
@@ -142,9 +140,8 @@ class _MobileMcpStatus extends StatelessWidget {
               else
                 Text(
                   cell.status == 'failed' ? 'Failed' : 'Ready',
-                  style: Theme.of(
-                    context,
-                  ).textTheme.labelSmall?.copyWith(color: tone),
+                  style: Theme.of(context).textTheme.labelSmall
+                      ?.copyWith(color: tone),
                 ),
             ],
           ),

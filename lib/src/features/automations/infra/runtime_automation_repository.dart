@@ -16,19 +16,21 @@ class RuntimeAutomationRepository {
     String? tag,
     String? search,
   }) async {
-    final payload = await _client
-        .runtimeRequest('automation.list', <String, Object?>{
-          'includeTrashed': includeTrashed,
-          'state': ?state,
-          'projectId': ?projectId,
-          'profileId': ?profileId,
-          'tag': ?tag,
-          'search': ?search,
-        });
+    final payload = await _client.runtimeRequest(
+      'automation.list',
+      <String, Object?>{
+        'includeTrashed': includeTrashed,
+        'state': ?state,
+        'projectId': ?projectId,
+        'profileId': ?profileId,
+        'tag': ?tag,
+        'search': ?search,
+      },
+    );
     final map = _map(payload);
-    return _list(
-      map['items'],
-    ).map(AutomationRecord.fromJson).toList(growable: false);
+    return _list(map['items'])
+        .map(AutomationRecord.fromJson)
+        .toList(growable: false);
   }
 
   Stream<List<AutomationRecord>> watch() async* {
@@ -86,14 +88,16 @@ class RuntimeAutomationRepository {
     bool draftTest = false,
     int? revision,
   }) async {
-    final payload = await _client
-        .runtimeRequest('automation.runNow', <String, Object?>{
-          'id': id,
-          'precheck': runPrecheck,
-          'overlap': overlap,
-          'draftTest': draftTest,
-          'revision': ?revision,
-        });
+    final payload = await _client.runtimeRequest(
+      'automation.runNow',
+      <String, Object?>{
+        'id': id,
+        'precheck': runPrecheck,
+        'overlap': overlap,
+        'draftTest': draftTest,
+        'revision': ?revision,
+      },
+    );
     return AutomationRunRecord.fromJson(payload);
   }
 
@@ -166,9 +170,9 @@ class RuntimeAutomationRepository {
       'automation.import',
       <String, Object?>{'bundle': bundle, 'remap': remap},
     );
-    return _list(
-      _map(payload)['items'],
-    ).map(AutomationRecord.fromJson).toList(growable: false);
+    return _list(_map(payload)['items'])
+        .map(AutomationRecord.fromJson)
+        .toList(growable: false);
   }
 }
 

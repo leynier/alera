@@ -89,9 +89,8 @@ class _ProjectSetupScreenState extends ConsumerState<ProjectSetupScreen> {
         _origin = 'uiOverride';
         _saving = false;
       });
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Project setup saved')));
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('Project setup saved')));
     } on Object catch (error) {
       if (!mounted) return;
       setState(() => _saving = false);
@@ -158,9 +157,8 @@ class _ProjectSetupScreenState extends ConsumerState<ProjectSetupScreen> {
   }
 
   void _showError(String message) {
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text(message)));
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(message)));
   }
 
   @override

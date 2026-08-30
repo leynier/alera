@@ -93,9 +93,8 @@ class AccountsScreen extends ConsumerWidget {
   }
 
   void _showMessage(BuildContext context, String message) {
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text(message)));
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(message)));
   }
 
   Future<void> _removeAccount(
@@ -168,8 +167,7 @@ class AccountsScreen extends ConsumerWidget {
               if (sessions.isEmpty)
                 AleraEmptyState(
                   title: 'No accounts',
-                  message:
-                      'Sign in directly or add an account from a paired runtime.',
+                  message: 'Sign in directly or add an account from a paired runtime.',
                   icon: Icons.person_add_alt_1_outlined,
                   action: Column(
                     mainAxisSize: MainAxisSize.min,

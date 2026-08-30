@@ -408,9 +408,8 @@ void _registerMobileCodexSessionTests() {
     );
     final container = ProviderContainer(
       overrides: [
-        mobileCodexClientProvider(
-          'host-disposed-prompt',
-        ).overrideWith((ref) async => client),
+        mobileCodexClientProvider('host-disposed-prompt')
+            .overrideWith((ref) async => client),
       ],
     );
     addTearDown(() {

@@ -78,9 +78,8 @@ class WorkspaceFolderOpener {
     if (normalized.isEmpty) {
       return const WorkspaceFolderOpenResult.failure('Path is empty.');
     }
-    if (!await FileSystemEntity.type(
-      normalized,
-    ).then((type) => type != FileSystemEntityType.notFound)) {
+    if (!await FileSystemEntity.type(normalized)
+        .then((type) => type != FileSystemEntityType.notFound)) {
       return const WorkspaceFolderOpenResult.failure('Path was not found.');
     }
 

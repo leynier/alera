@@ -83,24 +83,24 @@ Future<void> showWorkspaceActionsSheet(
                   ListTile(
                     leading: const Icon(AleraIcons.link, size: 20),
                     title: const Text('Set Parent Workspace'),
-                    onTap: () => Navigator.of(
-                      context,
-                    ).pop(_WorkspaceAction.configureParent),
+                    onTap: () =>
+                        Navigator.of(context)
+                            .pop(_WorkspaceAction.configureParent),
                   ),
                   if (workspace.hasParent)
                     ListTile(
                       leading: const Icon(AleraIcons.close, size: 20),
                       title: const Text('Clear Parent Workspace'),
-                      onTap: () => Navigator.of(
-                        context,
-                      ).pop(_WorkspaceAction.unlinkParent),
+                      onTap: () =>
+                          Navigator.of(context)
+                              .pop(_WorkspaceAction.unlinkParent),
                     ),
                   ListTile(
                     leading: const Icon(AleraIcons.external, size: 20),
                     title: const Text('Open in Browser'),
-                    onTap: () => Navigator.of(
-                      context,
-                    ).pop(_WorkspaceAction.openRepository),
+                    onTap: () =>
+                        Navigator.of(context)
+                            .pop(_WorkspaceAction.openRepository),
                   ),
                   ListTile(
                     leading: const Icon(AleraIcons.copy, size: 20),

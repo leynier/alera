@@ -79,9 +79,8 @@ class _MobileWorkingRowState extends State<_MobileWorkingRow>
               text: widget.startedAt == null
                   ? 'Working'
                   : 'Working for ${_mobileElapsed(widget.startedAt!)}',
-              style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                color: AleraTokens.foregroundMuted,
-              ),
+              style: Theme.of(context).textTheme.labelSmall
+                  ?.copyWith(color: AleraTokens.foregroundMuted),
             ),
             if (widget.canToggle) ...<Widget>[
               const SizedBox(width: AleraTokens.space6),
@@ -149,15 +148,13 @@ class _MobileActivityGroup extends StatelessWidget {
                     child: streaming
                         ? _MobileCodexShimmerText(
                             text: summary,
-                            style: Theme.of(
-                              context,
-                            ).textTheme.bodySmall?.copyWith(color: color),
+                            style: Theme.of(context).textTheme.bodySmall
+                                ?.copyWith(color: color),
                           )
                         : Text(
                             summary,
-                            style: Theme.of(
-                              context,
-                            ).textTheme.bodySmall?.copyWith(color: color),
+                            style: Theme.of(context).textTheme.bodySmall
+                                ?.copyWith(color: color),
                           ),
                   ),
                   Icon(
@@ -233,9 +230,8 @@ class _MobileActivityItem extends StatelessWidget {
               label,
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
-              style: Theme.of(
-                context,
-              ).textTheme.bodyMedium?.copyWith(color: color),
+              style: Theme.of(context).textTheme.bodyMedium
+                  ?.copyWith(color: color),
             ),
           ),
           if (cell.kind == 'toolCall' ||

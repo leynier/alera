@@ -61,15 +61,16 @@ void main() {
     () async {
       final service = AleraOrchestrationSetupService(
         skillService: _FakeSkillService(succeeds: true),
-        hookReconciliationService:
-            _FakeHookReconciler(<ManagedAgentHookInstallStatus>[
-              _status(
-                AgentType.codex,
-                ManagedAgentHookInstallState.error,
-                detail: 'conflict',
-              ),
-              _status(AgentType.claude, ManagedAgentHookInstallState.installed),
-            ]),
+        hookReconciliationService: _FakeHookReconciler(
+          <ManagedAgentHookInstallStatus>[
+            _status(
+              AgentType.codex,
+              ManagedAgentHookInstallState.error,
+              detail: 'conflict',
+            ),
+            _status(AgentType.claude, ManagedAgentHookInstallState.installed),
+          ],
+        ),
       );
 
       final result = await service.installOrUpdate(

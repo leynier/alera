@@ -245,19 +245,16 @@ class _HomeQuotaMeterRow extends StatelessWidget {
             Expanded(
               child: Text(
                 quotaMeterDisplayLabel(provider, meter.label),
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: AleraTokens.foregroundMuted,
-                ),
+                style: Theme.of(context).textTheme.bodySmall
+                    ?.copyWith(color: AleraTokens.foregroundMuted),
                 overflow: TextOverflow.ellipsis,
               ),
             ),
             Text(
               meter.displayValue ??
                   '${remaining.toStringAsFixed(0)}% Remaining',
-              style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                color: color,
-                fontWeight: FontWeight.w600,
-              ),
+              style: Theme.of(context).textTheme.labelSmall
+                  ?.copyWith(color: color, fontWeight: FontWeight.w600),
             ),
           ],
         ),
@@ -298,9 +295,8 @@ class _HomeQuotaErrorCard extends StatelessWidget {
           children: <Widget>[
             Text(
               message,
-              style: Theme.of(
-                context,
-              ).textTheme.bodySmall?.copyWith(color: AleraTokens.error),
+              style: Theme.of(context).textTheme.bodySmall
+                  ?.copyWith(color: AleraTokens.error),
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
             ),

@@ -37,9 +37,8 @@ void main() {
     );
     final container = ProviderContainer(
       overrides: [
-        mobileCodexClientProvider(
-          'host-publish',
-        ).overrideWith((ref) async => client),
+        mobileCodexClientProvider('host-publish')
+            .overrideWith((ref) async => client),
       ],
     );
     addTearDown(() {
@@ -139,9 +138,8 @@ void main() {
       );
       final container = ProviderContainer(
         overrides: [
-          mobileCodexClientProvider(
-            'host-build',
-          ).overrideWith((ref) async => client),
+          mobileCodexClientProvider('host-build')
+              .overrideWith((ref) async => client),
         ],
       );
       addTearDown(() {
@@ -202,9 +200,8 @@ void main() {
       );
       final container = ProviderContainer(
         overrides: [
-          mobileCodexClientProvider(
-            'host-configure',
-          ).overrideWith((ref) async => client),
+          mobileCodexClientProvider('host-configure')
+              .overrideWith((ref) async => client),
           mobileCodexPreferencesRepositoryProvider.overrideWithValue(
             const _TestPreferencesRepository(),
           ),
@@ -334,9 +331,8 @@ void main() {
     );
     final container = ProviderContainer(
       overrides: [
-        mobileCodexClientProvider(
-          'host-model-failure',
-        ).overrideWith((ref) async => client),
+        mobileCodexClientProvider('host-model-failure')
+            .overrideWith((ref) async => client),
       ],
     );
     addTearDown(() {
@@ -394,9 +390,8 @@ void main() {
       );
       final container = ProviderContainer(
         overrides: [
-          mobileCodexClientProvider(
-            'host-mode-failure',
-          ).overrideWith((ref) async => client),
+          mobileCodexClientProvider('host-mode-failure')
+              .overrideWith((ref) async => client),
         ],
       );
       addTearDown(() {

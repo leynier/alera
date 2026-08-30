@@ -160,21 +160,18 @@ class _AiDictationRemoteSettingsState
       key: widget.groupKey,
       child: AleraSettingsGroup(
         title: 'Remote Transcription',
-        description:
-            'Send recordings to Codex or an OpenAI-compatible speech API. Transcription endpoints do not use reasoning effort.',
+        description: 'Send recordings to Codex or an OpenAI-compatible speech API. Transcription endpoints do not use reasoning effort.',
         children: <Widget>[
           if (!widget.supported)
             const AleraSettingRow(
               title: 'Runtime Update Required',
-              description:
-                  'Restart Alera to replace the running sidecar before configuring remote transcription.',
+              description: 'Restart Alera to replace the running sidecar before configuring remote transcription.',
               child: SizedBox.shrink(),
             ),
           if (widget.supported) ...<Widget>[
             SettingsSwitchRow(
               title: 'Allow Remote Audio Processing',
-              description:
-                  'Recordings may leave this device and are deleted locally after transcription.',
+              description: 'Recordings may leave this device and are deleted locally after transcription.',
               value:
                   settings.remoteConsentVersion ==
                   aiDictationRemoteConsentVersion,
@@ -189,8 +186,7 @@ class _AiDictationRemoteSettingsState
             if (usesCodex)
               SettingsTextRow(
                 title: 'Realtime Model',
-                description:
-                    'Optional Codex realtime model override. Leave blank to use the subscription default. This Codex API is experimental.',
+                description: 'Optional Codex realtime model override. Leave blank to use the subscription default. This Codex API is experimental.',
                 value: settings.codexRealtimeModel ?? '',
                 hintText: 'Subscription default',
                 onChanged: (value) => widget.onChanged(
@@ -202,8 +198,7 @@ class _AiDictationRemoteSettingsState
             if (usesOpenAi) ...<Widget>[
               SettingsTextRow(
                 title: 'Base URL',
-                description:
-                    'Base API URL. Alera appends /audio/transcriptions when needed and preserves query parameters.',
+                description: 'Base API URL. Alera appends /audio/transcriptions when needed and preserves query parameters.',
                 value: settings.remoteBaseUrl ?? '',
                 hintText: 'https://api.openai.com/v1',
                 onChanged: (value) => widget.onChanged(
@@ -256,8 +251,7 @@ class _AiDictationRemoteSettingsState
                   : 'No token is stored. Tokenless local APIs are also supported.');
     return AleraSettingRow(
       title: 'API Token',
-      description:
-          'Optional Bearer token. It uses the system credential store, with a private 0600 file fallback on Linux, and is never stored in Settings.',
+      description: 'Optional Bearer token. It uses the system credential store, with a private 0600 file fallback on Linux, and is never stored in Settings.',
       controlWidth: 360,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,

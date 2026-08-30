@@ -104,9 +104,8 @@ class _RecordingBar extends StatelessWidget {
                 const SizedBox(width: AleraTokens.space4),
                 Text(
                   '${state.segmentCount} segments',
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: AleraTokens.foregroundMuted,
-                  ),
+                  style: Theme.of(context).textTheme.bodySmall
+                      ?.copyWith(color: AleraTokens.foregroundMuted),
                 ),
               ],
               const SizedBox(width: AleraTokens.space8),
@@ -158,9 +157,8 @@ class _RecordingBar extends StatelessWidget {
               alignment: Alignment.centerLeft,
               child: Text(
                 warning,
-                style: Theme.of(
-                  context,
-                ).textTheme.bodySmall?.copyWith(color: AleraTokens.warning),
+                style: Theme.of(context).textTheme.bodySmall
+                    ?.copyWith(color: AleraTokens.warning),
               ),
             ),
         ],

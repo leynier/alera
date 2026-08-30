@@ -141,9 +141,8 @@ void _registerMobileCodexReviewRegression6Tests() {
     );
     final container = ProviderContainer(
       overrides: [
-        mobileCodexClientProvider(
-          'host-remounted-draft',
-        ).overrideWith((ref) async => client),
+        mobileCodexClientProvider('host-remounted-draft')
+            .overrideWith((ref) async => client),
       ],
     );
     addTearDown(() {

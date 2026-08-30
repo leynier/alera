@@ -29,9 +29,8 @@ class AleraBadge extends StatelessWidget {
         label,
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
-        style: Theme.of(context).textTheme.labelSmall?.copyWith(
-          color: foregroundColor ?? AleraTokens.foregroundMuted,
-        ),
+        style: Theme.of(context).textTheme.labelSmall
+            ?.copyWith(color: foregroundColor ?? AleraTokens.foregroundMuted),
       ),
     );
   }

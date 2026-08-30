@@ -42,9 +42,8 @@ class _CodexPlanProgressIndicator extends StatelessWidget {
                 const SizedBox(width: AleraTokens.space8),
                 Text(
                   'Step ${progress.current} / ${progress.steps.length}',
-                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                    color: AleraTokens.foregroundMuted,
-                  ),
+                  style: Theme.of(context).textTheme.titleSmall
+                      ?.copyWith(color: AleraTokens.foregroundMuted),
                 ),
               ],
             ),
@@ -165,9 +164,8 @@ class _CodexPlanProgressCard extends StatelessWidget {
                 Expanded(
                   child: Text(
                     step,
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: AleraTokens.foregroundMuted,
-                    ),
+                    style: Theme.of(context).textTheme.bodySmall
+                        ?.copyWith(color: AleraTokens.foregroundMuted),
                   ),
                 ),
               ],

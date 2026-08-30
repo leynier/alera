@@ -425,9 +425,8 @@ class _CodexPromptHeader extends StatelessWidget {
       Expanded(
         child: Text(
           title,
-          style: Theme.of(
-            context,
-          ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
+          style: Theme.of(context).textTheme.titleSmall
+              ?.copyWith(fontWeight: FontWeight.w600),
         ),
       ),
       if (pageCount > 1) ...<Widget>[
@@ -442,9 +441,8 @@ class _CodexPromptHeader extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: AleraTokens.space4),
           child: Text(
             '${page + 1} of $pageCount',
-            style: Theme.of(context).textTheme.labelSmall?.copyWith(
-              color: AleraTokens.foregroundMuted,
-            ),
+            style: Theme.of(context).textTheme.labelSmall
+                ?.copyWith(color: AleraTokens.foregroundMuted),
           ),
         ),
         AleraIconButton(

@@ -7,53 +7,48 @@ ConfigurationDocument doc(JsonMap desktop, {JsonMap? mobile}) =>
       if (mobile != null) 'mobile': mobile,
     });
 void main() {
-  test(
-    'profiles use stable ids, expose ordering and reject duplicate names or missing defaults',
-    () {
-      ConfigurationDocument profiles(List<JsonMap> items) =>
-          ConfigurationDocument.empty().withBlocks({
-            'shared': {'agentProfiles': portableCatalog(items)},
-          });
-      const one = {'id': 'a', 'name': 'One', 'command': 'agent'};
-      const two = {'id': 'b', 'name': 'Two', 'command': 'agent'};
-      final merge = ConfigurationMerge(
-        base: profiles([one, two]),
-        local: profiles([
-          two,
-          {...one, 'command': 'agent --local'},
+  test('profiles use stable ids, expose ordering and reject duplicate names or missing defaults', () {
+    ConfigurationDocument profiles(List<JsonMap> items) =>
+        ConfigurationDocument.empty().withBlocks({
+          'shared': {'agentProfiles': portableCatalog(items)},
+        });
+    const one = {'id': 'a', 'name': 'One', 'command': 'agent'};
+    const two = {'id': 'b', 'name': 'Two', 'command': 'agent'};
+    final merge = ConfigurationMerge(
+      base: profiles([one, two]),
+      local: profiles([
+        two,
+        {...one, 'command': 'agent --local'},
+      ]),
+      remote: profiles([
+        {...one, 'name': 'Renamed'},
+        two,
+      ]),
+    );
+    final result = merge.resolve();
+    final items = catalogItems(jsonMap(result.json['shared'])['agentProfiles']);
+    expect(items.map((p) => p['id']), ['b', 'a']);
+    expect(items.last['name'], 'Renamed');
+    expect(items.last['command'], 'agent --local');
+    expect(
+      validateConfiguration(
+        profiles([
+          one,
+          {...two, 'name': 'one'},
         ]),
-        remote: profiles([
-          {...one, 'name': 'Renamed'},
-          two,
-        ]),
-      );
-      final result = merge.resolve();
-      final items = catalogItems(
-        jsonMap(result.json['shared'])['agentProfiles'],
-      );
-      expect(items.map((p) => p['id']), ['b', 'a']);
-      expect(items.last['name'], 'Renamed');
-      expect(items.last['command'], 'agent --local');
-      expect(
-        validateConfiguration(
-          profiles([
-            one,
-            {...two, 'name': 'one'},
-          ]),
-        ),
-        isNotEmpty,
-      );
-      final missing = result.withBlocks({
-        'desktop': {
-          'settings': {
-            'agents': {'defaultAgentProfileId': 'missing'},
-          },
+      ),
+      isNotEmpty,
+    );
+    final missing = result.withBlocks({
+      'desktop': {
+        'settings': {
+          'agents': {'defaultAgentProfileId': 'missing'},
         },
-      });
-      expect(validateConfiguration(missing), isNotEmpty);
-      expect(validateConfiguration(missing, ownedBlocks: {'mobile'}), isEmpty);
-    },
-  );
+      },
+    });
+    expect(validateConfiguration(missing), isNotEmpty);
+    expect(validateConfiguration(missing, ownedBlocks: {'mobile'}), isEmpty);
+  });
   test('independent edits survive and conflicts require a decision', () {
     final merge = ConfigurationMerge(
       base: doc({'font': 12, 'theme': 'dark'}),

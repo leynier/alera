@@ -17,8 +17,7 @@ extension _ManagedAgentHookDescriptors on ManagedAgentHookInstallService {
       state: ManagedAgentHookInstallState.notInstalled,
       configPath: p.join(_homeDirectory, '.claude', 'settings.json'),
       managedHooksPresent: false,
-      detail:
-          'Claude Code hooks are installed only in Alera-managed runtime homes.',
+      detail: 'Claude Code hooks are installed only in Alera-managed runtime homes.',
     );
   }
 
@@ -28,8 +27,7 @@ extension _ManagedAgentHookDescriptors on ManagedAgentHookInstallService {
       state: ManagedAgentHookInstallState.notInstalled,
       configPath: p.join(_homeDirectory, '.cursor', 'hooks.json'),
       managedHooksPresent: false,
-      detail:
-          'Cursor hooks are installed as a per-session plugin, never in this file.',
+      detail: 'Cursor hooks are installed as a per-session plugin, never in this file.',
     );
   }
 
@@ -39,8 +37,7 @@ extension _ManagedAgentHookDescriptors on ManagedAgentHookInstallService {
       state: ManagedAgentHookInstallState.notInstalled,
       configPath: p.join(_homeDirectory, '.fx'),
       managedHooksPresent: false,
-      detail:
-          'fx reports status through its built-in local Herdr integration, so no user hooks are installed.',
+      detail: 'fx reports status through its built-in local Herdr integration, so no user hooks are installed.',
     );
   }
 

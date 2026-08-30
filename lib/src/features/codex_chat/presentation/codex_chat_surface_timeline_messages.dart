@@ -111,9 +111,8 @@ class _CodexUserMessageState extends State<_CodexUserMessage> {
                       padding: const EdgeInsets.only(top: AleraTokens.space4),
                       child: Text(
                         widget.cell.isStreaming ? 'Steering...' : 'Steered',
-                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                          color: AleraTokens.foregroundFaint,
-                        ),
+                        style: Theme.of(context).textTheme.labelSmall
+                            ?.copyWith(color: AleraTokens.foregroundFaint),
                       ),
                     ),
                   if (goal)
@@ -237,9 +236,8 @@ class _CodexProgressMessage extends StatelessWidget {
         vertical: AleraTokens.space2,
       ),
       child: DefaultTextStyle.merge(
-        style: Theme.of(
-          context,
-        ).textTheme.bodyMedium?.copyWith(color: AleraTokens.foregroundMuted),
+        style: Theme.of(context).textTheme.bodyMedium
+            ?.copyWith(color: AleraTokens.foregroundMuted),
         child: _CodexMarkdownText(text: text),
       ),
     );

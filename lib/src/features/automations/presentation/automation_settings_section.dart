@@ -106,13 +106,11 @@ class _AutomationSettingsSectionState
     }
     return AleraSettingsGroup(
       title: 'Automation History And Autostart',
-      description:
-          'Keep scheduled work available without a window and control local retention.',
+      description: 'Keep scheduled work available without a window and control local retention.',
       children: <Widget>[
         SettingsSwitchRow(
           title: 'Start Automations At Login',
-          description:
-              'Start the persistent local automation host when you sign in. This is off by default.',
+          description: 'Start the persistent local automation host when you sign in. This is off by default.',
           value: _autostart,
           onChanged: (value) {
             setState(() => _autostart = value);

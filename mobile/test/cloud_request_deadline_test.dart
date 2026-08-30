@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+
 import 'package:alera_mobile/src/features/accounts/infra/alera_cloud_api.dart';
 import 'package:alera_mobile/src/features/runtime/domain/connection_attempt.dart';
 import 'package:flutter_test/flutter_test.dart';

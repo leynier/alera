@@ -82,9 +82,8 @@ class MobileEmulatorFailure extends StatelessWidget {
                 Text(
                   detail,
                   textAlign: TextAlign.center,
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: AleraTokens.foregroundMuted,
-                  ),
+                  style: Theme.of(context).textTheme.bodySmall
+                      ?.copyWith(color: AleraTokens.foregroundMuted),
                 ),
                 for (final step in exception?.nextSteps ?? const <String>[])
                   Padding(
@@ -92,9 +91,8 @@ class MobileEmulatorFailure extends StatelessWidget {
                     child: Text(
                       step,
                       textAlign: TextAlign.center,
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: AleraTokens.foregroundMuted,
-                      ),
+                      style: Theme.of(context).textTheme.bodySmall
+                          ?.copyWith(color: AleraTokens.foregroundMuted),
                     ),
                   ),
               ],

@@ -91,8 +91,7 @@ class AiDictationSettingsPane extends ConsumerWidget {
                 ),
                 SettingsTextRow(
                   title: 'Language',
-                  description:
-                      'Optional locale or language code. Leave blank for automatic detection.',
+                  description: 'Optional locale or language code. Leave blank for automatic detection.',
                   value: settings.language ?? '',
                   hintText: 'en-US',
                   onChanged: (value) => onChanged(
@@ -134,8 +133,7 @@ class AiDictationSettingsPane extends ConsumerWidget {
             key: groupKeys['models'],
             child: AleraSettingsGroup(
               title: 'Local Whisper Models',
-              description:
-                  'Install multiple multilingual models and select one for local transcription.',
+              description: 'Install multiple multilingual models and select one for local transcription.',
               children: <Widget>[
                 for (final model in AiDictationModelStore.models)
                   _WhisperModelRow(
@@ -167,13 +165,11 @@ class AiDictationSettingsPane extends ConsumerWidget {
             key: groupKeys['processing'],
             child: AleraSettingsGroup(
               title: 'Speech Processing',
-              description:
-                  'Optionally improve the transcript with the agent subscription configured for Speech Messages in AI Assist settings.',
+              description: 'Optionally improve the transcript with the agent subscription configured for Speech Messages in AI Assist settings.',
               children: <Widget>[
                 AleraSettingRow(
                   title: 'Automatic Processing',
-                  description:
-                      'Raw text is always used if the selected agent is unavailable or fails.',
+                  description: 'Raw text is always used if the selected agent is unavailable or fails.',
                   child: AleraDropdownField<AiDictationRewriteMode>(
                     value: settings.rewriteMode,
                     entries:
@@ -353,8 +349,7 @@ String _engineDescription(
 ) => switch (engine) {
   AiDictationTranscriptionEngine.localWhisper =>
     'Record locally and transcribe with the selected Whisper model.',
-  AiDictationTranscriptionEngine.codexSubscription =>
-    'Use the experimental Codex app-server realtime API with your Codex subscription.',
+  AiDictationTranscriptionEngine.codexSubscription => 'Use the experimental Codex app-server realtime API with your Codex subscription.',
   AiDictationTranscriptionEngine.openAiCompatible =>
     'Send recordings to an OpenAI-compatible audio transcription endpoint.',
   AiDictationTranscriptionEngine.systemOnDevice =>

@@ -97,9 +97,9 @@ class _GroupCluster extends StatelessWidget {
     final theme = Theme.of(context);
     const iconSize = MobileWorkspaceAgentCompactSummary._iconSize;
     const overlap = MobileWorkspaceAgentCompactSummary._iconOverlap;
-    final iconRuns = _representativeRunsByAgentType(
-      group.runs,
-    ).take(MobileWorkspaceAgentCompactSummary._maxIconsPerGroup).toList();
+    final iconRuns = _representativeRunsByAgentType(group.runs)
+        .take(MobileWorkspaceAgentCompactSummary._maxIconsPerGroup)
+        .toList();
     final hiddenCount = group.runs.length - iconRuns.length;
     final width = iconSize + (iconRuns.length - 1) * (iconSize - overlap);
     return Row(

@@ -217,9 +217,8 @@ extension on CliAiAssistAgentRunner {
   }
 
   List<String> _tokenizeCommandTemplate(String template) {
-    final matches = RegExp(
-      r'''"([^"]*)"|'([^']*)'|(\S+)''',
-    ).allMatches(template);
+    final matches = RegExp(r'''"([^"]*)"|'([^']*)'|(\S+)''')
+        .allMatches(template);
     return matches
         .map((match) => match.group(1) ?? match.group(2) ?? match.group(3)!)
         .toList(growable: false);

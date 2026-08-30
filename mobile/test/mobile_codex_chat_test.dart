@@ -231,174 +231,169 @@ void main() {
     );
   });
 
-  test(
-    'mobile controller exposes catalogues, options, questions and queue actions',
-    () async {
-      final client = _FakeMobileCodexClient();
-      final container = ProviderContainer(
-        overrides: [
-          mobileCodexClientProvider(
-            'host-1',
-          ).overrideWith((ref) async => client),
-        ],
-      );
-      addTearDown(() {
-        client.dispose();
-        container.dispose();
-      });
-      final provider = mobileCodexControllerProvider('host-1', 'tab-1');
-      final listener = container.listen(
-        provider,
-        (_, _) {},
-        fireImmediately: true,
-      );
-      addTearDown(listener.close);
-      await container.read(provider.future);
-      final controller = container.read(provider.notifier);
-      var state = container.read(provider).value!;
-      expect(state.selectedModel, 'gpt-current');
-      expect(state.models.single.contextWindowTokens, 128000);
-      expect(state.models.single.reasoningEfforts, <String>['xhigh', 'low']);
-      expect(state.models.single.defaultReasoningEffort, 'low');
-      expect(state.models.single.supportsFastMode, isTrue);
-      expect(state.reasoningEffort, 'low');
-      expect(state.skills.single['name'], 'review');
-      expect(state.apps.single['name'], 'filesystem');
-      final question = state.pendingRequests.firstWhere(
-        (request) => request.isQuestion,
-      );
-      expect(question.questions.single.options, hasLength(2));
+  test('mobile controller exposes catalogues, options, questions and queue actions', () async {
+    final client = _FakeMobileCodexClient();
+    final container = ProviderContainer(
+      overrides: [
+        mobileCodexClientProvider('host-1').overrideWith((ref) async => client),
+      ],
+    );
+    addTearDown(() {
+      client.dispose();
+      container.dispose();
+    });
+    final provider = mobileCodexControllerProvider('host-1', 'tab-1');
+    final listener = container.listen(
+      provider,
+      (_, _) {},
+      fireImmediately: true,
+    );
+    addTearDown(listener.close);
+    await container.read(provider.future);
+    final controller = container.read(provider.notifier);
+    var state = container.read(provider).value!;
+    expect(state.selectedModel, 'gpt-current');
+    expect(state.models.single.contextWindowTokens, 128000);
+    expect(state.models.single.reasoningEfforts, <String>['xhigh', 'low']);
+    expect(state.models.single.defaultReasoningEffort, 'low');
+    expect(state.models.single.supportsFastMode, isTrue);
+    expect(state.reasoningEffort, 'low');
+    expect(state.skills.single['name'], 'review');
+    expect(state.apps.single['name'], 'filesystem');
+    final question = state.pendingRequests.firstWhere(
+      (request) => request.isQuestion,
+    );
+    expect(question.questions.single.options, hasLength(2));
 
-      await controller.respondQuestion(question, <String, List<String>>{
-        'mode': <String>['Careful'],
-      });
-      expect(client.calls.last.payload['result'], <String, Object?>{
-        'answers': <String, Object?>{
-          'mode': <String, Object?>{
-            'answers': <String>['Careful'],
-          },
+    await controller.respondQuestion(question, <String, List<String>>{
+      'mode': <String>['Careful'],
+    });
+    expect(client.calls.last.payload['result'], <String, Object?>{
+      'answers': <String, Object?>{
+        'mode': <String, Object?>{
+          'answers': <String>['Careful'],
         },
-      });
-      final approval = state.pendingRequests.firstWhere(
-        (request) => request.isApproval,
-      );
-      await controller.respondApproval(
-        approval,
-        decision: approval.approvalDecisionValue('acceptForSession'),
-      );
-      expect(client.calls.last.payload['result'], <String, Object?>{
-        'decision': 'acceptForSession',
-      });
-      final mcp = state.pendingRequests.firstWhere(
-        (request) => request.isElicitation,
-      );
-      await controller.respondElicitation(
-        mcp,
-        action: 'accept',
-        content: const <String, Object?>{'name': 'Alera'},
-      );
-      expect(client.calls.last.payload['result'], <String, Object?>{
-        'action': 'accept',
-        'content': <String, Object?>{'name': 'Alera'},
-      });
-      await controller.send('first');
-      client.emit(
-        const MobileRuntimeEvent('codexThreadChanged', <String, Object?>{
-          'tabId': 'tab-1',
-          'snapshot': <String, Object?>{'activeTurnId': 'turn-1'},
-        }),
-      );
-      await Future<void>.delayed(Duration.zero);
-      await controller.send('queued');
-      state = container.read(provider).value!;
-      expect(state.queuedMessages.single['text'], 'queued');
-      controller.editQueuedMessage(0, 'edited');
-      expect(
-        container.read(provider).value!.queuedMessages.single['text'],
-        'edited',
-      );
-      controller.removeQueuedMessage(0);
-      expect(container.read(provider).value!.queuedMessages, isEmpty);
-      controller.setSpeed('fast');
-      controller.setPermissionMode('never');
-      controller.setPlanMode(true);
-      await controller.review(target: 'baseBranch', delivery: 'inline');
-      await controller.rename('Renamed Thread');
-      expect(
-        client.calls.any((call) => call.type == 'codex.review.start'),
-        isTrue,
-      );
-      expect(
-        client.calls.any((call) => call.type == 'codex.thread.rename'),
-        isTrue,
-      );
-      final turn = client.calls.lastWhere(
-        (call) => call.type == 'codex.turn.start',
-      );
-      expect(turn.payload['clientUserMessageId'], isA<String>());
-      client.emit(
-        const MobileRuntimeEvent('codexThreadChanged', <String, Object?>{
-          'tabId': 'tab-1',
-          'snapshot': <String, Object?>{},
-        }),
-      );
-      await Future<void>.delayed(Duration.zero);
-      await controller.send('/app filesystem Open the selected file');
-      final appTurn = client.calls.lastWhere(
-        (call) => call.type == 'codex.turn.start',
-      );
-      expect((appTurn.payload['input'] as List).first, <String, Object?>{
-        'type': 'mention',
-        'name': 'filesystem',
-        'path': 'app://connector-filesystem',
-      });
-      expect((appTurn.payload['input'] as List)[1], <String, Object?>{
-        'type': 'text',
-        'text': r'$filesystem Open the selected file',
-      });
-      await controller.send('/skill review');
-      final skillTurn = client.calls.lastWhere(
-        (call) => call.type == 'codex.turn.start',
-      );
-      expect((skillTurn.payload['input'] as List).first, <String, Object?>{
-        'type': 'skill',
-        'name': 'review',
-        'path': '/skills/review',
-      });
-      expect((skillTurn.payload['input'] as List)[1], <String, Object?>{
-        'type': 'text',
-        'text': r'$review',
-      });
+      },
+    });
+    final approval = state.pendingRequests.firstWhere(
+      (request) => request.isApproval,
+    );
+    await controller.respondApproval(
+      approval,
+      decision: approval.approvalDecisionValue('acceptForSession'),
+    );
+    expect(client.calls.last.payload['result'], <String, Object?>{
+      'decision': 'acceptForSession',
+    });
+    final mcp = state.pendingRequests.firstWhere(
+      (request) => request.isElicitation,
+    );
+    await controller.respondElicitation(
+      mcp,
+      action: 'accept',
+      content: const <String, Object?>{'name': 'Alera'},
+    );
+    expect(client.calls.last.payload['result'], <String, Object?>{
+      'action': 'accept',
+      'content': <String, Object?>{'name': 'Alera'},
+    });
+    await controller.send('first');
+    client.emit(
+      const MobileRuntimeEvent('codexThreadChanged', <String, Object?>{
+        'tabId': 'tab-1',
+        'snapshot': <String, Object?>{'activeTurnId': 'turn-1'},
+      }),
+    );
+    await Future<void>.delayed(Duration.zero);
+    await controller.send('queued');
+    state = container.read(provider).value!;
+    expect(state.queuedMessages.single['text'], 'queued');
+    controller.editQueuedMessage(0, 'edited');
+    expect(
+      container.read(provider).value!.queuedMessages.single['text'],
+      'edited',
+    );
+    controller.removeQueuedMessage(0);
+    expect(container.read(provider).value!.queuedMessages, isEmpty);
+    controller.setSpeed('fast');
+    controller.setPermissionMode('never');
+    controller.setPlanMode(true);
+    await controller.review(target: 'baseBranch', delivery: 'inline');
+    await controller.rename('Renamed Thread');
+    expect(
+      client.calls.any((call) => call.type == 'codex.review.start'),
+      isTrue,
+    );
+    expect(
+      client.calls.any((call) => call.type == 'codex.thread.rename'),
+      isTrue,
+    );
+    final turn = client.calls.lastWhere(
+      (call) => call.type == 'codex.turn.start',
+    );
+    expect(turn.payload['clientUserMessageId'], isA<String>());
+    client.emit(
+      const MobileRuntimeEvent('codexThreadChanged', <String, Object?>{
+        'tabId': 'tab-1',
+        'snapshot': <String, Object?>{},
+      }),
+    );
+    await Future<void>.delayed(Duration.zero);
+    await controller.send('/app filesystem Open the selected file');
+    final appTurn = client.calls.lastWhere(
+      (call) => call.type == 'codex.turn.start',
+    );
+    expect((appTurn.payload['input'] as List).first, <String, Object?>{
+      'type': 'mention',
+      'name': 'filesystem',
+      'path': 'app://connector-filesystem',
+    });
+    expect((appTurn.payload['input'] as List)[1], <String, Object?>{
+      'type': 'text',
+      'text': r'$filesystem Open the selected file',
+    });
+    await controller.send('/skill review');
+    final skillTurn = client.calls.lastWhere(
+      (call) => call.type == 'codex.turn.start',
+    );
+    expect((skillTurn.payload['input'] as List).first, <String, Object?>{
+      'type': 'skill',
+      'name': 'review',
+      'path': '/skills/review',
+    });
+    expect((skillTurn.payload['input'] as List)[1], <String, Object?>{
+      'type': 'text',
+      'text': r'$review',
+    });
 
-      controller.setPlanMode(true);
-      await controller.implementPlan();
-      final implementationTurn = client.calls.lastWhere(
-        (call) => call.type == 'codex.turn.start',
-      );
-      expect(container.read(provider).value!.planMode, isFalse);
-      expect(implementationTurn.payload['collaborationMode'], <String, Object?>{
-        'mode': 'default',
-        'settings': <String, Object?>{
-          'model': 'gpt-current',
-          'reasoning_effort': 'low',
-        },
-      });
-      expect(
-        (implementationTurn.payload['input'] as List).last,
-        <String, Object?>{'type': 'text', 'text': 'Implement plan'},
-      );
+    controller.setPlanMode(true);
+    await controller.implementPlan();
+    final implementationTurn = client.calls.lastWhere(
+      (call) => call.type == 'codex.turn.start',
+    );
+    expect(container.read(provider).value!.planMode, isFalse);
+    expect(implementationTurn.payload['collaborationMode'], <String, Object?>{
+      'mode': 'default',
+      'settings': <String, Object?>{
+        'model': 'gpt-current',
+        'reasoning_effort': 'low',
+      },
+    });
+    expect(
+      (implementationTurn.payload['input'] as List).last,
+      <String, Object?>{'type': 'text', 'text': 'Implement plan'},
+    );
 
-      await controller.refinePlan('Add tests first');
-      final refinementTurn = client.calls.lastWhere(
-        (call) => call.type == 'codex.turn.start',
-      );
-      expect(container.read(provider).value!.planMode, isTrue);
-      expect(
-        refinementTurn.payload['collaborationMode'],
-        isA<Map<String, Object?>>(),
-      );
-    },
-  );
+    await controller.refinePlan('Add tests first');
+    final refinementTurn = client.calls.lastWhere(
+      (call) => call.type == 'codex.turn.start',
+    );
+    expect(container.read(provider).value!.planMode, isTrue);
+    expect(
+      refinementTurn.payload['collaborationMode'],
+      isA<Map<String, Object?>>(),
+    );
+  });
 
   testWidgets('mobile screen renders rich timeline and the current request', (
     tester,
@@ -408,9 +403,8 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
-          mobileCodexClientProvider(
-            'host-1',
-          ).overrideWith((ref) async => client),
+          mobileCodexClientProvider('host-1')
+              .overrideWith((ref) async => client),
         ],
         child: const MaterialApp(
           home: Scaffold(

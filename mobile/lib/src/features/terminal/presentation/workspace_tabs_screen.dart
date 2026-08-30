@@ -1,4 +1,5 @@
 import 'dart:async';
+
 import 'package:alera_mobile/src/features/runtime/domain/runtime_client_surfaces.dart';
 
 import 'package:alera_mobile/src/app/theme/alera_tokens.dart';
@@ -368,9 +369,8 @@ class _WorkspaceTabsScreenState extends ConsumerState<WorkspaceTabsScreen> {
         previous,
         next,
       ) {
-        if (next case AsyncError(
-          :final error,
-        ) when error is DesktopReclaimedTerminal) {
+        if (next case AsyncError(:final error)
+            when error is DesktopReclaimedTerminal) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Desktop took back the terminal')),
           );

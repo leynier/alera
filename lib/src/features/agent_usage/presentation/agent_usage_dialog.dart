@@ -140,8 +140,7 @@ class AgentUsageDialogView extends StatelessWidget {
                       const _UsageLoadStatus(
                         icon: AleraIcons.sync,
                         label: 'Updating',
-                        tooltip:
-                            'Showing saved usage while new data loads in the background.',
+                        tooltip: 'Showing saved usage while new data loads in the background.',
                       ),
                     ] else if (error != null && snapshot != null) ...<Widget>[
                       const SizedBox(width: AleraTokens.space12),

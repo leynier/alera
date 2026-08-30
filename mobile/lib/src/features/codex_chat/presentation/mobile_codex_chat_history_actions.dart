@@ -147,8 +147,8 @@ extension _MobileCodexHistoryActions on _MobileCodexChatScreenState {
 
   void _scrollToBottom() => _scheduleTimelinePin(animate: true);
 
-  Future<void> _openPlan(MobileCodexTimelineCell cell) =>
-      Navigator.of(context).push(
+  Future<void> _openPlan(MobileCodexTimelineCell cell) => Navigator.of(context)
+      .push(
         MaterialPageRoute<void>(
           builder: (context) => _MobileExpandedPlanScreen(
             hostId: widget.hostId,

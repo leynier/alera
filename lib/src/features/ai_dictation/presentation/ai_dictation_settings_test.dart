@@ -42,8 +42,7 @@ class _AiDictationSettingsTestState extends State<AiDictationSettingsTest> {
       key: widget.groupKey,
       child: AleraSettingsGroup(
         title: 'Test AI Dictation',
-        description:
-            'Record a short sample with the current configuration and review the transcript here.',
+        description: 'Record a short sample with the current configuration and review the transcript here.',
         children: <Widget>[
           AleraSettingRow(
             title: 'Test Transcript',

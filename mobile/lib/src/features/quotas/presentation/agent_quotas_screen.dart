@@ -93,9 +93,8 @@ class _QuotaList extends ConsumerWidget {
         children: <Widget>[
           Text(
             'Updated ${_relativeTime(state.fetchedAt)}',
-            style: Theme.of(
-              context,
-            ).textTheme.bodySmall?.copyWith(color: AleraTokens.foregroundMuted),
+            style: Theme.of(context).textTheme.bodySmall
+                ?.copyWith(color: AleraTokens.foregroundMuted),
           ),
           const SizedBox(height: AleraTokens.spaceMd),
           if (snapshots.isEmpty)
@@ -194,14 +193,12 @@ class _QuotaCardState extends ConsumerState<_QuotaCard> {
           .read(agentQuotaControllerProvider(widget.hostId).notifier)
           .consumeCodexResetCredit(widget.snapshot);
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(_codexResetMessage(result))));
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(_codexResetMessage(result))));
     } on Object catch (error) {
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Codex reset failed: $error')));
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text('Codex reset failed: $error')));
     } finally {
       if (mounted) setState(() => _usingReset = false);
     }
@@ -312,9 +309,8 @@ class _QuotaCardState extends ConsumerState<_QuotaCard> {
                           try {
                             await ref
                                 .read(
-                                  agentQuotaControllerProvider(
-                                    widget.hostId,
-                                  ).notifier,
+                                  agentQuotaControllerProvider(widget.hostId)
+                                      .notifier,
                                 )
                                 .tryClaudeWithTui(snapshot);
                           } finally {
@@ -408,9 +404,8 @@ class _QuotaMeterRow extends StatelessWidget {
           Text(
             label,
             textAlign: TextAlign.right,
-            style: Theme.of(
-              context,
-            ).textTheme.bodySmall?.copyWith(color: AleraTokens.foregroundMuted),
+            style: Theme.of(context).textTheme.bodySmall
+                ?.copyWith(color: AleraTokens.foregroundMuted),
           ),
         ],
       ],

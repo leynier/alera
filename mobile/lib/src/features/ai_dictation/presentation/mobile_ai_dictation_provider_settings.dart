@@ -36,9 +36,8 @@ class MobileAiDictationProviderSettings extends StatelessWidget {
           settings.location == MobileAiDictationLocation.thisDevice
               ? 'Configure the API called directly by this mobile app.'
               : 'Configure the provider called by the paired runtime.',
-          style: Theme.of(
-            context,
-          ).textTheme.bodySmall?.copyWith(color: AleraTokens.foregroundMuted),
+          style: Theme.of(context).textTheme.bodySmall
+              ?.copyWith(color: AleraTokens.foregroundMuted),
         ),
         const SizedBox(height: AleraTokens.spaceSm),
         Card(
@@ -147,9 +146,8 @@ class _DirectTokenFieldState extends ConsumerState<_DirectTokenField> {
     } on Object catch (error) {
       _credentialLog.warning('mobile dictation token save failed', error);
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(error.toString())));
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(error.toString())));
       }
     }
   }
@@ -161,9 +159,8 @@ class _DirectTokenFieldState extends ConsumerState<_DirectTokenField> {
     } on Object catch (error) {
       _credentialLog.warning('mobile dictation token removal failed', error);
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(error.toString())));
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(error.toString())));
       }
     }
   }

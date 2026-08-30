@@ -120,12 +120,12 @@ typedef AleraBrowserPermissionCallback =
     Future<AleraBrowserPermissionDecision> Function(
       AleraBrowserPermissionRequest request,
     );
-typedef AleraBrowserTlsCallback =
-    Future<AleraBrowserTlsDecision> Function(AleraBrowserTlsError error);
-typedef AleraBrowserPopupCallback =
-    Future<AleraBrowserPopupDecision> Function(
-      AleraBrowserPopupRequest request,
-    );
+typedef AleraBrowserTlsCallback = Future<AleraBrowserTlsDecision> Function(
+  AleraBrowserTlsError error,
+);
+typedef AleraBrowserPopupCallback = Future<AleraBrowserPopupDecision> Function(
+  AleraBrowserPopupRequest request,
+);
 typedef AleraBrowserDownloadCallback =
     Future<AleraBrowserDownloadDecision> Function(
       AleraBrowserDownloadRequest request,

@@ -162,9 +162,8 @@ class _TerminalTabViewState extends ConsumerState<TerminalTabView> {
                 borderColor: AleraTokens.borderSubtle,
                 onPressed: ref
                     .read(
-                      terminalInputModeControllerProvider(
-                        widget.tabId,
-                      ).notifier,
+                      terminalInputModeControllerProvider(widget.tabId)
+                          .notifier,
                     )
                     .toggle,
               ),
@@ -189,9 +188,8 @@ class _TerminalTabViewState extends ConsumerState<TerminalTabView> {
       }
       await notifier.pasteText(text);
     } catch (error, stackTrace) {
-      Logger(
-        'TerminalTabView',
-      ).warning('terminal clipboard paste failed', error, stackTrace);
+      Logger('TerminalTabView')
+          .warning('terminal clipboard paste failed', error, stackTrace);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Could not paste clipboard')),

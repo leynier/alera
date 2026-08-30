@@ -29,9 +29,8 @@ class _UsageMetric extends StatelessWidget {
         children: <Widget>[
           Text(
             label,
-            style: Theme.of(context).textTheme.labelSmall?.copyWith(
-              color: AleraTokens.foregroundMuted,
-            ),
+            style: Theme.of(context).textTheme.labelSmall
+                ?.copyWith(color: AleraTokens.foregroundMuted),
           ),
           const SizedBox(height: AleraTokens.space4),
           Text(
@@ -45,9 +44,8 @@ class _UsageMetric extends StatelessWidget {
           const SizedBox(height: AleraTokens.space2),
           Text(
             detail,
-            style: Theme.of(
-              context,
-            ).textTheme.bodySmall?.copyWith(color: AleraTokens.foregroundFaint),
+            style: Theme.of(context).textTheme.bodySmall
+                ?.copyWith(color: AleraTokens.foregroundFaint),
           ),
         ],
       ),

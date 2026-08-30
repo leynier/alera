@@ -60,9 +60,8 @@ class _CodexMarkdownCodeBlockState extends State<_CodexMarkdownCodeBlock> {
                   Expanded(
                     child: Text(
                       widget.language.trim(),
-                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                        color: AleraTokens.foregroundMuted,
-                      ),
+                      style: Theme.of(context).textTheme.labelSmall
+                          ?.copyWith(color: AleraTokens.foregroundMuted),
                     ),
                   ),
                   AnimatedOpacity(

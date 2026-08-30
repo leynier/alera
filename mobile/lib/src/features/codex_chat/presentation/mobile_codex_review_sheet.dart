@@ -199,9 +199,8 @@ class _MobileCodexReviewSheetState extends State<_MobileCodexReviewSheet> {
         const SizedBox(height: AleraTokens.space6),
         Text(
           'Branches could not be loaded. Enter the branch name manually.',
-          style: Theme.of(
-            context,
-          ).textTheme.bodySmall?.copyWith(color: AleraTokens.warning),
+          style: Theme.of(context).textTheme.bodySmall
+              ?.copyWith(color: AleraTokens.warning),
         ),
       ],
       const SizedBox(height: AleraTokens.space16),
@@ -313,9 +312,8 @@ class _MobileReviewChoiceField extends StatelessWidget {
     children: <Widget>[
       Text(
         label,
-        style: Theme.of(
-          context,
-        ).textTheme.labelSmall?.copyWith(color: AleraTokens.foregroundMuted),
+        style: Theme.of(context).textTheme.labelSmall
+            ?.copyWith(color: AleraTokens.foregroundMuted),
       ),
       const SizedBox(height: AleraTokens.space4),
       Material(

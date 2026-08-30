@@ -56,16 +56,14 @@ class ApplicationSettingsPane extends ConsumerWidget {
             children: <Widget>[
               SettingsSwitchRow(
                 title: 'Confirm Project Removal',
-                description:
-                    'Ask before unregistering a project and deleting its workspace metadata.',
+                description: 'Ask before unregistering a project and deleting its workspace metadata.',
                 value: general.confirmProjectRemoval,
                 onChanged: (value) =>
                     controller.setConfirmProjectRemoval(value),
               ),
               SettingsSwitchRow(
                 title: 'Confirm Workspace Removal',
-                description:
-                    'Always required because removal closes all tabs, stops running processes, and discards unsaved changes.',
+                description: 'Always required because removal closes all tabs, stops running processes, and discards unsaved changes.',
                 value: true,
                 onChanged: null,
               ),
@@ -82,22 +80,19 @@ class ApplicationSettingsPane extends ConsumerWidget {
             children: <Widget>[
               SettingsSwitchRow(
                 title: 'Show Tray Icon',
-                description:
-                    'Keep Alera in the menu extra (macOS), notification area (Windows), or status bar (Ubuntu). Closing the window hides it; Quit from the tray or the app menu exits.',
+                description: 'Keep Alera in the menu extra (macOS), notification area (Windows), or status bar (Ubuntu). Closing the window hides it; Quit from the tray or the app menu exits.',
                 value: general.showTrayIcon,
                 onChanged: (value) => controller.setShowTrayIcon(value),
               ),
               SettingsSwitchRow(
                 title: 'Show Dock Badge',
-                description:
-                    'Show how many agents are waiting for review on the Dock, taskbar, or Ubuntu Dock.',
+                description: 'Show how many agents are waiting for review on the Dock, taskbar, or Ubuntu Dock.',
                 value: general.showDockBadge,
                 onChanged: (value) => controller.setShowDockBadge(value),
               ),
               SettingsSwitchRow(
                 title: 'Show Tray Badge',
-                description:
-                    'Draw how many agents are waiting for review onto the tray icon itself. Linux only; macOS and Windows show that count on the Dock or taskbar.',
+                description: 'Draw how many agents are waiting for review onto the tray icon itself. Linux only; macOS and Windows show that count on the Dock or taskbar.',
                 value: general.showTrayBadge,
                 onChanged: (value) => controller.setShowTrayBadge(value),
               ),
@@ -109,20 +104,17 @@ class ApplicationSettingsPane extends ConsumerWidget {
           key: groupKeys['runtime'],
           child: AleraSettingsGroup(
             title: 'Runtime',
-            description:
-                'Lifecycle of the local runtime host that owns terminal sessions.',
+            description: 'Lifecycle of the local runtime host that owns terminal sessions.',
             children: <Widget>[
               SettingsSwitchRow(
                 title: 'Keep Computer Awake',
-                description:
-                    'Prevents idle sleep and display sleep while Alera is running. Closing the lid still follows this device\'s power settings.',
+                description: 'Prevents idle sleep and display sleep while Alera is running. Closing the lid still follows this device\'s power settings.',
                 value: general.keepAliveEnabled,
                 onChanged: (value) => controller.setKeepAliveEnabled(value),
               ),
               SettingsSwitchRow(
                 title: 'Keep Runtime Open When App Quits',
-                description:
-                    'Leave the app-launched sidecar running after a clean quit. Persistent CLI runtimes are never stopped by quitting, and unexpected exits always leave the host up.',
+                description: 'Leave the app-launched sidecar running after a clean quit. Persistent CLI runtimes are never stopped by quitting, and unexpected exits always leave the host up.',
                 value: terminal.keepRuntimeOpenOnAppQuit,
                 onChanged: (value) => controller.updateTerminal(
                   (terminal) =>
@@ -131,8 +123,7 @@ class ApplicationSettingsPane extends ConsumerWidget {
               ),
               SettingsIntegerRow(
                 title: 'Empty Host Shutdown',
-                description:
-                    'Seconds to keep the host alive after the app closes with no running sessions.',
+                description: 'Seconds to keep the host alive after the app closes with no running sessions.',
                 value: terminal.hostEmptyShutdownDelaySeconds,
                 min: 5,
                 max: 3600,
@@ -145,8 +136,7 @@ class ApplicationSettingsPane extends ConsumerWidget {
               ),
               SettingsIntegerRow(
                 title: 'Detached Session Shutdown',
-                description:
-                    'Seconds to keep detached running sessions alive after the app closes.',
+                description: 'Seconds to keep detached running sessions alive after the app closes.',
                 value: terminal.hostDetachedSessionShutdownDelaySeconds,
                 min: 5,
                 max: 86400,

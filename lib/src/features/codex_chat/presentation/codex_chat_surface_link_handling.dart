@@ -101,9 +101,8 @@ CodexMarkdownFileTarget? resolveCodexMarkdownFileTarget({
   if (value.isEmpty) return null;
   final uri = Uri.tryParse(value);
   if (_isCodexWebLink(uri)) return null;
-  final compactLineReference = RegExp(
-    r'^([^/\\:]+):(\d+)(?::\d+)?$',
-  ).firstMatch(value);
+  final compactLineReference = RegExp(r'^([^/\\:]+):(\d+)(?::\d+)?$')
+      .firstMatch(value);
   if (compactLineReference != null) {
     String decodedReference;
     try {
