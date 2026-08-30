@@ -64,19 +64,11 @@ abstract class _$PairedHostsController
   }
 }
 
-@ProviderFor(availableHosts)
+@ProviderFor(AvailableHosts)
 final availableHostsProvider = AvailableHostsProvider._();
 
 final class AvailableHostsProvider
-    extends
-        $FunctionalProvider<
-          AsyncValue<List<PairedHostProfile>>,
-          List<PairedHostProfile>,
-          FutureOr<List<PairedHostProfile>>
-        >
-    with
-        $FutureModifier<List<PairedHostProfile>>,
-        $FutureProvider<List<PairedHostProfile>> {
+    extends $AsyncNotifierProvider<AvailableHosts, List<PairedHostProfile>> {
   AvailableHostsProvider._()
     : super(
         from: null,
@@ -93,14 +85,34 @@ final class AvailableHostsProvider
 
   @$internal
   @override
-  $FutureProviderElement<List<PairedHostProfile>> $createElement(
-    $ProviderPointer pointer,
-  ) => $FutureProviderElement(pointer);
-
-  @override
-  FutureOr<List<PairedHostProfile>> create(Ref ref) {
-    return availableHosts(ref);
-  }
+  AvailableHosts create() => AvailableHosts();
 }
 
-String _$availableHostsHash() => r'f1137021fbbf1ce325197ab9cdc0ee8e3d47b30b';
+String _$availableHostsHash() => r'18c242a48f6d092079092282b2898dbc42533dad';
+
+abstract class _$AvailableHosts
+    extends $AsyncNotifier<List<PairedHostProfile>> {
+  FutureOr<List<PairedHostProfile>> build();
+  @$mustCallSuper
+  @override
+  WhenComplete runBuild() {
+    final ref =
+        this.ref
+            as $Ref<
+              AsyncValue<List<PairedHostProfile>>,
+              List<PairedHostProfile>
+            >;
+    final element =
+        ref.element
+            as $ClassProviderElement<
+              AnyNotifier<
+                AsyncValue<List<PairedHostProfile>>,
+                List<PairedHostProfile>
+              >,
+              AsyncValue<List<PairedHostProfile>>,
+              Object?,
+              Object?
+            >;
+    return element.handleCreate(ref, build);
+  }
+}

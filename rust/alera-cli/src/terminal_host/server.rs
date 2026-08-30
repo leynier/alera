@@ -125,6 +125,8 @@ mod lifecycle;
 mod managed_workspace_requests;
 mod mobile_gateway_surface;
 mod mobile_hello_requests;
+#[cfg(test)]
+mod mobile_relay_presence_tests;
 mod mobile_terminal_requests;
 #[cfg(test)]
 mod mobile_terminal_viewport_tests;
@@ -462,6 +464,13 @@ impl ServerActor {
             }
             ServerCommand::ClientLine { id, line } => self.handle_line(id, line).await,
             ServerCommand::ClientDisconnected { id } => self.dispose_client(id).await,
+            ServerCommand::MobileStatusFinished {
+                client_id,
+                request_id,
+                payload,
+            } => {
+                self.finish_mobile_network_snapshot(client_id, request_id, payload);
+            }
             ServerCommand::EmulatorPointerTimeout {
                 tab_id,
                 client_id,

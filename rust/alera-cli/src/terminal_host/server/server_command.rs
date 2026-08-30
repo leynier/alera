@@ -32,6 +32,11 @@ pub enum ServerCommand {
     ClientDisconnected {
         id: u64,
     },
+    MobileStatusFinished {
+        client_id: u64,
+        request_id: i64,
+        payload: Value,
+    },
     Pty {
         session_id: String,
         event: PtyEvent,

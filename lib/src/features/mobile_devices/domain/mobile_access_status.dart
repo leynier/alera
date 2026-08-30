@@ -156,6 +156,7 @@ class MobileAccessStatus {
     required this.settings,
     required this.devices,
     required this.activePairings,
+    this.connectedRelayDevices = const <MobileDevice>[],
     this.runtimeHostActive,
     this.tailscale,
     this.netbird,
@@ -186,6 +187,12 @@ class MobileAccessStatus {
           if (offer is Map)
             MobilePairingOffer.fromJson(Map<String, Object?>.from(offer)),
       ],
+      connectedRelayDevices: <MobileDevice>[
+        for (final device
+            in (json['connectedRelayDevices'] as List? ?? const <Object?>[]))
+          if (device is Map)
+            MobileDevice.fromJson(Map<String, Object?>.from(device)),
+      ],
       runtimeHostActive: runtimeHostActive is bool ? runtimeHostActive : null,
       tailscale: tailscale is Map
           ? MobileTailscaleStatus.fromJson(Map<String, Object?>.from(tailscale))
@@ -199,6 +206,7 @@ class MobileAccessStatus {
   final int protocolVersion;
   final MobileGatewaySettings settings;
   final List<MobileDevice> devices;
+  final List<MobileDevice> connectedRelayDevices;
   final List<MobilePairingOffer> activePairings;
   final bool? runtimeHostActive;
   final MobileTailscaleStatus? tailscale;

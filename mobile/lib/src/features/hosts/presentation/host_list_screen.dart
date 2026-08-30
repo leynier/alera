@@ -127,45 +127,56 @@ class HostListScreen extends ConsumerWidget {
       ),
       body: SafeArea(
         child: switch (hosts) {
-          AsyncData(value: final hostList) when hostList.isEmpty => _EmptyHosts(
-            onPairHost: () => _pairHost(context),
-          ),
-          AsyncData(value: final hostList) => ListView(
-            padding: const EdgeInsets.fromLTRB(
-              AleraTokens.space16,
-              AleraTokens.space4,
-              AleraTokens.space16,
-              AleraTokens.space16,
-            ),
-            children: <Widget>[
-              const AleraSectionHeader(
-                label: 'Hosts',
-                padding: EdgeInsets.only(
-                  left: AleraTokens.space4,
-                  right: AleraTokens.space8,
-                  bottom: AleraTokens.space4,
-                ),
+          AsyncValue(value: final hostList?) when hostList.isEmpty =>
+            _EmptyHosts(onPairHost: () => _pairHost(context)),
+          AsyncValue(value: final hostList?) => RefreshIndicator(
+            onRefresh: () async {
+              ref.invalidate(availableHostsProvider);
+              await ref.read(availableHostsProvider.future);
+            },
+            child: ListView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.fromLTRB(
+                AleraTokens.space16,
+                AleraTokens.space4,
+                AleraTokens.space16,
+                AleraTokens.space16,
               ),
-              for (var index = 0; index < hostList.length; index++) ...<Widget>[
-                _HostCard(
-                  host: hostList[index],
-                  onOpen: () {
-                    Navigator.of(context).push(
-                      MaterialPageRoute<void>(
-                        builder: (_) =>
-                            RuntimeWorkspacesScreen(host: hostList[index]),
-                      ),
-                    );
-                  },
-                  onRemove: () => _removeHost(context, ref, hostList[index]),
-                  onLongPress: () =>
-                      _showHostActions(context, ref, hostList[index]),
+              children: <Widget>[
+                const AleraSectionHeader(
+                  label: 'Hosts',
+                  padding: EdgeInsets.only(
+                    left: AleraTokens.space4,
+                    right: AleraTokens.space8,
+                    bottom: AleraTokens.space4,
+                  ),
                 ),
-                if (index < hostList.length - 1)
-                  const SizedBox(height: AleraTokens.spaceMd),
+                for (
+                  var index = 0;
+                  index < hostList.length;
+                  index++
+                ) ...<Widget>[
+                  _HostCard(
+                    key: ValueKey(hostList[index].id),
+                    host: hostList[index],
+                    onOpen: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute<void>(
+                          builder: (_) =>
+                              RuntimeWorkspacesScreen(host: hostList[index]),
+                        ),
+                      );
+                    },
+                    onRemove: () => _removeHost(context, ref, hostList[index]),
+                    onLongPress: () =>
+                        _showHostActions(context, ref, hostList[index]),
+                  ),
+                  if (index < hostList.length - 1)
+                    const SizedBox(height: AleraTokens.spaceMd),
+                ],
+                HomeQuotasSection(hosts: hostList),
               ],
-              HomeQuotasSection(hosts: hostList),
-            ],
+            ),
           ),
           AsyncError(:final error) => Center(child: Text(error.toString())),
           _ => const _HomeLoading(),
@@ -238,6 +249,7 @@ enum _HostAction { rename, remove }
 
 class _HostCard extends ConsumerWidget {
   const _HostCard({
+    super.key,
     required this.host,
     required this.onOpen,
     required this.onRemove,

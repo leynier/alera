@@ -78,12 +78,18 @@ class MobileRuntimeClient
          transportCloseTimeout: transportCloseTimeout,
        );
 
-  static Future<MobileRuntimeClient> connect(String endpoint) async {
+  static Future<MobileRuntimeClient> connect(
+    String endpoint, {
+    Duration connectTimeout = _defaultRequestTimeout,
+  }) async {
     final client = MobileRuntimeClient._(
-      WebSocketChannel.connect(Uri.parse(endpoint)),
+      IOWebSocketChannel.connect(
+        Uri.parse(endpoint),
+        connectTimeout: connectTimeout,
+      ),
     );
     try {
-      await client._channel.ready.timeout(client._requestTimeout);
+      await client._channel.ready.timeout(connectTimeout);
       return client;
     } on Object catch (error, stackTrace) {
       await client.dispose();
@@ -249,7 +255,7 @@ class MobileRuntimeClient
     // The response decides, not the request: an older runtime simply omits it
     // and keeps sending base64 inside JSON.
     _binaryFrames = payload['binaryFrames'] == true;
-    await _refreshCrashReportingRuntimeContext();
+    unawaited(_refreshCrashReportingRuntimeContext());
     return payload;
   }
 
@@ -270,7 +276,10 @@ class MobileRuntimeClient
   }
 
   Future<MobileRuntimeStatus> mobileStatus() async {
-    final payload = await requestMap('mobile.status.get');
+    final payload = await requestMap(
+      'mobile.status.get',
+      const <String, Object?>{'includeNetworkStatus': false},
+    );
     return MobileRuntimeStatus.fromJson(payload);
   }
 
@@ -324,7 +333,6 @@ class MobileRuntimeClient
     });
     unawaited(
       _sendTransport(encoded).catchError((error, stackTrace) {
-        _pending.remove(id);
         _handleSocketError(error, stackTrace);
       }),
     );
@@ -367,6 +375,7 @@ class MobileRuntimeClient
   }
 
   void _handleMessage(Object? raw) {
+    if (!isConnectionUsable) return;
     if (_relayHandshake != null) {
       unawaited(_handleRelayHandshakeMessage(raw));
       return;
@@ -385,6 +394,7 @@ class MobileRuntimeClient
       return;
     }
     final payload = await session.seal(utf8.encode(encoded));
+    if (!isConnectionUsable) return;
     for (final fragment in fragmentRelayPayload(payload)) {
       _channel.sink.add(wrapRelayFrame(_relayClientId!, fragment));
     }
@@ -483,11 +493,5 @@ class MobileRuntimeClient
     // deliver. `close` is idempotent, so `dispose` closing them again is fine.
     unawaited(_events.close());
     unawaited(_terminalOutput.close());
-  }
-
-  void _handleSocketClosed() {
-    // Expected end of a live socket: surface as recoverable connection loss
-    // rather than a StateError that would look like a programming fault.
-    _handleSocketError(const RuntimeConnectionLost());
   }
 }

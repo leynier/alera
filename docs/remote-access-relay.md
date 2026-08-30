@@ -37,6 +37,28 @@ Remote access is live-only. Disconnecting either endpoint loses in-flight data; 
 - Treat the relay mobile connection limit, frame size limit, and 120-second grant lifetime as security and cost controls. Change them only with matching cloud, edge, Rust, mobile, and test updates.
 - On suspected account or key compromise, revoke the account or mobile installation, rotate the affected identity key with a higher key version, and verify that discovery and grant issuance stop for revoked records.
 
+## Connection Recovery And Presence
+
+The mobile home screen waits for stored hosts and account initialization before publishing its initial list. Account token rotation does not invalidate that list. Discovery runs across accounts concurrently, renews expiring account sessions first, and retains the last successful remote list during temporary discovery failures. Account removal removes its cached hosts. Subsequent refreshes keep the host cards mounted, preserving their connection providers; a foreground transition after a full background state refreshes discovery, while a focus-only transition does not.
+
+Foreground consumers share one `mobile.status.get` probe per connection. The additive `includeNetworkStatus: false` field avoids spawning Tailscale and NetBird detection commands for connection checks; an older runtime can ignore it without a protocol change. The request deadline is four seconds and removes timed-out requests from the pending map. A paired host's direct socket attempt has a three-second connection deadline before transport-only relay fallback. Optional crash-report metadata no longer delays authentication. Probe results from an earlier lifecycle transition cannot reattach a terminal after it has gone into the background.
+
+The desktop exposes authenticated live relay peers in `connectedRelayDevices`, separate from locally paired devices. Their access comes from Cloud authorization, so the desktop does not offer the local pairing rename/revoke/delete actions for them. Disconnects emit `mobileDevicesChanged`, and disabling Remote Access disconnects all relay clients. Presence is live-only, not a durable inventory of every mobile installation on the account.
+
+Desktop status requests that need overlay diagnostics run those commands concurrently outside the server actor, so opening Mobile Devices settings cannot delay terminal traffic or a phone's foreground probe. The actor rechecks live relay presence when the diagnostics complete rather than returning a device that disconnected while they were running.
+
+The runtime releases peer writers and actor clients on every socket exit, including cancellation. Its relay output queue is bounded to 64 envelopes; each queued envelope carries the connection's numeric identity so frames from a replaced connection are discarded. Cloud presence refreshes run without awaiting them inside the socket forwarding branch. A 20-second WebSocket heartbeat detects a silent relay transport, writes have a five-second deadline, and the runtime starts fresh authorization before its grant expires even when idle. Grant renewal still requires reconnecting under the existing security contract; it is not seamless session renewal and does not replay commands.
+
+The edge rejects a mobile upgrade immediately with `relay_runtime_unavailable` when no matching, unexpired runtime is connected. A disconnect is delivered once even if both error and close callbacks occur. Replaced sockets cannot forward or receive subsequent frames.
+
+## Reliability Validation
+
+Regression coverage includes delayed account startup, credential rotation, expired credentials, temporary discovery outages, background/resume transitions, retained host widgets, shared probes, late probe failures, local-only pairing permissions, relay peer cleanup, and edge disconnect ordering. The mobile loopback relay test performs the encrypted handshake, exchanges concurrent fragmented payloads, and reconnects using fresh ephemeral keys. Rust and Dart also share fixed cryptographic interoperability vectors.
+
+Validation in this checkout: all 585 mobile tests, 1,295 Rust CLI unit tests (two existing ignored cases), 27 selected desktop tests, and 27 edge tests passed. Flutter analysis for desktop and mobile, Rust Clippy for all CLI targets with warnings denied, TypeScript checking, formatting checks, and `git diff --check` also passed. No production services or installed applications were changed.
+
+Local automated tests do not measure production latency or prove Android/iOS suspension behavior. Release verification must still exercise a real phone against the updated desktop and edge: cold start, rapid app switching, a file picker round trip, Wi-Fi/cellular changes, a background interval longer than grant expiry, and a runtime restart. Confirm that terminal drafts survive, remote device presence follows the live connection, and no stale commands are replayed. Publishing or replacing the installed apps and edge is a separate operation.
+
 ## Deferred Work
 
 The initial implementation intentionally defers key transparency, offline relay delivery, payload-aware support tooling, multi-runtime relay multiplexing, and durable connection history. Any future observability must remain metadata-only and must preserve the ciphertext-only boundary.

@@ -3,7 +3,10 @@ import 'dart:convert';
 
 import 'package:alera_mobile/src/app/alera_mobile_app.dart';
 import 'package:alera_mobile/src/core/mobile_protocol.dart';
+import 'package:alera_mobile/src/features/accounts/application/cloud_account_providers.dart';
 import 'package:alera_mobile/src/features/hosts/application/host_providers.dart';
+import 'package:alera_mobile/src/features/hosts/application/paired_hosts_controller.dart';
+import 'package:alera_mobile/src/features/hosts/presentation/host_list_screen.dart';
 import 'package:alera_mobile/src/features/hosts/domain/paired_device_credentials.dart';
 import 'package:alera_mobile/src/features/hosts/domain/paired_host_profile.dart';
 import 'package:alera_mobile/src/features/hosts/domain/pairing_offer.dart';
@@ -14,8 +17,57 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 
 import 'support/memory_host_repository.dart';
+import 'support/memory_cloud_account_repository.dart';
 
 void main() {
+  testWidgets('Refreshing hosts keeps cards and their connections mounted', (
+    tester,
+  ) async {
+    final repository = _DelayedHostRepository();
+    await repository.savePairedHost(
+      PairedHostProfile(
+        id: 'runtime',
+        displayName: 'Alera Dev',
+        endpoint: 'ws://127.0.0.1:6768',
+        runtimeId: 'runtime',
+        deviceId: 'phone',
+        pairedAt: DateTime.utc(2026),
+      ),
+      'token',
+    );
+    var connections = 0;
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          hostRepositoryProvider.overrideWithValue(repository),
+          cloudAccountRepositoryProvider.overrideWithValue(
+            MemoryCloudAccountRepository(),
+          ),
+          hostConnectionControllerProvider.overrideWith2((_) {
+            connections++;
+            return _OfflineHostConnection();
+          }),
+        ],
+        child: const AleraMobileApp(),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(connections, 1);
+    final container = ProviderScope.containerOf(
+      tester.element(find.byType(HostListScreen)),
+    );
+    repository.pending = Completer<void>();
+    container.invalidate(pairedHostsControllerProvider);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(find.text('Alera Dev'), findsOneWidget);
+    expect(find.text('Loading Alera'), findsNothing);
+    expect(connections, 1);
+    repository.pending!.complete();
+    await tester.pumpAndSettle();
+    expect(connections, 1);
+  });
+
   test('Pairing Result Uses Host Name For Stored Profile', () {
     final profile = PairedHostProfile.fromPairingResult(
       PairingOffer(
@@ -56,6 +108,9 @@ void main() {
       ProviderScope(
         overrides: [
           hostRepositoryProvider.overrideWithValue(repository),
+          cloudAccountRepositoryProvider.overrideWithValue(
+            MemoryCloudAccountRepository(),
+          ),
           // Home quotas watch host connections; keep the smoke test offline.
           hostConnectionControllerProvider.overrideWith2(
             (_) => _OfflineHostConnection(),
@@ -98,6 +153,9 @@ void main() {
       ProviderScope(
         overrides: [
           hostRepositoryProvider.overrideWithValue(repository),
+          cloudAccountRepositoryProvider.overrideWithValue(
+            MemoryCloudAccountRepository(),
+          ),
           hostConnectionControllerProvider.overrideWith2(
             (_) => _ReadyHostConnection(client),
           ),
@@ -111,6 +169,15 @@ void main() {
     expect(find.text('Ready'), findsOneWidget);
     expect(find.text('Unavailable'), findsNothing);
   });
+}
+
+class _DelayedHostRepository extends MemoryHostRepository {
+  Completer<void>? pending;
+  @override
+  Future<List<PairedHostProfile>> loadHosts() async {
+    await pending?.future;
+    return super.loadHosts();
+  }
 }
 
 class _OfflineHostConnection extends HostConnectionController {

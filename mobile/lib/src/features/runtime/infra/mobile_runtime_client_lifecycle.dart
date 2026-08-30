@@ -4,6 +4,11 @@ const Duration _defaultRequestTimeout = Duration(seconds: 20);
 const Duration _defaultTransportCloseTimeout = Duration(seconds: 2);
 
 extension MobileRuntimeClientLifecycle on MobileRuntimeClient {
+  void _handleSocketClosed() {
+    // A closed transport is recoverable; StateError would suppress retries.
+    _handleSocketError(const RuntimeConnectionLost());
+  }
+
   Future<void> dispose() async {
     if (_disposed) {
       return;

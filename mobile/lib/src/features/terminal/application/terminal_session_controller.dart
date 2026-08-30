@@ -26,6 +26,7 @@ class TerminalSessionController extends _$TerminalSessionController {
   bool _disposed = false;
   bool _recovering = false;
   bool _desktopReclaimed = false;
+  int _lifecycleEpoch = 0;
   Completer<void>? _recoveryCompletion;
   MobileTerminalClient? _pendingRecoveryClient;
   // Null until the terminal has been laid out. Claiming a viewport resizes the
@@ -75,6 +76,7 @@ class TerminalSessionController extends _$TerminalSessionController {
     AppLifecycleState? previous,
     AppLifecycleState next,
   ) {
+    _lifecycleEpoch += 1;
     if (_disposed ||
         next != AppLifecycleState.resumed ||
         previous == AppLifecycleState.resumed ||
@@ -95,11 +97,16 @@ class TerminalSessionController extends _$TerminalSessionController {
   /// round trip separates the two cases, and a connection that answers is
   /// still delivering output, so nothing needs re-attaching.
   Future<void> _recoverIfConnectionLost(MobileTerminalClient client) async {
+    final epoch = _lifecycleEpoch;
     try {
       await client.probeConnection().timeout(_foregroundProbeTimeout);
       return;
     } on Object catch (error, stackTrace) {
-      if (_disposed || !identical(_client, client)) {
+      if (_disposed ||
+          !identical(_client, client) ||
+          epoch != _lifecycleEpoch ||
+          ref.read(appLifecycleControllerProvider) !=
+              AppLifecycleState.resumed) {
         return;
       }
       _logger.warning(

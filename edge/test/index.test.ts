@@ -116,6 +116,37 @@ function relayObject(sockets: TestSocket[]): RuntimeRelayDurableObject {
 }
 
 describe('Alera API edge', () => {
+  test('rejects mobile admission immediately while its runtime is unavailable', async () => {
+    for (const runtimes of [[], [new TestSocket(relayAttachment('runtime', 'runtime-1', -1))]]) {
+      const response = await relayObject(runtimes).fetch(new Request('https://relay.test/v1/relay/runtime-1', {
+        headers: { upgrade: 'websocket', 'x-alera-relay-claims': base64Url(JSON.stringify(relayAttachment('mobile', 'mobile-1'))) },
+      }));
+      expect(response.status).toBe(503);
+    }
+  });
+
+  test('an error followed by close disconnects a mobile only once', () => {
+    const runtime = new TestSocket(relayAttachment('runtime', 'runtime-1'));
+    const mobile = new TestSocket(relayAttachment('mobile', 'mobile-1'));
+    const relay = relayObject([runtime, mobile]);
+    relay.webSocketError(mobile as unknown as WebSocket);
+    relay.webSocketClose(mobile as unknown as WebSocket);
+    expect(runtime.sent).toEqual([relayFrame('mobile-1', [])]);
+  });
+
+  test('late frames cannot cross between a replaced socket and a new session', () => {
+    const runtime = new TestSocket(relayAttachment('runtime', 'runtime-1'));
+    const oldMobile = new TestSocket({ ...relayAttachment('mobile', 'mobile-1'), suppressDisconnect: true });
+    const newMobile = new TestSocket(relayAttachment('mobile', 'mobile-1'));
+    const relay = relayObject([runtime, oldMobile, newMobile]);
+    const frame = relayFrame('mobile-1');
+    relay.webSocketMessage(oldMobile as unknown as WebSocket, frame.buffer as ArrayBuffer);
+    expect(runtime.sent).toBeEmpty();
+    relay.webSocketMessage(runtime as unknown as WebSocket, frame.buffer as ArrayBuffer);
+    expect(oldMobile.sent).toBeEmpty();
+    expect(newMobile.sent).toEqual([frame]);
+  });
+
   test('routes runtime frames only to the addressed mobile', () => {
     const runtime = new TestSocket(relayAttachment('runtime', 'runtime-1'));
     const mobileOne = new TestSocket(relayAttachment('mobile', 'mobile-1'));

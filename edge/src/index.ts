@@ -366,10 +366,14 @@ export class RuntimeRelayDurableObject {
     } catch {
       return jsonError(403, 'invalid_relay_claims', 'Relay claims are invalid.');
     }
-    const webSocketPair = new WebSocketPair();
-    const [client, server] = Object.values(webSocketPair) as [WebSocket, WebSocket];
     const peers = this.ctx.getWebSockets();
     const peerAttachments = peers.map((peer) => peer.deserializeAttachment() as RelayAttachment);
+    if (attachment.role === 'mobile' && !peerAttachments.some((peer) =>
+      peer.role === 'runtime' && !peer.suppressDisconnect && peer.exp > Math.floor(Date.now() / 1000) &&
+      peer.accountId === attachment.accountId && peer.runtimeId === attachment.runtimeId
+    )) {
+      return jsonError(503, 'relay_runtime_unavailable', 'The runtime is reconnecting. Try again shortly.');
+    }
     const replacingDuplicate = peerAttachments.some(
       (peer) => peer.role === attachment.role && peer.clientId === attachment.clientId,
     );
@@ -391,11 +395,13 @@ export class RuntimeRelayDurableObject {
     }
     if (
       attachment.role === 'mobile' &&
-      peerAttachments.filter((peer) => peer.role === 'mobile').length >= MAX_RELAY_MOBILE_CONNECTIONS &&
+      peerAttachments.filter((peer) => peer.role === 'mobile' && !peer.suppressDisconnect && peer.exp > Math.floor(Date.now() / 1000)).length >= MAX_RELAY_MOBILE_CONNECTIONS &&
       !replacingDuplicate
     ) {
       return jsonError(429, 'relay_mobile_limit', 'This runtime has reached its mobile connection limit.');
     }
+    const webSocketPair = new WebSocketPair();
+    const [client, server] = Object.values(webSocketPair) as [WebSocket, WebSocket];
     this.ctx.acceptWebSocket(server, [attachment.role, attachment.clientId]);
     server.serializeAttachment(attachment);
     return new Response(null, { status: 101, webSocket: client });
@@ -408,6 +414,7 @@ export class RuntimeRelayDurableObject {
       return;
     }
     const sender = socket.deserializeAttachment() as RelayAttachment;
+    if (sender.suppressDisconnect) return;
     const now = Math.floor(Date.now() / 1000);
     if (sender.exp <= now) {
       socket.close(4003, 'relay grant expired');
@@ -425,6 +432,7 @@ export class RuntimeRelayDurableObject {
     for (const peer of this.ctx.getWebSockets()) {
       if (peer === socket) continue;
       const target = peer.deserializeAttachment() as RelayAttachment;
+      if (target.suppressDisconnect) continue;
       if (target.exp <= now) {
         peer.close(4003, 'relay grant expired');
         continue;
@@ -456,6 +464,7 @@ export class RuntimeRelayDurableObject {
   private handlePeerDisconnectOnce(socket: WebSocket): void {
     const peer = socket.deserializeAttachment() as RelayAttachment;
     if (peer.suppressDisconnect) return;
+    socket.serializeAttachment({ ...peer, suppressDisconnect: true });
     if (peer.role === 'mobile') {
       this.notifyRuntimeOfMobileDisconnect(peer);
     } else {
@@ -468,6 +477,7 @@ export class RuntimeRelayDurableObject {
     const frame = relayDisconnectFrame(mobile.clientId);
     for (const peer of this.ctx.getWebSockets('runtime')) {
       const runtime = peer.deserializeAttachment() as RelayAttachment;
+      if (runtime.suppressDisconnect) continue;
       if (runtime.accountId !== mobile.accountId || runtime.runtimeId !== mobile.runtimeId) continue;
       try {
         peer.send(frame);

@@ -26,10 +26,9 @@ Future<MobileRuntimeClient> connectRuntimeThroughRelay(
   String accountId,
   String runtimeId,
 ) async {
-  final sessions = await ref.read(cloudAccountsControllerProvider.future);
-  final session = sessions
-      .where((item) => item.account.id == accountId)
-      .firstOrNull;
+  final session = await ref
+      .read(cloudAccountsControllerProvider.notifier)
+      .sessionForRequest(accountId);
   if (session == null) throw StateError('Cloud account session is missing.');
   final privateKey = await ref
       .read(cloudRelayIdentityRepositoryProvider)
@@ -80,6 +79,10 @@ class RemoteRuntimeConnectionController
       unawaited(_client?.dispose());
     });
     final client = await _connectDirectFirst(accountId, runtimeId);
+    if (!ref.mounted) {
+      await client.dispose();
+      throw const RuntimeConnectionLost();
+    }
     _client = client;
     return client;
   }

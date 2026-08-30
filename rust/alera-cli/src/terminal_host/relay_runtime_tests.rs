@@ -3,6 +3,42 @@ use tokio_tungstenite::tungstenite::{error::UrlError, http::header, Error};
 
 use super::{connect_async, relay_request, RelayRetryBackoff, RELAY_PRESENCE_INTERVAL};
 
+#[tokio::test]
+async fn dropping_a_relay_connection_aborts_writers_and_disconnects_actor_clients() {
+    use super::{ActivePeer, IdentityKeyPair, ServerCommand};
+    let runtime = IdentityKeyPair::generate();
+    let mobile = IdentityKeyPair::generate();
+    let ephemeral = IdentityKeyPair::generate();
+    let (receive, _) = super::relay_wire::derive_sessions(
+        &runtime,
+        &ephemeral,
+        mobile.public_bytes(),
+        ephemeral.public_bytes(),
+        "runtime-1",
+        "mobile-1",
+        &[1; 16],
+    )
+    .unwrap();
+    let (inbox, mut commands) = tokio::sync::mpsc::unbounded_channel();
+    let writer = tokio::spawn(std::future::pending::<()>());
+    let writer_abort = writer.abort_handle();
+    let peer = ActivePeer {
+        numeric_id: 42,
+        receive,
+        writer,
+        inbox,
+    };
+    let peers = std::collections::HashMap::from([("mobile-1", peer)]);
+    // Covers every early return and cancellation of the socket's owning future.
+    drop(peers);
+    assert!(matches!(
+        commands.recv().await,
+        Some(ServerCommand::ClientDisconnected { id: 42 })
+    ));
+    tokio::task::yield_now().await;
+    assert!(writer_abort.is_finished());
+}
+
 #[test]
 fn relay_presence_refreshes_before_cloud_expiry() {
     assert!(RELAY_PRESENCE_INTERVAL < std::time::Duration::from_secs(180));

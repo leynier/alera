@@ -2,8 +2,6 @@ import 'dart:async';
 
 import 'package:alera_mobile/src/app/lifecycle/app_lifecycle_controller.dart';
 import 'package:alera_mobile/src/features/accounts/application/cloud_account_providers.dart';
-import 'package:alera_mobile/src/features/accounts/application/cloud_accounts_controller.dart';
-import 'package:alera_mobile/src/features/accounts/infra/alera_cloud_api.dart';
 import 'package:alera_mobile/src/features/hosts/application/host_providers.dart';
 import 'package:alera_mobile/src/features/hosts/application/paired_hosts_controller.dart';
 import 'package:alera_mobile/src/features/hosts/domain/paired_host_profile.dart';
@@ -20,7 +18,6 @@ export 'package:alera_mobile/src/features/runtime/domain/host_reachability.dart'
 
 part 'host_connection_controller.g.dart';
 
-const Duration _probeTimeout = Duration(seconds: 8);
 const Duration _runtimeRestartReconnectDelay = Duration(milliseconds: 300);
 const Duration _connectionCleanupTimeout = Duration(seconds: 2);
 const List<Duration> _retryDelays = <Duration>[
@@ -71,6 +68,7 @@ class HostConnectionController extends _$HostConnectionController {
   Timer? _retryTimer;
   Completer<void>? _buildAttempt;
   Future<void>? _connectionAttempt;
+  int _lifecycleEpoch = 0;
   AppLifecycleState _lifecycleState = AppLifecycleState.resumed;
   int _retryIndex = 0;
   bool _building = false;
@@ -191,30 +189,11 @@ class HostConnectionController extends _$HostConnectionController {
   }
 
   Future<String?> _findRemoteAccountId() async {
-    final sessions = await ref.read(cloudAccountsControllerProvider.future);
-    final api = ref.read(aleraRelayCloudApiProvider);
-    for (final session in sessions) {
-      try {
-        final runtimes = await api.discoverRuntimes(session);
-        if (runtimes.any((runtime) => runtime.id == hostId)) {
-          return session.account.id;
-        }
-      } on AleraCloudException catch (error, stackTrace) {
-        _logger.warning(
-          'could not discover remote host $hostId for ${session.account.id}',
-          error,
-          stackTrace,
-        );
-        rethrow;
-      } on Object catch (error, stackTrace) {
-        _logger.warning(
-          'could not discover remote host $hostId for ${session.account.id}',
-          error,
-          stackTrace,
-        );
-      }
-    }
-    return null;
+    final hosts = await ref.read(availableHostsProvider.future);
+    return hosts
+        .where((host) => host.runtimeId == hostId)
+        .firstOrNull
+        ?.accountId;
   }
 
   Future<MobileRuntimeClient> _openPairedClient(PairedHostProfile host) async {
@@ -227,7 +206,10 @@ class HostConnectionController extends _$HostConnectionController {
     final cloudDeviceId = await ref
         .read(cloudAccountRepositoryProvider)
         .getOrCreateInstallationId();
-    final client = await MobileRuntimeClient.connect(host.endpoint);
+    final client = await MobileRuntimeClient.connect(
+      host.endpoint,
+      connectTimeout: const Duration(seconds: 3),
+    );
     try {
       await client.authenticate(
         deviceId: host.deviceId,
@@ -253,6 +235,14 @@ class HostConnectionController extends _$HostConnectionController {
     await _cancelCloseSubscription(previousCloseSub);
     if (previousClient != null && !identical(previousClient, client)) {
       await previousClient.dispose();
+    }
+    if (_disposed) {
+      await client.dispose();
+      return;
+    }
+    if (!client.isConnectionUsable) {
+      await client.dispose();
+      throw const RuntimeConnectionLost();
     }
     _client = client;
     _retryIndex = 0;
@@ -281,7 +271,11 @@ class HostConnectionController extends _$HostConnectionController {
       return;
     }
     _client = null;
+    final closeSub = _closeSub;
     _closeSub = null;
+    unawaited(_cancelCloseSubscription(closeSub));
+    // Failure delivery is synchronous; finish it before closing its stream.
+    unawaited(Future<void>.microtask(client.dispose));
     state = AsyncError(error, stackTrace);
     _logger.warning(
       'connection to host $hostId ended; scheduling recovery',
@@ -296,6 +290,7 @@ class HostConnectionController extends _$HostConnectionController {
     AppLifecycleState next,
   ) {
     _lifecycleState = next;
+    _lifecycleEpoch += 1;
     if (next != AppLifecycleState.resumed) {
       _retryTimer?.cancel();
       _retryTimer = null;
@@ -313,10 +308,14 @@ class HostConnectionController extends _$HostConnectionController {
   }
 
   Future<void> _probe(MobileRuntimeClient client) async {
+    final epoch = _lifecycleEpoch;
     try {
-      await client.mobileStatus().timeout(_probeTimeout);
+      await client.probeConnection();
     } on Object catch (error, stackTrace) {
-      if (_disposed || !identical(_client, client)) {
+      if (_disposed ||
+          !identical(_client, client) ||
+          epoch != _lifecycleEpoch ||
+          _lifecycleState != AppLifecycleState.resumed) {
         return;
       }
       _logger.warning(
@@ -351,6 +350,8 @@ class HostConnectionController extends _$HostConnectionController {
       error is! StateError && error is! FormatException;
 
   Future<void> _runReconnect() {
+    final buildAttempt = _buildAttempt;
+    if (buildAttempt != null) return buildAttempt.future;
     final activeAttempt = _connectionAttempt;
     if (activeAttempt != null) {
       return activeAttempt;

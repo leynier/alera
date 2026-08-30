@@ -191,12 +191,14 @@ class FakeTerminalClient
   /// Fails the foreground connection probe, so a test can drive the branch
   /// that still needs a re-attach.
   Object? probeError;
+  Future<void>? probeCompletion;
   int probeCount = 0;
 
   @override
   Future<void> probeConnection() async {
     probeCount += 1;
     calls.add('probeConnection');
+    await probeCompletion;
     if (probeError != null) {
       throw probeError!;
     }

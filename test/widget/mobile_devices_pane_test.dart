@@ -42,6 +42,26 @@ void main() {
     expect(find.textContaining('ws://127.0.0.1:6768'), findsOneWidget);
   });
 
+  testWidgets('shows relay devices separately without local pairing actions', (
+    tester,
+  ) async {
+    final client = _FakeMobileRuntimeHostClient()..relayConnected = true;
+    await pumpPane(tester, client: client);
+    expect(find.text('Connected Remote Devices'), findsOneWidget);
+    expect(find.text('Remote Phone'), findsOneWidget);
+    expect(find.text('Connected through relay'), findsOneWidget);
+    expect(find.byTooltip('Rename Device'), findsOneWidget);
+    expect(find.byTooltip('Revoke Device'), findsOneWidget);
+    client.relayConnected = false;
+    client._events.add(
+      const RuntimeHostEvent('mobileDevicesChanged', <String, Object?>{}),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 1));
+    await tester.pumpAndSettle();
+    expect(find.text('Remote Phone'), findsNothing);
+  });
+
   testWidgets('renders the connection mode selector segments', (tester) async {
     await pumpPane(tester);
 
@@ -279,6 +299,7 @@ void main() {
 }
 
 final class _FakeMobileRuntimeHostClient implements RuntimeHostClient {
+  bool relayConnected = false;
   final List<_Request> requests = <_Request>[];
   final StreamController<RuntimeHostEvent> _events =
       StreamController<RuntimeHostEvent>.broadcast();
@@ -400,6 +421,14 @@ final class _FakeMobileRuntimeHostClient implements RuntimeHostClient {
       if (tailscaleStatus != null) 'tailscale': tailscaleStatus,
       if (netbirdStatus != null) 'netbird': netbirdStatus,
       'devices': deviceDeleted ? const <Object?>[] : <Object?>[_device()],
+      'connectedRelayDevices': <Object?>[
+        if (relayConnected)
+          <String, Object?>{
+            ..._device(),
+            'id': 'cloud-phone',
+            'displayName': 'Remote Phone',
+          },
+      ],
       'activePairings': offerCancelled
           ? const <Object?>[]
           : <Object?>[

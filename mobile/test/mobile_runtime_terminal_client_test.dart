@@ -20,6 +20,7 @@ class _FakeGateway {
       final socket = await WebSocketTransformer.upgrade(request);
       gateway._sockets.add(socket);
       socket.listen((raw) {
+        if (gateway._closing || socket.readyState != WebSocket.open) return;
         final message = jsonDecode(raw as String) as Map<String, Object?>;
         requests.add(message);
         socket.add(
@@ -35,6 +36,7 @@ class _FakeGateway {
   }
 
   final HttpServer _server;
+  bool _closing = false;
   final List<Map<String, Object?>> requests;
   final List<WebSocket> _sockets = <WebSocket>[];
   StreamSubscription<HttpRequest>? _subscription;
@@ -57,6 +59,7 @@ class _FakeGateway {
   }
 
   Future<void> dispose() async {
+    _closing = true;
     await closeSockets();
     await _subscription?.cancel();
     await _server.close(force: true);

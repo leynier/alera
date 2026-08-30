@@ -3,11 +3,11 @@ use serde_json::{json, Value};
 
 use crate::mobile_access::{authenticate_mobile_device, MOBILE_PROTOCOL_VERSION};
 use crate::terminal_host::host_error::{HostError, HostResult};
-use crate::terminal_host::protocol::event;
+use crate::terminal_host::protocol::{event, ok_response};
 
 use super::mobile_gateway_surface::MOBILE_HELLO_CAPABILITIES;
 use super::request_payloads::parse_payload;
-use super::ServerActor;
+use super::{ServerActor, ServerCommand};
 
 #[derive(Debug, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -24,6 +24,83 @@ pub(super) struct MobileHelloRequest {
 }
 
 impl ServerActor {
+    pub(super) async fn mobile_access_snapshot(&self, payload: &Value) -> HostResult<Value> {
+        let include_network = payload
+            .get("includeNetworkStatus")
+            .and_then(Value::as_bool)
+            .unwrap_or(true);
+        let status = crate::mobile_access::mobile_status_with_network(
+            &self.runtime_store,
+            Some(true),
+            include_network,
+        )
+        .await
+        .map_err(|error| HostError::state(error.to_string()))?;
+        let mut value =
+            serde_json::to_value(status).map_err(|error| HostError::state(error.to_string()))?;
+        value["connectedRelayDevices"] = self.connected_relay_devices();
+        Ok(value)
+    }
+
+    fn connected_relay_devices(&self) -> Value {
+        let mut devices = std::collections::BTreeMap::new();
+        for client in self.clients.values().filter(|client| client.authenticated) {
+            let Some(id) = &client.relay_client_id else {
+                continue;
+            };
+            devices.insert(
+                id.clone(),
+                json!({
+                    "id": id,
+                    "displayName": client.mobile_device_name.as_deref().unwrap_or("Remote Mobile"),
+                    "permission": "fullControl",
+                    "pairedAt": Utc::now(),
+                    "lastSeenAt": Utc::now(),
+                    "transport": "relay",
+                }),
+            );
+        }
+        // Relay authorization belongs to Cloud, never to the local QR-pairing table.
+        json!(devices.into_values().collect::<Vec<_>>())
+    }
+
+    pub(super) async fn start_mobile_network_snapshot(
+        &self,
+        client_id: u64,
+        request_id: i64,
+    ) -> HostResult<()> {
+        let mut payload = self
+            .mobile_access_snapshot(&json!({"includeNetworkStatus": false}))
+            .await?;
+        let inbox = self.inbox.clone();
+        // Desktop presence refreshes must not block the actor behind overlay CLIs.
+        tokio::spawn(async move {
+            let (tailscale, netbird) =
+                tokio::join!(crate::tailscale::detect(), crate::netbird::detect());
+            payload["tailscale"] = json!(tailscale);
+            payload["netbird"] = json!(netbird);
+            let _ = inbox.send(ServerCommand::MobileStatusFinished {
+                client_id,
+                request_id,
+                payload,
+            });
+        });
+        Ok(())
+    }
+
+    pub(super) fn finish_mobile_network_snapshot(
+        &self,
+        client_id: u64,
+        request_id: i64,
+        mut payload: Value,
+    ) {
+        if self.require_auth(client_id).is_err() {
+            return;
+        }
+        payload["connectedRelayDevices"] = self.connected_relay_devices();
+        self.client_write(client_id, ok_response(request_id, payload));
+    }
+
     pub(super) async fn handle_mobile_hello(
         &mut self,
         client_id: u64,

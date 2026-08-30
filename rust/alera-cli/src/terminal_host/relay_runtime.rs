@@ -4,7 +4,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use futures_util::{SinkExt as _, StreamExt as _};
-use tokio::sync::mpsc::{self, Receiver, UnboundedReceiver, UnboundedSender};
+use tokio::sync::mpsc::{self, Sender, UnboundedSender};
 use tokio::sync::oneshot;
 use tokio::task::JoinHandle;
 use tokio_tungstenite::{connect_async, tungstenite::Message, MaybeTlsStream, WebSocketStream};
@@ -20,6 +20,10 @@ use super::relay_runtime_auth::{decode_fixed, decode_nonce, encode, verify_grant
 use super::server::ServerCommand;
 use super::{relay_crypto::IdentityKeyPair, relay_wire};
 
+#[path = "relay_runtime_writer.rs"]
+mod writer;
+use writer::write_peer;
+
 const MAX_MOBILE_CLIENTS: usize = 8;
 const RELAY_PRESENCE_INTERVAL: Duration = Duration::from_secs(60);
 
@@ -33,9 +37,21 @@ struct ActivePeer {
     numeric_id: u64,
     receive: super::relay_crypto::RelaySession,
     writer: JoinHandle<()>,
+    inbox: UnboundedSender<ServerCommand>,
+}
+
+impl Drop for ActivePeer {
+    fn drop(&mut self) {
+        // A socket error or task cancellation must release the actor's sessions too.
+        self.writer.abort();
+        let _ = self.inbox.send(ServerCommand::ClientDisconnected {
+            id: self.numeric_id,
+        });
+    }
 }
 
 struct RelayOutbound {
+    numeric_id: u64,
     client_id: String,
     payload: Vec<u8>,
 }
@@ -51,7 +67,7 @@ struct RelayInbound<'a> {
     runtime_id: &'a str,
     inbox: &'a UnboundedSender<ServerCommand>,
     next_client_id: &'a AtomicU64,
-    outbound_tx: &'a UnboundedSender<RelayOutbound>,
+    outbound_tx: &'a Sender<RelayOutbound>,
     write: &'a mut RelayWrite,
     pending: &'a mut HashMap<String, PendingPeer>,
     active: &'a mut HashMap<String, ActivePeer>,
@@ -121,28 +137,51 @@ async fn connect_and_serve(
     let (socket, _) = connect_async(request).await?;
     retry_backoff.reset();
     let (mut write, mut read) = socket.split();
-    let (outbound_tx, mut outbound_rx) = mpsc::unbounded_channel::<RelayOutbound>();
+    let (outbound_tx, mut outbound_rx) = mpsc::channel::<RelayOutbound>(64);
     let mut pending = HashMap::<String, PendingPeer>::new();
     let mut active = HashMap::<String, ActivePeer>::new();
     let mut fragments = HashMap::<String, relay_wire::FragmentReassembler>::new();
     let mut presence = tokio::time::interval(RELAY_PRESENCE_INTERVAL);
+    let mut presence_refresh = futures_util::stream::FuturesUnordered::new();
     presence.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
     presence.tick().await;
+    // A grant expires even on an idle socket; renew before the edge refuses a phone.
+    let renewal = tokio::time::sleep(Duration::from_secs(
+        (grant.expires_in as u64).saturating_sub(5).max(1),
+    ));
+    tokio::pin!(renewal);
+    let mut heartbeat = tokio::time::interval(Duration::from_secs(20));
+    heartbeat.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
+    let mut last_received = tokio::time::Instant::now();
     loop {
         tokio::select! {
+            _ = &mut renewal => anyhow::bail!("relay grant renewal is due"),
+            _ = heartbeat.tick() => {
+                if last_received.elapsed() >= Duration::from_secs(40) {
+                    anyhow::bail!("relay heartbeat timed out");
+                }
+                send_message(&mut write, Message::Ping(Vec::new().into())).await?;
+            }
             _ = &mut *stop => {
-                dispose_peers(&mut active, &inbox).await;
                 return Ok(());
             }
             outbound = outbound_rx.recv() => {
                 let Some(outbound) = outbound else { return Ok(()); };
+                if active.get(&outbound.client_id).map(|peer| peer.numeric_id) != Some(outbound.numeric_id) {
+                    continue;
+                }
                 for payload in relay_wire::fragment(&outbound.payload)? {
-                    write.send(Message::Binary(relay_wire::wrap(&outbound.client_id, &payload)?.into())).await?;
+                    send_message(&mut write, Message::Binary(relay_wire::wrap(&outbound.client_id, &payload)?.into())).await?;
                 }
             }
             _ = presence.tick() => {
-                // Discovery expires runtimes independently of the relay socket lifetime.
-                match service.relay_identity().await {
+                // Cloud latency must not stall terminal traffic on the relay socket.
+                if presence_refresh.is_empty() {
+                    presence_refresh.push(service.relay_identity());
+                }
+            }
+            Some(result) = presence_refresh.next(), if !presence_refresh.is_empty() => {
+                match result {
                     Ok(refreshed) if refreshed.public_bytes() != identity.public_bytes() => {
                         anyhow::bail!("relay identity rotated; reconnecting");
                     }
@@ -153,6 +192,7 @@ async fn connect_and_serve(
                 }
             }
             inbound = read.next() => {
+                last_received = tokio::time::Instant::now();
                 match inbound {
                     Some(Ok(Message::Binary(bytes))) => {
                         if let Err(error) = handle_inbound(&bytes, RelayInbound {
@@ -186,7 +226,7 @@ async fn connect_and_serve(
                             tracing::warn!(%error, "rejected a remote mobile relay frame");
                         }
                     }
-                    Some(Ok(Message::Ping(payload))) => write.send(Message::Pong(payload)).await?,
+                    Some(Ok(Message::Ping(payload))) => send_message(&mut write, Message::Pong(payload)).await?,
                     Some(Ok(Message::Close(_))) | None => anyhow::bail!("relay websocket closed"),
                     Some(Ok(_)) => {}
                     Some(Err(error)) => return Err(error.into()),
@@ -213,12 +253,7 @@ async fn handle_inbound(frame: &[u8], context: RelayInbound<'_>) -> anyhow::Resu
     if payload.is_empty() {
         fragments.remove(&client_id);
         pending.remove(&client_id);
-        if let Some(peer) = active.remove(&client_id) {
-            peer.writer.abort();
-            let _ = inbox.send(ServerCommand::ClientDisconnected {
-                id: peer.numeric_id,
-            });
-        }
+        active.remove(&client_id);
         return Ok(());
     }
     let Some(payload) = fragments
@@ -239,11 +274,7 @@ async fn handle_inbound(frame: &[u8], context: RelayInbound<'_>) -> anyhow::Resu
         let plaintext = match opened {
             Ok(plaintext) => plaintext,
             Err(error) => {
-                let peer = active.remove(&client_id).expect("active relay peer exists");
-                peer.writer.abort();
-                let _ = inbox.send(ServerCommand::ClientDisconnected {
-                    id: peer.numeric_id,
-                });
+                active.remove(&client_id);
                 return Err(anyhow::anyhow!(error));
             }
         };
@@ -289,6 +320,7 @@ async fn handle_inbound(frame: &[u8], context: RelayInbound<'_>) -> anyhow::Resu
                 numeric_id: client_numeric_id,
                 receive: peer.receive,
                 writer,
+                inbox: inbox.clone(),
             },
         );
         return Ok(());
@@ -337,13 +369,15 @@ async fn handle_inbound(frame: &[u8], context: RelayInbound<'_>) -> anyhow::Resu
         nonce: encode(nonce),
         confirmation: encode(confirmation),
     };
-    write
-        .send(Message::Binary(
+    send_message(
+        write,
+        Message::Binary(
             relay_wire::wrap(&client_id, &relay_wire::encode_json(&ack)?)
                 .unwrap()
                 .into(),
-        ))
-        .await?;
+        ),
+    )
+    .await?;
     pending.insert(
         client_id,
         PendingPeer {
@@ -355,132 +389,9 @@ async fn handle_inbound(frame: &[u8], context: RelayInbound<'_>) -> anyhow::Resu
     Ok(())
 }
 
-async fn write_peer(
-    numeric_id: u64,
-    client_id: String,
-    mut session: super::relay_crypto::RelaySession,
-    inbox: UnboundedSender<ServerCommand>,
-    outbound_tx: UnboundedSender<RelayOutbound>,
-    mut control_rx: UnboundedReceiver<ClientFrame>,
-    mut terminal_rx: Receiver<ClientFrame>,
-) {
-    let mut binary = false;
-    let mut ordering = ClientFrameOrdering::default();
-    loop {
-        tokio::select! {
-            control = control_rx.recv() => {
-                let Some(control) = control else { break; };
-                let mut output = PeerOutput {
-                    terminal_rx: &mut terminal_rx,
-                    ordering: &mut ordering,
-                    binary: &mut binary,
-                    outbound_tx: &outbound_tx,
-                    inbox: &inbox,
-                };
-                if send_control(&mut session, &client_id, control, &mut output)
-                    .await
-                    .is_err()
-                {
-                    break;
-                }
-            }
-            terminal = terminal_rx.recv() => {
-                let Some(terminal) = terminal else { break; };
-                ordering.stage_terminal(terminal);
-                let frame = ordering.take_pending_terminal().expect("staged terminal frame");
-                if send_frame(&mut session, &client_id, frame, &mut binary, &outbound_tx, &inbox).await.is_err() { break; }
-            }
-        }
-    }
-    let _ = inbox.send(ServerCommand::ClientDisconnected { id: numeric_id });
-}
-
-struct PeerOutput<'a> {
-    terminal_rx: &'a mut Receiver<ClientFrame>,
-    ordering: &'a mut ClientFrameOrdering,
-    binary: &'a mut bool,
-    outbound_tx: &'a UnboundedSender<RelayOutbound>,
-    inbox: &'a UnboundedSender<ServerCommand>,
-}
-
-async fn send_control(
-    session: &mut super::relay_crypto::RelaySession,
-    client_id: &str,
-    control: ClientFrame,
-    output: &mut PeerOutput<'_>,
-) -> anyhow::Result<()> {
-    let (terminal, control) = output.ordering.before_control(control, output.terminal_rx);
-    for frame in terminal {
-        send_frame(
-            session,
-            client_id,
-            frame,
-            output.binary,
-            output.outbound_tx,
-            output.inbox,
-        )
-        .await?;
-    }
-    send_frame(
-        session,
-        client_id,
-        control,
-        output.binary,
-        output.outbound_tx,
-        output.inbox,
-    )
-    .await
-}
-
-async fn send_frame(
-    session: &mut super::relay_crypto::RelaySession,
-    client_id: &str,
-    frame: ClientFrame,
-    binary: &mut bool,
-    outbound_tx: &UnboundedSender<RelayOutbound>,
-    inbox: &UnboundedSender<ServerCommand>,
-) -> anyhow::Result<()> {
-    if matches!(frame, ClientFrame::UpgradeToBinary) {
-        *binary = true;
-        return Ok(());
-    }
-    if let ClientFrame::RestartRuntimeAfterWrite { .. } = frame {
-        let _ = inbox.send(ServerCommand::RequestedRestart);
-        return Ok(());
-    }
-    let payload = if *binary {
-        if let ClientFrame::Output { session_id, data } = &frame {
-            encode_output_payload(session_id, data)
-        } else {
-            serde_json::to_vec(&frame.as_json().unwrap_or_default())?
-        }
-    } else {
-        let Some(value) = frame.as_json() else {
-            return Ok(());
-        };
-        serde_json::to_vec(&value)?
-    };
-    let payload = session
-        .seal(&payload)
-        .map_err(|error| anyhow::anyhow!(error))?;
-    outbound_tx
-        .send(RelayOutbound {
-            client_id: client_id.to_owned(),
-            payload,
-        })
-        .map_err(|_| anyhow::anyhow!("relay writer is closed"))
-}
-
-async fn dispose_peers(
-    active: &mut HashMap<String, ActivePeer>,
-    inbox: &UnboundedSender<ServerCommand>,
-) {
-    for (_, peer) in active.drain() {
-        peer.writer.abort();
-        let _ = inbox.send(ServerCommand::ClientDisconnected {
-            id: peer.numeric_id,
-        });
-    }
+async fn send_message(write: &mut RelayWrite, message: Message) -> anyhow::Result<()> {
+    tokio::time::timeout(Duration::from_secs(5), write.send(message)).await??;
+    Ok(())
 }
 
 #[cfg(test)]
