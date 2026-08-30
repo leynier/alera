@@ -13,6 +13,7 @@ add_executable(${BINARY_NAME} WIN32
   "win32_app_menu.cpp"
   "win32_dark_mode.cpp"
   "win32_desktop_presence.cpp"
+  "win32_single_instance.cpp"
   "win32_window.cpp"
   "${FLUTTER_MANAGED_DIR}/generated_plugin_registrant.cc"
   "Runner.rc"
@@ -35,6 +36,7 @@ target_compile_definitions(${BINARY_NAME} PRIVATE "NOMINMAX")
 
 # Flavor-aware display name (wide literal) for the window title and app menu.
 target_compile_definitions(${BINARY_NAME} PRIVATE ALERA_APP_NAME=L"${ALERA_APP_NAME}")
+target_compile_definitions(${BINARY_NAME} PRIVATE ALERA_APP_ID=L"${ALERA_APP_ID}")
 
 # Add dependency libraries and include directories. Add any application-specific
 # dependencies here.
