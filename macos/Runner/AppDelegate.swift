@@ -7,7 +7,8 @@ class AppDelegate: FlutterAppDelegate {
   private var desktopPresence: DesktopPresence?
 
   override func applicationDidFinishLaunching(_ notification: Notification) {
-    super.applicationDidFinishLaunching(notification)
+    // FlutterAppDelegate does not implement this optional Objective-C callback.
+    // Calling super throws before the native channels can be registered.
     guard let controller = mainFlutterWindow?.contentViewController as? FlutterViewController else {
       return
     }
