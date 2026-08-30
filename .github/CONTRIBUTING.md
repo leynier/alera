@@ -175,13 +175,13 @@ Mergify validates pull requests in batches of one to four. A single ready pull r
 
 ### Validate A Stack Before Merge
 
-Run **Desktop Builds** manually with `full_validation=true` and `source_sha` set to the full, lowercase, 40-character head commit of the top pull request. Select a workflow branch containing the validation inputs. For example:
+Run **Desktop Builds** manually from the top pull request's branch with `full_validation=true` and `source_sha` set to its full, lowercase, 40-character head commit. That branch must contain the validation inputs. For example:
 
 ```bash
-gh workflow run desktop-build.yml --ref <workflow-branch> -f source_sha=<top-pr-head-sha> -F full_validation=true
+gh workflow run desktop-build.yml --ref <top-pr-branch> -f source_sha=<top-pr-head-sha> -F full_validation=true
 ```
 
-The workflow checks out that exact commit for every native desktop build, golden test, and Linux desktop E2E suite. Its revision summary records both the source and workflow commits. Verify `desktop-validation-ready` and the normal PR checks before handing off the stack; a dispatch run's own head SHA can identify the workflow branch rather than the selected source commit. A later push or rebase requires new evidence for the changed commit.
+The workflow checks out its immutable triggering commit for every native desktop build, golden test, and Linux desktop E2E suite. `source_sha` asserts that this commit matches the one you reviewed: a branch that moves before dispatch fails the assertion instead of validating another commit. It cannot select arbitrary code under another branch's cache scope. The revision summary records both the source and workflow commits. Verify `desktop-validation-ready` and the normal PR checks before handing off the stack. A later push or rebase requires new evidence for the changed commit.
 
 Without the optional inputs, existing callers continue building their triggering commit without repeating the merge queue's golden and E2E jobs. This manual validation does not enqueue, merge, sign, or publish anything.
 

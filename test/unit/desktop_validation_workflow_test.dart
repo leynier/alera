@@ -31,16 +31,13 @@ void main() {
     for (final job in ['build', 'golden', 'desktop_e2e_linux']) {
       expect(jobs[job]['needs'], 'revision');
       final checkout = step(job, 'Checkout')['with'];
-      expect(checkout['ref'], r'${{ needs.revision.outputs.sha }}');
+      expect(checkout['ref'], r'${{ github.sha }}');
       expect(checkout['submodules'], false);
       expect(checkout['persist-credentials'], false);
     }
     final revisionSteps = steps('revision');
     expect(revisionSteps.first['name'], 'Require an immutable revision');
-    expect(
-      step('revision', 'Checkout')['with']['ref'],
-      r'${{ inputs.source_sha || github.sha }}',
-    );
+    expect(step('revision', 'Checkout')['with']['ref'], r'${{ github.sha }}');
     expect(
       jobs['revision']['outputs']['sha'],
       r'${{ steps.revision.outputs.sha }}',
@@ -48,6 +45,8 @@ void main() {
   });
 
   test('uses native builds and the shared test prologues', () {
+    expect(workflow['env']['ALERA_FLAVOR'], 'release');
+    expect(jobs['desktop_e2e_linux']['env']['ALERA_FLAVOR'], 'dev');
     final platforms =
         (jobs['build']['strategy']['matrix']['include'] as YamlList)
             .cast<YamlMap>();
@@ -111,6 +110,7 @@ void main() {
         final sha = '0123456789abcdef0123456789abcdef01234567';
         for (final value in [
           sha,
+          'ffffffffffffffffffffffffffffffffffffffff',
           'main',
           'v1.0.0',
           'abc123',
@@ -120,7 +120,7 @@ void main() {
           final result = Process.runSync(
             'bash',
             ['-c', script],
-            environment: {'SOURCE_SHA': value},
+            environment: {'SOURCE_SHA': value, 'TRIGGER_SHA': sha},
           );
           expect(result.exitCode, value == sha ? 0 : 1, reason: value);
         }

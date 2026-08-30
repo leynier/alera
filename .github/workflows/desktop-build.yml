@@ -5,7 +5,7 @@ on:
   workflow_call:
     inputs:
       source_sha:
-        description: Exact commit to validate; empty uses the triggering commit.
+        description: Expected triggering commit SHA; empty skips the assertion.
         type: string
         default: ''
       full_validation:
@@ -15,7 +15,7 @@ on:
   workflow_dispatch:
     inputs:
       source_sha:
-        description: Exact 40-character commit SHA; empty uses the triggering commit.
+        description: Expected 40-character SHA of the selected workflow ref.
         type: string
         default: ''
       full_validation:
@@ -48,17 +48,22 @@ jobs:
         shell: bash
         env:
           SOURCE_SHA: ${{ inputs.source_sha || github.sha }}
+          TRIGGER_SHA: ${{ github.sha }}
         run: |
           set -euo pipefail
           if [[ ! "$SOURCE_SHA" =~ ^[0-9a-f]{40}$ ]]; then
             echo "::error::source_sha must be a full lowercase commit SHA, not a branch or tag."
             exit 1
           fi
+          if [ "$SOURCE_SHA" != "$TRIGGER_SHA" ]; then
+            echo "::error::source_sha must match the selected workflow ref. Dispatch from the branch containing that commit."
+            exit 1
+          fi
 
       - name: Checkout
         uses: actions/checkout@v7
         with:
-          ref: ${{ inputs.source_sha || github.sha }}
+          ref: ${{ github.sha }}
           submodules: false
           persist-credentials: false
 
@@ -98,7 +103,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
         with:
-          ref: ${{ needs.revision.outputs.sha }}
+          ref: ${{ github.sha }}
           submodules: false
           persist-credentials: false
 
@@ -192,7 +197,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
         with:
-          ref: ${{ needs.revision.outputs.sha }}
+          ref: ${{ github.sha }}
           submodules: false
           persist-credentials: false
 
@@ -214,6 +219,9 @@ jobs:
 
   desktop_e2e_linux:
     name: validation desktop e2e linux
+    env:
+      # Flutter parses the first CMake binary name, which is the dev executable.
+      ALERA_FLAVOR: dev
     if: inputs.full_validation
     needs: revision
     runs-on: ubuntu-latest
@@ -222,7 +230,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
         with:
-          ref: ${{ needs.revision.outputs.sha }}
+          ref: ${{ github.sha }}
           submodules: false
           persist-credentials: false
 
