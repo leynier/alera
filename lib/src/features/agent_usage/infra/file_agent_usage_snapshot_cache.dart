@@ -15,7 +15,8 @@ class FileAgentUsageSnapshotCache implements AgentUsageSnapshotCache {
   }) : _applicationSupportDirectory =
            applicationSupportDirectory ?? getApplicationSupportDirectory;
 
-  static const int _schemaVersion = 1;
+  // Older apps map unknown providers to Codex; they must reject Grok snapshots.
+  static const int _schemaVersion = 2;
 
   final AgentUsageSupportDirectoryResolver _applicationSupportDirectory;
   final Map<String, Map<String, Object?>> _memory =

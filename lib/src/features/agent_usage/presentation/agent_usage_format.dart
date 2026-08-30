@@ -56,6 +56,7 @@ String _formatUsageDay(String value) {
 String _usageProviderLabel(AgentUsageProvider provider) => switch (provider) {
   AgentUsageProvider.claude => 'Claude Code',
   AgentUsageProvider.codex => 'Codex',
+  AgentUsageProvider.grok => 'Grok Build',
 };
 
 String _usagePricingDetail(AgentUsageSnapshot snapshot) {
@@ -64,6 +65,12 @@ String _usagePricingDetail(AgentUsageSnapshot snapshot) {
     (sum, bucket) => sum + bucket.unpricedRecords,
   );
   if (unpriced > 0) return '$unpriced unpriced responses';
+  if (snapshot.buckets.isNotEmpty &&
+      snapshot.buckets.every(
+        (bucket) => bucket.costSource == AgentUsageCostSource.providerReported,
+      )) {
+    return 'Provider-reported costs';
+  }
   return switch (snapshot.pricing.status) {
     AgentUsagePricingStatus.fresh => 'Current model rates',
     AgentUsagePricingStatus.cached => 'Cached model rates',

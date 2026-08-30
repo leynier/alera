@@ -1,12 +1,62 @@
 import 'package:alera/src/app/theme/alera_dark_theme.dart';
 import 'package:alera/src/design_system/surfaces/alera_panel.dart';
+import 'package:alera/src/features/agent_quota/presentation/agent_quota_provider_icon.dart';
 import 'package:alera/src/features/agent_usage/domain/agent_usage.dart';
 import 'package:alera/src/features/agent_usage/presentation/agent_usage_dialog.dart';
+import 'package:alera/src/features/settings/domain/alera_settings.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
+  testWidgets('shows Grok in metrics, chart, tooltip, and model breakdown', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(1280, 900));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await tester.pumpWidget(
+      _wrap(
+        AgentUsageDialogView(
+          hostId: 'local',
+          days: 30,
+          snapshot: _snapshot(includeGrok: true),
+          loading: false,
+          error: null,
+          onDaysChanged: (_) {},
+          onRefresh: () {},
+          onClose: () {},
+        ),
+      ),
+    );
+    expect(find.text('149'), findsOneWidget);
+    expect(find.text(r'$2.75'), findsOneWidget);
+    expect(find.text('Grok Build'), findsWidgets);
+    expect(
+      tester
+          .widgetList<AgentQuotaProviderIcon>(
+            find.byType(AgentQuotaProviderIcon),
+          )
+          .where((icon) => icon.provider == AgentQuotaProviderId.grok),
+      hasLength(1),
+    );
+    final chart = tester.widget<BarChart>(find.byType(BarChart));
+    final group = chart.data.barGroups.last;
+    expect(group.barRods, hasLength(3));
+    expect(group.barRods[2].toY, 100);
+    expect(chart.data.barGroups.first.barRods[2].color, Colors.transparent);
+    final tooltip = chart.data.barTouchData.touchTooltipData.getTooltipItem(
+      group,
+      chart.data.barGroups.length - 1,
+      group.barRods[2],
+      2,
+    );
+    expect(tooltip?.text, contains('Grok Build: 100'));
+    expect(tester.takeException(), isNull);
+    await tester.tap(find.text('Models'));
+    await tester.pumpAndSettle();
+    expect(find.text('grok-4.5-build'), findsOneWidget);
+  });
+
   testWidgets('renders usage metrics and CCS account breakdown', (
     tester,
   ) async {
@@ -237,7 +287,7 @@ Widget _wrap(Widget child) {
   );
 }
 
-AgentUsageSnapshot _snapshot() {
+AgentUsageSnapshot _snapshot({bool includeGrok = false}) {
   return AgentUsageSnapshot.fromJson(<String, Object?>{
     'readAt': 1_800_000_000_000,
     'sinceDay': '2026-08-01',
@@ -249,6 +299,15 @@ AgentUsageSnapshot _snapshot() {
       'knownModels': 10,
     },
     'sources': <Object?>[
+      if (includeGrok)
+        <String, Object?>{
+          'provider': 'grok',
+          'accountId': 'default',
+          'displayName': 'Default',
+          'status': 'ok',
+          'scannedFiles': 1,
+          'distinctSessions': 1,
+        },
       <String, Object?>{
         'provider': 'claude',
         'accountId': 'dev',
@@ -267,6 +326,16 @@ AgentUsageSnapshot _snapshot() {
       },
     ],
     'buckets': <Object?>[
+      if (includeGrok)
+        _bucket(
+          provider: 'grok',
+          accountId: 'default',
+          displayName: 'Default',
+          model: 'grok-4.5-build',
+          day: '2026-08-10',
+          tokens: 100,
+          cost: 1,
+        ),
       _bucket(
         provider: 'claude',
         accountId: 'dev',

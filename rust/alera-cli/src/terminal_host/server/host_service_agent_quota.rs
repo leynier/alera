@@ -24,6 +24,7 @@ impl ServerActor {
     ) -> HostResult<()> {
         let since_day = required_non_blank(payload, "sinceDay")?;
         let until_day = required_non_blank(payload, "untilDay")?;
+        let include_grok = payload.get("includeGrok").and_then(Value::as_bool) == Some(true);
         let store = self.runtime_store.clone();
         let inbox = self.inbox.clone();
         tokio::spawn(async move {
@@ -36,6 +37,7 @@ impl ServerActor {
                 fetch_agent_usage(json!({
                     "sinceDay": since_day,
                     "untilDay": until_day,
+                    "includeGrok": include_grok,
                     "claudeDefaultEnabled": settings.claude_default_show_in_usage,
                     "claudeProfiles": claude_profiles,
                 }))

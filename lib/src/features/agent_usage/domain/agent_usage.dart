@@ -1,4 +1,4 @@
-enum AgentUsageProvider { claude, codex }
+enum AgentUsageProvider { claude, codex, grok }
 
 enum AgentUsageCostSource { providerReported, modelPriced, unpriced }
 
@@ -267,6 +267,7 @@ class AgentUsageSnapshot {
               label: switch (bucket.provider) {
                 AgentUsageProvider.claude => 'Claude Code',
                 AgentUsageProvider.codex => 'Codex',
+                AgentUsageProvider.grok => 'Grok Build',
               },
             ),
           )
@@ -331,6 +332,7 @@ String _usageAccountLabel(AgentUsageBucket bucket) {
   return switch ((bucket.provider, bucket.accountId)) {
     (AgentUsageProvider.claude, 'default') => 'Claude Code Default',
     (AgentUsageProvider.codex, 'default') => 'Codex',
+    (AgentUsageProvider.grok, 'default') => 'Grok Build',
     _ => bucket.displayName,
   };
 }
@@ -358,6 +360,7 @@ class AgentUsageDay {
     required this.day,
     required this.claudeTokens,
     required this.codexTokens,
+    this.grokTokens = 0,
     required this.costUsd,
   });
 
@@ -367,9 +370,10 @@ class AgentUsageDay {
   final String day;
   final int claudeTokens;
   final int codexTokens;
+  final int grokTokens;
   final double costUsd;
 
-  int get tokens => claudeTokens + codexTokens;
+  int get tokens => claudeTokens + codexTokens + grokTokens;
 
   AgentUsageDay add(AgentUsageBucket bucket) {
     return AgentUsageDay(
@@ -382,6 +386,11 @@ class AgentUsageDay {
       codexTokens:
           codexTokens +
           (bucket.provider == AgentUsageProvider.codex
+              ? bucket.totals.totalTokens
+              : 0),
+      grokTokens:
+          grokTokens +
+          (bucket.provider == AgentUsageProvider.grok
               ? bucket.totals.totalTokens
               : 0),
       costUsd: costUsd + bucket.costUsd,

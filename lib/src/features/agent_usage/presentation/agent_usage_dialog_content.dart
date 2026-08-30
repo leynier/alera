@@ -84,7 +84,7 @@ class _AgentUsageContentState extends State<_AgentUsageContent> {
           Text('Daily Activity', style: Theme.of(context).textTheme.titleSmall),
           const SizedBox(height: AleraTokens.space4),
           Text(
-            'Tokens read from Claude Code and Codex transcripts on this host.',
+            'Tokens read from Claude Code, Codex, and Grok Build transcripts on this host.',
             style: Theme.of(
               context,
             ).textTheme.bodySmall?.copyWith(color: AleraTokens.foregroundMuted),
@@ -142,7 +142,8 @@ class _UsageBreakdownTable extends StatelessWidget {
     if (values.isEmpty) {
       return const AleraEmptyState(
         title: 'No Activity',
-        message: 'No Claude Code or Codex usage was found in this range.',
+        message:
+            'No Claude Code, Codex, or Grok Build usage was found in this range.',
       );
     }
     return AleraPanel(
@@ -192,9 +193,11 @@ class _UsageBreakdownRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final quotaProvider = value.provider == AgentUsageProvider.claude
-        ? AgentQuotaProviderId.claude
-        : AgentQuotaProviderId.codex;
+    final quotaProvider = switch (value.provider) {
+      AgentUsageProvider.claude => AgentQuotaProviderId.claude,
+      AgentUsageProvider.codex => AgentQuotaProviderId.codex,
+      AgentUsageProvider.grok => AgentQuotaProviderId.grok,
+    };
     return Padding(
       padding: const EdgeInsets.symmetric(
         horizontal: AleraTokens.space12,

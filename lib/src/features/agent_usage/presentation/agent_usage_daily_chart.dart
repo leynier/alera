@@ -23,7 +23,8 @@ class AgentUsageDailyChart extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: <Widget>[
         Semantics(
-          label: 'Daily Claude Code and Codex token usage. $semanticLabel',
+          label:
+              'Daily Claude Code, Codex, and Grok Build token usage. $semanticLabel',
           image: true,
           child: SizedBox(
             height: AleraTokens.usageChartHeight,
@@ -46,6 +47,11 @@ class AgentUsageDailyChart extends StatelessWidget {
             const _UsageChartLegend(
               color: AleraTokens.foregroundFaint,
               label: 'Codex',
+            ),
+            const SizedBox(width: AleraTokens.space12),
+            const _UsageChartLegend(
+              color: AleraTokens.foregroundMuted,
+              label: 'Grok Build',
             ),
             const Spacer(),
             Text(
@@ -99,11 +105,11 @@ class _UsageBarChart extends StatelessWidget {
     return LayoutBuilder(
       builder: (context, constraints) {
         final slotWidth = constraints.maxWidth / days.length;
-        final pairWidth = (slotWidth - AleraTokens.space2).clamp(
+        final groupWidth = (slotWidth - AleraTokens.space2).clamp(
           AleraTokens.space2,
-          AleraTokens.space20,
+          AleraTokens.space24,
         );
-        final barWidth = (pairWidth - AleraTokens.space2) / 2;
+        final barWidth = groupWidth / 5;
         return BarChart(
           BarChartData(
             minY: 0,
@@ -113,7 +119,7 @@ class _UsageBarChart extends StatelessWidget {
               for (var index = 0; index < days.length; index++)
                 BarChartGroupData(
                   x: index,
-                  barsSpace: AleraTokens.space2,
+                  barsSpace: barWidth,
                   barRods: <BarChartRodData>[
                     _usageBar(
                       days[index].claudeTokens,
@@ -124,6 +130,11 @@ class _UsageBarChart extends StatelessWidget {
                       days[index].codexTokens,
                       barWidth,
                       AleraTokens.foregroundFaint,
+                    ),
+                    _usageBar(
+                      days[index].grokTokens,
+                      barWidth,
+                      AleraTokens.foregroundMuted,
                     ),
                   ],
                 ),
@@ -147,7 +158,9 @@ class _UsageBarChart extends StatelessWidget {
                 ),
                 tooltipPadding: const EdgeInsets.all(AleraTokens.space8),
                 getTooltipItem: (group, groupIndex, rod, rodIndex) {
-                  final provider = rodIndex == 0 ? 'Claude Code' : 'Codex';
+                  final provider = _usageProviderLabel(
+                    AgentUsageProvider.values[rodIndex],
+                  );
                   return BarTooltipItem(
                     '${_formatUsageDay(days[groupIndex].day)}\n$provider: ${_formatUsageTokens(rod.toY.round())}',
                     AleraTokens.monoCompactStyle.copyWith(
