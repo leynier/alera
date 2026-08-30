@@ -6,9 +6,11 @@ project(alera LANGUAGES CXX)
 # build coexists with an installed release build.
 set(BINARY_NAME "alera-dev")
 set(ALERA_APP_NAME "Alera Dev")
+set(ALERA_APP_ID "dev.leynier.alera.dev")
 if("$ENV{ALERA_FLAVOR}" STREQUAL "release")
   set(BINARY_NAME "Alera")
   set(ALERA_APP_NAME "Alera")
+  set(ALERA_APP_ID "dev.leynier.alera")
 endif()
 
 # Explicitly opt in to modern CMake behaviors to avoid warnings with recent
