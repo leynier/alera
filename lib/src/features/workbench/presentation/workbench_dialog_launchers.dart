@@ -7,6 +7,7 @@ import 'package:alera/src/design_system/forms/alera_text_field.dart';
 import 'package:alera/src/design_system/layout/alera_dialog.dart';
 import 'package:alera/src/features/agent_profiles/application/agent_profile_providers.dart';
 import 'package:alera/src/features/automations/presentation/automations_dialog.dart';
+import 'package:alera/src/features/orchestration/application/run_board_navigation.dart';
 import 'package:alera/src/features/agent_profiles/domain/agent_profile.dart';
 import 'package:alera/src/features/projects/domain/project.dart';
 import 'package:alera/src/features/projects/presentation/add_project_dialog.dart';
@@ -53,10 +54,35 @@ Future<void> showQuickOpenFlow(BuildContext context, WidgetRef ref) async {
     return;
   }
   final previousFocus = FocusManager.instance.primaryFocus;
-  await showDialog<void>(
-    context: context,
-    builder: (_) => const QuickOpenDialog(),
-  );
+  final selection =
+      await showDialog<({Workspace workspace, String relativePath})>(
+        context: context,
+        builder: (_) => const QuickOpenDialog(),
+      );
+  if (!context.mounted) return;
+  if (selection != null) {
+    try {
+      await ref
+          .read(workbenchControllerProvider.notifier)
+          .openFileTab(
+            workspace: selection.workspace,
+            relativePath: selection.relativePath,
+            preview: true,
+          );
+      if (!context.mounted) return;
+      if (ref.read(runBoardNavigationProvider).visible) {
+        ref.read(runBoardNavigationProvider.notifier).close();
+        return;
+      }
+    } catch (_) {
+      if (!context.mounted) return;
+      AleraToast.show(
+        context,
+        message: 'Could not open the selected file.',
+        tone: AleraToastTone.error,
+      );
+    }
+  }
   if (previousFocus?.canRequestFocus ?? false) {
     previousFocus!.requestFocus();
   }

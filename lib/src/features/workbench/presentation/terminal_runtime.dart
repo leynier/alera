@@ -133,6 +133,10 @@ abstract class TerminalSessionHandle extends ChangeNotifier {
 
   TerminalVisibilityLease acquireVisibility();
 
+  /// Pins controllers owned by a mounted surface without enabling output.
+  TerminalRetentionLease acquireRetention() =>
+      const NoopTerminalRetentionLease();
+
   Widget buildView({
     Key? key,
     bool autofocus = false,
@@ -173,6 +177,16 @@ enum TerminalSessionOperation { starting, reconnecting, restarting }
 
 abstract interface class TerminalVisibilityLease {
   void dispose();
+}
+
+abstract interface class TerminalRetentionLease {
+  void dispose();
+}
+
+final class const NoopTerminalRetentionLease()
+    implements TerminalRetentionLease {
+  @override
+  void dispose() {}
 }
 
 final class const NoopTerminalVisibilityLease()

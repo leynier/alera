@@ -74,11 +74,15 @@ class const _WorkspaceTabContent({
         autofocus: autofocus,
         pageObscured: _WorkbenchTabDragScope.isActiveOf(context),
       ),
-      WorkspaceTabKind.mobileEmulator => MobileEmulatorSurface(
-        workspace: workspace,
-        tab: tab,
-        autofocus: autofocus,
-      ),
+      // Offstage alone cannot pause native video decoding.
+      WorkspaceTabKind.mobileEmulator =>
+        TickerMode.valuesOf(context).enabled
+            ? MobileEmulatorSurface(
+                workspace: workspace,
+                tab: tab,
+                autofocus: autofocus,
+              )
+            : const SizedBox.shrink(),
     };
   }
 }

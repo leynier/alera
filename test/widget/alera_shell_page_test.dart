@@ -1,5 +1,14 @@
 import 'dart:async';
 
+import 'package:code_forge/code_forge.dart' as code_forge;
+import 'package:alera/src/features/orchestration/application/run_board_navigation.dart';
+import 'package:alera/src/features/orchestration/application/run_board_providers.dart';
+import 'package:alera/src/features/orchestration/presentation/run_board_page.dart';
+import 'package:alera/src/features/workbench/presentation/workspace_editor_surface.dart';
+
+import '../support/run_board_fixtures.dart';
+import '../support/run_board_widget_harness.dart';
+
 import 'package:alera/src/app/providers.dart';
 import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/design_system/icons/alera_icons.dart';
@@ -45,6 +54,8 @@ part 'alera_shell_page_codex_sidebar_test_cases.dart';
 part 'alera_shell_page_sidebar_actions_test_cases.dart';
 part 'alera_shell_page_sidebar_mutation_test_cases.dart';
 part 'alera_shell_page_sidebar_states_test_cases.dart';
+part 'alera_shell_page_workspace_tray_test_cases.dart';
+part 'alera_shell_page_run_board_test_cases.dart';
 part 'alera_shell_page_pinning_test_cases.dart';
 part 'alera_shell_page_sidebar_identity_test_cases.dart';
 
@@ -60,6 +71,7 @@ Future<_ShellPumpHarness> _pumpShell(
   _ShellTestWorkbenchController? controller,
   EditorSessionRegistry? editorSessionRegistry,
   AleraSettings? settings,
+  BoardTestRepository? boardRepository,
   Map<String, AgentStatusEntry> agentStatuses =
       const <String, AgentStatusEntry>{},
 }) async {
@@ -75,6 +87,8 @@ Future<_ShellPumpHarness> _pumpShell(
   await tester.pumpWidget(
     ProviderScope(
       overrides: [
+        if (boardRepository != null)
+          runBoardRepositoryProvider.overrideWithValue(boardRepository),
         aleraDatabaseProvider.overrideWith((ref) async => db),
         workbenchControllerProvider.overrideWith(() => shellController),
         agentProfilesProvider.overrideWith(() => _ShellAgentProfiles()),
@@ -123,6 +137,8 @@ void main() {
   _registerAleraShellSidebarActionTests();
   _registerAleraShellSidebarMutationTests();
   _registerAleraShellSidebarStateTests();
+  _registerAleraShellWorkspaceTrayTests();
+  _registerAleraShellRunBoardTests();
   _registerAleraShellPinningTests();
   _registerAleraShellSidebarIdentityTests();
 }

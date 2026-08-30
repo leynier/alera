@@ -14,7 +14,7 @@ class _XtermTerminalSessionHandle(
   final void Function(String message, {bool error})? _interactionNotice,
   final VoidCallback _osc52Blocked,
   final void Function(TerminalRuntimeExitEvent event) _onExit,
-  this._onVisibilityChanged,
+  this._onEvictionEligibilityChanged,
 ) extends TerminalSessionHandle
     with _TerminalSearchSessionSupport, _TerminalSessionCapabilitiesSupport {
   this {
@@ -29,10 +29,9 @@ class _XtermTerminalSessionHandle(
   @override
   WorkspaceTabRecord _tab;
 
-  /// Lets the runtime re-run the memory budget when a terminal stops being
-  /// visible, which is the only moment a new eviction candidate appears.
-  final void Function(_XtermTerminalSessionHandle handle) _onVisibilityChanged;
-
+  /// Visibility and mounted ownership can change eviction eligibility.
+  final void Function(_XtermTerminalSessionHandle handle)
+  _onEvictionEligibilityChanged;
   @override
   late xterm.Terminal _terminal;
   @override
@@ -71,6 +70,8 @@ class _XtermTerminalSessionHandle(
   final Set<int> _suppressedExitPtyGenerations = <int>{};
   @override
   final Set<Object> _visibilityLeases = <Object>{};
+  @override
+  final Set<Object> _retentionLeases = <Object>{};
 
   bool _starting = false;
   TerminalSessionOperation? _operation;
@@ -199,6 +200,9 @@ class _XtermTerminalSessionHandle(
 
   @override
   TerminalVisibilityLease acquireVisibility() => _acquireVisibilityLease();
+
+  @override
+  TerminalRetentionLease acquireRetention() => _acquireRetentionLease();
 
   @override
   Widget buildView({

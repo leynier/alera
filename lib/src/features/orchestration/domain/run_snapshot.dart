@@ -7,6 +7,8 @@ class RunTaskSummary {
     required this.status,
     required this.workspaceId,
     this.stageId,
+    this.dependencies = const [],
+    this.dependenciesTruncated = false,
   });
 
   factory RunTaskSummary.fromJson(Map<String, Object?> json) => RunTaskSummary(
@@ -15,6 +17,10 @@ class RunTaskSummary {
     status: json['status'] as String,
     workspaceId: json['workspace_id'] as String,
     stageId: json['stage_id'] as String?,
+    dependencies: List<String>.unmodifiable(
+      (json['dependencies'] as List? ?? const []).cast<String>(),
+    ),
+    dependenciesTruncated: json['dependencies_truncated'] as bool? ?? false,
   );
 
   final String id;
@@ -22,6 +28,8 @@ class RunTaskSummary {
   final String status;
   final String workspaceId;
   final String? stageId;
+  final List<String> dependencies;
+  final bool dependenciesTruncated;
 }
 
 class RunSnapshot {

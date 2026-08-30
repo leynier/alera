@@ -3,6 +3,7 @@ use serde::{Deserialize, Serialize};
 use sqlx::Row;
 
 use super::orchestration_board_store::{summary_from_row, BOARD_REVISION_SQL};
+use super::orchestration_task_inspection::bounded_dependencies;
 use super::{OrchestrationRunSummary, RuntimeStore};
 
 #[derive(Debug, Clone, Deserialize)]
@@ -21,6 +22,8 @@ pub struct OrchestrationTaskSummary {
     pub status: String,
     pub stage_id: Option<String>,
     pub workspace_id: String,
+    pub dependencies: Vec<String>,
+    pub dependencies_truncated: bool,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -75,7 +78,8 @@ impl RuntimeStore {
         let objective_truncated = row.try_get("truncated")?;
         let rows = sqlx::query(
             "SELECT id, substr(COALESCE(display_name, task_title, spec), 1, 256) AS title,
-                status, stage_id, workspace_id
+                status, stage_id, workspace_id,
+                CASE WHEN length(deps) <= 16384 THEN deps END AS deps
              FROM orchestrationTasks WHERE run_id = ? AND (? IS NULL OR id > ?)
              ORDER BY id LIMIT ?",
         )
@@ -88,12 +92,21 @@ impl RuntimeStore {
         let mut tasks = rows
             .into_iter()
             .map(|row| {
+                let deps: Option<String> = row.try_get("deps")?;
+                let (mut dependencies, mut dependencies_truncated) =
+                    bounded_dependencies(deps.as_deref());
+                // The ledger needs a preview; the on-demand inspector owns the
+                // larger list, keeping a 100-task page cheap for the UI.
+                dependencies_truncated |= dependencies.len() > 8;
+                dependencies.truncate(8);
                 Ok(OrchestrationTaskSummary {
                     id: row.try_get("id")?,
                     title: row.try_get("title")?,
                     status: row.try_get("status")?,
                     stage_id: row.try_get("stage_id")?,
                     workspace_id: row.try_get("workspace_id")?,
+                    dependencies,
+                    dependencies_truncated,
                 })
             })
             .collect::<Result<Vec<_>>>()?;

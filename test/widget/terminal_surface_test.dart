@@ -3,6 +3,7 @@ import 'dart:convert';
 
 import 'package:alera/src/app/providers.dart';
 import 'package:alera/src/app/theme/alera_tokens.dart';
+import 'package:alera/src/features/agent_canvas/application/agent_canvas_providers.dart';
 import 'package:alera/src/design_system/forms/alera_text_actions_scope.dart';
 import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/shared/infra/uri/external_uri_launcher.dart';
@@ -31,6 +32,7 @@ part 'terminal_surface_composer_test_cases.dart';
 part 'terminal_surface_composer_submit_test_cases.dart';
 part 'terminal_surface_interaction_test_cases.dart';
 part 'terminal_surface_tab_switch_test_cases.dart';
+part 'terminal_surface_retention_test_cases.dart';
 part 'terminal_surface_toolbar_test_cases.dart';
 part 'terminal_surface_test_harness.dart';
 
@@ -41,5 +43,6 @@ void main() {
   _registerTerminalSurfaceComposerSubmitTests();
   _registerTerminalSurfaceInteractionTests();
   _registerTerminalSurfaceTabSwitchTests();
+  _registerTerminalSurfaceRetentionTests();
   _registerTerminalSurfaceToolbarTests();
 }
