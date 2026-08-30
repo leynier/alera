@@ -7,7 +7,8 @@ class AppDelegate: FlutterAppDelegate {
   private var desktopPresence: DesktopPresence?
 
   override func applicationDidFinishLaunching(_ notification: Notification) {
-    super.applicationDidFinishLaunching(notification)
+    // FlutterAppDelegate does not implement this optional Objective-C callback.
+    // Calling super throws before the native channels can be registered.
     guard let controller = mainFlutterWindow?.contentViewController as? FlutterViewController else {
       return
     }
@@ -39,9 +40,9 @@ class AppDelegate: FlutterAppDelegate {
   }
 
   override func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
-    // Hide-on-close uses NSWindow.orderOut, so the window still exists.
-    // Destroying it (Quit) is what should terminate the process.
-    return true
+    // AppKit can request termination when the last window is hidden too.
+    // The Dart close/quit flow calls NSApp.terminate explicitly when needed.
+    return false
   }
 
   override func applicationSupportsSecureRestorableState(_ app: NSApplication) -> Bool {
