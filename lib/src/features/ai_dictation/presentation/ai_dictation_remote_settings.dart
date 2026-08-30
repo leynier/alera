@@ -22,7 +22,8 @@ class AiDictationRemoteSettings extends ConsumerStatefulWidget {
   });
 
   final AiDictationSettings settings;
-  final ValueChanged<AiDictationSettings> onChanged;
+  final ValueChanged<AiDictationSettings Function(AiDictationSettings)>
+  onChanged;
   final bool supported;
   final GlobalKey? groupKey;
 
@@ -178,7 +179,7 @@ class _AiDictationRemoteSettingsState
                   settings.remoteConsentVersion ==
                   aiDictationRemoteConsentVersion,
               onChanged: (value) => widget.onChanged(
-                settings.copyWith(
+                (settings) => settings.copyWith(
                   remoteConsentVersion: value
                       ? aiDictationRemoteConsentVersion
                       : null,
@@ -193,7 +194,7 @@ class _AiDictationRemoteSettingsState
                 value: settings.codexRealtimeModel ?? '',
                 hintText: 'Subscription default',
                 onChanged: (value) => widget.onChanged(
-                  settings.copyWith(
+                  (settings) => settings.copyWith(
                     codexRealtimeModel: value.isEmpty ? null : value,
                   ),
                 ),
@@ -206,7 +207,7 @@ class _AiDictationRemoteSettingsState
                 value: settings.remoteBaseUrl ?? '',
                 hintText: 'https://api.openai.com/v1',
                 onChanged: (value) => widget.onChanged(
-                  settings.copyWith(
+                  (settings) => settings.copyWith(
                     remoteBaseUrl: value.isEmpty ? null : value,
                   ),
                 ),
@@ -218,7 +219,9 @@ class _AiDictationRemoteSettingsState
                 value: settings.remoteModel ?? '',
                 hintText: 'gpt-4o-mini-transcribe',
                 onChanged: (value) => widget.onChanged(
-                  settings.copyWith(remoteModel: value.isEmpty ? null : value),
+                  (settings) => settings.copyWith(
+                    remoteModel: value.isEmpty ? null : value,
+                  ),
                 ),
               ),
               _tokenRow(context),
@@ -232,8 +235,9 @@ class _AiDictationRemoteSettingsState
                 max: 300,
                 step: 5,
                 suffix: 's',
-                onChanged: (value) =>
-                    widget.onChanged(settings.copyWith(timeoutSeconds: value)),
+                onChanged: (value) => widget.onChanged(
+                  (settings) => settings.copyWith(timeoutSeconds: value),
+                ),
               ),
           ],
         ],

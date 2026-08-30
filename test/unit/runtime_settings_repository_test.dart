@@ -8,6 +8,58 @@ import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   test(
+    'portable runtime values refresh the cache without exporting local paths',
+    () async {
+      final legacy = _MemorySettingsRepository();
+      final client = _RecordingRuntimeHostClient()
+        ..configurationSupported = true;
+      client.responses['configuration.settings.get'] = {
+        'terminal': {'fontSize': 19.0},
+        'general': {'workspaceDirectory': '/remote/path'},
+      };
+      client.responses['runtimeSettings.get'] = {
+        'workspaceDirectory': '/local/path',
+      };
+      final repository = RuntimeSettingsRepository(
+        client: client,
+        legacyRepository: legacy,
+      );
+      final result = await repository.load();
+      expect(result.terminal.fontSize, 19);
+      expect(result.general.workspaceDirectory, '/local/path');
+      expect(legacy.settings.terminal.fontSize, 19);
+      final seed =
+          client.payloads['configuration.settings.seed']!.single['settings']!
+              as Map;
+      expect(seed['general'], isNot(contains('workspaceDirectory')));
+      expect(seed['agents'], isNot(contains('quotas')));
+      await repository.save(result);
+      expect(client.payloads['configuration.settings.update'], hasLength(1));
+    },
+  );
+  test(
+    'a failed runtime save leaves the compatibility cache unchanged',
+    () async {
+      final legacy = _MemorySettingsRepository();
+      final client = _RecordingRuntimeHostClient()
+        ..configurationSupported = true
+        ..failConfigurationUpdate = true;
+      final repository = RuntimeSettingsRepository(
+        client: client,
+        legacyRepository: legacy,
+      );
+      final original = legacy.settings;
+      await expectLater(
+        repository.save(
+          original.copyWith(terminal: original.terminal.copyWith(fontSize: 21)),
+        ),
+        throwsStateError,
+      );
+      expect(legacy.settings, original);
+      expect(client.payloads, isNot(contains('runtimeSettings.update')));
+    },
+  );
+  test(
     'RuntimeSettingsRepository sends structured portable settings',
     () async {
       final client = _RecordingRuntimeHostClient();
@@ -252,11 +304,85 @@ void main() {
       expect(loadedFromNewHost.textActions.actions, isEmpty);
     },
   );
+  test(
+    'restoring absent portable settings uses defaults and preserves local fields',
+    () async {
+      final client = _RecordingRuntimeHostClient()
+        ..configurationSupported = true;
+      final legacy = _MemorySettingsRepository();
+      legacy.settings = AleraSettings.defaults.copyWith(
+        terminal: AleraSettings.defaults.terminal.copyWith(
+          fontSize: 20,
+          scrollbackLines: 1234,
+        ),
+        general: AleraSettings.defaults.general.copyWith(
+          workspaceDirectory: '/local',
+        ),
+      );
+      client.responses['configuration.settings.get'] = <String, Object?>{
+        'terminal': <String, Object?>{},
+      };
+      client.responses['runtimeSettings.get'] = <String, Object?>{
+        'workspaceDirectory': '/local',
+      };
+      final actual = await RuntimeSettingsRepository(
+        client: client,
+        legacyRepository: legacy,
+      ).load();
+      expect(
+        actual.terminal.fontSize,
+        AleraSettings.defaults.terminal.fontSize,
+      );
+      expect(actual.terminal.scrollbackLines, 1234);
+      expect(actual.general.workspaceDirectory, '/local');
+    },
+  );
+  test(
+    'unknown shortcuts do not prevent known portable preferences loading',
+    () async {
+      final client = _RecordingRuntimeHostClient()
+        ..configurationSupported = true;
+      final legacy = _MemorySettingsRepository();
+      client.responses['configuration.settings.get'] = {
+        'terminal': {'fontSize': 20},
+        'keyboard': {
+          'overrides': {
+            'openSettings': ['Mod+Comma'],
+            'futureAction': ['Mod+F12'],
+          },
+        },
+      };
+      client.responses['runtimeSettings.get'] = {'workspaceDirectory': null};
+      final repository = RuntimeSettingsRepository(
+        client: client,
+        legacyRepository: legacy,
+      );
+      final actual = await repository.load();
+      expect(actual.terminal.fontSize, 20);
+      expect(actual.keyboard.overrides.keys.map((id) => id.name), [
+        'openSettings',
+      ]);
+      await repository.save(actual);
+      final saved = client.payloads['configuration.settings.update']!.single;
+      expect(saved['supportedKeyboardActionIds'], contains('openSettings'));
+      expect(
+        saved['supportedKeyboardActionIds'],
+        isNot(contains('futureAction')),
+      );
+    },
+  );
 }
 
-final class _RecordingRuntimeHostClient implements RuntimeHostClient {
+final class _RecordingRuntimeHostClient
+    implements RuntimeHostClient, RuntimeHostCapabilityClient {
   final payloads = <String, List<Map<String, Object?>>>{};
   final responses = <String, Object?>{};
+  bool configurationSupported = false;
+  bool failConfigurationUpdate = false;
+
+  @override
+  Future<bool> supportsRuntimeCapability(String capability) async =>
+      configurationSupported && capability == 'configurationSyncV1';
 
   @override
   Stream<RuntimeHostEvent> get runtimeEvents => const Stream.empty();
@@ -268,6 +394,9 @@ final class _RecordingRuntimeHostClient implements RuntimeHostClient {
     Duration? timeout,
   ]) async {
     payloads.putIfAbsent(type, () => <Map<String, Object?>>[]).add(payload);
+    if (type == 'configuration.settings.update' && failConfigurationUpdate) {
+      throw StateError('Runtime unavailable');
+    }
     return responses[type];
   }
 }

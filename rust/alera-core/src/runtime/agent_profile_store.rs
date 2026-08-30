@@ -347,7 +347,7 @@ impl RuntimeStore {
     }
 }
 
-async fn agent_profile_removal_impact_in(
+pub(super) async fn agent_profile_removal_impact_in(
     connection: &mut SqliteConnection,
     profile_id: &str,
     expected_revision: i64,

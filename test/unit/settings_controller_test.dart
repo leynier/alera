@@ -24,7 +24,7 @@ void main() {
       await controller.load();
 
       await controller.updateTerminal(
-        controller.state.terminal.copyWith(fontSize: 18),
+        (terminal) => terminal.copyWith(fontSize: 18),
       );
       final restored = await repository.load();
 
@@ -44,7 +44,7 @@ void main() {
       await controller.load();
 
       await controller.updateTerminal(
-        controller.state.terminal.copyWith(
+        (terminal) => terminal.copyWith(
           fontFamily: 'Menlo',
           cursorShape: TerminalCursorShape.bar,
         ),
@@ -166,7 +166,7 @@ void main() {
       await controller.load();
 
       await controller.updateEditor(
-        controller.state.editor.copyWith(
+        (editor) => editor.copyWith(
           tabSize: 2,
           themeName: EditorSyntaxThemeNames.monokai,
         ),

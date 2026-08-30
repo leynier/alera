@@ -41,7 +41,7 @@ final class MobileAiDictationSettingsControllerProvider
 }
 
 String _$mobileAiDictationSettingsControllerHash() =>
-    r'2d3c01ef1cbc0ef3f1d1900ebd17fcdf1a123ca7';
+    r'11e407f75ff48a358b12dd76b132de253815cb80';
 
 abstract class _$MobileAiDictationSettingsController
     extends $AsyncNotifier<MobileAiDictationSettings> {
