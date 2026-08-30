@@ -64,6 +64,7 @@ impl AleraApp {
             .and_then(Value::as_str)
             .unwrap_or(tab.title.as_str())
             .to_owned();
+        let editor_busy = self.editor_path_busy(&path);
         let dirty = self.editor_dirty_paths.contains(&path);
         let title_color = if dirty {
             theme::text()
@@ -110,10 +111,10 @@ impl AleraApp {
                             SharedString::from(format!("save-editor-{tab_id}")),
                             "Save File",
                             AleraIcon::Save,
-                            dirty && !self.editor_busy,
+                            dirty && !editor_busy,
                         )
                         .tooltip(|_, cx| cx.new(|_| Tooltip::new("Save File")).into())
-                        .when(dirty && !self.editor_busy, |button| {
+                        .when(dirty && !editor_busy, |button| {
                             button.on_mouse_down(
                                 MouseButton::Left,
                                 cx.listener(move |this, _, _, cx| {
@@ -131,10 +132,10 @@ impl AleraApp {
                             SharedString::from(format!("discard-editor-{tab_id}")),
                             "Discard Changes",
                             AleraIcon::Restore,
-                            dirty && !self.editor_busy,
+                            dirty && !editor_busy,
                         )
                         .tooltip(|_, cx| cx.new(|_| Tooltip::new("Discard Changes")).into())
-                        .when(dirty && !self.editor_busy, |button| {
+                        .when(dirty && !editor_busy, |button| {
                             button.on_mouse_down(
                                 MouseButton::Left,
                                 cx.listener(move |this, _, window, cx| {
@@ -177,10 +178,10 @@ impl AleraApp {
                             SharedString::from(format!("refresh-markdown-preview-{tab_id}")),
                             "Refresh Preview",
                             AleraIcon::Refresh,
-                            !self.editor_busy,
+                            !editor_busy,
                         )
                         .tooltip(|_, cx| cx.new(|_| Tooltip::new("Refresh Preview")).into())
-                        .when(!self.editor_busy, |button| {
+                        .when(!editor_busy, |button| {
                             button.on_click(cx.listener(move |this, _, window, cx| {
                                 cx.stop_propagation();
                                 this.activate_workspace_tab(refresh_tab_id.clone(), cx);
@@ -225,10 +226,10 @@ impl AleraApp {
                             SharedString::from(format!("refresh-merman-preview-{tab_id}")),
                             "Refresh Preview",
                             AleraIcon::Refresh,
-                            !self.editor_busy,
+                            !editor_busy,
                         )
                         .tooltip(|_, cx| cx.new(|_| Tooltip::new("Refresh Preview")).into())
-                        .when(!self.editor_busy, |button| {
+                        .when(!editor_busy, |button| {
                             button.on_click(cx.listener(move |this, _, window, cx| {
                                 cx.stop_propagation();
                                 this.activate_workspace_tab(refresh_tab_id.clone(), cx);
@@ -909,6 +910,7 @@ impl AleraApp {
                     .id("markdown-preview")
                     .flex_1()
                     .overflow_hidden()
+                    .line_height(gpui::relative(1.45))
                     .py_6()
                     .px(px(27.0))
                     .child(

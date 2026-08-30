@@ -141,7 +141,7 @@ impl AleraApp {
                                 .role(Role::Alert)
                                 .aria_label(alert_label)
                                 .mt_4()
-                                .text_sm()
+                                .text_size(crate::theme::body_size())
                                 .text_color(theme::danger())
                                 .child(error),
                         )
@@ -194,7 +194,7 @@ impl AleraApp {
                     .child(
                         div()
                             .mt_5()
-                            .text_sm()
+                            .text_size(crate::theme::body_size())
                             .text_color(theme::text_muted())
                             .child(
                                 "Choose Every Workspace Setting Yourself, Including The Branch Name And Optional Parent Workspace.",
@@ -226,7 +226,7 @@ impl AleraApp {
                             .role(Role::Alert)
                             .aria_label(alert_label)
                             .mt_3()
-                            .text_sm()
+                            .text_size(crate::theme::body_size())
                             .text_color(theme::danger())
                             .child(error),
                     )
@@ -265,19 +265,19 @@ impl AleraApp {
             .child(
                 div()
                     .mr_2()
-                    .text_lg()
+                    .text_size(crate::theme::title_size())
                     .text_color(theme::accent())
                     .child(icon(AleraIcon::GitFork, 18.0, theme::accent())),
             )
             .child(
                 div()
-                    .text_lg()
+                    .text_size(crate::theme::title_size())
                     .font_weight(gpui::FontWeight::SEMIBOLD)
                     .child(title),
             )
             .child(div().flex_1())
             .when_some(step, |header, step| {
-                header.child(div().text_xs().text_color(theme::text_faint()).child(step))
+                header.child(div().text_size(crate::theme::caption_size()).text_color(theme::text_faint()).child(step))
             })
             .child(
                 div()
@@ -287,7 +287,7 @@ impl AleraApp {
                     .role(Role::Button)
                     .aria_label("Close New Workspace")
                     .ml_3()
-                    .text_lg()
+                    .text_size(crate::theme::title_size())
                     .text_color(theme::text_muted())
                     .cursor(CursorStyle::PointingHand)
                     .on_click(cx.listener(|this, _, _, cx| {
@@ -353,7 +353,7 @@ pub(super) fn form_label(label: &'static str) -> gpui::Div {
     div()
         .mt_4()
         .mb_1()
-        .text_xs()
+        .text_size(crate::theme::caption_size())
         .text_color(theme::text_muted())
         .child(label)
 }

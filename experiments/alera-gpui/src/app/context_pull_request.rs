@@ -123,7 +123,7 @@ impl AleraApp {
                     .child(
                         div()
                             .flex_1()
-                            .text_sm()
+                            .text_size(crate::theme::body_size())
                             .font_weight(gpui::FontWeight::SEMIBOLD)
                             .child("Pull Request"),
                     )
@@ -153,7 +153,7 @@ impl AleraApp {
                     .child(icon(AleraIcon::GitPullRequest, 16.0, theme::text_muted()))
                     .child(
                         div()
-                            .text_sm()
+                            .text_size(crate::theme::body_size())
                             .font_weight(gpui::FontWeight::SEMIBOLD)
                             .child(format!("#{review_number}")),
                     )
@@ -240,10 +240,10 @@ impl AleraApp {
                     })
                     .when(!self.forge_review_editing, |content| {
                         content.child(
-                            div().mt_2().text_sm().child(review.title.clone()).child(
+                            div().mt_2().text_size(crate::theme::body_size()).child(review.title.clone()).child(
                                 div()
                                     .mt_1()
-                                    .text_xs()
+                                    .text_size(crate::theme::caption_size())
                                     .text_color(theme::text_muted())
                                     .child(format!(
                                         "{} · {} → {}",
@@ -302,7 +302,7 @@ impl AleraApp {
                             cx.notify();
                         }))
                     })
-                    .child(div().flex_1().text_sm().child(selected.clone()))
+                    .child(div().flex_1().text_size(crate::theme::body_size()).child(selected.clone()))
                     .child(icon(AleraIcon::ChevronDown, 14.0, theme::text_muted())),
             )
             .child(
@@ -367,7 +367,7 @@ impl AleraApp {
                                 .items_center()
                                 .h(px(30.0))
                                 .px_3()
-                                .text_sm()
+                                .text_size(crate::theme::body_size())
                                 .cursor(CursorStyle::PointingHand)
                                 .hover(|style| style.bg(theme::surface_selected()))
                                 .on_click(cx.listener(move |this, _, window, cx| {
@@ -459,7 +459,7 @@ impl AleraApp {
                         15.0,
                         theme::text_muted(),
                     ))
-                    .child(div().text_xs().text_color(theme::text_muted()).child(label)),
+                    .child(div().text_size(crate::theme::caption_size()).text_color(theme::text_muted()).child(label)),
             )
             .when(!collapsed, |section| {
                 section.children(
@@ -503,7 +503,7 @@ impl AleraApp {
                     .child(
                         div()
                             .flex_1()
-                            .text_sm()
+                            .text_size(crate::theme::body_size())
                             .overflow_hidden()
                             .child(check.name.clone()),
                     )
@@ -558,7 +558,7 @@ impl AleraApp {
                             div()
                                 .flex()
                                 .gap_2()
-                                .text_xs()
+                                .text_size(crate::theme::caption_size())
                                 .child(
                                     div()
                                         .w(px(72.0))
@@ -718,14 +718,14 @@ impl AleraApp {
                             .child(
                                 div()
                                     .flex_1()
-                                    .text_xs()
+                                    .text_size(crate::theme::caption_size())
                                     .font_weight(gpui::FontWeight::SEMIBOLD)
                                     .child(comment.author.clone()),
                             )
                             .when_some(created_at, |header, created_at| {
                                 header.child(
                                     div()
-                                        .text_xs()
+                                        .text_size(crate::theme::caption_size())
                                         .text_color(theme::text_faint())
                                         .child(created_at),
                                 )
@@ -748,7 +748,7 @@ impl AleraApp {
                                 .flex()
                                 .items_center()
                                 .gap_1()
-                                .text_xs()
+                                .text_size(crate::theme::caption_size())
                                 .text_color(theme::text_faint())
                                 .child(icon(AleraIcon::Code, 13.0, theme::text_faint()))
                                 .child(div().flex_1().child(location))
@@ -760,7 +760,7 @@ impl AleraApp {
                     .child(
                         div()
                             .mt_1()
-                            .text_sm()
+                            .text_size(crate::theme::body_size())
                             .text_color(theme::text_muted())
                             .child(self.render_review_comment_body(
                                 comment,
@@ -850,7 +850,7 @@ impl AleraApp {
                     ))
                     .child(
                         div()
-                            .text_sm()
+                            .text_size(crate::theme::body_size())
                             .font_weight(gpui::FontWeight::SEMIBOLD)
                             .child(action.label()),
                     ),
@@ -932,7 +932,7 @@ impl AleraApp {
                                 .h(px(30.0))
                                 .px_3()
                                 .gap_2()
-                                .text_sm()
+                                .text_size(crate::theme::body_size())
                                 .cursor(CursorStyle::PointingHand)
                                 .hover(|style| style.bg(theme::surface_selected()))
                                 .on_click(cx.listener(move |this, _, _, cx| {
@@ -980,7 +980,7 @@ fn pull_request_message(
         .when_some(title, |body, title| {
             body.child(
                 div()
-                    .text_sm()
+                    .text_size(crate::theme::body_size())
                     .font_weight(gpui::FontWeight::SEMIBOLD)
                     .child(title),
             )
@@ -988,7 +988,7 @@ fn pull_request_message(
         .child(
             div()
                 .max_w(px(280.0))
-                .text_sm()
+                .text_size(crate::theme::body_size())
                 .text_color(theme::text_muted())
                 .child(message),
         )
@@ -1015,7 +1015,7 @@ pub(super) fn pull_request_error_banner(error: SharedString) -> gpui::Div {
             a: 0.12,
             ..theme::danger()
         })
-        .text_sm()
+        .text_size(crate::theme::body_size())
         .text_color(theme::danger())
         .child(error)
 }
@@ -1026,7 +1026,7 @@ fn state_chip(label: &'static str, color: gpui::Rgba) -> gpui::Div {
         .py(px(2.0))
         .rounded_sm()
         .bg(gpui::Rgba { a: 0.15, ..color })
-        .text_xs()
+        .text_size(crate::theme::caption_size())
         .font_weight(gpui::FontWeight::SEMIBOLD)
         .text_color(color)
         .child(label)
@@ -1034,7 +1034,7 @@ fn state_chip(label: &'static str, color: gpui::Rgba) -> gpui::Div {
 
 fn section_label(title: &'static str, count: usize) -> gpui::Div {
     div()
-        .text_xs()
+        .text_size(crate::theme::caption_size())
         .text_color(theme::text_muted())
         .child(if count == 0 {
             title.to_string()
@@ -1046,7 +1046,7 @@ fn section_label(title: &'static str, count: usize) -> gpui::Div {
 fn empty_label(label: &'static str) -> gpui::Div {
     div()
         .py_2()
-        .text_xs()
+        .text_size(crate::theme::caption_size())
         .text_color(theme::text_muted())
         .child(label)
 }
@@ -1054,7 +1054,7 @@ fn empty_label(label: &'static str) -> gpui::Div {
 fn field_label(label: &'static str) -> gpui::Div {
     div()
         .mb_1()
-        .text_xs()
+        .text_size(crate::theme::caption_size())
         .text_color(theme::text_muted())
         .child(label)
 }
@@ -1162,7 +1162,7 @@ fn pr_button(
         } else {
             theme::text()
         })
-        .text_sm()
+        .text_size(crate::theme::body_size())
         .cursor(CursorStyle::PointingHand)
         .hover(move |style| {
             style.bg(if filled {

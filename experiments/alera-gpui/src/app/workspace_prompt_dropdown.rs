@@ -226,7 +226,7 @@ impl AleraApp {
                                 .flex()
                                 .items_center()
                                 .px_2()
-                                .text_xs()
+                                .text_size(crate::theme::caption_size())
                                 .text_color(theme::text_muted())
                                 .child(if dropdown == WorkspacePromptDropdown::AgentProfile {
                                     "Create An Agent Profile In Settings"
@@ -261,7 +261,7 @@ impl AleraApp {
             .px_2()
             .gap_2()
             .rounded_sm()
-            .text_sm()
+            .text_size(crate::theme::body_size())
             .cursor(CursorStyle::PointingHand)
             .hover(|style| style.bg(theme::surface_selected()))
             .on_click(cx.listener(move |this, _, _, cx| {

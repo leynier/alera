@@ -284,14 +284,20 @@ impl AleraApp {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        self.pending_editor_cursor = Some((
-            path.clone(),
-            line.saturating_sub(1) as usize,
-            column.saturating_sub(1) as usize,
-            match_length as usize,
-        ));
-        self.open_file_preview_tab(path.clone(), cx);
-        self.load_workspace_file(path, window, cx);
+        let Some(workspace) = self.selected_workspace_id.clone() else { return; };
+        self.pending_editor_cursor = Some(super::editor_reveal::EditorReveal {
+            key: super::editor_requests::EditorKey { workspace, path: path.clone() },
+            line: line.saturating_sub(1) as usize,
+            column: column.saturating_sub(1) as usize,
+            length: match_length as usize,
+            invoking_focus: window.focused(cx),
+        });
+        self.open_search_result_tab(path.clone(), cx);
+        if self.editor_documents.contains_key(&path) {
+            self.apply_pending_editor_reveal(window, cx);
+        } else if self.editor_loading_path.as_deref() != Some(path.as_str()) {
+            self.load_workspace_file(path, window, cx);
+        }
     }
 
     pub(super) fn render_search_panel(

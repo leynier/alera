@@ -48,14 +48,14 @@ impl AleraApp {
             self.tab_completion_acknowledged.remove(session_id);
         }
 
-        let retired_paths = retired_editor_paths(closed_tabs, &self.snapshot.tabs);
+        let closed_editor_tabs = closed_tabs.iter()
+            .filter(|tab| self.editor_workspaces.owner.as_deref() == Some(tab.workspace_id.as_str()))
+            .cloned().collect::<Vec<_>>();
+        let retired_paths = retired_editor_paths(&closed_editor_tabs, &self.snapshot.tabs);
         let opened_path_retired = self
             .opened_file_path
             .as_ref()
             .is_some_and(|path| retired_paths.contains(path));
-        let dirty_path_retired = retired_paths
-            .iter()
-            .any(|path| self.editor_dirty_paths.contains(path));
         for path in &retired_paths {
             self.editor_input_subscriptions.remove(path);
             self.editor_inputs.remove(path);
@@ -67,9 +67,6 @@ impl AleraApp {
             self.editor_cursor_positions.remove(path);
             self.editor_preview_assets.remove(path);
             self.markdown_preview_content.remove(path);
-        }
-        if dirty_path_retired {
-            self.editor_autosave_generation = self.editor_autosave_generation.wrapping_add(1);
         }
         if self
             .editor_loading_path
@@ -83,7 +80,7 @@ impl AleraApp {
         if self
             .pending_editor_cursor
             .as_ref()
-            .is_some_and(|(path, _, _, _)| retired_paths.contains(path))
+            .is_some_and(|reveal| retired_paths.contains(&reveal.key.path))
         {
             self.pending_editor_cursor = None;
         }
@@ -433,6 +430,7 @@ impl AleraApp {
     }
 
     pub(super) fn create_terminal_tab(&mut self, cx: &mut Context<Self>) {
+        if self.snapshot.selected_workspace_id != self.selected_workspace_id { return; }
         if self.tab_mutation_busy {
             return;
         }
@@ -871,6 +869,12 @@ impl AleraApp {
     }
 
     pub(super) fn activate_workspace_tab(&mut self, tab_id: String, cx: &mut Context<Self>) {
+        if self.snapshot.selected_workspace_id != self.selected_workspace_id { return; }
+        if self.pending_editor_cursor.as_ref().is_some_and(|reveal| {
+            self.snapshot.tabs.iter().find(|tab| tab.id == tab_id).is_none_or(|tab| {
+                tab.workspace_id != reveal.key.workspace || tab.payload.get("filePath").and_then(serde_json::Value::as_str) != Some(reveal.key.path.as_str())
+            })
+        }) { self.pending_editor_cursor = None; }
         if let Some(previous_tab_id) = self
             .selected_tab_id
             .as_deref()
@@ -1002,6 +1006,8 @@ impl AleraApp {
             }
         }
         self.sync_selected_editor_from_cache();
+        self.sync_editor_busy();
+        self.schedule_editor_autosave(cx);
         if selected_kind.as_deref() == Some("editor") {
             // Image/Mermaid editor tabs are viewers in Flutter. Restore the
             // cached visual mode when revisiting an existing tab instead of

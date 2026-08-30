@@ -44,7 +44,7 @@ impl Render for DraggedTabFeedback {
             .border_color(theme::border())
             .bg(theme::surface_raised())
             .shadow_lg()
-            .text_sm()
+            .text_size(crate::theme::body_size())
             .child(super::workbench::tab_kind_icon(
                 &self.kind,
                 self.file_path.as_deref(),
@@ -388,7 +388,7 @@ impl AleraApp {
                 theme::surface()
             })
             .cursor(CursorStyle::PointingHand)
-            .text_sm()
+            .text_size(crate::theme::body_size())
             .text_color(if selected {
                 theme::text()
             } else {

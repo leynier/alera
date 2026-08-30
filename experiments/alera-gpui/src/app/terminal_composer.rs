@@ -566,7 +566,7 @@ impl AleraApp {
                 div()
                     .px_2()
                     .py_1()
-                    .text_xs()
+                    .text_size(crate::theme::caption_size())
                     .text_color(theme::text_faint())
                     .child("Select Text Action"),
             )

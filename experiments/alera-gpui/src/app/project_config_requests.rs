@@ -24,10 +24,15 @@ impl AleraApp {
             return;
         };
         self.load_automation_project_policy(Some(&project_id), cx);
-        self.project_config_settings.select_project(project_id.clone());
+        self.project_config_settings
+            .select_project(project_id.clone());
         self.project_config_settings.generation += 1;
         let generation = self.project_config_settings.generation;
-        let scope = ProjectConfigRequestScope::new(project_id.clone(), self.project_config_settings.selection_epoch, self.project_config_settings.draft_signature(cx));
+        let scope = ProjectConfigRequestScope::new(
+            project_id.clone(),
+            self.project_config_settings.selection_epoch,
+            self.project_config_settings.draft_signature(cx),
+        );
         self.project_config_settings.loading = true;
         self.project_config_settings.error = None;
         let bridge = self.bridge.clone();
@@ -57,16 +62,28 @@ impl AleraApp {
             };
             let _ = this.update_in(cx, |this, window, cx| {
                 if generation != this.project_config_settings.generation
-                    || !scope.is_selected(this.project_config_settings.selected_project_id.as_deref(), this.project_config_settings.selection_epoch) {
+                    || !scope.is_selected(
+                        this.project_config_settings.selected_project_id.as_deref(),
+                        this.project_config_settings.selection_epoch,
+                    )
+                {
                     return;
                 }
                 this.project_config_settings.loading = false;
                 match result {
                     Ok((override_ids, effective)) => {
                         this.project_config_settings.override_project_ids = override_ids;
-                        let replace_draft = scope.may_replace_draft(&this.project_config_settings.draft_signature(cx), this.project_config_settings.seeded_draft.as_deref());
-                        this.project_config_settings
-                            .seed(effective, &project_id, replace_draft, window, cx);
+                        let replace_draft = scope.may_replace_draft(
+                            &this.project_config_settings.draft_signature(cx),
+                            this.project_config_settings.seeded_draft.as_deref(),
+                        );
+                        this.project_config_settings.seed(
+                            effective,
+                            &project_id,
+                            replace_draft,
+                            window,
+                            cx,
+                        );
                     }
                     Err(error) => this.project_config_settings.error = Some(error.into()),
                 }
@@ -83,9 +100,21 @@ impl AleraApp {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        if self.project_config_settings.saving { return; }
-        let Some(project_id) = payload.get("projectId").and_then(Value::as_str).map(str::to_owned) else { return; };
-        let scope = ProjectConfigRequestScope::new(project_id.clone(), self.project_config_settings.selection_epoch, self.project_config_settings.draft_signature(cx));
+        if self.project_config_settings.saving {
+            return;
+        }
+        let Some(project_id) = payload
+            .get("projectId")
+            .and_then(Value::as_str)
+            .map(str::to_owned)
+        else {
+            return;
+        };
+        let scope = ProjectConfigRequestScope::new(
+            project_id.clone(),
+            self.project_config_settings.selection_epoch,
+            self.project_config_settings.draft_signature(cx),
+        );
         self.project_config_settings.saving = true;
         self.project_config_settings.error = None;
         let bridge = self.bridge.clone();
@@ -98,7 +127,10 @@ impl AleraApp {
             };
             let _ = this.update_in(cx, |this, window, cx| {
                 this.project_config_settings.saving = false;
-                if !scope.is_selected(this.project_config_settings.selected_project_id.as_deref(), this.project_config_settings.selection_epoch) {
+                if !scope.is_selected(
+                    this.project_config_settings.selected_project_id.as_deref(),
+                    this.project_config_settings.selection_epoch,
+                ) {
                     cx.notify();
                     return;
                 }

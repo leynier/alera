@@ -13,41 +13,37 @@ pub(super) fn is_editor_conflict(error: &str) -> bool {
 
 impl AleraApp {
     pub(super) fn schedule_editor_autosave(&mut self, cx: &mut Context<Self>) {
-        self.editor_autosave_generation = self.editor_autosave_generation.wrapping_add(1);
-        let generation = self.editor_autosave_generation;
-        if !self.settings_state.editor_autosave_enabled
-            || !self.editor_dirty
-            || self.editor_busy
-            || self.editor_conflict
-        {
-            return;
+        for path in self.editor_inputs.keys().cloned().collect::<Vec<_>>() {
+            self.schedule_editor_autosave_path(&path, cx);
         }
-        let delay = std::time::Duration::from_secs(
-            self.settings_state
-                .editor_autosave_delay_seconds
-                .clamp(1, 60) as u64,
-        );
+    }
+
+    pub(super) fn schedule_editor_autosave_path(&mut self, path: &str, cx: &mut Context<Self>) {
+        let Some(workspace) = self.editor_workspaces.owner.clone() else { return; };
+        let key = super::editor_requests::EditorKey { workspace, path: path.to_owned() };
+        self.editor_requests.cancel_auto(&key);
+        if !self.settings_state.editor_autosave_enabled || !self.editor_dirty_paths.contains(path)
+            || !self.editor_is_visible(&key) || self.editor_loading_path.as_deref() == Some(path)
+            || self.editor_requests.is_writing(&key) || self.editor_requests.failure(&key).is_some() { return; }
+        let Some(input) = self.owned_editor_input(&key) else { return; };
+        let request = self.editor_requests.schedule_auto(key, input.entity_id());
+        let owner_epoch = self.editor_autosave_generation;
+        let delay = std::time::Duration::from_secs(self.settings_state.editor_autosave_delay_seconds.clamp(1, 60) as u64);
         cx.spawn(async move |this, cx| {
             cx.background_executor().timer(delay).await;
-            let Some(this) = this.upgrade() else {
-                return;
-            };
+            let Some(this) = this.upgrade() else { return; };
             this.update(cx, |this, cx| {
-                if generation != this.editor_autosave_generation
-                    || !this.settings_state.editor_autosave_enabled
-                    || !this.editor_dirty
-                    || this.editor_busy
-                    || this.editor_conflict
-                {
-                    return;
-                }
-                this.save_editor(false, cx);
+                if !this.editor_requests.take_auto(&request) || owner_epoch != this.editor_autosave_generation
+                    || !this.settings_state.editor_autosave_enabled || !this.editor_is_visible(&request.key)
+                    || !this.editor_dirty_paths.contains(&request.key.path)
+                    || this.owned_editor_input(&request.key).is_none_or(|input| input.entity_id() != request.editor) { return; }
+                this.save_editor_key(request.key, false, cx);
             });
-        })
-        .detach();
+        }).detach();
     }
 
     pub(super) fn discard_editor_changes(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        self.sync_editor_busy();
         if self.editor_busy {
             return;
         }
@@ -64,7 +60,10 @@ impl AleraApp {
         self.editor_dirty_paths.remove(&document.relative_path);
         self.editor_dirty = false;
         self.editor_conflict = false;
-        self.editor_autosave_generation = self.editor_autosave_generation.wrapping_add(1);
+        if let Some(key) = self.selected_editor_key() {
+            self.editor_requests.cancel_auto(&key);
+            self.editor_requests.clear_failure(&key);
+        }
         self.local_message = Some("Changes discarded".into());
         cx.notify();
     }
@@ -117,13 +116,19 @@ impl AleraApp {
         self.open_git_diff_tab(Some(source_path), None, cx);
     }
 
-    pub(super) fn cancel_editor_conflict(&mut self, cx: &mut Context<Self>) {
+    pub(super) fn cancel_editor_conflict(&mut self, target: &super::editor_requests::EditorConfirmation, cx: &mut Context<Self>) {
+        if self.selected_editor_key().as_ref() != Some(&target.key)
+            || self.editor_requests.confirmation(&target.key).as_ref() != Some(target) { return; }
         self.editor_conflict = false;
         cx.notify();
     }
 
-    pub(super) fn confirm_editor_overwrite(&mut self, cx: &mut Context<Self>) {
-        if self.editor_busy {
+    pub(super) fn confirm_editor_overwrite(&mut self, target: &super::editor_requests::EditorConfirmation, cx: &mut Context<Self>) {
+        self.sync_editor_busy();
+        if self.editor_busy || !self.editor_conflict
+            || self.selected_editor_key().as_ref() != Some(&target.key)
+            || self.editor_requests.confirmation(&target.key).as_ref() != Some(target)
+            || self.owned_editor_input(&target.key).is_none_or(|input| input.entity_id() != target.editor) {
             return;
         }
         self.editor_conflict = false;

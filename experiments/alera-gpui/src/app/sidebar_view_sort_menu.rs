@@ -73,7 +73,7 @@ impl AleraApp {
                             .items_center()
                             .h(px(32.0))
                             .px_3()
-                            .text_sm()
+                            .text_size(crate::theme::body_size())
                             .cursor(CursorStyle::PointingHand)
                             .hover(|style| style.bg(theme::surface_raised()))
                             .when(selected == sort, |row| {

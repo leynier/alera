@@ -33,7 +33,7 @@ pub(super) fn render_toast(message: SharedString, stack_index: usize, exiting: b
         .border_color(theme::border())
         .bg(theme::surface_raised())
         .shadow_lg()
-        .text_sm()
+        .text_size(crate::theme::body_size())
         .child(icon(kind, 16.0, color))
         .child(
             div()
@@ -80,7 +80,8 @@ fn toast_icon(message: &str) -> AleraIcon {
         || normalized.contains("operation failed")
     {
         AleraIcon::Error
-    } else if normalized.contains("created")
+    } else if matches!(normalized.as_str(), "project added" | "project cloned")
+        || normalized.contains("created")
         || normalized.contains("saved")
         || normalized.contains("completed")
         || normalized.contains("generated")

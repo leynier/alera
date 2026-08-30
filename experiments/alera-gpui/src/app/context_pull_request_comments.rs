@@ -23,6 +23,8 @@ impl AleraApp {
                 SharedString::from(format!("context-pr-comment-body-{comment_id}")),
                 super::context_pull_request::normalize_review_comment_markdown(&comment.body),
             )
+            .line_height(gpui::relative(1.4))
+            .text_size(crate::theme::caption_size())
             .selectable(true)
             .into_any_element();
         }
@@ -80,6 +82,8 @@ impl AleraApp {
                             )),
                             line_text,
                         )
+                        .line_height(gpui::relative(1.4))
+                        .text_size(crate::theme::caption_size())
                         .selectable(true),
                     )
                     .into_any_element()
@@ -92,6 +96,8 @@ impl AleraApp {
                     )),
                     super::context_pull_request::normalize_review_comment_markdown(line),
                 )
+                .line_height(gpui::relative(1.4))
+                .text_size(crate::theme::caption_size())
                 .selectable(true)
                 .into_any_element()
             };

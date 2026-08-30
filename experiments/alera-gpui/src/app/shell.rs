@@ -99,7 +99,7 @@ impl AleraApp {
                             )
                             .child(
                                 div()
-                                    .text_sm()
+                                    .text_size(crate::theme::body_size())
                                     .font_weight(gpui::FontWeight::SEMIBOLD)
                                     .child(crate::app_display_name()),
                             ),
@@ -117,7 +117,7 @@ impl AleraApp {
                             .w(px(28.0))
                             .h(px(28.0))
                             .rounded_md()
-                            .text_sm()
+                            .text_size(crate::theme::body_size())
                             .text_color(theme::text_muted())
                             .cursor(CursorStyle::PointingHand)
                             .tooltip(|_, cx| cx.new(|_| Tooltip::new("Collapse Sidebar")).into())
@@ -152,7 +152,7 @@ impl AleraApp {
                     // first sidebar section.
                     .h(px(40.0))
                     .px_3()
-                    .text_xs()
+                    .text_size(crate::theme::caption_size())
                     .font_weight(gpui::FontWeight::SEMIBOLD)
                     .child(if self.sidebar_group_by == SidebarGroupBy::Project {
                         "Projects"
@@ -339,6 +339,8 @@ impl AleraApp {
                             .id("sidebar-workspaces")
                             .flex_1()
                             .min_h_0()
+                            .flex()
+                            .flex_col()
                             .track_scroll(&self.sidebar_scroll_handle)
                             // Computer Use delivers a smaller wheel delta to
                             // GPUI than Flutter's desktop ListView. Keep the
@@ -378,7 +380,7 @@ impl AleraApp {
                                         .child(
                                             div()
                                                 .mt_3()
-                                                .text_sm()
+                                                .text_size(crate::theme::body_size())
                                                 .font_weight(gpui::FontWeight::SEMIBOLD)
                                                 .child("No Projects Yet"),
                                         )
@@ -387,7 +389,7 @@ impl AleraApp {
                                                 .mt_2()
                                                 .max_w(px(165.0))
                                                 .whitespace_normal()
-                                                .text_xs()
+                                                .text_size(crate::theme::caption_size())
                                                 .text_color(theme::text_muted())
                                                 .child(
                                                     "Add a git repository to create workspaces with terminal tabs.",
@@ -450,7 +452,7 @@ impl AleraApp {
                             .rounded_lg()
                             .border_1()
                             .border_color(theme::border())
-                            .text_xs()
+                            .text_size(crate::theme::caption_size())
                             .font_weight(gpui::FontWeight::SEMIBOLD)
                             .cursor(CursorStyle::PointingHand)
                             .on_click(cx.listener(|this, _, window, cx| {
@@ -778,7 +780,7 @@ impl AleraApp {
                     } else {
                         theme::surface()
                     })
-                    .text_xs()
+                    .text_size(crate::theme::caption_size())
                     .font_weight(gpui::FontWeight::SEMIBOLD)
                     .cursor(CursorStyle::PointingHand)
                     .tooltip(move |_, cx| {
@@ -963,7 +965,7 @@ impl AleraApp {
             self.close_automations_dialog(cx);
             true
         } else if self.show_add_project_dialog && !self.add_project_busy {
-            self.close_add_project_dialog(cx);
+            self.close_add_project_dialog(window, cx);
             true
         } else if self.show_new_workspace_dialog && !self.workspace_creation_busy {
             self.close_new_workspace_dialog(cx);
@@ -1012,6 +1014,7 @@ impl AleraApp {
 impl Render for AleraApp {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         self.ensure_selected_editor_loaded(window, cx);
+        self.sync_editor_busy();
         self.sync_terminal_size(window, cx);
         // Terminal attachment waits for the first measured pane bounds, just
         // like Flutter waits for TerminalView layout before creating its PTY.
@@ -1028,6 +1031,7 @@ impl Render for AleraApp {
             .on_key_down(cx.listener(Self::handle_shell_key_down))
             .relative()
             .on_action(cx.listener(Self::on_open_settings))
+            .on_action(cx.listener(Self::on_open_automations))
             .on_action(cx.listener(Self::on_open_quick_open))
             .on_action(cx.listener(Self::on_open_command_palette))
             .on_action(cx.listener(Self::on_open_execution_plans))
@@ -1085,6 +1089,8 @@ impl Render for AleraApp {
             .bg(theme::app_background())
             .text_color(theme::text())
             .font_family("Inter")
+            .text_size(theme::body_size())
+            .line_height(theme::body_line_height())
             // A native drag can stop bubbling at the preview overlay or at a
             // terminal surface. Capture the release on the full app hitbox so
             // the remembered pointer drag is committed before GPUI clears its

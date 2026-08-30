@@ -215,7 +215,7 @@ impl AleraApp {
                             .border_color(theme::border_subtle())
                             .child(
                                 div()
-                                    .text_lg()
+                                    .text_size(crate::theme::title_size())
                                     .font_weight(gpui::FontWeight::SEMIBOLD)
                                     .child("Terminal Pulse"),
                             )

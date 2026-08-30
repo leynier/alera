@@ -122,7 +122,7 @@ impl AleraApp {
             ))
             .child(
                 div()
-                    .text_xs()
+                    .text_size(crate::theme::caption_size())
                     .font_weight(gpui::FontWeight::SEMIBOLD)
                     .child("COMMITS"),
             )
@@ -131,7 +131,7 @@ impl AleraApp {
                     div()
                         .ml(px(6.0))
                         .flex_1()
-                        .text_xs()
+                        .text_size(crate::theme::caption_size())
                         .text_color(theme::text_faint())
                         .child(if self.git_snapshot.history_metadata.has_more {
                             format!("{}+", self.git_snapshot.history.len())
@@ -219,7 +219,7 @@ impl AleraApp {
                             .flex_1()
                             .items_center()
                             .justify_center()
-                            .text_sm()
+                            .text_size(crate::theme::body_size())
                             .text_color(theme::text_muted())
                             .child(empty_message),
                     )
@@ -311,7 +311,7 @@ impl AleraApp {
                             .flex_1()
                             .overflow_hidden()
                             .text_ellipsis()
-                            .text_xs()
+                            .text_size(crate::theme::caption_size())
                             .when(boundary, |text| text.text_color(theme::text_muted()))
                             .child(item.subject.clone()),
                     )
@@ -410,7 +410,7 @@ impl AleraApp {
                         .h(px(26.0))
                         .flex()
                         .items_center()
-                        .text_xs()
+                        .text_size(crate::theme::caption_size())
                         .text_color(theme::text_muted())
                         .child("Loading Files..."),
                 )
@@ -431,7 +431,7 @@ impl AleraApp {
                             .h(px(26.0))
                             .flex()
                             .items_center()
-                            .text_xs()
+                            .text_size(crate::theme::caption_size())
                             .text_color(theme::text_muted())
                             .child("No Changed Files"),
                     )
@@ -445,7 +445,7 @@ impl AleraApp {
                             .h(px(26.0))
                             .flex()
                             .items_center()
-                            .text_xs()
+                            .text_size(crate::theme::caption_size())
                             .text_color(theme::text_faint())
                             .child(format!(
                                 "{} More Files",
@@ -471,7 +471,7 @@ impl AleraApp {
                             .items_center()
                             .h(px(28.0))
                             .gap_2()
-                            .text_xs()
+                            .text_size(crate::theme::caption_size())
                             .text_color(theme::text_muted())
                             .cursor(CursorStyle::PointingHand)
                             .hover(|style| style.text_color(theme::text()))
@@ -816,7 +816,7 @@ fn history_file_row(id: gpui::SharedString, change: &GitCommitChange) -> gpui::S
                 .flex_1()
                 .overflow_hidden()
                 .text_ellipsis()
-                .text_xs()
+                .text_size(crate::theme::caption_size())
                 .child(change.path.clone()),
         )
         .when_some(change.added, |row, added| {
@@ -838,7 +838,7 @@ fn history_file_row(id: gpui::SharedString, change: &GitCommitChange) -> gpui::S
         .child(
             div()
                 .w(px(10.0))
-                .text_xs()
+                .text_size(crate::theme::caption_size())
                 .text_color(theme::warning())
                 .child(status_letter(&change.status)),
         )

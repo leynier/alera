@@ -19,7 +19,7 @@ pub(super) fn sidebar_sort_label(sort: SidebarSortBy) -> &'static str {
 
 pub(super) fn section_label(label: &'static str) -> gpui::Div {
     div()
-        .text_xs()
+        .text_size(crate::theme::caption_size())
         .font_weight(gpui::FontWeight::SEMIBOLD)
         .text_color(theme::text_faint())
         .child(label)
@@ -43,7 +43,7 @@ pub(super) fn segment_button(
         .justify_center()
         .h_full()
         .rounded_md()
-        .text_xs()
+        .text_size(crate::theme::caption_size())
         .text_color(if selected {
             theme::text()
         } else {
@@ -72,7 +72,7 @@ pub(super) fn sort_row(
         .child(
             div()
                 .flex_1()
-                .text_sm()
+                .text_size(crate::theme::body_size())
                 .text_color(theme::text_muted())
                 .child(label),
         )
@@ -85,7 +85,7 @@ pub(super) fn sort_row(
                 .py_1()
                 .rounded_md()
                 .hover(|style| style.bg(theme::surface()))
-                .text_xs()
+                .text_size(crate::theme::caption_size())
                 .text_color(theme::text_muted())
                 .child(value)
                 .child(icon(AleraIcon::ChevronDown, 14.0, theme::text_faint())),
@@ -136,7 +136,7 @@ pub(super) fn check_row(
                         .child(icon(AleraIcon::Check, 11.0, theme::on_accent()))
                 }),
         )
-        .child(div().text_sm().child(label))
+        .child(div().text_size(crate::theme::body_size()).child(label))
 }
 
 pub(super) fn filter_header(label: &'static str, count: usize) -> gpui::Div {
@@ -154,7 +154,7 @@ pub(super) fn filter_header(label: &'static str, count: usize) -> gpui::Div {
                     .px_1()
                     .rounded_full()
                     .bg(theme::surface())
-                    .text_xs()
+                    .text_size(crate::theme::caption_size())
                     .text_color(theme::text_muted())
                     .child(count.to_string()),
             )
@@ -172,7 +172,7 @@ pub(super) fn clear_button(id: &'static str, enabled: bool) -> gpui::Stateful<gp
         .px_2()
         .py_1()
         .rounded_md()
-        .text_xs()
+        .text_size(crate::theme::caption_size())
         .text_color(if enabled {
             theme::text_muted()
         } else {
@@ -206,7 +206,7 @@ pub(super) fn selected_filter_chip(
         .border_1()
         .border_color(theme::border())
         .bg(theme::surface())
-        .text_xs()
+        .text_size(crate::theme::caption_size())
         .cursor(CursorStyle::PointingHand)
         .hover(|style| style.bg(theme::surface_selected()))
         .child(label)
@@ -248,7 +248,7 @@ pub(super) fn available_filter_row(
                 .flex_1()
                 .overflow_hidden()
                 .text_ellipsis()
-                .text_sm()
+                .text_size(crate::theme::body_size())
                 .child(label),
         )
 }
@@ -256,7 +256,7 @@ pub(super) fn available_filter_row(
 pub(super) fn empty_filter_message(message: impl Into<SharedString>) -> gpui::Div {
     div()
         .py_2()
-        .text_sm()
+        .text_size(crate::theme::body_size())
         .text_color(theme::text_faint())
         .text_center()
         .child(message.into())

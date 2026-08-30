@@ -184,7 +184,7 @@ impl AleraApp {
                     )
                     .child(
                         div()
-                            .text_xs()
+                            .text_size(crate::theme::caption_size())
                             .text_color(if policy.blocks_dispatch {
                                 theme::warning()
                             } else {
@@ -197,7 +197,7 @@ impl AleraApp {
                 panel.child(
                     div()
                         .mt_1()
-                        .text_xs()
+                        .text_size(crate::theme::caption_size())
                         .text_color(theme::text_muted())
                         .child("Scheduling Is Held Until This Plan Is Resolved."),
                 )
@@ -209,7 +209,7 @@ impl AleraApp {
                     .child(
                         div()
                             .mt_1()
-                            .text_xs()
+                            .text_size(crate::theme::caption_size())
                             .text_color(theme::text_muted())
                             .child(format!("On Stall: {}", policy.stall_policy)),
                     ),

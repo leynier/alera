@@ -45,7 +45,7 @@ impl AleraApp {
                     .child(
                         div()
                             .flex_1()
-                            .text_sm()
+                            .text_size(crate::theme::body_size())
                             .font_weight(gpui::FontWeight::SEMIBOLD)
                             .child("Pull Request"),
                     )
@@ -101,7 +101,7 @@ impl AleraApp {
                             cx.notify();
                         }))
                     })
-                    .child(div().flex_1().text_sm().child(base_value))
+                    .child(div().flex_1().text_size(crate::theme::body_size()).child(base_value))
                     .child(icon(AleraIcon::ChevronDown, 14.0, theme::text_muted())),
             )
             .child(
@@ -130,7 +130,7 @@ impl AleraApp {
                                     .w(px(24.0))
                                     .h(px(24.0))
                                     .rounded_md()
-                                    .text_xs()
+                                    .text_size(crate::theme::caption_size())
                                     .text_color(theme::accent())
                                     .cursor(if can_generate || self.forge_ai_busy {
                                         CursorStyle::PointingHand
@@ -241,7 +241,7 @@ impl AleraApp {
                     }),
             )
             .when_some(self.forge_form_error.clone(), |form, error| {
-                form.child(div().text_sm().text_color(theme::danger()).child(error))
+                form.child(div().text_size(crate::theme::body_size()).text_color(theme::danger()).child(error))
             })
             .child(
                 div()
@@ -305,7 +305,7 @@ impl AleraApp {
                     .items_center()
                     .justify_center()
                     .h(px(40.0))
-                    .text_sm()
+                    .text_size(crate::theme::body_size())
                     .text_color(theme::text_muted())
                     .cursor(if form_enabled {
                         CursorStyle::PointingHand
@@ -375,7 +375,7 @@ impl AleraApp {
                                 .items_center()
                                 .h(px(30.0))
                                 .px_3()
-                                .text_sm()
+                                .text_size(crate::theme::body_size())
                                 .cursor(CursorStyle::PointingHand)
                                 .hover(|style| style.bg(theme::surface_selected()))
                                 .on_click(cx.listener(move |this, _, window, cx| {
@@ -426,7 +426,7 @@ impl AleraApp {
                                 .h(px(30.0))
                                 .px_3()
                                 .gap_2()
-                                .text_sm()
+                                .text_size(crate::theme::body_size())
                                 .cursor(CursorStyle::PointingHand)
                                 .hover(|style| style.bg(theme::surface_selected()))
                                 .on_click(cx.listener(|this, _, _, cx| {
@@ -454,7 +454,7 @@ impl AleraApp {
                                 .h(px(30.0))
                                 .px_3()
                                 .gap_2()
-                                .text_sm()
+                                .text_size(crate::theme::body_size())
                                 .cursor(CursorStyle::PointingHand)
                                 .hover(|style| style.bg(theme::surface_selected()))
                                 .on_click(cx.listener(|this, _, _, cx| {
@@ -494,7 +494,7 @@ impl AleraApp {
                     .child(
                         div()
                             .flex_1()
-                            .text_sm()
+                            .text_size(crate::theme::body_size())
                             .font_weight(gpui::FontWeight::SEMIBOLD)
                             .child("Pull Request"),
                     )
@@ -519,7 +519,7 @@ impl AleraApp {
             .child(
                 div()
                     .mt_2()
-                    .text_sm()
+                    .text_size(crate::theme::body_size())
                     .font_weight(gpui::FontWeight::SEMIBOLD)
                     .child("Link Pull Request"),
             )
@@ -563,7 +563,7 @@ impl AleraApp {
                             })
                             .child(icon(AleraIcon::GitPullRequest, 16.0, theme::text_muted()))
                             .child(
-                                div().flex_1().text_sm().overflow_hidden().child(format!(
+                                div().flex_1().text_size(crate::theme::body_size()).overflow_hidden().child(format!(
                                     "#{} · {}",
                                     suggestion.number, suggestion.title
                                 )),
@@ -572,7 +572,7 @@ impl AleraApp {
                 },
             )
             .when_some(self.forge_form_error.clone(), |form, error| {
-                form.child(div().text_sm().text_color(theme::danger()).child(error))
+                form.child(div().text_size(crate::theme::body_size()).text_color(theme::danger()).child(error))
             })
             .child(
                 pr_button_with_icon("context-link-pr", AleraIcon::Link, "Link", true)
@@ -604,7 +604,7 @@ impl AleraApp {
                         .h(px(34.0))
                         .rounded_md()
                         .bg(theme::surface_selected())
-                        .text_sm()
+                        .text_size(crate::theme::body_size())
                         .cursor(CursorStyle::PointingHand)
                         .on_click(cx.listener(|this, _, _, cx| {
                             this.forge_link_form_open = false;
@@ -619,7 +619,7 @@ impl AleraApp {
 }
 
 fn field_label(label: &'static str) -> gpui::Div {
-    div().text_xs().text_color(theme::text_muted()).child(label)
+    div().text_size(crate::theme::caption_size()).text_color(theme::text_muted()).child(label)
 }
 
 fn pr_button_with_icon(
@@ -651,7 +651,7 @@ fn pr_button_with_icon(
         } else {
             theme::text()
         })
-        .text_sm()
+        .text_size(crate::theme::body_size())
         .cursor(CursorStyle::PointingHand)
         .hover(move |style| {
             style.bg(if filled {

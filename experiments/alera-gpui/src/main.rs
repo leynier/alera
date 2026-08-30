@@ -1,6 +1,7 @@
 mod activity;
 mod app;
 mod app_log;
+mod app_fonts;
 mod app_menu;
 mod assets;
 mod design_system;
@@ -41,7 +42,7 @@ fn main() {
         .with_http_client(Arc::new(markdown_images::AleraImageHttpClient::new()))
         .run(move |cx: &mut App| {
             gpui_component::init(cx);
-            icons::register_fonts(cx);
+            app_fonts::register(cx.text_system()).expect("failed to register Alera fonts");
             editor_theme::register_editor_languages();
             design_system::configure_component_theme(cx);
             app::register_keyboard_actions(cx);

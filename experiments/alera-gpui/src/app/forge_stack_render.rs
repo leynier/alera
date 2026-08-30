@@ -38,7 +38,7 @@ impl AleraApp {
                     .child(
                         div()
                             .flex_1()
-                            .text_sm()
+                            .text_size(crate::theme::body_size())
                             .font_weight(gpui::FontWeight::SEMIBOLD)
                             .child(stack.map_or_else(
                                 || "Stacked Pull Requests".to_string(),
@@ -51,7 +51,7 @@ impl AleraApp {
                             .iter()
                             .find(|entry| entry.review.number == current_number)
                             .map(|entry| entry.position);
-                        header.child(div().text_xs().text_color(theme::text_muted()).child(
+                        header.child(div().text_size(crate::theme::caption_size()).text_color(theme::text_muted()).child(
                             position.map_or_else(
                                 || format!("{} Pull Requests", stack.entries.len()),
                                 |position| format!("{position} of {}", stack.entries.len()),
@@ -64,7 +64,7 @@ impl AleraApp {
                 .child(
                     div()
                         .mt_2()
-                        .text_xs()
+                        .text_size(crate::theme::caption_size())
                         .text_color(theme::text_muted())
                         .child(format!(
                             "Base: {}{}",
@@ -113,13 +113,13 @@ impl AleraApp {
                             div()
                                 .flex_1()
                                 .min_w_0()
-                                .text_xs()
+                                .text_size(crate::theme::caption_size())
                                 .overflow_hidden()
                                 .text_ellipsis()
                                 .child(format!("#{} {}", review.number, review.title)),
                         )
                         .when(current, |row| {
-                            row.child(div().text_xs().text_color(theme::accent()).child("Current"))
+                            row.child(div().text_size(crate::theme::caption_size()).text_color(theme::accent()).child("Current"))
                         })
                         .when_some(local_workspace, |row, workspace_id| {
                             row.child(
@@ -143,7 +143,7 @@ impl AleraApp {
             card = card.child(
                 div()
                     .mt_2()
-                    .text_xs()
+                    .text_size(crate::theme::caption_size())
                     .text_color(theme::text_muted())
                     .child("This Pull Request Is Not Part Of A Native GitHub Stack."),
             );
@@ -152,7 +152,7 @@ impl AleraApp {
             card = card.child(
                 div()
                     .mt_2()
-                    .text_xs()
+                    .text_size(crate::theme::caption_size())
                     .text_color(theme::danger())
                     .child(error.clone()),
             );
@@ -217,7 +217,7 @@ impl AleraApp {
             .mt_3()
             .child(
                 div()
-                    .text_xs()
+                    .text_size(crate::theme::caption_size())
                     .text_color(theme::text_muted())
                     .child("Pull Request Numbers, Bottom To Top"),
             )
@@ -226,7 +226,7 @@ impl AleraApp {
                 editor.child(
                     div()
                         .mt_2()
-                        .text_xs()
+                        .text_size(crate::theme::caption_size())
                         .text_color(theme::danger())
                         .child(error),
                 )
@@ -271,7 +271,7 @@ impl AleraApp {
             .mt_3()
             .child(
                 div()
-                    .text_xs()
+                    .text_size(crate::theme::caption_size())
                     .text_color(theme::text_muted())
                     .child("Workspace Layers, Bottom To Top"),
             )
@@ -310,10 +310,10 @@ impl AleraApp {
                             theme::text_faint()
                         },
                     ))
-                    .child(div().flex_1().text_xs().child(workspace.name.clone()))
+                    .child(div().flex_1().text_size(crate::theme::caption_size()).child(workspace.name.clone()))
                     .child(
                         div()
-                            .text_xs()
+                            .text_size(crate::theme::caption_size())
                             .text_color(theme::text_muted())
                             .child(workspace.branch.clone()),
                     )
@@ -322,7 +322,7 @@ impl AleraApp {
                 editor.child(
                     div()
                         .mt_2()
-                        .text_xs()
+                        .text_size(crate::theme::caption_size())
                         .text_color(theme::danger())
                         .child(error),
                 )

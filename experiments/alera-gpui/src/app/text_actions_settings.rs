@@ -335,7 +335,7 @@ impl AleraApp {
                                 |row| {
                                     row.child(
                                         div()
-                                            .text_xs()
+                                            .text_size(crate::theme::caption_size())
                                             .text_color(theme::text_faint())
                                             .child("Disabled"),
                                     )

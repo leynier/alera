@@ -8,7 +8,11 @@ use crate::design_system::{self, ButtonKind};
 use crate::theme;
 
 impl AleraApp {
-    pub(super) fn render_editor_conflict_dialog(&self, cx: &mut Context<Self>) -> impl IntoElement {
+    pub(super) fn render_editor_conflict_dialog(&self, cx: &mut Context<Self>) -> gpui::AnyElement {
+        let Some(target) = self.selected_editor_key().and_then(|key| self.editor_requests.confirmation(&key)) else {
+            return div().into_any_element();
+        };
+        let cancel_target = target.clone();
         div()
             .absolute()
             .top_0()
@@ -22,7 +26,7 @@ impl AleraApp {
             .bg(theme::overlay_scrim())
             .child(
                 design_system::dialog_shell(
-                    "editor-conflict-dialog",
+                    gpui::SharedString::from(format!("editor-conflict-{target:?}")),
                     "File changed on disk",
                     420.0,
                 )
@@ -53,8 +57,8 @@ impl AleraApp {
                                 false,
                             )
                             .flex_1()
-                            .on_click(cx.listener(|this, _, _, cx| {
-                                this.cancel_editor_conflict(cx);
+                            .on_click(cx.listener(move |this, _, _, cx| {
+                                this.cancel_editor_conflict(&cancel_target, cx);
                             })),
                         )
                         .child(
@@ -65,12 +69,12 @@ impl AleraApp {
                                 false,
                             )
                             .flex_1()
-                            .on_click(cx.listener(|this, _, _, cx| {
-                                this.confirm_editor_overwrite(cx);
+                            .on_click(cx.listener(move |this, _, _, cx| {
+                                this.confirm_editor_overwrite(&target, cx);
                             })),
                         ),
                 ),
-            )
+            ).into_any_element()
     }
 
     pub(super) fn render_dirty_tab_close_dialog(&self, cx: &mut Context<Self>) -> impl IntoElement {
@@ -190,7 +194,7 @@ impl AleraApp {
                 design_system::dialog_shell("tab-rename-dialog", "Change Terminal Title", 420.0)
                     .child(
                         div()
-                            .text_lg()
+                            .text_size(crate::theme::title_size())
                             .font_weight(gpui::FontWeight::SEMIBOLD)
                             .child("Change Terminal Title"),
                     )

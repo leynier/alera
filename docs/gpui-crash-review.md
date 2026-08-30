@@ -4,7 +4,32 @@
 
 Review date: 2026-08-29. Branch: `feat/rust-desktop-migration`, base `9b05e757`. GPUI 0.2.2, Zed revision `5218009a2d338898083b4789f5c5fd37ddc73b70`. Live validation is macOS debug only. Codex Chat, tray, Dock badges, and hide-on-close remain excluded.
 
-The AI Assist opening crash is fixed in the working tree. Five additional findings remain open below. This is a crash/state-safety review, not a new certification of visual parity or all operating systems.
+The AI Assist opening crash and all five additional findings are fixed. Regression tests and macOS live validation are complete for the scenarios listed below. The original findings remain as the audit trail; their line references describe the pre-fix source. This is a crash/state-safety review, not a new certification of visual parity or all operating systems.
+
+## Remediation
+
+| Finding | Implementation | Verification |
+| --- | --- | --- |
+| Unicode search ranges | `terminal_search.rs` maps lowercase matches back to original UTF-8 boundaries, including expanded characters | Original dotted-I panic covered, plus combining marks, Kelvin sign, Greek casing, and literal metacharacters |
+| Stale terminal matches | Visible highlights come from the current rendered row. Navigation results carry an emulator revision and use a cancellable, coalesced scan in 128-row batches | Redraw, resize, history clearing, replacement emulators, and batched queries covered |
+| ANSI/search overlap | Search partitions the original ANSI runs and changes only the selected background | Contiguous full-byte coverage, color/weight preservation, multiple matches, and cross-run matches covered |
+| Claude profile indices | Move/edit/remove/pin resolve the profile name at event time; the edit dialog retains that identity and rejects removed profiles | Removal/reordering and both move boundaries covered |
+| Project save/read races | Save responses check project identity and selection epoch; loads also compare captured and last-seeded draft signatures | Selection changes, A-to-B-to-A, edits before/during reads, and edits during saves covered |
+
+The opt-in Cargo feature `gpui-tests` enables two GPUI tests: real framework text rendering across Unicode/ANSI redraw and a real textarea draft that survives a late response. The dependency lock only adds GPUI's optional test-support dependencies; the app's default features and GPUI revision are unchanged.
+
+### Final validation of fixes
+
+- `cargo test --manifest-path experiments/alera-gpui/Cargo.toml --bin alera-gpui --features gpui-tests --locked --quiet`: 183 passed, 0 failed on the final source. Both GPUI framework tests passed. An initial history-clear fixture incorrectly sent erase-history before erase-screen; it was corrected because erase-screen can itself move rows into history.
+- `cargo clippy --manifest-path experiments/alera-gpui/Cargo.toml --bin alera-gpui --locked -- -D warnings`: passed. The dependency `block 0.1.6` still emits its pre-existing future-incompatibility notice.
+- `make gpui-debug`: rebuilt and signed the real macOS app. One GPUI UI instance was used; existing development and installed runtime processes were left intact.
+- Computer Use searched `i` in a real terminal containing `İstanbul`, then `red` across ANSI-colored text (four matches). No panic occurred. The fixture only printed text and did not modify workspace files.
+- With search `a` still open, a timed shell fixture replaced a standalone `a` row with `é` using carriage return and erase-line. The app stayed alive and refreshed its results. Double-clicking the titlebar exercised resize/reflow; Next Match then advanced to the second result.
+- Computer Use moved `leynierdev` before `leynier41`, opened Edit on the new first row and verified its three fields still contained `leynierdev`. The dialog was cancelled, and the exact original order `leynier41`, `leynierdev` was restored.
+- Project response races were validated with deterministic scope tests and actual GPUI textarea state, without saving or overwriting the user's project settings. No live runtime latency fault was injected.
+- Final screenshots: `/tmp/alera-parity/crash-fixes-2026-08-29/`. A clipboard-wait timeout occurred although the terminal accepted the paste; the screenshot was checked before executing it, so the fixture was not submitted twice.
+- Windows/Linux and release mode remain untested in this fix pass. The implementation is framework/domain code with no new macOS-only branch.
+- An external commit `5302b149` appeared during this turn and included most changes. It was preserved; remaining working-tree adjustments and this report were not committed by this agent.
 
 ## Fixed: AI Assist fields missing at render time
 
@@ -12,7 +37,7 @@ The AI Assist opening crash is fixed in the working tree. Five additional findin
 
 One catalog now defines the prompt operations used by input creation, select creation, select synchronization, rendering, and group navigation. Speech Messages is also searchable. Four regression tests cover field coverage, saved multiline/Unicode values, group order, and search routing.
 
-## Open findings
+## Original findings
 
 ### P1: Unicode terminal search generates invalid UTF-8 highlight ranges
 
@@ -68,18 +93,18 @@ The initial static scan covered 169 Rust source files outside test-named files a
 
 | Surface | Checks | Outcome |
 | --- | --- | --- |
-| Application, Agents, Quotas, AI Assist, Editor, Terminal Settings | Input/select initialization, map lookups, async state, open each pane | AI Assist fixed; Claude index finding open; 26 other input keys have producers |
-| Keyboard, Text Actions, Projects, Mobile Devices, Agent Profiles | Empty/loaded states, missing selections, per-row actions, delayed response guards | Project save race open; all panes opened without another panic |
+| Application, Agents, Quotas, AI Assist, Editor, Terminal Settings | Input/select initialization, map lookups, async state, open each pane | AI Assist and Claude profile identity fixed; 26 other input keys have producers |
+| Keyboard, Text Actions, Projects, Mobile Devices, Agent Profiles | Empty/loaded states, missing selections, per-row actions, delayed response guards | Project save/read races fixed; all panes opened without another panic |
 | Sidebar/workspaces/agents | Recursive tree cycle guards, missing workspaces, empty groups, row indices, stored preferences | No additional confirmed panic in reviewed paths |
 | Tabs/splits/editor/explorer | Removed-tab cleanup, optional tab guards, generation checks, empty groups, list indices | No additional confirmed panic in reviewed paths; full drag stress test not repeated |
-| Terminal | Byte ranges, original vs folded text, changed rows, text styles, selection, resize | Three independent search findings above |
+| Terminal | Byte ranges, original vs folded text, changed rows, text styles, selection, resize | All three search findings fixed and regression-tested |
 | Search/replace, quick open | Unicode slicing, empty result navigation, missing paths, replacement ranges | No additional confirmed panic in reviewed paths |
 | Source Control, history, diffs, PR/CI | Empty histories, optional diff paths, dialog variants, comments, escaped SVG regexes | Guarded `expect`/`unreachable` cases verified; no additional confirmed panic |
 | Runtime, Resources, Quotas, Usage | Optional snapshots, JSON normalization, zero/missing counters, disconnected state | No additional confirmed panic in reviewed paths |
 | Orchestration, Agent Canvas, Mobile | Optional selection, generation/identity checks, late responses, empty data | No additional confirmed panic in reviewed paths |
 | Startup, updates, diagnostics | Thread/window/font creation, logging, async shutdown | Thread creation still uses `expect` in several places; resource-exhaustion behavior remains untested |
 
-## Verification and limitations
+## Initial review verification and limitations
 
 - `make gpui-debug` rebuilt, signed, and launched one GPUI instance. The existing installed runtime was not stopped.
 - `cargo test --manifest-path experiments/alera-gpui/Cargo.toml --bin alera-gpui --locked`: 171 passed, 0 failed. The dependency `block 0.1.6` emitted an existing future-incompatibility warning.
@@ -87,5 +112,5 @@ The initial static scan covered 169 Rust source files outside test-named files a
 - The Settings search accessibility tree filtered to AI Assist for `Speech Messages`. A subsequent dropdown click was rejected as offscreen. Later workbench clicks did not produce distinct panel contents, and screenshots lagged behind accessibility state; those attempts are not accepted as panel or dropdown validation. No additional live-panel coverage is claimed from them.
 - Screenshots and accessibility snapshots: `/tmp/alera-parity/crash-review-2026-08-29/`.
 - Standalone local reproducer: `/tmp/alera-gpui-crash-review-probe.rs`. It includes production terminal modules and uses the same compiled GPUI dependency. Its panics are caught inside the probe; they do not close the user's app.
-- New findings are documented, not silently fixed as part of this review. Only the already requested AI Assist repair and its navigation/search consistency were changed.
+- The initial review changed only AI Assist and documented the additional findings. The user then authorized the remediation recorded above.
 - Windows/Linux, release-mode crash behavior, out-of-resources thread creation, and latency-dependent UI races were not live-validated. Passing unit tests and navigation smoke checks do not establish that every feature/state is safe.

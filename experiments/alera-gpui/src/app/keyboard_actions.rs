@@ -9,6 +9,7 @@ actions!(
     alera,
     [
         OpenSettings,
+        OpenAutomations,
         OpenQuickOpen,
         OpenCommandPalette,
         OpenExecutionPlans,
@@ -85,13 +86,14 @@ pub(super) fn key_binding_for_action(id: &str, keystroke: &str) -> Option<KeyBin
 pub(super) fn action_for_id(id: &str) -> Option<Box<dyn Action>> {
     let action: Box<dyn Action> = match id {
         "openSettings" => Box::new(OpenSettings),
+        "openAutomations" => Box::new(OpenAutomations),
         "openQuickOpen" => Box::new(OpenQuickOpen),
         "openCommandPalette" => Box::new(OpenCommandPalette),
         "addProject" => Box::new(AddProject),
         "toggleSidebar" => Box::new(ToggleSidebar),
         "createWorkspace" => Box::new(CreateWorkspace),
-        "goBack" => Box::new(GoBack),
-        "goForward" => Box::new(GoForward),
+        "navigateBack" | "goBack" => Box::new(GoBack),
+        "navigateForward" | "goForward" => Box::new(GoForward),
         "findInFiles" => Box::new(FindInFiles),
         "findInTerminal" => Box::new(FindInTerminal),
         "toggleTerminalComposer" => Box::new(ToggleTerminalComposer),
@@ -226,6 +228,19 @@ impl AleraApp {
         self.open_quick_open(window, cx);
     }
 
+    pub(super) fn on_open_automations(
+        &mut self,
+        _: &OpenAutomations,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        if !self.keyboard_shortcut_allowed("openAutomations", window) {
+            cx.propagate();
+            return;
+        }
+        self.open_automations_dialog(window, cx);
+    }
+
     pub(super) fn on_open_command_palette(
         &mut self,
         _: &OpenCommandPalette,
@@ -253,7 +268,7 @@ impl AleraApp {
     }
 
     pub(super) fn on_go_back(&mut self, _: &GoBack, window: &mut Window, cx: &mut Context<Self>) {
-        if !self.keyboard_shortcut_allowed("goBack", window) {
+        if !self.keyboard_shortcut_allowed("navigateBack", window) {
             cx.propagate();
             return;
         }
@@ -266,7 +281,7 @@ impl AleraApp {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        if !self.keyboard_shortcut_allowed("goForward", window) {
+        if !self.keyboard_shortcut_allowed("navigateForward", window) {
             cx.propagate();
             return;
         }

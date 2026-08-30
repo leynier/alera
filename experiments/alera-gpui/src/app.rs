@@ -15,6 +15,8 @@ use gpui_component::IndexPath;
 use serde_json::Value;
 
 mod add_project_dialog;
+mod add_project_draft;
+mod add_project_fields;
 mod agent_canvas;
 mod agent_profile_record;
 mod agent_profile_removal;
@@ -34,6 +36,7 @@ mod app_init;
 mod app_lifecycle;
 mod app_menu_dialog;
 mod automations;
+mod automation_request_epoch;
 mod claude_profile_dialog;
 mod claude_profile_identity;
 #[allow(dead_code)]
@@ -54,6 +57,10 @@ mod context_source_control_groups;
 mod context_source_history;
 mod dialogs;
 mod editor_actions;
+mod editor_requests;
+mod editor_reveal;
+mod editor_writes;
+mod editor_workspaces;
 mod explorer_actions;
 mod explorer_dialog;
 mod explorer_menu;
@@ -120,6 +127,7 @@ mod tab_strip;
 mod terminal_composer;
 mod terminal_input;
 mod terminal_pulse;
+mod terminal_search_focus;
 mod terminal_search_refresh;
 mod terminal_surface;
 mod terminal_toolbar;
@@ -131,6 +139,7 @@ mod welcome_dashboard;
 mod workbench;
 mod workbench_layout;
 mod workspace_actions;
+mod workspace_selection;
 mod workspace_manual_dialog;
 mod workspace_manual_rows;
 mod workspace_prompt_actions;
@@ -173,7 +182,6 @@ pub struct AleraApp {
     bridge: RuntimeBridge,
     snapshot: WorkbenchSnapshot,
     selected_workspace_id: Option<String>,
-    workspace_selection_initialized: bool,
     pending_workspace_terminal_id: Option<String>,
     pending_workspace_setup: Option<PendingWorkspaceSetup>,
     pending_workspace_tab_id: Option<String>,
@@ -441,6 +449,8 @@ pub struct AleraApp {
     explorer_action_busy: bool,
     explorer_watch_generation: u64,
     editor_document: Option<EditorDocument>,
+    editor_workspaces: editor_workspaces::EditorWorkspaces,
+    editor_requests: editor_requests::EditorRequests,
     editor_inputs: BTreeMap<String, Entity<EditorState>>,
     editor_input_subscriptions: BTreeMap<String, Subscription>,
     editor_documents: BTreeMap<String, EditorDocument>,
@@ -451,7 +461,7 @@ pub struct AleraApp {
     editor_cursor_positions: BTreeMap<String, (u32, u32)>,
     opened_file_path: Option<String>,
     editor_loading_path: Option<String>,
-    pending_editor_cursor: Option<(String, usize, usize, usize)>,
+    pending_editor_cursor: Option<editor_reveal::EditorReveal>,
     preview_asset: Option<PreviewAsset>,
     editor_preview_assets: BTreeMap<String, PreviewAsset>,
     markdown_preview_content: BTreeMap<String, String>,
@@ -466,6 +476,8 @@ pub struct AleraApp {
     clone_project_destination_input: Entity<InputState>,
     project_display_name_input: Entity<InputState>,
     add_project_mode: AddProjectMode,
+    add_project_draft: add_project_draft::AddProjectDraft,
+    add_project_previous_focus: Option<FocusHandle>,
     show_add_project_dialog: bool,
     add_project_busy: bool,
     workspace_prompt_input: Entity<TextareaState>,
@@ -560,6 +572,7 @@ pub struct AleraApp {
     run_policy_reason_input: Entity<InputState>,
     show_execution_plans: bool,
     show_automations_dialog: bool,
+    automation_requests: automation_request_epoch::AutomationRequests,
     automations: Vec<Value>,
     automations_loading: bool,
     automations_error: Option<SharedString>,
@@ -572,6 +585,7 @@ pub struct AleraApp {
     automation_action_busy: bool,
     automation_editor_open: bool,
     automation_editor_id: Option<String>,
+    automation_editor_definition: Value,
     automation_editor_name_input: Entity<InputState>,
     automation_editor_slug_input: Entity<InputState>,
     automation_editor_description_input: Entity<InputState>,

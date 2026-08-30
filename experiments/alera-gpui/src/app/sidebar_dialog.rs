@@ -327,7 +327,7 @@ impl AleraApp {
             list = list.child(
                 div()
                     .pb_3()
-                    .text_sm()
+                    .text_size(crate::theme::body_size())
                     .text_color(theme::text_muted())
                     .child("No Tags Created"),
             );
@@ -750,7 +750,7 @@ impl AleraApp {
                         body.child(
                             div()
                                 .mt_3()
-                                .text_sm()
+                                .text_size(crate::theme::body_size())
                                 .text_color(theme::text_muted())
                                 .child(message),
                         )
@@ -774,7 +774,7 @@ impl AleraApp {
                         body.child(
                             div()
                                 .mt_3()
-                                .text_sm()
+                                .text_size(crate::theme::body_size())
                                 .text_color(theme::danger())
                                 .child(error),
                         )

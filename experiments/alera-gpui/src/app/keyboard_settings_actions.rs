@@ -165,6 +165,7 @@ impl AleraApp {
     }
 
     pub(super) fn apply_saved_keyboard_overrides(&mut self, cx: &mut Context<Self>) {
+        super::keyboard_settings::normalize_override_ids(&mut self.settings_state.keyboard_overrides);
         let ids = self
             .settings_state
             .keyboard_overrides

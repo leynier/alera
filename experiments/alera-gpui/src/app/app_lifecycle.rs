@@ -1,6 +1,5 @@
 use super::app_helpers::is_snapshot_event;
 use super::*;
-use std::path::Path;
 
 impl AleraApp {
     fn mark_terminal_sessions_unavailable(&mut self, message: String) {
@@ -388,15 +387,10 @@ impl AleraApp {
                 }
                 match snapshot {
                     Ok(mut snapshot) => {
-                        let next_workspace_id = match this.selected_workspace_id.clone() {
-                            Some(id) if snapshot.workspace(&id).is_some() => Some(id),
-                            Some(_) => None,
-                            None if !this.workspace_selection_initialized => {
-                                fallback_workspace_id(&snapshot)
-                            }
-                            None => None,
-                        };
-                        this.workspace_selection_initialized = true;
+                        let next_workspace_id = super::workspace_selection::resolve_selection(
+                            this.selected_workspace_id.clone(),
+                            |id| snapshot.workspace(id).is_some(),
+                        );
                         if this.selected_workspace_id != next_workspace_id {
                             this.selected_workspace_id = next_workspace_id;
                             this.selected_tab_id = None;
@@ -451,18 +445,20 @@ impl AleraApp {
                             })
                             .unwrap_or(true);
                         let next_tab_ids = snapshot
-                            .tabs
+                            .all_tabs
                             .iter()
                             .map(|tab| tab.id.as_str())
                             .collect::<std::collections::BTreeSet<_>>();
                         let retired_tabs = this
                             .snapshot
-                            .tabs
+                            .all_tabs
                             .iter()
                             .filter(|tab| !next_tab_ids.contains(tab.id.as_str()))
                             .cloned()
                             .collect::<Vec<_>>();
                         this.snapshot = snapshot;
+                        this.editor_workspaces.retain_live_tabs(&this.snapshot.all_tabs);
+                        this.editor_requests.retain_live_tabs(&this.snapshot.all_tabs);
                         if !retired_tabs.is_empty() {
                             this.release_closed_tab_state(&retired_tabs, cx);
                         }
@@ -514,6 +510,7 @@ impl AleraApp {
 
     pub(super) fn select_workspace(&mut self, workspace_id: String, cx: &mut Context<Self>) {
         let already_selected = self.selected_workspace_id.as_deref() == Some(&workspace_id);
+        if already_selected && self.snapshot.selected_workspace_id != self.selected_workspace_id { return; }
         if !already_selected && !self.worktree_navigation_replaying {
             self.record_worktree_navigation(&workspace_id);
         }
@@ -627,30 +624,4 @@ impl AleraApp {
         self.ensure_explorer_watcher(cx);
         cx.notify();
     }
-}
-
-fn fallback_workspace_id(snapshot: &WorkbenchSnapshot) -> Option<String> {
-    let mut workspaces = snapshot
-        .projects
-        .iter()
-        .flat_map(|project| &project.workspaces);
-    workspaces
-        .clone()
-        .find(|workspace| workspace.is_pinned && workspace_is_available(workspace))
-        .or_else(|| {
-            workspaces.clone().find(|workspace| {
-                workspace.kind.eq_ignore_ascii_case("main") && workspace_is_available(workspace)
-            })
-        })
-        .or_else(|| {
-            workspaces
-                .clone()
-                .find(|workspace| workspace_is_available(workspace))
-        })
-        .or_else(|| workspaces.next())
-        .map(|workspace| workspace.id.clone())
-}
-
-fn workspace_is_available(workspace: &crate::model::Workspace) -> bool {
-    workspace.host_id != "local" || Path::new(&workspace.path).exists()
 }

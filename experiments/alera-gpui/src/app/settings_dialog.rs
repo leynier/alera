@@ -434,7 +434,7 @@ impl AleraApp {
                         .gap_2()
                         .rounded_md()
                         .cursor(CursorStyle::PointingHand)
-                        .text_sm()
+                        .text_size(crate::theme::body_size())
                         .text_color(if selected {
                             theme::text()
                         } else {

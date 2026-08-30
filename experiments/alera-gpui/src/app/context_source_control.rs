@@ -70,7 +70,7 @@ impl AleraApp {
                                 div()
                                     .flex_1()
                                     .min_w_0()
-                                    .text_sm()
+                                    .text_size(crate::theme::body_size())
                                     .font_weight(gpui::FontWeight::SEMIBOLD)
                                     .whitespace_normal()
                                     .line_clamp(2)
@@ -335,7 +335,7 @@ impl AleraApp {
                             .items_center()
                             .justify_center()
                             .gap_2()
-                            .text_sm()
+                            .text_size(crate::theme::body_size())
                             .text_color(theme::text_muted())
                             .child(loading_indicator(20.0, theme::text_muted()))
                     })
@@ -346,7 +346,7 @@ impl AleraApp {
                                 .items_center()
                                 .justify_center()
                                 .p_4()
-                                .text_sm()
+                                .text_size(crate::theme::body_size())
                                 .text_color(theme::text_muted())
                                 .child(
                                     self.git_snapshot_error
@@ -364,7 +364,7 @@ impl AleraApp {
                             content
                                 .items_center()
                                 .justify_center()
-                                .text_sm()
+                                .text_size(crate::theme::body_size())
                                 .text_color(theme::text_muted())
                                 .child(empty_message)
                         },
@@ -591,7 +591,7 @@ fn source_control_unavailable_state() -> AnyElement {
         .child(icon(AleraIcon::GitBranch, 24.0, theme::text_muted()))
         .child(
             div()
-                .text_sm()
+                .text_size(crate::theme::body_size())
                 .font_weight(gpui::FontWeight::SEMIBOLD)
                 .child("Source Control Unavailable"),
         )

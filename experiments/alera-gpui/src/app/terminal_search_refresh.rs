@@ -33,6 +33,7 @@ impl AleraApp {
             return;
         }
         let session_id = search.session_id.clone();
+        let query = search.query.clone();
         let matcher = search.matcher.clone();
         search.refresh_task = Some(cx.spawn(async move |this, cx| {
             // Coalesce streaming writes, then yield between bounded grid slices.
@@ -49,6 +50,14 @@ impl AleraApp {
                 .ok()
                 .flatten();
             let Some((revision, total)) = snapshot else {
+                let _ = this.update(cx, |this, cx| {
+                    if this.terminal_search.as_ref().is_some_and(|search| {
+                        search.session_id == session_id && search.query == query
+                    }) {
+                        this.terminal_search = None;
+                        cx.notify();
+                    }
+                });
                 return;
             };
             let mut matches = Vec::new();
@@ -88,7 +97,7 @@ impl AleraApp {
                 let Some(search) = this.terminal_search.as_mut() else {
                     return;
                 };
-                if search.session_id != session_id {
+                if search.session_id != session_id || search.query != query {
                     return;
                 }
                 search.refresh_task = None;

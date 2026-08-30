@@ -265,7 +265,7 @@ impl AleraApp {
                             content
                                 .items_center()
                                 .justify_center()
-                                .text_sm()
+                                .text_size(crate::theme::body_size())
                                 .text_color(theme::text_muted())
                                 .child("Could not load diff.")
                         },
@@ -280,7 +280,7 @@ impl AleraApp {
                             content
                                 .items_center()
                                 .justify_center()
-                                .text_sm()
+                                .text_size(crate::theme::body_size())
                                 .text_color(theme::text_muted())
                                 .child("No diff available.")
                         },
@@ -455,7 +455,7 @@ fn render_image_diff_side(
     div()
         .flex_1()
         .min_w_0()
-        .child(div().text_xs().text_color(theme::text_faint()).child(title))
+        .child(div().text_size(crate::theme::caption_size()).text_color(theme::text_faint()).child(title))
         .child(
             div()
                 .h(px(180.0))
@@ -477,7 +477,7 @@ fn render_image_diff_side(
                 .when(side.is_none() && !loading, |cell| {
                     cell.child(
                         div()
-                            .text_sm()
+                            .text_size(crate::theme::body_size())
                             .text_color(theme::text_faint())
                             .child(placeholder),
                     )
@@ -549,7 +549,7 @@ fn diff_stats(file: &GitDiffFile) -> AnyElement {
         .when(file.added.unwrap_or_default() > 0, |stats| {
             stats.child(
                 div()
-                    .text_xs()
+                    .text_size(crate::theme::caption_size())
                     .text_color(theme::success())
                     .child(format!("+{}", file.added.unwrap_or_default())),
             )
@@ -557,7 +557,7 @@ fn diff_stats(file: &GitDiffFile) -> AnyElement {
         .when(file.removed.unwrap_or_default() > 0, |stats| {
             stats.child(
                 div()
-                    .text_xs()
+                    .text_size(crate::theme::caption_size())
                     .text_color(theme::danger())
                     .child(format!("-{}", file.removed.unwrap_or_default())),
             )
@@ -568,7 +568,7 @@ fn diff_stats(file: &GitDiffFile) -> AnyElement {
 fn diff_banner(message: &'static str) -> AnyElement {
     div()
         .p_3()
-        .text_sm()
+        .text_size(crate::theme::body_size())
         .text_color(theme::text_muted())
         .child(message)
         .into_any_element()

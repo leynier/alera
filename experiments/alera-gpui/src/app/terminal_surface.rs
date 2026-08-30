@@ -590,11 +590,18 @@ impl AleraApp {
     }
 
     pub(super) fn close_terminal_search(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        if self.terminal_search.take().is_none() {
+        let Some(search) = self.terminal_search.take() else {
             return;
-        }
+        };
         self.terminal_search_input
             .update(cx, |input, cx| input.set_value("", window, cx));
+        super::terminal_search_focus::restore_search_owner_focus(
+            &search.session_id,
+            self.selected_terminal_session_id().as_deref(),
+            &self.terminal_focus,
+            window,
+            cx,
+        );
         self.refresh_terminal_frame_views(cx);
         cx.notify();
     }
@@ -685,12 +692,14 @@ impl AleraApp {
                     .items_center()
                     .gap_2()
                     .child(
-                        design_system::text_field(&self.terminal_search_input)
-                            .dense()
-                            .search()
-                            .height(px(34.0)),
+                        div().flex_1().min_w_0().child(
+                            design_system::text_field(&self.terminal_search_input)
+                                .dense()
+                                .search()
+                                .height(px(34.0)),
+                        ),
                     )
-                    .child(div().text_xs().text_color(theme::text_muted()).child(count)),
+                    .child(div().flex_shrink_0().text_size(crate::theme::caption_size()).text_color(theme::text_muted()).child(count)),
             )
             .child(
                 div()
@@ -1854,9 +1863,12 @@ impl AleraApp {
             .px(gpui::px(self.settings_state.terminal_padding_x as f32))
             .py(gpui::px(self.settings_state.terminal_padding_y as f32))
             .when(!terminal_font_family.trim().is_empty(), |surface| {
-                surface.font_family(terminal_font_family)
+                surface.font_family(terminal_font_family.clone())
             })
-            .font_weight(FontWeight(self.settings_state.terminal_font_weight as f32))
+            .font_weight(crate::app_fonts::font_weight(
+                &terminal_font_family,
+                self.settings_state.terminal_font_weight as f32,
+            ))
             .text_size(gpui::px(self.settings_state.terminal_font_size as f32))
             // Flutter's terminal view exposes a text cursor over the whole
             // surface and switches to a hand only for a resolved link.

@@ -207,7 +207,7 @@ impl AleraApp {
                     .flex_1()
                     .overflow_hidden()
                     .text_ellipsis()
-                    .text_sm()
+                    .text_size(crate::theme::body_size())
                     .font_weight(gpui::FontWeight::SEMIBOLD)
                     .child(title.to_owned()),
             )

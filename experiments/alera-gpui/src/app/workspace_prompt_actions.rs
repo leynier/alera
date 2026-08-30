@@ -82,7 +82,7 @@ impl AleraApp {
                         div()
                             .ml_2()
                             .flex_1()
-                            .text_sm()
+                            .text_size(crate::theme::body_size())
                             .child(self.workspace_prompt_phase.unwrap_or("Working")),
                     )
                     .when(self.workspace_prompt_active_operation_id.is_some(), |row| {

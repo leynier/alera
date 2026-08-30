@@ -1,5 +1,28 @@
 use gpui::{px, rgb, rgba, Pixels, Rgba};
 
+// Flutter's explicit text roles are independent of the 16 px rem spacing grid.
+pub fn body_size() -> Pixels {
+    px(13.0)
+}
+
+pub fn caption_size() -> Pixels {
+    px(12.0)
+}
+
+pub fn title_size() -> Pixels {
+    px(16.0)
+}
+
+pub fn headline_size() -> Pixels {
+    px(22.0)
+}
+
+pub fn body_line_height() -> gpui::DefiniteLength {
+    // Material's DefaultTextStyle supplies the inherited English body leading
+    // even when Alera's TextStyle.height is unset. GPUI defaults to 1.618.
+    gpui::relative(1.43)
+}
+
 pub fn app_background() -> Rgba {
     rgb(0x101010)
 }

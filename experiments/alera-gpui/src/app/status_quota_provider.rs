@@ -331,7 +331,7 @@ impl AleraApp {
                                     .px(px(6.0))
                                     .flex()
                                     .items_center()
-                                    .text_sm()
+                                    .text_size(crate::theme::body_size())
                                     .text_color(if can_consume {
                                         theme::accent()
                                     } else {

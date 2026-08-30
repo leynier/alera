@@ -15,6 +15,10 @@ impl AleraApp {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) -> impl IntoElement {
+        if self.snapshot.selected_workspace_id != self.selected_workspace_id {
+            return div().flex_1().h_full().flex().items_center().justify_center()
+                .bg(theme::app_background()).child(crate::icons::loading_indicator(20.0, theme::text_muted()));
+        }
         let workspace = self
             .selected_workspace_id
             .as_deref()
@@ -51,7 +55,7 @@ impl AleraApp {
                 .p_6()
                 .child(
                     div()
-                        .text_2xl()
+                        .text_size(crate::theme::headline_size())
                         .font_weight(gpui::FontWeight::SEMIBOLD)
                         .child(
                             workspace
@@ -62,7 +66,7 @@ impl AleraApp {
                 .child(
                     div()
                         .mt_2()
-                        .text_sm()
+                        .text_size(crate::theme::body_size())
                         .text_color(theme::text_muted())
                         .child(
                             project
@@ -79,7 +83,7 @@ impl AleraApp {
                         .bg(theme::surface())
                         .p_5()
                         .child(
-                            div().text_lg().font_weight(gpui::FontWeight::MEDIUM).child(
+                            div().text_size(crate::theme::title_size()).font_weight(gpui::FontWeight::MEDIUM).child(
                                 selected_tab
                                     .map(|tab| tab.title.clone())
                                     .unwrap_or_else(|| "Workbench".to_string()),
@@ -88,7 +92,7 @@ impl AleraApp {
                         .child(
                             div()
                                 .mt_2()
-                                .text_sm()
+                                .text_size(crate::theme::body_size())
                                 .text_color(theme::text_muted())
                                 .child(match selected_tab {
                                     Some(tab) => format!(
@@ -162,7 +166,7 @@ impl AleraApp {
                                 theme::border_subtle()
                             })
                             .cursor(CursorStyle::PointingHand)
-                            .text_sm()
+                            .text_size(crate::theme::body_size())
                             .text_color(if selected {
                                 theme::text()
                             } else {
@@ -207,7 +211,7 @@ impl AleraApp {
                             .child(
                                 div()
                                     .id(("close-tab", index))
-                                    .text_xs()
+                                    .text_size(crate::theme::caption_size())
                                     .text_color(theme::text_muted())
                                     .hover(|style| style.text_color(theme::text()))
                                     .on_mouse_down(

@@ -69,6 +69,14 @@ pub(super) const KEYBOARD_BINDINGS: &[KeyboardBindingDefinition] = &[
         true
     ),
     binding!(
+        "openAutomations",
+        "Open Automations",
+        Global,
+        "Open the runtime-local automation manager.",
+        &["Mod+Shift+A"],
+        true
+    ),
+    binding!(
         "openQuickOpen",
         "Quick Open",
         Global,
@@ -109,7 +117,7 @@ pub(super) const KEYBOARD_BINDINGS: &[KeyboardBindingDefinition] = &[
         true
     ),
     binding!(
-        "goBack",
+        "navigateBack",
         "Go Back",
         Workspace,
         "Go to the previously selected workspace.",
@@ -118,7 +126,7 @@ pub(super) const KEYBOARD_BINDINGS: &[KeyboardBindingDefinition] = &[
         false
     ),
     binding!(
-        "goForward",
+        "navigateForward",
         "Go Forward",
         Workspace,
         "Go to the next workspace in navigation history.",
@@ -137,7 +145,7 @@ pub(super) const KEYBOARD_BINDINGS: &[KeyboardBindingDefinition] = &[
     binding!(
         "findInTerminal",
         "Find in Terminal",
-        Workspace,
+        Global,
         "Search the active terminal scrollback.",
         &["Mod+F"],
         true
@@ -350,4 +358,49 @@ pub(super) fn effective_bindings(
         .get(definition.id)
         .cloned()
         .unwrap_or_else(|| defaults(definition))
+}
+
+pub(super) fn normalize_override_ids(overrides: &mut std::collections::BTreeMap<String, Vec<String>>) {
+    for (legacy, canonical) in [("goBack", "navigateBack"), ("goForward", "navigateForward")] {
+        if let Some(bindings) = overrides.remove(legacy) {
+            overrides.entry(canonical.to_owned()).or_insert(bindings);
+        }
+    }
+}
+
+#[cfg(test)]
+mod registry_tests {
+    use super::*;
+
+    #[test]
+    fn keyboard_registry_covers_all_included_flutter_actions() {
+        let flutter = include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/../../lib/src/features/keyboard/domain/keyboard_action.dart"));
+        let pattern = regex::Regex::new(r"id: KeyboardActionId\.(\w+)").unwrap();
+        let expected = pattern.captures_iter(flutter).map(|capture| capture[1].to_owned())
+            .filter(|id| id != "newBrowserTab").collect::<std::collections::BTreeSet<_>>();
+        let actual = KEYBOARD_BINDINGS.iter().map(|definition| definition.id.to_owned())
+            .collect::<std::collections::BTreeSet<_>>();
+        assert_eq!(actual, expected);
+        for definition in KEYBOARD_BINDINGS {
+            assert!(super::super::keyboard_actions::action_for_id(definition.id).is_some(), "{}", definition.id);
+        }
+        let automations = definition("openAutomations").unwrap();
+        assert_eq!(automations.macos, &["Mod+Shift+A"]);
+        assert!(automations.allow_in_terminal);
+        assert_eq!(definition("findInTerminal").unwrap().group, KeyboardActionGroup::Global);
+    }
+
+    #[test]
+    fn keyboard_legacy_navigation_overrides_migrate_without_overwriting_canonical_values() {
+        let mut overrides = std::collections::BTreeMap::from([
+            ("goBack".into(), vec!["Mod+J".into()]),
+            ("goForward".into(), vec!["Mod+K".into()]),
+            ("navigateBack".into(), Vec::new()),
+        ]);
+        normalize_override_ids(&mut overrides);
+        assert_eq!(overrides["navigateBack"], Vec::<String>::new());
+        assert_eq!(overrides["navigateForward"], vec!["Mod+K"]);
+        assert!(!overrides.contains_key("goBack"));
+        assert!(!overrides.contains_key("goForward"));
+    }
 }

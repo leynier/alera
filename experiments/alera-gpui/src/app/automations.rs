@@ -12,6 +12,7 @@ use super::AleraApp;
 use crate::design_system::{self, ButtonKind};
 use crate::icons::{icon, loading_indicator, AleraIcon};
 use crate::theme;
+include!("automation_requests.rs");
 
 const AUTOMATION_FINAL_RUN_STATUSES: &[&str] = &[
     "success",
@@ -27,6 +28,12 @@ const AUTOMATION_FINAL_RUN_STATUSES: &[&str] = &[
 
 impl AleraApp {
     pub(crate) fn open_automations_dialog(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        if self.show_automations_dialog { return; }
+        self.automation_requests.reset_view();
+        self.automations_loading = false;
+        self.automation_detail_loading = false;
+        self.automation_action_busy = false;
+        self.automation_editor_open = false;
         self.show_automations_dialog = true;
         self.automations_error = None;
         self.automation_detail = None;
@@ -40,6 +47,10 @@ impl AleraApp {
     }
 
     pub(crate) fn close_automations_dialog(&mut self, cx: &mut Context<Self>) {
+        self.automation_requests.reset_view();
+        self.automations_loading = false;
+        self.automation_detail_loading = false;
+        self.automation_action_busy = false;
         self.show_automations_dialog = false;
         self.automation_editor_open = false;
         self.automation_editor_error = None;
@@ -47,127 +58,6 @@ impl AleraApp {
         cx.notify();
     }
 
-    pub(super) fn load_automations(&mut self, cx: &mut Context<Self>) {
-        if self.automations_loading {
-            return;
-        }
-        self.automations_loading = true;
-        self.automations_error = None;
-        let bridge = self.bridge.clone();
-        let include_trashed = self.automation_include_trashed;
-        let search = self
-            .automation_search_input
-            .read(cx)
-            .value()
-            .trim()
-            .to_owned();
-        cx.spawn(async move |this, cx| {
-            let result = bridge
-                .request(
-                    "automation.list",
-                    json!({
-                        "includeTrashed": include_trashed,
-                        "search": if search.is_empty() { Value::Null } else { Value::String(search) },
-                    }),
-                )
-                .await;
-            let Some(this) = this.upgrade() else {
-                return;
-            };
-            this.update(cx, |this, cx| {
-                this.automations_loading = false;
-                match result {
-                    Ok(payload) => {
-                        this.automations = payload
-                            .get("items")
-                            .and_then(Value::as_array)
-                            .cloned()
-                            .unwrap_or_default();
-                        let selected = this.automation_selected_id.clone();
-                        let selected = selected.filter(|id| {
-                            this.automations
-                                .iter()
-                                .any(|item| value_string(item, "id").as_deref() == Some(id))
-                        });
-                        this.automation_selected_id = selected.or_else(|| {
-                            this.automations
-                                .first()
-                                .and_then(|item| value_string(item, "id"))
-                        });
-                        if let Some(id) = this.automation_selected_id.clone() {
-                            this.load_automation_detail(id, cx);
-                        } else {
-                            this.automation_detail = None;
-                        }
-                    }
-                    Err(error) => this.automations_error = Some(error.into()),
-                }
-                cx.notify();
-            });
-        })
-        .detach();
-    }
-
-    fn load_automation_detail(&mut self, id: String, cx: &mut Context<Self>) {
-        self.automation_selected_id = Some(id.clone());
-        self.automation_detail_loading = true;
-        let bridge = self.bridge.clone();
-        cx.spawn(async move |this, cx| {
-            let result = bridge.request("automation.show", json!({"id": id})).await;
-            let Some(this) = this.upgrade() else {
-                return;
-            };
-            this.update(cx, |this, cx| {
-                this.automation_detail_loading = false;
-                match result {
-                    Ok(value) => this.automation_detail = Some(value),
-                    Err(error) => this.automations_error = Some(error.into()),
-                }
-                cx.notify();
-            });
-        })
-        .detach();
-        cx.notify();
-    }
-
-    fn run_automation_request(
-        &mut self,
-        request: &'static str,
-        payload: Value,
-        message: &'static str,
-        cx: &mut Context<Self>,
-    ) {
-        if self.automation_action_busy {
-            return;
-        }
-        self.automation_action_busy = true;
-        self.automations_error = None;
-        let bridge = self.bridge.clone();
-        let selected = self.automation_selected_id.clone();
-        cx.spawn(async move |this, cx| {
-            let result = bridge.request(request, payload).await;
-            let Some(this) = this.upgrade() else {
-                return;
-            };
-            this.update(cx, |this, cx| {
-                this.automation_action_busy = false;
-                match result {
-                    Ok(_) => {
-                        this.local_message = Some(message.into());
-                        this.local_message_started_at = Some(std::time::Instant::now());
-                        this.load_automations(cx);
-                        if let Some(id) = selected {
-                            this.load_automation_detail(id, cx);
-                        }
-                    }
-                    Err(error) => this.automations_error = Some(error.into()),
-                }
-                cx.notify();
-            });
-        })
-        .detach();
-        cx.notify();
-    }
 
     fn open_automation_editor(
         &mut self,
@@ -175,10 +65,9 @@ impl AleraApp {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        let automation = initial
-            .as_ref()
-            .and_then(|value| value.get("automation"))
-            .or(initial.as_ref());
+        if self.automation_action_busy || !self.show_automations_dialog { return; }
+        self.automation_editor_definition = super::automation_request_epoch::editor_definition(initial.as_ref());
+        let automation = Some(&self.automation_editor_definition);
         self.automation_editor_id = automation.and_then(|value| value_string(value, "id"));
         set_input_value(
             &self.automation_editor_name_input,
@@ -241,6 +130,7 @@ impl AleraApp {
     }
 
     fn save_automation_editor(&mut self, _window: &mut Window, cx: &mut Context<Self>) {
+        if self.automation_action_busy || !self.automation_editor_open { return; }
         let name = self
             .automation_editor_name_input
             .read(cx)
@@ -300,12 +190,7 @@ impl AleraApp {
             .automation_editor_id
             .clone()
             .unwrap_or_else(|| Uuid::new_v4().to_string());
-        let existing = self
-            .automation_detail
-            .as_ref()
-            .and_then(|detail| detail.get("automation"))
-            .cloned()
-            .unwrap_or_else(|| json!({}));
+        let existing = self.automation_editor_definition.clone();
         let mut definition = existing.as_object().cloned().unwrap_or_default();
         definition.insert("id".into(), Value::String(id.clone()));
         definition.insert("slug".into(), Value::String(slug));
@@ -361,6 +246,8 @@ impl AleraApp {
         self.automation_editor_error = None;
         self.automation_editor_open = false;
         let bridge = self.bridge.clone();
+        let view_epoch = self.automation_requests.view();
+        let selected_before = self.automation_selected_id.clone();
         cx.spawn(async move |this, cx| {
             let result = bridge
                 .request("automation.upsert", json!({"automation": definition}))
@@ -369,20 +256,24 @@ impl AleraApp {
                 return;
             };
             this.update(cx, |this, cx| {
+                if !this.automation_requests.accepts_view(view_epoch) { return; }
                 this.automation_action_busy = false;
                 match result {
                     Ok(value) => {
-                        this.automation_selected_id = value_string(&value, "id");
+                        if this.automation_selected_id == selected_before {
+                            this.automation_selected_id = value_string(&value, "id").or(Some(id.clone()));
+                        }
                         this.local_message = Some("Automation saved".into());
                         this.local_message_started_at = Some(std::time::Instant::now());
-                        this.load_automations(cx);
-                        if let Some(id) = this.automation_selected_id.clone() {
-                            this.load_automation_detail(id, cx);
-                        }
+                        this.refresh_automation_catalog_after_mutation(cx);
                     }
                     Err(error) => {
-                        this.automation_editor_open = true;
-                        this.automation_editor_error = Some(error.into());
+                        if this.automation_selected_id == selected_before {
+                            this.automation_editor_open = true;
+                            this.automation_editor_error = Some(error.into());
+                        } else {
+                            this.automations_error = Some(format!("Could not save automation {id}: {error}").into());
+                        }
                     }
                 }
                 cx.notify();
@@ -426,13 +317,16 @@ impl AleraApp {
     }
 
     fn automation_export(&mut self, cx: &mut Context<Self>) {
+        if !self.show_automations_dialog { return; }
         let bridge = self.bridge.clone();
+        let view_epoch = self.automation_requests.view();
         cx.spawn(async move |this, cx| {
             let result = bridge.request("automation.export", json!({})).await;
             let Some(this) = this.upgrade() else {
                 return;
             };
             this.update(cx, |this, cx| {
+                if !this.automation_requests.accepts_view(view_epoch) { return; }
                 match result {
                     Ok(bundle) => {
                         cx.write_to_clipboard(gpui::ClipboardItem::new_string(bundle.to_string()));
@@ -448,6 +342,7 @@ impl AleraApp {
     }
 
     fn automation_import(&mut self, cx: &mut Context<Self>) {
+        if self.automation_action_busy || !self.show_automations_dialog { return; }
         let Some(text) = cx.read_from_clipboard().and_then(|item| item.text()) else {
             self.automations_error =
                 Some("The clipboard does not contain an automation catalog.".into());
@@ -463,6 +358,7 @@ impl AleraApp {
             }
         };
         let bridge = self.bridge.clone();
+        let view_epoch = self.automation_requests.view();
         self.automation_action_busy = true;
         cx.spawn(async move |this, cx| {
             let result = bridge
@@ -472,12 +368,13 @@ impl AleraApp {
                 return;
             };
             this.update(cx, |this, cx| {
+                if !this.automation_requests.accepts_view(view_epoch) { return; }
                 this.automation_action_busy = false;
                 match result {
                     Ok(_) => {
                         this.local_message = Some("Automation catalog imported as drafts".into());
                         this.local_message_started_at = Some(std::time::Instant::now());
-                        this.load_automations(cx);
+                        this.refresh_automation_catalog_after_mutation(cx);
                     }
                     Err(error) => this.automations_error = Some(error.into()),
                 }
@@ -574,7 +471,7 @@ impl AleraApp {
                     .child(
                         div()
                             .flex_1()
-                            .text_lg()
+                            .text_size(crate::theme::title_size())
                             .font_weight(gpui::FontWeight::SEMIBOLD)
                             .child("Automations"),
                     )
@@ -701,7 +598,7 @@ impl AleraApp {
                     .child(div().flex_1().min_w_0().min_h_0().child(self.render_automation_detail(cx))),
             )
             .when_some(self.automations_error.clone(), |catalog, error| {
-                catalog.child(div().mt_2().text_sm().text_color(theme::danger()).child(error))
+                catalog.child(div().mt_2().text_size(crate::theme::body_size()).text_color(theme::danger()).child(error))
             })
             .into_any_element()
     }
@@ -863,8 +760,8 @@ impl AleraApp {
                     .flex()
                     .items_center()
                     .gap_2()
-                    .child(div().flex_1().text_lg().font_weight(gpui::FontWeight::SEMIBOLD).child(name))
-                    .child(div().text_sm().text_color(theme::text_muted()).child(state.clone()))
+                    .child(div().flex_1().text_size(crate::theme::title_size()).font_weight(gpui::FontWeight::SEMIBOLD).child(name))
+                    .child(div().text_size(crate::theme::body_size()).text_color(theme::text_muted()).child(state.clone()))
                     .child(design_system::icon_button("automation-refresh", "Refresh", AleraIcon::Refresh, true, 28.0, None, None).on_click(cx.listener(move |this, _, _, cx| this.load_automation_detail(id_for_refresh.clone(), cx))))
                     .child(design_system::icon_button("automation-edit", "Edit", AleraIcon::Edit, !self.automation_action_busy, 28.0, None, None).on_click(cx.listener(move |this, _, window, cx| {
                         if let Some(detail) = this.automation_detail.clone() { this.open_automation_editor(Some(detail), window, cx); }
@@ -1042,7 +939,7 @@ impl AleraApp {
             return panel.child(
                 div()
                     .mt_2()
-                    .text_sm()
+                    .text_size(crate::theme::body_size())
                     .text_color(theme::text_muted())
                     .child("No runs yet."),
             );
@@ -1066,14 +963,14 @@ impl AleraApp {
                 .rounded_md()
                 .border_1()
                 .border_color(theme::border_subtle())
-                .child(div().text_sm().child(format!(
+                .child(div().text_size(crate::theme::body_size()).child(format!(
                     "Run #{} · {status}",
                     value_i64(run, "number").unwrap_or(0)
                 )))
                 .child(
                     div()
                         .mt_1()
-                        .text_xs()
+                        .text_size(crate::theme::caption_size())
                         .text_color(theme::text_muted())
                         .child(
                             value_string(run, "summary")
@@ -1112,7 +1009,7 @@ impl AleraApp {
             return panel.child(
                 div()
                     .mt_2()
-                    .text_sm()
+                    .text_size(crate::theme::body_size())
                     .text_color(theme::text_muted())
                     .child("No audit events yet."),
             );
@@ -1121,12 +1018,12 @@ impl AleraApp {
             panel = panel.child(
                 div()
                     .mt_2()
-                    .text_sm()
+                    .text_size(crate::theme::body_size())
                     .child(value_string(event, "action").unwrap_or_else(|| "Event".into()))
                     .child(
                         div()
                             .mt_1()
-                            .text_xs()
+                            .text_size(crate::theme::caption_size())
                             .text_color(theme::text_muted())
                             .child(format!(
                                 "{} · {}",
@@ -1149,7 +1046,7 @@ impl AleraApp {
                 div()
                     .flex()
                     .items_center()
-                    .child(div().flex_1().text_lg().font_weight(gpui::FontWeight::SEMIBOLD).child(if self.automation_editor_id.is_some() { "Edit Automation" } else { "New Automation" }))
+                    .child(div().flex_1().text_size(crate::theme::title_size()).font_weight(gpui::FontWeight::SEMIBOLD).child(if self.automation_editor_id.is_some() { "Edit Automation" } else { "New Automation" }))
                     .child(design_system::icon_button("close-automation-editor", "Close", AleraIcon::Close, true, 30.0, None, None).on_click(cx.listener(|this, _, _, cx| { this.automation_editor_open = false; this.automation_editor_error = None; cx.notify(); }))),
             )
             .child(
@@ -1167,12 +1064,12 @@ impl AleraApp {
                             .child(design_system::text_field(&self.automation_editor_name_input).label("Name"))
                             .child(design_system::text_field(&self.automation_editor_slug_input).label("Slug"))
                             .child(design_system::text_field(&self.automation_editor_description_input).label("Description"))
-                            .child(div().child(div().mb_1().text_sm().text_color(theme::text_muted()).child("Prompt Template")).h(px(110.0)).child(Textarea::new(&self.automation_editor_prompt_input).h_full()))
+                            .child(div().child(div().mb_1().text_size(crate::theme::body_size()).text_color(theme::text_muted()).child("Prompt Template")).h(px(110.0)).child(Textarea::new(&self.automation_editor_prompt_input).h_full()))
                             .child(design_system::text_field(&self.automation_editor_cron_input).label("Five-field Cron"))
                             .child(design_system::text_field(&self.automation_editor_workspace_input).label("Workspace ID"))
                             .child(design_system::text_field(&self.automation_editor_profile_input).label("Agent Profile ID"))
-                            .child(div().text_xs().text_color(theme::text_muted()).child("This GPUI editor creates a recurring fresh-tab automation. Existing definitions retain their complete runtime policies when edited."))
-                            .when_some(self.automation_editor_error.clone(), |form, error| form.child(div().text_sm().text_color(theme::danger()).child(error))),
+                            .child(div().text_size(crate::theme::caption_size()).text_color(theme::text_muted()).child("This GPUI editor creates a recurring fresh-tab automation. Existing definitions retain their complete runtime policies when edited."))
+                            .when_some(self.automation_editor_error.clone(), |form, error| form.child(div().text_size(crate::theme::body_size()).text_color(theme::danger()).child(error))),
                     ),
             )
             .child(
@@ -1372,7 +1269,7 @@ impl AleraApp {
         div()
             .child(div().ml_1().mb_4().child(div().text_size(px(13.0)).font_weight(gpui::FontWeight::SEMIBOLD).child("Automation History And Autostart")).child(div().mt_1().text_size(px(12.0)).text_color(theme::text_muted()).child("Keep scheduled work available without a window and control local retention.")))
             .child(div().overflow_hidden().rounded_lg().border_1().border_color(theme::border_subtle()).bg(theme::surface_selected()).child(super::settings_panes::exact_settings_row("Start Automations At Login", "Start the persistent local automation host when you sign in. This is off by default.", switch)).child(value_row("Run History Retention", "Keep final runs for at most this many days.", "run", run_retention_days)).child(value_row("Audit Retention", "Keep automation audit events for at most this many days.", "audit", audit_retention_days)).child(value_row("Trash Retention", "Permanently remove trashed definitions after this many days.", "trash", trash_retention_days)))
-            .when_some(error, |group, error| group.child(div().mt_2().text_sm().text_color(theme::danger()).child(error)))
+            .when_some(error, |group, error| group.child(div().mt_2().text_size(crate::theme::body_size()).text_color(theme::danger()).child(error)))
     }
 
     pub(super) fn load_automation_profile_policy(
@@ -1606,7 +1503,7 @@ impl AleraApp {
             group = group.child(
                 div()
                     .p_3()
-                    .text_sm()
+                    .text_size(crate::theme::body_size())
                     .text_color(theme::danger())
                     .child(error),
             );
@@ -1688,7 +1585,7 @@ impl AleraApp {
             group = group.child(
                 div()
                     .p_3()
-                    .text_sm()
+                    .text_size(crate::theme::body_size())
                     .text_color(theme::danger())
                     .child(error),
             );

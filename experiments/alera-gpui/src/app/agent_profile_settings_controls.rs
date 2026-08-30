@@ -214,7 +214,7 @@ impl AleraApp {
                                                 .flex()
                                                 .items_center()
                                                 .px_2()
-                                                .text_xs()
+                                                .text_size(crate::theme::caption_size())
                                                 .text_color(theme::text_muted())
                                                 .child("No Matching Options"),
                                         )

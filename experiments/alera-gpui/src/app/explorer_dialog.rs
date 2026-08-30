@@ -67,7 +67,7 @@ impl AleraApp {
                             div()
                                 .mt_2()
                                 .px(px(24.0))
-                                .text_xs()
+                                .text_size(crate::theme::caption_size())
                                 .text_color(theme::danger())
                                 .child(message),
                         )

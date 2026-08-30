@@ -294,7 +294,7 @@ impl AleraApp {
                 .justify_center()
                 .gap_3()
                 .child(loading_indicator(22.0, theme::text_muted()))
-                .child(div().text_sm().text_color(theme::text_muted()).child(label))
+                .child(div().text_size(crate::theme::body_size()).text_color(theme::text_muted()).child(label))
                 .child(
                     design_system::button(
                         "cancel-reading-diff",
@@ -320,7 +320,7 @@ impl AleraApp {
                 .child(icon(AleraIcon::Error, 22.0, theme::danger()))
                 .child(
                     div()
-                        .text_sm()
+                        .text_size(crate::theme::body_size())
                         .text_color(theme::text_muted())
                         .child(error.clone()),
                 )
@@ -381,7 +381,7 @@ impl AleraApp {
                     .child(
                         div()
                             .mt_3()
-                            .text_sm()
+                            .text_size(crate::theme::body_size())
                             .text_color(theme::text_muted())
                             .child(format!(
                                 "{} will receive only this {} diff through a restricted, tool-free execution policy. The result cannot be applied to the repository.",
@@ -451,14 +451,14 @@ fn render_reading_diff_result(result: &ReadingDiffResult) -> AnyElement {
                 .bg(theme::surface_selected())
                 .child(
                     div()
-                        .text_sm()
+                        .text_size(crate::theme::body_size())
                         .font_weight(gpui::FontWeight::SEMIBOLD)
                         .child(result.summary.clone()),
                 )
                 .child(
                     div()
                         .mt_1()
-                        .text_xs()
+                        .text_size(crate::theme::caption_size())
                         .text_color(theme::text_muted())
                         .child(format!(
                             "{} · {}{} · {retained}% of changed lines retained · {} chunk{}{}",

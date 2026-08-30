@@ -304,6 +304,7 @@ impl AleraApp {
         cx: &mut Context<Self>,
     ) -> AnyElement {
         div()
+            .flex_shrink_0()
             .when(divider, |section| {
                 section.border_t_1().border_color(theme::border_subtle())
             })
@@ -325,7 +326,7 @@ impl AleraApp {
                     .gap_2()
                     .rounded_lg()
                     .cursor(CursorStyle::PointingHand)
-                    .text_sm()
+                    .text_size(crate::theme::body_size())
                     .text_color(theme::text_muted())
                     .hover(|style| style.bg(theme::surface()))
                     .on_click(cx.listener(move |this, _, _, cx| {
@@ -346,7 +347,7 @@ impl AleraApp {
                     )
                     .child(
                         div()
-                            .text_xs()
+                            .text_size(crate::theme::caption_size())
                             .text_color(theme::text_faint())
                             .child(count.to_string()),
                     )
@@ -376,6 +377,7 @@ impl AleraApp {
         let can_create_workspace = project.kind == "gitRepository";
         div()
             .id(SharedString::from(format!("project-row-{}", project.id)))
+            .flex_shrink_0()
             .focusable()
             .tab_stop(true)
             .role(Role::Button)
@@ -389,7 +391,7 @@ impl AleraApp {
             .mx_2()
             .px_2()
             .gap_2()
-            .text_sm()
+            .text_size(crate::theme::body_size())
             .text_color(theme::text_muted())
             .rounded_lg()
             .cursor(CursorStyle::PointingHand)
@@ -419,7 +421,7 @@ impl AleraApp {
             )
             .child(
                 div()
-                    .text_xs()
+                    .text_size(crate::theme::caption_size())
                     .text_color(theme::text_faint())
                     .child(workspace_count.to_string()),
             )
@@ -533,16 +535,17 @@ impl AleraApp {
             .role(Role::Button)
             .aria_label(workspace.name.clone())
             .aria_selected(selected)
+            .flex_shrink_0()
             .ml(px(8.0 + indent))
             .mr_2()
             .my(px(2.0))
             .px_3()
             .py(px(6.0))
-            // Flutter's body-medium row plus its vertical padding resolves
-            // to a 33 px logical tile. Keep a floor here so long lists have
+            // Flutter's 19 px body line plus its vertical padding resolves
+            // to a 31 px logical tile. Keep a floor here so long lists have
             // the same cumulative height and scrollbar range as Flutter.
-            .min_h(px(33.0))
-            .rounded_lg()
+            .min_h(px(31.0))
+            .rounded(px(10.0))
             .cursor(CursorStyle::PointingHand)
             .hover(|style| style.bg(theme::surface()))
             .when(selected, |item| item.bg(theme::surface_raised()))
@@ -565,13 +568,13 @@ impl AleraApp {
                     .flex()
                     .items_center()
                     .gap(px(6.0))
-                    .text_sm()
+                    .text_size(crate::theme::body_size())
                     .font_weight(gpui::FontWeight::SEMIBOLD)
                     .overflow_hidden()
                     .text_ellipsis()
                     .child(
                         div()
-                            .flex_1()
+                            .flex_shrink(1.0)
                             .min_w_0()
                             .overflow_hidden()
                             .text_ellipsis()
@@ -643,7 +646,7 @@ impl AleraApp {
                                 .flex()
                                 .items_center()
                                 .gap(px(2.0))
-                                .text_xs()
+                                .text_size(crate::theme::caption_size())
                                 .text_color(theme::text_faint())
                                 .child(icon(AleraIcon::Tag, 12.0, theme::text_faint()))
                                 .child(tag_labels.len().to_string()),
@@ -718,7 +721,7 @@ impl AleraApp {
                     .child(icon(AleraIcon::Workflow, 12.0, theme::text_faint()))
                     .child(
                         div()
-                            .text_xs()
+                            .text_size(crate::theme::caption_size())
                             .text_color(theme::text_faint())
                             .child(visible_child_count.to_string()),
                     )
@@ -727,6 +730,7 @@ impl AleraApp {
         }
         if !agent_runs.is_empty() && agents_expanded {
             return div()
+                .flex_shrink_0()
                 .flex()
                 .flex_col()
                 .child(row)
@@ -848,7 +852,7 @@ impl AleraApp {
             summary = summary.child(
                 div()
                     .ml(px(4.0))
-                    .text_xs()
+                    .text_size(crate::theme::caption_size())
                     .text_color(theme::text_faint())
                     .child(format!("+{hidden_group_runs}")),
             );
@@ -1007,7 +1011,7 @@ impl AleraApp {
                             .min_w_0()
                             .overflow_hidden()
                             .text_ellipsis()
-                            .text_xs()
+                            .text_size(crate::theme::caption_size())
                             .text_color(if active {
                                 theme::text()
                             } else {
@@ -1139,7 +1143,7 @@ fn render_agent_group_cluster(workspace_id: &str, state: &str, state_runs: &[&Va
     if hidden_count > 0 {
         cluster = cluster.child(
             div()
-                .text_xs()
+                .text_size(crate::theme::caption_size())
                 .text_color(theme::text_faint())
                 .child(format!("+{hidden_count}")),
         );

@@ -137,7 +137,7 @@ impl AleraApp {
                         .items_center()
                         .justify_center()
                         .p(px(24.0))
-                        .text_sm()
+                        .text_size(crate::theme::body_size())
                         .text_color(theme::text_muted())
                         .child(icon(AleraIcon::Activity, 28.0, theme::text_faint()))
                         .child(div().h(px(12.0)))
@@ -371,7 +371,7 @@ impl AleraApp {
             .px_3()
             .border_b_1()
             .border_color(theme::border_subtle())
-            .text_xs()
+            .text_size(crate::theme::caption_size())
             .text_color(theme::text_faint())
             .child(resource_sort_button(
                 "resource-sort-name",

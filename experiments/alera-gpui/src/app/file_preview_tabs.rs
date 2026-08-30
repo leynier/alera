@@ -14,6 +14,26 @@ enum FileTabKind {
     Pdf,
 }
 
+#[derive(Clone, Copy)]
+enum FileOpenIntent {
+    Permanent,
+    Preview,
+    SearchResult,
+}
+
+impl FileOpenIntent {
+    fn kind(self, path: &str) -> FileTabKind {
+        match self {
+            Self::SearchResult => FileTabKind::Editor,
+            Self::Permanent | Self::Preview => file_tab_kind(path),
+        }
+    }
+
+    fn is_preview(self) -> bool {
+        matches!(self, Self::Preview | Self::SearchResult)
+    }
+}
+
 impl FileTabKind {
     fn key(self) -> &'static str {
         match self {
@@ -41,11 +61,15 @@ impl FileTabKind {
 
 impl AleraApp {
     pub(super) fn open_file_tab(&mut self, relative_path: String, cx: &mut Context<Self>) {
-        self.open_file_backed_tab(relative_path, false, cx);
+        self.open_file_backed_tab(relative_path, FileOpenIntent::Permanent, cx);
     }
 
     pub(super) fn open_file_preview_tab(&mut self, relative_path: String, cx: &mut Context<Self>) {
-        self.open_file_backed_tab(relative_path, true, cx);
+        self.open_file_backed_tab(relative_path, FileOpenIntent::Preview, cx);
+    }
+
+    pub(super) fn open_search_result_tab(&mut self, relative_path: String, cx: &mut Context<Self>) {
+        self.open_file_backed_tab(relative_path, FileOpenIntent::SearchResult, cx);
     }
 
     pub(super) fn open_editor_tab(&mut self, relative_path: String, cx: &mut Context<Self>) {
@@ -94,11 +118,11 @@ impl AleraApp {
     fn open_file_backed_tab(
         &mut self,
         relative_path: String,
-        preview: bool,
+        intent: FileOpenIntent,
         cx: &mut Context<Self>,
     ) {
-        let kind = file_tab_kind(&relative_path);
-        self.open_file_tab_with_kind(relative_path, kind, preview, cx);
+        let kind = intent.kind(&relative_path);
+        self.open_file_tab_with_kind(relative_path, kind, intent.is_preview(), cx);
     }
 
     fn open_file_tab_with_kind(
@@ -377,7 +401,7 @@ fn preview_tab_in_group<'a>(
 mod tests {
     use serde_json::json;
 
-    use super::{file_tab_kind, preview_tab_in_group, FileTabKind};
+    use super::{file_tab_kind, file_tab_payload, preview_tab_in_group, FileOpenIntent, FileTabKind};
     use crate::model::{WorkbenchPaneGroup, WorkspaceTab};
 
     #[test]
@@ -386,6 +410,20 @@ mod tests {
         assert_eq!(file_tab_kind("docs/guide.MDX"), FileTabKind::MarkdownViewer);
         assert_eq!(file_tab_kind("docs/spec.pdf"), FileTabKind::Pdf);
         assert_eq!(file_tab_kind("src/main.rs"), FileTabKind::Editor);
+    }
+
+    #[test]
+    fn search_results_open_source_without_pinning_the_preview_slot() {
+        for path in ["docs/guide.md", "docs/guide.mdx", "assets/test.svg", "flow.mmd", "src/main.rs"] {
+            let intent = FileOpenIntent::SearchResult;
+            assert_eq!(intent.kind(path), FileTabKind::Editor, "{path}");
+            assert!(intent.is_preview());
+            let payload = file_tab_payload(path, intent.is_preview());
+            assert_eq!(payload["filePath"], path);
+            assert_eq!(payload["preview"], true);
+        }
+        assert_eq!(FileOpenIntent::Preview.kind("guide.md"), FileTabKind::MarkdownViewer);
+        assert!(!FileOpenIntent::Permanent.is_preview());
     }
 
     #[test]

@@ -1,16 +1,12 @@
-use std::borrow::Cow;
 use std::sync::{Arc, OnceLock};
 use std::time::Duration;
 
 use gpui::{
     div, img, percentage, prelude::FluentBuilder as _, px, svg, Animation, AnimationExt as _,
-    AnyElement, App, Image, ImageFormat, IntoElement as _, ParentElement as _, Rgba, Styled as _,
-    Transformation,
+    AnyElement, Image, ImageFormat, IntoElement as _, ParentElement as _, Rgba, Styled as _,
+    StyledImage as _, Transformation,
 };
 
-const LUCIDE_FONT: &[u8] = include_bytes!("../assets/fonts/Lucide-3.1.15.ttf");
-const INTER_FONT: &[u8] = include_bytes!("../assets/fonts/Inter-Variable.ttf");
-const JETBRAINS_MONO_FONT: &[u8] = include_bytes!("../assets/fonts/JetBrainsMono-Variable.ttf");
 const ALERA_LOGO: &[u8] = include_bytes!("../../../assets/logo/alera-logo-white.png");
 static ALERA_LOGO_IMAGE: OnceLock<Arc<Image>> = OnceLock::new();
 
@@ -35,6 +31,7 @@ pub enum AleraIcon {
     ChevronsLeft,
     ChevronsRight,
     Close,
+    CloudDownload,
     Code,
     Coffee,
     Composer,
@@ -146,11 +143,11 @@ impl AgentIcon {
             Self::Cursor => ("agents/cursor.png", true, false),
             Self::Fx => ("agents/fx.svg", false, true),
             Self::Grok => ("agents/grok.svg", false, true),
-            Self::Kimi => ("agents/kimi.svg", false, false),
-            Self::MiniMax => ("agents/minimax.svg", false, false),
+            Self::Kimi => ("agents/kimi.svg", true, false),
+            Self::MiniMax => ("agents/minimax.svg", true, false),
             Self::OpenCode => ("agents/opencode.png", true, false),
             Self::Pi => ("agents/pi.svg", false, true),
-            Self::Zai => ("agents/zai.svg", false, false),
+            Self::Zai => ("agents/zai.svg", true, false),
         }
     }
 }
@@ -207,6 +204,7 @@ impl AleraIcon {
             Self::Delete => ("lucide", 57742),
             Self::Diff => ("lucide", 58201),
             Self::Download => ("lucide", 57522),
+            Self::CloudDownload => ("lucide", 57481),
             Self::DragHandle => ("lucide", 57579),
             Self::Duplicate => ("lucide", 58365),
             Self::Edit => ("lucide", 57849),
@@ -284,16 +282,6 @@ impl AleraIcon {
     }
 }
 
-pub fn register_fonts(cx: &App) {
-    cx.text_system()
-        .add_fonts(vec![
-            Cow::Borrowed(LUCIDE_FONT),
-            Cow::Borrowed(INTER_FONT),
-            Cow::Borrowed(JETBRAINS_MONO_FONT),
-        ])
-        .expect("failed to register Alera fonts");
-}
-
 pub fn icon(kind: AleraIcon, size: f32, color: Rgba) -> AnyElement {
     // Loading is an active state, not a static glyph. Routing it through the
     // shared spinner keeps every caller animated, including toolbar buttons
@@ -361,9 +349,11 @@ pub fn agent_loading_indicator(size: f32, color: Rgba) -> AnyElement {
 }
 
 pub fn agent_icon(kind: AgentIcon, size: f32, color: Rgba) -> AnyElement {
-    let (path, raster, tintable) = kind.asset();
-    if raster {
-        return img(path).w(px(size)).h(px(size)).into_any_element();
+    let (path, full_color, tintable) = kind.asset();
+    if full_color {
+        // GPUI Svg is a tinted mask and paints nothing without text_color.
+        // The image decoder supports SVG and preserves original fills/gradients.
+        return img(path).object_fit(gpui::ObjectFit::Contain).w(px(size)).h(px(size)).into_any_element();
     }
     // Claude's multistroke mark uses the warm provider color rather than the
     // generic foreground tint used by the other agent icons.
@@ -440,17 +430,17 @@ mod tests {
     }
 
     #[test]
-    fn colored_provider_svgs_use_the_svg_renderer() {
+    fn colored_provider_svgs_use_the_full_color_image_decoder() {
         for provider in [
-            AgentIcon::Claude,
             AgentIcon::Kimi,
             AgentIcon::MiniMax,
             AgentIcon::Zai,
         ] {
-            let (path, raster, tintable) = provider.asset();
+            let (path, full_color, tintable) = provider.asset();
             assert!(path.ends_with(".svg"));
-            assert!(!raster);
+            assert!(full_color);
             assert!(!tintable);
+            assert!(crate::assets::AleraAssets::raw_bytes(path).is_some());
         }
     }
 

@@ -103,7 +103,7 @@ impl AleraApp {
                 panel.child(
                     div()
                         .mt_2()
-                        .text_sm()
+                        .text_size(crate::theme::body_size())
                         .text_color(theme::danger())
                         .child(error),
                 )
@@ -225,7 +225,7 @@ impl AleraApp {
                     .child(
                         div()
                             .mt(px(12.0))
-                            .text_sm()
+                            .text_size(crate::theme::body_size())
                             .text_color(theme::text_muted())
                             .child(format!("{message} Force stop terminates them.")),
                     )

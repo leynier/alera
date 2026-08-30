@@ -246,7 +246,7 @@ impl AleraApp {
                     .child(
                         div()
                             .mt_3()
-                            .text_sm()
+                            .text_size(crate::theme::body_size())
                             .text_color(theme::text_muted())
                             .child(message),
                     )

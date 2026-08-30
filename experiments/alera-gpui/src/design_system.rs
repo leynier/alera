@@ -12,6 +12,10 @@ use gpui_component::{
 use crate::{icons::loading_indicator, theme};
 
 mod controls;
+#[cfg(all(test, feature = "gpui-tests"))]
+mod theme_tests;
+#[cfg(all(test, feature = "gpui-tests"))]
+mod text_field_tests;
 pub use controls::{
     checkbox, dropdown_trigger, dropdown_trigger_with_loading, icon_button, menu_item, radio,
     switch,
@@ -27,10 +31,11 @@ pub enum ButtonKind {
 }
 
 pub fn configure_component_theme(cx: &mut gpui::App) {
+    Theme::change(ThemeMode::Dark, None, cx);
     let component_theme = Theme::global_mut(cx);
-    component_theme.mode = ThemeMode::Dark;
     component_theme.font_family = "Inter".into();
-    component_theme.font_size = px(13.0);
+    // Root uses this for rem geometry; Alera text roles stay explicit below it.
+    component_theme.font_size = px(16.0);
     component_theme.mono_font_family = "JetBrains Mono".into();
     component_theme.mono_font_size = px(12.0);
     component_theme.radius = px(6.0);
@@ -59,6 +64,16 @@ pub fn configure_component_theme(cx: &mut gpui::App) {
     colors.selection = theme::text_selection().into();
     colors.sidebar = theme::surface_selected().into();
     colors.sidebar_border = theme::border_subtle().into();
+    colors.table = theme::app_background().into();
+    colors.table_head = theme::surface_selected().into();
+    colors.table_head_foreground = theme::text().into();
+    colors.table_even = theme::app_background().into();
+    colors.table_row_border = theme::border().into();
+
+    // The pinned component library paints resolved tokens, while older
+    // consumers still read colors. Alera uses solid fills in both paths.
+    component_theme.tokens = (&component_theme.colors).into();
+    Theme::sync_base(cx);
 }
 
 #[derive(IntoElement)]
@@ -140,8 +155,10 @@ impl AleraTextField {
 
 impl RenderOnce for AleraTextField {
     fn render(self, window: &mut Window, cx: &mut App) -> impl IntoElement {
-        let focused = self.state.focus_handle(cx).is_focused(window);
+        let focused = !self.disabled && self.state.focus_handle(cx).is_focused(window);
         let has_text = !self.state.read(cx).value().is_empty();
+        let floating_label = label_floats(focused, has_text);
+        let has_prefix = self.prefix.is_some();
         let border = if self.error.is_some() {
             theme::danger()
         } else if focused {
@@ -190,6 +207,7 @@ impl RenderOnce for AleraTextField {
         } else {
             self.suffix
         };
+        let has_suffix = suffix.is_some();
         let accessibility_label = self
             .accessibility_label
             .or_else(|| self.label.clone())
@@ -200,7 +218,7 @@ impl RenderOnce for AleraTextField {
             .size_full()
             .px(if self.dense { px(8.0) } else { px(12.0) })
             .py(if self.dense { px(12.0) } else { px(10.0) })
-            .text_size(px(if self.dense { 12.0 } else { 13.0 }));
+            .text_size(px(if self.dense { 12.0 } else { 14.0 }));
         if let Some(label) = accessibility_label {
             input = input.aria_label(label);
         }
@@ -220,19 +238,29 @@ impl RenderOnce for AleraTextField {
                     .border_1()
                     .border_color(border)
                     .bg(background)
+                    .cursor(if self.disabled { CursorStyle::Arrow } else { CursorStyle::IBeam })
                     .child(input)
                     .when_some(self.label, |field, label| {
-                        field.child(
+                        if floating_label {
+                            field.child(
                             div()
                                 .absolute()
-                                .top(px(-7.0))
+                                .top(px(-6.0))
                                 .left(px(8.0))
                                 .px(px(4.0))
-                                .bg(background)
-                                .text_size(px(11.0))
-                                .text_color(theme::text_muted())
+                                .text_size(px(8.25))
+                                .line_height(px(12.0))
+                                .text_color(if focused { theme::accent() } else { theme::text_muted() })
+                                .child(div().absolute().left_0().right_0().top(px(6.0)).h(px(1.0)).bg(background))
                                 .child(label),
-                        )
+                            )
+                        } else {
+                            field.child(div().absolute().top(px(1.0)).bottom(px(1.0))
+                                .left(px(if has_prefix { 40.0 } else { 12.0 }))
+                                .right(px(if has_suffix { 42.0 } else { 12.0 }))
+                                .flex().items_center().bg(background)
+                                .text_size(px(11.0)).text_color(theme::text_muted()).child(label))
+                        }
                     }),
             )
             .when_some(self.error, |field, error| {
@@ -245,6 +273,10 @@ impl RenderOnce for AleraTextField {
                 )
             })
     }
+}
+
+fn label_floats(focused: bool, has_text: bool) -> bool {
+    focused || has_text
 }
 
 pub fn text_field(state: &Entity<InputState>) -> AleraTextField {
@@ -350,7 +382,7 @@ pub fn button_with_loading_and_leading_icon(
             ButtonKind::Text => 12.0,
             ButtonKind::Filled | ButtonKind::Elevated | ButtonKind::Destructive => 14.0,
         }))
-        .rounded_lg()
+        .rounded(px(10.0))
         .text_size(px(13.0))
         .font_weight(gpui::FontWeight::MEDIUM)
         .bg(if disabled {

@@ -10,6 +10,10 @@ use serde_json::json;
 
 use super::status_bar::quota_pin_key;
 use super::status_data::{QuotaReading, QuotaSnapshot};
+
+#[cfg(test)]
+#[path = "status_quota_label_tests.rs"]
+mod label_tests;
 use super::AleraApp;
 use crate::{
     icons::{agent_icon, icon, loading_indicator, AgentIcon, AleraIcon},
@@ -54,7 +58,7 @@ impl AleraApp {
                 panel.child(
                     div()
                         .p_3()
-                        .text_sm()
+                        .text_size(crate::theme::body_size())
                         .text_color(theme::text_muted())
                         .child(empty_message.to_owned()),
                 )
@@ -317,7 +321,7 @@ impl AleraApp {
                                     .h(px(24.0))
                                     .flex()
                                     .items_center()
-                                    .text_sm()
+                                    .text_size(crate::theme::body_size())
                                     .text_color(if can_consume {
                                         theme::accent()
                                     } else {
@@ -366,14 +370,14 @@ impl AleraApp {
                     .p_4()
                     .child(
                         div()
-                            .text_lg()
+                            .text_size(crate::theme::title_size())
                             .font_weight(gpui::FontWeight::SEMIBOLD)
                             .child("Use Codex Reset"),
                     )
                     .child(
                         div()
                             .mt_3()
-                            .text_sm()
+                            .text_size(crate::theme::body_size())
                             .text_color(theme::text_muted())
                             .child(
                                 "Use One Codex Rate-Limit Reset Credit? Alera Will Re-Check The Active Account And Offer Before Applying It.",
@@ -471,7 +475,16 @@ pub(super) fn provider_agent_icon(provider: &str) -> AgentIcon {
 
 pub(super) fn provider_label(snapshot: &QuotaSnapshot) -> String {
     let provider = provider_base_label(&snapshot.provider);
-    if snapshot.provider == "claude" || snapshot.provider == "opencode" {
+    if snapshot.provider == "opencode" {
+        let name = snapshot.display_name.trim();
+        if name.is_empty() {
+            provider.to_owned()
+        } else if name == provider || name.starts_with("OpenCode ") {
+            name.to_owned()
+        } else {
+            format!("{provider} {name}")
+        }
+    } else if snapshot.provider == "claude" {
         format!("{provider} {}", snapshot.display_name)
     } else {
         provider.to_owned()

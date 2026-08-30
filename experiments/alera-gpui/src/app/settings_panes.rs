@@ -114,7 +114,7 @@ impl AleraApp {
                         .py_2()
                         .rounded_md()
                         .bg(theme::surface_raised())
-                        .text_xs()
+                        .text_size(crate::theme::caption_size())
                         .text_color(theme::text_muted())
                         .child(
                             div()

@@ -28,6 +28,7 @@ pub fn install(
     window_handle: AnyWindowHandle,
     cx: &mut App,
 ) {
+    register_system_shortcuts(cx);
     let settings_app = app.downgrade();
     cx.on_action(move |_: &MenuOpenSettings, cx| {
         let settings_app = settings_app.clone();
@@ -153,4 +154,33 @@ pub fn install(
             ],
         },
     ]);
+}
+
+fn register_system_shortcuts(cx: &mut App) {
+    // Flutter's explicit native Quit item owns Cmd+Q. Keep this system command
+    // on its menu action, without duplicating editor or configurable shortcuts.
+    #[cfg(target_os = "macos")]
+    cx.bind_keys([gpui::KeyBinding::new("cmd-q", MenuQuitApp, None)]);
+    #[cfg(not(target_os = "macos"))]
+    let _ = cx;
+}
+
+#[cfg(all(test, feature = "gpui-tests", target_os = "macos"))]
+mod tests {
+    use super::*;
+    use std::{cell::Cell, rc::Rc};
+
+    #[gpui::test]
+    fn native_quit_binding_dispatches_the_menu_action(cx: &mut gpui::TestAppContext) {
+        let called = Rc::new(Cell::new(false));
+        let observed = called.clone();
+        cx.update(|cx| {
+            register_system_shortcuts(cx);
+            cx.on_action(move |_: &MenuQuitApp, _| observed.set(true));
+        });
+        let cx = cx.add_empty_window();
+        cx.simulate_keystrokes("cmd-q");
+        cx.run_until_parked();
+        assert!(called.get());
+    }
 }

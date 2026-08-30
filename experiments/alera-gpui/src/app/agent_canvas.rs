@@ -529,7 +529,7 @@ impl AleraApp {
             .child(
                 div()
                     .mt_1()
-                    .text_sm()
+                    .text_size(crate::theme::body_size())
                     .text_color(theme::text_muted())
                     .child(message.to_owned()),
             )

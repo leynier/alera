@@ -90,7 +90,7 @@ impl Render for DraggedExplorerFeedback {
                 } else {
                     theme::warning()
                 };
-                item.child(div().ml_2().text_xs().text_color(color).child(status))
+                item.child(div().ml_2().text_size(crate::theme::caption_size()).text_color(color).child(status))
             })
             .when(self.source_control_root, |item| {
                 item.child(div().ml_2().child(icon(
@@ -248,49 +248,23 @@ impl AleraApp {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) -> Entity<EditorState> {
-        if let Some(input) = self.editor_inputs.get(path) {
-            return input.clone();
-        }
-        let input = if self.editor_inputs.is_empty() {
-            self.editor_input.clone()
-        } else {
-            cx.new(|cx| {
-                EditorState::new(window, cx)
-                    .language("text")
-                    .soft_wrap(true)
-            })
-        };
-        if !self.editor_inputs.is_empty() {
-            let path = path.to_owned();
-            let subscribed_path = path.clone();
-            let subscription = cx.subscribe_in(
-                &input,
-                window,
-                move |this, input, event: &InputEvent, _, cx| {
-                    if matches!(event, InputEvent::Focus) {
-                        this.activate_editor_path_on_focus(&subscribed_path, cx);
-                        return;
-                    }
-                    if !matches!(event, InputEvent::Change)
-                        || this.editor_input_syncing
-                        || this.editor_document.is_none()
-                        || this.opened_file_path.as_deref() != Some(subscribed_path.as_str())
-                    {
-                        return;
-                    }
-                    let content = input.read(cx).value().to_string();
-                    this.editor_buffer_text
-                        .insert(subscribed_path.clone(), content.clone());
-                    this.cache_markdown_preview_content(&subscribed_path, &content);
-                    this.editor_dirty_paths.insert(subscribed_path.clone());
-                    this.editor_dirty = true;
-                    this.schedule_editor_autosave(cx);
-                    cx.notify();
-                },
-            );
-            self.editor_input_subscriptions.insert(path, subscription);
-        }
-        self.editor_inputs.insert(path.to_owned(), input.clone());
+        if let Some(input) = self.editor_inputs.get(path) { return input.clone(); }
+        let Some(owner) = self.selected_workspace_id.clone() else { return self.editor_input.clone(); };
+        let input = cx.new(|cx| EditorState::new(window, cx).language("text").soft_wrap(true));
+        let path = path.to_owned();
+        let subscribed_path = path.clone();
+        let subscription = cx.subscribe_in(&input, window, move |this, input, event: &InputEvent, _, cx| {
+            match event {
+                InputEvent::Focus if this.editor_workspaces.owner.as_deref() == Some(owner.as_str())
+                    && this.selected_workspace_id.as_deref() == Some(owner.as_str()) => {
+                    this.activate_editor_path_on_focus(&subscribed_path, cx);
+                }
+                InputEvent::Change => this.record_editor_change(&owner, &subscribed_path, input, cx),
+                _ => {}
+            }
+        });
+        self.editor_input_subscriptions.insert(path.clone(), subscription);
+        self.editor_inputs.insert(path, input.clone());
         input
     }
 
@@ -352,6 +326,7 @@ impl AleraApp {
     }
 
     pub(super) fn reset_local_workspace(&mut self, cx: &mut Context<Self>) {
+        self.switch_editor_workspace();
         self.cancel_active_workspace_search(cx);
         self.search_generation += 1;
         self.git_generation += 1;
@@ -392,21 +367,10 @@ impl AleraApp {
         self.terminal_scrollbar_drag = None;
         self.terminal_scrollbar_last_activity.clear();
         self.editor_document = None;
-        self.editor_input_subscriptions.clear();
-        self.editor_inputs.clear();
-        self.editor_documents.clear();
-        self.editor_load_error_paths.clear();
-        self.editor_error_messages.clear();
-        self.editor_buffer_text.clear();
-        self.editor_dirty_paths.clear();
-        self.editor_cursor_positions.clear();
         self.editor_input_syncing = false;
         self.opened_file_path = None;
         self.editor_loading_path = None;
         self.preview_asset = None;
-        self.editor_preview_assets.clear();
-        self.markdown_preview_content.clear();
-        self.preview_transforms.clear();
         self.preview_drag = None;
         self.show_preview = false;
         self.editor_dirty = false;
@@ -750,6 +714,9 @@ impl AleraApp {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
+        self.switch_editor_workspace();
+        if self.snapshot.selected_workspace_id != self.selected_workspace_id { return; }
+        self.apply_pending_editor_reveal(window, cx);
         if self.editor_loading_path.is_some() {
             // Only one request owns the shared editor generation at a time.
             // Cancelling a pane's restore from the next render leaves that
@@ -811,6 +778,7 @@ impl AleraApp {
             }
             if is_selected && self.opened_file_path.as_deref() != Some(path.as_str()) {
                 self.sync_selected_editor_from_cache();
+                self.schedule_editor_autosave(cx);
             }
         }
     }
@@ -858,7 +826,6 @@ impl AleraApp {
         };
         self.editor_load_error_paths.remove(&relative_path);
         self.editor_error_messages.remove(&relative_path);
-        self.editor_autosave_generation = self.editor_autosave_generation.wrapping_add(1);
         self.editor_generation += 1;
         let generation = self.editor_generation;
         self.editor_busy = true;
@@ -959,57 +926,13 @@ impl AleraApp {
                         editor_input.update(cx, |input, cx| {
                             input.set_highlighter(language, cx);
                             input.set_value(display_content, window, cx);
-                            if let Some((_, line, column, _)) = this
-                                .pending_editor_cursor
-                                .as_ref()
-                                .filter(|(path, _, _, _)| path == &document.relative_path)
-                            {
-                                input.set_cursor_position(
-                                    gpui_component::input::Position::new(
-                                        *line as u32,
-                                        *column as u32,
-                                    ),
-                                    window,
-                                    cx,
-                                );
-                            } else if let Some((line, column)) =
-                                this.editor_cursor_positions.get(&cached_path).copied()
-                            {
-                                input.set_cursor_position(
-                                    gpui_component::input::Position::new(line, column),
-                                    window,
-                                    cx,
-                                );
+                            if let Some((line, column)) = this.editor_cursor_positions.get(&cached_path).copied() {
+                                let range = super::editor_reveal::scalar_range(input.value().as_ref(), line as usize, column as usize, 0);
+                                input.set_selected_range(range, cx);
                             }
                         });
                         this.editor_input_syncing = false;
                         this.editor_loading_path = None;
-                        if this
-                            .pending_editor_cursor
-                            .as_ref()
-                            .is_some_and(|(path, _, _, _)| path == &document.relative_path)
-                        {
-                            let selection_length = this
-                                .pending_editor_cursor
-                                .take()
-                                .map_or(0, |(_, _, _, length)| length);
-                            let select_right = gpui::Keystroke::parse("shift-right")
-                                .expect("shift-right must be a valid GPUI keystroke");
-                            let editor_input = editor_input.clone();
-                            window.on_next_frame(move |window, cx| {
-                                editor_input.update(cx, |input, cx| input.focus(window, cx));
-                                // The input needs one paint cycle to become the focused
-                                // key context before selection keystrokes can reach it.
-                                // Dispatching in this same callback moves the caret but
-                                // drops the selection, so copy after opening a search match
-                                // returns the user's previous clipboard contents.
-                                window.on_next_frame(move |window, cx| {
-                                    for _ in 0..selection_length {
-                                        window.dispatch_keystroke(select_right.clone(), cx);
-                                    }
-                                });
-                            });
-                        }
                         this.sync_selected_editor_from_cache();
                         this.local_message = None;
                     }
@@ -1042,6 +965,7 @@ impl AleraApp {
                             .insert(requested_path.clone(), message);
                     }
                 }
+                this.sync_editor_busy();
                 this.schedule_editor_autosave(cx);
                 cx.notify();
             });
@@ -1049,78 +973,6 @@ impl AleraApp {
         .detach();
     }
 
-    pub(super) fn save_editor(&mut self, overwrite: bool, cx: &mut Context<Self>) {
-        let Some(workspace_path) = self.selected_workspace_path() else {
-            return;
-        };
-        let Some(document) = self.editor_document.clone() else {
-            return;
-        };
-        let editor_input = self.editor_input_for_path(&document.relative_path);
-        let display_content = editor_input.read(cx).value().to_string();
-        let saved_path = document.relative_path.clone();
-        let saved_content = display_content.clone();
-        self.editor_generation += 1;
-        let generation = self.editor_generation;
-        self.editor_busy = true;
-        let service = self.workspace_service.clone();
-        cx.spawn(async move |this, cx| {
-            let result = service
-                .write(workspace_path, document, display_content, overwrite)
-                .await;
-            let Some(this) = this.upgrade() else {
-                return;
-            };
-            this.update(cx, |this, cx| {
-                if generation != this.editor_generation {
-                    return;
-                }
-                this.editor_busy = false;
-                match result {
-                    Ok(document) => {
-                        let path = saved_path.clone();
-                        let current_content = this
-                            .editor_input_for_path(&path)
-                            .read(cx)
-                            .value()
-                            .to_string();
-                        this.editor_documents.insert(path.clone(), document.clone());
-                        this.editor_document = Some(document);
-                        if current_content == saved_content {
-                            this.editor_buffer_text.remove(&path);
-                            this.editor_dirty_paths.remove(&path);
-                            this.editor_dirty = false;
-                        } else {
-                            // Keep edits made while the write was in flight;
-                            // only the content actually written becomes the
-                            // new conflict baseline.
-                            this.editor_buffer_text
-                                .insert(path.clone(), current_content);
-                            this.editor_dirty_paths.insert(path.clone());
-                            this.editor_dirty = true;
-                        }
-                        this.editor_conflict = false;
-                        this.local_message = Some(
-                            if overwrite {
-                                "File overwritten"
-                            } else {
-                                "File saved"
-                            }
-                            .into(),
-                        );
-                        this.schedule_editor_autosave(cx);
-                    }
-                    Err(error) if super::editor_actions::is_editor_conflict(&error) => {
-                        this.editor_conflict = true;
-                        this.local_message = None;
-                    }
-                    Err(error) => this.local_message = Some(error.into()),
-                }
-                cx.notify();
-            });
-        })
-        .detach();
-    }
 
     fn render_explorer_row(&self, row: &ExplorerRow, cx: &mut Context<Self>) -> AnyElement {
         let path = row.entry.relative_path.clone();
@@ -1282,7 +1134,7 @@ impl AleraApp {
                 } else {
                     theme::warning()
                 };
-                item.child(div().ml_2().text_xs().text_color(color).child(status))
+                item.child(div().ml_2().text_size(crate::theme::caption_size()).text_color(color).child(status))
             })
             .when(source_control_root, |item| {
                 item.child(

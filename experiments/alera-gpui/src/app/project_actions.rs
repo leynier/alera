@@ -1,153 +1,18 @@
 use std::path::Path;
 use std::time::{Duration, Instant};
 
-use gpui::{Context, PathPromptOptions, Window};
+use gpui::{Context, Window};
 use serde_json::{json, Value};
 
 use super::{AddProjectMode, AleraApp};
+#[cfg(test)]
+use super::add_project_draft::repository_name;
 use crate::runtime_bridge::RuntimeBridge;
 
 impl AleraApp {
-    pub(super) fn add_project(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        self.add_project_mode = AddProjectMode::LocalFolder;
-        self.show_add_project_dialog = true;
-        self.error = None;
-        self.local_project_path_input
-            .update(cx, |input, cx| input.set_value("", window, cx));
-        self.clone_project_url_input
-            .update(cx, |input, cx| input.set_value("", window, cx));
-        self.clone_project_destination_input
-            .update(cx, |input, cx| input.set_value("", window, cx));
-        self.project_display_name_input
-            .update(cx, |input, cx| input.set_value("", window, cx));
-        cx.notify();
-    }
 
-    pub(super) fn select_add_project_mode(&mut self, mode: AddProjectMode, cx: &mut Context<Self>) {
-        if self.add_project_busy || self.add_project_mode == mode {
-            return;
-        }
-        self.add_project_mode = mode;
-        self.error = None;
-        cx.notify();
-    }
-
-    pub(super) fn close_add_project_dialog(&mut self, cx: &mut Context<Self>) {
-        if self.add_project_busy {
-            return;
-        }
-        self.show_add_project_dialog = false;
-        self.error = None;
-        cx.notify();
-    }
-
-    pub(super) fn browse_local_project(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        let selection = cx.prompt_for_paths(directory_prompt("Select Project Folder"));
-        let this = cx.entity().downgrade();
-        window
-            .spawn(cx, async move |cx| {
-                let path = match selection.await {
-                    Ok(Ok(Some(paths))) => paths.into_iter().next(),
-                    Ok(Ok(None)) => None,
-                    Ok(Err(error)) => {
-                        let _ = this.update(cx, |this, cx| {
-                            this.error = Some(error.to_string().into());
-                            cx.notify();
-                        });
-                        None
-                    }
-                    Err(error) => {
-                        let _ = this.update(cx, |this, cx| {
-                            this.error = Some(error.to_string().into());
-                            cx.notify();
-                        });
-                        None
-                    }
-                };
-                let Some(path) = path else {
-                    return;
-                };
-                let display_name = path
-                    .file_name()
-                    .and_then(|name| name.to_str())
-                    .unwrap_or_default()
-                    .to_string();
-                let path_value = path.to_string_lossy().into_owned();
-                let _ = this.update_in(cx, move |this, window, cx| {
-                    this.local_project_path_input
-                        .update(cx, |input, cx| input.set_value(path_value, window, cx));
-                    if this
-                        .project_display_name_input
-                        .read(cx)
-                        .value()
-                        .trim()
-                        .is_empty()
-                    {
-                        this.project_display_name_input
-                            .update(cx, |input, cx| input.set_value(display_name, window, cx));
-                    }
-                    cx.notify();
-                });
-            })
-            .detach();
-    }
-
-    pub(super) fn browse_clone_parent(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        let repo_name = repository_name(self.clone_project_url_input.read(cx).value().as_ref());
-        if repo_name.is_none() {
-            self.error = Some("Enter A Git URL Before Choosing The Parent Folder".into());
-            cx.notify();
-            return;
-        }
-        let selection = cx.prompt_for_paths(directory_prompt("Select Parent Folder"));
-        let this = cx.entity().downgrade();
-        window
-            .spawn(cx, async move |cx| {
-                let parent = match selection.await {
-                    Ok(Ok(Some(paths))) => paths.into_iter().next(),
-                    Ok(Ok(None)) => None,
-                    Ok(Err(error)) => {
-                        let _ = this.update(cx, |this, cx| {
-                            this.error = Some(error.to_string().into());
-                            cx.notify();
-                        });
-                        None
-                    }
-                    Err(error) => {
-                        let _ = this.update(cx, |this, cx| {
-                            this.error = Some(error.to_string().into());
-                            cx.notify();
-                        });
-                        None
-                    }
-                };
-                let Some(parent) = parent else {
-                    return;
-                };
-                let repo_name = repo_name.expect("repository name checked before folder prompt");
-                let destination = parent.join(&repo_name).to_string_lossy().into_owned();
-                let _ = this.update_in(cx, move |this, window, cx| {
-                    this.clone_project_destination_input
-                        .update(cx, |input, cx| input.set_value(destination, window, cx));
-                    if this
-                        .project_display_name_input
-                        .read(cx)
-                        .value()
-                        .trim()
-                        .is_empty()
-                    {
-                        this.project_display_name_input
-                            .update(cx, |input, cx| input.set_value(repo_name, window, cx));
-                    }
-                    this.error = None;
-                    cx.notify();
-                });
-            })
-            .detach();
-    }
-
-    pub(super) fn submit_add_project(&mut self, cx: &mut Context<Self>) {
-        if self.add_project_busy {
+    pub(super) fn submit_add_project(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        if self.add_project_busy || !self.show_add_project_dialog || !self.can_submit_add_project(cx) {
             return;
         }
         let display_name = optional_input_value(&self.project_display_name_input, cx);
@@ -155,7 +20,7 @@ impl AleraApp {
             AddProjectMode::LocalFolder => {
                 let path = input_value(&self.local_project_path_input, cx);
                 if path.is_empty() {
-                    self.error = Some("Project Path Is Required".into());
+                    self.error = Some("Project path is required.".into());
                     cx.notify();
                     return;
                 }
@@ -168,7 +33,7 @@ impl AleraApp {
                 let url = input_value(&self.clone_project_url_input, cx);
                 let destination = input_value(&self.clone_project_destination_input, cx);
                 if url.is_empty() || destination.is_empty() {
-                    self.error = Some("Git URL And Destination Folder Are Required".into());
+                    self.error = Some("Git URL and destination folder are required.".into());
                     cx.notify();
                     return;
                 }
@@ -177,7 +42,7 @@ impl AleraApp {
                     .parent()
                     .filter(|path| !path.as_os_str().is_empty())
                 else {
-                    self.error = Some("Destination Folder Must Include A Parent Path".into());
+                    self.error = Some("Destination folder must include a parent path.".into());
                     cx.notify();
                     return;
                 };
@@ -186,7 +51,7 @@ impl AleraApp {
                     .and_then(|name| name.to_str())
                     .filter(|name| !name.is_empty())
                 else {
-                    self.error = Some("Destination Folder Must Include A Directory Name".into());
+                    self.error = Some("Destination folder must include a directory name.".into());
                     cx.notify();
                     return;
                 };
@@ -200,27 +65,31 @@ impl AleraApp {
         };
 
         let bridge = self.bridge.clone();
+        let cloning = self.add_project_mode == AddProjectMode::CloneFromUrl;
+        if !cloning { self.close_add_project_dialog(window, cx); }
         self.add_project_busy = true;
         self.error = None;
         cx.notify();
-        cx.spawn(async move |this, cx| {
+        let this = cx.entity().downgrade();
+        window.spawn(cx, async move |cx| {
             let result = run_add_project_operation(&bridge, operation).await;
             let Some(this) = this.upgrade() else {
                 return;
             };
-            this.update(cx, |this, cx| {
+            let _ = this.update_in(cx, |this, window, cx| {
                 this.add_project_busy = false;
+                if this.show_add_project_dialog { this.close_add_project_dialog(window, cx); }
                 match result {
                     Ok(()) => {
-                        this.show_add_project_dialog = false;
-                        this.error = None;
+                        this.local_message = Some(if cloning { "Project cloned" } else { "Project added" }.into());
                         this.refresh(cx);
                     }
                     Err(error) => {
-                        this.error = Some(error.into());
-                        cx.notify();
+                        this.local_message = Some(error.into());
                     }
                 }
+                this.local_message_started_at = Some(Instant::now());
+                cx.notify();
             });
         })
         .detach();
@@ -323,34 +192,6 @@ fn optional_input_value(
     (!value.is_empty()).then_some(value)
 }
 
-fn repository_name(value: &str) -> Option<String> {
-    let without_query = value
-        .trim()
-        .split('?')
-        .next()?
-        .trim_end_matches(['/', '\\']);
-    let name = without_query
-        .rsplit(['/', '\\', ':'])
-        .next()?
-        .strip_suffix(".git")
-        .unwrap_or_else(|| {
-            without_query
-                .rsplit(['/', '\\', ':'])
-                .next()
-                .unwrap_or_default()
-        })
-        .trim();
-    (!name.is_empty()).then(|| name.to_string())
-}
-
-fn directory_prompt(prompt: &'static str) -> PathPromptOptions {
-    PathPromptOptions {
-        files: false,
-        directories: true,
-        multiple: false,
-        prompt: Some(prompt.into()),
-    }
-}
 
 #[cfg(test)]
 mod tests {

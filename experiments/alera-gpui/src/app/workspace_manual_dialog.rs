@@ -74,7 +74,7 @@ impl AleraApp {
                                 .flex()
                                 .items_center()
                                 .px_2()
-                                .text_sm()
+                                .text_size(crate::theme::body_size())
                                 .text_color(theme::text_muted())
                                 .child("No Matching Projects"),
                         )
@@ -169,7 +169,7 @@ impl AleraApp {
                                 .items_center()
                                 .px_2()
                                 .gap_2()
-                                .text_sm()
+                                .text_size(crate::theme::body_size())
                                 .text_color(theme::text_muted())
                                 .when(self.workspace_branches_loading, |row| {
                                     row.child(loading_indicator(14.0, theme::text_muted()))
@@ -183,7 +183,7 @@ impl AleraApp {
                 dialog.child(
                     div()
                         .mt_2()
-                        .text_sm()
+                        .text_size(crate::theme::body_size())
                         .text_color(theme::danger())
                         .child(error),
                 )
@@ -316,7 +316,7 @@ impl AleraApp {
                 dialog.child(
                     div()
                         .mt_1()
-                        .text_sm()
+                        .text_size(crate::theme::body_size())
                         .text_color(theme::danger())
                         .child(format!("Branch \"{branch}\" Already Exists")),
                 )
@@ -344,7 +344,7 @@ impl AleraApp {
                                 .rounded_sm()
                                 .border_1()
                                 .border_color(theme::accent())
-                                .text_xs()
+                                .text_size(crate::theme::caption_size())
                                 .text_color(theme::accent())
                                 .child(icon(AleraIcon::Link, 10.0, theme::accent()))
                                 .child("Sync"),
@@ -369,7 +369,7 @@ impl AleraApp {
                     .border_1()
                     .border_color(theme::border_subtle())
                     .p_3()
-                    .text_xs()
+                    .text_size(crate::theme::caption_size())
                     .text_color(theme::text_muted())
                     .child(
                         div()
@@ -431,7 +431,7 @@ impl AleraApp {
                 dialog.child(
                     div()
                         .mt_3()
-                        .text_sm()
+                        .text_size(crate::theme::body_size())
                         .text_color(theme::danger())
                         .child(error),
                 )
@@ -475,7 +475,7 @@ fn summary_row(label: &'static str, value: String) -> gpui::Div {
     div()
         .flex()
         .items_center()
-        .text_sm()
+        .text_size(crate::theme::body_size())
         .child(
             div()
                 .w(px(116.0))

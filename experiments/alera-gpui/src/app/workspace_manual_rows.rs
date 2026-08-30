@@ -60,13 +60,13 @@ impl AleraApp {
                         div()
                             .child(
                                 div()
-                                    .text_sm()
+                                    .text_size(crate::theme::body_size())
                                     .font_weight(gpui::FontWeight::SEMIBOLD)
                                     .child(project.name.clone()),
                             )
                             .child(
                                 div()
-                                    .text_xs()
+                                    .text_size(crate::theme::caption_size())
                                     .text_color(theme::text_faint())
                                     .child(format!("{}  •  ({branch})", project.repo_path)),
                             ),

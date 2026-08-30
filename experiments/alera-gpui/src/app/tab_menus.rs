@@ -717,7 +717,7 @@ fn menu_button(
         .px_2()
         .gap_2()
         .rounded_md()
-        .text_sm()
+        .text_size(crate::theme::body_size())
         .text_color(if enabled {
             theme::text()
         } else {

@@ -299,7 +299,7 @@ impl AleraApp {
             .border_t_1()
             .border_color(theme::border_subtle())
             .bg(theme::surface())
-            .text_xs()
+            .text_size(crate::theme::caption_size())
             .font_family("JetBrains Mono")
             .text_color(theme::text_muted())
             .on_mouse_down(

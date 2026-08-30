@@ -1,6 +1,6 @@
 use gpui::{
     div, prelude::FluentBuilder as _, px, Context, CursorStyle, InteractiveElement as _,
-    IntoElement, ParentElement as _, Role, StatefulInteractiveElement as _, Styled as _, Toggled,
+    AnyElement, IntoElement, MouseButton, ParentElement as _, Role, StatefulInteractiveElement as _, Styled as _, Toggled,
 };
 
 use super::{AddProjectMode, AleraApp};
@@ -9,7 +9,16 @@ use crate::icons::{icon, AleraIcon};
 use crate::theme;
 
 impl AleraApp {
-    pub(super) fn render_add_project_dialog(&self, cx: &mut Context<Self>) -> impl IntoElement {
+    pub(super) fn render_add_project_dialog(&self, cx: &mut Context<Self>) -> AnyElement {
+        if self.add_project_busy {
+            return div().absolute().inset_0().occlude().flex().items_center().justify_center()
+                .bg(theme::overlay_scrim())
+                .child(design_system::dialog_shell("add-project-progress", "Cloning Repository", 360.0)
+                    .flex().items_center().gap(px(12.0))
+                    .child(crate::icons::loading_indicator(20.0, theme::accent()))
+                    .child("Cloning repository…"))
+                .into_any_element();
+        }
         let submit_enabled = self.can_submit_add_project(cx) && !self.add_project_busy;
         div()
             .absolute()
@@ -22,14 +31,18 @@ impl AleraApp {
             .items_center()
             .justify_center()
             .bg(theme::overlay_scrim())
+            .on_mouse_down(MouseButton::Left, cx.listener(|this, _, window, cx| {
+                this.close_add_project_dialog(window, cx);
+            }))
             .child(
-                design_system::dialog_shell("add-project-dialog", "Add Project", 614.0)
+                design_system::dialog_shell("add-project-dialog", "Add Project", 600.0)
+                    .on_mouse_down(MouseButton::Left, |_, _, cx| cx.stop_propagation())
                     .child(
                         div()
                             .flex()
                             .items_center()
                             .gap_2()
-                            .text_lg()
+                            .text_size(crate::theme::title_size())
                             .font_weight(gpui::FontWeight::SEMIBOLD)
                             .child(icon(AleraIcon::FolderSpecial, 18.0, theme::accent()))
                             .child("Add Project"),
@@ -37,10 +50,10 @@ impl AleraApp {
                     .child(
                         div()
                             .mt_4()
-                            .text_sm()
+                            .text_size(crate::theme::caption_size())
                             .text_color(theme::text_muted())
                             .child(
-                            "Choose An Existing Local Folder Or Clone A Git Repository From A URL.",
+                            "Choose an existing local folder or clone a Git repository from a URL.",
                         ),
                     )
                     .child(self.render_add_project_mode_selector(cx))
@@ -49,7 +62,7 @@ impl AleraApp {
                         dialog.child(
                             div()
                                 .mt_3()
-                                .text_sm()
+                                .text_size(crate::theme::body_size())
                                 .text_color(theme::danger())
                                 .child(error),
                         )
@@ -60,7 +73,7 @@ impl AleraApp {
                             .items_center()
                             .justify_end()
                             .gap_2()
-                            .mt_5()
+                            .mt_4()
                             .child(
                                 design_system::button(
                                     "cancel-add-project",
@@ -69,8 +82,8 @@ impl AleraApp {
                                     false,
                                 )
                                 .on_click(cx.listener(
-                                    |this, _, _, cx| {
-                                        this.close_add_project_dialog(cx);
+                                    |this, _, window, cx| {
+                                        this.close_add_project_dialog(window, cx);
                                         cx.stop_propagation();
                                     },
                                 )),
@@ -93,17 +106,17 @@ impl AleraApp {
                                 .when(submit_enabled, |button| {
                                     button
                                         .cursor(CursorStyle::PointingHand)
-                                        .on_click(cx.listener(|this, _, _, cx| {
-                                            this.submit_add_project(cx);
+                                        .on_click(cx.listener(|this, _, window, cx| {
+                                            this.submit_add_project(window, cx);
                                             cx.stop_propagation();
                                         }))
                                 }),
                             ),
                     ),
-            )
+            ).into_any_element()
     }
 
-    fn can_submit_add_project(&self, cx: &Context<Self>) -> bool {
+    pub(super) fn can_submit_add_project(&self, cx: &Context<Self>) -> bool {
         match self.add_project_mode {
             AddProjectMode::LocalFolder => !self
                 .local_project_path_input
@@ -134,7 +147,7 @@ impl AleraApp {
             .mt_4()
             .w(px(314.0))
             .h(px(32.0))
-            .rounded_md()
+            .rounded(px(6.0))
             .border_1()
             .border_color(theme::border())
             .child(self.add_project_mode_button(
@@ -145,7 +158,7 @@ impl AleraApp {
             ))
             .child(self.add_project_mode_button(
                 AddProjectMode::CloneFromUrl,
-                AleraIcon::Download,
+                AleraIcon::CloudDownload,
                 "Clone From URL",
                 cx,
             ))
@@ -180,8 +193,8 @@ impl AleraApp {
             .justify_center()
             .h_full()
             .rounded_md()
-            .text_sm()
-            .font_weight(gpui::FontWeight::SEMIBOLD)
+            .text_size(crate::theme::body_size())
+            .font_weight(gpui::FontWeight::MEDIUM)
             .text_color(theme::text_muted())
             .cursor(CursorStyle::PointingHand)
             .gap_2()
@@ -190,11 +203,11 @@ impl AleraApp {
                     .bg(theme::surface_selected())
                     .text_color(theme::text())
             })
-            .on_click(cx.listener(move |this, _, _, cx| {
-                this.select_add_project_mode(mode, cx);
+            .on_click(cx.listener(move |this, _, window, cx| {
+                this.select_add_project_mode(mode, window, cx);
                 cx.stop_propagation();
             }))
-            .child(icon(icon_kind, 14.0, theme::text_muted()))
+            .child(icon(icon_kind, 16.0, theme::text_muted()))
             .child(label)
     }
 
@@ -210,19 +223,18 @@ impl AleraApp {
             .mt_4()
             .child(
                 div()
-                    .text_sm()
+                    .text_size(crate::theme::caption_size())
                     .text_color(theme::text_muted())
-                    .child("Alera Will Detect Whether The Folder Is A Git Repository. Non-Git Folders Only Get A Primary")
-                    .child(div().child("Workspace.")),
+                    .child("Alera will detect whether the folder is a Git repository. Non-Git folders only get a primary workspace."),
             )
             .child(
-                div().mt_6().child(
+                div().mt_3().child(
                     design_system::text_field(&self.local_project_path_input)
                         .label("Project Path")
                         .suffix(
                             design_system::icon_button(
                                 "browse-local-project",
-                                "Browse Project Folder",
+                                "Browse",
                                 AleraIcon::FolderOpen,
                                 true,
                                 30.0,
@@ -244,8 +256,8 @@ impl AleraApp {
     fn render_clone_project_fields(&self, cx: &mut Context<Self>) -> impl IntoElement {
         div()
             .mt_4()
-            .child(div().text_sm().text_color(theme::text_muted()).child(
-                "Alera Runs Git Clone Into The Destination Folder And Registers The Repository.",
+            .child(div().text_size(crate::theme::caption_size()).text_color(theme::text_muted()).child(
+                "Alera will run git clone into the destination folder and register the cloned repository.",
             ))
             .child(
                 div().mt_3().child(
@@ -259,7 +271,7 @@ impl AleraApp {
                         .suffix(
                             design_system::icon_button(
                                 "browse-clone-parent",
-                                "Browse Destination Folder",
+                                "Choose Parent Folder",
                                 AleraIcon::NewFolder,
                                 true,
                                 30.0,

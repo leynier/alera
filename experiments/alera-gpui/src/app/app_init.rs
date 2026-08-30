@@ -29,12 +29,12 @@ impl AleraApp {
                 .clean_on_escape()
         });
         let local_project_path_input =
-            cx.new(|cx| InputState::new(window, cx).placeholder("/Path/To/Project"));
+            cx.new(|cx| InputState::new(window, cx).placeholder("/path/to/project"));
         let clone_project_url_input = cx.new(|cx| {
             InputState::new(window, cx).placeholder("https://github.com/owner/repository.git")
         });
         let clone_project_destination_input =
-            cx.new(|cx| InputState::new(window, cx).placeholder("/Path/To/Repository"));
+            cx.new(|cx| InputState::new(window, cx).placeholder("/path/to/repository"));
         let project_display_name_input =
             cx.new(|cx| InputState::new(window, cx).placeholder("Display Name (Optional)"));
         let workspace_prompt_input = cx.new(|cx| {
@@ -585,28 +585,29 @@ impl AleraApp {
             cx.subscribe_in(
                 &local_project_path_input,
                 window,
-                |_, _, event: &InputEvent, _, cx| {
-                    if matches!(event, InputEvent::Change) {
-                        cx.notify();
-                    }
+                |this, _, event: &InputEvent, window, cx| {
+                    this.on_add_project_input(super::add_project_fields::ProjectField::LocalPath, event, window, cx);
                 },
             ),
             cx.subscribe_in(
                 &clone_project_url_input,
                 window,
-                |_, _, event: &InputEvent, _, cx| {
-                    if matches!(event, InputEvent::Change) {
-                        cx.notify();
-                    }
+                |this, _, event: &InputEvent, window, cx| {
+                    this.on_add_project_input(super::add_project_fields::ProjectField::CloneUrl, event, window, cx);
                 },
             ),
             cx.subscribe_in(
                 &clone_project_destination_input,
                 window,
-                |_, _, event: &InputEvent, _, cx| {
-                    if matches!(event, InputEvent::Change) {
-                        cx.notify();
-                    }
+                |this, _, event: &InputEvent, window, cx| {
+                    this.on_add_project_input(super::add_project_fields::ProjectField::Destination, event, window, cx);
+                },
+            ),
+            cx.subscribe_in(
+                &project_display_name_input,
+                window,
+                |this, _, event: &InputEvent, window, cx| {
+                    this.on_add_project_input(super::add_project_fields::ProjectField::Name, event, window, cx);
                 },
             ),
             cx.subscribe_in(
@@ -1069,7 +1070,6 @@ impl AleraApp {
             bridge,
             snapshot: WorkbenchSnapshot::default(),
             selected_workspace_id: None,
-            workspace_selection_initialized: false,
             pending_workspace_terminal_id: None,
             pending_workspace_setup: None,
             pending_workspace_tab_id: None,
@@ -1333,6 +1333,8 @@ impl AleraApp {
             explorer_action_busy: false,
             explorer_watch_generation: 0,
             editor_document: None,
+            editor_workspaces: Default::default(),
+            editor_requests: Default::default(),
             editor_inputs: BTreeMap::new(),
             editor_input_subscriptions: BTreeMap::new(),
             editor_documents: BTreeMap::new(),
@@ -1358,6 +1360,8 @@ impl AleraApp {
             clone_project_destination_input,
             project_display_name_input,
             add_project_mode: AddProjectMode::default(),
+            add_project_draft: Default::default(),
+            add_project_previous_focus: None,
             show_add_project_dialog: false,
             add_project_busy: false,
             workspace_prompt_input,
@@ -1451,6 +1455,7 @@ impl AleraApp {
             run_policy_reason_input,
             show_execution_plans: false,
             show_automations_dialog: false,
+            automation_requests: Default::default(),
             automations: Vec::new(),
             automations_loading: false,
             automations_error: None,
@@ -1463,6 +1468,7 @@ impl AleraApp {
             automation_action_busy: false,
             automation_editor_open: false,
             automation_editor_id: None,
+            automation_editor_definition: serde_json::json!({}),
             automation_editor_name_input,
             automation_editor_slug_input,
             automation_editor_description_input,

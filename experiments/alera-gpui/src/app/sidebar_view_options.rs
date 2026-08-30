@@ -161,7 +161,7 @@ impl AleraApp {
                             .child(
                                 div()
                                     .flex_1()
-                                    .text_lg()
+                                    .text_size(crate::theme::title_size())
                                     .font_weight(gpui::FontWeight::SEMIBOLD)
                                     .child("View Options"),
                             )

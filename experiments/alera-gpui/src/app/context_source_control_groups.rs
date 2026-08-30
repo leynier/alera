@@ -88,13 +88,13 @@ impl AleraApp {
             .child(
                 div()
                     .flex_1()
-                    .text_xs()
+                    .text_size(crate::theme::caption_size())
                     .text_color(theme::text_muted())
                     .child(label),
             )
             .child(
                 div()
-                    .text_xs()
+                    .text_size(crate::theme::caption_size())
                     .text_color(theme::text_faint())
                     .child(entries.len().to_string()),
             )
@@ -246,13 +246,13 @@ impl AleraApp {
             .child(
                 div()
                     .flex_1()
-                    .text_xs()
+                    .text_size(crate::theme::caption_size())
                     .text_color(theme::text_muted())
                     .child("Changes"),
             )
             .child(
                 div()
-                    .text_xs()
+                    .text_size(crate::theme::caption_size())
                     .text_color(theme::text_faint())
                     .child(entries.len().to_string()),
             )
@@ -395,13 +395,13 @@ impl AleraApp {
                         div()
                             .ml(px(6.0))
                             .flex_1()
-                            .text_sm()
+                            .text_size(crate::theme::body_size())
                             .text_color(theme::text_muted())
                             .child(row.name),
                     )
                     .child(
                         div()
-                            .text_xs()
+                            .text_size(crate::theme::caption_size())
                             .text_color(theme::text_faint())
                             .child(row.file_count.to_string()),
                     )
@@ -508,7 +508,7 @@ impl AleraApp {
                     .overflow_hidden()
                     .whitespace_nowrap()
                     .text_ellipsis()
-                    .text_sm()
+                    .text_size(crate::theme::body_size())
                     .text_color(theme::text_muted())
                     .child(display_name),
             )
@@ -581,7 +581,7 @@ fn status_badge(status: &str) -> AnyElement {
     div()
         .w(px(12.0))
         .text_center()
-        .text_xs()
+        .text_size(crate::theme::caption_size())
         .text_color(color)
         .child(badge.to_string())
         .into_any_element()
@@ -598,7 +598,7 @@ fn area_badge(area: &str) -> AnyElement {
     div()
         .w(px(12.0))
         .text_center()
-        .text_xs()
+        .text_size(crate::theme::caption_size())
         .text_color(color)
         .child(label)
         .into_any_element()
@@ -624,7 +624,7 @@ fn line_stats(added: Option<u32>, removed: Option<u32>) -> AnyElement {
         .when(added.unwrap_or_default() > 0, |stats| {
             stats.child(
                 div()
-                    .text_xs()
+                    .text_size(crate::theme::caption_size())
                     .text_color(theme::success())
                     .child(format!("+{}", added.unwrap_or_default())),
             )
@@ -632,7 +632,7 @@ fn line_stats(added: Option<u32>, removed: Option<u32>) -> AnyElement {
         .when(removed.unwrap_or_default() > 0, |stats| {
             stats.child(
                 div()
-                    .text_xs()
+                    .text_size(crate::theme::caption_size())
                     .text_color(theme::danger())
                     .child(format!("-{}", removed.unwrap_or_default())),
             )

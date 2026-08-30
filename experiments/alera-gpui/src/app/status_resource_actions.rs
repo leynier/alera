@@ -98,7 +98,7 @@ impl AleraApp {
             .child(
                 div()
                     .flex_1()
-                    .text_sm()
+                    .text_size(crate::theme::body_size())
                     .text_color(theme::warning())
                     .child(format!(
                         "{count} Orphan Terminal{}",
@@ -118,7 +118,7 @@ impl AleraApp {
                     .items_center()
                     .justify_center()
                     .rounded_md()
-                    .text_sm()
+                    .text_size(crate::theme::body_size())
                     .text_color(theme::warning())
                     .cursor(CursorStyle::PointingHand)
                     .hover(|style| style.bg(theme::surface_selected()))

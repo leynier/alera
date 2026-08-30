@@ -542,6 +542,7 @@ impl SettingsState {
                         Some((id.clone(), chords.into_iter().map(str::to_owned).collect()))
                     })
                     .collect();
+                super::keyboard_settings::normalize_override_ids(&mut self.keyboard_overrides);
             }
         }
 

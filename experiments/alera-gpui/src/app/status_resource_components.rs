@@ -29,7 +29,7 @@ pub(super) fn resource_header() -> gpui::Div {
         .child(icon(AleraIcon::Activity, 13.0, theme::text_muted()))
         .child(
             div()
-                .text_sm()
+                .text_size(crate::theme::body_size())
                 .font_weight(gpui::FontWeight::SEMIBOLD)
                 .child("Resource Manager"),
         )
@@ -47,7 +47,7 @@ pub(super) fn resource_host_unreachable_notice() -> gpui::Div {
             a: 0.12,
             ..theme::warning()
         })
-        .text_sm()
+        .text_size(crate::theme::body_size())
         .text_color(theme::warning())
         .child(icon(AleraIcon::Warning, 13.0, theme::warning()))
         .child(
@@ -100,7 +100,7 @@ fn totals_value(label: &'static str, value: String) -> gpui::Stateful<gpui::Div>
         .flex()
         .items_center()
         .gap(px(6.0))
-        .child(div().text_sm().text_color(theme::text_faint()).child(label))
+        .child(div().text_size(crate::theme::body_size()).text_color(theme::text_faint()).child(label))
         .child(
             div()
                 .font_family("JetBrains Mono")
