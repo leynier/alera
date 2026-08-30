@@ -37,6 +37,8 @@ class AiAssistOperationMapper extends EnumMapper<AiAssistOperation> {
         return AiAssistOperation.readingDiff;
       case r'workspaceIdentity':
         return AiAssistOperation.workspaceIdentity;
+      case r'agentTitle':
+        return AiAssistOperation.agentTitle;
       case r'speechMessage':
         return AiAssistOperation.speechMessage;
       default:
@@ -57,6 +59,8 @@ class AiAssistOperationMapper extends EnumMapper<AiAssistOperation> {
         return r'readingDiff';
       case AiAssistOperation.workspaceIdentity:
         return r'workspaceIdentity';
+      case AiAssistOperation.agentTitle:
+        return r'agentTitle';
       case AiAssistOperation.speechMessage:
         return r'speechMessage';
     }
@@ -704,6 +708,14 @@ class AiAssistSettingsMapper extends ClassMapperBase<AiAssistSettings> {
     opt: true,
     def: true,
   );
+  static bool _$autoGenerateAgentTitles(AiAssistSettings v) =>
+      v.autoGenerateAgentTitles;
+  static const Field<AiAssistSettings, bool> _f$autoGenerateAgentTitles = Field(
+    'autoGenerateAgentTitles',
+    _$autoGenerateAgentTitles,
+    opt: true,
+    def: true,
+  );
   static AiAssistAgent _$agent(AiAssistSettings v) => v.agent;
   static const Field<AiAssistSettings, AiAssistAgent> _f$agent = Field(
     'agent',
@@ -806,6 +818,7 @@ class AiAssistSettingsMapper extends ClassMapperBase<AiAssistSettings> {
   @override
   final MappableFields<AiAssistSettings> fields = const {
     #enabled: _f$enabled,
+    #autoGenerateAgentTitles: _f$autoGenerateAgentTitles,
     #agent: _f$agent,
     #selectedModelByAgent: _f$selectedModelByAgent,
     #selectedThinkingByModel: _f$selectedThinkingByModel,
@@ -821,6 +834,7 @@ class AiAssistSettingsMapper extends ClassMapperBase<AiAssistSettings> {
   static AiAssistSettings _instantiate(DecodingData data) {
     return AiAssistSettings(
       enabled: data.dec(_f$enabled),
+      autoGenerateAgentTitles: data.dec(_f$autoGenerateAgentTitles),
       agent: data.dec(_f$agent),
       selectedModelByAgent: data.dec(_f$selectedModelByAgent),
       selectedThinkingByModel: data.dec(_f$selectedThinkingByModel),
@@ -935,6 +949,7 @@ abstract class AiAssistSettingsCopyWith<$R, $In extends AiAssistSettings, $Out>
   get promptSettingsByOperation;
   $R call({
     bool? enabled,
+    bool? autoGenerateAgentTitles,
     AiAssistAgent? agent,
     Map<AiAssistAgent, String>? selectedModelByAgent,
     Map<String, String>? selectedThinkingByModel,
@@ -1034,6 +1049,7 @@ class _AiAssistSettingsCopyWithImpl<$R, $Out>
   @override
   $R call({
     bool? enabled,
+    bool? autoGenerateAgentTitles,
     AiAssistAgent? agent,
     Map<AiAssistAgent, String>? selectedModelByAgent,
     Map<String, String>? selectedThinkingByModel,
@@ -1047,6 +1063,8 @@ class _AiAssistSettingsCopyWithImpl<$R, $Out>
   }) => $apply(
     FieldCopyWithData({
       if (enabled != null) #enabled: enabled,
+      if (autoGenerateAgentTitles != null)
+        #autoGenerateAgentTitles: autoGenerateAgentTitles,
       if (agent != null) #agent: agent,
       if (selectedModelByAgent != null)
         #selectedModelByAgent: selectedModelByAgent,
@@ -1069,6 +1087,10 @@ class _AiAssistSettingsCopyWithImpl<$R, $Out>
   @override
   AiAssistSettings $make(CopyWithData data) => AiAssistSettings(
     enabled: data.get(#enabled, or: $value.enabled),
+    autoGenerateAgentTitles: data.get(
+      #autoGenerateAgentTitles,
+      or: $value.autoGenerateAgentTitles,
+    ),
     agent: data.get(#agent, or: $value.agent),
     selectedModelByAgent: data.get(
       #selectedModelByAgent,

@@ -41,6 +41,7 @@ pub(super) fn apply_manual_thread_title(tab: &mut WorkspaceTabRecord, title: &st
         snapshot.insert("title".to_string(), Value::String(title.to_string()));
     }
     tab.title = title.to_string();
+    super::agent_title_state::invalidate(tab);
     if let Some(payload) = tab.payload.as_object_mut() {
         payload.insert("manualTitle".to_string(), Value::Bool(true));
     }

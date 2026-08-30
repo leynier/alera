@@ -115,8 +115,12 @@ function extractAssistantText(message) {
 }
 
 export default function (pi) {
-  pi.on('before_agent_start', async (event) => {
-    await post('before_agent_start', { prompt: event.prompt ?? '' })
+  pi.on('session_start', async (_event, ctx) => {
+    await post('session_start', { sessionId: ctx?.sessionManager?.getSessionId?.() })
+  })
+
+  pi.on('before_agent_start', async (event, ctx) => {
+    await post('before_agent_start', { prompt: event.prompt ?? '', sessionId: ctx?.sessionManager?.getSessionId?.() })
   })
 
   pi.on('agent_start', async () => {
@@ -154,8 +158,8 @@ export default function (pi) {
     await post('agent_end')
   })
 
-  pi.on('session_shutdown', async () => {
-    await post('session_shutdown')
+  pi.on('session_shutdown', async (_event, ctx) => {
+    await post('session_shutdown', { sessionId: ctx?.sessionManager?.getSessionId?.() })
   })
 }
 ''';

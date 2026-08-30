@@ -84,6 +84,15 @@ pub enum ServerCommand {
         request_id: i64,
         result: HostResult<Value>,
     },
+    AgentTitleReady {
+        tab_id: String,
+        id: String,
+    },
+    AgentTitleFinished {
+        tab_id: String,
+        id: String,
+        result: HostResult<String>,
+    },
     AiAssistFinished {
         client_id: u64,
         request_id: i64,

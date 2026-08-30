@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:alera_mobile/src/features/runtime/domain/runtime_client_surfaces.dart';
 
 import 'package:alera_mobile/src/app/theme/alera_tokens.dart';
 import 'package:alera_mobile/src/design_system/forms/alera_rename_dialog.dart';
@@ -234,6 +235,7 @@ class _WorkspaceTabsScreenState extends ConsumerState<WorkspaceTabsScreen> {
   Future<void> _showTabActions(
     WorkspaceTabSummary tab, {
     required bool canRename,
+    required bool canGenerateTitle,
   }) async {
     final action = await showModalBottomSheet<String>(
       context: context,
@@ -241,6 +243,19 @@ class _WorkspaceTabsScreenState extends ConsumerState<WorkspaceTabsScreen> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: <Widget>[
+            if (canGenerateTitle && (tab.isTerminal || tab.isCodex))
+              ListTile(
+                leading: const Icon(Icons.auto_awesome_outlined),
+                title: Text(
+                  tab.payload['agentTitleStatus'] == 'generating'
+                      ? 'Generating title...'
+                      : tab.payload['agentTitleSource'] == 'generated'
+                      ? 'Regenerate Title'
+                      : 'Generate Title',
+                ),
+                enabled: tab.payload['agentTitleStatus'] != 'generating',
+                onTap: () => Navigator.of(context).pop('generateTitle'),
+              ),
             if (canRename)
               ListTile(
                 leading: const Icon(Icons.edit_outlined),
@@ -258,6 +273,26 @@ class _WorkspaceTabsScreenState extends ConsumerState<WorkspaceTabsScreen> {
       ),
     );
     if (!mounted) return;
+    if (action == 'generateTitle') {
+      final messenger = ScaffoldMessenger.of(context);
+      try {
+        await ref
+            .read(
+              tabsControllerProvider(
+                widget.hostId,
+                widget.workspace.id,
+              ).notifier,
+            )
+            .generateTitle(tab);
+      } on Object catch (error, stackTrace) {
+        _logger.warning('Could not generate agent title.', error, stackTrace);
+        if (messenger.mounted) {
+          messenger.showSnackBar(
+            SnackBar(content: Text('Could not generate title: $error')),
+          );
+        }
+      }
+    }
     if (action == 'rename') await _renameTab(tab);
     if (action == 'close') await _closeTab(tab);
   }
@@ -316,6 +351,10 @@ class _WorkspaceTabsScreenState extends ConsumerState<WorkspaceTabsScreen> {
     });
     final tabs = ref.watch(tabsProvider);
     final selectedTab = tabs.value == null ? null : _selectedTab(tabs.value!);
+    final titleClient = ref.watch(workspaceClientProvider(widget.hostId)).value;
+    final canGenerateTitle =
+        titleClient is MobileAgentTitleClient &&
+        (titleClient as MobileAgentTitleClient).supportsAgentTitles;
     final canRename =
         ref
             .watch(workspaceClientProvider(widget.hostId))
@@ -387,6 +426,7 @@ class _WorkspaceTabsScreenState extends ConsumerState<WorkspaceTabsScreen> {
                   onActions: (tab) => _showTabActions(
                     tab,
                     canRename: canRename && !tab.isCodex,
+                    canGenerateTitle: canGenerateTitle,
                   ),
                   onNewTab: (action) => unawaited(_createTabOfKind(action)),
                 ),

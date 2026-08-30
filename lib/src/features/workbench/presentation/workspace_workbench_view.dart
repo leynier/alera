@@ -1,4 +1,8 @@
 import 'dart:async';
+
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:alera/src/features/ai_assist/application/agent_title_providers.dart';
+import 'package:alera/src/design_system/feedback/alera_toast.dart';
 import 'dart:math' as math;
 
 import 'package:alera/src/app/theme/alera_tokens.dart';
@@ -39,6 +43,7 @@ part 'workspace_workbench_tab_strip.dart';
 part 'workspace_workbench_new_tab_button.dart';
 part 'workspace_workbench_tab_strip_drop.dart';
 part 'workspace_workbench_tab_chips.dart';
+part 'workspace_workbench_tab_menu.dart';
 part 'workspace_workbench_resize_handle.dart';
 
 typedef CreateTerminalTabCallback =
@@ -82,9 +87,11 @@ String workspaceTabTitleForTesting(WorkspaceTabRecord tab) =>
     _workspaceTabTitle(tab);
 
 String _workspaceTabTitle(WorkspaceTabRecord tab) {
-  // The tab identifies the Codex surface. Conversation titles remain metadata
-  // for history and resume, rather than replacing this stable product label.
-  if (tab.kind == WorkspaceTabKind.codex) return 'Codex Chat';
+  if (tab.kind == WorkspaceTabKind.codex &&
+      (tab.title.trim().isEmpty ||
+          (tab.title == 'Codex' && tab.payload['manualTitle'] != true))) {
+    return 'Codex Chat';
+  }
   return tab.title;
 }
 

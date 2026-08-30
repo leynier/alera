@@ -61,8 +61,9 @@ impl ServerActor {
 
     pub(super) async fn upsert_workspace_tab_and_spawn(
         &mut self,
-        tab: WorkspaceTabRecord,
+        mut tab: WorkspaceTabRecord,
     ) -> HostResult<WorkspaceTabRecord> {
+        self.initialize_agent_title_if_new(&mut tab).await?;
         let saved = self
             .runtime_store
             .upsert_workspace_tab(tab)
@@ -197,9 +198,7 @@ impl ServerActor {
 
     /// Rewrites a launch so the agent reads its prompt from stdin.
     ///
-    /// Falls back to the bare launch when the script cannot be written: a tab
-    /// holding an agent without its prompt is a far better outcome than a tab
-    /// holding no agent at all.
+    /// Falls back to the bare launch if script creation fails, preserving a usable agent.
     fn stdin_prompt_command(&self, session_id: &str, command: &str, prompt: &str) -> String {
         let Some(directory) = self.setup_script_directory() else {
             tracing::warn!(

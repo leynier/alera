@@ -412,8 +412,10 @@ fn thread_open_response(
     recovery: Option<Value>,
     history_next_cursor: Option<String>,
 ) -> Value {
+    let mut public_tab = tab.clone();
+    super::super::tab_compatibility::redact_private_tab_payload(&mut public_tab);
     json!({
-        "tab": tab,
+        "tab": public_tab,
         "threadId": thread_id,
         "cwd": active_cwd(tab),
         "snapshot": snapshot(tab),

@@ -453,7 +453,10 @@ class _FakeWorkbenchRepository implements WorkbenchRepository {
   }
 
   @override
-  Future<WorkspaceTabRecord> upsertWorkspaceTab(WorkspaceTabRecord tab) async {
+  Future<WorkspaceTabRecord> upsertWorkspaceTab(
+    WorkspaceTabRecord tab, {
+    bool manualRename = false,
+  }) async {
     if (upsertWorkspaceTabError case final Object error) {
       throw error;
     }

@@ -31,7 +31,7 @@ void main() {
 
     expect(
       _catalogFingerprint(catalogs),
-      '3c5a1af6d8345b420d013ae62b0e9f4732f54ffb21c57b6e15569dc61a8a6558',
+      '9899fa14f7e0490fac5b50efff87c4d9e3bd889fbdb89013ef7ffb8b71058811',
     );
   });
 
@@ -46,6 +46,11 @@ void main() {
 
   test('search results retain their section order and navigation groups', () {
     final cases = <_SearchCase>[
+      (
+        entries: aiAssistSearchEntries,
+        query: 'regenerate',
+        expected: <(String, String?)>[('AI Assist Agent Titles', 'agentTitle')],
+      ),
       (
         entries: applicationSearchEntries,
         query: 'sidecar',
