@@ -25,6 +25,13 @@ struct AccessSession {
     expires_at: chrono::DateTime<Utc>,
 }
 
+struct RelayIdentityRegistration {
+    account_id: String,
+    public_key: String,
+    key_version: i32,
+    at: std::time::Instant,
+}
+
 #[derive(Clone)]
 pub(crate) struct AleraAccountService {
     runtime_id: String,
@@ -32,7 +39,7 @@ pub(crate) struct AleraAccountService {
     cloud: CloudAccountClient,
     credentials: AccountCredentialStore,
     session: Arc<Mutex<Option<AccessSession>>>,
-    relay_identity_registration: Arc<Mutex<()>>,
+    relay_identity_registration: Arc<Mutex<Option<RelayIdentityRegistration>>>,
 }
 
 impl AleraAccountService {
@@ -46,7 +53,7 @@ impl AleraAccountService {
             store,
             cloud: CloudAccountClient::new(base_url)?,
             session: Arc::new(Mutex::new(None)),
-            relay_identity_registration: Arc::new(Mutex::new(())),
+            relay_identity_registration: Arc::new(Mutex::new(None)),
         })
     }
 
@@ -246,7 +253,13 @@ impl AleraAccountService {
     }
 
     pub(crate) async fn relay_identity(&self) -> Result<IdentityKeyPair> {
-        let _registration = self.relay_identity_registration.lock().await;
+        let mut registration = self.relay_identity_registration.lock().await;
+        let account_id = self
+            .store
+            .alera_account()
+            .await?
+            .ok_or_else(|| anyhow!("Alera account is signed out"))?
+            .account_id;
         let mut credential = self
             .credentials
             .load()
@@ -283,12 +296,41 @@ impl AleraAccountService {
 
         for rotation in 0..=MAX_RELAY_IDENTITY_ROTATIONS {
             let public_key = URL_SAFE_NO_PAD.encode(identity.public_bytes());
+            if registration.as_ref().is_some_and(|registered| {
+                registered.account_id == account_id
+                    && registered.public_key == public_key
+                    && registered.key_version == key_version
+                    && registered.at.elapsed() < std::time::Duration::from_secs(60)
+            }) {
+                return Ok(identity);
+            }
             let token = self.access_token().await?;
-            match self
+            let mut result = self
                 .cloud
                 .register_relay_identity(&token, &public_key, key_version)
-                .await
+                .await;
+            if result
+                .as_ref()
+                .err()
+                .and_then(|error| error.downcast_ref::<CloudRequestError>())
+                .is_some_and(CloudRequestError::can_refresh_authorization)
             {
+                {
+                    let mut current = self.session.lock().await;
+                    if current
+                        .as_ref()
+                        .is_some_and(|session| session.token == token)
+                    {
+                        *current = None;
+                    }
+                }
+                let refreshed = self.access_token().await?;
+                result = self
+                    .cloud
+                    .register_relay_identity(&refreshed, &public_key, key_version)
+                    .await;
+            }
+            match result {
                 Ok(response) => {
                     if response.client_id != self.runtime_id
                         || response.client_kind != "runtime"
@@ -297,6 +339,12 @@ impl AleraAccountService {
                     {
                         return Err(anyhow!("cloud returned an invalid relay identity"));
                     }
+                    *registration = Some(RelayIdentityRegistration {
+                        account_id,
+                        public_key,
+                        key_version,
+                        at: std::time::Instant::now(),
+                    });
                     return Ok(identity);
                 }
                 Err(error)
@@ -327,7 +375,26 @@ impl AleraAccountService {
     pub(crate) async fn relay_grant(&self) -> Result<super::cloud_client::RelayGrant> {
         let _ = self.relay_identity().await?;
         let token = self.access_token().await?;
-        self.cloud.relay_grant(&token, &self.runtime_id).await
+        match self.cloud.relay_grant(&token, &self.runtime_id).await {
+            Err(error)
+                if error
+                    .downcast_ref::<CloudRequestError>()
+                    .is_some_and(CloudRequestError::can_refresh_authorization) =>
+            {
+                {
+                    let mut current = self.session.lock().await;
+                    if current
+                        .as_ref()
+                        .is_some_and(|session| session.token == token)
+                    {
+                        *current = None;
+                    }
+                }
+                let refreshed = self.access_token().await?;
+                self.cloud.relay_grant(&refreshed, &self.runtime_id).await
+            }
+            result => result,
+        }
     }
 
     async fn persist_subscription_count(&self, count: i64) -> Result<usize> {
@@ -340,6 +407,7 @@ impl AleraAccountService {
     }
 
     pub(crate) async fn sign_out(&self) -> Result<()> {
+        *self.relay_identity_registration.lock().await = None;
         let credential = self.credentials.load().await?;
         let revoke_result = match credential {
             Some(credential) => self.cloud.revoke(&credential.refresh_token).await,

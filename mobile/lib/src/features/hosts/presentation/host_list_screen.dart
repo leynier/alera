@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:alera_mobile/src/features/runtime/application/host_connection_health.dart';
 
 import 'package:alera_mobile/src/app/theme/alera_tokens.dart';
 import 'package:alera_mobile/src/design_system/feedback/alera_status_dot.dart';
@@ -127,45 +128,56 @@ class HostListScreen extends ConsumerWidget {
       ),
       body: SafeArea(
         child: switch (hosts) {
-          AsyncData(value: final hostList) when hostList.isEmpty => _EmptyHosts(
-            onPairHost: () => _pairHost(context),
-          ),
-          AsyncData(value: final hostList) => ListView(
-            padding: const EdgeInsets.fromLTRB(
-              AleraTokens.space16,
-              AleraTokens.space4,
-              AleraTokens.space16,
-              AleraTokens.space16,
-            ),
-            children: <Widget>[
-              const AleraSectionHeader(
-                label: 'Hosts',
-                padding: EdgeInsets.only(
-                  left: AleraTokens.space4,
-                  right: AleraTokens.space8,
-                  bottom: AleraTokens.space4,
-                ),
+          AsyncValue(value: final hostList?) when hostList.isEmpty =>
+            _EmptyHosts(onPairHost: () => _pairHost(context)),
+          AsyncValue(value: final hostList?) => RefreshIndicator(
+            onRefresh: () async {
+              ref.invalidate(availableHostsProvider);
+              await ref.read(availableHostsProvider.future);
+            },
+            child: ListView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.fromLTRB(
+                AleraTokens.space16,
+                AleraTokens.space4,
+                AleraTokens.space16,
+                AleraTokens.space16,
               ),
-              for (var index = 0; index < hostList.length; index++) ...<Widget>[
-                _HostCard(
-                  host: hostList[index],
-                  onOpen: () {
-                    Navigator.of(context).push(
-                      MaterialPageRoute<void>(
-                        builder: (_) =>
-                            RuntimeWorkspacesScreen(host: hostList[index]),
-                      ),
-                    );
-                  },
-                  onRemove: () => _removeHost(context, ref, hostList[index]),
-                  onLongPress: () =>
-                      _showHostActions(context, ref, hostList[index]),
+              children: <Widget>[
+                const AleraSectionHeader(
+                  label: 'Hosts',
+                  padding: EdgeInsets.only(
+                    left: AleraTokens.space4,
+                    right: AleraTokens.space8,
+                    bottom: AleraTokens.space4,
+                  ),
                 ),
-                if (index < hostList.length - 1)
-                  const SizedBox(height: AleraTokens.spaceMd),
+                for (
+                  var index = 0;
+                  index < hostList.length;
+                  index++
+                ) ...<Widget>[
+                  _HostCard(
+                    key: ValueKey(hostList[index].id),
+                    host: hostList[index],
+                    onOpen: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute<void>(
+                          builder: (_) =>
+                              RuntimeWorkspacesScreen(host: hostList[index]),
+                        ),
+                      );
+                    },
+                    onRemove: () => _removeHost(context, ref, hostList[index]),
+                    onLongPress: () =>
+                        _showHostActions(context, ref, hostList[index]),
+                  ),
+                  if (index < hostList.length - 1)
+                    const SizedBox(height: AleraTokens.spaceMd),
+                ],
+                HomeQuotasSection(hosts: hostList),
               ],
-              HomeQuotasSection(hosts: hostList),
-            ],
+            ),
           ),
           AsyncError(:final error) => Center(child: Text(error.toString())),
           _ => const _HomeLoading(),
@@ -238,6 +250,7 @@ enum _HostAction { rename, remove }
 
 class _HostCard extends ConsumerWidget {
   const _HostCard({
+    super.key,
     required this.host,
     required this.onOpen,
     required this.onRemove,
@@ -252,6 +265,7 @@ class _HostCard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final connection = ref.watch(hostConnectionControllerProvider(host.id));
+    final health = ref.watch(hostConnectionHealthControllerProvider(host.id));
     return Card(
       child: InkWell(
         borderRadius: BorderRadius.circular(AleraTokens.radiusSm),
@@ -300,7 +314,13 @@ class _HostCard extends ConsumerWidget {
                       overflow: TextOverflow.ellipsis,
                     ),
                     const SizedBox(height: AleraTokens.spaceSm),
+                    if (host.discoveryStale)
+                      Text(
+                        'Discovery unavailable. Showing the last known host.',
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
                     _HostConnectionStatus(
+                      health: health,
                       connecting: connection.isLoading,
                       ready: connection.hasValue && !connection.hasError,
                       onRetry: () => unawaited(
@@ -334,18 +354,24 @@ class _HostConnectionStatus extends StatelessWidget {
     required this.connecting,
     required this.ready,
     required this.onRetry,
+    required this.health,
   });
 
   final bool connecting;
   final bool ready;
   final VoidCallback onRetry;
+  final HostConnectionHealth health;
 
   @override
   Widget build(BuildContext context) {
-    final label = connecting
+    final label = health.phase == 'blocked'
+        ? 'Sign-in or connection review required'
+        : connecting
         ? 'Connecting'
         : ready
-        ? 'Ready'
+        ? 'Ready${health.transport == null ? '' : ' via ${health.transport}'}'
+        : health.nextRetryAt != null
+        ? 'Retrying at ${TimeOfDay.fromDateTime(health.nextRetryAt!.toLocal()).format(context)}'
         : 'Unavailable';
     return Row(
       children: <Widget>[
@@ -361,7 +387,9 @@ class _HostConnectionStatus extends StatelessWidget {
             color: ready ? null : AleraTokens.error,
           ),
         const SizedBox(width: AleraTokens.spaceSm),
-        Text(label, style: Theme.of(context).textTheme.labelSmall),
+        Flexible(
+          child: Text(label, style: Theme.of(context).textTheme.labelSmall),
+        ),
         if (!connecting && !ready) ...<Widget>[
           const SizedBox(width: AleraTokens.spaceSm),
           TextButton(onPressed: onRetry, child: const Text('Retry')),

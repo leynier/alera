@@ -9,9 +9,49 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'support/controlled_app_lifecycle.dart';
 import 'support/fake_terminal_client.dart';
 
 void main() {
+  test(
+    'A late foreground probe failure does not reattach after backgrounding',
+    () async {
+      final probe = Completer<void>();
+      final client = FakeTerminalClient()
+        ..tabs = <WorkspaceTabSummary>[
+          fakeTab(id: 'tab-1', title: 'Terminal 1'),
+        ]
+        ..probeCompletion = probe.future;
+      final lifecycle = ControlledAppLifecycle(AppLifecycleState.resumed);
+      final container = ProviderContainer(
+        overrides: [
+          terminalClientProvider('host-1').overrideWith((ref) async => client),
+          appLifecycleControllerProvider.overrideWith(() => lifecycle),
+        ],
+      );
+      addTearDown(container.dispose);
+      addTearDown(client.dispose);
+      container.listen(
+        terminalSessionControllerProvider('host-1', 'tab-1'),
+        (_, _) {},
+      );
+      await container.read(
+        terminalSessionControllerProvider('host-1', 'tab-1').future,
+      );
+      lifecycle.setLifecycleState(AppLifecycleState.inactive);
+      lifecycle.setLifecycleState(AppLifecycleState.resumed);
+      await _waitUntil(() => client.probeCount == 1);
+      lifecycle.setLifecycleState(AppLifecycleState.paused);
+      probe.completeError(TimeoutException('probe expired'));
+      await pumpEventQueue();
+      expect(client.attachments, hasLength(1));
+      client.probeCompletion = null;
+      lifecycle.setLifecycleState(AppLifecycleState.resumed);
+      await _waitUntil(() => client.probeCount == 2);
+      expect(client.attachments, hasLength(1));
+    },
+  );
+
   test('Disposing during the initial attach does not bind a driver', () async {
     final attachCompletion = Completer<void>();
     final client = FakeTerminalClient()
@@ -50,7 +90,7 @@ void main() {
         ..tabs = <WorkspaceTabSummary>[
           fakeTab(id: 'tab-1', title: 'Terminal 1'),
         ];
-      final lifecycle = _TestAppLifecycleController(AppLifecycleState.resumed);
+      final lifecycle = ControlledAppLifecycle(AppLifecycleState.resumed);
       final container = ProviderContainer(
         overrides: [
           terminalClientProvider('host-1').overrideWith((ref) async => client),
@@ -100,7 +140,7 @@ void main() {
     // disposes the compose bar and the attachment pick it is waiting on.
     final client = FakeTerminalClient()
       ..tabs = <WorkspaceTabSummary>[fakeTab(id: 'tab-1', title: 'Terminal 1')];
-    final lifecycle = _TestAppLifecycleController(AppLifecycleState.resumed);
+    final lifecycle = ControlledAppLifecycle(AppLifecycleState.resumed);
     final container = ProviderContainer(
       overrides: [
         terminalClientProvider('host-1').overrideWith((ref) async => client),
@@ -137,7 +177,7 @@ void main() {
         ..tabs = <WorkspaceTabSummary>[
           fakeTab(id: 'tab-1', title: 'Terminal 1'),
         ];
-      final lifecycle = _TestAppLifecycleController(AppLifecycleState.resumed);
+      final lifecycle = ControlledAppLifecycle(AppLifecycleState.resumed);
       final container = ProviderContainer(
         overrides: [
           terminalClientProvider('host-1').overrideWith((ref) async => client),
@@ -354,19 +394,6 @@ void main() {
       expect(client.writes, isEmpty);
     },
   );
-}
-
-class _TestAppLifecycleController extends AppLifecycleController {
-  _TestAppLifecycleController(this.initialState);
-
-  final AppLifecycleState initialState;
-
-  @override
-  AppLifecycleState build() => initialState;
-
-  void setLifecycleState(AppLifecycleState next) {
-    state = next;
-  }
 }
 
 Future<void> _waitUntil(bool Function() condition) async {

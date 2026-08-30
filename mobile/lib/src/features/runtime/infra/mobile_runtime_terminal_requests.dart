@@ -3,6 +3,7 @@ part of 'mobile_runtime_client.dart';
 /// The terminal verbs of the gateway protocol: listing a workspace's tabs,
 /// minting and attaching sessions, and the input/viewport RPCs.
 mixin MobileRuntimeTerminalRequests {
+  Future<void>? _probeAttempt;
   Future<Object?> request(
     String type, [
     Map<String, Object?> payload,
@@ -23,8 +24,18 @@ mixin MobileRuntimeTerminalRequests {
   /// Reuses `mobile.status.get`, which the runtime answers without touching a
   /// session, so a foreground check costs one round trip and cannot disturb a
   /// terminal that is working.
-  Future<void> probeConnection() async {
-    await request('mobile.status.get');
+  Future<void> probeConnection() {
+    final pending = _probeAttempt;
+    if (pending != null) return pending;
+    late final Future<void> attempt;
+    attempt =
+        request('mobile.status.get', const <String, Object?>{
+          'includeNetworkStatus': false,
+        }, const Duration(seconds: 4)).then<void>((_) {}).whenComplete(() {
+          if (identical(_probeAttempt, attempt)) _probeAttempt = null;
+        });
+    _probeAttempt = attempt;
+    return attempt;
   }
 
   Future<List<WorkspaceTabSummary>> listTabs(String workspaceId) async {

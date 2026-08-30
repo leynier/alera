@@ -12,18 +12,22 @@ class MobileDeviceListRow extends StatelessWidget {
     required this.onRename,
     required this.onRevoke,
     required this.onDelete,
+    this.remote = false,
   });
 
   final MobileDevice device;
   final VoidCallback? onRename;
   final VoidCallback? onRevoke;
   final VoidCallback? onDelete;
+  final bool remote;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final lastSeen = device.lastSeenAt;
-    final detail = device.isRevoked
+    final detail = remote
+        ? 'Connected through relay'
+        : device.isRevoked
         ? 'Revoked ${formatMobileTimestamp(device.revokedAt!)}'
         : lastSeen == null
         ? 'Paired ${formatMobileTimestamp(device.pairedAt)}'
@@ -81,14 +85,14 @@ class MobileDeviceListRow extends StatelessWidget {
               ],
             ),
           ),
-          if (device.isRevoked)
+          if (!remote && device.isRevoked)
             AleraIconButton(
               tooltip: 'Delete Device',
               icon: AleraIcons.delete,
               iconColor: AleraTokens.error,
               onPressed: onDelete,
             )
-          else ...<Widget>[
+          else if (!remote) ...<Widget>[
             AleraIconButton(
               tooltip: 'Rename Device',
               icon: AleraIcons.edit,

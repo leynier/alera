@@ -12,6 +12,10 @@ class RelayFragmentReassembler {
   BytesBuilder _bytes = BytesBuilder(copy: false);
 
   Uint8List? accept(List<int> payload) {
+    if (payload.length > maxRelayEnvelopeBytes) {
+      _reset();
+      throw const FormatException('Relay envelope is too large.');
+    }
     if (!_startsWithFragmentMagic(payload)) {
       if (_total != null) {
         _reset();
@@ -50,6 +54,8 @@ class RelayFragmentReassembler {
     _reset();
     return complete;
   }
+
+  void clear() => _reset();
 
   void _reset() {
     _total = null;

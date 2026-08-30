@@ -69,6 +69,14 @@ void main() {
       deviceToken: 'token-1',
       cloudDeviceId: 'cloud-installation-1',
     );
+    final metadataDeadline = DateTime.now().add(const Duration(seconds: 5));
+    while (client.debugPendingRequestCount != 0) {
+      if (DateTime.now().isAfter(metadataDeadline)) {
+        throw TimeoutException('Runtime metadata did not finish.');
+      }
+      await Future<void>.delayed(const Duration(milliseconds: 10));
+    }
+    await pumpEventQueue();
 
     CrashReporting.setEnabled(true);
     final crash = CrashReporting.filterEvent(SentryEvent());

@@ -76,6 +76,23 @@ class MobileGatewayGroup extends StatelessWidget {
           value: settings.remoteAccessEnabled,
           onChanged: applying ? (_) {} : onRemoteAccessChanged,
         ),
+        if (settings.remoteAccessEnabled)
+          AleraSettingRow(
+            title: 'Relay Status',
+            description: switch (status.relayStatus['state']) {
+              'connected' => 'Connected to the encrypted relay.',
+              'connecting' => 'Connecting to the relay.',
+              'retrying' =>
+                'The relay is unavailable. Reconnecting automatically.',
+              'blocked' =>
+                'Authorization failed. Review your Alera account sign-in.',
+              'disabled' => 'The relay is not connected.',
+              _ => 'This runtime does not report relay connection health.',
+            },
+            child: AleraStatusDot(
+              active: status.relayStatus['state'] == 'connected',
+            ),
+          ),
         AleraSettingRow(
           title: 'Connection Mode',
           description: switch (mode) {
