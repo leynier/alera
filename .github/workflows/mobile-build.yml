@@ -78,9 +78,9 @@ jobs:
       - name: Build iOS device release
         if: matrix.platform == 'ios'
         working-directory: mobile
-        run: flutter build ios --release --no-codesign
+        run: flutter build ios --release --no-codesign --verbose
 
       - name: Build iOS simulator
         if: matrix.platform == 'ios'
         working-directory: mobile
-        run: flutter build ios --simulator --debug --no-codesign
+        run: flutter build ios --simulator --debug --no-codesign --verbose
