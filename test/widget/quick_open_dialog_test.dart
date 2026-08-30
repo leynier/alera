@@ -1,5 +1,9 @@
 import 'dart:async';
 
+import 'package:alera/src/design_system/feedback/alera_toast.dart';
+import 'package:alera/src/features/keyboard/application/keyboard_command_dispatcher.dart';
+import 'package:alera/src/features/keyboard/domain/keyboard_action.dart';
+import 'package:alera/src/features/orchestration/application/run_board_navigation.dart';
 import 'package:alera/src/features/workbench/application/workbench_controller.dart';
 import 'package:alera/src/features/workbench/application/workbench_providers.dart';
 import 'package:alera/src/features/workbench/application/workbench_state.dart';
@@ -14,6 +18,55 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 void main() {
+  for (final outcome in ['success', 'cancel', 'failure']) {
+    testWidgets('Quick Open from Board preserves selection on $outcome', (
+      tester,
+    ) async {
+      final controller = _QuickOpenTestController(
+        _state(_workspace('workspace-1', 'Main', '/repo/main')),
+      )..openGate = Completer<void>();
+      final container = await _pumpQuickOpen(
+        tester,
+        controller: controller,
+        service: _QuickOpenFileService(entries: ['main.dart']),
+        viaKeyboard: true,
+      );
+      final navigation = container.read(runBoardNavigationProvider.notifier);
+      navigation.open();
+      navigation.selectRun('run-1');
+      navigation.selectTask('task-1');
+      final toasts = <AleraToastData>[];
+      final subscription = AleraToast.stream.listen(toasts.add);
+      addTearDown(subscription.cancel);
+      await tester.tap(find.text('Open Quick Open'));
+      await tester.pumpAndSettle();
+      await tester.sendKeyEvent(
+        outcome == 'cancel'
+            ? LogicalKeyboardKey.escape
+            : LogicalKeyboardKey.enter,
+      );
+      await tester.pumpAndSettle();
+      expect(container.read(runBoardNavigationProvider).visible, isTrue);
+      if (outcome == 'success') {
+        controller.openGate!.complete();
+      } else if (outcome == 'failure') {
+        controller.openGate!.completeError(StateError('cannot open'));
+      }
+      await tester.pumpAndSettle();
+      final location = container.read(runBoardNavigationProvider);
+      expect(location.visible, outcome != 'success');
+      expect(location.runId, 'run-1');
+      expect(location.taskId, 'task-1');
+      expect(controller.openedFiles, outcome == 'cancel' ? [] : ['main.dart']);
+      if (outcome == 'failure') {
+        expect(toasts.single.message, 'Could not open the selected file.');
+      } else {
+        expect(toasts, isEmpty);
+      }
+      expect(tester.takeException(), isNull);
+    });
+  }
+
   testWidgets('shows loading, filters files, and opens the selected file', (
     tester,
   ) async {
@@ -199,11 +252,12 @@ void main() {
   });
 }
 
-Future<void> _pumpQuickOpen(
+Future<ProviderContainer> _pumpQuickOpen(
   WidgetTester tester, {
   required _QuickOpenTestController controller,
   required _QuickOpenFileService service,
   FocusNode? anchorFocus,
+  bool viaKeyboard = false,
 }) async {
   await tester.pumpWidget(
     ProviderScope(
@@ -217,7 +271,16 @@ Future<void> _pumpQuickOpen(
             focusNode: anchorFocus,
             child: Consumer(
               builder: (context, ref, _) => FilledButton(
-                onPressed: () => showQuickOpenFlow(context, ref),
+                onPressed: () {
+                  if (viaKeyboard) {
+                    KeyboardCommandDispatcher(
+                      context: context,
+                      ref: ref,
+                    ).dispatch(KeyboardActionId.openQuickOpen);
+                  } else {
+                    unawaited(showQuickOpenFlow(context, ref));
+                  }
+                },
                 child: const Text('Open Quick Open'),
               ),
             ),
@@ -227,6 +290,9 @@ Future<void> _pumpQuickOpen(
     ),
   );
   await tester.pump();
+  return ProviderScope.containerOf(
+    tester.element(find.text('Open Quick Open')),
+  );
 }
 
 WorkbenchState _state(
@@ -348,6 +414,7 @@ class _QuickOpenTestController extends WorkbenchController {
 
   final WorkbenchState _seed;
   final List<String> openedFiles = <String>[];
+  Completer<void>? openGate;
 
   @override
   WorkbenchState build() => _seed;
@@ -363,6 +430,7 @@ class _QuickOpenTestController extends WorkbenchController {
     bool preview = false,
   }) async {
     openedFiles.add(relativePath);
+    await openGate?.future;
     final now = DateTime.utc(2026);
     return WorkspaceTabRecord(
       id: 'tab-${openedFiles.length}',

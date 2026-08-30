@@ -262,16 +262,9 @@ class _QuickOpenDialogState extends ConsumerState<QuickOpenDialog> {
       return;
     }
     final relativePath = _matches[_selectedIndex].relativePath;
-    Navigator.of(context).pop();
-    unawaited(
-      ref
-          .read(workbenchControllerProvider.notifier)
-          .openFileTab(
-            workspace: workspace,
-            relativePath: relativePath,
-            preview: true,
-          ),
-    );
+    Navigator.of(
+      context,
+    ).pop((workspace: workspace, relativePath: relativePath));
   }
 
   KeyEventResult _handleKey(FocusNode node, KeyEvent event) {

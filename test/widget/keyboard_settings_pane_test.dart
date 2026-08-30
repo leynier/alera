@@ -250,7 +250,13 @@ void main() {
 
     await pumpPane(tester, initialSettings: initialSettings);
 
-    expect(find.text('Unassigned'), findsOneWidget);
+    final newTabRow = find
+        .ancestor(of: find.text('New Terminal Tab'), matching: find.byType(Row))
+        .first;
+    expect(
+      find.descendant(of: newTabRow, matching: find.text('Unassigned')),
+      findsOneWidget,
+    );
   });
 }
 

@@ -88,6 +88,37 @@ async fn task_inspection_projects_only_display_fields_and_recorded_evidence() {
 }
 
 #[tokio::test]
+async fn task_inspection_selects_last_inserted_dispatch_with_tied_timestamps() {
+    let (_dir, store) = store().await;
+    for (id, profile, handle, status) in [
+        ("z-first", "Initial", "old-terminal", "failed"),
+        ("a-second", "Fallback", "current-terminal", "dispatched"),
+    ] {
+        sqlx::query(
+            "INSERT INTO orchestrationDispatchContexts
+             (id, task_id, run_id, workspace_id, coordinator_handle, assignee_handle,
+              context_token_hash, agent_profile, status, created_at)
+             VALUES (?, 'task', 'run', 'worker', 'coordinator', ?, ?, ?, ?,
+              '2026-08-30 10:00:00')",
+        )
+        .bind(id)
+        .bind(handle)
+        .bind(format!("hash-{id}"))
+        .bind(profile)
+        .bind(status)
+        .execute(store.pool())
+        .await
+        .unwrap();
+    }
+    let snapshot = store.orchestration_task_inspection(&query()).await.unwrap();
+    assert_eq!(snapshot.profile.as_deref(), Some("Fallback"));
+    assert_eq!(
+        snapshot.terminal_handle.as_deref(),
+        Some("current-terminal")
+    );
+}
+
+#[tokio::test]
 async fn task_history_pages_share_a_revision_and_audits_invalidate_cursors() {
     let (_dir, store) = store().await;
     for index in 0..5 {

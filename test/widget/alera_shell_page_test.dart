@@ -45,6 +45,7 @@ part 'alera_shell_page_codex_sidebar_test_cases.dart';
 part 'alera_shell_page_sidebar_actions_test_cases.dart';
 part 'alera_shell_page_sidebar_mutation_test_cases.dart';
 part 'alera_shell_page_sidebar_states_test_cases.dart';
+part 'alera_shell_page_workspace_tray_test_cases.dart';
 part 'alera_shell_page_pinning_test_cases.dart';
 part 'alera_shell_page_sidebar_identity_test_cases.dart';
 
@@ -123,6 +124,7 @@ void main() {
   _registerAleraShellSidebarActionTests();
   _registerAleraShellSidebarMutationTests();
   _registerAleraShellSidebarStateTests();
+  _registerAleraShellWorkspaceTrayTests();
   _registerAleraShellPinningTests();
   _registerAleraShellSidebarIdentityTests();
 }

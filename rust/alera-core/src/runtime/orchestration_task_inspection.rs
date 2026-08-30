@@ -116,7 +116,7 @@ impl RuntimeStore {
             "SELECT substr(agent_profile, 1, 256) AS profile,
                 CASE WHEN length(assignee_handle) <= 256 THEN assignee_handle END AS assignee_handle
              FROM orchestrationDispatchContexts WHERE task_id = ? AND run_id = ?
-             ORDER BY created_at DESC, id DESC LIMIT 1",
+             ORDER BY rowid DESC LIMIT 1",
         )
         .bind(&query.task_id)
         .bind(&query.run_id)
