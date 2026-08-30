@@ -131,6 +131,8 @@ mod host_service_agent_quota;
 mod host_service_requests;
 mod host_status;
 mod lifecycle;
+#[cfg(test)]
+mod managed_workspace_cleanup_tests;
 mod managed_workspace_requests;
 mod mobile_gateway_surface;
 mod mobile_hello_requests;
@@ -629,6 +631,13 @@ impl ServerActor {
             }
             ServerCommand::RuntimeMutationFinished(finished) => {
                 self.handle_runtime_mutation_finished(finished).await
+            }
+            ServerCommand::PrepareRuntimeMutation {
+                request,
+                completion,
+            } => {
+                let result = self.prepare_runtime_mutation(&request).await;
+                let _ = completion.send(result);
             }
             ServerCommand::OrchestrationWaitTimeout {
                 waiter_id,

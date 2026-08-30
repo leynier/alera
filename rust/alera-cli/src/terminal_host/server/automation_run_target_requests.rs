@@ -176,6 +176,7 @@ impl ServerActor {
                         id: workspace_id.clone(),
                         delete_branch: Some(true),
                         active_workspace_id: None,
+                        close_sessions: false,
                     },
                 )
                 .await;

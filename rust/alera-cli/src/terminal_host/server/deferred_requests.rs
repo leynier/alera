@@ -108,6 +108,10 @@ impl ServerActor {
                     request_id,
                     workspace_id,
                     active_workspace_id,
+                    payload
+                        .get("closeSessions")
+                        .and_then(Value::as_bool)
+                        .unwrap_or(false),
                 );
                 Ok(true)
             }
@@ -115,19 +119,22 @@ impl ServerActor {
                 self.require_auth(client_id)?;
                 self.require_request_allowed(client_id, request_type)?;
                 let request: ManagedWorkspaceRemoveRequest = parse_payload(payload)?;
-                if request.active_workspace_id.as_deref() == Some(request.id.as_str()) {
+                if !request.close_sessions
+                    && request.active_workspace_id.as_deref() == Some(request.id.as_str())
+                {
                     return Err(HostError::state("Workspace is active in the workbench"));
                 }
-                if self
-                    .sessions
-                    .values()
-                    .any(|session| session.workspace_id == request.id && session.running())
+                if !request.close_sessions
+                    && self
+                        .sessions
+                        .values()
+                        .any(|session| session.workspace_id == request.id && session.running())
                 {
                     return Err(HostError::state(
                         "Workspace has a live terminal session or process",
                     ));
                 }
-                if self.browser.has_pages_for_workspace(&request.id) {
+                if !request.close_sessions && self.browser.has_pages_for_workspace(&request.id) {
                     return Err(HostError::state("Workspace has a live browser session"));
                 }
                 let has_active_automation =

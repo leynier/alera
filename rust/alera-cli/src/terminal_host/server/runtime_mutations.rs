@@ -13,12 +13,17 @@ use crate::terminal_host::protocol::MOBILE_EMULATOR_TAB_KIND;
 use super::codex_requests::CodexCleanupPlan;
 use super::codex_runtime_cleanup::CodexCleanupEntry;
 
+#[path = "runtime_mutation_emulator_cleanup.rs"]
+mod emulator_cleanup;
+use emulator_cleanup::{close_tab, close_workspace, close_workspaces};
+
 #[path = "runtime_mutation_hosted_review_retention.rs"]
 mod hosted_review_retentions;
 #[cfg(test)]
 mod tests;
 
-pub(super) enum RuntimeMutationRequest {
+#[derive(Clone)]
+pub(crate) enum RuntimeMutationRequest {
     RemoveProject {
         project_id: String,
     },
@@ -56,6 +61,13 @@ pub(crate) struct RuntimeMutationOutcome {
     pub(super) closed_session_tab_ids: Vec<String>,
     pub(super) committed_tab_ids: Vec<String>,
     pub(super) effect_on_error: Option<RuntimeMutationEffect>,
+    pub(super) stopped_workspace_tab_ids: Vec<String>,
+    pub(super) pending_workspace_shutdown: Option<
+        Box<(
+            String,
+            crate::terminal_host::session::workspace_shutdown::WorkspaceShutdown,
+        )>,
+    >,
 }
 
 pub(crate) struct RuntimeMutationFinished {
@@ -111,6 +123,8 @@ pub(super) async fn run_runtime_mutation(
                     closed_session_tab_ids: Vec::new(),
                     committed_tab_ids: Vec::new(),
                     effect_on_error: None,
+                    stopped_workspace_tab_ids: Vec::new(),
+                    pending_workspace_shutdown: None,
                 };
             }
         }
@@ -342,6 +356,8 @@ pub(super) async fn run_runtime_mutation(
         closed_session_tab_ids,
         committed_tab_ids,
         effect_on_error,
+        stopped_workspace_tab_ids: Vec::new(),
+        pending_workspace_shutdown: None,
     }
 }
 
@@ -424,74 +440,6 @@ async fn emulator_tab_ids_for_workspace(
     tab_ids.sort_unstable();
     tab_ids.dedup();
     Ok(tab_ids)
-}
-
-async fn close_tab(
-    manager: Option<&mut EmulatorManager>,
-    tab_id: &str,
-    ended_pointer_tab_ids: &mut Vec<String>,
-    closed_session_tab_ids: &mut Vec<String>,
-) -> HostResult<()> {
-    let Some(manager) = manager else {
-        return Ok(());
-    };
-    ended_pointer_tab_ids.push(tab_id.to_string());
-    let warnings = manager.close_tab(tab_id).await;
-    if !manager.contains(tab_id) {
-        closed_session_tab_ids.push(tab_id.to_string());
-    }
-    ensure_emulators_closed(warnings, &format!("mobile emulator tab `{tab_id}`"))
-}
-
-async fn close_workspace(
-    manager: Option<&mut EmulatorManager>,
-    workspace_id: &str,
-    ended_pointer_tab_ids: &mut Vec<String>,
-    closed_session_tab_ids: &mut Vec<String>,
-) -> HostResult<()> {
-    let Some(manager) = manager else {
-        return Ok(());
-    };
-    let tab_ids = manager.tab_ids_for_workspace(workspace_id);
-    ended_pointer_tab_ids.extend(tab_ids.iter().cloned());
-    let warnings = manager.close_workspace(workspace_id).await;
-    closed_session_tab_ids.extend(
-        tab_ids
-            .into_iter()
-            .filter(|tab_id| !manager.contains(tab_id)),
-    );
-    ensure_emulators_closed(
-        warnings,
-        &format!("mobile emulators for workspace `{workspace_id}`"),
-    )
-}
-
-async fn close_workspaces(
-    mut manager: Option<&mut EmulatorManager>,
-    workspace_ids: &[String],
-    ended_pointer_tab_ids: &mut Vec<String>,
-    closed_session_tab_ids: &mut Vec<String>,
-) -> HostResult<()> {
-    for workspace_id in workspace_ids {
-        close_workspace(
-            manager.as_deref_mut(),
-            workspace_id,
-            ended_pointer_tab_ids,
-            closed_session_tab_ids,
-        )
-        .await?;
-    }
-    Ok(())
-}
-
-fn ensure_emulators_closed(warnings: Vec<String>, target: &str) -> HostResult<()> {
-    if warnings.is_empty() {
-        return Ok(());
-    }
-    Err(HostError::state(format!(
-        "Could not close {target}: {}",
-        warnings.join("; ")
-    )))
 }
 
 fn runtime_store_error(error: impl std::fmt::Display) -> HostError {

@@ -50,7 +50,7 @@ pub struct ManagedWorkspaceCreateRequest {
     #[serde(skip)]
     pub setup_script_directory: Option<PathBuf>,
 }
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ManagedWorkspaceRemoveRequest {
     pub id: String,
@@ -58,6 +58,9 @@ pub struct ManagedWorkspaceRemoveRequest {
     pub delete_branch: Option<bool>,
     #[serde(default)]
     pub active_workspace_id: Option<String>,
+    /// Explicit consent to stop this workspace's sessions before removing it.
+    #[serde(default)]
+    pub close_sessions: bool,
 }
 
 #[derive(Debug, Clone, Serialize)]

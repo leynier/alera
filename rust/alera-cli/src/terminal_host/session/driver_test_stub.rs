@@ -5,6 +5,8 @@ impl Session {
     /// `resize` tracks dims (no master to apply them to) and no I/O works.
     pub fn driver_test_stub(id: &str, cols: u16, rows: u16) -> Session {
         Session {
+            #[cfg(unix)]
+            child_reaper: Arc::default(),
             instance_id: next_session_instance_id(),
             initial_agent_prompt_delivered: false,
             id: id.to_string(),

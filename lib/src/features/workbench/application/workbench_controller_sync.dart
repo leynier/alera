@@ -5,15 +5,39 @@ mixin _WorkbenchControllerSync
   /// Frees the live terminal handles and editor documents of a workspace that
   /// no longer exists in persisted state.
   ///
-  /// Release, not close: a workspace removed by the UI already terminated its
-  /// PTYs through [TerminalRuntime.closeWorkspace], and one removed by another
-  /// client may still own its sessions on the host. Either way the Dart-side
-  /// buffers are unreachable and would otherwise leak.
+  /// The managed runtime stops PTYs before publishing removal. Releasing local
+  /// handles also covers changes from another client without sending a second
+  /// termination request for sessions this client no longer owns.
   void _releaseRetiredWorkspaceSessions(String workspaceId) {
+    _tabFocusHistory.forget(workspaceId);
+    _removeCodexDrafts(state.tabsFor(workspaceId));
     ref.read(terminalRuntimeProvider).releaseWorkspace(workspaceId);
     final editorSessions = ref.read(editorSessionRegistryProvider);
     for (final tab in state.tabsFor(workspaceId)) {
       editorSessions.forget(tab.id);
+      if (tab.kind == WorkspaceTabKind.terminal &&
+          ref.exists(agentHookReceiverProvider)) {
+        ref
+            .read(agentHookReceiverProvider)
+            .clearTerminalSession(tab.terminalSessionId);
+      }
+      if (tab.kind == WorkspaceTabKind.mobileEmulator) {
+        ref.read(mobileEmulatorLeaseCoordinatorProvider).close(tab.id);
+      }
+    }
+    if (ref.exists(browserSessionRegistryProvider)) {
+      unawaited(
+        ref
+            .read(browserSessionRegistryProvider)
+            .closeWorkspace(workspaceId)
+            .catchError((Object error) {
+              if (!_disposed) {
+                state = state.copyWith(
+                  error: 'Could not close workspace browser pages: $error',
+                );
+              }
+            }),
+      );
     }
   }
 
@@ -253,6 +277,14 @@ mixin _WorkbenchControllerSync
       activeProjectId: candidateProjectId,
       activeWorkspaceId: activeWorkspaceId,
       layoutByWorkspace: nextLayouts,
+      tabsByWorkspace: <String, List<WorkspaceTabRecord>>{
+        for (final entry in state.tabsByWorkspace.entries)
+          if (!removedWorkspaceIds.contains(entry.key)) entry.key: entry.value,
+      },
+      activeTabIdByWorkspace: <String, String>{
+        for (final entry in state.activeTabIdByWorkspace.entries)
+          if (!removedWorkspaceIds.contains(entry.key)) entry.key: entry.value,
+      },
     );
     _pruneWorktreeNavigationHistory();
     if (viewPrefsChanged) {
@@ -262,6 +294,9 @@ mixin _WorkbenchControllerSync
   }
 
   void _onTabsChanged(String workspaceId, List<WorkspaceTabRecord> tabs) {
+    if (!_tabSubProjectIds.containsKey(workspaceId)) {
+      return;
+    }
     final liveTabIds = <String>{for (final tab in tabs) tab.id};
     final removedTabs = state
         .tabsFor(workspaceId)
@@ -279,6 +314,26 @@ mixin _WorkbenchControllerSync
     for (final tab in removedTabs) {
       runtime.releaseTab(tab.id);
       editorSessions.forget(tab.id);
+      if (tab.kind == WorkspaceTabKind.browser &&
+          ref.exists(browserSessionRegistryProvider)) {
+        unawaited(
+          ref.read(browserSessionRegistryProvider).closePage(tab.id).catchError(
+            (Object error) {
+              if (ref.mounted) {
+                state = state.copyWith(error: error.toString());
+              }
+            },
+          ),
+        );
+      }
+      if (tab.kind == WorkspaceTabKind.terminal &&
+          ref.exists(agentHookReceiverProvider)) {
+        // The host may already have stopped the process before the explicit
+        // close reaches this client. Its transcript poller still has to go.
+        ref
+            .read(agentHookReceiverProvider)
+            .clearTerminalSession(tab.terminalSessionId);
+      }
     }
     _removeMissingCodexDrafts(workspaceId, tabs);
     final nextTabs = Map<String, List<WorkspaceTabRecord>>.from(
