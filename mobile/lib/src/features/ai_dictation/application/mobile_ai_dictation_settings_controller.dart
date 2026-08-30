@@ -1,4 +1,5 @@
 import 'dart:convert';
+
 import 'package:alera_mobile/src/features/configuration_sync/infra/mobile_configuration_preferences.dart';
 
 import 'package:alera_mobile/src/features/ai_dictation/domain/mobile_ai_dictation_settings.dart';

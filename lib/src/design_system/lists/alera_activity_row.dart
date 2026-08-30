@@ -46,9 +46,8 @@ class AleraActivityRow extends StatelessWidget {
                 subtitle,
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
-                style: Theme.of(
-                  context,
-                ).textTheme.labelSmall?.copyWith(color: statusColor),
+                style: Theme.of(context).textTheme.labelSmall
+                    ?.copyWith(color: statusColor),
               ),
               if (metadata != null) ...[
                 const SizedBox(height: AleraTokens.space4),

@@ -1,18 +1,15 @@
 part of 'codex_chat_surface.dart';
 
-class _CodexPendingQuestionQueue extends StatefulWidget {
-  const _CodexPendingQuestionQueue({
-    super.key,
-    required this.tabId,
-    required this.requests,
-    required this.builder,
-  });
-
-  final String tabId;
-  final List<CodexPendingRequest> requests;
-  final Widget Function(CodexPendingRequest request, _CodexQuestionDraft draft)
-  builder;
-
+class const _CodexPendingQuestionQueue({
+  super.key,
+  required final String tabId,
+  required final List<CodexPendingRequest> requests,
+  required final Widget Function(
+    CodexPendingRequest request,
+    _CodexQuestionDraft draft,
+  )
+  builder,
+}) extends StatefulWidget {
   @override
   State<_CodexPendingQuestionQueue> createState() =>
       _CodexPendingQuestionQueueState();
@@ -81,8 +78,8 @@ class _CodexPendingQuestionQueueState
   Widget build(BuildContext context) {
     final index = _requestIndex < 0 ? 0 : _requestIndex;
     return Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: .min,
+      crossAxisAlignment: .stretch,
       children: <Widget>[
         if (widget.requests.length > 1)
           Padding(
@@ -98,13 +95,12 @@ class _CodexPendingQuestionQueueState
                   maxWidth: AleraTokens.codexQuestionCardMaxWidth,
                 ),
                 child: Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
+                  mainAxisAlignment: .end,
                   children: <Widget>[
                     Text(
                       'Request ${index + 1} of ${widget.requests.length}',
-                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                        color: AleraTokens.foregroundMuted,
-                      ),
+                      style: Theme.of(context).textTheme.labelSmall
+                          ?.copyWith(color: AleraTokens.foregroundMuted),
                     ),
                     const SizedBox(width: AleraTokens.space4),
                     AleraIconButton(
@@ -127,7 +123,7 @@ class _CodexPendingQuestionQueueState
             ),
           ),
         Flexible(
-          fit: FlexFit.loose,
+          fit: .loose,
           child: widget.builder(
             widget.requests[index],
             _draftFor(widget.requests[index]),

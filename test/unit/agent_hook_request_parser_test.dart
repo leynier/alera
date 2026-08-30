@@ -21,10 +21,7 @@ void main() {
         ),
       );
 
-      final event = parseAgentHookRequest(
-        agentType: AgentType.codex,
-        body: decoded,
-      );
+      final event = parseAgentHookRequest(agentType: .codex, body: decoded);
 
       expect(event, isNotNull);
       expect(event!.terminalSessionId, 'session-1');
@@ -64,10 +61,7 @@ void main() {
         bodyBytes: utf8.encode(form),
       );
 
-      final event = parseAgentHookRequest(
-        agentType: AgentType.claude,
-        body: decoded,
-      );
+      final event = parseAgentHookRequest(agentType: .claude, body: decoded);
 
       expect(event, isNotNull);
       expect(event!.agentType, AgentType.claude);
@@ -78,7 +72,7 @@ void main() {
     test('returns null for missing metadata and malformed payloads', () {
       expect(
         parseAgentHookRequest(
-          agentType: AgentType.codex,
+          agentType: .codex,
           body: <String, Object?>{
             'workspaceId': 'workspace-1',
             'tabId': 'tab-1',
@@ -90,7 +84,7 @@ void main() {
 
       expect(
         parseAgentHookRequest(
-          agentType: AgentType.codex,
+          agentType: .codex,
           body: <String, Object?>{
             'terminalSessionId': 'session-1',
             'workspaceId': 'workspace-1',

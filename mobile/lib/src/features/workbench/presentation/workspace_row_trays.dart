@@ -1,18 +1,11 @@
 part of 'workspace_row_widgets.dart';
 
-class _WorkspaceStatusIndicator extends StatelessWidget {
-  const _WorkspaceStatusIndicator({
-    required this.hasAgents,
-    required this.state,
-    required this.interrupted,
-    required this.active,
-  });
-
-  final bool hasAgents;
-  final String? state;
-  final bool? interrupted;
-  final bool active;
-
+class const _WorkspaceStatusIndicator({
+  required final bool hasAgents,
+  required final String? state,
+  required final bool? interrupted,
+  required final bool active,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (!hasAgents || state == null) {
@@ -21,7 +14,7 @@ class _WorkspaceStatusIndicator extends StatelessWidget {
         height: 8,
         decoration: BoxDecoration(
           color: active ? AleraTokens.success : AleraTokens.foregroundFaint,
-          shape: BoxShape.circle,
+          shape: .circle,
         ),
       );
     }
@@ -46,23 +39,14 @@ class _WorkspaceStatusIndicator extends StatelessWidget {
   }
 }
 
-class _WorkspaceActionTray extends StatelessWidget {
-  const _WorkspaceActionTray({
-    required this.childCount,
-    required this.childrenCollapsed,
-    required this.onToggleChildren,
-    required this.statuses,
-    required this.agentsExpanded,
-    required this.onToggleAgents,
-  });
-
-  final int childCount;
-  final bool childrenCollapsed;
-  final VoidCallback? onToggleChildren;
-  final List<AgentPresenceSummary> statuses;
-  final bool agentsExpanded;
-  final VoidCallback? onToggleAgents;
-
+class const _WorkspaceActionTray({
+  required final int childCount,
+  required final bool childrenCollapsed,
+  required final VoidCallback? onToggleChildren,
+  required final List<AgentPresenceSummary> statuses,
+  required final bool agentsExpanded,
+  required final VoidCallback? onToggleAgents,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -87,7 +71,7 @@ class _WorkspaceActionTray extends StatelessWidget {
               : 'Hide Child Workspaces',
           child: InkWell(
             onTap: onToggleChildren,
-            borderRadius: BorderRadius.circular(AleraTokens.radiusSm),
+            borderRadius: .circular(AleraTokens.radiusSm),
             child: ConstrainedBox(
               constraints: const BoxConstraints(
                 minWidth: AleraTokens.minTapTarget,
@@ -98,7 +82,7 @@ class _WorkspaceActionTray extends StatelessWidget {
                 ),
                 child: Center(
                   child: Row(
-                    mainAxisSize: MainAxisSize.min,
+                    mainAxisSize: .min,
                     children: <Widget>[
                       const Icon(
                         AleraIcons.workspaceChildren,
@@ -110,7 +94,7 @@ class _WorkspaceActionTray extends StatelessWidget {
                         '$childCount',
                         style: theme.textTheme.labelSmall?.copyWith(
                           color: AleraTokens.foregroundMuted,
-                          fontWeight: FontWeight.w600,
+                          fontWeight: .w600,
                         ),
                       ),
                       const SizedBox(width: AleraTokens.space2),
@@ -136,8 +120,8 @@ class _WorkspaceActionTray extends StatelessWidget {
     }
 
     return Row(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: .min,
+      crossAxisAlignment: .stretch,
       children: <Widget>[
         for (final (index, item) in items.indexed) ...<Widget>[
           if (index > 0) const SizedBox(width: AleraTokens.space6),
@@ -148,24 +132,18 @@ class _WorkspaceActionTray extends StatelessWidget {
   }
 }
 
-class _AgentPresenceRow extends StatelessWidget {
-  const _AgentPresenceRow({
-    required this.status,
-    required this.onTap,
-    required this.onClose,
-  });
-
-  final AgentPresenceSummary status;
-  final VoidCallback onTap;
-  final VoidCallback onClose;
-
+class const _AgentPresenceRow({
+  required final AgentPresenceSummary status,
+  required final VoidCallback onTap,
+  required final VoidCallback onClose,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final description = _agentRunDescription(status);
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(AleraTokens.radiusSm),
+      borderRadius: .circular(AleraTokens.radiusSm),
       child: ConstrainedBox(
         constraints: const BoxConstraints(minHeight: AleraTokens.minTapTarget),
         child: Padding(
@@ -174,7 +152,7 @@ class _AgentPresenceRow extends StatelessWidget {
             vertical: AleraTokens.space8,
           ),
           child: Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
+            crossAxisAlignment: .center,
             children: <Widget>[
               AgentRunStateIndicator(status: status, size: 12),
               const SizedBox(width: AleraTokens.space6),
@@ -188,10 +166,10 @@ class _AgentPresenceRow extends StatelessWidget {
                 child: Text(
                   description,
                   maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+                  overflow: .ellipsis,
                   style: theme.textTheme.labelSmall?.copyWith(
                     color: AleraTokens.foregroundMuted,
-                    fontWeight: FontWeight.w500,
+                    fontWeight: .w500,
                   ),
                 ),
               ),

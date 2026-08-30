@@ -1,20 +1,12 @@
 part of 'workspace_workbench_view.dart';
 
-class _TransientSplitLayout extends StatefulWidget {
-  const _TransientSplitLayout({
-    required this.axis,
-    required this.persistedRatio,
-    required this.first,
-    required this.second,
-    required this.onPersistRatio,
-  });
-
-  final WorkbenchSplitAxis axis;
-  final double persistedRatio;
-  final Widget first;
-  final Widget second;
-  final ValueChanged<double> onPersistRatio;
-
+class const _TransientSplitLayout({
+  required final WorkbenchSplitAxis axis,
+  required final double persistedRatio,
+  required final Widget first,
+  required final Widget second,
+  required final ValueChanged<double> onPersistRatio,
+}) extends StatefulWidget {
   @override
   State<_TransientSplitLayout> createState() => _TransientSplitLayoutState();
 }
@@ -85,17 +77,11 @@ class _TransientSplitLayoutState extends State<_TransientSplitLayout> {
   }
 }
 
-class _SplitResizeHandle extends StatefulWidget {
-  const _SplitResizeHandle({
-    required this.axis,
-    required this.onRatioDelta,
-    this.onDragEnd,
-  });
-
-  final WorkbenchSplitAxis axis;
-  final ValueChanged<double> onRatioDelta;
-  final VoidCallback? onDragEnd;
-
+class const _SplitResizeHandle({
+  required final WorkbenchSplitAxis axis,
+  required final ValueChanged<double> onRatioDelta,
+  final VoidCallback? onDragEnd,
+}) extends StatefulWidget {
   @override
   State<_SplitResizeHandle> createState() => _SplitResizeHandleState();
 }
@@ -117,7 +103,7 @@ class _SplitResizeHandleState extends State<_SplitResizeHandle> {
       onEnter: (_) => setState(() => _hovered = true),
       onExit: (_) => setState(() => _hovered = false),
       child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
+        behavior: .opaque,
         onPanStart: (_) => setState(() => _dragging = true),
         onPanUpdate: (details) {
           widget.onRatioDelta(horizontal ? details.delta.dx : details.delta.dy);
@@ -128,7 +114,7 @@ class _SplitResizeHandleState extends State<_SplitResizeHandle> {
           width: horizontal ? AleraTokens.space6 : null,
           height: horizontal ? null : AleraTokens.space6,
           child: Stack(
-            fit: StackFit.expand,
+            fit: .expand,
             children: <Widget>[
               const ColoredBox(color: AleraTokens.surface),
               Positioned(
@@ -154,17 +140,11 @@ class _SplitResizeHandleState extends State<_SplitResizeHandle> {
   }
 }
 
-class _WorkspaceTabDragData {
-  const _WorkspaceTabDragData({
-    required this.workspaceId,
-    required this.sourceGroupId,
-    required this.tabId,
-  });
-
-  final String workspaceId;
-  final String sourceGroupId;
-  final String tabId;
-}
+class const _WorkspaceTabDragData({
+  required final String workspaceId,
+  required final String sourceGroupId,
+  required final String tabId,
+});
 
 enum _PaneMenuAction { splitRight, splitDown, splitLeft, splitUp, closeSplit }
 

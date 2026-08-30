@@ -8,12 +8,12 @@ import 'package:alera/src/features/app_window/domain/app_foreground.dart';
 /// cycles: the timer runs only while the window is visible, hiding cancels
 /// it, and returning refreshes immediately rather than waiting out a fresh
 /// interval, mirroring the update check scheduler.
-class ForegroundParkedRefresh {
-  ForegroundParkedRefresh({
-    required AppForeground foreground,
-    required this.interval,
-    required this.refresh,
-  }) {
+class ForegroundParkedRefresh({
+  required AppForeground foreground,
+  required final Duration interval,
+  required final void Function() refresh,
+}) {
+  this {
     if (foreground.isForeground) {
       _arm();
     }
@@ -31,8 +31,6 @@ class ForegroundParkedRefresh {
     });
   }
 
-  final Duration interval;
-  final void Function() refresh;
   late final StreamSubscription<bool> _subscription;
   Timer? _timer;
 

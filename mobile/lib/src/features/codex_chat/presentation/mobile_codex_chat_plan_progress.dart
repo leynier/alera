@@ -1,10 +1,8 @@
 part of 'mobile_codex_chat_screen.dart';
 
-class _MobilePlanProgressBadge extends StatelessWidget {
-  const _MobilePlanProgressBadge({required this.progress});
-
-  final _MobilePlanProgress progress;
-
+class const _MobilePlanProgressBadge({
+  required final _MobilePlanProgress progress,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Center(
     child: Padding(
@@ -34,12 +32,10 @@ class _MobilePlanProgressBadge extends StatelessWidget {
   );
 }
 
-class _MobilePlanProgressItem extends StatelessWidget {
-  const _MobilePlanProgressItem({required this.item, required this.index});
-
-  final Map<String, Object?> item;
-  final int index;
-
+class const _MobilePlanProgressItem({
+  required final Map<String, Object?> item,
+  required final int index,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final status = item['status']?.toString().toLowerCase();

@@ -3,7 +3,6 @@ import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/features/agent_quota/domain/agent_quota.dart';
 import 'package:alera/src/features/agent_quota/presentation/agent_quota_status_bar.dart';
 import 'package:alera/src/features/settings/domain/alera_settings.dart';
-import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -26,17 +25,17 @@ void main() {
         ),
         snapshots: <AgentQuotaSnapshot>[
           _snapshot(
-            provider: AgentQuotaProviderId.claude,
+            provider: .claude,
             windows: <AgentQuotaWindow>[_window('Weekly', 40)],
           ),
           _snapshot(
-            provider: AgentQuotaProviderId.claude,
+            provider: .claude,
             accountId: 'dev',
             displayName: 'ignored-dev-label',
             windows: <AgentQuotaWindow>[_window('Weekly', 20)],
           ),
           _snapshot(
-            provider: AgentQuotaProviderId.antigravity,
+            provider: .antigravity,
             buckets: <AgentQuotaBucket>[_bucket('Gemini Models - Weekly', 15)],
           ),
         ],
@@ -66,17 +65,17 @@ void main() {
         ),
         snapshots: <AgentQuotaSnapshot>[
           _snapshot(
-            provider: AgentQuotaProviderId.claude,
+            provider: .claude,
             windows: <AgentQuotaWindow>[_window('Weekly', 40)],
           ),
           _snapshot(
-            provider: AgentQuotaProviderId.claude,
+            provider: .claude,
             accountId: 'dev',
             displayName: 'ignored-dev-label',
             windows: <AgentQuotaWindow>[_window('Weekly', 20)],
           ),
           _snapshot(
-            provider: AgentQuotaProviderId.antigravity,
+            provider: .antigravity,
             buckets: <AgentQuotaBucket>[_bucket('Gemini Models - Weekly', 15)],
           ),
         ],
@@ -92,10 +91,7 @@ void main() {
       lessThan(tester.getCenter(find.text('Default')).dx),
     );
 
-    await tester.tap(
-      find.byIcon(AleraIcons.quota),
-      kind: PointerDeviceKind.mouse,
-    );
+    await tester.tap(find.byIcon(AleraIcons.quota), kind: .mouse);
     await tester.pumpAndSettle();
 
     expect(find.text('Claude Code Default'), findsOneWidget);
@@ -118,12 +114,12 @@ void main() {
         ),
         snapshots: <AgentQuotaSnapshot>[
           _snapshot(
-            provider: AgentQuotaProviderId.codex,
+            provider: .codex,
             windows: <AgentQuotaWindow>[_window('5 Hour', 100)],
             resetCredits: CodexResetCredits(
               availableCount: 2,
               totalEarnedCount: 4,
-              nextExpiresAt: DateTime.utc(2030),
+              nextExpiresAt: .utc(2030),
               offerRevision: 'opaque-revision',
               canConsume: true,
             ),
@@ -132,10 +128,7 @@ void main() {
       ),
     );
 
-    await tester.tap(
-      find.byIcon(AleraIcons.quota),
-      kind: PointerDeviceKind.mouse,
-    );
+    await tester.tap(find.byIcon(AleraIcons.quota), kind: .mouse);
     await tester.pumpAndSettle();
 
     expect(find.text('2 Rate-Limit Resets Available'), findsOneWidget);
@@ -155,11 +148,11 @@ void main() {
         ),
         snapshots: <AgentQuotaSnapshot>[
           _snapshot(
-            provider: AgentQuotaProviderId.claude,
+            provider: .claude,
             windows: <AgentQuotaWindow>[_window('Weekly', 40)],
           ),
           _snapshot(
-            provider: AgentQuotaProviderId.antigravity,
+            provider: .antigravity,
             buckets: <AgentQuotaBucket>[_bucket('Gemini Models - Weekly', 15)],
           ),
         ],
@@ -167,10 +160,7 @@ void main() {
       ),
     );
 
-    await tester.tap(
-      find.byIcon(AleraIcons.quota),
-      kind: PointerDeviceKind.mouse,
-    );
+    await tester.tap(find.byIcon(AleraIcons.quota), kind: .mouse);
     await tester.pumpAndSettle();
 
     await tester.tap(find.byTooltip('Unpin From Status Bar'));
@@ -193,7 +183,7 @@ void main() {
         ),
         snapshots: <AgentQuotaSnapshot>[
           _snapshot(
-            provider: AgentQuotaProviderId.codex,
+            provider: .codex,
             windows: <AgentQuotaWindow>[_window('Weekly', 40)],
           ),
         ],
@@ -201,10 +191,7 @@ void main() {
       ),
     );
 
-    await tester.tap(
-      find.byIcon(AleraIcons.quota),
-      kind: PointerDeviceKind.mouse,
-    );
+    await tester.tap(find.byIcon(AleraIcons.quota), kind: .mouse);
     await tester.pumpAndSettle();
     await tester.tap(find.text('Open Usage'));
 
@@ -221,19 +208,16 @@ void main() {
         ),
         snapshots: <AgentQuotaSnapshot>[
           _snapshot(
-            provider: AgentQuotaProviderId.codex,
+            provider: .codex,
             displayName: 'Codex',
-            status: AgentQuotaStatus.error,
+            status: .error,
             error: 'Request Failed',
           ),
         ],
       ),
     );
 
-    await tester.tap(
-      find.byIcon(AleraIcons.quota),
-      kind: PointerDeviceKind.mouse,
-    );
+    await tester.tap(find.byIcon(AleraIcons.quota), kind: .mouse);
     await tester.pumpAndSettle();
 
     expect(find.text('Codex'), findsOneWidget);
@@ -250,11 +234,11 @@ void main() {
     );
     final snapshots = <AgentQuotaSnapshot>[
       _snapshot(
-        provider: AgentQuotaProviderId.claude,
+        provider: .claude,
         windows: <AgentQuotaWindow>[_window('Weekly', 40)],
       ),
       _snapshot(
-        provider: AgentQuotaProviderId.antigravity,
+        provider: .antigravity,
         buckets: <AgentQuotaBucket>[_bucket('Gemini Models - Weekly', 15)],
       ),
     ];
@@ -286,10 +270,7 @@ void main() {
 
     expect(find.text('G·W'), findsOneWidget);
 
-    await tester.tap(
-      find.byIcon(AleraIcons.quota),
-      kind: PointerDeviceKind.mouse,
-    );
+    await tester.tap(find.byIcon(AleraIcons.quota), kind: .mouse);
     await tester.pumpAndSettle();
     // One reading in the bar and one in the panel row.
     expect(find.text('G·W'), findsNWidgets(2));
@@ -326,11 +307,11 @@ void main() {
         ),
         snapshots: <AgentQuotaSnapshot>[
           _snapshot(
-            provider: AgentQuotaProviderId.claude,
+            provider: .claude,
             windows: <AgentQuotaWindow>[_window('Weekly', 40)],
           ),
           _snapshot(
-            provider: AgentQuotaProviderId.antigravity,
+            provider: .antigravity,
             buckets: <AgentQuotaBucket>[_bucket('Gemini Models - Weekly', 15)],
           ),
         ],
@@ -339,10 +320,7 @@ void main() {
 
     expect(find.text('2 agent quotas - Local'), findsOneWidget);
 
-    await tester.tap(
-      find.text('2 agent quotas - Local'),
-      kind: PointerDeviceKind.mouse,
-    );
+    await tester.tap(find.text('2 agent quotas - Local'), kind: .mouse);
     await tester.pumpAndSettle();
 
     expect(find.text('Claude Code Default'), findsOneWidget);
@@ -397,7 +375,7 @@ AgentQuotaSnapshot _snapshot({
     accountId: accountId,
     displayName: displayName,
     status: status,
-    updatedAt: DateTime.utc(2026),
+    updatedAt: .utc(2026),
     error: error,
     windows: windows,
     buckets: buckets,

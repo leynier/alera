@@ -1,12 +1,10 @@
 part of 'workspace_search_panel.dart';
 
 @visibleForTesting
-class WorkspaceSearchTextRange {
-  const WorkspaceSearchTextRange({required this.start, required this.end});
-
-  final int start;
-  final int end;
-}
+class const WorkspaceSearchTextRange({
+  required final int start,
+  required final int end,
+});
 
 @visibleForTesting
 WorkspaceSearchTextRange workspaceSearchTextRangeForCharRange({
@@ -53,11 +51,8 @@ bool _isTrailingSurrogate(int codeUnit) {
   return codeUnit >= 0xDC00 && codeUnit <= 0xDFFF;
 }
 
-class _SearchSummary extends StatelessWidget {
-  const _SearchSummary({required this.state});
-
-  final WorkspaceSearchState state;
-
+class const _SearchSummary({required final WorkspaceSearchState state})
+    extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final result = state.result;
@@ -78,10 +73,9 @@ class _SearchSummary extends StatelessWidget {
           Expanded(
             child: Text(
               text,
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: AleraTokens.foregroundMuted,
-              ),
-              overflow: TextOverflow.ellipsis,
+              style: Theme.of(context).textTheme.bodySmall
+                  ?.copyWith(color: AleraTokens.foregroundMuted),
+              overflow: .ellipsis,
             ),
           ),
           if (state.replacing)
@@ -102,11 +96,8 @@ class _SearchSummary extends StatelessWidget {
   }
 }
 
-class _SearchEmptyState extends StatelessWidget {
-  const _SearchEmptyState({required this.state});
-
-  final WorkspaceSearchState state;
-
+class const _SearchEmptyState({required final WorkspaceSearchState state})
+    extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (state.loading) {
@@ -118,21 +109,18 @@ class _SearchEmptyState extends StatelessWidget {
     return Center(
       child: Text(
         'No results',
-        style: Theme.of(
-          context,
-        ).textTheme.bodySmall?.copyWith(color: AleraTokens.foregroundMuted),
+        style: Theme.of(context).textTheme.bodySmall
+            ?.copyWith(color: AleraTokens.foregroundMuted),
       ),
     );
   }
 }
 
-class _SearchPathParts {
-  const _SearchPathParts({required this.name, required this.directory});
-
-  final String name;
-  final String directory;
-
-  factory _SearchPathParts.from(String relativePath) {
+class const _SearchPathParts({
+  required final String name,
+  required final String directory,
+}) {
+  factory from(String relativePath) {
     final normalized = relativePath.replaceAll('\\', '/');
     final directory = _searchPathContext.dirname(normalized);
     return _SearchPathParts(
@@ -146,25 +134,15 @@ double _searchRowLeftPadding(int depth) {
   return AleraTokens.space8 + depth * AleraTokens.space16;
 }
 
-class _SearchFileResultRow extends StatelessWidget {
-  const _SearchFileResultRow({
-    required this.file,
-    required this.collapsed,
-    required this.depth,
-    required this.showDirectory,
-    required this.replacing,
-    required this.onToggleCollapsed,
-    required this.onReplaceFile,
-  });
-
-  final native.WorkspaceSearchFileResult file;
-  final bool collapsed;
-  final int depth;
-  final bool showDirectory;
-  final bool replacing;
-  final VoidCallback onToggleCollapsed;
-  final VoidCallback? onReplaceFile;
-
+class const _SearchFileResultRow({
+  required final native.WorkspaceSearchFileResult file,
+  required final bool collapsed,
+  required final int depth,
+  required final bool showDirectory,
+  required final bool replacing,
+  required final VoidCallback onToggleCollapsed,
+  required final VoidCallback? onReplaceFile,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final path = _SearchPathParts.from(file.relativePath);
@@ -189,7 +167,7 @@ class _SearchFileResultRow extends StatelessWidget {
             const SizedBox(width: AleraTokens.space4),
             AleraFileIcon(
               pathOrName: path.name,
-              kind: AleraFileIconKind.file,
+              kind: .file,
               size: 15,
               fallbackColor: AleraTokens.foregroundMuted,
             ),
@@ -197,14 +175,14 @@ class _SearchFileResultRow extends StatelessWidget {
             Expanded(
               child: RichText(
                 maxLines: 1,
-                overflow: TextOverflow.ellipsis,
+                overflow: .ellipsis,
                 text: TextSpan(
                   children: <InlineSpan>[
                     TextSpan(
                       text: path.name,
                       style: textTheme.bodySmall?.copyWith(
                         color: AleraTokens.foreground,
-                        fontWeight: FontWeight.w600,
+                        fontWeight: .w600,
                       ),
                     ),
                     if (showDirectory && path.directory.isNotEmpty)
@@ -222,10 +200,10 @@ class _SearchFileResultRow extends StatelessWidget {
               width: AleraTokens.space24,
               child: Text(
                 '${file.matches.length}',
-                textAlign: TextAlign.right,
+                textAlign: .right,
                 style: textTheme.bodySmall?.copyWith(
                   color: AleraTokens.foreground,
-                  fontWeight: FontWeight.w700,
+                  fontWeight: .w700,
                 ),
               ),
             ),
@@ -244,21 +222,13 @@ class _SearchFileResultRow extends StatelessWidget {
   }
 }
 
-class _SearchDirectoryResultRow extends StatelessWidget {
-  const _SearchDirectoryResultRow({
-    required this.name,
-    required this.matchCount,
-    required this.depth,
-    required this.collapsed,
-    required this.onToggleCollapsed,
-  });
-
-  final String name;
-  final int matchCount;
-  final int depth;
-  final bool collapsed;
-  final VoidCallback onToggleCollapsed;
-
+class const _SearchDirectoryResultRow({
+  required final String name,
+  required final int matchCount,
+  required final int depth,
+  required final bool collapsed,
+  required final VoidCallback onToggleCollapsed,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
@@ -282,7 +252,7 @@ class _SearchDirectoryResultRow extends StatelessWidget {
             const SizedBox(width: AleraTokens.space4),
             AleraFileIcon(
               pathOrName: name,
-              kind: AleraFileIconKind.folder,
+              kind: .folder,
               isExpanded: !collapsed,
               size: 15,
               fallbackColor: AleraTokens.foregroundMuted,
@@ -293,19 +263,19 @@ class _SearchDirectoryResultRow extends StatelessWidget {
                 name,
                 style: textTheme.bodySmall?.copyWith(
                   color: AleraTokens.foreground,
-                  fontWeight: FontWeight.w600,
+                  fontWeight: .w600,
                 ),
-                overflow: TextOverflow.ellipsis,
+                overflow: .ellipsis,
               ),
             ),
             SizedBox(
               width: AleraTokens.space24,
               child: Text(
                 '$matchCount',
-                textAlign: TextAlign.right,
+                textAlign: .right,
                 style: textTheme.bodySmall?.copyWith(
                   color: AleraTokens.foreground,
-                  fontWeight: FontWeight.w700,
+                  fontWeight: .w700,
                 ),
               ),
             ),
@@ -316,25 +286,15 @@ class _SearchDirectoryResultRow extends StatelessWidget {
   }
 }
 
-class _SearchMatchResultRow extends StatelessWidget {
-  const _SearchMatchResultRow({
-    required this.file,
-    required this.match,
-    required this.depth,
-    required this.replacing,
-    required this.showReplacementPreview,
-    required this.onOpen,
-    required this.onReplace,
-  });
-
-  final native.WorkspaceSearchFileResult file;
-  final native.WorkspaceSearchMatch match;
-  final int depth;
-  final bool replacing;
-  final bool showReplacementPreview;
-  final VoidCallback onOpen;
-  final VoidCallback? onReplace;
-
+class const _SearchMatchResultRow({
+  required final native.WorkspaceSearchFileResult file,
+  required final native.WorkspaceSearchMatch match,
+  required final int depth,
+  required final bool replacing,
+  required final bool showReplacementPreview,
+  required final VoidCallback onOpen,
+  required final VoidCallback? onReplace,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final preview = match.replacementPreview;
@@ -349,7 +309,7 @@ class _SearchMatchResultRow extends StatelessWidget {
           AleraTokens.space6,
         ),
         child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment: .start,
           children: <Widget>[
             SizedBox(
               width: AleraTokens.space32,
@@ -359,7 +319,7 @@ class _SearchMatchResultRow extends StatelessWidget {
                   context,
                   color: AleraTokens.foregroundFaint,
                 ),
-                textAlign: TextAlign.right,
+                textAlign: .right,
               ),
             ),
             const SizedBox(width: AleraTokens.space6),
@@ -369,7 +329,7 @@ class _SearchMatchResultRow extends StatelessWidget {
                     ? _replacementPreviewSpan(context, match, preview)
                     : _matchLineSpan(context, match),
                 maxLines: 2,
-                overflow: TextOverflow.ellipsis,
+                overflow: .ellipsis,
               ),
             ),
             const SizedBox(width: AleraTokens.space4),
@@ -397,7 +357,7 @@ class _SearchMatchResultRow extends StatelessWidget {
     final matchStyle = baseStyle.copyWith(
       color: AleraTokens.foreground,
       backgroundColor: AleraTokens.accentSubtle,
-      fontWeight: FontWeight.w700,
+      fontWeight: .w700,
     );
     final range = _clampedTextRange(
       match.lineContent.trimRight(),
@@ -425,12 +385,12 @@ class _SearchMatchResultRow extends StatelessWidget {
     final oldStyle = baseStyle.copyWith(
       color: AleraTokens.error,
       backgroundColor: AleraTokens.onError,
-      decoration: TextDecoration.lineThrough,
+      decoration: .lineThrough,
       decorationColor: AleraTokens.error,
     );
     final newStyle = baseStyle.copyWith(
       color: AleraTokens.success,
-      fontWeight: FontWeight.w700,
+      fontWeight: .w700,
     );
     return TextSpan(
       children: <InlineSpan>[

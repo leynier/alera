@@ -13,18 +13,13 @@ import 'package:alera/src/features/settings/presentation/rows/settings_rows.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-class AiAssistSettingsPane extends ConsumerStatefulWidget {
-  const AiAssistSettingsPane({
-    super.key,
-    required this.settings,
-    required this.onChanged,
-    this.groupKeys = const <String, GlobalKey>{},
-  });
-
-  final AiAssistSettings settings;
-  final ValueChanged<AiAssistSettings Function(AiAssistSettings)> onChanged;
-  final Map<String, GlobalKey> groupKeys;
-
+class const AiAssistSettingsPane({
+  super.key,
+  required final AiAssistSettings settings,
+  required final ValueChanged<AiAssistSettings Function(AiAssistSettings)>
+  onChanged,
+  final Map<String, GlobalKey> groupKeys = const <String, GlobalKey>{},
+}) extends ConsumerStatefulWidget {
   @override
   ConsumerState<AiAssistSettingsPane> createState() =>
       _AiAssistSettingsPaneState();
@@ -81,19 +76,17 @@ class _AiAssistSettingsPaneState extends ConsumerState<AiAssistSettingsPane> {
     final discovery = _discovery[agent] ?? const _AiAssistModelDiscoveryState();
     final canDiscoverModels = spec?.modelsCommand != null;
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+      crossAxisAlignment: .stretch,
       children: <Widget>[
         KeyedSubtree(
           key: widget.groupKeys['generation'],
           child: AleraSettingsGroup(
             title: 'Generation',
-            description:
-                'Local agent CLIs run short background jobs from source control and workspace context.',
+            description: 'Local agent CLIs run short background jobs from source control and workspace context.',
             children: <Widget>[
               SettingsSwitchRow(
                 title: 'Enable AI Assist',
-                description:
-                    'Generate text for source control, workspaces, and agent conversations.',
+                description: 'Generate text for source control, workspaces, and agent conversations.',
                 value: widget.settings.enabled,
                 onChanged: (value) => widget.onChanged(
                   (settings) => settings.copyWith(enabled: value),
@@ -101,8 +94,7 @@ class _AiAssistSettingsPaneState extends ConsumerState<AiAssistSettingsPane> {
               ),
               SettingsSwitchRow(
                 title: 'Auto-Generate Agent Titles',
-                description:
-                    'Name new agent conversations from their first prompt or recent context.',
+                description: 'Name new agent conversations from their first prompt or recent context.',
                 value: settings.autoGenerateAgentTitles,
                 onChanged: (value) => widget.onChanged(
                   (settings) =>
@@ -116,8 +108,7 @@ class _AiAssistSettingsPaneState extends ConsumerState<AiAssistSettingsPane> {
               if (agent == AiAssistAgent.custom)
                 SettingsTextRow(
                   title: 'Custom Command',
-                  description:
-                      'Use {prompt} to pass the prompt as an argument; otherwise Alera sends it on stdin.',
+                  description: 'Use {prompt} to pass the prompt as an argument; otherwise Alera sends it on stdin.',
                   value: settings.customCommand,
                   hintText: 'llm --system commit-message',
                   onChanged: (value) => widget.onChanged(
@@ -172,8 +163,7 @@ class _AiAssistSettingsPaneState extends ConsumerState<AiAssistSettingsPane> {
                   ))
                 SettingsTextRow(
                   title: 'Custom Command',
-                  description:
-                      'Used by prompts that override the global agent with custom command.',
+                  description: 'Used by prompts that override the global agent with custom command.',
                   value: settings.customCommand,
                   hintText: 'llm --system commit-message',
                   onChanged: (value) => widget.onChanged(
@@ -188,8 +178,7 @@ class _AiAssistSettingsPaneState extends ConsumerState<AiAssistSettingsPane> {
             key: widget.groupKeys[operation.key],
             child: AleraSettingsGroup(
               title: operation.label,
-              description:
-                  'Configure the agent, model, reasoning and instructions for this prompt.',
+              description: 'Configure the agent, model, reasoning and instructions for this prompt.',
               children: <Widget>[
                 ..._promptOverrideRows(settings, operation),
                 ..._thinkingRows(settings, operation),
@@ -474,9 +463,7 @@ class _AiAssistSettingsPaneState extends ConsumerState<AiAssistSettingsPane> {
   }
 }
 
-class _AiAssistModelDiscoveryState {
-  const _AiAssistModelDiscoveryState({this.loading = false, this.error});
-
-  final bool loading;
-  final String? error;
-}
+class const _AiAssistModelDiscoveryState({
+  final bool loading = false,
+  final String? error,
+});

@@ -7,9 +7,7 @@ import 'package:alera/src/shared/infra/git/git_remote.dart';
 import 'package:alera/src/shared/infra/git/git_worktree_entry.dart';
 
 /// Inert [GitBackend] so the smoke flow never touches a real repository.
-class E2eGitBackend implements GitBackend {
-  const E2eGitBackend();
-
+class const E2eGitBackend() implements GitBackend {
   @override
   Future<bool> isGitRepository(String path) async => false;
 
@@ -154,7 +152,7 @@ class E2eGitBackend implements GitBackend {
       compareRef: commitId,
       baseRef: 'Parent',
       changedFiles: 0,
-      status: GitCommitCompareStatus.invalidCommit,
+      status: .invalidCommit,
       errorMessage: 'Commit Not Available',
     ),
     entries: const <GitCommitChangeEntry>[],

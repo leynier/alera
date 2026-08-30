@@ -32,18 +32,12 @@ part 'terminal_tab_state_widgets.dart';
 
 /// One terminal tab filling the available space, with the quick-key bar and
 /// the compose/direct input modes stacked above the keyboard.
-class TerminalTabView extends ConsumerStatefulWidget {
-  const TerminalTabView({
-    super.key,
-    required this.hostId,
-    required this.workspaceId,
-    required this.tabId,
-  });
-
-  final String hostId;
-  final String workspaceId;
-  final String tabId;
-
+class const TerminalTabView({
+  super.key,
+  required final String hostId,
+  required final String workspaceId,
+  required final String tabId,
+}) extends ConsumerStatefulWidget {
   @override
   ConsumerState<TerminalTabView> createState() => _TerminalTabViewState();
 }
@@ -129,7 +123,7 @@ class _TerminalTabViewState extends ConsumerState<TerminalTabView> {
       ],
     );
     return Stack(
-      fit: StackFit.expand,
+      fit: .expand,
       children: <Widget>[
         content,
         // Terminal-level controls stack in one corner rail rather than sitting
@@ -162,9 +156,8 @@ class _TerminalTabViewState extends ConsumerState<TerminalTabView> {
                 borderColor: AleraTokens.borderSubtle,
                 onPressed: ref
                     .read(
-                      terminalInputModeControllerProvider(
-                        widget.tabId,
-                      ).notifier,
+                      terminalInputModeControllerProvider(widget.tabId)
+                          .notifier,
                     )
                     .toggle,
               ),
@@ -189,9 +182,8 @@ class _TerminalTabViewState extends ConsumerState<TerminalTabView> {
       }
       await notifier.pasteText(text);
     } catch (error, stackTrace) {
-      Logger(
-        'TerminalTabView',
-      ).warning('terminal clipboard paste failed', error, stackTrace);
+      Logger('TerminalTabView')
+          .warning('terminal clipboard paste failed', error, stackTrace);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Could not paste clipboard')),
@@ -245,22 +237,14 @@ class _TerminalTabViewState extends ConsumerState<TerminalTabView> {
   }
 }
 
-class _TerminalSurface extends StatefulWidget {
-  const _TerminalSurface({
-    super.key,
-    required this.session,
-    required this.inputMode,
-    required this.onInput,
-    required this.onViewportResize,
-    required this.onReconnect,
-  });
-
-  final TerminalTabSession session;
-  final TerminalInputMode inputMode;
-  final ValueChanged<String> onInput;
-  final void Function(int cols, int rows) onViewportResize;
-  final Future<void> Function() onReconnect;
-
+class const _TerminalSurface({
+  super.key,
+  required final TerminalTabSession session,
+  required final TerminalInputMode inputMode,
+  required final ValueChanged<String> onInput,
+  required final void Function(int cols, int rows) onViewportResize,
+  required final Future<void> Function() onReconnect,
+}) extends StatefulWidget {
   @override
   State<_TerminalSurface> createState() => _TerminalSurfaceState();
 }
@@ -477,7 +461,7 @@ class _TerminalSurfaceState extends State<_TerminalSurface> {
                       textStyle: const TerminalStyle(
                         fontFamily: AleraTokens.monoFontFamily,
                       ),
-                      padding: const EdgeInsets.all(AleraTokens.spaceSm),
+                      padding: const .all(AleraTokens.spaceSm),
                     ),
             ),
           ),

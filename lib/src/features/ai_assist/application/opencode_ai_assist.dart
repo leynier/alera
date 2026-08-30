@@ -7,7 +7,7 @@ AiAssistAgentSpec openCodeAiAssistSpec({
   return AiAssistAgentSpec(
     agent: agent,
     binary: binary,
-    promptDelivery: AiPromptDelivery.stdin,
+    promptDelivery: .stdin,
     modelsCommand: const <String>['models'],
     parseModels: parseLineModels,
     models: const <AiAssistModel>[

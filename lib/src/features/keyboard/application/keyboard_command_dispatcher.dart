@@ -1,4 +1,5 @@
 import 'dart:async';
+
 import 'package:alera/src/features/app_menu/presentation/app_menu_actions.dart';
 import 'package:alera/src/features/orchestration/application/run_board_navigation.dart';
 
@@ -18,17 +19,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 /// Maps a [KeyboardActionId] to concrete app behavior, reusing existing
 /// controller methods and dialog flows. Construct one per dispatch with the
 /// current [ref] and a [context] suitable for showing dialogs/toasts.
-class KeyboardCommandDispatcher {
-  const KeyboardCommandDispatcher({
-    required this.ref,
-    required this.context,
-    this.terminalSession,
-  });
-
-  final WidgetRef ref;
-  final BuildContext context;
-  final TerminalSessionHandle? terminalSession;
-
+class const KeyboardCommandDispatcher({
+  required final WidgetRef ref,
+  required final BuildContext context,
+  final TerminalSessionHandle? terminalSession,
+}) {
   void dispatch(KeyboardActionId id) {
     if (ref.read(runBoardNavigationProvider).visible &&
         keybindingDefinitions.firstWhere((action) => action.id == id).group !=
@@ -65,13 +60,13 @@ class KeyboardCommandDispatcher {
       case KeyboardActionId.navigateForward:
         unawaited(ref.read(workbenchControllerProvider.notifier).goForward());
       case KeyboardActionId.findInFiles:
-        _showContextPanel(WorkbenchContextPanelTab.search);
+        _showContextPanel(.search);
       case KeyboardActionId.findInTerminal:
         _openTerminalSearch();
       case KeyboardActionId.toggleTerminalComposer:
         _toggleTerminalComposer();
       case KeyboardActionId.replaceInFiles:
-        _showContextPanel(WorkbenchContextPanelTab.search);
+        _showContextPanel(.search);
       case KeyboardActionId.saveFile:
         _saveActiveEditor();
       case KeyboardActionId.newTerminalTab:
@@ -96,9 +91,9 @@ class KeyboardCommandDispatcher {
       case KeyboardActionId.goToTab9:
         _goToLastTab();
       case KeyboardActionId.splitRight:
-        _split(WorkbenchDropZone.right);
+        _split(.right);
       case KeyboardActionId.splitDown:
-        _split(WorkbenchDropZone.down);
+        _split(.down);
       case KeyboardActionId.closeSplit:
         _closeSplit();
     }

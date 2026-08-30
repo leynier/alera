@@ -9,7 +9,7 @@ void _registerTerminalSurfaceToolbarTests() {
       session,
       settings: AleraSettings.defaults.copyWith(
         terminal: TerminalSettings.defaults.copyWith(
-          toolbarCorner: TerminalToolbarCorner.bottomLeft,
+          toolbarCorner: .bottomLeft,
         ),
       ),
     );

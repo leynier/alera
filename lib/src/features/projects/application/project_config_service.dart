@@ -4,32 +4,21 @@ import 'package:alera/src/features/projects/domain/project_config.dart';
 
 enum ProjectConfigOrigin { none, repoFile, uiOverride }
 
-class EffectiveProjectConfig {
-  const EffectiveProjectConfig({
-    required this.config,
-    required this.origin,
-    this.error,
-  });
-
-  final ProjectConfig config;
-  final ProjectConfigOrigin origin;
-  final Object? error;
-
+class const EffectiveProjectConfig({
+  required final ProjectConfig config,
+  required final ProjectConfigOrigin origin,
+  final Object? error,
+}) {
   bool get hasError => error != null;
 
-  static const empty = EffectiveProjectConfig(
-    config: ProjectConfig.empty,
-    origin: ProjectConfigOrigin.none,
-  );
+  static const empty = EffectiveProjectConfig(config: .empty, origin: .none);
 }
 
 abstract interface class ProjectConfigReader {
   Future<EffectiveProjectConfig> resolve(Project project);
 }
 
-class NoopProjectConfigReader implements ProjectConfigReader {
-  const NoopProjectConfigReader();
-
+class const NoopProjectConfigReader() implements ProjectConfigReader {
   @override
   Future<EffectiveProjectConfig> resolve(Project project) async {
     return EffectiveProjectConfig.empty;
@@ -40,12 +29,8 @@ abstract interface class ProjectConfigFileStore {
   Future<ProjectConfig?> load(Project project);
 }
 
-class ProjectConfigException implements Exception {
-  ProjectConfigException(this.message, {this.cause});
-
-  final String message;
-  final Object? cause;
-
+class ProjectConfigException(final String message, {final Object? cause})
+    implements Exception {
   @override
   String toString() {
     final cause = this.cause;
@@ -56,18 +41,16 @@ class ProjectConfigException implements Exception {
   }
 }
 
-class ProjectConfigService implements ProjectConfigReader {
-  ProjectConfigService({
+class ProjectConfigService._(
+  final ProjectConfigRepository _repository,
+  final ProjectConfigFileStore _fileStore,
+  final DateTime Function() _now,
+) implements ProjectConfigReader {
+  new({
     required ProjectConfigRepository repository,
     required ProjectConfigFileStore fileStore,
     DateTime Function()? now,
   }) : this._(repository, fileStore, now ?? DateTime.now);
-
-  ProjectConfigService._(this._repository, this._fileStore, this._now);
-
-  final ProjectConfigRepository _repository;
-  final ProjectConfigFileStore _fileStore;
-  final DateTime Function() _now;
 
   Future<ProjectConfig?> findUiOverride(String projectId) {
     return _repository.findByProjectId(projectId);
@@ -104,24 +87,18 @@ class ProjectConfigService implements ProjectConfigReader {
   Future<EffectiveProjectConfig> resolve(Project project) async {
     final override = await _repository.findByProjectId(project.id);
     if (override != null) {
-      return EffectiveProjectConfig(
-        config: override,
-        origin: ProjectConfigOrigin.uiOverride,
-      );
+      return EffectiveProjectConfig(config: override, origin: .uiOverride);
     }
 
     try {
       final repoConfig = await _fileStore.load(project);
       if (repoConfig != null) {
-        return EffectiveProjectConfig(
-          config: repoConfig,
-          origin: ProjectConfigOrigin.repoFile,
-        );
+        return EffectiveProjectConfig(config: repoConfig, origin: .repoFile);
       }
     } catch (error) {
       return EffectiveProjectConfig(
-        config: ProjectConfig.empty,
-        origin: ProjectConfigOrigin.repoFile,
+        config: .empty,
+        origin: .repoFile,
         error: error,
       );
     }

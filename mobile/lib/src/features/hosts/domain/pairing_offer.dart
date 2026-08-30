@@ -4,29 +4,17 @@ import 'package:alera_mobile/src/core/json_payload_fields.dart';
 import 'package:alera_mobile/src/core/mobile_protocol.dart';
 import 'package:alera_mobile/src/features/hosts/domain/pairing_endpoint_rules.dart';
 
-class PairingOffer {
-  const PairingOffer({
-    required this.version,
-    required this.pairingId,
-    required this.endpoint,
-    required this.runtimeId,
-    required this.hostName,
-    required this.pairingSecret,
-    required this.expiresAt,
-    this.serverPublicKeyB64,
-    this.endpointNetwork,
-  });
-
-  final int version;
-  final String pairingId;
-  final String endpoint;
-  final String runtimeId;
-  final String hostName;
-  final String pairingSecret;
-  final String? serverPublicKeyB64;
-  final String? endpointNetwork;
-  final DateTime expiresAt;
-
+class const PairingOffer({
+  required final int version,
+  required final String pairingId,
+  required final String endpoint,
+  required final String runtimeId,
+  required final String hostName,
+  required final String pairingSecret,
+  required final DateTime expiresAt,
+  final String? serverPublicKeyB64,
+  final String? endpointNetwork,
+}) {
   bool get isExpired => DateTime.now().toUtc().isAfter(expiresAt.toUtc());
 
   static PairingOffer parse(String input) {
@@ -37,7 +25,7 @@ class PairingOffer {
     return PairingOffer.fromJson(value);
   }
 
-  factory PairingOffer.fromJson(Map<String, Object?> json) {
+  factory fromJson(Map<String, Object?> json) {
     final version = json.requiredInt('v');
     if (version != aleraMobileProtocolVersion) {
       throw FormatException('Unsupported pairing version $version');

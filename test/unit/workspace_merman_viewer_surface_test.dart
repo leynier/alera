@@ -75,23 +75,23 @@ Workspace _workspace() => Workspace(
   name: 'Main',
   branch: 'main',
   path: '/tmp/alera',
-  createdAt: DateTime.utc(2026, 5, 22),
-  updatedAt: DateTime.utc(2026, 5, 22),
-  kind: WorkspaceKind.main,
-  status: WorkspaceStatus.active,
+  createdAt: .utc(2026, 5, 22),
+  updatedAt: .utc(2026, 5, 22),
+  kind: .main,
+  status: .active,
 );
 
 WorkspaceTabRecord _tab() => WorkspaceTabRecord(
   id: 'tab-1',
   workspaceId: 'workspace-1',
   title: 'diagram.mmd preview',
-  kind: WorkspaceTabKind.editor,
+  kind: .editor,
   payload: const <String, Object?>{
     workspaceTabFilePathPayloadKey: 'docs/diagram.mmd',
     workspaceTabFileRolePayloadKey: workspaceTabFileRoleMermanPreview,
   },
-  createdAt: DateTime.utc(2026, 5, 22),
-  updatedAt: DateTime.utc(2026, 5, 22),
+  createdAt: .utc(2026, 5, 22),
+  updatedAt: .utc(2026, 5, 22),
 );
 
 class _FakeWorkspaceFileService extends WorkspaceFileService {
@@ -104,11 +104,10 @@ class _FakeWorkspaceFileService extends WorkspaceFileService {
   }) async {
     renderCalls += 1;
     return merman_native.MermanWorkspaceRender(
-      svg:
-          '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"><rect width="10" height="10"/></svg>',
+      svg: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"><rect width="10" height="10"/></svg>',
       contentToken: 'token-$renderCalls',
       modifiedMillis: renderCalls,
-      size: BigInt.from(10),
+      size: .from(10),
     );
   }
 }

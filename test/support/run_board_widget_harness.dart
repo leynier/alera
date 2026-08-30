@@ -14,6 +14,7 @@ import 'package:alera/src/features/workbench/presentation/terminal_runtime.dart'
 import 'package:alera/src/shared/infra/git/git_diff_models.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import 'run_board_fixtures.dart';
 
 WorkbenchState boardWorkbenchState() {
@@ -143,9 +144,8 @@ class BoardTestApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       theme: buildAleraDarkTheme(),
       builder: (context, child) => MediaQuery(
-        data: MediaQuery.of(
-          context,
-        ).copyWith(textScaler: TextScaler.linear(scale)),
+        data: MediaQuery.of(context)
+            .copyWith(textScaler: TextScaler.linear(scale)),
         child: child!,
       ),
       home: Scaffold(

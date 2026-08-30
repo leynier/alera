@@ -10,9 +10,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 /// callbacks).
 PreviewThemeData aleraPreviewTheme() => const _AleraPreviewTheme();
 
-final class _AleraPreviewTheme extends PreviewThemeData {
-  const _AleraPreviewTheme();
-
+final class const _AleraPreviewTheme() extends PreviewThemeData {
   @override
   Widget apply(BuildContext context, Widget child) =>
       Theme(data: buildAleraMobileDarkTheme(), child: child);
@@ -35,14 +33,15 @@ Widget aleraPreviewSurface(Widget child) => ProviderScope(
 /// bare `@Preview` so every preview renders with Alera's dark theme and
 /// ambient scaffolding already applied. Run the previewer with
 /// `flutter widget-preview start` from the `mobile/` directory.
-final class AleraPreview extends Preview {
-  const AleraPreview({
-    super.name,
-    super.group,
-    super.size = AleraTokens.previewPhoneSize,
-  }) : super(
-         brightness: Brightness.dark,
-         theme: aleraPreviewTheme,
-         wrapper: aleraPreviewSurface,
-       );
+final class const AleraPreview({
+  super.name,
+  super.group,
+  super.size = AleraTokens.previewPhoneSize,
+}) extends Preview {
+  this
+    : super(
+        brightness: .dark,
+        theme: aleraPreviewTheme,
+        wrapper: aleraPreviewSurface,
+      );
 }

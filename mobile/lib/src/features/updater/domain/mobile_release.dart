@@ -1,24 +1,17 @@
 /// A published Android build the app can offer to install.
-class MobileRelease {
-  const MobileRelease({
-    required this.version,
-    required this.tag,
-    required this.apkUrl,
-  });
-
-  final MobileVersion version;
-  final String tag;
-  final Uri apkUrl;
-}
+class const MobileRelease({
+  required final MobileVersion version,
+  required final String tag,
+  required final Uri apkUrl,
+});
 
 /// The `major.minor.patch` core of a mobile release.
 ///
 /// Mobile ships on its own version sequence with a `-mobile` tag suffix, and
 /// release candidates carry a `-rc.N` segment that the app must never offer as
 /// an upgrade, so the parser only accepts a stable core.
-class MobileVersion implements Comparable<MobileVersion> {
-  const MobileVersion(this.major, this.minor, this.patch);
-
+class const MobileVersion(final int major, final int minor, final int patch)
+    implements Comparable<MobileVersion> {
   static final RegExp _core = RegExp(r'^(\d+)\.(\d+)\.(\d+)$');
   static final RegExp _stableTag = RegExp(r'^v(\d+)\.(\d+)\.(\d+)-mobile$');
 
@@ -49,10 +42,6 @@ class MobileVersion implements Comparable<MobileVersion> {
       int.parse(match.group(3)!),
     );
   }
-
-  final int major;
-  final int minor;
-  final int patch;
 
   bool isNewerThan(MobileVersion other) => compareTo(other) > 0;
 

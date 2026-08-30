@@ -6,16 +6,11 @@ import 'package:flutter/material.dart';
 
 /// Workspace-directory setting with a Browse picker; commits on blur/submit
 /// and maps an empty value back to the platform default (null).
-class WorkspaceDirectoryRow extends StatefulWidget {
-  const WorkspaceDirectoryRow({
-    super.key,
-    required this.value,
-    required this.onChanged,
-  });
-
-  final String? value;
-  final ValueChanged<String?> onChanged;
-
+class const WorkspaceDirectoryRow({
+  super.key,
+  required final String? value,
+  required final ValueChanged<String?> onChanged,
+}) extends StatefulWidget {
   @override
   State<WorkspaceDirectoryRow> createState() => _WorkspaceDirectoryRowState();
 }
@@ -78,13 +73,13 @@ class _WorkspaceDirectoryRowState extends State<WorkspaceDirectoryRow> {
     return Padding(
       padding: const EdgeInsets.all(AleraTokens.space16),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: .start,
         children: <Widget>[
           Text(
             'Workspace Directory',
             style: theme.textTheme.bodyMedium?.copyWith(
               color: AleraTokens.foreground,
-              fontWeight: FontWeight.w500,
+              fontWeight: .w500,
             ),
           ),
           const SizedBox(height: AleraTokens.space4),
@@ -98,7 +93,7 @@ class _WorkspaceDirectoryRowState extends State<WorkspaceDirectoryRow> {
           ),
           const SizedBox(height: AleraTokens.space12),
           Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
+            crossAxisAlignment: .center,
             children: <Widget>[
               Expanded(
                 child: AleraTextField(

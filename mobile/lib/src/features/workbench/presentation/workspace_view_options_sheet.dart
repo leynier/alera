@@ -20,23 +20,15 @@ Future<void> showWorkspaceViewOptionsSheet(
   );
 }
 
-class _WorkspaceViewOptions extends ConsumerWidget {
-  const _WorkspaceViewOptions({required this.hostId, required this.data});
-
-  final String hostId;
-  final WorkspaceListData data;
-
+class const _WorkspaceViewOptions({
+  required final String hostId,
+  required final WorkspaceListData data,
+}) extends ConsumerWidget {
   static const List<AleraDropdownFieldEntry<MobileWorkbenchSortBy>>
   _sortEntries = <AleraDropdownFieldEntry<MobileWorkbenchSortBy>>[
-    AleraDropdownFieldEntry(value: MobileWorkbenchSortBy.name, label: 'Name'),
-    AleraDropdownFieldEntry(
-      value: MobileWorkbenchSortBy.recent,
-      label: 'Recent',
-    ),
-    AleraDropdownFieldEntry(
-      value: MobileWorkbenchSortBy.activity,
-      label: 'Agent Activity',
-    ),
+    AleraDropdownFieldEntry(value: .name, label: 'Name'),
+    AleraDropdownFieldEntry(value: .recent, label: 'Recent'),
+    AleraDropdownFieldEntry(value: .activity, label: 'Agent Activity'),
   ];
 
   @override
@@ -60,22 +52,40 @@ class _WorkspaceViewOptions extends ConsumerWidget {
           children: <Widget>[
             Text('View Options', style: Theme.of(context).textTheme.titleLarge),
             const SizedBox(height: AleraTokens.space12),
-            SwitchListTile(
-              contentPadding: EdgeInsets.zero,
-              title: const Text('Group By Project'),
-              value: groupByProject,
-              onChanged: (value) => controller.setGroupBy(
-                value
-                    ? MobileWorkspaceGroupBy.project
-                    : MobileWorkspaceGroupBy.none,
-              ),
+            AleraDropdownField<MobileWorkspaceGroupBy>(
+              labelText: 'Group By',
+              value:
+                  !data.supportsSections &&
+                      prefs.groupBy == MobileWorkspaceGroupBy.section
+                  ? MobileWorkspaceGroupBy.project
+                  : prefs.groupBy,
+              entries: [
+                const AleraDropdownFieldEntry(
+                  value: MobileWorkspaceGroupBy.none,
+                  label: 'None',
+                ),
+                const AleraDropdownFieldEntry(
+                  value: MobileWorkspaceGroupBy.project,
+                  label: 'Project',
+                ),
+                if (data.supportsSections)
+                  const AleraDropdownFieldEntry(
+                    value: MobileWorkspaceGroupBy.section,
+                    label: 'Section',
+                  ),
+              ],
+              onChanged: controller.setGroupBy,
             ),
             const SizedBox(height: AleraTokens.space8),
-            if (groupByProject) ...<Widget>[
+            if (prefs.groupBy != MobileWorkspaceGroupBy.none) ...<Widget>[
               AleraDropdownField<MobileWorkbenchSortBy>(
-                labelText: 'Sort Projects By',
-                value: prefs.projectSort,
-                onChanged: controller.setProjectSort,
+                labelText: groupByProject
+                    ? 'Sort Projects By'
+                    : 'Sort Sections By',
+                value: groupByProject ? prefs.projectSort : prefs.sectionSort,
+                onChanged: groupByProject
+                    ? controller.setProjectSort
+                    : controller.setSectionSort,
                 entries: _sortEntries,
               ),
               const SizedBox(height: AleraTokens.space12),
@@ -99,16 +109,13 @@ class _WorkspaceViewOptions extends ConsumerWidget {
               onChanged: controller.setKindFilter,
               entries:
                   const <AleraDropdownFieldEntry<MobileWorkspaceKindFilter>>[
+                    AleraDropdownFieldEntry(value: .all, label: 'All'),
                     AleraDropdownFieldEntry(
-                      value: MobileWorkspaceKindFilter.all,
-                      label: 'All',
-                    ),
-                    AleraDropdownFieldEntry(
-                      value: MobileWorkspaceKindFilter.defaultOnly,
+                      value: .defaultOnly,
                       label: 'Default Only',
                     ),
                     AleraDropdownFieldEntry(
-                      value: MobileWorkspaceKindFilter.nonDefaultOnly,
+                      value: .nonDefaultOnly,
                       label: 'Non-Default Only',
                     ),
                   ],

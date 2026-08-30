@@ -177,22 +177,29 @@ mixin _WorkbenchControllerViewPrefs
             includeCollapsedProjectDescendants: true,
           )
         : targets;
+    final nextSections = Set<String>.from(prefs.collapsedSectionIds);
     final nextProjects = Set<String>.from(prefs.collapsedProjectIds);
     final nextParentWorkspaces = Set<String>.from(
       prefs.collapsedParentWorkspaceIds,
     );
     final next = Set<String>.from(prefs.expandedWorkspaceIds);
     if (allCollapsed) {
+      nextSections.removeAll(actionTargets.sectionIds);
       nextProjects.removeAll(actionTargets.projectIds);
       nextParentWorkspaces.removeAll(actionTargets.parentWorkspaceIds);
       next.addAll(actionTargets.workspaceIds);
     } else {
+      nextSections.addAll(actionTargets.sectionIds);
       nextProjects.addAll(actionTargets.projectIds);
       nextParentWorkspaces.addAll(actionTargets.parentWorkspaceIds);
       next.removeAll(actionTargets.workspaceIds);
     }
     _updateViewPrefs(
       prefs.copyWith(
+        collapsedSectionIds: nextSections,
+        othersSectionCollapsed: actionTargets.hasOthers
+            ? !allCollapsed
+            : prefs.othersSectionCollapsed,
         collapsedProjectIds: nextProjects,
         collapsedParentWorkspaceIds: nextParentWorkspaces,
         expandedWorkspaceIds: next,
@@ -264,7 +271,7 @@ mixin _WorkbenchControllerViewPrefs
         .read(workspaceExplorerRevealControllerProvider.notifier)
         .reveal(workspaceId: workspace.id, relativePath: normalized);
     setRightSidebarVisible(true);
-    setContextPanelTab(WorkbenchContextPanelTab.explorer);
+    setContextPanelTab(.explorer);
   }
 
   void setExplorerMode(WorkspaceExplorerMode mode) {
@@ -339,7 +346,7 @@ mixin _WorkbenchControllerViewPrefs
     _updateViewPrefs(
       state.viewPrefs.copyWith(
         sourceControlRootByWorkspaceId: nextRoots,
-        activeContextPanelTab: WorkbenchContextPanelTab.gitDiff,
+        activeContextPanelTab: .gitDiff,
         rightSidebarVisible: true,
       ),
     );

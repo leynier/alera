@@ -12,20 +12,18 @@ import 'package:alera_mobile/src/features/settings/presentation/host_agent_tools
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-class HostSettingsScreen extends ConsumerWidget {
-  const HostSettingsScreen({super.key, required this.host});
-
-  final PairedHostProfile host;
-
+class const HostSettingsScreen({
+  super.key,
+  required final PairedHostProfile host,
+}) extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final settings = ref.watch(hostSettingsControllerProvider(host.id));
     final settingsValue = settings.value;
     ref.listen(hostSettingsControllerProvider(host.id), (previous, next) {
       if (next.hasError && previous?.error != next.error) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(next.error.toString())));
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(next.error.toString())));
       }
     });
     return Scaffold(
@@ -41,12 +39,10 @@ class HostSettingsScreen extends ConsumerWidget {
   }
 }
 
-class _SettingsBody extends ConsumerWidget {
-  const _SettingsBody({required this.host, required this.settings});
-
-  final PairedHostProfile host;
-  final PortableHostSettings settings;
-
+class const _SettingsBody({
+  required final PairedHostProfile host,
+  required final PortableHostSettings settings,
+}) extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final controller = ref.read(
@@ -70,7 +66,7 @@ class _SettingsBody extends ConsumerWidget {
                 title: const Text('Workspace Directory'),
                 subtitle: Text(
                   settings.workspaceDirectory ?? 'Host default',
-                  overflow: TextOverflow.ellipsis,
+                  overflow: .ellipsis,
                   style: const TextStyle(
                     fontFamily: AleraTokens.monoFontFamily,
                   ),
@@ -206,8 +202,7 @@ Future<void> _restartRuntime(
     context: context,
     builder: (_) => const AleraConfirmDialog(
       title: 'Restart Runtime?',
-      message:
-          'Restarting disconnects every client. Active terminals, agents, emulators, and background jobs must stop first.',
+      message: 'Restarting disconnects every client. Active terminals, agents, emulators, and background jobs must stop first.',
       confirmLabel: 'Restart Runtime',
     ),
   );
@@ -251,21 +246,17 @@ Future<void> _restartRuntime(
     return;
   }
   if (context.mounted) {
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(const SnackBar(content: Text('Runtime restarting')));
+    ScaffoldMessenger.of(context)
+        .showSnackBar(const SnackBar(content: Text('Runtime restarting')));
   }
 }
 
 void _showRestartFailure(BuildContext context) {
-  ScaffoldMessenger.of(
-    context,
-  ).showSnackBar(const SnackBar(content: Text('Could not restart runtime')));
+  ScaffoldMessenger.of(context)
+      .showSnackBar(const SnackBar(content: Text('Could not restart runtime')));
 }
 
-class _ScopeBanner extends StatelessWidget {
-  const _ScopeBanner();
-
+class const _ScopeBanner() extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return DecoratedBox(
@@ -292,19 +283,12 @@ class _ScopeBanner extends StatelessWidget {
   }
 }
 
-class _NavigationTile extends StatelessWidget {
-  const _NavigationTile({
-    required this.icon,
-    required this.title,
-    required this.scope,
-    required this.onTap,
-  });
-
-  final IconData icon;
-  final String title;
-  final String scope;
-  final VoidCallback onTap;
-
+class const _NavigationTile({
+  required final IconData icon,
+  required final String title,
+  required final String scope,
+  required final VoidCallback onTap,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListTile(
@@ -317,17 +301,14 @@ class _NavigationTile extends StatelessWidget {
   }
 }
 
-class _UnsupportedSettings extends StatelessWidget {
-  const _UnsupportedSettings({required this.error});
-
-  final Object error;
-
+class const _UnsupportedSettings({required final Object error})
+    extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Center(
       child: Padding(
         padding: AleraTokens.contentPadding,
-        child: Text(error.toString(), textAlign: TextAlign.center),
+        child: Text(error.toString(), textAlign: .center),
       ),
     );
   }

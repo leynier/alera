@@ -3,18 +3,12 @@ import 'package:flutter/material.dart';
 
 /// Small circular indicator. Green when [active]; muted gray otherwise. Used at
 /// the left of workspace/terminal rows to signal the currently active one.
-class AleraStatusDot extends StatelessWidget {
-  const AleraStatusDot({
-    super.key,
-    required this.active,
-    this.size = 8,
-    this.color,
-  });
-
-  final bool active;
-  final double size;
-  final Color? color;
-
+class const AleraStatusDot({
+  super.key,
+  required final bool active,
+  final double size = 8,
+  final Color? color,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -24,7 +18,7 @@ class AleraStatusDot extends StatelessWidget {
         color:
             color ??
             (active ? AleraTokens.success : AleraTokens.foregroundFaint),
-        shape: BoxShape.circle,
+        shape: .circle,
       ),
     );
   }

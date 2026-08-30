@@ -9,25 +9,15 @@ String workspaceEditorCodeForgeKey({
   return 'workspace-editor-$tabId-$filePath-$themeName';
 }
 
-class _EditorFileBar extends StatelessWidget {
-  const _EditorFileBar({
-    required this.path,
-    required this.dirty,
-    required this.saving,
-    required this.onViewDiff,
-    required this.onSave,
-    required this.onDiscard,
-    required this.onOpenPreview,
-  });
-
-  final String path;
-  final bool dirty;
-  final bool saving;
-  final VoidCallback? onViewDiff;
-  final VoidCallback? onSave;
-  final VoidCallback? onDiscard;
-  final VoidCallback? onOpenPreview;
-
+class const _EditorFileBar({
+  required final String path,
+  required final bool dirty,
+  required final bool saving,
+  required final VoidCallback? onViewDiff,
+  required final VoidCallback? onSave,
+  required final VoidCallback? onDiscard,
+  required final VoidCallback? onOpenPreview,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -40,7 +30,7 @@ class _EditorFileBar extends StatelessWidget {
           children: <Widget>[
             AleraFileIcon(
               pathOrName: path,
-              kind: AleraFileIconKind.file,
+              kind: .file,
               size: 16,
               fallbackColor: color,
             ),
@@ -49,7 +39,7 @@ class _EditorFileBar extends StatelessWidget {
               child: Text(
                 path,
                 maxLines: 1,
-                overflow: TextOverflow.ellipsis,
+                overflow: .ellipsis,
                 style: theme.textTheme.bodySmall?.copyWith(
                   color: color,
                   fontFamily: 'JetBrains Mono',

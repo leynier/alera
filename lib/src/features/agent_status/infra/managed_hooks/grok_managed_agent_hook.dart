@@ -10,14 +10,14 @@ extension _GrokManagedAgentHook on ManagedAgentHookInstallService {
         ? configuredHome
         : p.join(_homeDirectory, '.grok');
     return _AgentHookDescriptor(
-      agentType: AgentType.grok,
+      agentType: .grok,
       configPath: p.join(grokHome, 'hooks', 'alera-status.json'),
       configLabel: 'Grok Build alera-status.json',
       scriptFileName: scriptFileName,
       scriptPath: scriptPath,
       eventEnvVar: 'ALERA_GROK_EVENT',
-      configShape: _AgentHookConfigShape.hooks,
-      definitionShape: _ManagedHookDefinitionShape.nestedCommand,
+      configShape: .hooks,
+      definitionShape: .nestedCommand,
       events: const <_ManagedHookEvent>[
         _ManagedHookEvent('SessionStart'),
         _ManagedHookEvent('UserPromptSubmit'),

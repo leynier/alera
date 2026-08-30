@@ -9,16 +9,11 @@ import 'package:alera/src/features/ai_dictation/application/ai_dictation_service
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-class AiDictationControl extends StatelessWidget {
-  const AiDictationControl({
-    super.key,
-    required this.targetId,
-    this.enabled = true,
-  });
-
-  final String targetId;
-  final bool enabled;
-
+class const AiDictationControl({
+  super.key,
+  required final String targetId,
+  final bool enabled = true,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final service = _tryService(context);
@@ -77,13 +72,13 @@ class AiDictationControl extends StatelessWidget {
         await service.stop();
         final warning = service.takeWarning();
         if (warning != null) {
-          AleraToast.publish(message: warning, tone: AleraToastTone.info);
+          AleraToast.publish(message: warning, tone: .info);
         }
       } else {
         await service.start(targetId);
       }
     } on Object catch (error) {
-      AleraToast.publish(message: error.toString(), tone: AleraToastTone.error);
+      AleraToast.publish(message: error.toString(), tone: .error);
     }
   }
 
@@ -91,7 +86,7 @@ class AiDictationControl extends StatelessWidget {
     try {
       await service.cancel();
     } on Object catch (error) {
-      AleraToast.publish(message: error.toString(), tone: AleraToastTone.error);
+      AleraToast.publish(message: error.toString(), tone: .error);
     }
   }
 }

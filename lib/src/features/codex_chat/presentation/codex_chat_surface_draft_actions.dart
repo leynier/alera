@@ -96,7 +96,7 @@ extension _CodexDraftActions on _CodexChatSurfaceState {
         content: TextField(
           controller: input,
           autofocus: true,
-          textInputAction: TextInputAction.done,
+          textInputAction: .done,
           onSubmitted: (value) => Navigator.of(context).pop(value),
         ),
         actions: <Widget>[
@@ -224,8 +224,8 @@ extension _CodexDraftActions on _CodexChatSurfaceState {
     }
     try {
       final opened = await launchUrl(
-        Uri.file(resolvedFilePath),
-        mode: LaunchMode.externalApplication,
+        .file(resolvedFilePath),
+        mode: .externalApplication,
       );
       if (!opened) _showMarkdownLinkError();
     } catch (_) {
@@ -287,7 +287,7 @@ extension _CodexDraftActions on _CodexChatSurfaceState {
     controller.removeQueuedMessage(index);
     _composer.value = TextEditingValue(
       text: message.text,
-      selection: TextSelection.collapsed(offset: message.text.length),
+      selection: .collapsed(offset: message.text.length),
     );
     _setDraftState(() {
       _attachments

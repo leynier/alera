@@ -37,13 +37,11 @@ class CliRegistrationController extends _$CliRegistrationController {
   }
 }
 
-class SkillInstallState {
-  const SkillInstallState({this.phase = 'idle', this.message, this.result});
-
-  final String phase;
-  final String? message;
-  final SkillInstallResult? result;
-}
+class const SkillInstallState({
+  final String phase = 'idle',
+  final String? message,
+  final SkillInstallResult? result,
+});
 
 @riverpod
 class SkillInstallController extends _$SkillInstallController {

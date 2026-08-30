@@ -4,19 +4,12 @@ import 'package:flutter/material.dart';
 
 enum AddProjectChoice { existingFolder, cloneRepository }
 
-class CloneProjectDraft {
-  const CloneProjectDraft({
-    required this.url,
-    required this.parentPath,
-    required this.directoryName,
-    this.projectName,
-  });
-
-  final String url;
-  final String parentPath;
-  final String directoryName;
-  final String? projectName;
-}
+class const CloneProjectDraft({
+  required final String url,
+  required final String parentPath,
+  required final String directoryName,
+  final String? projectName,
+});
 
 Future<AddProjectChoice?> showAddProjectSheet(BuildContext context) {
   return showModalBottomSheet<AddProjectChoice>(
@@ -26,7 +19,7 @@ Future<AddProjectChoice?> showAddProjectSheet(BuildContext context) {
       child: Padding(
         padding: const EdgeInsets.only(bottom: AleraTokens.spaceLg),
         child: Column(
-          mainAxisSize: MainAxisSize.min,
+          mainAxisSize: .min,
           children: <Widget>[
             ListTile(
               leading: const Icon(Icons.create_new_folder_outlined),
@@ -59,13 +52,13 @@ Future<String?> showOptionalProjectNameDialog(
     builder: (context) => AlertDialog(
       title: const Text('Add Project'),
       content: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
+        mainAxisSize: .min,
+        crossAxisAlignment: .stretch,
         children: <Widget>[
           Text(
             path,
             maxLines: 3,
-            overflow: TextOverflow.ellipsis,
+            overflow: .ellipsis,
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
               fontFamily: AleraTokens.monoFontFamily,
               color: AleraTokens.foregroundMuted,
@@ -96,11 +89,8 @@ Future<String?> showOptionalProjectNameDialog(
   ).whenComplete(controller.dispose);
 }
 
-class CloneProjectDialog extends StatefulWidget {
-  const CloneProjectDialog({super.key, required this.hostId});
-
-  final String hostId;
-
+class const CloneProjectDialog({super.key, required final String hostId})
+    extends StatefulWidget {
   @override
   State<CloneProjectDialog> createState() => _CloneProjectDialogState();
 }
@@ -163,12 +153,12 @@ class _CloneProjectDialogState extends State<CloneProjectDialog> {
       title: const Text('Clone From URL'),
       content: SingleChildScrollView(
         child: Column(
-          mainAxisSize: MainAxisSize.min,
+          mainAxisSize: .min,
           children: <Widget>[
             TextField(
               controller: _urlController,
               autofocus: true,
-              keyboardType: TextInputType.url,
+              keyboardType: .url,
               onChanged: (_) => _deriveDirectory(),
               decoration: const InputDecoration(labelText: 'Git URL'),
             ),
@@ -190,7 +180,7 @@ class _CloneProjectDialogState extends State<CloneProjectDialog> {
               icon: const Icon(Icons.folder_open_outlined),
               label: Text(
                 _parentPath ?? 'Choose Destination',
-                overflow: TextOverflow.ellipsis,
+                overflow: .ellipsis,
               ),
             ),
           ],

@@ -97,19 +97,16 @@ Consolas
   });
 }
 
-class _ProcessRunCall {
-  const _ProcessRunCall(this.executable, this.arguments);
+class const _ProcessRunCall(
+  final String executable,
+  final List<String> arguments,
+);
 
-  final String executable;
-  final List<String> arguments;
-}
-
-class _FakeProcessRunner implements ProcessRunner {
-  _FakeProcessRunner({this.stdout = '', this.stderr = '', this.exitCode = 0});
-
-  final String stdout;
-  final String stderr;
-  final int exitCode;
+class _FakeProcessRunner({
+  final String stdout = '',
+  final String stderr = '',
+  final int exitCode = 0,
+}) implements ProcessRunner {
   final List<_ProcessRunCall> calls = <_ProcessRunCall>[];
 
   @override

@@ -1,30 +1,23 @@
 part of 'codex_chat_surface.dart';
 
-class _CodexStructuredToolPayload extends StatelessWidget {
-  const _CodexStructuredToolPayload({
-    required this.label,
-    required this.value,
-    required this.paginationId,
-  });
-
-  final String label;
-  final Object value;
-  final String paginationId;
-
+class const _CodexStructuredToolPayload({
+  required final String label,
+  required final Object value,
+  required final String paginationId,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Padding(
     padding: const EdgeInsets.only(bottom: AleraTokens.space8),
     child: Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+      crossAxisAlignment: .stretch,
       children: <Widget>[
         Row(
           children: <Widget>[
             Expanded(
               child: Text(
                 label,
-                style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                  color: AleraTokens.foregroundFaint,
-                ),
+                style: Theme.of(context).textTheme.labelSmall
+                    ?.copyWith(color: AleraTokens.foregroundFaint),
               ),
             ),
             AleraIconButton(
@@ -47,19 +40,12 @@ const _codexStructuredToolNodeLimit = 512;
 const _codexStructuredToolDepthLimit = 12;
 const _codexStructuredToolTextLimit = 64 * 1024;
 
-class _CodexStructuredToolValue extends StatefulWidget {
-  const _CodexStructuredToolValue({
-    required this.value,
-    this.depth = 0,
-    this.nodeBudget = _codexStructuredToolNodeLimit,
-    this.paginationId,
-  });
-
-  final Object? value;
-  final int depth;
-  final int nodeBudget;
-  final String? paginationId;
-
+class const _CodexStructuredToolValue({
+  required final Object? value,
+  final int depth = 0,
+  final int nodeBudget = _codexStructuredToolNodeLimit,
+  final String? paginationId,
+}) extends StatefulWidget {
   @override
   State<_CodexStructuredToolValue> createState() =>
       _CodexStructuredToolValueState();
@@ -107,9 +93,8 @@ class _CodexStructuredToolValueState extends State<_CodexStructuredToolValue> {
     _paginationRestored = true;
     final paginationId = widget.paginationId;
     if (paginationId == null) return;
-    final stored = PageStorage.maybeOf(
-      context,
-    )?.readState(context, identifier: paginationId);
+    final stored = PageStorage.maybeOf(context)
+        ?.readState(context, identifier: paginationId);
     if (stored is int && stored > _visibleItemCount) {
       _visibleItemCount = stored;
     }
@@ -126,15 +111,14 @@ class _CodexStructuredToolValueState extends State<_CodexStructuredToolValue> {
     }
     if (value is _CodexToolTextPreview) {
       return Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
+        crossAxisAlignment: .stretch,
         children: <Widget>[
           _CodexToolLiteralText(text: value.text),
           const SizedBox(height: AleraTokens.space4),
           Text(
             '${value.hiddenCharacters} additional characters hidden. Copy the section to access the complete value.',
-            style: Theme.of(
-              context,
-            ).textTheme.bodySmall?.copyWith(color: AleraTokens.foregroundFaint),
+            style: Theme.of(context).textTheme.bodySmall
+                ?.copyWith(color: AleraTokens.foregroundFaint),
           ),
         ],
       );
@@ -198,7 +182,7 @@ class _CodexStructuredToolValueState extends State<_CodexStructuredToolValue> {
         .toList(growable: false);
     final childBudget = math.max(1, childCapacity ~/ entries.length);
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+      crossAxisAlignment: .stretch,
       children: <Widget>[
         for (final entry in entries)
           _CodexStructuredToolEntry(
@@ -236,7 +220,7 @@ class _CodexStructuredToolValueState extends State<_CodexStructuredToolValue> {
     );
     final childBudget = math.max(1, childCapacity ~/ visibleCount);
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+      crossAxisAlignment: .stretch,
       children: <Widget>[
         for (var index = 0; index < visibleCount; index += 1)
           Padding(
@@ -288,11 +272,8 @@ Future<void> _copyCodexToolValue(
   await _copyCodexText(context, text, message);
 }
 
-class _CodexToolLiteralText extends StatelessWidget {
-  const _CodexToolLiteralText({required this.text});
-
-  final String text;
-
+class const _CodexToolLiteralText({required final String text})
+    extends StatelessWidget {
   @override
   Widget build(BuildContext context) =>
       SelectableText(text, style: AleraTokens.monoCompactStyle);
@@ -325,34 +306,20 @@ Object? _boundCodexToolValue(
   return value;
 }
 
-class _CodexToolTextPreview {
-  const _CodexToolTextPreview(this.text, this.hiddenCharacters);
+class const _CodexToolTextPreview(
+  final String text,
+  final int hiddenCharacters,
+);
 
-  final String text;
-  final int hiddenCharacters;
-}
+class const _CodexToolTruncation(final String message);
 
-class _CodexToolTruncation {
-  const _CodexToolTruncation(this.message);
-
-  final String message;
-}
-
-class _CodexStructuredToolEntry extends StatelessWidget {
-  const _CodexStructuredToolEntry({
-    required this.label,
-    required this.value,
-    required this.depth,
-    required this.nodeBudget,
-    required this.paginationId,
-  });
-
-  final String label;
-  final Object? value;
-  final int depth;
-  final int nodeBudget;
-  final String paginationId;
-
+class const _CodexStructuredToolEntry({
+  required final String label,
+  required final Object? value,
+  required final int depth,
+  required final int nodeBudget,
+  required final String paginationId,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final nested = value is Map || value is Iterable && value is! String;
@@ -360,13 +327,12 @@ class _CodexStructuredToolEntry extends StatelessWidget {
       padding: const EdgeInsets.only(bottom: AleraTokens.space6),
       child: nested
           ? Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
+              crossAxisAlignment: .stretch,
               children: <Widget>[
                 Text(
                   label,
-                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                    color: AleraTokens.foregroundMuted,
-                  ),
+                  style: Theme.of(context).textTheme.labelSmall
+                      ?.copyWith(color: AleraTokens.foregroundMuted),
                 ),
                 const SizedBox(height: AleraTokens.space4),
                 Padding(
@@ -381,7 +347,7 @@ class _CodexStructuredToolEntry extends StatelessWidget {
               ],
             )
           : Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
+              crossAxisAlignment: .start,
               children: <Widget>[
                 ConstrainedBox(
                   constraints: const BoxConstraints(
@@ -389,9 +355,8 @@ class _CodexStructuredToolEntry extends StatelessWidget {
                   ),
                   child: Text(
                     label,
-                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                      color: AleraTokens.foregroundMuted,
-                    ),
+                    style: Theme.of(context).textTheme.labelSmall
+                        ?.copyWith(color: AleraTokens.foregroundMuted),
                   ),
                 ),
                 const SizedBox(width: AleraTokens.space8),

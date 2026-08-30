@@ -1,10 +1,9 @@
 part of 'agent_usage_dialog.dart';
 
-class AgentUsageDailyChart extends StatelessWidget {
-  const AgentUsageDailyChart({super.key, required this.days});
-
-  final List<AgentUsageDay> days;
-
+class const AgentUsageDailyChart({
+  super.key,
+  required final List<AgentUsageDay> days,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (days.isEmpty) {
@@ -20,7 +19,7 @@ class AgentUsageDailyChart extends StatelessWidget {
         .map((day) => '${day.day}: ${day.tokens} tokens')
         .join(', ');
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+      crossAxisAlignment: .stretch,
       children: <Widget>[
         Semantics(
           label:
@@ -65,16 +64,14 @@ class AgentUsageDailyChart extends StatelessWidget {
   }
 }
 
-class _UsageChartLegend extends StatelessWidget {
-  const _UsageChartLegend({required this.color, required this.label});
-
-  final Color color;
-  final String label;
-
+class const _UsageChartLegend({
+  required final Color color,
+  required final String label,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Row(
-      mainAxisSize: MainAxisSize.min,
+      mainAxisSize: .min,
       children: <Widget>[
         Container(
           width: AleraTokens.space8,
@@ -91,11 +88,8 @@ class _UsageChartLegend extends StatelessWidget {
   }
 }
 
-class _UsageBarChart extends StatelessWidget {
-  const _UsageBarChart({required this.days});
-
-  final List<AgentUsageDay> days;
-
+class const _UsageBarChart({required final List<AgentUsageDay> days})
+    extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final maximum = days.fold<int>(
@@ -114,7 +108,7 @@ class _UsageBarChart extends StatelessWidget {
           BarChartData(
             minY: 0,
             maxY: maximum.toDouble(),
-            alignment: BarChartAlignment.spaceAround,
+            alignment: .spaceAround,
             barGroups: <BarChartGroupData>[
               for (var index = 0; index < days.length; index++)
                 BarChartGroupData(
@@ -153,10 +147,8 @@ class _UsageBarChart extends StatelessWidget {
               touchTooltipData: BarTouchTooltipData(
                 getTooltipColor: (_) => AleraTokens.surfaceElevated,
                 tooltipBorder: const BorderSide(color: AleraTokens.border),
-                tooltipBorderRadius: BorderRadius.circular(
-                  AleraTokens.radiusMd,
-                ),
-                tooltipPadding: const EdgeInsets.all(AleraTokens.space8),
+                tooltipBorderRadius: .circular(AleraTokens.radiusMd),
+                tooltipPadding: const .all(AleraTokens.space8),
                 getTooltipItem: (group, groupIndex, rod, rodIndex) {
                   final provider = _usageProviderLabel(
                     AgentUsageProvider.values[rodIndex],
@@ -171,7 +163,7 @@ class _UsageBarChart extends StatelessWidget {
               ),
             ),
           ),
-          duration: Duration.zero,
+          duration: .zero,
         );
       },
     );
@@ -183,6 +175,6 @@ BarChartRodData _usageBar(int tokens, double width, Color color) {
     toY: tokens.toDouble(),
     width: width,
     color: tokens == 0 ? Colors.transparent : color,
-    borderRadius: BorderRadius.circular(AleraTokens.radiusSm),
+    borderRadius: .circular(AleraTokens.radiusSm),
   );
 }

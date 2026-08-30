@@ -87,7 +87,7 @@ void registerCodexChatSurfaceSessionTests() {
     Future<void> submit(String command) async {
       await tester.enterText(composer, command);
       await tester.pump();
-      await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+      await tester.sendKeyEvent(.enter);
       await tester.pumpAndSettle();
     }
 
@@ -136,7 +136,7 @@ void registerCodexChatSurfaceSessionTests() {
 
     await tester.enterText(composer, '/new Must Not Rename');
     await tester.pump();
-    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+    await tester.sendKeyEvent(.enter);
     await tester.pumpAndSettle();
 
     final container = ProviderScope.containerOf(
@@ -190,7 +190,7 @@ void registerCodexChatSurfaceSessionTests() {
     final composer = find.byType(TextField).last;
     await tester.enterText(composer, '/new feature');
     await tester.pump();
-    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+    await tester.sendKeyEvent(.enter);
     await tester.pumpAndSettle();
 
     expect(client.requestTypes, isNot(contains('codex.thread.new')));
@@ -209,7 +209,7 @@ void registerCodexChatSurfaceSessionTests() {
     final composer = find.byType(TextField).last;
     await tester.enterText(composer, '/resume old');
     await tester.pump();
-    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+    await tester.sendKeyEvent(.enter);
     await tester.pumpAndSettle();
 
     expect(client.startTurnPayloads, hasLength(1));
@@ -231,7 +231,7 @@ void registerCodexChatSurfaceSessionTests() {
     for (final prompt in <String>['/resume old', '/newish thread']) {
       await tester.enterText(composer, prompt);
       await tester.pump();
-      await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+      await tester.sendKeyEvent(.enter);
       await tester.pumpAndSettle();
     }
 

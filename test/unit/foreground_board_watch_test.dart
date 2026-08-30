@@ -1,7 +1,9 @@
 import 'dart:async';
+
 import 'package:alera/src/features/orchestration/infra/foreground_board_watch.dart';
 import 'package:fake_async/fake_async.dart';
 import 'package:flutter_test/flutter_test.dart';
+
 import '../support/run_board_fixtures.dart';
 
 void main() {

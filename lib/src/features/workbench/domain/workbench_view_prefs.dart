@@ -4,7 +4,7 @@ import 'package:dart_mappable/dart_mappable.dart';
 part 'workbench_view_prefs.mapper.dart';
 
 @MappableEnum()
-enum WorkbenchGroupBy { none, project }
+enum WorkbenchGroupBy { none, project, section }
 
 @MappableEnum()
 enum WorkbenchSortBy { name, recent, activity }
@@ -39,33 +39,37 @@ enum PullRequestCreateAction { publish, draft }
 enum WorkspaceKindFilter { all, defaultOnly, nonDefaultOnly }
 
 @MappableClass()
-class WorkbenchViewPrefs with WorkbenchViewPrefsMappable {
-  const WorkbenchViewPrefs({
-    required this.groupBy,
-    required this.projectSort,
-    required this.workspaceSort,
-    required this.selectedProjectIds,
-    required this.collapsedProjectIds,
-    required this.expandedWorkspaceIds,
-    this.selectedTagIds = const <String>{},
-    this.collapsedParentWorkspaceIds = const <String>{},
-    this.pinnedSectionCollapsed = false,
-    this.allSectionCollapsed = false,
-    this.showPinnedWorkspacesBelow = true,
-    this.sourceControlRootByWorkspaceId = const <String, String>{},
-    this.rightSidebarVisible = true,
-    this.rightSidebarWidth = 280,
-    this.sidebarWidth = AleraTokens.sidebarDefaultWidth,
-    this.activeContextPanelTab = WorkbenchContextPanelTab.explorer,
-    this.explorerMode = WorkspaceExplorerMode.hideIgnored,
-    this.gitDiffViewMode = GitDiffViewMode.tree,
-    this.gitDiffGroupMode = GitDiffGroupMode.byArea,
-    this.pullRequestCreateAction = PullRequestCreateAction.publish,
-    this.workspaceKindFilter = WorkspaceKindFilter.all,
-    this.showActiveWorkspacesOnly = false,
-  });
-
+class const WorkbenchViewPrefs({
+  this.sectionSort = WorkbenchSortBy.name,
+  this.collapsedSectionIds = const <String>{},
+  this.othersSectionCollapsed = false,
+  required this.groupBy,
+  required this.projectSort,
+  required this.workspaceSort,
+  required this.selectedProjectIds,
+  required this.collapsedProjectIds,
+  required this.expandedWorkspaceIds,
+  this.selectedTagIds = const <String>{},
+  this.collapsedParentWorkspaceIds = const <String>{},
+  this.pinnedSectionCollapsed = false,
+  this.allSectionCollapsed = false,
+  this.showPinnedWorkspacesBelow = true,
+  this.sourceControlRootByWorkspaceId = const <String, String>{},
+  this.rightSidebarVisible = true,
+  this.rightSidebarWidth = 280,
+  this.sidebarWidth = AleraTokens.sidebarDefaultWidth,
+  this.activeContextPanelTab = WorkbenchContextPanelTab.explorer,
+  this.explorerMode = WorkspaceExplorerMode.hideIgnored,
+  this.gitDiffViewMode = GitDiffViewMode.tree,
+  this.gitDiffGroupMode = GitDiffGroupMode.byArea,
+  this.pullRequestCreateAction = PullRequestCreateAction.publish,
+  this.workspaceKindFilter = WorkspaceKindFilter.all,
+  this.showActiveWorkspacesOnly = false,
+}) with WorkbenchViewPrefsMappable {
   final WorkbenchGroupBy groupBy;
+  final WorkbenchSortBy sectionSort;
+  final Set<String> collapsedSectionIds;
+  final bool othersSectionCollapsed;
   final WorkbenchSortBy projectSort;
   final WorkbenchSortBy workspaceSort;
 
@@ -132,9 +136,9 @@ class WorkbenchViewPrefs with WorkbenchViewPrefsMappable {
   final bool showActiveWorkspacesOnly;
 
   static const WorkbenchViewPrefs defaults = WorkbenchViewPrefs(
-    groupBy: WorkbenchGroupBy.project,
-    projectSort: WorkbenchSortBy.name,
-    workspaceSort: WorkbenchSortBy.name,
+    groupBy: .project,
+    projectSort: .name,
+    workspaceSort: .name,
     selectedProjectIds: <String>{},
     collapsedProjectIds: <String>{},
     expandedWorkspaceIds: <String>{},
@@ -147,15 +151,15 @@ class WorkbenchViewPrefs with WorkbenchViewPrefsMappable {
     rightSidebarVisible: true,
     rightSidebarWidth: 280,
     sidebarWidth: AleraTokens.sidebarDefaultWidth,
-    activeContextPanelTab: WorkbenchContextPanelTab.explorer,
-    explorerMode: WorkspaceExplorerMode.hideIgnored,
-    gitDiffViewMode: GitDiffViewMode.tree,
-    gitDiffGroupMode: GitDiffGroupMode.byArea,
-    pullRequestCreateAction: PullRequestCreateAction.publish,
-    workspaceKindFilter: WorkspaceKindFilter.all,
+    activeContextPanelTab: .explorer,
+    explorerMode: .hideIgnored,
+    gitDiffViewMode: .tree,
+    gitDiffGroupMode: .byArea,
+    pullRequestCreateAction: .publish,
+    workspaceKindFilter: .all,
     showActiveWorkspacesOnly: false,
   );
 
-  factory WorkbenchViewPrefs.fromJson(Map<String, Object?> json) =>
+  factory fromJson(Map<String, Object?> json) =>
       WorkbenchViewPrefsMapper.fromMap(Map<String, dynamic>.from(json));
 }

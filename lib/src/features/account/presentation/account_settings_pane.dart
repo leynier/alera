@@ -12,14 +12,10 @@ import 'package:alera/src/features/settings/presentation/rows/settings_rows.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-class AccountSettingsPane extends ConsumerStatefulWidget {
-  const AccountSettingsPane({
-    super.key,
-    this.groupKeys = const <String, GlobalKey>{},
-  });
-
-  final Map<String, GlobalKey> groupKeys;
-
+class const AccountSettingsPane({
+  super.key,
+  final Map<String, GlobalKey> groupKeys = const <String, GlobalKey>{},
+}) extends ConsumerStatefulWidget {
   @override
   ConsumerState<AccountSettingsPane> createState() =>
       _AccountSettingsPaneState();
@@ -57,7 +53,7 @@ class _AccountSettingsPaneState extends ConsumerState<AccountSettingsPane> {
       ),
       data: (value) => SingleChildScrollView(
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
+          crossAxisAlignment: .stretch,
           children: <Widget>[
             KeyedSubtree(
               key: widget.groupKeys['identity'],
@@ -83,26 +79,20 @@ class _AccountSettingsPaneState extends ConsumerState<AccountSettingsPane> {
     final account = status.account;
     return AleraSettingsGroup(
       title: 'Identity',
-      description:
-          'Your Alera identity protects cloud delivery and stays optional for local features.',
+      description: 'Your Alera identity protects cloud delivery and stays optional for local features.',
       children: <Widget>[
         if (account == null) ...<Widget>[
           SettingsButtonRow(
             title: 'Continue With Google',
             description: 'Sign in through your default browser.',
             buttonLabel: 'Google',
-            onPressed: busy
-                ? null
-                : () => _actions.signIn(AleraIdentityProvider.google),
+            onPressed: busy ? null : () => _actions.signIn(.google),
           ),
           SettingsButtonRow(
             title: 'Continue With GitHub',
-            description:
-                'Uses profile and verified email access only. Repository access is never requested.',
+            description: 'Uses profile and verified email access only. Repository access is never requested.',
             buttonLabel: 'GitHub',
-            onPressed: busy
-                ? null
-                : () => _actions.signIn(AleraIdentityProvider.github),
+            onPressed: busy ? null : () => _actions.signIn(.github),
           ),
         ] else ...<Widget>[
           AleraSettingRow(
@@ -110,19 +100,19 @@ class _AccountSettingsPaneState extends ConsumerState<AccountSettingsPane> {
             description: 'Runtime ${account.runtimeId}',
             controlWidth: 280,
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
+              crossAxisAlignment: .end,
               children: <Widget>[
                 Text(
                   account.email,
                   maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+                  overflow: .ellipsis,
                   style: Theme.of(context).textTheme.bodyMedium,
                 ),
                 const SizedBox(height: AleraTokens.space6),
                 Wrap(
                   spacing: AleraTokens.space4,
                   runSpacing: AleraTokens.space4,
-                  alignment: WrapAlignment.end,
+                  alignment: .end,
                   children: <Widget>[
                     for (final provider in account.providers)
                       AleraChip(label: provider.label),
@@ -142,8 +132,7 @@ class _AccountSettingsPaneState extends ConsumerState<AccountSettingsPane> {
               ),
           SettingsButtonRow(
             title: 'Sign Out',
-            description:
-                'Stops cloud push delivery from this runtime until you sign in again.',
+            description: 'Stops cloud push delivery from this runtime until you sign in again.',
             buttonLabel: 'Sign Out',
             onPressed: busy ? null : _actions.signOut,
           ),
@@ -165,8 +154,7 @@ class _AccountSettingsPaneState extends ConsumerState<AccountSettingsPane> {
     final subscriptionCount = status.account?.pushSubscriptionCount ?? 0;
     return AleraSettingsGroup(
       title: 'Mobile Push',
-      description:
-          'Notifications are delivered only to mobile devices enrolled in this account.',
+      description: 'Notifications are delivered only to mobile devices enrolled in this account.',
       children: <Widget>[
         _switchRow(
           title: 'Enable Mobile Push',
@@ -180,8 +168,7 @@ class _AccountSettingsPaneState extends ConsumerState<AccountSettingsPane> {
         ),
         _switchRow(
           title: 'Attention Required',
-          description:
-              'Notify for waiting or blocked agents, decision gates, and escalations.',
+          description: 'Notify for waiting or blocked agents, decision gates, and escalations.',
           value: preferences.attention,
           enabled: enabled,
           onChanged: (value) =>
@@ -215,8 +202,7 @@ class _AccountSettingsPaneState extends ConsumerState<AccountSettingsPane> {
       children: <Widget>[
         AleraSettingRow(
           title: 'Target Account ID',
-          description:
-              'Moving a runtime signs this installation out and requires authentication again.',
+          description: 'Moving a runtime signs this installation out and requires authentication again.',
           child: AleraTextField(
             controller: _transferTargetController,
             hintText: 'Account ID',
@@ -238,8 +224,7 @@ class _AccountSettingsPaneState extends ConsumerState<AccountSettingsPane> {
         ),
         SettingsButtonRow(
           title: 'Delete Alera Account',
-          description:
-              'Permanently removes provider identities, cloud sessions, subscriptions, and quota records.',
+          description: 'Permanently removes provider identities, cloud sessions, subscriptions, and quota records.',
           buttonLabel: 'Delete Account',
           onPressed: connected && !busy ? _confirmDelete : null,
         ),
@@ -293,8 +278,7 @@ class _AccountSettingsPaneState extends ConsumerState<AccountSettingsPane> {
       context: context,
       builder: (_) => const AleraConfirmDialog(
         title: 'Delete Alera Account',
-        message:
-            'This permanently removes your Alera cloud identity, active sessions, mobile subscriptions, and quota records. Recent sign-in may be required.',
+        message: 'This permanently removes your Alera cloud identity, active sessions, mobile subscriptions, and quota records. Recent sign-in may be required.',
         confirmLabel: 'Delete Account',
         destructive: true,
       ),
@@ -308,9 +292,8 @@ class _AccountSettingsPaneState extends ConsumerState<AccountSettingsPane> {
     if (!mounted) {
       return;
     }
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text(message)));
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(message)));
   }
 }
 

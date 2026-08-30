@@ -8,12 +8,10 @@ import 'dart:async';
 /// those costs a socket round-trip per watcher, which is what saturates the
 /// single-threaded host actor under load. Every owner registered for a key runs
 /// once in the batch, so one watcher cannot replace another watcher's refresh.
-class RuntimeChangeCoalescer {
-  RuntimeChangeCoalescer({
-    this.debounce = const Duration(milliseconds: 120),
-    this.maxDelay = const Duration(milliseconds: 600),
-  });
-
+class RuntimeChangeCoalescer({
+  this.debounce = const Duration(milliseconds: 120),
+  this.maxDelay = const Duration(milliseconds: 600),
+}) {
   /// Quiet period a key waits for before running.
   final Duration debounce;
 

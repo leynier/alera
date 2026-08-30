@@ -1,15 +1,13 @@
 import 'package:alera/src/features/browser/domain/browser_profile.dart';
 
-final class BrowserPage {
-  const BrowserPage({
-    required this.pageId,
-    required this.workspaceId,
-    required this.profileId,
-    required this.initialUrl,
-    required this.createdAt,
-  });
-
-  factory BrowserPage.fromJson(Map<String, Object?> json) {
+final class const BrowserPage({
+  required final String pageId,
+  required final String workspaceId,
+  required final String profileId,
+  required final Uri initialUrl,
+  required final DateTime createdAt,
+}) {
+  factory fromJson(Map<String, Object?> json) {
     final pageId = json['pageId'];
     final workspaceId = json['workspaceId'];
     final profileId = json['profileId'];
@@ -30,12 +28,6 @@ final class BrowserPage {
       createdAt: createdAt.toUtc(),
     );
   }
-
-  final String pageId;
-  final String workspaceId;
-  final String profileId;
-  final Uri initialUrl;
-  final DateTime createdAt;
 
   BrowserPage copyWith({String? profileId, Uri? initialUrl}) {
     return BrowserPage(

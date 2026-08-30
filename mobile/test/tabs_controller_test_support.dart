@@ -23,6 +23,6 @@ Future<void> _waitUntil(bool Function() condition) async {
     if (DateTime.now().isAfter(deadline)) {
       throw TimeoutException('Condition was not reached.');
     }
-    await Future<void>.delayed(const Duration(milliseconds: 10));
+    await Future.pause(const Duration(milliseconds: 10));
   }
 }

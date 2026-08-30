@@ -32,7 +32,7 @@ extension on _AutomationsDialogState {
     };
     final definition = await showAutomationEditorDialog(
       context,
-      initial: AutomationRecord.fromJson(raw),
+      initial: .fromJson(raw),
     );
     if (definition != null && mounted) {
       await _save(definition, 'Automation cloned');

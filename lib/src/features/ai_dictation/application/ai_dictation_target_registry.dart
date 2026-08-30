@@ -1,22 +1,13 @@
 import 'package:flutter/material.dart';
 
-class AiDictationTarget {
-  AiDictationTarget({
-    required this.id,
-    required this.controller,
-    required this.focusNode,
-    this.initialPrompt,
-    this.workspaceId,
-    this.tabId,
-  });
-
-  final String id;
-  final TextEditingController controller;
-  final FocusNode focusNode;
-  final String? initialPrompt;
-  final String? workspaceId;
-  final String? tabId;
-
+class AiDictationTarget({
+  required final String id,
+  required final TextEditingController controller,
+  required final FocusNode focusNode,
+  final String? initialPrompt,
+  final String? workspaceId,
+  final String? tabId,
+}) {
   bool insert(String text) {
     final value = controller.value;
     final selection = value.selection;
@@ -25,8 +16,8 @@ class AiDictationTarget {
     final nextText = value.text.replaceRange(start, end, text);
     controller.value = value.copyWith(
       text: nextText,
-      selection: TextSelection.collapsed(offset: start + text.length),
-      composing: TextRange.empty,
+      selection: .collapsed(offset: start + text.length),
+      composing: .empty,
     );
     focusNode.requestFocus();
     return true;

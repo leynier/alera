@@ -59,7 +59,7 @@ void main() {
   });
 }
 
-final DateTime _now = DateTime.utc(2026, 8, 22);
+final DateTime _now = .utc(2026, 8, 22);
 
 final Workspace _workspace = Workspace(
   id: 'workspace-1',
@@ -68,8 +68,8 @@ final Workspace _workspace = Workspace(
   path: '/workspace',
   createdAt: _now,
   updatedAt: _now,
-  kind: WorkspaceKind.main,
-  status: WorkspaceStatus.active,
+  kind: .main,
+  status: .active,
 );
 
 final WorkspaceTabRecord _tab = WorkspaceTabRecord(
@@ -78,7 +78,7 @@ final WorkspaceTabRecord _tab = WorkspaceTabRecord(
   title: 'Pixel 9',
   createdAt: _now,
   updatedAt: _now,
-  kind: WorkspaceTabKind.mobileEmulator,
+  kind: .mobileEmulator,
 );
 
 final class _SurfaceRuntimeHostClient implements RuntimeHostClient {

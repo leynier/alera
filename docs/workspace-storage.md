@@ -15,3 +15,15 @@ If process shutdown fails, the running host retains the pending process identiti
 - Files changing during a scan can make the result approximate. The cleanup request rechecks ownership and path safety, but it does not freeze the filesystem.
 - Unreadable or concurrently removed entries fail the scan instead of presenting a cleanup confirmation.
 - Windows junctions and other reparse-point behavior depends on Rust's filesystem classification for the installed toolchain. Alera does not follow entries classified as symbolic links, and path containment is still checked using the platform canonical path.
+
+## Workspace Sections
+
+![Create or select a workspace section](images/workspace-section-picker.png)
+
+Sections organize workspaces without moving files, changing projects or Parent relationships, or closing tabs and terminal sessions. Desktop and mobile share the section catalog, assignments, grouping preference, section sort, and collapse state through the paired runtime. Select **Section** in **Group By**, then use **Set Section** after the Parent actions on a workspace to select an existing section or create one when saving. **Clear Section** moves only that workspace to **Others**, the final group, which is hidden when empty.
+
+Custom sections can mix projects. Parent nesting is displayed only within the same section. Pinned workspaces retain their dedicated group and the **Repeat Pinned Workspaces** preference. Sections support Name, Recent (membership changes), and Agent Activity sorting independently of workspace sorting. Searching a section name includes its members, while other filters continue to apply.
+
+**Delete Section** requires confirmation and preserves every workspace. A section is removed automatically when its last member is moved, cleared, or removed, including through project removal. Filters, collapsed groups, and hiding pinned copies never remove assignments. Creating a section and assigning its initial workspace is atomic, so cancelling the dialog creates nothing. Names are trimmed, unique without case distinctions, and cannot be empty or **Others**. Sections belong to one runtime and are not synchronized between separate hosts.
+
+The runtime stores sections and their single-workspace assignments separately from workspace upserts so older clients cannot overwrite membership. The additive **workspaceSectionsV1** capability gates section controls on desktop and mobile without changing either strict protocol version. Older hosts keep the existing None and Project controls.

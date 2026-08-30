@@ -95,8 +95,8 @@ void main() {
           id: 'project-1',
           name: 'Existing',
           repoPath: repo.path,
-          createdAt: DateTime.utc(2026, 5, 24),
-          updatedAt: DateTime.utc(2026, 5, 24),
+          createdAt: .utc(2026, 5, 24),
+          updatedAt: .utc(2026, 5, 24),
         );
         await repository.add(existing);
 
@@ -157,8 +157,8 @@ void main() {
         id: 'project-1',
         name: 'Existing',
         repoPath: p.join(tempDir.path, 'repo'),
-        createdAt: DateTime.utc(2026, 5, 24),
-        updatedAt: DateTime.utc(2026, 5, 24),
+        createdAt: .utc(2026, 5, 24),
+        updatedAt: .utc(2026, 5, 24),
       );
       await repository.add(existing);
 
@@ -176,8 +176,8 @@ void main() {
         id: 'project-1',
         name: 'Old name',
         repoPath: tempDir.path,
-        createdAt: DateTime.utc(2026, 5, 24),
-        updatedAt: DateTime.utc(2026, 5, 24),
+        createdAt: .utc(2026, 5, 24),
+        updatedAt: .utc(2026, 5, 24),
       );
       await repository.add(project);
 
@@ -226,8 +226,8 @@ void main() {
           id: 'project-1',
           name: 'Existing',
           repoPath: p.join(tempDir.path, 'repo'),
-          createdAt: DateTime.utc(2026, 5, 24),
-          updatedAt: DateTime.utc(2026, 5, 24),
+          createdAt: .utc(2026, 5, 24),
+          updatedAt: .utc(2026, 5, 24),
         );
         await repository.add(project);
 

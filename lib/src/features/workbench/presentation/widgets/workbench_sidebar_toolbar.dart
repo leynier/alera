@@ -12,9 +12,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 /// Sub-toolbar that sits below the sidebar search and exposes view options,
 /// the collapse-all toggle and the create-workspace shortcut.
-class WorkbenchSidebarToolbar extends ConsumerWidget {
-  const WorkbenchSidebarToolbar({super.key, required this.onAddWorkspace});
-
+class const WorkbenchSidebarToolbar({super.key, required this.onAddWorkspace})
+    extends ConsumerWidget {
   /// Invoked when the user wants to add a workspace. Receives `null` when no
   /// project is currently active so the caller can show a picker; otherwise
   /// the caller is expected to create a workspace under the active project.
@@ -37,6 +36,8 @@ class WorkbenchSidebarToolbar extends ConsumerWidget {
 
     final title = prefs.groupBy == WorkbenchGroupBy.project
         ? 'Projects'
+        : prefs.groupBy == WorkbenchGroupBy.section
+        ? 'Sections'
         : 'Workspaces';
     return Container(
       padding: const EdgeInsets.symmetric(
@@ -49,7 +50,7 @@ class WorkbenchSidebarToolbar extends ConsumerWidget {
             title,
             style: theme.textTheme.labelLarge?.copyWith(
               color: AleraTokens.foreground,
-              fontWeight: FontWeight.w600,
+              fontWeight: .w600,
             ),
           ),
           const SizedBox(width: AleraTokens.space6),
@@ -57,7 +58,7 @@ class WorkbenchSidebarToolbar extends ConsumerWidget {
             count.toString(),
             style: theme.textTheme.labelSmall?.copyWith(
               color: AleraTokens.foregroundFaint,
-              fontWeight: FontWeight.w500,
+              fontWeight: .w500,
             ),
           ),
           const Spacer(),

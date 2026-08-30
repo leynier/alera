@@ -14,11 +14,10 @@ import 'package:alera_mobile/src/features/runtime/domain/workspace_summary.dart'
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-class HostDashboardScreen extends ConsumerWidget {
-  const HostDashboardScreen({super.key, required this.host});
-
-  final PairedHostProfile host;
-
+class const HostDashboardScreen({
+  super.key,
+  required final PairedHostProfile host,
+}) extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final data = ref.watch(hostDashboardDataProvider(host.id));
@@ -99,12 +98,10 @@ class HostDashboardScreen extends ConsumerWidget {
   }
 }
 
-class _StatusCard extends StatelessWidget {
-  const _StatusCard({required this.host, required this.status});
-
-  final PairedHostProfile host;
-  final MobileRuntimeStatus status;
-
+class const _StatusCard({
+  required final PairedHostProfile host,
+  required final MobileRuntimeStatus status,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final activeDevices = status.devices
@@ -115,7 +112,7 @@ class _StatusCard extends StatelessWidget {
       child: Padding(
         padding: AleraTokens.contentPadding,
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment: .start,
           children: <Widget>[
             Row(
               children: <Widget>[
@@ -140,24 +137,18 @@ class _StatusCard extends StatelessWidget {
   }
 }
 
-class _ProjectsCard extends StatelessWidget {
-  const _ProjectsCard({
-    required this.projects,
-    required this.branchesByProject,
-    required this.onOpen,
-  });
-
-  final List<ProjectSummary> projects;
-  final Map<String, ProjectBranches> branchesByProject;
-  final VoidCallback onOpen;
-
+class const _ProjectsCard({
+  required final List<ProjectSummary> projects,
+  required final Map<String, ProjectBranches> branchesByProject,
+  required final VoidCallback onOpen,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Card(
       child: Padding(
         padding: AleraTokens.contentPadding,
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment: .start,
           children: <Widget>[
             Row(
               children: <Widget>[
@@ -196,17 +187,11 @@ class _ProjectsCard extends StatelessWidget {
   }
 }
 
-class _ProjectRow extends StatelessWidget {
-  const _ProjectRow({
-    required this.project,
-    required this.branches,
-    required this.onTap,
-  });
-
-  final ProjectSummary project;
-  final ProjectBranches? branches;
-  final VoidCallback onTap;
-
+class const _ProjectRow({
+  required final ProjectSummary project,
+  required final ProjectBranches? branches,
+  required final VoidCallback onTap,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final branchCount = branches?.branches.length;
@@ -217,25 +202,22 @@ class _ProjectRow extends StatelessWidget {
       contentPadding: EdgeInsets.zero,
       dense: true,
       leading: const Icon(Icons.folder_outlined),
-      title: Text(project.name, overflow: TextOverflow.ellipsis),
-      subtitle: Text(subtitle, overflow: TextOverflow.ellipsis),
+      title: Text(project.name, overflow: .ellipsis),
+      subtitle: Text(subtitle, overflow: .ellipsis),
       onTap: onTap,
     );
   }
 }
 
-class _WorkspacesCard extends StatelessWidget {
-  const _WorkspacesCard({required this.workspaces});
-
-  final List<WorkspaceSummary> workspaces;
-
+class const _WorkspacesCard({required final List<WorkspaceSummary> workspaces})
+    extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Card(
       child: Padding(
         padding: AleraTokens.contentPadding,
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment: .start,
           children: <Widget>[
             Row(
               children: <Widget>[
@@ -262,10 +244,10 @@ class _WorkspacesCard extends StatelessWidget {
                   contentPadding: EdgeInsets.zero,
                   dense: true,
                   leading: const Icon(Icons.terminal),
-                  title: Text(workspace.name, overflow: TextOverflow.ellipsis),
+                  title: Text(workspace.name, overflow: .ellipsis),
                   subtitle: Text(
                     workspace.branch ?? workspace.path,
-                    overflow: TextOverflow.ellipsis,
+                    overflow: .ellipsis,
                   ),
                 ),
           ],
@@ -275,11 +257,8 @@ class _WorkspacesCard extends StatelessWidget {
   }
 }
 
-class _AutomationsCard extends StatelessWidget {
-  const _AutomationsCard({required this.onOpen});
-
-  final VoidCallback onOpen;
-
+class const _AutomationsCard({required final VoidCallback onOpen})
+    extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Card(
@@ -294,7 +273,7 @@ class _AutomationsCard extends StatelessWidget {
             const SizedBox(width: AleraTokens.spaceSm),
             const Expanded(
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+                crossAxisAlignment: .start,
                 children: <Widget>[
                   Text('Automations'),
                   SizedBox(height: AleraTokens.space2),
@@ -314,19 +293,17 @@ class _AutomationsCard extends StatelessWidget {
   }
 }
 
-class _ErrorState extends StatelessWidget {
-  const _ErrorState({required this.error, required this.onRetry});
-
-  final Object error;
-  final VoidCallback onRetry;
-
+class const _ErrorState({
+  required final Object error,
+  required final VoidCallback onRetry,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Center(
       child: Padding(
         padding: AleraTokens.contentPadding,
         child: Column(
-          mainAxisSize: MainAxisSize.min,
+          mainAxisSize: .min,
           children: <Widget>[
             Icon(
               Icons.cloud_off_outlined,
@@ -341,7 +318,7 @@ class _ErrorState extends StatelessWidget {
             const SizedBox(height: AleraTokens.spaceSm),
             Text(
               error.toString(),
-              textAlign: TextAlign.center,
+              textAlign: .center,
               style: Theme.of(context).textTheme.bodyMedium,
             ),
             const SizedBox(height: AleraTokens.spaceLg),
@@ -357,23 +334,17 @@ class _ErrorState extends StatelessWidget {
   }
 }
 
-class _MutedText extends StatelessWidget {
-  const _MutedText(this.text);
-
-  final String text;
-
+class const _MutedText(final String text) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Text(text, style: Theme.of(context).textTheme.bodySmall);
   }
 }
 
-class _KeyValue extends StatelessWidget {
-  const _KeyValue({required this.label, required this.value});
-
-  final String label;
-  final String value;
-
+class const _KeyValue({
+  required final String label,
+  required final String value,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
@@ -388,7 +359,7 @@ class _KeyValue extends StatelessWidget {
             child: Text(
               value,
               style: Theme.of(context).textTheme.bodyMedium,
-              overflow: TextOverflow.ellipsis,
+              overflow: .ellipsis,
             ),
           ),
         ],

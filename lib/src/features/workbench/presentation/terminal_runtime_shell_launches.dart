@@ -10,16 +10,16 @@ List<GhosttyTerminalShellLaunch> _terminalShellLaunches() {
   final platformEnvironment = _terminalPlatformEnvironment();
   final ghosttyLaunches = <GhosttyTerminalShellLaunch>[
     ...ghosttyTerminalShellLaunches(
-      profile: GhosttyTerminalShellProfile.userShell,
+      profile: .userShell,
       platformEnvironment: platformEnvironment,
     ),
     ..._resolvedLoginShellFallbackLaunches(platformEnvironment),
     ...ghosttyTerminalShellLaunches(
-      profile: GhosttyTerminalShellProfile.cleanZsh,
+      profile: .cleanZsh,
       platformEnvironment: platformEnvironment,
     ),
     ...ghosttyTerminalShellLaunches(
-      profile: GhosttyTerminalShellProfile.auto,
+      profile: .auto,
       platformEnvironment: platformEnvironment,
     ),
   ];
@@ -356,9 +356,9 @@ void _removePathEntries(
   if (path == null || path.isEmpty) {
     return;
   }
-  final entries = _splitPathList(
-    path,
-  ).where((entry) => !remove.contains(entry)).toList(growable: false);
+  final entries = _splitPathList(path)
+      .where((entry) => !remove.contains(entry))
+      .toList(growable: false);
   if (entries.isEmpty) {
     environment.remove('PATH');
   } else {

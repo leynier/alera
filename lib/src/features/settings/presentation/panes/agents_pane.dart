@@ -2,7 +2,6 @@ import 'package:alera/src/app/providers.dart';
 import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/design_system/forms/alera_setting_row.dart';
 import 'package:alera/src/design_system/layout/alera_settings_group.dart';
-import 'package:alera/src/features/agent_status/domain/agent_status.dart';
 import 'package:alera/src/features/settings/domain/alera_settings.dart';
 import 'package:alera/src/features/settings/presentation/panes/alera_agent_canvas_skill_control.dart';
 import 'package:alera/src/features/settings/presentation/panes/alera_all_skills_control.dart';
@@ -16,21 +15,16 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 /// Agent integration preferences: the Alera CLI skill, per-agent status
 /// hooks, and agent-driven behavior toggles.
-class AgentsSettingsPane extends ConsumerWidget {
-  const AgentsSettingsPane({
-    super.key,
-    required this.agents,
-    this.groupKeys = const <String, GlobalKey>{},
-  });
-
-  final AgentSettings agents;
-  final Map<String, GlobalKey> groupKeys;
-
+class const AgentsSettingsPane({
+  super.key,
+  required final AgentSettings agents,
+  final Map<String, GlobalKey> groupKeys = const <String, GlobalKey>{},
+}) extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final controller = ref.read(settingsControllerProvider.notifier);
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+      crossAxisAlignment: .stretch,
       children: <Widget>[
         KeyedSubtree(
           key: groupKeys['cliSkill'],
@@ -41,50 +35,43 @@ class AgentsSettingsPane extends ConsumerWidget {
             children: <Widget>[
               AleraSettingRow(
                 title: 'Alera CLI Command',
-                description:
-                    'Register the Alera command on PATH for terminals and agents.',
+                description: 'Register the Alera command on PATH for terminals and agents.',
                 controlWidth: 360,
                 child: AleraCliRegistrationControl(),
               ),
               AleraSettingRow(
                 title: 'All Alera Skills',
-                description:
-                    'Install or update CLI, orchestration, computer use, emulator, and Agent Canvas skills. Reapplies selected status hooks.',
+                description: 'Install or update CLI, orchestration, computer use, emulator, and Agent Canvas skills. Reapplies selected status hooks.',
                 controlWidth: 360,
                 child: AleraAllSkillsControl(),
               ),
               AleraSettingRow(
                 title: 'Alera CLI Skill',
-                description:
-                    'Install the Codex skill that teaches agents to use the Alera CLI.',
+                description: 'Install the Codex skill that teaches agents to use the Alera CLI.',
                 controlWidth: 360,
                 child: AleraCliSkillControl(),
               ),
               AleraSettingRow(
                 title: 'Agent Canvas Skill',
-                description:
-                    'Install agent instructions for publishing structured updates and waiting for decisions in Agent Canvas.',
+                description: 'Install agent instructions for publishing structured updates and waiting for decisions in Agent Canvas.',
                 controlWidth: 360,
                 child: AleraAgentCanvasSkillControl(),
               ),
               AleraSettingRow(
                 title: 'Alera Orchestration Skill',
-                description:
-                    'Install or update orchestration and reapply selected status hooks.',
+                description: 'Install or update orchestration and reapply selected status hooks.',
                 controlWidth: 360,
                 child: AleraOrchestrationSkillControl(),
               ),
               AleraSettingRow(
                 title: 'Alera Computer Use Skill',
-                description:
-                    'Install the skill for reading and operating desktop applications.',
+                description: 'Install the skill for reading and operating desktop applications.',
                 controlWidth: 360,
                 child: AleraComputerUseSkillControl(),
               ),
               AleraSettingRow(
                 title: 'Alera Emulator Skill',
-                description:
-                    'Install the skill for Android and iOS emulator automation.',
+                description: 'Install the skill for Android and iOS emulator automation.',
                 controlWidth: 360,
                 child: AleraEmulatorSkillControl(),
               ),
@@ -100,102 +87,82 @@ class AgentsSettingsPane extends ConsumerWidget {
             children: <Widget>[
               SettingsSwitchRow(
                 title: 'Codex Hooks',
-                description:
-                    'Use an Alera-managed Codex runtime home with status hooks.',
+                description: 'Use an Alera-managed Codex runtime home with status hooks.',
                 value: agents.agentStatusHooks.codex,
-                onChanged: (value) => controller.setAgentStatusHookEnabled(
-                  AgentType.codex,
-                  value,
-                ),
+                onChanged: (value) =>
+                    controller.setAgentStatusHookEnabled(.codex, value),
               ),
               SettingsSwitchRow(
                 title: 'Claude Code Hooks',
-                description:
-                    'Use an Alera-managed Claude Code config with status hooks.',
+                description: 'Use an Alera-managed Claude Code config with status hooks.',
                 value: agents.agentStatusHooks.claude,
-                onChanged: (value) => controller.setAgentStatusHookEnabled(
-                  AgentType.claude,
-                  value,
-                ),
+                onChanged: (value) =>
+                    controller.setAgentStatusHookEnabled(.claude, value),
               ),
               SettingsSwitchRow(
                 title: 'GitHub Copilot Hooks',
                 description:
                     'Use an Alera-managed GitHub Copilot home overlay.',
                 value: agents.agentStatusHooks.copilot,
-                onChanged: (value) => controller.setAgentStatusHookEnabled(
-                  AgentType.copilot,
-                  value,
-                ),
+                onChanged: (value) =>
+                    controller.setAgentStatusHookEnabled(.copilot, value),
               ),
               SettingsSwitchRow(
                 title: 'Cursor Hooks',
                 description:
                     'Use an Alera-managed Cursor agent plugin wrapper.',
                 value: agents.agentStatusHooks.cursor,
-                onChanged: (value) => controller.setAgentStatusHookEnabled(
-                  AgentType.cursor,
-                  value,
-                ),
+                onChanged: (value) =>
+                    controller.setAgentStatusHookEnabled(.cursor, value),
               ),
               SettingsSwitchRow(
                 title: 'Antigravity Hooks',
-                description:
-                    'Install Alera-managed Antigravity hooks for the agy CLI. Disable to remove only Alera-managed hook entries.',
+                description: 'Install Alera-managed Antigravity hooks for the agy CLI. Disable to remove only Alera-managed hook entries.',
                 value: agents.agentStatusHooks.agy,
                 onChanged: (value) =>
-                    controller.setAgentStatusHookEnabled(AgentType.agy, value),
+                    controller.setAgentStatusHookEnabled(.agy, value),
               ),
               SettingsSwitchRow(
                 title: 'OpenCode Hooks',
-                description:
-                    'Use an Alera-managed OpenCode config overlay with status plugin.',
+                description: 'Use an Alera-managed OpenCode config overlay with status plugin.',
                 value: agents.agentStatusHooks.opencode,
-                onChanged: (value) => controller.setAgentStatusHookEnabled(
-                  AgentType.opencode,
-                  value,
-                ),
+                onChanged: (value) =>
+                    controller.setAgentStatusHookEnabled(.opencode, value),
               ),
               SettingsSwitchRow(
                 title: 'OpenCode 2 Hooks',
-                description:
-                    'Use an Alera-managed OpenCode 2 config overlay with the v2 status plugin.',
+                description: 'Use an Alera-managed OpenCode 2 config overlay with the v2 status plugin.',
                 value: agents.agentStatusHooks.opencode2,
-                onChanged: (value) => controller.setAgentStatusHookEnabled(
-                  AgentType.opencode2,
-                  value,
-                ),
+                onChanged: (value) =>
+                    controller.setAgentStatusHookEnabled(.opencode2, value),
               ),
               SettingsSwitchRow(
                 title: 'Pi Hooks',
-                description:
-                    'Use an Alera-managed Pi agent overlay with status extension.',
+                description: 'Use an Alera-managed Pi agent overlay with status extension.',
                 value: agents.agentStatusHooks.pi,
                 onChanged: (value) =>
-                    controller.setAgentStatusHookEnabled(AgentType.pi, value),
+                    controller.setAgentStatusHookEnabled(.pi, value),
               ),
               SettingsSwitchRow(
                 title: 'Amp Hooks',
                 description: 'Use an Alera-managed Amp config overlay.',
                 value: agents.agentStatusHooks.amp,
                 onChanged: (value) =>
-                    controller.setAgentStatusHookEnabled(AgentType.amp, value),
+                    controller.setAgentStatusHookEnabled(.amp, value),
               ),
               SettingsSwitchRow(
                 title: 'Grok Build Hooks',
-                description:
-                    'Install Alera-managed Grok build hooks in a dedicated global file.',
+                description: 'Install Alera-managed Grok build hooks in a dedicated global file.',
                 value: agents.agentStatusHooks.grok,
                 onChanged: (value) =>
-                    controller.setAgentStatusHookEnabled(AgentType.grok, value),
+                    controller.setAgentStatusHookEnabled(.grok, value),
               ),
               SettingsSwitchRow(
                 title: 'fx Status',
-                description:
-                    'Receive fx lifecycle state through its built-in local Herdr integration on macOS and Linux.',
+                description: 'Receive fx lifecycle state through its built-in local Herdr integration on macOS and Linux.',
                 value: agents.agentStatusHooks.fx,
                 onChanged: (value) =>
-                    controller.setAgentStatusHookEnabled(AgentType.fx, value),
+                    controller.setAgentStatusHookEnabled(.fx, value),
               ),
             ],
           ),
@@ -209,16 +176,14 @@ class AgentsSettingsPane extends ConsumerWidget {
             children: <Widget>[
               SettingsSwitchRow(
                 title: 'Agent Status Notifications',
-                description:
-                    'Show native notifications when an agent needs attention. Bursts are grouped into one notification.',
+                description: 'Show native notifications when an agent needs attention. Bursts are grouped into one notification.',
                 value: agents.agentStatusNotificationsEnabled,
                 onChanged: (value) =>
                     controller.setAgentStatusNotificationsEnabled(value),
               ),
               SettingsSwitchRow(
                 title: 'Agent Finished Notifications',
-                description:
-                    'Also notify when an agent finishes. Most agents report the end of a turn, not the end of a task, so this notifies on every reply.',
+                description: 'Also notify when an agent finishes. Most agents report the end of a turn, not the end of a task, so this notifies on every reply.',
                 value: agents.agentStatusFinishedNotificationsEnabled,
                 onChanged: (value) => controller
                     .setAgentStatusFinishedNotificationsEnabled(value),

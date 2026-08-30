@@ -1,4 +1,5 @@
 import 'dart:async';
+
 import 'package:alera/src/features/orchestration/domain/task_inspection.dart';
 
 import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_client_models.dart';
@@ -72,75 +73,72 @@ void main() {
     expect(client.calls, isEmpty);
   });
 
-  test(
-    'task inspection uses the bounded endpoint and preserves evidence and cursor',
-    () async {
-      client.response = {
-        'revision': 7,
-        'task_id': 'task',
-        'run_id': 'run',
-        'title': 'Review',
-        'description': 'Check the evidence',
-        'description_truncated': false,
-        'status': 'completed',
-        'workspace_id': 'workspace',
-        'stage_id': 'review',
-        'workspace_name': 'Feature',
-        'workspace_path': '/project/feature',
-        'branch': 'feature',
-        'base_sha': null,
-        'profile': 'Reviewer',
-        'terminal_handle': 'terminal',
-        'dependencies': ['prior'],
-        'dependencies_truncated': false,
-        'result': {
-          'summary': 'Verified',
-          'completion_kind': 'success',
-          'artifacts': ['report.md'],
-          'validation': ['Tests passed'],
-          'preview': null,
-          'truncated': false,
+  test('task inspection uses the bounded endpoint and preserves evidence and cursor', () async {
+    client.response = {
+      'revision': 7,
+      'task_id': 'task',
+      'run_id': 'run',
+      'title': 'Review',
+      'description': 'Check the evidence',
+      'description_truncated': false,
+      'status': 'completed',
+      'workspace_id': 'workspace',
+      'stage_id': 'review',
+      'workspace_name': 'Feature',
+      'workspace_path': '/project/feature',
+      'branch': 'feature',
+      'base_sha': null,
+      'profile': 'Reviewer',
+      'terminal_handle': 'terminal',
+      'dependencies': ['prior'],
+      'dependencies_truncated': false,
+      'result': {
+        'summary': 'Verified',
+        'completion_kind': 'success',
+        'artifacts': ['report.md'],
+        'validation': ['Tests passed'],
+        'preview': null,
+        'truncated': false,
+      },
+      'history': [
+        {
+          'id': 'event',
+          'occurred_at': 'now',
+          'kind': 'audit',
+          'status': 'completed',
+          'summary': 'Reviewed',
         },
-        'history': [
-          {
-            'id': 'event',
-            'occurred_at': 'now',
-            'kind': 'audit',
-            'status': 'completed',
-            'summary': 'Reviewed',
-          },
-        ],
-        'next_cursor': {'occurred_at': 'now', 'id': 'event', 'revision': 7},
-      };
-      final task = await repository.readTask(
-        'run',
-        'task',
-        cursor: const TaskHistoryCursor('later', 'newer', 7),
-        limit: 5,
-      );
-      expect(client.calls, ['orchestration.taskInspection']);
-      expect(client.payload, {
-        'run_id': 'run',
-        'task_id': 'task',
-        'limit': 5,
-        'cursor': {'occurred_at': 'later', 'id': 'newer', 'revision': 7},
-      });
-      expect(task.baseSha, isNull);
-      expect(task.profile, 'Reviewer');
-      expect(task.result.summary, 'Verified');
-      expect(task.result.artifacts, ['report.md']);
-      expect(task.result.validation, ['Tests passed']);
-      expect(task.history.single.summary, 'Reviewed');
-      expect(task.nextCursor!.toJson(), {
-        'occurred_at': 'now',
-        'id': 'event',
-        'revision': 7,
-      });
-      expect(() => task.history.clear(), throwsUnsupportedError);
-      expect(() => task.dependencies.clear(), throwsUnsupportedError);
-      expect(() => task.result.artifacts.clear(), throwsUnsupportedError);
-    },
-  );
+      ],
+      'next_cursor': {'occurred_at': 'now', 'id': 'event', 'revision': 7},
+    };
+    final task = await repository.readTask(
+      'run',
+      'task',
+      cursor: const TaskHistoryCursor('later', 'newer', 7),
+      limit: 5,
+    );
+    expect(client.calls, ['orchestration.taskInspection']);
+    expect(client.payload, {
+      'run_id': 'run',
+      'task_id': 'task',
+      'limit': 5,
+      'cursor': {'occurred_at': 'later', 'id': 'newer', 'revision': 7},
+    });
+    expect(task.baseSha, isNull);
+    expect(task.profile, 'Reviewer');
+    expect(task.result.summary, 'Verified');
+    expect(task.result.artifacts, ['report.md']);
+    expect(task.result.validation, ['Tests passed']);
+    expect(task.history.single.summary, 'Reviewed');
+    expect(task.nextCursor!.toJson(), {
+      'occurred_at': 'now',
+      'id': 'event',
+      'revision': 7,
+    });
+    expect(() => task.history.clear(), throwsUnsupportedError);
+    expect(() => task.dependencies.clear(), throwsUnsupportedError);
+    expect(() => task.result.artifacts.clear(), throwsUnsupportedError);
+  });
 
   test(
     'populated board preserves run ownership and pagination cursor',

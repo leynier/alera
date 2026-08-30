@@ -14,7 +14,7 @@ void main() {
               result = await showDialog<BrowserPermissionPromptResult>(
                 context: context,
                 builder: (_) => BrowserPermissionDialog(
-                  request: _request(BrowserPermissionType.camera),
+                  request: _request(.camera),
                   profileLabel: 'Research',
                 ),
               );
@@ -39,7 +39,7 @@ void main() {
     await tester.pumpWidget(
       MaterialApp(
         home: BrowserPermissionDialog(
-          request: _request(BrowserPermissionType.displayCapture),
+          request: _request(.displayCapture),
           profileLabel: 'Default',
         ),
       ),
@@ -57,7 +57,7 @@ BrowserPermissionRequest _request(BrowserPermissionType permission) {
     pageId: 'browser-1',
     origin: 'https://example.com',
     permission: permission,
-    requestedAt: DateTime.utc(2026, 7, 27),
+    requestedAt: .utc(2026, 7, 27),
     userGesture: true,
   );
 }

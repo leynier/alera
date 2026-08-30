@@ -8,16 +8,11 @@ import 'package:flutter/material.dart';
 
 /// Collects existing pull requests in bottom-to-top order. For an existing
 /// stack, the entered pull requests are appended to its top.
-class PullRequestStackLinkDialog extends StatefulWidget {
-  const PullRequestStackLinkDialog({
-    super.key,
-    required this.currentReviewNumber,
-    this.stack,
-  });
-
-  final int currentReviewNumber;
-  final HostedReviewStack? stack;
-
+class const PullRequestStackLinkDialog({
+  super.key,
+  required final int currentReviewNumber,
+  final HostedReviewStack? stack,
+}) extends StatefulWidget {
   @override
   State<PullRequestStackLinkDialog> createState() =>
       _PullRequestStackLinkDialogState();
@@ -98,8 +93,8 @@ class _PullRequestStackLinkDialogState
       child: Padding(
         padding: const EdgeInsets.all(AleraTokens.space20),
         child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
+          mainAxisSize: .min,
+          crossAxisAlignment: .stretch,
           children: <Widget>[
             AleraDialogHeader(
               title: _appending
@@ -135,7 +130,7 @@ class _PullRequestStackLinkDialogState
             ),
             const SizedBox(height: AleraTokens.space16),
             Row(
-              mainAxisAlignment: MainAxisAlignment.end,
+              mainAxisAlignment: .end,
               children: <Widget>[
                 TextButton(
                   onPressed: () => Navigator.of(context).pop(),

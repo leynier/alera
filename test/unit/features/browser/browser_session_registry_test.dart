@@ -49,8 +49,8 @@ void main() {
   test('attaches on first visibility and detaches after last lease', () async {
     final handle = await registry.sessionFor(_tab());
 
-    final first = handle.acquireVisibility(BrowserVisibilityReason.user);
-    final second = handle.acquireVisibility(BrowserVisibilityReason.automation);
+    final first = handle.acquireVisibility(.user);
+    final second = handle.acquireVisibility(.automation);
     await Future.wait(<Future<void>>[first.ready, second.ready]);
 
     expect(
@@ -76,7 +76,7 @@ void main() {
     engine.eventController.add(
       BrowserNavigationFinished(
         pageId: handle.pageId,
-        occurredAt: DateTime.utc(2026, 1, 3),
+        occurredAt: .utc(2026, 1, 3),
         url: Uri.parse('https://example.com'),
         title: 'Example',
         canGoBack: true,
@@ -111,7 +111,7 @@ void main() {
     final firstOverlay = handle.withFlutterOverlay(() => first.future);
     final secondOverlay = handle.withFlutterOverlay(() => second.future);
 
-    await Future<void>.delayed(Duration.zero);
+    await Future.pause(.zero);
     expect(
       engine.calls.where((call) => call.startsWith('obscured:')).toList(),
       <String>['obscured:page-1:true'],
@@ -134,12 +134,12 @@ void main() {
 
   test('tab drag and Flutter overlay share obscuration state', () async {
     final handle = await registry.sessionFor(_tab());
-    final drag = handle.acquireObscuration(BrowserObscurationReason.tabDrag);
+    final drag = handle.acquireObscuration(.tabDrag);
     await drag.ready;
     final overlayBarrier = Completer<void>();
     final overlay = handle.withFlutterOverlay(() => overlayBarrier.future);
 
-    await Future<void>.delayed(Duration.zero);
+    await Future.pause(.zero);
     await drag.dispose();
     expect(
       engine.calls.where((call) => call.startsWith('obscured:')).toList(),
@@ -156,11 +156,11 @@ void main() {
 
   test('close waits for lifecycle leases', () async {
     final handle = await registry.sessionFor(_tab());
-    final lease = handle.acquireLifecycle(BrowserLifecycleReason.popup);
+    final lease = handle.acquireLifecycle(.popup);
     var closed = false;
     final closing = handle.close().then((_) => closed = true);
 
-    await Future<void>.delayed(Duration.zero);
+    await Future.pause(.zero);
     expect(closed, isFalse);
     await lease.dispose();
     await closing;
@@ -173,14 +173,14 @@ void main() {
     'presentation visibility skips a session that started closing',
     () async {
       final handle = await registry.sessionFor(_tab());
-      final lifecycle = handle.acquireLifecycle(BrowserLifecycleReason.popup);
+      final lifecycle = handle.acquireLifecycle(.popup);
       final closing = handle.close();
 
-      await Future<void>.delayed(Duration.zero);
+      await Future.pause(.zero);
 
-      expect(handle.tryAcquireVisibility(BrowserVisibilityReason.user), isNull);
+      expect(handle.tryAcquireVisibility(.user), isNull);
       expect(
-        () => handle.acquireVisibility(BrowserVisibilityReason.user),
+        () => handle.acquireVisibility(.user),
         throwsA(
           isA<BrowserFailure>().having(
             (failure) => failure.code,
@@ -203,12 +203,12 @@ void main() {
       engine.snapshotCompleter = snapshot;
       final command = handle.snapshot();
       while (engine.lastSnapshotMaxNodes == null) {
-        await Future<void>.delayed(Duration.zero);
+        await Future.pause(.zero);
       }
       var disposed = false;
       final disposal = registry.dispose().then((_) => disposed = true);
 
-      await Future<void>.delayed(Duration.zero);
+      await Future.pause(.zero);
       expect(disposed, isFalse);
       expect(engine.calls, isNot(contains('close:page-1')));
 
@@ -219,7 +219,7 @@ void main() {
           url: Uri.parse('https://example.com'),
           title: 'Example',
           nodes: const <BrowserAutomationNode>[],
-          capturedAt: DateTime.utc(2026),
+          capturedAt: .utc(2026),
         ),
       );
       await command;
@@ -231,7 +231,7 @@ void main() {
 
   test('close does not wait for a visible surface lease', () async {
     final handle = await registry.sessionFor(_tab());
-    final visibility = handle.acquireVisibility(BrowserVisibilityReason.user);
+    final visibility = handle.acquireVisibility(.user);
     await visibility.ready;
 
     await handle.close();
@@ -261,7 +261,7 @@ void main() {
       engine.closePageCompleters[first.pageId] = nativeClose;
       final closing = first.close();
       while (!engine.calls.contains('close:page-1')) {
-        await Future<void>.delayed(Duration.zero);
+        await Future.pause(.zero);
       }
 
       var recreated = false;
@@ -269,7 +269,7 @@ void main() {
         recreated = true;
         return handle;
       });
-      await Future<void>.delayed(Duration.zero);
+      await Future.pause(.zero);
       expect(recreated, isFalse);
 
       nativeClose.complete();
@@ -314,7 +314,7 @@ void main() {
           workspaceId: 'workspace-1',
           profileId: 'default',
           initialUrl: Uri.parse('about:blank'),
-          createdAt: DateTime.utc(2026),
+          createdAt: .utc(2026),
         ),
         openerPageId: 'page-1',
       );
@@ -361,7 +361,7 @@ void main() {
     engine.createPageCompleters['blocker'] = blocker;
     reconciler.schedule(<WorkspaceTabRecord>[_tab(pageId: 'blocker')]);
     while (!engine.calls.contains('createPage:blocker:false')) {
-      await Future<void>.delayed(Duration.zero);
+      await Future.pause(.zero);
     }
 
     reconciler.schedule(const <WorkspaceTabRecord>[]);
@@ -383,10 +383,10 @@ WorkspaceTabRecord _tab({
   return WorkspaceTabRecord(
     id: pageId,
     workspaceId: workspaceId,
-    kind: WorkspaceTabKind.browser,
+    kind: .browser,
     title: 'New Tab',
-    createdAt: DateTime.utc(2026),
-    updatedAt: DateTime.utc(2026),
+    createdAt: .utc(2026),
+    updatedAt: .utc(2026),
     payload: const <String, Object?>{
       workspaceTabBrowserProfileIdPayloadKey: 'default',
     },

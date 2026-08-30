@@ -2,7 +2,6 @@ import 'package:alera/src/features/pull_requests/domain/create_review_input.dart
 import 'package:alera/src/features/pull_requests/domain/create_review_result.dart';
 import 'package:alera/src/features/pull_requests/domain/forge_auth_status.dart';
 import 'package:alera/src/features/pull_requests/application/forge_exception.dart';
-import 'package:alera/src/shared/git_hosting/domain/git_hosting_provider.dart';
 import 'package:alera/src/shared/git_hosting/domain/git_remote_identity.dart';
 import 'package:alera/src/features/pull_requests/domain/hosted_review.dart';
 import 'package:alera/src/features/pull_requests/domain/review_check.dart';
@@ -16,7 +15,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'fake_recording_process_runner.dart';
 
 const _identity = GitRemoteIdentity(
-  provider: GitHostingProvider.github,
+  provider: .github,
   host: 'github.com',
   owner: 'leynier',
   repo: 'alera',
@@ -78,7 +77,7 @@ void main() {
       expect(
         () => provider.getReviewForBranch(
           identity: const GitRemoteIdentity(
-            provider: GitHostingProvider.github,
+            provider: .github,
             host: 'github.mycorp.com:8443',
             owner: 'team',
             repo: 'svc',
@@ -144,8 +143,8 @@ void main() {
   group('GitHubForgeProvider.getCheckDetails', () {
     const check = ReviewCheck(
       name: 'build',
-      status: ReviewCheckStatus.completed,
-      conclusion: ReviewCheckConclusion.success,
+      status: .completed,
+      conclusion: .success,
       url: 'https://ci/build/2',
     );
 
@@ -343,7 +342,7 @@ void main() {
           identity: _identity,
           repoPath: '/repo',
           number: 123,
-          method: ReviewMergeMethod.providerDefault,
+          method: .providerDefault,
         ),
         throwsA(isA<ForgeRequestFailed>()),
       );
@@ -405,7 +404,7 @@ void main() {
       final provider = GitHubForgeProvider(runner);
       await provider.checkAuth(
         identity: const GitRemoteIdentity(
-          provider: GitHostingProvider.github,
+          provider: .github,
           host: 'github.mycorp.com',
           owner: 'team',
           repo: 'svc',
@@ -455,7 +454,7 @@ void main() {
         identity: _identity,
         repoPath: '/repo',
         input: const CreateReviewInput(
-          provider: GitHostingProvider.github,
+          provider: .github,
           title: 'feat: y',
           baseBranch: 'main',
           headBranch: 'feat',
@@ -483,7 +482,7 @@ void main() {
         identity: _identity,
         repoPath: '/repo',
         input: const CreateReviewInput(
-          provider: GitHostingProvider.github,
+          provider: .github,
           title: 't',
           baseBranch: 'main',
           headBranch: 'feat',

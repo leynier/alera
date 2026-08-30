@@ -99,7 +99,7 @@ void main() {
           _workspace('b', project: 'p1', pinned: true),
         ],
         projects: <ProjectSummary>[_project('p1')],
-        prefs: const MobileViewPrefs(groupBy: MobileWorkspaceGroupBy.none),
+        prefs: const MobileViewPrefs(groupBy: .none),
       );
 
       expect(rows.first, isA<MobilePinnedHeaderRow>());
@@ -121,7 +121,7 @@ void main() {
         ],
         projects: <ProjectSummary>[_project('p1')],
         prefs: const MobileViewPrefs(
-          groupBy: MobileWorkspaceGroupBy.none,
+          groupBy: .none,
           pinnedSectionCollapsed: true,
         ),
       );
@@ -165,7 +165,7 @@ void main() {
           _workspace('b', project: 'p1'),
         ],
         projects: <ProjectSummary>[_project('p1')],
-        prefs: const MobileViewPrefs(groupBy: MobileWorkspaceGroupBy.none),
+        prefs: const MobileViewPrefs(groupBy: .none),
       );
 
       expect(rows.whereType<MobileAllHeaderRow>(), isEmpty);
@@ -184,7 +184,7 @@ void main() {
           _workspace('b', project: 'p1', pinned: true),
         ],
         projects: <ProjectSummary>[_project('p1')],
-        prefs: const MobileViewPrefs(groupBy: MobileWorkspaceGroupBy.none),
+        prefs: const MobileViewPrefs(groupBy: .none),
       );
 
       expect(rows.whereType<MobileAllHeaderRow>(), hasLength(1));
@@ -197,10 +197,7 @@ void main() {
           _workspace('b', project: 'p1', pinned: true),
         ],
         projects: <ProjectSummary>[_project('p1')],
-        prefs: const MobileViewPrefs(
-          groupBy: MobileWorkspaceGroupBy.none,
-          allSectionCollapsed: true,
-        ),
+        prefs: const MobileViewPrefs(groupBy: .none, allSectionCollapsed: true),
       );
 
       final allHeader = rows.whereType<MobileAllHeaderRow>().single;
@@ -220,7 +217,7 @@ void main() {
         ],
         projects: <ProjectSummary>[_project('p1')],
         prefs: const MobileViewPrefs(
-          groupBy: MobileWorkspaceGroupBy.none,
+          groupBy: .none,
           showPinnedWorkspacesBelow: false,
         ),
       );
@@ -251,7 +248,7 @@ void main() {
         ],
         projects: <ProjectSummary>[_project('p1')],
         prefs: const MobileViewPrefs(
-          groupBy: MobileWorkspaceGroupBy.none,
+          groupBy: .none,
           showPinnedWorkspacesBelow: false,
         ),
       );

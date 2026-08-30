@@ -13,28 +13,20 @@ enum MobileAiModelTransferStatus {
   failed,
 }
 
-class MobileAiModelTransfer {
-  const MobileAiModelTransfer({
-    this.status = MobileAiModelTransferStatus.idle,
-    this.installed = false,
-    this.receivedBytes = 0,
-    this.totalBytes = 0,
-    this.message,
-  });
-
-  final MobileAiModelTransferStatus status;
-  final bool installed;
-  final int receivedBytes;
-  final int totalBytes;
-  final String? message;
-
+class const MobileAiModelTransfer({
+  final MobileAiModelTransferStatus status = MobileAiModelTransferStatus.idle,
+  final bool installed = false,
+  final int receivedBytes = 0,
+  final int totalBytes = 0,
+  final String? message,
+}) {
   double get progress => totalBytes == 0 ? 0 : receivedBytes / totalBytes;
 }
 
-class MobileAiModelTransfersState {
-  const MobileAiModelTransfersState(this.models, {this.activeModelId});
-  final Map<String, MobileAiModelTransfer> models;
-  final String? activeModelId;
+class const MobileAiModelTransfersState(
+  final Map<String, MobileAiModelTransfer> models, {
+  final String? activeModelId,
+}) {
   MobileAiModelTransfer forModel(String id) =>
       models[id] ?? const MobileAiModelTransfer();
 }
@@ -82,7 +74,7 @@ class MobileAiDictationModelTransfers
     _set(
       id,
       MobileAiModelTransfer(
-        status: MobileAiModelTransferStatus.downloading,
+        status: .downloading,
         totalBytes: _store.modelFor(id).totalBytes,
         receivedBytes: await _store.partialBytes(id),
       ),

@@ -10,35 +10,26 @@ import 'package:alera/src/shared/infra/process/process_runner.dart';
 const int aiAssistModelDiscoveryTimeoutSeconds = 60;
 const int aiAssistModelDiscoveryMaxOutputBytes = 4 * 1024 * 1024;
 
-class AiAssistModelDiscoveryResult {
-  const AiAssistModelDiscoveryResult({
-    required this.success,
-    required this.agent,
-    required this.models,
-    required this.defaultModelId,
-    this.error,
-  });
-
-  final bool success;
-  final AiAssistAgent agent;
-  final List<AiAssistModel> models;
-  final String? defaultModelId;
-  final String? error;
-}
+class const AiAssistModelDiscoveryResult({
+  required final bool success,
+  required final AiAssistAgent agent,
+  required final List<AiAssistModel> models,
+  required final String? defaultModelId,
+  final String? error,
+});
 
 abstract interface class AiAssistModelDiscoveryService {
   Future<AiAssistModelDiscoveryResult> discover(AiAssistAgent agent);
 }
 
-class CliAiAssistModelDiscoveryService
-    implements AiAssistModelDiscoveryService {
-  CliAiAssistModelDiscoveryService({
-    required this.processRunner,
-    CommandEnvironmentResolver? commandEnvironmentResolver,
-  }) : commandEnvironmentResolver =
-           commandEnvironmentResolver ?? UserCommandEnvironmentResolver();
+class CliAiAssistModelDiscoveryService({
+  required final ProcessRunner processRunner,
+  CommandEnvironmentResolver? commandEnvironmentResolver,
+}) implements AiAssistModelDiscoveryService {
+  this
+    : commandEnvironmentResolver =
+          commandEnvironmentResolver ?? UserCommandEnvironmentResolver();
 
-  final ProcessRunner processRunner;
   final CommandEnvironmentResolver commandEnvironmentResolver;
 
   @override
@@ -191,6 +182,4 @@ class CliAiAssistModelDiscoveryService
   }
 }
 
-class _AiAssistModelDiscoveryOutputLimitException implements Exception {
-  const _AiAssistModelDiscoveryOutputLimitException();
-}
+class const _AiAssistModelDiscoveryOutputLimitException() implements Exception;

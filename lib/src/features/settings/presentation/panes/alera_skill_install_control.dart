@@ -6,40 +6,30 @@ import 'package:alera/src/features/settings/presentation/panes/application_suppo
 import 'package:alera/src/features/settings/presentation/panes/skill_install_output_dialog.dart';
 import 'package:flutter/material.dart';
 
-class AleraSkillInstallStatus {
-  const AleraSkillInstallStatus(
-    this.summary, {
-    this.detail = '',
-    this.needsAttention = false,
-  });
-
-  final String summary;
-
+class const AleraSkillInstallStatus(
+  final String summary, {
+  this.detail = '',
+  final bool needsAttention = false,
+}) {
   /// Full installer output, shown on demand. The inline summary is one line.
   final String detail;
-  final bool needsAttention;
 }
 
-typedef AleraSkillInstaller =
-    Future<AleraSkillInstallStatus> Function(AleraCliSkillRunner runner);
+typedef AleraSkillInstaller = Future<AleraSkillInstallStatus> Function(
+  AleraCliSkillRunner runner,
+);
 typedef AleraSkillCommandBuilder = String Function(AleraCliSkillRunner runner);
 
 /// Installs in process and reports afterwards, for setup that is more than one
 /// shell command. Single-command skills use
 /// [AleraSkillTerminalInstallControl] instead, which runs them in front of the
 /// user.
-class AleraSkillInstallControl extends StatefulWidget {
-  const AleraSkillInstallControl({
-    super.key,
-    required this.install,
-    this.installLabel = 'Install / Update',
-    this.installingLabel = 'Installing',
-  });
-
-  final AleraSkillInstaller install;
-  final String installLabel;
-  final String installingLabel;
-
+class const AleraSkillInstallControl({
+  super.key,
+  required final AleraSkillInstaller install,
+  final String installLabel = 'Install / Update',
+  final String installingLabel = 'Installing',
+}) extends StatefulWidget {
   @override
   State<AleraSkillInstallControl> createState() =>
       _AleraSkillInstallControlState();
@@ -50,7 +40,7 @@ class _AleraSkillInstallControlState extends State<AleraSkillInstallControl> {
       GlobalKey<PopupMenuButtonState<AleraCliSkillRunner>>();
   bool _installing = false;
   AleraSkillInstallStatus? _status;
-  AleraCliSkillRunner _runner = AleraCliSkillRunner.auto;
+  AleraCliSkillRunner _runner = .auto;
 
   Future<void> _install() async {
     if (_installing) {
@@ -86,11 +76,11 @@ class _AleraSkillInstallControlState extends State<AleraSkillInstallControl> {
   Widget build(BuildContext context) {
     final status = _status;
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.end,
-      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: .end,
+      mainAxisSize: .min,
       children: <Widget>[
         Wrap(
-          alignment: WrapAlignment.end,
+          alignment: .end,
           spacing: AleraTokens.space8,
           runSpacing: AleraTokens.space8,
           children: <Widget>[
@@ -168,9 +158,9 @@ class _AleraSkillInstallControlState extends State<AleraSkillInstallControl> {
           const SizedBox(height: AleraTokens.space6),
           Text(
             status.summary,
-            textAlign: TextAlign.right,
+            textAlign: .right,
             maxLines: 2,
-            overflow: TextOverflow.ellipsis,
+            overflow: .ellipsis,
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
               color: status.needsAttention
                   ? AleraTokens.error

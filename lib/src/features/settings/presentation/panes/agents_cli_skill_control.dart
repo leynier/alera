@@ -12,9 +12,7 @@ import 'package:logging/logging.dart';
 
 final Logger _log = Logger('AleraCliRegistrationControl');
 
-class AleraCliSkillControl extends ConsumerWidget {
-  const AleraCliSkillControl({super.key});
-
+class const AleraCliSkillControl({super.key}) extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return AleraSkillTerminalInstallControl(
@@ -26,9 +24,8 @@ class AleraCliSkillControl extends ConsumerWidget {
   }
 }
 
-class AleraCliRegistrationControl extends ConsumerStatefulWidget {
-  const AleraCliRegistrationControl({super.key});
-
+class const AleraCliRegistrationControl({super.key})
+    extends ConsumerStatefulWidget {
   @override
   ConsumerState<AleraCliRegistrationControl> createState() =>
       _AleraCliRegistrationControlState();
@@ -128,11 +125,11 @@ class _AleraCliRegistrationControlState
     final summary = error ?? status?.summary;
     final detail = error == null ? status?.detail : null;
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.end,
-      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: .end,
+      mainAxisSize: .min,
       children: <Widget>[
         Wrap(
-          alignment: WrapAlignment.end,
+          alignment: .end,
           spacing: AleraTokens.space8,
           runSpacing: AleraTokens.space8,
           children: <Widget>[
@@ -167,9 +164,9 @@ class _AleraCliRegistrationControlState
           const SizedBox(height: AleraTokens.space6),
           Text(
             summary,
-            textAlign: TextAlign.right,
+            textAlign: .right,
             maxLines: 1,
-            overflow: TextOverflow.ellipsis,
+            overflow: .ellipsis,
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
               color: error != null || hasConflict
                   ? AleraTokens.error
@@ -182,12 +179,11 @@ class _AleraCliRegistrationControlState
             const SizedBox(height: AleraTokens.space2),
             Text(
               detail,
-              textAlign: TextAlign.right,
+              textAlign: .right,
               maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: AleraTokens.foregroundFaint,
-              ),
+              overflow: .ellipsis,
+              style: Theme.of(context).textTheme.bodySmall
+                  ?.copyWith(color: AleraTokens.foregroundFaint),
             ),
           ],
         ],

@@ -4,19 +4,12 @@ part of 'agent_status_notifications.dart';
 const int _groupedBodyNameLimit = 3;
 
 /// An entry together with the workbench names that say where it is running.
-class AgentStatusNotificationLocation {
-  const AgentStatusNotificationLocation({
-    required this.entry,
-    this.projectName,
-    this.workspaceName,
-    this.tabTitle,
-  });
-
-  final AgentStatusEntry entry;
-  final String? projectName;
-  final String? workspaceName;
-  final String? tabTitle;
-}
+class const AgentStatusNotificationLocation({
+  required final AgentStatusEntry entry,
+  final String? projectName,
+  final String? workspaceName,
+  final String? tabTitle,
+});
 
 /// Collapses a burst into one notification.
 ///

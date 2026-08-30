@@ -33,7 +33,7 @@ final class PushCoordinatorProvider
   PushCoordinator create() => PushCoordinator();
 }
 
-String _$pushCoordinatorHash() => r'9af804eebbdfe94b1d694f68aefd20b1b316dac3';
+String _$pushCoordinatorHash() => r'b9b26a26623bbd2c2741bfa171d6c16bebb60423';
 
 abstract class _$PushCoordinator extends $AsyncNotifier<PushCoordinationState> {
   FutureOr<PushCoordinationState> build();

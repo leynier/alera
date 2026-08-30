@@ -4,28 +4,27 @@ import 'dart:async';
 // private state fields with the corresponding values.
 // ignore_for_file: prefer_initializing_formals
 
-typedef EditorAutosaveTimerFactory =
-    Timer Function(Duration delay, void Function() callback);
+typedef EditorAutosaveTimerFactory = Timer Function(
+  Duration delay,
+  void Function() callback,
+);
 
 /// Schedules one trailing autosave for a dirty editor and keeps failures
 /// paused until an explicit user action resumes it.
-class EditorAutosaveController {
-  EditorAutosaveController({
-    required bool enabled,
-    required Duration debounce,
-    required bool Function() isDirty,
-    required bool Function() isReady,
-    required Future<void> Function() save,
-    required void Function(Object error, StackTrace stackTrace) onError,
-    EditorAutosaveTimerFactory? scheduleTimer,
-  }) : _enabled = enabled,
-       _debounce = debounce,
-       _isDirty = isDirty,
-       _isReady = isReady,
-       _save = save,
-       _onError = onError,
-       _scheduleTimer =
-           scheduleTimer ?? ((delay, callback) => Timer(delay, callback));
+class EditorAutosaveController({
+  required bool enabled,
+  required Duration debounce,
+  required this._isDirty,
+  required this._isReady,
+  required this._save,
+  required this._onError,
+  EditorAutosaveTimerFactory? scheduleTimer,
+}) {
+  this
+    : _enabled = enabled,
+      _debounce = debounce,
+      _scheduleTimer =
+          scheduleTimer ?? ((delay, callback) => Timer(delay, callback));
 
   bool _enabled;
   Duration _debounce;

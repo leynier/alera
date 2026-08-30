@@ -1,4 +1,5 @@
 import 'dart:convert';
+
 import 'package:alera/src/features/orchestration/domain/task_inspection.dart';
 
 import 'package:alera/src/features/orchestration/domain/run_board_snapshot.dart';
@@ -81,13 +82,16 @@ class RuntimeRunBoardRepository {
     int limit = 20,
   }) async {
     await _requireCapability();
-    final payload = await _client
-        .runtimeRequest('orchestration.taskInspection', {
-          'run_id': runId,
-          'task_id': taskId,
-          'cursor': ?cursor?.toJson(),
-          'limit': limit,
-        }, runtimeSnapshotRequestTimeout);
+    final payload = await _client.runtimeRequest(
+      'orchestration.taskInspection',
+      {
+        'run_id': runId,
+        'task_id': taskId,
+        'cursor': ?cursor?.toJson(),
+        'limit': limit,
+      },
+      runtimeSnapshotRequestTimeout,
+    );
     return TaskInspection.fromJson(boardJsonObject(payload));
   }
 

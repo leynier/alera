@@ -1,10 +1,7 @@
 part of 'mobile_codex_chat_screen.dart';
 
-class _MobileCatalogIcon extends StatelessWidget {
-  const _MobileCatalogIcon({required this.item});
-
-  final _MobileCatalogItem item;
-
+class const _MobileCatalogIcon({required final _MobileCatalogItem item})
+    extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (item.iconUrl != null) {
@@ -26,39 +23,22 @@ class _MobileCatalogIcon extends StatelessWidget {
   );
 }
 
-class _MobileCatalogItem {
-  const _MobileCatalogItem({
-    required this.title,
-    required this.subtitle,
-    required this.replacement,
-    required this.kind,
-    this.iconUrl,
-    this.isWorkspaceFile = false,
-    this.catalogInput,
-  });
+class const _MobileCatalogItem({
+  required final String title,
+  required final String subtitle,
+  required final String replacement,
+  required final String kind,
+  final String? iconUrl,
+  final bool isWorkspaceFile = false,
+  final Map<String, Object?>? catalogInput,
+});
 
-  final String title;
-  final String subtitle;
-  final String replacement;
-  final String kind;
-  final String? iconUrl;
-  final bool isWorkspaceFile;
-  final Map<String, Object?>? catalogInput;
-}
-
-class _MobileComposerToken {
-  const _MobileComposerToken({
-    required this.prefix,
-    required this.query,
-    required this.start,
-    required this.end,
-  });
-
-  final String prefix;
-  final String query;
-  final int start;
-  final int end;
-}
+class const _MobileComposerToken({
+  required final String prefix,
+  required final String query,
+  required final int start,
+  required final int end,
+});
 
 _MobileComposerToken? _mobileComposerToken(TextEditingController controller) {
   final selection = controller.selection;
@@ -94,7 +74,7 @@ void _replaceComposerToken(
   final offset = token.start + replacement.length;
   controller.value = TextEditingValue(
     text: next,
-    selection: TextSelection.collapsed(offset: offset),
+    selection: .collapsed(offset: offset),
   );
 }
 

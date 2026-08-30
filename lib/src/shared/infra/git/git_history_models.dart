@@ -4,21 +4,13 @@ enum GitHistoryRefCategory { branches, remoteBranches, tags, commits }
 
 enum GitCommitCompareStatus { ready, invalidCommit, error }
 
-class GitHistoryItemRef {
-  const GitHistoryItemRef({
-    required this.id,
-    required this.name,
-    this.revision,
-    this.category,
-    this.color,
-  });
-
-  final String id;
-  final String name;
-  final String? revision;
-  final GitHistoryRefCategory? category;
-  final GitHistoryGraphColorId? color;
-
+class const GitHistoryItemRef({
+  required final String id,
+  required final String name,
+  final String? revision,
+  final GitHistoryRefCategory? category,
+  final GitHistoryGraphColorId? color,
+}) {
   GitHistoryItemRef copyWith({GitHistoryGraphColorId? color}) {
     return GitHistoryItemRef(
       id: id,
@@ -30,29 +22,17 @@ class GitHistoryItemRef {
   }
 }
 
-class GitHistoryItem {
-  const GitHistoryItem({
-    required this.id,
-    required this.parentIds,
-    required this.subject,
-    required this.message,
-    this.displayId,
-    this.author,
-    this.authorEmail,
-    this.timestamp,
-    this.references = const <GitHistoryItemRef>[],
-  });
-
-  final String id;
-  final List<String> parentIds;
-  final String subject;
-  final String message;
-  final String? displayId;
-  final String? author;
-  final String? authorEmail;
-  final DateTime? timestamp;
-  final List<GitHistoryItemRef> references;
-
+class const GitHistoryItem({
+  required final String id,
+  required final List<String> parentIds,
+  required final String subject,
+  required final String message,
+  final String? displayId,
+  final String? author,
+  final String? authorEmail,
+  final DateTime? timestamp,
+  final List<GitHistoryItemRef> references = const <GitHistoryItemRef>[],
+}) {
   GitHistoryItem copyWith({List<GitHistoryItemRef>? references}) {
     return GitHistoryItem(
       id: id,
@@ -68,69 +48,37 @@ class GitHistoryItem {
   }
 }
 
-class GitHistoryResult {
-  const GitHistoryResult({
-    required this.items,
-    required this.hasIncomingChanges,
-    required this.hasOutgoingChanges,
-    required this.hasMore,
-    required this.limit,
-    this.currentRef,
-    this.remoteRef,
-    this.baseRef,
-    this.mergeBase,
-  });
+class const GitHistoryResult({
+  required final List<GitHistoryItem> items,
+  required final bool hasIncomingChanges,
+  required final bool hasOutgoingChanges,
+  required final bool hasMore,
+  required final int limit,
+  final GitHistoryItemRef? currentRef,
+  final GitHistoryItemRef? remoteRef,
+  final GitHistoryItemRef? baseRef,
+  final String? mergeBase,
+});
 
-  final List<GitHistoryItem> items;
-  final GitHistoryItemRef? currentRef;
-  final GitHistoryItemRef? remoteRef;
-  final GitHistoryItemRef? baseRef;
-  final String? mergeBase;
-  final bool hasIncomingChanges;
-  final bool hasOutgoingChanges;
-  final bool hasMore;
-  final int limit;
-}
+class const GitCommitChangeEntry({
+  required final String path,
+  required final GitChangeStatus status,
+  final String? oldPath,
+  final int? added,
+  final int? removed,
+});
 
-class GitCommitChangeEntry {
-  const GitCommitChangeEntry({
-    required this.path,
-    required this.status,
-    this.oldPath,
-    this.added,
-    this.removed,
-  });
+class const GitCommitCompareSummary({
+  required final String commitOid,
+  required final String? parentOid,
+  required final String compareRef,
+  required final String baseRef,
+  required final int changedFiles,
+  required final GitCommitCompareStatus status,
+  final String? errorMessage,
+});
 
-  final String path;
-  final String? oldPath;
-  final GitChangeStatus status;
-  final int? added;
-  final int? removed;
-}
-
-class GitCommitCompareSummary {
-  const GitCommitCompareSummary({
-    required this.commitOid,
-    required this.parentOid,
-    required this.compareRef,
-    required this.baseRef,
-    required this.changedFiles,
-    required this.status,
-    this.errorMessage,
-  });
-
-  final String commitOid;
-  final String? parentOid;
-  final String compareRef;
-  final String baseRef;
-  final int changedFiles;
-  final GitCommitCompareStatus status;
-  final String? errorMessage;
-}
-
-class GitCommitCompareResult {
-  const GitCommitCompareResult({required this.summary, required this.entries});
-
-  final GitCommitCompareSummary summary;
-  final List<GitCommitChangeEntry> entries;
-}
+class const GitCommitCompareResult({
+  required final GitCommitCompareSummary summary,
+  required final List<GitCommitChangeEntry> entries,
+});

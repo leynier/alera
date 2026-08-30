@@ -1,14 +1,9 @@
 part of 'mobile_codex_chat_screen.dart';
 
-class _MobileComposerAttachments extends StatelessWidget {
-  const _MobileComposerAttachments({
-    required this.attachments,
-    required this.onRemove,
-  });
-
-  final List<Map<String, Object?>> attachments;
-  final ValueChanged<Map<String, Object?>> onRemove;
-
+class const _MobileComposerAttachments({
+  required final List<Map<String, Object?>> attachments,
+  required final ValueChanged<Map<String, Object?>> onRemove,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Padding(
     padding: const EdgeInsets.fromLTRB(
@@ -20,7 +15,7 @@ class _MobileComposerAttachments extends StatelessWidget {
     child: Align(
       alignment: Alignment.centerLeft,
       child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
+        scrollDirection: .horizontal,
         child: Row(
           children: <Widget>[
             for (final attachment in attachments) ...<Widget>[

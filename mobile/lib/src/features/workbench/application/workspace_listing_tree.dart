@@ -6,16 +6,12 @@ import 'package:alera_mobile/src/features/runtime/domain/workspace_summary.dart'
 // sync when the desktop version changes.
 
 /// One workspace positioned in the sidebar tree.
-class WorkspaceTreeEntry {
-  const WorkspaceTreeEntry({
-    required this.workspace,
-    required this.depth,
-    required this.visibleChildCount,
-    required this.childrenCollapsed,
-  });
-
-  final WorkspaceSummary workspace;
-
+class const WorkspaceTreeEntry({
+  required final WorkspaceSummary workspace,
+  required this.depth,
+  required this.visibleChildCount,
+  required this.childrenCollapsed,
+}) {
   /// Nesting depth relative to the sibling group root (0 = root level).
   final int depth;
 

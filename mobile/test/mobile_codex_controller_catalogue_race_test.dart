@@ -37,9 +37,8 @@ void main() {
     );
     final container = ProviderContainer(
       overrides: [
-        mobileCodexClientProvider(
-          'host-publish',
-        ).overrideWith((ref) async => client),
+        mobileCodexClientProvider('host-publish')
+            .overrideWith((ref) async => client),
       ],
     );
     addTearDown(() {
@@ -139,9 +138,8 @@ void main() {
       );
       final container = ProviderContainer(
         overrides: [
-          mobileCodexClientProvider(
-            'host-build',
-          ).overrideWith((ref) async => client),
+          mobileCodexClientProvider('host-build')
+              .overrideWith((ref) async => client),
         ],
       );
       addTearDown(() {
@@ -156,7 +154,7 @@ void main() {
       );
       addTearDown(listener.close);
       while (modelRequests == 0) {
-        await Future<void>.delayed(Duration.zero);
+        await Future.pause(.zero);
       }
 
       client.emit(
@@ -164,7 +162,7 @@ void main() {
           'catalog': 'account',
         }),
       );
-      await Future<void>.delayed(Duration.zero);
+      await Future.pause(.zero);
       initialModels.complete(_modelsPayload);
 
       final state = await container.read(provider.future);
@@ -202,9 +200,8 @@ void main() {
       );
       final container = ProviderContainer(
         overrides: [
-          mobileCodexClientProvider(
-            'host-configure',
-          ).overrideWith((ref) async => client),
+          mobileCodexClientProvider('host-configure')
+              .overrideWith((ref) async => client),
           mobileCodexPreferencesRepositoryProvider.overrideWithValue(
             const _TestPreferencesRepository(),
           ),
@@ -225,7 +222,7 @@ void main() {
       );
       addTearDown(listener.close);
       while (configureRequests == 0) {
-        await Future<void>.delayed(Duration.zero);
+        await Future.pause(.zero);
       }
 
       client.emit(
@@ -233,7 +230,7 @@ void main() {
           'catalog': 'account',
         }),
       );
-      await Future<void>.delayed(Duration.zero);
+      await Future.pause(.zero);
       initialConfigure.complete(const <String, Object?>{});
 
       final state = await container.read(provider.future);
@@ -291,7 +288,7 @@ void main() {
         'catalog': 'account',
       }),
     );
-    await Future<void>.delayed(Duration.zero);
+    await Future.pause(.zero);
 
     final controller = container.read(provider.notifier);
     controller.setModel('gpt-alternate');
@@ -299,7 +296,7 @@ void main() {
     controller.setSpeed('fast');
     controller.setCollaborationMode('plan');
     modelRefresh.complete(_modelsPayload);
-    await Future<void>.delayed(Duration.zero);
+    await Future.pause(.zero);
 
     final state = container.read(provider).value!;
     expect(state.selectedModel, 'gpt-alternate');
@@ -334,9 +331,8 @@ void main() {
     );
     final container = ProviderContainer(
       overrides: [
-        mobileCodexClientProvider(
-          'host-model-failure',
-        ).overrideWith((ref) async => client),
+        mobileCodexClientProvider('host-model-failure')
+            .overrideWith((ref) async => client),
       ],
     );
     addTearDown(() {
@@ -394,9 +390,8 @@ void main() {
       );
       final container = ProviderContainer(
         overrides: [
-          mobileCodexClientProvider(
-            'host-mode-failure',
-          ).overrideWith((ref) async => client),
+          mobileCodexClientProvider('host-mode-failure')
+              .overrideWith((ref) async => client),
         ],
       );
       addTearDown(() {
@@ -431,10 +426,8 @@ void main() {
   );
 }
 
-final class _TestPreferencesRepository
+final class const _TestPreferencesRepository()
     implements MobileCodexPreferencesRepository {
-  const _TestPreferencesRepository();
-
   @override
   Future<MobileCodexPreferences> load(String hostId) async =>
       const MobileCodexPreferences(model: 'gpt-alternate');
@@ -445,7 +438,7 @@ final class _TestPreferencesRepository
 
 Future<void> _settleCatalogueRefresh() async {
   for (var index = 0; index < 4; index += 1) {
-    await Future<void>.delayed(Duration.zero);
+    await Future.pause(.zero);
   }
 }
 

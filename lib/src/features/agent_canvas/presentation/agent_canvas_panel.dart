@@ -22,31 +22,22 @@ typedef AgentCanvasFileOpener = Future<void> Function(String relativePath);
 typedef AgentCanvasPathOpener = Future<void> Function(String relativePath);
 typedef AgentCanvasTerminalFocuser = void Function(String terminalSessionId);
 typedef AgentCanvasArtifactOpener = void Function(String artifactId);
-typedef AgentCanvasSourceControlAction =
-    Future<void> Function(String kind, Map<String, Object?> action);
+typedef AgentCanvasSourceControlAction = Future<void> Function(
+  String kind,
+  Map<String, Object?> action,
+);
 
-class AgentCanvasPanel extends ConsumerStatefulWidget {
-  const AgentCanvasPanel({
-    super.key,
-    required this.workspace,
-    required this.onOpenFile,
-    required this.onOpenDiff,
-    required this.onFocusTerminal,
-    required this.onOpenPullRequest,
-    required this.onOpenArtifact,
-    required this.onSwitchContextPanel,
-    this.onSourceControlAction,
-  });
-
-  final Workspace workspace;
-  final AgentCanvasFileOpener onOpenFile;
-  final AgentCanvasPathOpener onOpenDiff;
-  final AgentCanvasTerminalFocuser onFocusTerminal;
-  final VoidCallback onOpenPullRequest;
-  final AgentCanvasArtifactOpener onOpenArtifact;
-  final ValueChanged<WorkbenchContextPanelTab> onSwitchContextPanel;
-  final AgentCanvasSourceControlAction? onSourceControlAction;
-
+class const AgentCanvasPanel({
+  super.key,
+  required final Workspace workspace,
+  required final AgentCanvasFileOpener onOpenFile,
+  required final AgentCanvasPathOpener onOpenDiff,
+  required final AgentCanvasTerminalFocuser onFocusTerminal,
+  required final VoidCallback onOpenPullRequest,
+  required final AgentCanvasArtifactOpener onOpenArtifact,
+  required final ValueChanged<WorkbenchContextPanelTab> onSwitchContextPanel,
+  final AgentCanvasSourceControlAction? onSourceControlAction,
+}) extends ConsumerStatefulWidget {
   @override
   ConsumerState<AgentCanvasPanel> createState() => _AgentCanvasPanelState();
 }
@@ -84,8 +75,7 @@ class _AgentCanvasPanelState extends ConsumerState<AgentCanvasPanel> {
         capabilities.asData?.value['supported'] != true) {
       return const AleraEmptyState(
         title: 'Agent Canvas Unavailable',
-        message:
-            'This runtime host does not support Agent Canvas. Restart Alera to use Agent Canvas.',
+        message: 'This runtime host does not support Agent Canvas. Restart Alera to use Agent Canvas.',
         icon: AleraIcons.agent,
       );
     }
@@ -125,7 +115,7 @@ class _AgentCanvasPanelState extends ConsumerState<AgentCanvasPanel> {
     );
 
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+      crossAxisAlignment: .stretch,
       children: <Widget>[
         _PanelToolbar(
           showHistory: _showHistory,
@@ -138,15 +128,14 @@ class _AgentCanvasPanelState extends ConsumerState<AgentCanvasPanel> {
           const Expanded(
             child: AleraEmptyState(
               title: 'No Agent Canvases',
-              message:
-                  'Publish a run from an agent terminal to see its progress here.',
+              message: 'Publish a run from an agent terminal to see its progress here.',
               icon: AleraIcons.agent,
             ),
           )
         else
           Expanded(
             child: Row(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
+              crossAxisAlignment: .stretch,
               children: <Widget>[
                 SizedBox(
                   width: AleraTokens.agentCanvasListWidth,
@@ -234,8 +223,7 @@ class _AgentCanvasPanelState extends ConsumerState<AgentCanvasPanel> {
   Future<void> _close(AgentCanvas canvas) async {
     final confirmed = await _confirm(
       title: 'Close Agent Canvas?',
-      message:
-          'Closing freezes the current revision and stops live updates for this canvas.',
+      message: 'Closing freezes the current revision and stops live updates for this canvas.',
       confirmLabel: 'Close Canvas',
     );
     if (!confirmed) {
@@ -335,7 +323,7 @@ class _AgentCanvasPanelState extends ConsumerState<AgentCanvasPanel> {
           await widget.onOpenDiff(path);
         }
       case 'openSearch':
-        widget.onSwitchContextPanel(WorkbenchContextPanelTab.search);
+        widget.onSwitchContextPanel(.search);
       case 'focusTerminal':
         final sessionId = action['terminalSessionId'];
         widget.onFocusTerminal(

@@ -18,10 +18,5 @@ ReplaceTextIntent buildTextActionReplacementIntent({
   required TextEditingValue captured,
   required String replacement,
 }) {
-  return ReplaceTextIntent(
-    captured,
-    replacement,
-    captured.selection,
-    SelectionChangedCause.toolbar,
-  );
+  return ReplaceTextIntent(captured, replacement, captured.selection, .toolbar);
 }

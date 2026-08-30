@@ -5,19 +5,12 @@ const _mobileCodexToolNodeLimit = 512;
 const _mobileCodexToolDepthLimit = 12;
 const _mobileCodexToolTextLimit = 64 * 1024;
 
-class _MobileCodexToolValue extends StatefulWidget {
-  const _MobileCodexToolValue({
-    required this.value,
-    this.depth = 0,
-    this.nodeBudget = _mobileCodexToolNodeLimit,
-    this.paginationId,
-  });
-
-  final Object? value;
-  final int depth;
-  final int nodeBudget;
-  final String? paginationId;
-
+class const _MobileCodexToolValue({
+  required final Object? value,
+  final int depth = 0,
+  final int nodeBudget = _mobileCodexToolNodeLimit,
+  final String? paginationId,
+}) extends StatefulWidget {
   @override
   State<_MobileCodexToolValue> createState() => _MobileCodexToolValueState();
 }
@@ -64,9 +57,8 @@ class _MobileCodexToolValueState extends State<_MobileCodexToolValue> {
     _paginationRestored = true;
     final paginationId = widget.paginationId;
     if (paginationId == null) return;
-    final stored = PageStorage.maybeOf(
-      context,
-    )?.readState(context, identifier: paginationId);
+    final stored = PageStorage.maybeOf(context)
+        ?.readState(context, identifier: paginationId);
     if (stored is int && stored > _visibleItemCount) {
       _visibleItemCount = stored;
     }
@@ -83,15 +75,14 @@ class _MobileCodexToolValueState extends State<_MobileCodexToolValue> {
     }
     if (value is _MobileCodexToolTextPreview) {
       return Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
+        crossAxisAlignment: .stretch,
         children: <Widget>[
           _MobileCodexToolLiteralText(text: value.text),
           const SizedBox(height: AleraTokens.space4),
           Text(
             '${value.hiddenCharacters} additional characters hidden. Copy the section to access the complete value.',
-            style: Theme.of(
-              context,
-            ).textTheme.bodySmall?.copyWith(color: AleraTokens.foregroundFaint),
+            style: Theme.of(context).textTheme.bodySmall
+                ?.copyWith(color: AleraTokens.foregroundFaint),
           ),
         ],
       );
@@ -153,7 +144,7 @@ class _MobileCodexToolValueState extends State<_MobileCodexToolValue> {
         .toList(growable: false);
     final childBudget = math.max(1, childCapacity ~/ entries.length);
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+      crossAxisAlignment: .stretch,
       children: <Widget>[
         for (final entry in entries)
           _MobileCodexToolEntry(
@@ -191,7 +182,7 @@ class _MobileCodexToolValueState extends State<_MobileCodexToolValue> {
     );
     final childBudget = math.max(1, childCapacity ~/ visibleCount);
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+      crossAxisAlignment: .stretch,
       children: <Widget>[
         for (var index = 0; index < visibleCount; index += 1)
           Padding(
@@ -233,31 +224,20 @@ class _MobileCodexToolValueState extends State<_MobileCodexToolValue> {
   );
 }
 
-class _MobileCodexToolLiteralText extends StatelessWidget {
-  const _MobileCodexToolLiteralText({required this.text});
-
-  final String text;
-
+class const _MobileCodexToolLiteralText({required final String text})
+    extends StatelessWidget {
   @override
   Widget build(BuildContext context) =>
       SelectableText(text, style: AleraTokens.monoStyle);
 }
 
-class _MobileCodexToolEntry extends StatelessWidget {
-  const _MobileCodexToolEntry({
-    required this.label,
-    required this.value,
-    required this.depth,
-    required this.nodeBudget,
-    required this.paginationId,
-  });
-
-  final String label;
-  final Object? value;
-  final int depth;
-  final int nodeBudget;
-  final String paginationId;
-
+class const _MobileCodexToolEntry({
+  required final String label,
+  required final Object? value,
+  required final int depth,
+  required final int nodeBudget,
+  required final String paginationId,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final nested =
@@ -270,13 +250,12 @@ class _MobileCodexToolEntry extends StatelessWidget {
       padding: const EdgeInsets.only(bottom: AleraTokens.space6),
       child: nested
           ? Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
+              crossAxisAlignment: .stretch,
               children: <Widget>[
                 Text(
                   label,
-                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                    color: AleraTokens.foregroundMuted,
-                  ),
+                  style: Theme.of(context).textTheme.labelSmall
+                      ?.copyWith(color: AleraTokens.foregroundMuted),
                 ),
                 const SizedBox(height: AleraTokens.space4),
                 Padding(
@@ -291,15 +270,14 @@ class _MobileCodexToolEntry extends StatelessWidget {
               ],
             )
           : Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
+              crossAxisAlignment: .start,
               children: <Widget>[
                 SizedBox(
                   width: AleraTokens.space48 * 2,
                   child: Text(
                     label,
-                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                      color: AleraTokens.foregroundMuted,
-                    ),
+                    style: Theme.of(context).textTheme.labelSmall
+                        ?.copyWith(color: AleraTokens.foregroundMuted),
                   ),
                 ),
                 const SizedBox(width: AleraTokens.space8),
@@ -344,15 +322,9 @@ Object? _boundMobileCodexToolValue(
   return value;
 }
 
-class _MobileCodexToolTextPreview {
-  const _MobileCodexToolTextPreview(this.text, this.hiddenCharacters);
+class const _MobileCodexToolTextPreview(
+  final String text,
+  final int hiddenCharacters,
+);
 
-  final String text;
-  final int hiddenCharacters;
-}
-
-class _MobileCodexToolTruncation {
-  const _MobileCodexToolTruncation(this.message);
-
-  final String message;
-}
+class const _MobileCodexToolTruncation(final String message);

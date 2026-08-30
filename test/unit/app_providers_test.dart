@@ -128,9 +128,7 @@ void main() {
     test(
       'terminalRuntimeProvider listens to terminal settings changes',
       () async {
-        final settingsController = _TestSettingsController(
-          AleraSettings.defaults,
-        );
+        final settingsController = _TestSettingsController(.defaults);
         final container = ProviderContainer(
           overrides: [
             settingsControllerProvider.overrideWith(() => settingsController),
@@ -149,7 +147,7 @@ void main() {
         settingsController.setState(
           settingsController.state.copyWith(terminal: updatedTerminal),
         );
-        await Future<void>.delayed(Duration.zero);
+        await Future.pause(.zero);
 
         expect(container.read(terminalRuntimeProvider), same(runtime));
       },
@@ -189,8 +187,8 @@ void main() {
           path: home.path,
           createdAt: now,
           updatedAt: now,
-          kind: WorkspaceKind.main,
-          status: WorkspaceStatus.active,
+          kind: .main,
+          status: .active,
         );
         final tab = WorkspaceTabRecord(
           id: 'tab-1',
@@ -202,9 +200,7 @@ void main() {
         final disabledClient = _FakeTerminalHostClient();
         final disabledContainer = ProviderContainer(
           overrides: [
-            settingsControllerProvider.overrideWithValue(
-              AleraSettings.defaults,
-            ),
+            settingsControllerProvider.overrideWithValue(.defaults),
             terminalHostClientProvider.overrideWithValue(disabledClient),
             externalUriLauncherProvider.overrideWithValue(
               _FakeExternalUriLauncher(),
@@ -240,7 +236,7 @@ void main() {
               CodexRuntimeHomeService(
                 homeDirectory: home.path,
                 applicationSupportDirectory: () async => support,
-                platform: ManagedAgentHookPlatform.posix,
+                platform: .posix,
                 environment: <String, String>{'HOME': home.path},
               ),
             ),
@@ -248,7 +244,7 @@ void main() {
               ClaudeRuntimeHomeService(
                 homeDirectory: home.path,
                 applicationSupportDirectory: () async => support,
-                platform: ManagedAgentHookPlatform.posix,
+                platform: .posix,
                 environment: <String, String>{'HOME': home.path},
                 syncMacOSKeychainCredentials: false,
               ),
@@ -256,7 +252,7 @@ void main() {
             agentRuntimeOverlayServiceProvider.overrideWithValue(
               AgentRuntimeOverlayService(
                 homeDirectory: home.path,
-                platform: ManagedAgentHookPlatform.posix,
+                platform: .posix,
                 environment: <String, String>{
                   'HOME': home.path,
                   'SHELL': '/bin/zsh',
@@ -280,35 +276,32 @@ void main() {
       },
     );
 
-    test(
-      'terminalHostWarmupCoordinatorProvider starts the host with settings config',
-      () async {
-        final client = _FakeTerminalHostClient();
-        final settings = AleraSettings.defaults.copyWith(
-          terminal: AleraSettings.defaults.terminal.copyWith(
-            hostEmptyShutdownDelaySeconds: 7,
-            hostDetachedSessionShutdownDelaySeconds: 14,
-            hostScrollbackBytes: 4096,
-          ),
-        );
-        final container = ProviderContainer(
-          overrides: [
-            settingsControllerProvider.overrideWithValue(settings),
-            terminalHostClientProvider.overrideWithValue(client),
-          ],
-        );
-        addTearDown(container.dispose);
+    test('terminalHostWarmupCoordinatorProvider starts the host with settings config', () async {
+      final client = _FakeTerminalHostClient();
+      final settings = AleraSettings.defaults.copyWith(
+        terminal: AleraSettings.defaults.terminal.copyWith(
+          hostEmptyShutdownDelaySeconds: 7,
+          hostDetachedSessionShutdownDelaySeconds: 14,
+          hostScrollbackBytes: 4096,
+        ),
+      );
+      final container = ProviderContainer(
+        overrides: [
+          settingsControllerProvider.overrideWithValue(settings),
+          terminalHostClientProvider.overrideWithValue(client),
+        ],
+      );
+      addTearDown(container.dispose);
 
-        container.read(terminalHostWarmupCoordinatorProvider);
-        await Future<void>.delayed(Duration.zero);
+      container.read(terminalHostWarmupCoordinatorProvider);
+      await Future.pause(.zero);
 
-        // What the mapping produces is terminal_host_settings_config_test's
-        // job; this only checks the warmup sends it.
-        expect(client.ensureStartedConfigs.map((c) => c.toJson()), <Object?>[
-          terminalHostConfigFor(settings.terminal).toJson(),
-        ]);
-      },
-    );
+      // What the mapping produces is terminal_host_settings_config_test's
+      // job; this only checks the warmup sends it.
+      expect(client.ensureStartedConfigs.map((c) => c.toJson()), <Object?>[
+        terminalHostConfigFor(settings.terminal).toJson(),
+      ]);
+    });
 
     test('agent awake coordinator follows working agent statuses', () async {
       final displayLock = _FakeAwakeDisplayLock();
@@ -338,13 +331,13 @@ void main() {
               terminalSessionId: 'session-1',
               workspaceId: 'workspace-1',
               tabId: 'tab-1',
-              agentType: AgentType.codex,
+              agentType: .codex,
               hookEventName: 'UserPromptSubmit',
               payload: <String, Object?>{'prompt': 'Run tests'},
             ),
           );
-      await Future<void>.delayed(Duration.zero);
-      await Future<void>.delayed(Duration.zero);
+      await Future.pause(.zero);
+      await Future.pause(.zero);
 
       expect(displayLock.states, <bool>[true]);
       expect(assertion.starts, isNotEmpty);
@@ -356,13 +349,13 @@ void main() {
               terminalSessionId: 'session-1',
               workspaceId: 'workspace-1',
               tabId: 'tab-1',
-              agentType: AgentType.codex,
+              agentType: .codex,
               hookEventName: 'Stop',
               payload: <String, Object?>{'prompt': 'Run tests'},
             ),
           );
-      await Future<void>.delayed(Duration.zero);
-      await Future<void>.delayed(Duration.zero);
+      await Future.pause(.zero);
+      await Future.pause(.zero);
 
       expect(displayLock.states, <bool>[true, false]);
       expect(assertion.stops, isNotEmpty);
@@ -404,13 +397,13 @@ void main() {
               terminalSessionId: 'session-1',
               workspaceId: 'workspace-1',
               tabId: 'tab-1',
-              agentType: AgentType.codex,
+              agentType: .codex,
               hookEventName: 'UserPromptSubmit',
               payload: <String, Object?>{'prompt': 'Run tests'},
             ),
           );
-      await Future<void>.delayed(Duration.zero);
-      await Future<void>.delayed(Duration.zero);
+      await Future.pause(.zero);
+      await Future.pause(.zero);
 
       expect(displayLock.states, contains(true));
       expect(assertion.starts, isNotEmpty);
@@ -422,8 +415,8 @@ void main() {
           ),
         ),
       );
-      await Future<void>.delayed(Duration.zero);
-      await Future<void>.delayed(Duration.zero);
+      await Future.pause(.zero);
+      await Future.pause(.zero);
 
       expect(displayLock.states.last, isFalse);
       expect(assertion.stops, isNotEmpty);
@@ -432,7 +425,7 @@ void main() {
     test('agent awake assertions include Windows system sleep lock', () {
       final container = ProviderContainer(
         overrides: [
-          settingsControllerProvider.overrideWithValue(AleraSettings.defaults),
+          settingsControllerProvider.overrideWithValue(.defaults),
           processRunnerProvider.overrideWithValue(_FakeProcessRunner()),
         ],
       );
@@ -448,7 +441,7 @@ void main() {
     test('agent status default providers instantiate concrete services', () {
       final container = ProviderContainer(
         overrides: [
-          settingsControllerProvider.overrideWithValue(AleraSettings.defaults),
+          settingsControllerProvider.overrideWithValue(.defaults),
           processRunnerProvider.overrideWithValue(_FakeProcessRunner()),
         ],
       );
@@ -595,7 +588,7 @@ void main() {
 
         container.read(agentHookReceiverLifecycleCoordinatorProvider);
         for (var attempt = 0; attempt < 20 && !receiver.isRunning; attempt++) {
-          await Future<void>.delayed(const Duration(milliseconds: 10));
+          await Future.pause(const Duration(milliseconds: 10));
         }
 
         expect(receiver.isRunning, isTrue);
@@ -617,19 +610,19 @@ void main() {
         ..createSync(recursive: true);
       final managedService = ManagedAgentHookInstallService(
         homeDirectory: home.path,
-        platform: ManagedAgentHookPlatform.posix,
+        platform: .posix,
         environment: <String, String>{'HOME': home.path},
       );
       final codexRuntimeHome = CodexRuntimeHomeService(
         homeDirectory: home.path,
         applicationSupportDirectory: () async => support,
-        platform: ManagedAgentHookPlatform.posix,
+        platform: .posix,
         environment: <String, String>{'HOME': home.path},
       );
       final claudeRuntimeHome = ClaudeRuntimeHomeService(
         homeDirectory: home.path,
         applicationSupportDirectory: () async => support,
-        platform: ManagedAgentHookPlatform.posix,
+        platform: .posix,
         environment: <String, String>{'HOME': home.path},
         syncMacOSKeychainCredentials: false,
       );
@@ -664,25 +657,22 @@ void main() {
           ),
         ),
       );
-      await Future<void>.delayed(Duration.zero);
-      await Future<void>.delayed(Duration.zero);
+      await Future.pause(.zero);
+      await Future.pause(.zero);
 
       expect(
-        File(
-          p.join(home.path, '.alera', 'agent-hooks', 'alera-agy-hook.sh'),
-        ).existsSync(),
+        File(p.join(home.path, '.alera', 'agent-hooks', 'alera-agy-hook.sh'))
+            .existsSync(),
         isTrue,
       );
       expect(
-        File(
-          p.join(home.path, '.alera', 'agent-hooks', 'alera-codex-hook.sh'),
-        ).existsSync(),
+        File(p.join(home.path, '.alera', 'agent-hooks', 'alera-codex-hook.sh'))
+            .existsSync(),
         isTrue,
       );
       expect(
-        File(
-          p.join(home.path, '.alera', 'agent-hooks', 'alera-claude-hook.sh'),
-        ).existsSync(),
+        File(p.join(home.path, '.alera', 'agent-hooks', 'alera-claude-hook.sh'))
+            .existsSync(),
         isTrue,
       );
 
@@ -693,8 +683,8 @@ void main() {
           ),
         ),
       );
-      await Future<void>.delayed(Duration.zero);
-      await Future<void>.delayed(Duration.zero);
+      await Future.pause(.zero);
+      await Future.pause(.zero);
 
       expect(
         (await codexRuntimeHome.status()).state,
@@ -762,19 +752,19 @@ void main() {
           codexRuntimeHome: CodexRuntimeHomeService(
             homeDirectory: home.path,
             applicationSupportDirectory: () async => support,
-            platform: ManagedAgentHookPlatform.posix,
+            platform: .posix,
             environment: <String, String>{'HOME': home.path},
           ),
           claudeRuntimeHome: ClaudeRuntimeHomeService(
             homeDirectory: home.path,
             applicationSupportDirectory: () async => support,
-            platform: ManagedAgentHookPlatform.posix,
+            platform: .posix,
             environment: <String, String>{'HOME': home.path},
             syncMacOSKeychainCredentials: false,
           ),
           agentRuntimeOverlay: AgentRuntimeOverlayService(
             homeDirectory: home.path,
-            platform: ManagedAgentHookPlatform.posix,
+            platform: .posix,
             environment: <String, String>{
               'HOME': home.path,
               'SHELL': '/bin/zsh',
@@ -838,20 +828,20 @@ void main() {
         addTearDown(receiver.dispose);
         final overlay = AgentRuntimeOverlayService(
           homeDirectory: home.path,
-          platform: ManagedAgentHookPlatform.posix,
+          platform: .posix,
           environment: <String, String>{'HOME': home.path, 'SHELL': '/bin/zsh'},
           applicationSupportDirectory: () async => support,
         );
         final codex = CodexRuntimeHomeService(
           homeDirectory: home.path,
           applicationSupportDirectory: () async => support,
-          platform: ManagedAgentHookPlatform.posix,
+          platform: .posix,
           environment: <String, String>{'HOME': home.path},
         );
         final claude = ClaudeRuntimeHomeService(
           homeDirectory: home.path,
           applicationSupportDirectory: () async => support,
-          platform: ManagedAgentHookPlatform.posix,
+          platform: .posix,
           environment: <String, String>{'HOME': home.path},
           syncMacOSKeychainCredentials: false,
         );
@@ -907,19 +897,19 @@ void main() {
           codexRuntimeHome: CodexRuntimeHomeService(
             homeDirectory: home.path,
             applicationSupportDirectory: failingSupport,
-            platform: ManagedAgentHookPlatform.posix,
+            platform: .posix,
             environment: <String, String>{'HOME': home.path},
           ),
           claudeRuntimeHome: ClaudeRuntimeHomeService(
             homeDirectory: home.path,
             applicationSupportDirectory: failingSupport,
-            platform: ManagedAgentHookPlatform.posix,
+            platform: .posix,
             environment: <String, String>{'HOME': home.path},
             syncMacOSKeychainCredentials: false,
           ),
           agentRuntimeOverlay: AgentRuntimeOverlayService(
             homeDirectory: home.path,
-            platform: ManagedAgentHookPlatform.posix,
+            platform: .posix,
             environment: <String, String>{'HOME': home.path},
             applicationSupportDirectory: failingSupport,
           ),
@@ -972,7 +962,7 @@ void main() {
             exitCode: 0,
           ),
         );
-        await Future<void>.delayed(Duration.zero);
+        await Future.pause(.zero);
 
         expect(runtime.closedTabIds, <String>['tab-1']);
       },
@@ -990,8 +980,8 @@ void main() {
           path: '/tmp/workspace',
           createdAt: now,
           updatedAt: now,
-          kind: WorkspaceKind.linked,
-          status: WorkspaceStatus.active,
+          kind: .linked,
+          status: .active,
         );
         final setupTab = WorkspaceTabRecord(
           id: 'setup-tab',
@@ -1032,7 +1022,7 @@ void main() {
             autoCloseOnSuccess: true,
           ),
         );
-        await Future<void>.delayed(Duration.zero);
+        await Future.pause(.zero);
 
         expect(runtime.closedTabIds, isEmpty);
       },
@@ -1059,52 +1049,46 @@ void main() {
           exitCode: 0,
         ),
       );
-      await Future<void>.delayed(Duration.zero);
+      await Future.pause(.zero);
 
       // The dialog owns that session, and closing it here would wipe the output
       // the moment the shell exited.
       expect(runtime.closedTabIds, isEmpty);
     });
 
-    test(
-      'database and launcher providers create disposable concrete implementations',
-      () async {
-        final tempDir = await Directory.systemTemp.createTemp(
-          'alera-app-providers-',
-        );
-        addTearDown(() async {
-          try {
-            if (await tempDir.exists()) {
-              await tempDir.delete(recursive: true);
-            }
-          } on PathNotFoundException {
-            // Some provider disposal paths can race the test cleanup after the
-            // fake app-support directory has already been removed.
+    test('database and launcher providers create disposable concrete implementations', () async {
+      final tempDir = await Directory.systemTemp.createTemp(
+        'alera-app-providers-',
+      );
+      addTearDown(() async {
+        try {
+          if (await tempDir.exists()) {
+            await tempDir.delete(recursive: true);
           }
-        });
-        final previousPlatform = PathProviderPlatform.instance;
-        PathProviderPlatform.instance = _FakePathProviderPlatform(tempDir.path);
-        addTearDown(() => PathProviderPlatform.instance = previousPlatform);
+        } on PathNotFoundException {
+          // Some provider disposal paths can race the test cleanup after the
+          // fake app-support directory has already been removed.
+        }
+      });
+      final previousPlatform = PathProviderPlatform.instance;
+      PathProviderPlatform.instance = _FakePathProviderPlatform(tempDir.path);
+      addTearDown(() => PathProviderPlatform.instance = previousPlatform);
 
-        final container = ProviderContainer();
-        final db = await container.read(aleraDatabaseProvider.future);
+      final container = ProviderContainer();
+      final db = await container.read(aleraDatabaseProvider.future);
 
-        expect(
-          container.read(externalUriLauncherProvider),
-          isA<UrlLauncherExternalUriLauncher>(),
-        );
-        expect(container.read(projectRepositoryProvider), isNotNull);
-        expect(container.read(workbenchRepositoryProvider), isNotNull);
-        expect(container.read(settingsRepositoryProvider), isNotNull);
-        expect(container.read(projectsServiceProvider), isNotNull);
-        expect(
-          await db.customSelect('SELECT 1 AS value').getSingle(),
-          isNotNull,
-        );
+      expect(
+        container.read(externalUriLauncherProvider),
+        isA<UrlLauncherExternalUriLauncher>(),
+      );
+      expect(container.read(projectRepositoryProvider), isNotNull);
+      expect(container.read(workbenchRepositoryProvider), isNotNull);
+      expect(container.read(settingsRepositoryProvider), isNotNull);
+      expect(container.read(projectsServiceProvider), isNotNull);
+      expect(await db.customSelect('SELECT 1 AS value').getSingle(), isNotNull);
 
-        await db.close();
-        container.dispose();
-      },
-    );
+      await db.close();
+      container.dispose();
+    });
   });
 }

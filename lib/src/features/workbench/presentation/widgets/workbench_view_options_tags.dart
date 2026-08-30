@@ -3,32 +3,21 @@ part of 'workbench_view_options_menu.dart';
 /// One pickable tag for the filter section: id plus display name.
 typedef _TagOption = ({String id, String name});
 
-class _TagsFilterSection extends StatelessWidget {
-  const _TagsFilterSection({
-    required this.selectedTags,
-    required this.availableTags,
-    required this.query,
-    required this.searchController,
-    required this.onAdd,
-    required this.onRemove,
-    required this.onClear,
-    required this.theme,
-  });
-
-  final List<_TagOption> selectedTags;
-  final List<_TagOption> availableTags;
-  final String query;
-  final TextEditingController searchController;
-  final ValueChanged<String> onAdd;
-  final ValueChanged<String> onRemove;
-  final VoidCallback? onClear;
-  final ThemeData theme;
-
+class const _TagsFilterSection({
+  required final List<_TagOption> selectedTags,
+  required final List<_TagOption> availableTags,
+  required final String query,
+  required final TextEditingController searchController,
+  required final ValueChanged<String> onAdd,
+  required final ValueChanged<String> onRemove,
+  required final VoidCallback? onClear,
+  required final ThemeData theme,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: .min,
+      crossAxisAlignment: .stretch,
       children: <Widget>[
         Row(
           children: <Widget>[
@@ -49,7 +38,7 @@ class _TagsFilterSection extends StatelessWidget {
                     horizontal: AleraTokens.space8,
                   ),
                   minimumSize: const Size(0, 24),
-                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  tapTargetSize: .shrinkWrap,
                 ),
                 child: Text('Clear', style: theme.textTheme.labelSmall),
               ),
@@ -92,21 +81,13 @@ class _TagsFilterSection extends StatelessWidget {
   }
 }
 
-class _AvailableTagsList extends StatelessWidget {
-  const _AvailableTagsList({
-    required this.tags,
-    required this.hasSelection,
-    required this.query,
-    required this.onPick,
-    required this.theme,
-  });
-
-  final List<_TagOption> tags;
-  final bool hasSelection;
-  final String query;
-  final ValueChanged<String> onPick;
-  final ThemeData theme;
-
+class const _AvailableTagsList({
+  required final List<_TagOption> tags,
+  required final bool hasSelection,
+  required final String query,
+  required final ValueChanged<String> onPick,
+  required final ThemeData theme,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (tags.isEmpty) {
@@ -129,8 +110,8 @@ class _AvailableTagsList extends StatelessWidget {
       constraints: const BoxConstraints(maxHeight: 160),
       child: SingleChildScrollView(
         child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
+          mainAxisSize: .min,
+          crossAxisAlignment: .stretch,
           children: <Widget>[
             for (final tag in tags)
               _AvailableTagRow(tag: tag, onPick: () => onPick(tag.id)),
@@ -141,12 +122,10 @@ class _AvailableTagsList extends StatelessWidget {
   }
 }
 
-class _AvailableTagRow extends StatefulWidget {
-  const _AvailableTagRow({required this.tag, required this.onPick});
-
-  final _TagOption tag;
-  final VoidCallback onPick;
-
+class const _AvailableTagRow({
+  required final _TagOption tag,
+  required final VoidCallback onPick,
+}) extends StatefulWidget {
   @override
   State<_AvailableTagRow> createState() => _AvailableTagRowState();
 }
@@ -163,7 +142,7 @@ class _AvailableTagRowState extends State<_AvailableTagRow> {
       child: InkWell(
         onTap: widget.onPick,
         mouseCursor: SystemMouseCursors.click,
-        borderRadius: BorderRadius.circular(AleraTokens.radiusSm),
+        borderRadius: .circular(AleraTokens.radiusSm),
         child: AnimatedContainer(
           duration: AleraTokens.durationFast,
           decoration: BoxDecoration(
@@ -186,10 +165,9 @@ class _AvailableTagRowState extends State<_AvailableTagRow> {
                 child: Text(
                   widget.tag.name,
                   maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: AleraTokens.foreground,
-                  ),
+                  overflow: .ellipsis,
+                  style: Theme.of(context).textTheme.bodySmall
+                      ?.copyWith(color: AleraTokens.foreground),
                 ),
               ),
             ],

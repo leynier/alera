@@ -15,11 +15,11 @@ void main() {
 
     for (var i = 0; i < 10; i++) {
       coalescer.schedule('key', owner, () async => runs += 1);
-      await Future<void>.delayed(const Duration(milliseconds: 5));
+      await Future.pause(const Duration(milliseconds: 5));
     }
     expect(runs, 0, reason: 'still inside the debounce window');
 
-    await Future<void>.delayed(const Duration(milliseconds: 60));
+    await Future.pause(const Duration(milliseconds: 60));
     expect(runs, 1);
   });
 
@@ -36,7 +36,7 @@ void main() {
       const Duration(milliseconds: 10),
       (_) => coalescer.schedule('key', owner, () async => runs += 1),
     );
-    await Future<void>.delayed(const Duration(milliseconds: 200));
+    await Future.pause(const Duration(milliseconds: 200));
     ticker.cancel();
 
     expect(
@@ -56,7 +56,7 @@ void main() {
 
     coalescer.schedule('a', Object(), () async => ran.add('a'));
     coalescer.schedule('b', Object(), () async => ran.add('b'));
-    await Future<void>.delayed(const Duration(milliseconds: 40));
+    await Future.pause(const Duration(milliseconds: 40));
 
     expect(ran..sort(), <String>['a', 'b']);
   });
@@ -93,7 +93,7 @@ void main() {
         await gate.future;
       }
     });
-    await Future<void>.delayed(const Duration(milliseconds: 20));
+    await Future.pause(const Duration(milliseconds: 20));
     expect(runs, 1);
 
     final flushed = coalescer.flush('key');
@@ -113,12 +113,12 @@ void main() {
 
     coalescer.schedule('key', owner, () async => runs += 1);
     coalescer.cancel('key', owner);
-    await Future<void>.delayed(const Duration(milliseconds: 40));
+    await Future.pause(const Duration(milliseconds: 40));
     expect(runs, 0);
 
     coalescer.schedule('other', Object(), () async => runs += 1);
     coalescer.dispose();
-    await Future<void>.delayed(const Duration(milliseconds: 40));
+    await Future.pause(const Duration(milliseconds: 40));
     expect(runs, 0);
   });
 
@@ -138,7 +138,7 @@ void main() {
       coalescer.schedule('key', secondOwner, () async => secondRuns += 1);
     }
     coalescer.cancel('key', firstOwner);
-    await Future<void>.delayed(const Duration(milliseconds: 40));
+    await Future.pause(const Duration(milliseconds: 40));
 
     expect(firstRuns, 0);
     expect(secondRuns, 1);

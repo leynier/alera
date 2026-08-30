@@ -21,7 +21,7 @@ void main() {
       );
       await tester.pumpWidget(
         MaterialApp(
-          theme: ThemeData.dark(),
+          theme: .dark(),
           home: Scaffold(
             body: SingleChildScrollView(
               child: AleraConfigurationReview(

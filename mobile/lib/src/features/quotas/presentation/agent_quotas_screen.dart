@@ -15,11 +15,10 @@ import 'package:alera_mobile/src/features/settings/application/host_settings_con
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-class AgentQuotasScreen extends ConsumerWidget {
-  const AgentQuotasScreen({super.key, required this.host});
-
-  final PairedHostProfile host;
-
+class const AgentQuotasScreen({
+  super.key,
+  required final PairedHostProfile host,
+}) extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final quotas = ref.watch(agentQuotaControllerProvider(host.id));
@@ -69,19 +68,12 @@ class AgentQuotasScreen extends ConsumerWidget {
   }
 }
 
-class _QuotaList extends ConsumerWidget {
-  const _QuotaList({
-    required this.hostId,
-    required this.state,
-    required this.settings,
-    required this.onRefresh,
-  });
-
-  final String hostId;
-  final QuotaSnapshotState state;
-  final QuotaSettings? settings;
-  final Future<void> Function() onRefresh;
-
+class const _QuotaList({
+  required final String hostId,
+  required final QuotaSnapshotState state,
+  required final QuotaSettings? settings,
+  required final Future<void> Function() onRefresh,
+}) extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final snapshots = sortedQuotaSnapshots(state.snapshots, settings: settings);
@@ -93,9 +85,8 @@ class _QuotaList extends ConsumerWidget {
         children: <Widget>[
           Text(
             'Updated ${_relativeTime(state.fetchedAt)}',
-            style: Theme.of(
-              context,
-            ).textTheme.bodySmall?.copyWith(color: AleraTokens.foregroundMuted),
+            style: Theme.of(context).textTheme.bodySmall
+                ?.copyWith(color: AleraTokens.foregroundMuted),
           ),
           const SizedBox(height: AleraTokens.spaceMd),
           if (snapshots.isEmpty)
@@ -111,12 +102,10 @@ class _QuotaList extends ConsumerWidget {
   }
 }
 
-class _QuotaCard extends ConsumerStatefulWidget {
-  const _QuotaCard({required this.hostId, required this.snapshot});
-
-  final String hostId;
-  final QuotaSnapshot snapshot;
-
+class const _QuotaCard({
+  required final String hostId,
+  required final QuotaSnapshot snapshot,
+}) extends ConsumerStatefulWidget {
   @override
   ConsumerState<_QuotaCard> createState() => _QuotaCardState();
 }
@@ -194,14 +183,12 @@ class _QuotaCardState extends ConsumerState<_QuotaCard> {
           .read(agentQuotaControllerProvider(widget.hostId).notifier)
           .consumeCodexResetCredit(widget.snapshot);
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(_codexResetMessage(result))));
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(_codexResetMessage(result))));
     } on Object catch (error) {
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Codex reset failed: $error')));
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text('Codex reset failed: $error')));
     } finally {
       if (mounted) setState(() => _usingReset = false);
     }
@@ -229,7 +216,7 @@ class _QuotaCardState extends ConsumerState<_QuotaCard> {
       child: Padding(
         padding: AleraTokens.contentPadding,
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
+          crossAxisAlignment: .stretch,
           children: <Widget>[
             Row(
               children: <Widget>[
@@ -243,7 +230,7 @@ class _QuotaCardState extends ConsumerState<_QuotaCard> {
                       displayName: snapshot.displayName,
                     ),
                     style: Theme.of(context).textTheme.titleMedium,
-                    overflow: TextOverflow.ellipsis,
+                    overflow: .ellipsis,
                   ),
                 ),
                 QuotaStatusPill(status: snapshot.status),
@@ -271,7 +258,7 @@ class _QuotaCardState extends ConsumerState<_QuotaCard> {
                 children: <Widget>[
                   Expanded(
                     child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                      crossAxisAlignment: .start,
                       children: <Widget>[
                         Text(
                           '${credits.availableCount} Rate-Limit ${credits.availableCount == 1 ? 'Reset' : 'Resets'} Available',
@@ -312,9 +299,8 @@ class _QuotaCardState extends ConsumerState<_QuotaCard> {
                           try {
                             await ref
                                 .read(
-                                  agentQuotaControllerProvider(
-                                    widget.hostId,
-                                  ).notifier,
+                                  agentQuotaControllerProvider(widget.hostId)
+                                      .notifier,
                                 )
                                 .tryClaudeWithTui(snapshot);
                           } finally {
@@ -364,12 +350,10 @@ String? _codexResetExpiryText(DateTime? expiry) {
   return 'Next reset expires in ${remaining.inMinutes.clamp(1, 59)}m';
 }
 
-class _QuotaMeterRow extends StatelessWidget {
-  const _QuotaMeterRow({required this.provider, required this.meter});
-
-  final String provider;
-  final QuotaMeter meter;
-
+class const _QuotaMeterRow({
+  required final String provider,
+  required final QuotaMeter meter,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final remaining = meter.remainingPercent;
@@ -379,7 +363,7 @@ class _QuotaMeterRow extends StatelessWidget {
         ? AleraTokens.warning
         : AleraTokens.success;
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+      crossAxisAlignment: .stretch,
       children: <Widget>[
         Row(
           children: <Widget>[
@@ -407,10 +391,9 @@ class _QuotaMeterRow extends StatelessWidget {
           const SizedBox(height: AleraTokens.spaceXs),
           Text(
             label,
-            textAlign: TextAlign.right,
-            style: Theme.of(
-              context,
-            ).textTheme.bodySmall?.copyWith(color: AleraTokens.foregroundMuted),
+            textAlign: .right,
+            style: Theme.of(context).textTheme.bodySmall
+                ?.copyWith(color: AleraTokens.foregroundMuted),
           ),
         ],
       ],
@@ -418,9 +401,7 @@ class _QuotaMeterRow extends StatelessWidget {
   }
 }
 
-class _EmptyQuotas extends StatelessWidget {
-  const _EmptyQuotas();
-
+class const _EmptyQuotas() extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return const Card(
@@ -432,21 +413,19 @@ class _EmptyQuotas extends StatelessWidget {
   }
 }
 
-class _QuotaError extends ConsumerWidget {
-  const _QuotaError({required this.error, required this.hostId});
-
-  final Object error;
-  final String hostId;
-
+class const _QuotaError({
+  required final Object error,
+  required final String hostId,
+}) extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return Center(
       child: Padding(
         padding: AleraTokens.contentPadding,
         child: Column(
-          mainAxisSize: MainAxisSize.min,
+          mainAxisSize: .min,
           children: <Widget>[
-            Text(error.toString(), textAlign: TextAlign.center),
+            Text(error.toString(), textAlign: .center),
             const SizedBox(height: AleraTokens.spaceLg),
             FilledButton(
               onPressed: ref

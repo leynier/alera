@@ -1,29 +1,17 @@
 part of 'codex_chat_surface.dart';
 
-class _CodexTurnSection extends StatelessWidget {
-  const _CodexTurnSection({
-    required this.projection,
-    required this.workspacePath,
-    required this.workedExpanded,
-    required this.onToggleWorked,
-    required this.expandedToolGroups,
-    required this.expandedToolActions,
-    required this.onToggleToolGroup,
-    required this.onToggleToolAction,
-    required this.onOpenAttachment,
-  });
-
-  final _CodexTurnProjection projection;
-  final String workspacePath;
-  final bool workedExpanded;
-  final VoidCallback onToggleWorked;
-  final Set<String> expandedToolGroups;
-  final Set<String> expandedToolActions;
-  final ValueChanged<String> onToggleToolGroup;
-  final ValueChanged<String> onToggleToolAction;
-  final Future<void> Function(String path, {required bool isImage})
-  onOpenAttachment;
-
+class const _CodexTurnSection({
+  required final _CodexTurnProjection projection,
+  required final String workspacePath,
+  required final bool workedExpanded,
+  required final VoidCallback onToggleWorked,
+  required final Set<String> expandedToolGroups,
+  required final Set<String> expandedToolActions,
+  required final ValueChanged<String> onToggleToolGroup,
+  required final ValueChanged<String> onToggleToolAction,
+  required final Future<void> Function(String path, {required bool isImage})
+  onOpenAttachment,
+}) extends StatelessWidget {
   String get turnId => projection.turnId;
 
   @override
@@ -86,10 +74,7 @@ class _CodexTurnSection extends StatelessWidget {
     );
     return Padding(
       padding: const EdgeInsets.only(bottom: AleraTokens.space12),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: children,
-      ),
+      child: Column(crossAxisAlignment: .stretch, children: children),
     );
   }
 }

@@ -63,7 +63,7 @@ void main() {
           name: 'Translate',
           prompt: 'Translate to Spanish.',
           enabled: false,
-          agentOverride: AiAssistAgent.claude,
+          agentOverride: .claude,
           modelOverride: 'claude-sonnet-4-6',
           reasoningByModel: <String, String>{'claude-sonnet-4-6': 'high'},
         ),
@@ -85,7 +85,7 @@ void main() {
       id: 'overridden',
       name: 'Overridden',
       prompt: 'Improve.',
-      agentOverride: AiAssistAgent.claude,
+      agentOverride: .claude,
       modelOverride: 'claude-sonnet-4-6',
     );
 
@@ -93,10 +93,7 @@ void main() {
     expect(inherited.inheritsModel, isTrue);
     expect(overridden.inheritsAgent, isFalse);
     expect(overridden.inheritsModel, isFalse);
-    expect(
-      overridden.effectiveModel(AiAssistSettings.defaults),
-      'claude-sonnet-4-6',
-    );
+    expect(overridden.effectiveModel(.defaults), 'claude-sonnet-4-6');
     expect(TextAction.fromJson(overridden.toMap()).toMap(), overridden.toMap());
   });
 
@@ -220,7 +217,7 @@ void main() {
 
   test('action inherits global agent, model, and reasoning by default', () {
     const settings = AiAssistSettings(
-      agent: AiAssistAgent.claude,
+      agent: .claude,
       selectedModelByAgent: <AiAssistAgent, String>{
         AiAssistAgent.claude: 'claude-sonnet-4-6',
       },

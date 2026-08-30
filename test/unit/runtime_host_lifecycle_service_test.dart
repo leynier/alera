@@ -124,12 +124,11 @@ void main() {
       );
 
       await service.updateIfAvailable(
-        confirmForce:
-            ({
-              required String title,
-              required String message,
-              required String confirmLabel,
-            }) async => false,
+        confirmForce: ({
+          required String title,
+          required String message,
+          required String confirmLabel,
+        }) async => false,
       );
 
       expect(client.shutdownCalls, <bool>[false]);
@@ -155,12 +154,11 @@ void main() {
       );
 
       await service.updateIfAvailable(
-        confirmForce:
-            ({
-              required String title,
-              required String message,
-              required String confirmLabel,
-            }) async => true,
+        confirmForce: ({
+          required String title,
+          required String message,
+          required String confirmLabel,
+        }) async => true,
       );
 
       expect(client.shutdownCalls, <bool>[false, true]);
@@ -188,12 +186,11 @@ void main() {
         );
 
         await service.updateIfAvailable(
-          confirmForce:
-              ({
-                required String title,
-                required String message,
-                required String confirmLabel,
-              }) async => true,
+          confirmForce: ({
+            required String title,
+            required String message,
+            required String confirmLabel,
+          }) async => true,
         );
 
         expect(client.shutdownCalls, <bool>[false, true]);

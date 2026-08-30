@@ -11,12 +11,10 @@ part 'keyboard_shortcut_settings.mapper.dart';
 /// - present with a non-empty list: use those chords,
 /// - present with an empty list: the action is explicitly disabled.
 @MappableClass()
-class KeyboardShortcutSettings with KeyboardShortcutSettingsMappable {
-  const KeyboardShortcutSettings({
-    this.overrides = const <KeyboardActionId, List<String>>{},
-    this.terminalPolicy = TerminalShortcutPolicy.appFirst,
-  });
-
+class const KeyboardShortcutSettings({
+  this.overrides = const <KeyboardActionId, List<String>>{},
+  this.terminalPolicy = TerminalShortcutPolicy.appFirst,
+}) with KeyboardShortcutSettingsMappable {
   final Map<KeyboardActionId, List<String>> overrides;
   final TerminalShortcutPolicy terminalPolicy;
 
@@ -36,10 +34,10 @@ class KeyboardShortcutSettings with KeyboardShortcutSettingsMappable {
     if (chords == null) {
       next.remove(id);
     } else {
-      next[id] = List<String>.unmodifiable(chords);
+      next[id] = List<String>.unmodifiableOf(chords);
     }
     return KeyboardShortcutSettings(
-      overrides: Map<KeyboardActionId, List<String>>.unmodifiable(next),
+      overrides: Map<KeyboardActionId, List<String>>.unmodifiableOf(next),
       terminalPolicy: terminalPolicy,
     );
   }
@@ -55,6 +53,6 @@ class KeyboardShortcutSettings with KeyboardShortcutSettingsMappable {
     return KeyboardShortcutSettings(terminalPolicy: terminalPolicy);
   }
 
-  factory KeyboardShortcutSettings.fromJson(Map<String, Object?> json) =>
+  factory fromJson(Map<String, Object?> json) =>
       KeyboardShortcutSettingsMapper.fromMap(Map<String, dynamic>.from(json));
 }

@@ -20,7 +20,7 @@ void main() {
           id: 'workspace-main',
           projectId: 'project-1',
           now: now.add(const Duration(hours: 1)),
-          kind: WorkspaceKind.main,
+          kind: .main,
           branch: '',
           sourceBranch: '',
         );
@@ -28,7 +28,7 @@ void main() {
           id: 'workspace-linked-early',
           projectId: 'project-1',
           now: now,
-          kind: WorkspaceKind.linked,
+          kind: .linked,
           branch: 'feature/a',
           sourceBranch: 'main',
           reusesExistingBranch: true,
@@ -37,7 +37,7 @@ void main() {
           id: 'workspace-linked-late',
           projectId: 'project-1',
           now: now.add(const Duration(days: 1)),
-          kind: WorkspaceKind.linked,
+          kind: .linked,
           branch: 'feature/b',
           sourceBranch: 'main',
         );
@@ -51,8 +51,8 @@ void main() {
             id: 'workspace-removed',
             projectId: 'project-1',
             now: now,
-            kind: WorkspaceKind.linked,
-            status: WorkspaceStatus.removed,
+            kind: .linked,
+            status: .removed,
             branch: 'feature/removed',
           ),
         );
@@ -79,7 +79,7 @@ void main() {
       final workspace = _workspace(
         id: 'workspace-pinned',
         projectId: 'project-1',
-        now: DateTime.utc(2026, 7, 16),
+        now: .utc(2026, 7, 16),
       );
       await repository.upsertWorkspace(workspace);
 
@@ -156,7 +156,7 @@ void main() {
         final tab = WorkspaceTabRecord(
           id: 'tab-1',
           workspaceId: workspace.id,
-          kind: WorkspaceTabKind.browser,
+          kind: .browser,
           title: 'Preview',
           payload: const <String, Object?>{'path': 'readme.md'},
           createdAt: now,
@@ -166,10 +166,7 @@ void main() {
         await repository.upsertWorkspace(workspace);
         await repository.upsertWorkspaceTab(tab);
         await repository.upsertWorkbenchLayout(
-          WorkbenchLayout.single(
-            workspaceId: workspace.id,
-            tabIds: <String>[tab.id],
-          ),
+          .single(workspaceId: workspace.id, tabIds: <String>[tab.id]),
         );
         await _insertWorkspaceTabRow(
           db,
@@ -215,7 +212,7 @@ void main() {
               tabIds: const <String>['tab-1'],
             ).splitWithGroup(
               targetGroupId: WorkbenchLayout.defaultGroupId(workspace.id),
-              zone: WorkbenchDropZone.right,
+              zone: .right,
               newGroup: WorkbenchPaneGroup(
                 id: 'group-2',
                 tabIds: const <String>['tab-2'],
@@ -290,22 +287,16 @@ void main() {
       await repository.upsertWorkspaceTab(secondTab);
       await repository.upsertWorkspaceTab(otherTab);
       await repository.upsertWorkbenchLayout(
-        WorkbenchLayout.single(
-          workspaceId: firstWorkspace.id,
-          tabIds: <String>[firstTab.id],
-        ),
+        .single(workspaceId: firstWorkspace.id, tabIds: <String>[firstTab.id]),
       );
       await repository.upsertWorkbenchLayout(
-        WorkbenchLayout.single(
+        .single(
           workspaceId: secondWorkspace.id,
           tabIds: <String>[secondTab.id],
         ),
       );
       await repository.upsertWorkbenchLayout(
-        WorkbenchLayout.single(
-          workspaceId: otherWorkspace.id,
-          tabIds: <String>[otherTab.id],
-        ),
+        .single(workspaceId: otherWorkspace.id, tabIds: <String>[otherTab.id]),
       );
 
       await repository.removeWorkspacesForProject('project-1');
@@ -332,14 +323,14 @@ void main() {
         id: 'workspace-zebra',
         projectId: 'project-1',
         now: now,
-        kind: WorkspaceKind.linked,
+        kind: .linked,
         branch: 'feature/zebra',
       ).copyWith(name: 'zebra');
       final alpha = _workspace(
         id: 'workspace-alpha',
         projectId: 'project-1',
         now: now,
-        kind: WorkspaceKind.linked,
+        kind: .linked,
         branch: 'feature/alpha',
       ).copyWith(name: 'alpha');
 
@@ -347,9 +338,8 @@ void main() {
       await repository.upsertWorkspace(alpha);
 
       expect(
-        (await repository.listWorkspaces(
-          'project-1',
-        )).map((workspace) => workspace.name),
+        (await repository.listWorkspaces('project-1'))
+            .map((workspace) => workspace.name),
         <String>['alpha', 'zebra'],
       );
     });

@@ -10,37 +10,23 @@ enum MobileAiDictationEngine {
 
 enum MobileAiDictationRewriteMode { off, cleanUp, summarize }
 
-class MobileAiDictationSettings {
-  const MobileAiDictationSettings({
-    this.enabled = false,
-    this.location = MobileAiDictationLocation.thisDevice,
-    this.engine = MobileAiDictationEngine.systemOnDevice,
-    this.rewriteMode = MobileAiDictationRewriteMode.off,
-    this.language,
-    this.localModelId = 'whisper-base',
-    this.remoteModelId = 'whisper-base',
-    this.providerBaseUrl = 'https://api.openai.com/v1',
-    this.providerModel = 'gpt-4o-mini-transcribe',
-    this.codexRealtimeModel,
-    this.providerTimeoutSeconds = 60,
-    this.remoteAudioConsentVersion,
-    this.systemRecognitionConsentVersion,
-  });
-
-  final bool enabled;
-  final MobileAiDictationLocation location;
-  final MobileAiDictationEngine engine;
-  final MobileAiDictationRewriteMode rewriteMode;
-  final String? language;
-  final String localModelId;
-  final String remoteModelId;
-  final String providerBaseUrl;
-  final String providerModel;
-  final String? codexRealtimeModel;
-  final int providerTimeoutSeconds;
-  final int? remoteAudioConsentVersion;
-  final int? systemRecognitionConsentVersion;
-
+class const MobileAiDictationSettings({
+  final bool enabled = false,
+  final MobileAiDictationLocation location =
+      MobileAiDictationLocation.thisDevice,
+  final MobileAiDictationEngine engine = MobileAiDictationEngine.systemOnDevice,
+  final MobileAiDictationRewriteMode rewriteMode =
+      MobileAiDictationRewriteMode.off,
+  final String? language,
+  final String localModelId = 'whisper-base',
+  final String remoteModelId = 'whisper-base',
+  final String providerBaseUrl = 'https://api.openai.com/v1',
+  final String providerModel = 'gpt-4o-mini-transcribe',
+  final String? codexRealtimeModel,
+  final int providerTimeoutSeconds = 60,
+  final int? remoteAudioConsentVersion,
+  final int? systemRecognitionConsentVersion,
+}) {
   bool get usesWhisper => engine == MobileAiDictationEngine.whisper;
   bool get sendsAudioToPairedDevice =>
       location == MobileAiDictationLocation.pairedDevice;
@@ -108,7 +94,7 @@ class MobileAiDictationSettings {
     'systemRecognitionConsentVersion': systemRecognitionConsentVersion,
   };
 
-  factory MobileAiDictationSettings.fromJson(Map<String, Object?> json) {
+  factory fromJson(Map<String, Object?> json) {
     final engineName = json['engine']?.toString();
     final legacyWhisper = engineName == 'localWhisper';
     final location = MobileAiDictationLocation.values.firstWhere(

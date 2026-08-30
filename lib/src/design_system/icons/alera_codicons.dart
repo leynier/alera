@@ -4,9 +4,7 @@ import 'package:flutter/widgets.dart';
 ///
 /// Code points come from `@vscode/codicons` 0.0.46-24. The bundled font is
 /// licensed under CC BY 4.0; see `assets/fonts/VSCodeCodicons-LICENSE.txt`.
-abstract final class AleraCodicons {
-  const AleraCodicons._();
-
+abstract final class const AleraCodicons._() {
   static const String _family = 'Alera Codicons';
 
   static const IconData add = IconData(0xea60, fontFamily: _family);

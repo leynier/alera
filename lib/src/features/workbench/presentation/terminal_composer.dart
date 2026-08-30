@@ -3,7 +3,6 @@ import 'dart:async';
 import 'package:alera/src/design_system/feedback/alera_toast.dart';
 import 'package:alera/src/design_system/forms/alera_composer.dart';
 import 'package:alera/src/design_system/forms/alera_text_actions_scope.dart';
-import 'package:alera/src/features/workbench/domain/terminal_composer_attachment.dart';
 import 'package:alera/src/features/workbench/domain/terminal_composer_submission.dart';
 import 'package:alera/src/features/workbench/infra/terminal_clipboard.dart';
 import 'package:alera/src/features/workbench/presentation/terminal_composer_attachment_bar.dart';
@@ -13,20 +12,13 @@ import 'package:flutter/material.dart';
 import 'package:alera/src/features/ai_dictation/presentation/ai_dictation_control.dart';
 import 'package:alera/src/features/ai_dictation/presentation/ai_dictation_target.dart';
 
-class TerminalComposer extends StatelessWidget {
-  const TerminalComposer({
-    super.key,
-    required this.session,
-    this.clipboard = const NativeTerminalClipboard(),
-    this.externalUriLauncher,
-    this.onOpenWorkspaceFile,
-  });
-
-  final TerminalSessionHandle session;
-  final TerminalClipboard clipboard;
-  final ExternalUriLauncher? externalUriLauncher;
-  final Future<bool> Function(String path)? onOpenWorkspaceFile;
-
+class const TerminalComposer({
+  super.key,
+  required final TerminalSessionHandle session,
+  final TerminalClipboard clipboard = const NativeTerminalClipboard(),
+  final ExternalUriLauncher? externalUriLauncher,
+  final Future<bool> Function(String path)? onOpenWorkspaceFile,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final composer = session.composerController;
@@ -99,16 +91,13 @@ class TerminalComposer extends StatelessWidget {
         return false;
       }
       final composer = session.composerController;
-      composer.addPathAttachment(
-        imagePath,
-        kind: TerminalComposerAttachmentKind.image,
-      );
+      composer.addPathAttachment(imagePath, kind: .image);
       composer.focusNode.requestFocus();
       return true;
     } catch (_) {
       AleraToast.publish(
         message: 'Could not paste clipboard image.',
-        tone: AleraToastTone.error,
+        tone: .error,
       );
       return true;
     }
@@ -120,12 +109,12 @@ class TerminalComposer extends StatelessWidget {
         return;
       }
       await (externalUriLauncher ?? UrlLauncherExternalUriLauncher()).open(
-        Uri.file(path),
+        .file(path),
       );
     } on Object catch (error) {
       AleraToast.publish(
         message: 'Could not open attached file: $error',
-        tone: AleraToastTone.error,
+        tone: .error,
       );
     }
   }
@@ -148,7 +137,7 @@ class TerminalComposer extends StatelessWidget {
       if (!submitted) {
         AleraToast.publish(
           message: 'The terminal could not accept the prompt.',
-          tone: AleraToastTone.error,
+          tone: .error,
         );
         return;
       }
@@ -164,7 +153,7 @@ class TerminalComposer extends StatelessWidget {
     } on Object catch (error) {
       AleraToast.publish(
         message: 'The terminal could not accept the prompt: $error',
-        tone: AleraToastTone.error,
+        tone: .error,
       );
     } finally {
       composer.setSubmitting(false);

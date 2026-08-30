@@ -15,12 +15,8 @@ import 'package:uuid/uuid.dart';
 
 part 'workspace_service_removal.dart';
 
-class WorkspaceException implements Exception {
-  WorkspaceException(this.message, {this.stderr});
-
-  final String message;
-  final String? stderr;
-
+class WorkspaceException(final String message, {final String? stderr})
+    implements Exception {
   @override
   String toString() {
     final stderr = this.stderr?.trim();
@@ -33,15 +29,13 @@ class WorkspaceException implements Exception {
 
 /// Resolves the on-disk root for Alera-managed workspaces. Linked workspaces
 /// are implemented as Git worktrees under this root.
-class WorkspaceRoot {
-  factory WorkspaceRoot({String? override, Map<String, String>? environment}) {
+class WorkspaceRoot._(
+  final String? override,
+  final Map<String, String> _environment,
+) {
+  factory({String? override, Map<String, String>? environment}) {
     return WorkspaceRoot._(override, environment ?? Platform.environment);
   }
-
-  WorkspaceRoot._(this.override, this._environment);
-
-  final String? override;
-  final Map<String, String> _environment;
 
   String resolve() {
     final explicit = override;
@@ -72,8 +66,18 @@ abstract interface class ManagedWorkspaceRuntime {
   });
 }
 
-class WorkspaceService {
-  factory WorkspaceService({
+class WorkspaceService._(
+  final WorkbenchRepository _repository,
+  final ProjectService _projectService,
+  final GitBackend _gitBackend,
+  final WorkspaceRoot _workspaceRoot,
+  final ProjectConfigReader _projectConfigReader,
+  final WorktreeSetupRunner _worktreeSetupRunner,
+  final ManagedWorkspaceRuntime? _managedRuntime,
+  final Uuid _uuid,
+  final DateTime Function() _now,
+) {
+  factory({
     required WorkbenchRepository repository,
     required ProjectService projectService,
     required GitBackend gitBackend,
@@ -96,28 +100,6 @@ class WorkspaceService {
       now ?? _defaultNow,
     );
   }
-
-  WorkspaceService._(
-    this._repository,
-    this._projectService,
-    this._gitBackend,
-    this._workspaceRoot,
-    this._projectConfigReader,
-    this._worktreeSetupRunner,
-    this._managedRuntime,
-    this._uuid,
-    this._now,
-  );
-
-  final WorkbenchRepository _repository;
-  final ProjectService _projectService;
-  final GitBackend _gitBackend;
-  final WorkspaceRoot _workspaceRoot;
-  final ProjectConfigReader _projectConfigReader;
-  final WorktreeSetupRunner _worktreeSetupRunner;
-  final ManagedWorkspaceRuntime? _managedRuntime;
-  final Uuid _uuid;
-  final DateTime Function() _now;
 
   static DateTime _defaultNow() => DateTime.now().toUtc();
 
@@ -151,15 +133,15 @@ class WorkspaceService {
                   path: project.repoPath,
                   createdAt: now,
                   updatedAt: now,
-                  kind: WorkspaceKind.main,
-                  status: WorkspaceStatus.active,
+                  kind: .main,
+                  status: .active,
                 ))
             .copyWith(
               branch: branch,
               path: project.repoPath,
               updatedAt: now,
-              kind: WorkspaceKind.main,
-              status: WorkspaceStatus.active,
+              kind: .main,
+              status: .active,
               sourceBranch: null,
             );
     await _repository.upsertWorkspace(next);
@@ -286,8 +268,8 @@ class WorkspaceService {
       path: workspacePath,
       createdAt: _now(),
       updatedAt: _now(),
-      kind: WorkspaceKind.linked,
-      status: WorkspaceStatus.active,
+      kind: .linked,
+      status: .active,
       sourceBranch: reuseExistingBranch ? null : normalizedSource,
       reusesExistingBranch: reuseExistingBranch,
     );
@@ -312,7 +294,7 @@ class WorkspaceService {
       return WorktreeSetupReport(
         steps: <WorktreeSetupStepReport>[
           WorktreeSetupStepReport(
-            kind: WorktreeSetupStepKind.config,
+            kind: .config,
             label: 'alera.toml',
             succeeded: false,
             message: error.toString(),

@@ -3,11 +3,8 @@ import 'package:alera/src/features/browser/domain/browser_settings.dart';
 import 'package:alera/src/features/browser/infra/runtime_browser_payload.dart';
 import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_protocol.dart';
 
-final class RuntimeBrowserSettingsService implements BrowserSettingsService {
-  const RuntimeBrowserSettingsService(this._client);
-
-  final RuntimeHostClient _client;
-
+final class const RuntimeBrowserSettingsService(final RuntimeHostClient _client)
+    implements BrowserSettingsService {
   @override
   Future<BrowserSettings> get() async {
     final response = browserRuntimeSuccessMap(

@@ -30,15 +30,13 @@ Future<void> main(List<String> args) async {
   }
 }
 
-final class _Options {
-  _Options({
-    required this.platform,
-    required this.bundlePath,
-    required this.emulatorRootPath,
-    required this.manifestPath,
-  });
-
-  factory _Options.parse(List<String> args) {
+final class _Options({
+  required final String platform,
+  required final String? bundlePath,
+  required final String? emulatorRootPath,
+  required final String manifestPath,
+}) {
+  factory parse(List<String> args) {
     final values = <String, String>{};
     for (var index = 0; index < args.length; index += 2) {
       if (index + 1 >= args.length || !args[index].startsWith('--')) {
@@ -66,9 +64,4 @@ final class _Options {
           p.join('tool', 'native_helpers', 'native_helper_assets.json'),
     );
   }
-
-  final String platform;
-  final String? bundlePath;
-  final String? emulatorRootPath;
-  final String manifestPath;
 }

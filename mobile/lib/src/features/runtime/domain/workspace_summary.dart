@@ -2,45 +2,28 @@ import 'package:alera_mobile/src/core/json_payload_fields.dart';
 
 /// Field casing mirrors the desktop runtime parsers in
 /// `lib/src/features/workbench/infra/runtime_workbench_repository.dart`.
-class WorkspaceSummary {
-  const WorkspaceSummary({
-    required this.id,
-    required this.projectId,
-    required this.name,
-    required this.path,
-    this.branch,
-    this.kind = 'linked',
-    this.status = 'active',
-    this.isPinned = false,
-    this.parentWorkspaceId,
-    this.childCount = 0,
-    this.tagIds = const <String>[],
-    this.tagNames = const <String>[],
-    this.sourceBranch,
-    this.reusesExistingBranch = false,
-    this.updatedAt,
-  });
-
-  final String id;
-  final String projectId;
-  final String name;
-  final String path;
-  final String? branch;
-  final String kind;
-  final String status;
-  final bool isPinned;
-  final String? parentWorkspaceId;
-  final int childCount;
-  final List<String> tagIds;
-  final List<String> tagNames;
-  final String? sourceBranch;
-  final bool reusesExistingBranch;
-  final DateTime? updatedAt;
-
+class const WorkspaceSummary({
+  required final String id,
+  required final String projectId,
+  required final String name,
+  required final String path,
+  final String? branch,
+  final String kind = 'linked',
+  final String status = 'active',
+  final bool isPinned = false,
+  final String? sectionId,
+  final String? parentWorkspaceId,
+  final int childCount = 0,
+  final List<String> tagIds = const <String>[],
+  final List<String> tagNames = const <String>[],
+  final String? sourceBranch,
+  final bool reusesExistingBranch = false,
+  final DateTime? updatedAt,
+}) {
   bool get isMain => kind == 'main';
   bool get hasParent => parentWorkspaceId != null;
 
-  factory WorkspaceSummary.fromJson(Map<String, Object?> json) {
+  factory fromJson(Map<String, Object?> json) {
     return WorkspaceSummary(
       id: json.requiredString('id'),
       projectId: json.requiredString('projectId'),
@@ -50,6 +33,7 @@ class WorkspaceSummary {
       kind: json.optionalString('kind') ?? 'linked',
       status: json.optionalString('status') ?? 'active',
       isPinned: json['isPinned'] == true,
+      sectionId: json.optionalString('sectionId'),
       parentWorkspaceId: json.optionalString('parentWorkspaceId'),
       childCount: (json['childCount'] as num?)?.toInt() ?? 0,
       tagIds: json.stringList('tagIds'),

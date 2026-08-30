@@ -198,9 +198,10 @@ void _registerCodexChatSurfaceGoalTests() {
       await _pumpComposerSurface(tester, client);
       await tester.pump(const Duration(milliseconds: 200));
       expect(
-        ProviderScope.containerOf(
-          tester.element(find.byType(CodexChatSurface)),
-        ).read(codexChatControllerProvider('codex-tab')).snapshot.goal,
+        ProviderScope.containerOf(tester.element(find.byType(CodexChatSurface)))
+            .read(codexChatControllerProvider('codex-tab'))
+            .snapshot
+            .goal,
         isNotNull,
       );
 

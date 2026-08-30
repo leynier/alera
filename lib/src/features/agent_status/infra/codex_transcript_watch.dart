@@ -1,25 +1,15 @@
 part of 'codex_transcript_status_watcher.dart';
 
-class _CodexTranscriptWatch {
-  _CodexTranscriptWatch({
-    required this._statusSink,
-    required this.terminalSessionId,
-    required this.workspaceId,
-    required this.tabId,
-    required this.transcriptPath,
-    required this.turnId,
-    required this.watchdogInterval,
-    required this.appForeground,
-  });
-
-  final AgentStatusSink _statusSink;
-  final String terminalSessionId;
-  final String workspaceId;
-  final String tabId;
-  final String transcriptPath;
-  final String? turnId;
-  final Duration watchdogInterval;
-  final AppForeground appForeground;
+class _CodexTranscriptWatch({
+  required final AgentStatusSink _statusSink,
+  required final String terminalSessionId,
+  required final String workspaceId,
+  required final String tabId,
+  required final String transcriptPath,
+  required final String? turnId,
+  required final Duration watchdogInterval,
+  required final AppForeground appForeground,
+}) {
   final Map<String, String> _pendingToolsByCallId = <String, String>{};
   final Set<String> _emittedCallIds = <String>{};
   StreamSubscription<FileSystemEvent>? _subscription;
@@ -257,7 +247,7 @@ class _CodexTranscriptWatch {
         terminalSessionId: terminalSessionId,
         workspaceId: workspaceId,
         tabId: tabId,
-        agentType: AgentType.codex,
+        agentType: .codex,
         hookEventName: 'PostToolUse',
         version: 'codex-transcript',
         payload: <String, Object?>{
@@ -297,7 +287,7 @@ class _CodexTranscriptWatch {
         terminalSessionId: terminalSessionId,
         workspaceId: workspaceId,
         tabId: tabId,
-        agentType: AgentType.codex,
+        agentType: .codex,
         hookEventName: 'Stop',
         version: 'codex-transcript',
         payload: <String, Object?>{
@@ -381,7 +371,7 @@ class _CodexTranscriptWatch {
         terminalSessionId: terminalSessionId,
         workspaceId: workspaceId,
         tabId: tabId,
-        agentType: AgentType.codex,
+        agentType: .codex,
         hookEventName: 'PreToolUse',
         version: 'codex-transcript',
         payload: <String, Object?>{
@@ -396,27 +386,16 @@ class _CodexTranscriptWatch {
   }
 }
 
-class _TranscriptTurnCompletion {
-  const _TranscriptTurnCompletion({
-    required this.interrupted,
-    this.lastAssistantMessage,
-  });
+class const _TranscriptTurnCompletion({
+  required final bool interrupted,
+  final String? lastAssistantMessage,
+});
 
-  final bool interrupted;
-  final String? lastAssistantMessage;
-}
-
-class _PendingFunctionCall {
-  const _PendingFunctionCall({
-    required this.toolName,
-    required this.callId,
-    required this.toolInput,
-  });
-
-  final String toolName;
-  final String? callId;
-  final Object? toolInput;
-}
+class const _PendingFunctionCall({
+  required final String toolName,
+  required final String? callId,
+  required final Object? toolInput,
+});
 
 String? _hookEventName(AgentHookEvent event) {
   return event.hookEventName ??

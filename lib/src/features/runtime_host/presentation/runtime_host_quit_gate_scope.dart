@@ -10,11 +10,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 /// Binds the runtime stop-on-quit gate once the app database is ready.
-class RuntimeHostQuitGateScope extends ConsumerStatefulWidget {
-  const RuntimeHostQuitGateScope({super.key, required this.child});
-
-  final Widget child;
-
+class const RuntimeHostQuitGateScope({super.key, required final Widget child})
+    extends ConsumerStatefulWidget {
   @override
   ConsumerState<RuntimeHostQuitGateScope> createState() =>
       _RuntimeHostQuitGateScopeState();
@@ -72,9 +69,9 @@ class _RuntimeHostQuitGateScopeState
         title: title,
         message: message,
         primaryLabel: 'Quit And Leave Runtime Open',
-        primaryValue: RuntimeHostQuitDecision.leaveRuntimeOpen,
+        primaryValue: .leaveRuntimeOpen,
         secondaryLabel: 'Force Stop And Quit',
-        secondaryValue: RuntimeHostQuitDecision.forceStop,
+        secondaryValue: .forceStop,
         destructiveSecondary: true,
       ),
     );

@@ -1,16 +1,11 @@
 import 'package:alera/src/features/workbench/application/repository_browser_opener.dart';
-import 'package:alera/src/features/workbench/application/workspace_folder_opener.dart';
-import 'package:alera/src/shared/git_hosting/domain/git_hosting_provider.dart';
 import 'package:alera/src/shared/infra/process/process_runner.dart';
 import 'package:alera/src/shared/infra/uri/external_uri_launcher.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'fake_git_backend.dart';
 
-class _RecordingLauncher implements ExternalUriLauncher {
-  _RecordingLauncher({this.error});
-
-  final Object? error;
+class _RecordingLauncher({final Object? error}) implements ExternalUriLauncher {
   final List<Uri> opened = <Uri>[];
 
   @override
@@ -22,11 +17,8 @@ class _RecordingLauncher implements ExternalUriLauncher {
   }
 }
 
-class _FakeProcessRunner implements ProcessRunner {
-  _FakeProcessRunner({this.exitCode = 0, this.throws = false});
-
-  int exitCode;
-  bool throws;
+class _FakeProcessRunner({var int exitCode = 0, var bool throws = false})
+    implements ProcessRunner {
   final List<(String, List<String>)> runs = <(String, List<String>)>[];
 
   @override
@@ -65,7 +57,7 @@ void main() {
     gitBackend: git,
     launcher: launcher,
     processRunner: process,
-    platform: WorkspaceFolderPlatform.linux,
+    platform: .linux,
   );
 
   setUp(() {
@@ -175,10 +167,7 @@ void main() {
     git.remotesByName = <String, String?>{
       'origin': 'git@git.acme.inc:team/service.git',
     };
-    final outcome = await opener.open(
-      repoPath: '/repo',
-      override: GitHostingProvider.github,
-    );
+    final outcome = await opener.open(repoPath: '/repo', override: .github);
 
     expect(outcome, OpenRepositoryOutcome.opened);
     expect(

@@ -1,34 +1,19 @@
 part of 'workspace_git_diff_surface.dart';
 
-class _GitDiffBar extends StatelessWidget {
-  const _GitDiffBar({
-    required this.title,
-    required this.filePath,
-    required this.onRefresh,
-    required this.onOpenFile,
-    required this.aiAssistEnabled,
-    required this.readingDiffReady,
-    required this.showingReadingDiff,
-    required this.readingDiffBusy,
-    required this.onGenerateReadingDiff,
-    required this.onRegenerateReadingDiff,
-    required this.onCancelReadingDiff,
-    required this.onToggleReadingDiff,
-  });
-
-  final String title;
-  final String? filePath;
-  final VoidCallback onRefresh;
-  final VoidCallback? onOpenFile;
-  final bool aiAssistEnabled;
-  final bool readingDiffReady;
-  final bool showingReadingDiff;
-  final bool readingDiffBusy;
-  final VoidCallback? onGenerateReadingDiff;
-  final VoidCallback? onRegenerateReadingDiff;
-  final VoidCallback onCancelReadingDiff;
-  final VoidCallback? onToggleReadingDiff;
-
+class const _GitDiffBar({
+  required final String title,
+  required final String? filePath,
+  required final VoidCallback onRefresh,
+  required final VoidCallback? onOpenFile,
+  required final bool aiAssistEnabled,
+  required final bool readingDiffReady,
+  required final bool showingReadingDiff,
+  required final bool readingDiffBusy,
+  required final VoidCallback? onGenerateReadingDiff,
+  required final VoidCallback? onRegenerateReadingDiff,
+  required final VoidCallback onCancelReadingDiff,
+  required final VoidCallback? onToggleReadingDiff,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
@@ -37,17 +22,13 @@ class _GitDiffBar extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: AleraTokens.space8),
         child: Row(
           children: <Widget>[
-            AleraFileIcon(
-              pathOrName: filePath ?? title,
-              kind: AleraFileIconKind.file,
-              size: 16,
-            ),
+            AleraFileIcon(pathOrName: filePath ?? title, kind: .file, size: 16),
             const SizedBox(width: AleraTokens.space8),
             Expanded(
               child: Text(
                 title,
                 maxLines: 1,
-                overflow: TextOverflow.ellipsis,
+                overflow: .ellipsis,
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
                   color: AleraTokens.foregroundMuted,
                   fontFamily: 'JetBrains Mono',

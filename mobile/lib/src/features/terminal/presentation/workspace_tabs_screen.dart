@@ -1,4 +1,5 @@
 import 'dart:async';
+
 import 'package:alera_mobile/src/features/runtime/domain/runtime_client_surfaces.dart';
 
 import 'package:alera_mobile/src/app/theme/alera_tokens.dart';
@@ -25,20 +26,13 @@ part 'workspace_tab_strip.dart';
 
 /// Tabs of one workspace: a horizontally scrollable chip switcher with one
 /// tab visible at a time. Splits stay a desktop concept.
-class WorkspaceTabsScreen extends ConsumerStatefulWidget {
-  const WorkspaceTabsScreen({
-    super.key,
-    required this.hostId,
-    required this.workspace,
-    this.initialTabId,
-    this.selectFallbackTab = true,
-  });
-
-  final String hostId;
-  final WorkspaceSummary workspace;
-  final String? initialTabId;
-  final bool selectFallbackTab;
-
+class const WorkspaceTabsScreen({
+  super.key,
+  required final String hostId,
+  required final WorkspaceSummary workspace,
+  final String? initialTabId,
+  final bool selectFallbackTab = true,
+}) extends ConsumerStatefulWidget {
   @override
   ConsumerState<WorkspaceTabsScreen> createState() =>
       _WorkspaceTabsScreenState();
@@ -241,7 +235,7 @@ class _WorkspaceTabsScreenState extends ConsumerState<WorkspaceTabsScreen> {
       context: context,
       builder: (context) => SafeArea(
         child: Column(
-          mainAxisSize: MainAxisSize.min,
+          mainAxisSize: .min,
           children: <Widget>[
             if (canGenerateTitle && (tab.isTerminal || tab.isCodex))
               ListTile(
@@ -368,9 +362,8 @@ class _WorkspaceTabsScreenState extends ConsumerState<WorkspaceTabsScreen> {
         previous,
         next,
       ) {
-        if (next case AsyncError(
-          :final error,
-        ) when error is DesktopReclaimedTerminal) {
+        if (next case AsyncError(:final error)
+            when error is DesktopReclaimedTerminal) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Desktop took back the terminal')),
           );
@@ -385,7 +378,7 @@ class _WorkspaceTabsScreenState extends ConsumerState<WorkspaceTabsScreen> {
         // toolbar leaves ~18dp of dead space under the title before the chips
         // start; 48dp still fits the back button exactly.
         toolbarHeight: AleraTokens.minTapTarget,
-        title: Text(widget.workspace.name, overflow: TextOverflow.ellipsis),
+        title: Text(widget.workspace.name, overflow: .ellipsis),
         actions: <Widget>[
           PopupMenuButton<_TabsMenuAction>(
             tooltip: 'More Actions',
@@ -401,7 +394,7 @@ class _WorkspaceTabsScreenState extends ConsumerState<WorkspaceTabsScreen> {
             },
             itemBuilder: (context) => <PopupMenuEntry<_TabsMenuAction>>[
               const PopupMenuItem<_TabsMenuAction>(
-                value: _TabsMenuAction.quickKeys,
+                value: .quickKeys,
                 child: Text('Terminal Quick Keys'),
               ),
             ],
@@ -409,9 +402,7 @@ class _WorkspaceTabsScreenState extends ConsumerState<WorkspaceTabsScreen> {
         ],
         bottom: tabs.value?.isNotEmpty == true
             ? PreferredSize(
-                preferredSize: const Size.fromHeight(
-                  AleraTokens.tabStripHeight,
-                ),
+                preferredSize: const .fromHeight(AleraTokens.tabStripHeight),
                 child: _TabStrip(
                   tabs: tabs.value!,
                   selectedTabId: _selectedTab(tabs.value!)?.id,
@@ -457,8 +448,7 @@ class _WorkspaceTabsScreenState extends ConsumerState<WorkspaceTabsScreen> {
             ),
             null => _EmptyTabs(
               creating: _creating,
-              onNewTab: () =>
-                  unawaited(_createTabOfKind(_NewTabAction.terminal)),
+              onNewTab: () => unawaited(_createTabOfKind(.terminal)),
               targetUnavailable:
                   tabList.isNotEmpty && !widget.selectFallbackTab,
             ),
@@ -466,7 +456,7 @@ class _WorkspaceTabsScreenState extends ConsumerState<WorkspaceTabsScreen> {
           AsyncError(:final error) => Center(
             child: Padding(
               padding: AleraTokens.contentPadding,
-              child: Text(error.toString(), textAlign: TextAlign.center),
+              child: Text(error.toString(), textAlign: .center),
             ),
           ),
           _ => const Center(child: CircularProgressIndicator()),

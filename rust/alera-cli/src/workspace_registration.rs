@@ -29,6 +29,7 @@ pub fn from_args(args: WorkspaceRegisterArgs) -> Workspace {
         tag_ids: Vec::new(),
         tag_names: Vec::new(),
         parent_workspace_id: None,
+        section_id: None,
         child_count: 0,
     }
 }

@@ -79,9 +79,8 @@ abstract interface class AppWindowCloseStrategy {
   Future<void> close(AppWindowController window);
 }
 
-final class DestroyAppWindowCloseStrategy implements AppWindowCloseStrategy {
-  const DestroyAppWindowCloseStrategy();
-
+final class const DestroyAppWindowCloseStrategy()
+    implements AppWindowCloseStrategy {
   @override
   Future<void> close(AppWindowController window) async {
     await window.setPreventClose(false);
@@ -89,22 +88,16 @@ final class DestroyAppWindowCloseStrategy implements AppWindowCloseStrategy {
   }
 }
 
-class AppWindowRestorer {
-  const AppWindowRestorer({
+class const AppWindowRestorer._({
+  required final AppWindowStateRepository _repository,
+  required final AppWindowController _window,
+  required final AppWindowDisplayProvider _displays,
+}) {
+  const new({
     required AppWindowStateRepository repository,
     required AppWindowController window,
     required AppWindowDisplayProvider displays,
   }) : this._(repository: repository, window: window, displays: displays);
-
-  const AppWindowRestorer._({
-    required this._repository,
-    required this._window,
-    required this._displays,
-  });
-
-  final AppWindowStateRepository _repository;
-  final AppWindowController _window;
-  final AppWindowDisplayProvider _displays;
 
   Future<void> restore() async {
     final state = await _repository.load();
@@ -131,8 +124,16 @@ class AppWindowRestorer {
   }
 }
 
-class AppWindowLifecycleCoordinator extends AppWindowEventListener {
-  AppWindowLifecycleCoordinator({
+class AppWindowLifecycleCoordinator._({
+  required final AppWindowStateRepository _repository,
+  required final AppWindowController _window,
+  required final AppWindowCloseStrategy _closeStrategy,
+  required final Duration _saveDebounce,
+  required var Future<bool> Function()? _closeGate,
+  required var bool Function()? _hideOnClose,
+  required final Logger _logger,
+}) extends AppWindowEventListener {
+  new({
     required AppWindowStateRepository repository,
     required AppWindowController window,
     AppWindowCloseStrategy closeStrategy =
@@ -150,24 +151,6 @@ class AppWindowLifecycleCoordinator extends AppWindowEventListener {
          hideOnClose: hideOnClose,
          logger: logger ?? Logger('AppWindowLifecycleCoordinator'),
        );
-
-  AppWindowLifecycleCoordinator._({
-    required this._repository,
-    required this._window,
-    required this._closeStrategy,
-    required this._saveDebounce,
-    required this._closeGate,
-    required this._hideOnClose,
-    required this._logger,
-  });
-
-  final AppWindowStateRepository _repository;
-  final AppWindowController _window;
-  final AppWindowCloseStrategy _closeStrategy;
-  final Duration _saveDebounce;
-  Future<bool> Function()? _closeGate;
-  bool Function()? _hideOnClose;
-  final Logger _logger;
 
   AppWindowState? _lastState;
   Timer? _debounceTimer;

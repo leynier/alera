@@ -10,7 +10,7 @@
 include: package:flutter_lints/flutter.yaml
 
 plugins:
-  riverpod_lint: 3.1.4
+  riverpod_lint: 3.1.7
 
 analyzer:
   exclude:
@@ -40,6 +40,8 @@ linter:
   # `// ignore_for_file: name_of_lint` syntax on the line or in the file
   # producing the lint.
   rules:
+    unnecessary_primary_constructor_body: true
+    unnecessary_const_in_enum_constructor: true
     # avoid_print: false  # Uncomment to disable the `avoid_print` rule
     # prefer_single_quotes: true  # Uncomment to enable the `prefer_single_quotes` rule
 

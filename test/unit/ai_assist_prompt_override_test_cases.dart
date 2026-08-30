@@ -10,8 +10,8 @@ void _registerAiAssistPromptOverrideTests() {
         entries: <GitChangeEntry>[
           GitChangeEntry(
             path: 'lib/foo.dart',
-            area: GitChangeArea.staged,
-            status: GitChangeStatus.modified,
+            area: .staged,
+            status: .modified,
           ),
         ],
       );
@@ -20,14 +20,14 @@ void _registerAiAssistPromptOverrideTests() {
 
     await service.generate(
       const AiAssistRequest(
-        operation: AiAssistOperation.commitMessage,
+        operation: .commitMessage,
         workspacePath: '/repo',
         settings: AiAssistSettings(
-          agent: AiAssistAgent.agy,
+          agent: .agy,
           promptSettingsByOperation:
               <AiAssistOperation, AiAssistPromptSettings>{
                 AiAssistOperation.commitMessage: AiAssistPromptSettings(
-                  agent: AiAssistAgent.amp,
+                  agent: .amp,
                   model: 'rush',
                 ),
               },

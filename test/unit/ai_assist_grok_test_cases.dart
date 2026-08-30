@@ -33,12 +33,10 @@ Available models:
       addTearDown(() => userHome.delete(recursive: true));
       final configuredGrokHome = Directory('${userHome.path}/.grok');
       await configuredGrokHome.create();
-      await File(
-        '${configuredGrokHome.path}/auth.json',
-      ).writeAsString('{"token":"test-token"}');
-      await File(
-        '${configuredGrokHome.path}/config.toml',
-      ).writeAsString('[models]\ndefault = "custom-model"');
+      await File('${configuredGrokHome.path}/auth.json')
+          .writeAsString('{"token":"test-token"}');
+      await File('${configuredGrokHome.path}/config.toml')
+          .writeAsString('[models]\ndefault = "custom-model"');
       final git = FakeGitBackend()
         ..gitRepositoryStateResult = const GitRepositoryState(
           branch: 'feature/grok-build',
@@ -47,8 +45,8 @@ Available models:
           entries: <GitChangeEntry>[
             GitChangeEntry(
               path: 'lib/grok.dart',
-              area: GitChangeArea.staged,
-              status: GitChangeStatus.modified,
+              area: .staged,
+              status: .modified,
             ),
           ],
         );
@@ -63,9 +61,9 @@ Available models:
 
       final result = await service.generate(
         const AiAssistRequest(
-          operation: AiAssistOperation.commitMessage,
+          operation: .commitMessage,
           workspacePath: '/repo',
-          settings: AiAssistSettings(agent: AiAssistAgent.grok),
+          settings: AiAssistSettings(agent: .grok),
         ),
       );
 
@@ -103,10 +101,10 @@ Available models:
 
     await service.generate(
       const AiAssistRequest(
-        operation: AiAssistOperation.commitMessage,
+        operation: .commitMessage,
         workspacePath: '/repo',
         settings: AiAssistSettings(
-          agent: AiAssistAgent.grok,
+          agent: .grok,
           selectedThinkingByModel: <String, String>{'grok-4.6': 'high'},
         ),
       ),
@@ -122,10 +120,10 @@ Available models:
 
     await service.generate(
       const AiAssistRequest(
-        operation: AiAssistOperation.commitMessage,
+        operation: .commitMessage,
         workspacePath: '/repo',
         settings: AiAssistSettings(
-          agent: AiAssistAgent.grok,
+          agent: .grok,
           selectedThinkingByOperation: <AiAssistOperation, Map<String, String>>{
             AiAssistOperation.commitMessage: <String, String>{
               'grok-4.6': 'high',
@@ -145,10 +143,10 @@ Available models:
 
     await service.generate(
       const AiAssistRequest(
-        operation: AiAssistOperation.commitMessage,
+        operation: .commitMessage,
         workspacePath: '/repo',
         settings: AiAssistSettings(
-          agent: AiAssistAgent.grok,
+          agent: .grok,
           selectedThinkingByModel: <String, String>{'grok-4.6': 'max'},
         ),
       ),
@@ -171,9 +169,9 @@ Available models:
     await expectLater(
       service.generate(
         const AiAssistRequest(
-          operation: AiAssistOperation.commitMessage,
+          operation: .commitMessage,
           workspacePath: '/repo',
-          settings: AiAssistSettings(agent: AiAssistAgent.grok),
+          settings: AiAssistSettings(agent: .grok),
         ),
       ),
       throwsA(isA<AiAssistException>()),
@@ -189,11 +187,7 @@ FakeGitBackend _grokGitBackend() {
     ..gitRepositoryStateResult = const GitRepositoryState(branch: 'main')
     ..gitStatusResult = const GitStatusResult(
       entries: <GitChangeEntry>[
-        GitChangeEntry(
-          path: 'lib/grok.dart',
-          area: GitChangeArea.staged,
-          status: GitChangeStatus.modified,
-        ),
+        GitChangeEntry(path: 'lib/grok.dart', area: .staged, status: .modified),
       ],
     );
 }

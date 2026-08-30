@@ -1,46 +1,30 @@
 part of 'agent_quota_status_bar_content.dart';
 
-class _QuotaReading {
-  const _QuotaReading({
-    required this.label,
-    required this.remainingPercent,
-    required this.order,
-    required this.fullLabel,
-    required this.resetsAt,
-    required this.resetDescription,
-    this.valueText,
-  });
+class const _QuotaReading({
+  required final String label,
+  required final double remainingPercent,
+  required final int order,
+  required final String fullLabel,
+  required final DateTime? resetsAt,
+  required final String? resetDescription,
+  final String? valueText,
+});
 
-  final String label;
-  final double remainingPercent;
-  final int order;
-  final String fullLabel;
-  final DateTime? resetsAt;
-  final String? resetDescription;
-  final String? valueText;
-}
-
-class _QuotaReadingView extends StatelessWidget {
-  const _QuotaReadingView({
-    required this.reading,
-    required this.status,
-    required this.compact,
-  });
-
-  final _QuotaReading reading;
-  final AgentQuotaStatus status;
-  final bool compact;
-
+class const _QuotaReadingView({
+  required final _QuotaReading reading,
+  required final AgentQuotaStatus status,
+  required final bool compact,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Row(
-      mainAxisSize: MainAxisSize.min,
+      mainAxisSize: .min,
       children: <Widget>[
         Text(
           reading.label,
           style: AleraTokens.monoStyle.copyWith(
             fontSize: compact ? 8 : 9,
-            fontWeight: FontWeight.w500,
+            fontWeight: .w500,
             color: AleraTokens.foregroundFaint,
           ),
         ),
@@ -49,7 +33,7 @@ class _QuotaReadingView extends StatelessWidget {
           reading.valueText ?? '${reading.remainingPercent.round()}%',
           style: AleraTokens.monoStyle.copyWith(
             fontSize: 10,
-            fontWeight: FontWeight.w600,
+            fontWeight: .w600,
             color: _quotaColor(status, reading.remainingPercent),
           ),
         ),

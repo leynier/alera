@@ -96,9 +96,10 @@ void main() {
         ],
       );
 
-      final references = buildGitHistoryViewModels(
-        result,
-      ).single.historyItem.references;
+      final references = buildGitHistoryViewModels(result)
+          .single
+          .historyItem
+          .references;
 
       expect(references.first.id, currentRef.id);
       expect(references.first.color, GitHistoryGraphColorId.ref);

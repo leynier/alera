@@ -18,14 +18,14 @@ void _registerWorkbenchControllerLayoutPersistenceTests() {
           name: 'Main',
           branch: 'main',
           path: project.repoPath,
-          createdAt: DateTime.utc(2026, 5, 22),
-          updatedAt: DateTime.utc(2026, 5, 22),
-          kind: WorkspaceKind.main,
-          status: WorkspaceStatus.active,
+          createdAt: .utc(2026, 5, 22),
+          updatedAt: .utc(2026, 5, 22),
+          kind: .main,
+          status: .active,
         );
         await _harness.workbenchRepository.upsertWorkspace(workspace);
         await _harness.workbenchRepository.upsertWorkbenchLayout(
-          WorkbenchLayout.single(workspaceId: workspace.id, tabIds: const []),
+          .single(workspaceId: workspace.id, tabIds: const []),
         );
       }
       _harness.workbenchRepository.upsertWorkbenchLayoutCalls = 0;
@@ -38,7 +38,7 @@ void _registerWorkbenchControllerLayoutPersistenceTests() {
         ),
         attempts: 100,
       );
-      await Future<void>.delayed(const Duration(milliseconds: 10));
+      await Future.pause(const Duration(milliseconds: 10));
 
       expect(_harness.workbenchRepository.upsertWorkbenchLayoutCalls, 0);
     },

@@ -8,20 +8,13 @@ import 'package:flutter/material.dart';
 /// Can optionally accept an [onColorChanged] callback. If provided, tapping
 /// the swatch automatically opens Alera's styled color picker dialog and
 /// triggers the callback with the selected color.
-class AleraColorSwatch extends StatelessWidget {
-  const AleraColorSwatch({
-    super.key,
-    required this.color,
-    this.size = 30,
-    this.onColorChanged,
-    this.pickerTitle = 'Choose color',
-  });
-
-  final Color color;
-  final double size;
-  final ValueChanged<Color>? onColorChanged;
-  final String pickerTitle;
-
+class const AleraColorSwatch({
+  super.key,
+  required final Color color,
+  final double size = 30,
+  final ValueChanged<Color>? onColorChanged,
+  final String pickerTitle = 'Choose color',
+}) extends StatelessWidget {
   Future<void> _openPicker(BuildContext context) async {
     if (onColorChanged == null) return;
     final selectedColor = await showAleraColorPickerDialog(
@@ -56,7 +49,7 @@ class AleraColorSwatch extends StatelessWidget {
         color: Colors.transparent,
         child: InkWell(
           onTap: () => _openPicker(context),
-          borderRadius: BorderRadius.circular(AleraTokens.radiusSm),
+          borderRadius: .circular(AleraTokens.radiusSm),
           mouseCursor: SystemMouseCursors.click,
           child: swatch,
         ),

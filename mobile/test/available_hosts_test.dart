@@ -28,34 +28,31 @@ void main() {
     expect((await hosts).map((host) => host.id), ['paired']);
   });
 
-  test(
-    'Initial discovery waits for accounts and credential rotation keeps hosts mounted',
-    () async {
-      final accounts = _Accounts();
-      final api = _Discovery();
-      final container = _container(accounts, api);
-      addTearDown(container.dispose);
-      final published = <List<PairedHostProfile>>[];
-      container.listen(availableHostsProvider, (_, next) {
-        if (!next.isLoading && next.hasValue) published.add(next.requireValue);
-      });
-      await pumpEventQueue();
-      expect(published, isEmpty);
-      expect(api.calls, 0);
+  test('Initial discovery waits for accounts and credential rotation keeps hosts mounted', () async {
+    final accounts = _Accounts();
+    final api = _Discovery();
+    final container = _container(accounts, api);
+    addTearDown(container.dispose);
+    final published = <List<PairedHostProfile>>[];
+    container.listen(availableHostsProvider, (_, next) {
+      if (!next.isLoading && next.hasValue) published.add(next.requireValue);
+    });
+    await pumpEventQueue();
+    expect(published, isEmpty);
+    expect(api.calls, 0);
 
-      accounts.initial.complete([_session()]);
-      final hosts = await container.read(availableHostsProvider.future);
-      expect(hosts.map((host) => host.id), ['paired', 'remote']);
-      expect(published, hasLength(1));
-      expect(api.calls, 1);
+    accounts.initial.complete([_session()]);
+    final hosts = await container.read(availableHostsProvider.future);
+    expect(hosts.map((host) => host.id), ['paired', 'remote']);
+    expect(published, hasLength(1));
+    expect(api.calls, 1);
 
-      accounts.replace([_session(token: 'rotated')]);
-      await pumpEventQueue();
-      expect(api.calls, 1);
-      expect(published, hasLength(1));
-      expect(container.read(availableHostsProvider).requireValue, same(hosts));
-    },
-  );
+    accounts.replace([_session(token: 'rotated')]);
+    await pumpEventQueue();
+    expect(api.calls, 1);
+    expect(published, hasLength(1));
+    expect(container.read(availableHostsProvider).requireValue, same(hosts));
+  });
 
   test(
     'Discovery outages retain known hosts, but sign-out removes them',
@@ -74,9 +71,8 @@ void main() {
       accounts.replace([]);
       await pumpEventQueue();
       expect(
-        (await container.read(
-          availableHostsProvider.future,
-        )).map((host) => host.id),
+        (await container.read(availableHostsProvider.future))
+            .map((host) => host.id),
         ['paired'],
       );
     },
@@ -92,13 +88,13 @@ void main() {
       addTearDown(container.dispose);
       container.listen(availableHostsProvider, (_, _) {});
       await container.read(availableHostsProvider.future);
-      lifecycle.change(AppLifecycleState.inactive);
-      lifecycle.change(AppLifecycleState.resumed);
+      lifecycle.change(.inactive);
+      lifecycle.change(.resumed);
       await pumpEventQueue();
       expect(api.calls, 1);
-      lifecycle.change(AppLifecycleState.paused);
-      lifecycle.change(AppLifecycleState.inactive);
-      lifecycle.change(AppLifecycleState.resumed);
+      lifecycle.change(.paused);
+      lifecycle.change(.inactive);
+      lifecycle.change(.resumed);
       await pumpEventQueue();
       expect(api.calls, 2);
     },
@@ -131,7 +127,7 @@ ProviderContainer _container(
         endpoint: 'ws://localhost:1',
         runtimeId: 'paired',
         deviceId: 'phone',
-        pairedAt: DateTime.utc(2026),
+        pairedAt: .utc(2026),
       ),
       'token',
     ),
@@ -193,7 +189,7 @@ class _Discovery implements AleraRelayCloudApi, AleraCloudApi {
       CloudRuntimeProfile(
         id: 'remote',
         name: 'Remote',
-        lastSeenAt: DateTime.utc(2026),
+        lastSeenAt: .utc(2026),
         relayPublicKey: 'public',
         relayKeyVersion: 1,
       ),

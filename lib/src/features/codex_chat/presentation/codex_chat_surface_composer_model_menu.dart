@@ -1,20 +1,12 @@
 part of 'codex_chat_surface.dart';
 
-class _CodexModelConfigurationControl extends StatefulWidget {
-  const _CodexModelConfigurationControl({
-    required this.state,
-    required this.onModelChanged,
-    required this.onReasoningChanged,
-    required this.onSpeedChanged,
-    required this.onCollaborationChanged,
-  });
-
-  final CodexChatState state;
-  final ValueChanged<String?> onModelChanged;
-  final ValueChanged<String> onReasoningChanged;
-  final ValueChanged<String> onSpeedChanged;
-  final ValueChanged<String?> onCollaborationChanged;
-
+class const _CodexModelConfigurationControl({
+  required final CodexChatState state,
+  required final ValueChanged<String?> onModelChanged,
+  required final ValueChanged<String> onReasoningChanged,
+  required final ValueChanged<String> onSpeedChanged,
+  required final ValueChanged<String?> onCollaborationChanged,
+}) extends StatefulWidget {
   @override
   State<_CodexModelConfigurationControl> createState() =>
       _CodexModelConfigurationControlState();
@@ -109,7 +101,7 @@ class _CodexModelConfigurationControlState
             ? anchorController.close
             : anchorController.open,
         mouseCursor: SystemMouseCursors.click,
-        borderRadius: BorderRadius.circular(AleraTokens.radiusPill),
+        borderRadius: .circular(AleraTokens.radiusPill),
         child: _CodexComposerChip(
           leadingIcon: state.speedMode == 'fast' ? AleraIcons.speedFast : null,
           label:
@@ -122,32 +114,24 @@ class _CodexModelConfigurationControlState
   }
 }
 
-class _CodexConfigurationSubmenuButton<T> extends StatelessWidget {
-  const _CodexConfigurationSubmenuButton({
-    required this.choices,
-    required this.selected,
-    required this.labelFor,
-    required this.onSelected,
-    required this.child,
-  });
-
-  final List<T> choices;
-  final T? selected;
-  final String Function(T choice) labelFor;
-  final ValueChanged<T> onSelected;
-  final Widget child;
-
+class const _CodexConfigurationSubmenuButton<T>({
+  required final List<T> choices,
+  required final T? selected,
+  required final String Function(T choice) labelFor,
+  required final ValueChanged<T> onSelected,
+  required final Widget child,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Material(
     color: Colors.transparent,
     borderRadius: BorderRadius.circular(AleraTokens.radiusMd),
-    clipBehavior: Clip.hardEdge,
+    clipBehavior: .hardEdge,
     child: InkWell(
       onTap: choices.isEmpty ? null : () => unawaited(_showChoices(context)),
       mouseCursor: choices.isEmpty
           ? SystemMouseCursors.basic
           : SystemMouseCursors.click,
-      borderRadius: BorderRadius.circular(AleraTokens.radiusMd),
+      borderRadius: .circular(AleraTokens.radiusMd),
       child: SizedBox(
         height: AleraTokens.codexMenuItemHeight,
         child: Padding(
@@ -168,11 +152,11 @@ class _CodexConfigurationSubmenuButton<T> extends StatelessWidget {
     final overlay =
         Overlay.of(itemContext).context.findRenderObject() as RenderBox?;
     if (button == null || overlay == null) return;
-    final origin = button.localToGlobal(Offset.zero, ancestor: overlay);
+    final origin = button.localToGlobal(.zero, ancestor: overlay);
     final anchor = origin & button.size;
     final choice = await showMenu<T>(
       context: itemContext,
-      position: RelativeRect.fromRect(anchor, Offset.zero & overlay.size),
+      position: .fromRect(anchor, Offset.zero & overlay.size),
       constraints: const BoxConstraints(
         minWidth: AleraTokens.contextMenuWidth - AleraTokens.space32,
         maxWidth: AleraTokens.contextMenuWidth,
@@ -183,7 +167,7 @@ class _CodexConfigurationSubmenuButton<T> extends StatelessWidget {
         borderRadius: BorderRadius.circular(AleraTokens.radiusLg),
         side: const BorderSide(color: AleraTokens.border),
       ),
-      clipBehavior: Clip.hardEdge,
+      clipBehavior: .hardEdge,
       menuPadding: const EdgeInsets.all(AleraTokens.space8),
       items: <PopupMenuEntry<T>>[
         for (final option in choices)
@@ -198,17 +182,11 @@ class _CodexConfigurationSubmenuButton<T> extends StatelessWidget {
   }
 }
 
-class _CodexConfigurationPopupEntry<T> extends PopupMenuEntry<T> {
-  const _CodexConfigurationPopupEntry({
-    required this.value,
-    required this.label,
-    required this.selected,
-  });
-
-  final T value;
-  final String label;
-  final bool selected;
-
+class const _CodexConfigurationPopupEntry<T>({
+  required final T value,
+  required final String label,
+  required final bool selected,
+}) extends PopupMenuEntry<T> {
   @override
   double get height => AleraTokens.codexMenuItemHeight + AleraTokens.space4;
 
@@ -230,11 +208,11 @@ class _CodexConfigurationPopupEntryState<T>
       child: Material(
         color: widget.selected ? AleraTokens.accentSubtle : Colors.transparent,
         borderRadius: BorderRadius.circular(AleraTokens.radiusMd),
-        clipBehavior: Clip.hardEdge,
+        clipBehavior: .hardEdge,
         child: InkWell(
           onTap: () => Navigator.of(context).pop(widget.value),
           mouseCursor: SystemMouseCursors.click,
-          borderRadius: BorderRadius.circular(AleraTokens.radiusMd),
+          borderRadius: .circular(AleraTokens.radiusMd),
           hoverColor: AleraTokens.accentSubtle,
           focusColor: AleraTokens.accentSubtle,
           highlightColor: AleraTokens.accentSubtle,
@@ -254,12 +232,10 @@ class _CodexConfigurationPopupEntryState<T>
   );
 }
 
-class _CodexConfigurationRow extends StatelessWidget {
-  const _CodexConfigurationRow({required this.label, required this.value});
-
-  final String label;
-  final String value;
-
+class const _CodexConfigurationRow({
+  required final String label,
+  required final String value,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Row(
     children: <Widget>[
@@ -268,8 +244,8 @@ class _CodexConfigurationRow extends StatelessWidget {
       Expanded(
         child: Text(
           value,
-          textAlign: TextAlign.right,
-          overflow: TextOverflow.ellipsis,
+          textAlign: .right,
+          overflow: .ellipsis,
           style: const TextStyle(color: AleraTokens.foregroundMuted),
         ),
       ),
@@ -298,9 +274,7 @@ final MenuStyle _codexMenuStyle = MenuStyle(
   ),
 );
 
-class _CodexFullAccessDialog extends StatelessWidget {
-  const _CodexFullAccessDialog();
-
+class const _CodexFullAccessDialog() extends StatelessWidget {
   @override
   Widget build(BuildContext context) => AlertDialog(
     scrollable: true,
@@ -315,8 +289,8 @@ class _CodexFullAccessDialog extends StatelessWidget {
       ],
     ),
     content: const Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: .min,
+      crossAxisAlignment: .start,
       children: <Widget>[
         Text(
           'Codex will be able to run commands, use the internet, and create and edit files anywhere on this computer without your permission.',
@@ -358,17 +332,11 @@ class _CodexFullAccessDialog extends StatelessWidget {
   );
 }
 
-class _CodexAccessCapability extends StatelessWidget {
-  const _CodexAccessCapability({
-    required this.icon,
-    required this.title,
-    required this.description,
-  });
-
-  final IconData icon;
-  final String title;
-  final String description;
-
+class const _CodexAccessCapability({
+  required final IconData icon,
+  required final String title,
+  required final String description,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Padding(
     padding: const EdgeInsets.symmetric(vertical: AleraTokens.space6),
@@ -378,7 +346,7 @@ class _CodexAccessCapability extends StatelessWidget {
         const SizedBox(width: AleraTokens.space8),
         Expanded(
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            crossAxisAlignment: .start,
             children: <Widget>[
               Text(title, style: Theme.of(context).textTheme.labelLarge),
               Text(

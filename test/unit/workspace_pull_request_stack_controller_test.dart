@@ -8,7 +8,6 @@ import 'package:alera/src/features/pull_requests/domain/hosted_review.dart';
 import 'package:alera/src/features/pull_requests/domain/hosted_review_stack.dart';
 import 'package:alera/src/features/pull_requests/domain/review_merge_method.dart';
 import 'package:alera/src/features/pull_requests/domain/workspace_pull_request_scope.dart';
-import 'package:alera/src/shared/git_hosting/domain/git_hosting_provider.dart';
 import 'package:alera/src/shared/git_hosting/domain/git_remote_identity.dart';
 import 'package:alera/src/shared/infra/git/git_exception.dart';
 import 'package:alera/src/shared/infra/git/git_providers.dart';
@@ -31,7 +30,7 @@ HostedReview _review(
   HostedReviewState state = HostedReviewState.open,
 }) {
   return HostedReview(
-    provider: GitHostingProvider.github,
+    provider: .github,
     number: number,
     title: 'feat: layer $number',
     state: state,
@@ -175,7 +174,7 @@ void main() {
       );
       await container
           .read(workspacePullRequestControllerProvider(_scope).notifier)
-          .mergeReview(ReviewMergeMethod.squash);
+          .mergeReview(.squash);
 
       expect(forge.stackMergeCalls, 1);
       expect(forge.lastStackMergeReviewNumber, 42);

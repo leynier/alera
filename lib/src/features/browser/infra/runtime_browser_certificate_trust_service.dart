@@ -3,12 +3,9 @@ import 'package:alera/src/features/browser/domain/browser_trusted_certificate.da
 import 'package:alera/src/features/browser/infra/runtime_browser_payload.dart';
 import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_protocol.dart';
 
-final class RuntimeBrowserCertificateTrustService
-    implements BrowserCertificateTrustService {
-  const RuntimeBrowserCertificateTrustService(this._client);
-
-  final RuntimeHostClient _client;
-
+final class const RuntimeBrowserCertificateTrustService(
+  final RuntimeHostClient _client,
+) implements BrowserCertificateTrustService {
   @override
   Future<List<BrowserTrustedCertificate>> list({String? profileId}) async {
     final response = browserRuntimeSuccessMap(
@@ -48,12 +45,14 @@ final class RuntimeBrowserCertificateTrustService
   @override
   Future<bool> remove(BrowserTrustedCertificate certificate) async {
     final response = browserRuntimeSuccessMap(
-      await _client
-          .runtimeRequest('browser.certificates.remove', <String, Object?>{
-            'profileId': certificate.profileId,
-            'host': certificate.host,
-            'fingerprintSha256': certificate.fingerprintSha256,
-          }),
+      await _client.runtimeRequest(
+        'browser.certificates.remove',
+        <String, Object?>{
+          'profileId': certificate.profileId,
+          'host': certificate.host,
+          'fingerprintSha256': certificate.fingerprintSha256,
+        },
+      ),
       'Browser certificate removal',
     );
     return response['removed'] == true;

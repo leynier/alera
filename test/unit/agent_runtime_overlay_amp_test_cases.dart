@@ -8,16 +8,13 @@ void _registerAmpRuntimeOverlayTests(
     final home = readHome();
     final ampConfig = Directory(p.join(home.path, '.config', 'amp'))
       ..createSync(recursive: true);
-    File(
-      p.join(ampConfig.path, 'settings.json'),
-    ).writeAsStringSync('{"theme":"dark"}\n');
+    File(p.join(ampConfig.path, 'settings.json'))
+        .writeAsStringSync('{"theme":"dark"}\n');
     final plugins = Directory(p.join(ampConfig.path, 'plugins'))..createSync();
-    File(
-      p.join(plugins.path, 'user-plugin.ts'),
-    ).writeAsStringSync('export default function userPlugin() {}\n');
-    File(
-      p.join(plugins.path, 'alera-agent-status.ts'),
-    ).writeAsStringSync('USER OWNED PLUGIN\n');
+    File(p.join(plugins.path, 'user-plugin.ts'))
+        .writeAsStringSync('export default function userPlugin() {}\n');
+    File(p.join(plugins.path, 'alera-agent-status.ts'))
+        .writeAsStringSync('USER OWNED PLUGIN\n');
 
     final preparation = await readService().prepareAmpForTerminalLaunch(
       terminalSessionId: 'session-amp',

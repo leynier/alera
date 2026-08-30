@@ -5,6 +5,7 @@ import 'package:alera/src/features/orchestration/presentation/run_board_page.dar
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+
 import '../support/run_board_fixtures.dart';
 import '../support/run_board_widget_harness.dart';
 import 'alera_golden_harness.dart';
@@ -73,9 +74,8 @@ void main() {
             container: container,
             child: Builder(
               builder: (context) => MediaQuery(
-                data: MediaQuery.of(
-                  context,
-                ).copyWith(textScaler: TextScaler.linear(scenario.scale)),
+                data: MediaQuery.of(context)
+                    .copyWith(textScaler: TextScaler.linear(scenario.scale)),
                 child: const Material(child: RunBoardPage()),
               ),
             ),

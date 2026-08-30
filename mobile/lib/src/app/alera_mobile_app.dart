@@ -8,9 +8,7 @@ import 'package:alera_mobile/src/features/updater/presentation/mobile_update_pro
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-class AleraMobileApp extends ConsumerWidget {
-  const AleraMobileApp({super.key});
-
+class const AleraMobileApp({super.key}) extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     ref.watch(pushCoordinatorProvider);

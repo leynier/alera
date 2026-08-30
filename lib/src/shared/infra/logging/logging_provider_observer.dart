@@ -6,9 +6,7 @@ import 'package:logging/logging.dart';
 /// Most of the app's async work runs inside providers, so a failure there is
 /// the broadest signal available. Without this it only ever surfaces as an
 /// `AsyncError` rendered by some widget, and is gone once the screen changes.
-final class LoggingProviderObserver extends ProviderObserver {
-  const LoggingProviderObserver();
-
+final class const LoggingProviderObserver() extends ProviderObserver {
   static final Logger _logger = Logger('Providers');
 
   @override

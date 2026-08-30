@@ -47,13 +47,15 @@ mixin MobileRuntimeCodexWorkspaceRequests {
     int limit = 20,
   }) async {
     _requireWorkspaceFiles();
-    final payload =
-        await requestMap('mobile.workspaceQuickOpen.search', <String, Object?>{
-          'sessionId': session.id,
-          'indexedFileCount': session.indexedFileCount,
-          'query': query,
-          'limit': limit,
-        });
+    final payload = await requestMap(
+      'mobile.workspaceQuickOpen.search',
+      <String, Object?>{
+        'sessionId': session.id,
+        'indexedFileCount': session.indexedFileCount,
+        'query': query,
+        'limit': limit,
+      },
+    );
     return <MobileWorkspaceQuickOpenMatch>[
       if (payload['items'] is List)
         for (final item in payload['items']! as List)
@@ -79,12 +81,14 @@ mixin MobileRuntimeCodexWorkspaceRequests {
   }) async {
     _requireWorkspaceFiles();
     final normalizedCwd = cwd?.trim();
-    final payload =
-        await requestMap('mobile.codexSavedPrompts.list', <String, Object?>{
-          'workspaceId': workspaceId,
-          if (normalizedCwd != null && normalizedCwd.isNotEmpty)
-            'cwd': normalizedCwd,
-        });
+    final payload = await requestMap(
+      'mobile.codexSavedPrompts.list',
+      <String, Object?>{
+        'workspaceId': workspaceId,
+        if (normalizedCwd != null && normalizedCwd.isNotEmpty)
+          'cwd': normalizedCwd,
+      },
+    );
     return <MobileCodexSavedPrompt>[
       if (payload['items'] is List)
         for (final item in payload['items']! as List)
@@ -102,15 +106,17 @@ mixin MobileRuntimeCodexWorkspaceRequests {
   }) async {
     _requireWorkspaceFiles();
     final normalizedCwd = cwd?.trim();
-    final payload =
-        await requestMap('mobile.workspaceFile.read', <String, Object?>{
-          'workspaceId': workspaceId,
-          'relativePath': relativePath,
-          if (normalizedCwd != null && normalizedCwd.isNotEmpty)
-            'cwd': normalizedCwd,
-          'offset': offset,
-          'length': length,
-        });
+    final payload = await requestMap(
+      'mobile.workspaceFile.read',
+      <String, Object?>{
+        'workspaceId': workspaceId,
+        'relativePath': relativePath,
+        if (normalizedCwd != null && normalizedCwd.isNotEmpty)
+          'cwd': normalizedCwd,
+        'offset': offset,
+        'length': length,
+      },
+    );
     return MobileWorkspaceFileRange(
       relativePath: payload.requiredString('relativePath'),
       offset: payload['offset']! as int,
@@ -174,12 +180,14 @@ mixin MobileRuntimeCodexWorkspaceRequests {
               ? start + maxPromptFileChunkBytes
               : bytes.length;
           final chunk = bytes.sublist(start, end);
-          final response =
-              await requestMap('mobile.promptFile.chunk', <String, Object?>{
-                'uploadId': uploadId,
-                'offset': offset,
-                'dataBase64': base64Encode(chunk),
-              });
+          final response = await requestMap(
+            'mobile.promptFile.chunk',
+            <String, Object?>{
+              'uploadId': uploadId,
+              'offset': offset,
+              'dataBase64': base64Encode(chunk),
+            },
+          );
           offset = response['nextOffset']! as int;
           start = end;
         }

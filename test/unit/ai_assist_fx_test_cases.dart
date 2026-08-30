@@ -27,8 +27,8 @@ void _registerFxAiAssistTests() {
           entries: <GitChangeEntry>[
             GitChangeEntry(
               path: 'lib/fx.dart',
-              area: GitChangeArea.staged,
-              status: GitChangeStatus.modified,
+              area: .staged,
+              status: .modified,
             ),
           ],
         );
@@ -40,9 +40,9 @@ void _registerFxAiAssistTests() {
 
       final result = await service.generate(
         const AiAssistRequest(
-          operation: AiAssistOperation.commitMessage,
+          operation: .commitMessage,
           workspacePath: '/repo',
-          settings: AiAssistSettings(agent: AiAssistAgent.fx),
+          settings: AiAssistSettings(agent: .fx),
         ),
       );
 
@@ -65,11 +65,7 @@ void _registerFxAiAssistTests() {
       )
       ..gitStatusResult = const GitStatusResult(
         entries: <GitChangeEntry>[
-          GitChangeEntry(
-            path: 'lib/fx.dart',
-            area: GitChangeArea.staged,
-            status: GitChangeStatus.modified,
-          ),
+          GitChangeEntry(path: 'lib/fx.dart', area: .staged, status: .modified),
         ],
       );
     final runner = _FakeProcessRunner(stdout: 'feat: add fx support\n');
@@ -77,10 +73,10 @@ void _registerFxAiAssistTests() {
 
     await service.generate(
       const AiAssistRequest(
-        operation: AiAssistOperation.commitMessage,
+        operation: .commitMessage,
         workspacePath: '/repo',
         settings: AiAssistSettings(
-          agent: AiAssistAgent.fx,
+          agent: .fx,
           selectedModelByAgent: <AiAssistAgent, String>{
             AiAssistAgent.fx: 'xai/grok-4.1-fast',
           },
@@ -93,12 +89,11 @@ void _registerFxAiAssistTests() {
 
   test('discovers fx models through JSON output', () async {
     final runner = _FakeProcessRunner(
-      stdout:
-          '{"kind":"models","count":1,"models":[{"id":"xai/grok-4.1-fast","source":"pi"}]}',
+      stdout: '{"kind":"models","count":1,"models":[{"id":"xai/grok-4.1-fast","source":"pi"}]}',
     );
     final service = CliAiAssistModelDiscoveryService(processRunner: runner);
 
-    final result = await service.discover(AiAssistAgent.fx);
+    final result = await service.discover(.fx);
 
     expect(result.success, isTrue);
     expect(result.defaultModelId, isNull);

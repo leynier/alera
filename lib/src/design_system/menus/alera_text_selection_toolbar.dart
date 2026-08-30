@@ -6,16 +6,11 @@ import 'package:flutter/material.dart';
 ///
 /// Touch platforms keep Flutter's adaptive toolbar so their native selection
 /// behavior and geometry remain unchanged.
-class AleraTextSelectionToolbar extends StatelessWidget {
-  const AleraTextSelectionToolbar({
-    super.key,
-    required this.anchors,
-    required this.buttonItems,
-  });
-
-  final TextSelectionToolbarAnchors anchors;
-  final List<ContextMenuButtonItem> buttonItems;
-
+class const AleraTextSelectionToolbar({
+  super.key,
+  required final TextSelectionToolbarAnchors anchors,
+  required final List<ContextMenuButtonItem> buttonItems,
+}) extends StatelessWidget {
   static Widget editableText(
     BuildContext context,
     EditableTextState editableTextState,
@@ -68,7 +63,7 @@ class AleraTextSelectionToolbar extends StatelessWidget {
           child: Material(
             color: AleraTokens.surface,
             elevation: popupTheme.elevation ?? 0,
-            clipBehavior: Clip.antiAlias,
+            clipBehavior: .antiAlias,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(AleraTokens.radiusMd),
               side: const BorderSide(color: AleraTokens.border),
@@ -78,7 +73,7 @@ class AleraTextSelectionToolbar extends StatelessWidget {
                   popupTheme.menuPadding ??
                   const EdgeInsets.all(AleraTokens.space12),
               child: Column(
-                mainAxisSize: MainAxisSize.min,
+                mainAxisSize: .min,
                 children: <Widget>[
                   for (final item in buttonItems)
                     AleraDropdownMenuItem(

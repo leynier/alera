@@ -1,9 +1,12 @@
 part of 'terminal_host_client_test.dart';
 
 void _registerTerminalHostClientRunBoardTests() {
-  for (final supported in [false, true]) {
+  for (final (supported, sections) in [
+    for (final board in [false, true])
+      for (final sections in [false, true]) (board, sections),
+  ]) {
     test(
-      'negotiates run board capability without upgrading the protocol: $supported',
+      'negotiates independent board/sections capabilities: $supported/$sections',
       () async {
         final directory = await Directory.systemTemp.createTemp(
           'alera-run-board-client-',
@@ -16,6 +19,7 @@ void _registerTerminalHostClientRunBoardTests() {
           port: server.port,
           token: 'test-token',
           includeRunBoardCapability: supported,
+          includeWorkspaceSectionsCapability: sections,
         );
         final launcher = _NoopTerminalHostLauncher();
         final client = SocketTerminalHostClient(
@@ -28,6 +32,12 @@ void _registerTerminalHostClientRunBoardTests() {
             aleraRuntimeHostRunBoardCapability,
           ),
           supported,
+        );
+        expect(
+          await client.supportsRuntimeCapability(
+            aleraRuntimeHostWorkspaceSectionsCapability,
+          ),
+          sections,
         );
         expect(
           await client.supportsRuntimeCapability('unknown-capability'),
@@ -91,44 +101,4 @@ void _registerTerminalHostClientRunBoardTests() {
       },
     );
   }
-}
-
-Future<void> _writeControlFile({
-  required Directory tempDir,
-  String fileName = 'host.json',
-  required int port,
-  required String token,
-  int protocolVersion = aleraTerminalHostProtocolVersion,
-  bool includeRuntimeCapability = true,
-  bool includeBootstrapCapability = true,
-  bool includeManagedWorkspaceCapability = true,
-  bool includeOrchestrationCapability = true,
-  bool includeBinaryFramesCapability = false,
-  bool includeRunBoardCapability = false,
-}) async {
-  final runtimeDir = Directory(p.join(tempDir.path, 'terminal_host'));
-  await runtimeDir.create(recursive: true);
-  final payload = <String, Object?>{
-    'protocolVersion': protocolVersion,
-    'port': port,
-    'token': token,
-  };
-  final capabilities = <String>[
-    if (includeRuntimeCapability) ...<String>[
-      aleraRuntimeHostCapability,
-      if (includeBootstrapCapability) aleraRuntimeHostBootstrapCapability,
-      if (includeManagedWorkspaceCapability)
-        aleraRuntimeHostManagedWorkspaceCapability,
-      if (includeOrchestrationCapability)
-        aleraRuntimeHostOrchestrationCapability,
-      if (includeBinaryFramesCapability) aleraRuntimeHostBinaryFramesCapability,
-      if (includeRunBoardCapability) aleraRuntimeHostRunBoardCapability,
-    ],
-  ];
-  if (capabilities.isNotEmpty) {
-    payload['runtimeCapabilities'] = capabilities;
-  }
-  await File(
-    p.join(runtimeDir.path, fileName),
-  ).writeAsString(jsonEncode(payload));
 }

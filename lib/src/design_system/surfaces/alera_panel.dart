@@ -8,24 +8,15 @@ import 'package:flutter/material.dart';
 /// Defaults to the elevated [AleraTokens.surfaceVariant] background and the
 /// subtle border. Callers can pass [backgroundColor] / [borderColor] for the
 /// flatter "result panel" variant used inside search popovers.
-class AleraPanel extends StatelessWidget {
-  const AleraPanel({
-    super.key,
-    required this.children,
-    this.backgroundColor,
-    this.borderColor,
-    this.borderRadius,
-    this.clipBehavior = Clip.none,
-    this.maxHeight,
-  });
-
-  final List<Widget> children;
-  final Color? backgroundColor;
-  final Color? borderColor;
-  final double? borderRadius;
-  final Clip clipBehavior;
-  final double? maxHeight;
-
+class const AleraPanel({
+  super.key,
+  required final List<Widget> children,
+  final Color? backgroundColor,
+  final Color? borderColor,
+  final double? borderRadius,
+  final Clip clipBehavior = Clip.none,
+  final double? maxHeight,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final radius = BorderRadius.circular(borderRadius ?? AleraTokens.radiusLg);
@@ -40,8 +31,8 @@ class AleraPanel extends StatelessWidget {
         border: Border.all(color: borderColor ?? AleraTokens.borderSubtle),
       ),
       child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
+        mainAxisSize: .min,
+        crossAxisAlignment: .stretch,
         children: <Widget>[
           for (var i = 0; i < children.length; i++) ...<Widget>[
             if (i > 0)

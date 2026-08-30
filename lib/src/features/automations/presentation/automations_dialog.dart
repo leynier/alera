@@ -27,9 +27,7 @@ Future<void> showAutomationsDialog(BuildContext context) {
   );
 }
 
-class AutomationsDialog extends ConsumerStatefulWidget {
-  const AutomationsDialog({super.key});
-
+class const AutomationsDialog({super.key}) extends ConsumerStatefulWidget {
   @override
   ConsumerState<AutomationsDialog> createState() => _AutomationsDialogState();
 }
@@ -61,7 +59,7 @@ class _AutomationsDialogState extends ConsumerState<AutomationsDialog> {
         child: SizedBox(
           height: AleraTokens.automationDialogHeight,
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
+            crossAxisAlignment: .stretch,
             children: <Widget>[
               AutomationDialogHeader(
                 onClose: () => Navigator.of(context).pop(),
@@ -116,15 +114,14 @@ class _AutomationsDialogState extends ConsumerState<AutomationsDialog> {
           ? AleraEmptyState(
               icon: AleraIcons.checks,
               title: 'No automations',
-              message:
-                  'Create a schedule to run approved work in a runtime-owned target.',
+              message: 'Create a schedule to run approved work in a runtime-owned target.',
               action: FilledButton(
                 onPressed: () => unawaited(_createAutomation()),
                 child: const Text('New Automation'),
               ),
             )
           : AleraPanel(
-              clipBehavior: Clip.antiAlias,
+              clipBehavior: .antiAlias,
               children: <Widget>[
                 Padding(
                   padding: const EdgeInsets.all(AleraTokens.space8),
@@ -193,8 +190,7 @@ class _AutomationsDialogState extends ConsumerState<AutomationsDialog> {
           ? const AleraEmptyState(
               icon: AleraIcons.checks,
               title: 'Select an automation',
-              message:
-                  'Choose an automation to inspect its schedule, target, and runs.',
+              message: 'Choose an automation to inspect its schedule, target, and runs.',
             )
           : AutomationDetailPane(
               future: _detailFuture ??= ref

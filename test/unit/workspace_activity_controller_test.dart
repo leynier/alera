@@ -83,10 +83,10 @@ void main() {
     );
     await controller.attachRepository(repository);
 
-    controller.recordActivity('w-1', DateTime.utc(2026, 7, 4, 12));
-    controller.recordActivity('w-2', DateTime.utc(2026, 7, 4, 13));
+    controller.recordActivity('w-1', .utc(2026, 7, 4, 12));
+    controller.recordActivity('w-2', .utc(2026, 7, 4, 13));
 
-    await Future<void>.delayed(
+    await Future.pause(
       workspaceActivityFlushDelay + const Duration(milliseconds: 100),
     );
     expect(repository.upsertCalls, 1);
@@ -104,7 +104,7 @@ void main() {
     await controller.attachRepository(repository);
 
     controller.removeWorkspace('w-1');
-    await Future<void>.delayed(Duration.zero);
+    await Future.pause(.zero);
 
     expect(container.read(workspaceActivityControllerProvider), isEmpty);
     expect(repository.stored, isEmpty);

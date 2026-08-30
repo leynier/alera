@@ -36,5 +36,5 @@ Future<bool> openMobileExternalBrowser(
 }
 
 Future<bool> _launchUrlLauncherExternal(Uri url) {
-  return launchUrl(url, mode: LaunchMode.externalApplication);
+  return launchUrl(url, mode: .externalApplication);
 }

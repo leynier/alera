@@ -5,9 +5,7 @@ import 'package:alera_mobile/src/features/quotas/application/quota_host_visibili
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-class QuotaHostsSettingsScreen extends ConsumerWidget {
-  const QuotaHostsSettingsScreen({super.key});
-
+class const QuotaHostsSettingsScreen({super.key}) extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final hosts = ref.watch(availableHostsProvider);

@@ -6,7 +6,6 @@ import 'package:alera/src/features/agent_usage/application/agent_usage_snapshot_
 import 'package:alera/src/features/remote_hosts/application/ssh_target_providers.dart';
 import 'package:alera/src/features/remote_hosts/domain/ssh_target.dart';
 import 'package:alera/src/features/settings/application/settings_controller.dart';
-import 'package:alera/src/features/settings/domain/alera_settings.dart';
 import 'package:alera/src/features/workbench/application/workbench_controller.dart';
 import 'package:alera/src/features/workbench/application/workbench_state.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -79,7 +78,7 @@ ProviderContainer _container({
   return ProviderContainer(
     overrides: [
       workbenchControllerProvider.overrideWithValue(const WorkbenchState()),
-      settingsControllerProvider.overrideWithValue(AleraSettings.defaults),
+      settingsControllerProvider.overrideWithValue(.defaults),
       sshTargetsProvider.overrideWith(
         (ref) => Stream<List<SshTarget>>.value(const <SshTarget>[]),
       ),
@@ -92,7 +91,7 @@ ProviderContainer _container({
 Future<void> _waitUntil(bool Function() condition) async {
   for (var attempt = 0; attempt < 100; attempt += 1) {
     if (condition()) return;
-    await Future<void>.delayed(const Duration(milliseconds: 1));
+    await Future.pause(const Duration(milliseconds: 1));
   }
   fail('Condition was not met.');
 }
@@ -109,18 +108,14 @@ class _FakeLoader implements AgentUsageLoader {
   }
 }
 
-class _CacheWrite {
-  const _CacheWrite(this.hostId, this.days, this.snapshot);
+class const _CacheWrite(
+  final String hostId,
+  final int days,
+  final Map<String, Object?> snapshot,
+);
 
-  final String hostId;
-  final int days;
-  final Map<String, Object?> snapshot;
-}
-
-class _FakeCache implements AgentUsageSnapshotCache {
-  _FakeCache(this.snapshot);
-
-  final Map<String, Object?>? snapshot;
+class _FakeCache(final Map<String, Object?>? snapshot)
+    implements AgentUsageSnapshotCache {
   final List<_CacheWrite> writes = <_CacheWrite>[];
 
   @override

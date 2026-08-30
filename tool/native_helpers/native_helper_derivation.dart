@@ -1,25 +1,20 @@
 import 'package:path/path.dart' as p;
 
-final class NativeHelperDerivation {
-  NativeHelperDerivation({
-    required this.sourceArchiveRoot,
-    required this.sourceSubdirectory,
-    required this.packageDirectory,
-    required this.product,
-    required this.buildOutput,
-    required this.architectures,
-    required this.dependencyLockPath,
-    required this.dependencyLockSha256,
-    required this.patchPath,
-    required this.patchSha256,
-    required this.patchTargets,
-    required this.dependencies,
-  });
-
-  factory NativeHelperDerivation.fromJson(
-    Object? value, {
-    required String assetId,
-  }) {
+final class NativeHelperDerivation({
+  required final String sourceArchiveRoot,
+  required final String sourceSubdirectory,
+  required final String packageDirectory,
+  required final String product,
+  required final String buildOutput,
+  required final List<String> architectures,
+  required final String dependencyLockPath,
+  required final String dependencyLockSha256,
+  required final String patchPath,
+  required final String patchSha256,
+  required final List<NativeHelperPatchTarget> patchTargets,
+  required final List<NativeHelperDependency> dependencies,
+}) {
+  factory fromJson(Object? value, {required String assetId}) {
     if (value is! Map<String, Object?>) {
       throw FormatException('$assetId derivation must be a JSON object.');
     }
@@ -60,7 +55,7 @@ final class NativeHelperDerivation {
       packageDirectory: _requiredRelativePath(value, 'packageDirectory'),
       product: _requiredString(value, 'product'),
       buildOutput: _requiredRelativePath(value, 'buildOutput'),
-      architectures: List.unmodifiable(architectures),
+      architectures: .unmodifiableOf(architectures),
       dependencyLockPath: _requiredRelativePath(value, 'dependencyLockPath'),
       dependencyLockSha256: _requiredSha256(
         value,
@@ -69,13 +64,13 @@ final class NativeHelperDerivation {
       ),
       patchPath: _requiredRelativePath(value, 'patchPath'),
       patchSha256: _requiredSha256(value, 'patchSha256', assetId),
-      patchTargets: List.unmodifiable(
+      patchTargets: .unmodifiableOf(
         rawTargets.map(
           (target) =>
               NativeHelperPatchTarget.fromJson(target, assetId: assetId),
         ),
       ),
-      dependencies: List.unmodifiable(
+      dependencies: .unmodifiableOf(
         rawDependencies.map(
           (dependency) =>
               NativeHelperDependency.fromJson(dependency, assetId: assetId),
@@ -83,19 +78,6 @@ final class NativeHelperDerivation {
       ),
     );
   }
-
-  final String sourceArchiveRoot;
-  final String sourceSubdirectory;
-  final String packageDirectory;
-  final String product;
-  final String buildOutput;
-  final List<String> architectures;
-  final String dependencyLockPath;
-  final String dependencyLockSha256;
-  final String patchPath;
-  final String patchSha256;
-  final List<NativeHelperPatchTarget> patchTargets;
-  final List<NativeHelperDependency> dependencies;
 
   Map<String, Object?> bundleJson() => <String, Object?>{
     'type': 'swift-package',
@@ -118,17 +100,12 @@ final class NativeHelperDerivation {
   };
 }
 
-final class NativeHelperPatchTarget {
-  NativeHelperPatchTarget({
-    required this.path,
-    required this.beforeSha256,
-    required this.afterSha256,
-  });
-
-  factory NativeHelperPatchTarget.fromJson(
-    Object? value, {
-    required String assetId,
-  }) {
+final class NativeHelperPatchTarget({
+  required final String path,
+  required final String beforeSha256,
+  required final String afterSha256,
+}) {
+  factory fromJson(Object? value, {required String assetId}) {
     if (value is! Map<String, Object?>) {
       throw FormatException('$assetId patch target must be a JSON object.');
     }
@@ -139,10 +116,6 @@ final class NativeHelperPatchTarget {
     );
   }
 
-  final String path;
-  final String beforeSha256;
-  final String afterSha256;
-
   Map<String, Object?> bundleJson() => <String, Object?>{
     'path': path,
     'beforeSha256': beforeSha256,
@@ -150,22 +123,17 @@ final class NativeHelperPatchTarget {
   };
 }
 
-final class NativeHelperDependency {
-  NativeHelperDependency({
-    required this.id,
-    required this.sourceUrl,
-    required this.sourceSha256,
-    required this.sourceCommit,
-    required this.archiveRoot,
-    required this.destination,
-    required this.license,
-    required this.licensePath,
-  });
-
-  factory NativeHelperDependency.fromJson(
-    Object? value, {
-    required String assetId,
-  }) {
+final class NativeHelperDependency({
+  required final String id,
+  required final Uri sourceUrl,
+  required final String sourceSha256,
+  required final String sourceCommit,
+  required final String archiveRoot,
+  required final String destination,
+  required final String license,
+  required final String licensePath,
+}) {
+  factory fromJson(Object? value, {required String assetId}) {
     if (value is! Map<String, Object?>) {
       throw FormatException('$assetId dependency must be a JSON object.');
     }
@@ -181,15 +149,6 @@ final class NativeHelperDependency {
       licensePath: _requiredRelativePath(value, 'licensePath'),
     );
   }
-
-  final String id;
-  final Uri sourceUrl;
-  final String sourceSha256;
-  final String sourceCommit;
-  final String archiveRoot;
-  final String destination;
-  final String license;
-  final String licensePath;
 
   Map<String, Object?> bundleJson() => <String, Object?>{
     'id': id,

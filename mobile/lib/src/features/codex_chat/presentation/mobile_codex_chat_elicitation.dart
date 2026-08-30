@@ -1,15 +1,10 @@
 part of 'mobile_codex_chat_screen.dart';
 
-class _MobileElicitationCard extends StatefulWidget {
-  const _MobileElicitationCard({
-    super.key,
-    required this.request,
-    required this.controller,
-  });
-
-  final MobileCodexPendingRequest request;
-  final MobileCodexController controller;
-
+class const _MobileElicitationCard({
+  super.key,
+  required final MobileCodexPendingRequest request,
+  required final MobileCodexController controller,
+}) extends StatefulWidget {
   @override
   State<_MobileElicitationCard> createState() => _MobileElicitationCardState();
 }
@@ -52,7 +47,7 @@ class _MobileElicitationCardState extends State<_MobileElicitationCard> {
     return _MobileRequestCard(
       title: 'MCP Server Needs Input',
       bodyWidget: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
+        crossAxisAlignment: .stretch,
         children: <Widget>[
           if (message.isNotEmpty) ...<Widget>[
             Text(message),

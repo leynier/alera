@@ -31,16 +31,12 @@ part 'workspace_pull_requests_panel_body.dart';
 
 /// Feature-level wrapper mounting the pull-request panel for a workspace. Reads
 /// the provider override + controller and renders the presentational body.
-class WorkspacePullRequestsPanel extends ConsumerWidget {
-  const WorkspacePullRequestsPanel({
-    super.key,
-    required this.workspace,
-    required this.repoPath,
-    this.gitDiffRoot,
-  });
-
-  final Workspace workspace;
-
+class const WorkspacePullRequestsPanel({
+  super.key,
+  required final Workspace workspace,
+  required this.repoPath,
+  this.gitDiffRoot,
+}) extends ConsumerWidget {
   /// The git repository Source Control controls for this workspace - the
   /// workspace path for git projects, or a designated git subfolder for Folder
   /// workspaces (`WorkspaceSourceControlScope.path`).
@@ -125,26 +121,16 @@ class WorkspacePullRequestsPanel extends ConsumerWidget {
   static Widget _loading() => const Center(child: CircularProgressIndicator());
 }
 
-class _VisiblePullRequestsPanel extends ConsumerStatefulWidget {
-  const _VisiblePullRequestsPanel({
-    super.key,
-    required this.scope,
-    required this.workspace,
-    required this.repoPath,
-    this.gitDiffRoot,
-    required this.workspaceByBranch,
-    required this.stackWorkspaceCandidates,
-    required this.onOpenWorkspaceBranch,
-  });
-
-  final WorkspacePullRequestScope scope;
-  final Workspace workspace;
-  final String repoPath;
-  final String? gitDiffRoot;
-  final Map<String, Workspace> workspaceByBranch;
-  final List<ReviewStackWorkspaceCandidate> stackWorkspaceCandidates;
-  final Future<void> Function(String branch)? onOpenWorkspaceBranch;
-
+class const _VisiblePullRequestsPanel({
+  super.key,
+  required final WorkspacePullRequestScope scope,
+  required final Workspace workspace,
+  required final String repoPath,
+  final String? gitDiffRoot,
+  required final Map<String, Workspace> workspaceByBranch,
+  required final List<ReviewStackWorkspaceCandidate> stackWorkspaceCandidates,
+  required final Future<void> Function(String branch)? onOpenWorkspaceBranch,
+}) extends ConsumerStatefulWidget {
   @override
   ConsumerState<_VisiblePullRequestsPanel> createState() =>
       _VisiblePullRequestsPanelState();
@@ -214,9 +200,8 @@ class _VisiblePullRequestsPanelState
     if (baseRef.isEmpty || headRef.isEmpty) {
       AleraToast.show(
         context,
-        message:
-            'The linked pull request does not expose a comparable branch range.',
-        tone: AleraToastTone.error,
+        message: 'The linked pull request does not expose a comparable branch range.',
+        tone: .error,
       );
       return;
     }
@@ -280,7 +265,7 @@ class _VisiblePullRequestsPanelState
         AleraToast.show(
           context,
           message: 'Could not open the pull request diff: $error',
-          tone: AleraToastTone.error,
+          tone: .error,
         );
       }
     } finally {

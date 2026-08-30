@@ -12,18 +12,13 @@ import 'package:logging/logging.dart';
 ///
 /// Every trailing control is a full tap target at the shared inset, so Send
 /// lines up with the mode toggle on the quick-key bar above.
-class TerminalComposeBar extends ConsumerStatefulWidget {
-  const TerminalComposeBar({
-    super.key,
-    required this.hostId,
-    required this.tabId,
-    required this.onSend,
-    this.onPickAttachments,
-  });
-
-  final String hostId;
-  final String tabId;
-
+class const TerminalComposeBar({
+  super.key,
+  required final String hostId,
+  required final String tabId,
+  required this.onSend,
+  this.onPickAttachments,
+}) extends ConsumerStatefulWidget {
   /// Called with the composed text. How the text and the Enter reach the PTY is
   /// the controller's decision, not this bar's; see
   /// `terminal_compose_delivery.dart`.
@@ -81,7 +76,7 @@ class _TerminalComposeBarState extends ConsumerState<TerminalComposeBar> {
       context: context,
       builder: (context) => SafeArea(
         child: Column(
-          mainAxisSize: MainAxisSize.min,
+          mainAxisSize: .min,
           children: <Widget>[
             ListTile(
               leading: const Icon(Icons.keyboard_return),
@@ -149,7 +144,7 @@ class _TerminalComposeBarState extends ConsumerState<TerminalComposeBar> {
             // Fills the whole tap target so the circle is exactly as tall as
             // the field beside it, instead of a 40dp glyph floating in 48dp.
             style: IconButton.styleFrom(
-              minimumSize: const Size.square(AleraTokens.minTapTarget),
+              minimumSize: const .square(AleraTokens.minTapTarget),
               padding: EdgeInsets.zero,
             ),
             icon: const Icon(Icons.arrow_upward),
@@ -167,14 +162,14 @@ class _TerminalComposeBarState extends ConsumerState<TerminalComposeBar> {
           AleraTokens.spaceSm,
         ),
         child: Column(
-          mainAxisSize: MainAxisSize.min,
+          mainAxisSize: .min,
           children: <Widget>[
             MobileAiDictationReviewBar(
               hostId: widget.hostId,
               targetKey: 'terminal-${widget.tabId}',
             ),
             Row(
-              crossAxisAlignment: CrossAxisAlignment.end,
+              crossAxisAlignment: .end,
               children: <Widget>[
                 Expanded(
                   // The field's own chrome is drawn here rather than through
@@ -204,7 +199,7 @@ class _TerminalComposeBarState extends ConsumerState<TerminalComposeBar> {
                     child: Row(
                       // Pinned to the first line: a growing field pushes text down,
                       // not the controls.
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                      crossAxisAlignment: .start,
                       children: <Widget>[
                         if (widget.onPickAttachments != null)
                           SizedBox(
@@ -248,7 +243,7 @@ class _TerminalComposeBarState extends ConsumerState<TerminalComposeBar> {
                               maxLines: AleraTokens.composeBarMaxLines,
                               autocorrect: true,
                               enableSuggestions: true,
-                              textInputAction: TextInputAction.newline,
+                              textInputAction: .newline,
                               style: const TextStyle(
                                 fontFamily: AleraTokens.monoFontFamily,
                               ),
@@ -261,12 +256,12 @@ class _TerminalComposeBarState extends ConsumerState<TerminalComposeBar> {
                                 filled: false,
                                 isCollapsed: true,
                                 contentPadding: EdgeInsets.zero,
-                                border: InputBorder.none,
-                                enabledBorder: InputBorder.none,
-                                focusedBorder: InputBorder.none,
-                                disabledBorder: InputBorder.none,
-                                errorBorder: InputBorder.none,
-                                focusedErrorBorder: InputBorder.none,
+                                border: .none,
+                                enabledBorder: .none,
+                                focusedBorder: .none,
+                                disabledBorder: .none,
+                                errorBorder: .none,
+                                focusedErrorBorder: .none,
                               ),
                             ),
                           ),

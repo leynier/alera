@@ -1,34 +1,31 @@
 part of 'mobile_codex_state.dart';
 
 @immutable
-class MobileCodexQuestionOption {
-  const MobileCodexQuestionOption({required this.label, this.description});
-
-  factory MobileCodexQuestionOption.fromJson(Object? value) {
+class const MobileCodexQuestionOption({
+  required final String label,
+  final String? description,
+}) {
+  factory fromJson(Object? value) {
     final json = _map(value);
     return MobileCodexQuestionOption(
       label: _first(<Object?>[json['label'], json['value'], value]),
       description: _string(json['description']),
     );
   }
-
-  final String label;
-  final String? description;
 }
 
 @immutable
-class MobileCodexQuestion {
-  const MobileCodexQuestion({
-    required this.id,
-    required this.question,
-    this.header,
-    this.options = const <MobileCodexQuestionOption>[],
-    this.isMultiSelect = false,
-    this.isSecret = false,
-    this.isOther = false,
-  });
-
-  factory MobileCodexQuestion.fromJson(Object? value, {int index = 0}) {
+class const MobileCodexQuestion({
+  required final String id,
+  required final String question,
+  final String? header,
+  final List<MobileCodexQuestionOption> options =
+      const <MobileCodexQuestionOption>[],
+  final bool isMultiSelect = false,
+  final bool isSecret = false,
+  final bool isOther = false,
+}) {
+  factory fromJson(Object? value, {int index = 0}) {
     final json = _map(value);
     return MobileCodexQuestion(
       id: _first(<Object?>[json['id'], json['key'], 'question-$index']),
@@ -50,25 +47,15 @@ class MobileCodexQuestion {
       isOther: json['isOther'] == true,
     );
   }
-
-  final String id;
-  final String question;
-  final String? header;
-  final List<MobileCodexQuestionOption> options;
-  final bool isMultiSelect;
-  final bool isSecret;
-  final bool isOther;
 }
 
 @immutable
-class MobileCodexPendingRequest {
-  const MobileCodexPendingRequest({
-    required this.id,
-    required this.method,
-    required this.params,
-  });
-
-  factory MobileCodexPendingRequest.fromJson(Object? value) {
+class const MobileCodexPendingRequest({
+  required final Object id,
+  required final String method,
+  required final Map<String, Object?> params,
+}) {
+  factory fromJson(Object? value) {
     final json = _map(value);
     return MobileCodexPendingRequest(
       id: json['id'] ?? '',
@@ -76,10 +63,6 @@ class MobileCodexPendingRequest {
       params: _map(json['params']),
     );
   }
-
-  final Object id;
-  final String method;
-  final Map<String, Object?> params;
 
   bool get isApproval {
     final lower = method.toLowerCase();

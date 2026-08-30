@@ -19,19 +19,19 @@ Future<PromptAttachmentSource?> showPromptAttachmentSheet(
     entries: <AleraActionSheetEntry<PromptAttachmentSource>>[
       if (allowPhotoLibrary)
         const AleraActionSheetEntry<PromptAttachmentSource>(
-          value: PromptAttachmentSource.photoLibrary,
+          value: .photoLibrary,
           label: 'Photo Library',
           leading: Icon(Icons.image_outlined),
         ),
       if (allowFiles)
         const AleraActionSheetEntry<PromptAttachmentSource>(
-          value: PromptAttachmentSource.files,
+          value: .files,
           label: 'Files',
           leading: Icon(Icons.attach_file),
         ),
       if (allowWorkspaceFile)
         const AleraActionSheetEntry<PromptAttachmentSource>(
-          value: PromptAttachmentSource.workspaceFile,
+          value: .workspaceFile,
           label: 'Workspace File',
           leading: Icon(Icons.folder_open_outlined),
         ),

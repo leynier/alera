@@ -4,8 +4,8 @@ import 'package:alera/src/features/mobile_emulator/domain/mobile_emulator_models
 import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
 import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_protocol.dart';
 
-class MobileEmulatorService {
-  MobileEmulatorService(this._client) {
+class MobileEmulatorService(final RuntimeHostClient _client) {
+  this {
     _connectionSubscription = _client.runtimeEvents
         .where((event) => event.name == aleraRuntimeHostConnectedEvent)
         .listen((_) => _supportCheck = null);
@@ -15,7 +15,6 @@ class MobileEmulatorService {
   static const Duration _discoveryTimeout = Duration(seconds: 45);
   static const Duration _releaseTimeout = Duration(seconds: 45);
 
-  final RuntimeHostClient _client;
   late final StreamSubscription<RuntimeHostEvent> _connectionSubscription;
   Future<void>? _supportCheck;
 
@@ -79,9 +78,7 @@ class MobileEmulatorService {
       );
     }
     return MobileEmulatorAttachment(
-      tab: WorkspaceTabRecord.fromJson(
-        Map<String, Object?>.from(tab.cast<String, Object?>()),
-      ),
+      tab: .fromJson(Map<String, Object?>.from(tab.cast<String, Object?>())),
       session: session,
     );
   }

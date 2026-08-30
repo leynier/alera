@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+
 import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/design_system/forms/alera_dropdown_field.dart';
 import 'package:alera/src/design_system/forms/alera_search_field.dart';
@@ -95,9 +96,8 @@ class _RunBoardFiltersState extends State<RunBoardFilters> {
         if (_searchError != null)
           Text(
             _searchError!,
-            style: Theme.of(
-              context,
-            ).textTheme.bodySmall?.copyWith(color: AleraTokens.warning),
+            style: Theme.of(context).textTheme.bodySmall
+                ?.copyWith(color: AleraTokens.warning),
           ),
         const SizedBox(height: AleraTokens.space12),
         AleraDropdownField<String?>(

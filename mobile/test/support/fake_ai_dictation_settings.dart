@@ -4,14 +4,9 @@ import 'package:alera_mobile/src/features/ai_dictation/domain/mobile_ai_dictatio
 import 'package:alera_mobile/src/features/ai_dictation/infra/mobile_ai_dictation_model_store.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-class FakeMobileAiDictationSettingsController
-    extends MobileAiDictationSettingsController {
-  FakeMobileAiDictationSettingsController([
-    this.initial = const MobileAiDictationSettings(),
-  ]);
-
-  final MobileAiDictationSettings initial;
-
+class FakeMobileAiDictationSettingsController([
+  final MobileAiDictationSettings initial = const MobileAiDictationSettings(),
+]) extends MobileAiDictationSettingsController {
   @override
   Future<MobileAiDictationSettings> build() async => initial;
 

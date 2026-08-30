@@ -6,9 +6,9 @@ abstract interface class ExternalUriLauncher {
   Future<void> open(Uri uri);
 }
 
-class UrlLauncherExternalUriLauncher implements ExternalUriLauncher {
-  UrlLauncherExternalUriLauncher({UriLaunchCallback? launch})
-    : _launch = launch ?? _launchExternalUri;
+class UrlLauncherExternalUriLauncher({UriLaunchCallback? launch})
+    implements ExternalUriLauncher {
+  this : _launch = launch ?? _launchExternalUri;
 
   final UriLaunchCallback _launch;
 

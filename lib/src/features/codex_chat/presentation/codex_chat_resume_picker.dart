@@ -1,25 +1,16 @@
 part of 'codex_chat_surface.dart';
 
-class _CodexResumeSelection {
-  const _CodexResumeSelection(this.thread);
+class const _CodexResumeSelection(final CodexThreadSummary thread);
 
-  final CodexThreadSummary thread;
-}
-
-class _CodexResumePickerDialog extends StatefulWidget {
-  const _CodexResumePickerDialog({
-    required this.workspace,
-    required this.loadPage,
-  });
-
-  final Workspace workspace;
-  final Future<CodexThreadPage> Function({
+class const _CodexResumePickerDialog({
+  required final Workspace workspace,
+  required final Future<CodexThreadPage> Function({
     String? workspaceId,
     String? searchTerm,
     String? cursor,
   })
-  loadPage;
-
+  loadPage,
+}) extends StatefulWidget {
   @override
   State<_CodexResumePickerDialog> createState() =>
       _CodexResumePickerDialogState();
@@ -98,7 +89,7 @@ class _CodexResumePickerDialogState extends State<_CodexResumePickerDialog> {
       child: Padding(
         padding: const EdgeInsets.all(AleraTokens.space16),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
+          crossAxisAlignment: .stretch,
           children: <Widget>[
             Row(
               children: <Widget>[
@@ -181,7 +172,7 @@ class _CodexResumePickerDialogState extends State<_CodexResumePickerDialog> {
               if (thread.isBound) 'Already Open',
             ].join(' / '),
             maxLines: 2,
-            overflow: TextOverflow.ellipsis,
+            overflow: .ellipsis,
           ),
           trailing: const Icon(Icons.chevron_right),
           onTap: () => Navigator.of(context).pop(_CodexResumeSelection(thread)),

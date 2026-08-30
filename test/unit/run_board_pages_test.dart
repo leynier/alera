@@ -1,4 +1,5 @@
 import 'dart:async';
+
 import 'package:alera/src/features/app_window/application/app_window_providers.dart';
 import 'package:alera/src/features/orchestration/application/run_board_navigation.dart';
 import 'package:alera/src/features/orchestration/application/run_board_pages.dart';
@@ -10,6 +11,7 @@ import 'package:alera/src/features/orchestration/infra/runtime_run_board_reposit
 import 'package:fake_async/fake_async.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+
 import '../support/run_board_fixtures.dart';
 
 void main() {

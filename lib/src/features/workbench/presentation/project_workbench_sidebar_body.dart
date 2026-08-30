@@ -1,55 +1,36 @@
 part of 'project_workbench_sidebar.dart';
 
-class _SidebarBody extends StatelessWidget {
-  const _SidebarBody({
-    required this.state,
-    required this.controller,
-    required this.rows,
-    required this.onOpenWorkspace,
-    required this.onOpenWorkspaceFolder,
-    required this.onCopyWorkspacePath,
-    required this.onOpenWorkspaceInBrowser,
-    required this.onSleepWorkspace,
-    required this.onCreateWorkspace,
-    required this.onOpenProjectSettings,
-    required this.onDeleteWorkspace,
-    required this.onRenameProject,
-    required this.onRemoveProject,
-    required this.onRenameWorkspace,
-    required this.onSetWorkspacePinned,
-    required this.onManageWorkspaceTags,
-    required this.onSetWorkspaceParent,
-    required this.onClearWorkspaceParent,
-    required this.fileManagerLabel,
-    required this.onSelectTerminal,
-    required this.onCloseTerminal,
-  });
-
-  final WorkbenchState state;
-  final WorkbenchController controller;
-  final List<WorkbenchSidebarRow> rows;
-  final Future<void> Function(Project project, Workspace workspace)
-  onOpenWorkspace;
-  final Future<void> Function(Workspace workspace) onOpenWorkspaceFolder;
-  final Future<void> Function(Workspace workspace) onCopyWorkspacePath;
-  final Future<void> Function(Workspace workspace) onOpenWorkspaceInBrowser;
-  final Future<void> Function(Workspace workspace) onSleepWorkspace;
-  final Future<void> Function(Project project) onCreateWorkspace;
-  final Future<void> Function(Project project) onOpenProjectSettings;
-  final Future<void> Function(Project project, Workspace workspace)
-  onDeleteWorkspace;
-  final Future<void> Function(Project project) onRenameProject;
-  final Future<void> Function(Project project) onRemoveProject;
-  final Future<void> Function(Workspace workspace) onRenameWorkspace;
-  final Future<void> Function(Workspace workspace, bool isPinned)
-  onSetWorkspacePinned;
-  final Future<void> Function(Workspace workspace) onManageWorkspaceTags;
-  final Future<void> Function(Workspace workspace) onSetWorkspaceParent;
-  final Future<void> Function(Workspace workspace) onClearWorkspaceParent;
-  final String fileManagerLabel;
-  final _TerminalTabCallback onSelectTerminal;
-  final _TerminalTabCallback onCloseTerminal;
-
+class const _SidebarBody({
+  required final WorkbenchState state,
+  required final WorkbenchController controller,
+  required final List<WorkbenchSidebarRow> rows,
+  required final Future<void> Function(Project project, Workspace workspace)
+  onOpenWorkspace,
+  required final Future<void> Function(Workspace workspace)
+  onOpenWorkspaceFolder,
+  required final Future<void> Function(Workspace workspace) onCopyWorkspacePath,
+  required final Future<void> Function(Workspace workspace)
+  onOpenWorkspaceInBrowser,
+  required final Future<void> Function(Workspace workspace) onSleepWorkspace,
+  required final Future<void> Function(Project project) onCreateWorkspace,
+  required final Future<void> Function(Project project) onOpenProjectSettings,
+  required final Future<void> Function(Project project, Workspace workspace)
+  onDeleteWorkspace,
+  required final Future<void> Function(Project project) onRenameProject,
+  required final Future<void> Function(Project project) onRemoveProject,
+  required final Future<void> Function(Workspace workspace) onRenameWorkspace,
+  required final Future<void> Function(Workspace workspace, bool isPinned)
+  onSetWorkspacePinned,
+  required final Future<void> Function(Workspace workspace)
+  onManageWorkspaceTags,
+  required final Future<void> Function(Workspace workspace)
+  onSetWorkspaceParent,
+  required final Future<void> Function(Workspace workspace)
+  onClearWorkspaceParent,
+  required final String fileManagerLabel,
+  required final _TerminalTabCallback onSelectTerminal,
+  required final _TerminalTabCallback onCloseTerminal,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (rows.isEmpty) {
@@ -64,14 +45,21 @@ class _SidebarBody extends StatelessWidget {
       itemBuilder: (context, index) {
         return KeyedSubtree(
           key: ValueKey<String>(rows[index].key),
-          child: _buildRow(rows, index),
+          child: _buildRow(context, rows, index),
         );
       },
     );
   }
 
-  Widget _buildRow(List<WorkbenchSidebarRow> rows, int index) {
+  Widget _buildRow(
+    BuildContext context,
+    List<WorkbenchSidebarRow> rows,
+    int index,
+  ) {
     final row = rows[index];
+    if (row is WorkbenchSectionHeaderRow) {
+      return _WorkspaceSectionHeader(row: row, controller: controller);
+    }
     if (row is WorkbenchPinnedHeaderRow) {
       return _SidebarSectionTile(
         leadingIcon: AleraIcons.pin,
@@ -150,6 +138,17 @@ class _SidebarBody extends StatelessWidget {
           onSetPinned: () =>
               onSetWorkspacePinned(row.workspace, !row.workspace.isPinned),
           onManageTags: () => onManageWorkspaceTags(row.workspace),
+          onSetSection: state.supportsSections
+              ? () => showWorkspaceSectionDialog(
+                  context,
+                  controller,
+                  row.workspace,
+                )
+              : null,
+          onClearSection:
+              state.supportsSections && row.workspace.sectionId != null
+              ? () => _clearSection(context, controller, row.workspace)
+              : null,
           onSetParent: () => onSetWorkspaceParent(row.workspace),
           onClearParent: row.workspace.hasParentWorkspace
               ? () => onClearWorkspaceParent(row.workspace)
@@ -176,11 +175,8 @@ class _SidebarBody extends StatelessWidget {
   }
 }
 
-class _EmptyResultsView extends StatelessWidget {
-  const _EmptyResultsView({required this.query});
-
-  final String query;
-
+class const _EmptyResultsView({required final String query})
+    extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final trimmed = query.trim();
@@ -193,22 +189,14 @@ class _EmptyResultsView extends StatelessWidget {
 
 /// Collapsible section header for the flat sidebar groupings (Pinned / All).
 /// Mirrors the project header tile so the sections read as clear boundaries.
-class _SidebarSectionTile extends StatefulWidget {
-  const _SidebarSectionTile({
-    required this.leadingIcon,
-    required this.label,
-    required this.count,
-    required this.expanded,
-    required this.onToggle,
-    this.showTopDivider = false,
-  });
-
-  final IconData leadingIcon;
-  final String label;
-  final int count;
-  final bool expanded;
-  final VoidCallback onToggle;
-
+class const _SidebarSectionTile({
+  required final IconData leadingIcon,
+  required final String label,
+  required final int count,
+  required final bool expanded,
+  required final VoidCallback onToggle,
+  this.showTopDivider = false,
+}) extends StatefulWidget {
   /// Draws a full-width divider above the header so the end of the previous
   /// section is visually marked.
   final bool showTopDivider;
@@ -224,7 +212,7 @@ class _SidebarSectionTileState extends State<_SidebarSectionTile> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+      crossAxisAlignment: .stretch,
       children: <Widget>[
         if (widget.showTopDivider)
           const Divider(height: 1, color: AleraTokens.borderSubtle),
@@ -239,7 +227,7 @@ class _SidebarSectionTileState extends State<_SidebarSectionTile> {
             child: InkWell(
               onTap: widget.onToggle,
               mouseCursor: SystemMouseCursors.click,
-              borderRadius: BorderRadius.circular(AleraTokens.radiusLg),
+              borderRadius: .circular(AleraTokens.radiusLg),
               child: AnimatedContainer(
                 duration: AleraTokens.durationFast,
                 padding: const EdgeInsets.symmetric(
@@ -262,12 +250,12 @@ class _SidebarSectionTileState extends State<_SidebarSectionTile> {
                       child: Text(
                         widget.label,
                         maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
+                        overflow: .ellipsis,
                         style: theme.textTheme.labelLarge?.copyWith(
                           color: _hovered
                               ? AleraTokens.foreground
                               : AleraTokens.foregroundMuted,
-                          fontWeight: FontWeight.w600,
+                          fontWeight: .w600,
                         ),
                       ),
                     ),
@@ -276,7 +264,7 @@ class _SidebarSectionTileState extends State<_SidebarSectionTile> {
                       widget.count.toString(),
                       style: theme.textTheme.labelSmall?.copyWith(
                         color: AleraTokens.foregroundFaint,
-                        fontWeight: FontWeight.w500,
+                        fontWeight: .w500,
                       ),
                     ),
                     const SizedBox(width: AleraTokens.space4),
@@ -298,27 +286,16 @@ class _SidebarSectionTileState extends State<_SidebarSectionTile> {
   }
 }
 
-class _ProjectHeaderTile extends StatefulWidget {
-  const _ProjectHeaderTile({
-    required this.project,
-    required this.expanded,
-    required this.workspaceCount,
-    required this.onToggle,
-    required this.onCreateWorkspace,
-    required this.onOpenProjectSettings,
-    required this.onRenameProject,
-    required this.onRemoveProject,
-  });
-
-  final Project project;
-  final bool expanded;
-  final int workspaceCount;
-  final VoidCallback onToggle;
-  final VoidCallback? onCreateWorkspace;
-  final VoidCallback onOpenProjectSettings;
-  final VoidCallback onRenameProject;
-  final VoidCallback onRemoveProject;
-
+class const _ProjectHeaderTile({
+  required final Project project,
+  required final bool expanded,
+  required final int workspaceCount,
+  required final VoidCallback onToggle,
+  required final VoidCallback? onCreateWorkspace,
+  required final VoidCallback onOpenProjectSettings,
+  required final VoidCallback onRenameProject,
+  required final VoidCallback onRemoveProject,
+}) extends StatefulWidget {
   @override
   State<_ProjectHeaderTile> createState() => _ProjectHeaderTileState();
 }
@@ -334,8 +311,8 @@ class _ProjectHeaderTileState extends State<_ProjectHeaderTile> {
         Navigator.of(context).overlay!.context.findRenderObject()! as RenderBox;
     final selected = await showMenu<String>(
       context: context,
-      position: RelativeRect.fromRect(
-        Rect.fromPoints(globalPosition, globalPosition),
+      position: .fromRect(
+        .fromPoints(globalPosition, globalPosition),
         Offset.zero & overlay.size,
       ),
       items: <PopupMenuEntry<String>>[
@@ -392,7 +369,7 @@ class _ProjectHeaderTileState extends State<_ProjectHeaderTile> {
         child: InkWell(
           onTap: widget.onToggle,
           mouseCursor: SystemMouseCursors.click,
-          borderRadius: BorderRadius.circular(AleraTokens.radiusLg),
+          borderRadius: .circular(AleraTokens.radiusLg),
           child: AnimatedContainer(
             duration: AleraTokens.durationFast,
             padding: const EdgeInsets.symmetric(
@@ -415,12 +392,12 @@ class _ProjectHeaderTileState extends State<_ProjectHeaderTile> {
                   child: Text(
                     widget.project.name,
                     maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
+                    overflow: .ellipsis,
                     style: theme.textTheme.labelLarge?.copyWith(
                       color: _hovered
                           ? AleraTokens.foreground
                           : AleraTokens.foregroundMuted,
-                      fontWeight: FontWeight.w600,
+                      fontWeight: .w600,
                     ),
                   ),
                 ),
@@ -429,7 +406,7 @@ class _ProjectHeaderTileState extends State<_ProjectHeaderTile> {
                   widget.workspaceCount.toString(),
                   style: theme.textTheme.labelSmall?.copyWith(
                     color: AleraTokens.foregroundFaint,
-                    fontWeight: FontWeight.w500,
+                    fontWeight: .w500,
                   ),
                 ),
                 const SizedBox(width: AleraTokens.space4),

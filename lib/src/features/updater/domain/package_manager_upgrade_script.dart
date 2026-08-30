@@ -8,18 +8,12 @@ import 'package:alera/src/features/updater/domain/package_install_method.dart';
 /// replaced. So the helper is the *system* shell, which lives outside the
 /// install directory, waits for Alera's pid to disappear, runs the manager's
 /// own upgrade, and starts Alera again.
-class PackageManagerUpgradeScript {
-  const PackageManagerUpgradeScript({
-    required this.fileName,
-    required this.contents,
-    required this.executable,
-    required this.arguments,
-  });
-
-  final String fileName;
-  final String contents;
-  final String executable;
-
+class const PackageManagerUpgradeScript({
+  required final String fileName,
+  required final String contents,
+  required final String executable,
+  required this.arguments,
+}) {
   /// Arguments up to, but not including, the runtime paths the launcher fills
   /// in: the script path, the parent pid, the handoff file, and the log file.
   final List<String> arguments;

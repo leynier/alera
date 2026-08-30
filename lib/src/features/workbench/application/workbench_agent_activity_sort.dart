@@ -10,29 +10,23 @@ enum AgentAttentionClass { needsYou, done, working, idle }
 /// ordering; stale runs fall back to the workspace recency timestamp.
 const Duration agentActivityStaleness = Duration(minutes: 30);
 
-class WorkspaceAttention {
-  const WorkspaceAttention({required this.attentionClass, this.attentionAt});
-
+class const WorkspaceAttention({
+  required final AgentAttentionClass attentionClass,
+  this.attentionAt,
+}) {
   static const WorkspaceAttention idle = WorkspaceAttention(
-    attentionClass: AgentAttentionClass.idle,
+    attentionClass: .idle,
   );
-
-  final AgentAttentionClass attentionClass;
 
   /// When the most urgent run entered its current state. Null for idle.
   final DateTime? attentionAt;
 }
 
 /// Comparable activity for a workspace that currently has an open terminal.
-class AgentActivityRank {
-  const AgentActivityRank({
-    required this.attentionClass,
-    required this.activityAt,
-  });
-
-  final AgentAttentionClass attentionClass;
-  final DateTime activityAt;
-}
+class const AgentActivityRank({
+  required final AgentAttentionClass attentionClass,
+  required final DateTime activityAt,
+});
 
 /// Classifies a workspace by its live agent runs for the Agent Activity sort.
 WorkspaceAttention workspaceAttention({

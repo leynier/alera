@@ -1,10 +1,7 @@
 part of 'mobile_codex_chat_screen.dart';
 
-class _MobileCodexMarkdown extends StatelessWidget {
-  const _MobileCodexMarkdown({required this.text});
-
-  final String text;
-
+class const _MobileCodexMarkdown({required final String text})
+    extends StatelessWidget {
   @override
   Widget build(BuildContext context) => GptMarkdown(
     text,

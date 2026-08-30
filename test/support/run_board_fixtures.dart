@@ -1,4 +1,5 @@
 import 'dart:async';
+
 import 'package:alera/src/features/app_window/domain/app_foreground.dart';
 import 'package:alera/src/features/orchestration/domain/run_board_snapshot.dart';
 import 'package:alera/src/features/orchestration/domain/run_snapshot.dart';
@@ -67,8 +68,7 @@ RunSnapshot boardRunDetail({
 }) => RunSnapshot(
   revision: revision,
   run: boardRun(id: runId),
-  objective:
-      'Deliver reviewed workflow plans with explicit human approvals and traceable evidence.',
+  objective: 'Deliver reviewed workflow plans with explicit human approvals and traceable evidence.',
   objectiveTruncated: false,
   nextTaskId: nextTaskId,
   tasks:

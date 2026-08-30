@@ -13,7 +13,7 @@ void main() {
               tabIds: const <String>['missing-tab'],
             ).splitWithGroup(
               targetGroupId: WorkbenchLayout.defaultGroupId('workspace-1'),
-              zone: WorkbenchDropZone.right,
+              zone: .right,
               newGroup: WorkbenchPaneGroup(
                 id: 'group-2',
                 tabIds: const <String>['tab-2'],
@@ -39,7 +39,7 @@ void main() {
             tabIds: const <String>['tab-1', 'tab-2'],
           ).splitWithGroup(
             targetGroupId: WorkbenchLayout.defaultGroupId('workspace-1'),
-            zone: WorkbenchDropZone.right,
+            zone: .right,
             newGroup: WorkbenchPaneGroup(
               id: 'group-2',
               tabIds: const <String>['tab-3'],
@@ -50,7 +50,7 @@ void main() {
       final moved = layout.moveTab(
         tabId: 'tab-2',
         targetGroupId: 'group-2',
-        zone: WorkbenchDropZone.center,
+        zone: .center,
         newGroupId: 'unused-group',
       );
 
@@ -99,7 +99,7 @@ void main() {
           ).moveTab(
             tabId: 'tab-2',
             targetGroupId: firstGroupId,
-            zone: WorkbenchDropZone.down,
+            zone: .down,
             newGroupId: 'group-2',
           );
 
@@ -121,7 +121,7 @@ void main() {
               tabIds: const <String>['missing-a'],
             ).splitWithGroup(
               targetGroupId: WorkbenchLayout.defaultGroupId('workspace-1'),
-              zone: WorkbenchDropZone.right,
+              zone: .right,
               newGroup: WorkbenchPaneGroup(
                 id: 'group-2',
                 tabIds: const <String>['missing-b'],
@@ -170,7 +170,7 @@ void main() {
         final groupId = WorkbenchLayout.defaultGroupId('workspace-1');
         final layout = WorkbenchLayout(
           workspaceId: 'workspace-1',
-          root: WorkbenchLayoutNode.leaf(groupId),
+          root: .leaf(groupId),
           groups: <String, WorkbenchPaneGroup>{
             groupId: WorkbenchPaneGroup(
               id: groupId,
@@ -197,7 +197,7 @@ void main() {
               )
               .splitWithGroup(
                 targetGroupId: firstGroupId,
-                zone: WorkbenchDropZone.right,
+                zone: .right,
                 newGroup: WorkbenchPaneGroup(
                   id: 'group-c',
                   tabIds: const <String>['tab-c'],
@@ -206,7 +206,7 @@ void main() {
               )
               .splitWithGroup(
                 targetGroupId: firstGroupId,
-                zone: WorkbenchDropZone.right,
+                zone: .right,
                 newGroup: WorkbenchPaneGroup(
                   id: 'group-b',
                   tabIds: const <String>['tab-b'],
@@ -233,7 +233,7 @@ void main() {
       expect(
         layout.splitWithGroup(
           targetGroupId: groupId,
-          zone: WorkbenchDropZone.center,
+          zone: .center,
           newGroup: WorkbenchPaneGroup(
             id: 'group-2',
             tabIds: const <String>['tab-2'],
@@ -245,7 +245,7 @@ void main() {
       expect(
         layout.splitWithGroup(
           targetGroupId: 'missing',
-          zone: WorkbenchDropZone.right,
+          zone: .right,
           newGroup: WorkbenchPaneGroup(
             id: 'group-2',
             tabIds: const <String>['tab-2'],
@@ -258,7 +258,7 @@ void main() {
         layout.moveTab(
           tabId: 'missing',
           targetGroupId: groupId,
-          zone: WorkbenchDropZone.center,
+          zone: .center,
           newGroupId: 'group-2',
         ),
         same(layout),
@@ -267,7 +267,7 @@ void main() {
         layout.moveTab(
           tabId: 'tab-1',
           targetGroupId: groupId,
-          zone: WorkbenchDropZone.right,
+          zone: .right,
           newGroupId: 'group-2',
         ),
         same(layout),
@@ -283,7 +283,7 @@ void main() {
             tabIds: const <String>['tab-1'],
           ).splitWithGroup(
             targetGroupId: WorkbenchLayout.defaultGroupId('workspace-1'),
-            zone: WorkbenchDropZone.right,
+            zone: .right,
             newGroup: WorkbenchPaneGroup(
               id: 'group-2',
               tabIds: const <String>['tab-2'],
@@ -307,7 +307,7 @@ void main() {
               )
               .splitWithGroup(
                 targetGroupId: rootGroupId,
-                zone: WorkbenchDropZone.right,
+                zone: .right,
                 newGroup: WorkbenchPaneGroup(
                   id: 'group-2',
                   tabIds: const <String>['tab-2'],
@@ -316,7 +316,7 @@ void main() {
               )
               .splitWithGroup(
                 targetGroupId: rootGroupId,
-                zone: WorkbenchDropZone.down,
+                zone: .down,
                 newGroup: WorkbenchPaneGroup(
                   id: 'group-3',
                   tabIds: const <String>['tab-3'],
@@ -335,7 +335,7 @@ void main() {
       () {
         final layout = WorkbenchLayout(
           workspaceId: 'workspace-1',
-          root: WorkbenchLayoutNode.leaf('missing-group'),
+          root: .leaf('missing-group'),
           groups: <String, WorkbenchPaneGroup>{
             'group-a': WorkbenchPaneGroup(
               id: 'group-a',
@@ -363,33 +363,30 @@ void main() {
       },
     );
 
-    test(
-      'removeTab falls back to a single layout when the remaining root is stale',
-      () {
-        final layout = WorkbenchLayout(
-          workspaceId: 'workspace-1',
-          root: WorkbenchLayoutNode.leaf('missing-group'),
-          groups: <String, WorkbenchPaneGroup>{
-            'group-a': WorkbenchPaneGroup(
-              id: 'group-a',
-              tabIds: const <String>['tab-a', 'tab-b'],
-              activeTabId: 'tab-b',
-            ),
-          },
-          activeGroupId: 'group-a',
-        );
+    test('removeTab falls back to a single layout when the remaining root is stale', () {
+      final layout = WorkbenchLayout(
+        workspaceId: 'workspace-1',
+        root: .leaf('missing-group'),
+        groups: <String, WorkbenchPaneGroup>{
+          'group-a': WorkbenchPaneGroup(
+            id: 'group-a',
+            tabIds: const <String>['tab-a', 'tab-b'],
+            activeTabId: 'tab-b',
+          ),
+        },
+        activeGroupId: 'group-a',
+      );
 
-        final removed = layout.removeTab('tab-a');
+      final removed = layout.removeTab('tab-a');
 
-        expect(removed.paneGroupIds, <String>[
-          WorkbenchLayout.defaultGroupId('workspace-1'),
-        ]);
-        expect(
-          removed.groups[WorkbenchLayout.defaultGroupId('workspace-1')]?.tabIds,
-          <String>['tab-b'],
-        );
-      },
-    );
+      expect(removed.paneGroupIds, <String>[
+        WorkbenchLayout.defaultGroupId('workspace-1'),
+      ]);
+      expect(
+        removed.groups[WorkbenchLayout.defaultGroupId('workspace-1')]?.tabIds,
+        <String>['tab-b'],
+      );
+    });
 
     test(
       'moveTab falls back to the active group when the target is missing',
@@ -403,14 +400,14 @@ void main() {
         final centered = layout.moveTab(
           tabId: 'tab-2',
           targetGroupId: 'missing-group',
-          zone: WorkbenchDropZone.center,
+          zone: .center,
           newGroupId: 'unused',
           index: 0,
         );
         final split = layout.moveTab(
           tabId: 'tab-2',
           targetGroupId: 'missing-group',
-          zone: WorkbenchDropZone.left,
+          zone: .left,
           newGroupId: 'group-2',
         );
 
@@ -429,7 +426,7 @@ void main() {
               )
               .splitWithGroup(
                 targetGroupId: rootGroupId,
-                zone: WorkbenchDropZone.right,
+                zone: .right,
                 newGroup: WorkbenchPaneGroup(
                   id: 'group-b',
                   tabIds: const <String>['tab-b'],
@@ -438,7 +435,7 @@ void main() {
               )
               .splitWithGroup(
                 targetGroupId: 'group-b',
-                zone: WorkbenchDropZone.down,
+                zone: .down,
                 newGroup: WorkbenchPaneGroup(
                   id: 'group-c',
                   tabIds: const <String>['tab-c'],
@@ -463,7 +460,7 @@ WorkspaceTabRecord _tab(String id) {
     id: id,
     workspaceId: 'workspace-1',
     title: id,
-    createdAt: DateTime.utc(2026, 5, 22),
-    updatedAt: DateTime.utc(2026, 5, 22),
+    createdAt: .utc(2026, 5, 22),
+    updatedAt: .utc(2026, 5, 22),
   );
 }

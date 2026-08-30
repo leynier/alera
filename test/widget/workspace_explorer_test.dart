@@ -410,7 +410,7 @@ void main() {
           displayContent: 'original',
           contentToken: 'token-1',
           modifiedMillis: 0,
-          size: BigInt.from(8),
+          size: .from(8),
         ),
       )
       ..updateCurrentText('changed');
@@ -623,27 +623,25 @@ void main() {
               onSetGitDiffViewMode: (_) {},
               onSetGitDiffGroupMode: (_) {},
               onOpenFile: (_) {},
-              onOpenGitDiff:
-                  ({
-                    relativePath,
-                    area,
-                    gitDiffRoot,
-                    required scope,
-                    bool preview = false,
-                  }) async {},
-              onOpenGitCommitDiff:
-                  ({
-                    relativePath,
-                    oldPath,
-                    required scope,
-                    gitDiffRoot,
-                    required commitOid,
-                    parentOid,
-                    required compareRef,
-                    subject,
-                    message,
-                    bool preview = false,
-                  }) async {},
+              onOpenGitDiff: ({
+                relativePath,
+                area,
+                gitDiffRoot,
+                required scope,
+                bool preview = false,
+              }) async {},
+              onOpenGitCommitDiff: ({
+                relativePath,
+                oldPath,
+                required scope,
+                gitDiffRoot,
+                required commitOid,
+                parentOid,
+                required compareRef,
+                subject,
+                message,
+                bool preview = false,
+              }) async {},
               onOpenSearchMatch: (_) {},
               onPathMoved: (_, _) async {},
             ),
@@ -674,7 +672,7 @@ void main() {
           home: Scaffold(
             body: WorkspaceContextSidebar(
               workspace: _workspace(),
-              prefs: WorkbenchViewPrefs.defaults,
+              prefs: .defaults,
               onToggleVisible: () {},
               onResize: (_) {},
               onSetContextPanelTab: (_) {},
@@ -682,27 +680,25 @@ void main() {
               onSetGitDiffViewMode: (_) {},
               onSetGitDiffGroupMode: (_) {},
               onOpenFile: (_) {},
-              onOpenGitDiff:
-                  ({
-                    relativePath,
-                    area,
-                    gitDiffRoot,
-                    required scope,
-                    bool preview = false,
-                  }) async {},
-              onOpenGitCommitDiff:
-                  ({
-                    relativePath,
-                    oldPath,
-                    required scope,
-                    gitDiffRoot,
-                    required commitOid,
-                    parentOid,
-                    required compareRef,
-                    subject,
-                    message,
-                    bool preview = false,
-                  }) async {},
+              onOpenGitDiff: ({
+                relativePath,
+                area,
+                gitDiffRoot,
+                required scope,
+                bool preview = false,
+              }) async {},
+              onOpenGitCommitDiff: ({
+                relativePath,
+                oldPath,
+                required scope,
+                gitDiffRoot,
+                required commitOid,
+                parentOid,
+                required compareRef,
+                subject,
+                message,
+                bool preview = false,
+              }) async {},
               onOpenSearchMatch: (_) {},
               onPathMoved: (_, _) async {},
             ),
@@ -744,7 +740,7 @@ Future<void> _pumpExplorer(
             height: 480,
             child: WorkspaceExplorer(
               workspace: _workspace(),
-              mode: WorkspaceExplorerMode.hideIgnored,
+              mode: .hideIgnored,
               onModeChanged: (_) {},
               onOpenFile: onOpenFile ?? (_) {},
               onOpenFilePermanently: onOpenFilePermanently,
@@ -761,9 +757,7 @@ Future<void> _pumpExplorer(
   await tester.pumpAndSettle();
 }
 
-class _WorkspaceExplorerModeHarness extends StatefulWidget {
-  const _WorkspaceExplorerModeHarness();
-
+class const _WorkspaceExplorerModeHarness() extends StatefulWidget {
   @override
   State<_WorkspaceExplorerModeHarness> createState() =>
       _WorkspaceExplorerModeHarnessState();
@@ -771,7 +765,7 @@ class _WorkspaceExplorerModeHarness extends StatefulWidget {
 
 class _WorkspaceExplorerModeHarnessState
     extends State<_WorkspaceExplorerModeHarness> {
-  WorkspaceExplorerMode _mode = WorkspaceExplorerMode.hideIgnored;
+  WorkspaceExplorerMode _mode = .hideIgnored;
 
   @override
   Widget build(BuildContext context) {
@@ -808,7 +802,7 @@ Widget _withWorkspaceFiles(
 Widget _workspaceContextSidebar(Workspace workspace) {
   return WorkspaceContextSidebar(
     workspace: workspace,
-    prefs: WorkbenchViewPrefs.defaults,
+    prefs: .defaults,
     onToggleVisible: () {},
     onResize: (_) {},
     onSetContextPanelTab: (_) {},
@@ -816,37 +810,34 @@ Widget _workspaceContextSidebar(Workspace workspace) {
     onSetGitDiffViewMode: (_) {},
     onSetGitDiffGroupMode: (_) {},
     onOpenFile: (_) {},
-    onOpenGitDiff:
-        ({
-          relativePath,
-          area,
-          gitDiffRoot,
-          required scope,
-          bool preview = false,
-        }) async {},
-    onOpenGitCommitDiff:
-        ({
-          relativePath,
-          oldPath,
-          required scope,
-          gitDiffRoot,
-          required commitOid,
-          parentOid,
-          required compareRef,
-          subject,
-          message,
-          bool preview = false,
-        }) async {},
+    onOpenGitDiff: ({
+      relativePath,
+      area,
+      gitDiffRoot,
+      required scope,
+      bool preview = false,
+    }) async {},
+    onOpenGitCommitDiff: ({
+      relativePath,
+      oldPath,
+      required scope,
+      gitDiffRoot,
+      required commitOid,
+      parentOid,
+      required compareRef,
+      subject,
+      message,
+      bool preview = false,
+    }) async {},
     onOpenSearchMatch: (_) {},
     onPathMoved: (_, _) async {},
   );
 }
 
-class _FakeWorkspaceFileService extends WorkspaceFileService {
-  _FakeWorkspaceFileService({this.createGate, this.stopGate});
-
-  final Completer<void>? createGate;
-  final Completer<void>? stopGate;
+class _FakeWorkspaceFileService({
+  final Completer<void>? createGate,
+  final Completer<void>? stopGate,
+}) extends WorkspaceFileService {
   final StreamController<native.WorkspaceExplorerWatchBatch> _watchController =
       StreamController<native.WorkspaceExplorerWatchBatch>.broadcast();
   final Map<String, List<native.WorkspaceFileEntry>> childrenByDirectory =
@@ -985,7 +976,7 @@ class _FakeWorkspaceFileService extends WorkspaceFileService {
       displayContent: currentDisplayContent,
       contentToken: '$relativePath-saved-token',
       modifiedMillis: 1,
-      size: BigInt.from(currentDisplayContent.length),
+      size: .from(currentDisplayContent.length),
     );
   }
 
@@ -1009,15 +1000,10 @@ class _FakeWorkspaceFileService extends WorkspaceFileService {
   }
 }
 
-class _ListChildrenCall {
-  const _ListChildrenCall({
-    required this.relativePath,
-    required this.hideIgnored,
-  });
-
-  final String relativePath;
-  final bool hideIgnored;
-
+class const _ListChildrenCall({
+  required final String relativePath,
+  required final bool hideIgnored,
+}) {
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -1194,12 +1180,8 @@ void _appendProjectedChild(
   }
 }
 
-class _FakeWorkspaceFolderOpener extends WorkspaceFolderOpener {
-  _FakeWorkspaceFolderOpener()
-    : super(
-        processRunner: _NoopProcessRunner(),
-        platform: WorkspaceFolderPlatform.macos,
-      );
+class _FakeWorkspaceFolderOpener() extends WorkspaceFolderOpener {
+  this : super(processRunner: _NoopProcessRunner(), platform: .macos);
 
   final List<String> revealedPaths = <String>[];
 
@@ -1246,8 +1228,8 @@ Workspace _workspace({
     path: path,
     createdAt: now,
     updatedAt: now,
-    kind: WorkspaceKind.main,
-    status: WorkspaceStatus.active,
+    kind: .main,
+    status: .active,
   );
 }
 
@@ -1286,7 +1268,7 @@ native.WorkspaceFileEntry _entry({
     relativePath: relativePath,
     name: relativePath.split('/').last,
     kind: kind,
-    size: BigInt.zero,
+    size: .zero,
     modifiedMillis: 0,
     contentToken: '$relativePath-token',
     isIgnored: false,

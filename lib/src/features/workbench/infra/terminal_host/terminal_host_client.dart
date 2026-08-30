@@ -34,8 +34,14 @@ part 'terminal_host_client_terminal_pulse.dart';
 part 'terminal_host_client_socket_reader.dart';
 part 'terminal_host_control_file.dart';
 
-final class SocketTerminalHostClient
-    with
+final class SocketTerminalHostClient._(
+  final TerminalHostProcessLauncher _launcher,
+  final Future<Directory> Function() _applicationSupportDirectory,
+  final Duration _startupTimeout,
+  var TerminalHostConfig _config,
+  this._heartbeatInterval,
+  final Duration _heartbeatTimeout,
+) with
         _TerminalHostClientHeartbeat,
         _TerminalHostClientSessionEvents,
         _TerminalPulseHostClientSupport,
@@ -46,7 +52,7 @@ final class SocketTerminalHostClient
         TerminalPulseHostClient,
         RuntimeHostClient,
         RuntimeHostCapabilityClient {
-  factory SocketTerminalHostClient({
+  factory({
     TerminalHostProcessLauncher? launcher,
     Future<Directory> Function()? applicationSupportDirectory,
     Duration startupTimeout = const Duration(seconds: 8),
@@ -64,21 +70,9 @@ final class SocketTerminalHostClient
     );
   }
 
-  SocketTerminalHostClient._(
-    this._launcher,
-    this._applicationSupportDirectory,
-    this._startupTimeout,
-    this._config,
-    this._heartbeatInterval,
-    this._heartbeatTimeout,
-  );
-
-  final TerminalHostProcessLauncher _launcher;
-  final Future<Directory> Function() _applicationSupportDirectory;
-  final Duration _startupTimeout;
   @override
   final Duration _heartbeatInterval;
-  final Duration _heartbeatTimeout;
+
   final StreamController<TerminalHostEvent> _events =
       StreamController<TerminalHostEvent>.broadcast();
   final StreamController<RuntimeHostEvent> _runtimeEvents =
@@ -97,7 +91,6 @@ final class SocketTerminalHostClient
   @override
   bool _disposed = false;
   bool _appQuitInProgress = false;
-  TerminalHostConfig _config;
 
   @override
   StreamController<TerminalHostEvent> get _globalEvents => _events;
@@ -564,7 +557,7 @@ final class SocketTerminalHostClient
             : closedError;
         // Preserve the close site for reporters that receive this error
         // without an await; public callers observe the async wrapper stack.
-        completer.completeError(pendingError, StackTrace.current);
+        completer.completeError(pendingError, .current);
       }
     }
   }
@@ -617,7 +610,7 @@ final class SocketTerminalHostClient
     _pending.clear();
     for (final request in pending) {
       if (!request.completer.isCompleted) {
-        request.completer.completeError(error, StackTrace.current);
+        request.completer.completeError(error, .current);
       }
     }
   }

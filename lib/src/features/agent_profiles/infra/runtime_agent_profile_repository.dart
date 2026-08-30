@@ -6,15 +6,13 @@ import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_p
 import 'package:alera/src/shared/infra/runtime/runtime_change_coalescer.dart';
 import 'package:alera/src/shared/infra/runtime/runtime_snapshot_stream.dart';
 
-class RuntimeAgentProfileRepository {
-  RuntimeAgentProfileRepository(
-    this._client, {
-    this.beforeAccess,
-    RuntimeChangeCoalescer? coalescer,
-  }) : _coalescer = coalescer ?? RuntimeChangeCoalescer();
+class RuntimeAgentProfileRepository(
+  final RuntimeHostClient _client, {
+  final Future<void> Function()? beforeAccess,
+  RuntimeChangeCoalescer? coalescer,
+}) {
+  this : _coalescer = coalescer ?? RuntimeChangeCoalescer();
 
-  final RuntimeHostClient _client;
-  final Future<void> Function()? beforeAccess;
   final RuntimeChangeCoalescer _coalescer;
 
   Future<List<AgentProfile>> list() async {

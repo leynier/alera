@@ -3,24 +3,15 @@ import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:flutter/material.dart';
 
 /// Dropdown-style interactive row for compact action menus.
-class AleraDropdownMenuItem extends StatelessWidget {
-  const AleraDropdownMenuItem({
-    super.key,
-    required this.label,
-    required this.onTap,
-    this.leading,
-    this.selected = false,
-    this.enabled = true,
-    this.autofocus = false,
-  });
-
-  final String label;
-  final VoidCallback? onTap;
-  final Widget? leading;
-  final bool selected;
-  final bool enabled;
-  final bool autofocus;
-
+class const AleraDropdownMenuItem({
+  super.key,
+  required final String label,
+  required final VoidCallback? onTap,
+  final Widget? leading,
+  final bool selected = false,
+  final bool enabled = true,
+  final bool autofocus = false,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final itemEnabled = enabled && onTap != null;
@@ -39,7 +30,7 @@ class AleraDropdownMenuItem extends StatelessWidget {
             mouseCursor: itemEnabled
                 ? SystemMouseCursors.click
                 : SystemMouseCursors.basic,
-            borderRadius: BorderRadius.circular(AleraTokens.radiusLg),
+            borderRadius: .circular(AleraTokens.radiusLg),
             child: Padding(
               padding: const EdgeInsets.symmetric(
                 horizontal: AleraTokens.space8,
@@ -54,10 +45,9 @@ class AleraDropdownMenuItem extends StatelessWidget {
                   Expanded(
                     child: Text(
                       label,
-                      overflow: TextOverflow.ellipsis,
-                      style: Theme.of(
-                        context,
-                      ).textTheme.bodyMedium?.copyWith(color: color),
+                      overflow: .ellipsis,
+                      style: Theme.of(context).textTheme.bodyMedium
+                          ?.copyWith(color: color),
                     ),
                   ),
                   if (selected)

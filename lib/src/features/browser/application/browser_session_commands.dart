@@ -1,22 +1,15 @@
 part of 'browser_session_registry.dart';
 
-final class BrowserOperationGuard {
-  BrowserOperationGuard({
-    required this.deadline,
-    required this.cancellation,
-    required this.isCancelled,
-    required this.now,
-  });
-
-  final DateTime deadline;
-  final Future<void> cancellation;
-  final bool Function() isCancelled;
-  final DateTime Function() now;
-
+final class BrowserOperationGuard({
+  required final DateTime deadline,
+  required final Future<void> cancellation,
+  required final bool Function() isCancelled,
+  required final DateTime Function() now,
+}) {
   void ensureActive() {
     if (isCancelled()) {
       throw const BrowserFailure(
-        code: BrowserErrorCode.staleAutomationReference,
+        code: .staleAutomationReference,
         message: 'The browser operation was cancelled.',
         recoverable: true,
       );
@@ -34,7 +27,7 @@ final class BrowserOperationGuard {
         operation.timeout(remaining),
         cancellation.then<T>(
           (_) => throw const BrowserFailure(
-            code: BrowserErrorCode.staleAutomationReference,
+            code: .staleAutomationReference,
             message: 'The browser operation was cancelled.',
             recoverable: true,
           ),
@@ -64,7 +57,7 @@ extension _BrowserSessionRegistryCommands on BrowserSessionRegistry {
     guard?.ensureActive();
     if (serialized && entry.commandInFlight) {
       throw const BrowserFailure(
-        code: BrowserErrorCode.operationInProgress,
+        code: .operationInProgress,
         message: 'A previous native browser operation is still draining.',
         recoverable: true,
       );
@@ -96,12 +89,11 @@ extension _BrowserSessionRegistryCommands on BrowserSessionRegistry {
     BrowserOperationGuard? guard,
   }) async {
     final searchEngine = await _readSearchEngine();
-    final target = BrowserNavigationPolicy(
-      searchEngine: searchEngine,
-    ).resolve(input);
+    final target = BrowserNavigationPolicy(searchEngine: searchEngine)
+        .resolve(input);
     await _runCommand<void>(
       entry,
-      BrowserLifecycleReason.command,
+      .command,
       () => _engine.loadUrl(entry.pageId, target.url),
       guard: guard,
     );
@@ -112,10 +104,7 @@ extension _BrowserSessionRegistryCommands on BrowserSessionRegistry {
     _BrowserSessionEntry entry,
     Future<T> Function() operation,
   ) async {
-    final obscuration = _acquireObscuration(
-      entry,
-      BrowserObscurationReason.overlay,
-    );
+    final obscuration = _acquireObscuration(entry, .overlay);
     try {
       await obscuration.ready;
       return await operation();

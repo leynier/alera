@@ -20,9 +20,7 @@ abstract interface class WorktreeSetupRunner {
   });
 }
 
-class NoopWorktreeSetupRunner implements WorktreeSetupRunner {
-  const NoopWorktreeSetupRunner();
-
+class const NoopWorktreeSetupRunner() implements WorktreeSetupRunner {
   @override
   Future<WorktreeSetupReport> run({
     required Project project,
@@ -33,8 +31,12 @@ class NoopWorktreeSetupRunner implements WorktreeSetupRunner {
   }
 }
 
-class WorktreeSetupService implements WorktreeSetupRunner {
-  WorktreeSetupService({
+class WorktreeSetupService._(
+  final ProcessRunner _processRunner,
+  final CommandEnvironmentResolver _commandEnvironmentResolver,
+  final WorktreeSetupOperatingSystem _operatingSystem,
+) implements WorktreeSetupRunner {
+  new({
     required ProcessRunner processRunner,
     CommandEnvironmentResolver? commandEnvironmentResolver,
     WorktreeSetupOperatingSystem? operatingSystem,
@@ -46,16 +48,6 @@ class WorktreeSetupService implements WorktreeSetupRunner {
                  ? WorktreeSetupOperatingSystem.windows
                  : WorktreeSetupOperatingSystem.posix),
        );
-
-  WorktreeSetupService._(
-    this._processRunner,
-    this._commandEnvironmentResolver,
-    this._operatingSystem,
-  );
-
-  final ProcessRunner _processRunner;
-  final CommandEnvironmentResolver _commandEnvironmentResolver;
-  final WorktreeSetupOperatingSystem _operatingSystem;
 
   @override
   Future<WorktreeSetupReport> run({
@@ -73,7 +65,7 @@ class WorktreeSetupService implements WorktreeSetupRunner {
       );
       steps.add(report);
       if (!report.succeeded) {
-        return WorktreeSetupReport(steps: List.unmodifiable(steps));
+        return WorktreeSetupReport(steps: .unmodifiableOf(steps));
       }
     }
 
@@ -84,11 +76,11 @@ class WorktreeSetupService implements WorktreeSetupRunner {
       );
       steps.add(report);
       if (!report.succeeded) {
-        return WorktreeSetupReport(steps: List.unmodifiable(steps));
+        return WorktreeSetupReport(steps: .unmodifiableOf(steps));
       }
     }
 
-    return WorktreeSetupReport(steps: List.unmodifiable(steps));
+    return WorktreeSetupReport(steps: .unmodifiableOf(steps));
   }
 
   Future<WorktreeSetupStepReport> _copyRule({
@@ -98,12 +90,10 @@ class WorktreeSetupService implements WorktreeSetupRunner {
   }) async {
     final label = '${rule.from} -> ${rule.destination}';
     try {
-      final projectRoot = Directory(
-        project.repoPath,
-      ).resolveSymbolicLinksSync();
-      final workspaceRoot = Directory(
-        workspace.path,
-      ).resolveSymbolicLinksSync();
+      final projectRoot = Directory(project.repoPath)
+          .resolveSymbolicLinksSync();
+      final workspaceRoot = Directory(workspace.path)
+          .resolveSymbolicLinksSync();
       final sourcePath = _joinConfigPath(
         projectRoot,
         normalizeProjectConfigPath(rule.from, 'copy source'),
@@ -144,13 +134,13 @@ class WorktreeSetupService implements WorktreeSetupRunner {
       }
 
       return WorktreeSetupStepReport(
-        kind: WorktreeSetupStepKind.copy,
+        kind: .copy,
         label: label,
         succeeded: true,
       );
     } catch (error) {
       return WorktreeSetupStepReport(
-        kind: WorktreeSetupStepKind.copy,
+        kind: .copy,
         label: label,
         succeeded: false,
         message: error.toString(),
@@ -245,7 +235,7 @@ class WorktreeSetupService implements WorktreeSetupRunner {
       final exitCode = await process.exitCode;
       await Future.wait<void>(<Future<void>>[stdoutDone, stderrDone]);
       return WorktreeSetupStepReport(
-        kind: WorktreeSetupStepKind.command,
+        kind: .command,
         label: command,
         succeeded: exitCode == 0,
         exitCode: exitCode,
@@ -255,7 +245,7 @@ class WorktreeSetupService implements WorktreeSetupRunner {
       );
     } catch (error) {
       return WorktreeSetupStepReport(
-        kind: WorktreeSetupStepKind.command,
+        kind: .command,
         label: command,
         succeeded: false,
         message: error.toString(),
@@ -285,11 +275,7 @@ class _BoundedTextTail {
   final StringBuffer _buffer = StringBuffer();
 }
 
-class WorktreeSetupException implements Exception {
-  WorktreeSetupException(this.message);
-
-  final String message;
-
+class WorktreeSetupException(final String message) implements Exception {
   @override
   String toString() => message;
 }

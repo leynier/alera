@@ -3,11 +3,8 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 /// Lets a field consume non-text clipboard content before Flutter pastes text.
-final class AleraClipboardPasteAction extends Action<PasteTextIntent> {
-  AleraClipboardPasteAction(this._onPaste);
-
-  final Future<bool> Function() _onPaste;
-
+final class AleraClipboardPasteAction(final Future<bool> Function() _onPaste)
+    extends Action<PasteTextIntent> {
   @override
   bool get isActionEnabled => callingAction?.isActionEnabled ?? true;
 

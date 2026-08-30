@@ -4,20 +4,13 @@ import 'package:flutter/material.dart';
 /// A labeled settings row: title (+ optional description) on the left and a
 /// fixed-width control on the right. Pair it with any control widget
 /// (switch, [AleraNumberField], dropdown, color field, ...) as [child].
-class AleraSettingRow extends StatelessWidget {
-  const AleraSettingRow({
-    super.key,
-    required this.title,
-    required this.child,
-    this.description,
-    this.controlWidth = 220,
-  });
-
-  final String title;
-  final Widget child;
-  final String? description;
-  final double controlWidth;
-
+class const AleraSettingRow({
+  super.key,
+  required final String title,
+  required final Widget child,
+  final String? description,
+  final double controlWidth = 220,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -27,13 +20,13 @@ class AleraSettingRow extends StatelessWidget {
         children: <Widget>[
           Expanded(
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+              crossAxisAlignment: .start,
               children: <Widget>[
                 Text(
                   title,
                   style: theme.textTheme.bodyMedium?.copyWith(
                     color: AleraTokens.foreground,
-                    fontWeight: FontWeight.w500,
+                    fontWeight: .w500,
                   ),
                 ),
                 if (description != null) ...<Widget>[

@@ -57,8 +57,8 @@ void main() {
     client
       ..attachCompletion = reattach.future
       ..probeError = StateError('connection gone');
-    lifecycle.setLifecycleState(AppLifecycleState.inactive);
-    lifecycle.setLifecycleState(AppLifecycleState.resumed);
+    lifecycle.setLifecycleState(.inactive);
+    lifecycle.setLifecycleState(.resumed);
     for (var frame = 0; frame < 10 && client.attachments.length < 2; frame++) {
       await tester.pump(const Duration(milliseconds: 20));
     }

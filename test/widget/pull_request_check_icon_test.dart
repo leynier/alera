@@ -1,4 +1,3 @@
-import 'package:alera/src/features/pull_requests/domain/review_check.dart';
 import 'package:alera/src/features/pull_requests/presentation/pull_request_check_icon.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -16,10 +15,7 @@ void main() {
   testWidgets('running check rotates its loader icon', (tester) async {
     await tester.pumpWidget(
       _wrap(
-        const PullRequestCheckIcon(
-          status: ReviewCheckStatus.inProgress,
-          conclusion: ReviewCheckConclusion.pending,
-        ),
+        const PullRequestCheckIcon(status: .inProgress, conclusion: .pending),
       ),
     );
 
@@ -32,10 +28,7 @@ void main() {
   testWidgets('completed check renders a static icon', (tester) async {
     await tester.pumpWidget(
       _wrap(
-        const PullRequestCheckIcon(
-          status: ReviewCheckStatus.completed,
-          conclusion: ReviewCheckConclusion.success,
-        ),
+        const PullRequestCheckIcon(status: .completed, conclusion: .success),
       ),
     );
     expect(_iconRotation(), findsNothing);
@@ -51,20 +44,14 @@ void main() {
   testWidgets('stops spinning when the check completes', (tester) async {
     await tester.pumpWidget(
       _wrap(
-        const PullRequestCheckIcon(
-          status: ReviewCheckStatus.inProgress,
-          conclusion: ReviewCheckConclusion.pending,
-        ),
+        const PullRequestCheckIcon(status: .inProgress, conclusion: .pending),
       ),
     );
     expect(_iconRotation(), findsOneWidget);
 
     await tester.pumpWidget(
       _wrap(
-        const PullRequestCheckIcon(
-          status: ReviewCheckStatus.completed,
-          conclusion: ReviewCheckConclusion.failure,
-        ),
+        const PullRequestCheckIcon(status: .completed, conclusion: .failure),
       ),
     );
     await tester.pump();

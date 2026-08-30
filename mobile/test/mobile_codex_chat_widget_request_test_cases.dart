@@ -189,8 +189,7 @@ void _registerMobileCodexRequestTests() {
               'kind': 'assistantMessage',
               'status': 'inProgress',
               'turnId': 'turn-stream',
-              'markdownText':
-                  'Latest streamed message with enough text to extend the timeline.',
+              'markdownText': 'Latest streamed message with enough text to extend the timeline.',
               'isStreaming': true,
             },
           ],
@@ -412,7 +411,7 @@ void _registerMobileCodexRequestTests() {
     expect((chip.avatar! as Icon).icon, Icons.description_outlined);
 
     await tester.tap(composer);
-    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+    await tester.sendKeyEvent(.enter);
     await tester.pumpAndSettle();
 
     final turn = client.calls.lastWhere(

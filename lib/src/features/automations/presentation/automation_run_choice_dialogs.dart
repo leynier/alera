@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 
-class AutomationRunNowChoiceDialog extends StatefulWidget {
-  const AutomationRunNowChoiceDialog({super.key});
-
+class const AutomationRunNowChoiceDialog({super.key}) extends StatefulWidget {
   @override
   State<AutomationRunNowChoiceDialog> createState() =>
       _AutomationRunNowChoiceDialogState();
@@ -20,7 +18,7 @@ class _AutomationRunNowChoiceDialogState
     return AlertDialog(
       title: const Text('Run Now'),
       content: Column(
-        mainAxisSize: MainAxisSize.min,
+        mainAxisSize: .min,
         children: <Widget>[
           SwitchListTile.adaptive(
             title: const Text('Run Precheck'),
@@ -68,9 +66,9 @@ class _AutomationRunNowChoiceDialogState
           child: const Text('Cancel'),
         ),
         FilledButton(
-          onPressed: () => Navigator.of(
-            context,
-          ).pop((_precheck, _overlap, _draftTest, _exactRevision)),
+          onPressed: () =>
+              Navigator.of(context)
+                  .pop((_precheck, _overlap, _draftTest, _exactRevision)),
           child: const Text('Run'),
         ),
       ],
@@ -78,9 +76,7 @@ class _AutomationRunNowChoiceDialogState
   }
 }
 
-class AutomationPauseChoiceDialog extends StatelessWidget {
-  const AutomationPauseChoiceDialog({super.key});
-
+class const AutomationPauseChoiceDialog({super.key}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(

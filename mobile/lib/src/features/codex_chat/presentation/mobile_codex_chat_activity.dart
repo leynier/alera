@@ -1,18 +1,11 @@
 part of 'mobile_codex_chat_screen.dart';
 
-class _MobileWorkingRow extends StatefulWidget {
-  const _MobileWorkingRow({
-    required this.startedAt,
-    required this.expanded,
-    required this.canToggle,
-    required this.onToggle,
-  });
-
-  final DateTime? startedAt;
-  final bool expanded;
-  final bool canToggle;
-  final VoidCallback onToggle;
-
+class const _MobileWorkingRow({
+  required final DateTime? startedAt,
+  required final bool expanded,
+  required final bool canToggle,
+  required final VoidCallback onToggle,
+}) extends StatefulWidget {
   @override
   State<_MobileWorkingRow> createState() => _MobileWorkingRowState();
 }
@@ -69,7 +62,7 @@ class _MobileWorkingRowState extends State<_MobileWorkingRow>
   Widget build(BuildContext context) => Padding(
     padding: const EdgeInsets.only(bottom: AleraTokens.space12),
     child: InkWell(
-      borderRadius: BorderRadius.circular(AleraTokens.radiusPill),
+      borderRadius: .circular(AleraTokens.radiusPill),
       onTap: widget.canToggle ? widget.onToggle : null,
       child: ConstrainedBox(
         constraints: const BoxConstraints(minHeight: AleraTokens.minTapTarget),
@@ -79,9 +72,8 @@ class _MobileWorkingRowState extends State<_MobileWorkingRow>
               text: widget.startedAt == null
                   ? 'Working'
                   : 'Working for ${_mobileElapsed(widget.startedAt!)}',
-              style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                color: AleraTokens.foregroundMuted,
-              ),
+              style: Theme.of(context).textTheme.labelSmall
+                  ?.copyWith(color: AleraTokens.foregroundMuted),
             ),
             if (widget.canToggle) ...<Widget>[
               const SizedBox(width: AleraTokens.space6),
@@ -108,17 +100,11 @@ String _mobileElapsed(DateTime startedAt) {
   return _mobileDuration(milliseconds) ?? '0s';
 }
 
-class _MobileActivityGroup extends StatelessWidget {
-  const _MobileActivityGroup({
-    required this.cells,
-    required this.expanded,
-    required this.onToggle,
-  });
-
-  final List<MobileCodexTimelineCell> cells;
-  final bool expanded;
-  final VoidCallback onToggle;
-
+class const _MobileActivityGroup({
+  required final List<MobileCodexTimelineCell> cells,
+  required final bool expanded,
+  required final VoidCallback onToggle,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final visible = cells.where((cell) => !cell.isReasoning).toList();
@@ -130,10 +116,10 @@ class _MobileActivityGroup extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: AleraTokens.space6),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
+        crossAxisAlignment: .stretch,
         children: <Widget>[
           InkWell(
-            borderRadius: BorderRadius.circular(AleraTokens.radiusMd),
+            borderRadius: .circular(AleraTokens.radiusMd),
             onTap: onToggle,
             child: Padding(
               padding: const EdgeInsets.symmetric(vertical: AleraTokens.space6),
@@ -149,15 +135,13 @@ class _MobileActivityGroup extends StatelessWidget {
                     child: streaming
                         ? _MobileCodexShimmerText(
                             text: summary,
-                            style: Theme.of(
-                              context,
-                            ).textTheme.bodySmall?.copyWith(color: color),
+                            style: Theme.of(context).textTheme.bodySmall
+                                ?.copyWith(color: color),
                           )
                         : Text(
                             summary,
-                            style: Theme.of(
-                              context,
-                            ).textTheme.bodySmall?.copyWith(color: color),
+                            style: Theme.of(context).textTheme.bodySmall
+                                ?.copyWith(color: color),
                           ),
                   ),
                   Icon(
@@ -183,11 +167,8 @@ class _MobileActivityGroup extends StatelessWidget {
   }
 }
 
-class _MobileActivityItem extends StatelessWidget {
-  const _MobileActivityItem({required this.cell});
-
-  final MobileCodexTimelineCell cell;
-
+class const _MobileActivityItem({required final MobileCodexTimelineCell cell})
+    extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final kind = _mobileActivityKind(cell);
@@ -219,7 +200,7 @@ class _MobileActivityItem extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.only(bottom: AleraTokens.space6),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
+        crossAxisAlignment: .stretch,
         children: <Widget>[
           ListTile(
             dense: true,
@@ -232,10 +213,9 @@ class _MobileActivityItem extends StatelessWidget {
             title: Text(
               label,
               maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: Theme.of(
-                context,
-              ).textTheme.bodyMedium?.copyWith(color: color),
+              overflow: .ellipsis,
+              style: Theme.of(context).textTheme.bodyMedium
+                  ?.copyWith(color: color),
             ),
           ),
           if (cell.kind == 'toolCall' ||

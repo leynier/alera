@@ -1,41 +1,20 @@
-class AiDictationModel {
-  const AiDictationModel({
-    required this.id,
-    required this.label,
-    required this.description,
-    required this.fileName,
-    required this.sha256,
-    required this.uri,
-    required this.sizeBytes,
-    this.coreMlEncoder,
-    this.storageVersion = 1,
-  });
+class const AiDictationModel({
+  required final String id,
+  required final String label,
+  required final String description,
+  required final String fileName,
+  required final String sha256,
+  required final String uri,
+  required final int sizeBytes,
+  final AiDictationCoreMlEncoder? coreMlEncoder,
+  final int storageVersion = 1,
+});
 
-  final String id;
-  final String label;
-  final String description;
-  final String fileName;
-  final String sha256;
-  final String uri;
-  final int sizeBytes;
-  final AiDictationCoreMlEncoder? coreMlEncoder;
-  final int storageVersion;
-}
+class const AiDictationCoreMlEncoder({
+  required final String directoryName,
+  required final String archiveUri,
+  required final String archiveSha256,
+  required final int archiveSizeBytes,
+});
 
-class AiDictationCoreMlEncoder {
-  const AiDictationCoreMlEncoder({
-    required this.directoryName,
-    required this.archiveUri,
-    required this.archiveSha256,
-    required this.archiveSizeBytes,
-  });
-
-  final String directoryName;
-  final String archiveUri;
-  final String archiveSha256;
-  final int archiveSizeBytes;
-}
-
-class AiDictationDownloadCancelled implements Exception {
-  const AiDictationDownloadCancelled();
-}
+class const AiDictationDownloadCancelled() implements Exception;

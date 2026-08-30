@@ -104,9 +104,8 @@ void _registerMobileCodexReviewRegression4Tests() {
     );
     final container = ProviderContainer(
       overrides: [
-        mobileCodexClientProvider(
-          'host-concurrent-history',
-        ).overrideWith((ref) async => client),
+        mobileCodexClientProvider('host-concurrent-history')
+            .overrideWith((ref) async => client),
       ],
     );
     addTearDown(() {

@@ -10,8 +10,8 @@ final Uri defaultMobileReleasesUrl = Uri.parse(
 );
 
 /// Finds the newest published Android build on GitHub Releases.
-class GitHubMobileReleaseSource {
-  GitHubMobileReleaseSource({http.Client? client, Uri? releasesUrl})
+class GitHubMobileReleaseSource({http.Client? client, Uri? releasesUrl}) {
+  this
     : _client = client ?? http.Client(),
       _releasesUrl = releasesUrl ?? defaultMobileReleasesUrl,
       _ownsClient = client == null;

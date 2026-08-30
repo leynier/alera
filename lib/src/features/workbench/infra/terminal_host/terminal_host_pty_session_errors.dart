@@ -19,9 +19,8 @@ extension _TerminalHostPtySessionErrors on TerminalHostPtySession {
   }
 
   bool _isDefinitivelyNotAttached(Object error) {
-    return _terminalHostErrorMessage(
-      error,
-    ).contains('Terminal session is not attached');
+    return _terminalHostErrorMessage(error)
+        .contains('Terminal session is not attached');
   }
 
   void _emitHostError(Object error) {
@@ -31,8 +30,7 @@ extension _TerminalHostPtySessionErrors on TerminalHostPtySession {
   }
 
   bool _isInputBackpressure(Object error) {
-    return _terminalHostErrorMessage(
-      error,
-    ).contains('terminal_input_backpressure');
+    return _terminalHostErrorMessage(error)
+        .contains('terminal_input_backpressure');
   }
 }

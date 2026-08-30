@@ -1,17 +1,17 @@
 class KeepAliveSnapshot {
-  const KeepAliveSnapshot({
+  const new({
     required this.active,
     required this.system,
     required this.display,
     this.error,
   });
 
-  const KeepAliveSnapshot.inactive({this.error})
+  const new inactive({this.error})
     : active = false,
       system = false,
       display = false;
 
-  const KeepAliveSnapshot.active()
+  const new active()
     : active = true,
       system = true,
       display = true,

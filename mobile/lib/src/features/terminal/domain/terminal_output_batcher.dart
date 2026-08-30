@@ -13,29 +13,22 @@ import 'package:flutter/scheduler.dart';
 /// Chunks are kept whole in a queue rather than concatenated into one growing
 /// buffer: a single buffer forces a full copy plus a substring on every drain,
 /// which makes draining a backlog quadratic in its size.
-class TerminalOutputBatcher {
-  TerminalOutputBatcher({
-    required this.write,
-    this.onRestoreProgress,
-    this.maxCharsPerFrame = _defaultMaxCharsPerFrame,
-    this.maxPendingChars = _defaultMaxPendingChars,
-    this.minFlushInterval = _defaultMinFlushInterval,
-    this.scheduleFrame,
-  });
-
+class TerminalOutputBatcher({
+  required final void Function(String text) write,
+  this.onRestoreProgress,
+  final int maxCharsPerFrame = _defaultMaxCharsPerFrame,
+  final int maxPendingChars = _defaultMaxPendingChars,
+  final Duration minFlushInterval = _defaultMinFlushInterval,
+  this.scheduleFrame,
+}) {
   static const int _defaultMaxCharsPerFrame = 64 * 1024;
   static const int _defaultMaxPendingChars = 512 * 1024;
   static const Duration _defaultMinFlushInterval = Duration(milliseconds: 33);
-
-  final void Function(String text) write;
 
   /// Reports how far a restored snapshot has been written, and null once it is
   /// fully in. The surface covers the emulator until then, because a restore
   /// spans many frames and watching history scroll past reads as a bug.
   final void Function(TerminalRestoreProgress? progress)? onRestoreProgress;
-  final int maxCharsPerFrame;
-  final int maxPendingChars;
-  final Duration minFlushInterval;
 
   /// Injected only by tests, which capture and drive frame requests by hand.
   final void Function(void Function() callback)? scheduleFrame;
@@ -66,7 +59,7 @@ class TerminalOutputBatcher {
   /// Queues live output. Oldest output is dropped past the backlog cap, since
   /// a runaway process must not grow memory without bound and what the user is
   /// looking at is the newest output.
-  void add(String text) => _enqueue(text, source: _OutputSource.live);
+  void add(String text) => _enqueue(text, source: .live);
 
   /// Queues a restored snapshot, which is a bounded one-shot payload and so is
   /// exempt from the cap that exists to contain a live process.
@@ -76,7 +69,7 @@ class TerminalOutputBatcher {
     }
     _restoreTotalChars += text.length;
     _publishRestoreProgress();
-    _enqueue(text, source: _OutputSource.restore);
+    _enqueue(text, source: .restore);
   }
 
   void _enqueue(String text, {required _OutputSource source}) {
@@ -255,11 +248,7 @@ class TerminalOutputBatcher {
 
 enum _OutputSource { live, restore }
 
-class _PendingOutputChunk {
-  _PendingOutputChunk(this.text, this.source);
-
-  String text;
-  final _OutputSource source;
+class _PendingOutputChunk(var String text, final _OutputSource source) {
   int head = 0;
 
   int get remaining => text.length - head;

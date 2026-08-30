@@ -1,6 +1,6 @@
 part of 'codex_chat_surface.dart';
 
-enum CodexComposerCommand {
+enum CodexComposerCommand(final String name, final String description) {
   goal('goal', 'Set or manage a long-running goal'),
   newChat('new', 'Start a new Codex chat'),
   clear('clear', 'Clear the current chat and start a new one'),
@@ -16,11 +16,6 @@ enum CodexComposerCommand {
   rename('rename', 'Rename this Codex thread'),
   logs('logs', 'Toggle raw app-server events'),
   resume('resume', 'Resume a previous Codex thread');
-
-  const CodexComposerCommand(this.name, this.description);
-
-  final String name;
-  final String description;
 
   IconData get icon => switch (this) {
     CodexComposerCommand.goal => Icons.track_changes_outlined,
@@ -44,9 +39,9 @@ enum CodexComposerCommand {
 const codexComposerCommands = CodexComposerCommand.values;
 
 class CodexComposerEntry {
-  const CodexComposerEntry.builtin(this.builtin) : savedPrompt = null;
+  const new builtin(this.builtin) : savedPrompt = null;
 
-  const CodexComposerEntry.saved(this.savedPrompt) : builtin = null;
+  const new saved(this.savedPrompt) : builtin = null;
 
   final CodexComposerCommand? builtin;
   final native.CodexSavedPrompt? savedPrompt;
@@ -81,17 +76,11 @@ List<CodexComposerEntry> codexComposerEntries(
   for (final prompt in savedPrompts) CodexComposerEntry.saved(prompt),
 ];
 
-class _CodexMentionOverlay extends StatelessWidget {
-  const _CodexMentionOverlay({
-    required this.paths,
-    required this.selectedIndex,
-    required this.onSelected,
-  });
-
-  final List<String> paths;
-  final int selectedIndex;
-  final ValueChanged<String> onSelected;
-
+class const _CodexMentionOverlay({
+  required final List<String> paths,
+  required final int selectedIndex,
+  required final ValueChanged<String> onSelected,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) => _CodexOverlaySurface(
     child: _CodexNavigableOverlayList(
@@ -101,7 +90,7 @@ class _CodexMentionOverlay extends StatelessWidget {
         selected: index == selectedIndex,
         leading: AleraFileIcon(
           pathOrName: paths[index],
-          kind: AleraFileIconKind.file,
+          kind: .file,
           size: AleraTokens.iconMd,
         ),
         title: paths[index],
@@ -111,17 +100,11 @@ class _CodexMentionOverlay extends StatelessWidget {
   );
 }
 
-class _CodexCommandOverlay extends StatelessWidget {
-  const _CodexCommandOverlay({
-    required this.commands,
-    required this.selectedIndex,
-    required this.onSelected,
-  });
-
-  final List<CodexComposerEntry> commands;
-  final int selectedIndex;
-  final ValueChanged<CodexComposerEntry> onSelected;
-
+class const _CodexCommandOverlay({
+  required final List<CodexComposerEntry> commands,
+  required final int selectedIndex,
+  required final ValueChanged<CodexComposerEntry> onSelected,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) => _CodexOverlaySurface(
     child: _CodexNavigableOverlayList(
@@ -142,17 +125,11 @@ class _CodexCommandOverlay extends StatelessWidget {
   );
 }
 
-class _CodexCatalogOverlay extends StatelessWidget {
-  const _CodexCatalogOverlay({
-    required this.items,
-    required this.selectedIndex,
-    required this.onSelected,
-  });
-
-  final List<CodexDraftItem> items;
-  final int selectedIndex;
-  final ValueChanged<CodexDraftItem> onSelected;
-
+class const _CodexCatalogOverlay({
+  required final List<CodexDraftItem> items,
+  required final int selectedIndex,
+  required final ValueChanged<CodexDraftItem> onSelected,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) => _CodexOverlaySurface(
     child: _CodexNavigableOverlayList(
@@ -171,7 +148,7 @@ class _CodexCatalogOverlay extends StatelessWidget {
               : _CodexCatalogAppIcon(url: item.iconUrl),
           title: item.name,
           subtitle: item.kind == CodexDraftItemKind.skill ? 'Skill' : 'App',
-          subtitleTextAlign: TextAlign.right,
+          subtitleTextAlign: .right,
           trailing: item.kind == CodexDraftItemKind.skill ? 'Personal' : 'App',
           onTap: () => onSelected(item),
         );
@@ -180,17 +157,11 @@ class _CodexCatalogOverlay extends StatelessWidget {
   );
 }
 
-class _CodexNavigableOverlayList extends StatefulWidget {
-  const _CodexNavigableOverlayList({
-    required this.selectedIndex,
-    required this.itemCount,
-    required this.itemBuilder,
-  });
-
-  final int selectedIndex;
-  final int itemCount;
-  final NullableIndexedWidgetBuilder itemBuilder;
-
+class const _CodexNavigableOverlayList({
+  required final int selectedIndex,
+  required final int itemCount,
+  required final NullableIndexedWidgetBuilder itemBuilder,
+}) extends StatefulWidget {
   @override
   State<_CodexNavigableOverlayList> createState() =>
       _CodexNavigableOverlayListState();
@@ -253,11 +224,8 @@ class _CodexNavigableOverlayListState
   );
 }
 
-class _CodexOverlaySurface extends StatelessWidget {
-  const _CodexOverlaySurface({required this.child});
-
-  final Widget child;
-
+class const _CodexOverlaySurface({required final Widget child})
+    extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Container(
     constraints: const BoxConstraints(
@@ -280,36 +248,27 @@ class _CodexOverlaySurface extends StatelessWidget {
   );
 }
 
-class _CodexOverlayRow extends StatelessWidget {
-  const _CodexOverlayRow({
-    required this.selected,
-    required this.title,
-    required this.onTap,
-    this.icon,
-    this.leading,
-    this.subtitle,
-    this.subtitleTextAlign = TextAlign.left,
-    this.trailing,
-  }) : assert(icon != null || leading != null);
-
-  final bool selected;
-  final IconData? icon;
-  final Widget? leading;
-  final String title;
-  final String? subtitle;
-  final TextAlign subtitleTextAlign;
-  final String? trailing;
-  final VoidCallback onTap;
+class const _CodexOverlayRow({
+  required final bool selected,
+  required final String title,
+  required final VoidCallback onTap,
+  final IconData? icon,
+  final Widget? leading,
+  final String? subtitle,
+  final TextAlign subtitleTextAlign = TextAlign.left,
+  final String? trailing,
+}) extends StatelessWidget {
+  this : assert(icon != null || leading != null);
 
   @override
   Widget build(BuildContext context) => Material(
     color: selected ? AleraTokens.accentSubtle : Colors.transparent,
     borderRadius: BorderRadius.circular(AleraTokens.radiusLg),
-    clipBehavior: Clip.hardEdge,
+    clipBehavior: .hardEdge,
     child: InkWell(
       onTap: onTap,
       mouseCursor: SystemMouseCursors.click,
-      borderRadius: BorderRadius.circular(AleraTokens.radiusLg),
+      borderRadius: .circular(AleraTokens.radiusLg),
       child: Padding(
         padding: const EdgeInsets.symmetric(
           horizontal: AleraTokens.space12,
@@ -330,7 +289,7 @@ class _CodexOverlayRow extends StatelessWidget {
               child: Text(
                 title,
                 maxLines: 1,
-                overflow: TextOverflow.ellipsis,
+                overflow: .ellipsis,
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                   color: selected ? AleraTokens.accent : AleraTokens.foreground,
                 ),
@@ -343,10 +302,9 @@ class _CodexOverlayRow extends StatelessWidget {
                   subtitle!,
                   textAlign: subtitleTextAlign,
                   maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: AleraTokens.foregroundMuted,
-                  ),
+                  overflow: .ellipsis,
+                  style: Theme.of(context).textTheme.bodySmall
+                      ?.copyWith(color: AleraTokens.foregroundMuted),
                 ),
               ),
             ],
@@ -354,9 +312,8 @@ class _CodexOverlayRow extends StatelessWidget {
               const SizedBox(width: AleraTokens.space8),
               Text(
                 trailing!,
-                style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                  color: AleraTokens.foregroundFaint,
-                ),
+                style: Theme.of(context).textTheme.labelSmall
+                    ?.copyWith(color: AleraTokens.foregroundFaint),
               ),
             ],
           ],

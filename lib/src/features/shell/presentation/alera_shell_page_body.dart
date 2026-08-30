@@ -100,7 +100,7 @@ class _AleraShellPageBodyState extends ConsumerState<_AleraShellPageBody> {
                           visible: !showRunBoard,
                           maintainState: true,
                           child: Row(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            crossAxisAlignment: .stretch,
                             children: <Widget>[
                               const ProjectWorkbenchSidebar(),
                               Expanded(
@@ -273,9 +273,8 @@ class _AleraShellPageBodyState extends ConsumerState<_AleraShellPageBody> {
                                     if (tab == null) {
                                       AleraToast.show(
                                         context,
-                                        message:
-                                            'The Agent Canvas terminal is no longer open.',
-                                        tone: AleraToastTone.error,
+                                        message: 'The Agent Canvas terminal is no longer open.',
+                                        tone: .error,
                                       );
                                       return;
                                     }
@@ -292,7 +291,7 @@ class _AleraShellPageBodyState extends ConsumerState<_AleraShellPageBody> {
                                   },
                                   onOpenPullRequest: () {
                                     controller.setContextPanelTab(
-                                      WorkbenchContextPanelTab.pullRequests,
+                                      .pullRequests,
                                     );
                                   },
                                   onOpenArtifact: (artifactId) {
@@ -328,7 +327,7 @@ class _AleraShellPageBodyState extends ConsumerState<_AleraShellPageBody> {
                   ),
                   const AgentQuotaStatusBar(
                     trailing: Row(
-                      mainAxisSize: MainAxisSize.min,
+                      mainAxisSize: .min,
                       children: <Widget>[
                         RunBoardAttentionControl(),
                         ResourceStatusBarControl(),
@@ -376,7 +375,7 @@ class _AleraShellPageBodyState extends ConsumerState<_AleraShellPageBody> {
   }
 
   void _showError(String message) {
-    AleraToast.show(context, message: message, tone: AleraToastTone.error);
+    AleraToast.show(context, message: message, tone: .error);
   }
 }
 

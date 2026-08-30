@@ -6,7 +6,7 @@ void _registerWorkspaceWorkbenchViewPreviewTabTests() {
     final previewTab = _tab(
       'tab-2',
       title: 'main.dart',
-      kind: WorkspaceTabKind.editor,
+      kind: .editor,
       filePath: 'lib/main.dart',
       preview: true,
     );
@@ -17,7 +17,7 @@ void _registerWorkspaceWorkbenchViewPreviewTabTests() {
       terminalRuntime: terminalRuntime,
       layout: WorkbenchLayout(
         workspaceId: _workspaceId,
-        root: WorkbenchLayoutNode.leaf('group-a'),
+        root: .leaf('group-a'),
         groups: <String, WorkbenchPaneGroup>{
           'group-a': WorkbenchPaneGroup(
             id: 'group-a',
@@ -48,7 +48,7 @@ void _registerWorkspaceWorkbenchViewPreviewTabTests() {
     final previewTab = _tab(
       'tab-2',
       title: 'main.dart',
-      kind: WorkspaceTabKind.editor,
+      kind: .editor,
       filePath: 'lib/main.dart',
       preview: true,
     );
@@ -60,7 +60,7 @@ void _registerWorkspaceWorkbenchViewPreviewTabTests() {
       terminalRuntime: terminalRuntime,
       layout: WorkbenchLayout(
         workspaceId: _workspaceId,
-        root: WorkbenchLayoutNode.leaf('group-a'),
+        root: .leaf('group-a'),
         groups: <String, WorkbenchPaneGroup>{
           'group-a': WorkbenchPaneGroup(
             id: 'group-a',
@@ -95,7 +95,7 @@ void _registerWorkspaceWorkbenchViewPreviewTabTests() {
     final previewTab = _tab(
       'tab-1',
       title: 'main.dart',
-      kind: WorkspaceTabKind.editor,
+      kind: .editor,
       filePath: 'lib/main.dart',
       preview: true,
     );
@@ -107,7 +107,7 @@ void _registerWorkspaceWorkbenchViewPreviewTabTests() {
       terminalRuntime: terminalRuntime,
       layout: WorkbenchLayout(
         workspaceId: _workspaceId,
-        root: WorkbenchLayoutNode.leaf('group-a'),
+        root: .leaf('group-a'),
         groups: <String, WorkbenchPaneGroup>{
           'group-a': WorkbenchPaneGroup(
             id: 'group-a',
@@ -140,7 +140,7 @@ void _registerWorkspaceWorkbenchViewPreviewTabTests() {
       tester,
       tabs: <WorkspaceTabRecord>[previewTab],
       terminalRuntime: terminalRuntime,
-      layout: WorkbenchLayout.single(
+      layout: .single(
         workspaceId: _workspaceId,
         tabIds: <String>[previewTab.id],
       ),

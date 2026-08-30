@@ -58,10 +58,10 @@ void main() {
       id: 'comment',
       author: 'alice',
       body: 'Body',
-      createdAt: DateTime.utc(2026, 7, 16),
-      kind: ReviewCommentKind.review,
+      createdAt: .utc(2026, 7, 16),
+      kind: .review,
       locator: const ReviewCommentLocator(
-        source: ReviewCommentSource.reviewThread,
+        source: .reviewThread,
         commentId: '10',
         parentId: 'thread-1',
       ),

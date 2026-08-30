@@ -25,7 +25,7 @@ void main() {
         constraints: const BoxConstraints(maxWidth: 780),
         builder: () => GoldenTestGroup(
           columns: 2,
-          scenarioConstraints: const BoxConstraints.tightFor(width: 320),
+          scenarioConstraints: const .tightFor(width: 320),
           children: <Widget>[
             GoldenTestScenario(name: 'Actions', child: _ActionsScenario()),
             GoldenTestScenario(
@@ -47,15 +47,13 @@ void main() {
   });
 }
 
-class _ActionsScenario extends StatelessWidget {
-  const _ActionsScenario();
-
+class const _ActionsScenario() extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return AleraGoldenScenarioSurface(
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: .start,
+        mainAxisSize: .min,
         children: <Widget>[
           Row(
             children: <Widget>[
@@ -89,16 +87,16 @@ class _ActionsScenario extends StatelessWidget {
           const SizedBox(height: AleraTokens.space16),
           AleraSegmentedButton<_WorkbenchMode>(
             dense: true,
-            selected: _WorkbenchMode.projects,
+            selected: .projects,
             onSelectionChanged: (_) {},
             segments: const <ButtonSegment<_WorkbenchMode>>[
               ButtonSegment<_WorkbenchMode>(
-                value: _WorkbenchMode.projects,
+                value: .projects,
                 icon: Icon(AleraIcons.folder, size: 16),
                 label: Text('Projects'),
               ),
               ButtonSegment<_WorkbenchMode>(
-                value: _WorkbenchMode.terminals,
+                value: .terminals,
                 icon: Icon(AleraIcons.terminal, size: 16),
                 label: Text('Terminals'),
               ),
@@ -110,14 +108,12 @@ class _ActionsScenario extends StatelessWidget {
   }
 }
 
-class _FormsPanelScenario extends StatelessWidget {
-  const _FormsPanelScenario();
-
+class const _FormsPanelScenario() extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return AleraGoldenScenarioSurface(
       child: Column(
-        mainAxisSize: MainAxisSize.min,
+        mainAxisSize: .min,
         children: const <Widget>[
           AleraTextField(dense: true, hintText: 'Search Or Enter Address'),
           SizedBox(height: AleraTokens.space12),
@@ -154,15 +150,13 @@ class _FormsPanelScenario extends StatelessWidget {
   }
 }
 
-class _StatusScenario extends StatelessWidget {
-  const _StatusScenario();
-
+class const _StatusScenario() extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return AleraGoldenScenarioSurface(
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: .start,
+        mainAxisSize: .min,
         children: <Widget>[
           Wrap(
             spacing: AleraTokens.space8,
@@ -206,9 +200,7 @@ class _StatusScenario extends StatelessWidget {
   }
 }
 
-class _EmptyStateScenario extends StatelessWidget {
-  const _EmptyStateScenario();
-
+class const _EmptyStateScenario() extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return const AleraGoldenScenarioSurface(
@@ -222,17 +214,11 @@ class _EmptyStateScenario extends StatelessWidget {
   }
 }
 
-class _PanelRow extends StatelessWidget {
-  const _PanelRow({
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-  });
-
-  final IconData icon;
-  final String title;
-  final String subtitle;
-
+class const _PanelRow({
+  required final IconData icon,
+  required final String title,
+  required final String subtitle,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -244,14 +230,14 @@ class _PanelRow extends StatelessWidget {
           const SizedBox(width: AleraTokens.space12),
           Expanded(
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+              crossAxisAlignment: .start,
               children: <Widget>[
                 Text(title, style: theme.textTheme.bodyMedium),
                 const SizedBox(height: AleraTokens.space2),
                 Text(
                   subtitle,
                   maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+                  overflow: .ellipsis,
                   style: theme.textTheme.bodySmall,
                 ),
               ],

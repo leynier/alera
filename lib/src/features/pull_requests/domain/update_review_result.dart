@@ -6,19 +6,12 @@ enum UpdateReviewErrorCode { notAuthenticated, cliMissing, blocked, unknown }
 
 /// Outcome of an update-review request. Discriminated so callers handle
 /// success and typed failure explicitly, never a bare null.
-sealed class UpdateReviewResult {
-  const UpdateReviewResult();
-}
+sealed class const UpdateReviewResult();
 
-class UpdateReviewSuccess extends UpdateReviewResult {
-  const UpdateReviewSuccess(this.review);
+class const UpdateReviewSuccess(final HostedReview review)
+    extends UpdateReviewResult;
 
-  final HostedReview review;
-}
-
-class UpdateReviewFailure extends UpdateReviewResult {
-  const UpdateReviewFailure({required this.code, required this.message});
-
-  final UpdateReviewErrorCode code;
-  final String message;
-}
+class const UpdateReviewFailure({
+  required final UpdateReviewErrorCode code,
+  required final String message,
+}) extends UpdateReviewResult;

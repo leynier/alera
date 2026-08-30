@@ -7,17 +7,14 @@ void main() {
   group('AleraCliSkillService', () {
     test('copies auto command with npx to bunx fallback', () {
       expect(
-        aleraCliSkillInstallCommand(
-          runner: AleraCliSkillRunner.auto,
-          operatingSystem: 'linux',
-        ),
+        aleraCliSkillInstallCommand(runner: .auto, operatingSystem: 'linux'),
         'npx skills add https://github.com/leynier/alera --skill alera-cli --agent codex --global --yes || bunx skills add https://github.com/leynier/alera --skill alera-cli --agent codex --global --yes',
       );
     });
 
     test('copies a single-line PowerShell auto command on windows', () {
       final command = aleraCliSkillInstallCommand(
-        runner: AleraCliSkillRunner.auto,
+        runner: .auto,
         operatingSystem: 'windows',
       );
       expect(
@@ -32,7 +29,7 @@ void main() {
 
     test('builds one independent command for every bundled skill', () {
       final command = aleraAllSkillsInstallCommand(
-        runner: AleraCliSkillRunner.bunx,
+        runner: .bunx,
         operatingSystem: 'linux',
       );
 
@@ -45,7 +42,7 @@ void main() {
 
     test('keeps the all-skills auto command single-line on windows', () {
       final command = aleraAllSkillsInstallCommand(
-        runner: AleraCliSkillRunner.auto,
+        runner: .auto,
         operatingSystem: 'windows',
       );
 
@@ -59,16 +56,13 @@ void main() {
 
     test('keeps explicit runners unwrapped on windows', () {
       expect(
-        aleraCliSkillInstallCommand(
-          runner: AleraCliSkillRunner.npx,
-          operatingSystem: 'windows',
-        ),
+        aleraCliSkillInstallCommand(runner: .npx, operatingSystem: 'windows'),
         'npx skills add https://github.com/leynier/alera --skill alera-cli --agent codex --global --yes',
       );
       expect(
         aleraCliSkillInstallCommand(
-          runner: AleraCliSkillRunner.bunx,
-          skill: AleraAgentSkill.orchestration,
+          runner: .bunx,
+          skill: .orchestration,
           operatingSystem: 'windows',
         ),
         'bunx skills add https://github.com/leynier/alera --skill alera-orchestration --agent codex --global --yes',
@@ -77,40 +71,28 @@ void main() {
 
     test('builds the orchestration skill command', () {
       expect(
-        aleraCliSkillInstallCommand(
-          runner: AleraCliSkillRunner.bunx,
-          skill: AleraAgentSkill.orchestration,
-        ),
+        aleraCliSkillInstallCommand(runner: .bunx, skill: .orchestration),
         'bunx skills add https://github.com/leynier/alera --skill alera-orchestration --agent codex --global --yes',
       );
     });
 
     test('builds the computer use skill command', () {
       expect(
-        aleraCliSkillInstallCommand(
-          runner: AleraCliSkillRunner.bunx,
-          skill: AleraAgentSkill.computerUse,
-        ),
+        aleraCliSkillInstallCommand(runner: .bunx, skill: .computerUse),
         'bunx skills add https://github.com/leynier/alera --skill alera-computer-use --agent codex --global --yes',
       );
     });
 
     test('builds the emulator skill command', () {
       expect(
-        aleraCliSkillInstallCommand(
-          runner: AleraCliSkillRunner.npx,
-          skill: AleraAgentSkill.emulator,
-        ),
+        aleraCliSkillInstallCommand(runner: .npx, skill: .emulator),
         'npx skills add https://github.com/leynier/alera --skill alera-emulator --agent codex --global --yes',
       );
     });
 
     test('builds the Agent Canvas skill command without confirmation', () {
       expect(
-        aleraCliSkillInstallCommand(
-          runner: AleraCliSkillRunner.npx,
-          skill: AleraAgentSkill.agentCanvas,
-        ),
+        aleraCliSkillInstallCommand(runner: .npx, skill: .agentCanvas),
         'npx skills add https://github.com/leynier/alera --skill alera-agent-canvas --agent codex --global --yes',
       );
     });
@@ -127,9 +109,7 @@ void main() {
         workingDirectory: '/tmp/alera-test',
       );
 
-      final result = await service.installOrUpdate(
-        runner: AleraCliSkillRunner.npx,
-      );
+      final result = await service.installOrUpdate(runner: .npx);
 
       expect(result.succeeded, isTrue);
       expect(result.summary, 'Install complete (npx)');
@@ -190,10 +170,7 @@ void main() {
         workingDirectory: '/tmp/alera-test',
       );
 
-      await service.installOrUpdate(
-        runner: AleraCliSkillRunner.npx,
-        skill: AleraAgentSkill.orchestration,
-      );
+      await service.installOrUpdate(runner: .npx, skill: .orchestration);
 
       expect(runner.runs.single.arguments, contains('alera-orchestration'));
       expect(runner.runs.single.arguments, isNot(contains('alera-cli')));
@@ -239,8 +216,8 @@ void main() {
         workingDirectory: r'C:\Users\test',
       );
 
-      await service.installOrUpdate(runner: AleraCliSkillRunner.npx);
-      await service.installOrUpdate(runner: AleraCliSkillRunner.bunx);
+      await service.installOrUpdate(runner: .npx);
+      await service.installOrUpdate(runner: .bunx);
 
       expect(runner.runs.map((run) => run.executable), <String>['npx', 'bunx']);
       expect(
@@ -268,9 +245,7 @@ void main() {
         workingDirectory: '/tmp/alera-test',
       );
 
-      final result = await service.installOrUpdate(
-        runner: AleraCliSkillRunner.npx,
-      );
+      final result = await service.installOrUpdate(runner: .npx);
 
       expect(result.succeeded, isFalse);
       expect(
@@ -325,9 +300,7 @@ void main() {
         workingDirectory: '/tmp/alera-test',
       );
 
-      final result = await service.installOrUpdate(
-        runner: AleraCliSkillRunner.npx,
-      );
+      final result = await service.installOrUpdate(runner: .npx);
 
       expect(result.summary, 'Install complete (npx)');
       expect(result.detail, isEmpty);
@@ -335,24 +308,15 @@ void main() {
   });
 }
 
-class _ProcessRun {
-  const _ProcessRun({
-    required this.executable,
-    required this.arguments,
-    required this.workingDirectory,
-    required this.environment,
-  });
+class const _ProcessRun({
+  required final String executable,
+  required final List<String> arguments,
+  required final String? workingDirectory,
+  required final Map<String, String>? environment,
+});
 
-  final String executable;
-  final List<String> arguments;
-  final String? workingDirectory;
-  final Map<String, String>? environment;
-}
-
-class _FakeProcessRunner implements ProcessRunner {
-  _FakeProcessRunner(this._outputs);
-
-  final List<ProcessRunOutput> _outputs;
+class _FakeProcessRunner(final List<ProcessRunOutput> _outputs)
+    implements ProcessRunner {
   final List<_ProcessRun> runs = <_ProcessRun>[];
 
   @override
@@ -385,11 +349,9 @@ class _FakeProcessRunner implements ProcessRunner {
   }
 }
 
-class _FakeCommandEnvironmentResolver implements CommandEnvironmentResolver {
-  const _FakeCommandEnvironmentResolver(this._environment);
-
-  final Map<String, String> _environment;
-
+class const _FakeCommandEnvironmentResolver(
+  final Map<String, String> _environment,
+) implements CommandEnvironmentResolver {
   @override
   Future<Map<String, String>> environment() async => _environment;
 

@@ -19,9 +19,7 @@ abstract class AppForeground {
 /// use, and anything constructed before the binding exists. Defaulting to
 /// foreground keeps the parking opt-in, so a missed wiring degrades to the
 /// behavior that was there before rather than to silence.
-class AlwaysForeground implements AppForeground {
-  const AlwaysForeground();
-
+class const AlwaysForeground() implements AppForeground {
   @override
   bool get isForeground => true;
 

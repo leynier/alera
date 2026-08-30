@@ -16,7 +16,7 @@ void main() {
       final lifecycle = AppWindowLifecycleCoordinator(
         repository: _MemoryWindowStateRepository(),
         window: window,
-        saveDebounce: Duration.zero,
+        saveDebounce: .zero,
       );
       await lifecycle.start();
       final coordinator = DesktopPresenceCoordinator(
@@ -37,12 +37,12 @@ void main() {
 
       window.visible = false;
       backend.onShow?.call();
-      await Future<void>.delayed(Duration.zero);
+      await Future.pause(.zero);
       expect(window.showCalls, 1);
       expect(window.focusCalls, 1);
 
       backend.onQuit?.call();
-      await Future<void>.delayed(Duration.zero);
+      await Future.pause(.zero);
       expect(window.destroyCalls, 1);
     });
 
@@ -52,7 +52,7 @@ void main() {
       final lifecycle = AppWindowLifecycleCoordinator(
         repository: _MemoryWindowStateRepository(),
         window: window,
-        saveDebounce: Duration.zero,
+        saveDebounce: .zero,
       );
       await lifecycle.start();
       final coordinator = DesktopPresenceCoordinator(
@@ -92,7 +92,7 @@ void main() {
       final lifecycle = AppWindowLifecycleCoordinator(
         repository: _MemoryWindowStateRepository(),
         window: window,
-        saveDebounce: Duration.zero,
+        saveDebounce: .zero,
       );
       await lifecycle.start();
       final coordinator = DesktopPresenceCoordinator(
@@ -145,7 +145,7 @@ void main() {
           ..saveStarted = saveStarted
           ..saveBarrier = finishSave.future,
         window: window,
-        saveDebounce: Duration.zero,
+        saveDebounce: .zero,
         hideOnClose: () => true,
       );
       await lifecycle.start();
@@ -177,7 +177,7 @@ void main() {
           badgeCount: 0,
         ),
       );
-      await Future<void>.delayed(Duration.zero);
+      await Future.pause(.zero);
       expect(backend.applied, hasLength(1));
       expect(window.showCalls, 0);
 
@@ -200,7 +200,7 @@ void main() {
       final lifecycle = AppWindowLifecycleCoordinator(
         repository: _MemoryWindowStateRepository(),
         window: window,
-        saveDebounce: Duration.zero,
+        saveDebounce: .zero,
       );
       await lifecycle.start();
       final coordinator = DesktopPresenceCoordinator(
@@ -233,7 +233,7 @@ void main() {
       expect(coordinator.trayInstalled, isFalse);
 
       window.emitClose();
-      await Future<void>.delayed(Duration.zero);
+      await Future.pause(.zero);
       expect(window.hideCalls, 0);
 
       finishApply.complete();
@@ -248,7 +248,7 @@ void main() {
       final lifecycle = AppWindowLifecycleCoordinator(
         repository: _MemoryWindowStateRepository(),
         window: window,
-        saveDebounce: Duration.zero,
+        saveDebounce: .zero,
       );
       await lifecycle.start();
       final coordinator = DesktopPresenceCoordinator(
@@ -267,7 +267,7 @@ void main() {
       );
       window.visible = false;
       backend.onInstallationChanged?.call(false);
-      await Future<void>.delayed(Duration.zero);
+      await Future.pause(.zero);
 
       expect(coordinator.trayInstalled, isFalse);
       expect(window.showCalls, 1);
@@ -280,7 +280,7 @@ void main() {
       final lifecycle = AppWindowLifecycleCoordinator(
         repository: _MemoryWindowStateRepository(),
         window: window,
-        saveDebounce: Duration.zero,
+        saveDebounce: .zero,
       );
       await lifecycle.start();
       final coordinator = DesktopPresenceCoordinator(
@@ -300,7 +300,7 @@ void main() {
       window.visible = false;
       backend.onInstallationChanged?.call(false);
       backend.onInstallationChanged?.call(true);
-      await Future<void>.delayed(Duration.zero);
+      await Future.pause(.zero);
 
       expect(coordinator.trayInstalled, isTrue);
       expect(window.showCalls, 0);

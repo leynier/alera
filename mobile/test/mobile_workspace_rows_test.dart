@@ -38,10 +38,7 @@ void main() {
         ),
       ],
       projects: const [],
-      prefs: const MobileViewPrefs(
-        groupBy: MobileWorkspaceGroupBy.none,
-        workspaceSort: MobileWorkbenchSortBy.activity,
-      ),
+      prefs: const MobileViewPrefs(groupBy: .none, workspaceSort: .activity),
       activity: <String, DateTime>{
         'inactive-zebra': now,
         'idle-terminal': now.subtract(const Duration(minutes: 1)),
@@ -84,10 +81,7 @@ void main() {
         _workspace('stale', now.subtract(const Duration(hours: 1))),
       ],
       projects: const [],
-      prefs: const MobileViewPrefs(
-        groupBy: MobileWorkspaceGroupBy.none,
-        workspaceSort: MobileWorkbenchSortBy.activity,
-      ),
+      prefs: const MobileViewPrefs(groupBy: .none, workspaceSort: .activity),
       activity: <String, DateTime>{'recent': now},
       agentPresence: <AgentPresenceSummary>[
         _presence('stale', 'blocked', now.subtract(const Duration(hours: 1))),
@@ -110,10 +104,7 @@ void main() {
         ),
       ],
       projects: const [],
-      prefs: const MobileViewPrefs(
-        groupBy: MobileWorkspaceGroupBy.none,
-        workspaceSort: MobileWorkbenchSortBy.activity,
-      ),
+      prefs: const MobileViewPrefs(groupBy: .none, workspaceSort: .activity),
       terminalTabCountByWorkspaceId: const <String, int>{'terminal': 1},
       now: now,
     );
@@ -131,7 +122,7 @@ void main() {
       ],
       projects: const [],
       prefs: const MobileViewPrefs(
-        groupBy: MobileWorkspaceGroupBy.none,
+        groupBy: .none,
         showActiveWorkspacesOnly: true,
       ),
       terminalTabCountByWorkspaceId: const <String, int>{'terminal': 1},
@@ -167,10 +158,10 @@ void main() {
         _project('p2', 'Project Beta', now),
       ],
       prefs: const MobileViewPrefs(
-        groupBy: MobileWorkspaceGroupBy.none,
+        groupBy: .none,
         selectedProjectIds: <String>{'p1'},
         selectedTagIds: <String>{'selected'},
-        workspaceKindFilter: MobileWorkspaceKindFilter.nonDefaultOnly,
+        workspaceKindFilter: .nonDefaultOnly,
       ),
       searchQuery: '  PROJECT ALPHA  ',
       now: now,
@@ -192,7 +183,7 @@ void main() {
         _project('p-zeta', 'Zeta', now.subtract(const Duration(days: 1))),
         _project('p-alpha', 'Alpha', now.subtract(const Duration(days: 2))),
       ],
-      prefs: const MobileViewPrefs(projectSort: MobileWorkbenchSortBy.activity),
+      prefs: const MobileViewPrefs(projectSort: .activity),
       terminalTabCountByWorkspaceId: const <String, int>{'active': 1},
       now: now,
     );
@@ -220,10 +211,7 @@ void main() {
         ),
       ],
       projects: const [],
-      prefs: const MobileViewPrefs(
-        groupBy: MobileWorkspaceGroupBy.none,
-        workspaceSort: MobileWorkbenchSortBy.activity,
-      ),
+      prefs: const MobileViewPrefs(groupBy: .none, workspaceSort: .activity),
       terminalTabCountByWorkspaceId: const <String, int>{'active-child': 1},
       now: now,
     );

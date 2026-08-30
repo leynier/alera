@@ -7,9 +7,7 @@ import 'package:alera/src/features/settings/presentation/panes/alera_skill_termi
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-class AleraAllSkillsControl extends ConsumerWidget {
-  const AleraAllSkillsControl({super.key});
-
+class const AleraAllSkillsControl({super.key}) extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return AleraSkillTerminalInstallControl(

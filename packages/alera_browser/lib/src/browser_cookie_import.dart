@@ -27,64 +27,43 @@ extension AleraBrowserCookieImportSourceId on AleraBrowserCookieImportSource {
 }
 
 /// Opaque, short-lived proof that cookie discovery started from explicit UI.
-final class AleraBrowserUserGestureToken {
+final class const AleraBrowserUserGestureToken.internal(
+  final String id,
+  final DateTime issuedAt,
+) {
   @internal
-  const AleraBrowserUserGestureToken.internal(this.id, this.issuedAt);
-
-  final String id;
-  final DateTime issuedAt;
+  this;
 }
 
-final class AleraBrowserCookieImportSourceStatus {
-  const AleraBrowserCookieImportSourceStatus({
-    required this.source,
-    required this.supported,
-    required this.available,
-    this.profileNames = const <String>[],
-    this.detailCode,
-  });
+final class const AleraBrowserCookieImportSourceStatus({
+  required final AleraBrowserCookieImportSource source,
+  required final bool supported,
+  required final bool available,
+  final List<String> profileNames = const <String>[],
+  final String? detailCode,
+});
 
-  final AleraBrowserCookieImportSource source;
-  final bool supported;
-  final bool available;
-  final List<String> profileNames;
-  final String? detailCode;
+sealed class const AleraBrowserCookieImportRequest({
+  required final String profileId,
+  required final AleraBrowserUserGestureToken gestureToken,
+});
+
+final class const AleraBrowserNativeCookieImportRequest({
+  required super.profileId,
+  required super.gestureToken,
+  required final AleraBrowserCookieImportSource source,
+  required final String sourceProfileName,
+}) extends AleraBrowserCookieImportRequest {
+  this : assert(source != AleraBrowserCookieImportSource.manualJson);
 }
 
-sealed class AleraBrowserCookieImportRequest {
-  const AleraBrowserCookieImportRequest({
-    required this.profileId,
-    required this.gestureToken,
-  });
-
-  final String profileId;
-  final AleraBrowserUserGestureToken gestureToken;
-}
-
-final class AleraBrowserNativeCookieImportRequest
-    extends AleraBrowserCookieImportRequest {
-  const AleraBrowserNativeCookieImportRequest({
-    required super.profileId,
-    required super.gestureToken,
-    required this.source,
-    required this.sourceProfileName,
-  }) : assert(source != AleraBrowserCookieImportSource.manualJson);
-
-  final AleraBrowserCookieImportSource source;
-  final String sourceProfileName;
-}
-
-final class AleraBrowserManualCookieImportRequest
-    extends AleraBrowserCookieImportRequest {
-  const AleraBrowserManualCookieImportRequest({
-    required super.profileId,
-    required super.gestureToken,
-    required this.json,
-  });
+final class const AleraBrowserManualCookieImportRequest({
+  required super.profileId,
+  required super.gestureToken,
 
   /// JSON remains in memory and is never staged as plaintext by the plugin.
-  final String json;
-}
+  required final String json,
+}) extends AleraBrowserCookieImportRequest;
 
 enum AleraBrowserCookieImportOutcome {
   imported,
@@ -96,20 +75,11 @@ enum AleraBrowserCookieImportOutcome {
 }
 
 /// Redacted import summary. Cookie names and values are intentionally absent.
-final class AleraBrowserCookieImportResult {
-  const AleraBrowserCookieImportResult({
-    required this.source,
-    required this.profileId,
-    required this.outcome,
-    required this.importedCount,
-    required this.skippedCount,
-    this.detailCode,
-  });
-
-  final AleraBrowserCookieImportSource source;
-  final String profileId;
-  final AleraBrowserCookieImportOutcome outcome;
-  final int importedCount;
-  final int skippedCount;
-  final String? detailCode;
-}
+final class const AleraBrowserCookieImportResult({
+  required final AleraBrowserCookieImportSource source,
+  required final String profileId,
+  required final AleraBrowserCookieImportOutcome outcome,
+  required final int importedCount,
+  required final int skippedCount,
+  final String? detailCode,
+});

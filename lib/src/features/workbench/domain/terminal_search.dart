@@ -1,31 +1,18 @@
 /// A line of terminal text that can be searched without retaining the whole
 /// terminal buffer as a second string.
-final class TerminalSearchLine {
-  const TerminalSearchLine({
-    required this.id,
-    required this.index,
-    required this.text,
-  });
-
-  final Object id;
-  final int index;
-  final String text;
-}
+final class const TerminalSearchLine({
+  required final Object id,
+  required final int index,
+  required final String text,
+});
 
 /// A literal occurrence in one terminal buffer line.
-final class TerminalSearchMatch {
-  const TerminalSearchMatch({
-    required this.lineId,
-    required this.lineIndex,
-    required this.start,
-    required this.end,
-  });
-
-  final Object lineId;
-  final int lineIndex;
-  final int start;
-  final int end;
-}
+final class const TerminalSearchMatch({
+  required final Object lineId,
+  required final int lineIndex,
+  required final int start,
+  required final int end,
+});
 
 /// Finds non-overlapping literal matches in [lines].
 ///

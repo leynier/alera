@@ -8,31 +8,18 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 part 'prompt_workspace_controller.g.dart';
 
-class PromptWorkspaceState {
-  const PromptWorkspaceState({
-    this.projectId,
-    this.sourceBranch,
-    this.branches = const <String>[],
-    this.profiles = const <AgentProfileSummary>[],
-    this.profileId,
-    this.loading = false,
-    this.phase,
-    this.error,
-    this.creation,
-    this.agentTabId,
-  });
-
-  final String? projectId;
-  final String? sourceBranch;
-  final List<String> branches;
-  final List<AgentProfileSummary> profiles;
-  final String? profileId;
-  final bool loading;
-  final String? phase;
-  final String? error;
-  final WorkspaceCreationResult? creation;
-  final String? agentTabId;
-
+class const PromptWorkspaceState({
+  final String? projectId,
+  final String? sourceBranch,
+  final List<String> branches = const <String>[],
+  final List<AgentProfileSummary> profiles = const <AgentProfileSummary>[],
+  final String? profileId,
+  final bool loading = false,
+  final String? phase,
+  final String? error,
+  final WorkspaceCreationResult? creation,
+  final String? agentTabId,
+}) {
   PromptWorkspaceState copyWith({
     String? projectId,
     String? sourceBranch,

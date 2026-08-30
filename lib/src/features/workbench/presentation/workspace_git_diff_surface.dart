@@ -29,16 +29,11 @@ part 'workspace_git_diff_surface_rows.dart';
 part 'workspace_git_diff_surface_bar.dart';
 part 'workspace_git_diff_surface_loading.dart';
 
-class WorkspaceGitDiffSurface extends ConsumerStatefulWidget {
-  const WorkspaceGitDiffSurface({
-    super.key,
-    required this.workspace,
-    required this.tab,
-  });
-
-  final Workspace workspace;
-  final WorkspaceTabRecord tab;
-
+class const WorkspaceGitDiffSurface({
+  super.key,
+  required final Workspace workspace,
+  required final WorkspaceTabRecord tab,
+}) extends ConsumerStatefulWidget {
   @override
   ConsumerState<WorkspaceGitDiffSurface> createState() =>
       _WorkspaceGitDiffSurfaceState();
@@ -119,7 +114,7 @@ class _WorkspaceGitDiffSurfaceState
     return DecoratedBox(
       decoration: const BoxDecoration(color: AleraTokens.bg),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
+        crossAxisAlignment: .stretch,
         children: <Widget>[
           _GitDiffBar(
             title: widget.tab.title,
@@ -276,7 +271,7 @@ class _WorkspaceGitDiffSurfaceState
     setState(() {
       _readingDiffBusy = true;
       _readingDiffProgress = const ReadingDiffGenerationProgress(
-        stage: ReadingDiffGenerationStage.preparing,
+        stage: .preparing,
         completedChunks: 0,
         totalChunks: 0,
       );
@@ -315,7 +310,7 @@ class _WorkspaceGitDiffSurfaceState
         setState(() {
           _readingDiffBusy = true;
           _readingDiffProgress = ReadingDiffGenerationProgress(
-            stage: ReadingDiffGenerationStage.generating,
+            stage: .generating,
             completedChunks: 0,
             totalChunks: preparation.chunkCount,
             currentChunk: 1,

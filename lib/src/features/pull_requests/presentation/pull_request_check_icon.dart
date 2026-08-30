@@ -6,18 +6,12 @@ import 'package:flutter/material.dart';
 /// Presentational icon for a single check's status/conclusion. Pure: derives an
 /// icon and token color from [status] and [conclusion] with no Riverpod reads.
 /// The running/pending loader rotates continuously.
-class PullRequestCheckIcon extends StatefulWidget {
-  const PullRequestCheckIcon({
-    super.key,
-    required this.status,
-    required this.conclusion,
-    this.size = 16,
-  });
-
-  final ReviewCheckStatus status;
-  final ReviewCheckConclusion conclusion;
-  final double size;
-
+class const PullRequestCheckIcon({
+  super.key,
+  required final ReviewCheckStatus status,
+  required final ReviewCheckConclusion conclusion,
+  final double size = 16,
+}) extends StatefulWidget {
   @override
   State<PullRequestCheckIcon> createState() => _PullRequestCheckIconState();
 }

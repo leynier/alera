@@ -35,7 +35,7 @@ void main() {
           lineHeight: 1.2,
           paddingX: 10,
           paddingY: 6,
-          cursorShape: TerminalCursorShape.underline,
+          cursorShape: .underline,
           cursorBlink: true,
           cursorOpacity: 0.8,
           themeName: TerminalThemeNames.ghosttyDark,
@@ -47,7 +47,7 @@ void main() {
           hostScrollbackBytes: 32 * 1000 * 1000,
         ),
         keyboard: KeyboardShortcutSettings(
-          terminalPolicy: TerminalShortcutPolicy.terminalFirst,
+          terminalPolicy: .terminalFirst,
           overrides: <KeyboardActionId, List<String>>{
             KeyboardActionId.newTerminalTab: <String>['Mod+Shift+T'],
           },

@@ -1,4 +1,5 @@
 import 'dart:async';
+
 import 'package:alera/src/features/app_window/domain/app_foreground.dart';
 
 /// Cancel, rather than pause, the upstream so hidden windows do no reads.

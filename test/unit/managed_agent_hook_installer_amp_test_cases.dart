@@ -16,13 +16,10 @@ void _registerAmpHookInstallerTests(
     );
 
     expect(
-      service.status(AgentType.amp).state,
+      service.status(.amp).state,
       ManagedAgentHookInstallState.notInstalled,
     );
-    expect(
-      service.install(AgentType.amp).state,
-      ManagedAgentHookInstallState.installed,
-    );
+    expect(service.install(.amp).state, ManagedAgentHookInstallState.installed);
 
     final source = File(pluginPath).readAsStringSync();
     expect(source, contains('ALERA_AGENT_STATUS_MANAGED_FILE'));
@@ -41,16 +38,10 @@ void _registerAmpHookInstallerTests(
       '// ALERA_AGENT_STATUS_MANAGED_FILE\n'
       'export default function staleAmpPlugin() {}\n',
     );
-    expect(
-      service.status(AgentType.amp).state,
-      ManagedAgentHookInstallState.partial,
-    );
-    expect(
-      service.install(AgentType.amp).state,
-      ManagedAgentHookInstallState.installed,
-    );
+    expect(service.status(.amp).state, ManagedAgentHookInstallState.partial);
+    expect(service.install(.amp).state, ManagedAgentHookInstallState.installed);
 
-    final removed = service.remove(AgentType.amp);
+    final removed = service.remove(.amp);
     expect(removed.state, ManagedAgentHookInstallState.notInstalled);
     expect(File(pluginPath).existsSync(), isFalse);
   });

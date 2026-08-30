@@ -9,11 +9,10 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 part 'pairing_controller.g.dart';
 
-typedef PairDeviceFunction =
-    Future<PairedDeviceCredentials> Function(
-      PairingOffer offer, {
-      String? deviceName,
-    });
+typedef PairDeviceFunction = Future<PairedDeviceCredentials> Function(
+  PairingOffer offer, {
+  String? deviceName,
+});
 
 /// Indirection over the static pairing call so tests can drive the pairing
 /// flow without a live runtime gateway.
@@ -43,10 +42,7 @@ class PairingController extends _$PairingController {
     } on FormatException catch (error) {
       state = PairingFailure(_parseFailureReason(error), error.message);
     } on Object catch (error) {
-      state = PairingFailure(
-        PairingFailureReason.invalidOffer,
-        error.toString(),
-      );
+      state = PairingFailure(.invalidOffer, error.toString());
     }
   }
 
@@ -57,10 +53,7 @@ class PairingController extends _$PairingController {
     }
     final offer = current.offer;
     if (offer.isExpired) {
-      state = const PairingFailure(
-        PairingFailureReason.offerExpired,
-        'Pairing offer expired',
-      );
+      state = const PairingFailure(.offerExpired, 'Pairing offer expired');
       return;
     }
     state = PairingInProgress(offer);
@@ -83,10 +76,7 @@ class PairingController extends _$PairingController {
         error.message,
       );
     } on Object catch (error) {
-      state = PairingFailure(
-        PairingFailureReason.unreachable,
-        error.toString(),
-      );
+      state = PairingFailure(.unreachable, error.toString());
     }
   }
 

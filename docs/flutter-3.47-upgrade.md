@@ -2,7 +2,7 @@
 
 ## Scope
 
-Desktop and mobile use Flutter 3.47.2 / Dart 3.13.2 while retaining Dart language 3.12 through their existing SDK lower bounds. The shared CI action pins the exact Flutter version. This migration does not change protocols, storage schemas, distribution, desktop/Android platform minimums, Rust/Zig toolchains, FRB 2.12.0, or terminal forks. iOS now requires 15.0, matching the SDK's mandatory deployment-target migration.
+The Flutter upgrade introduced Flutter 3.47.2 / Dart 3.13.2 while initially retaining Dart language 3.12. The subsequent [Dart modernization](dart-3.13-modernization.md) activates language 3.13 in all own packages. The shared CI action pins the exact Flutter version. This migration does not change protocols, storage schemas, distribution, desktop/Android platform minimums, Rust/Zig toolchains, FRB 2.12.0, or terminal forks. iOS now requires 15.0, matching the SDK's mandatory deployment-target migration.
 
 ## Compatibility Decisions
 

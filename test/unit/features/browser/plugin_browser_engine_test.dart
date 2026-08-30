@@ -4,7 +4,6 @@ import 'package:alera/src/features/browser/domain/browser_automation.dart';
 import 'package:alera/src/features/browser/domain/browser_engine_event.dart';
 import 'package:alera/src/features/browser/domain/browser_error.dart';
 import 'package:alera/src/features/browser/domain/browser_page.dart';
-import 'package:alera/src/features/browser/domain/browser_profile.dart';
 import 'package:alera/src/features/browser/infra/plugin_browser_engine.dart';
 import 'package:alera_browser/alera_browser.dart';
 import 'package:flutter/widgets.dart';
@@ -20,7 +19,7 @@ void main() {
         workspaceId: 'workspace',
         profileId: 'default',
         initialUrl: Uri.parse('https://example.test'),
-        createdAt: DateTime.utc(2026, 7, 27),
+        createdAt: .utc(2026, 7, 27),
       ),
     );
     final snapshot = await engine.snapshot('page');
@@ -29,15 +28,12 @@ void main() {
 
     await engine.performAction(
       'page',
-      BrowserAutomationAction(
-        kind: BrowserAutomationActionKind.clear,
-        target: source,
-      ),
+      BrowserAutomationAction(kind: .clear, target: source),
     );
     await engine.performAction(
       'page',
       BrowserAutomationAction(
-        kind: BrowserAutomationActionKind.drag,
+        kind: .drag,
         target: source,
         secondaryTarget: destination,
       ),
@@ -45,7 +41,7 @@ void main() {
     await engine.performAction(
       'page',
       BrowserAutomationAction(
-        kind: BrowserAutomationActionKind.upload,
+        kind: .upload,
         target: source,
         options: const <String, Object?>{
           'filePaths': <String>['/tmp/upload.txt'],
@@ -74,7 +70,7 @@ void main() {
         workspaceId: 'workspace',
         profileId: 'default',
         initialUrl: Uri.parse('https://example.test'),
-        createdAt: DateTime.utc(2026, 7, 27),
+        createdAt: .utc(2026, 7, 27),
       ),
     );
     final snapshot = await engine.snapshot('page');
@@ -83,7 +79,7 @@ void main() {
       engine.performAction(
         'page',
         BrowserAutomationAction(
-          kind: BrowserAutomationActionKind.drag,
+          kind: .drag,
           target: snapshot.nodes.first.target,
         ),
       ),
@@ -102,24 +98,24 @@ void main() {
         workspaceId: 'workspace',
         profileId: 'default',
         initialUrl: Uri.parse('https://example.test'),
-        createdAt: DateTime.utc(2026, 7, 27),
+        createdAt: .utc(2026, 7, 27),
       ),
     );
     final snapshot = await engine.snapshot('page');
     platform.eventController.add(
       AleraBrowserNavigationStarted(
         pageId: 'page',
-        occurredAt: DateTime.utc(2026, 7, 27),
+        occurredAt: .utc(2026, 7, 27),
         url: Uri.parse('https://example.test/next'),
       ),
     );
-    await Future<void>.delayed(Duration.zero);
+    await Future.pause(.zero);
 
     await expectLater(
       engine.performAction(
         'page',
         BrowserAutomationAction(
-          kind: BrowserAutomationActionKind.click,
+          kind: .click,
           target: snapshot.nodes.first.target,
         ),
       ),
@@ -171,7 +167,7 @@ void main() {
     await engine.importCookies(
       gesture: importGesture,
       profileId: 'target',
-      source: BrowserImportSourceFamily.chrome,
+      source: .chrome,
       sourceProfileName: 'Profile 1',
     );
     final request =
@@ -187,7 +183,7 @@ void main() {
       engine.importCookies(
         gesture: engine.beginCookieImportGesture(),
         profileId: 'target',
-        source: BrowserImportSourceFamily.chrome,
+        source: .chrome,
       ),
       throwsA(
         isA<BrowserFailure>().having(
@@ -262,7 +258,7 @@ final class _ActionRecordingPlatform implements AleraBrowserPlatform {
   probeCookieImportSources() async =>
       const <AleraBrowserCookieImportSourceStatus>[
         AleraBrowserCookieImportSourceStatus(
-          source: AleraBrowserCookieImportSource.chrome,
+          source: .chrome,
           supported: true,
           available: true,
           profileNames: <String>['Default', 'Profile 1'],
@@ -279,7 +275,7 @@ final class _ActionRecordingPlatform implements AleraBrowserPlatform {
           ? request.source
           : AleraBrowserCookieImportSource.manualJson,
       profileId: request.profileId,
-      outcome: AleraBrowserCookieImportOutcome.imported,
+      outcome: .imported,
       importedCount: 1,
       skippedCount: 0,
     );

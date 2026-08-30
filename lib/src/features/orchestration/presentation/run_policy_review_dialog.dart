@@ -22,9 +22,7 @@ Future<void> showRunPolicyReviewDialog(BuildContext context) {
 
 /// Review surface for stage plans a coordinator proposed. While a plan sits
 /// unresolved the run does not schedule, so this is the step that unblocks it.
-class RunPolicyReviewDialog extends ConsumerStatefulWidget {
-  const RunPolicyReviewDialog({super.key});
-
+class const RunPolicyReviewDialog({super.key}) extends ConsumerStatefulWidget {
   @override
   ConsumerState<RunPolicyReviewDialog> createState() =>
       _RunPolicyReviewDialogState();
@@ -51,8 +49,8 @@ class _RunPolicyReviewDialogState extends ConsumerState<RunPolicyReviewDialog> {
       child: Padding(
         padding: const EdgeInsets.all(AleraTokens.space16),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: .stretch,
+          mainAxisSize: .min,
           children: <Widget>[
             Text(
               'Execution Plans',
@@ -105,11 +103,11 @@ class _RunPolicyReviewDialogState extends ConsumerState<RunPolicyReviewDialog> {
     }
     return SingleChildScrollView(
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
+        crossAxisAlignment: .stretch,
         children: <Widget>[
           for (final policy in policies) ...<Widget>[
             AleraPanel(
-              clipBehavior: Clip.antiAlias,
+              clipBehavior: .antiAlias,
               children: <Widget>[
                 Padding(
                   padding: const EdgeInsets.all(AleraTokens.space12),
@@ -134,7 +132,7 @@ class _RunPolicyReviewDialogState extends ConsumerState<RunPolicyReviewDialog> {
         bottom: AleraTokens.space12,
       ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
+        crossAxisAlignment: .stretch,
         children: <Widget>[
           AleraTextField(
             controller: _reasonController,

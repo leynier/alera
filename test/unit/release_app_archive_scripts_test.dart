@@ -312,9 +312,8 @@ Future<List<File>> _writeDesktopChannelFixture(
       'publicKeyId': 'test-key',
       'value': base64Encode(signature.bytes),
     };
-    File(
-      p.join(releaseDirectory.path, 'release.json'),
-    ).writeAsStringSync(jsonEncode(descriptorJson));
+    File(p.join(releaseDirectory.path, 'release.json'))
+        .writeAsStringSync(jsonEncode(descriptorJson));
     File(p.join(fragments.path, '$platform.json')).writeAsStringSync(
       jsonEncode(<String, dynamic>{
         'schemaVersion': 3,
@@ -375,17 +374,11 @@ Future<_SigningKeys> _signingKeys({required int seed}) async {
   );
 }
 
-class _SigningKeys {
-  const _SigningKeys({
-    required this.seed,
-    required this.privateKey,
-    required this.publicKey,
-  });
-
-  final List<int> seed;
-  final String privateKey;
-  final String publicKey;
-
+class const _SigningKeys({
+  required final List<int> seed,
+  required final String privateKey,
+  required final String publicKey,
+}) {
   Map<String, String> toEnvironment() {
     return <String, String>{
       'ALERA_UPDATE_MANIFEST_PRIVATE_KEY': privateKey,

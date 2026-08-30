@@ -8,44 +8,25 @@ enum ReviewCommentSource { conversation, reviewSummary, reviewThread }
 ///
 /// [parentId] is the discussion/thread identifier for provider APIs that
 /// address a comment through its containing thread.
-class ReviewCommentLocator {
-  const ReviewCommentLocator({
-    required this.source,
-    required this.commentId,
-    this.parentId,
-  });
-
-  final ReviewCommentSource source;
-  final String commentId;
-  final String? parentId;
-}
+class const ReviewCommentLocator({
+  required final ReviewCommentSource source,
+  required final String commentId,
+  final String? parentId,
+});
 
 /// Provider-neutral comment displayed in the pull-request conversation.
-class ReviewComment {
-  const ReviewComment({
-    required this.id,
-    required this.author,
-    required this.body,
-    required this.createdAt,
-    required this.kind,
-    this.url,
-    this.path,
-    this.line,
-    this.resolved = false,
-    this.locator,
-  });
-
-  final String id;
-  final String author;
-  final String body;
-  final DateTime createdAt;
-  final ReviewCommentKind kind;
-  final String? url;
-  final String? path;
-  final int? line;
-  final bool resolved;
-  final ReviewCommentLocator? locator;
-
+class const ReviewComment({
+  required final String id,
+  required final String author,
+  required final String body,
+  required final DateTime createdAt,
+  required final ReviewCommentKind kind,
+  final String? url,
+  final String? path,
+  final int? line,
+  final bool resolved = false,
+  final ReviewCommentLocator? locator,
+}) {
   ReviewComment copyWith({String? body, ReviewCommentLocator? locator}) {
     return ReviewComment(
       id: id,

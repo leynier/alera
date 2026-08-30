@@ -1,3 +1,4 @@
+import 'package:alera/src/features/workbench/domain/workspace_section.dart';
 import 'package:alera/src/features/projects/domain/project.dart';
 import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
 import 'package:alera/src/features/workbench/domain/workbench_layout.dart';
@@ -8,22 +9,24 @@ import 'package:dart_mappable/dart_mappable.dart';
 part 'workbench_state.mapper.dart';
 
 @MappableClass()
-class WorkbenchState with WorkbenchStateMappable {
-  const WorkbenchState({
-    this.projects = const <Project>[],
-    this.workspacesByProject = const <String, List<Workspace>>{},
-    this.tabsByWorkspace = const <String, List<WorkspaceTabRecord>>{},
-    this.layoutByWorkspace = const <String, WorkbenchLayout>{},
-    this.viewPrefs = WorkbenchViewPrefs.defaults,
-    this.activeProjectId,
-    this.activeWorkspaceId,
-    this.activeTabIdByWorkspace = const <String, String>{},
-    this.bootstrapped = false,
-    this.error,
-    this.searchQuery = '',
-    this.collapsed = false,
-  });
-
+class const WorkbenchState({
+  this.sections = const <WorkspaceSection>[],
+  this.supportsSections = false,
+  this.projects = const <Project>[],
+  this.workspacesByProject = const <String, List<Workspace>>{},
+  this.tabsByWorkspace = const <String, List<WorkspaceTabRecord>>{},
+  this.layoutByWorkspace = const <String, WorkbenchLayout>{},
+  this.viewPrefs = WorkbenchViewPrefs.defaults,
+  this.activeProjectId,
+  this.activeWorkspaceId,
+  this.activeTabIdByWorkspace = const <String, String>{},
+  this.bootstrapped = false,
+  this.error,
+  this.searchQuery = '',
+  this.collapsed = false,
+}) with WorkbenchStateMappable {
+  final List<WorkspaceSection> sections;
+  final bool supportsSections;
   final List<Project> projects;
   final Map<String, List<Workspace>> workspacesByProject;
   final Map<String, List<WorkspaceTabRecord>> tabsByWorkspace;

@@ -6,22 +6,14 @@ import 'package:flutter/material.dart';
 /// Prompts for a new name and pops with the trimmed value. When [allowEmpty]
 /// is true an empty submission pops with an empty string so callers can treat
 /// it as "clear the override"; otherwise empty input keeps the dialog open.
-class AleraRenameDialog extends StatefulWidget {
-  const AleraRenameDialog({
-    super.key,
-    required this.title,
-    required this.labelText,
-    this.initialValue = '',
-    this.helperText,
-    this.allowEmpty = false,
-  });
-
-  final String title;
-  final String labelText;
-  final String initialValue;
-  final String? helperText;
-  final bool allowEmpty;
-
+class const AleraRenameDialog({
+  super.key,
+  required final String title,
+  required final String labelText,
+  final String initialValue = '',
+  final String? helperText,
+  final bool allowEmpty = false,
+}) extends StatefulWidget {
   @override
   State<AleraRenameDialog> createState() => _AleraRenameDialogState();
 }
@@ -57,8 +49,8 @@ class _AleraRenameDialogState extends State<AleraRenameDialog> {
       child: Padding(
         padding: const EdgeInsets.all(AleraTokens.space20),
         child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: .min,
+          crossAxisAlignment: .start,
           children: <Widget>[
             Text(widget.title, style: theme.textTheme.titleMedium),
             const SizedBox(height: AleraTokens.space12),

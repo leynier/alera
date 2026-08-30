@@ -6,11 +6,7 @@ extension _BrowserAnnotationActions on _BrowserTabSurfaceState {
       await operation();
     } catch (error) {
       if (mounted) {
-        AleraToast.show(
-          context,
-          message: error.toString(),
-          tone: AleraToastTone.error,
-        );
+        AleraToast.show(context, message: error.toString(), tone: .error);
       }
     }
   }
@@ -58,7 +54,7 @@ extension _BrowserAnnotationActions on _BrowserTabSurfaceState {
         AleraToast.show(
           context,
           message: 'Could not start annotation mode: $error',
-          tone: AleraToastTone.error,
+          tone: .error,
         );
       }
     }
@@ -90,8 +86,8 @@ extension _BrowserAnnotationActions on _BrowserTabSurfaceState {
         : candidates.first.anchor;
     await _addAnnotationComment(
       handle,
-      BrowserAnnotationKind.element,
-      Rect.fromLTWH(anchor.x, anchor.y, anchor.width, anchor.height),
+      .element,
+      .fromLTWH(anchor.x, anchor.y, anchor.width, anchor.height),
       anchor: anchor,
     );
   }
@@ -127,7 +123,7 @@ extension _BrowserAnnotationActions on _BrowserTabSurfaceState {
     ];
     _updateAnnotationState(
       () => _annotationCapture = capture.copyWith(
-        comments: List<BrowserAnnotationComment>.unmodifiable(next),
+        comments: List<BrowserAnnotationComment>.unmodifiableOf(next),
       ),
     );
   }
@@ -200,7 +196,7 @@ extension _BrowserAnnotationActions on _BrowserTabSurfaceState {
         AleraToast.show(
           context,
           message: 'Open a Codex tab before adding browser comments.',
-          tone: AleraToastTone.error,
+          tone: .error,
         );
       }
       return;
@@ -242,17 +238,11 @@ extension _BrowserAnnotationActions on _BrowserTabSurfaceState {
   }
 }
 
-final class _BrowserAnnotationSnapshot {
-  const _BrowserAnnotationSnapshot({
-    required this.viewportWidth,
-    required this.viewportHeight,
-    required this.elements,
-  });
-
-  final int viewportWidth;
-  final int viewportHeight;
-  final List<BrowserAnnotationElement> elements;
-}
+final class const _BrowserAnnotationSnapshot({
+  required final int viewportWidth,
+  required final int viewportHeight,
+  required final List<BrowserAnnotationElement> elements,
+});
 
 _BrowserAnnotationSnapshot _decodeAnnotationSnapshot(Object? raw) {
   Object? value = raw;
@@ -296,7 +286,7 @@ _BrowserAnnotationSnapshot _decodeAnnotationSnapshot(Object? raw) {
   return _BrowserAnnotationSnapshot(
     viewportWidth: viewportWidth,
     viewportHeight: viewportHeight,
-    elements: List<BrowserAnnotationElement>.unmodifiable(elements),
+    elements: List<BrowserAnnotationElement>.unmodifiableOf(elements),
   );
 }
 
@@ -340,11 +330,8 @@ String _limitAnnotationText(String value) {
   return trimmed.length <= 4000 ? trimmed : trimmed.substring(0, 4000);
 }
 
-class _BrowserNativePageSurface extends ConsumerWidget {
-  const _BrowserNativePageSurface({required this.pageId});
-
-  final String pageId;
-
+class const _BrowserNativePageSurface({required final String pageId})
+    extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     if (!TickerMode.valuesOf(context).enabled) return const SizedBox.shrink();

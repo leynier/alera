@@ -23,9 +23,8 @@ abstract interface class TerminalPathDragPayload {
   Iterable<String> get paths;
 }
 
-class TerminalPathDragData implements TerminalPathDragPayload {
-  const TerminalPathDragData({required this.paths});
-
+class const TerminalPathDragData({required this.paths})
+    implements TerminalPathDragPayload {
   @override
   final List<String> paths;
 }
@@ -41,19 +40,12 @@ class TerminalPathDragData implements TerminalPathDragPayload {
 ///
 /// Explorer long-press / secondary-click context menus stay on a separate
 /// gesture detector outside this widget.
-class TerminalPathDraggable<T extends TerminalPathDragPayload>
-    extends StatelessWidget {
-  const TerminalPathDraggable({
-    super.key,
-    required this.data,
-    required this.feedback,
-    required this.child,
-  });
-
-  final T data;
-  final Widget feedback;
-  final Widget child;
-
+class const TerminalPathDraggable<T extends TerminalPathDragPayload>({
+  super.key,
+  required final T data,
+  required final Widget feedback,
+  required final Widget child,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return _TerminalPathDragSource<T>(
@@ -66,14 +58,14 @@ class TerminalPathDraggable<T extends TerminalPathDragPayload>
 }
 
 /// [Draggable] that recognizes path drags with horizontal [kTouchSlop].
-class _TerminalPathDragSource<T extends Object> extends Draggable<T> {
-  const _TerminalPathDragSource({
-    super.key,
-    required super.child,
-    required super.feedback,
-    super.data,
-    super.childWhenDragging,
-  }) : super(affinity: Axis.horizontal);
+class const _TerminalPathDragSource<T extends Object>({
+  super.key,
+  required super.child,
+  required super.feedback,
+  super.data,
+  super.childWhenDragging,
+}) extends Draggable<T> {
+  this : super(affinity: .horizontal);
 
   @override
   MultiDragGestureRecognizer createRecognizer(
@@ -90,12 +82,10 @@ class _TerminalPathDragSource<T extends Object> extends Draggable<T> {
 ///
 /// [HorizontalMultiDragGestureRecognizer] still calls [computeHitSlop], which
 /// is 1px for mice. That is too tight next to row taps ([kTouchSlop] = 18).
-class _TerminalPathDragGestureRecognizer extends MultiDragGestureRecognizer {
-  _TerminalPathDragGestureRecognizer({
-    super.debugOwner,
-    super.allowedButtonsFilter,
-  });
-
+class _TerminalPathDragGestureRecognizer({
+  super.debugOwner,
+  super.allowedButtonsFilter,
+}) extends MultiDragGestureRecognizer {
   @override
   MultiDragPointerState createNewPointerState(PointerDownEvent event) {
     return _TerminalPathDragPointerState(
@@ -109,19 +99,17 @@ class _TerminalPathDragGestureRecognizer extends MultiDragGestureRecognizer {
   String get debugDescription => 'terminal path drag';
 }
 
-class _TerminalPathDragPointerState extends MultiDragPointerState {
-  _TerminalPathDragPointerState(
-    super.initialPosition,
-    super.kind,
-    super.gestureSettings,
-  );
-
+class _TerminalPathDragPointerState(
+  super.initialPosition,
+  super.kind,
+  super.gestureSettings,
+) extends MultiDragPointerState {
   @override
   void checkForResolutionAfterMove() {
     assert(pendingDelta != null);
     final slop = gestureSettings?.touchSlop ?? kTouchSlop;
     if (pendingDelta!.dx.abs() > slop) {
-      resolve(GestureDisposition.accepted);
+      resolve(.accepted);
     }
   }
 

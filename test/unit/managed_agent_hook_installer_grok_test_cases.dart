@@ -20,7 +20,7 @@ void _registerGrokHookInstallerTests(
       },
     });
 
-    final installed = service.install(AgentType.grok);
+    final installed = service.install(.grok);
     final hooks = _hooks(configPath);
 
     expect(installed.state, ManagedAgentHookInstallState.installed);
@@ -41,13 +41,12 @@ void _registerGrokHookInstallerTests(
     expect(_commandsFor(hooks, 'UserPromptSubmit'), contains('echo user-hook'));
     expect(_managedCommandCount(hooks, 'alera-grok-hook.sh'), 9);
     expect(
-      File(
-        p.join(home.path, '.alera', 'agent-hooks', 'alera-grok-hook.sh'),
-      ).readAsStringSync(),
+      File(p.join(home.path, '.alera', 'agent-hooks', 'alera-grok-hook.sh'))
+          .readAsStringSync(),
       contains('/hook/grok'),
     );
 
-    final removed = service.remove(AgentType.grok);
+    final removed = service.remove(.grok);
     expect(removed.state, ManagedAgentHookInstallState.notInstalled);
     expect(_commandsFor(_hooks(configPath), 'UserPromptSubmit'), <String>[
       'echo user-hook',
@@ -58,11 +57,11 @@ void _registerGrokHookInstallerTests(
     final home = readHome();
     final windowsService = ManagedAgentHookInstallService(
       homeDirectory: p.join(home.path, 'Home With Spaces'),
-      platform: ManagedAgentHookPlatform.windows,
+      platform: .windows,
       environment: <String, String>{'USERPROFILE': home.path},
     );
 
-    final installed = windowsService.install(AgentType.grok);
+    final installed = windowsService.install(.grok);
     final hooks = _hooks(installed.configPath);
 
     expect(installed.state, ManagedAgentHookInstallState.installed);
@@ -77,11 +76,11 @@ void _registerGrokHookInstallerTests(
     final grokHome = p.join(home.path, 'custom-grok-home');
     final customService = ManagedAgentHookInstallService(
       homeDirectory: home.path,
-      platform: ManagedAgentHookPlatform.posix,
+      platform: .posix,
       environment: <String, String>{'HOME': home.path, 'GROK_HOME': grokHome},
     );
 
-    final installed = customService.install(AgentType.grok);
+    final installed = customService.install(.grok);
 
     expect(
       installed.configPath,

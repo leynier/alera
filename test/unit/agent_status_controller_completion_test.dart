@@ -33,14 +33,14 @@ void main() {
 
       controller.applyHookEvent(
         _event(
-          agentType: AgentType.amp,
+          agentType: .amp,
           hookEventName: 'agent.start',
           payload: <String, Object?>{'message': 'update docs'},
         ),
       );
       controller.applyHookEvent(
         _event(
-          agentType: AgentType.amp,
+          agentType: .amp,
           hookEventName: 'tool.call',
           payload: <String, Object?>{
             'tool': 'bash',
@@ -50,7 +50,7 @@ void main() {
       );
       controller.applyHookEvent(
         _event(
-          agentType: AgentType.amp,
+          agentType: .amp,
           hookEventName: 'agent.end',
           payload: <String, Object?>{
             'status': 'cancelled',
@@ -80,7 +80,7 @@ void main() {
 
       controller.applyHookEvent(
         _event(
-          agentType: AgentType.amp,
+          agentType: .amp,
           hookEventName: 'session.start',
           payload: <String, Object?>{'threadId': 'thread-1'},
         ),
@@ -89,7 +89,7 @@ void main() {
 
       controller.applyHookEvent(
         _event(
-          agentType: AgentType.amp,
+          agentType: .amp,
           hookEventName: 'agent.start',
           payload: <String, Object?>{
             'threadId': 'thread-1',
@@ -99,7 +99,7 @@ void main() {
       );
       controller.applyHookEvent(
         _event(
-          agentType: AgentType.amp,
+          agentType: .amp,
           hookEventName: 'agent.end',
           payload: <String, Object?>{'threadId': 'thread-1', 'status': 'done'},
         ),
@@ -111,7 +111,7 @@ void main() {
 
       controller.applyHookEvent(
         _event(
-          agentType: AgentType.amp,
+          agentType: .amp,
           hookEventName: 'tool.result',
           payload: <String, Object?>{
             'threadId': 'thread-1',
@@ -127,7 +127,7 @@ void main() {
 
       controller.applyHookEvent(
         _event(
-          agentType: AgentType.amp,
+          agentType: .amp,
           hookEventName: 'agent.start',
           payload: <String, Object?>{
             'threadId': 'thread-2',
@@ -146,7 +146,7 @@ void main() {
       final controller = container.read(agentStatusControllerProvider.notifier);
       controller.applyHookEvent(
         _event(
-          agentType: AgentType.codex,
+          agentType: .codex,
           hookEventName: 'UserPromptSubmit',
           payload: <String, Object?>{'prompt': 'run tests'},
         ),

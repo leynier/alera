@@ -3,7 +3,6 @@ import 'package:alera/src/features/keyboard/presentation/keyboard_command_palett
 import 'package:alera/src/features/settings/application/settings_controller.dart';
 import 'package:alera/src/features/settings/domain/alera_settings.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -21,12 +20,10 @@ void main() {
 
     expect(find.text('Quick Open'), findsOneWidget);
     expect(
-      find.byKey(
-        const ValueKey<KeyboardActionId>(KeyboardActionId.openCommandPalette),
-      ),
+      find.byKey(const ValueKey<KeyboardActionId>(.openCommandPalette)),
       findsNothing,
     );
-    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+    await tester.sendKeyEvent(.enter);
     await tester.pumpAndSettle();
 
     expect(executed, KeyboardActionId.openQuickOpen);
@@ -46,7 +43,7 @@ void main() {
     await tester.pump();
     expect(find.text('No commands match "not a command".'), findsOneWidget);
 
-    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.sendKeyEvent(.escape);
     await tester.pumpAndSettle();
     expect(find.text('Command Palette'), findsNothing);
     expect(anchorFocus.hasFocus, isTrue);
@@ -62,7 +59,7 @@ Future<void> _pumpCommandPalette(
     ProviderScope(
       overrides: [
         settingsControllerProvider.overrideWith(
-          () => _CommandPaletteSettingsController(AleraSettings.defaults),
+          () => _CommandPaletteSettingsController(.defaults),
         ),
       ],
       child: MaterialApp(
@@ -86,11 +83,8 @@ Future<void> _pumpCommandPalette(
   await tester.pump();
 }
 
-class _CommandPaletteSettingsController extends SettingsController {
-  _CommandPaletteSettingsController(this._seed);
-
-  final AleraSettings _seed;
-
+class _CommandPaletteSettingsController(final AleraSettings _seed)
+    extends SettingsController {
   @override
   AleraSettings build() => _seed;
 }

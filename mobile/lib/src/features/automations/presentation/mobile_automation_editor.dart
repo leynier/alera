@@ -21,12 +21,10 @@ Future<Map<String, Object?>?> showMobileAutomationEditor(
   );
 }
 
-class _MobileAutomationEditor extends StatefulWidget {
-  const _MobileAutomationEditor({this.initial, this.options});
-
-  final MobileAutomation? initial;
-  final MobileAutomationEditorOptions? options;
-
+class const _MobileAutomationEditor({
+  final MobileAutomation? initial,
+  final MobileAutomationEditorOptions? options,
+}) extends StatefulWidget {
   @override
   State<_MobileAutomationEditor> createState() =>
       _MobileAutomationEditorState();

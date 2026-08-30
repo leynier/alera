@@ -19,14 +19,10 @@ import 'package:alera/src/features/settings/presentation/rows/settings_rows.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-class MobileDevicesSettingsPane extends ConsumerStatefulWidget {
-  const MobileDevicesSettingsPane({
-    super.key,
-    this.groupKeys = const <String, GlobalKey>{},
-  });
-
-  final Map<String, GlobalKey> groupKeys;
-
+class const MobileDevicesSettingsPane({
+  super.key,
+  final Map<String, GlobalKey> groupKeys = const <String, GlobalKey>{},
+}) extends ConsumerStatefulWidget {
   @override
   ConsumerState<MobileDevicesSettingsPane> createState() =>
       _MobileDevicesSettingsPaneState();
@@ -80,7 +76,7 @@ class _MobileDevicesSettingsPaneState
         // so this flat pane scrolls itself.
         return SingleChildScrollView(
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
+            crossAxisAlignment: .stretch,
             children: <Widget>[
               KeyedSubtree(
                 key: widget.groupKeys['gateway'],
@@ -106,8 +102,7 @@ class _MobileDevicesSettingsPaneState
                       const SizedBox(height: AleraTokens.space16),
                       AleraSettingsGroup(
                         title: 'Connected Remote Devices',
-                        description:
-                            'Connected through your Alera account. Disable Remote Access to disconnect these devices.',
+                        description: 'Connected through your Alera account. Disable Remote Access to disconnect these devices.',
                         children: <Widget>[
                           for (final device in status.connectedRelayDevices)
                             MobileDeviceListRow(
@@ -127,9 +122,8 @@ class _MobileDevicesSettingsPaneState
                 const SizedBox(height: AleraTokens.space12),
                 Text(
                   _error!,
-                  style: Theme.of(
-                    context,
-                  ).textTheme.bodySmall?.copyWith(color: AleraTokens.error),
+                  style: Theme.of(context).textTheme.bodySmall
+                      ?.copyWith(color: AleraTokens.error),
                 ),
               ],
             ],
@@ -228,7 +222,7 @@ class _MobileDevicesSettingsPaneState
           )
         else
           AleraPanel(
-            clipBehavior: Clip.antiAlias,
+            clipBehavior: .antiAlias,
             children: <Widget>[
               for (final offer in status.activePairings)
                 MobilePairingOfferRow(
@@ -254,7 +248,7 @@ class _MobileDevicesSettingsPaneState
           )
         else
           AleraPanel(
-            clipBehavior: Clip.antiAlias,
+            clipBehavior: .antiAlias,
             children: <Widget>[
               for (final device in status.devices)
                 MobileDeviceListRow(

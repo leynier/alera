@@ -15,13 +15,12 @@ const Set<String> _mobileChangeEventNames = <String>{
   'mobileGatewayChanged',
 };
 
-class RuntimeMobileAccessRepository {
-  RuntimeMobileAccessRepository(
-    this._client, {
-    RuntimeChangeCoalescer? coalescer,
-  }) : _coalescer = coalescer ?? RuntimeChangeCoalescer();
+class RuntimeMobileAccessRepository(
+  final RuntimeHostClient _client, {
+  RuntimeChangeCoalescer? coalescer,
+}) {
+  this : _coalescer = coalescer ?? RuntimeChangeCoalescer();
 
-  final RuntimeHostClient _client;
   final RuntimeChangeCoalescer _coalescer;
 
   Future<MobileAccessStatus> status() async {
@@ -47,15 +46,17 @@ class RuntimeMobileAccessRepository {
     MobileEndpointMode? endpointMode,
     MobileNetbirdEndpoint? netbirdEndpoint,
   }) async {
-    final payload = await _client
-        .runtimeRequest('mobile.settings.update', <String, Object?>{
-          'enabled': ?enabled,
-          'remoteAccessEnabled': ?remoteAccessEnabled,
-          'bindHost': ?bindHost,
-          'port': ?port,
-          'endpointMode': ?endpointMode?.wireName,
-          'netbirdEndpoint': ?netbirdEndpoint?.wireName,
-        });
+    final payload = await _client.runtimeRequest(
+      'mobile.settings.update',
+      <String, Object?>{
+        'enabled': ?enabled,
+        'remoteAccessEnabled': ?remoteAccessEnabled,
+        'bindHost': ?bindHost,
+        'port': ?port,
+        'endpointMode': ?endpointMode?.wireName,
+        'netbirdEndpoint': ?netbirdEndpoint?.wireName,
+      },
+    );
     return MobileGatewaySettings.fromJson(_mapFromPayload(payload));
   }
 
@@ -64,12 +65,14 @@ class RuntimeMobileAccessRepository {
     String? deviceName,
     int? expiresMinutes,
   }) async {
-    final payload = await _client
-        .runtimeRequest('mobile.pairing.create', <String, Object?>{
-          'endpoint': ?endpoint,
-          'deviceName': ?deviceName,
-          'expiresMinutes': ?expiresMinutes,
-        });
+    final payload = await _client.runtimeRequest(
+      'mobile.pairing.create',
+      <String, Object?>{
+        'endpoint': ?endpoint,
+        'deviceName': ?deviceName,
+        'expiresMinutes': ?expiresMinutes,
+      },
+    );
     return MobilePairingOfferGrant.fromJson(_mapFromPayload(payload));
   }
 

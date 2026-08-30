@@ -9,7 +9,7 @@ void main() {
     final processRunner = _FakeProcessRunner();
     final opener = WorkspaceFolderOpener(
       processRunner: processRunner,
-      platform: WorkspaceFolderPlatform.macos,
+      platform: .macos,
       directoryExists: (_) async => true,
     );
 
@@ -34,7 +34,7 @@ void main() {
     });
     final opener = WorkspaceFolderOpener(
       processRunner: processRunner,
-      platform: WorkspaceFolderPlatform.macos,
+      platform: .macos,
     );
 
     final result = await opener.open(directory.path);
@@ -49,7 +49,7 @@ void main() {
     final processRunner = _FakeProcessRunner();
     final opener = WorkspaceFolderOpener(
       processRunner: processRunner,
-      platform: WorkspaceFolderPlatform.windows,
+      platform: .windows,
       directoryExists: (_) async => true,
     );
 
@@ -66,7 +66,7 @@ void main() {
     final processRunner = _FakeProcessRunner();
     final opener = WorkspaceFolderOpener(
       processRunner: processRunner,
-      platform: WorkspaceFolderPlatform.windows,
+      platform: .windows,
       directoryExists: (_) async => true,
     );
 
@@ -94,7 +94,7 @@ void main() {
     });
     final opener = WorkspaceFolderOpener(
       processRunner: processRunner,
-      platform: WorkspaceFolderPlatform.macos,
+      platform: .macos,
     );
 
     final result = await opener.reveal(file.path);
@@ -119,7 +119,7 @@ void main() {
     });
     final opener = WorkspaceFolderOpener(
       processRunner: processRunner,
-      platform: WorkspaceFolderPlatform.windows,
+      platform: .windows,
     );
 
     final result = await opener.reveal(file.path);
@@ -147,7 +147,7 @@ void main() {
     });
     final opener = WorkspaceFolderOpener(
       processRunner: processRunner,
-      platform: WorkspaceFolderPlatform.windows,
+      platform: .windows,
     );
 
     final result = await opener.reveal(file.path.replaceAll(r'\', '/'));
@@ -175,7 +175,7 @@ void main() {
     });
     final opener = WorkspaceFolderOpener(
       processRunner: processRunner,
-      platform: WorkspaceFolderPlatform.linux,
+      platform: .linux,
     );
 
     final result = await opener.reveal(file.path);
@@ -213,7 +213,7 @@ void main() {
       });
       final opener = WorkspaceFolderOpener(
         processRunner: processRunner,
-        platform: WorkspaceFolderPlatform.linux,
+        platform: .linux,
       );
 
       final result = await opener.reveal(file.path);
@@ -241,7 +241,7 @@ void main() {
     final processRunner = _FakeProcessRunner(exitCodes: <int>[1, 0]);
     final opener = WorkspaceFolderOpener(
       processRunner: processRunner,
-      platform: WorkspaceFolderPlatform.linux,
+      platform: .linux,
       directoryExists: (_) async => true,
     );
 
@@ -259,7 +259,7 @@ void main() {
     final processRunner = _FakeProcessRunner();
     final opener = WorkspaceFolderOpener(
       processRunner: processRunner,
-      platform: WorkspaceFolderPlatform.linux,
+      platform: .linux,
       directoryExists: (_) async => false,
     );
 
@@ -274,7 +274,7 @@ void main() {
     final processRunner = _FakeProcessRunner();
     final opener = WorkspaceFolderOpener(
       processRunner: processRunner,
-      platform: WorkspaceFolderPlatform.linux,
+      platform: .linux,
       directoryExists: (_) async => true,
     );
 
@@ -291,7 +291,7 @@ void main() {
       final processRunner = _FakeProcessRunner(exitCodes: <int>[1]);
       final opener = WorkspaceFolderOpener(
         processRunner: processRunner,
-        platform: WorkspaceFolderPlatform.other,
+        platform: .other,
         directoryExists: (_) async => true,
       );
 
@@ -335,9 +335,8 @@ void main() {
   });
 }
 
-class _FakeProcessRunner implements ProcessRunner {
-  _FakeProcessRunner({List<int>? exitCodes})
-    : _exitCodes = exitCodes ?? <int>[0];
+class _FakeProcessRunner({List<int>? exitCodes}) implements ProcessRunner {
+  this : _exitCodes = exitCodes ?? <int>[0];
 
   final List<int> _exitCodes;
   final List<_ProcessCall> calls = <_ProcessCall>[];
@@ -368,12 +367,10 @@ class _FakeProcessRunner implements ProcessRunner {
   }
 }
 
-class _ProcessCall {
-  const _ProcessCall(this.executable, this.arguments);
-
-  final String executable;
-  final List<String> arguments;
-
+class const _ProcessCall(
+  final String executable,
+  final List<String> arguments,
+) {
   @override
   bool operator ==(Object other) {
     return other is _ProcessCall &&

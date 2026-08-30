@@ -4,16 +4,11 @@ import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/features/mobile_devices/domain/mobile_pairing_offer.dart';
 import 'package:flutter/material.dart';
 
-class MobilePairingOfferRow extends StatelessWidget {
-  const MobilePairingOfferRow({
-    super.key,
-    required this.offer,
-    required this.onCancel,
-  });
-
-  final MobilePairingOffer offer;
-  final VoidCallback? onCancel;
-
+class const MobilePairingOfferRow({
+  super.key,
+  required final MobilePairingOffer offer,
+  required final VoidCallback? onCancel,
+}) extends StatelessWidget {
   String get _expiryLabel {
     final remaining = offer.expiresAt.difference(DateTime.now().toUtc());
     if (remaining.isNegative) {
@@ -41,17 +36,17 @@ class MobilePairingOfferRow extends StatelessWidget {
           const SizedBox(width: AleraTokens.space8),
           Expanded(
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+              crossAxisAlignment: .start,
               children: <Widget>[
                 Text(
                   deviceName == null || deviceName.isEmpty
                       ? offer.endpoint
                       : '$deviceName · ${offer.endpoint}',
                   maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+                  overflow: .ellipsis,
                   style: theme.textTheme.bodyMedium?.copyWith(
                     color: AleraTokens.foreground,
-                    fontWeight: FontWeight.w600,
+                    fontWeight: .w600,
                   ),
                 ),
                 const SizedBox(height: AleraTokens.space4),

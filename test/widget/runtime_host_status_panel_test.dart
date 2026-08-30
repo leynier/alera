@@ -9,7 +9,6 @@ import 'package:alera/src/features/runtime_host/presentation/runtime_host_status
 import 'package:alera/src/features/runtime_host/presentation/runtime_host_status_bar.dart';
 import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_client_models.dart';
 import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_protocol.dart';
-import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -31,9 +30,9 @@ void main() {
 
     expect(find.text('Runtime v0.1.0'), findsOneWidget);
 
-    final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+    final mouse = await tester.createGesture(kind: .mouse);
     addTearDown(mouse.removePointer);
-    await mouse.addPointer(location: Offset.zero);
+    await mouse.addPointer(location: .zero);
     await mouse.moveTo(tester.getCenter(find.byType(RuntimeHostStatusChip)));
     await tester.pumpAndSettle();
 
@@ -302,11 +301,8 @@ final class _WidgetBundledProbe implements BundledSidecarVersionProbe {
   }
 }
 
-final class _FailingRuntimeHostClient implements RuntimeHostLifecycleClient {
-  _FailingRuntimeHostClient(this.startupError);
-
-  final Object startupError;
-
+final class _FailingRuntimeHostClient(final Object startupError)
+    implements RuntimeHostLifecycleClient {
   @override
   Future<Map<String, Object?>?> probeRuntimeStatus() async => null;
 
