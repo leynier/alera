@@ -5,6 +5,19 @@ use crate::terminal_host::host_error::{HostError, HostResult};
 
 use super::ServerActor;
 
+pub(super) fn append_role_contract(task: &OrchestrationTask, prompt: &str) -> HostResult<String> {
+    match task.role_contract.as_ref() {
+        None => Ok(prompt.to_string()),
+        Some(contract) => Ok(format!(
+            "{}\n\n{}",
+            prompt,
+            contract
+                .worker_instructions()
+                .map_err(|error| HostError::state(error.to_string()))?
+        )),
+    }
+}
+
 /// Combines the prompt supplied for one launch with profile and project
 /// instructions while keeping each source in its configured order.
 pub(super) fn compose_agent_prompt(
@@ -97,7 +110,7 @@ impl ServerActor {
                 profile_name.as_deref(),
             )
             .await?;
-        Ok((profile_name, effective_prompt))
+        Ok((profile_name, append_role_contract(task, &effective_prompt)?))
     }
 }
 

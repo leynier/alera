@@ -131,6 +131,7 @@ dependencies = [
  "chrono-tz",
  "git2",
  "ignore",
+ "jsonschema",
  "libc",
  "same-file",
  "serde",

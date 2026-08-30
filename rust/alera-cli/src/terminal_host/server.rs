@@ -155,6 +155,9 @@ mod orchestration_owned_spawn;
 mod orchestration_policy_requests;
 mod orchestration_profile_spawn;
 mod orchestration_requests;
+#[cfg(test)]
+mod orchestration_role_contract_tests;
+mod orchestration_task_creation;
 mod orchestration_terminal_requests;
 mod orchestration_validation;
 mod orchestration_wait_requests;

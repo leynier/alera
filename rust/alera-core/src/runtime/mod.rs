@@ -50,6 +50,11 @@ mod orchestration_board_schema;
 mod orchestration_board_store;
 #[cfg(test)]
 mod orchestration_board_tests;
+mod orchestration_contract_result;
+mod orchestration_contract_schema;
+mod orchestration_contract_store;
+#[cfg(test)]
+mod orchestration_contract_store_tests;
 mod orchestration_dispatch_store;
 mod orchestration_message_store;
 mod orchestration_models;
@@ -58,6 +63,9 @@ mod orchestration_policy_store;
 mod orchestration_policy_store_tests;
 #[cfg(test)]
 mod orchestration_profile_attempt_tests;
+mod orchestration_role_contract;
+#[cfg(test)]
+mod orchestration_role_contract_tests;
 mod orchestration_run_snapshot;
 mod orchestration_run_store;
 mod orchestration_stall_store;
@@ -117,6 +125,7 @@ pub use orchestration_message_store::{
     ORCHESTRATION_SUBJECT_MAX_BYTES, ORCHESTRATION_THREAD_ID_MAX_BYTES,
 };
 pub use orchestration_models::*;
+pub use orchestration_role_contract::*;
 pub use orchestration_run_snapshot::*;
 pub use orchestration_task_inspection::*;
 pub use orchestration_task_store::NewOrchestrationTask;
