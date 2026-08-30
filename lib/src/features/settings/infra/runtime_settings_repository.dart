@@ -1,6 +1,8 @@
 import 'package:alera/src/features/settings/application/settings_repository.dart';
+import 'package:alera_configuration/alera_configuration.dart';
 import 'package:alera/src/features/ai_assist/domain/ai_assist_settings.dart';
 import 'package:alera/src/features/settings/domain/alera_settings.dart';
+import 'package:alera/src/features/keyboard/domain/keyboard_action.dart';
 import 'package:alera/src/features/text_actions/domain/text_actions_settings.dart';
 import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_protocol.dart';
 
@@ -17,9 +19,30 @@ class RuntimeSettingsRepository implements SettingsRepository {
 
   @override
   Future<AleraSettings> load() async {
-    final legacy = await legacyRepository.load();
+    var legacy = await legacyRepository.load();
     try {
       await beforeAccess?.call();
+      if (await _supportsConfiguration()) {
+        await client.runtimeRequest('configuration.settings.seed', {
+          'settings': portableDesktopSettings(legacy.toMap()),
+        });
+        final portable = jsonMap(
+          await client.runtimeRequest('configuration.settings.get'),
+        );
+        final keyboard = jsonMap(portable['keyboard']);
+        keyboard['overrides'] = jsonMap(keyboard['overrides'])
+          ..removeWhere(
+            (key, _) => !KeyboardActionId.values.any((id) => id.name == key),
+          );
+        portable['keyboard'] = keyboard;
+        legacy = AleraSettings.fromJson(
+          applyDesktopSettings(
+            legacy.toMap(),
+            portable,
+            defaults: AleraSettings.defaults.toMap(),
+          ),
+        );
+      }
       final payload = await client.runtimeRequest('runtimeSettings.get');
       final runtime = _asMap(payload);
       if (!runtime.containsKey('workspaceDirectory')) {
@@ -41,7 +64,7 @@ class RuntimeSettingsRepository implements SettingsRepository {
       final defaultAgentProfileId = runtime.containsKey('defaultAgentProfileId')
           ? _optionalRuntimeString(runtime['defaultAgentProfileId'])
           : legacy.agents.defaultAgentProfileId;
-      return legacy.copyWith(
+      final resolved = legacy.copyWith(
         general: legacy.general.copyWith(
           workspaceDirectory: runtime['workspaceDirectory'] as String?,
           confirmProjectRemoval:
@@ -72,6 +95,8 @@ class RuntimeSettingsRepository implements SettingsRepository {
         aiAssist: sharedAiAssist,
         textActions: sharedTextActions,
       );
+      await legacyRepository.save(resolved);
+      return resolved;
     } catch (_) {
       return legacy;
     }
@@ -79,8 +104,15 @@ class RuntimeSettingsRepository implements SettingsRepository {
 
   @override
   Future<void> save(AleraSettings settings) async {
-    await legacyRepository.save(settings);
     await beforeAccess?.call();
+    if (await _supportsConfiguration()) {
+      await client.runtimeRequest('configuration.settings.update', {
+        'settings': portableDesktopSettings(settings.toMap()),
+        'supportedKeyboardActionIds': KeyboardActionId.values
+            .map((id) => id.name)
+            .toList(),
+      });
+    }
     await client.runtimeRequest('runtimeSettings.update', <String, Object?>{
       'workspaceDirectory': settings.general.workspaceDirectory,
       'confirmProjectRemoval': settings.general.confirmProjectRemoval,
@@ -91,6 +123,14 @@ class RuntimeSettingsRepository implements SettingsRepository {
       'aiTextGeneration': _runtimeAiAssistSettings(settings.aiAssist),
       'textActions': settings.textActions.toMap(),
     });
+    await legacyRepository.save(settings);
+  }
+
+  Future<bool> _supportsConfiguration() async {
+    final capabilityClient = client;
+    return capabilityClient is RuntimeHostCapabilityClient &&
+        await (capabilityClient as RuntimeHostCapabilityClient)
+            .supportsRuntimeCapability('configurationSyncV1');
   }
 }
 

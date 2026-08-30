@@ -8,9 +8,7 @@ use std::net::TcpStream;
 use std::process::Child;
 use std::time::{Duration, Instant};
 
-use alera_core::runtime::{
-    RuntimeAgentStatusHookSettings, RuntimeStore, Workspace, WorkspaceTabRecord,
-};
+use alera_core::runtime::{RuntimeAgentStatusHookSettings, RuntimeStore};
 use base64::engine::general_purpose::STANDARD;
 use base64::Engine as _;
 use serde_json::{json, Value};
@@ -19,6 +17,8 @@ use serde_json::{json, Value};
 mod profile_snapshot_restart_cases;
 #[path = "terminal_host_headless_runtime/startup_command_cases.rs"]
 mod startup_command_cases;
+#[path = "terminal_host_headless_runtime/startup_reconciliation_case.rs"]
+mod startup_reconciliation_case;
 
 const PROTOCOL_VERSION: i64 = 4;
 
@@ -342,50 +342,6 @@ fn spawn_on_create_starts_headless_without_an_app_client() {
     assert_eq!(read_response(&mut reader, 3)["ok"], json!(true));
     std::thread::sleep(Duration::from_millis(300));
     assert_eq!(std::fs::read_to_string(&marker).unwrap(), "X");
-}
-
-#[test]
-#[cfg(unix)]
-fn runtime_start_reconciles_persisted_spawn_on_create_tabs() {
-    let dir = tempfile::tempdir().unwrap();
-    let marker = dir.path().join("reconciled.txt");
-    let runtime = tokio::runtime::Runtime::new().unwrap();
-    runtime.block_on(async {
-        let store = RuntimeStore::open(dir.path()).await.unwrap();
-        let workspace: Workspace =
-            serde_json::from_value(workspace_payload("reconcile-workspace", dir.path())).unwrap();
-        store.upsert_workspace(workspace).await.unwrap();
-        let tab: WorkspaceTabRecord = serde_json::from_value(json!({
-            "id": "reconcile-tab", "workspaceId": "reconcile-workspace", "kind": "terminal",
-            "title": "Reconcile Terminal", "createdAt": "2026-07-19T00:00:00Z",
-            "updatedAt": "2026-07-19T00:00:00Z", "payload": {
-                "terminalSessionId": "reconcile-session",
-                "initialCommand": format!("printf RESTORED > {}; exit", marker.display()),
-                "spawnOnCreate": true
-            }
-        }))
-        .unwrap();
-        store.upsert_workspace_tab(tab).await.unwrap();
-    });
-
-    let token = "reconcile-spawn-token";
-    let (_guard, port) = spawn_host(dir.path(), token);
-    let deadline = Instant::now() + Duration::from_secs(10);
-    while !marker.exists() {
-        assert!(
-            Instant::now() < deadline,
-            "persisted command was never executed"
-        );
-        std::thread::sleep(Duration::from_millis(25));
-    }
-    assert_eq!(std::fs::read_to_string(&marker).unwrap(), "RESTORED");
-
-    let (mut writer, mut reader) = connect(port, token);
-    send(
-        &mut writer,
-        json!({"id": 1, "type": "tab.find", "payload": {"id": "reconcile-tab"}}),
-    );
-    assert_eq!(read_response(&mut reader, 1)["payload"], Value::Null);
 }
 
 #[test]

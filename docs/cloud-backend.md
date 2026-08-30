@@ -1,10 +1,10 @@
-# Alera Cloud Identity And Push
+# Alera Cloud Identity, Push And Configuration
 
-This document defines the implemented cloud boundary for Alera accounts and mobile push delivery. Deployment and rotation procedures live in [`cloud-operations.md`](cloud-operations.md).
+This document defines the implemented cloud boundary for Alera accounts, mobile push delivery and manual configuration synchronization. Deployment and rotation procedures live in [`cloud-operations.md`](cloud-operations.md). Configuration documents, revisions, privacy and the additive API are described in [`configuration-sync.md`](configuration-sync.md).
 
 ## Scope
 
-Alera remains local-first. Projects, repositories, prompts, terminal input, terminal output, source code, PTYs, worktree state, and orchestration messages remain on the user's runtime. An Alera account is optional and gates only shared cloud features, beginning with mobile push delivery.
+Alera remains local-first. Projects, repositories, conversation prompts, terminal input, terminal output, source code, PTYs, worktree state, and orchestration messages remain on the user's runtime. An Alera account is optional and gates shared cloud features. Configuration Sync uploads only when requested and can include reusable profile commands and prompts; the backend can read this configuration content.
 
 The first production workload has four components:
 
@@ -55,8 +55,8 @@ The two client kinds receive separate least-privilege scopes:
 
 | Client | Allowed Cloud Roles |
 |---|---|
-| Runtime | Read account, own runtime registration, create mobile enrollment, send runtime push events |
-| Mobile | Read account, register its own FCM token, manage its subscriptions |
+| Runtime | Read account, own runtime registration, create mobile enrollment, send runtime push events, read and publish own-account configuration |
+| Mobile | Read account, register its own FCM token, manage its subscriptions, read and publish own-account configuration |
 
 The desktop Flutter process never owns the refresh token. The runtime stores account metadata in `runtime.sqlite` and stores credentials behind the platform credential boundary, with a private-file fallback where a native keyring is unavailable. The mobile app stores each account session in platform secure storage and can retain more than one Alera account.
 

@@ -43,6 +43,7 @@ use crate::terminal_host::protocol::{
 /// match, so an omission here is invisible and silently leaves every phone on
 /// the older code path with no version to blame.
 pub(super) const MOBILE_HELLO_CAPABILITIES: &[&str] = &[
+    "configurationSyncV1",
     "relayAuthorizationRenewalV1",
     RUNTIME_HOST_CAPABILITY,
     RUNTIME_HOST_MANAGED_WORKSPACE_CAPABILITY,
@@ -156,6 +157,14 @@ pub(super) fn mobile_request_allowed(request_type: &str) -> bool {
             | "tab.find"
             | "tab.rename"
             | "tab.remove"
+            | "configuration.transfer.start"
+            | "configuration.transfer.read"
+            | "configuration.transfer.chunk"
+            | "configuration.transfer.commit"
+            | "configuration.transfer.cancel"
+            | "configuration.snapshot"
+            | "configuration.apply"
+            | "configuration.published"
             | "mobile.runtimeSettings.get"
             | "mobile.runtimeSettings.update"
             | "mobile.cloudEnrollment.create"

@@ -65,6 +65,7 @@ pub fn write_control_file(
         "port": port,
         "token": token,
         "runtimeCapabilities": [
+            "configurationSyncV1",
             RUNTIME_HOST_CAPABILITY,
             RUNTIME_HOST_ACCOUNT_CAPABILITY,
             RUNTIME_HOST_CLOUD_PUSH_CAPABILITY,
@@ -177,6 +178,7 @@ mod tests {
         assert_eq!(
             value["runtimeCapabilities"],
             json!([
+                "configurationSyncV1",
                 RUNTIME_HOST_CAPABILITY,
                 RUNTIME_HOST_ACCOUNT_CAPABILITY,
                 RUNTIME_HOST_CLOUD_PUSH_CAPABILITY,

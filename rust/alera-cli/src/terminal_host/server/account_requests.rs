@@ -16,6 +16,7 @@ use super::{ServerActor, ServerCommand};
 
 #[derive(Debug, Clone, Copy)]
 pub(crate) enum AccountOperation {
+    Configuration,
     SignOut,
     Delete,
     Transfer,
@@ -252,7 +253,7 @@ impl ServerActor {
         });
     }
 
-    fn start_account_operation<F>(
+    pub(super) fn start_account_operation<F>(
         &mut self,
         client_id: u64,
         request_id: i64,

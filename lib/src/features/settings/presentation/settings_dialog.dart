@@ -1,4 +1,5 @@
 import 'package:alera/src/app/providers.dart';
+import 'package:alera/src/features/configuration_sync/presentation/configuration_sync_pane.dart';
 import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/design_system/layout/alera_dialog.dart';
@@ -221,6 +222,20 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
     ];
 
     final sections = <SettingsSectionData>[
+      SettingsSectionData(
+        id: 'configurationSync',
+        title: 'Configuration Sync',
+        description:
+            'Review, download and upload configuration across your devices.',
+        icon: Icons.sync,
+        entries: const [
+          SettingsSearchEntry(
+            title: 'Configuration Sync',
+            keywords: ['sync', 'upload', 'download', 'history', 'merge'],
+          ),
+        ],
+        builder: (_) => const ConfigurationSyncPane(),
+      ),
       SettingsSectionData(
         id: 'account',
         title: 'Account',
