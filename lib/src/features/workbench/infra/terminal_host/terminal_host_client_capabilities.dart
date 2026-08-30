@@ -27,6 +27,7 @@ mixin _RuntimeHostCapabilitySupport
     return switch (capability) {
       aleraRuntimeHostRemoteAiDictationCapability =>
         connection.supportsRemoteAiDictation,
+      aleraRuntimeHostRunBoardCapability => connection.supportsRunBoard,
       _ => false,
     };
   }

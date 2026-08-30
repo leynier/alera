@@ -193,6 +193,11 @@ async fn policy_columns_are_backfilled_on_a_preexisting_database() {
         .await
         .unwrap();
     let pool = store.pool().clone();
+    // The historical fixture predates the Board view and its policy references.
+    sqlx::query("DROP VIEW orchestrationBoardRuns")
+        .execute(&pool)
+        .await
+        .unwrap();
     sqlx::query("DROP TRIGGER orchestrationPolicyProfileUpdateGuard")
         .execute(&pool)
         .await

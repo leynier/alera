@@ -90,6 +90,7 @@ pub const RUNTIME_HOST_AGENT_PROFILE_PROMPT_LAUNCH_CAPABILITY: &str = "agentProf
 // Advertised once runs carry a user-approved execution policy. A run without a
 // policy schedules exactly as before, so this stays a feature check.
 pub const RUNTIME_HOST_RUN_POLICY_CAPABILITY: &str = "orchestrationRunPolicyV1";
+pub const RUNTIME_HOST_ORCHESTRATION_BOARD_CAPABILITY: &str = "orchestrationRunBoardV1";
 // Advertised once terminal.write supports host-sequenced bracketed paste and
 // deferred Enter. Older hosts ignore those fields, so CLI callers must require
 // this capability before relying on --enter or --submit.

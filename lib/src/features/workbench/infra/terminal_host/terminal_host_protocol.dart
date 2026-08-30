@@ -11,6 +11,7 @@ const String aleraRuntimeHostBootstrapCapability = 'sshTargetBootstrap';
 const String aleraRuntimeHostManagedWorkspaceCapability =
     'managedWorkspaceLifecycle';
 const String aleraRuntimeHostOrchestrationCapability = 'orchestration';
+const String aleraRuntimeHostRunBoardCapability = 'orchestrationRunBoardV1';
 const String aleraRuntimeHostAgentCanvasCapability = 'agentCanvasV1';
 const String aleraRuntimeHostAccountCapability = 'aleraAccountV1';
 const String aleraRuntimeHostMobileCloudEnrollmentCapability =
@@ -51,6 +52,7 @@ const String aleraCodexTabKind = 'codex';
 /// and the `alera` CLI keep getting newline-delimited JSON from the same host.
 const String aleraRuntimeHostBinaryFramesCapability = 'binaryFrames';
 const String aleraRuntimeHostConnectedEvent = 'runtimeHostConnected';
+const String aleraRuntimeHostDisconnectedEvent = 'runtimeHostDisconnected';
 const int defaultTerminalHostEmptyShutdownDelaySeconds = 30;
 const int defaultTerminalHostDetachedSessionShutdownDelaySeconds = 60 * 60;
 const int defaultTerminalHostScrollbackBytes = 10 * 1000 * 1000;

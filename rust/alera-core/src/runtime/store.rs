@@ -27,6 +27,7 @@ const RUNTIME_STORE_MAX_CONNECTIONS: u32 = 4;
 #[derive(Clone)]
 pub struct RuntimeStore {
     pool: SqlitePool,
+    pub(super) board_notification_revision: std::sync::Arc<std::sync::atomic::AtomicI64>,
 }
 
 pub struct SshTargetBootstrapStateUpdate<'a> {
@@ -56,8 +57,12 @@ impl RuntimeStore {
             .max_connections(RUNTIME_STORE_MAX_CONNECTIONS)
             .connect_with(options)
             .await?;
-        let store = RuntimeStore { pool };
+        let store = RuntimeStore {
+            pool,
+            board_notification_revision: Default::default(),
+        };
         store.migrate().await?;
+        store.migrate_orchestration_board().await?;
         harden_sqlite_files(&path)?;
         Ok(store)
     }
@@ -1992,6 +1997,10 @@ mod tests {
     #[tokio::test]
     async fn legacy_orchestration_schema_migrates_without_losing_records() {
         let (dir, store) = store().await;
+        sqlx::query("DROP VIEW orchestrationBoardRuns")
+            .execute(store.pool())
+            .await
+            .unwrap();
         for table in [
             "orchestrationAuditEvents",
             "orchestrationDecisionGates",

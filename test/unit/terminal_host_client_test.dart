@@ -16,6 +16,7 @@ part 'terminal_host_client_timeout_cases.dart';
 part 'terminal_host_client_binary_frames_cases.dart';
 part 'terminal_host_client_protocol_mismatch_cases.dart';
 part 'terminal_host_client_runtime_mutation_cases.dart';
+part 'terminal_host_client_run_board_cases.dart';
 part 'terminal_host_test_server.dart';
 
 void main() {
@@ -24,6 +25,7 @@ void main() {
   _registerTerminalHostClientBinaryFrameTests();
   _registerTerminalHostClientProtocolMismatchTests();
   _registerTerminalHostClientRuntimeMutationTests();
+  _registerTerminalHostClientRunBoardTests();
   test('connects through launcher and sends lifecycle requests', () async {
     final tempDir = await Directory.systemTemp.createTemp('alera-host-client-');
     addTearDown(() async {
@@ -1106,44 +1108,6 @@ Future<void> _waitForQueuedLauncherStarts(
     await Future<void>.delayed(const Duration(milliseconds: 1));
   }
   expect(launcher.starts, greaterThanOrEqualTo(expected));
-}
-
-Future<void> _writeControlFile({
-  required Directory tempDir,
-  String fileName = 'host.json',
-  required int port,
-  required String token,
-  int protocolVersion = aleraTerminalHostProtocolVersion,
-  bool includeRuntimeCapability = true,
-  bool includeBootstrapCapability = true,
-  bool includeManagedWorkspaceCapability = true,
-  bool includeOrchestrationCapability = true,
-  bool includeBinaryFramesCapability = false,
-}) async {
-  final runtimeDir = Directory(p.join(tempDir.path, 'terminal_host'));
-  await runtimeDir.create(recursive: true);
-  final payload = <String, Object?>{
-    'protocolVersion': protocolVersion,
-    'port': port,
-    'token': token,
-  };
-  final capabilities = <String>[
-    if (includeRuntimeCapability) ...<String>[
-      aleraRuntimeHostCapability,
-      if (includeBootstrapCapability) aleraRuntimeHostBootstrapCapability,
-      if (includeManagedWorkspaceCapability)
-        aleraRuntimeHostManagedWorkspaceCapability,
-      if (includeOrchestrationCapability)
-        aleraRuntimeHostOrchestrationCapability,
-      if (includeBinaryFramesCapability) aleraRuntimeHostBinaryFramesCapability,
-    ],
-  ];
-  if (capabilities.isNotEmpty) {
-    payload['runtimeCapabilities'] = capabilities;
-  }
-  await File(
-    p.join(runtimeDir.path, fileName),
-  ).writeAsString(jsonEncode(payload));
 }
 
 final class _QueuedTerminalHostLaunch {
