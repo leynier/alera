@@ -355,8 +355,10 @@ class _FakeSettingsController extends SettingsController {
   AleraSettings build() => settings;
 
   @override
-  Future<void> updateTerminal(TerminalSettings next) async {
-    settings = settings.copyWith(terminal: next);
+  Future<void> updateTerminal(
+    TerminalSettings Function(TerminalSettings) edit,
+  ) async {
+    settings = settings.copyWith(terminal: edit(settings.terminal));
     state = settings;
   }
 }

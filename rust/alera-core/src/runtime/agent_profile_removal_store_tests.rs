@@ -33,7 +33,7 @@ fn profile(id: &str, name: &str) -> AgentProfile {
     }
 }
 
-fn automation(profile_id: &str) -> AutomationDefinition {
+pub(super) fn automation(profile_id: &str) -> AutomationDefinition {
     let now = Utc::now();
     let actor = AutomationActor {
         kind: AutomationActorKind::LocalCli,

@@ -61,10 +61,25 @@ abstract final class TextActionsMutations {
     return settings.copyWith(actions: actions);
   }
 
+  static TextActionsSettings moveBefore(
+    TextActionsSettings settings,
+    String actionId,
+    String? beforeId,
+  ) {
+    final actions = [...settings.actions];
+    final index = actions.indexWhere((action) => action.id == actionId);
+    if (index < 0 || actionId == beforeId) return settings;
+    final action = actions.removeAt(index);
+    final destination = actions.indexWhere((action) => action.id == beforeId);
+    actions.insert(destination < 0 ? actions.length : destination, action);
+    return settings.copyWith(actions: actions);
+  }
+
   static TextActionsSettings duplicate(
     TextActionsSettings settings,
     TextAction source, {
     Uuid uuid = const Uuid(),
+    String? cloneId,
   }) {
     final sourceIndex = settings.actions.indexWhere(
       (action) => action.id == source.id,
@@ -73,7 +88,7 @@ abstract final class TextActionsMutations {
       return settings;
     }
     final clone = TextAction(
-      id: uuid.v4(),
+      id: cloneId ?? uuid.v4(),
       name: uniqueCopyName(source.name, settings.actions),
       prompt: source.prompt,
       enabled: source.enabled,

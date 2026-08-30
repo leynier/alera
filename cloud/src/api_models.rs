@@ -63,6 +63,8 @@ impl ClientKind {
         match self {
             Self::Runtime => vec![
                 "account:read".to_owned(),
+                "configuration:read".to_owned(),
+                "configuration:write".to_owned(),
                 "enrollment:write".to_owned(),
                 "push:send".to_owned(),
                 "runtime:write".to_owned(),
@@ -71,6 +73,8 @@ impl ClientKind {
             ],
             Self::Mobile => vec![
                 "account:read".to_owned(),
+                "configuration:read".to_owned(),
+                "configuration:write".to_owned(),
                 "push:register".to_owned(),
                 "subscription:write".to_owned(),
                 "runtime:discover".to_owned(),

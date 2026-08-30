@@ -11,6 +11,7 @@ mod agent_profile_store_helpers;
 #[cfg(test)]
 mod agent_profile_store_tests;
 mod agent_quota_settings_models;
+mod ai_assist_validation;
 mod alera_account_models;
 mod alera_account_store;
 #[cfg(test)]
@@ -32,6 +33,12 @@ mod browser_session_store_tests;
 mod browser_store;
 #[cfg(test)]
 mod browser_store_tests;
+mod configuration_native_settings;
+mod configuration_profiles;
+mod configuration_store;
+#[cfg(test)]
+mod configuration_store_tests;
+mod configuration_validation;
 mod mobile_access_settings_row;
 #[cfg(test)]
 mod mobile_store_tests;
@@ -63,6 +70,7 @@ mod settings_store;
 mod settings_store_tests;
 mod store;
 mod store_error;
+mod text_actions_validation;
 mod workbench_shared_state_models;
 mod workbench_shared_state_store;
 #[cfg(test)]
@@ -77,6 +85,7 @@ pub use agent_canvas_store::{AgentCanvasDecisionInput, AgentCanvasPublishResult}
 pub use agent_profile_launch_receipt_store::*;
 pub use agent_profile_models::*;
 pub use agent_quota_settings_models::*;
+pub use ai_assist_validation::validate_ai_assist_settings;
 pub use alera_account_models::*;
 #[allow(unused_imports)]
 pub use automation_catalog_store::*;
@@ -103,5 +112,6 @@ pub use runtime_file_security::*;
 pub use settings_models::*;
 pub use store::*;
 pub use store_error::*;
+pub use text_actions_validation::{validate_text_actions_settings, AI_ASSIST_AGENTS};
 pub use workbench_shared_state_models::*;
 pub use worktree_setup_models::*;

@@ -8,6 +8,7 @@ import 'package:alera/src/features/ai_assist/application/ai_assist_registry.dart
 import 'package:alera/src/features/ai_assist/application/ai_assist_model_discovery_service.dart';
 import 'package:alera/src/features/ai_assist/domain/ai_assist_settings.dart';
 import 'package:alera/src/features/settings/presentation/panes/ai_assist_setting_rows.dart';
+import 'package:alera/src/features/settings/presentation/panes/ai_assist_custom_command_dialog.dart';
 import 'package:alera/src/features/settings/presentation/rows/settings_rows.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -21,7 +22,7 @@ class AiAssistSettingsPane extends ConsumerStatefulWidget {
   });
 
   final AiAssistSettings settings;
-  final ValueChanged<AiAssistSettings> onChanged;
+  final ValueChanged<AiAssistSettings Function(AiAssistSettings)> onChanged;
   final Map<String, GlobalKey> groupKeys;
 
   @override
@@ -94,8 +95,9 @@ class _AiAssistSettingsPaneState extends ConsumerState<AiAssistSettingsPane> {
                 description:
                     'Generate text for source control, workspaces, and agent conversations.',
                 value: widget.settings.enabled,
-                onChanged: (value) =>
-                    widget.onChanged(settings.copyWith(enabled: value)),
+                onChanged: (value) => widget.onChanged(
+                  (settings) => settings.copyWith(enabled: value),
+                ),
               ),
               SettingsSwitchRow(
                 title: 'Auto-Generate Agent Titles',
@@ -103,13 +105,13 @@ class _AiAssistSettingsPaneState extends ConsumerState<AiAssistSettingsPane> {
                     'Name new agent conversations from their first prompt or recent context.',
                 value: settings.autoGenerateAgentTitles,
                 onChanged: (value) => widget.onChanged(
-                  settings.copyWith(autoGenerateAgentTitles: value),
+                  (settings) =>
+                      settings.copyWith(autoGenerateAgentTitles: value),
                 ),
               ),
               AiAssistAgentRow(
                 value: agent,
-                onChanged: (value) =>
-                    widget.onChanged(_withGlobalAgent(settings, value)),
+                onChanged: (value) => unawaited(_selectAgent(value)),
               ),
               if (agent == AiAssistAgent.custom)
                 SettingsTextRow(
@@ -118,8 +120,9 @@ class _AiAssistSettingsPaneState extends ConsumerState<AiAssistSettingsPane> {
                       'Use {prompt} to pass the prompt as an argument; otherwise Alera sends it on stdin.',
                   value: settings.customCommand,
                   hintText: 'llm --system commit-message',
-                  onChanged: (value) =>
-                      widget.onChanged(settings.copyWith(customCommand: value)),
+                  onChanged: (value) => widget.onChanged(
+                    (settings) => settings.copyWith(customCommand: value),
+                  ),
                 )
               else if (spec != null)
                 AiAssistModelRow(
@@ -132,7 +135,7 @@ class _AiAssistSettingsPaneState extends ConsumerState<AiAssistSettingsPane> {
                   onRefreshModels: canDiscoverModels
                       ? () => unawaited(_discoverModels(agent))
                       : null,
-                  onChanged: (value) {
+                  onChanged: (value) => widget.onChanged((settings) {
                     final selectedModels = <AiAssistAgent, String>{
                       ...settings.selectedModelByAgent,
                     };
@@ -141,10 +144,10 @@ class _AiAssistSettingsPaneState extends ConsumerState<AiAssistSettingsPane> {
                     } else {
                       selectedModels[agent] = value;
                     }
-                    widget.onChanged(
-                      settings.copyWith(selectedModelByAgent: selectedModels),
+                    return settings.copyWith(
+                      selectedModelByAgent: selectedModels,
                     );
-                  },
+                  }),
                 ),
               if (thinkingLevels.isNotEmpty)
                 AiAssistThinkingRow(
@@ -154,7 +157,7 @@ class _AiAssistSettingsPaneState extends ConsumerState<AiAssistSettingsPane> {
                       model.defaultThinkingLevel ??
                       thinkingLevels.first.id,
                   onChanged: (value) => widget.onChanged(
-                    settings.copyWith(
+                    (settings) => settings.copyWith(
                       selectedThinkingByModel: <String, String>{
                         ...settings.selectedThinkingByModel,
                         model.id: value,
@@ -173,8 +176,9 @@ class _AiAssistSettingsPaneState extends ConsumerState<AiAssistSettingsPane> {
                       'Used by prompts that override the global agent with custom command.',
                   value: settings.customCommand,
                   hintText: 'llm --system commit-message',
-                  onChanged: (value) =>
-                      widget.onChanged(settings.copyWith(customCommand: value)),
+                  onChanged: (value) => widget.onChanged(
+                    (settings) => settings.copyWith(customCommand: value),
+                  ),
                 ),
             ],
           ),
@@ -230,7 +234,7 @@ class _AiAssistSettingsPaneState extends ConsumerState<AiAssistSettingsPane> {
             model.defaultThinkingLevel ??
             model.thinkingLevels.first.id,
         onChanged: (value) => widget.onChanged(
-          settings.copyWith(
+          (settings) => settings.copyWith(
             selectedThinkingByOperation:
                 <AiAssistOperation, Map<String, String>>{
                   ...settings.selectedThinkingByOperation,
@@ -254,7 +258,7 @@ class _AiAssistSettingsPaneState extends ConsumerState<AiAssistSettingsPane> {
       title: 'Instructions',
       value: settings.instructionsFor(operation),
       onChanged: (value) => widget.onChanged(
-        settings.copyWith(
+        (settings) => settings.copyWith(
           instructionsByOperation: <AiAssistOperation, String>{
             ...settings.instructionsByOperation,
             operation: value,
@@ -300,22 +304,8 @@ class _AiAssistSettingsPaneState extends ConsumerState<AiAssistSettingsPane> {
             : AiAssistAgent.values,
         allowGlobal: !isReadingDiff || globalSupported,
         allowCustom: operation != AiAssistOperation.speechMessage,
-        onChanged: (agent) {
-          final previousAgent = isReadingDiff
-              ? readingDiffAgentForSettings(settings)
-              : settings.agentFor(operation);
-          final nextAgent = agent ?? settings.agent;
-          _updatePromptSettings(
-            settings,
-            operation,
-            AiAssistPromptSettings(
-              agent: agent,
-              model: !usesReadingDiffFallback && previousAgent == nextAgent
-                  ? promptSettings.model
-                  : null,
-            ),
-          );
-        },
+        onChanged: (agent) =>
+            unawaited(_selectAgent(agent, operation: operation)),
       ),
       if (agent != AiAssistAgent.custom)
         AiAssistPromptModelRow(
@@ -329,18 +319,53 @@ class _AiAssistSettingsPaneState extends ConsumerState<AiAssistSettingsPane> {
           onRefreshModels: spec?.modelsCommand == null
               ? null
               : () => unawaited(_discoverModels(agent)),
-          onChanged: (model) {
-            _updatePromptSettings(
+          onChanged: (model) => widget.onChanged(
+            (settings) => _withPromptSettings(
               settings,
               operation,
               AiAssistPromptSettings(agent: effectivePromptAgent, model: model),
-            );
-          },
+            ),
+          ),
         ),
     ];
   }
 
-  void _updatePromptSettings(
+  Future<void> _selectAgent(
+    AiAssistAgent? agent, {
+    AiAssistOperation? operation,
+  }) async {
+    String? command;
+    if (agent == AiAssistAgent.custom &&
+        widget.settings.customCommand.trim().isEmpty) {
+      command = await showDialog<String>(
+        context: context,
+        builder: (_) => const AiAssistCustomCommandDialog(),
+      );
+      if (!mounted || command == null) return;
+    }
+    widget.onChanged((settings) {
+      if (command != null) settings = settings.copyWith(customCommand: command);
+      if (operation == null) {
+        return _withGlobalAgent(settings, agent!);
+      }
+      final previousAgent = settings.agentFor(operation);
+      final usesFallback =
+          operation == AiAssistOperation.readingDiff &&
+          !supportsDiffOnlyAiAssistAgent(previousAgent);
+      return _withPromptSettings(
+        settings,
+        operation,
+        AiAssistPromptSettings(
+          agent: agent,
+          model: !usesFallback && previousAgent == (agent ?? settings.agent)
+              ? settings.promptSettingsFor(operation).model
+              : null,
+        ),
+      );
+    });
+  }
+
+  AiAssistSettings _withPromptSettings(
     AiAssistSettings settings,
     AiAssistOperation operation,
     AiAssistPromptSettings promptSettings,
@@ -353,7 +378,7 @@ class _AiAssistSettingsPaneState extends ConsumerState<AiAssistSettingsPane> {
     } else {
       updated[operation] = promptSettings;
     }
-    widget.onChanged(settings.copyWith(promptSettingsByOperation: updated));
+    return settings.copyWith(promptSettingsByOperation: updated);
   }
 
   AiAssistSettings _withGlobalAgent(
@@ -424,17 +449,16 @@ class _AiAssistSettingsPaneState extends ConsumerState<AiAssistSettingsPane> {
       });
       return;
     }
-    final latest = widget.settings;
-    final discoveredDefaults = <AiAssistAgent, String>{
-      ...latest.discoveredDefaultModelByAgent,
-    };
-    if (result.defaultModelId == null) {
-      discoveredDefaults.remove(agent);
-    } else {
-      discoveredDefaults[agent] = result.defaultModelId!;
-    }
-    widget.onChanged(
-      latest.copyWith(
+    widget.onChanged((latest) {
+      final discoveredDefaults = <AiAssistAgent, String>{
+        ...latest.discoveredDefaultModelByAgent,
+      };
+      if (result.defaultModelId == null) {
+        discoveredDefaults.remove(agent);
+      } else {
+        discoveredDefaults[agent] = result.defaultModelId!;
+      }
+      return latest.copyWith(
         discoveredModelsByAgent: <AiAssistAgent, List<AiAssistDiscoveredModel>>{
           ...latest.discoveredModelsByAgent,
           agent: <AiAssistDiscoveredModel>[
@@ -442,8 +466,8 @@ class _AiAssistSettingsPaneState extends ConsumerState<AiAssistSettingsPane> {
           ],
         },
         discoveredDefaultModelByAgent: discoveredDefaults,
-      ),
-    );
+      );
+    });
     setState(() {
       _discovery[agent] = const _AiAssistModelDiscoveryState();
     });
