@@ -67,6 +67,8 @@ jobs:
       - name: Capture native typography at three scales
         shell: bash
         env:
+          # Flutter's test launcher expects the default development binary.
+          ALERA_FLAVOR: dev
           PLATFORM: ${{ matrix.platform }}
           ALERA_VISUAL_REVIEW_DIR: ${{ github.workspace }}/build/typography-review
         run: |
@@ -87,6 +89,8 @@ jobs:
 
       - name: Verify macOS startup and desktop presence
         if: matrix.platform == 'macos'
+        env:
+          ALERA_FLAVOR: dev
         run: flutter test integration_test/desktop_presence_macos_test.dart -d macos --reporter expanded
 
       - name: Verify Windows single-instance runner
