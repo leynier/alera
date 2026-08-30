@@ -58,7 +58,7 @@ class MobileCloudSignIn {
           query['error_description'] ?? 'Sign-in was cancelled.',
         );
       }
-      return api.exchangeMobileAuth(
+      return await api.exchangeMobileAuth(
         transactionId: transaction.transactionId,
         state: transaction.state,
         code: code,

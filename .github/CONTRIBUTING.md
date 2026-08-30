@@ -11,7 +11,9 @@ Thanks for contributing to Alera.
 
 ## Local Setup
 
-All platforms require Flutter 3.44.8 or newer with Dart 3.12.1 or newer, Git, Rustup, and Zig 0.16.0. CI is pinned to Flutter 3.44.8. Run `make init-submodules` to initialize only the two source dependencies required by the Flutter package; the optional repositories under `reference_projects/` are not part of the build.
+All platforms require Flutter 3.47.2 or newer with Dart 3.13.2 or newer, Git, Rustup, and Zig 0.16.0. CI is pinned to Flutter 3.47.2. Run `make init-submodules` to initialize only the two source dependencies required by the Flutter package; the optional repositories under `reference_projects/` are not part of the build.
+
+The applications intentionally retain Dart language version 3.12 through their existing Dart SDK lower bounds. Run `flutter pub get` before formatting so the formatter reads the resolved package language version; using the latest language version explicitly would introduce an unrelated syntax and formatting migration.
 
 ### Windows
 

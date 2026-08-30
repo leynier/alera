@@ -26,31 +26,23 @@ void main() {
       expect(file.statSync().mode & 0xFFF, posixExecutableFileMode);
     }, skip: Platform.isWindows);
 
-    test(
-      'reports failure instead of throwing for a missing path',
-      () {
-        final directory = Directory.systemTemp.createTempSync(
-          'alera-posix-file-mode-missing',
-        );
-        addTearDown(() => directory.deleteSync(recursive: true));
+    test('reports failure instead of throwing for a missing path', () {
+      final directory = Directory.systemTemp.createTempSync(
+        'alera-posix-file-mode-missing',
+      );
+      addTearDown(() => directory.deleteSync(recursive: true));
 
-        expect(
-          setPosixFileMode(
-            p.join(directory.path, 'absent.sh'),
-            posixExecutableFileMode,
-          ),
-          isFalse,
-        );
-      },
-      skip: Platform.isWindows,
-    );
+      expect(
+        setPosixFileMode(
+          p.join(directory.path, 'absent.sh'),
+          posixExecutableFileMode,
+        ),
+        isFalse,
+      );
+    }, skip: Platform.isWindows);
 
-    test(
-      'reports failure on Windows without resolving the symbol',
-      () {
-        expect(setPosixFileMode(r'C:\Windows\notepad.exe', 493), isFalse);
-      },
-      skip: !Platform.isWindows,
-    );
+    test('reports failure on Windows without resolving the symbol', () {
+      expect(setPosixFileMode(r'C:\Windows\notepad.exe', 493), isFalse);
+    }, skip: !Platform.isWindows);
   });
 }

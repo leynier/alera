@@ -1,0 +1,41 @@
+# Flutter 3.47 Upgrade
+
+## Scope
+
+Desktop and mobile use Flutter 3.47.2 / Dart 3.13.2 while retaining Dart language 3.12 through their existing SDK lower bounds. The shared CI action pins the exact Flutter version. This migration does not change protocols, storage schemas, distribution, platform minimums, Rust/Zig toolchains, FRB 2.12.0, or terminal forks.
+
+## Compatibility Decisions
+
+- Keep the new desktop renderer defaults. Validate performance and real text separately from goldens, which obscure text.
+- Preserve resource fingerprint timestamps at millisecond precision, serialized as microseconds. Tests use hashes captured with Dart 3.12.2 and verify legacy markers, changed sources, and unmanaged resources.
+- Adapt `AleraPreview` to the new abstract `PreviewThemeData.apply` API while retaining the dark theme and Inter typography.
+- Move the existing Riverpod lint plugin to the supported top-level analyzer plugin configuration, pinned to the existing 3.1.4 version. Do not suppress its warnings.
+- Await asynchronous work inside `try` blocks so errors reach the intended handlers and temporary files remain available until readers finish.
+- Retain Android AGP 8.13.2, Gradle 8.14.3, Kotlin 2.3.20, Java 17, and the current Apple dependency integration.
+- Resolve from existing lockfiles. Only `matcher`, `meta`, `test`, `test_api`, `test_core`, and `vector_math` changed to satisfy the new SDK. Generator versions and inputs did not change, so generated bindings were not regenerated.
+- Keep analyzer exclusions for submodules, native scaffolding, and mobile; retain Flutter's added exclusions for build output and native platform directories.
+
+## Validation Record
+
+Baseline: Flutter 3.44.8 / Dart 3.12.2 in an isolated Puro environment, without changing the global SDK. Desktop analysis and 3,374 tests passed (one skipped); mobile analysis and 598 tests passed. Baseline terminal restoration completed all five measured replays within the existing three-second target, with a 2,043.98 ms median.
+
+Flutter 3.47.2: desktop analysis passes with the modern Riverpod plugin. Mobile analysis and 599 tests pass. The local browser package passes analysis and all 22 tests. The file-length ratchet passes without increasing its baseline.
+
+Seven golden changes were inspected before regeneration: four desktop snapshots (375, 570, 808, and 2,997 differing pixels) and three mobile snapshots (38, 228, and 228 differing pixels). Differences affect border rasterization, with no content or layout displacement. Text rendering still requires separate native review.
+
+Full desktop regression, native builds, performance comparison, and native visual/behavior checks are in progress. The PR must remain unmerged and unpublished while required validation is outstanding.
+
+## Reproduction
+
+Run the format, analysis, test, and native build commands documented in [Testing](testing.md). `Mobile Builds` adds Android release builds with the existing debug-signing fallback, native-library verification, unsigned iOS release builds, and iOS simulator builds. `Desktop Builds` remains the existing three-platform release build workflow. Neither workflow distributes an app.
+
+Run the terminal render and flush-cadence benchmarks five times per SDK on the same machine, and run the restore benchmark, which contains five measured replays. Use the commands and measurement boundaries in [Performance](performance.md). Investigate reproducible median CPU or latency regressions above 10%; do not relax the restore target.
+
+## Sources
+
+- [Flutter 3.47 release notes](https://flutter.dev/blog/whats-new-in-flutter-3-47)
+- [Flutter breaking changes](https://docs.flutter.dev/release/breaking-changes)
+- [Flutter 3.47.2 release](https://github.com/flutter/flutter/releases/tag/3.47.2)
+- [Dart changelog](https://dart.dev/changelog)
+- [Analyzer plugins](https://dart.dev/tools/analyzer-plugins)
+- [PreviewThemeData API](https://api.flutter.dev/flutter/widget_previews/PreviewThemeData-class.html)

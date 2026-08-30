@@ -8,8 +8,15 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 /// top-level function so it can be referenced as a `const` tear-off from the
 /// [AleraPreview] annotation (the previewer rejects private or instance
 /// callbacks).
-PreviewThemeData aleraPreviewTheme() =>
-    PreviewThemeData(materialDark: buildAleraMobileDarkTheme());
+PreviewThemeData aleraPreviewTheme() => const _AleraPreviewTheme();
+
+final class _AleraPreviewTheme extends PreviewThemeData {
+  const _AleraPreviewTheme();
+
+  @override
+  Widget apply(BuildContext context, Widget child) =>
+      Theme(data: buildAleraMobileDarkTheme(), child: child);
+}
 
 /// Wraps a previewed component in the same ambient scaffolding the real app
 /// provides: a [ProviderScope] for Riverpod reads and the global background so

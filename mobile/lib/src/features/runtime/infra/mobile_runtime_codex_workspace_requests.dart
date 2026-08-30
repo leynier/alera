@@ -174,14 +174,12 @@ mixin MobileRuntimeCodexWorkspaceRequests {
               ? start + maxPromptFileChunkBytes
               : bytes.length;
           final chunk = bytes.sublist(start, end);
-          final response = await requestMap(
-            'mobile.promptFile.chunk',
-            <String, Object?>{
-              'uploadId': uploadId,
-              'offset': offset,
-              'dataBase64': base64Encode(chunk),
-            },
-          );
+          final response =
+              await requestMap('mobile.promptFile.chunk', <String, Object?>{
+                'uploadId': uploadId,
+                'offset': offset,
+                'dataBase64': base64Encode(chunk),
+              });
           offset = response['nextOffset']! as int;
           start = end;
         }

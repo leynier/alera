@@ -9,9 +9,10 @@
 # packages, and plugins designed to encourage good coding practices.
 include: package:flutter_lints/flutter.yaml
 
+plugins:
+  riverpod_lint: 3.1.4
+
 analyzer:
-  plugins:
-    - riverpod_lint
   exclude:
     - third_party/**
     # Reference-only submodules are intentionally not part of the Alera package.
@@ -22,6 +23,10 @@ analyzer:
     # The Android/iOS companion lives in its own Flutter package and is
     # validated by the mobile CI job with its own package_config.
     - mobile/**
+    - build/**
+    - windows/**
+    - macos/**
+    - linux/**
 
 linter:
   # The lint rules applied to this project can be customized in the
