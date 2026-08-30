@@ -4,17 +4,13 @@ import 'package:alera/src/features/settings/presentation/panes/alera_skill_termi
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-class AleraComputerUseSkillControl extends ConsumerWidget {
-  const AleraComputerUseSkillControl({super.key});
-
+class const AleraComputerUseSkillControl({super.key}) extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return AleraSkillTerminalInstallControl(
       dialogTitle: 'Install Computer Use Skill',
-      commandFor: (runner) => aleraCliSkillInstallCommand(
-        runner: runner,
-        skill: AleraAgentSkill.computerUse,
-      ),
+      commandFor: (runner) =>
+          aleraCliSkillInstallCommand(runner: runner, skill: .computerUse),
       runCommand: (context, request) =>
           showCommandTerminalDialog(context, ref, request),
     );

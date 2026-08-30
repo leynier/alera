@@ -73,12 +73,11 @@ void main() {
   });
 
   test('refreshes helper hashes before sealing and re-verifies the app', () {
-    final macosSigning = File(
-      'tool/release/sign_macos.sh',
-    ).readAsStringSync().replaceAll('\r\n', '\n');
-    final release = File(
-      '.github/workflows/release-cut.yml',
-    ).readAsStringSync();
+    final macosSigning = File('tool/release/sign_macos.sh')
+        .readAsStringSync()
+        .replaceAll('\r\n', '\n');
+    final release = File('.github/workflows/release-cut.yml')
+        .readAsStringSync();
     final helperSigning = macosSigning.indexOf(
       'sign_macho_files "\$app_path/Contents/Resources/alera"',
     );
@@ -100,14 +99,12 @@ void main() {
   });
 }
 
-final class _SigningFixture {
-  _SigningFixture({
-    required this.root,
-    required this.output,
-    required this.manifest,
-    required this.payload,
-  });
-
+final class _SigningFixture({
+  required final Directory root,
+  required final Directory output,
+  required final NativeHelperManifest manifest,
+  required final File payload,
+}) {
   static Future<_SigningFixture> create({
     required Map<String, Object?> manifestJson,
     required List<int> initialPayload,
@@ -127,12 +124,10 @@ final class _SigningFixture {
     File(p.join(output.path, 'NOTICE.md')).writeAsStringSync('Notices.\n');
     final licenses = Directory(p.join(output.path, 'licenses'))
       ..createSync(recursive: true);
-    File(
-      p.join(licenses.path, 'Apache-2.0.txt'),
-    ).writeAsStringSync('Apache license.\n');
-    File(
-      p.join(licenses.path, 'BSD-3-Clause.txt'),
-    ).writeAsStringSync('BSD license.\n');
+    File(p.join(licenses.path, 'Apache-2.0.txt'))
+        .writeAsStringSync('Apache license.\n');
+    File(p.join(licenses.path, 'BSD-3-Clause.txt'))
+        .writeAsStringSync('BSD license.\n');
     return _SigningFixture(
       root: root,
       output: output,
@@ -141,17 +136,10 @@ final class _SigningFixture {
     );
   }
 
-  final Directory root;
-  final Directory output;
-  final NativeHelperManifest manifest;
-  final File payload;
-
   String get generatedSha256 {
-    final generated =
-        jsonDecode(
-              File(p.join(output.path, 'manifest.json')).readAsStringSync(),
-            )
-            as Map<String, Object?>;
+    final generated = jsonDecode(
+      File(p.join(output.path, 'manifest.json')).readAsStringSync(),
+    ) as Map<String, Object?>;
     final assets = generated['assets']! as List<Object?>;
     return (assets.single! as Map<String, Object?>)['sha256']! as String;
   }

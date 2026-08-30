@@ -12,9 +12,7 @@ import 'package:alera/src/features/settings/presentation/panes/remote_host_targe
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-class RemoteHostSettingsPane extends ConsumerStatefulWidget {
-  const RemoteHostSettingsPane({super.key});
-
+class const RemoteHostSettingsPane({super.key}) extends ConsumerStatefulWidget {
   @override
   ConsumerState<RemoteHostSettingsPane> createState() =>
       _RemoteHostSettingsPaneState();
@@ -33,7 +31,7 @@ class _RemoteHostSettingsPaneState
   bool _creatingNew = false;
   String _platform = '';
   String _arch = '';
-  SshAuthKind _authKind = SshAuthKind.agent;
+  SshAuthKind _authKind = .agent;
   String? _error;
   SshTargetBootstrapPlan? _plan;
   SshTargetBootstrapProgress? _progress;
@@ -102,7 +100,7 @@ class _RemoteHostSettingsPaneState
                 )
               : SingleChildScrollView(
                   child: AleraPanel(
-                    clipBehavior: Clip.antiAlias,
+                    clipBehavior: .antiAlias,
                     children: <Widget>[
                       for (final target in targets)
                         RemoteHostListRow(

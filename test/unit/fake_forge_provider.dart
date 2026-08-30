@@ -17,8 +17,8 @@ import 'package:alera/src/features/pull_requests/domain/update_review_result.dar
 /// Configurable in-memory [ForgeProvider] shared by the pull-request
 /// controller suites.
 class FakeForgeProvider implements ForgeProvider {
-  GitHostingProvider provider = GitHostingProvider.github;
-  ForgeAuthStatus auth = ForgeAuthStatus.authenticated;
+  GitHostingProvider provider = .github;
+  ForgeAuthStatus auth = .authenticated;
   HostedReview? branchReview;
   Future<HostedReview?> Function()? branchReviewLoader;
   int branchReviewCalls = 0;
@@ -28,7 +28,7 @@ class FakeForgeProvider implements ForgeProvider {
   Future<List<ReviewCheck>> Function()? checksLoader;
   int checksCalls = 0;
   CreateReviewResult createResult = const CreateReviewFailure(
-    code: CreateReviewErrorCode.unknown,
+    code: .unknown,
     message: 'not set',
   );
   int createCalls = 0;
@@ -37,7 +37,7 @@ class FakeForgeProvider implements ForgeProvider {
   ReviewCheck? lastDetailsCheck;
   int lastDetailsNumber = -1;
   UpdateReviewResult updateResult = const UpdateReviewFailure(
-    code: UpdateReviewErrorCode.unknown,
+    code: .unknown,
     message: 'not set',
   );
   UpdateReviewInput? lastUpdateInput;
@@ -170,8 +170,8 @@ class FakeForgeProvider implements ForgeProvider {
         id: 'new-$addCommentCalls',
         author: 'me',
         body: body,
-        createdAt: DateTime.utc(2026, 7, 16),
-        kind: ReviewCommentKind.conversation,
+        createdAt: .utc(2026, 7, 16),
+        kind: .conversation,
       ),
     ];
   }
@@ -251,7 +251,7 @@ class FakeForgeProvider implements ForgeProvider {
     if (error != null) {
       throw error;
     }
-    _setReviewState(number, HostedReviewState.merged);
+    _setReviewState(number, .merged);
   }
 
   @override
@@ -265,7 +265,7 @@ class FakeForgeProvider implements ForgeProvider {
     if (error != null) {
       throw error;
     }
-    _setReviewState(number, HostedReviewState.closed);
+    _setReviewState(number, .closed);
   }
 
   @override

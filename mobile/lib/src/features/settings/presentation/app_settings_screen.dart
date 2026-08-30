@@ -10,9 +10,7 @@ import 'package:flutter/material.dart';
 
 /// App-scoped settings (this phone). Host-portable settings stay under
 /// [HostSettingsScreen].
-class AppSettingsScreen extends StatelessWidget {
-  const AppSettingsScreen({super.key});
-
+class const AppSettingsScreen({super.key}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -120,7 +118,7 @@ class AppSettingsScreen extends StatelessWidget {
               child: Padding(
                 padding: AleraTokens.contentPadding,
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                  crossAxisAlignment: .start,
                   children: <Widget>[
                     Text(
                       'Alera',
@@ -129,16 +127,14 @@ class AppSettingsScreen extends StatelessWidget {
                     const SizedBox(height: AleraTokens.spaceXs),
                     Text(
                       'Mobile Companion',
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: AleraTokens.foregroundMuted,
-                      ),
+                      style: Theme.of(context).textTheme.bodyMedium
+                          ?.copyWith(color: AleraTokens.foregroundMuted),
                     ),
                     const SizedBox(height: AleraTokens.spaceSm),
                     Text(
                       'Pair with desktop hosts to manage workspaces, terminals, and agent quotas from this phone.',
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: AleraTokens.foregroundMuted,
-                      ),
+                      style: Theme.of(context).textTheme.bodySmall
+                          ?.copyWith(color: AleraTokens.foregroundMuted),
                     ),
                   ],
                 ),

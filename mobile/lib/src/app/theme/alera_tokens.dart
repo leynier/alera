@@ -80,7 +80,7 @@ abstract final class AleraTokens {
   static const TextStyle monoStyle = TextStyle(
     fontFamily: 'JetBrains Mono',
     fontSize: 12,
-    fontWeight: FontWeight.w400,
+    fontWeight: .w400,
     color: foregroundMuted,
   );
 
@@ -129,6 +129,6 @@ abstract final class AleraTokens {
   static const String fontFamily = 'Inter';
   static const String monoFontFamily = 'JetBrains Mono';
 
-  static const EdgeInsets pagePadding = EdgeInsets.all(space16);
-  static const EdgeInsets contentPadding = EdgeInsets.all(space16);
+  static const EdgeInsets pagePadding = .all(space16);
+  static const EdgeInsets contentPadding = .all(space16);
 }

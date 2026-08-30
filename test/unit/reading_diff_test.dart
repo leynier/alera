@@ -25,11 +25,7 @@ void main() {
       defaultThinkingLevel: 'medium',
     );
     expect(
-      effectiveReadingDiffEffort(
-        AiAssistSettings.defaults,
-        AiAssistOperation.readingDiff,
-        model,
-      ),
+      effectiveReadingDiffEffort(.defaults, .readingDiff, model),
       'medium',
     );
     expect(
@@ -39,7 +35,7 @@ void main() {
             AiAssistOperation.readingDiff: <String, String>{'model': 'high'},
           },
         ),
-        AiAssistOperation.readingDiff,
+        .readingDiff,
         model,
       ),
       'high',
@@ -60,10 +56,7 @@ void main() {
 
       await expectLater(
         service.prepare(
-          ReadingDiffRequest(
-            workspacePath: '/repo',
-            settings: AiAssistSettings.defaults,
-          ),
+          ReadingDiffRequest(workspacePath: '/repo', settings: .defaults),
         ),
         throwsA(
           isA<AiAssistException>().having(
@@ -78,14 +71,14 @@ void main() {
 
   test('reading diff models expose preparation and cached result state', () {
     final compiler = rust.ReadingDiffPreparation(
-      rawBytes: BigInt.from(42),
+      rawBytes: .from(42),
       schemaVersion: 1,
       rubricVersion: 'reading-diff-rubric-v1',
       planSchema: '{}',
       chunks: <rust.ReadingDiffChunk>[
         rust.ReadingDiffChunk(
           index: 0,
-          rawDiff: Uint8List.fromList(<int>[1]),
+          rawDiff: .fromList(<int>[1]),
           numberedDiff: '1|diff --git a/a b/a',
           continuationPreamble: Uint8List(0),
         ),
@@ -93,18 +86,18 @@ void main() {
     );
     final request = ReadingDiffRequest(
       workspacePath: '/repo',
-      settings: AiAssistSettings.defaults,
+      settings: .defaults,
       baseRef: 'main',
       ignoreCache: true,
     );
     final preparation = ReadingDiffPreparation(
       request: request,
-      rawDiff: Uint8List.fromList(<int>[1]),
+      rawDiff: .fromList(<int>[1]),
       compiler: compiler,
-      agent: AiAssistAgent.codex,
+      agent: .codex,
       model: 'agent-model',
       effort: 'medium',
-      accessPolicy: AgentTaskAccessPolicy.diffOnly,
+      accessPolicy: .diffOnly,
       cacheKey: 'key',
     );
     expect(preparation.rawBytes, 42);
@@ -113,7 +106,7 @@ void main() {
     expect(request.ignoreCache, isTrue);
 
     final result = ReadingDiffResult(
-      diff: Uint8List.fromList(<int>[1, 2]),
+      diff: .fromList(<int>[1, 2]),
       summary: 'Focus the behavioral change.',
       changedLines: 4,
       retainedChangedLines: 1,
@@ -144,24 +137,24 @@ void main() {
 
   test('reading diff progress reports lifecycle labels and fractions', () {
     const preparing = ReadingDiffGenerationProgress(
-      stage: ReadingDiffGenerationStage.preparing,
+      stage: .preparing,
       completedChunks: 0,
       totalChunks: 0,
     );
     const generating = ReadingDiffGenerationProgress(
-      stage: ReadingDiffGenerationStage.generating,
+      stage: .generating,
       completedChunks: 1,
       totalChunks: 4,
       currentChunk: 2,
     );
     const repairing = ReadingDiffGenerationProgress(
-      stage: ReadingDiffGenerationStage.repairing,
+      stage: .repairing,
       completedChunks: 1,
       totalChunks: 4,
       currentChunk: 2,
     );
     const combining = ReadingDiffGenerationProgress(
-      stage: ReadingDiffGenerationStage.combining,
+      stage: .combining,
       completedChunks: 4,
       totalChunks: 4,
     );
@@ -189,7 +182,7 @@ void main() {
       Future<String> key(String command) => buildReadingDiffCacheKey(
         rubricVersion: 'rubric-v1',
         schemaVersion: 1,
-        agent: AiAssistAgent.custom,
+        agent: .custom,
         model: 'custom',
         effort: null,
         instructions: '',
@@ -212,7 +205,7 @@ void main() {
     'reading diff prompts preserve immutable coordinates and repair data',
     () async {
       final preparation = rust.ReadingDiffPreparation(
-        rawBytes: BigInt.from(20),
+        rawBytes: .from(20),
         schemaVersion: 1,
         rubricVersion: 'rubric-v1',
         planSchema: '{}',
@@ -220,7 +213,7 @@ void main() {
       );
       final chunk = rust.ReadingDiffChunk(
         index: 0,
-        rawDiff: Uint8List.fromList(<int>[1]),
+        rawDiff: .fromList(<int>[1]),
         numberedDiff: '1|diff --git a/a b/a',
         continuationPreamble: Uint8List(0),
       );
@@ -284,7 +277,7 @@ void main() {
         directoryProvider: () async => directory,
       );
       ReadingDiffResult result(String summary) => ReadingDiffResult(
-        diff: Uint8List.fromList(<int>[0, 255, 10]),
+        diff: .fromList(<int>[0, 255, 10]),
         summary: summary,
         changedLines: 3,
         retainedChangedLines: 2,
@@ -325,18 +318,17 @@ void main() {
       '${directory.path}${Platform.pathSeparator}reading-diffs',
     );
     await cacheDirectory.create(recursive: true);
-    await File(
-      '${cacheDirectory.path}${Platform.pathSeparator}legacy.json',
-    ).writeAsString(
-      jsonEncode(<String, Object>{
-        'version': 1,
-        'diff': base64Encode(<int>[1, 2, 3]),
-        'summary': 'Legacy result.',
-        'changedLines': 2,
-        'retainedChangedLines': 1,
-        'agentLabel': 'Codex',
-      }),
-    );
+    await File('${cacheDirectory.path}${Platform.pathSeparator}legacy.json')
+        .writeAsString(
+          jsonEncode(<String, Object>{
+            'version': 1,
+            'diff': base64Encode(<int>[1, 2, 3]),
+            'summary': 'Legacy result.',
+            'changedLines': 2,
+            'retainedChangedLines': 1,
+            'agentLabel': 'Codex',
+          }),
+        );
     final cache = FileReadingDiffCache(
       directoryProvider: () async => directory,
     );
@@ -360,7 +352,7 @@ void main() {
       maxEntries: 2,
     );
     ReadingDiffResult result(String summary) => ReadingDiffResult(
-      diff: Uint8List.fromList(<int>[1, 2, 3]),
+      diff: .fromList(<int>[1, 2, 3]),
       summary: summary,
       changedLines: 2,
       retainedChangedLines: 1,
@@ -380,7 +372,7 @@ void main() {
     'best-effort cache persistence does not lose generated output',
     () async {
       final result = ReadingDiffResult(
-        diff: Uint8List.fromList(<int>[1, 2, 3]),
+        diff: .fromList(<int>[1, 2, 3]),
         summary: 'Generated successfully.',
         changedLines: 2,
         retainedChangedLines: 1,
@@ -395,9 +387,7 @@ void main() {
   );
 }
 
-class _FailingReadingDiffCache implements ReadingDiffCache {
-  const _FailingReadingDiffCache();
-
+class const _FailingReadingDiffCache() implements ReadingDiffCache {
   @override
   Future<ReadingDiffResult?> read(String key) async => null;
 

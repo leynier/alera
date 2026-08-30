@@ -5,16 +5,11 @@ import 'package:flutter/widgets.dart';
 import 'browser_client.dart';
 
 /// Flutter surface for a page owned by [AleraBrowserClient].
-final class AleraBrowserView extends StatefulWidget {
-  const AleraBrowserView({
-    required this.client,
-    required this.pageId,
-    super.key,
-  });
-
-  final AleraBrowserClient client;
-  final String pageId;
-
+final class const AleraBrowserView({
+  required final AleraBrowserClient client,
+  required final String pageId,
+  super.key,
+}) extends StatefulWidget {
   @override
   State<AleraBrowserView> createState() => _AleraBrowserViewState();
 }

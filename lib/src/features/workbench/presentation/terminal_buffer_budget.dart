@@ -32,16 +32,11 @@ int measureTerminalCellBufferBytes(xterm.Terminal terminal) {
 }
 
 /// What one live terminal costs and when it was last on screen.
-class TerminalBufferUsage {
-  const TerminalBufferUsage({
-    required this.tabId,
-    required this.bytes,
-    required this.lastVisibleAt,
-  });
-
-  final String tabId;
-  final int bytes;
-
+class const TerminalBufferUsage({
+  required final String tabId,
+  required final int bytes,
+  required this.lastVisibleAt,
+}) {
   /// Null for a handle that has never been visible, which makes it the first
   /// candidate: nobody is looking at it and nobody was.
   final DateTime? lastVisibleAt;
@@ -53,9 +48,7 @@ class TerminalBufferUsage {
 /// that terminal keeps running on the host and its scrollback is restored from
 /// the host snapshot on return. That is what makes a memory ceiling affordable
 /// at all.
-class TerminalBufferBudget {
-  const TerminalBufferBudget({required this.budgetBytes});
-
+class const TerminalBufferBudget({required this.budgetBytes}) {
   /// Zero or negative means unbounded, matching the "no limit" setting.
   final int budgetBytes;
 

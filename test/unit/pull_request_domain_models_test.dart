@@ -8,7 +8,7 @@ import 'package:flutter_test/flutter_test.dart';
 void main() {
   test('constructs create review input with defaults', () {
     final input = CreateReviewInput(
-      provider: GitHostingProvider.github,
+      provider: .github,
       title: 'feat: coverage',
       baseBranch: 'main',
       headBranch: 'feature',
@@ -24,25 +24,25 @@ void main() {
 
   test('round-trips mapped pull request domain models', () {
     const identity = GitRemoteIdentity(
-      provider: GitHostingProvider.azureDevops,
+      provider: .azureDevops,
       host: 'dev.azure.com',
       owner: 'org',
       repo: 'repo',
       project: 'project',
     );
     final review = HostedReview(
-      provider: GitHostingProvider.github,
+      provider: .github,
       number: 42,
       title: 'Coverage',
-      state: HostedReviewState.open,
+      state: .open,
       url: 'https://example.test/pull/42',
-      createdAt: DateTime.utc(2026, 7, 16),
-      mergeable: HostedReviewMergeable.mergeable,
+      createdAt: .utc(2026, 7, 16),
+      mergeable: .mergeable,
     );
     const check = ReviewCheck(
       name: 'flutter',
-      status: ReviewCheckStatus.completed,
-      conclusion: ReviewCheckConclusion.success,
+      status: .completed,
+      conclusion: .success,
       url: 'https://example.test/check',
     );
 
@@ -50,24 +50,24 @@ void main() {
     expect(HostedReview.fromJson(review.toMap()), review);
     expect(ReviewCheck.fromJson(check.toMap()), check);
     expect(review.isOpen, isTrue);
-    expect(review.copyWith(state: HostedReviewState.draft).isOpen, isTrue);
-    expect(review.copyWith(state: HostedReviewState.closed).isOpen, isFalse);
+    expect(review.copyWith(state: .draft).isOpen, isTrue);
+    expect(review.copyWith(state: .closed).isOpen, isFalse);
   });
 
   test('picks the newest review with number as a missing-date fallback', () {
     final datedOlder = HostedReview(
-      provider: GitHostingProvider.github,
+      provider: .github,
       number: 40,
       title: 'Dated',
-      state: HostedReviewState.open,
+      state: .open,
       url: 'https://example.test/pull/40',
-      createdAt: DateTime.utc(2026, 7, 15),
+      createdAt: .utc(2026, 7, 15),
     );
     const undatedNewerNumber = HostedReview(
-      provider: GitHostingProvider.github,
+      provider: .github,
       number: 41,
       title: 'Undated',
-      state: HostedReviewState.open,
+      state: .open,
       url: 'https://example.test/pull/41',
     );
 

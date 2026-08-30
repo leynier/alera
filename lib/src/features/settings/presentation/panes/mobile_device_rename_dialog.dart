@@ -5,11 +5,10 @@ import 'package:alera/src/design_system/layout/alera_dialog_header.dart';
 import 'package:flutter/material.dart';
 
 /// Prompts for a new mobile device display name; pops with the entered name.
-class MobileDeviceRenameDialog extends StatefulWidget {
-  const MobileDeviceRenameDialog({super.key, required this.initialName});
-
-  final String initialName;
-
+class const MobileDeviceRenameDialog({
+  super.key,
+  required final String initialName,
+}) extends StatefulWidget {
   @override
   State<MobileDeviceRenameDialog> createState() =>
       _MobileDeviceRenameDialogState();
@@ -45,8 +44,8 @@ class _MobileDeviceRenameDialogState extends State<MobileDeviceRenameDialog> {
       child: Padding(
         padding: const EdgeInsets.all(AleraTokens.space20),
         child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
+          mainAxisSize: .min,
+          crossAxisAlignment: .stretch,
           children: <Widget>[
             AleraDialogHeader(
               title: 'Rename Device',

@@ -1,18 +1,12 @@
 import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:flutter/material.dart';
 
-class SidebarResizeHandle extends StatefulWidget {
-  const SidebarResizeHandle({
-    super.key,
-    required this.currentWidth,
-    required this.onResize,
-    this.onResizeEnd,
-  });
-
-  final double currentWidth;
-  final ValueChanged<double> onResize;
-  final ValueChanged<double>? onResizeEnd;
-
+class const SidebarResizeHandle({
+  super.key,
+  required final double currentWidth,
+  required final ValueChanged<double> onResize,
+  final ValueChanged<double>? onResizeEnd,
+}) extends StatefulWidget {
   @override
   State<SidebarResizeHandle> createState() => _SidebarResizeHandleState();
 }
@@ -30,7 +24,7 @@ class _SidebarResizeHandleState extends State<SidebarResizeHandle> {
       onEnter: (_) => setState(() => _hovered = true),
       onExit: (_) => setState(() => _hovered = false),
       child: GestureDetector(
-        behavior: HitTestBehavior.translucent,
+        behavior: .translucent,
         onHorizontalDragStart: (_) {
           _dragWidth = widget.currentWidth;
           setState(() => _dragging = true);

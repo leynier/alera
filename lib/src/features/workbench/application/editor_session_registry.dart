@@ -289,12 +289,10 @@ class _EditorPathChangeNotifier extends ChangeNotifier {
   bool get hasActiveListeners => hasListeners;
 }
 
-class _EditorDocumentPath {
-  const _EditorDocumentPath(this.workspacePath, this.relativePath);
-
-  final String workspacePath;
-  final String relativePath;
-
+class const _EditorDocumentPath(
+  final String workspacePath,
+  final String relativePath,
+) {
   @override
   bool operator ==(Object other) {
     return other is _EditorDocumentPath &&
@@ -306,39 +304,21 @@ class _EditorDocumentPath {
   int get hashCode => Object.hash(workspacePath, relativePath);
 }
 
-class EditorSessionHandle {
-  const EditorSessionHandle({
-    required this.isDirty,
-    required this.save,
-    required this.discard,
-    this.reveal,
-    this.reload,
-  });
+class const EditorSessionHandle({
+  required final bool Function() isDirty,
+  required final Future<void> Function() save,
+  required final Future<void> Function() discard,
+  final void Function(WorkspaceEditorRevealTarget target)? reveal,
+  final VoidCallback? reload,
+});
 
-  final bool Function() isDirty;
-  final Future<void> Function() save;
-  final Future<void> Function() discard;
-  final void Function(WorkspaceEditorRevealTarget target)? reveal;
-  final VoidCallback? reload;
-}
+class const WorkspaceEditorRevealTarget({
+  required final int line,
+  required final int column,
+  required final int matchLength,
+});
 
-class WorkspaceEditorRevealTarget {
-  const WorkspaceEditorRevealTarget({
-    required this.line,
-    required this.column,
-    required this.matchLength,
-  });
-
-  final int line;
-  final int column;
-  final int matchLength;
-}
-
-class EditorDocumentSession {
-  EditorDocumentSession({this._onChanged});
-
-  final VoidCallback? _onChanged;
-
+class EditorDocumentSession({final VoidCallback? _onChanged}) {
   String? workspacePath;
   String? relativePath;
   String? loadedRawText;

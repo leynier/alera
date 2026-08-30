@@ -7,9 +7,8 @@ import 'package:alera/src/shared/infra/runtime/runtime_host_providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-class AutomationSettingsSection extends ConsumerStatefulWidget {
-  const AutomationSettingsSection({super.key});
-
+class const AutomationSettingsSection({super.key})
+    extends ConsumerStatefulWidget {
   @override
   ConsumerState<AutomationSettingsSection> createState() =>
       _AutomationSettingsSectionState();
@@ -106,13 +105,11 @@ class _AutomationSettingsSectionState
     }
     return AleraSettingsGroup(
       title: 'Automation History And Autostart',
-      description:
-          'Keep scheduled work available without a window and control local retention.',
+      description: 'Keep scheduled work available without a window and control local retention.',
       children: <Widget>[
         SettingsSwitchRow(
           title: 'Start Automations At Login',
-          description:
-              'Start the persistent local automation host when you sign in. This is off by default.',
+          description: 'Start the persistent local automation host when you sign in. This is off by default.',
           value: _autostart,
           onChanged: (value) {
             setState(() => _autostart = value);

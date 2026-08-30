@@ -3,39 +3,26 @@ import 'package:flutter/material.dart';
 
 /// Compact icon button used across toolbars and secondary actions. Defaults to
 /// [AleraTokens.minTapTarget] for comfortable finger tap targets.
-class AleraIconButton extends StatelessWidget {
-  const AleraIconButton({
-    super.key,
-    this.tooltip,
-    required this.onPressed,
-    required this.icon,
-    this.iconSize = 16,
-    this.minSize = AleraTokens.minTapTarget,
-    this.iconColor = AleraTokens.foregroundMuted,
-    this.backgroundColor,
-    this.hoverColor,
-    this.borderColor,
-    this.borderRadius = AleraTokens.radiusMd,
-  });
-
-  final String? tooltip;
-  final VoidCallback? onPressed;
-  final IconData icon;
-  final double iconSize;
-  final double minSize;
-  final Color iconColor;
-  final Color? backgroundColor;
-  final Color? hoverColor;
-  final Color? borderColor;
-  final double borderRadius;
-
+class const AleraIconButton({
+  super.key,
+  final String? tooltip,
+  required final VoidCallback? onPressed,
+  required final IconData icon,
+  final double iconSize = 16,
+  final double minSize = AleraTokens.minTapTarget,
+  final Color iconColor = AleraTokens.foregroundMuted,
+  final Color? backgroundColor,
+  final Color? hoverColor,
+  final Color? borderColor,
+  final double borderRadius = AleraTokens.radiusMd,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return IconButton(
       tooltip: tooltip,
       onPressed: onPressed,
       icon: Icon(icon, size: iconSize, color: iconColor),
-      visualDensity: VisualDensity.compact,
+      visualDensity: .compact,
       padding: EdgeInsets.zero,
       constraints: BoxConstraints(minWidth: minSize, minHeight: minSize),
       style: IconButton.styleFrom(
@@ -43,7 +30,7 @@ class AleraIconButton extends StatelessWidget {
         hoverColor: hoverColor,
         minimumSize: Size(minSize, minSize),
         maximumSize: Size(minSize, minSize),
-        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        tapTargetSize: .shrinkWrap,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(borderRadius),
           side: borderColor == null

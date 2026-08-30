@@ -7,25 +7,24 @@ import 'package:alera/src/features/pull_requests/domain/review_stack_workspace_m
 import 'package:alera/src/features/pull_requests/domain/update_review_result.dart';
 import 'package:alera/src/features/pull_requests/presentation/pull_request_review_view.dart';
 import 'package:alera/src/features/pull_requests/presentation/pull_request_stack_link_dialog.dart';
-import 'package:alera/src/shared/git_hosting/domain/git_hosting_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 const _firstReview = HostedReview(
-  provider: GitHostingProvider.github,
+  provider: .github,
   number: 41,
   title: 'feat: first layer',
-  state: HostedReviewState.open,
+  state: .open,
   url: 'https://github.com/leynier/alera/pull/41',
   baseBranch: 'main',
   headBranch: 'feature/one',
 );
 
 const _currentReview = HostedReview(
-  provider: GitHostingProvider.github,
+  provider: .github,
   number: 42,
   title: 'feat: second layer',
-  state: HostedReviewState.open,
+  state: .open,
   url: 'https://github.com/leynier/alera/pull/42',
   baseBranch: 'feature/one',
   headBranch: 'feature/two',

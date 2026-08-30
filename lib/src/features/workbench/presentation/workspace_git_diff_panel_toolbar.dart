@@ -1,58 +1,31 @@
 part of 'workspace_git_diff_panel.dart';
 
-class _SourceControlToolbar extends StatelessWidget {
-  const _SourceControlToolbar({
-    required this.messageController,
-    required this.messageFocusNode,
-    required this.filterController,
-    required this.viewMode,
-    required this.groupMode,
-    required this.state,
-    required this.aiAssistSettings,
-    required this.generatingCommitMessage,
-    required this.allCollapsed,
-    required this.filterVisible,
-    required this.sourceControlRootLabel,
-    required this.onMessageChanged,
-    required this.onGenerateCommitMessage,
-    required this.onCancelGenerateCommitMessage,
-    required this.onFilterChanged,
-    required this.onToggleFilter,
-    required this.onRefresh,
-    required this.onClearSourceControlRoot,
-    required this.onToggleCollapseAll,
-    required this.onViewModeChanged,
-    required this.onGroupModeChanged,
-    required this.onOpenAll,
-    required this.onPrimaryAction,
-    required this.onSelectMenuAction,
-  });
-
-  final TextEditingController messageController;
-  final FocusNode messageFocusNode;
-  final TextEditingController filterController;
-  final GitDiffViewMode viewMode;
-  final GitDiffGroupMode groupMode;
-  final AsyncValue<WorkspaceSourceControlState> state;
-  final AiAssistSettings aiAssistSettings;
-  final bool generatingCommitMessage;
-  final bool allCollapsed;
-  final bool filterVisible;
-  final String? sourceControlRootLabel;
-  final VoidCallback onMessageChanged;
-  final VoidCallback onGenerateCommitMessage;
-  final VoidCallback onCancelGenerateCommitMessage;
-  final VoidCallback onFilterChanged;
-  final VoidCallback onToggleFilter;
-  final VoidCallback onRefresh;
-  final VoidCallback? onClearSourceControlRoot;
-  final VoidCallback onToggleCollapseAll;
-  final ValueChanged<GitDiffViewMode> onViewModeChanged;
-  final ValueChanged<GitDiffGroupMode> onGroupModeChanged;
-  final VoidCallback onOpenAll;
-  final ValueChanged<_SourceControlMenuAction> onPrimaryAction;
-  final ValueChanged<_SourceControlMenuAction> onSelectMenuAction;
-
+class const _SourceControlToolbar({
+  required final TextEditingController messageController,
+  required final FocusNode messageFocusNode,
+  required final TextEditingController filterController,
+  required final GitDiffViewMode viewMode,
+  required final GitDiffGroupMode groupMode,
+  required final AsyncValue<WorkspaceSourceControlState> state,
+  required final AiAssistSettings aiAssistSettings,
+  required final bool generatingCommitMessage,
+  required final bool allCollapsed,
+  required final bool filterVisible,
+  required final String? sourceControlRootLabel,
+  required final VoidCallback onMessageChanged,
+  required final VoidCallback onGenerateCommitMessage,
+  required final VoidCallback onCancelGenerateCommitMessage,
+  required final VoidCallback onFilterChanged,
+  required final VoidCallback onToggleFilter,
+  required final VoidCallback onRefresh,
+  required final VoidCallback? onClearSourceControlRoot,
+  required final VoidCallback onToggleCollapseAll,
+  required final ValueChanged<GitDiffViewMode> onViewModeChanged,
+  required final ValueChanged<GitDiffGroupMode> onGroupModeChanged,
+  required final VoidCallback onOpenAll,
+  required final ValueChanged<_SourceControlMenuAction> onPrimaryAction,
+  required final ValueChanged<_SourceControlMenuAction> onSelectMenuAction,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final data = state.asData?.value;
@@ -74,7 +47,7 @@ class _SourceControlToolbar extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.all(AleraTokens.space8),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
+        crossAxisAlignment: .stretch,
         children: <Widget>[
           Row(
             children: <Widget>[
@@ -82,16 +55,16 @@ class _SourceControlToolbar extends StatelessWidget {
                 child: Text(
                   'Source Control',
                   maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+                  overflow: .ellipsis,
                   style: Theme.of(context).textTheme.titleSmall,
                 ),
               ),
               Expanded(
                 child: SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
+                  scrollDirection: .horizontal,
                   reverse: true,
                   child: Row(
-                    mainAxisSize: MainAxisSize.min,
+                    mainAxisSize: .min,
                     children: <Widget>[
                       if (onClearSourceControlRoot != null) ...<Widget>[
                         AleraIconButton(
@@ -185,7 +158,7 @@ class _SourceControlToolbar extends StatelessWidget {
             onChanged: (_) => onMessageChanged(),
             onSubmitted: (_) {
               if (canCommit) {
-                onPrimaryAction(_SourceControlMenuAction.commit);
+                onPrimaryAction(.commit);
               }
             },
           ),
@@ -211,10 +184,9 @@ class _SourceControlToolbar extends StatelessWidget {
             Text(
               _repoSummary(state, sourceControlRootLabel),
               maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                color: AleraTokens.foregroundFaint,
-              ),
+              overflow: .ellipsis,
+              style: Theme.of(context).textTheme.labelSmall
+                  ?.copyWith(color: AleraTokens.foregroundFaint),
             ),
           ],
           if (filterVisible) ...<Widget>[
@@ -326,19 +298,12 @@ enum _SourceControlMenuAction {
   stashPop,
 }
 
-class _AiCommitMessageButton extends StatefulWidget {
-  const _AiCommitMessageButton({
-    required this.generating,
-    required this.canGenerate,
-    required this.onGenerate,
-    required this.onCancel,
-  });
-
-  final bool generating;
-  final bool canGenerate;
-  final VoidCallback onGenerate;
-  final VoidCallback onCancel;
-
+class const _AiCommitMessageButton({
+  required final bool generating,
+  required final bool canGenerate,
+  required final VoidCallback onGenerate,
+  required final VoidCallback onCancel,
+}) extends StatefulWidget {
   @override
   State<_AiCommitMessageButton> createState() => _AiCommitMessageButtonState();
 }
@@ -366,7 +331,7 @@ class _AiCommitMessageButtonState extends State<_AiCommitMessageButton> {
             : 'Generate commit message with AI',
         child: IconButton(
           onPressed: onPressed,
-          visualDensity: VisualDensity.compact,
+          visualDensity: .compact,
           padding: EdgeInsets.zero,
           constraints: const BoxConstraints(
             minWidth: 30,
@@ -377,7 +342,7 @@ class _AiCommitMessageButtonState extends State<_AiCommitMessageButton> {
           style: IconButton.styleFrom(
             minimumSize: const Size(30, 30),
             maximumSize: const Size(30, 30),
-            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            tapTargetSize: .shrinkWrap,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(AleraTokens.radiusMd),
             ),
@@ -411,20 +376,13 @@ class _AiCommitMessageButtonState extends State<_AiCommitMessageButton> {
   }
 }
 
-class _PrimaryActionButton extends StatelessWidget {
-  const _PrimaryActionButton({
-    required this.action,
-    required this.busy,
-    required this.state,
-    required this.onPressed,
-    required this.onSelected,
-  });
-
-  final _SourceControlMenuAction? action;
-  final bool busy;
-  final WorkspaceSourceControlState? state;
-  final VoidCallback? onPressed;
-  final ValueChanged<_SourceControlMenuAction> onSelected;
+class const _PrimaryActionButton({
+  required final _SourceControlMenuAction? action,
+  required final bool busy,
+  required final WorkspaceSourceControlState? state,
+  required final VoidCallback? onPressed,
+  required final ValueChanged<_SourceControlMenuAction> onSelected,
+}) extends StatelessWidget {
   static const double _height = 28;
 
   @override
@@ -433,9 +391,8 @@ class _PrimaryActionButton extends StatelessWidget {
     final label = action == null ? 'Fetch' : _actionLabel(action);
     final icon = action == null ? AleraIcons.gitFetch : _actionIcon(action);
     final enabled = onPressed != null && !busy;
-    final textStyle = Theme.of(
-      context,
-    ).textTheme.labelLarge?.copyWith(color: AleraTokens.onAccent);
+    final textStyle = Theme.of(context).textTheme.labelLarge
+        ?.copyWith(color: AleraTokens.onAccent);
     final cursor = busy ? SystemMouseCursors.basic : SystemMouseCursors.click;
     return MouseRegion(
       cursor: cursor,
@@ -457,7 +414,7 @@ class _PrimaryActionButton extends StatelessWidget {
                       onTap: enabled ? onPressed : null,
                       child: Center(
                         child: Row(
-                          mainAxisSize: MainAxisSize.min,
+                          mainAxisSize: .min,
                           children: <Widget>[
                             Icon(icon, size: 15, color: AleraTokens.onAccent),
                             const SizedBox(width: AleraTokens.space8),
@@ -509,15 +466,15 @@ class _PrimaryActionButton extends StatelessWidget {
     if (overlay is! RenderBox) {
       return;
     }
-    final topLeft = renderBox.localToGlobal(Offset.zero, ancestor: overlay);
+    final topLeft = renderBox.localToGlobal(.zero, ancestor: overlay);
     final bottomRight = renderBox.localToGlobal(
-      renderBox.size.bottomRight(Offset.zero),
+      renderBox.size.bottomRight(.zero),
       ancestor: overlay,
     );
     final selected = await showMenu<_SourceControlMenuAction>(
       context: context,
-      position: RelativeRect.fromRect(
-        Rect.fromPoints(topLeft, bottomRight),
+      position: .fromRect(
+        .fromPoints(topLeft, bottomRight),
         Offset.zero & overlay.size,
       ),
       items: _menuEntries(context),
@@ -543,88 +500,88 @@ class _PrimaryActionButton extends StatelessWidget {
         hasData && !hasUpstream && branch != null && branch != 'HEAD';
     return <PopupMenuEntry<_SourceControlMenuAction>>[
       AleraDropdownEntry<_SourceControlMenuAction>(
-        value: _SourceControlMenuAction.commit,
+        value: .commit,
         label: 'Commit',
         enabled: hasStaged && !hasConflicts,
         leading: const Icon(AleraIcons.gitCommit, size: 16),
       ),
       AleraDropdownEntry<_SourceControlMenuAction>(
-        value: _SourceControlMenuAction.commitPush,
+        value: .commitPush,
         label: 'Commit & Push',
         enabled: hasStaged && !hasConflicts,
         leading: const Icon(AleraIcons.gitPush, size: 16),
       ),
       AleraDropdownEntry<_SourceControlMenuAction>(
-        value: _SourceControlMenuAction.commitSync,
+        value: .commitSync,
         label: 'Commit & Sync',
         enabled: hasStaged && !hasConflicts && hasUpstream,
         leading: const Icon(AleraIcons.gitSync, size: 16),
       ),
       AleraDropdownEntry<_SourceControlMenuAction>(
-        value: _SourceControlMenuAction.amend,
+        value: .amend,
         label: 'Commit Amend',
         enabled: hasStaged && !hasConflicts && hasHeadCommit,
         leading: const Icon(AleraIcons.gitAmend, size: 16),
       ),
       const PopupMenuDivider(height: AleraTokens.space8),
       AleraDropdownEntry<_SourceControlMenuAction>(
-        value: _SourceControlMenuAction.stageAll,
+        value: .stageAll,
         label: 'Stage All',
         enabled: state?.hasStageableChanges ?? false,
         leading: const Icon(AleraIcons.gitStage, size: 16),
       ),
       AleraDropdownEntry<_SourceControlMenuAction>(
-        value: _SourceControlMenuAction.unstageAll,
+        value: .unstageAll,
         label: 'Unstage All',
         enabled: hasStaged,
         leading: const Icon(AleraIcons.gitUnstage, size: 16),
       ),
       AleraDropdownEntry<_SourceControlMenuAction>(
-        value: _SourceControlMenuAction.discardAll,
+        value: .discardAll,
         label: 'Discard All',
         enabled: hasDiscardable,
         leading: const Icon(AleraIcons.gitDiscard, size: 16),
       ),
       const PopupMenuDivider(height: AleraTokens.space8),
       AleraDropdownEntry<_SourceControlMenuAction>(
-        value: _SourceControlMenuAction.fetch,
+        value: .fetch,
         label: 'Fetch',
         enabled: hasData,
         leading: const Icon(AleraIcons.gitFetch, size: 16),
       ),
       AleraDropdownEntry<_SourceControlMenuAction>(
-        value: _SourceControlMenuAction.pull,
+        value: .pull,
         label: 'Pull',
         enabled: hasData,
         leading: const Icon(AleraIcons.gitPull, size: 16),
       ),
       AleraDropdownEntry<_SourceControlMenuAction>(
-        value: _SourceControlMenuAction.push,
+        value: .push,
         label: 'Push',
         enabled: hasData && !hasConflicts,
         leading: const Icon(AleraIcons.gitPush, size: 16),
       ),
       AleraDropdownEntry<_SourceControlMenuAction>(
-        value: _SourceControlMenuAction.sync,
+        value: .sync,
         label: 'Sync',
         enabled: hasData && !hasConflicts && hasUpstream,
         leading: const Icon(AleraIcons.gitSync, size: 16),
       ),
       AleraDropdownEntry<_SourceControlMenuAction>(
-        value: _SourceControlMenuAction.publishBranch,
+        value: .publishBranch,
         label: 'Publish Branch',
         enabled: canPublish,
         leading: const Icon(AleraIcons.gitPublish, size: 16),
       ),
       const PopupMenuDivider(height: AleraTokens.space8),
       AleraDropdownEntry<_SourceControlMenuAction>(
-        value: _SourceControlMenuAction.stash,
+        value: .stash,
         label: 'Stash',
         enabled: hasStashable,
         leading: const Icon(AleraIcons.gitStash, size: 16),
       ),
       AleraDropdownEntry<_SourceControlMenuAction>(
-        value: _SourceControlMenuAction.stashPop,
+        value: .stashPop,
         label: 'Stash Pop',
         enabled: hasStashes,
         leading: const Icon(AleraIcons.gitStashPop, size: 16),

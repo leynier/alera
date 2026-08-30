@@ -5,17 +5,15 @@ import 'release_plan.dart';
 
 const preparedReleasePath = 'tool/release/prepared_release.json';
 
-final class PreparedProductRelease {
-  const PreparedProductRelease({
-    required this.shouldRelease,
-    required this.artifactVersion,
-    required this.releaseVersion,
-    required this.buildNumber,
-    required this.tag,
-    required this.previousTag,
-  });
-
-  factory PreparedProductRelease.fromJson(Object? value) {
+final class const PreparedProductRelease({
+  required final bool shouldRelease,
+  required final String artifactVersion,
+  required final String releaseVersion,
+  required final int buildNumber,
+  required final String tag,
+  required final String previousTag,
+}) {
+  factory fromJson(Object? value) {
     final json = _jsonObject(value, 'product');
     return PreparedProductRelease(
       shouldRelease: _jsonBool(json, 'shouldRelease'),
@@ -27,13 +25,6 @@ final class PreparedProductRelease {
     );
   }
 
-  final bool shouldRelease;
-  final String artifactVersion;
-  final String releaseVersion;
-  final int buildNumber;
-  final String tag;
-  final String previousTag;
-
   Map<String, Object> toJson() => {
     'shouldRelease': shouldRelease,
     'artifactVersion': artifactVersion,
@@ -44,15 +35,13 @@ final class PreparedProductRelease {
   };
 }
 
-final class PreparedRelease {
-  const PreparedRelease({
-    required this.sourceSha,
-    required this.channel,
-    required this.desktop,
-    required this.mobile,
-  });
-
-  factory PreparedRelease.fromJson(Object? value) {
+final class const PreparedRelease({
+  required final String sourceSha,
+  required final ReleaseChannel channel,
+  required final PreparedProductRelease desktop,
+  required final PreparedProductRelease mobile,
+}) {
+  factory fromJson(Object? value) {
     final json = _jsonObject(value, 'prepared release');
     if (_jsonInt(json, 'schemaVersion') != 1) {
       throw const FormatException('Unsupported prepared release schema.');
@@ -64,17 +53,12 @@ final class PreparedRelease {
         'rc' => ReleaseChannel.rc,
         _ => throw const FormatException('Invalid prepared release channel.'),
       },
-      desktop: PreparedProductRelease.fromJson(json['desktop']),
-      mobile: PreparedProductRelease.fromJson(json['mobile']),
+      desktop: .fromJson(json['desktop']),
+      mobile: .fromJson(json['mobile']),
     );
     release.validate();
     return release;
   }
-
-  final String sourceSha;
-  final ReleaseChannel channel;
-  final PreparedProductRelease desktop;
-  final PreparedProductRelease mobile;
 
   Iterable<PreparedProductRelease> get products => [desktop, mobile];
 
@@ -117,8 +101,8 @@ final class PreparedRelease {
     if (tags.isEmpty) {
       throw const FormatException('A prepared release needs at least one tag.');
     }
-    _validateProduct(channel, ReleaseProduct.desktop, desktop);
-    _validateProduct(channel, ReleaseProduct.mobile, mobile);
+    _validateProduct(channel, .desktop, desktop);
+    _validateProduct(channel, .mobile, mobile);
   }
 
   void validateIdentity({
@@ -383,7 +367,7 @@ Future<void> _inspectMergedRelease(Map<String, String> values) async {
   });
   File(_required(values, 'summary')).writeAsStringSync(
     'Validated merged version commit `$targetSha` from `${release.branchName}`.\n',
-    mode: FileMode.append,
+    mode: .append,
   );
 }
 
@@ -469,7 +453,7 @@ bool _jsonBool(Map<String, dynamic> json, String key) {
 void _appendOutputs(String path, Map<String, String> outputs) {
   File(path).writeAsStringSync(
     '${outputs.entries.map((entry) => '${entry.key}=${entry.value}').join('\n')}\n',
-    mode: FileMode.append,
+    mode: .append,
   );
 }
 

@@ -1,10 +1,9 @@
 part of 'codex_chat_surface.dart';
 
-class _CodexLinkScope extends InheritedWidget {
-  const _CodexLinkScope({required this.onOpenLink, required super.child});
-
-  final Future<void> Function(String rawLink) onOpenLink;
-
+class const _CodexLinkScope({
+  required final Future<void> Function(String rawLink) onOpenLink,
+  required super.child,
+}) extends InheritedWidget {
   static _CodexLinkScope? maybeOf(BuildContext context) =>
       context.dependOnInheritedWidgetOfExactType<_CodexLinkScope>();
 
@@ -47,7 +46,7 @@ extension _CodexMarkdownLinkActions on _CodexChatSurfaceState {
 
   Future<void> _launchMarkdownUri(Uri uri) async {
     try {
-      final opened = await launchUrl(uri, mode: LaunchMode.externalApplication);
+      final opened = await launchUrl(uri, mode: .externalApplication);
       if (!opened) _showMarkdownLinkError();
     } catch (_) {
       _showMarkdownLinkError();
@@ -56,11 +55,7 @@ extension _CodexMarkdownLinkActions on _CodexChatSurfaceState {
 
   void _showMarkdownLinkError() {
     if (!mounted) return;
-    AleraToast.show(
-      context,
-      message: 'Link cannot be opened',
-      tone: AleraToastTone.error,
-    );
+    AleraToast.show(context, message: 'Link cannot be opened', tone: .error);
   }
 }
 
@@ -101,9 +96,8 @@ CodexMarkdownFileTarget? resolveCodexMarkdownFileTarget({
   if (value.isEmpty) return null;
   final uri = Uri.tryParse(value);
   if (_isCodexWebLink(uri)) return null;
-  final compactLineReference = RegExp(
-    r'^([^/\\:]+):(\d+)(?::\d+)?$',
-  ).firstMatch(value);
+  final compactLineReference = RegExp(r'^([^/\\:]+):(\d+)(?::\d+)?$')
+      .firstMatch(value);
   if (compactLineReference != null) {
     String decodedReference;
     try {
@@ -218,9 +212,7 @@ CodexMarkdownFileTarget? _codexMarkdownTargetFromPath(
 }
 
 @visibleForTesting
-class CodexMarkdownFileTarget {
-  const CodexMarkdownFileTarget({required this.path, this.line});
-
-  final String path;
-  final int? line;
-}
+class const CodexMarkdownFileTarget({
+  required final String path,
+  final int? line,
+});

@@ -26,9 +26,8 @@ String latestStableRelease(Iterable<String> tags) {
   return versions.last.toString();
 }
 
-final class _Version implements Comparable<_Version> {
-  const _Version(this.major, this.minor, this.patch);
-
+final class const _Version(final int major, final int minor, final int patch)
+    implements Comparable<_Version> {
   static _Version? tryParseTag(String tag) {
     final match = RegExp(r'^v(\d+)\.(\d+)\.(\d+)$').firstMatch(tag);
     if (match == null) {
@@ -40,10 +39,6 @@ final class _Version implements Comparable<_Version> {
       int.parse(match.group(3)!),
     );
   }
-
-  final int major;
-  final int minor;
-  final int patch;
 
   @override
   int compareTo(_Version other) {

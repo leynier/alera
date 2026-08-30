@@ -6,16 +6,11 @@ import 'package:alera/src/features/workbench/presentation/terminal_search_contro
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-class TerminalSearchOverlay extends StatefulWidget {
-  const TerminalSearchOverlay({
-    super.key,
-    required this.controller,
-    required this.onClose,
-  });
-
-  final TerminalSearchController controller;
-  final VoidCallback onClose;
-
+class const TerminalSearchOverlay({
+  super.key,
+  required final TerminalSearchController controller,
+  required final VoidCallback onClose,
+}) extends StatefulWidget {
   @override
   State<TerminalSearchOverlay> createState() => _TerminalSearchOverlayState();
 }
@@ -56,9 +51,7 @@ class _TerminalSearchOverlayState extends State<TerminalSearchOverlay> {
     if (_textController.text != widget.controller.query) {
       _textController.value = TextEditingValue(
         text: widget.controller.query,
-        selection: TextSelection.collapsed(
-          offset: widget.controller.query.length,
-        ),
+        selection: .collapsed(offset: widget.controller.query.length),
       );
     }
     setState(() {});

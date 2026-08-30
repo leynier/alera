@@ -4,13 +4,13 @@ import 'package:alera/src/features/workbench/application/workspace_agent_status_
 import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-final DateTime _t0 = DateTime.utc(2026, 7, 4);
+final DateTime _t0 = .utc(2026, 7, 4);
 
 WorkspaceAgentRun _run(String id, AgentStatusState state, {bool? interrupted}) {
   final tab = WorkspaceTabRecord(
     id: id,
     workspaceId: 'w-1',
-    kind: WorkspaceTabKind.terminal,
+    kind: .terminal,
     title: id,
     createdAt: _t0,
     updatedAt: _t0,
@@ -21,7 +21,7 @@ WorkspaceAgentRun _run(String id, AgentStatusState state, {bool? interrupted}) {
       terminalSessionId: tab.terminalSessionId,
       workspaceId: tab.workspaceId,
       tabId: tab.id,
-      agentType: AgentType.claude,
+      agentType: .claude,
       state: state,
       prompt: 'Prompt',
       updatedAt: _t0,
@@ -34,10 +34,10 @@ WorkspaceAgentRun _run(String id, AgentStatusState state, {bool? interrupted}) {
 void main() {
   test('groups runs by state in display order', () {
     final groups = groupWorkspaceAgentRuns(<WorkspaceAgentRun>[
-      _run('t-1', AgentStatusState.done),
-      _run('t-2', AgentStatusState.working),
-      _run('t-3', AgentStatusState.waiting),
-      _run('t-4', AgentStatusState.working),
+      _run('t-1', .done),
+      _run('t-2', .working),
+      _run('t-3', .waiting),
+      _run('t-4', .working),
     ]);
 
     expect(groups.map((g) => g.kind), <WorkspaceAgentGroupKind>[
@@ -56,7 +56,7 @@ void main() {
 
   test('interruption overrides the reported state', () {
     final groups = groupWorkspaceAgentRuns(<WorkspaceAgentRun>[
-      _run('t-1', AgentStatusState.done, interrupted: true),
+      _run('t-1', .done, interrupted: true),
     ]);
 
     expect(groups.single.kind, WorkspaceAgentGroupKind.interrupted);

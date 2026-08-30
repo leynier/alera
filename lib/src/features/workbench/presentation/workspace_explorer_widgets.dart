@@ -1,28 +1,16 @@
 part of 'workspace_explorer.dart';
 
-class _ExplorerToolbar extends StatelessWidget {
-  const _ExplorerToolbar({
-    required this.title,
-    required this.mode,
-    required this.loading,
-    required this.onRefresh,
-    required this.onCollapseAll,
-    required this.onToggleMode,
-    required this.onSaveAll,
-    required this.onNewFile,
-    required this.onNewFolder,
-  });
-
-  final String title;
-  final WorkspaceExplorerMode mode;
-  final bool loading;
-  final VoidCallback onRefresh;
-  final VoidCallback onCollapseAll;
-  final VoidCallback onToggleMode;
-  final VoidCallback onSaveAll;
-  final VoidCallback onNewFile;
-  final VoidCallback onNewFolder;
-
+class const _ExplorerToolbar({
+  required final String title,
+  required final WorkspaceExplorerMode mode,
+  required final bool loading,
+  required final VoidCallback onRefresh,
+  required final VoidCallback onCollapseAll,
+  required final VoidCallback onToggleMode,
+  required final VoidCallback onSaveAll,
+  required final VoidCallback onNewFile,
+  required final VoidCallback onNewFolder,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
@@ -79,23 +67,14 @@ class _ExplorerToolbar extends StatelessWidget {
   }
 }
 
-class _ExplorerRow extends StatelessWidget {
-  const _ExplorerRow({
-    required this.name,
-    required this.entry,
-    required this.expanded,
-    required this.selected,
-    required this.sourceControlRoot,
-    required this.onTap,
-  });
-
-  final String name;
-  final native.WorkspaceFileEntry? entry;
-  final bool expanded;
-  final bool selected;
-  final bool sourceControlRoot;
-  final VoidCallback onTap;
-
+class const _ExplorerRow({
+  required final String name,
+  required final native.WorkspaceFileEntry? entry,
+  required final bool expanded,
+  required final bool selected,
+  required final bool sourceControlRoot,
+  required final VoidCallback onTap,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final color = selected
@@ -104,7 +83,7 @@ class _ExplorerRow extends StatelessWidget {
     return MouseRegion(
       cursor: SystemMouseCursors.click,
       child: GestureDetector(
-        behavior: HitTestBehavior.translucent,
+        behavior: .translucent,
         onTap: onTap,
         child: DecoratedBox(
           decoration: BoxDecoration(
@@ -126,7 +105,7 @@ class _ExplorerRow extends StatelessWidget {
                   child: Text(
                     name,
                     maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
+                    overflow: .ellipsis,
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
                       color: entry?.isProtected ?? false
                           ? AleraTokens.foregroundFaint
@@ -176,11 +155,9 @@ class _ExplorerRow extends StatelessWidget {
   }
 }
 
-class _GitStatusIndicator extends StatelessWidget {
-  const _GitStatusIndicator({required this.status});
-
-  final native.WorkspaceFileGitStatus status;
-
+class const _GitStatusIndicator({
+  required final native.WorkspaceFileGitStatus status,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final (label, color) = switch (status) {
@@ -195,17 +172,11 @@ class _GitStatusIndicator extends StatelessWidget {
   }
 }
 
-class _ExplorerNameDialog extends StatefulWidget {
-  const _ExplorerNameDialog({
-    required this.title,
-    required this.label,
-    required this.initialValue,
-  });
-
-  final String title;
-  final String label;
-  final String initialValue;
-
+class const _ExplorerNameDialog({
+  required final String title,
+  required final String label,
+  required final String initialValue,
+}) extends StatefulWidget {
   @override
   State<_ExplorerNameDialog> createState() => _ExplorerNameDialogState();
 }
@@ -249,26 +220,19 @@ class _ExplorerNameDialogState extends State<_ExplorerNameDialog> {
   }
 }
 
-class _ExplorerMenuDelegate extends tree.ContextMenuDelegate {
-  const _ExplorerMenuDelegate({
-    required this.fileManagerLabel,
-    required this.canFocusSourceControlFolders,
-    required this.isFocusedSourceControlRoot,
-    required this.onMenuOpening,
-    required this.onAction,
-  });
-
-  final String fileManagerLabel;
-  final bool canFocusSourceControlFolders;
-  final bool Function(tree.VisibleNode node) isFocusedSourceControlRoot;
-  final VoidCallback onMenuOpening;
-  final Future<void> Function(
+class const _ExplorerMenuDelegate({
+  required final String fileManagerLabel,
+  required final bool canFocusSourceControlFolders,
+  required final bool Function(tree.VisibleNode node)
+  isFocusedSourceControlRoot,
+  required final VoidCallback onMenuOpening,
+  required final Future<void> Function(
     BuildContext context,
     tree.VisibleNode node,
     _ExplorerAction action,
   )
-  onAction;
-
+  onAction,
+}) extends tree.ContextMenuDelegate {
   @override
   List<tree.NodeAction> actionsFor(tree.VisibleNode node) =>
       const <tree.NodeAction>[];
@@ -283,61 +247,56 @@ class _ExplorerMenuDelegate extends tree.ContextMenuDelegate {
       onMenuOpening();
       final selected = await showMenu<_ExplorerAction>(
         context: context,
-        position: RelativeRect.fromLTRB(
-          position.dx,
-          position.dy,
-          position.dx,
-          position.dy,
-        ),
+        position: .fromLTRB(position.dx, position.dy, position.dx, position.dy),
         items: <PopupMenuEntry<_ExplorerAction>>[
           const AleraDropdownEntry<_ExplorerAction>(
-            value: _ExplorerAction.newFile,
+            value: .newFile,
             label: 'New file',
             leading: Icon(AleraIcons.newFile, size: 16),
           ),
           const AleraDropdownEntry<_ExplorerAction>(
-            value: _ExplorerAction.newFolder,
+            value: .newFolder,
             label: 'New folder',
             leading: Icon(AleraIcons.newFolder, size: 16),
           ),
           const AleraDropdownEntry<_ExplorerAction>(
-            value: _ExplorerAction.copy,
+            value: .copy,
             label: 'Copy',
             leading: Icon(AleraIcons.copy, size: 16),
           ),
           const AleraDropdownEntry<_ExplorerAction>(
-            value: _ExplorerAction.cut,
+            value: .cut,
             label: 'Cut',
             leading: Icon(AleraIcons.cut, size: 16),
           ),
           const AleraDropdownEntry<_ExplorerAction>(
-            value: _ExplorerAction.paste,
+            value: .paste,
             label: 'Paste',
             leading: Icon(AleraIcons.paste, size: 16),
           ),
           const AleraDropdownEntry<_ExplorerAction>(
-            value: _ExplorerAction.copyPath,
+            value: .copyPath,
             label: 'Copy path',
             leading: Icon(AleraIcons.copy, size: 16),
           ),
           const AleraDropdownEntry<_ExplorerAction>(
-            value: _ExplorerAction.copyRelativePath,
+            value: .copyRelativePath,
             label: 'Copy relative path',
             leading: Icon(AleraIcons.copy, size: 16),
           ),
           const AleraDropdownEntry<_ExplorerAction>(
-            value: _ExplorerAction.duplicate,
+            value: .duplicate,
             label: 'Duplicate',
             leading: Icon(AleraIcons.duplicate, size: 16),
           ),
           AleraDropdownEntry<_ExplorerAction>(
-            value: _ExplorerAction.reveal,
+            value: .reveal,
             label: 'Reveal in $fileManagerLabel',
             leading: const Icon(AleraIcons.external, size: 16),
           ),
           const PopupMenuDivider(height: AleraTokens.space8),
           const AleraDropdownEntry<_ExplorerAction>(
-            value: _ExplorerAction.rename,
+            value: .rename,
             label: 'Rename',
             leading: Icon(AleraIcons.edit, size: 16),
           ),
@@ -347,31 +306,31 @@ class _ExplorerMenuDelegate extends tree.ContextMenuDelegate {
             const PopupMenuDivider(height: AleraTokens.space8),
             if (isFocusedSourceControlRoot(node))
               const AleraDropdownEntry<_ExplorerAction>(
-                value: _ExplorerAction.clearSourceControlRoot,
+                value: .clearSourceControlRoot,
                 label: 'Clear Source Control Root',
                 leading: Icon(AleraIcons.close, size: 16),
               )
             else
               const AleraDropdownEntry<_ExplorerAction>(
-                value: _ExplorerAction.focusSourceControlRoot,
+                value: .focusSourceControlRoot,
                 label: 'Use As Source Control Root',
                 leading: Icon(AleraIcons.gitBranch, size: 16),
               ),
           ],
           const PopupMenuDivider(height: AleraTokens.space8),
           const AleraDropdownEntry<_ExplorerAction>(
-            value: _ExplorerAction.collapse,
+            value: .collapse,
             label: 'Collapse folder',
             leading: Icon(AleraIcons.chevronRight, size: 16),
           ),
           const AleraDropdownEntry<_ExplorerAction>(
-            value: _ExplorerAction.refresh,
+            value: .refresh,
             label: 'Refresh',
             leading: Icon(AleraIcons.refresh, size: 16),
           ),
           const PopupMenuDivider(height: AleraTokens.space8),
           const AleraDropdownEntry<_ExplorerAction>(
-            value: _ExplorerAction.delete,
+            value: .delete,
             label: 'Delete',
             leading: Icon(AleraIcons.delete, size: 16),
           ),
@@ -383,7 +342,7 @@ class _ExplorerMenuDelegate extends tree.ContextMenuDelegate {
     }
 
     return GestureDetector(
-      behavior: HitTestBehavior.translucent,
+      behavior: .translucent,
       onSecondaryTapDown: (details) => showMenuAt(details.globalPosition),
       onLongPressStart: (details) => showMenuAt(details.globalPosition),
       child: child,
@@ -391,18 +350,15 @@ class _ExplorerMenuDelegate extends tree.ContextMenuDelegate {
   }
 }
 
-class _ExplorerBackgroundMenu extends StatelessWidget {
-  const _ExplorerBackgroundMenu({
-    required this.child,
-    required this.shouldSuppress,
-    required this.onAction,
-  });
-
-  final Widget child;
-  final bool Function() shouldSuppress;
-  final Future<void> Function(BuildContext context, _ExplorerAction action)
-  onAction;
-
+class const _ExplorerBackgroundMenu({
+  required final Widget child,
+  required final bool Function() shouldSuppress,
+  required final Future<void> Function(
+    BuildContext context,
+    _ExplorerAction action,
+  )
+  onAction,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     Future<void> showBackgroundMenu(Offset position) async {
@@ -411,20 +367,15 @@ class _ExplorerBackgroundMenu extends StatelessWidget {
       }
       final selected = await showMenu<_ExplorerAction>(
         context: context,
-        position: RelativeRect.fromLTRB(
-          position.dx,
-          position.dy,
-          position.dx,
-          position.dy,
-        ),
+        position: .fromLTRB(position.dx, position.dy, position.dx, position.dy),
         items: const <PopupMenuEntry<_ExplorerAction>>[
           AleraDropdownEntry<_ExplorerAction>(
-            value: _ExplorerAction.newFile,
+            value: .newFile,
             label: 'New file',
             leading: Icon(AleraIcons.newFile, size: 16),
           ),
           AleraDropdownEntry<_ExplorerAction>(
-            value: _ExplorerAction.newFolder,
+            value: .newFolder,
             label: 'New folder',
             leading: Icon(AleraIcons.newFolder, size: 16),
           ),
@@ -436,13 +387,13 @@ class _ExplorerBackgroundMenu extends StatelessWidget {
     }
 
     return Listener(
-      behavior: HitTestBehavior.opaque,
+      behavior: .opaque,
       onPointerDown: (event) {
         if (event.buttons != kSecondaryMouseButton) {
           return;
         }
         unawaited(
-          Future<void>.delayed(Duration.zero, () {
+          Future<void>.delayed(.zero, () {
             if (context.mounted) {
               return showBackgroundMenu(event.position);
             }
@@ -454,22 +405,12 @@ class _ExplorerBackgroundMenu extends StatelessWidget {
   }
 }
 
-class _ExplorerClipboard {
-  const _ExplorerClipboard(this.relativePath, this.cut);
+class const _ExplorerClipboard(final String relativePath, final bool cut);
 
-  final String relativePath;
-  final bool cut;
-}
-
-class _ExplorerDragData implements TerminalPathDragPayload {
-  const _ExplorerDragData({
-    required this.relativePath,
-    required this.absolutePath,
-  });
-
-  final String relativePath;
-  final String absolutePath;
-
+class const _ExplorerDragData({
+  required final String relativePath,
+  required final String absolutePath,
+}) implements TerminalPathDragPayload {
   @override
   Iterable<String> get paths => <String>[absolutePath];
 }

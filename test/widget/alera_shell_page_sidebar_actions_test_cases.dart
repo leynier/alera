@@ -31,7 +31,7 @@ void _registerAleraShellSidebarActionTests() {
   ) async {
     final opener = WorkspaceFolderOpener(
       processRunner: _NoopProcessRunner(),
-      platform: WorkspaceFolderPlatform.macos,
+      platform: .macos,
       directoryExists: (_) async => false,
     );
     await _pumpShell(
@@ -185,7 +185,7 @@ void _registerAleraShellSidebarActionTests() {
           terminalSessionId: 'tab-2',
           workspaceId: 'workspace-2',
           tabId: 'tab-2',
-          state: AgentStatusState.waiting,
+          state: .waiting,
           prompt: prompt,
         ),
       },
@@ -215,7 +215,7 @@ void _registerAleraShellSidebarActionTests() {
           terminalSessionId: 'tab-1',
           workspaceId: 'workspace-1',
           tabId: 'tab-1',
-          state: AgentStatusState.working,
+          state: .working,
           toolName: 'Bash',
           toolInput: 'flutter test',
         ),
@@ -223,7 +223,7 @@ void _registerAleraShellSidebarActionTests() {
           terminalSessionId: 'tab-2',
           workspaceId: 'workspace-2',
           tabId: 'tab-2',
-          state: AgentStatusState.done,
+          state: .done,
           lastAssistantMessage: 'Stopped early',
           interrupted: true,
         ),
@@ -257,7 +257,7 @@ void _registerAleraShellSidebarActionTests() {
           terminalSessionId: 'tab-2',
           workspaceId: 'workspace-2',
           tabId: 'tab-2',
-          state: AgentStatusState.blocked,
+          state: .blocked,
         ),
       },
     );
@@ -282,14 +282,14 @@ void _registerAleraShellSidebarActionTests() {
           terminalSessionId: 'tab-1',
           workspaceId: 'workspace-1',
           tabId: 'tab-1',
-          state: AgentStatusState.working,
+          state: .working,
           toolName: 'Bash',
         ),
         'tab-2': _agentStatusEntry(
           terminalSessionId: 'tab-2',
           workspaceId: 'workspace-2',
           tabId: 'tab-2',
-          state: AgentStatusState.done,
+          state: .done,
         ),
       },
     );
@@ -315,13 +315,13 @@ void _registerAleraShellSidebarActionTests() {
           terminalSessionId: 'tab-1',
           workspaceId: 'workspace-1',
           tabId: 'tab-1',
-          state: AgentStatusState.waiting,
+          state: .waiting,
         ),
         'tab-2': _agentStatusEntry(
           terminalSessionId: 'tab-2',
           workspaceId: 'workspace-1',
           tabId: 'tab-2',
-          state: AgentStatusState.done,
+          state: .done,
         ),
       },
     );
@@ -345,13 +345,13 @@ void _registerAleraShellSidebarActionTests() {
           terminalSessionId: 'tab-1',
           workspaceId: 'workspace-1',
           tabId: 'tab-1',
-          state: AgentStatusState.waiting,
+          state: .waiting,
         ),
         'tab-2': _agentStatusEntry(
           terminalSessionId: 'tab-2',
           workspaceId: 'workspace-1',
           tabId: 'tab-2',
-          state: AgentStatusState.waiting,
+          state: .waiting,
         ),
       },
     );
@@ -373,12 +373,12 @@ void _registerAleraShellSidebarActionTests() {
           terminalSessionId: 'tab-2',
           workspaceId: 'workspace-2',
           tabId: 'tab-2',
-          state: AgentStatusState.waiting,
+          state: .waiting,
           prompt: prompt,
         ),
       },
     );
-    final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+    final mouse = await tester.createGesture(kind: .mouse);
     addTearDown(mouse.removePointer);
     await mouse.addPointer();
     await mouse.moveTo(tester.getCenter(find.text(description)));

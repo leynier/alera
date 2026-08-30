@@ -2,25 +2,17 @@ import 'configuration_document.dart';
 
 const _absent = _Absent();
 
-class _Absent {
-  const _Absent();
-}
+class const _Absent();
 
 enum ConfigurationChoice { local, remote }
 
-class ConfigurationDifference {
-  ConfigurationDifference(
-    this.path,
-    this.local,
-    this.remote,
-    this.conflict,
-    this.choice,
-  );
-  final List<String> path;
-  final Object? local;
-  final Object? remote;
-  final bool conflict;
-  ConfigurationChoice? choice;
+class ConfigurationDifference(
+  final List<String> path,
+  final Object? local,
+  final Object? remote,
+  final bool conflict,
+  var ConfigurationChoice? choice,
+) {
   Object? customResult;
   String get label => path.join(' / ');
   bool get localAbsent => identical(local, _absent);
@@ -41,17 +33,16 @@ class ConfigurationDifference {
       identical(value, _absent) ? '(Removed)' : value.toString();
 }
 
-class ConfigurationMerge {
-  ConfigurationMerge({
-    required ConfigurationDocument local,
-    required ConfigurationDocument remote,
-    ConfigurationDocument? base,
-    this.ownedBlocks = const {'shared', 'desktop', 'mobile'},
-  }) {
+class ConfigurationMerge({
+  required ConfigurationDocument local,
+  required ConfigurationDocument remote,
+  ConfigurationDocument? base,
+  final Set<String> ownedBlocks = const {'shared', 'desktop', 'mobile'},
+}) {
+  this {
     _result =
         _walk(base?.json ?? _absent, local.json, remote.json, []) as JsonMap;
   }
-  final Set<String> ownedBlocks;
   final differences = <ConfigurationDifference>[];
   late final JsonMap _result;
   bool get hasUnresolved => differences.any((d) => d.choice == null);

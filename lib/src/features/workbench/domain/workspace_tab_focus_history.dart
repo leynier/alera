@@ -6,9 +6,7 @@ import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
 /// Session-only on purpose: focus order is ephemeral, and persisting it would
 /// restore a focus the user did not leave behind. Each workspace keeps a
 /// bounded slice so a long-lived session cannot grow it without limit.
-class WorkspaceTabFocusHistory {
-  WorkspaceTabFocusHistory({this.limit = 50});
-
+class WorkspaceTabFocusHistory({this.limit = 50}) {
   /// Entries kept per workspace. Far more than anyone tabs through, and small
   /// enough that the list stays cheap to scan.
   final int limit;

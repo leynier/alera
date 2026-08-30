@@ -4,11 +4,7 @@ import 'package:alera/src/features/projects/domain/project.dart';
 import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_protocol.dart';
 import 'package:path/path.dart' as p;
 
-class RuntimeProjectManagementClient {
-  RuntimeProjectManagementClient(this._client);
-
-  final RuntimeHostClient _client;
-
+class RuntimeProjectManagementClient(final RuntimeHostClient _client) {
   Future<Project> registerProject({required String path, String? name}) async {
     final payload = _asMap(
       await _client.runtimeRequest('project.register', <String, Object?>{
@@ -76,7 +72,7 @@ class RuntimeProjectManagementClient {
         case 'cancelled':
           throw StateError('Project clone was cancelled.');
       }
-      await Future<void>.delayed(const Duration(milliseconds: 300));
+      await Future.pause(const Duration(milliseconds: 300));
     }
     throw TimeoutException(
       'Project clone timed out.',

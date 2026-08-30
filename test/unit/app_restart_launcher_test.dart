@@ -164,9 +164,4 @@ class _RecordingProcessRunner implements ProcessRunner {
   }
 }
 
-class _Invocation {
-  const _Invocation(this.executable, this.arguments);
-
-  final String executable;
-  final List<String> arguments;
-}
+class const _Invocation(final String executable, final List<String> arguments);

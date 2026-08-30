@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:isolate';
 import 'dart:typed_data';
+
 import 'configuration_document.dart';
 import 'configuration_rpc.dart';
 
@@ -8,11 +9,10 @@ const configurationTransferMaxBytes = 2 * 1024 * 1024;
 const _chunkBytes = 128 * 1024;
 
 /// Keeps configuration bundles below the terminal relay's unchanged envelope cap.
-class ConfigurationTransfer {
-  ConfigurationTransfer(this.request, this.accountId);
-  final ConfigurationRequest request;
-  final String accountId;
-
+class ConfigurationTransfer(
+  final ConfigurationRequest request,
+  final String accountId,
+) {
   Future<JsonMap> snapshot() async {
     final meta = jsonMap(
       await request('configuration.transfer.start', {

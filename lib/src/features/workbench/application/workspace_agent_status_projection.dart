@@ -1,12 +1,10 @@
 import 'package:alera/src/features/agent_status/domain/agent_status.dart';
 import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
 
-class WorkspaceAgentRun {
-  const WorkspaceAgentRun({required this.tab, required this.status});
-
-  final WorkspaceTabRecord tab;
-  final AgentStatusEntry status;
-}
+class const WorkspaceAgentRun({
+  required final WorkspaceTabRecord tab,
+  required final AgentStatusEntry status,
+});
 
 // Runs keep the incoming tab order (creation order): sorting by status or
 // recency would reshuffle sidebar rows on every agent hook event.

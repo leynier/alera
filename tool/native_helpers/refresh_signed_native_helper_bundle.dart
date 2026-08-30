@@ -96,13 +96,11 @@ Future<void> refreshSignedMacosNativeHelperBundle({
   );
 }
 
-final class _RefreshOptions {
-  const _RefreshOptions({
-    required this.emulatorRoot,
-    required this.manifestPath,
-  });
-
-  factory _RefreshOptions.parse(List<String> arguments) {
+final class const _RefreshOptions({
+  required final String emulatorRoot,
+  required final String manifestPath,
+}) {
+  factory parse(List<String> arguments) {
     final values = <String, String>{};
     for (var index = 0; index < arguments.length; index += 2) {
       if (index + 1 >= arguments.length || !arguments[index].startsWith('--')) {
@@ -128,7 +126,4 @@ final class _RefreshOptions {
           'tool/native_helpers/native_helper_assets.json',
     );
   }
-
-  final String emulatorRoot;
-  final String manifestPath;
 }

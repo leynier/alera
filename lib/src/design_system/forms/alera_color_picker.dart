@@ -7,16 +7,11 @@ import 'package:flutter_colorpicker/flutter_colorpicker.dart';
 ///
 /// Restricted to 6-character hex colors (no alpha channel) to match Alera's
 /// terminal settings constraints.
-class AleraColorPicker extends StatelessWidget {
-  const AleraColorPicker({
-    super.key,
-    required this.pickerColor,
-    required this.onColorChanged,
-  });
-
-  final Color pickerColor;
-  final ValueChanged<Color> onColorChanged;
-
+class const AleraColorPicker({
+  super.key,
+  required final Color pickerColor,
+  required final ValueChanged<Color> onColorChanged,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ColorPicker(
@@ -25,10 +20,10 @@ class AleraColorPicker extends StatelessWidget {
       enableAlpha: false,
       labelTypes: const [],
       portraitOnly: true,
-      pickerAreaBorderRadius: BorderRadius.circular(AleraTokens.radiusLg),
+      pickerAreaBorderRadius: .circular(AleraTokens.radiusLg),
       colorPickerWidth: 260,
       pickerAreaHeightPercent: 0.7,
-      paletteType: PaletteType.hsvWithHue,
+      paletteType: .hsvWithHue,
     );
   }
 }
@@ -49,14 +44,12 @@ Future<Color?> showAleraColorPickerDialog({
         child: Padding(
           padding: const EdgeInsets.all(AleraTokens.space20),
           child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: .min,
+            crossAxisAlignment: .start,
             children: <Widget>[
               Text(
                 title,
-                style: theme.textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
+                style: theme.textTheme.titleMedium?.copyWith(fontWeight: .w600),
               ),
               const SizedBox(height: AleraTokens.space16),
               Align(
@@ -70,7 +63,7 @@ Future<Color?> showAleraColorPickerDialog({
               ),
               const SizedBox(height: AleraTokens.space20),
               Row(
-                mainAxisAlignment: MainAxisAlignment.end,
+                mainAxisAlignment: .end,
                 children: <Widget>[
                   TextButton(
                     onPressed: () => Navigator.of(context).pop(),

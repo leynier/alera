@@ -175,9 +175,8 @@ abstract interface class TerminalVisibilityLease {
   void dispose();
 }
 
-final class NoopTerminalVisibilityLease implements TerminalVisibilityLease {
-  const NoopTerminalVisibilityLease();
-
+final class const NoopTerminalVisibilityLease()
+    implements TerminalVisibilityLease {
   @override
   void dispose() {}
 }
@@ -234,15 +233,10 @@ final ValueNotifier<TerminalPulseState> _terminalPulseUnavailable =
     );
 
 /// How much of a restored snapshot has reached the emulator.
-class TerminalRestoreProgress {
-  const TerminalRestoreProgress({
-    required this.writtenChars,
-    required this.totalChars,
-  });
-
-  final int writtenChars;
-  final int totalChars;
-
+class const TerminalRestoreProgress({
+  required final int writtenChars,
+  required final int totalChars,
+}) {
   double get fraction {
     if (totalChars <= 0) {
       return 1;
@@ -259,25 +253,20 @@ typedef TerminalLaunchEnvironmentBuilder =
       required String tabId,
     });
 
-typedef TerminalSessionCleanup =
-    FutureOr<void> Function(String terminalSessionId);
+typedef TerminalSessionCleanup = FutureOr<void> Function(
+  String terminalSessionId,
+);
 
-typedef TerminalProcessCreated =
-    FutureOr<void> Function(String terminalSessionId);
+typedef TerminalProcessCreated = FutureOr<void> Function(
+  String terminalSessionId,
+);
 
-final class TerminalRuntimeExitEvent {
-  const TerminalRuntimeExitEvent({
-    required this.workspaceId,
-    required this.tabId,
-    required this.exitCode,
-    this.autoCloseOnSuccess = false,
-  });
-
-  final String workspaceId;
-  final String tabId;
-  final int exitCode;
-  final bool autoCloseOnSuccess;
-}
+final class const TerminalRuntimeExitEvent({
+  required final String workspaceId,
+  required final String tabId,
+  required final int exitCode,
+  final bool autoCloseOnSuccess = false,
+});
 
 abstract interface class TerminalPtySessionFactory {
   TerminalPtySession create({
@@ -353,56 +342,34 @@ abstract interface class TerminalPulsePtySession implements TerminalPtySession {
   });
 }
 
-sealed class TerminalPtySessionEvent {
-  const TerminalPtySessionEvent();
-}
+sealed class const TerminalPtySessionEvent();
 
-final class TerminalPtyOutputEvent extends TerminalPtySessionEvent {
-  const TerminalPtyOutputEvent(this.data);
-
-  final Uint8List data;
-}
+final class const TerminalPtyOutputEvent(final Uint8List data)
+    extends TerminalPtySessionEvent;
 
 /// Output already decoded off the UI isolate. Byte-based PTY adapters keep
 /// using [TerminalPtyOutputEvent]; only the socket path produces this.
-final class TerminalPtyOutputTextEvent extends TerminalPtySessionEvent {
-  const TerminalPtyOutputTextEvent(this.text);
+final class const TerminalPtyOutputTextEvent(final String text)
+    extends TerminalPtySessionEvent;
 
-  final String text;
-}
+final class const TerminalPtySnapshotEvent(
+  final Uint8List data, {
+  final bool resetInteractionModes = false,
+}) extends TerminalPtySessionEvent;
 
-final class TerminalPtySnapshotEvent extends TerminalPtySessionEvent {
-  const TerminalPtySnapshotEvent(
-    this.data, {
-    this.resetInteractionModes = false,
-  });
+final class const TerminalPtyExitEvent(
+  final int exitCode, {
+  final bool notifyRuntime = true,
+}) extends TerminalPtySessionEvent;
 
-  final Uint8List data;
-  final bool resetInteractionModes;
-}
+final class const TerminalPtyErrorEvent(final Object error)
+    extends TerminalPtySessionEvent;
 
-final class TerminalPtyExitEvent extends TerminalPtySessionEvent {
-  const TerminalPtyExitEvent(this.exitCode, {this.notifyRuntime = true});
+final class const TerminalPtyPulseChangedEvent(final TerminalPulseState state)
+    extends TerminalPtySessionEvent;
 
-  final int exitCode;
-  final bool notifyRuntime;
-}
-
-final class TerminalPtyErrorEvent extends TerminalPtySessionEvent {
-  const TerminalPtyErrorEvent(this.error);
-
-  final Object error;
-}
-
-final class TerminalPtyPulseChangedEvent extends TerminalPtySessionEvent {
-  const TerminalPtyPulseChangedEvent(this.state);
-
-  final TerminalPulseState state;
-}
-
-class DefaultTerminalPtySessionFactory implements TerminalPtySessionFactory {
-  const DefaultTerminalPtySessionFactory();
-
+class const DefaultTerminalPtySessionFactory()
+    implements TerminalPtySessionFactory {
   @override
   TerminalPtySession create({
     required String sessionId,

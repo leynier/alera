@@ -9,15 +9,13 @@ import 'package:alera/src/shared/infra/runtime/runtime_snapshot_stream.dart';
 /// [LinkedReviewRepository] over the runtime host RPC. Mirrors
 /// `RuntimeProjectConfigRepository`: the host owns the `linkedReviews` table and
 /// broadcasts `linkedReviewsChanged` on every mutation.
-class RuntimeLinkedReviewRepository implements LinkedReviewRepository {
-  RuntimeLinkedReviewRepository(
-    this._client, {
-    this.beforeAccess,
-    RuntimeChangeCoalescer? coalescer,
-  }) : _coalescer = coalescer ?? RuntimeChangeCoalescer();
+class RuntimeLinkedReviewRepository(
+  final RuntimeHostClient _client, {
+  final Future<void> Function()? beforeAccess,
+  RuntimeChangeCoalescer? coalescer,
+}) implements LinkedReviewRepository {
+  this : _coalescer = coalescer ?? RuntimeChangeCoalescer();
 
-  final RuntimeHostClient _client;
-  final Future<void> Function()? beforeAccess;
   final RuntimeChangeCoalescer _coalescer;
 
   @override

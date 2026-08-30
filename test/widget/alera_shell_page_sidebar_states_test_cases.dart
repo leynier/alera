@@ -54,14 +54,14 @@ void _registerAleraShellSidebarStateTests() {
           terminalSessionId: 'tab-1',
           workspaceId: 'workspace-1',
           tabId: 'tab-1',
-          state: AgentStatusState.waiting,
+          state: .waiting,
           lastAssistantMessage: 'Needs input',
         ),
         'tab-2': _agentStatusEntry(
           terminalSessionId: 'tab-2',
           workspaceId: 'workspace-1',
           tabId: 'tab-2',
-          state: AgentStatusState.waiting,
+          state: .waiting,
           lastAssistantMessage: 'Ready to continue',
         ),
       },
@@ -108,7 +108,7 @@ void _registerAleraShellSidebarStateTests() {
           terminalSessionId: 'tab-2',
           workspaceId: 'workspace-2',
           tabId: 'tab-2',
-          state: AgentStatusState.waiting,
+          state: .waiting,
         ),
       },
     );
@@ -205,7 +205,7 @@ void _registerAleraShellSidebarStateTests() {
       repoPath: '/repo/notes',
       createdAt: now,
       updatedAt: now,
-      kind: ProjectKind.folder,
+      kind: .folder,
     );
     final workspace = Workspace(
       id: 'workspace-folder',
@@ -215,8 +215,8 @@ void _registerAleraShellSidebarStateTests() {
       path: project.repoPath,
       createdAt: now,
       updatedAt: now,
-      kind: WorkspaceKind.main,
-      status: WorkspaceStatus.active,
+      kind: .main,
+      status: .active,
     );
 
     await _pumpShell(
@@ -249,7 +249,7 @@ void _registerAleraShellSidebarStateTests() {
         tester,
         state: _linkedWorkbenchState(linkedExpanded: true).copyWith(
           viewPrefs: WorkbenchViewPrefs.defaults.copyWith(
-            groupBy: WorkbenchGroupBy.none,
+            groupBy: .none,
             expandedWorkspaceIds: <String>{'workspace-1', 'workspace-2'},
           ),
         ),
@@ -551,12 +551,12 @@ void _registerAleraShellSidebarStateTests() {
           terminalSessionId: 'tab-2',
           workspaceId: 'workspace-2',
           tabId: 'tab-2',
-          state: AgentStatusState.waiting,
+          state: .waiting,
           prompt: prompt,
         ),
       },
     );
-    final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+    final mouse = await tester.createGesture(kind: .mouse);
     addTearDown(mouse.removePointer);
     await mouse.addPointer();
     await mouse.moveTo(tester.getCenter(find.text(description)));
@@ -583,13 +583,13 @@ void _registerAleraShellSidebarStateTests() {
           terminalSessionId: 'tab-2',
           workspaceId: 'workspace-2',
           tabId: 'tab-2',
-          state: AgentStatusState.waiting,
+          state: .waiting,
           prompt: prompt,
         ),
       },
     );
 
-    final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+    final mouse = await tester.createGesture(kind: .mouse);
     addTearDown(mouse.removePointer);
     await mouse.addPointer();
 

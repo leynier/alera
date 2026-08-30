@@ -7,18 +7,18 @@ void main() {
       const entries = <GitChangeEntry>[
         GitChangeEntry(
           path: 'lib/new.dart',
-          area: GitChangeArea.untracked,
-          status: GitChangeStatus.untracked,
+          area: .untracked,
+          status: .untracked,
         ),
         GitChangeEntry(
           path: 'lib/dirty.dart',
-          area: GitChangeArea.unstaged,
-          status: GitChangeStatus.modified,
+          area: .unstaged,
+          status: .modified,
         ),
         GitChangeEntry(
           path: 'lib/staged.dart',
-          area: GitChangeArea.staged,
-          status: GitChangeStatus.modified,
+          area: .staged,
+          status: .modified,
         ),
       ];
 
@@ -35,23 +35,23 @@ void main() {
       const entries = <GitChangeEntry>[
         GitChangeEntry(
           path: 'lib/new.dart',
-          area: GitChangeArea.untracked,
-          status: GitChangeStatus.untracked,
+          area: .untracked,
+          status: .untracked,
         ),
         GitChangeEntry(
           path: 'lib/dirty.dart',
-          area: GitChangeArea.unstaged,
-          status: GitChangeStatus.modified,
+          area: .unstaged,
+          status: .modified,
         ),
         GitChangeEntry(
           path: 'lib/dirty.dart',
-          area: GitChangeArea.staged,
-          status: GitChangeStatus.modified,
+          area: .staged,
+          status: .modified,
         ),
         GitChangeEntry(
           path: 'lib/staged.dart',
-          area: GitChangeArea.staged,
-          status: GitChangeStatus.modified,
+          area: .staged,
+          status: .modified,
         ),
       ];
 

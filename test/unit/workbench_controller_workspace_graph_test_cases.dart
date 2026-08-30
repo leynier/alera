@@ -10,10 +10,10 @@ void _registerWorkbenchControllerWorkspaceGraphTests() {
         name: 'Parent',
         branch: 'main',
         path: _harness.project.repoPath,
-        createdAt: DateTime.utc(2026, 5, 22),
-        updatedAt: DateTime.utc(2026, 5, 22),
-        kind: WorkspaceKind.main,
-        status: WorkspaceStatus.active,
+        createdAt: .utc(2026, 5, 22),
+        updatedAt: .utc(2026, 5, 22),
+        kind: .main,
+        status: .active,
       );
       await _harness.workbenchRepository.upsertWorkspace(parent);
 
@@ -71,10 +71,10 @@ void _registerWorkbenchControllerWorkspaceGraphTests() {
       projectId: _harness.project.id,
       name: 'Feature',
       path: '/tmp/workspace-1',
-      createdAt: DateTime.utc(2026, 5, 22),
-      updatedAt: DateTime.utc(2026, 5, 22),
-      kind: WorkspaceKind.linked,
-      status: WorkspaceStatus.active,
+      createdAt: .utc(2026, 5, 22),
+      updatedAt: .utc(2026, 5, 22),
+      kind: .linked,
+      status: .active,
       tagIds: const <String>['tag-old', 'tag-keep'],
     );
 
@@ -102,10 +102,10 @@ void _registerWorkbenchControllerWorkspaceGraphTests() {
       projectId: _harness.project.id,
       name: 'Feature',
       path: '/tmp/workspace-1',
-      createdAt: DateTime.utc(2026, 5, 22),
-      updatedAt: DateTime.utc(2026, 5, 22),
-      kind: WorkspaceKind.linked,
-      status: WorkspaceStatus.active,
+      createdAt: .utc(2026, 5, 22),
+      updatedAt: .utc(2026, 5, 22),
+      kind: .linked,
+      status: .active,
       tagIds: const <String>['tag-stale'],
     );
     await _harness.workbenchRepository.upsertWorkspace(
@@ -146,10 +146,10 @@ void _registerWorkbenchControllerWorkspaceGraphTests() {
       projectId: _harness.project.id,
       name: 'Feature',
       path: '/tmp/workspace-1',
-      createdAt: DateTime.utc(2026, 5, 22),
-      updatedAt: DateTime.utc(2026, 5, 22),
-      kind: WorkspaceKind.linked,
-      status: WorkspaceStatus.active,
+      createdAt: .utc(2026, 5, 22),
+      updatedAt: .utc(2026, 5, 22),
+      kind: .linked,
+      status: .active,
     );
     await _harness.workspaceGraphRepository.linkWorkspaces(
       parentWorkspaceId: workspace.id,
@@ -179,10 +179,10 @@ void _registerWorkbenchControllerWorkspaceGraphTests() {
       projectId: _harness.project.id,
       name: 'Feature',
       path: '/tmp/workspace-1',
-      createdAt: DateTime.utc(2026, 5, 22),
-      updatedAt: DateTime.utc(2026, 5, 22),
-      kind: WorkspaceKind.linked,
-      status: WorkspaceStatus.active,
+      createdAt: .utc(2026, 5, 22),
+      updatedAt: .utc(2026, 5, 22),
+      kind: .linked,
+      status: .active,
       parentWorkspaceId: 'parent-old',
     );
 
@@ -211,10 +211,10 @@ void _registerWorkbenchControllerWorkspaceGraphTests() {
         projectId: _harness.project.id,
         name: 'Feature',
         path: '/tmp/workspace-1',
-        createdAt: DateTime.utc(2026, 5, 22),
-        updatedAt: DateTime.utc(2026, 5, 22),
-        kind: WorkspaceKind.linked,
-        status: WorkspaceStatus.active,
+        createdAt: .utc(2026, 5, 22),
+        updatedAt: .utc(2026, 5, 22),
+        kind: .linked,
+        status: .active,
         parentWorkspaceId: 'parent-old',
       );
       _harness.workspaceGraphRepository.linkErrorsByParent['parent-new'] =

@@ -36,8 +36,8 @@ void main() {
         path: '/repo/$projectId/$id',
         createdAt: now,
         updatedAt: now,
-        kind: WorkspaceKind.main,
-        status: WorkspaceStatus.active,
+        kind: .main,
+        status: .active,
       );
     }
 

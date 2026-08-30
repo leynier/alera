@@ -7,18 +7,12 @@ import 'package:alera/src/features/ai_dictation/presentation/ai_dictation_remote
 import 'package:alera/src/features/ai_dictation/presentation/ai_dictation_target.dart';
 import 'package:flutter/material.dart';
 
-class AiDictationSettingsTest extends StatefulWidget {
-  const AiDictationSettingsTest({
-    super.key,
-    required this.settings,
-    required this.remoteSupported,
-    this.groupKey,
-  });
-
-  final AiDictationSettings settings;
-  final bool remoteSupported;
-  final GlobalKey? groupKey;
-
+class const AiDictationSettingsTest({
+  super.key,
+  required final AiDictationSettings settings,
+  required final bool remoteSupported,
+  final GlobalKey? groupKey,
+}) extends StatefulWidget {
   @override
   State<AiDictationSettingsTest> createState() =>
       _AiDictationSettingsTestState();
@@ -42,8 +36,7 @@ class _AiDictationSettingsTestState extends State<AiDictationSettingsTest> {
       key: widget.groupKey,
       child: AleraSettingsGroup(
         title: 'Test AI Dictation',
-        description:
-            'Record a short sample with the current configuration and review the transcript here.',
+        description: 'Record a short sample with the current configuration and review the transcript here.',
         children: <Widget>[
           AleraSettingRow(
             title: 'Test Transcript',

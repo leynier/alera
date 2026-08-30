@@ -62,9 +62,8 @@ void main() {
       );
       final container = ProviderContainer(
         overrides: [
-          mobileCodexClientProvider(
-            'host-session-race',
-          ).overrideWith((ref) async => client),
+          mobileCodexClientProvider('host-session-race')
+              .overrideWith((ref) async => client),
         ],
       );
       addTearDown(() {
@@ -92,7 +91,7 @@ void main() {
             ),
           );
       while (skillRequests < 2) {
-        await Future<void>.delayed(Duration.zero);
+        await Future.pause(.zero);
       }
       client.emit(
         const MobileRuntimeEvent('codexCatalogChanged', <String, Object?>{
@@ -100,9 +99,9 @@ void main() {
         }),
       );
       while (modelRequests < 3 || collaborationRequests < 3) {
-        await Future<void>.delayed(Duration.zero);
+        await Future.pause(.zero);
       }
-      await Future<void>.delayed(Duration.zero);
+      await Future.pause(.zero);
       sessionSkills.complete(const <String, Object?>{
         'data': <Object?>[
           <String, Object?>{'name': 'session-skill'},

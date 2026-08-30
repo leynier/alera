@@ -3,19 +3,17 @@ import 'package:dart_mappable/dart_mappable.dart';
 part 'agent_status.mapper.dart';
 
 @MappableEnum()
-enum AgentStatusState {
+enum AgentStatusState(this.key) {
   working('working'),
   waiting('waiting'),
   blocked('blocked'),
   done('done');
 
-  const AgentStatusState(this.key);
-
   final String key;
 }
 
 @MappableEnum()
-enum AgentType {
+enum AgentType(this.key) {
   codex('codex'),
   claude('claude'),
   copilot('copilot'),
@@ -28,22 +26,18 @@ enum AgentType {
   grok('grok'),
   fx('fx');
 
-  const AgentType(this.key);
-
   final String key;
 }
 
-class AgentHookEvent {
-  const AgentHookEvent({
-    required this.terminalSessionId,
-    required this.workspaceId,
-    required this.tabId,
-    required this.agentType,
-    required this.payload,
-    this.hookEventName,
-    this.version,
-  });
-
+class const AgentHookEvent({
+  required this.terminalSessionId,
+  required this.workspaceId,
+  required this.tabId,
+  required this.agentType,
+  required this.payload,
+  this.hookEventName,
+  this.version,
+}) {
   final String terminalSessionId;
   final String workspaceId;
   final String tabId;
@@ -57,22 +51,20 @@ class AgentHookEvent {
 /// presence event, so without it no Riverpod short-circuit can fire and an
 /// unchanged snapshot still rebuilds the sidebar.
 @MappableClass()
-class AgentStatusEntry with AgentStatusEntryMappable {
-  const AgentStatusEntry({
-    required this.terminalSessionId,
-    required this.workspaceId,
-    required this.tabId,
-    required this.agentType,
-    required this.state,
-    required this.prompt,
-    required this.updatedAt,
-    required this.stateStartedAt,
-    this.toolName,
-    this.toolInput,
-    this.lastAssistantMessage,
-    this.interrupted,
-  });
-
+class const AgentStatusEntry({
+  required this.terminalSessionId,
+  required this.workspaceId,
+  required this.tabId,
+  required this.agentType,
+  required this.state,
+  required this.prompt,
+  required this.updatedAt,
+  required this.stateStartedAt,
+  this.toolName,
+  this.toolInput,
+  this.lastAssistantMessage,
+  this.interrupted,
+}) with AgentStatusEntryMappable {
   final String terminalSessionId;
   final String workspaceId;
   final String tabId;

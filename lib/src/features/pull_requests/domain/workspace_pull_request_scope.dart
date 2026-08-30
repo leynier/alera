@@ -5,15 +5,13 @@ import 'package:alera/src/shared/git_hosting/domain/git_hosting_provider.dart';
 /// hosting-provider override, so the controller itself stays free of workspace
 /// and project lookups. Value equality lets Riverpod cache one controller per
 /// distinct scope.
-class WorkspacePullRequestScope {
-  const WorkspacePullRequestScope({
-    required this.workspaceId,
-    required this.repoPath,
-    this.branch,
-    this.sourceBranch,
-    this.providerOverride,
-  });
-
+class const WorkspacePullRequestScope({
+  required this.workspaceId,
+  required this.repoPath,
+  this.branch,
+  this.sourceBranch,
+  this.providerOverride,
+}) {
   /// Identifies the workspace for persisting the linked review.
   final String workspaceId;
 

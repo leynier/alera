@@ -8,7 +8,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 ResourceSnapshot _snapshot({bool warming = false, String? error}) =>
     ResourceSnapshot(
-      collectedAt: DateTime.utc(2026, 7, 25),
+      collectedAt: .utc(2026, 7, 25),
       warming: warming,
       host: const ResourceHostMetrics(
         totalMemoryBytes: 16 * 1024 * 1024 * 1024,
@@ -212,11 +212,7 @@ void main() {
   testWidgets('a warming snapshot does not report totals as zero', (
     tester,
   ) async {
-    await _pump(
-      tester,
-      snapshot: _snapshot(warming: true),
-      tree: ResourceTree.empty,
-    );
+    await _pump(tester, snapshot: _snapshot(warming: true), tree: .empty);
 
     expect(find.text('Measuring resource usage'), findsOneWidget);
     expect(find.text('0.0%'), findsNothing);
@@ -226,7 +222,7 @@ void main() {
     await _pump(
       tester,
       snapshot: _snapshot(error: 'connection refused'),
-      tree: ResourceTree.empty,
+      tree: .empty,
       hostUnreachable: true,
     );
 

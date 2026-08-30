@@ -26,7 +26,7 @@ void main() {
       service = CodexRuntimeHomeService(
         homeDirectory: home.path,
         applicationSupportDirectory: () async => support,
-        platform: ManagedAgentHookPlatform.posix,
+        platform: .posix,
         environment: <String, String>{'HOME': home.path},
       );
     });

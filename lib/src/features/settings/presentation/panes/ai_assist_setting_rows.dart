@@ -9,16 +9,11 @@ import 'package:alera/src/features/ai_assist/domain/ai_assist_settings.dart';
 import 'package:alera/src/features/settings/presentation/rows/settings_rows.dart';
 import 'package:flutter/material.dart';
 
-class AiAssistAgentRow extends StatelessWidget {
-  const AiAssistAgentRow({
-    super.key,
-    required this.value,
-    required this.onChanged,
-  });
-
-  final AiAssistAgent value;
-  final ValueChanged<AiAssistAgent> onChanged;
-
+class const AiAssistAgentRow({
+  super.key,
+  required final AiAssistAgent value,
+  required final ValueChanged<AiAssistAgent> onChanged,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return AleraSettingRow(
@@ -40,28 +35,17 @@ class AiAssistAgentRow extends StatelessWidget {
   }
 }
 
-class AiAssistModelRow extends StatelessWidget {
-  const AiAssistModelRow({
-    super.key,
-    required this.agent,
-    required this.models,
-    required this.value,
-    required this.canDiscoverModels,
-    required this.discovering,
-    required this.discoveryError,
-    required this.onRefreshModels,
-    required this.onChanged,
-  });
-
-  final AiAssistAgent agent;
-  final List<AiAssistModel> models;
-  final String value;
-  final bool canDiscoverModels;
-  final bool discovering;
-  final String? discoveryError;
-  final VoidCallback? onRefreshModels;
-  final ValueChanged<String> onChanged;
-
+class const AiAssistModelRow({
+  super.key,
+  required final AiAssistAgent agent,
+  required final List<AiAssistModel> models,
+  required final String value,
+  required final bool canDiscoverModels,
+  required final bool discovering,
+  required final String? discoveryError,
+  required final VoidCallback? onRefreshModels,
+  required final ValueChanged<String> onChanged,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final known = models.any((model) => model.id == value);
@@ -108,20 +92,13 @@ class AiAssistModelRow extends StatelessWidget {
   }
 }
 
-class AiAssistThinkingRow extends StatelessWidget {
-  const AiAssistThinkingRow({
-    super.key,
-    this.controlKey = 'thinking',
-    required this.levels,
-    required this.value,
-    required this.onChanged,
-  });
-
-  final String controlKey;
-  final List<AiThinkingLevel> levels;
-  final String value;
-  final ValueChanged<String> onChanged;
-
+class const AiAssistThinkingRow({
+  super.key,
+  final String controlKey = 'thinking',
+  required final List<AiThinkingLevel> levels,
+  required final String value,
+  required final ValueChanged<String> onChanged,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final selected = levels.any((level) => level.id == value)
@@ -146,26 +123,16 @@ class AiAssistThinkingRow extends StatelessWidget {
   }
 }
 
-class AiAssistPromptAgentRow extends StatelessWidget {
-  const AiAssistPromptAgentRow({
-    super.key,
-    required this.operation,
-    required this.globalAgent,
-    required this.value,
-    this.allowedAgents = AiAssistAgent.values,
-    this.allowGlobal = true,
-    required this.onChanged,
-    this.allowCustom = true,
-  });
-
-  final AiAssistOperation operation;
-  final AiAssistAgent globalAgent;
-  final AiAssistAgent? value;
-  final List<AiAssistAgent> allowedAgents;
-  final bool allowGlobal;
-  final ValueChanged<AiAssistAgent?> onChanged;
-  final bool allowCustom;
-
+class const AiAssistPromptAgentRow({
+  super.key,
+  required final AiAssistOperation operation,
+  required final AiAssistAgent globalAgent,
+  required final AiAssistAgent? value,
+  final List<AiAssistAgent> allowedAgents = AiAssistAgent.values,
+  final bool allowGlobal = true,
+  required final ValueChanged<AiAssistAgent?> onChanged,
+  final bool allowCustom = true,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return AleraSettingRow(
@@ -195,30 +162,18 @@ class AiAssistPromptAgentRow extends StatelessWidget {
   }
 }
 
-class AiAssistPromptModelRow extends StatelessWidget {
-  const AiAssistPromptModelRow({
-    super.key,
-    required this.operation,
-    required this.agent,
-    required this.models,
-    required this.inheritedModel,
-    required this.value,
-    required this.discovering,
-    required this.discoveryError,
-    required this.onRefreshModels,
-    required this.onChanged,
-  });
-
-  final AiAssistOperation operation;
-  final AiAssistAgent agent;
-  final List<AiAssistModel> models;
-  final AiAssistModel inheritedModel;
-  final String? value;
-  final bool discovering;
-  final String? discoveryError;
-  final VoidCallback? onRefreshModels;
-  final ValueChanged<String?> onChanged;
-
+class const AiAssistPromptModelRow({
+  super.key,
+  required final AiAssistOperation operation,
+  required final AiAssistAgent agent,
+  required final List<AiAssistModel> models,
+  required final AiAssistModel inheritedModel,
+  required final String? value,
+  required final bool discovering,
+  required final String? discoveryError,
+  required final VoidCallback? onRefreshModels,
+  required final ValueChanged<String?> onChanged,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final selected = value?.trim();
@@ -269,18 +224,12 @@ class AiAssistPromptModelRow extends StatelessWidget {
   }
 }
 
-class InstructionSettingRow extends StatefulWidget {
-  const InstructionSettingRow({
-    super.key,
-    required this.title,
-    required this.value,
-    required this.onChanged,
-  });
-
-  final String title;
-  final String value;
-  final ValueChanged<String> onChanged;
-
+class const InstructionSettingRow({
+  super.key,
+  required final String title,
+  required final String value,
+  required final ValueChanged<String> onChanged,
+}) extends StatefulWidget {
   @override
   State<InstructionSettingRow> createState() => _InstructionSettingRowState();
 }

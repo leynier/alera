@@ -22,7 +22,7 @@ void main() {
       createdAt: now,
       updatedAt: now,
       kind: kind,
-      status: WorkspaceStatus.active,
+      status: .active,
       hostId: hostId,
       childCount: childCount,
       tagIds: tagIds,
@@ -41,10 +41,7 @@ void main() {
 
   group('WorkspaceRoleBadge', () {
     testWidgets('shows home icon for the main workspace', (tester) async {
-      await pump(
-        tester,
-        WorkspaceRoleBadge(workspace: workspace(kind: WorkspaceKind.main)),
-      );
+      await pump(tester, WorkspaceRoleBadge(workspace: workspace(kind: .main)));
       expect(find.byIcon(AleraIcons.workspaceMain), findsOneWidget);
       expect(find.byTooltip('Default workspace'), findsOneWidget);
       expect(find.text('default'), findsNothing);
@@ -74,10 +71,7 @@ void main() {
     });
 
     test('hasRole matches the rendered roles', () {
-      expect(
-        WorkspaceRoleBadge.hasRole(workspace(kind: WorkspaceKind.main)),
-        isTrue,
-      );
+      expect(WorkspaceRoleBadge.hasRole(workspace(kind: .main)), isTrue);
       expect(
         WorkspaceRoleBadge.hasRole(workspace(parentWorkspaceId: 'p')),
         isFalse,

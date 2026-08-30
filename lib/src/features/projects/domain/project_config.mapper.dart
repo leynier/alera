@@ -615,4 +615,3 @@ class _NewWorkspaceConfigCopyWithImpl<$R, $Out>
     Then<$Out2, $R2> t,
   ) => _NewWorkspaceConfigCopyWithImpl<$R2, $Out2>($value, $cast, t);
 }
-

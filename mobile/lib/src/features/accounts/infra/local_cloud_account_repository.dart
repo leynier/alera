@@ -12,9 +12,9 @@ abstract interface class SecureValueStore {
   Future<void> delete(String key);
 }
 
-class FlutterSecureValueStore implements SecureValueStore {
-  FlutterSecureValueStore([FlutterSecureStorage? storage])
-    : _storage = storage ?? const FlutterSecureStorage();
+class FlutterSecureValueStore([FlutterSecureStorage? storage])
+    implements SecureValueStore {
+  this : _storage = storage ?? const FlutterSecureStorage();
 
   final FlutterSecureStorage _storage;
 
@@ -30,9 +30,9 @@ class FlutterSecureValueStore implements SecureValueStore {
   Future<void> delete(String key) => _storage.delete(key: key);
 }
 
-class LocalCloudAccountRepository implements CloudAccountRepository {
-  LocalCloudAccountRepository({SecureValueStore? store})
-    : _store = store ?? FlutterSecureValueStore();
+class LocalCloudAccountRepository({SecureValueStore? store})
+    implements CloudAccountRepository {
+  this : _store = store ?? FlutterSecureValueStore();
 
   static const String _sessionsKey = 'alera.mobile.cloudSessions.v1';
   static const String _installationIdKey =

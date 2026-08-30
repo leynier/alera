@@ -84,7 +84,7 @@ class _FakeKeepAliveBackend implements KeepAliveBackend {
 }
 
 class _MemorySettingsRepository implements SettingsRepository {
-  AleraSettings _settings = AleraSettings.defaults;
+  AleraSettings _settings = .defaults;
 
   @override
   Future<AleraSettings> load() async => _settings;

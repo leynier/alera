@@ -1,21 +1,13 @@
 part of 'ai_assist_service_test.dart';
 
-class _FakeProcessRunner implements ProcessRunner {
-  _FakeProcessRunner({
-    required this.stdout,
-    this.stderr = '',
-    this.exitCode = 0,
-    this.exitCodeCompleter,
-    this.completeExitOnKill = true,
-    this.startReturnGate,
-  });
-
-  final String stdout;
-  final String stderr;
-  final int exitCode;
-  final Completer<int>? exitCodeCompleter;
-  final bool completeExitOnKill;
-  final Completer<void>? startReturnGate;
+class _FakeProcessRunner({
+  required final String stdout,
+  final String stderr = '',
+  final int exitCode = 0,
+  final Completer<int>? exitCodeCompleter,
+  final bool completeExitOnKill = true,
+  final Completer<void>? startReturnGate,
+}) implements ProcessRunner {
   bool started = false;
   int startCount = 0;
   bool stdinClosed = false;
@@ -79,9 +71,8 @@ class _FakeProcessRunner implements ProcessRunner {
     }
     final outputSchemaIndex = arguments.indexOf('--output-schema');
     if (outputSchemaIndex >= 0 && outputSchemaIndex + 1 < arguments.length) {
-      outputSchemaText = File(
-        arguments[outputSchemaIndex + 1],
-      ).readAsStringSync();
+      outputSchemaText = File(arguments[outputSchemaIndex + 1])
+          .readAsStringSync();
     }
     final outputFileIndex = arguments.indexOf('--output-last-message');
     if (outputFileIndex >= 0 && outputFileIndex + 1 < arguments.length) {
@@ -115,15 +106,10 @@ class _FakeProcessRunner implements ProcessRunner {
   }
 }
 
-class _FakeCommandEnvironmentResolver implements CommandEnvironmentResolver {
-  const _FakeCommandEnvironmentResolver({
-    this.value = const <String, String>{'PATH': '/usr/bin'},
-    this.variableValues = const <String, String>{},
-  });
-
-  final Map<String, String> value;
-  final Map<String, String> variableValues;
-
+class const _FakeCommandEnvironmentResolver({
+  final Map<String, String> value = const <String, String>{'PATH': '/usr/bin'},
+  final Map<String, String> variableValues = const <String, String>{},
+}) implements CommandEnvironmentResolver {
   @override
   Future<Map<String, String>> environment() async {
     return Map<String, String>.from(value);
@@ -165,6 +151,6 @@ Future<void> untilCalled(bool Function() predicate) async {
     if (DateTime.now().isAfter(deadline)) {
       fail('Timed out waiting for call');
     }
-    await Future<void>.delayed(const Duration(milliseconds: 5));
+    await Future.pause(const Duration(milliseconds: 5));
   }
 }

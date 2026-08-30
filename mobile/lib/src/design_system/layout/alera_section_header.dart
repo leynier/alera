@@ -2,20 +2,13 @@ import 'package:alera_mobile/src/app/theme/alera_tokens.dart';
 import 'package:flutter/material.dart';
 
 /// Uppercase, low-emphasis label that introduces a group of rows.
-class AleraSectionHeader extends StatelessWidget {
-  const AleraSectionHeader({
-    super.key,
-    required this.label,
-    this.leadingIcon,
-    this.trailing,
-    this.padding,
-  });
-
-  final String label;
-  final IconData? leadingIcon;
-  final Widget? trailing;
-  final EdgeInsetsGeometry? padding;
-
+class const AleraSectionHeader({
+  super.key,
+  required final String label,
+  final IconData? leadingIcon,
+  final Widget? trailing,
+  final EdgeInsetsGeometry? padding,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -40,7 +33,7 @@ class AleraSectionHeader extends StatelessWidget {
               style: theme.textTheme.labelSmall?.copyWith(
                 color: AleraTokens.foregroundFaint,
                 letterSpacing: 0.6,
-                fontWeight: FontWeight.w600,
+                fontWeight: .w600,
               ),
             ),
           ),

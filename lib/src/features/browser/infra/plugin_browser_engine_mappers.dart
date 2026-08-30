@@ -58,7 +58,7 @@ BrowserEngineEvent? _eventFromPlugin(AleraBrowserEvent event) {
       occurredAt: value.occurredAt,
       url: value.url,
       failure: BrowserFailure(
-        code: BrowserErrorCode.unknown,
+        code: .unknown,
         message: value.description,
         recoverable: true,
       ),

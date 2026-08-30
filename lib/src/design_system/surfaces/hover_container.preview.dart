@@ -10,7 +10,7 @@ import 'package:flutter/material.dart';
 )
 Widget hoverContainerPreview() => HoverContainer(
   onTap: () {},
-  padding: const EdgeInsets.all(AleraTokens.space12),
+  padding: const .all(AleraTokens.space12),
   child: Text(
     'Hover me',
     style: const TextStyle(color: AleraTokens.foreground),

@@ -5,11 +5,8 @@ import 'package:alera/src/features/projects/domain/project_config.dart';
 import 'package:alera/src/shared/infra/storage/drift_database.dart';
 import 'package:drift/drift.dart' show Value;
 
-class DriftProjectConfigRepository implements ProjectConfigRepository {
-  DriftProjectConfigRepository(this._db);
-
-  final AleraDatabase _db;
-
+class DriftProjectConfigRepository(final AleraDatabase _db)
+    implements ProjectConfigRepository {
   @override
   Future<ProjectConfig?> findByProjectId(String projectId) async {
     final row = await (_db.select(

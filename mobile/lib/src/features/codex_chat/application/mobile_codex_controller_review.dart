@@ -2,15 +2,10 @@ part of 'mobile_codex_controller.dart';
 
 // ignore_for_file: invalid_use_of_protected_member, invalid_use_of_visible_for_testing_member
 
-final class MobileCodexReviewBranches {
-  const MobileCodexReviewBranches({
-    this.branches = const <String>[],
-    this.lookupFailed = false,
-  });
-
-  final List<String> branches;
-  final bool lookupFailed;
-}
+final class const MobileCodexReviewBranches({
+  final List<String> branches = const <String>[],
+  final bool lookupFailed = false,
+});
 
 extension MobileCodexControllerReview on MobileCodexController {
   Future<MobileCodexReviewBranches> reviewBranches() async {

@@ -56,9 +56,8 @@ Future<void> main(List<String> arguments) async {
 
   final license = File('LICENSE');
   if (license.existsSync()) {
-    File(
-      '${outputRoot.path}/chocolatey/tools/LICENSE.txt',
-    ).writeAsStringSync(license.readAsStringSync());
+    File('${outputRoot.path}/chocolatey/tools/LICENSE.txt')
+        .writeAsStringSync(license.readAsStringSync());
   }
 
   stdout.writeln('Rendered package manifests into ${outputRoot.path}');

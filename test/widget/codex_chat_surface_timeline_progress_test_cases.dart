@@ -76,7 +76,7 @@ void registerCodexTimelineProgressTests() {
     await _pumpTimelineSegmentSurface(tester, client, height: 360);
 
     final trigger = find.byKey(const ValueKey<String>('codex-plan-progress'));
-    final pointer = await tester.createGesture(kind: PointerDeviceKind.mouse);
+    final pointer = await tester.createGesture(kind: .mouse);
     addTearDown(pointer.removePointer);
     await pointer.addPointer(location: tester.getCenter(trigger));
     await pointer.moveTo(tester.getCenter(trigger));
@@ -138,7 +138,7 @@ void registerCodexTimelineProgressTests() {
     await _pumpTimelineSegmentSurface(tester, client);
 
     final trigger = find.byKey(const ValueKey<String>('codex-plan-progress'));
-    final pointer = await tester.createGesture(kind: PointerDeviceKind.mouse);
+    final pointer = await tester.createGesture(kind: .mouse);
     addTearDown(pointer.removePointer);
     await pointer.addPointer(location: tester.getCenter(trigger));
     await pointer.moveTo(tester.getCenter(trigger));

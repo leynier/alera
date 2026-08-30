@@ -55,8 +55,7 @@ const List<SettingsSearchEntry> terminalSearchEntries = <SettingsSearchEntry>[
   ),
   SettingsSearchEntry(
     title: 'Toolbar Corner',
-    description:
-        'Where the pulse, composer, and refresh buttons sit on the terminal tab.',
+    description: 'Where the pulse, composer, and refresh buttons sit on the terminal tab.',
     keywords: <String>['buttons', 'overlay', 'position', 'corner', 'move'],
     groupId: 'appearance',
   ),

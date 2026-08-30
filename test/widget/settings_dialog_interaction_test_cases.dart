@@ -20,7 +20,7 @@ void _registerSettingsDialogAdvancedTests() {
     await tester.pump();
 
     await tester.enterText(field, 'Custom Mono');
-    await tester.testTextInput.receiveAction(TextInputAction.done);
+    await tester.testTextInput.receiveAction(.done);
     await tester.pump(const Duration(milliseconds: 50));
 
     expect(
@@ -76,10 +76,10 @@ void _registerSettingsDialogAdvancedTests() {
     await tester.enterText(field, 'sf');
     await tester.pump();
 
-    await tester.sendKeyDownEvent(LogicalKeyboardKey.arrowUp);
-    await tester.sendKeyUpEvent(LogicalKeyboardKey.arrowUp);
-    await tester.sendKeyDownEvent(LogicalKeyboardKey.numpadEnter);
-    await tester.sendKeyUpEvent(LogicalKeyboardKey.numpadEnter);
+    await tester.sendKeyDownEvent(.arrowUp);
+    await tester.sendKeyUpEvent(.arrowUp);
+    await tester.sendKeyDownEvent(.numpadEnter);
+    await tester.sendKeyUpEvent(.numpadEnter);
     await tester.pump(const Duration(milliseconds: 50));
 
     expect(
@@ -131,7 +131,7 @@ void _registerSettingsDialogAdvancedTests() {
       );
 
       await tester.enterText(field, '.,');
-      await tester.testTextInput.receiveAction(TextInputAction.done);
+      await tester.testTextInput.receiveAction(.done);
       await tester.pump(const Duration(milliseconds: 50));
       expect(
         container.read(settingsControllerProvider).terminal.wordSeparators,
@@ -139,7 +139,7 @@ void _registerSettingsDialogAdvancedTests() {
       );
 
       await tester.enterText(field, '');
-      await tester.testTextInput.receiveAction(TextInputAction.done);
+      await tester.testTextInput.receiveAction(.done);
       await tester.pump(const Duration(milliseconds: 50));
       expect(
         container.read(settingsControllerProvider).terminal.wordSeparators,
@@ -147,7 +147,7 @@ void _registerSettingsDialogAdvancedTests() {
       );
 
       await tester.enterText(field, 'abc');
-      await tester.testTextInput.receiveAction(TextInputAction.done);
+      await tester.testTextInput.receiveAction(.done);
       await tester.pump(const Duration(milliseconds: 50));
       expect(
         container.read(settingsControllerProvider).terminal.wordSeparators,
@@ -178,7 +178,7 @@ void _registerSettingsDialogAdvancedTests() {
       );
 
       await tester.enterText(field, 'Custom Mono');
-      await tester.testTextInput.receiveAction(TextInputAction.done);
+      await tester.testTextInput.receiveAction(.done);
       await tester.pump(const Duration(milliseconds: 50));
 
       await tester.tap(field);
@@ -188,10 +188,10 @@ void _registerSettingsDialogAdvancedTests() {
       await tester.tap(find.byTooltip('Fonts'));
       await tester.pump();
 
-      await tester.sendKeyDownEvent(LogicalKeyboardKey.arrowUp);
-      await tester.sendKeyUpEvent(LogicalKeyboardKey.arrowUp);
-      await tester.sendKeyDownEvent(LogicalKeyboardKey.numpadEnter);
-      await tester.sendKeyUpEvent(LogicalKeyboardKey.numpadEnter);
+      await tester.sendKeyDownEvent(.arrowUp);
+      await tester.sendKeyUpEvent(.arrowUp);
+      await tester.sendKeyDownEvent(.numpadEnter);
+      await tester.sendKeyUpEvent(.numpadEnter);
       await tester.pump(const Duration(milliseconds: 50));
       expect(
         container.read(settingsControllerProvider).terminal.fontFamily,
@@ -204,8 +204,8 @@ void _registerSettingsDialogAdvancedTests() {
       await tester.pump();
       await tester.tap(find.byTooltip('Fonts'));
       await tester.pump();
-      await tester.sendKeyDownEvent(LogicalKeyboardKey.enter);
-      await tester.sendKeyUpEvent(LogicalKeyboardKey.enter);
+      await tester.sendKeyDownEvent(.enter);
+      await tester.sendKeyUpEvent(.enter);
       await tester.pump(const Duration(milliseconds: 50));
       expect(
         container.read(settingsControllerProvider).terminal.fontFamily,
@@ -217,13 +217,13 @@ void _registerSettingsDialogAdvancedTests() {
       await tester.enterText(field, 'm');
       await tester.pump();
 
-      final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+      final mouse = await tester.createGesture(kind: .mouse);
       addTearDown(mouse.removePointer);
       await mouse.addPointer();
       await mouse.moveTo(tester.getCenter(find.text('Menlo')));
       await tester.pump();
-      await tester.sendKeyDownEvent(LogicalKeyboardKey.enter);
-      await tester.sendKeyUpEvent(LogicalKeyboardKey.enter);
+      await tester.sendKeyDownEvent(.enter);
+      await tester.sendKeyUpEvent(.enter);
       await tester.pump(const Duration(milliseconds: 50));
       expect(
         container.read(settingsControllerProvider).terminal.fontFamily,
@@ -234,7 +234,7 @@ void _registerSettingsDialogAdvancedTests() {
       await tester.pump();
       await tester.tap(find.byTooltip('Clear'));
       await tester.pump();
-      await tester.testTextInput.receiveAction(TextInputAction.done);
+      await tester.testTextInput.receiveAction(.done);
       await tester.pump(const Duration(milliseconds: 50));
 
       expect(
@@ -265,7 +265,7 @@ void _registerSettingsDialogAdvancedTests() {
     );
     await tester.pump();
 
-    final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+    final mouse = await tester.createGesture(kind: .mouse);
     addTearDown(mouse.removePointer);
     await mouse.addPointer();
     await tester.ensureVisible(find.text('Dracula'));
@@ -358,7 +358,7 @@ void _registerSettingsDialogAdvancedTests() {
       await tester.pump();
 
       await tester.enterText(field, '#123456');
-      await tester.testTextInput.receiveAction(TextInputAction.done);
+      await tester.testTextInput.receiveAction(.done);
       await tester.pump(const Duration(milliseconds: 50));
       expect(
         container
@@ -370,7 +370,7 @@ void _registerSettingsDialogAdvancedTests() {
       );
 
       await tester.enterText(field, '');
-      await tester.testTextInput.receiveAction(TextInputAction.done);
+      await tester.testTextInput.receiveAction(.done);
       await tester.pump(const Duration(milliseconds: 50));
       expect(
         container
@@ -382,12 +382,12 @@ void _registerSettingsDialogAdvancedTests() {
       );
 
       await tester.enterText(field, 'bad');
-      await tester.testTextInput.receiveAction(TextInputAction.done);
+      await tester.testTextInput.receiveAction(.done);
       await tester.pump(const Duration(milliseconds: 50));
       expect(tester.widget<AleraTextField>(field).controller?.text, isEmpty);
 
       await tester.enterText(field, '#abcdef');
-      await tester.testTextInput.receiveAction(TextInputAction.done);
+      await tester.testTextInput.receiveAction(.done);
       await tester.pump(const Duration(milliseconds: 50));
 
       await container
@@ -421,7 +421,7 @@ void _registerSettingsDialogAdvancedTests() {
     addTearDown(runtimeClient.dispose);
     await _pumpSettingsDialog(
       tester,
-      starController: _FakeGitHubStarController(GitHubStarState.hidden),
+      starController: _FakeGitHubStarController(.hidden),
       extraOverrides: <dynamic>[
         sshTargetRepositoryProvider.overrideWithValue(
           RuntimeSshTargetRepository(
@@ -503,7 +503,7 @@ void _registerSettingsDialogAdvancedTests() {
     addTearDown(runtimeClient.dispose);
     await _pumpSettingsDialog(
       tester,
-      starController: _FakeGitHubStarController(GitHubStarState.hidden),
+      starController: _FakeGitHubStarController(.hidden),
       extraOverrides: <dynamic>[
         sshTargetRepositoryProvider.overrideWithValue(
           RuntimeSshTargetRepository(
@@ -561,7 +561,7 @@ void _registerSettingsDialogAdvancedTests() {
     addTearDown(runtimeClient.dispose);
     await _pumpSettingsDialog(
       tester,
-      starController: _FakeGitHubStarController(GitHubStarState.hidden),
+      starController: _FakeGitHubStarController(.hidden),
       extraOverrides: <dynamic>[
         sshTargetRepositoryProvider.overrideWithValue(
           RuntimeSshTargetRepository(
@@ -608,19 +608,19 @@ void _registerSettingsDialogAdvancedTests() {
         id: 'ssh-first',
         alias: 'First Host',
         host: 'first.example.com',
-        bootstrapStatus: SshBootstrapStatus.installing,
+        bootstrapStatus: .installing,
       ),
       _sshTarget(
         id: 'ssh-second',
         alias: 'Second Host',
         host: 'second.example.com',
-        bootstrapStatus: SshBootstrapStatus.installing,
+        bootstrapStatus: .installing,
       ),
     ], bootstrapCancelGate: cancelGate);
     addTearDown(runtimeClient.dispose);
     await _pumpSettingsDialog(
       tester,
-      starController: _FakeGitHubStarController(GitHubStarState.hidden),
+      starController: _FakeGitHubStarController(.hidden),
       extraOverrides: <dynamic>[
         sshTargetRepositoryProvider.overrideWithValue(
           RuntimeSshTargetRepository(
@@ -677,7 +677,7 @@ void _registerSettingsDialogAdvancedTests() {
     addTearDown(runtimeClient.dispose);
     await _pumpSettingsDialog(
       tester,
-      starController: _FakeGitHubStarController(GitHubStarState.hidden),
+      starController: _FakeGitHubStarController(.hidden),
       extraOverrides: <dynamic>[
         sshTargetRepositoryProvider.overrideWithValue(
           RuntimeSshTargetRepository(
@@ -727,14 +727,14 @@ void _registerSettingsDialogAdvancedTests() {
         id: 'ssh-failed',
         alias: 'Failed Host',
         host: 'failed.example.com',
-        bootstrapStatus: SshBootstrapStatus.failed,
+        bootstrapStatus: .failed,
         lastError: 'Permission denied while installing runtime',
       ),
     ]);
     addTearDown(runtimeClient.dispose);
     await _pumpSettingsDialog(
       tester,
-      starController: _FakeGitHubStarController(GitHubStarState.hidden),
+      starController: _FakeGitHubStarController(.hidden),
       extraOverrides: <dynamic>[
         sshTargetRepositoryProvider.overrideWithValue(
           RuntimeSshTargetRepository(
@@ -761,13 +761,13 @@ void _registerSettingsDialogAdvancedTests() {
         id: 'ssh-password',
         alias: 'Password Host',
         host: 'password.example.com',
-        authKind: SshAuthKind.password,
+        authKind: .password,
       ),
     ]);
     addTearDown(runtimeClient.dispose);
     await _pumpSettingsDialog(
       tester,
-      starController: _FakeGitHubStarController(GitHubStarState.hidden),
+      starController: _FakeGitHubStarController(.hidden),
       extraOverrides: <dynamic>[
         sshTargetRepositoryProvider.overrideWithValue(
           RuntimeSshTargetRepository(
@@ -799,7 +799,7 @@ void _registerSettingsDialogAdvancedTests() {
     addTearDown(runtimeClient.dispose);
     await _pumpSettingsDialog(
       tester,
-      starController: _FakeGitHubStarController(GitHubStarState.hidden),
+      starController: _FakeGitHubStarController(.hidden),
       extraOverrides: <dynamic>[
         sshTargetRepositoryProvider.overrideWithValue(
           RuntimeSshTargetRepository(
@@ -852,7 +852,7 @@ void _registerSettingsDialogAdvancedTests() {
     addTearDown(runtimeClient.dispose);
     await _pumpSettingsDialog(
       tester,
-      starController: _FakeGitHubStarController(GitHubStarState.hidden),
+      starController: _FakeGitHubStarController(.hidden),
       extraOverrides: <dynamic>[
         sshTargetRepositoryProvider.overrideWithValue(
           RuntimeSshTargetRepository(
@@ -870,7 +870,7 @@ void _registerSettingsDialogAdvancedTests() {
       alias: 'Refreshing Host',
       host: 'old.example.com',
       username: 'old-user',
-      bootstrapStatus: SshBootstrapStatus.installed,
+      bootstrapStatus: .installed,
     );
     runtimeClient.emitSshTargetsChanged();
     await tester.pumpAndSettle();
@@ -904,7 +904,7 @@ void _registerSettingsDialogAdvancedTests() {
     addTearDown(runtimeClient.dispose);
     await _pumpSettingsDialog(
       tester,
-      starController: _FakeGitHubStarController(GitHubStarState.hidden),
+      starController: _FakeGitHubStarController(.hidden),
       extraOverrides: <dynamic>[
         sshTargetRepositoryProvider.overrideWithValue(
           RuntimeSshTargetRepository(

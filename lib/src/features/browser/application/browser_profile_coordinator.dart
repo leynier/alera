@@ -8,16 +8,17 @@ import 'package:alera/src/features/browser/domain/browser_error.dart';
 import 'package:alera/src/features/browser/domain/browser_profile.dart';
 import 'package:uuid/uuid.dart';
 
-final class BrowserProfileCoordinator {
-  BrowserProfileCoordinator({
-    required BrowserEngine engine,
-    required BrowserProfileService service,
-    Uuid uuid = const Uuid(),
-    DateTime Function()? now,
-  }) : _engine = engine, // ignore: prefer_initializing_formals
-       _service = service, // ignore: prefer_initializing_formals
-       _uuid = uuid, // ignore: prefer_initializing_formals
-       _now = now ?? _defaultNow;
+final class BrowserProfileCoordinator({
+  required BrowserEngine engine,
+  required BrowserProfileService service,
+  Uuid uuid = const Uuid(),
+  DateTime Function()? now,
+}) {
+  this
+    : _engine = engine, // ignore: prefer_initializing_formals
+      _service = service, // ignore: prefer_initializing_formals
+      _uuid = uuid, // ignore: prefer_initializing_formals
+      _now = now ?? _defaultNow;
 
   final BrowserEngine _engine;
   final BrowserProfileService _service;
@@ -34,7 +35,7 @@ final class BrowserProfileCoordinator {
     final nativeProfile = await _engine.createProfile(
       id: id,
       label: name,
-      kind: BrowserProfileKind.isolated,
+      kind: .isolated,
       persistent: persistent,
     );
     if (!persistent) {
@@ -121,7 +122,7 @@ final class BrowserProfileCoordinator {
     if (source == BrowserImportSourceFamily.manual &&
         (manualJson == null || manualJson.trim().isEmpty)) {
       throw const BrowserFailure(
-        code: BrowserErrorCode.invalidPayload,
+        code: .invalidPayload,
         message: 'Manual cookie import requires JSON.',
         recoverable: true,
       );
@@ -132,7 +133,7 @@ final class BrowserProfileCoordinator {
       );
       if (byteLength > browserManualCookieImportMaximumBytes) {
         throw BrowserFailure(
-          code: BrowserErrorCode.invalidPayload,
+          code: .invalidPayload,
           message: 'Manual cookie import is limited to 16 MiB.',
           recoverable: true,
           details: <String, Object?>{
@@ -145,7 +146,7 @@ final class BrowserProfileCoordinator {
     if (source != BrowserImportSourceFamily.manual &&
         (sourceProfileName == null || sourceProfileName.trim().isEmpty)) {
       throw const BrowserFailure(
-        code: BrowserErrorCode.invalidPayload,
+        code: .invalidPayload,
         message: 'A source browser profile is required.',
         recoverable: true,
       );
@@ -161,7 +162,7 @@ final class BrowserProfileCoordinator {
       );
       if (!result.completedAtomically) {
         throw BrowserFailure(
-          code: BrowserErrorCode.unknown,
+          code: .unknown,
           message: 'Cookie import failed: ${result.outcome.name}.',
           recoverable: true,
           details: <String, Object?>{

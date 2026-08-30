@@ -7,7 +7,6 @@ import 'package:alera/src/features/pull_requests/domain/hosted_review_stack.dart
 import 'package:alera/src/features/pull_requests/domain/review_merge_method.dart';
 import 'package:alera/src/features/pull_requests/presentation/workspace_pull_requests_panel.dart';
 import 'package:alera/src/features/settings/application/settings_controller.dart';
-import 'package:alera/src/features/settings/domain/alera_settings.dart';
 import 'package:alera/src/features/workbench/application/workbench_controller.dart';
 import 'package:alera/src/features/workbench/application/workbench_state.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
@@ -20,11 +19,8 @@ import 'package:flutter_test/flutter_test.dart';
 import '../unit/fake_forge_provider.dart';
 import '../unit/fake_git_backend.dart';
 
-class _StackPanelWorkbenchController extends WorkbenchController {
-  _StackPanelWorkbenchController(this.initialState);
-
-  final WorkbenchState initialState;
-
+class _StackPanelWorkbenchController(final WorkbenchState initialState)
+    extends WorkbenchController {
   @override
   WorkbenchState build() => initialState;
 }
@@ -76,8 +72,8 @@ void main() {
       path: '/repo-one',
       createdAt: now,
       updatedAt: now,
-      kind: WorkspaceKind.linked,
-      status: WorkspaceStatus.active,
+      kind: .linked,
+      status: .active,
       sourceBranch: 'main',
     );
     final current = Workspace(
@@ -88,8 +84,8 @@ void main() {
       path: '/repo-two',
       createdAt: now,
       updatedAt: now,
-      kind: WorkspaceKind.linked,
-      status: WorkspaceStatus.active,
+      kind: .linked,
+      status: .active,
       sourceBranch: first.branch,
       parentWorkspaceId: first.id,
     );
@@ -122,7 +118,7 @@ void main() {
           linkedReviewRepositoryProvider.overrideWithValue(
             FakeLinkedReviewRepository(),
           ),
-          settingsControllerProvider.overrideWithValue(AleraSettings.defaults),
+          settingsControllerProvider.overrideWithValue(.defaults),
           workbenchControllerProvider.overrideWith(
             () => _StackPanelWorkbenchController(workbenchState),
           ),

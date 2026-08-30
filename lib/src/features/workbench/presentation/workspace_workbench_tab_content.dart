@@ -1,28 +1,16 @@
 part of 'workspace_workbench_view.dart';
 
-class _WorkspaceTabContent extends StatelessWidget {
-  const _WorkspaceTabContent({
-    required this.workspace,
-    required this.sourceControlScope,
-    required this.tab,
-    required this.autofocus,
-    required this.terminalRuntime,
-    required this.mobileDriverPresence,
-    required this.onOpenEditorTab,
-    required this.onOpenMarkdownViewerTab,
-    required this.onOpenMermanPreview,
-  });
-
-  final Workspace workspace;
-  final WorkspaceSourceControlScope? sourceControlScope;
-  final WorkspaceTabRecord tab;
-  final bool autofocus;
-  final TerminalRuntime terminalRuntime;
-  final WorkbenchMobileDriverPresence? mobileDriverPresence;
-  final ValueChanged<String> onOpenEditorTab;
-  final ValueChanged<String> onOpenMarkdownViewerTab;
-  final ValueChanged<String> onOpenMermanPreview;
-
+class const _WorkspaceTabContent({
+  required final Workspace workspace,
+  required final WorkspaceSourceControlScope? sourceControlScope,
+  required final WorkspaceTabRecord tab,
+  required final bool autofocus,
+  required final TerminalRuntime terminalRuntime,
+  required final WorkbenchMobileDriverPresence? mobileDriverPresence,
+  required final ValueChanged<String> onOpenEditorTab,
+  required final ValueChanged<String> onOpenMarkdownViewerTab,
+  required final ValueChanged<String> onOpenMermanPreview,
+}) extends StatelessWidget {
   Widget _buildTerminal() {
     final surface = TerminalSurface(
       session: terminalRuntime.sessionFor(workspace: workspace, tab: tab),
@@ -36,7 +24,7 @@ class _WorkspaceTabContent extends StatelessWidget {
     // The phone drives this viewport: block desktop interaction but keep the
     // output visible under the overlay banner.
     return Stack(
-      fit: StackFit.expand,
+      fit: .expand,
       children: <Widget>[
         IgnorePointer(child: surface),
         MobileDriverOverlay(
@@ -95,25 +83,15 @@ class _WorkspaceTabContent extends StatelessWidget {
   }
 }
 
-class _WorkspaceFileTabContent extends StatelessWidget {
-  const _WorkspaceFileTabContent({
-    required this.workspace,
-    required this.sourceControlScope,
-    required this.tab,
-    required this.autofocus,
-    required this.onOpenEditor,
-    required this.onOpenMermanPreview,
-    required this.onOpenMarkdownViewerTab,
-  });
-
-  final Workspace workspace;
-  final WorkspaceSourceControlScope? sourceControlScope;
-  final WorkspaceTabRecord tab;
-  final bool autofocus;
-  final ValueChanged<String> onOpenEditor;
-  final ValueChanged<String> onOpenMermanPreview;
-  final ValueChanged<String> onOpenMarkdownViewerTab;
-
+class const _WorkspaceFileTabContent({
+  required final Workspace workspace,
+  required final WorkspaceSourceControlScope? sourceControlScope,
+  required final WorkspaceTabRecord tab,
+  required final bool autofocus,
+  required final ValueChanged<String> onOpenEditor,
+  required final ValueChanged<String> onOpenMermanPreview,
+  required final ValueChanged<String> onOpenMarkdownViewerTab,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final filePath = tab.filePath;

@@ -6,16 +6,14 @@ enum AgentUsageSourceStatus { ok, missing, partial, failed }
 
 enum AgentUsagePricingStatus { fresh, cached, unavailable }
 
-class AgentUsageTokenTotals {
-  const AgentUsageTokenTotals({
-    required this.uncachedInputTokens,
-    required this.cachedInputTokens,
-    required this.cacheCreationTokens,
-    required this.outputTokens,
-    required this.reasoningTokens,
-  });
-
-  factory AgentUsageTokenTotals.fromJson(Map<String, Object?> json) {
+class const AgentUsageTokenTotals({
+  required final int uncachedInputTokens,
+  required final int cachedInputTokens,
+  required final int cacheCreationTokens,
+  required final int outputTokens,
+  required final int reasoningTokens,
+}) {
+  factory fromJson(Map<String, Object?> json) {
     return AgentUsageTokenTotals(
       uncachedInputTokens: _nonNegativeInt(json['uncachedInputTokens']),
       cachedInputTokens: _nonNegativeInt(json['cachedInputTokens']),
@@ -32,12 +30,6 @@ class AgentUsageTokenTotals {
     outputTokens: 0,
     reasoningTokens: 0,
   );
-
-  final int uncachedInputTokens;
-  final int cachedInputTokens;
-  final int cacheCreationTokens;
-  final int outputTokens;
-  final int reasoningTokens;
 
   int get totalTokens =>
       uncachedInputTokens +
@@ -59,86 +51,69 @@ class AgentUsageTokenTotals {
   }
 }
 
-class AgentUsageBucket {
-  const AgentUsageBucket({
-    required this.day,
-    required this.provider,
-    required this.accountId,
-    required this.displayName,
-    required this.model,
-    required this.totals,
-    required this.costUsd,
-    required this.cacheSavingsUsd,
-    required this.costSource,
-    required this.records,
-    required this.unpricedRecords,
-    required this.sessions,
-  });
-
-  factory AgentUsageBucket.fromJson(Map<String, Object?> json) {
+class const AgentUsageBucket({
+  required final String day,
+  required final AgentUsageProvider provider,
+  required final String accountId,
+  required final String displayName,
+  required final String model,
+  required final AgentUsageTokenTotals totals,
+  required final double costUsd,
+  required final double cacheSavingsUsd,
+  required final AgentUsageCostSource costSource,
+  required final int records,
+  required final int unpricedRecords,
+  required final int sessions,
+}) {
+  factory fromJson(Map<String, Object?> json) {
     return AgentUsageBucket(
       day: json['day'] as String? ?? '',
       provider: _enumByName(
         AgentUsageProvider.values,
         json['provider'],
-        AgentUsageProvider.codex,
+        .codex,
       ),
       accountId: json['accountId'] as String? ?? 'default',
       displayName: json['displayName'] as String? ?? 'Default',
       model: json['model'] as String? ?? 'Unknown',
-      totals: AgentUsageTokenTotals.fromJson(_object(json['totals'])),
+      totals: .fromJson(_object(json['totals'])),
       costUsd: _nonNegativeDouble(json['costUsd']),
       cacheSavingsUsd: _nonNegativeDouble(json['cacheSavingsUsd']),
       costSource: _enumByName(
         AgentUsageCostSource.values,
         json['costSource'],
-        AgentUsageCostSource.unpriced,
+        .unpriced,
       ),
       records: _nonNegativeInt(json['records']),
       unpricedRecords: _nonNegativeInt(json['unpricedRecords']),
       sessions: _nonNegativeInt(json['sessions']),
     );
   }
-
-  final String day;
-  final AgentUsageProvider provider;
-  final String accountId;
-  final String displayName;
-  final String model;
-  final AgentUsageTokenTotals totals;
-  final double costUsd;
-  final double cacheSavingsUsd;
-  final AgentUsageCostSource costSource;
-  final int records;
-  final int unpricedRecords;
-  final int sessions;
 }
 
-class AgentUsageSource {
-  const AgentUsageSource({
-    required this.provider,
-    required this.accountId,
-    required this.displayName,
-    required this.status,
-    required this.scannedFiles,
-    required this.skippedFiles,
-    required this.distinctSessions,
-    required this.message,
-  });
-
-  factory AgentUsageSource.fromJson(Map<String, Object?> json) {
+class const AgentUsageSource({
+  required final AgentUsageProvider provider,
+  required final String accountId,
+  required final String displayName,
+  required final AgentUsageSourceStatus status,
+  required final int scannedFiles,
+  required final int skippedFiles,
+  required final int distinctSessions,
+  required final String? message,
+}) {
+  factory fromJson(Map<String, Object?> json) {
     return AgentUsageSource(
       provider: _enumByName(
         AgentUsageProvider.values,
         json['provider'],
-        AgentUsageProvider.codex,
+        .codex,
       ),
       accountId: json['accountId'] as String? ?? 'default',
       displayName: json['displayName'] as String? ?? 'Default',
       status: _enumByName(
         AgentUsageSourceStatus.values,
         json['status'],
-        AgentUsageSourceStatus.failed,
+        .failed,
       ),
       scannedFiles: _nonNegativeInt(json['scannedFiles']),
       skippedFiles: _nonNegativeInt(json['skippedFiles']),
@@ -146,83 +121,56 @@ class AgentUsageSource {
       message: json['message'] as String?,
     );
   }
-
-  final AgentUsageProvider provider;
-  final String accountId;
-  final String displayName;
-  final AgentUsageSourceStatus status;
-  final int scannedFiles;
-  final int skippedFiles;
-  final int distinctSessions;
-  final String? message;
 }
 
-class AgentUsagePricing {
-  const AgentUsagePricing({
-    required this.status,
-    required this.source,
-    required this.knownModels,
-  });
-
-  factory AgentUsagePricing.fromJson(Map<String, Object?> json) {
+class const AgentUsagePricing({
+  required final AgentUsagePricingStatus status,
+  required final String source,
+  required final int knownModels,
+}) {
+  factory fromJson(Map<String, Object?> json) {
     return AgentUsagePricing(
       status: _enumByName(
         AgentUsagePricingStatus.values,
         json['status'],
-        AgentUsagePricingStatus.unavailable,
+        .unavailable,
       ),
       source: json['source'] as String? ?? '',
       knownModels: _nonNegativeInt(json['knownModels']),
     );
   }
-
-  final AgentUsagePricingStatus status;
-  final String source;
-  final int knownModels;
 }
 
-class AgentUsageSnapshot {
-  const AgentUsageSnapshot({
-    required this.readAt,
-    required this.sinceDay,
-    required this.untilDay,
-    required this.buckets,
-    required this.sources,
-    required this.pricing,
-    required this.scanDurationMs,
-  });
-
-  factory AgentUsageSnapshot.fromJson(Map<String, Object?> json) {
+class const AgentUsageSnapshot({
+  required final DateTime readAt,
+  required final String sinceDay,
+  required final String untilDay,
+  required final List<AgentUsageBucket> buckets,
+  required final List<AgentUsageSource> sources,
+  required final AgentUsagePricing pricing,
+  required final int scanDurationMs,
+}) {
+  factory fromJson(Map<String, Object?> json) {
     return AgentUsageSnapshot(
-      readAt: DateTime.fromMillisecondsSinceEpoch(
+      readAt: .fromMillisecondsSinceEpoch(
         _nonNegativeInt(json['readAt']),
         isUtc: true,
       ),
       sinceDay: json['sinceDay'] as String? ?? '',
       untilDay: json['untilDay'] as String? ?? '',
-      buckets: _objects(
-        json['buckets'],
-      ).map(AgentUsageBucket.fromJson).toList(growable: false),
-      sources: _objects(
-        json['sources'],
-      ).map(AgentUsageSource.fromJson).toList(growable: false),
-      pricing: AgentUsagePricing.fromJson(_object(json['pricing'])),
+      buckets: _objects(json['buckets'])
+          .map(AgentUsageBucket.fromJson)
+          .toList(growable: false),
+      sources: _objects(json['sources'])
+          .map(AgentUsageSource.fromJson)
+          .toList(growable: false),
+      pricing: .fromJson(_object(json['pricing'])),
       scanDurationMs: _nonNegativeInt(json['scanDurationMs']),
     );
   }
 
-  final DateTime readAt;
-  final String sinceDay;
-  final String untilDay;
-  final List<AgentUsageBucket> buckets;
-  final List<AgentUsageSource> sources;
-  final AgentUsagePricing pricing;
-  final int scanDurationMs;
-
-  AgentUsageTokenTotals get totals => buckets.fold(
-    AgentUsageTokenTotals.zero,
-    (sum, bucket) => sum + bucket.totals,
-  );
+  AgentUsageTokenTotals get totals =>
+      buckets.fold(.zero, (sum, bucket) => sum + bucket.totals);
 
   double get costUsd => buckets.fold(0, (sum, bucket) => sum + bucket.costUsd);
 
@@ -337,41 +285,24 @@ String _usageAccountLabel(AgentUsageBucket bucket) {
   };
 }
 
-class AgentUsageBreakdown {
-  const AgentUsageBreakdown({
-    required this.provider,
-    required this.label,
-    required this.tokens,
-    required this.costUsd,
-    required this.records,
-    required this.sessions,
-  });
+class const AgentUsageBreakdown({
+  required final AgentUsageProvider provider,
+  required final String label,
+  required final int tokens,
+  required final double costUsd,
+  required final int records,
+  required final int sessions,
+});
 
-  final AgentUsageProvider provider;
-  final String label;
-  final int tokens;
-  final double costUsd;
-  final int records;
-  final int sessions;
-}
-
-class AgentUsageDay {
-  const AgentUsageDay({
-    required this.day,
-    required this.claudeTokens,
-    required this.codexTokens,
-    this.grokTokens = 0,
-    required this.costUsd,
-  });
-
-  factory AgentUsageDay.empty(String day) =>
+class const AgentUsageDay({
+  required final String day,
+  required final int claudeTokens,
+  required final int codexTokens,
+  final int grokTokens = 0,
+  required final double costUsd,
+}) {
+  factory empty(String day) =>
       AgentUsageDay(day: day, claudeTokens: 0, codexTokens: 0, costUsd: 0);
-
-  final String day;
-  final int claudeTokens;
-  final int codexTokens;
-  final int grokTokens;
-  final double costUsd;
 
   int get tokens => claudeTokens + codexTokens + grokTokens;
 
@@ -398,11 +329,10 @@ class AgentUsageDay {
   }
 }
 
-class _MutableBreakdown {
-  _MutableBreakdown({required this.provider, required this.label});
-
-  final AgentUsageProvider provider;
-  final String label;
+class _MutableBreakdown({
+  required final AgentUsageProvider provider,
+  required final String label,
+}) {
   int tokens = 0;
   double costUsd = 0;
   int records = 0;

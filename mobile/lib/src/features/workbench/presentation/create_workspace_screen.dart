@@ -27,28 +27,17 @@ part 'create_workspace_manual.dart';
 part 'create_workspace_prompt.dart';
 part 'create_workspace_prompt_attachments.dart';
 
-class CreateWorkspaceScreen extends ConsumerStatefulWidget {
-  const CreateWorkspaceScreen({
-    super.key,
-    required this.hostId,
-    required this.projects,
-    required this.workspaces,
-    this.defaultAgentProfileId,
-    this.supportsPromptWorkspaceCreation = true,
-    this.supportsPromptImageUpload = false,
-    this.supportsPromptFileUpload = false,
-    this.supportsWorkspaceFiles = false,
-  });
-
-  final String hostId;
-  final List<ProjectSummary> projects;
-  final List<WorkspaceSummary> workspaces;
-  final String? defaultAgentProfileId;
-  final bool supportsPromptWorkspaceCreation;
-  final bool supportsPromptImageUpload;
-  final bool supportsPromptFileUpload;
-  final bool supportsWorkspaceFiles;
-
+class const CreateWorkspaceScreen({
+  super.key,
+  required final String hostId,
+  required final List<ProjectSummary> projects,
+  required final List<WorkspaceSummary> workspaces,
+  final String? defaultAgentProfileId,
+  final bool supportsPromptWorkspaceCreation = true,
+  final bool supportsPromptImageUpload = false,
+  final bool supportsPromptFileUpload = false,
+  final bool supportsWorkspaceFiles = false,
+}) extends ConsumerStatefulWidget {
   @override
   ConsumerState<CreateWorkspaceScreen> createState() =>
       _CreateWorkspaceScreenState();
@@ -291,9 +280,8 @@ class _CreateWorkspaceScreenState extends ConsumerState<CreateWorkspaceScreen> {
         : creation.parentLinkError != null
         ? 'Workspace created, but parent link failed'
         : 'Workspace created';
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text(message)));
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(message)));
   }
 
   @override

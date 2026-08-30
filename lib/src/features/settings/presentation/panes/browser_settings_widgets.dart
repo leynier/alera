@@ -1,11 +1,9 @@
 part of 'browser_settings_pane.dart';
 
-class _BrowserProfileSettingsRow extends StatelessWidget {
-  const _BrowserProfileSettingsRow({required this.profile, this.onDelete});
-
-  final BrowserProfile profile;
-  final VoidCallback? onDelete;
-
+class const _BrowserProfileSettingsRow({
+  required final BrowserProfile profile,
+  final VoidCallback? onDelete,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return AleraSettingRow(
@@ -29,24 +27,18 @@ class _BrowserProfileSettingsRow extends StatelessWidget {
   }
 }
 
-class _ClosedBrowserTabRow extends StatelessWidget {
-  const _ClosedBrowserTabRow({
-    required this.tab,
-    required this.onReopen,
-    required this.onRemove,
-  });
-
-  final BrowserClosedTab tab;
-  final VoidCallback onReopen;
-  final VoidCallback onRemove;
-
+class const _ClosedBrowserTabRow({
+  required final BrowserClosedTab tab,
+  required final VoidCallback onReopen,
+  required final VoidCallback onRemove,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return AleraSettingRow(
       title: tab.title.isEmpty ? 'Recently Closed Tab' : tab.title,
       description: tab.url.host,
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.end,
+        mainAxisAlignment: .end,
         children: <Widget>[
           AleraIconButton(
             tooltip: 'Reopen Tab',
@@ -64,17 +56,11 @@ class _ClosedBrowserTabRow extends StatelessWidget {
   }
 }
 
-class _TrustedBrowserCertificateRow extends StatelessWidget {
-  const _TrustedBrowserCertificateRow({
-    required this.certificate,
-    required this.profileLabel,
-    this.onRemove,
-  });
-
-  final BrowserTrustedCertificate certificate;
-  final String profileLabel;
-  final VoidCallback? onRemove;
-
+class const _TrustedBrowserCertificateRow({
+  required final BrowserTrustedCertificate certificate,
+  required final String profileLabel,
+  final VoidCallback? onRemove,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final fingerprint = displayBrowserCertificateFingerprint(
@@ -96,9 +82,7 @@ class _TrustedBrowserCertificateRow extends StatelessWidget {
   }
 }
 
-class _BrowserProfileNameDialog extends StatefulWidget {
-  const _BrowserProfileNameDialog();
-
+class const _BrowserProfileNameDialog() extends StatefulWidget {
   @override
   State<_BrowserProfileNameDialog> createState() =>
       _BrowserProfileNameDialogState();
@@ -121,8 +105,8 @@ class _BrowserProfileNameDialogState extends State<_BrowserProfileNameDialog> {
       child: Padding(
         padding: const EdgeInsets.all(AleraTokens.space20),
         child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
+          mainAxisSize: .min,
+          crossAxisAlignment: .stretch,
           children: <Widget>[
             Text(
               'Create Browser Profile',
@@ -154,28 +138,20 @@ class _BrowserProfileNameDialogState extends State<_BrowserProfileNameDialog> {
   }
 }
 
-final class _BrowserImportRequest {
-  const _BrowserImportRequest({
-    required this.name,
-    required this.source,
-    this.sourceProfileName,
-  });
-
-  final String name;
-  final BrowserImportSourceFamily source;
-  final String? sourceProfileName;
-}
+final class const _BrowserImportRequest({
+  required final String name,
+  required final BrowserImportSourceFamily source,
+  final String? sourceProfileName,
+});
 
 typedef _BrowserImportSourceOption = ({
   BrowserImportSourceFamily source,
   String? profileName,
 });
 
-class _BrowserCookieImportDialog extends StatefulWidget {
-  const _BrowserCookieImportDialog({required this.sources});
-
-  final List<BrowserCookieImportSourceStatus> sources;
-
+class const _BrowserCookieImportDialog({
+  required final List<BrowserCookieImportSourceStatus> sources,
+}) extends StatefulWidget {
   @override
   State<_BrowserCookieImportDialog> createState() =>
       _BrowserCookieImportDialogState();
@@ -201,8 +177,8 @@ class _BrowserCookieImportDialogState
       child: Padding(
         padding: const EdgeInsets.all(AleraTokens.space20),
         child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
+          mainAxisSize: .min,
+          crossAxisAlignment: .stretch,
           children: <Widget>[
             Text(
               'Import Browser Cookies',

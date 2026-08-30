@@ -1,21 +1,19 @@
 part of 'alera_debug.dart';
 
-final class _Options {
-  const _Options({
-    required this.cargoExecutable,
-    required this.flutterExecutable,
-    required this.device,
-    required this.flavor,
-    required this.appId,
-    required this.bundleDir,
-    required this.debugToken,
-    required this.hostEmptyShutdownSeconds,
-    required this.hostDetachedShutdownSeconds,
-    required this.hostScrollbackBytes,
-    required this.appSupportDir,
-  });
-
-  factory _Options.parse(List<String> arguments) {
+final class const _Options({
+  required final String cargoExecutable,
+  required final String flutterExecutable,
+  required final String device,
+  required final String flavor,
+  required final String appId,
+  required final String bundleDir,
+  required final String debugToken,
+  required final String hostEmptyShutdownSeconds,
+  required final String hostDetachedShutdownSeconds,
+  required final String hostScrollbackBytes,
+  required final String? appSupportDir,
+}) {
+  factory parse(List<String> arguments) {
     final map = <String, String>{};
     for (var index = 0; index < arguments.length; index += 1) {
       final argument = arguments[index];
@@ -76,18 +74,6 @@ final class _Options {
           Platform.environment['ALERA_APP_SUPPORT_DIR'],
     );
   }
-
-  final String cargoExecutable;
-  final String flutterExecutable;
-  final String device;
-  final String flavor;
-  final String appId;
-  final String bundleDir;
-  final String debugToken;
-  final String hostEmptyShutdownSeconds;
-  final String hostDetachedShutdownSeconds;
-  final String hostScrollbackBytes;
-  final String? appSupportDir;
 }
 
 String _defaultFlutterDevice() {
@@ -106,16 +92,12 @@ String _defaultFlutterDevice() {
   );
 }
 
-final class _RuntimePaths {
-  const _RuntimePaths({required this.runtimeDir, required this.controlFile});
+final class const _RuntimePaths({
+  required final Directory runtimeDir,
+  required final File controlFile,
+});
 
-  final Directory runtimeDir;
-  final File controlFile;
-}
-
-final class _ProcessInfo {
-  const _ProcessInfo({required this.pid, required this.commandLine});
-
-  final int pid;
-  final String commandLine;
-}
+final class const _ProcessInfo({
+  required final int pid,
+  required final String commandLine,
+});

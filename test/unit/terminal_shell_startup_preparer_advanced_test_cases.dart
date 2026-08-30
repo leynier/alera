@@ -51,45 +51,52 @@ void _registerTerminalShellStartupPreparerAdvancedTests() {
     expect(config, contains('pre_prompt'));
   });
 
-  test('nushell custom-config launches keep a setup-command fallback', () async {
-    final launch = await preparer.prepare(
-      _launch(
-        shell: '/usr/local/bin/nu',
-        arguments: const <String>['--config', '/Users/tester/config.nu', '-i'],
-        environment: const <String, String>{
-          'CODEX_HOME': '/runtime/codex',
-          'ALERA_CODEX_HOME': '/runtime/codex',
-        },
-        setupCommand: 'print setup\n',
-      ),
-    );
+  test(
+    'nushell custom-config launches keep a setup-command fallback',
+    () async {
+      final launch = await preparer.prepare(
+        _launch(
+          shell: '/usr/local/bin/nu',
+          arguments: const <String>[
+            '--config',
+            '/Users/tester/config.nu',
+            '-i',
+          ],
+          environment: const <String, String>{
+            'CODEX_HOME': '/runtime/codex',
+            'ALERA_CODEX_HOME': '/runtime/codex',
+          },
+          setupCommand: 'print setup\n',
+        ),
+      );
 
-    expect(launch.arguments, const <String>[
-      '--config',
-      '/Users/tester/config.nu',
-      '-i',
-    ]);
-    expect(
-      launch.setupCommand,
-      startsWith(
-        r'if ("ALERA_CODEX_HOME" in $env) { $env.CODEX_HOME = $env.ALERA_CODEX_HOME }'
-        '\n'
-        r'if ("ALERA_CLAUDE_CONFIG_DIR" in $env) { $env.CLAUDE_CONFIG_DIR = $env.ALERA_CLAUDE_CONFIG_DIR }'
-        '\n'
-        r'if ("ALERA_OPENCODE_CONFIG_DIR" in $env) { $env.OPENCODE_CONFIG_DIR = $env.ALERA_OPENCODE_CONFIG_DIR }'
-        '\n'
-        r'if ("ALERA_PI_CODING_AGENT_DIR" in $env) { $env.PI_CODING_AGENT_DIR = $env.ALERA_PI_CODING_AGENT_DIR }'
-        '\n'
-        r'if ("ALERA_COPILOT_HOME" in $env) { $env.COPILOT_HOME = $env.ALERA_COPILOT_HOME }'
-        '\n',
-      ),
-    );
-    expect(
-      launch.setupCommand,
-      contains(r'let __alera_wrapper_dirs = ($env.ALERA_AGENT_WRAPPER_PATH'),
-    );
-    expect(launch.setupCommand, contains('print setup\n'));
-  });
+      expect(launch.arguments, const <String>[
+        '--config',
+        '/Users/tester/config.nu',
+        '-i',
+      ]);
+      expect(
+        launch.setupCommand,
+        startsWith(
+          r'if ("ALERA_CODEX_HOME" in $env) { $env.CODEX_HOME = $env.ALERA_CODEX_HOME }'
+          '\n'
+          r'if ("ALERA_CLAUDE_CONFIG_DIR" in $env) { $env.CLAUDE_CONFIG_DIR = $env.ALERA_CLAUDE_CONFIG_DIR }'
+          '\n'
+          r'if ("ALERA_OPENCODE_CONFIG_DIR" in $env) { $env.OPENCODE_CONFIG_DIR = $env.ALERA_OPENCODE_CONFIG_DIR }'
+          '\n'
+          r'if ("ALERA_PI_CODING_AGENT_DIR" in $env) { $env.PI_CODING_AGENT_DIR = $env.ALERA_PI_CODING_AGENT_DIR }'
+          '\n'
+          r'if ("ALERA_COPILOT_HOME" in $env) { $env.COPILOT_HOME = $env.ALERA_COPILOT_HOME }'
+          '\n',
+        ),
+      );
+      expect(
+        launch.setupCommand,
+        contains(r'let __alera_wrapper_dirs = ($env.ALERA_AGENT_WRAPPER_PATH'),
+      );
+      expect(launch.setupCommand, contains('print setup\n'));
+    },
+  );
 
   test('cmd launches keep a command-prompt setup-command fallback', () async {
     final launch = await preparer.prepare(
@@ -344,9 +351,8 @@ void _registerTerminalShellStartupPreparerAdvancedTests() {
     // defeated the previous skip-if-present logic.
     final userZdotdir = Directory(p.join(tempDir.path, 'user-zdotdir'))
       ..createSync(recursive: true);
-    File(
-      p.join(userZdotdir.path, '.zshenv'),
-    ).writeAsStringSync('export PATH="/decoy/bin:\$PATH"\n');
+    File(p.join(userZdotdir.path, '.zshenv'))
+        .writeAsStringSync('export PATH="/decoy/bin:\$PATH"\n');
 
     final prepared = await preparer.prepare(
       _launch(
@@ -396,9 +402,8 @@ void _registerTerminalShellStartupPreparerAdvancedTests() {
 
       final userZdotdir = Directory(p.join(tempDir.path, 'user-zdotdir-multi'))
         ..createSync(recursive: true);
-      File(
-        p.join(userZdotdir.path, '.zshenv'),
-      ).writeAsStringSync('export PATH="/decoy/bin:\$PATH"\n');
+      File(p.join(userZdotdir.path, '.zshenv'))
+          .writeAsStringSync('export PATH="/decoy/bin:\$PATH"\n');
 
       final prepared = await preparer.prepare(
         _launch(

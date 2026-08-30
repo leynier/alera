@@ -2,10 +2,7 @@ import 'package:alera_mobile/src/features/automations/domain/mobile_automation.d
 import 'package:alera_mobile/src/features/runtime/infra/mobile_runtime_client.dart';
 import 'package:logging/logging.dart';
 
-class MobileRuntimeAutomationRepository {
-  MobileRuntimeAutomationRepository(this._client);
-
-  final MobileRuntimeClient _client;
+class MobileRuntimeAutomationRepository(final MobileRuntimeClient _client) {
   final Logger _logger = Logger('MobileRuntimeAutomationRepository');
 
   Future<List<MobileAutomation>> list({
@@ -17,15 +14,17 @@ class MobileRuntimeAutomationRepository {
     String? tag,
   }) async {
     try {
-      final payload = await _client
-          .requestMap('automation.list', <String, Object?>{
-            'includeTrashed': includeTrashed,
-            'state': ?state,
-            'search': ?search,
-            'projectId': ?projectId,
-            'profileId': ?profileId,
-            'tag': ?tag,
-          });
+      final payload = await _client.requestMap(
+        'automation.list',
+        <String, Object?>{
+          'includeTrashed': includeTrashed,
+          'state': ?state,
+          'search': ?search,
+          'projectId': ?projectId,
+          'profileId': ?profileId,
+          'tag': ?tag,
+        },
+      );
       final items = payload['items'];
       if (items is! List) {
         return const <MobileAutomation>[];

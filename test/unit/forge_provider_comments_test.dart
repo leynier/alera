@@ -1,4 +1,3 @@
-import 'package:alera/src/shared/git_hosting/domain/git_hosting_provider.dart';
 import 'package:alera/src/shared/git_hosting/domain/git_remote_identity.dart';
 import 'package:alera/src/features/pull_requests/domain/review_comment.dart';
 import 'package:alera/src/features/pull_requests/infra/azure_devops_forge_provider.dart';
@@ -9,14 +8,14 @@ import 'package:flutter_test/flutter_test.dart';
 import 'fake_recording_process_runner.dart';
 
 const _githubIdentity = GitRemoteIdentity(
-  provider: GitHostingProvider.github,
+  provider: .github,
   host: 'github.com',
   owner: 'leynier',
   repo: 'alera',
 );
 
 const _azureIdentity = GitRemoteIdentity(
-  provider: GitHostingProvider.azureDevops,
+  provider: .azureDevops,
   host: 'dev.azure.com',
   owner: 'myorg',
   repo: 'myrepo',
@@ -40,7 +39,7 @@ void main() {
 
       await provider.getReviewComments(
         identity: const GitRemoteIdentity(
-          provider: GitHostingProvider.github,
+          provider: .github,
           host: 'github.mycorp.com',
           owner: 'team',
           repo: 'svc',
@@ -235,7 +234,7 @@ void main() {
         repoPath: '/repo',
         number: 123,
         locator: const ReviewCommentLocator(
-          source: ReviewCommentSource.conversation,
+          source: .conversation,
           commentId: '11',
         ),
         body: '- [x] exact\nline',
@@ -245,7 +244,7 @@ void main() {
         repoPath: '/repo',
         number: 123,
         locator: const ReviewCommentLocator(
-          source: ReviewCommentSource.reviewSummary,
+          source: .reviewSummary,
           commentId: '12',
         ),
         body: 'Summary',
@@ -255,7 +254,7 @@ void main() {
         repoPath: '/repo',
         number: 123,
         locator: const ReviewCommentLocator(
-          source: ReviewCommentSource.reviewThread,
+          source: .reviewThread,
           commentId: '13',
           parentId: 'thread-1',
         ),
@@ -353,7 +352,7 @@ void main() {
           repoPath: '/repo',
           number: 42,
           locator: const ReviewCommentLocator(
-            source: ReviewCommentSource.reviewThread,
+            source: .reviewThread,
             commentId: '2',
             parentId: '11',
           ),

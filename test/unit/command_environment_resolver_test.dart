@@ -189,9 +189,7 @@ void main() {
           isWindows: false,
           isMacOS: true,
           hydrator: (_) async {
-            return const CommandEnvironmentHydrationResult.failure(
-              CommandEnvironmentHydrationFailureReason.timeout,
-            );
+            return const CommandEnvironmentHydrationResult.failure(.timeout);
           },
         );
 
@@ -313,11 +311,8 @@ void main() {
   });
 }
 
-class _FakeProcessRunner implements ProcessRunner {
-  _FakeProcessRunner({this.stdout = '', this.startError});
-
-  final String stdout;
-  final Object? startError;
+class _FakeProcessRunner({final String stdout = '', final Object? startError})
+    implements ProcessRunner {
   final Completer<int> exit = Completer<int>();
 
   String? executable;

@@ -10,9 +10,7 @@ import 'package:toml/toml.dart';
 
 const String aleraProjectConfigFileName = 'alera.toml';
 
-class TomlProjectConfigFileStore implements ProjectConfigFileStore {
-  const TomlProjectConfigFileStore();
-
+class const TomlProjectConfigFileStore() implements ProjectConfigFileStore {
   @override
   Future<ProjectConfig?> load(Project project) async {
     final file = File(p.join(project.repoPath, aleraProjectConfigFileName));
@@ -140,7 +138,7 @@ List<WorktreeCopyRule> _copyRulesFrom(Object? value) {
       ),
     );
   }
-  return List<WorktreeCopyRule>.unmodifiable(rules);
+  return List<WorktreeCopyRule>.unmodifiableOf(rules);
 }
 
 List<String> _setupCommandsFrom(Object? value) {
@@ -155,7 +153,7 @@ List<String> _setupCommandsFrom(Object? value) {
     final command = _requiredString(value[i], 'worktree.setup[$i]');
     commands.add(command);
   }
-  return List<String>.unmodifiable(commands);
+  return List<String>.unmodifiableOf(commands);
 }
 
 String _requiredString(Object? value, String label) {

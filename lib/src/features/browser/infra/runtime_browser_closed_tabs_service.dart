@@ -3,12 +3,9 @@ import 'package:alera/src/features/browser/domain/browser_history.dart';
 import 'package:alera/src/features/browser/infra/runtime_browser_payload.dart';
 import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_protocol.dart';
 
-final class RuntimeBrowserClosedTabsService
-    implements BrowserClosedTabsService {
-  const RuntimeBrowserClosedTabsService(this._client);
-
-  final RuntimeHostClient _client;
-
+final class const RuntimeBrowserClosedTabsService(
+  final RuntimeHostClient _client,
+) implements BrowserClosedTabsService {
   @override
   Future<bool> close(String pageId) async {
     final response = browserRuntimeSuccessMap(

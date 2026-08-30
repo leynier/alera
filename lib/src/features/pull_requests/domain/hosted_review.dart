@@ -17,24 +17,22 @@ enum HostedReviewMergeable { mergeable, conflicting, unknown }
 /// are not stored here, so the rolled-up check status stays a single source of
 /// truth derived from the live check list.
 @MappableClass()
-class HostedReview with HostedReviewMappable {
-  const HostedReview({
-    required this.provider,
-    required this.number,
-    required this.title,
-    required this.state,
-    required this.url,
-    this.createdAt,
-    this.author,
-    this.baseBranch,
-    this.headBranch,
-    this.headSha,
-    this.headRepositoryUrl,
-    this.comparisonBaseSha,
-    this.mergeCommitSha,
-    this.mergeable = HostedReviewMergeable.unknown,
-  });
-
+class const HostedReview({
+  required this.provider,
+  required this.number,
+  required this.title,
+  required this.state,
+  required this.url,
+  this.createdAt,
+  this.author,
+  this.baseBranch,
+  this.headBranch,
+  this.headSha,
+  this.headRepositoryUrl,
+  this.comparisonBaseSha,
+  this.mergeCommitSha,
+  this.mergeable = HostedReviewMergeable.unknown,
+}) with HostedReviewMappable {
   final GitHostingProvider provider;
   final int number;
   final String title;
@@ -53,7 +51,7 @@ class HostedReview with HostedReviewMappable {
   bool get isOpen =>
       state == HostedReviewState.open || state == HostedReviewState.draft;
 
-  factory HostedReview.fromJson(Map<String, Object?> json) =>
+  factory fromJson(Map<String, Object?> json) =>
       HostedReviewMapper.fromMap(Map<String, dynamic>.from(json));
 }
 

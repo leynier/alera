@@ -14,15 +14,15 @@ void main() {
       autoGenerateAgentTitles: false,
       promptSettingsByOperation: {
         AiAssistOperation.agentTitle: AiAssistPromptSettings(
-          agent: AiAssistAgent.pi,
+          agent: .pi,
           model: 'model',
         ),
       },
     );
     final decoded = AiAssistSettings.fromJson(settings.toMap());
     expect(decoded.autoGenerateAgentTitles, isFalse);
-    expect(decoded.agentFor(AiAssistOperation.agentTitle), AiAssistAgent.pi);
-    expect(decoded.modelForOperation(AiAssistOperation.agentTitle), 'model');
+    expect(decoded.agentFor(.agentTitle), AiAssistAgent.pi);
+    expect(decoded.modelForOperation(.agentTitle), 'model');
   });
 
   test(
@@ -34,7 +34,7 @@ void main() {
         WorkspaceTabRecord(
           id: 'tab',
           workspaceId: 'workspace',
-          kind: WorkspaceTabKind.terminal,
+          kind: .terminal,
           title: 'My title',
           createdAt: DateTime(2026),
           updatedAt: DateTime(2026),

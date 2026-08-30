@@ -5,7 +5,7 @@ import 'package:alera/src/features/workbench/domain/workbench_view_prefs.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-final DateTime _t0 = DateTime.utc(2026, 5, 1);
+final DateTime _t0 = .utc(2026, 5, 1);
 
 Project _project(String id, String name) {
   return Project(
@@ -33,7 +33,7 @@ Workspace _workspace(
     createdAt: _t0,
     updatedAt: _t0,
     kind: kind,
-    status: WorkspaceStatus.active,
+    status: .active,
     tagIds: tagIds,
   );
 }
@@ -45,7 +45,7 @@ WorkbenchState _state(WorkbenchViewPrefs prefs, {String searchQuery = ''}) {
     projects: <Project>[alera, orca],
     workspacesByProject: <String, List<Workspace>>{
       alera.id: <Workspace>[
-        _workspace('w-alera-main', alera.id, 'main', kind: WorkspaceKind.main),
+        _workspace('w-alera-main', alera.id, 'main', kind: .main),
         _workspace(
           'w-alera-feature',
           alera.id,
@@ -54,7 +54,7 @@ WorkbenchState _state(WorkbenchViewPrefs prefs, {String searchQuery = ''}) {
         ),
       ],
       orca.id: <Workspace>[
-        _workspace('w-orca-main', orca.id, 'develop', kind: WorkspaceKind.main),
+        _workspace('w-orca-main', orca.id, 'develop', kind: .main),
       ],
     },
     viewPrefs: prefs,
@@ -67,7 +67,7 @@ WorkbenchState _state(WorkbenchViewPrefs prefs, {String searchQuery = ''}) {
 void main() {
   group('workspace kind filter', () {
     test('all shows every workspace', () {
-      final state = _state(WorkbenchViewPrefs.defaults);
+      final state = _state(.defaults);
       final rows = buildSidebarRows(state);
       expect(
         workspaceOrderOfRows(rows),
@@ -78,9 +78,7 @@ void main() {
 
     test('defaultOnly keeps only main worktrees', () {
       final state = _state(
-        WorkbenchViewPrefs.defaults.copyWith(
-          workspaceKindFilter: WorkspaceKindFilter.defaultOnly,
-        ),
+        WorkbenchViewPrefs.defaults.copyWith(workspaceKindFilter: .defaultOnly),
       );
       final rows = buildSidebarRows(state);
       expect(
@@ -96,7 +94,7 @@ void main() {
       () {
         final state = _state(
           WorkbenchViewPrefs.defaults.copyWith(
-            workspaceKindFilter: WorkspaceKindFilter.nonDefaultOnly,
+            workspaceKindFilter: .nonDefaultOnly,
           ),
         );
         final rows = buildSidebarRows(state);
@@ -112,7 +110,7 @@ void main() {
     test('combines with the tag filter and search query', () {
       final tagged = _state(
         WorkbenchViewPrefs.defaults.copyWith(
-          workspaceKindFilter: WorkspaceKindFilter.defaultOnly,
+          workspaceKindFilter: .defaultOnly,
           selectedTagIds: <String>{'t1'},
         ),
       );
@@ -122,7 +120,7 @@ void main() {
 
       final searched = _state(
         WorkbenchViewPrefs.defaults.copyWith(
-          workspaceKindFilter: WorkspaceKindFilter.nonDefaultOnly,
+          workspaceKindFilter: .nonDefaultOnly,
         ),
         searchQuery: 'develop',
       );
@@ -134,7 +132,7 @@ void main() {
     test('collapse targets honor the kind filter', () {
       final state = _state(
         WorkbenchViewPrefs.defaults.copyWith(
-          workspaceKindFilter: WorkspaceKindFilter.nonDefaultOnly,
+          workspaceKindFilter: .nonDefaultOnly,
         ),
       );
       final targets = visibleSidebarCollapseTargets(state);

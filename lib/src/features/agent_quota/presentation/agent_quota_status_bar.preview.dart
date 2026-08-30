@@ -54,21 +54,21 @@ List<AgentQuotaSnapshot> _previewSnapshots() => <AgentQuotaSnapshot>[
   _claudeUnavailableSnapshot(),
   _claudeProfileSnapshot('leynierdev', 'ccdev', 34),
   _claudeProfileSnapshot('educup', 'cceducup', 61),
-  _snapshot(AgentQuotaProviderId.codex, 'Codex', 43),
-  _snapshot(AgentQuotaProviderId.kimi, 'Kimi', 8),
-  _snapshot(AgentQuotaProviderId.grok, 'Grok Build', 72),
-  _snapshot(AgentQuotaProviderId.cursor, 'Cursor', 14),
+  _snapshot(.codex, 'Codex', 43),
+  _snapshot(.kimi, 'Kimi', 8),
+  _snapshot(.grok, 'Grok Build', 72),
+  _snapshot(.cursor, 'Cursor', 14),
   _antigravitySnapshot(),
-  _snapshot(AgentQuotaProviderId.minimax, 'MiniMax', 56),
-  _snapshot(AgentQuotaProviderId.zai, 'Z.ai', 11),
+  _snapshot(.minimax, 'MiniMax', 56),
+  _snapshot(.zai, 'Z.ai', 11),
 ];
 
 AgentQuotaSnapshot _claudeUnavailableSnapshot() {
   return AgentQuotaSnapshot(
-    provider: AgentQuotaProviderId.claude,
+    provider: .claude,
     accountId: 'partsbase',
     displayName: 'Partsbase',
-    status: AgentQuotaStatus.unavailable,
+    status: .unavailable,
     updatedAt: DateTime.now().toUtc(),
     error: 'Claude OAuth usage is unavailable',
     windows: const <AgentQuotaWindow>[],
@@ -78,10 +78,10 @@ AgentQuotaSnapshot _claudeUnavailableSnapshot() {
 
 AgentQuotaSnapshot _claudeSnapshot() {
   return AgentQuotaSnapshot(
-    provider: AgentQuotaProviderId.claude,
+    provider: .claude,
     accountId: 'default',
     displayName: 'Default',
-    status: AgentQuotaStatus.ok,
+    status: .ok,
     updatedAt: DateTime.now().toUtc(),
     error: null,
     windows: <AgentQuotaWindow>[_window('5 Hour', 22), _window('Weekly', 48)],
@@ -103,10 +103,10 @@ AgentQuotaSnapshot _claudeProfileSnapshot(
   double usedPercent,
 ) {
   return AgentQuotaSnapshot(
-    provider: AgentQuotaProviderId.claude,
+    provider: .claude,
     accountId: accountId,
     displayName: displayName,
-    status: AgentQuotaStatus.ok,
+    status: .ok,
     updatedAt: DateTime.now().toUtc(),
     error: null,
     windows: <AgentQuotaWindow>[
@@ -119,10 +119,10 @@ AgentQuotaSnapshot _claudeProfileSnapshot(
 
 AgentQuotaSnapshot _antigravitySnapshot() {
   return AgentQuotaSnapshot(
-    provider: AgentQuotaProviderId.antigravity,
+    provider: .antigravity,
     accountId: 'default',
     displayName: 'Antigravity',
-    status: AgentQuotaStatus.ok,
+    status: .ok,
     updatedAt: DateTime.now().toUtc(),
     error: null,
     windows: const <AgentQuotaWindow>[],
@@ -168,7 +168,7 @@ AgentQuotaSnapshot _snapshot(
     provider: provider,
     accountId: 'default',
     displayName: displayName,
-    status: AgentQuotaStatus.ok,
+    status: .ok,
     updatedAt: DateTime.now().toUtc(),
     error: null,
     windows: <AgentQuotaWindow>[_window('Weekly', usedPercent)],

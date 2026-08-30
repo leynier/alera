@@ -212,7 +212,7 @@ mixin _WorkbenchControllerTabOpening
       layout
           .splitWithGroup(
             targetGroupId: sourceGroupId,
-            zone: WorkbenchDropZone.right,
+            zone: .right,
             newGroup: group,
           )
           .sanitize(tabs),

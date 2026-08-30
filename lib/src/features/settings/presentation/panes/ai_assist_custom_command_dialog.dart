@@ -3,9 +3,7 @@ import 'package:alera/src/design_system/forms/alera_text_field.dart';
 import 'package:alera/src/design_system/layout/alera_dialog.dart';
 import 'package:flutter/material.dart';
 
-class AiAssistCustomCommandDialog extends StatefulWidget {
-  const AiAssistCustomCommandDialog({super.key});
-
+class const AiAssistCustomCommandDialog({super.key}) extends StatefulWidget {
   @override
   State<AiAssistCustomCommandDialog> createState() =>
       _AiAssistCustomCommandDialogState();
@@ -34,8 +32,8 @@ class _AiAssistCustomCommandDialogState
       child: Padding(
         padding: const EdgeInsets.all(AleraTokens.space20),
         child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
+          mainAxisSize: .min,
+          crossAxisAlignment: .stretch,
           children: <Widget>[
             Text(
               'Custom Command',
@@ -56,7 +54,7 @@ class _AiAssistCustomCommandDialogState
             ),
             const SizedBox(height: AleraTokens.space16),
             Row(
-              mainAxisAlignment: MainAxisAlignment.end,
+              mainAxisAlignment: .end,
               children: <Widget>[
                 TextButton(
                   onPressed: () => Navigator.of(context).pop(),

@@ -4,9 +4,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:yaml/yaml.dart';
 
 void main() {
-  final workflow =
-      loadYaml(File('.github/workflows/desktop-build.yml').readAsStringSync())
-          as YamlMap;
+  final workflow = loadYaml(
+    File('.github/workflows/desktop-build.yml').readAsStringSync(),
+  ) as YamlMap;
   final jobs = workflow['jobs'] as YamlMap;
   List<YamlMap> steps(String job) =>
       ((jobs[job] as YamlMap)['steps'] as YamlList).cast<YamlMap>();
@@ -100,6 +100,31 @@ void main() {
       expect(gateEnv[entry.key], '\${{ needs.${entry.value}.result }}');
     }
   });
+
+  test(
+    'native clipboard coverage opts in only on disposable runner desktops',
+    () {
+      final e2e = step('desktop_e2e_linux', 'Desktop E2E');
+      expect(e2e['env']['ALERA_NATIVE_TEST_CLIPBOARD'], '1');
+      expect(e2e['run'], contains('xvfb-run -a flutter test'));
+      final native = step(
+        'build',
+        'Verify native process boundary and workbench flow',
+      );
+      expect(native['env']['ALERA_NATIVE_TEST_CLIPBOARD'], '1');
+      expect(
+        native['run'],
+        contains(
+          'rust_process_runner_test alera_smoke_flow_test terminal_input_native_test',
+        ),
+      );
+      expect(native['run'], contains('xvfb-run -a flutter test'));
+      expect(
+        workflow['env'].containsKey('ALERA_NATIVE_TEST_CLIPBOARD'),
+        isFalse,
+      );
+    },
+  );
 
   test('exact revision builds retain native visual and runner checks', () {
     expect(step('build', 'Setup Flutter workspace')['with']['xvfb'], 'true');

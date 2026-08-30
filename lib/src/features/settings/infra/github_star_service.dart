@@ -10,11 +10,7 @@ const String aleraGitHubUrl =
 /// Thin wrapper around the `gh` CLI for star detection / starring the Alera
 /// repo. Mirrors the Orca pattern: returns `null` whenever `gh` is unavailable
 /// or unauthenticated so the caller can hide the feature gracefully.
-class GitHubStarService {
-  GitHubStarService(this._processRunner);
-
-  final ProcessRunner _processRunner;
-
+class GitHubStarService(final ProcessRunner _processRunner) {
   Future<void> _serialize = Future<void>.value();
 
   Future<T> _withLock<T>(Future<T> Function() body) {

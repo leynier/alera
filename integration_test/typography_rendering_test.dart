@@ -39,20 +39,20 @@ void main() {
               body: Padding(
                 padding: const EdgeInsets.all(AleraTokens.space24),
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                  crossAxisAlignment: .start,
                   children: [
                     Text(
                       'Alera Native Typography - Inter at ${scale}x',
-                      textScaler: TextScaler.linear(scale),
+                      textScaler: .linear(scale),
                       style: theme.textTheme.titleLarge,
                     ),
                     Text(
                       'Aa Bb 0123456789 áéíóú ñ - Light and bold',
-                      textScaler: TextScaler.linear(scale),
+                      textScaler: .linear(scale),
                     ),
                     Text(
                       'Monospace 0O 1lI {} [] => !=',
-                      textScaler: TextScaler.linear(scale),
+                      textScaler: .linear(scale),
                       style: AleraTokens.monoStyle,
                     ),
                     const SizedBox(height: AleraTokens.space16),

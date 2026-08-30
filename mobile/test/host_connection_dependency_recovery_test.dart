@@ -46,18 +46,15 @@ void main() {
   });
 }
 
-final class _MutableHostConnection extends HostConnectionController {
-  _MutableHostConnection(this.initialClient);
-
-  final MobileRuntimeClient initialClient;
-
+final class _MutableHostConnection(final MobileRuntimeClient initialClient)
+    extends HostConnectionController {
   @override
   Future<MobileRuntimeClient> build(String hostId) async => initialClient;
 
   void fail() {
     state = AsyncError<MobileRuntimeClient>(
       const RuntimeConnectionLost(),
-      StackTrace.current,
+      .current,
     );
   }
 
@@ -98,11 +95,8 @@ final class _PassiveWebSocketChannel implements WebSocketChannel {
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
-final class _PassiveWebSocketSink implements WebSocketSink {
-  _PassiveWebSocketSink(this._sink);
-
-  final StreamSink<Object?> _sink;
-
+final class _PassiveWebSocketSink(final StreamSink<Object?> _sink)
+    implements WebSocketSink {
   @override
   Future<void> get done => _sink.done;
 
@@ -127,6 +121,6 @@ Future<void> _waitUntil(bool Function() condition) async {
     if (DateTime.now().isAfter(deadline)) {
       throw TimeoutException('Condition was not reached.');
     }
-    await Future<void>.delayed(const Duration(milliseconds: 10));
+    await Future.pause(const Duration(milliseconds: 10));
   }
 }

@@ -35,8 +35,8 @@ Workspace _workspace({String id = 'workspace-1', String path = '/repo/alera'}) {
     path: path,
     createdAt: now,
     updatedAt: now,
-    kind: WorkspaceKind.main,
-    status: WorkspaceStatus.active,
+    kind: .main,
+    status: .active,
   );
 }
 
@@ -66,9 +66,9 @@ String _decodePowerShellEncodedCommand(String encodedCommand) {
   return String.fromCharCodes(codeUnits);
 }
 
-class _FakeTerminalPtySessionFactory implements TerminalPtySessionFactory {
-  _FakeTerminalPtySessionFactory({List<_FakeTerminalPtySession>? sessions})
-    : _availableSessions = sessions ?? <_FakeTerminalPtySession>[];
+class _FakeTerminalPtySessionFactory({List<_FakeTerminalPtySession>? sessions})
+    implements TerminalPtySessionFactory {
+  this : _availableSessions = sessions ?? <_FakeTerminalPtySession>[];
 
   final List<_FakeTerminalPtySession> _availableSessions;
   final List<_FakeTerminalPtySession> createdSessions =
@@ -86,11 +86,8 @@ class _FakeTerminalPtySessionFactory implements TerminalPtySessionFactory {
   }
 }
 
-class _FakeTerminalClipboard implements TerminalClipboard {
-  _FakeTerminalClipboard({this.text, this.imagePath});
-
-  String? text;
-  String? imagePath;
+class _FakeTerminalClipboard({var String? text, var String? imagePath})
+    implements TerminalClipboard {
   List<String> filePaths = <String>[];
   Object? readError;
   Object? imageError;
@@ -135,11 +132,10 @@ class _RecordingTerminalShellStartupPreparer
   }
 }
 
-class _FakeTerminalPtySession implements TerminalPtySession {
-  _FakeTerminalPtySession({this.startError, this.startCompleter});
-
-  final Object? startError;
-  final Completer<void>? startCompleter;
+class _FakeTerminalPtySession({
+  final Object? startError,
+  final Completer<void>? startCompleter,
+}) implements TerminalPtySession {
   final StreamController<TerminalPtySessionEvent> _events =
       StreamController<TerminalPtySessionEvent>.broadcast();
   final List<List<int>> writes = <List<int>>[];
@@ -228,7 +224,7 @@ class _FakeTerminalPtySession implements TerminalPtySession {
     if (_events.isClosed) {
       return;
     }
-    _events.add(TerminalPtyOutputEvent(Uint8List.fromList(data)));
+    _events.add(TerminalPtyOutputEvent(.fromList(data)));
   }
 
   void emitSnapshot(List<int> data, {bool resetInteractionModes = false}) {
@@ -237,7 +233,7 @@ class _FakeTerminalPtySession implements TerminalPtySession {
     }
     _events.add(
       TerminalPtySnapshotEvent(
-        Uint8List.fromList(data),
+        .fromList(data),
         resetInteractionModes: resetInteractionModes,
       ),
     );
@@ -273,10 +269,8 @@ class _FakeTerminalPtySession implements TerminalPtySession {
   }
 }
 
-class _FakeExternalUriLauncher implements ExternalUriLauncher {
-  _FakeExternalUriLauncher({this.error});
-
-  final Object? error;
+class _FakeExternalUriLauncher({final Object? error})
+    implements ExternalUriLauncher {
   final List<Uri> openedUris = <Uri>[];
 
   @override
@@ -288,19 +282,12 @@ class _FakeExternalUriLauncher implements ExternalUriLauncher {
   }
 }
 
-class _ResizeCall {
-  const _ResizeCall({
-    required this.cols,
-    required this.rows,
-    required this.cellWidthPx,
-    required this.cellHeightPx,
-  });
-
-  final int cols;
-  final int rows;
-  final int cellWidthPx;
-  final int cellHeightPx;
-
+class const _ResizeCall({
+  required final int cols,
+  required final int rows,
+  required final int cellWidthPx,
+  required final int cellHeightPx,
+}) {
   @override
   bool operator ==(Object other) {
     return other is _ResizeCall &&
@@ -316,7 +303,7 @@ class _ResizeCall {
 
 const int _oRdOnly = 0;
 
-final ffi.DynamicLibrary _libcForTesting = ffi.DynamicLibrary.process();
+final ffi.DynamicLibrary _libcForTesting = .process();
 final int Function(ffi.Pointer<Utf8>, int) _openForTesting = _libcForTesting
     .lookupFunction<_OpenNative, _OpenDart>('open');
 final int Function(int) _closeForTesting = _libcForTesting

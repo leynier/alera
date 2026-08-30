@@ -9,7 +9,7 @@ const _history = <int>[120, 180, 160, 240, 300, 280, 420, 500];
 
 ResourceSnapshot _snapshot({bool warming = false, String? error}) {
   return ResourceSnapshot(
-    collectedAt: DateTime.utc(2026, 7, 25),
+    collectedAt: .utc(2026, 7, 25),
     warming: warming,
     host: const ResourceHostMetrics(
       totalMemoryBytes: 16 * 1024 * 1024 * 1024,
@@ -110,7 +110,7 @@ Widget _panel(
   return ResourceStatusPanel(
     snapshot: snapshot,
     tree: tree,
-    sortColumn: ResourceSortColumn.memory,
+    sortColumn: .memory,
     hostUnreachable: host,
     onSortColumnChanged: (_) {},
     onOpenSession: (_) {},
@@ -138,12 +138,12 @@ Widget resourceStatusPanelRemotePreview() =>
 
 @AleraPreview(name: 'Warming', group: 'Resource manager')
 Widget resourceStatusPanelWarmingPreview() =>
-    _panel(_snapshot(warming: true), ResourceTree.empty);
+    _panel(_snapshot(warming: true), .empty);
 
 @AleraPreview(name: 'Host Unreachable', group: 'Resource manager')
 Widget resourceStatusPanelUnreachablePreview() => _panel(
   _snapshot(error: 'The runtime host is not running.'),
-  ResourceTree.empty,
+  .empty,
   host: true,
 );
 

@@ -384,4 +384,3 @@ class _WorkbenchStateCopyWithImpl<$R, $Out>
     Then<$Out2, $R2> t,
   ) => _WorkbenchStateCopyWithImpl<$R2, $Out2>($value, $cast, t);
 }
-

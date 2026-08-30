@@ -7,11 +7,12 @@ abstract interface class SystemFontService {
   Future<List<String>> listFontFamilies();
 }
 
-class IoSystemFontService implements SystemFontService {
-  IoSystemFontService(this._processRunner, {String? platform})
-    : _platform = platform ?? Platform.operatingSystem;
+class IoSystemFontService(
+  final ProcessRunner _processRunner, {
+  String? platform,
+}) implements SystemFontService {
+  this : _platform = platform ?? Platform.operatingSystem;
 
-  final ProcessRunner _processRunner;
   final String _platform;
   List<String>? _cache;
   Future<List<String>>? _pending;
@@ -151,7 +152,7 @@ List<String> fallbackTerminalFontFamilies([String? platform]) {
 }
 
 List<String> _uniqueSorted(Iterable<String?> values) {
-  return List<String>.unmodifiable(
+  return List<String>.unmodifiableOf(
     Set<String>.from(
       values
           .map((value) => value?.trim() ?? '')

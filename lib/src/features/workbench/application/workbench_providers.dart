@@ -445,9 +445,8 @@ WorkspaceTabRecord? findTabById(
 /// that never warmed up. Recorded at warning level rather than severe: the app
 /// keeps working, it is the follow-up work that did not happen.
 void _ignoreProviderAsyncError(Object error, StackTrace stackTrace) {
-  Logger(
-    'WorkbenchProviders',
-  ).warning('background provider work failed', error, stackTrace);
+  Logger('WorkbenchProviders')
+      .warning('background provider work failed', error, stackTrace);
 }
 // coverage:ignore-end
 

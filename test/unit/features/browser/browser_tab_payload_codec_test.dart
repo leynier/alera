@@ -122,10 +122,10 @@ WorkspaceTabRecord _tab({Map<String, Object?> payload = const {}}) {
   return WorkspaceTabRecord(
     id: 'page-1',
     workspaceId: 'workspace-1',
-    kind: WorkspaceTabKind.browser,
+    kind: .browser,
     title: 'New Tab',
-    createdAt: DateTime.utc(2026),
-    updatedAt: DateTime.utc(2026),
+    createdAt: .utc(2026),
+    updatedAt: .utc(2026),
     payload: payload,
   );
 }

@@ -14,23 +14,21 @@ enum AgentProfileLaunchMode {
   }
 }
 
-class AgentProfile {
-  const AgentProfile({
-    required this.id,
-    required this.name,
-    required this.agentType,
-    required this.command,
-    required this.createdAt,
-    required this.updatedAt,
-    this.revision = 0,
-    this.description = '',
-    this.quotaGroup,
-    this.launchMode = AgentProfileLaunchMode.command,
-    this.managedConfig = const <String, Object?>{},
-    this.customPrompt = '',
-  });
-
-  factory AgentProfile.fromJson(Map<String, Object?> json) {
+class const AgentProfile({
+  required final String id,
+  required final String name,
+  required this.agentType,
+  required this.command,
+  required final DateTime createdAt,
+  required final DateTime updatedAt,
+  this.revision = 0,
+  this.description = '',
+  this.quotaGroup,
+  final AgentProfileLaunchMode launchMode = AgentProfileLaunchMode.command,
+  this.managedConfig = const <String, Object?>{},
+  this.customPrompt = '',
+}) {
+  factory fromJson(Map<String, Object?> json) {
     return AgentProfile(
       id: _requiredString(json, 'id'),
       name: _requiredString(json, 'name'),
@@ -47,9 +45,6 @@ class AgentProfile {
     );
   }
 
-  final String id;
-  final String name;
-
   /// The built-in adapter that drives readiness detection, preamble injection
   /// and submission for this profile.
   final String agentType;
@@ -57,7 +52,6 @@ class AgentProfile {
   /// The interactive launch command. A one-shot mode cannot satisfy the worker
   /// contract of accept, heartbeat and complete.
   final String command;
-  final AgentProfileLaunchMode launchMode;
 
   /// Adapter-specific overrides. Missing keys mean the CLI's own default.
   final Map<String, Object?> managedConfig;
@@ -78,9 +72,6 @@ class AgentProfile {
   /// Monotonic concurrency token for all persisted profile fields, including
   /// catalog order.
   final int revision;
-
-  final DateTime createdAt;
-  final DateTime updatedAt;
 
   Map<String, Object?> toJson() {
     return <String, Object?>{

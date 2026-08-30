@@ -13,11 +13,10 @@ const String aleraWindowsNotificationGuid =
     '6f03d61e-b22a-42fc-9e44-a02319d77f55';
 const String _openAleraActionLabel = 'Open $kAleraAppName';
 
-class DesktopAgentStatusNotificationService
-    implements AgentStatusNotificationPresenter {
-  DesktopAgentStatusNotificationService({
-    FlutterLocalNotificationsPlugin? plugin,
-  }) : _plugin = plugin ?? FlutterLocalNotificationsPlugin();
+class DesktopAgentStatusNotificationService({
+  FlutterLocalNotificationsPlugin? plugin,
+}) implements AgentStatusNotificationPresenter {
+  this : _plugin = plugin ?? FlutterLocalNotificationsPlugin();
 
   final FlutterLocalNotificationsPlugin _plugin;
   Future<void>? _initializing;
@@ -76,11 +75,9 @@ class DesktopAgentStatusNotificationService
         macOS: DarwinNotificationDetails(),
         linux: LinuxNotificationDetails(
           defaultActionName: _openAleraActionLabel,
-          urgency: LinuxNotificationUrgency.normal,
+          urgency: .normal,
         ),
-        windows: WindowsNotificationDetails(
-          duration: WindowsNotificationDuration.short,
-        ),
+        windows: WindowsNotificationDetails(duration: .short),
       ),
       payload: notification.payload,
     );

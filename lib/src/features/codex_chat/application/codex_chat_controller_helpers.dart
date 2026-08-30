@@ -178,9 +178,10 @@ List<Map<String, Object?>> _buildInput(
       final characterStart = _completeReferenceStart(text, reference);
       if (characterStart < 0) continue;
       final start = utf8.encode(text.substring(0, characterStart)).length;
-      final elements =
-          part.putIfAbsent('text_elements', () => <Map<String, Object?>>[])
-              as List<Map<String, Object?>>;
+      final elements = part.putIfAbsent(
+        'text_elements',
+        () => <Map<String, Object?>>[],
+      ) as List<Map<String, Object?>>;
       elements.add(<String, Object?>{
         'byteRange': <String, Object?>{
           'start': start,

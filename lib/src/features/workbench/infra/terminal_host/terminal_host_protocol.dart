@@ -55,34 +55,26 @@ const int defaultTerminalHostEmptyShutdownDelaySeconds = 30;
 const int defaultTerminalHostDetachedSessionShutdownDelaySeconds = 60 * 60;
 const int defaultTerminalHostScrollbackBytes = 10 * 1000 * 1000;
 
-final class TerminalHostConflictException implements Exception {
-  const TerminalHostConflictException({
-    required this.code,
-    required this.message,
-    this.details = const <String, Object?>{},
-  });
-
-  final String code;
-  final String message;
-  final Map<String, Object?> details;
-
+final class const TerminalHostConflictException({
+  required final String code,
+  required final String message,
+  final Map<String, Object?> details = const <String, Object?>{},
+}) implements Exception {
   @override
   String toString() => message;
 }
 
-final class TerminalHostConfig {
-  const TerminalHostConfig({
-    this.emptyShutdownDelaySeconds =
-        defaultTerminalHostEmptyShutdownDelaySeconds,
-    this.detachedSessionShutdownDelaySeconds =
-        defaultTerminalHostDetachedSessionShutdownDelaySeconds,
-    this.scrollbackBytes = defaultTerminalHostScrollbackBytes,
-    this.restoreSnapshotBytes = defaultTerminalHostScrollbackBytes,
-    this.loginShell = false,
-    this.crashReporting = false,
-  });
-
-  factory TerminalHostConfig.fromJson(Map<String, Object?> json) {
+final class const TerminalHostConfig({
+  final int emptyShutdownDelaySeconds =
+      defaultTerminalHostEmptyShutdownDelaySeconds,
+  final int detachedSessionShutdownDelaySeconds =
+      defaultTerminalHostDetachedSessionShutdownDelaySeconds,
+  final int scrollbackBytes = defaultTerminalHostScrollbackBytes,
+  this.restoreSnapshotBytes = defaultTerminalHostScrollbackBytes,
+  this.loginShell = false,
+  this.crashReporting = false,
+}) {
+  factory fromJson(Map<String, Object?> json) {
     return TerminalHostConfig(
       emptyShutdownDelaySeconds: _positiveInt(
         json['emptyShutdownDelaySeconds'],
@@ -103,10 +95,6 @@ final class TerminalHostConfig {
   }
 
   static const defaults = TerminalHostConfig();
-
-  final int emptyShutdownDelaySeconds;
-  final int detachedSessionShutdownDelaySeconds;
-  final int scrollbackBytes;
 
   /// Cap on what an attach or a resynchronising snapshot replays into the
   /// emulator. Distinct from [scrollbackBytes], which is what the host retains.
@@ -141,15 +129,13 @@ int _positiveInt(Object? value, String label) {
   throw FormatException('$label must be a positive integer.');
 }
 
-final class TerminalHostLaunch {
-  const TerminalHostLaunch({
-    required this.label,
-    required this.shell,
-    required this.arguments,
-    required this.environment,
-  });
-
-  factory TerminalHostLaunch.fromJson(Map<String, Object?> json) {
+final class const TerminalHostLaunch({
+  required final String label,
+  required final String shell,
+  required final List<String> arguments,
+  required final Map<String, String> environment,
+}) {
+  factory fromJson(Map<String, Object?> json) {
     final shell = json['shell'];
     if (shell is! String || shell.isEmpty) {
       throw const FormatException('Terminal host launch shell is required.');
@@ -161,11 +147,6 @@ final class TerminalHostLaunch {
       environment: asTerminalHostStringMap(json['environment']),
     );
   }
-
-  final String label;
-  final String shell;
-  final List<String> arguments;
-  final Map<String, String> environment;
 
   Map<String, Object?> toJson() {
     return <String, Object?>{
@@ -219,12 +200,10 @@ Map<String, String> asTerminalHostStringMap(Object? value) {
   };
 }
 
-final class RuntimeHostEvent {
-  const RuntimeHostEvent(this.name, this.payload);
-
-  final String name;
-  final Map<String, Object?> payload;
-}
+final class const RuntimeHostEvent(
+  final String name,
+  final Map<String, Object?> payload,
+);
 
 abstract interface class RuntimeHostClient {
   Stream<RuntimeHostEvent> get runtimeEvents;

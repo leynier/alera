@@ -4,7 +4,7 @@ void _registerGrokAgentHookEventNormalizerTests() {
   test('normalizes Grok Build lifecycle and notification states', () {
     final prompt = normalizeAgentHookEvent(
       _event(
-        agentType: AgentType.grok,
+        agentType: .grok,
         hookEventName: 'user_prompt_submit',
         payload: const <String, Object?>{
           'prompt': '<user_query>\nShip the feature\n</user_query>',
@@ -18,16 +18,16 @@ void _registerGrokAgentHookEventNormalizerTests() {
       terminalSessionId: 'session-1',
       workspaceId: 'workspace-1',
       tabId: 'tab-1',
-      agentType: AgentType.grok,
-      state: AgentStatusState.working,
+      agentType: .grok,
+      state: .working,
       prompt: prompt!.prompt,
-      updatedAt: DateTime.utc(2026, 7, 10),
-      stateStartedAt: DateTime.utc(2026, 7, 10),
+      updatedAt: .utc(2026, 7, 10),
+      stateStartedAt: .utc(2026, 7, 10),
     );
     expect(
       normalizeAgentHookEvent(
         _event(
-          agentType: AgentType.grok,
+          agentType: .grok,
           hookEventName: 'Notification',
           payload: const <String, Object?>{
             'notificationType': 'permission_prompt',
@@ -42,7 +42,7 @@ void _registerGrokAgentHookEventNormalizerTests() {
 
     final waiting = normalizeAgentHookEvent(
       _event(
-        agentType: AgentType.grok,
+        agentType: .grok,
         hookEventName: 'Notification',
         payload: const <String, Object?>{
           'message': 'Grok needs your feedback to proceed',
@@ -55,7 +55,7 @@ void _registerGrokAgentHookEventNormalizerTests() {
 
     final idle = normalizeAgentHookEvent(
       _event(
-        agentType: AgentType.grok,
+        agentType: .grok,
         hookEventName: 'notification',
         payload: const <String, Object?>{'message': 'Type your message'},
       ),
@@ -65,7 +65,7 @@ void _registerGrokAgentHookEventNormalizerTests() {
     expect(
       normalizeAgentHookEvent(
         _event(
-          agentType: AgentType.grok,
+          agentType: .grok,
           hookEventName: 'Notification',
           payload: const <String, Object?>{'message': 'Ask a side question'},
         ),
@@ -77,7 +77,7 @@ void _registerGrokAgentHookEventNormalizerTests() {
       expect(
         normalizeAgentHookEvent(
           _event(
-            agentType: AgentType.grok,
+            agentType: .grok,
             hookEventName: eventName,
             payload: const <String, Object?>{},
           ),

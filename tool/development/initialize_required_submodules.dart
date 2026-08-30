@@ -34,11 +34,7 @@ Directory _parseRepoRoot(List<String> arguments) {
   );
 }
 
-final class _SubmoduleInitializer {
-  _SubmoduleInitializer(this.repoRoot);
-
-  final Directory repoRoot;
-
+final class _SubmoduleInitializer(final Directory repoRoot) {
   Future<void> run() async {
     if (!await Directory(_join(repoRoot.path, '.git')).exists() &&
         !await File(_join(repoRoot.path, '.git')).exists()) {
@@ -224,23 +220,13 @@ final class _SubmoduleInitializer {
   }
 }
 
-final class _CommandResult {
-  const _CommandResult({
-    required this.exitCode,
-    required this.stdout,
-    required this.stderr,
-  });
+final class const _CommandResult({
+  required final int exitCode,
+  required final String stdout,
+  required final String stderr,
+});
 
-  final int exitCode;
-  final String stdout;
-  final String stderr;
-}
-
-final class _CommandFailure implements Exception {
-  const _CommandFailure(this.message);
-
-  final String message;
-}
+final class const _CommandFailure(final String message) implements Exception;
 
 String _join(String first, String second) {
   final separator = Platform.pathSeparator;

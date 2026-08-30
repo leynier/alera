@@ -16,19 +16,12 @@ const int kDefaultLogMaxFiles = 5;
 /// Writes are chained rather than awaited by callers so logging never blocks
 /// the frame pipeline. The chain also serializes rotation against in-flight
 /// writes, which would otherwise race over the file handle.
-class RotatingLogSink {
-  RotatingLogSink({
-    required this.directory,
-    required this.baseName,
-    this.maxBytes = kDefaultLogMaxBytes,
-    this.maxFiles = kDefaultLogMaxFiles,
-  });
-
-  final Directory directory;
-  final String baseName;
-  final int maxBytes;
-  final int maxFiles;
-
+class RotatingLogSink({
+  required final Directory directory,
+  required final String baseName,
+  final int maxBytes = kDefaultLogMaxBytes,
+  final int maxFiles = kDefaultLogMaxFiles,
+}) {
   IOSink? _sink;
   int _written = 0;
   Future<void> _queue = Future<void>.value();
@@ -74,7 +67,7 @@ class RotatingLogSink {
     }
     final active = fileFor(0);
     _written = active.existsSync() ? await active.length() : 0;
-    _sink = active.openWrite(mode: FileMode.append);
+    _sink = active.openWrite(mode: .append);
   }
 
   Future<void> _rotate() async {
@@ -132,8 +125,8 @@ class RotatingLogSink {
 
   /// Existing log files, newest first, for collection into a bundle.
   List<File> existingFiles() {
-    return <File>[
-      for (var index = 0; index < maxFiles; index++) fileFor(index),
-    ].where((file) => file.existsSync()).toList();
+    return <File>[for (var index = 0; index < maxFiles; index++) fileFor(index)]
+        .where((file) => file.existsSync())
+        .toList();
   }
 }

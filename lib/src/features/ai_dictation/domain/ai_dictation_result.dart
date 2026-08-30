@@ -1,15 +1,7 @@
-class AiDictationResult {
-  const AiDictationResult({
-    required this.text,
-    required this.providerId,
-    required this.elapsed,
-    required this.duration,
-    this.detectedLanguage,
-  });
-
-  final String text;
-  final String providerId;
-  final Duration elapsed;
-  final Duration duration;
-  final String? detectedLanguage;
-}
+class const AiDictationResult({
+  required final String text,
+  required final String providerId,
+  required final Duration elapsed,
+  required final Duration duration,
+  final String? detectedLanguage,
+});

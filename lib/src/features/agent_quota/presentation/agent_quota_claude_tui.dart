@@ -1,11 +1,9 @@
 part of 'agent_quota_status_bar.dart';
 
-class _ClaudeTryWithTuiButton extends ConsumerStatefulWidget {
-  const _ClaudeTryWithTuiButton({required this.hostId, required this.snapshot});
-
-  final String hostId;
-  final AgentQuotaSnapshot snapshot;
-
+class const _ClaudeTryWithTuiButton({
+  required final String hostId,
+  required final AgentQuotaSnapshot snapshot,
+}) extends ConsumerStatefulWidget {
   @override
   ConsumerState<_ClaudeTryWithTuiButton> createState() =>
       _ClaudeTryWithTuiButtonState();
@@ -56,14 +54,14 @@ class _ClaudeTryWithTuiButtonState
         style: TextButton.styleFrom(
           foregroundColor: AleraTokens.accent,
           padding: EdgeInsets.zero,
-          minimumSize: Size.zero,
-          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          minimumSize: .zero,
+          tapTargetSize: .shrinkWrap,
         ),
         child: Text(
           _loading ? 'Trying with TUI...' : 'Try With TUI',
           style: Theme.of(context).textTheme.labelMedium?.copyWith(
             color: _loading ? AleraTokens.foregroundFaint : AleraTokens.accent,
-            fontWeight: FontWeight.w600,
+            fontWeight: .w600,
           ),
         ),
       ),

@@ -1,7 +1,7 @@
 const String kAleraReleaseFlavor = 'release';
 const String kAleraDevFlavor = 'dev';
 
-const String kAleraFlavor = String.fromEnvironment(
+const String kAleraFlavor = .fromEnvironment(
   'ALERA_FLAVOR',
   defaultValue: kAleraDevFlavor,
 );

@@ -52,7 +52,7 @@ void main() {
       Logger('MobileRuntimeClient').warning(
         'runtime connection failed',
         StateError('socket closed'),
-        StackTrace.fromString('#0 fakeFrame'),
+        .fromString('#0 fakeFrame'),
       );
 
       final records = await readRecords();
@@ -64,9 +64,8 @@ void main() {
       await MobileLogger.configure(directory: root);
       registerLogSecret('device-token-abcdef123456');
 
-      Logger(
-        'MobileRuntimeClient',
-      ).info('authenticated with device-token-abcdef123456');
+      Logger('MobileRuntimeClient')
+          .info('authenticated with device-token-abcdef123456');
 
       await MobileLogger.flush();
       final contents = MobileLogger.sink!.fileFor(0).readAsStringSync();
@@ -79,7 +78,7 @@ void main() {
 
       MobileLogger.recordError(
         StateError('boom'),
-        StackTrace.fromString('#0 zoneFrame'),
+        .fromString('#0 zoneFrame'),
         context: 'Zone',
       );
 

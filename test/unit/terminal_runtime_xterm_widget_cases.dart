@@ -295,9 +295,9 @@ void _registerXtermRuntimeWidgetTests() {
       handlePrivateOscForTesting(firstSession, '8', const <String>['', '']);
       await tester.pump();
 
-      final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+      final mouse = await tester.createGesture(kind: .mouse);
       addTearDown(mouse.removePointer);
-      await mouse.addPointer(location: Offset.zero);
+      await mouse.addPointer(location: .zero);
       await tester.pump();
 
       final linkOffset =
@@ -306,16 +306,16 @@ void _registerXtermRuntimeWidgetTests() {
       await mouse.moveTo(linkOffset);
       await tester.pumpAndSettle();
 
-      await tester.sendKeyDownEvent(LogicalKeyboardKey.metaLeft);
+      await tester.sendKeyDownEvent(.metaLeft);
       final view = tester.widget<xterm.TerminalView>(
         find.byType(xterm.TerminalView),
       );
       view.onTapUp?.call(
-        TapUpDetails(kind: PointerDeviceKind.mouse),
+        TapUpDetails(kind: .mouse),
         const xterm.CellOffset(1, 0),
       );
       await tester.pump();
-      await tester.sendKeyUpEvent(LogicalKeyboardKey.metaLeft);
+      await tester.sendKeyUpEvent(.metaLeft);
       await tester.pump();
 
       expect(launcher.openedUris, <Uri>[Uri.parse('https://example.com')]);
@@ -386,9 +386,9 @@ void _registerXtermRuntimeWidgetTests() {
         view.onKeyEvent?.call(
           FocusNode(),
           const KeyUpEvent(
-            timeStamp: Duration.zero,
-            physicalKey: PhysicalKeyboardKey.keyA,
-            logicalKey: LogicalKeyboardKey.keyA,
+            timeStamp: .zero,
+            physicalKey: .keyA,
+            logicalKey: .keyA,
           ),
         ),
         KeyEventResult.handled,

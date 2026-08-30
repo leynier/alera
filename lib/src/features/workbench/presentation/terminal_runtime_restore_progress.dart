@@ -84,12 +84,9 @@ extension _TerminalRestoreProgressTracking on _XtermTerminalSessionHandle {
     // the same per-frame batcher as live output instead.
     final restored = const Utf8Decoder(allowMalformed: true).convert(data);
     _beginRestore(restored.length);
-    _queueTerminalOutput(restored, source: _TerminalOutputSource.restore);
+    _queueTerminalOutput(restored, source: .restore);
     if (resetInteractionModes) {
-      _queueTerminalOutput(
-        terminalInteractionModeReset,
-        source: _TerminalOutputSource.control,
-      );
+      _queueTerminalOutput(terminalInteractionModeReset, source: .control);
     }
   }
 }

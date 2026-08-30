@@ -7,21 +7,16 @@ import 'package:flutter/material.dart';
 /// Hand-rolled rather than pulled from a charting package: the whole widget is
 /// one polyline, and a chart library would be several orders of magnitude more
 /// code for the same pixels.
-class AleraSparkline extends StatelessWidget {
-  const AleraSparkline({
-    super.key,
-    required this.samples,
-    this.width = 48,
-    this.height = 14,
-    this.color,
-  });
-
+class const AleraSparkline({
+  super.key,
+  required this.samples,
+  final double width = 48,
+  final double height = 14,
+  final Color? color,
+}) extends StatelessWidget {
   /// Values oldest first. Fewer than two points draws nothing: a single sample
   /// has no trend to show.
   final List<int> samples;
-  final double width;
-  final double height;
-  final Color? color;
 
   @override
   Widget build(BuildContext context) {
@@ -38,12 +33,10 @@ class AleraSparkline extends StatelessWidget {
   }
 }
 
-class _SparklinePainter extends CustomPainter {
-  const _SparklinePainter({required this.samples, required this.color});
-
-  final List<int> samples;
-  final Color color;
-
+class const _SparklinePainter({
+  required final List<int> samples,
+  required final Color color,
+}) extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     if (samples.length < 2 || size.width <= 0 || size.height <= 0) {

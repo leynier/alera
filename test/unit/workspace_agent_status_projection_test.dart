@@ -14,19 +14,10 @@ void main() {
       final status = aggregateWorkspaceAgentStatus(
         tabs: <WorkspaceTabRecord>[doneTab, workingTab, waitingTab, blockedTab],
         agentStatuses: <String, AgentStatusEntry>{
-          doneTab.terminalSessionId: _entry(doneTab, AgentStatusState.done),
-          workingTab.terminalSessionId: _entry(
-            workingTab,
-            AgentStatusState.working,
-          ),
-          waitingTab.terminalSessionId: _entry(
-            waitingTab,
-            AgentStatusState.waiting,
-          ),
-          blockedTab.terminalSessionId: _entry(
-            blockedTab,
-            AgentStatusState.blocked,
-          ),
+          doneTab.terminalSessionId: _entry(doneTab, .done),
+          workingTab.terminalSessionId: _entry(workingTab, .working),
+          waitingTab.terminalSessionId: _entry(waitingTab, .waiting),
+          blockedTab.terminalSessionId: _entry(blockedTab, .blocked),
         },
       );
 
@@ -42,13 +33,13 @@ void main() {
         agentStatuses: <String, AgentStatusEntry>{
           firstTab.terminalSessionId: _entry(
             firstTab,
-            AgentStatusState.waiting,
-            updatedAt: DateTime.utc(2026, 5, 26, 12),
+            .waiting,
+            updatedAt: .utc(2026, 5, 26, 12),
           ),
           secondTab.terminalSessionId: _entry(
             secondTab,
-            AgentStatusState.waiting,
-            updatedAt: DateTime.utc(2026, 5, 26, 12, 1),
+            .waiting,
+            updatedAt: .utc(2026, 5, 26, 12, 1),
           ),
         },
       );
@@ -64,16 +55,16 @@ void main() {
       final runs = visibleWorkspaceAgentRuns(
         tabs: <WorkspaceTabRecord>[doneTab, waitingTab, workingTab],
         agentStatuses: <String, AgentStatusEntry>{
-          doneTab.terminalSessionId: _entry(doneTab, AgentStatusState.done),
+          doneTab.terminalSessionId: _entry(doneTab, .done),
           waitingTab.terminalSessionId: _entry(
             waitingTab,
-            AgentStatusState.waiting,
-            updatedAt: DateTime.utc(2026, 5, 26, 11),
+            .waiting,
+            updatedAt: .utc(2026, 5, 26, 11),
           ),
           workingTab.terminalSessionId: _entry(
             workingTab,
-            AgentStatusState.working,
-            updatedAt: DateTime.utc(2026, 5, 26, 12),
+            .working,
+            updatedAt: .utc(2026, 5, 26, 12),
           ),
         },
       );
@@ -86,7 +77,7 @@ void main() {
     });
 
     test('ignores non-terminal tabs and stale tab/session ids', () {
-      final browserTab = _tab('browser', kind: WorkspaceTabKind.browser);
+      final browserTab = _tab('browser', kind: .browser);
       final terminalTab = _tab('terminal');
       final mismatchedSessionTab = _tab('mismatched-session');
 
@@ -97,18 +88,15 @@ void main() {
           mismatchedSessionTab,
         ],
         agentStatuses: <String, AgentStatusEntry>{
-          browserTab.terminalSessionId: _entry(
-            browserTab,
-            AgentStatusState.blocked,
-          ),
+          browserTab.terminalSessionId: _entry(browserTab, .blocked),
           terminalTab.terminalSessionId: _entry(
             terminalTab,
-            AgentStatusState.working,
+            .working,
             tabId: 'old-tab',
           ),
           mismatchedSessionTab.terminalSessionId: _entry(
             mismatchedSessionTab,
-            AgentStatusState.working,
+            .working,
             terminalSessionId: 'old-session',
           ),
         },
@@ -126,18 +114,18 @@ void main() {
         agentStatuses: <String, AgentStatusEntry>{
           interruptedTab.terminalSessionId: _entry(
             interruptedTab,
-            AgentStatusState.done,
+            .done,
             interrupted: true,
           ),
           workingTab.terminalSessionId: _entry(
             workingTab,
-            AgentStatusState.working,
-            updatedAt: DateTime.utc(2026, 5, 26, 12),
+            .working,
+            updatedAt: .utc(2026, 5, 26, 12),
           ),
           doneTab.terminalSessionId: _entry(
             doneTab,
-            AgentStatusState.done,
-            updatedAt: DateTime.utc(2026, 5, 26, 12, 1),
+            .done,
+            updatedAt: .utc(2026, 5, 26, 12, 1),
           ),
         },
       );
@@ -151,11 +139,8 @@ void main() {
       final runs = visibleWorkspaceAgentRuns(
         tabs: <WorkspaceTabRecord>[doneTab, workingTab],
         agentStatuses: <String, AgentStatusEntry>{
-          doneTab.terminalSessionId: _entry(doneTab, AgentStatusState.done),
-          workingTab.terminalSessionId: _entry(
-            workingTab,
-            AgentStatusState.working,
-          ),
+          doneTab.terminalSessionId: _entry(doneTab, .done),
+          workingTab.terminalSessionId: _entry(workingTab, .working),
         },
       );
 
@@ -187,15 +172,15 @@ void main() {
           unmatched,
         ],
         agentStatuses: <String, AgentStatusEntry>{
-          waiting.terminalSessionId: _entry(waiting, AgentStatusState.waiting),
-          blocked.terminalSessionId: _entry(blocked, AgentStatusState.blocked),
+          waiting.terminalSessionId: _entry(waiting, .waiting),
+          blocked.terminalSessionId: _entry(blocked, .blocked),
           interrupted.terminalSessionId: _entry(
             interrupted,
-            AgentStatusState.done,
+            .done,
             interrupted: true,
           ),
-          working.terminalSessionId: _entry(working, AgentStatusState.working),
-          done.terminalSessionId: _entry(done, AgentStatusState.done),
+          working.terminalSessionId: _entry(working, .working),
+          done.terminalSessionId: _entry(done, .done),
         },
       );
 
@@ -203,13 +188,9 @@ void main() {
     });
 
     test('matches Codex tabs through their synthetic presence handle', () {
-      final tab = _tab('codex-tab', kind: WorkspaceTabKind.codex);
+      final tab = _tab('codex-tab', kind: .codex);
       final handle = 'codex:${tab.id}';
-      final entry = _entry(
-        tab,
-        AgentStatusState.working,
-        terminalSessionId: handle,
-      );
+      final entry = _entry(tab, .working, terminalSessionId: handle);
 
       expect(
         matchingAgentStatusForTab(
@@ -222,11 +203,7 @@ void main() {
         matchingAgentStatusForTab(
           tab: tab,
           agentStatuses: <String, AgentStatusEntry>{
-            handle: _entry(
-              tab,
-              AgentStatusState.working,
-              terminalSessionId: 'stale-session',
-            ),
+            handle: _entry(tab, .working, terminalSessionId: 'stale-session'),
           },
         ),
         isNull,
@@ -244,8 +221,8 @@ WorkspaceTabRecord _tab(
     workspaceId: 'workspace-1',
     title: id,
     kind: kind,
-    createdAt: DateTime.utc(2026, 5, 26),
-    updatedAt: DateTime.utc(2026, 5, 26),
+    createdAt: .utc(2026, 5, 26),
+    updatedAt: .utc(2026, 5, 26),
   );
 }
 
@@ -262,7 +239,7 @@ AgentStatusEntry _entry(
     terminalSessionId: terminalSessionId ?? tab.terminalSessionId,
     workspaceId: tab.workspaceId,
     tabId: tabId ?? tab.id,
-    agentType: AgentType.codex,
+    agentType: .codex,
     state: state,
     prompt: '',
     updatedAt: timestamp,

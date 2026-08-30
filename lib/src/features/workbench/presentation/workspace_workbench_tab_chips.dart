@@ -1,36 +1,20 @@
 part of 'workspace_workbench_view.dart';
 
-class _DraggableWorkspaceTabChip extends StatelessWidget {
-  const _DraggableWorkspaceTabChip({
-    required this.workspace,
-    required this.groupId,
-    required this.tab,
-    required this.active,
-    required this.terminalRuntime,
-    required this.status,
-    required this.completionAcknowledged,
-    required this.groupTabs,
-    required this.onSelect,
-    required this.onClose,
-    required this.onCloseTabs,
-    required this.onRename,
-    required this.onSplit,
-  });
-
-  final Workspace workspace;
-  final String groupId;
-  final WorkspaceTabRecord tab;
-  final bool active;
-  final TerminalRuntime terminalRuntime;
-  final AgentStatusEntry? status;
-  final bool completionAcknowledged;
-  final List<WorkspaceTabRecord> groupTabs;
-  final VoidCallback onSelect;
-  final VoidCallback onClose;
-  final ValueChanged<List<String>> onCloseTabs;
-  final ValueChanged<String> onRename;
-  final ValueChanged<WorkbenchDropZone> onSplit;
-
+class const _DraggableWorkspaceTabChip({
+  required final Workspace workspace,
+  required final String groupId,
+  required final WorkspaceTabRecord tab,
+  required final bool active,
+  required final TerminalRuntime terminalRuntime,
+  required final AgentStatusEntry? status,
+  required final bool completionAcknowledged,
+  required final List<WorkspaceTabRecord> groupTabs,
+  required final VoidCallback onSelect,
+  required final VoidCallback onClose,
+  required final ValueChanged<List<String>> onCloseTabs,
+  required final ValueChanged<String> onRename,
+  required final ValueChanged<WorkbenchDropZone> onSplit,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final tabDragController = _WorkbenchTabDragScope.controllerOf(context);
@@ -97,33 +81,19 @@ class _DraggableWorkspaceTabChip extends StatelessWidget {
   }
 }
 
-class _WorkspaceTabChip extends ConsumerWidget {
-  const _WorkspaceTabChip({
-    required this.tab,
-    required this.terminalSession,
-    required this.status,
-    required this.completionAcknowledged,
-    required this.active,
-    required this.groupTabs,
-    required this.onTap,
-    required this.onClose,
-    required this.onCloseTabs,
-    required this.onRename,
-    required this.onSplit,
-  });
-
-  final WorkspaceTabRecord tab;
-  final TerminalSessionHandle? terminalSession;
-  final AgentStatusEntry? status;
-  final bool completionAcknowledged;
-  final bool active;
-  final List<WorkspaceTabRecord> groupTabs;
-  final VoidCallback onTap;
-  final VoidCallback onClose;
-  final ValueChanged<List<String>> onCloseTabs;
-  final ValueChanged<String> onRename;
-  final ValueChanged<WorkbenchDropZone> onSplit;
-
+class const _WorkspaceTabChip({
+  required final WorkspaceTabRecord tab,
+  required final TerminalSessionHandle? terminalSession,
+  required final AgentStatusEntry? status,
+  required final bool completionAcknowledged,
+  required final bool active,
+  required final List<WorkspaceTabRecord> groupTabs,
+  required final VoidCallback onTap,
+  required final VoidCallback onClose,
+  required final ValueChanged<List<String>> onCloseTabs,
+  required final ValueChanged<String> onRename,
+  required final ValueChanged<WorkbenchDropZone> onSplit,
+}) extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     ref.watch(agentTitleAvailableProvider);
@@ -149,7 +119,7 @@ class _WorkspaceTabChip extends ConsumerWidget {
         child: InkWell(
           onTap: onTap,
           mouseCursor: SystemMouseCursors.click,
-          borderRadius: BorderRadius.circular(AleraTokens.radiusMd),
+          borderRadius: .circular(AleraTokens.radiusMd),
           child: Container(
             padding: const EdgeInsets.symmetric(
               horizontal: AleraTokens.space6,
@@ -162,7 +132,7 @@ class _WorkspaceTabChip extends ConsumerWidget {
               ),
             ),
             child: Row(
-              mainAxisSize: MainAxisSize.min,
+              mainAxisSize: .min,
               children: <Widget>[
                 _WorkspaceTabLeadingIcon(
                   tab: tab,
@@ -203,7 +173,7 @@ class _WorkspaceTabChip extends ConsumerWidget {
                     title,
                     maxLines: 1,
                     softWrap: false,
-                    overflow: TextOverflow.ellipsis,
+                    overflow: .ellipsis,
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
                       color: active
                           ? AleraTokens.foreground
@@ -229,7 +199,7 @@ class _WorkspaceTabChip extends ConsumerWidget {
                 InkWell(
                   onTap: onClose,
                   mouseCursor: SystemMouseCursors.click,
-                  borderRadius: BorderRadius.circular(AleraTokens.radiusSm),
+                  borderRadius: .circular(AleraTokens.radiusSm),
                   child: const Padding(
                     padding: EdgeInsets.all(2),
                     child: Icon(
@@ -261,12 +231,10 @@ enum _TabMenuAction {
   generateTitle,
 }
 
-class _WorkspaceTabLeadingIcon extends StatelessWidget {
-  const _WorkspaceTabLeadingIcon({required this.tab, required this.color});
-
-  final WorkspaceTabRecord tab;
-  final Color color;
-
+class const _WorkspaceTabLeadingIcon({
+  required final WorkspaceTabRecord tab,
+  required final Color color,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return switch (tab.kind) {
@@ -274,7 +242,7 @@ class _WorkspaceTabLeadingIcon extends StatelessWidget {
       WorkspaceTabKind.markdownViewer ||
       WorkspaceTabKind.pdf => AleraFileIcon(
         pathOrName: tab.filePath ?? tab.title,
-        kind: AleraFileIconKind.file,
+        kind: .file,
         size: 12,
         fallbackColor: color,
       ),
@@ -291,7 +259,7 @@ class _WorkspaceTabLeadingIcon extends StatelessWidget {
       WorkspaceTabKind.codex => ExcludeSemantics(
         child: AgentIdentityIcon(
           key: ValueKey<String>('workspace-tab-codex-icon-${tab.id}'),
-          agentType: AgentType.codex,
+          agentType: .codex,
           size: 12,
           color: color,
           showTooltip: false,
@@ -323,12 +291,10 @@ double _tabTitleMaxWidth(WorkspaceTabKind kind) {
   };
 }
 
-class _DraggedTabFeedback extends StatelessWidget {
-  const _DraggedTabFeedback({required this.tab, required this.title});
-
-  final WorkspaceTabRecord tab;
-  final String title;
-
+class const _DraggedTabFeedback({
+  required final WorkspaceTabRecord tab,
+  required final String title,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
@@ -351,7 +317,7 @@ class _DraggedTabFeedback extends StatelessWidget {
           ],
         ),
         child: Row(
-          mainAxisSize: MainAxisSize.min,
+          mainAxisSize: .min,
           children: <Widget>[
             _WorkspaceTabLeadingIcon(tab: tab, color: AleraTokens.foreground),
             const SizedBox(width: AleraTokens.space8),
@@ -359,7 +325,7 @@ class _DraggedTabFeedback extends StatelessWidget {
               child: Text(
                 title,
                 maxLines: 1,
-                overflow: TextOverflow.ellipsis,
+                overflow: .ellipsis,
                 style: AleraTokens.monoStyle.copyWith(
                   fontSize: 11,
                   color: AleraTokens.foreground,

@@ -9,8 +9,12 @@ part 'workspace_tab_path_moves.dart';
 part 'workspace_tab_file_opening.dart';
 part 'workspace_tab_git_opening.dart';
 
-class WorkspaceTabService {
-  factory WorkspaceTabService({
+class WorkspaceTabService._(
+  final WorkbenchRepository _repository,
+  final Uuid _uuid,
+  final DateTime Function() _now,
+) {
+  factory({
     required WorkbenchRepository repository,
     Uuid? uuid,
     DateTime Function()? now,
@@ -21,12 +25,6 @@ class WorkspaceTabService {
       now ?? _defaultNow,
     );
   }
-
-  WorkspaceTabService._(this._repository, this._uuid, this._now);
-
-  final WorkbenchRepository _repository;
-  final Uuid _uuid;
-  final DateTime Function() _now;
 
   static DateTime _defaultNow() => DateTime.now().toUtc();
 
@@ -95,7 +93,7 @@ class WorkspaceTabService {
     final tab = WorkspaceTabRecord(
       id: _uuid.v4(),
       workspaceId: workspaceId,
-      kind: WorkspaceTabKind.codex,
+      kind: .codex,
       title: 'Codex Chat',
       createdAt: now,
       updatedAt: now,
@@ -126,7 +124,7 @@ class WorkspaceTabService {
     final tab = WorkspaceTabRecord(
       id: _uuid.v4(),
       workspaceId: workspaceId,
-      kind: WorkspaceTabKind.editor,
+      kind: .editor,
       title: _previewTitleForPath(normalizedPath),
       createdAt: _now(),
       updatedAt: _now(),

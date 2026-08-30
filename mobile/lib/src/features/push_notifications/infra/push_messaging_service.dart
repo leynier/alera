@@ -3,19 +3,12 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 
 enum PushPermissionState { authorized, denied, notDetermined }
 
-class PushMessage {
-  const PushMessage({
-    required this.title,
-    required this.body,
-    required this.data,
-    this.messageId,
-  });
-
-  final String title;
-  final String body;
-  final Map<String, Object?> data;
-  final String? messageId;
-
+class const PushMessage({
+  required final String title,
+  required final String body,
+  required final Map<String, Object?> data,
+  final String? messageId,
+}) {
   PushNavigationIntent? get navigationIntent {
     try {
       return PushNavigationIntent.fromData(data);
@@ -24,7 +17,7 @@ class PushMessage {
     }
   }
 
-  factory PushMessage.fromRemote(RemoteMessage message) {
+  factory fromRemote(RemoteMessage message) {
     final data = <String, Object?>{...message.data};
     return PushMessage(
       title:
@@ -52,9 +45,9 @@ abstract interface class PushMessagingService {
   Future<PushNavigationIntent?> initialIntent();
 }
 
-class FirebasePushMessagingService implements PushMessagingService {
-  FirebasePushMessagingService([FirebaseMessaging? messaging])
-    : _messaging = messaging ?? FirebaseMessaging.instance;
+class FirebasePushMessagingService([FirebaseMessaging? messaging])
+    implements PushMessagingService {
+  this : _messaging = messaging ?? FirebaseMessaging.instance;
 
   final FirebaseMessaging _messaging;
 
@@ -106,9 +99,7 @@ class FirebasePushMessagingService implements PushMessagingService {
   }
 }
 
-class DisabledPushMessagingService implements PushMessagingService {
-  const DisabledPushMessagingService();
-
+class const DisabledPushMessagingService() implements PushMessagingService {
   @override
   bool get isAvailable => false;
 

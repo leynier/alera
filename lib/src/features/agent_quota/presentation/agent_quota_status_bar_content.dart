@@ -17,32 +17,19 @@ part 'agent_quota_overview_panel.dart';
 
 typedef AgentQuotaPinToggle = void Function(String pinKey, bool pinned);
 
-class AgentQuotaStatusBarContent extends StatelessWidget {
-  const AgentQuotaStatusBarContent({
-    super.key,
-    required this.hostId,
-    this.actions = const AgentQuotaInlineActions(),
-    required this.snapshots,
-    required this.settings,
-    required this.onRefresh,
-    required this.onTogglePinned,
-    this.loading = false,
-    this.error,
-    this.trailing,
-    this.onOpenUsage,
-  });
-
-  final String hostId;
-  final AgentQuotaInlineActions actions;
-  final List<AgentQuotaSnapshot> snapshots;
-  final AgentQuotaHostSettings settings;
-  final VoidCallback onRefresh;
-  final AgentQuotaPinToggle onTogglePinned;
-  final bool loading;
-  final String? error;
-  final Widget? trailing;
-  final VoidCallback? onOpenUsage;
-
+class const AgentQuotaStatusBarContent({
+  super.key,
+  required final String hostId,
+  final AgentQuotaInlineActions actions = const AgentQuotaInlineActions(),
+  required final List<AgentQuotaSnapshot> snapshots,
+  required final AgentQuotaHostSettings settings,
+  required final VoidCallback onRefresh,
+  required final AgentQuotaPinToggle onTogglePinned,
+  final bool loading = false,
+  final String? error,
+  final Widget? trailing,
+  final VoidCallback? onOpenUsage,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final enabled = _enabledSnapshots();
@@ -77,7 +64,7 @@ class AgentQuotaStatusBarContent extends StatelessWidget {
                   horizontal: AleraTokens.space8,
                 ),
                 child: Row(
-                  mainAxisSize: MainAxisSize.min,
+                  mainAxisSize: .min,
                   children: <Widget>[
                     const Icon(
                       AleraIcons.host,
@@ -87,7 +74,7 @@ class AgentQuotaStatusBarContent extends StatelessWidget {
                     const SizedBox(width: AleraTokens.space4),
                     Text(
                       hostId == 'local' ? 'Local' : hostId,
-                      overflow: TextOverflow.ellipsis,
+                      overflow: .ellipsis,
                       style: AleraTokens.monoStyle.copyWith(fontSize: 10),
                     ),
                   ],
@@ -107,7 +94,7 @@ class AgentQuotaStatusBarContent extends StatelessWidget {
               const VerticalDivider(width: 1, color: AleraTokens.borderSubtle),
               Expanded(
                 child: SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
+                  scrollDirection: .horizontal,
                   child: Row(
                     children: <Widget>[
                       for (final snapshot in pinned)

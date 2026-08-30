@@ -1,11 +1,8 @@
 part of 'pull_request_composer.dart';
 
 /// Blocks [child] with a dimmed barrier only - no loading chip.
-class _AiDimmedBlock extends StatelessWidget {
-  const _AiDimmedBlock({required this.child});
-
-  final Widget child;
-
+class const _AiDimmedBlock({required final Widget child})
+    extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Stack(
@@ -27,11 +24,8 @@ class _AiDimmedBlock extends StatelessWidget {
 }
 
 /// Blocks [child] with the Source Control-style AI loading treatment.
-class _AiGeneratingOverlay extends StatelessWidget {
-  const _AiGeneratingOverlay({required this.child});
-
-  final Widget child;
-
+class const _AiGeneratingOverlay({required final Widget child})
+    extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -59,7 +53,7 @@ class _AiGeneratingOverlay extends StatelessWidget {
                       vertical: AleraTokens.space8,
                     ),
                     child: Row(
-                      mainAxisSize: MainAxisSize.min,
+                      mainAxisSize: .min,
                       children: <Widget>[
                         const SizedBox(
                           width: 14,
@@ -89,19 +83,12 @@ class _AiGeneratingOverlay extends StatelessWidget {
   }
 }
 
-class _AiPullRequestButton extends StatefulWidget {
-  const _AiPullRequestButton({
-    required this.generating,
-    required this.canGenerate,
-    required this.onGenerate,
-    required this.onCancel,
-  });
-
-  final bool generating;
-  final bool canGenerate;
-  final VoidCallback onGenerate;
-  final VoidCallback onCancel;
-
+class const _AiPullRequestButton({
+  required final bool generating,
+  required final bool canGenerate,
+  required final VoidCallback onGenerate,
+  required final VoidCallback onCancel,
+}) extends StatefulWidget {
   @override
   State<_AiPullRequestButton> createState() => _AiPullRequestButtonState();
 }
@@ -129,7 +116,7 @@ class _AiPullRequestButtonState extends State<_AiPullRequestButton> {
             : 'Generate Title And Description With AI',
         child: IconButton(
           onPressed: onPressed,
-          visualDensity: VisualDensity.compact,
+          visualDensity: .compact,
           padding: EdgeInsets.zero,
           constraints: const BoxConstraints(
             minWidth: 30,
@@ -140,7 +127,7 @@ class _AiPullRequestButtonState extends State<_AiPullRequestButton> {
           style: IconButton.styleFrom(
             minimumSize: const Size(30, 30),
             maximumSize: const Size(30, 30),
-            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            tapTargetSize: .shrinkWrap,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(AleraTokens.radiusMd),
             ),
@@ -178,21 +165,13 @@ class _AiPullRequestButtonState extends State<_AiPullRequestButton> {
 ///
 /// Main segment runs the selected create action; the chevron opens a menu with
 /// [Create Pull Request] and [Draft Pull Request].
-class _CreatePullRequestButton extends StatelessWidget {
-  const _CreatePullRequestButton({
-    required this.action,
-    required this.busy,
-    required this.enabled,
-    required this.onPressed,
-    required this.onSelected,
-  });
-
-  final PullRequestCreateAction action;
-  final bool busy;
-  final bool enabled;
-  final VoidCallback onPressed;
-  final ValueChanged<PullRequestCreateAction> onSelected;
-
+class const _CreatePullRequestButton({
+  required final PullRequestCreateAction action,
+  required final bool busy,
+  required final bool enabled,
+  required final VoidCallback onPressed,
+  required final ValueChanged<PullRequestCreateAction> onSelected,
+}) extends StatelessWidget {
   static const double _height = 28;
 
   String get _label => switch (action) {
@@ -207,9 +186,8 @@ class _CreatePullRequestButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final textStyle = Theme.of(
-      context,
-    ).textTheme.labelLarge?.copyWith(color: AleraTokens.onAccent);
+    final textStyle = Theme.of(context).textTheme.labelLarge
+        ?.copyWith(color: AleraTokens.onAccent);
     final cursor = busy ? SystemMouseCursors.basic : SystemMouseCursors.click;
     return MouseRegion(
       cursor: cursor,
@@ -231,7 +209,7 @@ class _CreatePullRequestButton extends StatelessWidget {
                       onTap: enabled ? onPressed : null,
                       child: Center(
                         child: Row(
-                          mainAxisSize: MainAxisSize.min,
+                          mainAxisSize: .min,
                           children: <Widget>[
                             if (busy)
                               const SizedBox(
@@ -253,7 +231,7 @@ class _CreatePullRequestButton extends StatelessWidget {
                               child: Text(
                                 _label,
                                 maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
+                                overflow: .ellipsis,
                                 style: textStyle,
                               ),
                             ),
@@ -304,15 +282,15 @@ class _CreatePullRequestButton extends StatelessWidget {
     if (renderBox == null || overlay is! RenderBox) {
       return;
     }
-    final topLeft = renderBox.localToGlobal(Offset.zero, ancestor: overlay);
+    final topLeft = renderBox.localToGlobal(.zero, ancestor: overlay);
     final bottomRight = renderBox.localToGlobal(
-      renderBox.size.bottomRight(Offset.zero),
+      renderBox.size.bottomRight(.zero),
       ancestor: overlay,
     );
     final selected = await showMenu<PullRequestCreateAction>(
       context: context,
-      position: RelativeRect.fromRect(
-        Rect.fromPoints(topLeft, bottomRight),
+      position: .fromRect(
+        .fromPoints(topLeft, bottomRight),
         Offset.zero & overlay.size,
       ),
       color: AleraTokens.surface,
@@ -322,13 +300,13 @@ class _CreatePullRequestButton extends StatelessWidget {
       ),
       items: <PopupMenuEntry<PullRequestCreateAction>>[
         AleraDropdownEntry<PullRequestCreateAction>(
-          value: PullRequestCreateAction.publish,
+          value: .publish,
           label: 'Create Pull Request',
           selected: action == PullRequestCreateAction.publish,
           leading: const Icon(AleraIcons.gitPullRequest, size: 16),
         ),
         AleraDropdownEntry<PullRequestCreateAction>(
-          value: PullRequestCreateAction.draft,
+          value: .draft,
           label: 'Draft Pull Request',
           selected: action == PullRequestCreateAction.draft,
           leading: const Icon(AleraIcons.edit, size: 16),

@@ -13,12 +13,12 @@ enum WorkbenchSplitAxis { horizontal, vertical }
 enum WorkbenchDropZone { center, left, right, up, down }
 
 @MappableClass()
-class WorkbenchPaneGroup with WorkbenchPaneGroupMappable {
-  WorkbenchPaneGroup({
-    required this.id,
-    required List<String> tabIds,
-    required this.activeTabId,
-  }) : tabIds = List<String>.unmodifiable(tabIds) {
+class WorkbenchPaneGroup({
+  required this.id,
+  required List<String> tabIds,
+  required this.activeTabId,
+}) with WorkbenchPaneGroupMappable {
+  this : tabIds = List<String>.unmodifiableOf(tabIds) {
     if (id.isEmpty) {
       throw ArgumentError.value(
         id,
@@ -32,23 +32,21 @@ class WorkbenchPaneGroup with WorkbenchPaneGroupMappable {
   final List<String> tabIds;
   final String? activeTabId;
 
-  factory WorkbenchPaneGroup.fromJson(Map<String, Object?> json) =>
+  factory fromJson(Map<String, Object?> json) =>
       WorkbenchPaneGroupMapper.fromMap(Map<String, dynamic>.from(json));
 }
 
 @MappableClass(discriminatorKey: 'type')
-abstract class WorkbenchLayoutNode with WorkbenchLayoutNodeMappable {
-  const WorkbenchLayoutNode();
-
-  factory WorkbenchLayoutNode.leaf(String groupId) = WorkbenchLeafLayoutNode;
-  factory WorkbenchLayoutNode.split({
+abstract class const WorkbenchLayoutNode() with WorkbenchLayoutNodeMappable {
+  factory leaf(String groupId) = WorkbenchLeafLayoutNode;
+  factory split({
     required WorkbenchSplitAxis axis,
     required WorkbenchLayoutNode first,
     required WorkbenchLayoutNode second,
     required double ratio,
   }) = WorkbenchSplitLayoutNode;
 
-  factory WorkbenchLayoutNode.fromJson(Map<String, Object?> json) =>
+  factory fromJson(Map<String, Object?> json) =>
       WorkbenchLayoutNodeMapper.fromMap(Map<String, dynamic>.from(json));
 
   String? get groupId => null;
@@ -142,9 +140,10 @@ abstract class WorkbenchLayoutNode with WorkbenchLayoutNodeMappable {
 }
 
 @MappableClass(discriminatorValue: 'leaf')
-class WorkbenchLeafLayoutNode extends WorkbenchLayoutNode
+class WorkbenchLeafLayoutNode(this.groupId)
+    extends WorkbenchLayoutNode
     with WorkbenchLeafLayoutNodeMappable {
-  WorkbenchLeafLayoutNode(this.groupId) {
+  this {
     if (groupId.isEmpty) {
       throw ArgumentError.value(
         groupId,
@@ -159,14 +158,13 @@ class WorkbenchLeafLayoutNode extends WorkbenchLayoutNode
 }
 
 @MappableClass(discriminatorValue: 'split')
-class WorkbenchSplitLayoutNode extends WorkbenchLayoutNode
-    with WorkbenchSplitLayoutNodeMappable {
-  WorkbenchSplitLayoutNode({
-    required this.axis,
-    required this.first,
-    required this.second,
-    required double ratio,
-  }) : ratio = _clampWorkbenchSplitRatio(ratio);
+class WorkbenchSplitLayoutNode({
+  required this.axis,
+  required this.first,
+  required this.second,
+  required double ratio,
+}) extends WorkbenchLayoutNode with WorkbenchSplitLayoutNodeMappable {
+  this : ratio = _clampWorkbenchSplitRatio(ratio);
 
   @override
   final WorkbenchSplitAxis axis;
@@ -182,13 +180,13 @@ class WorkbenchSplitLayoutNode extends WorkbenchLayoutNode
 }
 
 @MappableClass()
-class WorkbenchLayout with WorkbenchLayoutMappable {
-  WorkbenchLayout({
-    required this.workspaceId,
-    required this.root,
-    required Map<String, WorkbenchPaneGroup> groups,
-    required this.activeGroupId,
-  }) : groups = Map<String, WorkbenchPaneGroup>.unmodifiable(groups) {
+class WorkbenchLayout({
+  required this.workspaceId,
+  required this.root,
+  required Map<String, WorkbenchPaneGroup> groups,
+  required this.activeGroupId,
+}) with WorkbenchLayoutMappable {
+  this : groups = Map<String, WorkbenchPaneGroup>.unmodifiableOf(groups) {
     if (workspaceId.isEmpty) {
       throw ArgumentError.value(
         workspaceId,
@@ -212,7 +210,7 @@ class WorkbenchLayout with WorkbenchLayoutMappable {
 
   static String defaultGroupId(String workspaceId) => '$workspaceId/main';
 
-  factory WorkbenchLayout.single({
+  factory single({
     required String workspaceId,
     required List<String> tabIds,
     String? groupId,
@@ -220,7 +218,7 @@ class WorkbenchLayout with WorkbenchLayoutMappable {
     final resolvedGroupId = groupId ?? defaultGroupId(workspaceId);
     return WorkbenchLayout(
       workspaceId: workspaceId,
-      root: WorkbenchLayoutNode.leaf(resolvedGroupId),
+      root: .leaf(resolvedGroupId),
       groups: <String, WorkbenchPaneGroup>{
         resolvedGroupId: WorkbenchPaneGroup(
           id: resolvedGroupId,
@@ -232,7 +230,7 @@ class WorkbenchLayout with WorkbenchLayoutMappable {
     );
   }
 
-  factory WorkbenchLayout.fromJson(Map<String, Object?> json) =>
+  factory fromJson(Map<String, Object?> json) =>
       WorkbenchLayoutMapper.fromMap(Map<String, dynamic>.from(json));
 }
 

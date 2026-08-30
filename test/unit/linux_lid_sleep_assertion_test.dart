@@ -90,7 +90,7 @@ void main() {
       );
 
       await assertion.start('status-change');
-      await Future<void>.delayed(const Duration(milliseconds: 10));
+      await Future.pause(const Duration(milliseconds: 10));
       await assertion.start('power-resume');
 
       expect(runner.calls, hasLength(1));
@@ -108,7 +108,7 @@ Future<void> _waitForStartCalls(
     if (runner.calls.length >= count) {
       return;
     }
-    await Future<void>.delayed(const Duration(milliseconds: 5));
+    await Future.pause(const Duration(milliseconds: 5));
   }
 }
 
@@ -145,8 +145,8 @@ class _FakeProcessRunner implements ProcessRunner {
   }
 }
 
-class _FakeStartedProcess {
-  _FakeStartedProcess() {
+class _FakeStartedProcess() {
+  this {
     startedProcess = StartedProcess(
       stdinWrite: (_) {},
       stdout: const Stream<List<int>>.empty(),
@@ -172,12 +172,7 @@ class _FakeStartedProcess {
   }
 }
 
-class _StartCall {
-  const _StartCall(this.executable, this.arguments);
-
-  final String executable;
-  final List<String> arguments;
-
+class const _StartCall(final String executable, final List<String> arguments) {
   @override
   bool operator ==(Object other) {
     return other is _StartCall &&

@@ -12,23 +12,14 @@ typedef _CancelDart = void Function(Pointer<Utf8> requestId);
 typedef _FreeNative = Void Function(Pointer<Utf8> value);
 typedef _FreeDart = void Function(Pointer<Utf8> value);
 
-class MobileWhisperResult {
-  const MobileWhisperResult({
-    required this.text,
-    required this.duration,
-    this.detectedLanguage,
-  });
+class const MobileWhisperResult({
+  required final String text,
+  required final Duration duration,
+  final String? detectedLanguage,
+});
 
-  final String text;
-  final Duration duration;
-  final String? detectedLanguage;
-}
-
-class MobileWhisperException implements Exception {
-  const MobileWhisperException(this.kind, this.message);
-  final String kind;
-  final String message;
-
+class const MobileWhisperException(final String kind, final String message)
+    implements Exception {
   @override
   String toString() => message;
 }

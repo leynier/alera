@@ -7,7 +7,7 @@ CodexRuntimeHomeService _serviceWithFailingResourceLinks({
   return CodexRuntimeHomeService(
     homeDirectory: home.path,
     applicationSupportDirectory: () async => support,
-    platform: ManagedAgentHookPlatform.posix,
+    platform: .posix,
     environment: <String, String>{'HOME': home.path},
     resourceLinkCreator: ({required sourcePath, required targetPath}) =>
         throw const FileSystemException('symlinks disabled'),

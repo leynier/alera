@@ -6,15 +6,12 @@ import 'package:web_socket_channel/web_socket_channel.dart';
 /// The runtime socket ended without the app asking it to, so every stream and
 /// pending request on that client is dead. Raised into the provider so screens
 /// stop showing a live-looking connection and offer their Retry instead.
-class RuntimeConnectionLost implements Exception {
-  const RuntimeConnectionLost();
-
+class const RuntimeConnectionLost() implements Exception {
   @override
   String toString() => 'Lost the connection to the host';
 }
 
-class RuntimeConnectionReplaced implements Exception {
-  const RuntimeConnectionReplaced();
+class const RuntimeConnectionReplaced() implements Exception {
   @override
   String toString() => 'A newer connection replaced this relay connection.';
 }
@@ -24,11 +21,8 @@ class RuntimeConnectionReplaced implements Exception {
 /// VPN down, host asleep, wrong network, or a closed socket are connection
 /// state, not application crashes. Screens already render [AsyncError] with
 /// Retry; this type just gives them a stable, short message.
-class HostUnreachableException implements Exception {
-  const HostUnreachableException([this.cause]);
-
-  final Object? cause;
-
+class const HostUnreachableException([final Object? cause])
+    implements Exception {
   @override
   String toString() => 'Could not reach the host';
 }

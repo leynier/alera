@@ -1,5 +1,4 @@
 import 'package:alera/src/features/projects/domain/project.dart';
-import 'package:alera/src/features/settings/application/github_star_controller.dart';
 import 'package:alera/src/features/settings/domain/github_star_prompt_eligibility.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -18,7 +17,7 @@ void main() {
         shouldOfferGitHubStarPrompt(
           starClicked: false,
           projects: <Project>[oldProject],
-          starState: GitHubStarState.notStarred,
+          starState: .notStarred,
           now: now,
         ),
         isTrue,
@@ -27,7 +26,7 @@ void main() {
         shouldOfferGitHubStarPrompt(
           starClicked: false,
           projects: <Project>[youngProject],
-          starState: GitHubStarState.notStarred,
+          starState: .notStarred,
           now: now,
         ),
         isFalse,
@@ -36,7 +35,7 @@ void main() {
         shouldOfferGitHubStarPrompt(
           starClicked: false,
           projects: const <Project>[],
-          starState: GitHubStarState.notStarred,
+          starState: .notStarred,
           now: now,
         ),
         isFalse,
@@ -48,7 +47,7 @@ void main() {
         shouldOfferGitHubStarPrompt(
           starClicked: false,
           projects: <Project>[youngProject, oldProject],
-          starState: GitHubStarState.notStarred,
+          starState: .notStarred,
           now: now,
         ),
         isTrue,
@@ -60,7 +59,7 @@ void main() {
         shouldOfferGitHubStarPrompt(
           starClicked: true,
           projects: <Project>[oldProject],
-          starState: GitHubStarState.notStarred,
+          starState: .notStarred,
           now: now,
         ),
         isFalse,
@@ -69,7 +68,7 @@ void main() {
         shouldOfferGitHubStarPrompt(
           starClicked: false,
           projects: <Project>[oldProject],
-          starState: GitHubStarState.starred,
+          starState: .starred,
           now: now,
         ),
         isFalse,
@@ -78,7 +77,7 @@ void main() {
         shouldOfferGitHubStarPrompt(
           starClicked: false,
           projects: <Project>[oldProject],
-          starState: GitHubStarState.loading,
+          starState: .loading,
           now: now,
         ),
         isFalse,
@@ -87,7 +86,7 @@ void main() {
         shouldOfferGitHubStarPrompt(
           starClicked: false,
           projects: <Project>[oldProject],
-          starState: GitHubStarState.starring,
+          starState: .starring,
           now: now,
         ),
         isFalse,
@@ -99,7 +98,7 @@ void main() {
         shouldOfferGitHubStarPrompt(
           starClicked: false,
           projects: <Project>[oldProject],
-          starState: GitHubStarState.hidden,
+          starState: .hidden,
           now: now,
         ),
         isTrue,
@@ -108,7 +107,7 @@ void main() {
         shouldOfferGitHubStarPrompt(
           starClicked: false,
           projects: <Project>[oldProject],
-          starState: GitHubStarState.error,
+          starState: .error,
           now: now,
         ),
         isTrue,

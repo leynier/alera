@@ -70,20 +70,13 @@ part 'mobile_codex_chat_history_actions.dart';
 part 'mobile_codex_chat_submission_actions.dart';
 part 'mobile_codex_chat_attachment_actions.dart';
 
-class MobileCodexChatScreen extends ConsumerStatefulWidget {
-  const MobileCodexChatScreen({
-    super.key,
-    required this.hostId,
-    required this.tabId,
-    required this.workspaceId,
-    this.onFocusBoundTab,
-  });
-
-  final String hostId;
-  final String tabId;
-  final String workspaceId;
-  final void Function(String workspaceId, String tabId)? onFocusBoundTab;
-
+class const MobileCodexChatScreen({
+  super.key,
+  required final String hostId,
+  required final String tabId,
+  required final String workspaceId,
+  final void Function(String workspaceId, String tabId)? onFocusBoundTab,
+}) extends ConsumerStatefulWidget {
   @override
   ConsumerState<MobileCodexChatScreen> createState() =>
       _MobileCodexChatScreenState();
@@ -226,10 +219,10 @@ class _MobileCodexChatScreenState extends ConsumerState<MobileCodexChatScreen> {
       widget.tabId,
       MobileCodexComposerDraft(
         value: nextValue,
-        attachments: List<Map<String, Object?>>.unmodifiable(
+        attachments: List<Map<String, Object?>>.unmodifiableOf(
           _attachments.map(Map<String, Object?>.unmodifiable),
         ),
-        catalogSelections: List<Map<String, Object?>>.unmodifiable(
+        catalogSelections: List<Map<String, Object?>>.unmodifiableOf(
           _activeCatalogSelections().map(Map<String, Object?>.unmodifiable),
         ),
       ),

@@ -264,7 +264,7 @@ mixin _WorkbenchControllerViewPrefs
         .read(workspaceExplorerRevealControllerProvider.notifier)
         .reveal(workspaceId: workspace.id, relativePath: normalized);
     setRightSidebarVisible(true);
-    setContextPanelTab(WorkbenchContextPanelTab.explorer);
+    setContextPanelTab(.explorer);
   }
 
   void setExplorerMode(WorkspaceExplorerMode mode) {
@@ -339,7 +339,7 @@ mixin _WorkbenchControllerViewPrefs
     _updateViewPrefs(
       state.viewPrefs.copyWith(
         sourceControlRootByWorkspaceId: nextRoots,
-        activeContextPanelTab: WorkbenchContextPanelTab.gitDiff,
+        activeContextPanelTab: .gitDiff,
         rightSidebarVisible: true,
       ),
     );

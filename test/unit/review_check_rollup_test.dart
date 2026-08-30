@@ -17,41 +17,37 @@ void main() {
 
     test('any failing conclusion dominates as failure', () {
       final checks = <ReviewCheck>[
-        _check(ReviewCheckStatus.completed, ReviewCheckConclusion.success),
-        _check(ReviewCheckStatus.completed, ReviewCheckConclusion.failure),
-        _check(ReviewCheckStatus.inProgress, ReviewCheckConclusion.pending),
+        _check(.completed, .success),
+        _check(.completed, .failure),
+        _check(.inProgress, .pending),
       ];
       expect(deriveReviewChecksRollup(checks), ReviewChecksRollup.failure);
     });
 
     test('running or pending checks yield pending when nothing failed', () {
       final checks = <ReviewCheck>[
-        _check(ReviewCheckStatus.completed, ReviewCheckConclusion.success),
-        _check(ReviewCheckStatus.inProgress, ReviewCheckConclusion.pending),
+        _check(.completed, .success),
+        _check(.inProgress, .pending),
       ];
       expect(deriveReviewChecksRollup(checks), ReviewChecksRollup.pending);
     });
 
     test('all terminal non-failing checks yield success', () {
       final checks = <ReviewCheck>[
-        _check(ReviewCheckStatus.completed, ReviewCheckConclusion.success),
-        _check(ReviewCheckStatus.completed, ReviewCheckConclusion.skipped),
-        _check(ReviewCheckStatus.completed, ReviewCheckConclusion.neutral),
+        _check(.completed, .success),
+        _check(.completed, .skipped),
+        _check(.completed, .neutral),
       ];
       expect(deriveReviewChecksRollup(checks), ReviewChecksRollup.success);
     });
 
     test('cancelled and timedOut count as failure', () {
       expect(
-        deriveReviewChecksRollup(<ReviewCheck>[
-          _check(ReviewCheckStatus.completed, ReviewCheckConclusion.cancelled),
-        ]),
+        deriveReviewChecksRollup(<ReviewCheck>[_check(.completed, .cancelled)]),
         ReviewChecksRollup.failure,
       );
       expect(
-        deriveReviewChecksRollup(<ReviewCheck>[
-          _check(ReviewCheckStatus.completed, ReviewCheckConclusion.timedOut),
-        ]),
+        deriveReviewChecksRollup(<ReviewCheck>[_check(.completed, .timedOut)]),
         ReviewChecksRollup.failure,
       );
     });

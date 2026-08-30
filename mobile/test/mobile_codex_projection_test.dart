@@ -4,31 +4,33 @@ import 'package:flutter_test/flutter_test.dart';
 void main() {
   test('mobile keeps Working visible while assistant text streams', () {
     const activeTurnId = 'turn-working';
-    final rows =
-        MobileCodexTimelineProjection.project(<MobileCodexTimelineCell>[
-          MobileCodexTimelineCell(
-            id: 'separator',
-            kind: 'turnSeparator',
-            status: 'info',
-            turnId: activeTurnId,
-            createdAt: DateTime.utc(2026, 8, 9),
-          ),
-          const MobileCodexTimelineCell(
-            id: 'user',
-            kind: 'userMessage',
-            status: 'completed',
-            turnId: activeTurnId,
-            markdownText: 'Start',
-          ),
-          const MobileCodexTimelineCell(
-            id: 'assistant',
-            kind: 'assistantMessage',
-            status: 'inProgress',
-            turnId: activeTurnId,
-            markdownText: 'Streaming answer',
-            isStreaming: true,
-          ),
-        ], activeTurnId: activeTurnId);
+    final rows = MobileCodexTimelineProjection.project(
+      <MobileCodexTimelineCell>[
+        MobileCodexTimelineCell(
+          id: 'separator',
+          kind: 'turnSeparator',
+          status: 'info',
+          turnId: activeTurnId,
+          createdAt: .utc(2026, 8, 9),
+        ),
+        const MobileCodexTimelineCell(
+          id: 'user',
+          kind: 'userMessage',
+          status: 'completed',
+          turnId: activeTurnId,
+          markdownText: 'Start',
+        ),
+        const MobileCodexTimelineCell(
+          id: 'assistant',
+          kind: 'assistantMessage',
+          status: 'inProgress',
+          turnId: activeTurnId,
+          markdownText: 'Streaming answer',
+          isStreaming: true,
+        ),
+      ],
+      activeTurnId: activeTurnId,
+    );
 
     expect(rows.map((row) => row.kind), <MobileCodexPresentationKind>[
       MobileCodexPresentationKind.cell,
@@ -132,29 +134,31 @@ void main() {
 
   test('mobile places restored turn prompts before Worked headers', () {
     const turnId = 'turn-restored';
-    final rows =
-        MobileCodexTimelineProjection.project(const <MobileCodexTimelineCell>[
-          MobileCodexTimelineCell(
-            id: 'separator',
-            kind: 'turnSeparator',
-            status: 'completed',
-            turnId: turnId,
-          ),
-          MobileCodexTimelineCell(
-            id: 'user',
-            kind: 'userMessage',
-            status: 'completed',
-            turnId: turnId,
-            markdownText: 'Inspect the repository',
-          ),
-          MobileCodexTimelineCell(
-            id: 'command',
-            kind: 'command',
-            status: 'completed',
-            turnId: turnId,
-            title: 'Read files',
-          ),
-        ], activeTurnId: null);
+    final rows = MobileCodexTimelineProjection.project(
+      const <MobileCodexTimelineCell>[
+        MobileCodexTimelineCell(
+          id: 'separator',
+          kind: 'turnSeparator',
+          status: 'completed',
+          turnId: turnId,
+        ),
+        MobileCodexTimelineCell(
+          id: 'user',
+          kind: 'userMessage',
+          status: 'completed',
+          turnId: turnId,
+          markdownText: 'Inspect the repository',
+        ),
+        MobileCodexTimelineCell(
+          id: 'command',
+          kind: 'command',
+          status: 'completed',
+          turnId: turnId,
+          title: 'Read files',
+        ),
+      ],
+      activeTurnId: null,
+    );
 
     expect(rows.map((row) => row.cell?.id), <String?>[
       'user',

@@ -321,8 +321,8 @@ extension _CodexSurfaceSessionActions on _CodexChatSurfaceState {
         : value.selection.end;
     _composer.value = value.copyWith(
       text: value.text.replaceRange(start, end, text),
-      selection: TextSelection.collapsed(offset: start + text.length),
-      composing: TextRange.empty,
+      selection: .collapsed(offset: start + text.length),
+      composing: .empty,
     );
   }
 }

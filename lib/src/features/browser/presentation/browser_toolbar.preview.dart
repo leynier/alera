@@ -11,9 +11,7 @@ Widget browserToolbarLoadingPreview() {
   return const _BrowserToolbarPreview();
 }
 
-class _BrowserToolbarPreview extends StatefulWidget {
-  const _BrowserToolbarPreview();
-
+class const _BrowserToolbarPreview() extends StatefulWidget {
   @override
   State<_BrowserToolbarPreview> createState() => _BrowserToolbarPreviewState();
 }
@@ -38,16 +36,16 @@ class _BrowserToolbarPreviewState extends State<_BrowserToolbarPreview> {
       workspaceId: 'workspace-preview',
       profileId: 'default',
       initialUrl: Uri.parse('https://docs.alera.dev'),
-      createdAt: DateTime.utc(2026, 7, 27),
+      createdAt: .utc(2026, 7, 27),
     );
     final state = BrowserPageState.initial(page).copyWith(
       url: Uri.parse('https://docs.alera.dev/browser'),
       title: 'Browser Tabs',
-      loadPhase: BrowserLoadPhase.started,
+      loadPhase: .started,
       loadProgress: 0.42,
       canGoBack: true,
       security: const BrowserSecurityState(
-        level: BrowserSecurityLevel.secure,
+        level: .secure,
         origin: 'https://docs.alera.dev',
       ),
     );

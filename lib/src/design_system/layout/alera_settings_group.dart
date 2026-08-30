@@ -4,23 +4,17 @@ import 'package:flutter/material.dart';
 
 /// Titled group of setting rows: a heading with an optional description above
 /// an [AleraPanel] that stacks [children] separated by hairline dividers.
-class AleraSettingsGroup extends StatelessWidget {
-  const AleraSettingsGroup({
-    super.key,
-    required this.title,
-    this.description,
-    required this.children,
-  });
-
-  final String title;
-  final String? description;
-  final List<Widget> children;
-
+class const AleraSettingsGroup({
+  super.key,
+  required final String title,
+  final String? description,
+  required final List<Widget> children,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+      crossAxisAlignment: .stretch,
       children: <Widget>[
         Padding(
           padding: const EdgeInsets.only(
@@ -28,13 +22,13 @@ class AleraSettingsGroup extends StatelessWidget {
             bottom: AleraTokens.space8,
           ),
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            crossAxisAlignment: .start,
             children: <Widget>[
               Text(
                 title,
                 style: theme.textTheme.titleSmall?.copyWith(
                   color: AleraTokens.foreground,
-                  fontWeight: FontWeight.w600,
+                  fontWeight: .w600,
                 ),
               ),
               if (description != null) ...<Widget>[

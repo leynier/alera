@@ -1,4 +1,5 @@
 import 'dart:async';
+
 import 'package:alera_mobile/src/features/runtime/domain/host_retry_policy.dart';
 import 'package:alera_mobile/src/features/runtime/application/host_connection_health.dart';
 import 'package:alera_mobile/src/features/runtime/domain/connection_attempt.dart';
@@ -17,6 +18,7 @@ import 'package:logging/logging.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 export 'host_connection_reader.dart';
+
 export 'package:alera_mobile/src/features/runtime/domain/host_reachability.dart'
     show HostUnreachableException, RuntimeConnectionLost;
 
@@ -40,7 +42,7 @@ class HostConnectionController extends _$HostConnectionController {
   Completer<void>? _buildAttempt;
   Future<void>? _connectionAttempt;
   int _lifecycleEpoch = 0;
-  AppLifecycleState _lifecycleState = AppLifecycleState.resumed;
+  AppLifecycleState _lifecycleState = .resumed;
   int _retryIndex = 0;
   bool _building = false;
   bool _disposed = false;
@@ -130,7 +132,7 @@ class HostConnectionController extends _$HostConnectionController {
         stackTrace,
       );
     }
-    await Future<void>.delayed(_runtimeRestartReconnectDelay);
+    await Future.pause(_runtimeRestartReconnectDelay);
     if (!_disposed) {
       await reconnectNow();
     }
@@ -259,11 +261,8 @@ class HostConnectionController extends _$HostConnectionController {
         failure.$1,
         failure.$2 ?? StackTrace.current,
       ),
-      onDone: () => _handleClientEnded(
-        client,
-        const RuntimeConnectionLost(),
-        StackTrace.current,
-      ),
+      onDone: () =>
+          _handleClientEnded(client, const RuntimeConnectionLost(), .current),
       cancelOnError: false,
     );
     _closeSub = closeSub;

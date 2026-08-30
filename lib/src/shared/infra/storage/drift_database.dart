@@ -134,9 +134,8 @@ LazyDatabase _openConnection() {
     WorkspaceActivityTable,
   ],
 )
-class AleraDatabase extends _$AleraDatabase {
-  AleraDatabase({QueryExecutor? executor})
-    : super(executor ?? _openConnection());
+class AleraDatabase({QueryExecutor? executor}) extends _$AleraDatabase {
+  this : super(executor ?? _openConnection());
 
   @override
   int get schemaVersion => aleraSchemaVersion;

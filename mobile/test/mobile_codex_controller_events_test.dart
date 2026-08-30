@@ -38,9 +38,8 @@ void main() {
     );
     final container = ProviderContainer(
       overrides: [
-        mobileCodexClientProvider(
-          'host-history',
-        ).overrideWith((ref) async => client),
+        mobileCodexClientProvider('host-history')
+            .overrideWith((ref) async => client),
       ],
     );
     addTearDown(() {
@@ -80,9 +79,8 @@ void main() {
     );
     final container = ProviderContainer(
       overrides: [
-        mobileCodexClientProvider(
-          'host-recovery-cwd',
-        ).overrideWith((ref) async => client),
+        mobileCodexClientProvider('host-recovery-cwd')
+            .overrideWith((ref) async => client),
       ],
     );
     addTearDown(() {
@@ -106,7 +104,7 @@ void main() {
         'historyNextCursor': 'stale-history',
       }),
     );
-    await Future<void>.delayed(Duration.zero);
+    await Future.pause(.zero);
 
     await container.read(provider.notifier).recoverThread();
 
@@ -137,9 +135,8 @@ void main() {
     );
     final container = ProviderContainer(
       overrides: [
-        mobileCodexClientProvider(
-          'host-delta',
-        ).overrideWith((ref) async => client),
+        mobileCodexClientProvider('host-delta')
+            .overrideWith((ref) async => client),
       ],
     );
     addTearDown(() {
@@ -176,7 +173,7 @@ void main() {
         },
       }),
     );
-    await Future<void>.delayed(Duration.zero);
+    await Future.pause(.zero);
 
     final state = container.read(provider).value!;
     expect(state.timelineCells.map((cell) => cell.id), <String>[
@@ -195,9 +192,8 @@ void main() {
       );
       final container = ProviderContainer(
         overrides: [
-          mobileCodexClientProvider(
-            'host-identity-only',
-          ).overrideWith((ref) async => client),
+          mobileCodexClientProvider('host-identity-only')
+              .overrideWith((ref) async => client),
         ],
       );
       addTearDown(() {
@@ -218,7 +214,7 @@ void main() {
       final controller = container.read(provider.notifier);
 
       final firstSend = controller.send('First message');
-      await Future<void>.delayed(Duration.zero);
+      await Future.pause(.zero);
       await controller.send('Second message');
       client.emit(
         const MobileRuntimeEvent('codexThreadChanged', <String, Object?>{
@@ -227,7 +223,7 @@ void main() {
           'cwd': '/workspace/created',
         }),
       );
-      await Future<void>.delayed(Duration.zero);
+      await Future.pause(.zero);
 
       final duringSend = container.read(provider).value!;
       expect(duringSend.sending, isTrue);
@@ -276,9 +272,8 @@ void main() {
       );
       final container = ProviderContainer(
         overrides: [
-          mobileCodexClientProvider(
-            'host-catalogue-resume',
-          ).overrideWith((ref) async => client),
+          mobileCodexClientProvider('host-catalogue-resume')
+              .overrideWith((ref) async => client),
         ],
       );
       addTearDown(() {
@@ -317,7 +312,7 @@ void main() {
         ],
       });
       await resume;
-      await Future<void>.delayed(Duration.zero);
+      await Future.pause(.zero);
 
       final current = container.read(provider).value!;
       expect(current.skills.single['name'], 'resumed');
@@ -340,9 +335,8 @@ void main() {
       );
       final container = ProviderContainer(
         overrides: [
-          mobileCodexClientProvider(
-            'host-initial-event',
-          ).overrideWith((ref) async => client),
+          mobileCodexClientProvider('host-initial-event')
+              .overrideWith((ref) async => client),
         ],
       );
       addTearDown(() {
@@ -360,7 +354,7 @@ void main() {
       );
       addTearDown(listener.close);
       while (!client.calls.any((call) => call.type == 'codex.model.list')) {
-        await Future<void>.delayed(Duration.zero);
+        await Future.pause(.zero);
       }
 
       client.emit(
@@ -385,7 +379,7 @@ void main() {
       models.complete(const <String, Object?>{'data': <Object?>[]});
 
       await container.read(provider.future);
-      await Future<void>.delayed(Duration.zero);
+      await Future.pause(.zero);
 
       expect(
         container.read(provider).value!.timelineCells.map((cell) => cell.id),
@@ -403,9 +397,8 @@ void main() {
       );
       final container = ProviderContainer(
         overrides: [
-          mobileCodexClientProvider(
-            'host-initial-order',
-          ).overrideWith((ref) async => client),
+          mobileCodexClientProvider('host-initial-order')
+              .overrideWith((ref) async => client),
         ],
       );
       addTearDown(() {
@@ -423,7 +416,7 @@ void main() {
       );
       addTearDown(listener.close);
       while (!client.calls.any((call) => call.type == 'codex.model.list')) {
-        await Future<void>.delayed(Duration.zero);
+        await Future.pause(.zero);
       }
       client.emit(
         const MobileRuntimeEvent('codexThreadChanged', <String, Object?>{
@@ -456,8 +449,8 @@ void main() {
           },
         }),
       );
-      await Future<void>.delayed(Duration.zero);
-      await Future<void>.delayed(Duration.zero);
+      await Future.pause(.zero);
+      await Future.pause(.zero);
 
       final current = container.read(provider).value!;
       expect(current.activeTurnId, isNull);

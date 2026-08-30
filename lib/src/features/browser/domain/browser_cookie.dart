@@ -1,16 +1,14 @@
-final class BrowserCookie {
-  const BrowserCookie({
-    required this.name,
-    required this.value,
-    required this.domain,
-    this.path = '/',
-    this.secure = false,
-    this.httpOnly = false,
-    this.sameSite = BrowserCookieSameSite.unspecified,
-    this.expiresAt,
-  });
-
-  factory BrowserCookie.fromJson(Map<String, Object?> json) {
+final class const BrowserCookie({
+  required final String name,
+  required final String value,
+  required final String domain,
+  final String path = '/',
+  final bool secure = false,
+  final bool httpOnly = false,
+  final BrowserCookieSameSite sameSite = BrowserCookieSameSite.unspecified,
+  final DateTime? expiresAt,
+}) {
+  factory fromJson(Map<String, Object?> json) {
     if (json['name'] is! String ||
         json['value'] is! String ||
         json['domain'] is! String) {
@@ -30,15 +28,6 @@ final class BrowserCookie {
       expiresAt: DateTime.tryParse(json['expiresAt'] as String? ?? '')?.toUtc(),
     );
   }
-
-  final String name;
-  final String value;
-  final String domain;
-  final String path;
-  final bool secure;
-  final bool httpOnly;
-  final BrowserCookieSameSite sameSite;
-  final DateTime? expiresAt;
 
   Map<String, Object?> toJson({bool includeValue = true}) => <String, Object?>{
     'name': name,

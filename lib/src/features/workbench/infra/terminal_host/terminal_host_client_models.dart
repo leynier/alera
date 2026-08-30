@@ -88,35 +88,26 @@ abstract interface class TerminalPulseHostClient {
   });
 }
 
-final class TerminalPulseState {
-  const TerminalPulseState({
-    required this.configuration,
-    required this.armed,
-    this.statusKnown = true,
-    this.error,
-  });
-
-  factory TerminalPulseState.fromJson(Map<String, Object?> json) {
+final class const TerminalPulseState({
+  required final TerminalPulseConfiguration configuration,
+  required final bool armed,
+  final bool statusKnown = true,
+  final String? error,
+}) {
+  factory fromJson(Map<String, Object?> json) {
     return TerminalPulseState(
-      configuration: TerminalPulseConfiguration.fromJson(json['configuration']),
+      configuration: .fromJson(json['configuration']),
       armed: json['armed'] == true,
       statusKnown: json['armed'] is bool,
       error: json['error'] as String?,
     );
   }
-
-  final TerminalPulseConfiguration configuration;
-  final bool armed;
-  final bool statusKnown;
-  final String? error;
 }
 
-final class TerminalHostRequestTimeoutException implements Exception {
-  const TerminalHostRequestTimeoutException(this.requestType, this.duration);
-
-  final String requestType;
-  final Duration duration;
-
+final class const TerminalHostRequestTimeoutException(
+  final String requestType,
+  final Duration duration,
+) implements Exception {
   @override
   String toString() {
     return 'Terminal host request "$requestType" timed out after '
@@ -124,11 +115,8 @@ final class TerminalHostRequestTimeoutException implements Exception {
   }
 }
 
-final class TerminalHostConnectionClosedException implements Exception {
-  const TerminalHostConnectionClosedException([this.reason]);
-
-  final Object? reason;
-
+final class const TerminalHostConnectionClosedException([final Object? reason])
+    implements Exception {
   @override
   String toString() {
     final reason = this.reason?.toString();
@@ -139,25 +127,20 @@ final class TerminalHostConnectionClosedException implements Exception {
   }
 }
 
-final class TerminalHostStartupException implements Exception {
-  const TerminalHostStartupException(this.cause);
-
-  final Object? cause;
-
+final class const TerminalHostStartupException(final Object? cause)
+    implements Exception {
   @override
   String toString() => 'Terminal host did not start in time.';
 }
 
-final class TerminalHostAttachment {
-  const TerminalHostAttachment({
-    required this.sessionId,
-    required this.created,
-    required this.running,
-    required this.snapshot,
-    this.exitCode,
-  });
-
-  factory TerminalHostAttachment.fromJson(Map<String, Object?> json) {
+final class const TerminalHostAttachment({
+  required final String sessionId,
+  required final bool created,
+  required final bool running,
+  required final Uint8List snapshot,
+  final int? exitCode,
+}) {
+  factory fromJson(Map<String, Object?> json) {
     return TerminalHostAttachment(
       sessionId: json['sessionId'] as String,
       created: json['created'] == true,
@@ -166,12 +149,6 @@ final class TerminalHostAttachment {
       exitCode: json['exitCode'] is int ? json['exitCode'] as int : null,
     );
   }
-
-  final String sessionId;
-  final bool created;
-  final bool running;
-  final Uint8List snapshot;
-  final int? exitCode;
 }
 
 /// How the host answered a resume.
@@ -180,14 +157,12 @@ final class TerminalHostAttachment {
 /// missed on the output lane instead, so it stays ordered against live output
 /// and goes through the same per-session decoder. Only a client the host can
 /// no longer place in the stream gets [snapshot], which replaces the emulator.
-final class TerminalHostResume {
-  const TerminalHostResume({
-    required this.isDelta,
-    required this.snapshot,
-    this.resetInteractionModes = false,
-  });
-
-  factory TerminalHostResume.fromJson(Map<String, Object?> json) {
+final class const TerminalHostResume({
+  required final bool isDelta,
+  required final Uint8List snapshot,
+  final bool resetInteractionModes = false,
+}) {
+  factory fromJson(Map<String, Object?> json) {
     return TerminalHostResume(
       // A host that predates delta resumes answers with the whole scrollback
       // and no `delta` field, so an absent flag has to mean "replace".
@@ -196,67 +171,44 @@ final class TerminalHostResume {
       resetInteractionModes: json['resetInteractionModes'] == true,
     );
   }
-
-  final bool isDelta;
-  final Uint8List snapshot;
-  final bool resetInteractionModes;
 }
 
-sealed class TerminalHostEvent {
-  const TerminalHostEvent(this.sessionId);
+sealed class const TerminalHostEvent(final String sessionId);
 
-  final String sessionId;
-}
-
-final class TerminalHostOutputEvent extends TerminalHostEvent {
-  const TerminalHostOutputEvent(super.sessionId, this.data);
-
-  final Uint8List data;
-}
+final class const TerminalHostOutputEvent(super.sessionId, final Uint8List data)
+    extends TerminalHostEvent;
 
 /// Output that the socket reader isolate already decoded.
 ///
 /// The isolate holds one decoder per session, so a code point split across
 /// chunks is reassembled there rather than on the UI isolate.
-final class TerminalHostOutputTextEvent extends TerminalHostEvent {
-  const TerminalHostOutputTextEvent(super.sessionId, this.text);
+final class const TerminalHostOutputTextEvent(
+  super.sessionId,
+  final String text,
+) extends TerminalHostEvent;
 
-  final String text;
-}
+final class const TerminalHostOutputResyncRequiredEvent(super.sessionId)
+    extends TerminalHostEvent;
 
-final class TerminalHostOutputResyncRequiredEvent extends TerminalHostEvent {
-  const TerminalHostOutputResyncRequiredEvent(super.sessionId);
-}
+final class const TerminalHostExitEvent(super.sessionId, final int exitCode)
+    extends TerminalHostEvent;
 
-final class TerminalHostExitEvent extends TerminalHostEvent {
-  const TerminalHostExitEvent(super.sessionId, this.exitCode);
-
-  final int exitCode;
-}
-
-final class TerminalHostErrorEvent extends TerminalHostEvent {
-  const TerminalHostErrorEvent(super.sessionId, this.error);
-
-  final Object error;
-}
+final class const TerminalHostErrorEvent(super.sessionId, final Object error)
+    extends TerminalHostEvent;
 
 enum TerminalSessionDriverKind { idle, desktop, mobile }
 
 /// Who owns a session's viewport (the mobile presence lock). While a mobile
 /// device drives, the desktop pane shows an overlay instead of fighting over
 /// the PTY dims.
-final class TerminalSessionDriver {
-  const TerminalSessionDriver({
-    required this.kind,
-    this.deviceId,
-    this.deviceName,
-  });
+final class const TerminalSessionDriver({
+  required final TerminalSessionDriverKind kind,
+  final String? deviceId,
+  final String? deviceName,
+}) {
+  static const TerminalSessionDriver idle = TerminalSessionDriver(kind: .idle);
 
-  static const TerminalSessionDriver idle = TerminalSessionDriver(
-    kind: TerminalSessionDriverKind.idle,
-  );
-
-  factory TerminalSessionDriver.fromJson(Map<String, Object?> json) {
+  factory fromJson(Map<String, Object?> json) {
     return TerminalSessionDriver(
       kind: switch (json['kind']) {
         'mobile' => TerminalSessionDriverKind.mobile,
@@ -268,7 +220,7 @@ final class TerminalSessionDriver {
     );
   }
 
-  factory TerminalSessionDriver.fromPayloadValue(Object? value) {
+  factory fromPayloadValue(Object? value) {
     return TerminalSessionDriver.fromJson(switch (value) {
       final Map<String, Object?> driver => driver,
       final Map<dynamic, dynamic> driver => Map<String, Object?>.from(driver),
@@ -299,43 +251,29 @@ final class TerminalSessionDriver {
     return drivers;
   }
 
-  final TerminalSessionDriverKind kind;
-  final String? deviceId;
-  final String? deviceName;
-
   bool get isMobile => kind == TerminalSessionDriverKind.mobile;
 }
 
-final class TerminalHostDriverChangedEvent extends TerminalHostEvent {
-  const TerminalHostDriverChangedEvent(
-    super.sessionId,
-    this.driver, {
-    required this.cols,
-    required this.rows,
-  });
-
-  factory TerminalHostDriverChangedEvent.fromPayload(
-    String sessionId,
-    Map<String, Object?> payload,
-  ) {
+final class const TerminalHostDriverChangedEvent(
+  super.sessionId,
+  final TerminalSessionDriver driver, {
+  required final int cols,
+  required final int rows,
+}) extends TerminalHostEvent {
+  factory fromPayload(String sessionId, Map<String, Object?> payload) {
     return TerminalHostDriverChangedEvent(
       sessionId,
-      TerminalSessionDriver.fromPayloadValue(payload['driver']),
+      .fromPayloadValue(payload['driver']),
       cols: (payload['cols'] as num?)?.toInt() ?? 0,
       rows: (payload['rows'] as num?)?.toInt() ?? 0,
     );
   }
-
-  final TerminalSessionDriver driver;
-  final int cols;
-  final int rows;
 }
 
-final class TerminalHostPulseChangedEvent extends TerminalHostEvent {
-  const TerminalHostPulseChangedEvent(super.sessionId, this.state);
-
-  final TerminalPulseState state;
-}
+final class const TerminalHostPulseChangedEvent(
+  super.sessionId,
+  final TerminalPulseState state,
+) extends TerminalHostEvent;
 
 /// Broadcast event names surfaced on the runtime host event stream.
 const Set<String> runtimeHostEventNames = <String>{

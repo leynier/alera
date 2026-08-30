@@ -1,22 +1,13 @@
 part of 'workspace_git_diff_panel.dart';
 
-class _CommitMessageField extends StatelessWidget {
-  const _CommitMessageField({
-    required this.controller,
-    required this.focusNode,
-    required this.enabled,
-    required this.generating,
-    required this.onChanged,
-    required this.onSubmitted,
-  });
-
-  final TextEditingController controller;
-  final FocusNode focusNode;
-  final bool enabled;
-  final bool generating;
-  final ValueChanged<String> onChanged;
-  final ValueChanged<String> onSubmitted;
-
+class const _CommitMessageField({
+  required final TextEditingController controller,
+  required final FocusNode focusNode,
+  required final bool enabled,
+  required final bool generating,
+  required final ValueChanged<String> onChanged,
+  required final ValueChanged<String> onSubmitted,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -86,7 +77,7 @@ class _CommitMessageField extends StatelessWidget {
                       vertical: AleraTokens.space8,
                     ),
                     child: Row(
-                      mainAxisSize: MainAxisSize.min,
+                      mainAxisSize: .min,
                       children: <Widget>[
                         const SizedBox(
                           width: 14,
@@ -116,7 +107,7 @@ class _CommitMessageField extends StatelessWidget {
   }
 
   OutlineInputBorder _messageBorder(Color color) => OutlineInputBorder(
-    borderRadius: BorderRadius.circular(AleraTokens.radiusLg),
+    borderRadius: .circular(AleraTokens.radiusLg),
     borderSide: BorderSide(color: color),
   );
 }

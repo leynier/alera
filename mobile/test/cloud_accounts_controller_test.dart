@@ -10,64 +10,56 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  test(
-    'Concurrent 401 responses share one session refresh and never retry a second 401',
-    () async {
-      final session = CloudAccountSession(
-        account: const CloudAccountProfile(
-          id: 'account-1',
-          email: 'test@example.test',
+  test('Concurrent 401 responses share one session refresh and never retry a second 401', () async {
+    final session = CloudAccountSession(
+      account: const CloudAccountProfile(
+        id: 'account-1',
+        email: 'test@example.test',
+      ),
+      accessToken: 'access',
+      refreshToken: 'refresh',
+      accessTokenExpiresAt: DateTime.now().toUtc().add(
+        const Duration(hours: 1),
+      ),
+    );
+    final api = _RefreshApi(session);
+    final container = ProviderContainer(
+      overrides: [
+        cloudAccountRepositoryProvider.overrideWithValue(
+          _MemoryRepository(session),
         ),
-        accessToken: 'access',
-        refreshToken: 'refresh',
-        accessTokenExpiresAt: DateTime.now().toUtc().add(
-          const Duration(hours: 1),
-        ),
-      );
-      final api = _RefreshApi(session);
-      final container = ProviderContainer(
-        overrides: [
-          cloudAccountRepositoryProvider.overrideWithValue(
-            _MemoryRepository(session),
-          ),
-          aleraCloudApiProvider.overrideWithValue(api),
-        ],
-      );
-      addTearDown(container.dispose);
-      final controller = container.read(
-        cloudAccountsControllerProvider.notifier,
-      );
-      final requests = <String>[];
-      Future<String> request(CloudAccountSession value) async {
-        requests.add(value.accessToken);
-        if (value.accessToken == 'access') {
-          throw const AleraCloudException('expired', statusCode: 401);
-        }
-        return value.accessToken;
+        aleraCloudApiProvider.overrideWithValue(api),
+      ],
+    );
+    addTearDown(container.dispose);
+    final controller = container.read(cloudAccountsControllerProvider.notifier);
+    final requests = <String>[];
+    Future<String> request(CloudAccountSession value) async {
+      requests.add(value.accessToken);
+      if (value.accessToken == 'access') {
+        throw const AleraCloudException('expired', statusCode: 401);
       }
+      return value.accessToken;
+    }
 
-      final operations = Future.wait(
-        List.generate(8, (_) => controller.withSession('account-1', request)),
-      );
-      await api.refreshStarted.future;
-      api.refreshRelease.complete();
-      expect(await operations, everyElement('rotated-access'));
-      expect(api.refreshCalls, 1);
-      expect(
-        requests.where((value) => value == 'rotated-access'),
-        hasLength(8),
-      );
-      var attempts = 0;
-      await expectLater(
-        controller.withSession('account-1', (_) async {
-          attempts++;
-          throw const AleraCloudException('unauthorized', statusCode: 401);
-        }),
-        throwsA(isA<AleraCloudException>()),
-      );
-      expect(attempts, 2);
-    },
-  );
+    final operations = Future.wait(
+      List.generate(8, (_) => controller.withSession('account-1', request)),
+    );
+    await api.refreshStarted.future;
+    api.refreshRelease.complete();
+    expect(await operations, everyElement('rotated-access'));
+    expect(api.refreshCalls, 1);
+    expect(requests.where((value) => value == 'rotated-access'), hasLength(8));
+    var attempts = 0;
+    await expectLater(
+      controller.withSession('account-1', (_) async {
+        attempts++;
+        throw const AleraCloudException('unauthorized', statusCode: 401);
+      }),
+      throwsA(isA<AleraCloudException>()),
+    );
+    expect(attempts, 2);
+  });
   test('Remote Removal Failure Keeps The Local Session For Retry', () async {
     final session = CloudAccountSession(
       account: const CloudAccountProfile(
@@ -204,9 +196,9 @@ void main() {
   );
 }
 
-class _MemoryRepository implements CloudAccountRepository {
-  _MemoryRepository(CloudAccountSession session)
-    : sessions = <CloudAccountSession>[session];
+class _MemoryRepository(CloudAccountSession session)
+    implements CloudAccountRepository {
+  this : sessions = <CloudAccountSession>[session];
 
   final List<CloudAccountSession> sessions;
 
@@ -229,10 +221,8 @@ class _MemoryRepository implements CloudAccountRepository {
   }
 }
 
-class _RefreshApi implements AleraCloudApi {
-  _RefreshApi(this.reenrolled);
-
-  final CloudAccountSession reenrolled;
+class _RefreshApi(final CloudAccountSession reenrolled)
+    implements AleraCloudApi {
   final Completer<void> refreshStarted = Completer<void>();
   final Completer<void> refreshRelease = Completer<void>();
   int refreshCalls = 0;
@@ -295,10 +285,7 @@ class _RefreshApi implements AleraCloudApi {
   Future<void> revokeSession(CloudAccountSession session) async {}
 }
 
-class _RemovalApi implements AleraCloudApi {
-  _RemovalApi({this.removalError});
-
-  final Object? removalError;
+class _RemovalApi({final Object? removalError}) implements AleraCloudApi {
   int pushTokenDeleteCalls = 0;
 
   @override

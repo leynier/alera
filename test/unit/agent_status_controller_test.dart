@@ -46,14 +46,14 @@ void main() {
 
       controller.applyHookEvent(
         _event(
-          agentType: AgentType.codex,
+          agentType: .codex,
           hookEventName: 'UserPromptSubmit',
           payload: <String, Object?>{'prompt': 'make a plan'},
         ),
       );
       controller.applyHookEvent(
         _event(
-          agentType: AgentType.codex,
+          agentType: .codex,
           hookEventName: 'PreToolUse',
           payload: <String, Object?>{
             'tool_name': 'Bash',
@@ -84,7 +84,7 @@ void main() {
 
       controller.applyHookEvent(
         _event(
-          agentType: AgentType.codex,
+          agentType: .codex,
           hookEventName: 'PreToolUse',
           payload: <String, Object?>{
             'tool_name': 'functions.request_user_input',
@@ -100,7 +100,7 @@ void main() {
 
       controller.applyHookEvent(
         _event(
-          agentType: AgentType.codex,
+          agentType: .codex,
           hookEventName: 'PreToolUse',
           payload: <String, Object?>{
             'tool_name': 'request_user_input',
@@ -120,7 +120,7 @@ void main() {
 
       controller.applyHookEvent(
         _event(
-          agentType: AgentType.codex,
+          agentType: .codex,
           hookEventName: 'PreToolUse',
           payload: <String, Object?>{
             'toolCall': <String, Object?>{
@@ -142,7 +142,7 @@ void main() {
 
       controller.applyHookEvent(
         _event(
-          agentType: AgentType.codex,
+          agentType: .codex,
           hookEventName: 'PreToolUse',
           payload: <String, Object?>{
             'tool_name': 'functions.request_approval',
@@ -161,7 +161,7 @@ void main() {
 
       controller.applyHookEvent(
         _event(
-          agentType: AgentType.codex,
+          agentType: .codex,
           hookEventName: 'PreToolUse',
           payload: <String, Object?>{
             'tool_name': 'request_permissions',
@@ -179,7 +179,7 @@ void main() {
 
       controller.applyHookEvent(
         _event(
-          agentType: AgentType.codex,
+          agentType: .codex,
           hookEventName: 'PermissionRequest',
           payload: <String, Object?>{'tool_name': 'Bash'},
         ),
@@ -190,7 +190,7 @@ void main() {
 
       controller.applyHookEvent(
         _event(
-          agentType: AgentType.claude,
+          agentType: .claude,
           hookEventName: 'PreToolUse',
           payload: <String, Object?>{
             'tool_name': 'askUser',
@@ -211,7 +211,7 @@ void main() {
 
       controller.applyHookEvent(
         _event(
-          agentType: AgentType.claude,
+          agentType: .claude,
           hookEventName: 'PermissionRequest',
           payload: <String, Object?>{
             'prompt': 'edit files',
@@ -222,7 +222,7 @@ void main() {
       );
       controller.applyHookEvent(
         _event(
-          agentType: AgentType.claude,
+          agentType: .claude,
           hookEventName: 'Stop',
           payload: <String, Object?>{
             'is_interrupt': true,
@@ -243,14 +243,14 @@ void main() {
 
       controller.applyHookEvent(
         _event(
-          agentType: AgentType.copilot,
+          agentType: .copilot,
           hookEventName: 'userPromptSubmitted',
           payload: <String, Object?>{'prompt': 'deploy the app'},
         ),
       );
       controller.applyHookEvent(
         _event(
-          agentType: AgentType.copilot,
+          agentType: .copilot,
           hookEventName: 'Notification',
           payload: <String, Object?>{
             'notificationType': 'elicitation_dialog',
@@ -266,7 +266,7 @@ void main() {
 
       controller.applyHookEvent(
         _event(
-          agentType: AgentType.copilot,
+          agentType: .copilot,
           hookEventName: 'Stop',
           payload: <String, Object?>{'lastAssistantMessage': 'Done.'},
         ),
@@ -278,7 +278,7 @@ void main() {
 
       controller.applyHookEvent(
         _event(
-          agentType: AgentType.copilot,
+          agentType: .copilot,
           hookEventName: 'SessionEnd',
           payload: <String, Object?>{},
         ),
@@ -295,14 +295,14 @@ void main() {
 
       controller.applyHookEvent(
         _event(
-          agentType: AgentType.cursor,
+          agentType: .cursor,
           hookEventName: 'beforeSubmitPrompt',
           payload: <String, Object?>{'prompt': 'ship cursor'},
         ),
       );
       controller.applyHookEvent(
         _event(
-          agentType: AgentType.cursor,
+          agentType: .cursor,
           hookEventName: 'preToolUse',
           payload: <String, Object?>{
             'tool_name': 'Edit',
@@ -312,28 +312,28 @@ void main() {
       );
       controller.applyHookEvent(
         _event(
-          agentType: AgentType.cursor,
+          agentType: .cursor,
           hookEventName: 'postToolUseFailure',
           payload: <String, Object?>{'error_message': 'Patch failed.'},
         ),
       );
       controller.applyHookEvent(
         _event(
-          agentType: AgentType.cursor,
+          agentType: .cursor,
           hookEventName: 'beforeMCPExecution',
           payload: <String, Object?>{'url': 'https://example.test/mcp'},
         ),
       );
       controller.applyHookEvent(
         _event(
-          agentType: AgentType.cursor,
+          agentType: .cursor,
           hookEventName: 'stop',
           payload: <String, Object?>{'status': 'interrupted'},
         ),
       );
       controller.applyHookEvent(
         _event(
-          agentType: AgentType.cursor,
+          agentType: .cursor,
           hookEventName: 'afterAgentResponse',
           payload: <String, Object?>{'text': 'Final response.'},
         ),
@@ -354,14 +354,14 @@ void main() {
 
       controller.applyHookEvent(
         _event(
-          agentType: AgentType.opencode,
+          agentType: .opencode,
           hookEventName: 'MessagePart',
           payload: <String, Object?>{'role': 'user', 'text': 'ship status'},
         ),
       );
       controller.applyHookEvent(
         _event(
-          agentType: AgentType.opencode,
+          agentType: .opencode,
           hookEventName: 'MessagePart',
           payload: <String, Object?>{
             'role': 'assistant',
@@ -371,14 +371,14 @@ void main() {
       );
       controller.applyHookEvent(
         _event(
-          agentType: AgentType.opencode,
+          agentType: .opencode,
           hookEventName: 'AskUserQuestion',
           payload: <String, Object?>{},
         ),
       );
       controller.applyHookEvent(
         _event(
-          agentType: AgentType.opencode,
+          agentType: .opencode,
           hookEventName: 'SessionIdle',
           payload: <String, Object?>{},
         ),
@@ -396,14 +396,14 @@ void main() {
 
       controller.applyHookEvent(
         _event(
-          agentType: AgentType.pi,
+          agentType: .pi,
           hookEventName: 'before_agent_start',
           payload: <String, Object?>{'prompt': 'rename helper'},
         ),
       );
       controller.applyHookEvent(
         _event(
-          agentType: AgentType.pi,
+          agentType: .pi,
           hookEventName: 'tool_call',
           payload: <String, Object?>{
             'tool_name': 'bash',
@@ -413,14 +413,14 @@ void main() {
       );
       controller.applyHookEvent(
         _event(
-          agentType: AgentType.pi,
+          agentType: .pi,
           hookEventName: 'message_end',
           payload: <String, Object?>{'role': 'assistant', 'text': 'Done.'},
         ),
       );
       controller.applyHookEvent(
         _event(
-          agentType: AgentType.pi,
+          agentType: .pi,
           hookEventName: 'agent_end',
           payload: <String, Object?>{},
         ),
@@ -435,7 +435,7 @@ void main() {
 
       controller.applyHookEvent(
         _event(
-          agentType: AgentType.pi,
+          agentType: .pi,
           hookEventName: 'session_shutdown',
           payload: <String, Object?>{},
         ),

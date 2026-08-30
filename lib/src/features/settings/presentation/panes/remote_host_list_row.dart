@@ -5,18 +5,12 @@ import 'package:flutter/material.dart';
 
 const double _kSidebarIconSize = 16;
 
-class RemoteHostListRow extends StatelessWidget {
-  const RemoteHostListRow({
-    super.key,
-    required this.target,
-    required this.selected,
-    required this.onTap,
-  });
-
-  final SshTarget target;
-  final bool selected;
-  final VoidCallback onTap;
-
+class const RemoteHostListRow({
+  super.key,
+  required final SshTarget target,
+  required final bool selected,
+  required final VoidCallback onTap,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -38,22 +32,22 @@ class RemoteHostListRow extends StatelessWidget {
               const SizedBox(width: AleraTokens.space8),
               Expanded(
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                  crossAxisAlignment: .start,
                   children: <Widget>[
                     Text(
                       target.alias,
                       maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+                      overflow: .ellipsis,
                       style: theme.textTheme.bodyMedium?.copyWith(
                         color: AleraTokens.foreground,
-                        fontWeight: FontWeight.w600,
+                        fontWeight: .w600,
                       ),
                     ),
                     const SizedBox(height: AleraTokens.space4),
                     Text(
                       '${target.username}@${target.host}:${target.port}',
                       maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+                      overflow: .ellipsis,
                       style: theme.textTheme.bodySmall?.copyWith(
                         color: AleraTokens.foregroundMuted,
                       ),

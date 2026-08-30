@@ -40,11 +40,10 @@ final class _TerminalHostPtySessionLeases {
   }
 }
 
-final class _TerminalHostPtySessionLease {
-  _TerminalHostPtySessionLease._(this._owner, this._sessionId);
-
-  final _TerminalHostPtySessionLeases _owner;
-  final String _sessionId;
+final class _TerminalHostPtySessionLease._(
+  final _TerminalHostPtySessionLeases _owner,
+  final String _sessionId,
+) {
   bool _released = false;
 
   bool release() => _owner.release(this);

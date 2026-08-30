@@ -28,17 +28,15 @@ abstract final class MobileFirebaseBootstrap {
 }
 
 abstract final class MobileFirebaseOptions {
-  static const String _apiKey = String.fromEnvironment(
-    'ALERA_FIREBASE_API_KEY',
-  );
-  static const String _appId = String.fromEnvironment('ALERA_FIREBASE_APP_ID');
-  static const String _senderId = String.fromEnvironment(
+  static const String _apiKey = .fromEnvironment('ALERA_FIREBASE_API_KEY');
+  static const String _appId = .fromEnvironment('ALERA_FIREBASE_APP_ID');
+  static const String _senderId = .fromEnvironment(
     'ALERA_FIREBASE_MESSAGING_SENDER_ID',
   );
-  static const String _projectId = String.fromEnvironment(
+  static const String _projectId = .fromEnvironment(
     'ALERA_FIREBASE_PROJECT_ID',
   );
-  static const String _iosBundleId = String.fromEnvironment(
+  static const String _iosBundleId = .fromEnvironment(
     'ALERA_FIREBASE_IOS_BUNDLE_ID',
     defaultValue: 'dev.leynier.aleraMobile',
   );

@@ -18,9 +18,9 @@ Widget _wrapDialog({required ValueChanged<_Choice?> onResult}) {
                     title: 'Runtime Still Has Work',
                     message: 'The runtime has 1 open agent(s).',
                     primaryLabel: 'Quit And Leave Runtime Open',
-                    primaryValue: _Choice.leave,
+                    primaryValue: .leave,
                     secondaryLabel: 'Force Stop And Quit',
-                    secondaryValue: _Choice.force,
+                    secondaryValue: .force,
                     destructiveSecondary: true,
                   ),
                 ),
@@ -36,7 +36,7 @@ Widget _wrapDialog({required ValueChanged<_Choice?> onResult}) {
 
 void main() {
   testWidgets('cancel closes the choice dialog with null', (tester) async {
-    _Choice? result = _Choice.leave;
+    _Choice? result = .leave;
 
     await tester.pumpWidget(_wrapDialog(onResult: (value) => result = value));
     await tester.tap(find.text('Open'));

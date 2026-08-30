@@ -6,28 +6,19 @@ enum BrowserDownloadStatus {
   failed,
 }
 
-final class BrowserDownloadRequest {
-  const BrowserDownloadRequest({
-    required this.pageId,
-    required this.url,
-    required this.requestedAt,
-    this.suggestedFileName,
-    this.mimeType,
-    this.totalBytes,
-  });
-
-  final String pageId;
-  final Uri url;
-  final DateTime requestedAt;
-  final String? suggestedFileName;
-  final String? mimeType;
-  final int? totalBytes;
-}
+final class const BrowserDownloadRequest({
+  required final String pageId,
+  required final Uri url,
+  required final DateTime requestedAt,
+  final String? suggestedFileName,
+  final String? mimeType,
+  final int? totalBytes,
+});
 
 final class BrowserDownloadDecision {
-  const BrowserDownloadDecision.deny() : destinationPath = null;
+  const new deny() : destinationPath = null;
 
-  const BrowserDownloadDecision.accept(this.destinationPath);
+  const new accept(this.destinationPath);
 
   final String? destinationPath;
 
@@ -35,20 +26,18 @@ final class BrowserDownloadDecision {
       destinationPath != null && destinationPath!.trim().isNotEmpty;
 }
 
-final class BrowserDownload {
-  const BrowserDownload({
-    required this.id,
-    required this.pageId,
-    required this.fileName,
-    required this.status,
-    required this.receivedBytes,
-    required this.startedAt,
-    this.totalBytes,
-    this.savePath,
-    this.error,
-  });
-
-  factory BrowserDownload.fromJson(Map<String, Object?> json) {
+final class const BrowserDownload({
+  required final String id,
+  required final String pageId,
+  required final String fileName,
+  required final BrowserDownloadStatus status,
+  required final int receivedBytes,
+  required final DateTime startedAt,
+  final int? totalBytes,
+  final String? savePath,
+  final String? error,
+}) {
+  factory fromJson(Map<String, Object?> json) {
     final id = json['id'];
     final pageId = json['pageId'];
     final fileName = json['fileName'];
@@ -74,16 +63,6 @@ final class BrowserDownload {
       startedAt: startedAt.toUtc(),
     );
   }
-
-  final String id;
-  final String pageId;
-  final String fileName;
-  final BrowserDownloadStatus status;
-  final int receivedBytes;
-  final int? totalBytes;
-  final String? savePath;
-  final String? error;
-  final DateTime startedAt;
 
   double? get progress {
     final total = totalBytes;

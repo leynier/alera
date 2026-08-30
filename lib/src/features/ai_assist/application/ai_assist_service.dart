@@ -10,19 +10,13 @@ import 'package:alera/src/shared/infra/process/process_runner.dart';
 
 export 'ai_assist_errors.dart';
 
-class AiAssistRequest {
-  const AiAssistRequest({
-    required this.operation,
-    required this.workspacePath,
-    required this.settings,
-    this.baseBranch,
-    this.headBranch,
-  });
-
-  final AiAssistOperation operation;
-  final String workspacePath;
-  final AiAssistSettings settings;
-
+class const AiAssistRequest({
+  required final AiAssistOperation operation,
+  required final String workspacePath,
+  required final AiAssistSettings settings,
+  this.baseBranch,
+  this.headBranch,
+}) {
   /// Required when [operation] is [AiAssistOperation.pullRequestDetails].
   final String? baseBranch;
 
@@ -30,12 +24,10 @@ class AiAssistRequest {
   final String? headBranch;
 }
 
-class AiAssistResult {
-  const AiAssistResult({required this.text, required this.agentLabel});
-
-  final String text;
-  final String agentLabel;
-}
+class const AiAssistResult({
+  required final String text,
+  required final String agentLabel,
+});
 
 abstract interface class AiAssistService {
   Future<AiAssistResult> generate(AiAssistRequest request);
@@ -43,23 +35,22 @@ abstract interface class AiAssistService {
   void cancel(String workspacePath, AiAssistOperation operation);
 }
 
-class CliAiAssistService implements AiAssistService {
-  CliAiAssistService({
-    required this.gitBackend,
-    required this.processRunner,
-    CommandEnvironmentResolver? commandEnvironmentResolver,
-    AiAssistAgentRunner? runner,
-  }) : commandEnvironmentResolver =
-           commandEnvironmentResolver ?? UserCommandEnvironmentResolver(),
-       runner =
-           runner ??
-           CliAiAssistAgentRunner(
-             processRunner: processRunner,
-             commandEnvironmentResolver: commandEnvironmentResolver,
-           );
+class CliAiAssistService({
+  required final GitBackend gitBackend,
+  required final ProcessRunner processRunner,
+  CommandEnvironmentResolver? commandEnvironmentResolver,
+  AiAssistAgentRunner? runner,
+}) implements AiAssistService {
+  this
+    : commandEnvironmentResolver =
+          commandEnvironmentResolver ?? UserCommandEnvironmentResolver(),
+      runner =
+          runner ??
+          CliAiAssistAgentRunner(
+            processRunner: processRunner,
+            commandEnvironmentResolver: commandEnvironmentResolver,
+          );
 
-  final GitBackend gitBackend;
-  final ProcessRunner processRunner;
   final CommandEnvironmentResolver commandEnvironmentResolver;
   final AiAssistAgentRunner runner;
   final Set<String> _pending = <String>{};
@@ -135,14 +126,14 @@ class CliAiAssistService implements AiAssistService {
         context: await _commitContext(request.workspacePath),
         customInstructions: promptInstructionsFor(
           request.settings,
-          AiAssistOperation.commitMessage,
+          .commitMessage,
         ),
       ),
       AiAssistOperation.pullRequestDetails => buildPullRequestDetailsPrompt(
         context: await _pullRequestContext(request),
         customInstructions: promptInstructionsFor(
           request.settings,
-          AiAssistOperation.pullRequestDetails,
+          .pullRequestDetails,
         ),
       ),
       AiAssistOperation.branchName ||
@@ -240,7 +231,7 @@ class CliAiAssistService implements AiAssistService {
       final diff = await gitBackend.diff(
         path: workspacePath,
         filePath: entry.path,
-        area: GitChangeArea.staged,
+        area: .staged,
       );
       patches.add(_diffToPatch(diff));
     }

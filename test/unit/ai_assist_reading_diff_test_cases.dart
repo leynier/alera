@@ -3,19 +3,17 @@ part of 'ai_assist_service_test.dart';
 void _registerAiAssistReadingDiffTests() {
   test('falls back to Codex for an unsupported inherited reading agent', () {
     expect(
-      readingDiffAgentForSettings(
-        const AiAssistSettings(agent: AiAssistAgent.cursor),
-      ),
+      readingDiffAgentForSettings(const AiAssistSettings(agent: .cursor)),
       AiAssistAgent.codex,
     );
     expect(
       readingDiffAgentForSettings(
         const AiAssistSettings(
-          agent: AiAssistAgent.cursor,
+          agent: .cursor,
           promptSettingsByOperation:
               <AiAssistOperation, AiAssistPromptSettings>{
                 AiAssistOperation.readingDiff: AiAssistPromptSettings(
-                  agent: AiAssistAgent.claude,
+                  agent: .claude,
                 ),
               },
         ),
@@ -23,7 +21,7 @@ void _registerAiAssistReadingDiffTests() {
       AiAssistAgent.claude,
     );
     const settings = AiAssistSettings(
-      agent: AiAssistAgent.cursor,
+      agent: .cursor,
       selectedModelByAgent: <AiAssistAgent, String>{
         AiAssistAgent.cursor: 'cursor-composer',
         AiAssistAgent.codex: 'gpt-codex',
@@ -45,56 +43,58 @@ void _registerAiAssistReadingDiffTests() {
     );
   });
 
-  test('runs Codex with a schema and reads its structured result file', () async {
-    final process = _FakeProcessRunner(
-      stdout:
-          '{"version":1,"remove":[],"replace":[],"fold":[],"summary":"Keep behavior."}',
-    );
-    final runner = CliAiAssistAgentRunner(
-      processRunner: process,
-      commandEnvironmentResolver: const _FakeCommandEnvironmentResolver(
-        value: <String, String>{
-          'PATH': '/usr/bin',
-          'CODEX_HOME': '/codex-home',
-          'HTTPS_PROXY': 'http://proxy.example',
-          'no_proxy': 'localhost',
-          'OPENAI_API_KEY': 'must-not-leak',
-        },
-      ),
-    );
+  test(
+    'runs Codex with a schema and reads its structured result file',
+    () async {
+      final process = _FakeProcessRunner(
+        stdout: '{"version":1,"remove":[],"replace":[],"fold":[],"summary":"Keep behavior."}',
+      );
+      final runner = CliAiAssistAgentRunner(
+        processRunner: process,
+        commandEnvironmentResolver: const _FakeCommandEnvironmentResolver(
+          value: <String, String>{
+            'PATH': '/usr/bin',
+            'CODEX_HOME': '/codex-home',
+            'HTTPS_PROXY': 'http://proxy.example',
+            'no_proxy': 'localhost',
+            'OPENAI_API_KEY': 'must-not-leak',
+          },
+        ),
+      );
 
-    final result = await runner.run(
-      const AiAssistAgentRunRequest(
-        settings: AiAssistSettings(),
-        prompt: 'Plan this diff.',
-        runId: 'reading-diff-codex',
-        workingDirectory: '/repo',
-        agent: AiAssistAgent.codex,
-        accessPolicy: AgentTaskAccessPolicy.diffOnly,
-        outputContract: AgentTaskOutputContract.readingDiffPlanV1,
-        outputSchema: '{"type":"object"}',
-      ),
-    );
+      final result = await runner.run(
+        const AiAssistAgentRunRequest(
+          settings: AiAssistSettings(),
+          prompt: 'Plan this diff.',
+          runId: 'reading-diff-codex',
+          workingDirectory: '/repo',
+          agent: .codex,
+          accessPolicy: .diffOnly,
+          outputContract: .readingDiffPlanV1,
+          outputSchema: '{"type":"object"}',
+        ),
+      );
 
-    expect(process.arguments, contains('--output-schema'));
-    expect(process.arguments, contains('--output-last-message'));
-    expect(process.arguments, contains('--ignore-user-config'));
-    expect(
-      process.arguments,
-      contains('default_permissions="alera_diff_only"'),
-    );
-    expect(process.arguments, isNot(contains('-s')));
-    expect(process.environment, containsPair('CODEX_HOME', '/codex-home'));
-    expect(
-      process.environment,
-      containsPair('HTTPS_PROXY', 'http://proxy.example'),
-    );
-    expect(process.environment, containsPair('no_proxy', 'localhost'));
-    expect(process.environment, isNot(contains('OPENAI_API_KEY')));
-    expect(process.includeParentEnvironment, isFalse);
-    expect(process.outputSchemaText, '{"type":"object"}');
-    expect(result.text, contains('"version":1'));
-  });
+      expect(process.arguments, contains('--output-schema'));
+      expect(process.arguments, contains('--output-last-message'));
+      expect(process.arguments, contains('--ignore-user-config'));
+      expect(
+        process.arguments,
+        contains('default_permissions="alera_diff_only"'),
+      );
+      expect(process.arguments, isNot(contains('-s')));
+      expect(process.environment, containsPair('CODEX_HOME', '/codex-home'));
+      expect(
+        process.environment,
+        containsPair('HTTPS_PROXY', 'http://proxy.example'),
+      );
+      expect(process.environment, containsPair('no_proxy', 'localhost'));
+      expect(process.environment, isNot(contains('OPENAI_API_KEY')));
+      expect(process.includeParentEnvironment, isFalse);
+      expect(process.outputSchemaText, '{"type":"object"}');
+      expect(result.text, contains('"version":1'));
+    },
+  );
 
   test(
     'preserves Codex keyring authentication in the isolated process',
@@ -103,12 +103,10 @@ void _registerAiAssistReadingDiffTests() {
         'alera-codex-keyring-',
       );
       addTearDown(() => codexHome.delete(recursive: true));
-      await File(
-        p.join(codexHome.path, 'config.toml'),
-      ).writeAsString('cli_auth_credentials_store = "keyring"\n');
+      await File(p.join(codexHome.path, 'config.toml'))
+          .writeAsString('cli_auth_credentials_store = "keyring"\n');
       final process = _FakeProcessRunner(
-        stdout:
-            '{"version":1,"remove":[],"replace":[],"fold":[],"summary":"Keep behavior."}',
+        stdout: '{"version":1,"remove":[],"replace":[],"fold":[],"summary":"Keep behavior."}',
       );
       final runner = CliAiAssistAgentRunner(
         processRunner: process,
@@ -129,9 +127,9 @@ void _registerAiAssistReadingDiffTests() {
           prompt: 'Plan this diff.',
           runId: 'reading-diff-codex-keyring',
           workingDirectory: '/repo',
-          agent: AiAssistAgent.codex,
-          accessPolicy: AgentTaskAccessPolicy.diffOnly,
-          outputContract: AgentTaskOutputContract.readingDiffPlanV1,
+          agent: .codex,
+          accessPolicy: .diffOnly,
+          outputContract: .readingDiffPlanV1,
           outputSchema: '{"type":"object"}',
         ),
       );
@@ -184,8 +182,8 @@ ERROR: {
           prompt: 'Plan this diff.',
           runId: 'reading-diff-codex-error',
           workingDirectory: '/repo',
-          agent: AiAssistAgent.codex,
-          outputContract: AgentTaskOutputContract.readingDiffPlanV1,
+          agent: .codex,
+          outputContract: .readingDiffPlanV1,
           outputSchema: '{"type":"object"}',
         ),
       ),
@@ -199,49 +197,50 @@ ERROR: {
     );
   });
 
-  test('hydrates missing Codex variables before isolating the process', () async {
-    final process = _FakeProcessRunner(
-      stdout:
-          '{"version":1,"remove":[],"replace":[],"fold":[],"summary":"Keep behavior."}',
-    );
-    final runner = CliAiAssistAgentRunner(
-      processRunner: process,
-      commandEnvironmentResolver: const _FakeCommandEnvironmentResolver(
-        variableValues: <String, String>{
-          'CODEX_HOME': '/login-shell/codex',
-          'HTTPS_PROXY': 'http://login-shell-proxy.example',
-        },
-      ),
-    );
+  test(
+    'hydrates missing Codex variables before isolating the process',
+    () async {
+      final process = _FakeProcessRunner(
+        stdout: '{"version":1,"remove":[],"replace":[],"fold":[],"summary":"Keep behavior."}',
+      );
+      final runner = CliAiAssistAgentRunner(
+        processRunner: process,
+        commandEnvironmentResolver: const _FakeCommandEnvironmentResolver(
+          variableValues: <String, String>{
+            'CODEX_HOME': '/login-shell/codex',
+            'HTTPS_PROXY': 'http://login-shell-proxy.example',
+          },
+        ),
+      );
 
-    await runner.run(
-      const AiAssistAgentRunRequest(
-        settings: AiAssistSettings(),
-        prompt: 'Plan this diff.',
-        runId: 'reading-diff-codex-hydrated',
-        workingDirectory: '/repo',
-        agent: AiAssistAgent.codex,
-        accessPolicy: AgentTaskAccessPolicy.diffOnly,
-        outputContract: AgentTaskOutputContract.readingDiffPlanV1,
-        outputSchema: '{"type":"object"}',
-      ),
-    );
+      await runner.run(
+        const AiAssistAgentRunRequest(
+          settings: AiAssistSettings(),
+          prompt: 'Plan this diff.',
+          runId: 'reading-diff-codex-hydrated',
+          workingDirectory: '/repo',
+          agent: .codex,
+          accessPolicy: .diffOnly,
+          outputContract: .readingDiffPlanV1,
+          outputSchema: '{"type":"object"}',
+        ),
+      );
 
-    expect(
-      process.environment,
-      containsPair('CODEX_HOME', '/login-shell/codex'),
-    );
-    expect(
-      process.environment,
-      containsPair('HTTPS_PROXY', 'http://login-shell-proxy.example'),
-    );
-    expect(process.includeParentEnvironment, isFalse);
-  });
+      expect(
+        process.environment,
+        containsPair('CODEX_HOME', '/login-shell/codex'),
+      );
+      expect(
+        process.environment,
+        containsPair('HTTPS_PROXY', 'http://login-shell-proxy.example'),
+      );
+      expect(process.includeParentEnvironment, isFalse);
+    },
+  );
 
   test('unwraps Claude structured output and disables persistence', () async {
     final process = _FakeProcessRunner(
-      stdout:
-          '{"structured_output":{"version":1,"remove":[],"replace":[],"fold":[],"summary":"Keep behavior."}}',
+      stdout: '{"structured_output":{"version":1,"remove":[],"replace":[],"fold":[],"summary":"Keep behavior."}}',
     );
     final runner = CliAiAssistAgentRunner(
       processRunner: process,
@@ -254,9 +253,9 @@ ERROR: {
         prompt: 'Plan this diff.',
         runId: 'reading-diff-claude',
         workingDirectory: '/repo',
-        agent: AiAssistAgent.claude,
-        accessPolicy: AgentTaskAccessPolicy.diffOnly,
-        outputContract: AgentTaskOutputContract.readingDiffPlanV1,
+        agent: .claude,
+        accessPolicy: .diffOnly,
+        outputContract: .readingDiffPlanV1,
         outputSchema: '{"type":"object"}',
       ),
     );
@@ -280,15 +279,12 @@ ERROR: {
     addTearDown(() => userHome.delete(recursive: true));
     final grokHome = Directory('${userHome.path}/.grok');
     await grokHome.create();
-    await File(
-      '${grokHome.path}/auth.json',
-    ).writeAsString('{"token":"test-token"}');
-    await File(
-      '${grokHome.path}/config.toml',
-    ).writeAsString('[mcp]\nenabled = true');
+    await File('${grokHome.path}/auth.json')
+        .writeAsString('{"token":"test-token"}');
+    await File('${grokHome.path}/config.toml')
+        .writeAsString('[mcp]\nenabled = true');
     final process = _FakeProcessRunner(
-      stdout:
-          '{"version":1,"remove":[],"replace":[],"fold":[],"summary":"Keep behavior."}',
+      stdout: '{"version":1,"remove":[],"replace":[],"fold":[],"summary":"Keep behavior."}',
     );
     final runner = CliAiAssistAgentRunner(
       processRunner: process,
@@ -303,9 +299,9 @@ ERROR: {
         prompt: 'Plan this diff.',
         runId: 'reading-diff-grok',
         workingDirectory: '/repo',
-        agent: AiAssistAgent.grok,
-        accessPolicy: AgentTaskAccessPolicy.diffOnly,
-        outputContract: AgentTaskOutputContract.readingDiffPlanV1,
+        agent: .grok,
+        accessPolicy: .diffOnly,
+        outputContract: .readingDiffPlanV1,
         outputSchema: '{"type":"object"}',
       ),
     );
@@ -329,8 +325,7 @@ ERROR: {
       AiAssistAgent.pi,
     ]) {
       final process = _FakeProcessRunner(
-        stdout:
-            'Generating...\n```json\n{"version":1,"remove":[],"replace":[],"fold":[],"summary":"Keep behavior."}\n```',
+        stdout: 'Generating...\n```json\n{"version":1,"remove":[],"replace":[],"fold":[],"summary":"Keep behavior."}\n```',
       );
       final runner = CliAiAssistAgentRunner(
         processRunner: process,
@@ -344,8 +339,8 @@ ERROR: {
           runId: 'reading-diff-${agent.key}',
           workingDirectory: '/repo',
           agent: agent,
-          accessPolicy: AgentTaskAccessPolicy.diffOnly,
-          outputContract: AgentTaskOutputContract.readingDiffPlanV1,
+          accessPolicy: .diffOnly,
+          outputContract: .readingDiffPlanV1,
           outputSchema: '{"type":"object"}',
         ),
       );
@@ -387,8 +382,8 @@ ERROR: {
             runId: 'reading-diff-rejected-${agent.key}',
             workingDirectory: '/repo',
             agent: agent,
-            accessPolicy: AgentTaskAccessPolicy.diffOnly,
-            outputContract: AgentTaskOutputContract.readingDiffPlanV1,
+            accessPolicy: .diffOnly,
+            outputContract: .readingDiffPlanV1,
             outputSchema: '{"type":"object"}',
           ),
         ),
@@ -406,8 +401,7 @@ ERROR: {
 
   test('prefers stderr failure over a valid structured stdout plan', () async {
     final process = _FakeProcessRunner(
-      stdout:
-          '{"version":1,"remove":[],"replace":[],"fold":[],"summary":"Keep behavior."}',
+      stdout: '{"version":1,"remove":[],"replace":[],"fold":[],"summary":"Keep behavior."}',
       stderr: '{"error":{"message":"subscription quota exceeded"}}',
       exitCode: 1,
     );
@@ -423,9 +417,9 @@ ERROR: {
           prompt: 'Plan this diff.',
           runId: 'reading-diff-stderr',
           workingDirectory: '/repo',
-          agent: AiAssistAgent.codex,
-          accessPolicy: AgentTaskAccessPolicy.diffOnly,
-          outputContract: AgentTaskOutputContract.readingDiffPlanV1,
+          agent: .codex,
+          accessPolicy: .diffOnly,
+          outputContract: .readingDiffPlanV1,
           outputSchema: '{"type":"object"}',
         ),
       ),

@@ -7,28 +7,17 @@ import 'package:flutter/material.dart';
 /// and idle. An optional [leading] widget replaces the default check slot, and
 /// an optional [subtitle] renders a secondary line under the label (used by
 /// pickers that surface a path or hint).
-class AleraMenuItem extends StatelessWidget {
-  const AleraMenuItem({
-    super.key,
-    required this.label,
-    required this.selected,
-    required this.onTap,
-    this.active = false,
-    this.onHover,
-    this.leading,
-    this.subtitle,
-    this.enabled = true,
-  });
-
-  final String label;
-  final bool selected;
-  final VoidCallback onTap;
-  final bool active;
-  final VoidCallback? onHover;
-  final Widget? leading;
-  final String? subtitle;
-  final bool enabled;
-
+class const AleraMenuItem({
+  super.key,
+  required final String label,
+  required final bool selected,
+  required final VoidCallback onTap,
+  final bool active = false,
+  final VoidCallback? onHover,
+  final Widget? leading,
+  final String? subtitle,
+  final bool enabled = true,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -76,18 +65,18 @@ class AleraMenuItem extends StatelessWidget {
                 Expanded(
                   child: hasSubtitle
                       ? Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                          crossAxisAlignment: .start,
                           children: <Widget>[
                             Text(
                               label,
-                              overflow: TextOverflow.ellipsis,
+                              overflow: .ellipsis,
                               maxLines: 1,
                               style: labelStyle,
                             ),
                             const SizedBox(height: AleraTokens.space2),
                             Text(
                               subtitle!,
-                              overflow: TextOverflow.ellipsis,
+                              overflow: .ellipsis,
                               maxLines: 1,
                               style: theme.textTheme.labelSmall?.copyWith(
                                 color: AleraTokens.foregroundFaint,
@@ -97,7 +86,7 @@ class AleraMenuItem extends StatelessWidget {
                         )
                       : Text(
                           label,
-                          overflow: TextOverflow.ellipsis,
+                          overflow: .ellipsis,
                           maxLines: 1,
                           style: labelStyle,
                         ),

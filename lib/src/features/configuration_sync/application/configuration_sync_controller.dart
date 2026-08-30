@@ -1,4 +1,5 @@
 import 'dart:io';
+
 import 'package:alera_configuration/alera_configuration.dart';
 import 'package:alera/src/features/settings/application/settings_providers.dart';
 import 'package:alera/src/shared/infra/runtime/runtime_host_providers.dart';
@@ -86,9 +87,8 @@ class ConfigurationSyncController extends _$ConfigurationSyncController {
       final next = await operation();
       if (ref.mounted) state = AsyncData(next);
     } catch (error, stack) {
-      Logger(
-        'ConfigurationSync',
-      ).warning('Configuration operation failed', error, stack);
+      Logger('ConfigurationSync')
+          .warning('Configuration operation failed', error, stack);
       if (!ref.mounted) return;
       var previous = state.requireValue;
       try {

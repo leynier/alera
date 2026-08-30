@@ -11,21 +11,22 @@ import 'browser_platform.dart';
 import 'native_browser_platform.dart';
 
 /// Stable public entry point for browser tabs and headless automation leases.
-final class AleraBrowserClient {
-  AleraBrowserClient({
-    AleraBrowserPlatform? platform,
-    AleraBrowserCallbacks callbacks = const AleraBrowserCallbacks(),
-    DateTime Function()? now,
-  }) : _platform =
-           platform ??
-           NativeAleraBrowserPlatform(callbacks: callbacks, now: now),
-       _now = now ?? DateTime.now;
+final class AleraBrowserClient({
+  AleraBrowserPlatform? platform,
+  AleraBrowserCallbacks callbacks = const AleraBrowserCallbacks(),
+  DateTime Function()? now,
+}) {
+  this
+    : _platform =
+          platform ??
+          NativeAleraBrowserPlatform(callbacks: callbacks, now: now),
+      _now = now ?? DateTime.now;
 
   static const Duration _gestureLifetime = Duration(seconds: 15);
 
   final AleraBrowserPlatform _platform;
   final DateTime Function() _now;
-  final Random _random = Random.secure();
+  final Random _random = .secure();
   final Map<String, Set<String>> _attachmentLeases = <String, Set<String>>{};
   final Map<String, Future<void>> _attachmentTransitions =
       <String, Future<void>>{};

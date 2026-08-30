@@ -32,19 +32,17 @@ enum CodexThreadGoalStatus {
 }
 
 @immutable
-class CodexThreadGoal {
-  const CodexThreadGoal({
-    required this.threadId,
-    required this.objective,
-    required this.status,
-    required this.tokensUsed,
-    required this.timeUsedSeconds,
-    required this.createdAt,
-    required this.updatedAt,
-    this.tokenBudget,
-  });
-
-  factory CodexThreadGoal.fromJson(Object? value) {
+class const CodexThreadGoal({
+  required final String threadId,
+  required final String objective,
+  required final CodexThreadGoalStatus status,
+  required final int tokensUsed,
+  required final int timeUsedSeconds,
+  required final DateTime createdAt,
+  required final DateTime updatedAt,
+  final int? tokenBudget,
+}) {
+  factory fromJson(Object? value) {
     final json = _map(value);
     return CodexThreadGoal(
       threadId: _string(json['threadId']) ?? '',
@@ -53,25 +51,16 @@ class CodexThreadGoal {
       tokenBudget: _int(json['tokenBudget']),
       tokensUsed: _int(json['tokensUsed']) ?? 0,
       timeUsedSeconds: _int(json['timeUsedSeconds']) ?? 0,
-      createdAt: DateTime.fromMillisecondsSinceEpoch(
+      createdAt: .fromMillisecondsSinceEpoch(
         (_int(json['createdAt']) ?? 0) * 1000,
         isUtc: true,
       ),
-      updatedAt: DateTime.fromMillisecondsSinceEpoch(
+      updatedAt: .fromMillisecondsSinceEpoch(
         (_int(json['updatedAt']) ?? 0) * 1000,
         isUtc: true,
       ),
     );
   }
-
-  final String threadId;
-  final String objective;
-  final CodexThreadGoalStatus status;
-  final int? tokenBudget;
-  final int tokensUsed;
-  final int timeUsedSeconds;
-  final DateTime createdAt;
-  final DateTime updatedAt;
 
   Map<String, Object?> toJson() => <String, Object?>{
     'threadId': threadId,

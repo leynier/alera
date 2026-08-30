@@ -176,12 +176,9 @@ void main() {
   });
 }
 
-class _FakePathProviderPlatform extends PathProviderPlatform
+class _FakePathProviderPlatform(final String applicationSupportPath)
+    extends PathProviderPlatform
     with MockPlatformInterfaceMixin {
-  _FakePathProviderPlatform(this.applicationSupportPath);
-
-  final String applicationSupportPath;
-
   @override
   Future<String?> getApplicationSupportPath() async => applicationSupportPath;
 }

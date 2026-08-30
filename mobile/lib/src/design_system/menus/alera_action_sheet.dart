@@ -5,33 +5,26 @@ import 'package:flutter/material.dart';
 ///
 /// [leading] is a widget rather than an [IconData] so a caller can pass an
 /// agent identity glyph instead of a Material icon.
-class AleraActionSheetEntry<T> {
-  const AleraActionSheetEntry({
-    required this.value,
-    required this.label,
-    required this.leading,
-  });
-
-  final T value;
-  final String label;
-  final Widget leading;
-}
+class const AleraActionSheetEntry<T>({
+  required final T value,
+  required final String label,
+  required final Widget leading,
+});
 
 /// Bottom sheet of mutually exclusive actions. Pops the tapped entry's value
 /// from the [Navigator] and pops `null` when dismissed.
 ///
 /// This is the phone counterpart of the desktop popup menu: rows are a full
 /// tap target tall instead of the pointer-sized rows a popover can afford.
-class AleraActionSheet<T> extends StatelessWidget {
-  const AleraActionSheet({super.key, required this.entries});
-
-  final List<AleraActionSheetEntry<T>> entries;
-
+class const AleraActionSheet<T>({
+  super.key,
+  required final List<AleraActionSheetEntry<T>> entries,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SafeArea(
       child: Column(
-        mainAxisSize: MainAxisSize.min,
+        mainAxisSize: .min,
         children: <Widget>[
           for (final entry in entries)
             ListTile(

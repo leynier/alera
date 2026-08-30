@@ -1,8 +1,7 @@
 part of 'project_workbench_sidebar.dart';
 
-class ProjectWorkbenchSidebar extends ConsumerStatefulWidget {
-  const ProjectWorkbenchSidebar({super.key});
-
+class const ProjectWorkbenchSidebar({super.key})
+    extends ConsumerStatefulWidget {
   @override
   ConsumerState<ProjectWorkbenchSidebar> createState() =>
       _ProjectWorkbenchSidebarState();
@@ -72,7 +71,7 @@ class _ProjectWorkbenchSidebarState
               ),
             ),
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
+              crossAxisAlignment: .stretch,
               children: <Widget>[
                 SidebarBrandRow(
                   collapsed: false,

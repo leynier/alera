@@ -21,25 +21,23 @@ enum AiDictationTranscriptionEngine {
 enum AiDictationRewriteMode { off, cleanUp, summarize }
 
 @MappableClass()
-class AiDictationSettings with AiDictationSettingsMappable {
-  const AiDictationSettings({
-    this.enabled = false,
-    this.transcriptionEngine = AiDictationTranscriptionEngine.localWhisper,
-    this.rewriteMode = AiDictationRewriteMode.off,
-    this.providerPolicy = AiDictationProviderPolicy.localPreferred,
-    this.language,
-    this.localModelId = 'whisper-cpp-base',
-    this.hostFallbackEnabled = true,
-    this.providerFallbackEnabled = false,
-    this.remoteBaseUrl = 'https://api.openai.com/v1',
-    this.remoteModel = 'gpt-4o-mini-transcribe',
-    this.codexRealtimeModel,
-    this.remoteProvider = AiDictationFallbackProvider.openAiCompatible,
-    this.timeoutSeconds = 60,
-    this.remoteConsentVersion,
-    this.systemRecognitionConsentVersion,
-  });
-
+class const AiDictationSettings({
+  this.enabled = false,
+  this.transcriptionEngine = AiDictationTranscriptionEngine.localWhisper,
+  this.rewriteMode = AiDictationRewriteMode.off,
+  this.providerPolicy = AiDictationProviderPolicy.localPreferred,
+  this.language,
+  this.localModelId = 'whisper-cpp-base',
+  this.hostFallbackEnabled = true,
+  this.providerFallbackEnabled = false,
+  this.remoteBaseUrl = 'https://api.openai.com/v1',
+  this.remoteModel = 'gpt-4o-mini-transcribe',
+  this.codexRealtimeModel,
+  this.remoteProvider = AiDictationFallbackProvider.openAiCompatible,
+  this.timeoutSeconds = 60,
+  this.remoteConsentVersion,
+  this.systemRecognitionConsentVersion,
+}) with AiDictationSettingsMappable {
   final bool enabled;
   final AiDictationTranscriptionEngine transcriptionEngine;
   final AiDictationRewriteMode rewriteMode;
@@ -58,6 +56,6 @@ class AiDictationSettings with AiDictationSettingsMappable {
 
   static const AiDictationSettings defaults = AiDictationSettings();
 
-  factory AiDictationSettings.fromJson(Map<String, Object?> json) =>
+  factory fromJson(Map<String, Object?> json) =>
       AiDictationSettingsMapper.fromMap(Map<String, dynamic>.from(json));
 }

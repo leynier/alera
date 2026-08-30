@@ -13,11 +13,8 @@ abstract interface class AiDictationSpeechProcessor {
   Future<void> cancel(String operationId);
 }
 
-class RuntimeAiDictationSpeechProcessor implements AiDictationSpeechProcessor {
-  const RuntimeAiDictationSpeechProcessor(this._client);
-
-  final RuntimeHostClient _client;
-
+class const RuntimeAiDictationSpeechProcessor(final RuntimeHostClient _client)
+    implements AiDictationSpeechProcessor {
   @override
   Future<AiDictationSpeechProcessingResult> process({
     required String operationId,
@@ -25,14 +22,16 @@ class RuntimeAiDictationSpeechProcessor implements AiDictationSpeechProcessor {
     required AiDictationRewriteMode mode,
     required AiDictationTarget target,
   }) async {
-    final value = await _client
-        .runtimeRequest('aiText.speechMessage.generate', <String, Object?>{
-          'operationId': operationId,
-          'text': text,
-          'mode': mode.name,
-          'workspaceId': ?target.workspaceId,
-          'tabId': ?target.tabId,
-        });
+    final value = await _client.runtimeRequest(
+      'aiText.speechMessage.generate',
+      <String, Object?>{
+        'operationId': operationId,
+        'text': text,
+        'mode': mode.name,
+        'workspaceId': ?target.workspaceId,
+        'tabId': ?target.tabId,
+      },
+    );
     if (value is! Map) {
       throw StateError('The speech processing response was invalid.');
     }
@@ -55,14 +54,8 @@ class RuntimeAiDictationSpeechProcessor implements AiDictationSpeechProcessor {
   }
 }
 
-class AiDictationSpeechProcessingResult {
-  const AiDictationSpeechProcessingResult({
-    required this.text,
-    required this.agentLabel,
-    required this.model,
-  });
-
-  final String text;
-  final String agentLabel;
-  final String model;
-}
+class const AiDictationSpeechProcessingResult({
+  required final String text,
+  required final String agentLabel,
+  required final String model,
+});

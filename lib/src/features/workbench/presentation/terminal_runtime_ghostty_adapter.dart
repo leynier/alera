@@ -94,7 +94,7 @@ class _GhosttyTerminalPtySessionAdapter implements TerminalPtySession {
     if (_disposed || session == null || bytes.isEmpty) {
       return false;
     }
-    return session.writeBytes(Uint8List.fromList(bytes)) > 0;
+    return session.writeBytes(.fromList(bytes)) > 0;
   }
 
   @override

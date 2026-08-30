@@ -50,7 +50,7 @@ void main() {
     await tester.tap(find.byTooltip('Open DevTools'));
     await tester.tap(find.byTooltip('Open Externally'));
     await tester.enterText(find.byType(TextField), 'example.org');
-    await tester.testTextInput.receiveAction(TextInputAction.done);
+    await tester.testTextInput.receiveAction(.done);
 
     expect(actions, <String>[
       'back',
@@ -158,7 +158,7 @@ BrowserPageState _state({bool loading = false, bool canGoBack = false}) {
     workspaceId: 'workspace-1',
     profileId: 'default',
     initialUrl: Uri.parse('https://example.com'),
-    createdAt: DateTime.utc(2026, 7, 27),
+    createdAt: .utc(2026, 7, 27),
   );
   return BrowserPageState.initial(page).copyWith(
     url: Uri.parse('https://example.com'),
@@ -166,7 +166,7 @@ BrowserPageState _state({bool loading = false, bool canGoBack = false}) {
     loadProgress: loading ? 0.5 : null,
     canGoBack: canGoBack,
     security: const BrowserSecurityState(
-      level: BrowserSecurityLevel.secure,
+      level: .secure,
       origin: 'https://example.com',
     ),
   );

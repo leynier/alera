@@ -4,11 +4,8 @@ import 'package:alera/src/features/ai_dictation/domain/ai_dictation_request.dart
 import 'package:alera/src/features/ai_dictation/domain/ai_dictation_result.dart';
 import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_protocol.dart';
 
-class RuntimeAiDictationProvider implements AiDictationProvider {
-  RuntimeAiDictationProvider(this._client);
-
-  final RuntimeHostClient _client;
-
+class RuntimeAiDictationProvider(final RuntimeHostClient _client)
+    implements AiDictationProvider {
   @override
   String get id => 'runtime-whisper';
 
@@ -17,25 +14,28 @@ class RuntimeAiDictationProvider implements AiDictationProvider {
     final engine = request.remoteEngine;
     if (engine == null) {
       throw const AiDictationException(
-        AiDictationErrorKind.invalidRequest,
+        .invalidRequest,
         'A remote dictation engine is required.',
       );
     }
     try {
-      final value = await _client
-          .runtimeRequest('aiDictation.transcribe', <String, Object?>{
-            'requestId': request.requestId,
-            'audioPath': request.audioPath,
-            'engine': switch (engine) {
-              AiDictationRemoteEngine.codexSubscription => 'codexSubscription',
-              AiDictationRemoteEngine.openAiCompatible => 'openAiCompatible',
-            },
-            'baseUrl': request.providerBaseUrl,
-            'modelId': request.providerModel,
-            'language': request.language,
-            'initialPrompt': request.initialPrompt,
-            'timeoutSeconds': request.timeout?.inSeconds,
-          }, request.timeout);
+      final value = await _client.runtimeRequest(
+        'aiDictation.transcribe',
+        <String, Object?>{
+          'requestId': request.requestId,
+          'audioPath': request.audioPath,
+          'engine': switch (engine) {
+            AiDictationRemoteEngine.codexSubscription => 'codexSubscription',
+            AiDictationRemoteEngine.openAiCompatible => 'openAiCompatible',
+          },
+          'baseUrl': request.providerBaseUrl,
+          'modelId': request.providerModel,
+          'language': request.language,
+          'initialPrompt': request.initialPrompt,
+          'timeoutSeconds': request.timeout?.inSeconds,
+        },
+        request.timeout,
+      );
       if (value is! Map) {
         throw const FormatException('Invalid runtime dictation response.');
       }
@@ -56,7 +56,7 @@ class RuntimeAiDictationProvider implements AiDictationProvider {
       rethrow;
     } on Object catch (error) {
       throw AiDictationException(
-        AiDictationErrorKind.transcription,
+        .transcription,
         'Runtime Whisper transcription failed.',
         cause: error,
       );

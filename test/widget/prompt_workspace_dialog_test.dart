@@ -96,12 +96,12 @@ void main() {
                                 branch: newBranchName,
                                 sourceBranch: sourceBranch,
                                 path: '/repo/alera-workspace',
-                                kind: WorkspaceKind.linked,
-                                status: WorkspaceStatus.active,
+                                kind: .linked,
+                                status: .active,
                                 createdAt: now,
                                 updatedAt: now,
                               ),
-                              setupReport: WorktreeSetupReport.empty,
+                              setupReport: .empty,
                             );
                           },
                       launchAgent:
@@ -182,7 +182,7 @@ void main() {
       projectId: project.id,
       name: 'Feature Workspace',
       branch: 'feat/parent',
-      kind: WorkspaceKind.linked,
+      kind: .linked,
       now: now,
     );
     var createAnotherCallbacks = 0;
@@ -228,12 +228,12 @@ void main() {
                               branch: newBranchName,
                               sourceBranch: sourceBranch,
                               path: '/repo/alera-workspace',
-                              kind: WorkspaceKind.linked,
-                              status: WorkspaceStatus.active,
+                              kind: .linked,
+                              status: .active,
                               createdAt: now,
                               updatedAt: now,
                             ),
-                            setupReport: WorktreeSetupReport.empty,
+                            setupReport: .empty,
                           );
                         },
                     launchAgent:
@@ -328,7 +328,7 @@ void main() {
         projectId: alera.id,
         name: 'Alera',
         branch: 'main',
-        kind: WorkspaceKind.main,
+        kind: .main,
         now: now,
       );
       final orcaMain = _workspace(
@@ -336,7 +336,7 @@ void main() {
         projectId: orca.id,
         name: 'Orca',
         branch: 'main',
-        kind: WorkspaceKind.main,
+        kind: .main,
         now: now,
       );
       final orcaFeature = _workspace(
@@ -344,7 +344,7 @@ void main() {
         projectId: orca.id,
         name: 'Feature Workspace',
         branch: 'feat/other',
-        kind: WorkspaceKind.linked,
+        kind: .linked,
         now: now,
       );
       String? createdParentWorkspaceId;
@@ -393,10 +393,10 @@ void main() {
                                 projectId: project.id,
                                 name: name,
                                 branch: newBranchName,
-                                kind: WorkspaceKind.linked,
+                                kind: .linked,
                                 now: now,
                               ),
-                              setupReport: WorktreeSetupReport.empty,
+                              setupReport: .empty,
                             );
                           },
                       launchAgent:

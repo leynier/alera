@@ -7,27 +7,16 @@ enum MobileAiDictationStage {
   improving,
 }
 
-class MobileAiDictationState {
-  const MobileAiDictationState({
-    this.stage = MobileAiDictationStage.idle,
-    this.elapsed = Duration.zero,
-    this.duration = Duration.zero,
-    this.playbackPosition = Duration.zero,
-    this.amplitude = 0,
-    this.audioReviewAvailable = false,
-    this.segmentCount = 0,
-    this.warning,
-  });
-
-  final MobileAiDictationStage stage;
-  final Duration elapsed;
-  final Duration duration;
-  final Duration playbackPosition;
-  final double amplitude;
-  final bool audioReviewAvailable;
-  final int segmentCount;
-  final String? warning;
-
+class const MobileAiDictationState({
+  final MobileAiDictationStage stage = MobileAiDictationStage.idle,
+  final Duration elapsed = Duration.zero,
+  final Duration duration = Duration.zero,
+  final Duration playbackPosition = Duration.zero,
+  final double amplitude = 0,
+  final bool audioReviewAvailable = false,
+  final int segmentCount = 0,
+  final String? warning,
+}) {
   bool get hasRecording =>
       stage == MobileAiDictationStage.recorded ||
       stage == MobileAiDictationStage.playing;

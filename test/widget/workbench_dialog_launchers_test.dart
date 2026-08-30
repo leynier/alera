@@ -90,7 +90,7 @@ void main() {
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();
       await tester.enterText(find.byType(TextField), 'From keyboard');
-      await tester.testTextInput.receiveAction(TextInputAction.done);
+      await tester.testTextInput.receiveAction(.done);
       await tester.pumpAndSettle();
 
       expect(submitted, 'From keyboard');
@@ -205,7 +205,7 @@ void main() {
         final controller = DialogLaunchersTestController(
           WorkbenchState(
             projects: <Project>[
-              buildProject('folder-project', 'Notes', kind: ProjectKind.folder),
+              buildProject('folder-project', 'Notes', kind: .folder),
             ],
           ),
         );
@@ -324,7 +324,7 @@ void main() {
             ..setupReport = const WorktreeSetupReport(
               steps: <WorktreeSetupStepReport>[
                 WorktreeSetupStepReport(
-                  kind: WorktreeSetupStepKind.command,
+                  kind: .command,
                   label: 'make bootstrap',
                   succeeded: false,
                   message: 'failed',

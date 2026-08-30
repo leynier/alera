@@ -17,17 +17,11 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 part 'agent_usage_providers.g.dart';
 
-class AgentUsageState {
-  const AgentUsageState({
-    required this.snapshot,
-    this.refreshing = false,
-    this.error,
-  });
-
-  final AgentUsageSnapshot snapshot;
-  final bool refreshing;
-  final String? error;
-}
+class const AgentUsageState({
+  required final AgentUsageSnapshot snapshot,
+  final bool refreshing = false,
+  final String? error,
+});
 
 @Riverpod(keepAlive: true)
 AgentUsageSnapshotCache agentUsageSnapshotCache(Ref ref) {

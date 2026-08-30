@@ -12,11 +12,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 /// [TerminalSurface]), so those events never bubble here. When focus is on the
 /// sidebar, a dialog, or no editable field, unhandled chords bubble up to this
 /// ancestor [Focus] and are dispatched.
-class KeyboardShortcutsScope extends ConsumerWidget {
-  const KeyboardShortcutsScope({super.key, required this.child});
-
-  final Widget child;
-
+class const KeyboardShortcutsScope({super.key, required final Widget child})
+    extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return Focus(
@@ -36,7 +33,7 @@ class KeyboardShortcutsScope extends ConsumerWidget {
     }
     final keyboard = ref.read(settingsControllerProvider).keyboard;
     final resolver = KeybindingResolver(settings: keyboard);
-    final modifiers = KeyModifierState.fromKeyboard(HardwareKeyboard.instance);
+    final modifiers = KeyModifierState.fromKeyboard(.instance);
     final resolved = resolver.resolveAction(event, modifiers);
     if (resolved == null) {
       return KeyEventResult.ignored;

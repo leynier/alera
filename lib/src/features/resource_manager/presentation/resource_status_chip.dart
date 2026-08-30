@@ -6,20 +6,13 @@ import 'package:flutter/material.dart';
 
 /// Status-bar chip: total memory plus the running session count, with the
 /// orphan count called out when there is one.
-class ResourceStatusChip extends StatelessWidget {
-  const ResourceStatusChip({
-    super.key,
-    required this.snapshot,
-    required this.sessionCount,
-    required this.orphanCount,
-    required this.onPressed,
-  });
-
-  final ResourceSnapshot snapshot;
-  final int sessionCount;
-  final int orphanCount;
-  final VoidCallback onPressed;
-
+class const ResourceStatusChip({
+  super.key,
+  required final ResourceSnapshot snapshot,
+  required final int sessionCount,
+  required final int orphanCount,
+  required final VoidCallback onPressed,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final memory = snapshot.hasReading
@@ -41,7 +34,7 @@ class ResourceStatusChip extends StatelessWidget {
               border: Border(left: BorderSide(color: AleraTokens.borderSubtle)),
             ),
             child: Row(
-              mainAxisSize: MainAxisSize.min,
+              mainAxisSize: .min,
               children: <Widget>[
                 const Icon(
                   AleraIcons.resources,

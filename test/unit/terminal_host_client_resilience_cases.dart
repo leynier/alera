@@ -289,7 +289,7 @@ void _registerTerminalHostClientResilienceTests() {
       final client = SocketTerminalHostClient(
         launcher: launcher,
         applicationSupportDirectory: () async => tempDir,
-        startupTimeout: Duration.zero,
+        startupTimeout: .zero,
       );
       addTearDown(client.dispose);
 
@@ -330,7 +330,7 @@ void _registerTerminalHostClientResilienceTests() {
     );
     addTearDown(client.dispose);
 
-    await client.ensureStarted(config: TerminalHostConfig.defaults);
+    await client.ensureStarted(config: .defaults);
     final runtimeEvent = client.runtimeEvents.first;
 
     server.send(<String, Object?>{
@@ -351,7 +351,7 @@ Future<void> _waitForServerRequestCount(
   final deadline = DateTime.now().add(const Duration(seconds: 1));
   while (server.requests.length < expected &&
       DateTime.now().isBefore(deadline)) {
-    await Future<void>.delayed(const Duration(milliseconds: 1));
+    await Future.pause(const Duration(milliseconds: 1));
   }
   expect(server.requests.length, greaterThanOrEqualTo(expected));
 }

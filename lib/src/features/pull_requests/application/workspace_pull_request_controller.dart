@@ -16,7 +16,6 @@ import 'package:alera/src/shared/git_hosting/application/hosting_provider_resolv
 import 'package:alera/src/shared/git_hosting/domain/git_remote_identity.dart';
 import 'package:alera/src/features/pull_requests/domain/hosted_review.dart';
 import 'package:alera/src/features/pull_requests/domain/hosted_review_stack.dart';
-import 'package:alera/src/features/pull_requests/domain/linked_review.dart';
 import 'package:alera/src/features/pull_requests/domain/review_check.dart';
 import 'package:alera/src/features/pull_requests/domain/review_check_details.dart';
 import 'package:alera/src/features/pull_requests/domain/review_comment.dart';
@@ -88,7 +87,7 @@ class WorkspacePullRequestController extends _$WorkspacePullRequestController
   }
 
   /// Reloads review + checks now.
-  Future<void> refresh() => _refresh(origin: _RefreshOrigin.manual);
+  Future<void> refresh() => _refresh(origin: .manual);
 
   /// Marks one visible panel as attached and revalidates any cached snapshot.
   void attachPanel() {
@@ -104,7 +103,7 @@ class WorkspacePullRequestController extends _$WorkspacePullRequestController
     if (state.value != null) {
       Timer.run(() {
         if (!_disposed && _visible) {
-          unawaited(_refresh(origin: _RefreshOrigin.resume));
+          unawaited(_refresh(origin: .resume));
         }
       });
       return;
@@ -162,7 +161,7 @@ class WorkspacePullRequestController extends _$WorkspacePullRequestController
   Future<void> link(String reference) {
     return _run(
       scope: scope,
-      action: PullRequestAction.link,
+      action: .link,
       body: () async {
         final identity = state.value?.identity;
         final forge = identity == null
@@ -184,7 +183,7 @@ class WorkspacePullRequestController extends _$WorkspacePullRequestController
           throw _ActionError('No pull request #$number was found.');
         }
         await _linkedReviews.save(
-          LinkedReview.linked(
+          .linked(
             workspaceId: scope.workspaceId,
             provider: identity.provider,
             number: number,
@@ -199,14 +198,14 @@ class WorkspacePullRequestController extends _$WorkspacePullRequestController
   Future<void> unlink() {
     return _run(
       scope: scope,
-      action: PullRequestAction.unlink,
+      action: .unlink,
       body: () async {
         final review = state.value?.review;
         if (review == null) {
           throw const _ActionError('No linked pull request to unlink.');
         }
         await _linkedReviews.save(
-          LinkedReview.dismissal(
+          .dismissal(
             workspaceId: scope.workspaceId,
             provider: review.provider,
             number: review.number,
@@ -339,9 +338,8 @@ class WorkspacePullRequestController extends _$WorkspacePullRequestController
         final reloaded = await _loader.load(scope);
         if (!_disposed) {
           state = AsyncData(
-            _applyPendingCommentBodies(
-              reloaded,
-            ).copyWith(clearAction: true, errorMessage: message),
+            _applyPendingCommentBodies(reloaded)
+                .copyWith(clearAction: true, errorMessage: message),
           );
           _resetPollInterval();
           return;
@@ -391,9 +389,7 @@ class WorkspacePullRequestController extends _$WorkspacePullRequestController
     if (origin != _RefreshOrigin.poll) {
       _resetPollInterval();
     }
-    state = AsyncData(
-      current.copyWith(action: PullRequestAction.refresh, clearError: true),
-    );
+    state = AsyncData(current.copyWith(action: .refresh, clearError: true));
 
     try {
       final reloaded = await _loader.load(scope);
@@ -462,24 +458,15 @@ class WorkspacePullRequestController extends _$WorkspacePullRequestController
 
   Future<void> _pollTick(WorkspacePullRequestScope scope) async {
     _pollTimer = null;
-    await _refresh(origin: _RefreshOrigin.poll);
+    await _refresh(origin: .poll);
   }
 }
 
 enum _RefreshOrigin { manual, poll, resume }
 
-class _ActionError implements Exception {
-  const _ActionError(this.message);
+class const _ActionError(final String message) implements Exception;
 
-  final String message;
-}
-
-class _PendingReviewCommentSave {
-  const _PendingReviewCommentSave({
-    required this.originalBody,
-    required this.optimisticBody,
-  });
-
-  final String originalBody;
-  final String optimisticBody;
-}
+class const _PendingReviewCommentSave({
+  required final String originalBody,
+  required final String optimisticBody,
+});

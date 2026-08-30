@@ -1,14 +1,12 @@
 part of 'mobile_codex_state.dart';
 
 @immutable
-class MobileCodexCwdOption {
-  const MobileCodexCwdOption({
-    required this.workspaceId,
-    required this.name,
-    required this.path,
-  });
-
-  factory MobileCodexCwdOption.fromJson(Object? value) {
+class const MobileCodexCwdOption({
+  required final String workspaceId,
+  required final String name,
+  required final String path,
+}) {
+  factory fromJson(Object? value) {
     final json = _map(value);
     return MobileCodexCwdOption(
       workspaceId: _string(json['workspaceId']) ?? '',
@@ -16,10 +14,6 @@ class MobileCodexCwdOption {
       path: _string(json['path']) ?? '',
     );
   }
-
-  final String workspaceId;
-  final String name;
-  final String path;
 
   @override
   bool operator ==(Object other) =>
@@ -33,20 +27,18 @@ class MobileCodexCwdOption {
 }
 
 @immutable
-class MobileCodexThreadSummary {
-  const MobileCodexThreadSummary({
-    required this.id,
-    required this.title,
-    this.preview,
-    this.cwd,
-    this.workspaceId,
-    this.workspaceName,
-    this.boundTabId,
-    this.boundWorkspaceId,
-    this.canResume = true,
-  });
-
-  factory MobileCodexThreadSummary.fromJson(Object? value) {
+class const MobileCodexThreadSummary({
+  required final String id,
+  required final String title,
+  final String? preview,
+  final String? cwd,
+  final String? workspaceId,
+  final String? workspaceName,
+  final String? boundTabId,
+  final String? boundWorkspaceId,
+  final bool canResume = true,
+}) {
+  factory fromJson(Object? value) {
     final json = _map(value);
     return MobileCodexThreadSummary(
       id: _string(json['threadId'] ?? json['id']) ?? '',
@@ -65,28 +57,17 @@ class MobileCodexThreadSummary {
     );
   }
 
-  final String id;
-  final String title;
-  final String? preview;
-  final String? cwd;
-  final String? workspaceId;
-  final String? workspaceName;
-  final String? boundTabId;
-  final String? boundWorkspaceId;
-  final bool canResume;
-
   bool get isBound => boundTabId != null && boundTabId!.isNotEmpty;
 }
 
 @immutable
-class MobileCodexThreadPage {
-  const MobileCodexThreadPage({
-    this.items = const <MobileCodexThreadSummary>[],
-    this.nextCursor,
-    this.cwdOptions = const <MobileCodexCwdOption>[],
-  });
-
-  factory MobileCodexThreadPage.fromJson(Object? value) {
+class const MobileCodexThreadPage({
+  final List<MobileCodexThreadSummary> items =
+      const <MobileCodexThreadSummary>[],
+  final String? nextCursor,
+  final List<MobileCodexCwdOption> cwdOptions = const <MobileCodexCwdOption>[],
+}) {
+  factory fromJson(Object? value) {
     final json = _map(value);
     final raw = json['items'] ?? json['threads'] ?? json['data'];
     return MobileCodexThreadPage(
@@ -103,10 +84,6 @@ class MobileCodexThreadPage {
     );
   }
 
-  final List<MobileCodexThreadSummary> items;
-  final String? nextCursor;
-  final List<MobileCodexCwdOption> cwdOptions;
-
   MobileCodexThreadPage append(MobileCodexThreadPage next) =>
       MobileCodexThreadPage(
         items: <MobileCodexThreadSummary>[...items, ...next.items],
@@ -116,26 +93,25 @@ class MobileCodexThreadPage {
 }
 
 @immutable
-class MobileCodexThreadHistoryPage {
-  const MobileCodexThreadHistoryPage({required this.snapshot, this.nextCursor});
-
-  factory MobileCodexThreadHistoryPage.fromJson(Object? value) {
+class const MobileCodexThreadHistoryPage({
+  required final MobileCodexState snapshot,
+  final String? nextCursor,
+}) {
+  factory fromJson(Object? value) {
     final json = _map(value);
     return MobileCodexThreadHistoryPage(
-      snapshot: MobileCodexState.fromSnapshot(json['snapshot']),
+      snapshot: .fromSnapshot(json['snapshot']),
       nextCursor: _string(json['nextCursor']),
     );
   }
-
-  final MobileCodexState snapshot;
-  final String? nextCursor;
 }
 
 @immutable
-class MobileCodexThreadRecovery {
-  const MobileCodexThreadRecovery({required this.kind, required this.message});
-
-  factory MobileCodexThreadRecovery.fromJson(Object? value) {
+class const MobileCodexThreadRecovery({
+  required final String kind,
+  required final String message,
+}) {
+  factory fromJson(Object? value) {
     final json = _map(value);
     return MobileCodexThreadRecovery(
       kind: _string(json['kind']) ?? 'missingRollout',
@@ -144,7 +120,4 @@ class MobileCodexThreadRecovery {
           'The saved Codex context is no longer available.',
     );
   }
-
-  final String kind;
-  final String message;
 }

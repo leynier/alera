@@ -14,23 +14,15 @@ const Duration agentStatusNotificationMaxCoalesceDelay = Duration(seconds: 10);
 /// twice within a second, so emitting on every state change puts one entry in
 /// the notification centre per event. Waiting out a short quiet period lets
 /// the coordinator describe the whole burst once.
-class AgentStatusNotificationScheduler {
-  AgentStatusNotificationScheduler({
-    required this.emit,
-    this.coalesceWindow = agentStatusNotificationCoalesceWindow,
-    this.maxCoalesceDelay = agentStatusNotificationMaxCoalesceDelay,
-    this.scheduleTimer = Timer.new,
-    this.now = _systemClock,
-  });
-
-  final Future<void> Function(List<AgentStatusEntry> batch) emit;
+class AgentStatusNotificationScheduler({
+  required final Future<void> Function(List<AgentStatusEntry> batch) emit,
+  final Duration coalesceWindow = agentStatusNotificationCoalesceWindow,
+  final Duration maxCoalesceDelay = agentStatusNotificationMaxCoalesceDelay,
   final Timer Function(Duration duration, void Function() callback)
-  scheduleTimer;
-  final DateTime Function() now;
-
-  final Duration coalesceWindow;
-  final Duration maxCoalesceDelay;
-
+      scheduleTimer =
+      Timer.new,
+  final DateTime Function() now = _systemClock,
+}) {
   /// Latest pending entry per terminal session. A terminal that moves from
   /// `waiting` to `done` inside one window is one event to the user, and the
   /// state it ended on is the one worth telling them about.

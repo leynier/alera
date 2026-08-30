@@ -8,11 +8,7 @@ import 'package:alera/src/shared/infra/storage/drift_database.dart';
 import 'package:logging/logging.dart';
 import 'package:window_manager/window_manager.dart';
 
-class AppWindowBootstrapResult {
-  const AppWindowBootstrapResult({this.database});
-
-  final AleraDatabase? database;
-}
+class const AppWindowBootstrapResult({final AleraDatabase? database});
 
 Future<AppWindowBootstrapResult> bootstrapAppWindowBeforeRunApp() async {
   if (!supportsDesktopAppWindowState) {
@@ -41,9 +37,8 @@ Future<AppWindowBootstrapResult> bootstrapAppWindowBeforeRunApp() async {
       displays: ScreenRetrieverAppWindowDisplayProvider(),
     ).restore();
   } catch (error, stackTrace) {
-    Logger(
-      'AppWindowBootstrap',
-    ).warning('failed to restore app window state', error, stackTrace);
+    Logger('AppWindowBootstrap')
+        .warning('failed to restore app window state', error, stackTrace);
   }
   return AppWindowBootstrapResult(database: db);
 }

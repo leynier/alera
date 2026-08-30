@@ -361,7 +361,7 @@ void _registerMobileCodexSessionTests() {
     final composer = find.byType(TextField).last;
     await tester.enterText(composer, '/audit current.dart');
     await tester.tap(composer);
-    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+    await tester.sendKeyEvent(.enter);
     await tester.pump();
     client.emit(
       const MobileRuntimeEvent('codexThreadChanged', <String, Object?>{
@@ -408,9 +408,8 @@ void _registerMobileCodexSessionTests() {
     );
     final container = ProviderContainer(
       overrides: [
-        mobileCodexClientProvider(
-          'host-disposed-prompt',
-        ).overrideWith((ref) async => client),
+        mobileCodexClientProvider('host-disposed-prompt')
+            .overrideWith((ref) async => client),
       ],
     );
     addTearDown(() {

@@ -3,106 +3,71 @@ enum AleraBrowserEngine { wkWebView, webView2, webKitGtk, unavailable }
 enum AleraBrowserTlsTrustScope { none, page, profileSession }
 
 /// Runtime facts used to gate every browser operation.
-final class AleraBrowserCapabilities {
-  const AleraBrowserCapabilities({
-    required this.engine,
-    required this.engineAvailable,
-    required this.pageSurface,
-    required this.isolatedProfiles,
-    required this.ephemeralProfiles,
-    required this.deterministicPageClose,
-    required this.navigation,
-    required this.navigationEvents,
-    required this.javascript,
-    required this.basicCookies,
-    required this.fullCookies,
-    required this.permissionCallbacks,
-    required this.tlsCallbacks,
-    this.tlsTrustScope = AleraBrowserTlsTrustScope.none,
-    required this.popupCallbacks,
-    required this.downloadCallbacks,
-    required this.domSnapshot,
-    required this.domActions,
-    required this.crossOriginFrameAutomation,
-    required this.nativeFileUpload,
-    required this.trustedInputEvents,
-    required this.viewportScreenshot,
-    required this.fullPageScreenshot,
-    required this.pdf,
-    required this.flutterOverlayOcclusion,
-    required this.atomicCookieImport,
-    required this.manualJsonCookieImport,
-    this.engineVersion,
-    this.linuxGtkOverlay,
-    this.nativeCookieImportSources = const <String>{},
-    this.requiredNativeCookieImportSources = const <String>{},
-    this.limitations = const <String>[],
-  });
-
-  const AleraBrowserCapabilities.unavailable({
-    required List<String> limitations,
-  }) : this(
-         engine: AleraBrowserEngine.unavailable,
-         engineAvailable: false,
-         pageSurface: false,
-         isolatedProfiles: false,
-         ephemeralProfiles: false,
-         deterministicPageClose: false,
-         navigation: false,
-         navigationEvents: false,
-         javascript: false,
-         basicCookies: false,
-         fullCookies: false,
-         permissionCallbacks: false,
-         tlsCallbacks: false,
-         popupCallbacks: false,
-         downloadCallbacks: false,
-         domSnapshot: false,
-         domActions: false,
-         crossOriginFrameAutomation: false,
-         nativeFileUpload: false,
-         trustedInputEvents: false,
-         viewportScreenshot: false,
-         fullPageScreenshot: false,
-         pdf: false,
-         flutterOverlayOcclusion: false,
-         atomicCookieImport: false,
-         manualJsonCookieImport: false,
-         limitations: limitations,
-       );
-
-  final AleraBrowserEngine engine;
-  final String? engineVersion;
-  final bool engineAvailable;
-  final bool pageSurface;
-  final bool isolatedProfiles;
-  final bool ephemeralProfiles;
-  final bool deterministicPageClose;
-  final bool navigation;
-  final bool navigationEvents;
-  final bool javascript;
-  final bool basicCookies;
-  final bool fullCookies;
-  final bool permissionCallbacks;
-  final bool tlsCallbacks;
-  final AleraBrowserTlsTrustScope tlsTrustScope;
-  final bool popupCallbacks;
-  final bool downloadCallbacks;
-  final bool domSnapshot;
-  final bool domActions;
-  final bool crossOriginFrameAutomation;
-  final bool nativeFileUpload;
-  final bool trustedInputEvents;
-  final bool viewportScreenshot;
-  final bool fullPageScreenshot;
-  final bool pdf;
-  final bool flutterOverlayOcclusion;
-  final bool atomicCookieImport;
-  final bool manualJsonCookieImport;
-  final bool? linuxGtkOverlay;
-  final Set<String> nativeCookieImportSources;
-  final Set<String> requiredNativeCookieImportSources;
-  final List<String> limitations;
+final class const AleraBrowserCapabilities({
+  required final AleraBrowserEngine engine,
+  required final bool engineAvailable,
+  required final bool pageSurface,
+  required final bool isolatedProfiles,
+  required final bool ephemeralProfiles,
+  required final bool deterministicPageClose,
+  required final bool navigation,
+  required final bool navigationEvents,
+  required final bool javascript,
+  required final bool basicCookies,
+  required final bool fullCookies,
+  required final bool permissionCallbacks,
+  required final bool tlsCallbacks,
+  final AleraBrowserTlsTrustScope tlsTrustScope =
+      AleraBrowserTlsTrustScope.none,
+  required final bool popupCallbacks,
+  required final bool downloadCallbacks,
+  required final bool domSnapshot,
+  required final bool domActions,
+  required final bool crossOriginFrameAutomation,
+  required final bool nativeFileUpload,
+  required final bool trustedInputEvents,
+  required final bool viewportScreenshot,
+  required final bool fullPageScreenshot,
+  required final bool pdf,
+  required final bool flutterOverlayOcclusion,
+  required final bool atomicCookieImport,
+  required final bool manualJsonCookieImport,
+  final String? engineVersion,
+  final bool? linuxGtkOverlay,
+  final Set<String> nativeCookieImportSources = const <String>{},
+  final Set<String> requiredNativeCookieImportSources = const <String>{},
+  final List<String> limitations = const <String>[],
+}) {
+  const new unavailable({required List<String> limitations})
+    : this(
+        engine: .unavailable,
+        engineAvailable: false,
+        pageSurface: false,
+        isolatedProfiles: false,
+        ephemeralProfiles: false,
+        deterministicPageClose: false,
+        navigation: false,
+        navigationEvents: false,
+        javascript: false,
+        basicCookies: false,
+        fullCookies: false,
+        permissionCallbacks: false,
+        tlsCallbacks: false,
+        popupCallbacks: false,
+        downloadCallbacks: false,
+        domSnapshot: false,
+        domActions: false,
+        crossOriginFrameAutomation: false,
+        nativeFileUpload: false,
+        trustedInputEvents: false,
+        viewportScreenshot: false,
+        fullPageScreenshot: false,
+        pdf: false,
+        flutterOverlayOcclusion: false,
+        atomicCookieImport: false,
+        manualJsonCookieImport: false,
+        limitations: limitations,
+      );
 
   Set<String> get platformRequiredNativeCookieImportSources => switch (engine) {
     AleraBrowserEngine.wkWebView => const <String>{

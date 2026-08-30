@@ -5,21 +5,16 @@ import 'package:alera/src/features/projects/infra/runtime_project_management_cli
 import 'package:path/path.dart' as p;
 import 'package:uuid/uuid.dart';
 
-class ProjectsService {
-  ProjectsService({
-    required this._projectService,
-    required this._projectRepository,
-    this.removeProjectConfigOverride,
-    this.runtimeProjectManagement,
-    Uuid? uuid,
-    DateTime Function()? now,
-  }) : _uuid = uuid ?? const Uuid(),
-       _now = now ?? _defaultNow;
+class ProjectsService({
+  required final ProjectService _projectService,
+  required final ProjectRepository _projectRepository,
+  final Future<void> Function(String projectId)? removeProjectConfigOverride,
+  final RuntimeProjectManagementClient? runtimeProjectManagement,
+  Uuid? uuid,
+  DateTime Function()? now,
+}) {
+  this : _uuid = uuid ?? const Uuid(), _now = now ?? _defaultNow;
 
-  final ProjectService _projectService;
-  final ProjectRepository _projectRepository;
-  final Future<void> Function(String projectId)? removeProjectConfigOverride;
-  final RuntimeProjectManagementClient? runtimeProjectManagement;
   final Uuid _uuid;
   final DateTime Function() _now;
 
@@ -99,7 +94,7 @@ class ProjectsService {
     );
     final project = _newProject(
       path: normalizedDestination,
-      kind: ProjectKind.gitRepository,
+      kind: .gitRepository,
       name: name,
     );
     await _projectRepository.add(project);

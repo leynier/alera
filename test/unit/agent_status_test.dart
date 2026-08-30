@@ -12,7 +12,7 @@ AgentStatusEntry _entry({
     terminalSessionId: 'session-1',
     workspaceId: 'workspace-1',
     tabId: 'tab-1',
-    agentType: AgentType.codex,
+    agentType: .codex,
     state: state,
     prompt: prompt,
     updatedAt: updatedAt,
@@ -31,7 +31,7 @@ void main() {
   });
 
   test('AgentStatusEntry differs when any field differs', () {
-    expect(_entry(), isNot(_entry(state: AgentStatusState.done)));
+    expect(_entry(), isNot(_entry(state: .done)));
     expect(_entry(), isNot(_entry(prompt: 'Other')));
     expect(_entry(), isNot(_entry(toolName: 'grep')));
     expect(_entry(), isNot(_entry(interrupted: true)));
@@ -53,8 +53,8 @@ void main() {
       terminalSessionId: 'session-1',
       workspaceId: 'workspace-1',
       tabId: 'tab-1',
-      agentType: AgentType.codex,
-      state: AgentStatusState.working,
+      agentType: .codex,
+      state: .working,
       prompt: 'Run tests',
       updatedAt: updatedAt,
       stateStartedAt: updatedAt,

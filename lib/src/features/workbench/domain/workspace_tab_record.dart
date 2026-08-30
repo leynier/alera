@@ -4,7 +4,7 @@ import 'package:alera/src/shared/infra/git/git_diff_models.dart';
 part 'workspace_tab_record.mapper.dart';
 
 @MappableEnum()
-enum WorkspaceTabKind {
+enum WorkspaceTabKind(this.key) {
   terminal('terminal'),
   codex('codex'),
   editor('editor'),
@@ -13,8 +13,6 @@ enum WorkspaceTabKind {
   gitDiff('gitDiff'),
   browser('browser'),
   mobileEmulator('mobileEmulator');
-
-  const WorkspaceTabKind(this.key);
 
   final String key;
 
@@ -69,11 +67,9 @@ const String workspaceTabGitDiffHostedReviewRetentionIdPayloadKey =
 const String workspaceTabGitDiffOldPathPayloadKey = 'gitDiffOldPath';
 const String workspaceTabMobileEmulatorPayloadKey = 'mobileEmulator';
 
-enum MobileEmulatorPlatform {
+enum MobileEmulatorPlatform(this.key, this.label) {
   android('android', 'Android'),
   ios('ios', 'iOS');
-
-  const MobileEmulatorPlatform(this.key, this.label);
 
   final String key;
   final String label;
@@ -88,12 +84,10 @@ enum MobileEmulatorPlatform {
   }
 }
 
-class WorkspaceMobileEmulatorPayload {
-  const WorkspaceMobileEmulatorPayload({
-    required this.platform,
-    required this.deviceId,
-  });
-
+class const WorkspaceMobileEmulatorPayload({
+  required this.platform,
+  required this.deviceId,
+}) {
   static const int schemaVersion = 1;
 
   final MobileEmulatorPlatform platform;
@@ -123,12 +117,10 @@ class WorkspaceMobileEmulatorPayload {
   }
 }
 
-enum WorkspaceGitDiffSource {
+enum WorkspaceGitDiffSource(this.key) {
   workingTree('workingTree'),
   commit('commit'),
   pullRequest('pullRequest');
-
-  const WorkspaceGitDiffSource(this.key);
 
   final String key;
 
@@ -145,12 +137,10 @@ enum WorkspaceGitDiffSource {
   }
 }
 
-enum WorkspaceGitDiffScope {
+enum WorkspaceGitDiffScope(this.key) {
   file('file'),
   all('all'),
   fileAll('fileAll');
-
-  const WorkspaceGitDiffScope(this.key);
 
   final String key;
 
@@ -171,16 +161,16 @@ bool isWorkspaceMarkdownFilePath(String path) =>
     path.toLowerCase().endsWith('.md');
 
 @MappableClass()
-class WorkspaceTabRecord with WorkspaceTabRecordMappable {
-  WorkspaceTabRecord({
-    required this.id,
-    required this.workspaceId,
-    required this.title,
-    required this.createdAt,
-    required this.updatedAt,
-    this.kind = WorkspaceTabKind.terminal,
-    Map<String, Object?> payload = const <String, Object?>{},
-  }) : payload = Map<String, Object?>.unmodifiable(payload);
+class WorkspaceTabRecord({
+  required this.id,
+  required this.workspaceId,
+  required this.title,
+  required this.createdAt,
+  required this.updatedAt,
+  this.kind = WorkspaceTabKind.terminal,
+  Map<String, Object?> payload = const <String, Object?>{},
+}) with WorkspaceTabRecordMappable {
+  this : payload = Map<String, Object?>.unmodifiableOf(payload);
 
   final String id;
   final String workspaceId;
@@ -340,18 +330,16 @@ class WorkspaceTabRecord with WorkspaceTabRecordMappable {
     return value is String && value.trim().isNotEmpty ? value : null;
   }
 
-  factory WorkspaceTabRecord.fromJson(Map<String, Object?> json) =>
+  factory fromJson(Map<String, Object?> json) =>
       WorkspaceTabRecordMapper.fromMap(Map<String, dynamic>.from(json));
 }
 
-final class TerminalPulseConfiguration {
-  const TerminalPulseConfiguration({
-    this.command = 'r',
-    this.appendEnter = true,
-    this.delayMilliseconds = 2000,
-  });
-
-  factory TerminalPulseConfiguration.fromJson(Object? value) {
+final class const TerminalPulseConfiguration({
+  this.command = 'r',
+  this.appendEnter = true,
+  this.delayMilliseconds = 2000,
+}) {
+  factory fromJson(Object? value) {
     if (value is! Map) {
       return const TerminalPulseConfiguration();
     }

@@ -4,32 +4,19 @@ import 'package:flutter/material.dart';
 /// Single-select segmented control with Alera's tokenized shape and cursor
 /// behavior. Wraps Material's [SegmentedButton] for the common case of one
 /// required selection.
-class AleraSegmentedButton<T> extends StatelessWidget {
-  const AleraSegmentedButton({
-    super.key,
-    required this.segments,
-    required this.selected,
-    required this.onSelectionChanged,
-    this.dense = false,
-    this.backgroundColor,
-    this.foregroundColor,
-    this.selectedBackgroundColor,
-    this.selectedForegroundColor,
-    this.borderColor,
-    this.textStyle,
-  });
-
-  final List<ButtonSegment<T>> segments;
-  final T selected;
-  final ValueChanged<T> onSelectionChanged;
-  final bool dense;
-  final Color? backgroundColor;
-  final Color? foregroundColor;
-  final Color? selectedBackgroundColor;
-  final Color? selectedForegroundColor;
-  final Color? borderColor;
-  final TextStyle? textStyle;
-
+class const AleraSegmentedButton<T>({
+  super.key,
+  required final List<ButtonSegment<T>> segments,
+  required final T selected,
+  required final ValueChanged<T> onSelectionChanged,
+  final bool dense = false,
+  final Color? backgroundColor,
+  final Color? foregroundColor,
+  final Color? selectedBackgroundColor,
+  final Color? selectedForegroundColor,
+  final Color? borderColor,
+  final TextStyle? textStyle,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SegmentedButton<T>(

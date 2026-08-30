@@ -1,24 +1,14 @@
 part of 'workspace_search_panel.dart';
 
-class _SearchToolbar extends StatelessWidget {
-  const _SearchToolbar({
-    required this.state,
-    required this.allResultsCollapsed,
-    required this.onRefresh,
-    required this.onClear,
-    required this.onToggleIncludeIgnored,
-    required this.onToggleViewAsTree,
-    required this.onToggleAllResultsCollapsed,
-  });
-
-  final WorkspaceSearchState state;
-  final bool allResultsCollapsed;
-  final VoidCallback onRefresh;
-  final VoidCallback onClear;
-  final VoidCallback onToggleIncludeIgnored;
-  final VoidCallback onToggleViewAsTree;
-  final VoidCallback onToggleAllResultsCollapsed;
-
+class const _SearchToolbar({
+  required final WorkspaceSearchState state,
+  required final bool allResultsCollapsed,
+  required final VoidCallback onRefresh,
+  required final VoidCallback onClear,
+  required final VoidCallback onToggleIncludeIgnored,
+  required final VoidCallback onToggleViewAsTree,
+  required final VoidCallback onToggleAllResultsCollapsed,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final hasResults = state.result?.files.isNotEmpty ?? false;
@@ -38,10 +28,8 @@ class _SearchToolbar extends StatelessWidget {
           children: <Widget>[
             Text(
               'Search',
-              style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                color: AleraTokens.foreground,
-                fontWeight: FontWeight.w600,
-              ),
+              style: Theme.of(context).textTheme.titleSmall
+                  ?.copyWith(color: AleraTokens.foreground, fontWeight: .w600),
             ),
             const Spacer(),
             AleraIconButton(

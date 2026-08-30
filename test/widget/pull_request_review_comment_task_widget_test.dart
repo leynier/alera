@@ -1,5 +1,4 @@
 import 'package:alera/src/design_system/forms/alera_checkbox.dart';
-import 'package:alera/src/shared/git_hosting/domain/git_hosting_provider.dart';
 import 'package:alera/src/features/pull_requests/domain/hosted_review.dart';
 import 'package:alera/src/features/pull_requests/domain/review_check.dart';
 import 'package:alera/src/features/pull_requests/domain/review_check_details.dart';
@@ -11,10 +10,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 const _review = HostedReview(
-  provider: GitHostingProvider.github,
+  provider: .github,
   number: 42,
   title: 'feat: tasks',
-  state: HostedReviewState.open,
+  state: .open,
   url: 'https://github.com/leynier/alera/pull/42',
 );
 
@@ -65,10 +64,10 @@ void main() {
               id: 'task-comment',
               author: 'alice',
               body: '- [ ] First\n- [x] Second',
-              createdAt: DateTime.utc(2026, 7, 16),
-              kind: ReviewCommentKind.conversation,
+              createdAt: .utc(2026, 7, 16),
+              kind: .conversation,
               locator: const ReviewCommentLocator(
-                source: ReviewCommentSource.conversation,
+                source: .conversation,
                 commentId: '10',
               ),
             ),
@@ -98,10 +97,10 @@ void main() {
         id: 'saving',
         author: 'alice',
         body: '- [ ] Saving',
-        createdAt: DateTime.utc(2026, 7, 16),
-        kind: ReviewCommentKind.conversation,
+        createdAt: .utc(2026, 7, 16),
+        kind: .conversation,
         locator: const ReviewCommentLocator(
-          source: ReviewCommentSource.conversation,
+          source: .conversation,
           commentId: '11',
         ),
       ),
@@ -109,10 +108,10 @@ void main() {
         id: 'available',
         author: 'bob',
         body: '- [ ] Available',
-        createdAt: DateTime.utc(2026, 7, 16, 1),
-        kind: ReviewCommentKind.review,
+        createdAt: .utc(2026, 7, 16, 1),
+        kind: .review,
         locator: const ReviewCommentLocator(
-          source: ReviewCommentSource.reviewThread,
+          source: .reviewThread,
           commentId: '12',
           parentId: 'thread-12',
         ),

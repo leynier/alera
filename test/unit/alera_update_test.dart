@@ -73,7 +73,7 @@ void main() {
           releasePageUrl: Uri.parse(
             'https://github.com/leynier/alera/releases',
           ),
-          channel: AleraUpdateChannel.stable,
+          channel: .stable,
           autoInstallEnabled: false,
           signedRelease: false,
         );
@@ -107,11 +107,11 @@ void main() {
       final stable = AleraUpdateConfig(
         archiveUrl: Uri.parse('https://example.com/app-archive.json'),
         releasePageUrl: Uri.parse('https://github.com/leynier/alera/releases'),
-        channel: AleraUpdateChannel.stable,
+        channel: .stable,
         autoInstallEnabled: false,
         signedRelease: false,
       );
-      final releaseCandidate = stable.copyWith(channel: AleraUpdateChannel.rc);
+      final releaseCandidate = stable.copyWith(channel: .rc);
       final debUpdate = _update.copyWith(
         platform: 'linux',
         installerKind: 'deb',
@@ -150,45 +150,33 @@ void main() {
       );
 
       expect(
-        linuxPackageUpgradeCommand(
-          update: debUpdate,
-          channel: AleraUpdateChannel.stable,
-        ),
+        linuxPackageUpgradeCommand(update: debUpdate, channel: .stable),
         'sudo apt-get update && sudo apt-get install --only-upgrade alera',
       );
       expect(
         linuxPackageUpgradeCommand(
           update: debUpdate.copyWith(installerKind: 'rpm'),
-          channel: AleraUpdateChannel.stable,
+          channel: .stable,
         ),
         'sudo dnf upgrade alera',
       );
       expect(
         linuxPackageUpgradeCommand(
           update: debUpdate.copyWith(installerKind: 'tar.gz'),
-          channel: AleraUpdateChannel.stable,
+          channel: .stable,
         ),
         isNull,
       );
       expect(
-        linuxPackageUpgradeCommand(
-          update: debUpdate,
-          channel: AleraUpdateChannel.rc,
-        ),
+        linuxPackageUpgradeCommand(update: debUpdate, channel: .rc),
         isNull,
       );
       expect(
-        linuxPackageUpgradeCommand(
-          update: _update,
-          channel: AleraUpdateChannel.stable,
-        ),
+        linuxPackageUpgradeCommand(update: _update, channel: .stable),
         isNull,
       );
       expect(
-        linuxPackageUpgradeCommand(
-          update: null,
-          channel: AleraUpdateChannel.stable,
-        ),
+        linuxPackageUpgradeCommand(update: null, channel: .stable),
         isNull,
       );
     });
@@ -252,7 +240,7 @@ void main() {
 
     test('copyWith updates and clears nullable fields', () {
       final state = AleraUpdateState(
-        status: AleraUpdateStatus.available,
+        status: .available,
         config: _config,
         latest: _update,
         message: 'Update is ready.',
@@ -262,7 +250,7 @@ void main() {
       );
 
       final updated = state.copyWith(
-        status: AleraUpdateStatus.checking,
+        status: .checking,
         latest: null,
         message: null,
         progress: 0,
@@ -292,7 +280,7 @@ void main() {
 
     test('round-trips through json', () {
       final state = AleraUpdateState(
-        status: AleraUpdateStatus.manualDownloadRequired,
+        status: .manualDownloadRequired,
         config: _config,
         latest: _update,
         message: 'Download the latest release manually.',
@@ -313,17 +301,11 @@ void main() {
 
     test('isBusy is true while checking or downloading', () {
       expect(
-        AleraUpdateState(
-          status: AleraUpdateStatus.checking,
-          config: _config,
-        ).isBusy,
+        AleraUpdateState(status: .checking, config: _config).isBusy,
         isTrue,
       );
       expect(
-        AleraUpdateState(
-          status: AleraUpdateStatus.downloading,
-          config: _config,
-        ).isBusy,
+        AleraUpdateState(status: .downloading, config: _config).isBusy,
         isTrue,
       );
     });
@@ -333,7 +315,7 @@ void main() {
 final AleraUpdateConfig _config = AleraUpdateConfig(
   archiveUrl: Uri.parse('https://example.com/app-archive.json'),
   releasePageUrl: Uri.parse('https://github.com/leynier/alera/releases'),
-  channel: AleraUpdateChannel.stable,
+  channel: .stable,
   autoInstallEnabled: true,
   signedRelease: false,
 );

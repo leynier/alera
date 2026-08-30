@@ -18,6 +18,7 @@ import 'package:alera/src/shared/infra/git/git_providers.dart';
 import 'package:alera/src/shared/infra/storage/drift_database.dart';
 
 import 'e2e_git_backend.dart';
+
 import 'package:drift/native.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -250,11 +251,10 @@ class _E2eTerminalRuntime implements TerminalRuntime {
   }
 }
 
-class _E2eTerminalSessionHandle extends TerminalSessionHandle {
-  _E2eTerminalSessionHandle({required this.workspace, required this.tab});
-
-  final Workspace workspace;
-  final WorkspaceTabRecord tab;
+class _E2eTerminalSessionHandle({
+  required final Workspace workspace,
+  required final WorkspaceTabRecord tab,
+}) extends TerminalSessionHandle {
   bool _started = false;
 
   @override

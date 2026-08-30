@@ -58,7 +58,7 @@ void main() {
         path: '/hook/codex',
         token: 'wrong',
         body: jsonEncode(<String, Object?>{}),
-        contentType: ContentType.json,
+        contentType: .json,
       );
 
       expect(response.statusCode, HttpStatus.forbidden);
@@ -111,7 +111,7 @@ void main() {
         path: '/hook/unknown',
         token: 'token-1',
         body: jsonEncode(<String, Object?>{}),
-        contentType: ContentType.json,
+        contentType: .json,
       );
 
       expect(response.statusCode, HttpStatus.notFound);
@@ -124,7 +124,7 @@ void main() {
         path: '/hook/codex',
         token: 'token-1',
         body: '{not json',
-        contentType: ContentType.json,
+        contentType: .json,
       );
 
       expect(response.statusCode, HttpStatus.noContent);
@@ -143,7 +143,7 @@ void main() {
           'hook_event_name': 'PreInvocation',
           'payload': <String, Object?>{'prompt': 'ship it'},
         }),
-        contentType: ContentType.json,
+        contentType: .json,
       );
 
       expect(response.statusCode, HttpStatus.noContent);
@@ -168,7 +168,7 @@ void main() {
               'prompt': 'ship cursor',
             },
           }),
-          contentType: ContentType.json,
+          contentType: .json,
         );
         final openCodeResponse = await _post(
           receiver.endpoint!.port,
@@ -180,7 +180,7 @@ void main() {
             'tabId': 'tab-1',
             'payload': <String, Object?>{'hook_event_name': 'SessionBusy'},
           }),
-          contentType: ContentType.json,
+          contentType: .json,
         );
         final openCode2Response = await _post(
           receiver.endpoint!.port,
@@ -192,7 +192,7 @@ void main() {
             'tabId': 'tab-1b',
             'payload': <String, Object?>{'hook_event_name': 'SessionBusy'},
           }),
-          contentType: ContentType.json,
+          contentType: .json,
         );
         final piResponse = await _post(
           receiver.endpoint!.port,
@@ -207,7 +207,7 @@ void main() {
               'prompt': 'run tests',
             },
           }),
-          contentType: ContentType.json,
+          contentType: .json,
         );
         final ampResponse = await _post(
           receiver.endpoint!.port,
@@ -222,7 +222,7 @@ void main() {
               'message': 'ship amp',
             },
           }),
-          contentType: ContentType.json,
+          contentType: .json,
         );
         final grokResponse = await _post(
           receiver.endpoint!.port,
@@ -235,7 +235,7 @@ void main() {
             'hookEventName': 'UserPromptSubmit',
             'payload': <String, Object?>{'prompt': 'ship grok'},
           }),
-          contentType: ContentType.json,
+          contentType: .json,
         );
 
         expect(cursorResponse.statusCode, HttpStatus.noContent);
@@ -278,7 +278,7 @@ void main() {
           'hookEventName': 'UserPromptSubmit',
           'payload': <String, Object?>{'prompt': 'ship it'},
         }),
-        contentType: ContentType.json,
+        contentType: .json,
       );
 
       expect(response.statusCode, HttpStatus.noContent);
@@ -306,7 +306,7 @@ void main() {
           'hookEventName': 'UserPromptSubmit',
           'payload': <String, Object?>{'prompt': 'ship it'},
         }),
-        contentType: ContentType.json,
+        contentType: .json,
       );
 
       expect(response.statusCode, HttpStatus.noContent);

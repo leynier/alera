@@ -2,12 +2,13 @@ import 'configuration_transfer.dart';
 import 'configuration_document.dart';
 import 'configuration_sync.dart';
 
-typedef ConfigurationRequest =
-    Future<Object?> Function(String action, JsonMap payload);
+typedef ConfigurationRequest = Future<Object?> Function(
+  String action,
+  JsonMap payload,
+);
 
-class RpcConfigurationCloud implements ConfigurationCloud {
-  RpcConfigurationCloud(this.request);
-  final ConfigurationRequest request;
+class RpcConfigurationCloud(final ConfigurationRequest request)
+    implements ConfigurationCloud {
   @override
   Future<ConfigurationRevision?> head() async {
     final value = jsonMap(await request('head', {}))['head'];
@@ -33,16 +34,11 @@ class RpcConfigurationCloud implements ConfigurationCloud {
       );
 }
 
-class RuntimeConfigurationTarget implements ConfigurationLocalTarget {
-  RuntimeConfigurationTarget({
-    required this.request,
-    required this.accountId,
-    required this.label,
-  });
-  final ConfigurationRequest request;
-  final String accountId;
-  @override
-  final String label;
+class RuntimeConfigurationTarget({
+  required final ConfigurationRequest request,
+  required final String accountId,
+  @override required final String label,
+}) implements ConfigurationLocalTarget {
   @override
   Set<String> get ownedBlocks => const {'desktop', 'shared'};
   @override
@@ -87,17 +83,12 @@ class RuntimeConfigurationTarget implements ConfigurationLocalTarget {
   }
 }
 
-class ConfigurationScreenState {
-  const ConfigurationScreenState({
-    this.review,
-    this.history = const [],
-    this.error,
-    this.busy = false,
-  });
-  final ConfigurationReview? review;
-  final List<JsonMap> history;
-  final String? error;
-  final bool busy;
+class const ConfigurationScreenState({
+  final ConfigurationReview? review,
+  final List<JsonMap> history = const [],
+  final String? error,
+  final bool busy = false,
+}) {
   ConfigurationScreenState copyWith({
     ConfigurationReview? review,
     List<JsonMap>? history,

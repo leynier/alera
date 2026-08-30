@@ -3,11 +3,7 @@ import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_p
 
 const agentTitleCapability = 'aiTextAgentTitleV1';
 
-class AgentTitleService {
-  const AgentTitleService(this.client);
-
-  final RuntimeHostClient client;
-
+class const AgentTitleService(final RuntimeHostClient client) {
   Future<bool> isAvailable() async {
     final status = await client.runtimeRequest('status.get');
     return status is Map &&

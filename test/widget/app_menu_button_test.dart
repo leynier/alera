@@ -30,7 +30,7 @@ void main() {
     }
 
     testWidgets('stays out of the window on macOS', (tester) async {
-      await _withPlatform(TargetPlatform.macOS, () async {
+      await _withPlatform(.macOS, () async {
         await _pumpButton(tester);
 
         expect(find.byTooltip('Application Menu'), findsNothing);
@@ -40,7 +40,7 @@ void main() {
     testWidgets('keeps edit commands targeted at the focused field', (
       tester,
     ) async {
-      await _withPlatform(TargetPlatform.linux, () async {
+      await _withPlatform(.linux, () async {
         final controller = TextEditingController();
         addTearDown(controller.dispose);
         await _pumpButton(tester, controller: controller);

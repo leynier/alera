@@ -2,7 +2,6 @@ import 'package:alera/src/features/pull_requests/application/forge_exception.dar
 import 'package:alera/src/features/pull_requests/domain/hosted_review.dart';
 import 'package:alera/src/features/pull_requests/domain/review_merge_method.dart';
 import 'package:alera/src/features/pull_requests/infra/github_forge_provider.dart';
-import 'package:alera/src/shared/git_hosting/domain/git_hosting_provider.dart';
 import 'package:alera/src/shared/git_hosting/domain/git_remote_identity.dart';
 import 'package:alera/src/shared/infra/process/process_runner.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -10,7 +9,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'fake_recording_process_runner.dart';
 
 const _identity = GitRemoteIdentity(
-  provider: GitHostingProvider.github,
+  provider: .github,
   host: 'github.com',
   owner: 'leynier',
   repo: 'alera',
@@ -223,7 +222,7 @@ void main() {
           identity: _identity,
           repoPath: '/repo',
           reviewNumber: 424,
-          method: ReviewMergeMethod.providerDefault,
+          method: .providerDefault,
         ),
         throwsA(isA<ForgeRequestFailed>()),
       );

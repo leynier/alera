@@ -108,7 +108,7 @@ void main() {
       _settingsApp(
         const MobileAiDictationSettings(
           enabled: true,
-          engine: MobileAiDictationEngine.openAiCompatible,
+          engine: .openAiCompatible,
           remoteAudioConsentVersion: 1,
         ),
       ),
@@ -132,8 +132,8 @@ void main() {
       _settingsApp(
         const MobileAiDictationSettings(
           enabled: true,
-          location: MobileAiDictationLocation.pairedDevice,
-          engine: MobileAiDictationEngine.openAiCompatible,
+          location: .pairedDevice,
+          engine: .openAiCompatible,
           remoteAudioConsentVersion: 1,
         ),
       ),
@@ -161,8 +161,8 @@ void main() {
       _settingsApp(
         const MobileAiDictationSettings(
           enabled: true,
-          location: MobileAiDictationLocation.pairedDevice,
-          engine: MobileAiDictationEngine.codexSubscription,
+          location: .pairedDevice,
+          engine: .codexSubscription,
           remoteAudioConsentVersion: 1,
         ),
       ),
@@ -181,7 +181,7 @@ void main() {
       _settingsApp(
         const MobileAiDictationSettings(
           enabled: true,
-          engine: MobileAiDictationEngine.openAiCompatible,
+          engine: .openAiCompatible,
           remoteAudioConsentVersion: 1,
         ),
       ),

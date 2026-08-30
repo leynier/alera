@@ -11,7 +11,7 @@ void main() {
       terminalSessionId: 's1',
       workspaceId: 'w1',
       tabId: 't1',
-      agentType: AgentType.claude,
+      agentType: .claude,
       state: state,
       prompt: '',
       updatedAt: now,
@@ -23,14 +23,14 @@ void main() {
     test('waiting and blocked always need attention', () {
       expect(
         workbenchTabAttention(
-          status: entry(AgentStatusState.waiting),
+          status: entry(.waiting),
           completionAcknowledged: false,
         ),
         WorkbenchTabAttention.agentWaiting,
       );
       expect(
         workbenchTabAttention(
-          status: entry(AgentStatusState.blocked),
+          status: entry(.blocked),
           completionAcknowledged: false,
         ),
         WorkbenchTabAttention.agentBlocked,
@@ -40,14 +40,14 @@ void main() {
     test('done needs attention until its completion is acknowledged', () {
       expect(
         workbenchTabAttention(
-          status: entry(AgentStatusState.done),
+          status: entry(.done),
           completionAcknowledged: false,
         ),
         WorkbenchTabAttention.agentDoneUnacked,
       );
       expect(
         workbenchTabAttention(
-          status: entry(AgentStatusState.done),
+          status: entry(.done),
           completionAcknowledged: true,
         ),
         WorkbenchTabAttention.none,
@@ -57,7 +57,7 @@ void main() {
     test('working has no extra attention', () {
       expect(
         workbenchTabAttention(
-          status: entry(AgentStatusState.working),
+          status: entry(.working),
           completionAcknowledged: false,
         ),
         WorkbenchTabAttention.none,
@@ -69,7 +69,7 @@ void main() {
     test('uses warning for unacked done', () {
       expect(
         workbenchTabAttentionDotColor(
-          status: entry(AgentStatusState.done),
+          status: entry(.done),
           completionAcknowledged: false,
         ),
         AleraTokens.warning,
@@ -80,7 +80,7 @@ void main() {
   group('WorkbenchTabCompletionAcknowledgements', () {
     test('keeps a viewed completion acknowledged across tab switches', () {
       final acknowledgements = WorkbenchTabCompletionAcknowledgements();
-      final completion = entry(AgentStatusState.done);
+      final completion = entry(.done);
 
       expect(acknowledgements.isAcknowledged(completion), isFalse);
       acknowledgements.acknowledge(completion);
@@ -90,10 +90,10 @@ void main() {
 
     test('a later completion epoch requires acknowledgement again', () {
       final acknowledgements = WorkbenchTabCompletionAcknowledgements();
-      final first = entry(AgentStatusState.done);
+      final first = entry(.done);
       acknowledgements.acknowledge(first);
       final later = entry(
-        AgentStatusState.done,
+        .done,
         stateStartedAt: now.add(const Duration(minutes: 1)),
       );
 
@@ -102,7 +102,7 @@ void main() {
 
     test('retains acknowledgements until the session is actually removed', () {
       final acknowledgements = WorkbenchTabCompletionAcknowledgements();
-      final completion = entry(AgentStatusState.done);
+      final completion = entry(.done);
       acknowledgements.acknowledge(completion);
 
       acknowledgements.retainTerminalSessions(<String>{'s1', 's2'});

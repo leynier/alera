@@ -81,9 +81,8 @@ WorkbenchSidebarCollapseTargets visibleSidebarCollapseTargets(
   switch (prefs.groupBy) {
     case WorkbenchGroupBy.project:
       for (final project in visibleProjects) {
-        final workspaces = visibleWorkspacesFor(
-          project,
-        ).toList(growable: false);
+        final workspaces = visibleWorkspacesFor(project)
+            .toList(growable: false);
         if (filtersHideEmptyProjects && workspaces.isEmpty) {
           continue;
         }

@@ -11,46 +11,27 @@ enum BrowserCookieImportOutcome {
   failed,
 }
 
-final class BrowserCookieImportGesture {
-  const BrowserCookieImportGesture({required this.id, required this.issuedAt});
+final class const BrowserCookieImportGesture({
+  required final String id,
+  required final DateTime issuedAt,
+});
 
-  final String id;
-  final DateTime issuedAt;
-}
+final class const BrowserCookieImportSourceStatus({
+  required final BrowserImportSourceFamily source,
+  required final bool supported,
+  required final bool available,
+  final List<String> profileNames = const <String>[],
+  final String? detailCode,
+});
 
-final class BrowserCookieImportSourceStatus {
-  const BrowserCookieImportSourceStatus({
-    required this.source,
-    required this.supported,
-    required this.available,
-    this.profileNames = const <String>[],
-    this.detailCode,
-  });
-
-  final BrowserImportSourceFamily source;
-  final bool supported;
-  final bool available;
-  final List<String> profileNames;
-  final String? detailCode;
-}
-
-final class BrowserCookieImportResult {
-  const BrowserCookieImportResult({
-    required this.source,
-    required this.profileId,
-    required this.outcome,
-    required this.importedCount,
-    required this.skippedCount,
-    this.detailCode,
-  });
-
-  final BrowserImportSourceFamily source;
-  final String profileId;
-  final BrowserCookieImportOutcome outcome;
-  final int importedCount;
-  final int skippedCount;
-  final String? detailCode;
-
+final class const BrowserCookieImportResult({
+  required final BrowserImportSourceFamily source,
+  required final String profileId,
+  required final BrowserCookieImportOutcome outcome,
+  required final int importedCount,
+  required final int skippedCount,
+  final String? detailCode,
+}) {
   bool get completedAtomically =>
       outcome == BrowserCookieImportOutcome.imported;
 }

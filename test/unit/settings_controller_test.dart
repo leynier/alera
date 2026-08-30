@@ -1,5 +1,4 @@
 import 'package:alera/src/app/dependencies.dart';
-import 'package:alera/src/features/agent_status/domain/agent_status.dart';
 import 'package:alera/src/features/keyboard/domain/keyboard_action.dart';
 import 'package:alera/src/features/settings/application/settings_controller.dart';
 import 'package:alera/src/features/settings/domain/alera_settings.dart';
@@ -44,10 +43,7 @@ void main() {
       await controller.load();
 
       await controller.updateTerminal(
-        (terminal) => terminal.copyWith(
-          fontFamily: 'Menlo',
-          cursorShape: TerminalCursorShape.bar,
-        ),
+        (terminal) => terminal.copyWith(fontFamily: 'Menlo', cursorShape: .bar),
       );
       await controller.resetTerminalSettings();
 
@@ -192,13 +188,10 @@ void main() {
       final controller = container.read(settingsControllerProvider.notifier);
       await controller.load();
 
-      await controller.setActionBindings(
-        KeyboardActionId.newTerminalTab,
-        <String>['Mod+Shift+T'],
-      );
-      await controller.setTerminalShortcutPolicy(
-        TerminalShortcutPolicy.terminalFirst,
-      );
+      await controller.setActionBindings(.newTerminalTab, <String>[
+        'Mod+Shift+T',
+      ]);
+      await controller.setTerminalShortcutPolicy(.terminalFirst);
 
       var restored = await repository.load();
       expect(
@@ -235,14 +228,14 @@ void main() {
 
         await controller.setConfirmProjectRemoval(false);
         await controller.setConfirmWorkspaceRemoval(false);
-        await controller.setAgentStatusHookEnabled(AgentType.codex, true);
-        await controller.setAgentStatusHookEnabled(AgentType.cursor, true);
-        await controller.setAgentStatusHookEnabled(AgentType.agy, true);
-        await controller.setAgentStatusHookEnabled(AgentType.opencode, true);
-        await controller.setAgentStatusHookEnabled(AgentType.pi, true);
-        await controller.setAgentStatusHookEnabled(AgentType.amp, true);
-        await controller.setAgentStatusHookEnabled(AgentType.grok, true);
-        await controller.setAgentStatusHookEnabled(AgentType.fx, true);
+        await controller.setAgentStatusHookEnabled(.codex, true);
+        await controller.setAgentStatusHookEnabled(.cursor, true);
+        await controller.setAgentStatusHookEnabled(.agy, true);
+        await controller.setAgentStatusHookEnabled(.opencode, true);
+        await controller.setAgentStatusHookEnabled(.pi, true);
+        await controller.setAgentStatusHookEnabled(.amp, true);
+        await controller.setAgentStatusHookEnabled(.grok, true);
+        await controller.setAgentStatusHookEnabled(.fx, true);
         await controller.setAgentStatusNotificationsEnabled(true);
         await controller.setKeepComputerAwakeWhileAgentsWork(true);
         await controller.setKeepAliveEnabled(true);
@@ -332,10 +325,7 @@ void main() {
       expect(restored.keyboard.overrides[KeyboardActionId.closeTab], <String>[
         'Mod+T',
       ]);
-      expect(
-        restored.keyboard.isDisabled(KeyboardActionId.newTerminalTab),
-        isTrue,
-      );
+      expect(restored.keyboard.isDisabled(.newTerminalTab), isTrue);
     });
 
     test(
