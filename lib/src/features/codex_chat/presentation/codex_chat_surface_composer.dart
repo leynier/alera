@@ -1,79 +1,45 @@
 part of 'codex_chat_surface.dart';
 
-class _CodexComposer extends StatefulWidget {
-  const _CodexComposer({
-    required this.controller,
-    required this.focusNode,
-    required this.busy,
-    required this.interrupting,
-    required this.mcpInitializing,
-    required this.blockedMessage,
-    required this.attachments,
-    required this.draftItems,
-    required this.savedPrompts,
-    required this.state,
-    required this.promptHistory,
-    required this.workspacePath,
-    required this.workspaceId,
-    required this.tabId,
-    required this.workspaceFiles,
-    required this.onModelChanged,
-    required this.onReasoningChanged,
-    required this.onSpeedChanged,
-    required this.onPermissionChanged,
-    required this.onPlanChanged,
-    required this.onCollaborationChanged,
-    required this.onDraftItemSelected,
-    required this.onCommand,
-    required this.onSend,
-    required this.onStop,
-    required this.onAddAttachment,
-    required this.onPaste,
-    required this.onDropAttachments,
-    required this.onRemoveAttachment,
-    required this.onOpenAttachment,
-    required this.onRemoveDraftItem,
-  });
-
-  final TextEditingController controller;
-  final FocusNode focusNode;
-  final bool busy;
-  final bool interrupting;
-  final bool mcpInitializing;
-  final String? blockedMessage;
-  final List<CodexInputAttachment> attachments;
-  final List<CodexDraftItem> draftItems;
-  final List<native.CodexSavedPrompt> savedPrompts;
-  final CodexChatState state;
-  final List<String> promptHistory;
-  final String workspacePath;
-  final String workspaceId;
-  final String tabId;
-  final WorkspaceFileService workspaceFiles;
-  final ValueChanged<String?> onModelChanged;
-  final ValueChanged<String> onReasoningChanged;
-  final ValueChanged<String> onSpeedChanged;
-  final ValueChanged<String> onPermissionChanged;
-  final ValueChanged<bool> onPlanChanged;
-  final ValueChanged<String?> onCollaborationChanged;
-  final ValueChanged<CodexDraftItem> onDraftItemSelected;
-  final ValueChanged<CodexComposerCommand> onCommand;
-  final VoidCallback onSend;
-  final Future<void> Function() onStop;
-  final Future<void> Function() onAddAttachment;
-  final Future<void> Function() onPaste;
-  final Future<void> Function(
+class const _CodexComposer({
+  required final TextEditingController controller,
+  required final FocusNode focusNode,
+  required final bool busy,
+  required final bool interrupting,
+  required final bool mcpInitializing,
+  required final String? blockedMessage,
+  required final List<CodexInputAttachment> attachments,
+  required final List<CodexDraftItem> draftItems,
+  required final List<native.CodexSavedPrompt> savedPrompts,
+  required final CodexChatState state,
+  required final List<String> promptHistory,
+  required final String workspacePath,
+  required final String workspaceId,
+  required final String tabId,
+  required final WorkspaceFileService workspaceFiles,
+  required final ValueChanged<String?> onModelChanged,
+  required final ValueChanged<String> onReasoningChanged,
+  required final ValueChanged<String> onSpeedChanged,
+  required final ValueChanged<String> onPermissionChanged,
+  required final ValueChanged<bool> onPlanChanged,
+  required final ValueChanged<String?> onCollaborationChanged,
+  required final ValueChanged<CodexDraftItem> onDraftItemSelected,
+  required final ValueChanged<CodexComposerCommand> onCommand,
+  required final VoidCallback onSend,
+  required final Future<void> Function() onStop,
+  required final Future<void> Function() onAddAttachment,
+  required final Future<void> Function() onPaste,
+  required final Future<void> Function(
     Iterable<String> paths, {
     CodexInputAttachmentOrigin origin,
     String? tokenText,
     int? tokenStart,
   })
-  onDropAttachments;
-  final ValueChanged<CodexInputAttachment> onRemoveAttachment;
-  final Future<void> Function(String path, {required bool isImage})
-  onOpenAttachment;
-  final ValueChanged<CodexDraftItem> onRemoveDraftItem;
-
+  onDropAttachments,
+  required final ValueChanged<CodexInputAttachment> onRemoveAttachment,
+  required final Future<void> Function(String path, {required bool isImage})
+  onOpenAttachment,
+  required final ValueChanged<CodexDraftItem> onRemoveDraftItem,
+}) extends StatefulWidget {
   @override
   State<_CodexComposer> createState() => _CodexComposerState();
 }
@@ -169,7 +135,7 @@ class _CodexComposerState extends State<_CodexComposer> {
           child: Padding(
             padding: const EdgeInsets.all(AleraTokens.space12),
             child: Column(
-              mainAxisSize: MainAxisSize.min,
+              mainAxisSize: .min,
               children: <Widget>[
                 if (_commands.isNotEmpty)
                   _CodexCommandOverlay(
@@ -228,15 +194,11 @@ class _CodexComposerState extends State<_CodexComposer> {
                               ),
                               CallbackShortcuts(
                                 bindings: <ShortcutActivator, VoidCallback>{
-                                  const SingleActivator(
-                                    LogicalKeyboardKey.enter,
-                                  ): () {
+                                  const SingleActivator(.enter): () {
                                     if (canSubmit) widget.onSend();
                                   },
-                                  const SingleActivator(
-                                    LogicalKeyboardKey.enter,
-                                    shift: true,
-                                  ): _insertLineBreak,
+                                  const SingleActivator(.enter, shift: true):
+                                      _insertLineBreak,
                                 },
                                 child: Scrollbar(
                                   controller: _composerScrollController,
@@ -256,7 +218,7 @@ class _CodexComposerState extends State<_CodexComposer> {
                                           !widget.interrupting && !_disabled,
                                       minLines: 2,
                                       maxLines: 6,
-                                      textInputAction: TextInputAction.newline,
+                                      textInputAction: .newline,
                                       decoration: const InputDecoration(
                                         hintText: 'Ask Codex anything, @ for files, \$ for skills and apps, / for commands',
                                         filled: true,
@@ -268,10 +230,10 @@ class _CodexComposerState extends State<_CodexComposer> {
                                           AleraTokens.space32,
                                           AleraTokens.space8,
                                         ),
-                                        border: InputBorder.none,
-                                        enabledBorder: InputBorder.none,
-                                        focusedBorder: InputBorder.none,
-                                        disabledBorder: InputBorder.none,
+                                        border: .none,
+                                        enabledBorder: .none,
+                                        focusedBorder: .none,
+                                        disabledBorder: .none,
                                       ),
                                     ),
                                   ),
@@ -291,7 +253,7 @@ class _CodexComposerState extends State<_CodexComposer> {
                                   children: <Widget>[
                                     Expanded(
                                       child: SingleChildScrollView(
-                                        scrollDirection: Axis.horizontal,
+                                        scrollDirection: .horizontal,
                                         child: _CodexComposerControls(
                                           state: widget.state,
                                           onPermissionChanged:
@@ -308,11 +270,11 @@ class _CodexComposerState extends State<_CodexComposer> {
                                     ),
                                     const SizedBox(width: AleraTokens.space6),
                                     Flexible(
-                                      fit: FlexFit.loose,
+                                      fit: .loose,
                                       child: Align(
                                         alignment: Alignment.centerRight,
                                         child: Row(
-                                          mainAxisSize: MainAxisSize.min,
+                                          mainAxisSize: .min,
                                           children: <Widget>[
                                             if (contextUsed != null &&
                                                 contextLimit != null &&
@@ -322,10 +284,7 @@ class _CodexComposerState extends State<_CodexComposer> {
                                                 used: contextUsed,
                                                 limit: contextLimit,
                                                 onCompact: () =>
-                                                    widget.onCommand(
-                                                      CodexComposerCommand
-                                                          .compact,
-                                                    ),
+                                                    widget.onCommand(.compact),
                                               ),
                                               const SizedBox(
                                                 width: AleraTokens.space2,
@@ -379,7 +338,7 @@ class _CodexComposerState extends State<_CodexComposer> {
                             ),
                             child: Center(
                               child: Row(
-                                mainAxisSize: MainAxisSize.min,
+                                mainAxisSize: .min,
                                 children: <Widget>[
                                   Icon(
                                     widget.mcpInitializing

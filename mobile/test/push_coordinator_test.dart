@@ -200,9 +200,9 @@ Future<void> _waitFor(bool Function() predicate) async {
   fail('Condition Was Not Reached');
 }
 
-class _MemoryCloudAccountRepository implements CloudAccountRepository {
-  _MemoryCloudAccountRepository(List<CloudAccountSession> sessions)
-    : sessions = <CloudAccountSession>[...sessions];
+class _MemoryCloudAccountRepository(List<CloudAccountSession> sessions)
+    implements CloudAccountRepository {
+  this : sessions = <CloudAccountSession>[...sessions];
 
   final List<CloudAccountSession> sessions;
 

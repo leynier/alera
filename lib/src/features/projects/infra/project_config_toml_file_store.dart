@@ -10,9 +10,7 @@ import 'package:toml/toml.dart';
 
 const String aleraProjectConfigFileName = 'alera.toml';
 
-class TomlProjectConfigFileStore implements ProjectConfigFileStore {
-  const TomlProjectConfigFileStore();
-
+class const TomlProjectConfigFileStore() implements ProjectConfigFileStore {
   @override
   Future<ProjectConfig?> load(Project project) async {
     final file = File(p.join(project.repoPath, aleraProjectConfigFileName));

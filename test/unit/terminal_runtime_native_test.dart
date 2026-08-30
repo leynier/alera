@@ -4,7 +4,6 @@ import 'dart:ffi' as ffi;
 import 'dart:io';
 import 'dart:isolate';
 
-import 'package:flutter/gestures.dart';
 import 'package:alera/src/features/settings/domain/alera_settings.dart';
 import 'package:alera/src/features/workbench/domain/terminal_agent_prompt_injection.dart';
 import 'package:alera/src/features/workbench/domain/terminal_mode_reset.dart';

@@ -15,16 +15,12 @@ enum _MobileUpdateAction { copyLink, download }
 /// opens, so the next launch asks again. This must be mounted inside a route
 /// rather than in `MaterialApp.builder`, which sits above the Navigator the
 /// dialog needs.
-class MobileUpdatePrompt extends ConsumerStatefulWidget {
-  const MobileUpdatePrompt({
-    super.key,
-    required this.child,
-    this.copyLink = _copyToClipboard,
-    this.openUrl = openMobileExternalBrowser,
-  });
-
-  final Widget child;
-
+class const MobileUpdatePrompt({
+  super.key,
+  required final Widget child,
+  this.copyLink = _copyToClipboard,
+  this.openUrl = openMobileExternalBrowser,
+}) extends ConsumerStatefulWidget {
   /// Injected so tests do not reach the platform clipboard.
   final Future<void> Function(String link) copyLink;
 
@@ -105,11 +101,8 @@ class _MobileUpdatePromptState extends ConsumerState<MobileUpdatePrompt> {
   }
 }
 
-class _MobileUpdateDialog extends StatelessWidget {
-  const _MobileUpdateDialog({required this.version});
-
-  final String version;
-
+class const _MobileUpdateDialog({required final String version})
+    extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -118,8 +111,8 @@ class _MobileUpdateDialog extends StatelessWidget {
       child: Padding(
         padding: const EdgeInsets.all(AleraTokens.space20),
         child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: .min,
+          crossAxisAlignment: .start,
           children: <Widget>[
             Text('Update available', style: theme.textTheme.titleMedium),
             const SizedBox(height: AleraTokens.space12),
@@ -132,7 +125,7 @@ class _MobileUpdateDialog extends StatelessWidget {
             ),
             const SizedBox(height: AleraTokens.space20),
             SizedBox(
-              width: double.infinity,
+              width: .infinity,
               child: OutlinedButton(
                 onPressed: () =>
                     Navigator.of(context).pop(_MobileUpdateAction.copyLink),

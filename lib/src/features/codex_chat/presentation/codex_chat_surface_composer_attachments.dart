@@ -1,16 +1,10 @@
 part of 'codex_chat_surface.dart';
 
-class _CodexDraftItemBar extends StatelessWidget {
-  const _CodexDraftItemBar({
-    required this.items,
-    required this.onRemove,
-    required this.onOpen,
-  });
-
-  final List<CodexDraftItem> items;
-  final ValueChanged<CodexDraftItem> onRemove;
-  final Future<void> Function(CodexDraftItem item) onOpen;
-
+class const _CodexDraftItemBar({
+  required final List<CodexDraftItem> items,
+  required final ValueChanged<CodexDraftItem> onRemove,
+  required final Future<void> Function(CodexDraftItem item) onOpen,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final visibleItems = items
@@ -27,7 +21,7 @@ class _CodexDraftItemBar extends StatelessWidget {
       child: SizedBox(
         height: AleraTokens.codexDraftChipHeight,
         child: ListView.separated(
-          scrollDirection: Axis.horizontal,
+          scrollDirection: .horizontal,
           itemCount: visibleItems.length,
           separatorBuilder: (_, _) => const SizedBox(width: AleraTokens.space4),
           itemBuilder: (context, index) {
@@ -46,17 +40,11 @@ class _CodexDraftItemBar extends StatelessWidget {
   }
 }
 
-class _CodexDraftChip extends StatelessWidget {
-  const _CodexDraftChip({
-    required this.item,
-    required this.onRemove,
-    required this.onOpen,
-  });
-
-  final CodexDraftItem item;
-  final VoidCallback onRemove;
-  final Future<void> Function()? onOpen;
-
+class const _CodexDraftChip({
+  required final CodexDraftItem item,
+  required final VoidCallback onRemove,
+  required final Future<void> Function()? onOpen,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Container(
     decoration: BoxDecoration(
@@ -64,16 +52,16 @@ class _CodexDraftChip extends StatelessWidget {
       borderRadius: BorderRadius.circular(AleraTokens.radiusXl),
     ),
     child: Row(
-      mainAxisSize: MainAxisSize.min,
+      mainAxisSize: .min,
       children: <Widget>[
         InkWell(
           onTap: onOpen == null ? null : () => unawaited(onOpen!()),
           mouseCursor: onOpen == null
               ? SystemMouseCursors.basic
               : SystemMouseCursors.click,
-          borderRadius: BorderRadius.circular(AleraTokens.radiusXl),
+          borderRadius: .circular(AleraTokens.radiusXl),
           child: Row(
-            mainAxisSize: MainAxisSize.min,
+            mainAxisSize: .min,
             children: <Widget>[
               Padding(
                 padding: const EdgeInsets.only(left: AleraTokens.space8),
@@ -94,7 +82,7 @@ class _CodexDraftChip extends StatelessWidget {
                 child: Text(
                   item.tokenText ?? item.name,
                   maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+                  overflow: .ellipsis,
                   style: Theme.of(context).textTheme.labelSmall
                       ?.copyWith(color: AleraTokens.foregroundMuted),
                 ),
@@ -105,7 +93,7 @@ class _CodexDraftChip extends StatelessWidget {
         InkWell(
           onTap: onRemove,
           mouseCursor: SystemMouseCursors.click,
-          borderRadius: BorderRadius.circular(AleraTokens.radiusXl),
+          borderRadius: .circular(AleraTokens.radiusXl),
           child: const Padding(
             padding: EdgeInsets.all(AleraTokens.space4),
             child: Icon(
@@ -120,21 +108,14 @@ class _CodexDraftChip extends StatelessWidget {
   );
 }
 
-class _CodexAttachmentBar extends StatelessWidget {
-  const _CodexAttachmentBar({
-    required this.attachments,
-    required this.draftItems,
-    required this.onRemoveAttachment,
-    required this.onRemoveDraftItem,
-    required this.onOpen,
-  });
-
-  final List<CodexInputAttachment> attachments;
-  final List<CodexDraftItem> draftItems;
-  final ValueChanged<CodexInputAttachment> onRemoveAttachment;
-  final ValueChanged<CodexDraftItem> onRemoveDraftItem;
-  final Future<void> Function(String path, {required bool isImage}) onOpen;
-
+class const _CodexAttachmentBar({
+  required final List<CodexInputAttachment> attachments,
+  required final List<CodexDraftItem> draftItems,
+  required final ValueChanged<CodexInputAttachment> onRemoveAttachment,
+  required final ValueChanged<CodexDraftItem> onRemoveDraftItem,
+  required final Future<void> Function(String path, {required bool isImage})
+  onOpen,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final mentionedFiles = draftItems
@@ -158,7 +139,7 @@ class _CodexAttachmentBar extends StatelessWidget {
         key: const ValueKey<String>('codex-composer-file-bar'),
         height: AleraTokens.codexAttachmentRowHeight,
         child: ListView.separated(
-          scrollDirection: Axis.horizontal,
+          scrollDirection: .horizontal,
           itemCount: mentionedFiles.length + ordered.length,
           separatorBuilder: (_, _) => const SizedBox(width: AleraTokens.space4),
           itemBuilder: (context, index) {
@@ -193,24 +174,15 @@ class _CodexAttachmentBar extends StatelessWidget {
   }
 }
 
-class _CodexFileChip extends StatelessWidget {
-  const _CodexFileChip({
-    super.key,
-    required this.path,
-    required this.displayName,
-    required this.isImage,
-    required this.isDirectory,
-    required this.onRemove,
-    required this.onOpen,
-  });
-
-  final String path;
-  final String displayName;
-  final bool isImage;
-  final bool isDirectory;
-  final VoidCallback onRemove;
-  final Future<void> Function() onOpen;
-
+class const _CodexFileChip({
+  super.key,
+  required final String path,
+  required final String displayName,
+  required final bool isImage,
+  required final bool isDirectory,
+  required final VoidCallback onRemove,
+  required final Future<void> Function() onOpen,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Container(
     constraints: const BoxConstraints(
@@ -221,13 +193,13 @@ class _CodexFileChip extends StatelessWidget {
       borderRadius: BorderRadius.circular(AleraTokens.radiusMd),
     ),
     child: Row(
-      mainAxisSize: MainAxisSize.min,
+      mainAxisSize: .min,
       children: <Widget>[
         Flexible(
           child: InkWell(
             onTap: () => unawaited(onOpen()),
             mouseCursor: SystemMouseCursors.click,
-            borderRadius: BorderRadius.circular(AleraTokens.radiusMd),
+            borderRadius: .circular(AleraTokens.radiusMd),
             child: Padding(
               padding: const EdgeInsets.fromLTRB(
                 AleraTokens.space4,
@@ -236,7 +208,7 @@ class _CodexFileChip extends StatelessWidget {
                 AleraTokens.space4,
               ),
               child: Row(
-                mainAxisSize: MainAxisSize.min,
+                mainAxisSize: .min,
                 children: <Widget>[
                   if (isImage)
                     ClipRRect(
@@ -245,7 +217,7 @@ class _CodexFileChip extends StatelessWidget {
                         File(path),
                         width: AleraTokens.codexAttachmentPreviewSize,
                         height: AleraTokens.codexAttachmentPreviewSize,
-                        fit: BoxFit.cover,
+                        fit: .cover,
                         errorBuilder: _codexImageError,
                       ),
                     )
@@ -261,7 +233,7 @@ class _CodexFileChip extends StatelessWidget {
                   Flexible(
                     child: Text(
                       displayName,
-                      overflow: TextOverflow.ellipsis,
+                      overflow: .ellipsis,
                       style: Theme.of(context).textTheme.labelSmall,
                     ),
                   ),
@@ -316,21 +288,14 @@ Future<void> _showCodexImagePreview(BuildContext context, String source) {
   );
 }
 
-class _CodexQueueBar extends StatelessWidget {
-  const _CodexQueueBar({
-    required this.messages,
-    required this.canSteer,
-    required this.onRemove,
-    required this.onEdit,
-    required this.onSteer,
-  });
-
-  final List<CodexQueuedMessage> messages;
-  final bool canSteer;
-  final ValueChanged<int> onRemove;
-  final void Function(int index, CodexQueuedMessage message) onEdit;
-  final Future<void> Function(int index, CodexQueuedMessage message) onSteer;
-
+class const _CodexQueueBar({
+  required final List<CodexQueuedMessage> messages,
+  required final bool canSteer,
+  required final ValueChanged<int> onRemove,
+  required final void Function(int index, CodexQueuedMessage message) onEdit,
+  required final Future<void> Function(int index, CodexQueuedMessage message)
+  onSteer,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Center(
     child: ConstrainedBox(
@@ -349,7 +314,7 @@ class _CodexQueueBar extends StatelessWidget {
           border: Border.all(color: AleraTokens.borderSubtle),
         ),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
+          crossAxisAlignment: .stretch,
           children: <Widget>[
             Text(
               '${messages.length} Queued ${messages.length == 1 ? 'Message' : 'Messages'}',
@@ -370,7 +335,7 @@ class _CodexQueueBar extends StatelessWidget {
                         child: Text(
                           message.text.isEmpty ? 'Attachment' : message.text,
                           maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
+                          overflow: .ellipsis,
                         ),
                       ),
                       if (message.attachments.isNotEmpty)
@@ -406,12 +371,10 @@ class _CodexQueueBar extends StatelessWidget {
   );
 }
 
-class _CodexFailure extends StatelessWidget {
-  const _CodexFailure({required this.message, required this.onRetry});
-
-  final String message;
-  final Future<void> Function() onRetry;
-
+class const _CodexFailure({
+  required final String message,
+  required final Future<void> Function() onRetry,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Center(
     child: ConstrainedBox(
@@ -419,9 +382,9 @@ class _CodexFailure extends StatelessWidget {
         maxWidth: AleraTokens.emptyStateMaxWidth,
       ),
       child: Column(
-        mainAxisSize: MainAxisSize.min,
+        mainAxisSize: .min,
         children: <Widget>[
-          Text(message, textAlign: TextAlign.center),
+          Text(message, textAlign: .center),
           const SizedBox(height: AleraTokens.space12),
           FilledButton.icon(
             onPressed: () => unawaited(onRetry()),
@@ -434,12 +397,10 @@ class _CodexFailure extends StatelessWidget {
   );
 }
 
-class _CodexInlineError extends StatelessWidget {
-  const _CodexInlineError({required this.message, required this.onRetry});
-
-  final String message;
-  final Future<void> Function() onRetry;
-
+class const _CodexInlineError({
+  required final String message,
+  required final Future<void> Function() onRetry,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) => MaterialBanner(
     content: Text(message),

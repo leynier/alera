@@ -48,7 +48,7 @@ extension _AgentProfilesPaneProfileActions on _AgentProfilesSettingsPaneState {
       AleraToast.show(
         context,
         message: 'Agent profile order could not be saved',
-        tone: AleraToastTone.error,
+        tone: .error,
       );
     }
   }
@@ -117,11 +117,7 @@ extension _AgentProfilesPaneProfileActions on _AgentProfilesSettingsPaneState {
         _selectedProfileRevision = saved.revision;
         _seededSignature = null;
       });
-      AleraToast.show(
-        context,
-        message: 'Agent profile saved',
-        tone: AleraToastTone.success,
-      );
+      AleraToast.show(context, message: 'Agent profile saved', tone: .success);
     } catch (error) {
       if (!mounted) {
         return;
@@ -223,7 +219,7 @@ extension _AgentProfilesPaneProfileActions on _AgentProfilesSettingsPaneState {
       AleraToast.show(
         context,
         message: 'Default agent profile updated',
-        tone: AleraToastTone.success,
+        tone: .success,
       );
     } catch (error) {
       if (mounted) {
@@ -256,11 +252,7 @@ extension _AgentProfilesPaneProfileActions on _AgentProfilesSettingsPaneState {
         _selectedProfileId = cloned.id;
         _seededSignature = null;
       });
-      AleraToast.show(
-        context,
-        message: 'Agent profile cloned',
-        tone: AleraToastTone.success,
-      );
+      AleraToast.show(context, message: 'Agent profile cloned', tone: .success);
     } catch (error) {
       if (!mounted) {
         return;

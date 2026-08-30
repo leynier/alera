@@ -75,7 +75,7 @@ void _registerCodexRuntimeHomeServiceAdvancedTests() {
 [hooks.state."escaped\n\r\t\b\f\"\\z:stop:0:0"]
 enabled = true
 trusted_hash = "sha256:escaped\n\r\t\b\f\"\\z"
-''', mode: FileMode.append);
+''', mode: .append);
 
       final status = await service.status();
 
@@ -89,7 +89,7 @@ trusted_hash = "sha256:escaped\n\r\t\b\f\"\\z"
     File(runtimeTomlPath).writeAsStringSync(
       '\n[hooks.state."unknown\\q:stop:0:0"]\n'
       'enabled = true',
-      mode: FileMode.append,
+      mode: .append,
     );
 
     final status = await service.status();
@@ -109,7 +109,7 @@ trusted_hash = "sha256:escaped\n\r\t\b\f\"\\z"
         enabled: true,
         trustedHash: 'sha256:stale',
       ),
-      mode: FileMode.append,
+      mode: .append,
     );
 
     await service.prepareForTerminalLaunch();
@@ -393,12 +393,12 @@ trusted_hash = "sha256:escaped\n\r\t\b\f\"\\z"
     () {
       final profileService = CodexRuntimeHomeService(
         applicationSupportDirectory: () async => support,
-        platform: ManagedAgentHookPlatform.posix,
+        platform: .posix,
         environment: <String, String>{'HOME': '', 'USERPROFILE': home.path},
       );
       final currentFallbackService = CodexRuntimeHomeService(
         applicationSupportDirectory: () async => support,
-        platform: ManagedAgentHookPlatform.posix,
+        platform: .posix,
         environment: const <String, String>{},
       );
 

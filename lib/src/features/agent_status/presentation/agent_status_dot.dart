@@ -4,12 +4,11 @@ import 'package:alera/src/features/agent_status/domain/agent_status.dart';
 import 'package:alera/src/features/agent_status/presentation/agent_identity_icon.dart';
 import 'package:flutter/material.dart';
 
-class AgentStatusDot extends StatelessWidget {
-  const AgentStatusDot({super.key, required this.status, this.size = 7});
-
-  final AgentStatusEntry? status;
-  final double size;
-
+class const AgentStatusDot({
+  super.key,
+  required final AgentStatusEntry? status,
+  final double size = 7,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final entry = status;

@@ -57,7 +57,7 @@ final class WorkspacePullRequestControllerProvider
 }
 
 String _$workspacePullRequestControllerHash() =>
-    r'cb1e260bb698a78750e0817e51763ffca0478d20';
+    r'e1628e4b2deebc7f5105031c7d538faebe2cc483';
 
 final class WorkspacePullRequestControllerFamily extends $Family
     with

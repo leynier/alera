@@ -97,7 +97,7 @@ extension _CodexComposerQuickOpen on _CodexComposerState {
               skill['path']?.toString().trim().isNotEmpty == true)
             CodexDraftItem(
               id: 'skill-${skill['path']}',
-              kind: CodexDraftItemKind.skill,
+              kind: .skill,
               name: _catalogName(skill),
               path: skill['path'].toString(),
               tokenText: '\$${_catalogName(skill)}',
@@ -107,7 +107,7 @@ extension _CodexComposerQuickOpen on _CodexComposerState {
               _catalogConnector(app) != null)
             CodexDraftItem(
               id: 'app-${_catalogConnector(app)}',
-              kind: CodexDraftItemKind.app,
+              kind: .app,
               name: _catalogName(app),
               path: _catalogConnector(app)!,
               tokenText: '\$${_catalogName(app)}',

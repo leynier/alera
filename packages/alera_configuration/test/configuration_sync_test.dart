@@ -122,7 +122,7 @@ void main() {
         ..base = latest;
       final sync = ConfigurationSyncService(cloud: cloud, target: target);
       final review = await sync.review(historicalRevision: 1);
-      review.merge.chooseAll(ConfigurationChoice.remote);
+      review.merge.chooseAll(.remote);
       await sync.apply(review, upload: true);
       expect(cloud.current!.revision, 4);
       final desktop = jsonMap(target.document.json['desktop']);
@@ -163,7 +163,7 @@ void main() {
     final review = await sync.review();
     expect(target.document.json['desktop'], {'font': 12});
     expect(target.base, isNull);
-    review.merge.chooseAll(ConfigurationChoice.remote);
+    review.merge.chooseAll(.remote);
     await sync.apply(review, upload: false);
     expect(target.document.json['desktop'], {'font': 16});
     expect(cloud.writes, 0);

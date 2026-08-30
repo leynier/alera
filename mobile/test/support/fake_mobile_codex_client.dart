@@ -3,63 +3,40 @@ import 'dart:async';
 import 'package:alera_mobile/src/features/runtime/domain/mobile_codex_workspace.dart';
 import 'package:alera_mobile/src/features/runtime/domain/runtime_client_surfaces.dart';
 
-final class FakeMobileCodexClient
-    implements MobileCodexClient, MobileCodexWorkspaceClient {
-  FakeMobileCodexClient({
-    this.timelineCells,
-    this.initialSnapshot,
-    this.initialThreadId,
-    this.responses = const <String, Map<String, Object?>>{},
-    this.responseErrors = const <String, Object>{},
-    this.requestHandler,
-    this.workspaceFiles = const [],
-    this.workspaceQuickOpenStart,
-    this.workspaceQuickOpenStarter,
-    this.workspaceQuickOpenSearcher,
-    this.workspaceQuickOpenStopper,
-    this.savedPrompts = const <MobileCodexSavedPrompt>[],
-    this.savedPromptsLoader,
-    this.workspaceFileReader,
-    this.promptAttachmentReader,
-    this.promptAttachmentReadSupported = false,
-    this.configuration,
-    this.recovery,
-    this.supportsCodexSessions = true,
-    this.supportsCodexTurnPolicy = true,
-    this.supportsCodexGoals = false,
-  });
-
-  final List<Object?>? timelineCells;
-  final Map<String, Object?>? initialSnapshot;
-  final String? initialThreadId;
-  final Map<String, Map<String, Object?>> responses;
-  final Map<String, Object> responseErrors;
+final class FakeMobileCodexClient({
+  final List<Object?>? timelineCells,
+  final Map<String, Object?>? initialSnapshot,
+  final String? initialThreadId,
+  final Map<String, Map<String, Object?>> responses =
+      const <String, Map<String, Object?>>{},
+  final Map<String, Object> responseErrors = const <String, Object>{},
   final Future<Map<String, Object?>>? Function(
     String type,
     Map<String, Object?> payload,
   )?
-  requestHandler;
-  final List<String> workspaceFiles;
-  final Future<MobileWorkspaceQuickOpenSession>? workspaceQuickOpenStart;
+  requestHandler,
+  final List<String> workspaceFiles = const [],
+  final Future<MobileWorkspaceQuickOpenSession>? workspaceQuickOpenStart,
   final Future<MobileWorkspaceQuickOpenSession> Function(
     String workspaceId,
     String? cwd,
   )?
-  workspaceQuickOpenStarter;
+  workspaceQuickOpenStarter,
   final Future<List<MobileWorkspaceQuickOpenMatch>> Function(
     MobileWorkspaceQuickOpenSession session,
     String query,
     int limit,
   )?
-  workspaceQuickOpenSearcher;
+  workspaceQuickOpenSearcher,
   final Future<void> Function(MobileWorkspaceQuickOpenSession session)?
-  workspaceQuickOpenStopper;
-  final List<MobileCodexSavedPrompt> savedPrompts;
+  workspaceQuickOpenStopper,
+  final List<MobileCodexSavedPrompt> savedPrompts =
+      const <MobileCodexSavedPrompt>[],
   final Future<List<MobileCodexSavedPrompt>> Function(
     String workspaceId,
     String? cwd,
   )?
-  savedPromptsLoader;
+  savedPromptsLoader,
   final Future<MobileWorkspaceFileRange> Function(
     String workspaceId,
     String relativePath,
@@ -67,16 +44,20 @@ final class FakeMobileCodexClient
     int offset,
     int length,
   )?
-  workspaceFileReader;
+  workspaceFileReader,
   final Future<MobileWorkspaceFileRange> Function(
     String path,
     int offset,
     int length,
   )?
-  promptAttachmentReader;
-  final bool promptAttachmentReadSupported;
-  Map<String, Object?>? configuration;
-  Map<String, Object?>? recovery;
+  promptAttachmentReader,
+  final bool promptAttachmentReadSupported = false,
+  var Map<String, Object?>? configuration,
+  var Map<String, Object?>? recovery,
+  this.supportsCodexSessions = true,
+  this.supportsCodexTurnPolicy = true,
+  this.supportsCodexGoals = false,
+}) implements MobileCodexClient, MobileCodexWorkspaceClient {
   @override
   final bool supportsCodexSessions;
   @override
@@ -291,12 +272,10 @@ final class FakeMobileCodexClient
   void dispose() => _events.close();
 }
 
-final class MobileCodexCall {
-  const MobileCodexCall(this.type, this.payload);
-
-  final String type;
-  final Map<String, Object?> payload;
-}
+final class const MobileCodexCall(
+  final String type,
+  final Map<String, Object?> payload,
+);
 
 const List<Object?> _defaultTimeline = <Object?>[
   <String, Object?>{

@@ -7,9 +7,8 @@ import 'package:alera/src/shared/infra/runtime/runtime_host_providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-class AutomationSettingsSection extends ConsumerStatefulWidget {
-  const AutomationSettingsSection({super.key});
-
+class const AutomationSettingsSection({super.key})
+    extends ConsumerStatefulWidget {
   @override
   ConsumerState<AutomationSettingsSection> createState() =>
       _AutomationSettingsSectionState();

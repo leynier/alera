@@ -6,27 +6,17 @@ import 'package:logging/logging.dart';
 
 final Logger _log = Logger('AleraAllSkillsSetupService');
 
-class AleraSkillSetupOutcome {
-  const AleraSkillSetupOutcome({
-    required this.skill,
-    required this.succeeded,
-    required this.summary,
-    required this.detail,
-    required this.needsAttention,
-  });
+class const AleraSkillSetupOutcome({
+  required final AleraAgentSkill skill,
+  required final bool succeeded,
+  required final String summary,
+  required final String detail,
+  required final bool needsAttention,
+});
 
-  final AleraAgentSkill skill;
-  final bool succeeded;
-  final String summary;
-  final String detail;
-  final bool needsAttention;
-}
-
-class AleraAllSkillsSetupResult {
-  const AleraAllSkillsSetupResult(this.outcomes);
-
-  final List<AleraSkillSetupOutcome> outcomes;
-
+class const AleraAllSkillsSetupResult(
+  final List<AleraSkillSetupOutcome> outcomes,
+) {
   int get succeededCount =>
       outcomes.where((outcome) => outcome.succeeded).length;
 
@@ -56,15 +46,10 @@ class AleraAllSkillsSetupResult {
   }
 }
 
-class AleraAllSkillsSetupService {
-  const AleraAllSkillsSetupService({
-    required this.skillService,
-    required this.hookReconciliationService,
-  });
-
-  final AleraCliSkillService skillService;
-  final AgentHookReconciler hookReconciliationService;
-
+class const AleraAllSkillsSetupService({
+  required final AleraCliSkillService skillService,
+  required final AgentHookReconciler hookReconciliationService,
+}) {
   Future<AleraAllSkillsSetupResult> installOrUpdate({
     required AgentStatusHookSettings hooks,
     AleraCliSkillRunner runner = AleraCliSkillRunner.auto,

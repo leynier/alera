@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'dart:typed_data';
 
 import 'package:alera_mobile/src/features/runtime/domain/runtime_client_surfaces.dart';
 
@@ -23,10 +22,7 @@ MobileTerminalOutputEvent? decodeMobileBinaryOutput(List<int> raw) {
   if (sessionId.isEmpty) {
     return null;
   }
-  return MobileTerminalOutputEvent(
-    sessionId,
-    Uint8List.fromList(raw.sublist(idEnd)),
-  );
+  return MobileTerminalOutputEvent(sessionId, .fromList(raw.sublist(idEnd)));
 }
 
 bool looksLikeJsonBytes(List<int> bytes) {

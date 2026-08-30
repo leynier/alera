@@ -1,11 +1,9 @@
 import 'package:alera/src/features/keyboard/domain/keyboard_action.dart';
 
-class KeyboardCommandMatch {
-  const KeyboardCommandMatch({required this.definition, required this.score});
-
-  final KeybindingDefinition definition;
-  final int score;
-}
+class const KeyboardCommandMatch({
+  required final KeybindingDefinition definition,
+  required final int score,
+});
 
 const int defaultKeyboardCommandPaletteResultLimit = 50;
 

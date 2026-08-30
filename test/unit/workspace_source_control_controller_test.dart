@@ -19,8 +19,8 @@ GitStatusResult _statusWith(int entryCount) {
       for (var index = 0; index < entryCount; index += 1)
         GitChangeEntry(
           path: 'file_$index.dart',
-          area: GitChangeArea.unstaged,
-          status: GitChangeStatus.modified,
+          area: .unstaged,
+          status: .modified,
           added: 1,
           removed: 0,
         ),
@@ -156,8 +156,8 @@ void main() {
     final (_, controller) = await _boot(backend, watcher);
     const entry = GitChangeEntry(
       path: 'modules/sample',
-      area: GitChangeArea.unstaged,
-      status: GitChangeStatus.modified,
+      area: .unstaged,
+      status: .modified,
       submodule: GitSubmoduleStatus(
         commitChanged: false,
         trackedChanges: true,
@@ -176,8 +176,8 @@ void main() {
   test('one-sided submodule ranges are not expandable', () {
     const entry = GitChangeEntry(
       path: 'modules/sample',
-      area: GitChangeArea.staged,
-      status: GitChangeStatus.deleted,
+      area: .staged,
+      status: .deleted,
       submodule: GitSubmoduleStatus(
         commitChanged: true,
         trackedChanges: false,
@@ -196,8 +196,8 @@ void main() {
         entries: <GitChangeEntry>[
           GitChangeEntry(
             path: 'lib/child.dart',
-            area: GitChangeArea.staged,
-            status: GitChangeStatus.modified,
+            area: .staged,
+            status: .modified,
           ),
         ],
       );
@@ -207,7 +207,7 @@ void main() {
     final provider = workspaceSubmoduleStatusProvider(
       workspacePath: _workspacePath,
       submodulePath: 'modules/sample',
-      area: GitChangeArea.staged,
+      area: .staged,
     );
 
     expect(

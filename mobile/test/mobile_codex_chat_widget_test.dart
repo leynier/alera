@@ -159,7 +159,7 @@ Future<void> _pumpScreen(
 }) async {
   final child = MaterialApp(
     debugShowCheckedModeBanner: false,
-    theme: ThemeData.dark(),
+    theme: .dark(),
     home: MediaQuery(
       data: MediaQueryData.fromView(tester.view)
           .copyWith(disableAnimations: disableAnimations),

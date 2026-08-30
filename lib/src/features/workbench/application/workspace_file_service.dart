@@ -8,9 +8,7 @@ import 'package:path/path.dart' as p;
 
 part 'editor_session_registry.dart';
 
-class WorkspaceFileService {
-  const WorkspaceFileService();
-
+class const WorkspaceFileService() {
   Future<List<native.WorkspaceFileEntry>> listChildren({
     required String workspacePath,
     required String relativePath,
@@ -341,14 +339,8 @@ class WorkspaceFileService {
   }
 }
 
-class ResolvedWorkspaceFile {
-  const ResolvedWorkspaceFile({
-    required this.path,
-    required this.modifiedMicros,
-    required this.length,
-  });
-
-  final String path;
-  final int modifiedMicros;
-  final int length;
-}
+class const ResolvedWorkspaceFile({
+  required final String path,
+  required final int modifiedMicros,
+  required final int length,
+});

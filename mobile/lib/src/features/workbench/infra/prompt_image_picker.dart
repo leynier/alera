@@ -2,25 +2,19 @@ import 'dart:async';
 
 import 'package:image_picker/image_picker.dart';
 
-class PromptImageFile {
-  const PromptImageFile({
-    required this.name,
-    required this.sizeBytes,
-    required this.openRead,
-  });
-
-  final String name;
-  final int sizeBytes;
-  final Stream<List<int>> Function() openRead;
-}
+class const PromptImageFile({
+  required final String name,
+  required final int sizeBytes,
+  required final Stream<List<int>> Function() openRead,
+});
 
 abstract interface class PromptImagePicker {
   Future<List<PromptImageFile>> pickImages();
 }
 
-class ImagePickerPromptImagePicker implements PromptImagePicker {
-  ImagePickerPromptImagePicker({ImagePicker? picker})
-    : _picker = picker ?? ImagePicker();
+class ImagePickerPromptImagePicker({ImagePicker? picker})
+    implements PromptImagePicker {
+  this : _picker = picker ?? ImagePicker();
 
   final ImagePicker _picker;
 

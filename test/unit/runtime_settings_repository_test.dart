@@ -227,26 +227,20 @@ void main() {
 
       expect(loaded.aiAssist.agent, AiAssistAgent.claude);
       expect(
-        loaded.aiAssist.instructionsFor(AiAssistOperation.workspaceIdentity),
+        loaded.aiAssist.instructionsFor(.workspaceIdentity),
         'Use feature branches.',
       );
       expect(
-        loaded.aiAssist.agentFor(AiAssistOperation.workspaceIdentity),
+        loaded.aiAssist.agentFor(.workspaceIdentity),
         AiAssistAgent.claude,
       );
+      expect(loaded.aiAssist.modelForOperation(.workspaceIdentity), 'opus');
       expect(
-        loaded.aiAssist.modelForOperation(AiAssistOperation.workspaceIdentity),
-        'opus',
-      );
-      expect(
-        loaded.aiAssist.thinkingForOperation(
-          AiAssistOperation.workspaceIdentity,
-          'opus',
-        ),
+        loaded.aiAssist.thinkingForOperation(.workspaceIdentity, 'opus'),
         'high',
       );
       expect(
-        loaded.aiAssist.discoveredModelsFor(AiAssistAgent.codex).single.id,
+        loaded.aiAssist.discoveredModelsFor(.codex).single.id,
         'local-model',
       );
     },
@@ -395,7 +389,7 @@ final class _RecordingRuntimeHostClient
 }
 
 final class _MemorySettingsRepository implements SettingsRepository {
-  AleraSettings settings = AleraSettings.defaults;
+  AleraSettings settings = .defaults;
 
   @override
   Future<AleraSettings> load() async => settings;

@@ -4,7 +4,7 @@ import 'package:test/test.dart';
 ConfigurationDocument doc(JsonMap desktop, {JsonMap? mobile}) =>
     ConfigurationDocument.empty().withBlocks({
       'desktop': desktop,
-      if (mobile != null) 'mobile': mobile,
+      'mobile': ?mobile,
     });
 void main() {
   test('profiles use stable ids, expose ordering and reject duplicate names or missing defaults', () {
@@ -63,7 +63,7 @@ void main() {
     );
     expect(conflict.hasUnresolved, isTrue);
     expect(conflict.resolve, throwsStateError);
-    conflict.chooseAll(ConfigurationChoice.remote);
+    conflict.chooseAll(.remote);
     expect(conflict.resolve().json['desktop'], {'font': 16});
   });
   test(
@@ -101,9 +101,9 @@ void main() {
         remote: remote,
       );
       expect(merge.hasUnresolved, isTrue);
-      merge.chooseAll(ConfigurationChoice.local);
+      merge.chooseAll(.local);
       expect(merge.resolve().json['desktop'], {'profiles': {}});
-      merge.chooseAll(ConfigurationChoice.remote);
+      merge.chooseAll(.remote);
       expect(merge.resolve().json['desktop'], {
         'profiles': {
           'id': {'name': 'New'},
@@ -179,11 +179,11 @@ void main() {
           },
         });
     final merge = ConfigurationMerge(
-      base: ConfigurationDocument.empty(),
+      base: .empty(),
       local: action('local'),
       remote: action('remote'),
     );
-    merge.chooseAll(ConfigurationChoice.remote);
+    merge.chooseAll(.remote);
     final localAddition = merge.differences.firstWhere(
       (d) => d.path.last == 'local',
     );

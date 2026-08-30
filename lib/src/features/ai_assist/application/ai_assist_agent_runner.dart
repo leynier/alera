@@ -18,40 +18,26 @@ enum AgentTaskAccessPolicy { repositoryReadOnly, diffOnly }
 
 enum AgentTaskOutputContract { plainText, readingDiffPlanV1 }
 
-class AiAssistAgentRunRequest {
-  const AiAssistAgentRunRequest({
-    required this.settings,
-    required this.prompt,
-    required this.runId,
-    required this.workingDirectory,
-    this.agent,
-    this.model,
-    this.reasoning,
-    this.cleanOutput = cleanGeneratedText,
-    this.accessPolicy = AgentTaskAccessPolicy.repositoryReadOnly,
-    this.outputContract = AgentTaskOutputContract.plainText,
-    this.outputSchema,
-  });
+class const AiAssistAgentRunRequest({
+  required final AiAssistSettings settings,
+  required final String prompt,
+  required final String runId,
+  required final String? workingDirectory,
+  final AiAssistAgent? agent,
+  final String? model,
+  final String? reasoning,
+  final String Function(String) cleanOutput = cleanGeneratedText,
+  final AgentTaskAccessPolicy accessPolicy =
+      AgentTaskAccessPolicy.repositoryReadOnly,
+  final AgentTaskOutputContract outputContract =
+      AgentTaskOutputContract.plainText,
+  final String? outputSchema,
+});
 
-  final AiAssistSettings settings;
-  final String prompt;
-  final String runId;
-  final String? workingDirectory;
-  final AiAssistAgent? agent;
-  final String? model;
-  final String? reasoning;
-  final String Function(String) cleanOutput;
-  final AgentTaskAccessPolicy accessPolicy;
-  final AgentTaskOutputContract outputContract;
-  final String? outputSchema;
-}
-
-class AiAssistAgentRunResult {
-  const AiAssistAgentRunResult({required this.text, required this.agentLabel});
-
-  final String text;
-  final String agentLabel;
-}
+class const AiAssistAgentRunResult({
+  required final String text,
+  required final String agentLabel,
+});
 
 abstract interface class AgentTaskRunner {
   Future<AiAssistAgentRunResult> run(AiAssistAgentRunRequest request);
@@ -61,14 +47,14 @@ abstract interface class AgentTaskRunner {
 
 abstract interface class AiAssistAgentRunner implements AgentTaskRunner {}
 
-class CliAiAssistAgentRunner implements AiAssistAgentRunner {
-  CliAiAssistAgentRunner({
-    required this.processRunner,
-    CommandEnvironmentResolver? commandEnvironmentResolver,
-  }) : commandEnvironmentResolver =
-           commandEnvironmentResolver ?? UserCommandEnvironmentResolver();
+class CliAiAssistAgentRunner({
+  required final ProcessRunner processRunner,
+  CommandEnvironmentResolver? commandEnvironmentResolver,
+}) implements AiAssistAgentRunner {
+  this
+    : commandEnvironmentResolver =
+          commandEnvironmentResolver ?? UserCommandEnvironmentResolver();
 
-  final ProcessRunner processRunner;
   final CommandEnvironmentResolver commandEnvironmentResolver;
   final Map<String, StartedProcess> _running = <String, StartedProcess>{};
   final Set<String> _pending = <String>{};

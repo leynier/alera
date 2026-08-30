@@ -15,7 +15,7 @@ extension CodexChatControllerLifecycle on CodexChatController {
       state = _applyConfiguration(
         state.copyWith(
           loading: false,
-          snapshot: CodexChatSnapshot.fromJson(open['snapshot']),
+          snapshot: .fromJson(open['snapshot']),
           activeCwd: _string(open['cwd']),
           historyNextCursor: _string(open['historyNextCursor']),
           recovery: open['recovery'] == null

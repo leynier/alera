@@ -2,18 +2,12 @@ import 'package:alera_mobile/src/app/theme/alera_tokens.dart';
 import 'package:flutter/material.dart';
 
 /// Small pill label used to tag a row.
-class AleraBadge extends StatelessWidget {
-  const AleraBadge({
-    super.key,
-    required this.label,
-    this.color,
-    this.foregroundColor,
-  });
-
-  final String label;
-  final Color? color;
-  final Color? foregroundColor;
-
+class const AleraBadge({
+  super.key,
+  required final String label,
+  final Color? color,
+  final Color? foregroundColor,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -28,7 +22,7 @@ class AleraBadge extends StatelessWidget {
       child: Text(
         label,
         maxLines: 1,
-        overflow: TextOverflow.ellipsis,
+        overflow: .ellipsis,
         style: Theme.of(context).textTheme.labelSmall
             ?.copyWith(color: foregroundColor ?? AleraTokens.foregroundMuted),
       ),

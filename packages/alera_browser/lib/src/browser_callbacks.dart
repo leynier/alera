@@ -1,16 +1,10 @@
 enum AleraBrowserPermissionDecision { deny, allow }
 
-final class AleraBrowserPermissionRequest {
-  const AleraBrowserPermissionRequest({
-    required this.pageId,
-    required this.resources,
-    this.origin,
-  });
-
-  final String pageId;
-  final Uri? origin;
-  final Set<String> resources;
-}
+final class const AleraBrowserPermissionRequest({
+  required final String pageId,
+  required final Set<String> resources,
+  final Uri? origin,
+});
 
 enum AleraBrowserTlsDecision { cancel, proceed }
 
@@ -24,62 +18,39 @@ enum AleraBrowserTlsErrorType {
   other,
 }
 
-final class AleraBrowserTlsError {
-  const AleraBrowserTlsError({
-    required this.pageId,
-    required this.host,
-    required this.fingerprintSha256,
-    this.url,
-    this.description,
-    this.subject,
-    this.issuer,
-    this.validFrom,
-    this.validTo,
-    this.errors = const <AleraBrowserTlsErrorType>{},
-  });
-
-  final String pageId;
-  final String host;
-  final String fingerprintSha256;
-  final Uri? url;
-  final String? description;
-  final String? subject;
-  final String? issuer;
-  final DateTime? validFrom;
-  final DateTime? validTo;
-  final Set<AleraBrowserTlsErrorType> errors;
-}
+final class const AleraBrowserTlsError({
+  required final String pageId,
+  required final String host,
+  required final String fingerprintSha256,
+  final Uri? url,
+  final String? description,
+  final String? subject,
+  final String? issuer,
+  final DateTime? validFrom,
+  final DateTime? validTo,
+  final Set<AleraBrowserTlsErrorType> errors =
+      const <AleraBrowserTlsErrorType>{},
+});
 
 enum AleraBrowserPopupDisposition { deny, newPage }
 
-final class AleraBrowserPopupRequest {
-  const AleraBrowserPopupRequest({
-    required this.requestId,
-    required this.pageId,
-    required this.transientPageId,
-    required this.userInitiated,
-    required this.trusted,
-    required this.requiresOpener,
-    this.url,
-    this.windowName,
-  });
-
-  final String requestId;
-  final String pageId;
-  final String transientPageId;
-  final Uri? url;
-  final String? windowName;
-  final bool userInitiated;
-  final bool trusted;
-  final bool requiresOpener;
-}
+final class const AleraBrowserPopupRequest({
+  required final String requestId,
+  required final String pageId,
+  required final String transientPageId,
+  required final bool userInitiated,
+  required final bool trusted,
+  required final bool requiresOpener,
+  final Uri? url,
+  final String? windowName,
+});
 
 final class AleraBrowserPopupDecision {
-  const AleraBrowserPopupDecision.deny()
+  const new deny()
     : disposition = AleraBrowserPopupDisposition.deny,
       targetPageId = null;
 
-  const AleraBrowserPopupDecision.openInPage(this.targetPageId)
+  const new openInPage(this.targetPageId)
     : disposition = AleraBrowserPopupDisposition.newPage;
 
   final AleraBrowserPopupDisposition disposition;
@@ -88,28 +59,20 @@ final class AleraBrowserPopupDecision {
 
 enum AleraBrowserDownloadDisposition { deny, accept }
 
-final class AleraBrowserDownloadRequest {
-  const AleraBrowserDownloadRequest({
-    required this.pageId,
-    required this.url,
-    this.suggestedFileName,
-    this.mimeType,
-    this.totalBytes,
-  });
-
-  final String pageId;
-  final Uri url;
-  final String? suggestedFileName;
-  final String? mimeType;
-  final int? totalBytes;
-}
+final class const AleraBrowserDownloadRequest({
+  required final String pageId,
+  required final Uri url,
+  final String? suggestedFileName,
+  final String? mimeType,
+  final int? totalBytes,
+});
 
 final class AleraBrowserDownloadDecision {
-  const AleraBrowserDownloadDecision.deny()
+  const new deny()
     : disposition = AleraBrowserDownloadDisposition.deny,
       destinationPath = null;
 
-  const AleraBrowserDownloadDecision.accept({required this.destinationPath})
+  const new accept({required this.destinationPath})
     : disposition = AleraBrowserDownloadDisposition.accept;
 
   final AleraBrowserDownloadDisposition disposition;
@@ -132,16 +95,9 @@ typedef AleraBrowserDownloadCallback =
     );
 
 /// Security-sensitive decisions. Missing callbacks always deny or cancel.
-final class AleraBrowserCallbacks {
-  const AleraBrowserCallbacks({
-    this.onPermissionRequest,
-    this.onTlsError,
-    this.onPopupRequest,
-    this.onDownloadRequest,
-  });
-
-  final AleraBrowserPermissionCallback? onPermissionRequest;
-  final AleraBrowserTlsCallback? onTlsError;
-  final AleraBrowserPopupCallback? onPopupRequest;
-  final AleraBrowserDownloadCallback? onDownloadRequest;
-}
+final class const AleraBrowserCallbacks({
+  final AleraBrowserPermissionCallback? onPermissionRequest,
+  final AleraBrowserTlsCallback? onTlsError,
+  final AleraBrowserPopupCallback? onPopupRequest,
+  final AleraBrowserDownloadCallback? onDownloadRequest,
+});

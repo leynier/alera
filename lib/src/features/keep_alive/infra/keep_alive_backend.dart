@@ -6,9 +6,7 @@ abstract interface class KeepAliveBackend {
   Future<KeepAliveSnapshot> status();
 }
 
-class RustKeepAliveBackend implements KeepAliveBackend {
-  const RustKeepAliveBackend();
-
+class const RustKeepAliveBackend() implements KeepAliveBackend {
   @override
   Future<KeepAliveSnapshot> setEnabled(bool enabled) async {
     return _fromDto(await setKeepAlive(enabled: enabled));

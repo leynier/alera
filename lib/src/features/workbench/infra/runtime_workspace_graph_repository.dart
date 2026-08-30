@@ -1,12 +1,10 @@
 import 'package:alera/src/features/workbench/application/workspace_graph_repository.dart';
 import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_protocol.dart';
 
-class RuntimeWorkspaceGraphRepository implements WorkspaceGraphRepository {
-  RuntimeWorkspaceGraphRepository(this._client, {this.beforeAccess});
-
-  final RuntimeHostClient _client;
-  final Future<void> Function()? beforeAccess;
-
+class RuntimeWorkspaceGraphRepository(
+  final RuntimeHostClient _client, {
+  final Future<void> Function()? beforeAccess,
+}) implements WorkspaceGraphRepository {
   @override
   Future<List<WorkspaceTag>> listTags() async {
     await _ensureReady();

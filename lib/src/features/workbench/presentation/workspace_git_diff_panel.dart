@@ -51,34 +51,20 @@ part 'workspace_git_diff_panel_context_menu.dart';
 part 'workspace_git_diff_panel_inline_actions.dart';
 part 'workspace_git_diff_panel_navigation.dart';
 
-class WorkspaceGitDiffPanel extends ConsumerStatefulWidget {
-  const WorkspaceGitDiffPanel({
-    super.key,
-    required this.workspace,
-    required this.sourceControlScope,
-    required this.viewMode,
-    required this.onViewModeChanged,
-    required this.groupMode,
-    required this.onGroupModeChanged,
-    required this.onOpenGitDiff,
-    required this.onOpenGitCommitDiff,
-    this.onOpenFile,
-    this.onRevealInExplorer,
-    this.onClearSourceControlRoot,
-  });
-
-  final Workspace workspace;
-  final WorkspaceSourceControlScope sourceControlScope;
-  final GitDiffViewMode viewMode;
-  final ValueChanged<GitDiffViewMode> onViewModeChanged;
-  final GitDiffGroupMode groupMode;
-  final ValueChanged<GitDiffGroupMode> onGroupModeChanged;
-  final OpenGitDiffTabCallback onOpenGitDiff;
-  final OpenGitCommitDiffTabCallback onOpenGitCommitDiff;
-  final ValueChanged<String>? onOpenFile;
-  final ValueChanged<String>? onRevealInExplorer;
-  final VoidCallback? onClearSourceControlRoot;
-
+class const WorkspaceGitDiffPanel({
+  super.key,
+  required final Workspace workspace,
+  required final WorkspaceSourceControlScope sourceControlScope,
+  required final GitDiffViewMode viewMode,
+  required final ValueChanged<GitDiffViewMode> onViewModeChanged,
+  required final GitDiffGroupMode groupMode,
+  required final ValueChanged<GitDiffGroupMode> onGroupModeChanged,
+  required final OpenGitDiffTabCallback onOpenGitDiff,
+  required final OpenGitCommitDiffTabCallback onOpenGitCommitDiff,
+  final ValueChanged<String>? onOpenFile,
+  final ValueChanged<String>? onRevealInExplorer,
+  final VoidCallback? onClearSourceControlRoot,
+}) extends ConsumerStatefulWidget {
   @override
   ConsumerState<WorkspaceGitDiffPanel> createState() =>
       _WorkspaceGitDiffPanelState();
@@ -117,7 +103,7 @@ class _WorkspaceGitDiffPanelState extends ConsumerState<WorkspaceGitDiffPanel> {
     if (oldWidget.sourceControlScope.path != widget.sourceControlScope.path) {
       _aiAssistService.cancel(
         oldWidget.sourceControlScope.path,
-        AiAssistOperation.commitMessage,
+        .commitMessage,
       );
       _commitMessageGenerationId += 1;
       _messageController.clear();
@@ -139,10 +125,7 @@ class _WorkspaceGitDiffPanelState extends ConsumerState<WorkspaceGitDiffPanel> {
 
   @override
   void dispose() {
-    _aiAssistService.cancel(
-      widget.sourceControlScope.path,
-      AiAssistOperation.commitMessage,
-    );
+    _aiAssistService.cancel(widget.sourceControlScope.path, .commitMessage);
     _commitMessageGenerationId += 1;
     _messageController.dispose();
     _messageFocusNode.dispose();
@@ -171,7 +154,7 @@ class _WorkspaceGitDiffPanelState extends ConsumerState<WorkspaceGitDiffPanel> {
       settingsControllerProvider.select((settings) => settings.aiAssist),
     );
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+      crossAxisAlignment: .stretch,
       children: <Widget>[
         _SourceControlToolbar(
           messageController: _messageController,
@@ -198,7 +181,7 @@ class _WorkspaceGitDiffPanelState extends ConsumerState<WorkspaceGitDiffPanel> {
           onGroupModeChanged: widget.onGroupModeChanged,
           onOpenAll: () => unawaited(
             widget.onOpenGitDiff(
-              scope: WorkspaceGitDiffScope.all,
+              scope: .all,
               gitDiffRoot: widget.sourceControlScope.relativeRoot,
             ),
           ),
@@ -489,7 +472,7 @@ class _WorkspaceGitDiffPanelState extends ConsumerState<WorkspaceGitDiffPanel> {
           .read(aiAssistServiceProvider)
           .generate(
             AiAssistRequest(
-              operation: AiAssistOperation.commitMessage,
+              operation: .commitMessage,
               workspacePath: requestWorkspacePath,
               settings: settings,
             ),
@@ -512,14 +495,14 @@ class _WorkspaceGitDiffPanelState extends ConsumerState<WorkspaceGitDiffPanel> {
         AleraToast.show(
           context,
           message: 'Commit message generated with ${result.agentLabel}',
-          tone: AleraToastTone.success,
+          tone: .success,
         );
       } else {
         AleraToast.show(
           context,
           message:
               'Generated message was not applied because the field changed.',
-          tone: AleraToastTone.info,
+          tone: .info,
         );
       }
     } on AiAssistCanceledException {
@@ -529,11 +512,7 @@ class _WorkspaceGitDiffPanelState extends ConsumerState<WorkspaceGitDiffPanel> {
         workspacePath: requestWorkspacePath,
         generationId: generationId,
       )) {
-        AleraToast.show(
-          context,
-          message: _messageFor(error),
-          tone: AleraToastTone.error,
-        );
+        AleraToast.show(context, message: _messageFor(error), tone: .error);
       }
     } finally {
       if (_isCurrentCommitMessageGeneration(
@@ -555,10 +534,7 @@ class _WorkspaceGitDiffPanelState extends ConsumerState<WorkspaceGitDiffPanel> {
   }
 
   void _cancelGenerateCommitMessage() {
-    _aiAssistService.cancel(
-      widget.sourceControlScope.path,
-      AiAssistOperation.commitMessage,
-    );
+    _aiAssistService.cancel(widget.sourceControlScope.path, .commitMessage);
   }
 
   Future<void> _amendAction() async {
@@ -712,21 +688,13 @@ class _WorkspaceGitDiffPanelState extends ConsumerState<WorkspaceGitDiffPanel> {
     try {
       await action();
       if (mounted) {
-        AleraToast.show(
-          context,
-          message: successMessage,
-          tone: AleraToastTone.success,
-        );
+        AleraToast.show(context, message: successMessage, tone: .success);
         _invalidateGitHistoryAfterMutation();
       }
       return true;
     } catch (error) {
       if (mounted) {
-        AleraToast.show(
-          context,
-          message: _messageFor(error),
-          tone: AleraToastTone.error,
-        );
+        AleraToast.show(context, message: _messageFor(error), tone: .error);
       }
       return false;
     }
@@ -869,7 +837,7 @@ class _WorkspaceGitDiffPanelState extends ConsumerState<WorkspaceGitDiffPanel> {
         return;
       }
       await widget.onOpenGitCommitDiff(
-        scope: WorkspaceGitDiffScope.all,
+        scope: .all,
         gitDiffRoot: widget.sourceControlScope.relativeRoot,
         commitOid: compare.summary.commitOid,
         parentOid: compare.summary.parentOid,
@@ -879,11 +847,7 @@ class _WorkspaceGitDiffPanelState extends ConsumerState<WorkspaceGitDiffPanel> {
       );
     } catch (error) {
       if (mounted) {
-        AleraToast.show(
-          context,
-          message: _messageFor(error),
-          tone: AleraToastTone.error,
-        );
+        AleraToast.show(context, message: _messageFor(error), tone: .error);
       }
     }
   }
@@ -911,20 +875,12 @@ class _WorkspaceGitDiffPanelState extends ConsumerState<WorkspaceGitDiffPanel> {
       if (!mounted) {
         return;
       }
-      AleraToast.show(
-        context,
-        message: '$label copied',
-        tone: AleraToastTone.success,
-      );
+      AleraToast.show(context, message: '$label copied', tone: .success);
     } catch (_) {
       if (!mounted) {
         return;
       }
-      AleraToast.show(
-        context,
-        message: 'Could not copy $label',
-        tone: AleraToastTone.error,
-      );
+      AleraToast.show(context, message: 'Could not copy $label', tone: .error);
     }
   }
 }

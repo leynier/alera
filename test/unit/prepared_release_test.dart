@@ -2,7 +2,6 @@ import 'package:flutter_test/flutter_test.dart';
 
 import '../../tool/github/main_ruleset.dart';
 import '../../tool/release/prepared_release.dart';
-import '../../tool/release/release_plan.dart';
 
 void main() {
   const desktop = PreparedProductRelease(
@@ -23,7 +22,7 @@ void main() {
   );
   const release = PreparedRelease(
     sourceSha: '1111111111111111111111111111111111111111',
-    channel: ReleaseChannel.stable,
+    channel: .stable,
     desktop: desktop,
     mobile: mobile,
   );
@@ -55,7 +54,7 @@ void main() {
       expect(
         () => PreparedRelease(
           sourceSha: release.sourceSha,
-          channel: ReleaseChannel.rc,
+          channel: .rc,
           desktop: desktop,
           mobile: mobile,
         ).validate(),

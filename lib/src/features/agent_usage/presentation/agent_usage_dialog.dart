@@ -30,9 +30,7 @@ Future<void> openAgentUsageDialog(BuildContext context) {
   );
 }
 
-class AgentUsageDialog extends ConsumerStatefulWidget {
-  const AgentUsageDialog({super.key});
-
+class const AgentUsageDialog({super.key}) extends ConsumerStatefulWidget {
   @override
   ConsumerState<AgentUsageDialog> createState() => _AgentUsageDialogState();
 }
@@ -83,30 +81,18 @@ class _AgentUsageDialogState extends ConsumerState<AgentUsageDialog> {
   }
 }
 
-class AgentUsageDialogView extends StatelessWidget {
-  const AgentUsageDialogView({
-    super.key,
-    required this.hostId,
-    required this.days,
-    required this.snapshot,
-    this.showGroupedBreakdown = true,
-    required this.loading,
-    required this.error,
-    required this.onDaysChanged,
-    required this.onRefresh,
-    required this.onClose,
-  });
-
-  final String hostId;
-  final int days;
-  final AgentUsageSnapshot? snapshot;
-  final bool showGroupedBreakdown;
-  final bool loading;
-  final String? error;
-  final ValueChanged<int> onDaysChanged;
-  final VoidCallback onRefresh;
-  final VoidCallback onClose;
-
+class const AgentUsageDialogView({
+  super.key,
+  required final String hostId,
+  required final int days,
+  required final AgentUsageSnapshot? snapshot,
+  final bool showGroupedBreakdown = true,
+  required final bool loading,
+  required final String? error,
+  required final ValueChanged<int> onDaysChanged,
+  required final VoidCallback onRefresh,
+  required final VoidCallback onClose,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return AleraDialog(
@@ -116,7 +102,7 @@ class AgentUsageDialogView extends StatelessWidget {
         width: AleraTokens.usageDialogWidth,
         height: AleraTokens.usageDialogMaxHeight,
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
+          crossAxisAlignment: .stretch,
           children: <Widget>[
             Padding(
               padding: const EdgeInsets.fromLTRB(
@@ -129,7 +115,7 @@ class AgentUsageDialogView extends StatelessWidget {
                 title: 'Usage',
                 onClose: onClose,
                 trailing: Row(
-                  mainAxisSize: MainAxisSize.min,
+                  mainAxisSize: .min,
                   children: <Widget>[
                     Text(
                       hostId == 'local' ? 'Local Host' : hostId,
@@ -194,19 +180,12 @@ class AgentUsageDialogView extends StatelessWidget {
   }
 }
 
-class _UsageLoadStatus extends StatelessWidget {
-  const _UsageLoadStatus({
-    required this.icon,
-    required this.label,
-    required this.tooltip,
-    this.color = AleraTokens.foregroundMuted,
-  });
-
-  final IconData icon;
-  final String label;
-  final String tooltip;
-  final Color color;
-
+class const _UsageLoadStatus({
+  required final IconData icon,
+  required final String label,
+  required final String tooltip,
+  final Color color = AleraTokens.foregroundMuted,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Tooltip(
@@ -214,7 +193,7 @@ class _UsageLoadStatus extends StatelessWidget {
       child: Semantics(
         label: label,
         child: Row(
-          mainAxisSize: MainAxisSize.min,
+          mainAxisSize: .min,
           children: <Widget>[
             Icon(icon, size: AleraTokens.iconSm, color: color),
             const SizedBox(width: AleraTokens.space4),
@@ -229,17 +208,11 @@ class _UsageLoadStatus extends StatelessWidget {
   }
 }
 
-class _UsageUnavailable extends StatelessWidget {
-  const _UsageUnavailable({
-    required this.loading,
-    required this.error,
-    required this.onRefresh,
-  });
-
-  final bool loading;
-  final String? error;
-  final VoidCallback onRefresh;
-
+class const _UsageUnavailable({
+  required final bool loading,
+  required final String? error,
+  required final VoidCallback onRefresh,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (loading) {

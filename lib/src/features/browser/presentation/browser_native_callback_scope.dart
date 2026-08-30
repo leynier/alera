@@ -15,11 +15,8 @@ import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-class BrowserNativeCallbackScope extends ConsumerStatefulWidget {
-  const BrowserNativeCallbackScope({super.key, required this.child});
-
-  final Widget child;
-
+class const BrowserNativeCallbackScope({super.key, required final Widget child})
+    extends ConsumerStatefulWidget {
   @override
   ConsumerState<BrowserNativeCallbackScope> createState() =>
       _BrowserNativeCallbackScopeState();
@@ -109,7 +106,7 @@ class _BrowserNativeCallbackScopeState
     required BrowserPermissionType permission,
     required BrowserPermissionDecision decision,
   }) async {
-    await Future<void>.delayed(Duration.zero);
+    await Future<void>.delayed(.zero);
     if (cancellation.isCancelled) {
       return;
     }
@@ -229,7 +226,7 @@ class _BrowserNativeCallbackScopeState
           context,
           message:
               'The certificate could not be saved. Navigation was blocked.',
-          tone: AleraToastTone.error,
+          tone: .error,
         );
       }
       return false;

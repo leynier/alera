@@ -13,18 +13,13 @@ import 'package:alera/src/features/settings/presentation/rows/settings_rows.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-class AiAssistSettingsPane extends ConsumerStatefulWidget {
-  const AiAssistSettingsPane({
-    super.key,
-    required this.settings,
-    required this.onChanged,
-    this.groupKeys = const <String, GlobalKey>{},
-  });
-
-  final AiAssistSettings settings;
-  final ValueChanged<AiAssistSettings Function(AiAssistSettings)> onChanged;
-  final Map<String, GlobalKey> groupKeys;
-
+class const AiAssistSettingsPane({
+  super.key,
+  required final AiAssistSettings settings,
+  required final ValueChanged<AiAssistSettings Function(AiAssistSettings)>
+  onChanged,
+  final Map<String, GlobalKey> groupKeys = const <String, GlobalKey>{},
+}) extends ConsumerStatefulWidget {
   @override
   ConsumerState<AiAssistSettingsPane> createState() =>
       _AiAssistSettingsPaneState();
@@ -81,7 +76,7 @@ class _AiAssistSettingsPaneState extends ConsumerState<AiAssistSettingsPane> {
     final discovery = _discovery[agent] ?? const _AiAssistModelDiscoveryState();
     final canDiscoverModels = spec?.modelsCommand != null;
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+      crossAxisAlignment: .stretch,
       children: <Widget>[
         KeyedSubtree(
           key: widget.groupKeys['generation'],
@@ -468,9 +463,7 @@ class _AiAssistSettingsPaneState extends ConsumerState<AiAssistSettingsPane> {
   }
 }
 
-class _AiAssistModelDiscoveryState {
-  const _AiAssistModelDiscoveryState({this.loading = false, this.error});
-
-  final bool loading;
-  final String? error;
-}
+class const _AiAssistModelDiscoveryState({
+  final bool loading = false,
+  final String? error,
+});

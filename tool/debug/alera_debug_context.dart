@@ -1,10 +1,6 @@
 part of 'alera_debug.dart';
 
-final class _DebugContext {
-  _DebugContext(this._options);
-
-  final _Options _options;
-
+final class _DebugContext(final _Options _options) {
   // Builds the Rust sidecar (rust/alera-cli) and stages its runtime bundle so
   // ALERA_CLI_BUNDLE_DIR resolution finds every required asset.
   Future<int> buildCli({String? outputDir, bool release = true}) async {

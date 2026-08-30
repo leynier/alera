@@ -1,6 +1,5 @@
 import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/features/pull_requests/application/workspace_pull_request_state.dart';
-import 'package:alera/src/shared/git_hosting/domain/git_hosting_provider.dart';
 import 'package:alera/src/features/pull_requests/domain/hosted_review.dart';
 import 'package:alera/src/features/pull_requests/domain/review_check.dart';
 import 'package:alera/src/features/pull_requests/domain/review_check_details.dart';
@@ -14,10 +13,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 const _review = HostedReview(
-  provider: GitHostingProvider.github,
+  provider: .github,
   number: 42,
   title: 'feat: original',
-  state: HostedReviewState.open,
+  state: .open,
   url: 'https://github.com/leynier/alera/pull/42',
   author: 'leynier',
   baseBranch: 'main',
@@ -213,10 +212,7 @@ void main() {
   ) async {
     final callbacks = _Callbacks();
     await tester.pumpWidget(
-      _wrap(
-        callbacks,
-        review: _review.copyWith(mergeable: HostedReviewMergeable.conflicting),
-      ),
+      _wrap(callbacks, review: _review.copyWith(mergeable: .conflicting)),
     );
 
     await tester.tap(find.text('Create Merge Commit'));
@@ -255,7 +251,7 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('Unlink Pull Request'));
     await tester.pumpAndSettle();
-    await tester.pumpWidget(_wrap(callbacks, action: PullRequestAction.unlink));
+    await tester.pumpWidget(_wrap(callbacks, action: .unlink));
 
     expect(find.byType(CircularProgressIndicator), findsOneWidget);
     await tester.tap(find.text('Unlink Pull Request'));
@@ -271,10 +267,7 @@ void main() {
   ) async {
     final callbacks = _Callbacks();
     await tester.pumpWidget(
-      _wrap(
-        callbacks,
-        review: _review.copyWith(state: HostedReviewState.merged),
-      ),
+      _wrap(callbacks, review: _review.copyWith(state: .merged)),
     );
 
     expect(find.text('Create Merge Commit'), findsNothing);
@@ -330,7 +323,7 @@ void main() {
   testWidgets('a failed update keeps the editor open', (tester) async {
     final callbacks = _Callbacks()
       ..updateResult = const UpdateReviewFailure(
-        code: UpdateReviewErrorCode.unknown,
+        code: .unknown,
         message: 'permission denied',
       );
     await tester.pumpWidget(_wrap(callbacks));
@@ -361,15 +354,15 @@ void main() {
             id: '1',
             author: 'alice',
             body: 'General feedback',
-            createdAt: DateTime.utc(2026, 7, 16, 12),
-            kind: ReviewCommentKind.conversation,
+            createdAt: .utc(2026, 7, 16, 12),
+            kind: .conversation,
           ),
           ReviewComment(
             id: '2',
             author: 'bob',
             body: 'Please cover this branch',
-            createdAt: DateTime.utc(2026, 7, 16, 13),
-            kind: ReviewCommentKind.review,
+            createdAt: .utc(2026, 7, 16, 13),
+            kind: .review,
             path: 'lib/src/example.dart',
             line: 42,
             resolved: true,
@@ -425,10 +418,7 @@ void main() {
   testWidgets('comments are read-only after the PR is merged', (tester) async {
     final callbacks = _Callbacks();
     await tester.pumpWidget(
-      _wrap(
-        callbacks,
-        review: _review.copyWith(state: HostedReviewState.merged),
-      ),
+      _wrap(callbacks, review: _review.copyWith(state: .merged)),
     );
 
     expect(find.byTooltip('Start Conversation'), findsNothing);

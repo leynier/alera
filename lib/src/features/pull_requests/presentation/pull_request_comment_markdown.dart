@@ -8,22 +8,14 @@ import 'package:flutter/material.dart';
 import 'package:gpt_markdown/custom_widgets/markdown_config.dart';
 import 'package:gpt_markdown/gpt_markdown.dart';
 
-class PullRequestCommentMarkdown extends StatelessWidget {
-  const PullRequestCommentMarkdown({
-    super.key,
-    required this.body,
-    required this.onOpenUrl,
-    this.taskListEditable = false,
-    this.taskListSaving = false,
-    this.onTaskListItemToggle,
-  });
-
-  final String body;
-  final Future<void> Function(String url) onOpenUrl;
-  final bool taskListEditable;
-  final bool taskListSaving;
-  final Future<void> Function(int itemIndex)? onTaskListItemToggle;
-
+class const PullRequestCommentMarkdown({
+  super.key,
+  required final String body,
+  required final Future<void> Function(String url) onOpenUrl,
+  final bool taskListEditable = false,
+  final bool taskListSaving = false,
+  final Future<void> Function(int itemIndex)? onTaskListItemToggle,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -46,20 +38,18 @@ class PullRequestCommentMarkdown extends StatelessWidget {
       contextMenuBuilder: AleraTextSelectionToolbar.selectableRegion,
       child: GptMarkdownTheme(
         gptThemeData: GptMarkdownThemeData(
-          brightness: Brightness.dark,
+          brightness: .dark,
           h1: theme.textTheme.titleMedium,
           h2: theme.textTheme.titleSmall,
           h3: theme.textTheme.labelLarge,
-          h4: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
-          h5: bodyStyle.copyWith(fontWeight: FontWeight.w600),
+          h4: theme.textTheme.bodyMedium?.copyWith(fontWeight: .w600),
+          h5: bodyStyle.copyWith(fontWeight: .w600),
           h6: bodyStyle.copyWith(
             color: AleraTokens.foregroundMuted,
-            fontWeight: FontWeight.w600,
+            fontWeight: .w600,
           ),
           hrLineColor: AleraTokens.borderSubtle,
-          hrLinePadding: const EdgeInsets.symmetric(
-            vertical: AleraTokens.space4,
-          ),
+          hrLinePadding: const .symmetric(vertical: AleraTokens.space4),
           linkColor: AleraTokens.info,
           linkHoverColor: AleraTokens.foreground,
           highlightColor: AleraTokens.accentSubtle,
@@ -98,7 +88,7 @@ class PullRequestCommentMarkdown extends StatelessWidget {
         borderRadius: BorderRadius.circular(AleraTokens.radiusMd),
       ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
+        crossAxisAlignment: .stretch,
         children: <Widget>[
           if (language.trim().isNotEmpty) ...<Widget>[
             Padding(
@@ -116,7 +106,7 @@ class PullRequestCommentMarkdown extends StatelessWidget {
             const Divider(height: 1, color: AleraTokens.borderSubtle),
           ],
           SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
+            scrollDirection: .horizontal,
             padding: const EdgeInsets.all(AleraTokens.space8),
             child: Text(
               code,
@@ -131,11 +121,10 @@ class PullRequestCommentMarkdown extends StatelessWidget {
   }
 }
 
-class _PullRequestTaskCheckboxMd extends BlockMd {
-  _PullRequestTaskCheckboxMd({required this.enabled, required this.onToggle});
-
-  final bool enabled;
-  final Future<void> Function(int itemIndex)? onToggle;
+class _PullRequestTaskCheckboxMd({
+  required final bool enabled,
+  required final Future<void> Function(int itemIndex)? onToggle,
+}) extends BlockMd {
   var _nextItemIndex = 0;
 
   @override
@@ -150,8 +139,8 @@ class _PullRequestTaskCheckboxMd extends BlockMd {
     final itemIndex = _nextItemIndex++;
     final checked = match.group(1)!.toLowerCase() == 'x';
     return Row(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: .min,
+      crossAxisAlignment: .start,
       children: <Widget>[
         AleraCheckbox(
           value: checked,
@@ -213,7 +202,7 @@ Widget buildPullRequestCommentImage(
         imageUrl,
         width: safeWidth,
         height: safeHeight,
-        fit: BoxFit.contain,
+        fit: .contain,
         errorBuilder: (_, _, _) => _PullRequestCommentImagePlaceholder(
           width: safeWidth,
           height: safeHeight,
@@ -230,12 +219,10 @@ double? _limitImageDimension(double? value, double maximum) {
   return value > maximum ? maximum : value;
 }
 
-class _PullRequestCommentImagePlaceholder extends StatelessWidget {
-  const _PullRequestCommentImagePlaceholder({this.width, this.height});
-
-  final double? width;
-  final double? height;
-
+class const _PullRequestCommentImagePlaceholder({
+  final double? width,
+  final double? height,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(

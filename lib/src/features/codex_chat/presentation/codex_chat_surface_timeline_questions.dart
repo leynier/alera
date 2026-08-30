@@ -18,8 +18,8 @@ String _codexQuestionCardStateKey(String tabId, CodexPendingRequest request) =>
         ],
     ]);
 
-class _CodexQuestionDraft {
-  _CodexQuestionDraft(CodexPendingRequest request)
+class _CodexQuestionDraft(CodexPendingRequest request) {
+  this
     : questions = request.questions,
       textControllers = <String, TextEditingController>{
         for (final question in request.questions)
@@ -42,25 +42,15 @@ class _CodexQuestionDraft {
   }
 }
 
-class _CodexQuestionDock extends StatelessWidget {
-  const _CodexQuestionDock({
-    required this.card,
-    required this.state,
-    required this.showModelSelector,
-    required this.onModelChanged,
-    required this.onReasoningChanged,
-    required this.onSpeedChanged,
-    required this.onCollaborationChanged,
-  });
-
-  final Widget card;
-  final CodexChatState state;
-  final bool showModelSelector;
-  final ValueChanged<String?> onModelChanged;
-  final ValueChanged<String> onReasoningChanged;
-  final ValueChanged<String> onSpeedChanged;
-  final ValueChanged<String?> onCollaborationChanged;
-
+class const _CodexQuestionDock({
+  required final Widget card,
+  required final CodexChatState state,
+  required final bool showModelSelector,
+  required final ValueChanged<String?> onModelChanged,
+  required final ValueChanged<String> onReasoningChanged,
+  required final ValueChanged<String> onSpeedChanged,
+  required final ValueChanged<String?> onCollaborationChanged,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Padding(
     key: const ValueKey<String>('codex-question-dock'),
@@ -78,10 +68,10 @@ class _CodexQuestionDock extends StatelessWidget {
           maxWidth: AleraTokens.codexQuestionCardMaxWidth,
         ),
         child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
+          mainAxisSize: .min,
+          crossAxisAlignment: .stretch,
           children: <Widget>[
-            Flexible(fit: FlexFit.loose, child: card),
+            Flexible(fit: .loose, child: card),
             if (showModelSelector) ...<Widget>[
               const SizedBox(height: AleraTokens.space6),
               Padding(
@@ -108,24 +98,17 @@ class _CodexQuestionDock extends StatelessWidget {
   );
 }
 
-class _CodexQuestionCard extends StatefulWidget {
-  const _CodexQuestionCard({
-    super.key,
-    required this.request,
-    required this.draft,
-    required this.onQuestion,
-    required this.onInteraction,
-  });
-
-  final CodexPendingRequest request;
-  final _CodexQuestionDraft draft;
-  final Future<void> Function(
+class const _CodexQuestionCard({
+  super.key,
+  required final CodexPendingRequest request,
+  required final _CodexQuestionDraft draft,
+  required final Future<void> Function(
     CodexPendingRequest request,
     Map<String, List<String>> answers,
   )
-  onQuestion;
-  final ValueChanged<CodexPendingRequest> onInteraction;
-
+  onQuestion,
+  required final ValueChanged<CodexPendingRequest> onInteraction,
+}) extends StatefulWidget {
   @override
   State<_CodexQuestionCard> createState() => _CodexQuestionCardState();
 }
@@ -173,8 +156,8 @@ class _CodexQuestionCardState extends State<_CodexQuestionCard> {
           onClose: _submitting ? null : _skip,
         ),
         body: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
+          mainAxisSize: .min,
+          crossAxisAlignment: .stretch,
           children: <Widget>[
             for (final entry in question.options.asMap().entries)
               _CodexPromptOptionRow(
@@ -358,17 +341,11 @@ class _CodexQuestionCardState extends State<_CodexQuestionCard> {
   }
 }
 
-class _CodexPromptFrame extends StatelessWidget {
-  const _CodexPromptFrame({
-    required this.frameKey,
-    required this.header,
-    required this.body,
-  });
-
-  final Key frameKey;
-  final Widget header;
-  final Widget body;
-
+class const _CodexPromptFrame({
+  required final Key frameKey,
+  required final Widget header,
+  required final Widget body,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Container(
     key: frameKey,
@@ -385,8 +362,8 @@ class _CodexPromptFrame extends StatelessWidget {
       border: Border.all(color: AleraTokens.borderSubtle),
     ),
     child: Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: .min,
+      crossAxisAlignment: .stretch,
       children: <Widget>[
         Padding(
           key: const ValueKey<String>('codex-prompt-header-inset'),
@@ -400,25 +377,15 @@ class _CodexPromptFrame extends StatelessWidget {
   );
 }
 
-class _CodexPromptHeader extends StatelessWidget {
-  const _CodexPromptHeader({
-    required this.title,
-    required this.onClose,
-    this.closeTooltip = 'Skip Questions',
-    this.page = 0,
-    this.pageCount = 1,
-    this.onPrevious,
-    this.onNext,
-  });
-
-  final String title;
-  final int page;
-  final int pageCount;
-  final VoidCallback? onPrevious;
-  final VoidCallback? onNext;
-  final Future<void> Function()? onClose;
-  final String closeTooltip;
-
+class const _CodexPromptHeader({
+  required final String title,
+  required final Future<void> Function()? onClose,
+  final String closeTooltip = 'Skip Questions',
+  final int page = 0,
+  final int pageCount = 1,
+  final VoidCallback? onPrevious,
+  final VoidCallback? onNext,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Row(
     children: <Widget>[
@@ -426,7 +393,7 @@ class _CodexPromptHeader extends StatelessWidget {
         child: Text(
           title,
           style: Theme.of(context).textTheme.titleSmall
-              ?.copyWith(fontWeight: FontWeight.w600),
+              ?.copyWith(fontWeight: .w600),
         ),
       ),
       if (pageCount > 1) ...<Widget>[

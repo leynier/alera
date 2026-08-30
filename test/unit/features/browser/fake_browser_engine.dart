@@ -59,7 +59,7 @@ final class FakeBrowserEngine implements BrowserEngine {
       label: label,
       kind: kind,
       persistent: persistent,
-      createdAt: DateTime.utc(2026),
+      createdAt: .utc(2026),
     );
   }
 
@@ -73,7 +73,7 @@ final class FakeBrowserEngine implements BrowserEngine {
 
   @override
   BrowserCookieImportGesture beginCookieImportGesture() =>
-      BrowserCookieImportGesture(id: 'gesture', issuedAt: DateTime.utc(2026));
+      BrowserCookieImportGesture(id: 'gesture', issuedAt: .utc(2026));
 
   @override
   Future<List<BrowserCookieImportSourceStatus>> probeCookieImportSources(
@@ -93,7 +93,7 @@ final class FakeBrowserEngine implements BrowserEngine {
         BrowserCookieImportResult(
           source: source,
           profileId: profileId,
-          outcome: BrowserCookieImportOutcome.imported,
+          outcome: .imported,
           importedCount: 1,
           skippedCount: 0,
         );
@@ -222,7 +222,7 @@ final class FakeBrowserEngine implements BrowserEngine {
           depth: 0,
         ),
       ],
-      capturedAt: DateTime.utc(2026),
+      capturedAt: .utc(2026),
     );
     return snapshotCompleter?.future ??
         Future<BrowserAutomationSnapshot>.value(snapshot);

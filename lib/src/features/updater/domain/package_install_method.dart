@@ -28,20 +28,14 @@ enum PackageInstallMethod {
 /// minimal environment on macOS (`launchd` never reads `~/.zprofile`), so
 /// `brew` is frequently not on `PATH` at all; deriving it from the Caskroom the
 /// app is sitting in is exact where a `PATH` lookup is a guess.
-class PackageManagerInstall {
-  const PackageManagerInstall({
-    required this.method,
-    this.managerExecutable,
-    this.relaunchExecutable,
-  });
-
+class const PackageManagerInstall({
+  required final PackageInstallMethod method,
+  final String? managerExecutable,
+  final String? relaunchExecutable,
+}) {
   static const PackageManagerInstall unmanaged = PackageManagerInstall(
-    method: PackageInstallMethod.unmanaged,
+    method: .unmanaged,
   );
-
-  final PackageInstallMethod method;
-  final String? managerExecutable;
-  final String? relaunchExecutable;
 
   bool get isPackageManaged => method != PackageInstallMethod.unmanaged;
 
@@ -100,9 +94,7 @@ PackageManagerInstall _linuxInstall(List<String> segments) {
   // upgrades need `sudo`, so they run in Alera's command terminal where a
   // password prompt has a PTY to appear on, not in the detached shell that
   // Homebrew and Scoop use after the app has already closed.
-  return const PackageManagerInstall(
-    method: PackageInstallMethod.linuxSystemPackage,
-  );
+  return const PackageManagerInstall(method: .linuxSystemPackage);
 }
 
 PackageManagerInstall _macosInstall(p.Context context, List<String> segments) {
@@ -113,7 +105,7 @@ PackageManagerInstall _macosInstall(p.Context context, List<String> segments) {
   }
   final prefix = context.joinAll(segments.sublist(0, index));
   return PackageManagerInstall(
-    method: PackageInstallMethod.homebrewCask,
+    method: .homebrewCask,
     managerExecutable: context.join(prefix, 'bin', 'brew'),
     // The Caskroom path carries the version, so it stops existing the moment
     // the upgrade lands. `open` resolves the bundle identifier through
@@ -133,7 +125,7 @@ PackageManagerInstall _windowsInstall(
     'alera',
   ]);
   if (chocolatey >= 0) {
-    return const PackageManagerInstall(method: PackageInstallMethod.chocolatey);
+    return const PackageManagerInstall(method: .chocolatey);
   }
 
   // <scoop>\apps\alera\current\Alera.exe. Matching on `apps\alera` rather than
@@ -145,7 +137,7 @@ PackageManagerInstall _windowsInstall(
   }
   final root = context.joinAll(segments.sublist(0, scoop));
   return PackageManagerInstall(
-    method: PackageInstallMethod.scoop,
+    method: .scoop,
     managerExecutable: context.join(root, 'shims', 'scoop.cmd'),
     // `current` is a junction Scoop repoints on every upgrade, so this path
     // keeps naming the app across versions.

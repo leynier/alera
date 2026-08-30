@@ -3,19 +3,17 @@ part of 'ai_assist_service_test.dart';
 void _registerAiAssistReadingDiffTests() {
   test('falls back to Codex for an unsupported inherited reading agent', () {
     expect(
-      readingDiffAgentForSettings(
-        const AiAssistSettings(agent: AiAssistAgent.cursor),
-      ),
+      readingDiffAgentForSettings(const AiAssistSettings(agent: .cursor)),
       AiAssistAgent.codex,
     );
     expect(
       readingDiffAgentForSettings(
         const AiAssistSettings(
-          agent: AiAssistAgent.cursor,
+          agent: .cursor,
           promptSettingsByOperation:
               <AiAssistOperation, AiAssistPromptSettings>{
                 AiAssistOperation.readingDiff: AiAssistPromptSettings(
-                  agent: AiAssistAgent.claude,
+                  agent: .claude,
                 ),
               },
         ),
@@ -23,7 +21,7 @@ void _registerAiAssistReadingDiffTests() {
       AiAssistAgent.claude,
     );
     const settings = AiAssistSettings(
-      agent: AiAssistAgent.cursor,
+      agent: .cursor,
       selectedModelByAgent: <AiAssistAgent, String>{
         AiAssistAgent.cursor: 'cursor-composer',
         AiAssistAgent.codex: 'gpt-codex',
@@ -70,9 +68,9 @@ void _registerAiAssistReadingDiffTests() {
           prompt: 'Plan this diff.',
           runId: 'reading-diff-codex',
           workingDirectory: '/repo',
-          agent: AiAssistAgent.codex,
-          accessPolicy: AgentTaskAccessPolicy.diffOnly,
-          outputContract: AgentTaskOutputContract.readingDiffPlanV1,
+          agent: .codex,
+          accessPolicy: .diffOnly,
+          outputContract: .readingDiffPlanV1,
           outputSchema: '{"type":"object"}',
         ),
       );
@@ -129,9 +127,9 @@ void _registerAiAssistReadingDiffTests() {
           prompt: 'Plan this diff.',
           runId: 'reading-diff-codex-keyring',
           workingDirectory: '/repo',
-          agent: AiAssistAgent.codex,
-          accessPolicy: AgentTaskAccessPolicy.diffOnly,
-          outputContract: AgentTaskOutputContract.readingDiffPlanV1,
+          agent: .codex,
+          accessPolicy: .diffOnly,
+          outputContract: .readingDiffPlanV1,
           outputSchema: '{"type":"object"}',
         ),
       );
@@ -184,8 +182,8 @@ ERROR: {
           prompt: 'Plan this diff.',
           runId: 'reading-diff-codex-error',
           workingDirectory: '/repo',
-          agent: AiAssistAgent.codex,
-          outputContract: AgentTaskOutputContract.readingDiffPlanV1,
+          agent: .codex,
+          outputContract: .readingDiffPlanV1,
           outputSchema: '{"type":"object"}',
         ),
       ),
@@ -221,9 +219,9 @@ ERROR: {
           prompt: 'Plan this diff.',
           runId: 'reading-diff-codex-hydrated',
           workingDirectory: '/repo',
-          agent: AiAssistAgent.codex,
-          accessPolicy: AgentTaskAccessPolicy.diffOnly,
-          outputContract: AgentTaskOutputContract.readingDiffPlanV1,
+          agent: .codex,
+          accessPolicy: .diffOnly,
+          outputContract: .readingDiffPlanV1,
           outputSchema: '{"type":"object"}',
         ),
       );
@@ -255,9 +253,9 @@ ERROR: {
         prompt: 'Plan this diff.',
         runId: 'reading-diff-claude',
         workingDirectory: '/repo',
-        agent: AiAssistAgent.claude,
-        accessPolicy: AgentTaskAccessPolicy.diffOnly,
-        outputContract: AgentTaskOutputContract.readingDiffPlanV1,
+        agent: .claude,
+        accessPolicy: .diffOnly,
+        outputContract: .readingDiffPlanV1,
         outputSchema: '{"type":"object"}',
       ),
     );
@@ -301,9 +299,9 @@ ERROR: {
         prompt: 'Plan this diff.',
         runId: 'reading-diff-grok',
         workingDirectory: '/repo',
-        agent: AiAssistAgent.grok,
-        accessPolicy: AgentTaskAccessPolicy.diffOnly,
-        outputContract: AgentTaskOutputContract.readingDiffPlanV1,
+        agent: .grok,
+        accessPolicy: .diffOnly,
+        outputContract: .readingDiffPlanV1,
         outputSchema: '{"type":"object"}',
       ),
     );
@@ -341,8 +339,8 @@ ERROR: {
           runId: 'reading-diff-${agent.key}',
           workingDirectory: '/repo',
           agent: agent,
-          accessPolicy: AgentTaskAccessPolicy.diffOnly,
-          outputContract: AgentTaskOutputContract.readingDiffPlanV1,
+          accessPolicy: .diffOnly,
+          outputContract: .readingDiffPlanV1,
           outputSchema: '{"type":"object"}',
         ),
       );
@@ -384,8 +382,8 @@ ERROR: {
             runId: 'reading-diff-rejected-${agent.key}',
             workingDirectory: '/repo',
             agent: agent,
-            accessPolicy: AgentTaskAccessPolicy.diffOnly,
-            outputContract: AgentTaskOutputContract.readingDiffPlanV1,
+            accessPolicy: .diffOnly,
+            outputContract: .readingDiffPlanV1,
             outputSchema: '{"type":"object"}',
           ),
         ),
@@ -419,9 +417,9 @@ ERROR: {
           prompt: 'Plan this diff.',
           runId: 'reading-diff-stderr',
           workingDirectory: '/repo',
-          agent: AiAssistAgent.codex,
-          accessPolicy: AgentTaskAccessPolicy.diffOnly,
-          outputContract: AgentTaskOutputContract.readingDiffPlanV1,
+          agent: .codex,
+          accessPolicy: .diffOnly,
+          outputContract: .readingDiffPlanV1,
           outputSchema: '{"type":"object"}',
         ),
       ),

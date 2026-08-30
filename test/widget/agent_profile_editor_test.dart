@@ -12,7 +12,7 @@ void main() {
   ) async {
     await tester.pumpWidget(
       _EditorHarness(
-        launchMode: AgentProfileLaunchMode.managed,
+        launchMode: .managed,
         managedConfig: const <String, Object?>{
           'model': 'gpt-5.6-sol',
           'webSearch': true,
@@ -32,7 +32,7 @@ void main() {
   ) async {
     await tester.pumpWidget(
       _EditorHarness(
-        launchMode: AgentProfileLaunchMode.managed,
+        launchMode: .managed,
         managedConfig: const <String, Object?>{'planModeEffort': 'xhigh'},
       ),
     );
@@ -48,9 +48,7 @@ void main() {
   testWidgets('command mode keeps the advanced raw command field', (
     tester,
   ) async {
-    await tester.pumpWidget(
-      const _EditorHarness(launchMode: AgentProfileLaunchMode.command),
-    );
+    await tester.pumpWidget(const _EditorHarness(launchMode: .command));
 
     expect(find.text('Command'), findsWidgets);
     expect(find.text('Managed Options'), findsNothing);
@@ -60,9 +58,7 @@ void main() {
   testWidgets('command mode explains where the dispatched prompt goes', (
     tester,
   ) async {
-    await tester.pumpWidget(
-      const _EditorHarness(launchMode: AgentProfileLaunchMode.command),
-    );
+    await tester.pumpWidget(const _EditorHarness(launchMode: .command));
 
     expect(find.text('Prompt Delivery'), findsOneWidget);
     expect(find.text('Custom Prompt'), findsOneWidget);
@@ -79,7 +75,7 @@ void main() {
     var testCommandCalls = 0;
     await tester.pumpWidget(
       _EditorHarness(
-        launchMode: AgentProfileLaunchMode.command,
+        launchMode: .command,
         onTestCommand: () => testCommandCalls++,
       ),
     );
@@ -93,16 +89,11 @@ void main() {
   testWidgets('command mode gives the test button room inside its card', (
     tester,
   ) async {
-    await tester.pumpWidget(
-      const _EditorHarness(launchMode: AgentProfileLaunchMode.command),
-    );
+    await tester.pumpWidget(const _EditorHarness(launchMode: .command));
 
     final actionPadding = _testCommandActionPadding(tester);
 
-    expect(
-      actionPadding.resolve(TextDirection.ltr).bottom,
-      AleraTokens.space12,
-    );
+    expect(actionPadding.resolve(.ltr).bottom, AleraTokens.space12);
   });
 
   testWidgets('managed mode offers to test the current command preview', (
@@ -111,7 +102,7 @@ void main() {
     var testCommandCalls = 0;
     await tester.pumpWidget(
       _EditorHarness(
-        launchMode: AgentProfileLaunchMode.managed,
+        launchMode: .managed,
         managedConfig: const <String, Object?>{'model': 'gpt-5.6-sol'},
         onTestCommand: () => testCommandCalls++,
       ),
@@ -128,24 +119,21 @@ void main() {
   ) async {
     await tester.pumpWidget(
       _EditorHarness(
-        launchMode: AgentProfileLaunchMode.managed,
+        launchMode: .managed,
         managedConfig: const <String, Object?>{'model': 'gpt-5.6-sol'},
       ),
     );
 
     final actionPadding = _testCommandActionPadding(tester);
 
-    expect(
-      actionPadding.resolve(TextDirection.ltr).bottom,
-      AleraTokens.space12,
-    );
+    expect(actionPadding.resolve(.ltr).bottom, AleraTokens.space12);
   });
 
   testWidgets('managed mode disables testing while saving', (tester) async {
     var testCommandCalls = 0;
     await tester.pumpWidget(
       _EditorHarness(
-        launchMode: AgentProfileLaunchMode.managed,
+        launchMode: .managed,
         managedConfig: const <String, Object?>{'model': 'gpt-5.6-sol'},
         saving: true,
         onTestCommand: () => testCommandCalls++,
@@ -162,8 +150,8 @@ void main() {
   ) async {
     await tester.pumpWidget(
       _EditorHarness(
-        adapter: AgentType.claude,
-        launchMode: AgentProfileLaunchMode.managed,
+        adapter: .claude,
+        launchMode: .managed,
         managedConfig: const <String, Object?>{
           'ccsProfile': 'work',
           'model': 'opus',
@@ -180,8 +168,8 @@ void main() {
     (tester) async {
       await tester.pumpWidget(
         _EditorHarness(
-          adapter: AgentType.claude,
-          launchMode: AgentProfileLaunchMode.managed,
+          adapter: .claude,
+          launchMode: .managed,
           managedConfig: const <String, Object?>{
             'permissionMode': 'plan',
             'allowSkipPermissions': true,
@@ -201,9 +189,7 @@ void main() {
   );
 
   testWidgets('only the Claude adapter offers a CCS profile', (tester) async {
-    await tester.pumpWidget(
-      const _EditorHarness(launchMode: AgentProfileLaunchMode.managed),
-    );
+    await tester.pumpWidget(const _EditorHarness(launchMode: .managed));
 
     expect(find.text('CCS Profile'), findsNothing);
   });
@@ -213,8 +199,8 @@ void main() {
   ) async {
     await tester.pumpWidget(
       _EditorHarness(
-        adapter: AgentType.grok,
-        launchMode: AgentProfileLaunchMode.managed,
+        adapter: .grok,
+        launchMode: .managed,
         managedConfig: const <String, Object?>{
           'model': 'grok-4.6',
           'effort': 'high',
@@ -243,7 +229,7 @@ void main() {
   ) async {
     await tester.pumpWidget(
       _EditorHarness(
-        launchMode: AgentProfileLaunchMode.managed,
+        launchMode: .managed,
         managedConfig: const <String, Object?>{
           'bypassApprovalsAndSandbox': true,
         },
@@ -263,21 +249,13 @@ EdgeInsetsGeometry _testCommandActionPadding(WidgetTester tester) {
   return buttonElement.findAncestorWidgetOfExactType<Padding>()!.padding;
 }
 
-class _EditorHarness extends StatefulWidget {
-  const _EditorHarness({
-    required this.launchMode,
-    this.adapter = AgentType.codex,
-    this.managedConfig = const <String, Object?>{},
-    this.saving = false,
-    this.onTestCommand,
-  });
-
-  final AgentProfileLaunchMode launchMode;
-  final AgentType adapter;
-  final Map<String, Object?> managedConfig;
-  final bool saving;
-  final VoidCallback? onTestCommand;
-
+class const _EditorHarness({
+  required final AgentProfileLaunchMode launchMode,
+  final AgentType adapter = AgentType.codex,
+  final Map<String, Object?> managedConfig = const <String, Object?>{},
+  final bool saving = false,
+  final VoidCallback? onTestCommand,
+}) extends StatefulWidget {
   @override
   State<_EditorHarness> createState() => _EditorHarnessState();
 }

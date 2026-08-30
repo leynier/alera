@@ -8,11 +8,10 @@ import 'package:alera/src/shared/infra/runtime/runtime_host_providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-class AutomationProfilePolicySection extends ConsumerStatefulWidget {
-  const AutomationProfilePolicySection({required this.profileId, super.key});
-
-  final String profileId;
-
+class const AutomationProfilePolicySection({
+  required final String profileId,
+  super.key,
+}) extends ConsumerStatefulWidget {
   @override
   ConsumerState<AutomationProfilePolicySection> createState() =>
       _AutomationProfilePolicySectionState();
@@ -130,11 +129,10 @@ class _AutomationProfilePolicySectionState
   }
 }
 
-class AutomationProjectPolicySection extends ConsumerStatefulWidget {
-  const AutomationProjectPolicySection({required this.projectId, super.key});
-
-  final String projectId;
-
+class const AutomationProjectPolicySection({
+  required final String projectId,
+  super.key,
+}) extends ConsumerStatefulWidget {
   @override
   ConsumerState<AutomationProjectPolicySection> createState() =>
       _AutomationProjectPolicySectionState();

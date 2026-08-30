@@ -5,16 +5,12 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'mobile_configuration_codec.dart';
 import 'mobile_configuration_preferences.dart';
 
-class MobileConfigurationTarget implements ConfigurationLocalTarget {
-  MobileConfigurationTarget({
-    required this.accountId,
-    required this.onApplied,
-    required this.ensureAccount,
-    this.label = 'This Phone',
-  });
-  final String accountId;
-  final void Function() onApplied;
-  final Future<void> Function() ensureAccount;
+class MobileConfigurationTarget({
+  required final String accountId,
+  required final void Function() onApplied,
+  required final Future<void> Function() ensureAccount,
+  this.label = 'This Phone',
+}) implements ConfigurationLocalTarget {
   @override
   final String label;
   @override

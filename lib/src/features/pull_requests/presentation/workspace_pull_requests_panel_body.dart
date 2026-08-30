@@ -1,34 +1,21 @@
 part of 'workspace_pull_requests_panel.dart';
 
-class _PullRequestBody extends StatelessWidget {
-  const _PullRequestBody({
-    required this.repoPath,
-    required this.state,
-    required this.createAction,
-    required this.controller,
-    required this.localWorkspaceBranches,
-    required this.stackWorkspaceCandidates,
-    required this.onOpenWorkspaceBranch,
-    required this.onOpenUrl,
-    required this.onOpenDiff,
-    required this.onCreateActionChanged,
-  });
-
-  final String repoPath;
-  final WorkspacePullRequestState state;
-  final PullRequestCreateAction createAction;
-  final WorkspacePullRequestController controller;
-  final Set<String> localWorkspaceBranches;
-  final List<ReviewStackWorkspaceCandidate> stackWorkspaceCandidates;
-  final Future<void> Function(String branch)? onOpenWorkspaceBranch;
-  final Future<void> Function(String url) onOpenUrl;
-  final ValueChanged<HostedReview>? onOpenDiff;
-  final ValueChanged<PullRequestCreateAction> onCreateActionChanged;
-
+class const _PullRequestBody({
+  required final String repoPath,
+  required final WorkspacePullRequestState state,
+  required final PullRequestCreateAction createAction,
+  required final WorkspacePullRequestController controller,
+  required final Set<String> localWorkspaceBranches,
+  required final List<ReviewStackWorkspaceCandidate> stackWorkspaceCandidates,
+  required final Future<void> Function(String branch)? onOpenWorkspaceBranch,
+  required final Future<void> Function(String url) onOpenUrl,
+  required final ValueChanged<HostedReview>? onOpenDiff,
+  required final ValueChanged<PullRequestCreateAction> onCreateActionChanged,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+      crossAxisAlignment: .stretch,
       children: <Widget>[
         _Header(
           refreshing: state.isRefreshing,
@@ -207,17 +194,11 @@ class _PullRequestBody extends StatelessWidget {
   }
 }
 
-class _Header extends StatelessWidget {
-  const _Header({
-    required this.refreshing,
-    required this.enabled,
-    required this.onRefresh,
-  });
-
-  final bool refreshing;
-  final bool enabled;
-  final VoidCallback onRefresh;
-
+class const _Header({
+  required final bool refreshing,
+  required final bool enabled,
+  required final VoidCallback onRefresh,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -258,16 +239,13 @@ class _Header extends StatelessWidget {
   }
 }
 
-class _ErrorBanner extends StatelessWidget {
-  const _ErrorBanner({required this.message});
-
-  final String message;
-
+class const _ErrorBanner({required final String message})
+    extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Container(
-      width: double.infinity,
+      width: .infinity,
       color: AleraTokens.error.withValues(alpha: 0.12),
       padding: const EdgeInsets.all(AleraTokens.space12),
       child: Text(
@@ -278,19 +256,12 @@ class _ErrorBanner extends StatelessWidget {
   }
 }
 
-class _MessageBody extends StatelessWidget {
-  const _MessageBody({
-    required this.icon,
-    required this.message,
-    this.title,
-    this.action,
-  });
-
-  final IconData icon;
-  final String message;
-  final String? title;
-  final Widget? action;
-
+class const _MessageBody({
+  required final IconData icon,
+  required final String message,
+  final String? title,
+  final Widget? action,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return AleraEmptyState(

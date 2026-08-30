@@ -29,7 +29,7 @@ import 'package:flutter/material.dart';
 Widget galleryButtonsAndChips() => Wrap(
   spacing: AleraTokens.space12,
   runSpacing: AleraTokens.space12,
-  crossAxisAlignment: WrapCrossAlignment.center,
+  crossAxisAlignment: .center,
   children: <Widget>[
     AleraIconButton(tooltip: 'Add', icon: AleraIcons.add, onPressed: () {}),
     AleraSegmentedButton<int>(
@@ -53,8 +53,8 @@ Widget galleryButtonsAndChips() => Wrap(
 
 @AleraPreview(name: 'Inputs', group: 'Gallery', size: Size(420, 260))
 Widget galleryInputs() => Column(
-  mainAxisSize: MainAxisSize.min,
-  crossAxisAlignment: CrossAxisAlignment.stretch,
+  mainAxisSize: .min,
+  crossAxisAlignment: .stretch,
   children: <Widget>[
     const AleraTextField(hintText: 'Workspace name'),
     const SizedBox(height: AleraTokens.space12),
@@ -74,9 +74,7 @@ Widget galleryInputs() => Column(
 @AleraPreview(name: 'Composer', group: 'Gallery', size: Size(560, 180))
 Widget galleryComposer() => const _GalleryComposer();
 
-class _GalleryComposer extends StatefulWidget {
-  const _GalleryComposer();
-
+class const _GalleryComposer() extends StatefulWidget {
   @override
   State<_GalleryComposer> createState() => _GalleryComposerState();
 }
@@ -109,10 +107,10 @@ class _GalleryComposerState extends State<_GalleryComposer> {
 
 @AleraPreview(name: 'Feedback', group: 'Gallery', size: Size(420, 240))
 Widget galleryFeedback() => Column(
-  mainAxisSize: MainAxisSize.min,
+  mainAxisSize: .min,
   children: <Widget>[
     Row(
-      mainAxisAlignment: MainAxisAlignment.center,
+      mainAxisAlignment: .center,
       children: <Widget>[
         const AleraStatusDot(active: true),
         const SizedBox(width: AleraTokens.space12),
@@ -133,8 +131,8 @@ Widget galleryFeedback() => Column(
 
 @AleraPreview(name: 'Surfaces & layout', group: 'Gallery', size: Size(560, 240))
 Widget gallerySurfaces() => Column(
-  mainAxisSize: MainAxisSize.min,
-  crossAxisAlignment: CrossAxisAlignment.stretch,
+  mainAxisSize: .min,
+  crossAxisAlignment: .stretch,
   children: <Widget>[
     const AleraSectionHeader(
       label: 'Workspace',
@@ -166,7 +164,7 @@ Widget galleryMenu() => Material(
   child: Padding(
     padding: const EdgeInsets.all(AleraTokens.space8),
     child: Column(
-      mainAxisSize: MainAxisSize.min,
+      mainAxisSize: .min,
       children: <Widget>[
         AleraMenuItem(label: 'Solarized Dark', selected: true, onTap: () {}),
         AleraMenuItem(label: 'Dracula', selected: false, onTap: () {}),

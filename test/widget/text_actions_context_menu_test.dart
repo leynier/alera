@@ -101,15 +101,10 @@ void main() {
     expect(hasTextActions(await menuItems(scopeEnabled: false)), isFalse);
     expect(hasTextActions(await menuItems(readOnly: true)), isFalse);
     expect(hasTextActions(await menuItems(obscureText: true)), isFalse);
-    expect(
-      hasTextActions(await menuItems(keyboardType: TextInputType.number)),
-      isFalse,
-    );
+    expect(hasTextActions(await menuItems(keyboardType: .number)), isFalse);
     expect(hasTextActions(await menuItems(textActionsEnabled: false)), isFalse);
     expect(
-      hasTextActions(
-        await menuItems(selection: const TextSelection.collapsed(offset: 2)),
-      ),
+      hasTextActions(await menuItems(selection: const .collapsed(offset: 2))),
       isFalse,
     );
   });
@@ -219,17 +214,11 @@ void main() {
       const TextSelection(baseOffset: 7, extentOffset: 16),
     );
 
-    Actions.invoke(
-      editingContext,
-      const UndoTextIntent(SelectionChangedCause.keyboard),
-    );
+    Actions.invoke(editingContext, const UndoTextIntent(.keyboard));
     await tester.pump();
     expect(controller.text, 'Before old after');
 
-    Actions.invoke(
-      editingContext,
-      const RedoTextIntent(SelectionChangedCause.keyboard),
-    );
+    Actions.invoke(editingContext, const RedoTextIntent(.keyboard));
     await tester.pump();
     expect(controller.text, 'Before new words after');
   });

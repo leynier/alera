@@ -183,17 +183,11 @@ void main() {
   });
 }
 
-final class _RuntimeFixture {
-  const _RuntimeFixture({
-    required this.root,
-    required this.input,
-    required this.output,
-  });
-
-  final Directory root;
-  final Directory input;
-  final Directory output;
-
+final class const _RuntimeFixture({
+  required final Directory root,
+  required final Directory input,
+  required final Directory output,
+}) {
   static Future<_RuntimeFixture> create() async {
     final root = await Directory.systemTemp.createTemp(
       'alera-runtime-packager-',

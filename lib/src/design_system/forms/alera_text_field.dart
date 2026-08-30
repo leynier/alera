@@ -12,75 +12,47 @@ import 'package:flutter/services.dart';
 ///   for surface-variant backgrounds (sidebars). On a surface chrome bar,
 ///   pass [fillColor] as [AleraTokens.surfaceVariant] so the field still
 ///   contrasts.
-class AleraTextField extends StatelessWidget {
-  const AleraTextField({
-    super.key,
-    this.controller,
-    this.focusNode,
-    this.labelText,
-    this.hintText,
-    this.errorText,
-    this.prefixIcon,
-    this.suffix,
-    this.keyboardType,
-    this.inputFormatters,
-    this.textAlignVertical,
-    this.onChanged,
-    this.onSubmitted,
-    this.onEditingComplete,
-    this.onTap,
-    this.onPaste,
-    this.autofocus = false,
-    this.dense = false,
-    this.denseHeight = defaultDenseHeight,
-    this.fillColor,
-    this.readOnly = false,
-    this.enabled,
-    this.obscureText = false,
-    this.enableSuggestions = true,
-    this.autocorrect = true,
-    this.textActionsEnabled = true,
-    this.minLines,
-    this.maxLines = 1,
-  });
-
-  final TextEditingController? controller;
-  final FocusNode? focusNode;
-  final String? labelText;
-  final String? hintText;
-  final String? errorText;
-  final IconData? prefixIcon;
-  final Widget? suffix;
-  final TextInputType? keyboardType;
-  final List<TextInputFormatter>? inputFormatters;
-  final TextAlignVertical? textAlignVertical;
-  final ValueChanged<String>? onChanged;
-  final ValueChanged<String>? onSubmitted;
-  final VoidCallback? onEditingComplete;
-  final VoidCallback? onTap;
-
+class const AleraTextField({
+  super.key,
+  final TextEditingController? controller,
+  final FocusNode? focusNode,
+  final String? labelText,
+  final String? hintText,
+  final String? errorText,
+  final IconData? prefixIcon,
+  final Widget? suffix,
+  final TextInputType? keyboardType,
+  final List<TextInputFormatter>? inputFormatters,
+  final TextAlignVertical? textAlignVertical,
+  final ValueChanged<String>? onChanged,
+  final ValueChanged<String>? onSubmitted,
+  final VoidCallback? onEditingComplete,
+  final VoidCallback? onTap,
+  this.onPaste,
+  final bool autofocus = false,
+  final bool dense = false,
+  final double denseHeight = defaultDenseHeight,
+  this.fillColor,
+  final bool readOnly = false,
+  final bool? enabled,
+  final bool obscureText = false,
+  final bool enableSuggestions = true,
+  final bool autocorrect = true,
+  this.textActionsEnabled = true,
+  final int? minLines,
+  final int? maxLines = 1,
+}) extends StatelessWidget {
   /// Handles a paste before the default text action runs.
   ///
   /// Return `true` when the callback consumed the clipboard. Returning
   /// `false` preserves Flutter's normal text-paste behavior.
   final Future<bool> Function()? onPaste;
-  final bool autofocus;
-  final bool dense;
-  final double denseHeight;
 
   /// Dense fill color. Defaults to [AleraTokens.surface].
   final Color? fillColor;
-  final bool readOnly;
-  final bool? enabled;
-  final bool obscureText;
-  final bool enableSuggestions;
-  final bool autocorrect;
 
   /// Keeps this field's native editing menu without the Text Actions entry.
   final bool textActionsEnabled;
-
-  final int? minLines;
-  final int? maxLines;
 
   /// Default height of the dense variant: `space32 + space8`.
   static const double defaultDenseHeight =
@@ -222,7 +194,7 @@ class AleraTextField extends StatelessWidget {
   }
 
   OutlineInputBorder _denseBorder(Color color) => OutlineInputBorder(
-    borderRadius: BorderRadius.circular(AleraTokens.radiusLg),
+    borderRadius: .circular(AleraTokens.radiusLg),
     borderSide: BorderSide(color: color),
   );
 }

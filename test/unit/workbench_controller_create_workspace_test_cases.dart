@@ -196,10 +196,8 @@ void _registerWorkbenchControllerCreateWorkspaceTests() {
 
 const String _setupCommand = '/bin/sh "/run/alera/worktree-setup-ws.sh"';
 
-class _ManagedWorkspaceRuntimeWithoutWatcher
+class const _ManagedWorkspaceRuntimeWithoutWatcher()
     implements ManagedWorkspaceRuntime {
-  const _ManagedWorkspaceRuntimeWithoutWatcher();
-
   @override
   Future<WorkspaceCreationResult> createLinkedWorkspace({
     required Project project,
@@ -218,12 +216,12 @@ class _ManagedWorkspaceRuntimeWithoutWatcher
         path: p.join(project.repoPath, 'delayed-workspace'),
         createdAt: now,
         updatedAt: now,
-        kind: WorkspaceKind.linked,
-        status: WorkspaceStatus.active,
+        kind: .linked,
+        status: .active,
         sourceBranch: reuseExistingBranch ? null : sourceBranch,
         reusesExistingBranch: reuseExistingBranch,
       ),
-      setupReport: WorktreeSetupReport.empty,
+      setupReport: .empty,
     );
   }
 
@@ -237,12 +235,9 @@ class _ManagedWorkspaceRuntimeWithoutWatcher
 
 /// Stands in for a host that prepared the worktree setup instead of running it.
 /// A null command is what a host without deferral support reports.
-class _ManagedWorkspaceRuntimeWithDeferredSetup
-    implements ManagedWorkspaceRuntime {
-  const _ManagedWorkspaceRuntimeWithDeferredSetup(this.deferredSetupCommand);
-
-  final String? deferredSetupCommand;
-
+class const _ManagedWorkspaceRuntimeWithDeferredSetup(
+  final String? deferredSetupCommand,
+) implements ManagedWorkspaceRuntime {
   @override
   Future<WorkspaceCreationResult> createLinkedWorkspace({
     required Project project,
@@ -261,12 +256,12 @@ class _ManagedWorkspaceRuntimeWithDeferredSetup
         path: p.join(project.repoPath, 'deferred-workspace'),
         createdAt: now,
         updatedAt: now,
-        kind: WorkspaceKind.linked,
-        status: WorkspaceStatus.active,
+        kind: .linked,
+        status: .active,
         sourceBranch: reuseExistingBranch ? null : sourceBranch,
         reusesExistingBranch: reuseExistingBranch,
       ),
-      setupReport: WorktreeSetupReport.empty,
+      setupReport: .empty,
       deferredSetupCommand: deferredSetupCommand,
     );
   }

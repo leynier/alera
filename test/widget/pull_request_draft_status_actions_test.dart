@@ -1,4 +1,3 @@
-import 'package:alera/src/shared/git_hosting/domain/git_hosting_provider.dart';
 import 'package:alera/src/features/pull_requests/domain/hosted_review.dart';
 import 'package:alera/src/features/pull_requests/domain/review_check_details.dart';
 import 'package:alera/src/features/pull_requests/domain/review_merge_method.dart';
@@ -8,10 +7,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 const _review = HostedReview(
-  provider: GitHostingProvider.github,
+  provider: .github,
   number: 42,
   title: 'feat: original',
-  state: HostedReviewState.open,
+  state: .open,
   url: 'https://github.com/leynier/alera/pull/42',
   author: 'leynier',
   baseBranch: 'main',
@@ -62,10 +61,7 @@ void main() {
   testWidgets('defaults a draft PR to Mark Ready For Review', (tester) async {
     final callbacks = _Callbacks();
     await tester.pumpWidget(
-      _wrap(
-        callbacks,
-        review: _review.copyWith(state: HostedReviewState.draft),
-      ),
+      _wrap(callbacks, review: _review.copyWith(state: .draft)),
     );
 
     expect(find.text('Mark Ready For Review'), findsOneWidget);
@@ -88,10 +84,7 @@ void main() {
   ) async {
     final callbacks = _Callbacks();
     await tester.pumpWidget(
-      _wrap(
-        callbacks,
-        review: _review.copyWith(state: HostedReviewState.draft),
-      ),
+      _wrap(callbacks, review: _review.copyWith(state: .draft)),
     );
 
     await tester.tap(find.byTooltip('Pull Request Actions'));

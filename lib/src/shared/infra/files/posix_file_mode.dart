@@ -17,7 +17,7 @@ typedef _ChmodDart = int Function(ffi.Pointer<Utf8> path, int mode);
 
 /// Resolved from the running process rather than a named library, because the
 /// libc file name differs between glibc, musl and macOS.
-final ffi.DynamicLibrary _libc = ffi.DynamicLibrary.process();
+final ffi.DynamicLibrary _libc = .process();
 final _ChmodDart _chmod = _libc.lookupFunction<_ChmodNative, _ChmodDart>(
   'chmod',
 );

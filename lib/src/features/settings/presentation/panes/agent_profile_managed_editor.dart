@@ -11,34 +11,20 @@ import 'package:alera/src/features/agent_status/domain/agent_status.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-class AgentProfileManagedEditor extends StatelessWidget {
-  const AgentProfileManagedEditor({
-    super.key,
-    required this.adapter,
-    required this.config,
-    required this.models,
-    required this.personas,
-    required this.enabled,
-    required this.onChanged,
-    required this.onRefreshModels,
-    required this.onRefreshPersonas,
-    this.modelsLoading = false,
-    this.personasLoading = false,
-    this.discoveryError,
-  });
-
-  final AgentType adapter;
-  final Map<String, Object?> config;
-  final List<ManagedAgentOption> models;
-  final List<ManagedAgentOption> personas;
-  final bool enabled;
-  final bool modelsLoading;
-  final bool personasLoading;
-  final String? discoveryError;
-  final ValueChanged<Map<String, Object?>> onChanged;
-  final VoidCallback? onRefreshModels;
-  final VoidCallback? onRefreshPersonas;
-
+class const AgentProfileManagedEditor({
+  super.key,
+  required final AgentType adapter,
+  required final Map<String, Object?> config,
+  required final List<ManagedAgentOption> models,
+  required final List<ManagedAgentOption> personas,
+  required final bool enabled,
+  required final ValueChanged<Map<String, Object?>> onChanged,
+  required final VoidCallback? onRefreshModels,
+  required final VoidCallback? onRefreshPersonas,
+  final bool modelsLoading = false,
+  final bool personasLoading = false,
+  final String? discoveryError,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final controls = <Widget>[
@@ -384,7 +370,7 @@ class AgentProfileManagedEditor extends StatelessWidget {
       child: _ManagedTextField(
         value: config[keyName]?.toString() ?? '',
         enabled: enabled,
-        keyboardType: TextInputType.numberWithOptions(decimal: decimal),
+        keyboardType: .numberWithOptions(decimal: decimal),
         inputFormatters: <TextInputFormatter>[
           FilteringTextInputFormatter.allow(
             decimal ? RegExp(r'[0-9.]') : RegExp(r'[0-9]'),
@@ -437,21 +423,13 @@ class AgentProfileManagedEditor extends StatelessWidget {
   }
 }
 
-class _ManagedTextField extends StatefulWidget {
-  const _ManagedTextField({
-    required this.value,
-    required this.enabled,
-    required this.onChanged,
-    this.keyboardType,
-    this.inputFormatters,
-  });
-
-  final String value;
-  final bool enabled;
-  final ValueChanged<String> onChanged;
-  final TextInputType? keyboardType;
-  final List<TextInputFormatter>? inputFormatters;
-
+class const _ManagedTextField({
+  required final String value,
+  required final bool enabled,
+  required final ValueChanged<String> onChanged,
+  final TextInputType? keyboardType,
+  final List<TextInputFormatter>? inputFormatters,
+}) extends StatefulWidget {
   @override
   State<_ManagedTextField> createState() => _ManagedTextFieldState();
 }

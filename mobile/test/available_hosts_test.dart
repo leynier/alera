@@ -88,13 +88,13 @@ void main() {
       addTearDown(container.dispose);
       container.listen(availableHostsProvider, (_, _) {});
       await container.read(availableHostsProvider.future);
-      lifecycle.change(AppLifecycleState.inactive);
-      lifecycle.change(AppLifecycleState.resumed);
+      lifecycle.change(.inactive);
+      lifecycle.change(.resumed);
       await pumpEventQueue();
       expect(api.calls, 1);
-      lifecycle.change(AppLifecycleState.paused);
-      lifecycle.change(AppLifecycleState.inactive);
-      lifecycle.change(AppLifecycleState.resumed);
+      lifecycle.change(.paused);
+      lifecycle.change(.inactive);
+      lifecycle.change(.resumed);
       await pumpEventQueue();
       expect(api.calls, 2);
     },
@@ -127,7 +127,7 @@ ProviderContainer _container(
         endpoint: 'ws://localhost:1',
         runtimeId: 'paired',
         deviceId: 'phone',
-        pairedAt: DateTime.utc(2026),
+        pairedAt: .utc(2026),
       ),
       'token',
     ),
@@ -189,7 +189,7 @@ class _Discovery implements AleraRelayCloudApi, AleraCloudApi {
       CloudRuntimeProfile(
         id: 'remote',
         name: 'Remote',
-        lastSeenAt: DateTime.utc(2026),
+        lastSeenAt: .utc(2026),
         relayPublicKey: 'public',
         relayKeyVersion: 1,
       ),

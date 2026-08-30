@@ -9,18 +9,13 @@ import 'package:alera_mobile/src/features/accounts/domain/cloud_account_session.
 import 'package:alera_mobile/src/features/accounts/domain/runtime_push_preferences.dart';
 import 'package:http/http.dart' as http;
 
-class AleraCloudConfiguration {
-  const AleraCloudConfiguration({
-    required this.baseUri,
-    this.requestTimeout = const Duration(seconds: 20),
-  });
-
+class const AleraCloudConfiguration({
+  required final Uri baseUri,
+  final Duration requestTimeout = const Duration(seconds: 20),
+}) {
   static const String defaultBaseUrl = 'https://api.alera.build/';
 
-  final Uri baseUri;
-  final Duration requestTimeout;
-
-  factory AleraCloudConfiguration.fromEnvironment() {
+  factory fromEnvironment() {
     const configured = String.fromEnvironment(
       'ALERA_CLOUD_BASE_URL',
       defaultValue: defaultBaseUrl,
@@ -30,19 +25,12 @@ class AleraCloudConfiguration {
   }
 }
 
-class AleraCloudException implements Exception {
-  const AleraCloudException(
-    this.message, {
-    this.statusCode,
-    this.code,
-    this.retryAfter,
-  });
-
-  final String message;
-  final int? statusCode;
-  final String? code;
-  final Duration? retryAfter;
-
+class const AleraCloudException(
+  final String message, {
+  final int? statusCode,
+  final String? code,
+  final Duration? retryAfter,
+}) implements Exception {
   @override
   String toString() => message;
 }
@@ -114,16 +102,16 @@ abstract interface class AleraMobileAuthApi {
   });
 }
 
-class HttpAleraCloudApi
-    implements
-        AleraCloudApi,
-        AleraRelayCloudApi,
-        AleraMobileAuthApi,
-        AleraConfigurationCloudApi {
-  HttpAleraCloudApi({required this.configuration, http.Client? client})
-    : _client = client ?? http.Client();
+class HttpAleraCloudApi({
+  required final AleraCloudConfiguration configuration,
+  http.Client? client,
+}) implements
+    AleraCloudApi,
+    AleraRelayCloudApi,
+    AleraMobileAuthApi,
+    AleraConfigurationCloudApi {
+  this : _client = client ?? http.Client();
 
-  final AleraCloudConfiguration configuration;
   final http.Client _client;
 
   void close() => _client.close();

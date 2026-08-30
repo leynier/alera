@@ -17,7 +17,7 @@ Future<void> main(List<String> args) async {
     try {
       await _waitForHealthyLoopback(helper, port, output);
       await _verifyListenerAddress(helper.pid, port);
-      await _expectConnectionRefused(InternetAddress.loopbackIPv4, port);
+      await _expectConnectionRefused(.loopbackIPv4, port);
 
       final lanAddresses = options.lanAddress == null
           ? await _discoverLanAddresses()
@@ -36,11 +36,11 @@ Future<void> main(List<String> args) async {
         'cannot connect.',
       );
     } finally {
-      helper.kill(ProcessSignal.sigterm);
+      helper.kill(.sigterm);
       try {
         await helper.exitCode.timeout(const Duration(seconds: 5));
       } on TimeoutException {
-        helper.kill(ProcessSignal.sigkill);
+        helper.kill(.sigkill);
         await helper.exitCode;
       }
       await Future.wait<void>(<Future<void>>[stdoutDone, stderrDone]);
@@ -108,7 +108,7 @@ Future<void> _waitForHealthyLoopback(
 
 Future<int?> _completedExitCode(Process process) async {
   try {
-    return await process.exitCode.timeout(Duration.zero);
+    return await process.exitCode.timeout(.zero);
   } on TimeoutException {
     return null;
   }
@@ -162,7 +162,7 @@ Future<void> _expectConnectionRefused(InternetAddress address, int port) async {
 Future<List<InternetAddress>> _discoverLanAddresses() async {
   final interfaces = await NetworkInterface.list(
     includeLoopback: false,
-    type: InternetAddressType.IPv4,
+    type: .IPv4,
   );
   return <InternetAddress>[
     for (final interface in interfaces)
@@ -171,15 +171,13 @@ Future<List<InternetAddress>> _discoverLanAddresses() async {
   ];
 }
 
-final class _Options {
-  _Options({
-    required this.helperPath,
-    required this.deviceUdid,
-    required this.port,
-    required this.lanAddress,
-  });
-
-  factory _Options.parse(List<String> args) {
+final class _Options({
+  required final String helperPath,
+  required final String deviceUdid,
+  required final int? port,
+  required final String? lanAddress,
+}) {
+  factory parse(List<String> args) {
     final values = <String, String>{};
     for (var index = 0; index < args.length; index += 2) {
       if (index + 1 >= args.length || !args[index].startsWith('--')) {
@@ -204,9 +202,4 @@ final class _Options {
       lanAddress: values['--lan-address'],
     );
   }
-
-  final String helperPath;
-  final String deviceUdid;
-  final int? port;
-  final String? lanAddress;
 }

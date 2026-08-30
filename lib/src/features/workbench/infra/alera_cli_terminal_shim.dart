@@ -7,15 +7,16 @@ import 'package:path_provider/path_provider.dart';
 
 typedef ApplicationSupportDirectoryResolver = Future<Directory> Function();
 
-class AleraCliTerminalShimService {
-  AleraCliTerminalShimService({
-    AleraCliResolver? cliResolver,
-    ApplicationSupportDirectoryResolver? applicationSupportDirectory,
-    String? operatingSystem,
-  }) : _cliResolver = cliResolver ?? DefaultAleraCliResolver(),
-       _applicationSupportDirectory =
-           applicationSupportDirectory ?? getApplicationSupportDirectory,
-       _operatingSystem = operatingSystem ?? Platform.operatingSystem;
+class AleraCliTerminalShimService({
+  AleraCliResolver? cliResolver,
+  ApplicationSupportDirectoryResolver? applicationSupportDirectory,
+  String? operatingSystem,
+}) {
+  this
+    : _cliResolver = cliResolver ?? DefaultAleraCliResolver(),
+      _applicationSupportDirectory =
+          applicationSupportDirectory ?? getApplicationSupportDirectory,
+      _operatingSystem = operatingSystem ?? Platform.operatingSystem;
 
   final AleraCliResolver _cliResolver;
   final ApplicationSupportDirectoryResolver _applicationSupportDirectory;

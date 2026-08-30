@@ -11,21 +11,21 @@ abstract interface class BundledSidecarVersionProbe {
   Future<BundledSidecarVersion> probe();
 }
 
-final class ProcessBundledSidecarVersionProbe
-    implements BundledSidecarVersionProbe {
-  ProcessBundledSidecarVersionProbe({
-    AleraCliResolver? cliResolver,
-    Future<Directory> Function()? applicationSupportDirectory,
-    Future<ProcessResult> Function(
-      String executable,
-      List<String> arguments, {
-      String? workingDirectory,
-    })?
-    runProcess,
-  }) : _cliResolver = cliResolver ?? DefaultAleraCliResolver(),
-       _applicationSupportDirectory =
-           applicationSupportDirectory ?? getApplicationSupportDirectory,
-       _runProcess = runProcess ?? _runThroughRustRunner;
+final class ProcessBundledSidecarVersionProbe({
+  AleraCliResolver? cliResolver,
+  Future<Directory> Function()? applicationSupportDirectory,
+  Future<ProcessResult> Function(
+    String executable,
+    List<String> arguments, {
+    String? workingDirectory,
+  })?
+  runProcess,
+}) implements BundledSidecarVersionProbe {
+  this
+    : _cliResolver = cliResolver ?? DefaultAleraCliResolver(),
+      _applicationSupportDirectory =
+          applicationSupportDirectory ?? getApplicationSupportDirectory,
+      _runProcess = runProcess ?? _runThroughRustRunner;
 
   final AleraCliResolver _cliResolver;
   final Future<Directory> Function() _applicationSupportDirectory;

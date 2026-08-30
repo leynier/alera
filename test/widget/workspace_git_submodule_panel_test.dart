@@ -27,8 +27,8 @@ void main() {
             entries: <GitChangeEntry>[
               GitChangeEntry(
                 path: 'modules/sample',
-                area: GitChangeArea.unstaged,
-                status: GitChangeStatus.modified,
+                area: .unstaged,
+                status: .modified,
                 submodule: GitSubmoduleStatus(
                   commitChanged: false,
                   trackedChanges: true,
@@ -42,13 +42,13 @@ void main() {
             entries: <GitChangeEntry>[
               GitChangeEntry(
                 path: 'README.md',
-                area: GitChangeArea.unstaged,
-                status: GitChangeStatus.modified,
+                area: .unstaged,
+                status: .modified,
               ),
               GitChangeEntry(
                 path: 'new.txt',
-                area: GitChangeArea.untracked,
-                status: GitChangeStatus.untracked,
+                area: .untracked,
+                status: .untracked,
               ),
             ],
           );
@@ -116,8 +116,8 @@ void main() {
         entries: <GitChangeEntry>[
           GitChangeEntry(
             path: 'modules/sample',
-            area: GitChangeArea.unstaged,
-            status: GitChangeStatus.modified,
+            area: .unstaged,
+            status: .modified,
             submodule: GitSubmoduleStatus(
               commitChanged: true,
               trackedChanges: false,
@@ -149,8 +149,8 @@ void main() {
         entries: <GitChangeEntry>[
           GitChangeEntry(
             path: 'modules/sample',
-            area: GitChangeArea.unstaged,
-            status: GitChangeStatus.modified,
+            area: .unstaged,
+            status: .modified,
             submodule: GitSubmoduleStatus(
               commitChanged: true,
               trackedChanges: true,
@@ -201,7 +201,7 @@ Future<void> _pumpPanel(
               ),
               viewMode: viewMode,
               onViewModeChanged: (_) {},
-              groupMode: GitDiffGroupMode.byArea,
+              groupMode: .byArea,
               onGroupModeChanged: (_) {},
               onOpenGitDiff:
                   onOpenGitDiff ??
@@ -241,8 +241,8 @@ Workspace _workspace() {
     path: '/tmp/project',
     createdAt: now,
     updatedAt: now,
-    kind: WorkspaceKind.main,
-    status: WorkspaceStatus.active,
+    kind: .main,
+    status: .active,
   );
 }
 

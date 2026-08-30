@@ -17,7 +17,7 @@ void registerCodexComposerFoundationTests() {
     target.onAcceptWithDetails!(
       DragTargetDetails<TerminalPathDragPayload>(
         data: const TerminalPathDragData(paths: <String>['/tmp/notes.md']),
-        offset: Offset.zero,
+        offset: .zero,
       ),
     );
     await tester.tap(
@@ -52,10 +52,10 @@ void registerCodexComposerFoundationTests() {
         'This draft is intentionally long enough to wrap across several visual lines in a narrow composer.';
     expect(
       codexCanNavigatePromptHistory(
-        key: LogicalKeyboardKey.arrowUp,
+        key: .arrowUp,
         value: const TextEditingValue(
           text: draft,
-          selection: TextSelection.collapsed(offset: draft.length),
+          selection: .collapsed(offset: draft.length),
         ),
         browsingHistory: false,
       ),
@@ -63,10 +63,8 @@ void registerCodexComposerFoundationTests() {
     );
     expect(
       codexCanNavigatePromptHistory(
-        key: LogicalKeyboardKey.arrowUp,
-        value: const TextEditingValue(
-          selection: TextSelection.collapsed(offset: 0),
-        ),
+        key: .arrowUp,
+        value: const TextEditingValue(selection: .collapsed(offset: 0)),
         browsingHistory: false,
       ),
       isTrue,
@@ -92,7 +90,7 @@ void registerCodexComposerFoundationTests() {
     expect(find.text('assets/logo.png'), findsOneWidget);
 
     await tester.enterText(composer, 'different text');
-    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+    await tester.sendKeyEvent(.enter);
     await tester.pump();
 
     expect(
@@ -238,13 +236,13 @@ void registerCodexComposerFoundationTests() {
 
     await tester.enterText(composer, '@read');
     await tester.pump(const Duration(milliseconds: 250));
-    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+    await tester.sendKeyEvent(.enter);
     await tester.pump();
     expect(tester.widget<TextField>(composer).controller?.text, 'readme.md ');
 
     await tester.enterText(composer, 'readme.md @read');
     await tester.pump(const Duration(milliseconds: 250));
-    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+    await tester.sendKeyEvent(.enter);
     await tester.pump();
 
     expect(tester.widget<TextField>(composer).controller?.text, 'readme.md ');

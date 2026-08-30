@@ -4,20 +4,16 @@ import 'package:alera/src/features/browser/domain/browser_page.dart';
 import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
 import 'package:alera_browser/alera_browser.dart';
 
-final class BrowserTabPayload {
-  const BrowserTabPayload({required this.page, this.runtimeTitle});
+final class const BrowserTabPayload({
+  required final BrowserPage page,
+  final String? runtimeTitle,
+});
 
-  final BrowserPage page;
-  final String? runtimeTitle;
-}
-
-final class BrowserTabPayloadCodec {
-  const BrowserTabPayloadCodec();
-
+final class const BrowserTabPayloadCodec() {
   BrowserTabPayload decode(WorkspaceTabRecord record) {
     if (record.kind != WorkspaceTabKind.browser) {
       throw const BrowserFailure(
-        code: BrowserErrorCode.invalidPayload,
+        code: .invalidPayload,
         message: 'The workspace tab is not a browser tab.',
       );
     }
@@ -49,7 +45,7 @@ final class BrowserTabPayloadCodec {
     final normalizedProfileId = profileId.trim();
     if (normalizedProfileId.isEmpty) {
       throw const BrowserFailure(
-        code: BrowserErrorCode.invalidPayload,
+        code: .invalidPayload,
         message: 'The browser profile id is empty.',
       );
     }
@@ -84,7 +80,7 @@ final class BrowserTabPayloadCodec {
         isPersistableBrowserUrl(uri.toString());
     if (!isBlank && !isSafeWebUrl) {
       throw const BrowserFailure(
-        code: BrowserErrorCode.invalidPayload,
+        code: .invalidPayload,
         message: 'The saved browser address is invalid or sensitive.',
         recoverable: true,
       );

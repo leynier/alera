@@ -20,30 +20,18 @@ part 'workspace_search_panel_results.dart';
 part 'workspace_search_panel_toolbar.dart';
 part 'workspace_search_panel_widgets.dart';
 
-class WorkspaceSearchMatchTarget {
-  const WorkspaceSearchMatchTarget({
-    required this.relativePath,
-    required this.line,
-    required this.column,
-    required this.matchLength,
-  });
+class const WorkspaceSearchMatchTarget({
+  required final String relativePath,
+  required final int line,
+  required final int column,
+  required final int matchLength,
+});
 
-  final String relativePath;
-  final int line;
-  final int column;
-  final int matchLength;
-}
-
-class WorkspaceSearchPanel extends ConsumerStatefulWidget {
-  const WorkspaceSearchPanel({
-    super.key,
-    required this.workspace,
-    required this.onOpenMatch,
-  });
-
-  final Workspace workspace;
-  final ValueChanged<WorkspaceSearchMatchTarget> onOpenMatch;
-
+class const WorkspaceSearchPanel({
+  super.key,
+  required final Workspace workspace,
+  required final ValueChanged<WorkspaceSearchMatchTarget> onOpenMatch,
+}) extends ConsumerStatefulWidget {
   @override
   ConsumerState<WorkspaceSearchPanel> createState() =>
       _WorkspaceSearchPanelState();
@@ -99,7 +87,7 @@ class _WorkspaceSearchPanelState extends ConsumerState<WorkspaceSearchPanel> {
         collapsibleNodeKeys.every(state.collapsedResultNodeKeys.contains);
     final rows = _rowsFor(state);
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+      crossAxisAlignment: .stretch,
       children: <Widget>[
         _SearchToolbar(
           state: state,
@@ -120,7 +108,7 @@ class _WorkspaceSearchPanelState extends ConsumerState<WorkspaceSearchPanel> {
             AleraTokens.space8,
           ),
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
+            crossAxisAlignment: .stretch,
             children: <Widget>[
               _WorkspaceSearchInputs(
                 queryController: _queryController,
@@ -278,11 +266,7 @@ class _WorkspaceSearchPanelState extends ConsumerState<WorkspaceSearchPanel> {
       }
       final conflictMessage = workspaceSearchReplaceConflictMessage(result);
       if (conflictMessage != null) {
-        AleraToast.show(
-          context,
-          message: conflictMessage,
-          tone: AleraToastTone.error,
-        );
+        AleraToast.show(context, message: conflictMessage, tone: .error);
         return;
       }
       AleraToast.show(
@@ -295,7 +279,7 @@ class _WorkspaceSearchPanelState extends ConsumerState<WorkspaceSearchPanel> {
       if (!mounted || message == null) {
         return;
       }
-      AleraToast.show(context, message: message, tone: AleraToastTone.error);
+      AleraToast.show(context, message: message, tone: .error);
     }
   }
 
@@ -305,7 +289,7 @@ class _WorkspaceSearchPanelState extends ConsumerState<WorkspaceSearchPanel> {
     }
     controller.value = TextEditingValue(
       text: value,
-      selection: TextSelection.collapsed(offset: value.length),
+      selection: .collapsed(offset: value.length),
     );
   }
 

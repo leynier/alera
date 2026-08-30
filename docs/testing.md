@@ -14,10 +14,12 @@ Native text rendering is covered by `flutter test integration_test/typography_re
 
 ## Local Commands
 
+After a batch that changes generated inputs or generators, run `dart run build_runner build`, `dart tool/ci/normalize_generated_eof.dart`, then the fast checks. From `mobile/`, use `dart ../tool/ci/normalize_generated_eof.dart .` after its own one-shot generation. Never run a build-runner watcher. The PR generation job repeats this sequence and rejects any difference from the committed result.
+
 Run the fast checks first:
 
 ```bash
-dart format --set-exit-if-changed lib test integration_test tool
+dart format --set-exit-if-changed lib test integration_test tool packages
 dart run tool/quality/check_max_lines.dart
 flutter analyze
 flutter test --exclude-tags golden
@@ -47,10 +49,13 @@ flutter test --update-goldens test/golden
 Run desktop E2E locally on the current platform:
 
 ```bash
-flutter test integration_test -d macos
+flutter test integration_test/alera_smoke_flow_test.dart -d macos
+flutter test integration_test/rust_process_runner_test.dart -d macos
 ```
 
-Use `-d linux` or `-d windows` on those platforms. The checked-in E2E flow must use temporary directories, temporary databases, fake process runners, and fake terminal runtimes unless the test explicitly needs a native boundary.
+Use `-d linux` or `-d windows` on those platforms. Invoke each integration file separately because the desktop launcher cannot reliably restart multiple suites in one invocation. The checked-in E2E flow must use temporary directories, temporary databases, fake process runners, and fake terminal runtimes unless the test explicitly needs a native boundary.
+
+Shared packages under `packages/alera_browser` and `packages/alera_configuration` each run dependency resolution from their lockfile, formatting, analysis and tests. Resolve both native plugin manifests independently without modifying Cargokit. The standalone runtime packager uses `dart pub get` from `tool/release/runtime_packager`; `dart tool/ci/verify_runtime_packager.dart` verifies all six archive variants with temporary inputs and a Dart-only dependency graph.
 
 ## Mobile Build Checks
 

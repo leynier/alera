@@ -287,23 +287,15 @@ String _fileSystemEntityTypeName(FileSystemEntityType type) {
 }
 // coverage:ignore-end
 
-final class _TomlSection {
-  const _TomlSection({
-    required this.header,
-    required this.block,
-    required this.start,
-  });
-
-  final String header;
-  final String block;
-  final int start;
-}
+final class const _TomlSection({
+  required final String header,
+  required final String block,
+  required final int start,
+});
 
 enum _TomlMultilineMode { none, basic, literal }
 
-final class _TomlMultilineState {
-  const _TomlMultilineState({this.basic = false, this.literal = false});
-
-  final bool basic;
-  final bool literal;
-}
+final class const _TomlMultilineState({
+  final bool basic = false,
+  final bool literal = false,
+});

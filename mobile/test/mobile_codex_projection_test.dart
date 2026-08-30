@@ -11,7 +11,7 @@ void main() {
           kind: 'turnSeparator',
           status: 'info',
           turnId: activeTurnId,
-          createdAt: DateTime.utc(2026, 8, 9),
+          createdAt: .utc(2026, 8, 9),
         ),
         const MobileCodexTimelineCell(
           id: 'user',

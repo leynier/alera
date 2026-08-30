@@ -3,20 +3,13 @@ import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/features/automations/domain/automation_models.dart';
 import 'package:flutter/material.dart';
 
-class AutomationRunRow extends StatelessWidget {
-  const AutomationRunRow({
-    required this.run,
-    this.onCancel,
-    this.onResumeWaiting,
-    this.onExtendWaiting,
-    super.key,
-  });
-
-  final AutomationRunRecord run;
-  final VoidCallback? onCancel;
-  final VoidCallback? onResumeWaiting;
-  final VoidCallback? onExtendWaiting;
-
+class const AutomationRunRow({
+  required final AutomationRunRecord run,
+  final VoidCallback? onCancel,
+  final VoidCallback? onResumeWaiting,
+  final VoidCallback? onExtendWaiting,
+  super.key,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListTile(

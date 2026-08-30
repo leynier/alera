@@ -1,16 +1,14 @@
-final class BrowserHistoryEntry {
-  const BrowserHistoryEntry({
-    required this.id,
-    required this.profileId,
-    required this.url,
-    required this.title,
-    required this.lastVisitedAt,
-    this.visitCount = 1,
-    this.workspaceId,
-    this.pageId,
-  });
-
-  factory BrowserHistoryEntry.fromJson(Map<String, Object?> json) {
+final class const BrowserHistoryEntry({
+  required final String id,
+  required final String profileId,
+  required final Uri url,
+  required final String title,
+  required final DateTime lastVisitedAt,
+  final int visitCount = 1,
+  final String? workspaceId,
+  final String? pageId,
+}) {
+  factory fromJson(Map<String, Object?> json) {
     final id = json['id'];
     final profileId = json['profileId'];
     final url = Uri.tryParse(json['url'] as String? ?? '');
@@ -35,15 +33,6 @@ final class BrowserHistoryEntry {
     );
   }
 
-  final String id;
-  final String profileId;
-  final Uri url;
-  final String title;
-  final DateTime lastVisitedAt;
-  final int visitCount;
-  final String? workspaceId;
-  final String? pageId;
-
   Map<String, Object?> toJson() => <String, Object?>{
     'id': id,
     'profileId': profileId,
@@ -56,18 +45,16 @@ final class BrowserHistoryEntry {
   };
 }
 
-final class BrowserClosedTab {
-  const BrowserClosedTab({
-    required this.id,
-    required this.workspaceId,
-    required this.profileId,
-    required this.url,
-    required this.title,
-    required this.closedAt,
-    this.payload = const <String, Object?>{},
-  });
-
-  factory BrowserClosedTab.fromJson(Map<String, Object?> json) {
+final class const BrowserClosedTab({
+  required final String id,
+  required final String workspaceId,
+  required final String profileId,
+  required final Uri url,
+  required final String title,
+  required final DateTime closedAt,
+  final Map<String, Object?> payload = const <String, Object?>{},
+}) {
+  factory fromJson(Map<String, Object?> json) {
     final url = Uri.tryParse(json['url'] as String? ?? '');
     final closedAt = DateTime.tryParse(json['closedAt'] as String? ?? '');
     if ((json['id'] ?? json['pageId']) is! String ||
@@ -87,14 +74,6 @@ final class BrowserClosedTab {
       payload: _historyMap(json['payload']),
     );
   }
-
-  final String id;
-  final String workspaceId;
-  final String profileId;
-  final Uri url;
-  final String title;
-  final DateTime closedAt;
-  final Map<String, Object?> payload;
 
   Map<String, Object?> toJson() => <String, Object?>{
     'id': id,

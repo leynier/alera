@@ -37,23 +37,23 @@ void _registerWorkspaceWorkbenchViewTabDropTests() {
       final firstBrowser = _tab(
         'browser-1',
         title: 'Browser 1',
-        kind: WorkspaceTabKind.browser,
+        kind: .browser,
       );
       final terminal = _tab('terminal-1', title: 'Terminal');
       final secondBrowser = _tab(
         'browser-2',
         title: 'Browser 2',
-        kind: WorkspaceTabKind.browser,
+        kind: .browser,
       );
       final tabs = <WorkspaceTabRecord>[firstBrowser, terminal, secondBrowser];
       final browserEngine = FakeBrowserEngine();
       final layout = WorkbenchLayout(
         workspaceId: _workspaceId,
-        root: WorkbenchLayoutNode.split(
-          axis: WorkbenchSplitAxis.horizontal,
+        root: .split(
+          axis: .horizontal,
           ratio: 0.5,
-          first: WorkbenchLayoutNode.leaf('group-a'),
-          second: WorkbenchLayoutNode.leaf('group-b'),
+          first: .leaf('group-a'),
+          second: .leaf('group-b'),
         ),
         groups: <String, WorkbenchPaneGroup>{
           'group-a': WorkbenchPaneGroup(
@@ -175,7 +175,7 @@ void _registerWorkspaceWorkbenchViewTabDropTests() {
       tester,
       tabs: tabs,
       terminalRuntime: terminalRuntime,
-      layout: WorkbenchLayout.single(
+      layout: .single(
         workspaceId: _workspaceId,
         groupId: 'group-a',
         tabIds: tabs.map((tab) => tab.id).toList(),
@@ -201,12 +201,7 @@ void _registerWorkspaceWorkbenchViewTabDropTests() {
     );
 
     expect(movedTabs, <_MovedTabAction>[
-      const _MovedTabAction(
-        'tab-1',
-        'group-a',
-        WorkbenchDropZone.center,
-        index: 2,
-      ),
+      const _MovedTabAction('tab-1', 'group-a', .center, index: 2),
     ]);
   });
 
@@ -244,12 +239,7 @@ void _registerWorkspaceWorkbenchViewTabDropTests() {
     );
 
     expect(movedTabs, <_MovedTabAction>[
-      const _MovedTabAction(
-        'tab-2',
-        'group-a',
-        WorkbenchDropZone.center,
-        index: 0,
-      ),
+      const _MovedTabAction('tab-2', 'group-a', .center, index: 0),
     ]);
   });
 
@@ -293,12 +283,7 @@ void _registerWorkspaceWorkbenchViewTabDropTests() {
     );
 
     expect(movedTabs, <_MovedTabAction>[
-      const _MovedTabAction(
-        'tab-2',
-        'group-a',
-        WorkbenchDropZone.center,
-        index: 1,
-      ),
+      const _MovedTabAction('tab-2', 'group-a', .center, index: 1),
     ]);
   });
 
@@ -312,7 +297,7 @@ void _registerWorkspaceWorkbenchViewTabDropTests() {
       tester,
       tabs: tabs,
       terminalRuntime: terminalRuntime,
-      layout: WorkbenchLayout.single(
+      layout: .single(
         workspaceId: _workspaceId,
         groupId: 'group-a',
         tabIds: tabs.map((tab) => tab.id).toList(),
@@ -352,7 +337,7 @@ void _registerWorkspaceWorkbenchViewTabDropTests() {
       tester,
       tabs: tabs,
       terminalRuntime: terminalRuntime,
-      layout: WorkbenchLayout.single(
+      layout: .single(
         workspaceId: _workspaceId,
         groupId: 'group-a',
         tabIds: tabs.map((tab) => tab.id).toList(),

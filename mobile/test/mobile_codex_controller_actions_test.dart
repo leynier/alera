@@ -174,7 +174,7 @@ void main() {
         'catalog': 'skills',
       }),
     );
-    await Future<void>.delayed(Duration.zero);
+    await Future<void>.delayed(.zero);
     expect(
       client.calls.where((call) => call.type == 'codex.skills.list'),
       hasLength(2),
@@ -188,7 +188,7 @@ void main() {
         'catalog': 'apps',
       }),
     );
-    await Future<void>.delayed(Duration.zero);
+    await Future<void>.delayed(.zero);
     expect(
       client.calls.where((call) => call.type == 'codex.apps.list'),
       hasLength(2),
@@ -198,7 +198,7 @@ void main() {
         'catalog': 'account',
       }),
     );
-    await Future<void>.delayed(Duration.zero);
+    await Future<void>.delayed(.zero);
     expect(
       client.calls.where((call) => call.type == 'codex.model.list'),
       hasLength(2),
@@ -216,7 +216,7 @@ void main() {
         'snapshot': <String, Object?>{'activeTurnId': 'turn-1'},
       }),
     );
-    await Future<void>.delayed(Duration.zero);
+    await Future<void>.delayed(.zero);
     await controller.send('queued');
     state = container.read(provider).value!;
     expect(state.queuedMessages.single['text'], 'queued');
@@ -277,7 +277,7 @@ void main() {
         'snapshot': <String, Object?>{},
       }),
     );
-    await Future<void>.delayed(Duration.zero);
+    await Future<void>.delayed(.zero);
     await controller.send('/app filesystem Open the selected file');
     final appTurn = client.calls.lastWhere(
       (call) => call.type == 'codex.turn.start',

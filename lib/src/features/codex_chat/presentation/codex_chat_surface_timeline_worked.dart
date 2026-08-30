@@ -12,21 +12,13 @@ enum _CodexWorkedActionKind {
   ran,
 }
 
-class _CodexWorkedAction {
-  const _CodexWorkedAction({
-    required this.cell,
-    required this.kind,
-    required this.label,
-    required this.hasDetails,
-    this.itemCount = 1,
-  });
-
-  final CodexTimelineCell cell;
-  final _CodexWorkedActionKind kind;
-  final String label;
-  final bool hasDetails;
-  final int itemCount;
-
+class const _CodexWorkedAction({
+  required final CodexTimelineCell cell,
+  required final _CodexWorkedActionKind kind,
+  required final String label,
+  required final bool hasDetails,
+  final int itemCount = 1,
+}) {
   IconData get icon => switch (kind) {
     _CodexWorkedActionKind.review => AleraIcons.review,
     _CodexWorkedActionKind.edit => AleraIcons.edit,
@@ -43,21 +35,13 @@ class _CodexWorkedAction {
 final Expando<_CodexWorkedAction> _codexWorkedActionCache =
     Expando<_CodexWorkedAction>('codex worked action');
 
-class _CodexWorkedActionGroup extends StatelessWidget {
-  const _CodexWorkedActionGroup({
-    required this.projection,
-    required this.expanded,
-    required this.expandedActions,
-    required this.onToggle,
-    required this.onToggleAction,
-  });
-
-  final _CodexSecondaryRowProjection projection;
-  final bool expanded;
-  final Set<String> expandedActions;
-  final VoidCallback onToggle;
-  final ValueChanged<String> onToggleAction;
-
+class const _CodexWorkedActionGroup({
+  required final _CodexSecondaryRowProjection projection,
+  required final bool expanded,
+  required final Set<String> expandedActions,
+  required final VoidCallback onToggle,
+  required final ValueChanged<String> onToggleAction,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final projection = this.projection;
@@ -65,7 +49,7 @@ class _CodexWorkedActionGroup extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.only(bottom: AleraTokens.space4),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: .start,
         children: <Widget>[
           InkWell(
             key: ValueKey<String>(
@@ -73,14 +57,14 @@ class _CodexWorkedActionGroup extends StatelessWidget {
             ),
             onTap: onToggle,
             mouseCursor: SystemMouseCursors.click,
-            borderRadius: BorderRadius.circular(AleraTokens.radiusLg),
+            borderRadius: .circular(AleraTokens.radiusLg),
             child: Padding(
               padding: const EdgeInsets.symmetric(
                 horizontal: AleraTokens.space6,
                 vertical: AleraTokens.space4,
               ),
               child: Row(
-                mainAxisSize: MainAxisSize.min,
+                mainAxisSize: .min,
                 children: <Widget>[
                   Icon(
                     projection.summaryIcon!,
@@ -96,14 +80,14 @@ class _CodexWorkedActionGroup extends StatelessWidget {
                             ),
                             text: projection.summary!,
                             maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
+                            overflow: .ellipsis,
                             style: Theme.of(context).textTheme.bodySmall
                                 ?.copyWith(color: AleraTokens.foregroundMuted),
                           )
                         : Text(
                             projection.summary!,
                             maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
+                            overflow: .ellipsis,
                             style: Theme.of(context).textTheme.bodySmall
                                 ?.copyWith(color: AleraTokens.foregroundMuted),
                           ),
@@ -122,7 +106,7 @@ class _CodexWorkedActionGroup extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.only(left: AleraTokens.space8),
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+                crossAxisAlignment: .start,
                 children: <Widget>[
                   for (final action in actions)
                     _CodexWorkedActionRow(
@@ -143,9 +127,7 @@ class _CodexWorkedActionGroup extends StatelessWidget {
   }
 }
 
-class _CodexWorkedWaitingRow extends StatelessWidget {
-  const _CodexWorkedWaitingRow();
-
+class const _CodexWorkedWaitingRow() extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Padding(
     key: const ValueKey<String>('codex-synthetic-worked-waiting'),
@@ -171,18 +153,12 @@ class _CodexWorkedWaitingRow extends StatelessWidget {
   );
 }
 
-class _CodexWorkedActionRow extends StatelessWidget {
-  const _CodexWorkedActionRow({
-    super.key,
-    required this.action,
-    required this.expanded,
-    required this.onToggle,
-  });
-
-  final _CodexWorkedAction action;
-  final bool expanded;
-  final VoidCallback onToggle;
-
+class const _CodexWorkedActionRow({
+  super.key,
+  required final _CodexWorkedAction action,
+  required final bool expanded,
+  required final VoidCallback onToggle,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final action = this.action;
@@ -191,7 +167,7 @@ class _CodexWorkedActionRow extends StatelessWidget {
         ? AleraTokens.error
         : AleraTokens.foregroundMuted;
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: .start,
       children: <Widget>[
         InkWell(
           key: ValueKey<String>('worked-action-${action.cell.id}'),
@@ -199,7 +175,7 @@ class _CodexWorkedActionRow extends StatelessWidget {
           mouseCursor: hasDetails
               ? SystemMouseCursors.click
               : SystemMouseCursors.basic,
-          borderRadius: BorderRadius.circular(AleraTokens.radiusLg),
+          borderRadius: .circular(AleraTokens.radiusLg),
           child: Padding(
             padding: const EdgeInsets.symmetric(
               horizontal: AleraTokens.space6,
@@ -219,7 +195,7 @@ class _CodexWorkedActionRow extends StatelessWidget {
                       : Text(
                           action.label,
                           maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
+                          overflow: .ellipsis,
                           style: Theme.of(context).textTheme.bodySmall
                               ?.copyWith(color: color),
                         ),

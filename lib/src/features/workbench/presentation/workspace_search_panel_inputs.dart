@@ -2,51 +2,28 @@ part of 'workspace_search_panel.dart';
 
 const double _searchInlineButtonSize = AleraTokens.space24;
 
-class _WorkspaceSearchInputs extends StatelessWidget {
-  const _WorkspaceSearchInputs({
-    required this.queryController,
-    required this.replacementController,
-    required this.includeController,
-    required this.excludeController,
-    required this.state,
-    required this.replaceVisible,
-    required this.detailsVisible,
-    required this.canReplaceAll,
-    required this.onToggleReplace,
-    required this.onToggleDetails,
-    required this.onQueryChanged,
-    required this.onQuerySubmitted,
-    required this.onReplacementChanged,
-    required this.onIncludeChanged,
-    required this.onExcludeChanged,
-    required this.onToggleCaseSensitive,
-    required this.onToggleWholeWord,
-    required this.onToggleUseRegex,
-    required this.onTogglePreserveCase,
-    required this.onReplaceAll,
-  });
-
-  final TextEditingController queryController;
-  final TextEditingController replacementController;
-  final TextEditingController includeController;
-  final TextEditingController excludeController;
-  final WorkspaceSearchState state;
-  final bool replaceVisible;
-  final bool detailsVisible;
-  final bool canReplaceAll;
-  final VoidCallback onToggleReplace;
-  final VoidCallback onToggleDetails;
-  final ValueChanged<String> onQueryChanged;
-  final ValueChanged<String> onQuerySubmitted;
-  final ValueChanged<String> onReplacementChanged;
-  final ValueChanged<String> onIncludeChanged;
-  final ValueChanged<String> onExcludeChanged;
-  final VoidCallback onToggleCaseSensitive;
-  final VoidCallback onToggleWholeWord;
-  final VoidCallback onToggleUseRegex;
-  final VoidCallback onTogglePreserveCase;
-  final VoidCallback onReplaceAll;
-
+class const _WorkspaceSearchInputs({
+  required final TextEditingController queryController,
+  required final TextEditingController replacementController,
+  required final TextEditingController includeController,
+  required final TextEditingController excludeController,
+  required final WorkspaceSearchState state,
+  required final bool replaceVisible,
+  required final bool detailsVisible,
+  required final bool canReplaceAll,
+  required final VoidCallback onToggleReplace,
+  required final VoidCallback onToggleDetails,
+  required final ValueChanged<String> onQueryChanged,
+  required final ValueChanged<String> onQuerySubmitted,
+  required final ValueChanged<String> onReplacementChanged,
+  required final ValueChanged<String> onIncludeChanged,
+  required final ValueChanged<String> onExcludeChanged,
+  required final VoidCallback onToggleCaseSensitive,
+  required final VoidCallback onToggleWholeWord,
+  required final VoidCallback onToggleUseRegex,
+  required final VoidCallback onTogglePreserveCase,
+  required final VoidCallback onReplaceAll,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final detailsActive =
@@ -54,10 +31,10 @@ class _WorkspaceSearchInputs extends StatelessWidget {
         state.includePattern.isNotEmpty ||
         state.excludePattern.isNotEmpty;
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+      crossAxisAlignment: .stretch,
       children: <Widget>[
         Row(
-          crossAxisAlignment: CrossAxisAlignment.center,
+          crossAxisAlignment: .center,
           children: <Widget>[
             _SearchChevronButton(
               expanded: replaceVisible,
@@ -66,7 +43,7 @@ class _WorkspaceSearchInputs extends StatelessWidget {
             const SizedBox(width: AleraTokens.space2),
             Expanded(
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
+                crossAxisAlignment: .stretch,
                 children: <Widget>[
                   AleraTextField(
                     controller: queryController,
@@ -157,19 +134,12 @@ class _WorkspaceSearchInputs extends StatelessWidget {
   }
 }
 
-class _SearchDetailField extends StatelessWidget {
-  const _SearchDetailField({
-    required this.hintText,
-    required this.controller,
-    required this.icon,
-    required this.onChanged,
-  });
-
-  final String hintText;
-  final TextEditingController controller;
-  final IconData icon;
-  final ValueChanged<String> onChanged;
-
+class const _SearchDetailField({
+  required final String hintText,
+  required final TextEditingController controller,
+  required final IconData icon,
+  required final ValueChanged<String> onChanged,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return AleraTextField(
@@ -191,11 +161,8 @@ class _SearchDetailField extends StatelessWidget {
   }
 }
 
-class _SearchInputActions extends StatelessWidget {
-  const _SearchInputActions({required this.children});
-
-  final List<Widget> children;
-
+class const _SearchInputActions({required final List<Widget> children})
+    extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final spacedChildren = <Widget>[];
@@ -207,17 +174,15 @@ class _SearchInputActions extends StatelessWidget {
     }
     return Padding(
       padding: const EdgeInsets.only(right: AleraTokens.space4),
-      child: Row(mainAxisSize: MainAxisSize.min, children: spacedChildren),
+      child: Row(mainAxisSize: .min, children: spacedChildren),
     );
   }
 }
 
-class _SearchChevronButton extends StatelessWidget {
-  const _SearchChevronButton({required this.expanded, required this.onPressed});
-
-  final bool expanded;
-  final VoidCallback onPressed;
-
+class const _SearchChevronButton({
+  required final bool expanded,
+  required final VoidCallback onPressed,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Tooltip(
@@ -239,19 +204,12 @@ class _SearchChevronButton extends StatelessWidget {
   }
 }
 
-class _SearchInlineToggleButton extends StatelessWidget {
-  const _SearchInlineToggleButton({
-    required this.tooltip,
-    required this.label,
-    required this.active,
-    required this.onPressed,
-  });
-
-  final String tooltip;
-  final String label;
-  final bool active;
-  final VoidCallback? onPressed;
-
+class const _SearchInlineToggleButton({
+  required final String tooltip,
+  required final String label,
+  required final bool active,
+  required final VoidCallback? onPressed,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final style = Theme.of(context).textTheme.labelSmall?.copyWith(
@@ -267,19 +225,12 @@ class _SearchInlineToggleButton extends StatelessWidget {
   }
 }
 
-class _SearchInlineIconButton extends StatelessWidget {
-  const _SearchInlineIconButton({
-    required this.tooltip,
-    required this.icon,
-    required this.active,
-    required this.onPressed,
-  });
-
-  final String tooltip;
-  final IconData icon;
-  final bool active;
-  final VoidCallback? onPressed;
-
+class const _SearchInlineIconButton({
+  required final String tooltip,
+  required final IconData icon,
+  required final bool active,
+  required final VoidCallback? onPressed,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return _SearchInlineButtonFrame(
@@ -295,19 +246,12 @@ class _SearchInlineIconButton extends StatelessWidget {
   }
 }
 
-class _SearchInlineButtonFrame extends StatelessWidget {
-  const _SearchInlineButtonFrame({
-    required this.tooltip,
-    required this.active,
-    required this.onPressed,
-    required this.child,
-  });
-
-  final String tooltip;
-  final bool active;
-  final VoidCallback? onPressed;
-  final Widget child;
-
+class const _SearchInlineButtonFrame({
+  required final String tooltip,
+  required final bool active,
+  required final VoidCallback? onPressed,
+  required final Widget child,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final enabled = onPressed != null;

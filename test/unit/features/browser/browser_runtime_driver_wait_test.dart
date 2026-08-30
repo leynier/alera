@@ -125,7 +125,7 @@ void _emitStarted(FakeBrowserEngine engine) {
   engine.eventController.add(
     BrowserNavigationStarted(
       pageId: 'page-1',
-      occurredAt: DateTime.utc(2026),
+      occurredAt: .utc(2026),
       url: Uri.parse('https://example.com/next'),
     ),
   );
@@ -135,7 +135,7 @@ void _emitCommitted(FakeBrowserEngine engine) {
   engine.eventController.add(
     BrowserNavigationCommitted(
       pageId: 'page-1',
-      occurredAt: DateTime.utc(2026),
+      occurredAt: .utc(2026),
       url: Uri.parse('https://example.com/next'),
     ),
   );
@@ -145,7 +145,7 @@ void _emitFinished(FakeBrowserEngine engine) {
   engine.eventController.add(
     BrowserNavigationFinished(
       pageId: 'page-1',
-      occurredAt: DateTime.utc(2026),
+      occurredAt: .utc(2026),
       url: Uri.parse('https://example.com/next'),
       title: 'Next',
     ),

@@ -38,7 +38,7 @@ void main() {
   group('formatLogRecordLine', () {
     test('emits the agreed schema', () {
       final line = formatLogRecordLine(
-        timestamp: DateTime.utc(2026, 7, 28, 10, 30),
+        timestamp: .utc(2026, 7, 28, 10, 30),
         level: 'WARNING',
         source: 'app',
         logger: 'AppWindowBootstrap',
@@ -58,13 +58,13 @@ void main() {
     test('redacts the message, the error and the stack', () {
       registerLogSecret('formatter-secret-token');
       final line = formatLogRecordLine(
-        timestamp: DateTime.utc(2026, 7, 28),
+        timestamp: .utc(2026, 7, 28),
         level: 'SEVERE',
         source: 'app',
         logger: 'Test',
         message: 'attach failed for formatter-secret-token',
         error: 'token=formatter-secret-token',
-        stackTrace: StackTrace.fromString('at formatter-secret-token'),
+        stackTrace: .fromString('at formatter-secret-token'),
       );
 
       expect(line, isNot(contains('formatter-secret-token')));
@@ -93,7 +93,7 @@ void main() {
       Logger('AgentAwakeService').warning(
         'assertion failed',
         StateError('no session'),
-        StackTrace.fromString('#0 fakeFrame'),
+        .fromString('#0 fakeFrame'),
       );
 
       final records = await readRecords();
@@ -106,7 +106,7 @@ void main() {
 
       AppLogger.recordError(
         StateError('boom'),
-        StackTrace.fromString('#0 zoneFrame'),
+        .fromString('#0 zoneFrame'),
         context: 'Zone',
       );
 
@@ -135,7 +135,7 @@ void main() {
         expect(
           () => AppLogger.recordError(
             StateError('boom'),
-            StackTrace.fromString('#0 zoneFrame'),
+            .fromString('#0 zoneFrame'),
             context: 'Zone',
           ),
           returnsNormally,
@@ -167,7 +167,7 @@ void main() {
           OSError('The handle is invalid', 6),
         ),
       );
-      await Future<void>.delayed(Duration.zero);
+      await Future<void>.delayed(.zero);
       Logger('Workbench').info('after console failure');
 
       final records = await readRecords();
@@ -178,7 +178,7 @@ void main() {
     });
 
     test('honors the configured level', () async {
-      await AppLogger.configure(level: Level.SEVERE, directory: root);
+      await AppLogger.configure(level: .SEVERE, directory: root);
 
       Logger('Quiet').info('should be dropped');
       Logger('Loud').severe('should be kept');

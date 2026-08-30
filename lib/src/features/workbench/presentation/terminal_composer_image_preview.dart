@@ -13,11 +13,8 @@ void showTerminalComposerImagePreview(BuildContext context, String path) {
   );
 }
 
-class _TerminalComposerImagePreview extends StatelessWidget {
-  const _TerminalComposerImagePreview({required this.path});
-
-  final String path;
-
+class const _TerminalComposerImagePreview({required final String path})
+    extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Stack(
@@ -37,7 +34,7 @@ class _TerminalComposerImagePreview extends StatelessWidget {
               borderRadius: BorderRadius.circular(AleraTokens.radiusMd),
               child: Image.file(
                 File(path),
-                fit: BoxFit.contain,
+                fit: .contain,
                 errorBuilder: (_, _, _) => const Icon(
                   AleraIcons.imageError,
                   size: AleraTokens.space48,

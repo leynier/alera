@@ -8,12 +8,10 @@ typedef AgentQuotaActionBuilder = Widget Function({
 });
 
 /// Optional runtime controls supplied by the native feature wrapper.
-class AgentQuotaInlineActions {
-  const AgentQuotaInlineActions({this.codexReset, this.claudeTui});
-
-  final AgentQuotaActionBuilder? codexReset;
-  final AgentQuotaActionBuilder? claudeTui;
-
+class const AgentQuotaInlineActions({
+  final AgentQuotaActionBuilder? codexReset,
+  final AgentQuotaActionBuilder? claudeTui,
+}) {
   Widget buildCodexReset({
     required String hostId,
     required AgentQuotaSnapshot snapshot,

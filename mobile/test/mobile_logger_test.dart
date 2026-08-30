@@ -52,7 +52,7 @@ void main() {
       Logger('MobileRuntimeClient').warning(
         'runtime connection failed',
         StateError('socket closed'),
-        StackTrace.fromString('#0 fakeFrame'),
+        .fromString('#0 fakeFrame'),
       );
 
       final records = await readRecords();
@@ -78,7 +78,7 @@ void main() {
 
       MobileLogger.recordError(
         StateError('boom'),
-        StackTrace.fromString('#0 zoneFrame'),
+        .fromString('#0 zoneFrame'),
         context: 'Zone',
       );
 

@@ -5,7 +5,6 @@ import 'package:alera_mobile/src/features/runtime/domain/workspace_tab_summary.d
 import 'package:alera_mobile/src/features/terminal/application/terminal_providers.dart';
 import 'package:alera_mobile/src/features/terminal/application/terminal_session_controller.dart';
 import 'package:alera_mobile/src/features/terminal/application/terminal_tab_session.dart';
-import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -22,7 +21,7 @@ void main() {
           fakeTab(id: 'tab-1', title: 'Terminal 1'),
         ]
         ..probeCompletion = probe.future;
-      final lifecycle = ControlledAppLifecycle(AppLifecycleState.resumed);
+      final lifecycle = ControlledAppLifecycle(.resumed);
       final container = ProviderContainer(
         overrides: [
           terminalClientProvider('host-1').overrideWith((ref) async => client),
@@ -38,15 +37,15 @@ void main() {
       await container.read(
         terminalSessionControllerProvider('host-1', 'tab-1').future,
       );
-      lifecycle.setLifecycleState(AppLifecycleState.inactive);
-      lifecycle.setLifecycleState(AppLifecycleState.resumed);
+      lifecycle.setLifecycleState(.inactive);
+      lifecycle.setLifecycleState(.resumed);
       await _waitUntil(() => client.probeCount == 1);
-      lifecycle.setLifecycleState(AppLifecycleState.paused);
+      lifecycle.setLifecycleState(.paused);
       probe.completeError(TimeoutException('probe expired'));
       await pumpEventQueue();
       expect(client.attachments, hasLength(1));
       client.probeCompletion = null;
-      lifecycle.setLifecycleState(AppLifecycleState.resumed);
+      lifecycle.setLifecycleState(.resumed);
       await _waitUntil(() => client.probeCount == 2);
       expect(client.attachments, hasLength(1));
     },
@@ -90,7 +89,7 @@ void main() {
         ..tabs = <WorkspaceTabSummary>[
           fakeTab(id: 'tab-1', title: 'Terminal 1'),
         ];
-      final lifecycle = ControlledAppLifecycle(AppLifecycleState.resumed);
+      final lifecycle = ControlledAppLifecycle(.resumed);
       final container = ProviderContainer(
         overrides: [
           terminalClientProvider('host-1').overrideWith((ref) async => client),
@@ -111,8 +110,8 @@ void main() {
       client.attachCompletion = attachCompletion.future;
       // Only a connection that fails its probe still reattaches on resume.
       client.probeError = StateError('connection gone');
-      lifecycle.setLifecycleState(AppLifecycleState.inactive);
-      lifecycle.setLifecycleState(AppLifecycleState.resumed);
+      lifecycle.setLifecycleState(.inactive);
+      lifecycle.setLifecycleState(.resumed);
       await _waitUntil(() => client.attachments.length == 2);
 
       subscription.close();
@@ -140,7 +139,7 @@ void main() {
     // disposes the compose bar and the attachment pick it is waiting on.
     final client = FakeTerminalClient()
       ..tabs = <WorkspaceTabSummary>[fakeTab(id: 'tab-1', title: 'Terminal 1')];
-    final lifecycle = ControlledAppLifecycle(AppLifecycleState.resumed);
+    final lifecycle = ControlledAppLifecycle(.resumed);
     final container = ProviderContainer(
       overrides: [
         terminalClientProvider('host-1').overrideWith((ref) async => client),
@@ -158,8 +157,8 @@ void main() {
       terminalSessionControllerProvider('host-1', 'tab-1').future,
     );
 
-    lifecycle.setLifecycleState(AppLifecycleState.inactive);
-    lifecycle.setLifecycleState(AppLifecycleState.resumed);
+    lifecycle.setLifecycleState(.inactive);
+    lifecycle.setLifecycleState(.resumed);
     await _waitUntil(() => client.probeCount == 1);
     await pumpEventQueue();
 
@@ -177,7 +176,7 @@ void main() {
         ..tabs = <WorkspaceTabSummary>[
           fakeTab(id: 'tab-1', title: 'Terminal 1'),
         ];
-      final lifecycle = ControlledAppLifecycle(AppLifecycleState.resumed);
+      final lifecycle = ControlledAppLifecycle(.resumed);
       final container = ProviderContainer(
         overrides: [
           terminalClientProvider('host-1').overrideWith((ref) async => client),
@@ -202,9 +201,9 @@ void main() {
       client.attachCompletion = foregroundAttach.future;
       client.probeError = StateError('connection gone');
 
-      lifecycle.setLifecycleState(AppLifecycleState.inactive);
+      lifecycle.setLifecycleState(.inactive);
       expect(client.attachments, hasLength(1));
-      lifecycle.setLifecycleState(AppLifecycleState.resumed);
+      lifecycle.setLifecycleState(.resumed);
       await _waitUntil(() => client.attachments.length == 2);
 
       expect(client.attachments.last, (tabId: 'tab-1', cols: 48, rows: 22));

@@ -14,20 +14,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
-class WorkspaceMermanViewerSurface extends ConsumerStatefulWidget {
-  const WorkspaceMermanViewerSurface({
-    super.key,
-    required this.workspace,
-    required this.tab,
-    required this.autofocus,
-    required this.onOpenEditor,
-  });
-
-  final Workspace workspace;
-  final WorkspaceTabRecord tab;
-  final bool autofocus;
-  final ValueChanged<String> onOpenEditor;
-
+class const WorkspaceMermanViewerSurface({
+  super.key,
+  required final Workspace workspace,
+  required final WorkspaceTabRecord tab,
+  required final bool autofocus,
+  required final ValueChanged<String> onOpenEditor,
+}) extends ConsumerStatefulWidget {
   @override
   ConsumerState<WorkspaceMermanViewerSurface> createState() =>
       _WorkspaceMermanViewerSurfaceState();
@@ -100,7 +93,7 @@ class _WorkspaceMermanViewerSurfaceState
         child: DecoratedBox(
           decoration: const BoxDecoration(color: AleraTokens.bg),
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
+            crossAxisAlignment: .stretch,
             children: <Widget>[
               _MermanViewerFileBar(
                 path: displayPath,
@@ -201,19 +194,12 @@ class _WorkspaceMermanViewerSurfaceState
   }
 }
 
-class _MermanViewerFileBar extends StatelessWidget {
-  const _MermanViewerFileBar({
-    required this.path,
-    required this.loading,
-    required this.onOpenEditor,
-    required this.onRefresh,
-  });
-
-  final String path;
-  final bool loading;
-  final VoidCallback onOpenEditor;
-  final VoidCallback? onRefresh;
-
+class const _MermanViewerFileBar({
+  required final String path,
+  required final bool loading,
+  required final VoidCallback onOpenEditor,
+  required final VoidCallback? onRefresh,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -223,17 +209,13 @@ class _MermanViewerFileBar extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: AleraTokens.space8),
         child: Row(
           children: <Widget>[
-            AleraFileIcon(
-              pathOrName: path,
-              kind: AleraFileIconKind.file,
-              size: 16,
-            ),
+            AleraFileIcon(pathOrName: path, kind: .file, size: 16),
             const SizedBox(width: AleraTokens.space8),
             Expanded(
               child: Text(
                 path,
                 maxLines: 1,
-                overflow: TextOverflow.ellipsis,
+                overflow: .ellipsis,
                 style: theme.textTheme.bodySmall?.copyWith(
                   color: AleraTokens.foregroundMuted,
                   fontFamily: 'JetBrains Mono',
@@ -259,11 +241,9 @@ class _MermanViewerFileBar extends StatelessWidget {
   }
 }
 
-class _MermanViewerCanvas extends StatelessWidget {
-  const _MermanViewerCanvas({required this.rendered});
-
-  final merman_native.MermanWorkspaceRender rendered;
-
+class const _MermanViewerCanvas({
+  required final merman_native.MermanWorkspaceRender rendered,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final svg = prepareMermanSvgForFlutterSvg(rendered.svg);
@@ -271,7 +251,7 @@ class _MermanViewerCanvas extends StatelessWidget {
       child: InteractiveViewer(
         minScale: 0.25,
         maxScale: 8,
-        boundaryMargin: const EdgeInsets.all(AleraTokens.space48),
+        boundaryMargin: const .all(AleraTokens.space48),
         child: Center(
           child: Padding(
             padding: const EdgeInsets.all(AleraTokens.space24),
@@ -280,7 +260,7 @@ class _MermanViewerCanvas extends StatelessWidget {
               key: ValueKey<String>(
                 '${rendered.contentToken}:${rendered.modifiedMillis}:${rendered.size}',
               ),
-              fit: BoxFit.contain,
+              fit: .contain,
               colorMapper: const _MermanSvgColorMapper(),
               placeholderBuilder: (_) =>
                   const CircularProgressIndicator(strokeWidth: 2),
@@ -292,9 +272,7 @@ class _MermanViewerCanvas extends StatelessWidget {
   }
 }
 
-class _MermanSvgColorMapper extends ColorMapper {
-  const _MermanSvgColorMapper();
-
+class const _MermanSvgColorMapper() extends ColorMapper {
   static const Color _black = Color(0xFF000000);
   static const Color _mermanText = Color(0xFF333333);
 
@@ -417,17 +395,14 @@ String _svgColor(Color color) {
   return '#${rgb.toRadixString(16).padLeft(6, '0').toUpperCase()}';
 }
 
-class _MermanViewerMessage extends StatelessWidget {
-  const _MermanViewerMessage({required this.message});
-
-  final String message;
-
+class const _MermanViewerMessage({required final String message})
+    extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Center(
       child: Text(
         message,
-        textAlign: TextAlign.center,
+        textAlign: .center,
         style: Theme.of(context).textTheme.bodyMedium
             ?.copyWith(color: AleraTokens.foregroundMuted),
       ),

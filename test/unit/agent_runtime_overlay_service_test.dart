@@ -569,7 +569,7 @@ void main() {
       File(p.join(amp.path, 'settings.json')).writeAsStringSync('{}');
 
       final windowsService = service(
-        platform: ManagedAgentHookPlatform.windows,
+        platform: .windows,
         environment: <String, String>{
           'USERPROFILE': home.path,
           'APPDATA': appData.path,

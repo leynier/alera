@@ -18,8 +18,8 @@ Workspace buildCommandTerminalWorkspace({
     path: workingDirectory,
     createdAt: timestamp,
     updatedAt: timestamp,
-    kind: WorkspaceKind.linked,
-    status: WorkspaceStatus.active,
+    kind: .linked,
+    status: .active,
   );
 }
 

@@ -2,21 +2,16 @@ part of 'agent_usage_dialog.dart';
 
 enum _UsageBreakdownMode { profile, grouped, model }
 
-class _AgentUsageContent extends StatefulWidget {
-  const _AgentUsageContent({
-    required this.snapshot,
-    required this.showGroupedBreakdown,
-  });
-
-  final AgentUsageSnapshot snapshot;
-  final bool showGroupedBreakdown;
-
+class const _AgentUsageContent({
+  required final AgentUsageSnapshot snapshot,
+  required final bool showGroupedBreakdown,
+}) extends StatefulWidget {
   @override
   State<_AgentUsageContent> createState() => _AgentUsageContentState();
 }
 
 class _AgentUsageContentState extends State<_AgentUsageContent> {
-  _UsageBreakdownMode _mode = _UsageBreakdownMode.profile;
+  _UsageBreakdownMode _mode = .profile;
 
   @override
   void didUpdateWidget(covariant _AgentUsageContent oldWidget) {
@@ -41,7 +36,7 @@ class _AgentUsageContentState extends State<_AgentUsageContent> {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(AleraTokens.space20),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
+        crossAxisAlignment: .stretch,
         children: <Widget>[
           _UsageCoverageNotice(snapshot: snapshot),
           if (_hasCoverageNotice(snapshot))
@@ -103,16 +98,16 @@ class _AgentUsageContentState extends State<_AgentUsageContent> {
                 dense: true,
                 segments: <ButtonSegment<_UsageBreakdownMode>>[
                   const ButtonSegment<_UsageBreakdownMode>(
-                    value: _UsageBreakdownMode.profile,
+                    value: .profile,
                     label: Text('Profiles'),
                   ),
                   if (widget.showGroupedBreakdown)
                     const ButtonSegment<_UsageBreakdownMode>(
-                      value: _UsageBreakdownMode.grouped,
+                      value: .grouped,
                       label: Text('Grouped'),
                     ),
                   const ButtonSegment<_UsageBreakdownMode>(
-                    value: _UsageBreakdownMode.model,
+                    value: .model,
                     label: Text('Models'),
                   ),
                 ],
@@ -131,11 +126,9 @@ class _AgentUsageContentState extends State<_AgentUsageContent> {
   }
 }
 
-class _UsageBreakdownTable extends StatelessWidget {
-  const _UsageBreakdownTable({required this.values});
-
-  final List<AgentUsageBreakdown> values;
-
+class const _UsageBreakdownTable({
+  required final List<AgentUsageBreakdown> values,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (values.isEmpty) {
@@ -153,9 +146,7 @@ class _UsageBreakdownTable extends StatelessWidget {
   }
 }
 
-class _UsageTableHeader extends StatelessWidget {
-  const _UsageTableHeader();
-
+class const _UsageTableHeader() extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return const Padding(
@@ -168,15 +159,15 @@ class _UsageTableHeader extends StatelessWidget {
           Expanded(child: Text('Name')),
           SizedBox(
             width: AleraTokens.usageTokensColumnWidth,
-            child: Text('Tokens', textAlign: TextAlign.end),
+            child: Text('Tokens', textAlign: .end),
           ),
           SizedBox(
             width: AleraTokens.usageCostColumnWidth,
-            child: Text('Cost', textAlign: TextAlign.end),
+            child: Text('Cost', textAlign: .end),
           ),
           SizedBox(
             width: AleraTokens.usageSessionsColumnWidth,
-            child: Text('Responses', textAlign: TextAlign.end),
+            child: Text('Responses', textAlign: .end),
           ),
         ],
       ),
@@ -184,11 +175,8 @@ class _UsageTableHeader extends StatelessWidget {
   }
 }
 
-class _UsageBreakdownRow extends StatelessWidget {
-  const _UsageBreakdownRow({required this.value});
-
-  final AgentUsageBreakdown value;
-
+class const _UsageBreakdownRow({required final AgentUsageBreakdown value})
+    extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final quotaProvider = switch (value.provider) {
@@ -209,12 +197,12 @@ class _UsageBreakdownRow extends StatelessWidget {
             showTooltip: false,
           ),
           const SizedBox(width: AleraTokens.space8),
-          Expanded(child: Text(value.label, overflow: TextOverflow.ellipsis)),
+          Expanded(child: Text(value.label, overflow: .ellipsis)),
           SizedBox(
             width: AleraTokens.usageTokensColumnWidth,
             child: Text(
               _formatUsageTokens(value.tokens),
-              textAlign: TextAlign.end,
+              textAlign: .end,
               style: AleraTokens.monoCompactStyle,
             ),
           ),
@@ -222,7 +210,7 @@ class _UsageBreakdownRow extends StatelessWidget {
             width: AleraTokens.usageCostColumnWidth,
             child: Text(
               _formatUsageUsd(value.costUsd),
-              textAlign: TextAlign.end,
+              textAlign: .end,
               style: AleraTokens.monoCompactStyle,
             ),
           ),
@@ -230,7 +218,7 @@ class _UsageBreakdownRow extends StatelessWidget {
             width: AleraTokens.usageSessionsColumnWidth,
             child: Text(
               _formatUsageCount(value.records),
-              textAlign: TextAlign.end,
+              textAlign: .end,
               style: AleraTokens.monoCompactStyle,
             ),
           ),
@@ -240,11 +228,8 @@ class _UsageBreakdownRow extends StatelessWidget {
   }
 }
 
-class _UsageSourceSummary extends StatelessWidget {
-  const _UsageSourceSummary({required this.snapshot});
-
-  final AgentUsageSnapshot snapshot;
-
+class const _UsageSourceSummary({required final AgentUsageSnapshot snapshot})
+    extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Text(
@@ -255,11 +240,8 @@ class _UsageSourceSummary extends StatelessWidget {
   }
 }
 
-class _UsageCoverageNotice extends StatelessWidget {
-  const _UsageCoverageNotice({required this.snapshot});
-
-  final AgentUsageSnapshot snapshot;
-
+class const _UsageCoverageNotice({required final AgentUsageSnapshot snapshot})
+    extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (!_hasCoverageNotice(snapshot)) return const SizedBox.shrink();

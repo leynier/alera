@@ -13,19 +13,20 @@ import 'ai_dictation_model.dart';
 
 export 'ai_dictation_model.dart';
 
-class AiDictationModelStore {
-  AiDictationModelStore({
-    http.Client Function()? clientFactory,
-    Future<Directory> Function()? supportDirectory,
-    List<AiDictationModel>? modelCatalog,
-    bool? installCoreMlEncoder,
-    AiDictationCoreMlStore? coreMlStore,
-  }) : _clientFactory = clientFactory ?? http.Client.new,
-       _supportDirectory =
-           supportDirectory ?? (() => getApplicationSupportDirectory()),
-       _modelCatalog = modelCatalog ?? models,
-       _installCoreMlEncoder = installCoreMlEncoder ?? Platform.isMacOS,
-       _coreMlStore = coreMlStore ?? const AiDictationCoreMlStore();
+class AiDictationModelStore({
+  http.Client Function()? clientFactory,
+  Future<Directory> Function()? supportDirectory,
+  List<AiDictationModel>? modelCatalog,
+  bool? installCoreMlEncoder,
+  AiDictationCoreMlStore? coreMlStore,
+}) {
+  this
+    : _clientFactory = clientFactory ?? http.Client.new,
+      _supportDirectory =
+          supportDirectory ?? (() => getApplicationSupportDirectory()),
+      _modelCatalog = modelCatalog ?? models,
+      _installCoreMlEncoder = installCoreMlEncoder ?? Platform.isMacOS,
+      _coreMlStore = coreMlStore ?? const AiDictationCoreMlStore();
 
   static const legacyModelId = 'whisper-cpp-base';
   static const modelId = 'whisper-base';
@@ -370,10 +371,6 @@ void _validateContentRange(
 Future<String> _sha256File(String path) async =>
     (await sha256.bind(File(path).openRead()).first).toString();
 
-class _Sha256Computation {
-  const _Sha256Computation(this.path);
-
-  final String path;
-
+class const _Sha256Computation(final String path) {
   Future<String> call() => _sha256File(path);
 }

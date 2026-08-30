@@ -1,68 +1,35 @@
-final class BrowserEngineCapabilities {
-  const BrowserEngineCapabilities({
-    required this.engine,
-    required this.engineAvailable,
-    this.engineVersion,
-    this.pageSurface = false,
-    this.isolatedProfiles = false,
-    this.ephemeralProfiles = false,
-    this.deterministicPageClose = false,
-    this.navigation = false,
-    this.navigationEvents = false,
-    this.javascript = false,
-    this.basicCookies = false,
-    this.fullCookies = false,
-    this.permissionCallbacks = false,
-    this.tlsCallbacks = false,
-    this.tlsTrustScope = 'none',
-    this.persistentCertificateTrust = true,
-    this.popupCallbacks = false,
-    this.downloadCallbacks = false,
-    this.domSnapshot = false,
-    this.domActions = false,
-    this.viewportScreenshot = false,
-    this.fullPageScreenshot = false,
-    this.pdf = false,
-    this.flutterOverlayOcclusion = false,
-    this.atomicCookieImport = false,
-    this.manualJsonCookieImport = false,
-    this.linuxGtkOverlay = false,
-    this.nativeCookieImportSources = const <String>{},
-    this.requiredNativeCookieImportSources = const <String>{},
-    this.limitations = const <String>[],
-  });
-
-  final String engine;
-  final String? engineVersion;
-  final bool engineAvailable;
-  final bool pageSurface;
-  final bool isolatedProfiles;
-  final bool ephemeralProfiles;
-  final bool deterministicPageClose;
-  final bool navigation;
-  final bool navigationEvents;
-  final bool javascript;
-  final bool basicCookies;
-  final bool fullCookies;
-  final bool permissionCallbacks;
-  final bool tlsCallbacks;
-  final String tlsTrustScope;
-  final bool persistentCertificateTrust;
-  final bool popupCallbacks;
-  final bool downloadCallbacks;
-  final bool domSnapshot;
-  final bool domActions;
-  final bool viewportScreenshot;
-  final bool fullPageScreenshot;
-  final bool pdf;
-  final bool flutterOverlayOcclusion;
-  final bool atomicCookieImport;
-  final bool manualJsonCookieImport;
-  final bool linuxGtkOverlay;
-  final Set<String> nativeCookieImportSources;
-  final Set<String> requiredNativeCookieImportSources;
-  final List<String> limitations;
-
+final class const BrowserEngineCapabilities({
+  required final String engine,
+  required final bool engineAvailable,
+  final String? engineVersion,
+  final bool pageSurface = false,
+  final bool isolatedProfiles = false,
+  final bool ephemeralProfiles = false,
+  final bool deterministicPageClose = false,
+  final bool navigation = false,
+  final bool navigationEvents = false,
+  final bool javascript = false,
+  final bool basicCookies = false,
+  final bool fullCookies = false,
+  final bool permissionCallbacks = false,
+  final bool tlsCallbacks = false,
+  final String tlsTrustScope = 'none',
+  final bool persistentCertificateTrust = true,
+  final bool popupCallbacks = false,
+  final bool downloadCallbacks = false,
+  final bool domSnapshot = false,
+  final bool domActions = false,
+  final bool viewportScreenshot = false,
+  final bool fullPageScreenshot = false,
+  final bool pdf = false,
+  final bool flutterOverlayOcclusion = false,
+  final bool atomicCookieImport = false,
+  final bool manualJsonCookieImport = false,
+  final bool linuxGtkOverlay = false,
+  final Set<String> nativeCookieImportSources = const <String>{},
+  final Set<String> requiredNativeCookieImportSources = const <String>{},
+  final List<String> limitations = const <String>[],
+}) {
   Set<String> get platformRequiredNativeCookieImportSources => switch (engine) {
     'wkWebView' => const <String>{
       'chrome',
@@ -154,16 +121,14 @@ final class BrowserEngineCapabilities {
   }
 }
 
-final class BrowserArtifactResult {
-  const BrowserArtifactResult({
-    required this.path,
-    required this.mimeType,
-    required this.sizeBytes,
-    required this.expiresAt,
-    this.suggestedFileName,
-  });
-
-  factory BrowserArtifactResult.fromJson(Map<String, Object?> json) {
+final class const BrowserArtifactResult({
+  required final String path,
+  required final String mimeType,
+  required final int sizeBytes,
+  required final DateTime expiresAt,
+  final String? suggestedFileName,
+}) {
+  factory fromJson(Map<String, Object?> json) {
     final path = json['path'];
     final mimeType = json['mimeType'];
     final sizeBytes = json['sizeBytes'];
@@ -184,18 +149,12 @@ final class BrowserArtifactResult {
     );
   }
 
-  final String path;
-  final String mimeType;
-  final int sizeBytes;
-  final DateTime expiresAt;
-  final String? suggestedFileName;
-
   Map<String, Object?> toJson() => <String, Object?>{
     'path': path,
     'mimeType': mimeType,
     'sizeBytes': sizeBytes,
     'expiresAt': expiresAt.toUtc().toIso8601String(),
-    if (suggestedFileName != null) 'suggestedFileName': suggestedFileName,
+    'suggestedFileName': ?suggestedFileName,
   };
 }
 

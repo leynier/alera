@@ -27,32 +27,26 @@ enum BrowserLifecycleReason { command, automation, capture, overlay, popup }
 
 enum BrowserRegistryEventKind { opened, stateChanged, closed }
 
-final class BrowserRegistryEvent {
-  const BrowserRegistryEvent({
-    required this.kind,
-    required this.pageId,
-    this.state,
-    this.engineEvent,
-  });
+final class const BrowserRegistryEvent({
+  required final BrowserRegistryEventKind kind,
+  required final String pageId,
+  final BrowserPageState? state,
+  final BrowserEngineEvent? engineEvent,
+});
 
-  final BrowserRegistryEventKind kind;
-  final String pageId;
-  final BrowserPageState? state;
-  final BrowserEngineEvent? engineEvent;
-}
-
-final class BrowserSessionRegistry {
-  BrowserSessionRegistry({
-    required BrowserEngine engine,
-    BrowserTabPayloadCodec codec = const BrowserTabPayloadCodec(),
-    Future<BrowserEngineCapabilities> Function()? probeCapabilities,
-    Future<BrowserSearchEngine> Function()? readSearchEngine,
-    DateTime Function()? now,
-  }) : _engine = engine, // ignore: prefer_initializing_formals
-       _codec = codec, // ignore: prefer_initializing_formals
-       _probeCapabilities = probeCapabilities ?? engine.probeCapabilities,
-       _readSearchEngine = readSearchEngine ?? _defaultSearchEngine,
-       _now = now ?? _defaultNow {
+final class BrowserSessionRegistry({
+  required BrowserEngine engine,
+  BrowserTabPayloadCodec codec = const BrowserTabPayloadCodec(),
+  Future<BrowserEngineCapabilities> Function()? probeCapabilities,
+  Future<BrowserSearchEngine> Function()? readSearchEngine,
+  DateTime Function()? now,
+}) {
+  this
+    : _engine = engine, // ignore: prefer_initializing_formals
+      _codec = codec, // ignore: prefer_initializing_formals
+      _probeCapabilities = probeCapabilities ?? engine.probeCapabilities,
+      _readSearchEngine = readSearchEngine ?? _defaultSearchEngine,
+      _now = now ?? _defaultNow {
     _eventSubscription = _engine.events.listen(_onEngineEvent);
   }
 
@@ -115,7 +109,7 @@ final class BrowserSessionRegistry {
     final entry = _entries[pageId];
     if (entry == null || !entry.transient) {
       throw BrowserFailure(
-        code: BrowserErrorCode.pageNotFound,
+        code: .pageNotFound,
         message: 'Transient browser page $pageId was not found.',
       );
     }
@@ -124,7 +118,7 @@ final class BrowserSessionRegistry {
     await _ensureOperational(entry);
     await _engine.promoteTransientPage(pageId);
     entry.transient = false;
-    _emit(BrowserRegistryEventKind.opened, entry);
+    _emit(.opened, entry);
   }
 
   Future<BrowserSessionHandle> _sessionForPayload(BrowserTabPayload payload) {
@@ -157,7 +151,7 @@ final class BrowserSessionRegistry {
           // A failed close restores the existing entry for the next loop.
         }
       } else {
-        await Future<void>.delayed(Duration.zero);
+        await Future<void>.delayed(.zero);
       }
     }
     final entry = _BrowserSessionEntry(
@@ -201,12 +195,12 @@ final class BrowserSessionRegistry {
           );
         }
         entry.created = true;
-        _emit(BrowserRegistryEventKind.opened, entry);
+        _emit(.opened, entry);
       }
     } catch (error) {
       entry.state.value = entry.state.value.copyWith(
-        loadPhase: BrowserLoadPhase.failed,
-        engineAvailability: BrowserEngineAvailability.unavailable,
+        loadPhase: .failed,
+        engineAvailability: .unavailable,
         error: _failure(error),
         capabilityReason: error.toString(),
         updatedAt: _now(),
@@ -271,7 +265,7 @@ final class BrowserSessionRegistry {
       return;
     }
     _entries.remove(entry.pageId);
-    _emit(BrowserRegistryEventKind.closed, entry);
+    _emit(.closed, entry);
     entry.state.dispose();
     entry.closeCompleter?.complete();
   }
@@ -287,7 +281,7 @@ final class BrowserSessionRegistry {
       return;
     }
     entry.state.value = reduceBrowserPageEvent(entry.state.value, event);
-    _emit(BrowserRegistryEventKind.stateChanged, entry, engineEvent: event);
+    _emit(.stateChanged, entry, engineEvent: event);
   }
 
   Future<void> _ensureOperational(_BrowserSessionEntry entry) async {
@@ -295,7 +289,7 @@ final class BrowserSessionRegistry {
         entry.state.value.engineAvailability !=
             BrowserEngineAvailability.available) {
       throw BrowserFailure(
-        code: BrowserErrorCode.engineUnavailable,
+        code: .engineUnavailable,
         message:
             entry.state.value.capabilityReason ??
             'The browser engine is unavailable.',
@@ -339,7 +333,7 @@ final class BrowserSessionRegistry {
     _checkNotDisposed();
     if (entry.closing || entry.closed) {
       throw BrowserFailure(
-        code: BrowserErrorCode.pageNotFound,
+        code: .pageNotFound,
         message: 'Browser page ${entry.pageId} is closing.',
         recoverable: true,
       );
@@ -353,21 +347,20 @@ final class BrowserSessionRegistry {
   }
 }
 
-final class _BrowserSessionEntry {
-  _BrowserSessionEntry({
-    required BrowserPage page,
-    required String title,
-    required this.transient,
-    required this.openerPageId,
-    required this.adoptedTransient,
-  }) : state = ValueNotifier<BrowserPageState>(
-         BrowserPageState.initial(page).copyWith(title: title),
-       );
+final class _BrowserSessionEntry({
+  required BrowserPage page,
+  required String title,
+  required var bool transient,
+  required final String? openerPageId,
+  required final bool adoptedTransient,
+}) {
+  this
+    : state = ValueNotifier<BrowserPageState>(
+        BrowserPageState.initial(page).copyWith(title: title),
+      );
 
   final ValueNotifier<BrowserPageState> state;
-  bool transient;
-  final String? openerPageId;
-  final bool adoptedTransient;
+
   final Completer<void> ready = Completer<void>();
   late final BrowserSessionHandle handle;
   Future<void> visibilityTail = Future<void>.value();
@@ -407,7 +400,7 @@ BrowserFailure _failure(Object error) {
     return error;
   }
   return BrowserFailure(
-    code: BrowserErrorCode.engineUnavailable,
+    code: .engineUnavailable,
     message: error.toString(),
     recoverable: true,
   );
@@ -417,7 +410,7 @@ void _validateIdentity(BrowserPage existing, BrowserPage requested) {
   if (existing.workspaceId != requested.workspaceId ||
       existing.profileId != requested.profileId) {
     throw BrowserFailure(
-      code: BrowserErrorCode.invalidPayload,
+      code: .invalidPayload,
       message: 'Browser page ${requested.pageId} changed identity.',
     );
   }

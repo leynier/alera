@@ -1,20 +1,12 @@
 part of 'mobile_codex_chat_screen.dart';
 
-class _MobileCodexGoalBar extends StatefulWidget {
-  const _MobileCodexGoalBar({
-    required this.goal,
-    required this.turnActive,
-    required this.onEdit,
-    required this.onPauseResume,
-    required this.onClear,
-  });
-
-  final MobileCodexGoal goal;
-  final bool turnActive;
-  final VoidCallback onEdit;
-  final VoidCallback? onPauseResume;
-  final VoidCallback onClear;
-
+class const _MobileCodexGoalBar({
+  required final MobileCodexGoal goal,
+  required final bool turnActive,
+  required final VoidCallback onEdit,
+  required final VoidCallback? onPauseResume,
+  required final VoidCallback onClear,
+}) extends StatefulWidget {
   @override
   State<_MobileCodexGoalBar> createState() => _MobileCodexGoalBarState();
 }
@@ -84,19 +76,19 @@ class _MobileCodexGoalBarState extends State<_MobileCodexGoalBar> {
           const SizedBox(width: AleraTokens.space8),
           Expanded(
             child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: .min,
+              crossAxisAlignment: .start,
               children: <Widget>[
                 Text(
                   '${_mobileGoalStatusLabel(widget.goal.status)} • ${_formatMobileGoalElapsed(_elapsed)}',
                   maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+                  overflow: .ellipsis,
                   style: Theme.of(context).textTheme.labelMedium,
                 ),
                 Text(
                   widget.goal.objective,
                   maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+                  overflow: .ellipsis,
                   style: Theme.of(context).textTheme.bodySmall
                       ?.copyWith(color: AleraTokens.foregroundMuted),
                 ),
@@ -164,11 +156,8 @@ Future<String?> _showMobileCodexGoalEditor(
   );
 }
 
-class _MobileCodexGoalEditDialog extends StatefulWidget {
-  const _MobileCodexGoalEditDialog({required this.initialObjective});
-
-  final String initialObjective;
-
+class const _MobileCodexGoalEditDialog({required final String initialObjective})
+    extends StatefulWidget {
   @override
   State<_MobileCodexGoalEditDialog> createState() =>
       _MobileCodexGoalEditDialogState();

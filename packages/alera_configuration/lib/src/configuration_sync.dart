@@ -13,18 +13,12 @@ abstract interface class ConfigurationCloud {
   Future<ConfigurationRevision> publish(JsonMap operation);
 }
 
-class ConfigurationLocalSnapshot {
-  ConfigurationLocalSnapshot({
-    required this.document,
-    required this.fingerprint,
-    this.base,
-    this.pending,
-  });
-  final ConfigurationDocument document;
-  final String fingerprint;
-  final ConfigurationRevision? base;
-  final JsonMap? pending;
-}
+class ConfigurationLocalSnapshot({
+  required final ConfigurationDocument document,
+  required final String fingerprint,
+  final ConfigurationRevision? base,
+  final JsonMap? pending,
+});
 
 abstract interface class ConfigurationLocalTarget {
   String get label;
@@ -39,24 +33,18 @@ abstract interface class ConfigurationLocalTarget {
   Future<void> published(String operationId, ConfigurationRevision revision);
 }
 
-class ConfigurationReview {
-  ConfigurationReview(this.local, this.head, this.source, this.merge);
-  final ConfigurationLocalSnapshot local;
-  final ConfigurationRevision? head;
-  final ConfigurationRevision? source;
-  final ConfigurationMerge merge;
-}
+class ConfigurationReview(
+  final ConfigurationLocalSnapshot local,
+  final ConfigurationRevision? head,
+  final ConfigurationRevision? source,
+  final ConfigurationMerge merge,
+);
 
-class ConfigurationSyncService {
-  ConfigurationSyncService({
-    required this.cloud,
-    required this.target,
-    this.retain,
-  });
-  final ConfigurationCloud cloud;
-  final ConfigurationLocalTarget target;
-  final void Function() Function()? retain;
-
+class ConfigurationSyncService({
+  required final ConfigurationCloud cloud,
+  required final ConfigurationLocalTarget target,
+  final void Function() Function()? retain,
+}) {
   Future<ConfigurationReview> review({int? historicalRevision}) async {
     final head = await cloud.head();
     final source = historicalRevision == null

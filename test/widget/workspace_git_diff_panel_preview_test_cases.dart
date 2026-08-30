@@ -13,8 +13,8 @@ void _registerWorkspaceGitDiffPanelPreviewTests() {
         entries: <GitChangeEntry>[
           GitChangeEntry(
             path: 'lib/foo.dart',
-            area: GitChangeArea.unstaged,
-            status: GitChangeStatus.modified,
+            area: .unstaged,
+            status: .modified,
           ),
         ],
       );
@@ -64,8 +64,8 @@ void _registerWorkspaceGitDiffPanelPreviewTests() {
         entries: <GitChangeEntry>[
           GitChangeEntry(
             path: 'lib/foo.dart',
-            area: GitChangeArea.unstaged,
-            status: GitChangeStatus.modified,
+            area: .unstaged,
+            status: .modified,
           ),
         ],
       );
@@ -121,7 +121,7 @@ void _registerWorkspaceGitDiffPanelPreviewTests() {
             message: 'Add Feature\n\nBody',
             displayId: 'abc1234',
             author: 'Leynier',
-            timestamp: DateTime.utc(2026, 7, 4, 12),
+            timestamp: .utc(2026, 7, 4, 12),
           ),
         ],
       )
@@ -132,13 +132,13 @@ void _registerWorkspaceGitDiffPanelPreviewTests() {
           compareRef: 'abc1234',
           baseRef: 'def9876',
           changedFiles: 1,
-          status: GitCommitCompareStatus.ready,
+          status: .ready,
         ),
         entries: <GitCommitChangeEntry>[
           GitCommitChangeEntry(
             path: 'lib/new.dart',
             oldPath: 'lib/old.dart',
-            status: GitChangeStatus.renamed,
+            status: .renamed,
             added: 3,
             removed: 1,
           ),
@@ -201,10 +201,7 @@ void _registerWorkspaceGitDiffPanelPreviewTests() {
       <String, Object?>{'path': '/tmp/project', 'limit': 50, 'baseRef': null},
     );
 
-    final mouse = await tester.createGesture(
-      kind: PointerDeviceKind.mouse,
-      pointer: 1,
-    );
+    final mouse = await tester.createGesture(kind: .mouse, pointer: 1);
     addTearDown(mouse.removePointer);
     await mouse.addPointer(
       location: tester.getCenter(find.text('Add Feature')),

@@ -1,9 +1,10 @@
 part of 'codex_chat_models.dart';
 
-final class _CodexTimelineDelta {
-  const _CodexTimelineDelta({required this.removedIds, required this.upserts});
-
-  factory _CodexTimelineDelta.fromJson(Map<String, Object?> json) {
+final class const _CodexTimelineDelta({
+  required final Set<String> removedIds,
+  required final Map<String, CodexTimelineCell> upserts,
+}) {
+  factory fromJson(Map<String, Object?> json) {
     final removedIds = <String>{};
     final rawRemovedIds = json['timelineRemovedIds'];
     if (rawRemovedIds is List) {
@@ -23,9 +24,6 @@ final class _CodexTimelineDelta {
     }
     return _CodexTimelineDelta(removedIds: removedIds, upserts: upserts);
   }
-
-  final Set<String> removedIds;
-  final Map<String, CodexTimelineCell> upserts;
 
   _CodexTimelineUpdate apply(List<CodexTimelineCell> current) {
     if (removedIds.isEmpty && upserts.isEmpty) {
@@ -58,13 +56,13 @@ final class _CodexTimelineDelta {
 }
 
 final class _CodexTimelineUpdate {
-  const _CodexTimelineUpdate({
+  const new({
     required this.cells,
     required this.updatesPromptHistory,
     required this.updatesMcpState,
   });
 
-  const _CodexTimelineUpdate.unchanged(this.cells)
+  const new unchanged(this.cells)
     : updatesPromptHistory = false,
       updatesMcpState = false;
 
@@ -73,8 +71,8 @@ final class _CodexTimelineUpdate {
   final bool updatesMcpState;
 }
 
-final class _MutableCodexTimeline {
-  _MutableCodexTimeline(List<CodexTimelineCell> cells)
+final class _MutableCodexTimeline(List<CodexTimelineCell> cells) {
+  this
     : _segmented = cells is CodexTimelineCells ? cells : null,
       _history = cells is CodexTimelineCells
           ? cells.history

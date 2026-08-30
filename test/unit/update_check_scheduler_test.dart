@@ -5,9 +5,7 @@ import 'package:alera/src/features/updater/application/update_check_scheduler.da
 import 'package:fake_async/fake_async.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-class _FakeForeground implements AppForeground {
-  _FakeForeground({this.isForeground = true});
-
+class _FakeForeground({this.isForeground = true}) implements AppForeground {
   final StreamController<bool> _changes = StreamController<bool>.broadcast();
 
   @override

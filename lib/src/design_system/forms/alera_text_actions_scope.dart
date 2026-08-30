@@ -19,44 +19,31 @@ typedef AleraTextActionReplacementHandler = bool Function(
   String replacement,
 );
 
-class AleraTextActionTarget {
+class const AleraTextActionTarget({
+  required final Object identity,
+  required final TextEditingValue Function() readValue,
+  required final bool Function() isAvailable,
+  required final AleraTextActionReplacementHandler applyReplacement,
+}) {
   /// Adapts any editable surface to the shared Text Actions runner.
-  const AleraTextActionTarget({
-    required this.identity,
-    required this.readValue,
-    required this.isAvailable,
-    required this.applyReplacement,
-  });
-
-  final Object identity;
-  final TextEditingValue Function() readValue;
-  final bool Function() isAvailable;
-  final AleraTextActionReplacementHandler applyReplacement;
+  this;
 }
 
-class AleraTextActionMenuItem {
-  const AleraTextActionMenuItem({required this.id, required this.label});
-
-  final String id;
-  final String label;
-}
+class const AleraTextActionMenuItem({
+  required final String id,
+  required final String label,
+});
 
 /// Adds the optional Text Actions entry without taking ownership of editing.
-class AleraTextActionsScope extends InheritedWidget {
-  const AleraTextActionsScope({
-    super.key,
-    required this.enabled,
-    required this.onOpen,
-    this.actions = const <AleraTextActionMenuItem>[],
-    this.onRun,
-    required super.child,
-  });
-
-  final bool enabled;
-  final AleraTextActionsContextMenuHandler onOpen;
-  final List<AleraTextActionMenuItem> actions;
-  final AleraTextActionHandler? onRun;
-
+class const AleraTextActionsScope({
+  super.key,
+  required final bool enabled,
+  required final AleraTextActionsContextMenuHandler onOpen,
+  final List<AleraTextActionMenuItem> actions =
+      const <AleraTextActionMenuItem>[],
+  final AleraTextActionHandler? onRun,
+  required super.child,
+}) extends InheritedWidget {
   void open(
     BuildContext context,
     AleraTextActionTarget target,
@@ -95,7 +82,7 @@ class AleraTextActionsScope extends InheritedWidget {
         onPressed: () {
           unawaited(_pasteFromContextMenu(editableTextState, onPaste));
         },
-        type: ContextMenuButtonType.paste,
+        type: .paste,
       );
       final pasteIndex = items.indexWhere(
         (item) => item.type == ContextMenuButtonType.paste,
@@ -143,7 +130,7 @@ class AleraTextActionsScope extends InheritedWidget {
               anchors.secondaryAnchor ?? anchors.primaryAnchor,
             );
           },
-          type: ContextMenuButtonType.custom,
+          type: .custom,
         ),
       );
     }
@@ -171,7 +158,7 @@ class AleraTextActionsScope extends InheritedWidget {
             captured,
             replacement,
             captured.selection,
-            SelectionChangedCause.toolbar,
+            .toolbar,
           ),
         );
         return true;
@@ -186,7 +173,7 @@ class AleraTextActionsScope extends InheritedWidget {
     if (await onPaste()) {
       return;
     }
-    await editableTextState.pasteText(SelectionChangedCause.toolbar);
+    await editableTextState.pasteText(.toolbar);
   }
 
   @override

@@ -3,37 +3,22 @@ import 'package:alera/src/features/runtime_host/domain/runtime_host_status.dart'
 import 'package:alera/src/features/runtime_host/infra/bundled_sidecar_version_probe.dart';
 import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_protocol.dart';
 
-final class FakeBundledSidecarVersionProbe
+final class FakeBundledSidecarVersionProbe(final BundledSidecarVersion version)
     implements BundledSidecarVersionProbe {
-  FakeBundledSidecarVersionProbe(this.version);
-
-  final BundledSidecarVersion version;
-
   @override
   Future<BundledSidecarVersion> probe() async => version;
 }
 
-final class FakeRuntimeHostLifecycleClient
-    implements RuntimeHostLifecycleClient {
-  FakeRuntimeHostLifecycleClient({
-    this.status,
-    this.busyOnSoftStop = false,
-    this.probeThrows = false,
-    this.shutdownLeavesHostRunning = false,
-    this.ensureStartedError,
-    this.shutdownErrorOnSoft,
-    this.shutdownErrorOnForce,
-    this.probeErrorsAfterShutdown = const <Object>[],
-  });
-
-  Map<String, Object?>? status;
-  final bool busyOnSoftStop;
-  final bool probeThrows;
-  final bool shutdownLeavesHostRunning;
-  final Object? ensureStartedError;
-  final Object? shutdownErrorOnSoft;
-  final Object? shutdownErrorOnForce;
-  final List<Object> probeErrorsAfterShutdown;
+final class FakeRuntimeHostLifecycleClient({
+  var Map<String, Object?>? status,
+  final bool busyOnSoftStop = false,
+  final bool probeThrows = false,
+  final bool shutdownLeavesHostRunning = false,
+  final Object? ensureStartedError,
+  final Object? shutdownErrorOnSoft,
+  final Object? shutdownErrorOnForce,
+  final List<Object> probeErrorsAfterShutdown = const <Object>[],
+}) implements RuntimeHostLifecycleClient {
   final List<bool> shutdownCalls = <bool>[];
   int ensureStartedCalls = 0;
   bool _stopped = false;

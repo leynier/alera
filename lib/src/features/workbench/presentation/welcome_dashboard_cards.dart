@@ -1,27 +1,19 @@
 part of 'welcome_dashboard.dart';
 
-class _SectionTitle extends StatelessWidget {
-  const _SectionTitle({required this.title});
-
-  final String title;
-
+class const _SectionTitle({required final String title})
+    extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Text(
       title,
-      style: Theme.of(context).textTheme.titleSmall?.copyWith(
-        color: AleraTokens.foregroundMuted,
-        fontWeight: FontWeight.bold,
-      ),
+      style: Theme.of(context).textTheme.titleSmall
+          ?.copyWith(color: AleraTokens.foregroundMuted, fontWeight: .bold),
     );
   }
 }
 
-class _DashboardCard extends StatelessWidget {
-  const _DashboardCard({required this.child});
-
-  final Widget child;
-
+class const _DashboardCard({required final Widget child})
+    extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -38,27 +30,19 @@ class _DashboardCard extends StatelessWidget {
   }
 }
 
-class _ActionRow extends StatelessWidget {
-  const _ActionRow({
-    required this.icon,
-    required this.title,
-    required this.description,
-    required this.onTap,
-    this.enabled = true,
-  });
-
-  final IconData icon;
-  final String title;
-  final String description;
-  final VoidCallback onTap;
-  final bool enabled;
-
+class const _ActionRow({
+  required final IconData icon,
+  required final String title,
+  required final String description,
+  required final VoidCallback onTap,
+  final bool enabled = true,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return HoverContainer(
       borderRadius: 0, // Handled by DashboardCard clip.
       onTap: enabled ? onTap : null,
-      padding: const EdgeInsets.all(AleraTokens.space16),
+      padding: const .all(AleraTokens.space16),
       child: Opacity(
         opacity: enabled ? 1.0 : 0.4,
         child: Row(
@@ -67,13 +51,13 @@ class _ActionRow extends StatelessWidget {
             const SizedBox(width: AleraTokens.space16),
             Expanded(
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+                crossAxisAlignment: .start,
                 children: [
                   Text(
                     title,
                     style: Theme.of(context).textTheme.titleSmall?.copyWith(
                       color: AleraTokens.foreground,
-                      fontWeight: FontWeight.w600,
+                      fontWeight: .w600,
                     ),
                   ),
                   const SizedBox(height: AleraTokens.space2),
@@ -98,9 +82,7 @@ class _ActionRow extends StatelessWidget {
   }
 }
 
-class _ShortcutsCard extends ConsumerWidget {
-  const _ShortcutsCard();
-
+class const _ShortcutsCard() extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final keyboard = ref.watch(settingsControllerProvider).keyboard;
@@ -132,7 +114,7 @@ class _ShortcutsCard extends ConsumerWidget {
                     child: Text(
                       shortcuts[i].$2,
                       maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+                      overflow: .ellipsis,
                       style: Theme.of(context).textTheme.bodyMedium
                           ?.copyWith(color: AleraTokens.foregroundMuted),
                     ),
@@ -142,7 +124,7 @@ class _ShortcutsCard extends ConsumerWidget {
                     child: Align(
                       alignment: Alignment.centerRight,
                       child: FittedBox(
-                        fit: BoxFit.scaleDown,
+                        fit: .scaleDown,
                         child: _KeybindingBadge(
                           resolver: resolver,
                           actionId: shortcuts[i].$1,
@@ -160,12 +142,10 @@ class _ShortcutsCard extends ConsumerWidget {
   }
 }
 
-class _KeybindingBadge extends StatelessWidget {
-  const _KeybindingBadge({required this.resolver, required this.actionId});
-
-  final KeybindingResolver resolver;
-  final KeyboardActionId actionId;
-
+class const _KeybindingBadge({
+  required final KeybindingResolver resolver,
+  required final KeyboardActionId actionId,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final chords = resolver.effectiveChords(actionId);
@@ -190,7 +170,7 @@ class _KeybindingBadge extends StatelessWidget {
         style: AleraTokens.monoStyle.copyWith(
           color: AleraTokens.foreground,
           fontSize: 11,
-          fontWeight: FontWeight.w500,
+          fontWeight: .w500,
         ),
       ),
     );

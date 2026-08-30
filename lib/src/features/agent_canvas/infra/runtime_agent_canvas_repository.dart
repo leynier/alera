@@ -5,13 +5,12 @@ import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_p
 import 'package:alera/src/shared/infra/runtime/runtime_change_coalescer.dart';
 import 'package:alera/src/shared/infra/runtime/runtime_snapshot_stream.dart';
 
-class RuntimeAgentCanvasRepository {
-  RuntimeAgentCanvasRepository(
-    this._client, {
-    RuntimeChangeCoalescer? coalescer,
-  }) : _coalescer = coalescer ?? RuntimeChangeCoalescer();
+class RuntimeAgentCanvasRepository(
+  final RuntimeHostClient _client, {
+  RuntimeChangeCoalescer? coalescer,
+}) {
+  this : _coalescer = coalescer ?? RuntimeChangeCoalescer();
 
-  final RuntimeHostClient _client;
   final RuntimeChangeCoalescer _coalescer;
 
   Future<List<AgentCanvas>> list(

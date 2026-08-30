@@ -101,7 +101,7 @@ class MobileCodexComposerDraftStore {
       MobileCodexComposerDraft(
         value: TextEditingValue(
           text: mergedText,
-          selection: TextSelection.collapsed(offset: mergedText.length),
+          selection: .collapsed(offset: mergedText.length),
         ),
         attachments: <Map<String, Object?>>[
           ...current.attachments,

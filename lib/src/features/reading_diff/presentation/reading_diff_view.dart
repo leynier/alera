@@ -11,22 +11,21 @@ import 'package:flutter/material.dart';
 
 enum ReadingDiffViewMode { overview, condensedDiff }
 
-class ReadingDiffView extends StatefulWidget {
-  const ReadingDiffView({super.key, required this.result});
-
-  final ReadingDiffResult result;
-
+class const ReadingDiffView({
+  super.key,
+  required final ReadingDiffResult result,
+}) extends StatefulWidget {
   @override
   State<ReadingDiffView> createState() => _ReadingDiffViewState();
 }
 
 class _ReadingDiffViewState extends State<ReadingDiffView> {
-  ReadingDiffViewMode _mode = ReadingDiffViewMode.overview;
+  ReadingDiffViewMode _mode = .overview;
 
   @override
   Widget build(BuildContext context) {
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+      crossAxisAlignment: .stretch,
       children: <Widget>[
         ColoredBox(
           color: AleraTokens.surfaceVariant,
@@ -36,7 +35,7 @@ class _ReadingDiffViewState extends State<ReadingDiffView> {
               vertical: AleraTokens.space8,
             ),
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
+              crossAxisAlignment: .stretch,
               children: <Widget>[
                 Text(
                   'A reading diff is an AI-guided, non-applicable abbreviation of the original diff.',
@@ -50,12 +49,12 @@ class _ReadingDiffViewState extends State<ReadingDiffView> {
                     dense: true,
                     segments: const <ButtonSegment<ReadingDiffViewMode>>[
                       ButtonSegment<ReadingDiffViewMode>(
-                        value: ReadingDiffViewMode.overview,
+                        value: .overview,
                         label: Text('Overview'),
                         icon: Icon(AleraIcons.review),
                       ),
                       ButtonSegment<ReadingDiffViewMode>(
-                        value: ReadingDiffViewMode.condensedDiff,
+                        value: .condensedDiff,
                         label: Text('Condensed Diff'),
                         icon: Icon(AleraIcons.diff),
                       ),
@@ -84,11 +83,8 @@ class _ReadingDiffViewState extends State<ReadingDiffView> {
   }
 }
 
-class _ReadingDiffOverview extends StatelessWidget {
-  const _ReadingDiffOverview({required this.result});
-
-  final ReadingDiffResult result;
-
+class const _ReadingDiffOverview({required final ReadingDiffResult result})
+    extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -154,15 +150,10 @@ class _ReadingDiffOverview extends StatelessWidget {
   }
 }
 
-class _ReadingDiffChunkSummaryCard extends StatelessWidget {
-  const _ReadingDiffChunkSummaryCard({
-    required this.chunk,
-    required this.totalChunks,
-  });
-
-  final ReadingDiffChunkSummary chunk;
-  final int totalChunks;
-
+class const _ReadingDiffChunkSummaryCard({
+  required final ReadingDiffChunkSummary chunk,
+  required final int totalChunks,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
@@ -175,7 +166,7 @@ class _ReadingDiffChunkSummaryCard extends StatelessWidget {
           borderRadius: BorderRadius.circular(AleraTokens.radiusMd),
         ),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment: .start,
           children: <Widget>[
             Text(
               'Chunk ${chunk.index + 1} of $totalChunks',
@@ -194,16 +185,11 @@ class _ReadingDiffChunkSummaryCard extends StatelessWidget {
   }
 }
 
-class ReadingDiffText extends StatefulWidget {
-  const ReadingDiffText({
-    super.key,
-    required this.diff,
-    this.failureLabel = 'condensed diff',
-  });
-
-  final List<int> diff;
-  final String failureLabel;
-
+class const ReadingDiffText({
+  super.key,
+  required final List<int> diff,
+  final String failureLabel = 'condensed diff',
+}) extends StatefulWidget {
   @override
   State<ReadingDiffText> createState() => _ReadingDiffTextState();
 }
@@ -323,12 +309,10 @@ _ReadingDiffLines _decodeReadingDiffLinesSync(List<int> diff) {
   return _ReadingDiffLines(text: text, starts: starts);
 }
 
-class _ReadingDiffLines {
-  const _ReadingDiffLines({required this.text, required this.starts});
-
-  final String text;
-  final Uint32List starts;
-
+class const _ReadingDiffLines({
+  required final String text,
+  required final Uint32List starts,
+}) {
   int get length => starts.length;
 
   String lineAt(int index) {

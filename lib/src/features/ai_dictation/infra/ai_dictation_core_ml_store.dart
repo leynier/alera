@@ -8,9 +8,7 @@ import 'package:path/path.dart' as p;
 
 import 'ai_dictation_model.dart';
 
-class AiDictationCoreMlStore {
-  const AiDictationCoreMlStore();
-
+class const AiDictationCoreMlStore() {
   String encoderPath(String modelPath, AiDictationCoreMlEncoder encoder) =>
       p.join(p.dirname(modelPath), encoder.directoryName);
 
@@ -165,22 +163,13 @@ void _validateContentRange(
 Future<String> _sha256File(String path) async =>
     (await sha256.bind(File(path).openRead()).first).toString();
 
-class _Sha256Computation {
-  const _Sha256Computation(this.path);
-
-  final String path;
-
+class const _Sha256Computation(final String path) {
   Future<String> call() => _sha256File(path);
 }
 
-class _CoreMlArchiveExtraction {
-  const _CoreMlArchiveExtraction({
-    required this.archivePath,
-    required this.outputPath,
-  });
-
-  final String archivePath;
-  final String outputPath;
-
+class const _CoreMlArchiveExtraction({
+  required final String archivePath,
+  required final String outputPath,
+}) {
   Future<void> call() => extractFileToDisk(archivePath, outputPath);
 }

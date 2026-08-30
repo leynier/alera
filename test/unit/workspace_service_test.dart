@@ -6,7 +6,6 @@ import 'dart:io';
 import 'package:alera/src/features/projects/application/project_service.dart';
 import 'package:alera/src/features/projects/application/project_config_service.dart';
 import 'package:alera/src/features/projects/domain/project.dart';
-import 'package:alera/src/features/projects/domain/project_config.dart';
 import 'package:alera/src/features/workbench/application/workbench_repository.dart';
 import 'package:alera/src/features/workbench/application/workspace_service.dart';
 import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
@@ -48,8 +47,8 @@ void main() {
         id: 'project-1',
         name: 'Alera',
         repoPath: p.join(tempDir.path, 'repo'),
-        createdAt: DateTime.utc(2026, 5, 20),
-        updatedAt: DateTime.utc(2026, 5, 20),
+        createdAt: .utc(2026, 5, 20),
+        updatedAt: .utc(2026, 5, 20),
       );
       Directory(project.repoPath).createSync(recursive: true);
     });

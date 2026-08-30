@@ -6,16 +6,11 @@ const int maxMobileWorkspaceShareBytes = 256 * 1024 * 1024;
 const int maxPromptFileBytes = 32 * 1024 * 1024;
 const int maxPromptFileChunkBytes = 256 * 1024;
 
-class MobileWorkspaceQuickOpenSession {
-  const MobileWorkspaceQuickOpenSession({
-    required this.id,
-    required this.indexedFileCount,
-  });
-
-  final String id;
-  final int indexedFileCount;
-
-  factory MobileWorkspaceQuickOpenSession.fromJson(Map<String, Object?> json) =>
+class const MobileWorkspaceQuickOpenSession({
+  required final String id,
+  required final int indexedFileCount,
+}) {
+  factory fromJson(Map<String, Object?> json) =>
       MobileWorkspaceQuickOpenSession(
         id: json.requiredString('sessionId'),
         indexedFileCount: json['indexedFileCount'] is int
@@ -24,77 +19,48 @@ class MobileWorkspaceQuickOpenSession {
       );
 }
 
-class MobileWorkspaceQuickOpenMatch {
-  const MobileWorkspaceQuickOpenMatch({
-    required this.relativePath,
-    required this.score,
-  });
-
-  final String relativePath;
-  final int score;
-
-  factory MobileWorkspaceQuickOpenMatch.fromJson(Map<String, Object?> json) =>
-      MobileWorkspaceQuickOpenMatch(
-        relativePath: json.requiredString('relativePath'),
-        score: json['score'] is int ? json['score']! as int : 0,
-      );
+class const MobileWorkspaceQuickOpenMatch({
+  required final String relativePath,
+  required final int score,
+}) {
+  factory fromJson(Map<String, Object?> json) => MobileWorkspaceQuickOpenMatch(
+    relativePath: json.requiredString('relativePath'),
+    score: json['score'] is int ? json['score']! as int : 0,
+  );
 }
 
-class MobileCodexSavedPrompt {
-  const MobileCodexSavedPrompt({
-    required this.name,
-    required this.description,
-    required this.body,
-    required this.scope,
-    this.argumentHint,
-  });
-
-  final String name;
-  final String description;
-  final String body;
-  final String scope;
-  final String? argumentHint;
-
-  factory MobileCodexSavedPrompt.fromJson(Map<String, Object?> json) =>
-      MobileCodexSavedPrompt(
-        name: json.requiredString('name'),
-        description: json.requiredString('description'),
-        body: json['body'] is String
-            ? json['body']! as String
-            : throw const FormatException('body is required'),
-        scope: json.requiredString('scope'),
-        argumentHint: json.optionalString('argumentHint'),
-      );
+class const MobileCodexSavedPrompt({
+  required final String name,
+  required final String description,
+  required final String body,
+  required final String scope,
+  final String? argumentHint,
+}) {
+  factory fromJson(Map<String, Object?> json) => MobileCodexSavedPrompt(
+    name: json.requiredString('name'),
+    description: json.requiredString('description'),
+    body: json['body'] is String
+        ? json['body']! as String
+        : throw const FormatException('body is required'),
+    scope: json.requiredString('scope'),
+    argumentHint: json.optionalString('argumentHint'),
+  );
 }
 
-class MobileWorkspaceFileRange {
-  const MobileWorkspaceFileRange({
-    required this.relativePath,
-    required this.offset,
-    required this.nextOffset,
-    required this.totalBytes,
-    required this.mimeType,
-    required this.isText,
-    required this.bytes,
-  });
-
-  final String relativePath;
-  final int offset;
-  final int nextOffset;
-  final int totalBytes;
-  final String mimeType;
-  final bool isText;
-  final List<int> bytes;
-}
+class const MobileWorkspaceFileRange({
+  required final String relativePath,
+  required final int offset,
+  required final int nextOffset,
+  required final int totalBytes,
+  required final String mimeType,
+  required final bool isText,
+  required final List<int> bytes,
+});
 
 bool mobileWorkspaceFileCanShare(int totalBytes) =>
     totalBytes >= 0 && totalBytes <= maxMobileWorkspaceShareBytes;
 
-class PromptFileUploadResult {
-  const PromptFileUploadResult({required this.hostPath});
-
-  final String hostPath;
-
-  factory PromptFileUploadResult.fromJson(Map<String, Object?> json) =>
+class const PromptFileUploadResult({required final String hostPath}) {
+  factory fromJson(Map<String, Object?> json) =>
       PromptFileUploadResult(hostPath: json.requiredString('path'));
 }

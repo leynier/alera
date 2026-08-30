@@ -1,7 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:alera/src/features/agent_status/domain/agent_status.dart';
 import 'package:alera/src/features/agent_status/infra/managed_agent_hook_installer.dart';
 import 'package:alera/src/shared/infra/files/posix_file_mode.dart';
 import 'package:crypto/crypto.dart';
@@ -21,36 +20,30 @@ typedef AgentOverlayResourceLinkCreator = void Function({
   required String targetPath,
 });
 
-final class AgentRuntimeOverlayPreparation {
-  const AgentRuntimeOverlayPreparation({
-    required this.environment,
-    this.overlayPath,
-    this.sourcePath,
-  });
+final class const AgentRuntimeOverlayPreparation({
+  required final Map<String, String> environment,
+  final String? overlayPath,
+  final String? sourcePath,
+});
 
-  final Map<String, String> environment;
-  final String? overlayPath;
-  final String? sourcePath;
-}
-
-final class AgentRuntimeOverlayService {
-  AgentRuntimeOverlayService({
-    String? homeDirectory,
-    ManagedAgentHookPlatform? platform,
-    Map<String, String>? environment,
-    AgentOverlayApplicationSupportDirectoryResolver?
-    applicationSupportDirectory,
-    @visibleForTesting AgentOverlayResourceLinkCreator? resourceLinkCreator,
-  }) : _environment = environment ?? Platform.environment,
-       _homeDirectory = homeDirectory ?? _resolveHome(environment),
-       _platform =
-           platform ??
-           (Platform.isWindows
-               ? ManagedAgentHookPlatform.windows
-               : ManagedAgentHookPlatform.posix),
-       _applicationSupportDirectory =
-           applicationSupportDirectory ?? getApplicationSupportDirectory,
-       _resourceLinkCreator = resourceLinkCreator ?? _createResourceLink;
+final class AgentRuntimeOverlayService({
+  String? homeDirectory,
+  ManagedAgentHookPlatform? platform,
+  Map<String, String>? environment,
+  AgentOverlayApplicationSupportDirectoryResolver? applicationSupportDirectory,
+  @visibleForTesting AgentOverlayResourceLinkCreator? resourceLinkCreator,
+}) {
+  this
+    : _environment = environment ?? Platform.environment,
+      _homeDirectory = homeDirectory ?? _resolveHome(environment),
+      _platform =
+          platform ??
+          (Platform.isWindows
+              ? ManagedAgentHookPlatform.windows
+              : ManagedAgentHookPlatform.posix),
+      _applicationSupportDirectory =
+          applicationSupportDirectory ?? getApplicationSupportDirectory,
+      _resourceLinkCreator = resourceLinkCreator ?? _createResourceLink;
 
   final Map<String, String> _environment;
   final String _homeDirectory;
@@ -144,7 +137,7 @@ final class AgentRuntimeOverlayService {
           'HOME': overlay.path,
           'COPILOT_HOME': overlay.path,
         },
-      ).install(AgentType.copilot);
+      ).install(.copilot);
       if (status.state == ManagedAgentHookInstallState.error) {
         // coverage:ignore-start
         // The overlay is generated under a fresh runtime directory, so install
@@ -250,19 +243,12 @@ final class AgentRuntimeOverlayService {
   }
 }
 
-final class _OverlaySource {
-  const _OverlaySource(this.path, {required this.isExplicit});
+final class const _OverlaySource(
+  final String path, {
+  required final bool isExplicit,
+});
 
-  final String path;
-  final bool isExplicit;
-}
-
-final class _ShellValue {
-  const _ShellValue(this.text, this.quoted);
-
-  final String text;
-  final String? quoted;
-}
+final class const _ShellValue(final String text, final String? quoted);
 
 void _createResourceLink({
   required String sourcePath,

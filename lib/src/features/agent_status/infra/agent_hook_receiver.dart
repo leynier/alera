@@ -13,8 +13,15 @@ import 'package:path_provider/path_provider.dart';
 typedef ApplicationSupportDirectoryResolver = Future<Directory> Function();
 typedef AgentHookEnabledPredicate = bool Function(AgentType agentType);
 
-class AgentHookReceiver {
-  factory AgentHookReceiver({
+class AgentHookReceiver._(
+  final AgentStatusSink _statusSink,
+  final ApplicationSupportDirectoryResolver _applicationSupportDirectory,
+  final String _token,
+  final AgentHookEnabledPredicate _isAgentEnabled,
+  CodexTranscriptStatusWatcher? codexTranscriptStatusWatcher,
+  final AgentHookServer _hookServer,
+) {
+  factory({
     required AgentStatusSink statusSink,
     ApplicationSupportDirectoryResolver? applicationSupportDirectory,
     String? token,
@@ -32,22 +39,11 @@ class AgentHookReceiver {
     );
   }
 
-  AgentHookReceiver._(
-    this._statusSink,
-    this._applicationSupportDirectory,
-    this._token,
-    this._isAgentEnabled,
-    CodexTranscriptStatusWatcher? codexTranscriptStatusWatcher,
-    this._hookServer,
-  ) : _codexTranscriptStatusWatcher =
+  this
+    : _codexTranscriptStatusWatcher =
           codexTranscriptStatusWatcher ??
           CodexTranscriptStatusWatcher(_statusSink);
 
-  final AgentStatusSink _statusSink;
-  final ApplicationSupportDirectoryResolver _applicationSupportDirectory;
-  final String _token;
-  final AgentHookEnabledPredicate _isAgentEnabled;
-  final AgentHookServer _hookServer;
   final CodexTranscriptStatusWatcher _codexTranscriptStatusWatcher;
 
   Future<void>? _starting;
@@ -191,15 +187,10 @@ class AgentHookReceiver {
   }
 }
 
-class AgentHookEventBatch {
-  const AgentHookEventBatch({
-    required this.events,
-    this.coalescedIntermediateCount = 0,
-  });
-
-  final List<AgentHookEvent> events;
-  final int coalescedIntermediateCount;
-}
+class const AgentHookEventBatch({
+  required final List<AgentHookEvent> events,
+  final int coalescedIntermediateCount = 0,
+});
 
 abstract interface class AgentHookServer {
   Stream<AgentHookEventBatch> watchEventBatches();

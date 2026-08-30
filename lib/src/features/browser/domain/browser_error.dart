@@ -16,15 +16,13 @@ enum BrowserErrorCode {
   unknown,
 }
 
-final class BrowserFailure implements Exception {
-  const BrowserFailure({
-    required this.code,
-    required this.message,
-    this.recoverable = false,
-    this.details = const <String, Object?>{},
-  });
-
-  factory BrowserFailure.fromJson(Map<String, Object?> json) {
+final class const BrowserFailure({
+  required final BrowserErrorCode code,
+  required final String message,
+  final bool recoverable = false,
+  final Map<String, Object?> details = const <String, Object?>{},
+}) implements Exception {
+  factory fromJson(Map<String, Object?> json) {
     return BrowserFailure(
       code: BrowserErrorCode.values.firstWhere(
         (code) => code.name == json['code'],
@@ -37,11 +35,6 @@ final class BrowserFailure implements Exception {
       details: _browserErrorMap(json['details']),
     );
   }
-
-  final BrowserErrorCode code;
-  final String message;
-  final bool recoverable;
-  final Map<String, Object?> details;
 
   Map<String, Object?> toJson() => <String, Object?>{
     'code': code.name,

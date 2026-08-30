@@ -1,20 +1,12 @@
 part of 'mobile_codex_chat_screen.dart';
 
-class _MobilePlanCard extends StatelessWidget {
-  const _MobilePlanCard({
-    required this.cell,
-    required this.previous,
-    required this.onOpen,
-    required this.initiallyOverflowing,
-    required this.onOverflowChanged,
-  });
-
-  final MobileCodexTimelineCell cell;
-  final bool previous;
-  final VoidCallback onOpen;
-  final bool initiallyOverflowing;
-  final ValueChanged<bool> onOverflowChanged;
-
+class const _MobilePlanCard({
+  required final MobileCodexTimelineCell cell,
+  required final bool previous,
+  required final VoidCallback onOpen,
+  required final bool initiallyOverflowing,
+  required final ValueChanged<bool> onOverflowChanged,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final title = previous
@@ -33,9 +25,9 @@ class _MobilePlanCard extends StatelessWidget {
             borderRadius: BorderRadius.circular(AleraTokens.radiusLg),
             side: const BorderSide(color: AleraTokens.border),
           ),
-          clipBehavior: Clip.antiAlias,
+          clipBehavior: .antiAlias,
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
+            crossAxisAlignment: .stretch,
             children: <Widget>[
               _MobilePlanHeader(
                 title: title,
@@ -67,19 +59,12 @@ class _MobilePlanCard extends StatelessWidget {
   }
 }
 
-class _MobilePlanHeader extends StatelessWidget {
-  const _MobilePlanHeader({
-    required this.title,
-    required this.streaming,
-    required this.text,
-    required this.onOpen,
-  });
-
-  final String title;
-  final bool streaming;
-  final String text;
-  final VoidCallback onOpen;
-
+class const _MobilePlanHeader({
+  required final String title,
+  required final bool streaming,
+  required final String text,
+  required final VoidCallback onOpen,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Padding(
     padding: const EdgeInsets.symmetric(
@@ -107,7 +92,7 @@ class _MobilePlanHeader extends StatelessWidget {
         Builder(
           builder: (shareContext) => IconButton(
             tooltip: 'Download Plan',
-            visualDensity: VisualDensity.compact,
+            visualDensity: .compact,
             onPressed: () => unawaited(_sharePlan(shareContext, text)),
             icon: const Icon(
               Icons.download_outlined,
@@ -117,14 +102,14 @@ class _MobilePlanHeader extends StatelessWidget {
         ),
         IconButton(
           tooltip: 'Copy Plan',
-          visualDensity: VisualDensity.compact,
+          visualDensity: .compact,
           onPressed: () =>
               unawaited(Clipboard.setData(ClipboardData(text: text))),
           icon: const Icon(Icons.copy_outlined, size: AleraTokens.space16),
         ),
         IconButton(
           tooltip: 'Maximize Plan',
-          visualDensity: VisualDensity.compact,
+          visualDensity: .compact,
           onPressed: onOpen,
           icon: const Icon(Icons.open_in_full, size: AleraTokens.space16),
         ),
@@ -133,9 +118,7 @@ class _MobilePlanHeader extends StatelessWidget {
   );
 }
 
-class _MobilePlanFlightShell extends StatelessWidget {
-  const _MobilePlanFlightShell();
-
+class const _MobilePlanFlightShell() extends StatelessWidget {
   @override
   Widget build(BuildContext context) => DecoratedBox(
     decoration: BoxDecoration(
@@ -146,21 +129,13 @@ class _MobilePlanFlightShell extends StatelessWidget {
   );
 }
 
-class _MobileExpandedPlanScreen extends ConsumerWidget {
-  const _MobileExpandedPlanScreen({
-    required this.hostId,
-    required this.tabId,
-    required this.workspaceId,
-    required this.cwd,
-    required this.cellId,
-  });
-
-  final String hostId;
-  final String tabId;
-  final String workspaceId;
-  final String? cwd;
-  final String cellId;
-
+class const _MobileExpandedPlanScreen({
+  required final String hostId,
+  required final String tabId,
+  required final String workspaceId,
+  required final String? cwd,
+  required final String cellId,
+}) extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final provider = mobileCodexControllerProvider(hostId, tabId);
@@ -198,7 +173,7 @@ class _MobileExpandedPlanScreen extends ConsumerWidget {
                   borderRadius: BorderRadius.circular(AleraTokens.radiusLg),
                   side: const BorderSide(color: AleraTokens.border),
                 ),
-                clipBehavior: Clip.antiAlias,
+                clipBehavior: .antiAlias,
                 child: Column(
                   children: <Widget>[
                     _MobilePlanHeader(
@@ -245,17 +220,11 @@ class _MobileExpandedPlanScreen extends ConsumerWidget {
 String _mobilePlanActionText(MobileCodexTimelineCell cell) =>
     cell.markdownText ?? cell.displayText;
 
-class _MobilePlanPrompt extends StatefulWidget {
-  const _MobilePlanPrompt({
-    required this.state,
-    required this.controller,
-    this.onResolved,
-  });
-
-  final MobileCodexState state;
-  final MobileCodexController controller;
-  final VoidCallback? onResolved;
-
+class const _MobilePlanPrompt({
+  required final MobileCodexState state,
+  required final MobileCodexController controller,
+  final VoidCallback? onResolved,
+}) extends StatefulWidget {
   @override
   State<_MobilePlanPrompt> createState() => _MobilePlanPromptState();
 }
@@ -278,7 +247,7 @@ class _MobilePlanPromptState extends State<_MobilePlanPrompt> {
     ),
     padding: const EdgeInsets.all(AleraTokens.space12),
     child: Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+      crossAxisAlignment: .stretch,
       children: <Widget>[
         Row(
           children: <Widget>[
@@ -290,7 +259,7 @@ class _MobilePlanPromptState extends State<_MobilePlanPrompt> {
             ),
             IconButton(
               tooltip: 'Dismiss Plan',
-              visualDensity: VisualDensity.compact,
+              visualDensity: .compact,
               onPressed: () => unawaited(_decline()),
               icon: const Icon(Icons.close, size: AleraTokens.space16),
             ),
@@ -346,17 +315,11 @@ class _MobilePlanPromptState extends State<_MobilePlanPrompt> {
   }
 }
 
-class _MobilePlanProgress {
-  const _MobilePlanProgress({
-    required this.current,
-    required this.total,
-    required this.items,
-  });
-
-  final int current;
-  final int total;
-  final List<Map<String, Object?>> items;
-
+class const _MobilePlanProgress({
+  required final int current,
+  required final int total,
+  required final List<Map<String, Object?>> items,
+}) {
   static _MobilePlanProgress? fromCells(
     List<MobileCodexTimelineCell> cells, {
     required String? activeTurnId,
@@ -405,7 +368,7 @@ Future<bool> shareMobileCodexPlanText(
   final params = ShareParams(
     files: <XFile>[
       XFile.fromData(
-        Uint8List.fromList(utf8.encode(text)),
+        .fromList(utf8.encode(text)),
         mimeType: 'text/markdown',
         name: 'plan.md',
       ),

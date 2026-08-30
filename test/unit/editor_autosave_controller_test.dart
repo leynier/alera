@@ -112,7 +112,7 @@ void main() {
       expect(timers.activeCount, 0);
 
       saveGate.complete();
-      await Future<void>.delayed(Duration.zero);
+      await Future<void>.delayed(.zero);
 
       expect(saves, 1);
     });
@@ -165,7 +165,7 @@ void main() {
           debounce: const Duration(seconds: 1),
         );
         saveGate.complete();
-        await Future<void>.delayed(Duration.zero);
+        await Future<void>.delayed(.zero);
 
         expect(reportedError, isNull);
         expect(controller.isPaused, isFalse);
@@ -238,7 +238,7 @@ class _FakeTimers {
         break;
       }
     }
-    await Future<void>.delayed(Duration.zero);
+    await Future<void>.delayed(.zero);
   }
 
   Future<void> fireAll() async {
@@ -247,14 +247,11 @@ class _FakeTimers {
         timer.fire();
       }
     }
-    await Future<void>.delayed(Duration.zero);
+    await Future<void>.delayed(.zero);
   }
 }
 
-class _FakeTimer implements Timer {
-  _FakeTimer(this._callback);
-
-  final void Function() _callback;
+class _FakeTimer(final void Function() _callback) implements Timer {
   var _active = true;
 
   void fire() {

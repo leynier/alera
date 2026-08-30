@@ -63,7 +63,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('New Terminal'), findsOneWidget);
     expect(find.text('New Codex Chat'), findsOneWidget);
-    await tester.tapAt(Offset.zero);
+    await tester.tapAt(.zero);
     await tester.pumpAndSettle();
 
     await tester.longPressAt(

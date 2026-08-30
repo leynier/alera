@@ -5,18 +5,23 @@ import 'package:crypto/crypto.dart';
 typedef JsonMap = Map<String, Object?>;
 const configurationMaxBytes = 512 * 1024;
 
-JsonMap jsonMap(Object? value) =>
-    value is Map ? Map<String, Object?>.from(value) : <String, Object?>{};
+JsonMap jsonMap(Object? value) => switch (value) {
+  Map() => Map<String, Object?>.from(value),
+  _ => <String, Object?>{},
+};
 
 Object? canonicalJson(Object? value) {
-  if (value is Map) {
-    final keys = value.keys.cast<String>().toList()..sort();
-    return <String, Object?>{
-      for (final key in keys) key: canonicalJson(value[key]),
-    };
+  switch (value) {
+    case Map():
+      final keys = value.keys.cast<String>().toList()..sort();
+      return <String, Object?>{
+        for (final key in keys) key: canonicalJson(value[key]),
+      };
+    case List():
+      return value.map(canonicalJson).toList();
+    default:
+      return value;
   }
-  if (value is List) return value.map(canonicalJson).toList();
-  return value;
 }
 
 bool sameJson(Object? a, Object? b) =>
@@ -24,9 +29,8 @@ bool sameJson(Object? a, Object? b) =>
 String configurationDigest(Object? value) =>
     sha256.convert(utf8.encode(jsonEncode(canonicalJson(value)))).toString();
 
-class ConfigurationDocument {
-  ConfigurationDocument(JsonMap json)
-    : json = jsonMap(jsonDecode(jsonEncode(json))) {
+class ConfigurationDocument(JsonMap json) {
+  this : json = jsonMap(jsonDecode(jsonEncode(json))) {
     if (json['schemaVersion'] != 1) {
       throw const FormatException(
         'Update Alera to read this configuration format.',
@@ -40,7 +44,7 @@ class ConfigurationDocument {
       throw const FormatException('Configuration exceeds 512 KiB.');
     }
   }
-  factory ConfigurationDocument.empty() => ConfigurationDocument({
+  factory empty() => ConfigurationDocument({
     'schemaVersion': 1,
     'shared': <String, Object?>{},
     'desktop': <String, Object?>{},
@@ -52,27 +56,20 @@ class ConfigurationDocument {
       ConfigurationDocument({...json, ...blocks});
 }
 
-class ConfigurationRevision {
-  ConfigurationRevision({
-    required this.revision,
-    required this.document,
-    this.deviceName = '',
-    this.createdAt = '',
-    this.summary = '',
-  });
-  factory ConfigurationRevision.fromJson(JsonMap value) =>
-      ConfigurationRevision(
-        revision: value['revision'] as int,
-        document: ConfigurationDocument(jsonMap(value['document'])),
-        deviceName: value['deviceName'] as String? ?? '',
-        createdAt: value['createdAt'] as String? ?? '',
-        summary: value['summary'] as String? ?? '',
-      );
-  final int revision;
-  final ConfigurationDocument document;
-  final String deviceName;
-  final String createdAt;
-  final String summary;
+class ConfigurationRevision({
+  required final int revision,
+  required final ConfigurationDocument document,
+  final String deviceName = '',
+  final String createdAt = '',
+  final String summary = '',
+}) {
+  factory fromJson(JsonMap value) => ConfigurationRevision(
+    revision: value['revision'] as int,
+    document: ConfigurationDocument(jsonMap(value['document'])),
+    deviceName: value['deviceName'] as String? ?? '',
+    createdAt: value['createdAt'] as String? ?? '',
+    summary: value['summary'] as String? ?? '',
+  );
   JsonMap toJson() => {
     'revision': revision,
     'document': document.json,

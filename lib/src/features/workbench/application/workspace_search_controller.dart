@@ -61,41 +61,23 @@ List<String> workspaceSearchDirectoryPaths(String relativePath) {
   return paths;
 }
 
-class WorkspaceSearchState {
-  const WorkspaceSearchState({
-    this.query = '',
-    this.replacement = '',
-    this.includePattern = '',
-    this.excludePattern = '',
-    this.caseSensitive = false,
-    this.wholeWord = false,
-    this.useRegex = false,
-    this.preserveCase = false,
-    this.includeIgnored = false,
-    this.loading = false,
-    this.replacing = false,
-    this.viewAsTree = false,
-    this.error,
-    this.result,
-    this.collapsedResultNodeKeys = const <String>{},
-  });
-
-  final String query;
-  final String replacement;
-  final String includePattern;
-  final String excludePattern;
-  final bool caseSensitive;
-  final bool wholeWord;
-  final bool useRegex;
-  final bool preserveCase;
-  final bool includeIgnored;
-  final bool loading;
-  final bool replacing;
-  final bool viewAsTree;
-  final String? error;
-  final native.WorkspaceSearchResult? result;
-  final Set<String> collapsedResultNodeKeys;
-
+class const WorkspaceSearchState({
+  final String query = '',
+  final String replacement = '',
+  final String includePattern = '',
+  final String excludePattern = '',
+  final bool caseSensitive = false,
+  final bool wholeWord = false,
+  final bool useRegex = false,
+  final bool preserveCase = false,
+  final bool includeIgnored = false,
+  final bool loading = false,
+  final bool replacing = false,
+  final bool viewAsTree = false,
+  final String? error,
+  final native.WorkspaceSearchResult? result,
+  final Set<String> collapsedResultNodeKeys = const <String>{},
+}) {
   Set<String> get collapsedFilePaths => collapsedResultNodeKeys;
 
   bool get hasQuery => query.isNotEmpty;
@@ -144,11 +126,8 @@ class WorkspaceSearchState {
 
 const Object _sentinel = Object();
 
-class WorkspaceSearchDirtyFilesException implements Exception {
-  const WorkspaceSearchDirtyFilesException(this.paths);
-
-  final List<String> paths;
-
+class const WorkspaceSearchDirtyFilesException(final List<String> paths)
+    implements Exception {
   @override
   String toString() => 'Unsaved files: ${paths.join(', ')}';
 }

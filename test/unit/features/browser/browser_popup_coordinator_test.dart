@@ -134,10 +134,7 @@ void main() {
       );
       engine.pages.remove('popup-native-close');
       engine.eventController.add(
-        BrowserPageClosed(
-          pageId: 'popup-native-close',
-          occurredAt: DateTime.utc(2026),
-        ),
+        BrowserPageClosed(pageId: 'popup-native-close', occurredAt: .utc(2026)),
       );
 
       await closed.timeout(const Duration(seconds: 1));
@@ -172,7 +169,7 @@ void main() {
     );
     engine.pages.remove('page-1');
     engine.eventController.add(
-      BrowserPageClosed(pageId: 'page-1', occurredAt: DateTime.utc(2026)),
+      BrowserPageClosed(pageId: 'page-1', occurredAt: .utc(2026)),
     );
 
     await Future.wait(<Future<BrowserRegistryEvent>>[popupClosed, openerClosed])
@@ -212,7 +209,7 @@ BrowserPopupRequest _request({
     userInitiated: userInitiated,
     trusted: true,
     requiresOpener: requiresOpener,
-    requestedAt: DateTime.utc(2026),
+    requestedAt: .utc(2026),
   );
 }
 
@@ -225,10 +222,10 @@ WorkspaceTabRecord _tab({
   return WorkspaceTabRecord(
     id: id,
     workspaceId: workspaceId,
-    kind: WorkspaceTabKind.browser,
+    kind: .browser,
     title: 'New Tab',
-    createdAt: DateTime.utc(2026),
-    updatedAt: DateTime.utc(2026),
+    createdAt: .utc(2026),
+    updatedAt: .utc(2026),
     payload: <String, Object?>{
       workspaceTabBrowserProfileIdPayloadKey: profileId,
       workspaceTabBrowserUrlPayloadKey: ?url,

@@ -15,18 +15,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pdfrx/pdfrx.dart';
 
-class WorkspacePdfViewerSurface extends ConsumerStatefulWidget {
-  const WorkspacePdfViewerSurface({
-    super.key,
-    required this.workspace,
-    required this.tab,
-    required this.autofocus,
-  });
-
-  final Workspace workspace;
-  final WorkspaceTabRecord tab;
-  final bool autofocus;
-
+class const WorkspacePdfViewerSurface({
+  super.key,
+  required final Workspace workspace,
+  required final WorkspaceTabRecord tab,
+  required final bool autofocus,
+}) extends ConsumerStatefulWidget {
   @override
   ConsumerState<WorkspacePdfViewerSurface> createState() =>
       _WorkspacePdfViewerSurfaceState();
@@ -123,7 +117,7 @@ class _WorkspacePdfViewerSurfaceState
         child: DecoratedBox(
           decoration: const BoxDecoration(color: AleraTokens.bg),
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
+            crossAxisAlignment: .stretch,
             children: <Widget>[
               _PdfViewerFileBar(path: displayPath),
               const Divider(height: 1, color: AleraTokens.borderSubtle),
@@ -375,11 +369,8 @@ class _WorkspacePdfViewerSurfaceState
   }
 }
 
-class _PdfViewerFileBar extends StatelessWidget {
-  const _PdfViewerFileBar({required this.path});
-
-  final String path;
-
+class const _PdfViewerFileBar({required final String path})
+    extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -389,17 +380,13 @@ class _PdfViewerFileBar extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: AleraTokens.space8),
         child: Row(
           children: <Widget>[
-            AleraFileIcon(
-              pathOrName: path,
-              kind: AleraFileIconKind.file,
-              size: 16,
-            ),
+            AleraFileIcon(pathOrName: path, kind: .file, size: 16),
             const SizedBox(width: AleraTokens.space8),
             Expanded(
               child: Text(
                 path,
                 maxLines: 1,
-                overflow: TextOverflow.ellipsis,
+                overflow: .ellipsis,
                 style: theme.textTheme.bodySmall?.copyWith(
                   color: AleraTokens.foregroundMuted,
                   fontFamily: 'JetBrains Mono',
@@ -413,37 +400,21 @@ class _PdfViewerFileBar extends StatelessWidget {
   }
 }
 
-class _PdfToolbar extends StatelessWidget {
-  const _PdfToolbar({
-    required this.searchController,
-    required this.searcher,
-    required this.pageNumber,
-    required this.pageCount,
-    required this.zoom,
-    required this.outlineOpen,
-    required this.outlineEnabled,
-    required this.onSearchChanged,
-    required this.onPreviousMatch,
-    required this.onNextMatch,
-    required this.onZoomOut,
-    required this.onZoomIn,
-    required this.onToggleOutline,
-  });
-
-  final TextEditingController searchController;
-  final PdfTextSearcher? searcher;
-  final int? pageNumber;
-  final int? pageCount;
-  final double? zoom;
-  final bool outlineOpen;
-  final bool outlineEnabled;
-  final ValueChanged<String> onSearchChanged;
-  final VoidCallback onPreviousMatch;
-  final VoidCallback onNextMatch;
-  final VoidCallback onZoomOut;
-  final VoidCallback onZoomIn;
-  final VoidCallback onToggleOutline;
-
+class const _PdfToolbar({
+  required final TextEditingController searchController,
+  required final PdfTextSearcher? searcher,
+  required final int? pageNumber,
+  required final int? pageCount,
+  required final double? zoom,
+  required final bool outlineOpen,
+  required final bool outlineEnabled,
+  required final ValueChanged<String> onSearchChanged,
+  required final VoidCallback onPreviousMatch,
+  required final VoidCallback onNextMatch,
+  required final VoidCallback onZoomOut,
+  required final VoidCallback onZoomIn,
+  required final VoidCallback onToggleOutline,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -556,31 +527,20 @@ class _PdfToolbar extends StatelessWidget {
   }
 }
 
-class _PdfViewerLayout extends StatelessWidget {
-  const _PdfViewerLayout({
-    required this.resolvedFile,
-    required this.controller,
-    required this.params,
-    required this.outlineOpen,
-    required this.outlineLoading,
-    required this.outline,
-    required this.onToggleOutline,
-    required this.onOpenOutlineNode,
-  });
-
-  final ResolvedWorkspaceFile resolvedFile;
-  final PdfViewerController controller;
-  final PdfViewerParams params;
-  final bool outlineOpen;
-  final bool outlineLoading;
-  final List<PdfOutlineNode> outline;
-  final VoidCallback onToggleOutline;
-  final ValueChanged<PdfOutlineNode> onOpenOutlineNode;
-
+class const _PdfViewerLayout({
+  required final ResolvedWorkspaceFile resolvedFile,
+  required final PdfViewerController controller,
+  required final PdfViewerParams params,
+  required final bool outlineOpen,
+  required final bool outlineLoading,
+  required final List<PdfOutlineNode> outline,
+  required final VoidCallback onToggleOutline,
+  required final ValueChanged<PdfOutlineNode> onOpenOutlineNode,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Row(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+      crossAxisAlignment: .stretch,
       children: <Widget>[
         if (outlineOpen)
           _PdfOutlinePanel(
@@ -602,19 +562,12 @@ class _PdfViewerLayout extends StatelessWidget {
   }
 }
 
-class _PdfOutlinePanel extends StatelessWidget {
-  const _PdfOutlinePanel({
-    required this.loading,
-    required this.outline,
-    required this.onClose,
-    required this.onOpenNode,
-  });
-
-  final bool loading;
-  final List<PdfOutlineNode> outline;
-  final VoidCallback onClose;
-  final ValueChanged<PdfOutlineNode> onOpenNode;
-
+class const _PdfOutlinePanel({
+  required final bool loading,
+  required final List<PdfOutlineNode> outline,
+  required final VoidCallback onClose,
+  required final ValueChanged<PdfOutlineNode> onOpenNode,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final entries = <_OutlineEntry>[];
@@ -629,7 +582,7 @@ class _PdfOutlinePanel extends StatelessWidget {
           border: Border(right: BorderSide(color: AleraTokens.borderSubtle)),
         ),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
+          crossAxisAlignment: .stretch,
           children: <Widget>[
             SizedBox(
               height: AleraTokens.sidebarHeaderHeight,
@@ -693,12 +646,10 @@ class _PdfOutlinePanel extends StatelessWidget {
   }
 }
 
-class _PdfOutlineRow extends StatelessWidget {
-  const _PdfOutlineRow({required this.entry, required this.onTap});
-
-  final _OutlineEntry entry;
-  final VoidCallback? onTap;
-
+class const _PdfOutlineRow({
+  required final _OutlineEntry entry,
+  required final VoidCallback? onTap,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return InkWell(
@@ -716,7 +667,7 @@ class _PdfOutlineRow extends StatelessWidget {
         child: Text(
           entry.node.title,
           maxLines: 2,
-          overflow: TextOverflow.ellipsis,
+          overflow: .ellipsis,
           style: Theme.of(context).textTheme.bodySmall?.copyWith(
             color: onTap == null
                 ? AleraTokens.foregroundFaint
@@ -728,29 +679,24 @@ class _PdfOutlineRow extends StatelessWidget {
   }
 }
 
-class _OutlineEntry {
-  const _OutlineEntry({required this.node, required this.depth});
-
-  final PdfOutlineNode node;
-  final int depth;
-}
+class const _OutlineEntry({
+  required final PdfOutlineNode node,
+  required final int depth,
+});
 
 @visibleForTesting
 Key workspacePdfViewerCacheKeyForTesting(ResolvedWorkspaceFile file) {
   return ValueKey<String>('${file.path}:${file.modifiedMicros}:${file.length}');
 }
 
-class _PdfViewerMessage extends StatelessWidget {
-  const _PdfViewerMessage({required this.message});
-
-  final String message;
-
+class const _PdfViewerMessage({required final String message})
+    extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Center(
       child: Text(
         message,
-        textAlign: TextAlign.center,
+        textAlign: .center,
         style: Theme.of(context).textTheme.bodyMedium
             ?.copyWith(color: AleraTokens.foregroundMuted),
       ),

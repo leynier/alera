@@ -12,11 +12,10 @@ import 'package:alera_mobile/src/features/settings/presentation/host_agent_tools
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-class HostSettingsScreen extends ConsumerWidget {
-  const HostSettingsScreen({super.key, required this.host});
-
-  final PairedHostProfile host;
-
+class const HostSettingsScreen({
+  super.key,
+  required final PairedHostProfile host,
+}) extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final settings = ref.watch(hostSettingsControllerProvider(host.id));
@@ -40,12 +39,10 @@ class HostSettingsScreen extends ConsumerWidget {
   }
 }
 
-class _SettingsBody extends ConsumerWidget {
-  const _SettingsBody({required this.host, required this.settings});
-
-  final PairedHostProfile host;
-  final PortableHostSettings settings;
-
+class const _SettingsBody({
+  required final PairedHostProfile host,
+  required final PortableHostSettings settings,
+}) extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final controller = ref.read(
@@ -69,7 +66,7 @@ class _SettingsBody extends ConsumerWidget {
                 title: const Text('Workspace Directory'),
                 subtitle: Text(
                   settings.workspaceDirectory ?? 'Host default',
-                  overflow: TextOverflow.ellipsis,
+                  overflow: .ellipsis,
                   style: const TextStyle(
                     fontFamily: AleraTokens.monoFontFamily,
                   ),
@@ -259,9 +256,7 @@ void _showRestartFailure(BuildContext context) {
       .showSnackBar(const SnackBar(content: Text('Could not restart runtime')));
 }
 
-class _ScopeBanner extends StatelessWidget {
-  const _ScopeBanner();
-
+class const _ScopeBanner() extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return DecoratedBox(
@@ -288,19 +283,12 @@ class _ScopeBanner extends StatelessWidget {
   }
 }
 
-class _NavigationTile extends StatelessWidget {
-  const _NavigationTile({
-    required this.icon,
-    required this.title,
-    required this.scope,
-    required this.onTap,
-  });
-
-  final IconData icon;
-  final String title;
-  final String scope;
-  final VoidCallback onTap;
-
+class const _NavigationTile({
+  required final IconData icon,
+  required final String title,
+  required final String scope,
+  required final VoidCallback onTap,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListTile(
@@ -313,17 +301,14 @@ class _NavigationTile extends StatelessWidget {
   }
 }
 
-class _UnsupportedSettings extends StatelessWidget {
-  const _UnsupportedSettings({required this.error});
-
-  final Object error;
-
+class const _UnsupportedSettings({required final Object error})
+    extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Center(
       child: Padding(
         padding: AleraTokens.contentPadding,
-        child: Text(error.toString(), textAlign: TextAlign.center),
+        child: Text(error.toString(), textAlign: .center),
       ),
     );
   }

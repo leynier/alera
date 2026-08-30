@@ -4,7 +4,7 @@ import 'package:dart_mappable/dart_mappable.dart';
 part 'ai_assist_settings.mapper.dart';
 
 @MappableEnum()
-enum AiAssistOperation {
+enum AiAssistOperation(this.key) {
   commitMessage('commitMessage'),
   pullRequestDetails('pullRequestDetails'),
   branchName('branchName'),
@@ -12,8 +12,6 @@ enum AiAssistOperation {
   workspaceIdentity('workspaceIdentity'),
   agentTitle('agentTitle'),
   speechMessage('speechMessage');
-
-  const AiAssistOperation(this.key);
 
   final String key;
 
@@ -29,7 +27,7 @@ enum AiAssistOperation {
 }
 
 @MappableEnum()
-enum AiAssistAgent {
+enum AiAssistAgent(this.key) {
   codex('codex'),
   claude('claude'),
   copilot('copilot'),
@@ -42,8 +40,6 @@ enum AiAssistAgent {
   grok('grok'),
   fx('fx'),
   custom('custom');
-
-  const AiAssistAgent(this.key);
 
   final String key;
 
@@ -79,26 +75,21 @@ enum AiAssistAgent {
 }
 
 @MappableClass()
-class AiAssistDiscoveredThinkingLevel
-    with AiAssistDiscoveredThinkingLevelMappable {
-  const AiAssistDiscoveredThinkingLevel({
-    required this.id,
-    required this.label,
-  });
-
+class const AiAssistDiscoveredThinkingLevel({
+  required this.id,
+  required this.label,
+}) with AiAssistDiscoveredThinkingLevelMappable {
   final String id;
   final String label;
 }
 
 @MappableClass()
-class AiAssistDiscoveredModel with AiAssistDiscoveredModelMappable {
-  const AiAssistDiscoveredModel({
-    required this.id,
-    required this.label,
-    this.thinkingLevels = const <AiAssistDiscoveredThinkingLevel>[],
-    this.defaultThinkingLevel,
-  });
-
+class const AiAssistDiscoveredModel({
+  required this.id,
+  required this.label,
+  this.thinkingLevels = const <AiAssistDiscoveredThinkingLevel>[],
+  this.defaultThinkingLevel,
+}) with AiAssistDiscoveredModelMappable {
   final String id;
   final String label;
   final List<AiAssistDiscoveredThinkingLevel> thinkingLevels;
@@ -106,9 +97,8 @@ class AiAssistDiscoveredModel with AiAssistDiscoveredModelMappable {
 }
 
 @MappableClass()
-class AiAssistPromptSettings with AiAssistPromptSettingsMappable {
-  const AiAssistPromptSettings({this.agent, this.model});
-
+class const AiAssistPromptSettings({this.agent, this.model})
+    with AiAssistPromptSettingsMappable {
   final AiAssistAgent? agent;
   final String? model;
 
@@ -118,25 +108,23 @@ class AiAssistPromptSettings with AiAssistPromptSettingsMappable {
 }
 
 @MappableClass()
-class AiAssistSettings with AiAssistSettingsMappable {
-  const AiAssistSettings({
-    this.enabled = true,
-    this.autoGenerateAgentTitles = true,
-    this.agent = AiAssistAgent.codex,
-    this.selectedModelByAgent = const <AiAssistAgent, String>{},
-    this.selectedThinkingByModel = const <String, String>{},
-    this.selectedThinkingByOperation =
-        const <AiAssistOperation, Map<String, String>>{},
-    this.discoveredModelsByAgent =
-        const <AiAssistAgent, List<AiAssistDiscoveredModel>>{},
-    this.discoveredDefaultModelByAgent = const <AiAssistAgent, String>{},
-    this.customCommand = '',
-    this.instructionsByOperation = const <AiAssistOperation, String>{},
-    this.promptSettingsByOperation =
-        const <AiAssistOperation, AiAssistPromptSettings>{},
-    this.timeoutSeconds = 120,
-  });
-
+class const AiAssistSettings({
+  this.enabled = true,
+  this.autoGenerateAgentTitles = true,
+  this.agent = AiAssistAgent.codex,
+  this.selectedModelByAgent = const <AiAssistAgent, String>{},
+  this.selectedThinkingByModel = const <String, String>{},
+  this.selectedThinkingByOperation =
+      const <AiAssistOperation, Map<String, String>>{},
+  this.discoveredModelsByAgent =
+      const <AiAssistAgent, List<AiAssistDiscoveredModel>>{},
+  this.discoveredDefaultModelByAgent = const <AiAssistAgent, String>{},
+  this.customCommand = '',
+  this.instructionsByOperation = const <AiAssistOperation, String>{},
+  this.promptSettingsByOperation =
+      const <AiAssistOperation, AiAssistPromptSettings>{},
+  this.timeoutSeconds = 120,
+}) with AiAssistSettingsMappable {
   final bool enabled;
   final bool autoGenerateAgentTitles;
   final AiAssistAgent agent;
@@ -210,6 +198,6 @@ class AiAssistSettings with AiAssistSettingsMappable {
 
   static const AiAssistSettings defaults = AiAssistSettings();
 
-  factory AiAssistSettings.fromJson(Map<String, Object?> json) =>
+  factory fromJson(Map<String, Object?> json) =>
       AiAssistSettingsMapper.fromMap(Map<String, dynamic>.from(json));
 }

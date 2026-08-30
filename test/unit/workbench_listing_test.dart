@@ -7,7 +7,7 @@ import 'package:alera/src/features/workbench/domain/workbench_view_prefs.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-final DateTime _t0 = DateTime.utc(2026, 5, 1);
+final DateTime _t0 = .utc(2026, 5, 1);
 
 Project _project(String id, String name, {int recencyOffset = 0}) {
   return Project(
@@ -39,7 +39,7 @@ Workspace _workspace(
     createdAt: _t0,
     updatedAt: _t0.add(Duration(days: recencyOffset)),
     kind: kind,
-    status: WorkspaceStatus.active,
+    status: .active,
     sourceBranch: sourceBranch,
     tagIds: tagIds,
     parentWorkspaceId: parentWorkspaceId,
@@ -79,7 +79,7 @@ WorkbenchState _fixtureState({
     alera.id,
     'Main',
     'main',
-    kind: WorkspaceKind.main,
+    kind: .main,
     recencyOffset: 1,
   );
   final aleraFeature = _workspace(
@@ -95,7 +95,7 @@ WorkbenchState _fixtureState({
     orca.id,
     'Main',
     'develop',
-    kind: WorkspaceKind.main,
+    kind: .main,
     recencyOffset: 3,
   );
   return WorkbenchState(
@@ -108,7 +108,7 @@ WorkbenchState _fixtureState({
       aleraMain.id: <WorkspaceTabRecord>[
         _tab('t-1', aleraMain.id, 'Terminal 1'),
         _tab('t-2', aleraMain.id, 'Terminal 2'),
-        _tab('e-1', aleraMain.id, 'Editor 1', kind: WorkspaceTabKind.editor),
+        _tab('e-1', aleraMain.id, 'Editor 1', kind: .editor),
       ],
     },
     viewPrefs: resolvedPrefs,
@@ -134,8 +134,8 @@ Map<String, AgentStatusEntry> _agentStatuses(
         terminalSessionId: tab.terminalSessionId,
         workspaceId: tab.workspaceId,
         tabId: tab.id,
-        agentType: AgentType.codex,
-        state: AgentStatusState.working,
+        agentType: .codex,
+        state: .working,
         prompt: 'Run ${tab.title}',
         updatedAt: _t0,
         stateStartedAt: _t0,
@@ -213,9 +213,7 @@ void main() {
     });
 
     test('recent sort orders projects by updatedAt desc', () {
-      final prefs = WorkbenchViewPrefs.defaults.copyWith(
-        projectSort: WorkbenchSortBy.recent,
-      );
+      final prefs = WorkbenchViewPrefs.defaults.copyWith(projectSort: .recent);
       final rows = buildSidebarRows(_fixtureState(prefs: prefs));
       final headers = rows.whereType<WorkbenchProjectHeaderRow>().toList();
       expect(headers.first.project.name, 'orca');
@@ -241,7 +239,7 @@ void main() {
         workspacesByProject: <String, List<Workspace>>{
           project.id: <Workspace>[zebra, beta],
         },
-        viewPrefs: WorkbenchViewPrefs.defaults,
+        viewPrefs: .defaults,
         bootstrapped: true,
       );
 
@@ -258,7 +256,7 @@ void main() {
       'recent workspace sort keeps main pinned and sorts linked workspaces',
       () {
         final prefs = WorkbenchViewPrefs.defaults.copyWith(
-          workspaceSort: WorkbenchSortBy.recent,
+          workspaceSort: .recent,
         );
         final project = _project('p-alpha', 'alpha');
         final main = _workspace(
@@ -266,7 +264,7 @@ void main() {
           project.id,
           'Main',
           'main',
-          kind: WorkspaceKind.main,
+          kind: .main,
           recencyOffset: 0,
         );
         final stale = _workspace(
@@ -305,9 +303,7 @@ void main() {
 
   group('buildSidebarRows · group by none', () {
     test('flat list contains every workspace with showProjectChip', () {
-      final prefs = WorkbenchViewPrefs.defaults.copyWith(
-        groupBy: WorkbenchGroupBy.none,
-      );
+      final prefs = WorkbenchViewPrefs.defaults.copyWith(groupBy: .none);
       final rows = buildSidebarRows(_fixtureState(prefs: prefs));
       final workspaces = rows.whereType<WorkbenchWorkspaceRow>().toList();
       expect(workspaces, hasLength(3));
@@ -318,7 +314,7 @@ void main() {
 
     test('agent statuses do not add separate sidebar rows', () {
       final prefs = WorkbenchViewPrefs.defaults.copyWith(
-        groupBy: WorkbenchGroupBy.none,
+        groupBy: .none,
         expandedWorkspaceIds: <String>{'w-alera-main'},
       );
       final state = _fixtureState(prefs: prefs);
@@ -332,8 +328,8 @@ void main() {
 
     test('recent sort orders workspaces by updatedAt desc', () {
       final prefs = WorkbenchViewPrefs.defaults.copyWith(
-        groupBy: WorkbenchGroupBy.none,
-        workspaceSort: WorkbenchSortBy.recent,
+        groupBy: .none,
+        workspaceSort: .recent,
       );
       final rows = buildSidebarRows(_fixtureState(prefs: prefs));
       final ids = rows
@@ -392,7 +388,7 @@ void main() {
     }
 
     test('empty selection shows every workspace', () {
-      final rows = buildSidebarRows(taggedState(WorkbenchViewPrefs.defaults));
+      final rows = buildSidebarRows(taggedState(.defaults));
       expect(rows.whereType<WorkbenchWorkspaceRow>(), hasLength(3));
     });
 
@@ -457,7 +453,7 @@ void main() {
     }
 
     test('children indent under their parent in grouped mode', () {
-      final rows = buildSidebarRows(nestedState(WorkbenchViewPrefs.defaults));
+      final rows = buildSidebarRows(nestedState(.defaults));
       final workspaceRows = rows.whereType<WorkbenchWorkspaceRow>().toList();
       final parent = workspaceRows.firstWhere(
         (r) => r.workspace.id == 'w-parent',
@@ -473,7 +469,7 @@ void main() {
     });
 
     test('cross-project children render at the root of their own group', () {
-      final rows = buildSidebarRows(nestedState(WorkbenchViewPrefs.defaults));
+      final rows = buildSidebarRows(nestedState(.defaults));
       final cross = rows.whereType<WorkbenchWorkspaceRow>().firstWhere(
         (r) => r.workspace.id == 'w-cross',
       );
@@ -508,9 +504,7 @@ void main() {
     });
 
     test('children nest in flat mode too', () {
-      final prefs = WorkbenchViewPrefs.defaults.copyWith(
-        groupBy: WorkbenchGroupBy.none,
-      );
+      final prefs = WorkbenchViewPrefs.defaults.copyWith(groupBy: .none);
       final rows = buildSidebarRows(nestedState(prefs));
       final workspaceRows = rows.whereType<WorkbenchWorkspaceRow>().toList();
       final parent = workspaceRows.firstWhere(
@@ -563,7 +557,7 @@ void main() {
             terminalSessionId: tab.terminalSessionId,
             workspaceId: tab.workspaceId,
             tabId: tab.id,
-            agentType: AgentType.claude,
+            agentType: .claude,
             state: tab.workspaceId == 'w-waiting'
                 ? AgentStatusState.waiting
                 : AgentStatusState.working,
@@ -578,8 +572,8 @@ void main() {
 
     test('needs-you workspaces rank above working and idle in flat mode', () {
       final prefs = WorkbenchViewPrefs.defaults.copyWith(
-        groupBy: WorkbenchGroupBy.none,
-        workspaceSort: WorkbenchSortBy.activity,
+        groupBy: .none,
+        workspaceSort: .activity,
       );
       final state = activityState(prefs);
       final rows = buildSidebarRows(
@@ -596,7 +590,7 @@ void main() {
 
     test('project headers rank by their most urgent workspace', () {
       final prefs = WorkbenchViewPrefs.defaults.copyWith(
-        projectSort: WorkbenchSortBy.activity,
+        projectSort: .activity,
       );
       final state = activityState(prefs);
       final rows = buildSidebarRows(
@@ -610,8 +604,8 @@ void main() {
 
     test('the selected workspace does not override strict activity order', () {
       final prefs = WorkbenchViewPrefs.defaults.copyWith(
-        groupBy: WorkbenchGroupBy.none,
-        workspaceSort: WorkbenchSortBy.activity,
+        groupBy: .none,
+        workspaceSort: .activity,
       );
       final state = activityState(prefs, activeWorkspaceId: 'w-working');
       final rows = buildSidebarRows(
@@ -628,8 +622,8 @@ void main() {
 
     test('inactive workspaces ignore recency and sort alphabetically', () {
       final prefs = WorkbenchViewPrefs.defaults.copyWith(
-        groupBy: WorkbenchGroupBy.none,
-        workspaceSort: WorkbenchSortBy.activity,
+        groupBy: .none,
+        workspaceSort: .activity,
       );
       final alera = _project('p-alera', 'alera');
       final a = _workspace('w-a', alera.id, 'aaa', 'a');

@@ -7,11 +7,10 @@ typedef AleraBrowserBoundsChanged = Future<void> Function(
   double scale,
 );
 
-final class AleraNativeBrowserSurface extends StatefulWidget {
-  const AleraNativeBrowserSurface({required this.onBoundsChanged, super.key});
-
-  final AleraBrowserBoundsChanged onBoundsChanged;
-
+final class const AleraNativeBrowserSurface({
+  required final AleraBrowserBoundsChanged onBoundsChanged,
+  super.key,
+}) extends StatefulWidget {
   @override
   State<AleraNativeBrowserSurface> createState() =>
       _AleraNativeBrowserSurfaceState();
@@ -64,7 +63,7 @@ final class _AleraNativeBrowserSurfaceState
           renderObject.size.isEmpty) {
         return;
       }
-      final origin = renderObject.localToGlobal(Offset.zero);
+      final origin = renderObject.localToGlobal(.zero);
       final bounds = origin & renderObject.size;
       final scale = MediaQuery.devicePixelRatioOf(context);
       if (bounds == _lastBounds && scale == _lastScale) {

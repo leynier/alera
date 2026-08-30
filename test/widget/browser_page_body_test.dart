@@ -13,7 +13,7 @@ void main() {
       MaterialApp(
         home: BrowserPageBody(
           state: _state().copyWith(
-            engineAvailability: BrowserEngineAvailability.unavailable,
+            engineAvailability: .unavailable,
             capabilityReason: 'WebKitGTK 4.1 is not installed.',
           ),
           surface: const Text('Native Surface'),
@@ -35,9 +35,9 @@ void main() {
       MaterialApp(
         home: BrowserPageBody(
           state: _state().copyWith(
-            loadPhase: BrowserLoadPhase.failed,
+            loadPhase: .failed,
             error: const BrowserFailure(
-              code: BrowserErrorCode.navigationBlocked,
+              code: .navigationBlocked,
               message: 'The Page Was Blocked.',
               recoverable: true,
             ),
@@ -83,9 +83,7 @@ void main() {
       isFalse,
     );
     expect(
-      browserStateShowsNativeSurface(
-        _state().copyWith(loadPhase: BrowserLoadPhase.failed),
-      ),
+      browserStateShowsNativeSurface(_state().copyWith(loadPhase: .failed)),
       isFalse,
     );
   });
@@ -97,7 +95,7 @@ BrowserPageState _state() {
     workspaceId: 'workspace-1',
     profileId: 'default',
     initialUrl: Uri.parse('https://example.com'),
-    createdAt: DateTime.utc(2026, 7, 27),
+    createdAt: .utc(2026, 7, 27),
   );
   return BrowserPageState.initial(page);
 }

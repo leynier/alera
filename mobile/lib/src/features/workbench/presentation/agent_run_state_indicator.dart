@@ -5,16 +5,11 @@ import 'package:flutter/material.dart';
 
 /// Visual state glyph for one agent run: spinner while working, state-colored
 /// icon otherwise. Shared by agent rows and the compact summary.
-class AgentRunStateIndicator extends StatelessWidget {
-  const AgentRunStateIndicator({
-    super.key,
-    required this.status,
-    this.size = 13,
-  });
-
-  final AgentPresenceSummary status;
-  final double size;
-
+class const AgentRunStateIndicator({
+  super.key,
+  required final AgentPresenceSummary status,
+  final double size = 13,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final label = agentRunStateLabel(status);

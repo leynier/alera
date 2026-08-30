@@ -75,7 +75,7 @@ class SettingsController extends _$SettingsController {
   });
 
   Future<void> resetAiDictation() => _serialize(() async {
-    await _save(state.copyWith(aiDictation: AiDictationSettings.defaults));
+    await _save(state.copyWith(aiDictation: .defaults));
   });
 
   Future<void> updateTextActions(
@@ -90,19 +90,19 @@ class SettingsController extends _$SettingsController {
       });
 
   Future<void> resetTextActions() => _serialize(() async {
-    await _save(state.copyWith(textActions: TextActionsSettings.defaults));
+    await _save(state.copyWith(textActions: .defaults));
   });
 
   Future<void> resetAiAssistSettings() => _serialize(() async {
-    await _save(state.copyWith(aiAssist: AiAssistSettings.defaults));
+    await _save(state.copyWith(aiAssist: .defaults));
   });
 
   Future<void> resetEditorSettings() => _serialize(() async {
-    await _save(state.copyWith(editor: EditorSettings.defaults));
+    await _save(state.copyWith(editor: .defaults));
   });
 
   Future<void> resetTerminalSettings() => _serialize(() async {
-    await _save(state.copyWith(terminal: TerminalSettings.defaults));
+    await _save(state.copyWith(terminal: .defaults));
   });
 
   Future<void> updateWorkspaceDirectory(String? path) => _serialize(() async {
@@ -318,10 +318,10 @@ class SettingsController extends _$SettingsController {
         ? current.selectedClaudeProfile
         : 'default';
     final validClaudeKeys = <String>{
-      AgentQuotaHostSettings.quotaPinKey(AgentQuotaProviderId.claude),
+      AgentQuotaHostSettings.quotaPinKey(.claude),
       for (final profile in profiles)
         AgentQuotaHostSettings.quotaPinKey(
-          AgentQuotaProviderId.claude,
+          .claude,
           claudeAccountId: profile.profile,
         ),
     };

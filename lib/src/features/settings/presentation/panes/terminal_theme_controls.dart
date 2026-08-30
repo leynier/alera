@@ -9,22 +9,14 @@ import 'package:flutter/material.dart';
 
 const double _kSidebarIconSize = 16;
 
-class HexColorSettingRow extends StatefulWidget {
-  const HexColorSettingRow({
-    super.key,
-    required this.title,
-    required this.description,
-    required this.value,
-    required this.fallback,
-    required this.onChanged,
-  });
-
-  final String title;
-  final String description;
-  final String? value;
-  final String fallback;
-  final ValueChanged<String?> onChanged;
-
+class const HexColorSettingRow({
+  super.key,
+  required final String title,
+  required final String description,
+  required final String? value,
+  required final String fallback,
+  required final ValueChanged<String?> onChanged,
+}) extends StatefulWidget {
   @override
   State<HexColorSettingRow> createState() => _HexColorSettingRowState();
 }
@@ -118,16 +110,11 @@ class _HexColorSettingRowState extends State<HexColorSettingRow> {
   }
 }
 
-class CursorShapeRow extends StatelessWidget {
-  const CursorShapeRow({
-    super.key,
-    required this.value,
-    required this.onChanged,
-  });
-
-  final TerminalCursorShape value;
-  final ValueChanged<TerminalCursorShape> onChanged;
-
+class const CursorShapeRow({
+  super.key,
+  required final TerminalCursorShape value,
+  required final ValueChanged<TerminalCursorShape> onChanged,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return AleraSettingRow(
@@ -138,19 +125,19 @@ class CursorShapeRow extends StatelessWidget {
         onSelectionChanged: onChanged,
         segments: const <ButtonSegment<TerminalCursorShape>>[
           ButtonSegment<TerminalCursorShape>(
-            value: TerminalCursorShape.block,
+            value: .block,
             tooltip: 'Block',
-            icon: _CursorGlyph(shape: TerminalCursorShape.block),
+            icon: _CursorGlyph(shape: .block),
           ),
           ButtonSegment<TerminalCursorShape>(
-            value: TerminalCursorShape.bar,
+            value: .bar,
             tooltip: 'Bar',
-            icon: _CursorGlyph(shape: TerminalCursorShape.bar),
+            icon: _CursorGlyph(shape: .bar),
           ),
           ButtonSegment<TerminalCursorShape>(
-            value: TerminalCursorShape.underline,
+            value: .underline,
             tooltip: 'Underline',
-            icon: _CursorGlyph(shape: TerminalCursorShape.underline),
+            icon: _CursorGlyph(shape: .underline),
           ),
         ],
       ),
@@ -158,18 +145,15 @@ class CursorShapeRow extends StatelessWidget {
   }
 }
 
-class _CursorGlyph extends StatelessWidget {
-  const _CursorGlyph({required this.shape});
-
-  final TerminalCursorShape shape;
-
+class const _CursorGlyph({required final TerminalCursorShape shape})
+    extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final iconTheme = IconTheme.of(context);
     final color = iconTheme.color ?? AleraTokens.foreground;
     final size = iconTheme.size ?? _kSidebarIconSize;
     final Widget glyph;
-    Alignment alignment = Alignment.center;
+    Alignment alignment = .center;
     switch (shape) {
       case TerminalCursorShape.block:
         glyph = Container(
@@ -202,16 +186,11 @@ class _CursorGlyph extends StatelessWidget {
   }
 }
 
-class ToolbarCornerRow extends StatelessWidget {
-  const ToolbarCornerRow({
-    super.key,
-    required this.value,
-    required this.onChanged,
-  });
-
-  final TerminalToolbarCorner value;
-  final ValueChanged<TerminalToolbarCorner> onChanged;
-
+class const ToolbarCornerRow({
+  super.key,
+  required final TerminalToolbarCorner value,
+  required final ValueChanged<TerminalToolbarCorner> onChanged,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return AleraSettingRow(

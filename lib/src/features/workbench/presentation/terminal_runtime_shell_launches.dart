@@ -10,16 +10,16 @@ List<GhosttyTerminalShellLaunch> _terminalShellLaunches() {
   final platformEnvironment = _terminalPlatformEnvironment();
   final ghosttyLaunches = <GhosttyTerminalShellLaunch>[
     ...ghosttyTerminalShellLaunches(
-      profile: GhosttyTerminalShellProfile.userShell,
+      profile: .userShell,
       platformEnvironment: platformEnvironment,
     ),
     ..._resolvedLoginShellFallbackLaunches(platformEnvironment),
     ...ghosttyTerminalShellLaunches(
-      profile: GhosttyTerminalShellProfile.cleanZsh,
+      profile: .cleanZsh,
       platformEnvironment: platformEnvironment,
     ),
     ...ghosttyTerminalShellLaunches(
-      profile: GhosttyTerminalShellProfile.auto,
+      profile: .auto,
       platformEnvironment: platformEnvironment,
     ),
   ];

@@ -4,13 +4,13 @@ enum MobileCodexPresentationKind { cell, activity, working }
 
 @immutable
 class MobileCodexPresentationRow {
-  factory MobileCodexPresentationRow.cell(
+  factory cell(
     MobileCodexTimelineCell value, {
     bool isPreviousPlan = false,
     bool? isTurnActivity,
   }) => MobileCodexPresentationRow._(
     id: 'cell-${value.id}',
-    kind: MobileCodexPresentationKind.cell,
+    kind: .cell,
     cell: value,
     turnId: value.turnId,
     activityCells: const <MobileCodexTimelineCell>[],
@@ -20,7 +20,7 @@ class MobileCodexPresentationRow {
     startedAt: null,
   );
 
-  const MobileCodexPresentationRow.activity({
+  const new activity({
     required this.id,
     required this.activityCells,
     required this.turnId,
@@ -31,7 +31,7 @@ class MobileCodexPresentationRow {
        isTurnActivity = true,
        startedAt = null;
 
-  const MobileCodexPresentationRow.working({
+  const new working({
     required this.id,
     required this.turnId,
     required this.startedAt,
@@ -42,7 +42,7 @@ class MobileCodexPresentationRow {
        isPreviousPlan = false,
        isTurnActivity = false;
 
-  const MobileCodexPresentationRow._({
+  const new _({
     required this.id,
     required this.kind,
     required this.cell,
@@ -135,7 +135,7 @@ abstract final class MobileCodexTimelineProjection {
           (!cell.isUser || cell.metadata['isSteering'] == true) &&
           cell.kind != 'turnSeparator') {
         rows.add(
-          MobileCodexPresentationRow.working(
+          .working(
             id: 'working-$activeTurnId',
             turnId: activeTurnId,
             startedAt: activeStartedAt,
@@ -164,7 +164,7 @@ abstract final class MobileCodexTimelineProjection {
           );
         } else if (visible.isNotEmpty) {
           rows.add(
-            MobileCodexPresentationRow.activity(
+            .activity(
               id: 'activity-${visible.first.id}',
               turnId: turnId,
               turnActivityCount: collapsibleActivityCount(turnId),
@@ -187,7 +187,7 @@ abstract final class MobileCodexTimelineProjection {
     }
     if (activeTurnId != null && !workingInserted) {
       rows.add(
-        MobileCodexPresentationRow.working(
+        .working(
           id: 'working-$activeTurnId',
           turnId: activeTurnId,
           startedAt: activeStartedAt,
@@ -207,7 +207,7 @@ abstract final class MobileCodexTimelineProjection {
     required int turnActivityCount,
   }) => MobileCodexPresentationRow._(
     id: 'cell-${cell.id}',
-    kind: MobileCodexPresentationKind.cell,
+    kind: .cell,
     cell: cell,
     turnId: cell.turnId,
     activityCells: const <MobileCodexTimelineCell>[],

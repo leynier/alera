@@ -22,7 +22,7 @@ mixin _WorkspacePullRequestReviewActions on _$WorkspacePullRequestController {
     }
     await _runReviewMutation(
       current: current,
-      action: PullRequestAction.merge,
+      action: .merge,
       mutate: (forge, identity) => forge.mergeReview(
         identity: identity,
         repoPath: _controller.scope.repoPath,
@@ -45,7 +45,7 @@ mixin _WorkspacePullRequestReviewActions on _$WorkspacePullRequestController {
     }
     await _runReviewMutation(
       current: current,
-      action: PullRequestAction.close,
+      action: .close,
       mutate: (forge, identity) => forge.closeReview(
         identity: identity,
         repoPath: _controller.scope.repoPath,
@@ -69,7 +69,7 @@ mixin _WorkspacePullRequestReviewActions on _$WorkspacePullRequestController {
     }
     await _runReviewMutation(
       current: current,
-      action: PullRequestAction.draftStatus,
+      action: .draftStatus,
       mutate: (forge, identity) => forge.setReviewDraft(
         identity: identity,
         repoPath: _controller.scope.repoPath,
@@ -106,9 +106,7 @@ mixin _WorkspacePullRequestReviewActions on _$WorkspacePullRequestController {
     }
 
     controller._pollTimer?.cancel();
-    state = AsyncData(
-      current.copyWith(action: PullRequestAction.comment, clearError: true),
-    );
+    state = AsyncData(current.copyWith(action: .comment, clearError: true));
     try {
       await forge.addReviewComment(
         identity: identity,
@@ -351,7 +349,7 @@ mixin _WorkspacePullRequestReviewActions on _$WorkspacePullRequestController {
         await mutate(forge, identity);
         if (!current.linkedManually) {
           await controller._linkedReviews.save(
-            LinkedReview.linked(
+            .linked(
               workspaceId: controller.scope.workspaceId,
               provider: identity.provider,
               number: review.number,

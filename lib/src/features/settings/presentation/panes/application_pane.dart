@@ -14,26 +14,19 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 /// App-level preferences: storage, safety confirmations, runtime lifecycle,
 /// updates, and the support row.
-class ApplicationSettingsPane extends ConsumerWidget {
-  const ApplicationSettingsPane({
-    super.key,
-    required this.general,
-    required this.terminal,
-    required this.diagnostics,
-    this.groupKeys = const <String, GlobalKey>{},
-  });
-
-  final GeneralSettings general;
-  final TerminalSettings terminal;
-  final DiagnosticsSettings diagnostics;
-  final Map<String, GlobalKey> groupKeys;
-
+class const ApplicationSettingsPane({
+  super.key,
+  required final GeneralSettings general,
+  required final TerminalSettings terminal,
+  required final DiagnosticsSettings diagnostics,
+  final Map<String, GlobalKey> groupKeys = const <String, GlobalKey>{},
+}) extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final starState = ref.watch(gitHubStarControllerProvider);
     final controller = ref.read(settingsControllerProvider.notifier);
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+      crossAxisAlignment: .stretch,
       children: <Widget>[
         KeyedSubtree(
           key: groupKeys['storage'],

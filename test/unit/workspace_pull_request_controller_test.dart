@@ -5,7 +5,6 @@ import 'package:alera/src/features/pull_requests/application/workspace_pull_requ
 import 'package:alera/src/features/pull_requests/domain/create_review_input.dart';
 import 'package:alera/src/features/pull_requests/domain/create_review_result.dart';
 import 'package:alera/src/features/pull_requests/domain/forge_auth_status.dart';
-import 'package:alera/src/shared/git_hosting/domain/git_hosting_provider.dart';
 import 'package:alera/src/features/pull_requests/domain/hosted_review.dart';
 import 'package:alera/src/features/pull_requests/domain/review_check.dart';
 import 'package:alera/src/features/pull_requests/domain/review_check_details.dart';
@@ -25,7 +24,7 @@ HostedReview _review(
   HostedReviewState state = HostedReviewState.open,
   DateTime? createdAt,
 }) => HostedReview(
-  provider: GitHostingProvider.github,
+  provider: .github,
   number: number,
   title: 'feat: $number',
   state: state,
@@ -81,8 +80,8 @@ void main() {
       ..checks = <ReviewCheck>[
         const ReviewCheck(
           name: 'build',
-          status: ReviewCheckStatus.completed,
-          conclusion: ReviewCheckConclusion.success,
+          status: .completed,
+          conclusion: .success,
         ),
       ];
     final container = _container(
@@ -176,7 +175,7 @@ void main() {
     );
     final result = await controller.createReview(
       const CreateReviewInput(
-        provider: GitHostingProvider.github,
+        provider: .github,
         title: 'feat: 789',
         baseBranch: 'main',
         headBranch: 'feature',
@@ -272,10 +271,10 @@ void main() {
       workspacePullRequestControllerProvider(_scope).notifier,
     );
     final updated = HostedReview(
-      provider: GitHostingProvider.github,
+      provider: .github,
       number: 123,
       title: 'feat: renamed',
-      state: HostedReviewState.open,
+      state: .open,
       url: 'https://github.com/leynier/alera/pull/123',
       headBranch: 'feature',
       baseBranch: 'develop',
@@ -310,7 +309,7 @@ void main() {
       workspacePullRequestControllerProvider(_scope).notifier,
     );
     forge.updateResult = const UpdateReviewFailure(
-      code: UpdateReviewErrorCode.unknown,
+      code: .unknown,
       message: 'permission denied',
     );
 
@@ -362,7 +361,7 @@ void main() {
         workspacePullRequestControllerProvider(_scope).notifier,
       );
 
-      await controller.mergeReview(ReviewMergeMethod.squash);
+      await controller.mergeReview(.squash);
 
       final state = container
           .read(workspacePullRequestControllerProvider(_scope))
@@ -410,7 +409,7 @@ void main() {
       workspacePullRequestControllerProvider(_scope).notifier,
     );
 
-    await controller.mergeReview(ReviewMergeMethod.rebase);
+    await controller.mergeReview(.rebase);
 
     final state = container
         .read(workspacePullRequestControllerProvider(_scope))
@@ -423,8 +422,8 @@ void main() {
   test('loadCheckDetails queries the linked review number', () async {
     const check = ReviewCheck(
       name: 'build',
-      status: ReviewCheckStatus.inProgress,
-      conclusion: ReviewCheckConclusion.pending,
+      status: .inProgress,
+      conclusion: .pending,
     );
     final forge = FakeForgeProvider()
       ..branchReview = _review(123)

@@ -27,7 +27,7 @@ void main() {
 
     client.workspaces = <WorkspaceSummary>[_workspace('a'), _workspace('b')];
     client.emit('workspacesChanged');
-    await Future<void>.delayed(Duration.zero);
+    await Future<void>.delayed(.zero);
 
     final refreshed = await container.read(
       workspaceListControllerProvider('host-1').future,
@@ -85,7 +85,7 @@ void main() {
       final completion = Completer<void>();
       client.pinCompletion = completion;
       final operation = notifier.setPinned('a', true);
-      await Future<void>.delayed(Duration.zero);
+      await Future<void>.delayed(.zero);
       container.dispose();
 
       completion.complete();
@@ -165,8 +165,8 @@ WorkspaceSummary _workspace(String id, {String? parent}) {
   );
 }
 
-class _FakeWorkspaceClient implements MobileWorkspaceClient {
-  _FakeWorkspaceClient() {
+class _FakeWorkspaceClient() implements MobileWorkspaceClient {
+  this {
     _events = StreamController<MobileRuntimeEvent>.broadcast(
       onListen: () => eventSubscriptionCount += 1,
       onCancel: () => eventSubscriptionCount -= 1,
@@ -420,12 +420,10 @@ class _FakeWorkspaceClient implements MobileWorkspaceClient {
   ) async => _workspace(workspaceId);
 }
 
-final class _CapturingEventStream extends Stream<MobileRuntimeEvent> {
-  _CapturingEventStream(this._source, this._capture);
-
-  final Stream<MobileRuntimeEvent> _source;
-  final void Function(void Function(MobileRuntimeEvent)) _capture;
-
+final class _CapturingEventStream(
+  final Stream<MobileRuntimeEvent> _source,
+  final void Function(void Function(MobileRuntimeEvent)) _capture,
+) extends Stream<MobileRuntimeEvent> {
   @override
   bool get isBroadcast => _source.isBroadcast;
 

@@ -3,32 +3,21 @@
 /// Logs on their own rarely explain a report: the same line means different
 /// things on a dev build against a stale sidecar than on a release build with
 /// matching versions.
-class DiagnosticsBundleMetadata {
-  const DiagnosticsBundleMetadata({
-    required this.appVersion,
-    required this.flavor,
-    required this.operatingSystem,
-    required this.operatingSystemVersion,
-    required this.collectedAt,
-    this.runtimeHostVersion,
-    this.runtimeHostCommit,
-    this.protocolVersion,
-    this.runtimeCapabilities = const <String>[],
-  });
-
-  final String appVersion;
-  final String flavor;
-  final String operatingSystem;
-  final String operatingSystemVersion;
-  final DateTime collectedAt;
-
+class const DiagnosticsBundleMetadata({
+  required final String appVersion,
+  required final String flavor,
+  required final String operatingSystem,
+  required final String operatingSystemVersion,
+  required final DateTime collectedAt,
+  this.runtimeHostVersion,
+  final String? runtimeHostCommit,
+  final int? protocolVersion,
+  final List<String> runtimeCapabilities = const <String>[],
+}) {
   /// Absent when the runtime host was not reachable while collecting, which is
   /// itself worth recording: a bundle with no runtime section usually means the
   /// sidecar was down.
   final String? runtimeHostVersion;
-  final String? runtimeHostCommit;
-  final int? protocolVersion;
-  final List<String> runtimeCapabilities;
 
   Map<String, Object?> toJson() {
     return <String, Object?>{

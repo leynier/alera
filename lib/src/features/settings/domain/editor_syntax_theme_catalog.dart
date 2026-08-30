@@ -23,12 +23,10 @@ abstract final class EditorSyntaxThemeNames {
   static const String dracula = 'Dracula';
 }
 
-class EditorSyntaxThemeEntry {
-  const EditorSyntaxThemeEntry({required this.name, required this.theme});
-
-  final String name;
-  final Map<String, TextStyle> theme;
-}
+class const EditorSyntaxThemeEntry({
+  required final String name,
+  required final Map<String, TextStyle> theme,
+});
 
 final List<EditorSyntaxThemeEntry> editorSyntaxThemeCatalog =
     List<EditorSyntaxThemeEntry>.unmodifiable(<EditorSyntaxThemeEntry>[

@@ -488,8 +488,8 @@ Workspace _workspace({String path = '/repo/alera'}) {
     path: path,
     createdAt: now,
     updatedAt: now,
-    kind: WorkspaceKind.main,
-    status: WorkspaceStatus.active,
+    kind: .main,
+    status: .active,
   );
 }
 
@@ -498,7 +498,7 @@ WorkspaceTabRecord _tab() {
   return WorkspaceTabRecord(
     id: 'preview-tab',
     workspaceId: 'workspace-1',
-    kind: WorkspaceTabKind.markdownViewer,
+    kind: .markdownViewer,
     title: 'readme.md preview',
     createdAt: now,
     updatedAt: now,
@@ -517,14 +517,12 @@ native.WorkspaceEditorTextFile _editorFile({
     displayContent: displayContent,
     contentToken: 'editor-token',
     modifiedMillis: 0,
-    size: BigInt.from(rawContent.length),
+    size: .from(rawContent.length),
   );
 }
 
-class _FakeWorkspaceFileService extends WorkspaceFileService {
-  _FakeWorkspaceFileService(this.content);
-
-  String content;
+class _FakeWorkspaceFileService(var String content)
+    extends WorkspaceFileService {
   final List<String> reads = <String>[];
 
   @override
@@ -537,7 +535,7 @@ class _FakeWorkspaceFileService extends WorkspaceFileService {
       content: content,
       contentToken: 'disk-token',
       modifiedMillis: 0,
-      size: BigInt.from(content.length),
+      size: .from(content.length),
     );
   }
 }

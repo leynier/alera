@@ -12,11 +12,8 @@ import 'package:flutter/material.dart';
 ///
 /// The ticker is reference counted by the mounted spinners, so an idle sidebar
 /// schedules no frames at all.
-class AgentRunSpinnerScope extends StatefulWidget {
-  const AgentRunSpinnerScope({super.key, required this.child});
-
-  final Widget child;
-
+class const AgentRunSpinnerScope({super.key, required final Widget child})
+    extends StatefulWidget {
   static _AgentRunSpinnerScopeState? _maybeStateOf(BuildContext context) {
     return context
         .dependOnInheritedWidgetOfExactType<_AgentRunSpinnerAnimation>()
@@ -76,11 +73,10 @@ class _AgentRunSpinnerScopeState extends State<AgentRunSpinnerScope>
 /// latter rebuilds every dependent on each tick, which is the cost this scope
 /// exists to remove. The scope identity is stable, so dependents never rebuild
 /// and repaint off the shared ticker instead.
-class _AgentRunSpinnerAnimation extends InheritedWidget {
-  const _AgentRunSpinnerAnimation({required this.scope, required super.child});
-
-  final _AgentRunSpinnerScopeState scope;
-
+class const _AgentRunSpinnerAnimation({
+  required final _AgentRunSpinnerScopeState scope,
+  required super.child,
+}) extends InheritedWidget {
   @override
   bool updateShouldNotify(_AgentRunSpinnerAnimation oldWidget) {
     return !identical(scope, oldWidget.scope);
@@ -88,18 +84,12 @@ class _AgentRunSpinnerAnimation extends InheritedWidget {
 }
 
 /// Indeterminate spinner painted off the nearest [AgentRunSpinnerScope].
-class AgentRunSharedSpinner extends StatefulWidget {
-  const AgentRunSharedSpinner({
-    super.key,
-    required this.size,
-    required this.color,
-    required this.strokeWidth,
-  });
-
-  final double size;
-  final Color color;
-  final double strokeWidth;
-
+class const AgentRunSharedSpinner({
+  super.key,
+  required final double size,
+  required final Color color,
+  required final double strokeWidth,
+}) extends StatefulWidget {
   /// Whether a scope is available, so callers outside the sidebar can fall
   /// back to their own indicator.
   static bool isAvailable(BuildContext context) {
@@ -139,7 +129,7 @@ class _AgentRunSharedSpinnerState extends State<AgentRunSharedSpinner> {
     }
     return RepaintBoundary(
       child: CustomPaint(
-        size: Size.square(widget.size),
+        size: .square(widget.size),
         painter: AgentRunSpinnerPainter(
           progress: scope.animation,
           color: widget.color,
@@ -151,16 +141,12 @@ class _AgentRunSharedSpinnerState extends State<AgentRunSharedSpinner> {
 }
 
 /// Draws the indeterminate arc for one agent run off a shared ticker.
-class AgentRunSpinnerPainter extends CustomPainter {
-  AgentRunSpinnerPainter({
-    required this.progress,
-    required this.color,
-    required this.strokeWidth,
-  }) : super(repaint: progress);
-
-  final Animation<double> progress;
-  final Color color;
-  final double strokeWidth;
+class AgentRunSpinnerPainter({
+  required final Animation<double> progress,
+  required final Color color,
+  required final double strokeWidth,
+}) extends CustomPainter {
+  this : super(repaint: progress);
 
   static const double _sweep = 4.7;
 

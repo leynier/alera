@@ -1,17 +1,11 @@
 part of 'agent_usage_dialog.dart';
 
-class _UsageMetric extends StatelessWidget {
-  const _UsageMetric({
-    super.key,
-    required this.label,
-    required this.value,
-    required this.detail,
-  });
-
-  final String label;
-  final String value;
-  final String detail;
-
+class const _UsageMetric({
+  super.key,
+  required final String label,
+  required final String value,
+  required final String detail,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -25,7 +19,7 @@ class _UsageMetric extends StatelessWidget {
         border: Border.all(color: AleraTokens.borderSubtle),
       ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: .start,
         children: <Widget>[
           Text(
             label,
@@ -38,7 +32,7 @@ class _UsageMetric extends StatelessWidget {
             style: AleraTokens.monoStyle.copyWith(
               color: AleraTokens.foreground,
               fontSize: Theme.of(context).textTheme.titleMedium?.fontSize,
-              fontWeight: FontWeight.w600,
+              fontWeight: .w600,
             ),
           ),
           const SizedBox(height: AleraTokens.space2),
@@ -53,11 +47,8 @@ class _UsageMetric extends StatelessWidget {
   }
 }
 
-class _UsageMetrics extends StatelessWidget {
-  const _UsageMetrics({required this.metrics});
-
-  final List<Widget> metrics;
-
+class const _UsageMetrics({required final List<Widget> metrics})
+    extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return LayoutBuilder(

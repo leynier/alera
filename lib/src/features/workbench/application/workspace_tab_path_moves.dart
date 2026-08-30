@@ -5,15 +5,10 @@ part of 'workspace_tab_service.dart';
 /// Split out of `workspace_tab_service.dart`, which keeps opening, creating,
 /// renaming and closing tabs.
 
-class WorkspaceFileTabPathMoveResult {
-  const WorkspaceFileTabPathMoveResult({
-    required this.updatedTabs,
-    required this.closedTabIds,
-  });
-
-  final List<WorkspaceTabRecord> updatedTabs;
-  final List<String> closedTabIds;
-
+class const WorkspaceFileTabPathMoveResult({
+  required final List<WorkspaceTabRecord> updatedTabs,
+  required final List<String> closedTabIds,
+}) {
   List<String> get removedTabIds => closedTabIds;
 
   bool get isEmpty => updatedTabs.isEmpty && closedTabIds.isEmpty;

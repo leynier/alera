@@ -8,7 +8,7 @@ void _registerGrokAgentStatusControllerTests(
     final controller = container.read(agentStatusControllerProvider.notifier);
     controller.applyHookEvent(
       _event(
-        agentType: AgentType.grok,
+        agentType: .grok,
         hookEventName: 'UserPromptSubmit',
         payload: <String, Object?>{'prompt': 'old turn'},
       ),
@@ -20,7 +20,7 @@ void _registerGrokAgentStatusControllerTests(
 
     controller.applyHookEvent(
       _event(
-        agentType: AgentType.grok,
+        agentType: .grok,
         hookEventName: 'SessionStart',
         payload: const <String, Object?>{},
       ),
@@ -37,7 +37,7 @@ void _registerGrokAgentStatusControllerTests(
     final controller = container.read(agentStatusControllerProvider.notifier);
     controller.applyHookEvent(
       _event(
-        agentType: AgentType.grok,
+        agentType: .grok,
         hookEventName: 'UserPromptSubmit',
         payload: <String, Object?>{'prompt': 'active turn'},
       ),
@@ -45,7 +45,7 @@ void _registerGrokAgentStatusControllerTests(
 
     controller.applyHookEvent(
       _event(
-        agentType: AgentType.grok,
+        agentType: .grok,
         hookEventName: 'session_end',
         payload: const <String, Object?>{},
       ),

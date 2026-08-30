@@ -10,10 +10,7 @@ void main() {
         now: () => now,
         notifiableFrom: now,
       );
-      final stale = _entry(
-        AgentStatusState.waiting,
-        stateStartedAt: DateTime.utc(2026, 5, 26, 11, 59),
-      );
+      final stale = _entry(.waiting, stateStartedAt: .utc(2026, 5, 26, 11, 59));
 
       expect(
         tracker.pendingNotifications(
@@ -28,7 +25,7 @@ void main() {
       final fresh = stale.copyWith(
         stateStartedAt: now,
         updatedAt: now,
-        state: AgentStatusState.done,
+        state: .done,
       );
 
       expect(
@@ -45,12 +42,10 @@ void main() {
       var now = DateTime.utc(2026, 5, 26, 12);
       final tracker = AgentStatusNotificationTracker(
         now: () => now,
-        notifiableFrom: DateTime.utc(2026, 5, 26, 11),
+        notifiableFrom: .utc(2026, 5, 26, 11),
       );
-      final waiting = _entry(AgentStatusState.waiting);
-      final restated = waiting.copyWith(
-        updatedAt: DateTime.utc(2026, 5, 26, 12, 1),
-      );
+      final waiting = _entry(.waiting);
+      final restated = waiting.copyWith(updatedAt: .utc(2026, 5, 26, 12, 1));
 
       expect(
         tracker.pendingNotifications(
@@ -80,10 +75,10 @@ void main() {
       var now = DateTime.utc(2026, 5, 26, 12);
       final tracker = AgentStatusNotificationTracker(
         now: () => now,
-        notifiableFrom: DateTime.utc(2026, 5, 26, 11),
+        notifiableFrom: .utc(2026, 5, 26, 11),
         cooldown: const Duration(seconds: 60),
       );
-      final first = _entry(AgentStatusState.waiting);
+      final first = _entry(.waiting);
 
       expect(
         tracker.pendingNotifications(
@@ -125,9 +120,9 @@ void main() {
       var now = DateTime.utc(2026, 5, 26, 12);
       final tracker = AgentStatusNotificationTracker(
         now: () => now,
-        notifiableFrom: DateTime.utc(2026, 5, 26, 11),
+        notifiableFrom: .utc(2026, 5, 26, 11),
       );
-      final local = _entry(AgentStatusState.done);
+      final local = _entry(.done);
 
       expect(
         tracker.pendingNotifications(
@@ -158,10 +153,10 @@ void main() {
       final now = DateTime.utc(2026, 5, 26, 12);
       final tracker = AgentStatusNotificationTracker(
         now: () => now,
-        notifiableFrom: DateTime.utc(2026, 5, 26, 11),
+        notifiableFrom: .utc(2026, 5, 26, 11),
       );
-      final done = _entry(AgentStatusState.done);
-      final waiting = _entry(AgentStatusState.waiting, sessionId: 'session-2');
+      final done = _entry(.done);
+      final waiting = _entry(.waiting, sessionId: 'session-2');
 
       expect(
         tracker.pendingNotifications(
@@ -180,9 +175,9 @@ void main() {
       var now = DateTime.utc(2026, 5, 26, 12);
       final tracker = AgentStatusNotificationTracker(
         now: () => now,
-        notifiableFrom: DateTime.utc(2026, 5, 26, 11),
+        notifiableFrom: .utc(2026, 5, 26, 11),
       );
-      final waiting = _entry(AgentStatusState.waiting);
+      final waiting = _entry(.waiting);
 
       tracker.pendingNotifications(
         previous: const <String, AgentStatusEntry>{},

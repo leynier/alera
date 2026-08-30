@@ -24,8 +24,8 @@ void main() {
         id: 'project-1',
         name: 'Project',
         repoPath: '/repo/project',
-        createdAt: DateTime.utc(2026),
-        updatedAt: DateTime.utc(2026),
+        createdAt: .utc(2026),
+        updatedAt: .utc(2026),
       );
     });
 

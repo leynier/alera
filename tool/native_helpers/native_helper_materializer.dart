@@ -19,18 +19,15 @@ typedef NativeHelperDerivedPayloadBuilder = Future<Uint8List> Function({
   required bool offline,
 });
 
-final class NativeHelperMaterializer {
-  NativeHelperMaterializer({
-    required this.repositoryRoot,
-    required this.manifest,
-    NativeHelperDownloader? downloader,
-    this.derivedPayloadBuilder,
-  }) : _downloader = downloader ?? downloadNativeHelper;
+final class NativeHelperMaterializer({
+  required final Directory repositoryRoot,
+  required final NativeHelperManifest manifest,
+  NativeHelperDownloader? downloader,
+  final NativeHelperDerivedPayloadBuilder? derivedPayloadBuilder,
+}) {
+  this : _downloader = downloader ?? downloadNativeHelper;
 
-  final Directory repositoryRoot;
-  final NativeHelperManifest manifest;
   final NativeHelperDownloader _downloader;
-  final NativeHelperDerivedPayloadBuilder? derivedPayloadBuilder;
 
   Future<void> prepare({
     required String platform,

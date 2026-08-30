@@ -41,8 +41,8 @@ Workspace _workspace() {
     path: '/repo/workspace',
     createdAt: now,
     updatedAt: now,
-    kind: WorkspaceKind.main,
-    status: WorkspaceStatus.active,
+    kind: .main,
+    status: .active,
   );
 }
 
@@ -54,69 +54,45 @@ WorkspaceTabRecord _tab({
   return WorkspaceTabRecord(
     id: id,
     workspaceId: workspaceId,
-    kind: WorkspaceTabKind.codex,
+    kind: .codex,
     title: 'Codex',
     createdAt: now,
     updatedAt: now,
   );
 }
 
-final class _SurfaceRuntimeClient implements RuntimeHostClient {
-  _SurfaceRuntimeClient({
-    this.recovery,
-    this.approvalMethod = 'item/commandExecution/requestApproval',
-    this.activeCwd,
-    this.supportsSessions = false,
-    this.supportsTurnPolicy = true,
-    this.supportsGoals = false,
-    this.goal,
-    this.includeGoalInOpenSnapshot = true,
-    this.goalGetFailures = 0,
-    this.goalGetFailureMessage = 'temporary goal read failure',
-    this.goalSetFailures = 0,
-    this.goalSetFailureMessage = 'temporary goal set failure',
-    this.sessionCommandFailures = const <String>{},
-    this.historyNextCursor,
-    this.historyTimelineCells = const <Object?>[],
-    this.historyGate,
-    this.recoveryGate,
-    this.pendingRequests,
-    this.threadListResponse,
-    this.permissionMode,
-    this.timelineCells,
-    this.activeTurnId,
-    this.modelDisplayName = 'Current Codex',
-    this.skills = const <String, Object?>{'data': <Object?>[]},
-    this.collaborationModes = const <Map<String, Object?>>[
-      <String, Object?>{'mode': 'plan'},
-    ],
-  });
-
-  final Map<String, Object?>? recovery;
-  final String approvalMethod;
-  final String? activeCwd;
-  final bool supportsSessions;
-  final bool supportsTurnPolicy;
-  final bool supportsGoals;
-  Map<String, Object?>? goal;
-  final bool includeGoalInOpenSnapshot;
-  int goalGetFailures;
-  final String goalGetFailureMessage;
-  int goalSetFailures;
-  final String goalSetFailureMessage;
-  final Set<String> sessionCommandFailures;
-  final String? historyNextCursor;
-  final List<Object?> historyTimelineCells;
-  final Completer<void>? historyGate;
-  final Completer<void>? recoveryGate;
-  final List<Object?>? pendingRequests;
-  final Map<String, Object?>? threadListResponse;
-  final String? permissionMode;
-  final List<Object?>? timelineCells;
-  final String? activeTurnId;
-  final String modelDisplayName;
-  final Map<String, Object?> skills;
-  final List<Map<String, Object?>> collaborationModes;
+final class _SurfaceRuntimeClient({
+  final Map<String, Object?>? recovery,
+  final String approvalMethod = 'item/commandExecution/requestApproval',
+  final String? activeCwd,
+  final bool supportsSessions = false,
+  final bool supportsTurnPolicy = true,
+  final bool supportsGoals = false,
+  var Map<String, Object?>? goal,
+  final bool includeGoalInOpenSnapshot = true,
+  var int goalGetFailures = 0,
+  final String goalGetFailureMessage = 'temporary goal read failure',
+  var int goalSetFailures = 0,
+  final String goalSetFailureMessage = 'temporary goal set failure',
+  final Set<String> sessionCommandFailures = const <String>{},
+  final String? historyNextCursor,
+  final List<Object?> historyTimelineCells = const <Object?>[],
+  final Completer<void>? historyGate,
+  final Completer<void>? recoveryGate,
+  final List<Object?>? pendingRequests,
+  final Map<String, Object?>? threadListResponse,
+  final String? permissionMode,
+  final List<Object?>? timelineCells,
+  final String? activeTurnId,
+  final String modelDisplayName = 'Current Codex',
+  final Map<String, Object?> skills = const <String, Object?>{
+    'data': <Object?>[],
+  },
+  final List<Map<String, Object?>> collaborationModes =
+      const <Map<String, Object?>>[
+        <String, Object?>{'mode': 'plan'},
+      ],
+}) implements RuntimeHostClient {
   final List<String> requestTypes = <String>[];
   final List<({String type, Map<String, Object?> payload})> requests =
       <({String type, Map<String, Object?> payload})>[];
@@ -350,16 +326,13 @@ final class _SurfaceSettings extends SettingsController {
   AleraSettings build() => AleraSettings.defaults;
 }
 
-final class _RecordingWorkspaceFileService extends WorkspaceFileService {
-  _RecordingWorkspaceFileService({
-    this.quickOpenMatches = const <native.WorkspaceQuickOpenMatch>[],
-    this.quickOpenSearch,
-    this.savedPrompts = const <native.CodexSavedPrompt>[],
-  });
-
-  final List<native.WorkspaceQuickOpenMatch> quickOpenMatches;
-  final Completer<List<native.WorkspaceQuickOpenMatch>>? quickOpenSearch;
-  final List<native.CodexSavedPrompt> savedPrompts;
+final class _RecordingWorkspaceFileService({
+  final List<native.WorkspaceQuickOpenMatch> quickOpenMatches =
+      const <native.WorkspaceQuickOpenMatch>[],
+  final Completer<List<native.WorkspaceQuickOpenMatch>>? quickOpenSearch,
+  final List<native.CodexSavedPrompt> savedPrompts =
+      const <native.CodexSavedPrompt>[],
+}) extends WorkspaceFileService {
   String? startedWorkspacePath;
   final List<String> savedPromptWorkspacePaths = <String>[];
 

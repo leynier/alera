@@ -51,27 +51,17 @@ Future<Object?> handleNativeAppMenuCall(
     case NativeAppMenuMethod.exitApp:
       unawaited(exitAppFromMenu(ref));
     case NativeAppMenuMethod.undo:
-      invokeFocusedTextIntent(
-        const UndoTextIntent(SelectionChangedCause.keyboard),
-      );
+      invokeFocusedTextIntent(const UndoTextIntent(.keyboard));
     case NativeAppMenuMethod.redo:
-      invokeFocusedTextIntent(
-        const RedoTextIntent(SelectionChangedCause.keyboard),
-      );
+      invokeFocusedTextIntent(const RedoTextIntent(.keyboard));
     case NativeAppMenuMethod.cut:
-      invokeFocusedTextIntent(
-        const CopySelectionTextIntent.cut(SelectionChangedCause.keyboard),
-      );
+      invokeFocusedTextIntent(const CopySelectionTextIntent.cut(.keyboard));
     case NativeAppMenuMethod.copy:
       invokeFocusedTextIntent(CopySelectionTextIntent.copy);
     case NativeAppMenuMethod.paste:
-      invokeFocusedTextIntent(
-        const PasteTextIntent(SelectionChangedCause.keyboard),
-      );
+      invokeFocusedTextIntent(const PasteTextIntent(.keyboard));
     case NativeAppMenuMethod.selectAll:
-      invokeFocusedTextIntent(
-        const SelectAllTextIntent(SelectionChangedCause.keyboard),
-      );
+      invokeFocusedTextIntent(const SelectAllTextIntent(.keyboard));
   }
   return null;
 }

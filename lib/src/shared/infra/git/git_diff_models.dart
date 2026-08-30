@@ -2,14 +2,10 @@ part 'git_range_models.dart';
 part 'git_history_graph_models.dart';
 part 'git_history_models.dart';
 
-enum GitChangeArea {
+enum GitChangeArea(final String key) {
   untracked('untracked'),
   unstaged('unstaged'),
   staged('staged');
-
-  const GitChangeArea(this.key);
-
-  final String key;
 
   String get label => switch (this) {
     GitChangeArea.untracked => 'Untracked',
@@ -18,29 +14,23 @@ enum GitChangeArea {
   };
 }
 
-enum GitChangeStatus {
+enum GitChangeStatus(final String badge) {
   modified('M'),
   added('A'),
   deleted('D'),
   renamed('R'),
   copied('C'),
-  untracked('U');
-
-  const GitChangeStatus(this.badge);
-
-  final String badge;
+  untracked('U'),
 }
 
 enum GitChangeTreeRowKind { directory, file }
 
 enum GitDiffLineKind { addition, deletion, hunk, header, context }
 
-class GitStatusResult {
-  const GitStatusResult({required this.entries, this.groups = const []});
-
-  final List<GitChangeEntry> entries;
-  final List<GitChangeGroup> groups;
-
+class const GitStatusResult({
+  required final List<GitChangeEntry> entries,
+  final List<GitChangeGroup> groups = const [],
+}) {
   List<GitChangeGroup> get effectiveGroups {
     if (groups.isNotEmpty) {
       return groups;
@@ -55,53 +45,31 @@ class GitStatusResult {
   }
 }
 
-class GitRepositoryState {
-  const GitRepositoryState({
-    required this.branch,
-    this.upstream,
-    this.ahead = 0,
-    this.behind = 0,
-    this.hasConflicts = false,
-    this.headMessage,
-  });
-
-  final String branch;
-  final String? upstream;
-  final int ahead;
-  final int behind;
-  final bool hasConflicts;
-  final String? headMessage;
-
+class const GitRepositoryState({
+  required final String branch,
+  final String? upstream,
+  final int ahead = 0,
+  final int behind = 0,
+  final bool hasConflicts = false,
+  final String? headMessage,
+}) {
   bool get hasUpstream => upstream != null && upstream!.isNotEmpty;
   bool get hasHeadCommit => headMessage != null;
 }
 
-class GitStashEntry {
-  const GitStashEntry({
-    required this.index,
-    required this.reference,
-    required this.message,
-    required this.oid,
-  });
+class const GitStashEntry({
+  required final int index,
+  required final String reference,
+  required final String message,
+  required final String oid,
+});
 
-  final int index;
-  final String reference;
-  final String message;
-  final String oid;
-}
-
-class GitChangeGroup {
-  const GitChangeGroup({
-    required this.area,
-    required this.entries,
-    required this.treeRows,
-    this.unified = false,
-  });
-
-  final GitChangeArea area;
-  final List<GitChangeEntry> entries;
-  final List<GitChangeTreeRow> treeRows;
-
+class const GitChangeGroup({
+  required final GitChangeArea area,
+  required final List<GitChangeEntry> entries,
+  required final List<GitChangeTreeRow> treeRows,
+  this.unified = false,
+}) {
   /// When true, the group holds files from every area in one list. [area] is
   /// only used as a collapse-key / bulk-action sentinel for the section.
   final bool unified;
@@ -147,7 +115,7 @@ class GitChangeGroup {
       });
     return <GitChangeGroup>[
       GitChangeGroup(
-        area: GitChangeArea.unstaged,
+        area: .unstaged,
         entries: sorted,
         treeRows: _treeRows(sorted),
         unified: true,
@@ -179,7 +147,7 @@ class GitChangeGroup {
         parent = parent.directoryChild(parts[index], path, index);
       }
       parent.children.add(
-        _GitChangeTreeNode.file(
+        .file(
           name: parts.last,
           path: entry.path,
           depth: parts.length - 1,
@@ -196,21 +164,19 @@ class GitChangeGroup {
   }
 }
 
-class _GitChangeTreeNode {
-  _GitChangeTreeNode._({
-    required this.name,
-    required this.path,
-    required this.depth,
-    this.entry,
-  });
-
-  factory _GitChangeTreeNode.directory({
+class _GitChangeTreeNode._({
+  required final String name,
+  required final String path,
+  required final int depth,
+  final GitChangeEntry? entry,
+}) {
+  factory directory({
     required String name,
     required String path,
     required int depth,
   }) => _GitChangeTreeNode._(name: name, path: path, depth: depth);
 
-  factory _GitChangeTreeNode.file({
+  factory file({
     required String name,
     required String path,
     required int depth,
@@ -218,10 +184,6 @@ class _GitChangeTreeNode {
   }) =>
       _GitChangeTreeNode._(name: name, path: path, depth: depth, entry: entry);
 
-  final String name;
-  final String path;
-  final int depth;
-  final GitChangeEntry? entry;
   final List<_GitChangeTreeNode> children = <_GitChangeTreeNode>[];
 
   _GitChangeTreeNode directoryChild(String name, String path, int depth) {
@@ -280,31 +242,18 @@ class _GitChangeTreeNode {
   }
 }
 
-class GitChangeEntry {
-  const GitChangeEntry({
-    required this.path,
-    required this.area,
-    required this.status,
-    this.oldPath,
-    this.added,
-    this.removed,
-    this.isBinary = false,
-    this.isLarge = false,
-    this.submodule,
-    this.submoduleRoot,
-  });
-
-  final String path;
-  final String? oldPath;
-  final GitChangeArea area;
-  final GitChangeStatus status;
-  final int? added;
-  final int? removed;
-  final bool isBinary;
-  final bool isLarge;
-  final GitSubmoduleStatus? submodule;
-  final String? submoduleRoot;
-
+class const GitChangeEntry({
+  required final String path,
+  required final GitChangeArea area,
+  required final GitChangeStatus status,
+  final String? oldPath,
+  final int? added,
+  final int? removed,
+  final bool isBinary = false,
+  final bool isLarge = false,
+  final GitSubmoduleStatus? submodule,
+  final String? submoduleRoot,
+}) {
   String get id => '${area.key}::$path';
 
   bool get isSubmoduleChild => submoduleRoot != null;
@@ -356,95 +305,54 @@ class GitChangeEntry {
   }
 }
 
-class GitSubmoduleStatus {
-  const GitSubmoduleStatus({
-    required this.commitChanged,
-    required this.trackedChanges,
-    required this.untrackedChanges,
-    required this.inspectable,
-  });
+class const GitSubmoduleStatus({
+  required final bool commitChanged,
+  required final bool trackedChanges,
+  required final bool untrackedChanges,
+  required final bool inspectable,
+});
 
-  final bool commitChanged;
-  final bool trackedChanges;
-  final bool untrackedChanges;
-  final bool inspectable;
-}
+class const GitChangeTreeRow({
+  required final GitChangeTreeRowKind kind,
+  required final String name,
+  required final String path,
+  required final int depth,
+  required final int fileCount,
+  final GitChangeEntry? entry,
+});
 
-class GitChangeTreeRow {
-  const GitChangeTreeRow({
-    required this.kind,
-    required this.name,
-    required this.path,
-    required this.depth,
-    required this.fileCount,
-    this.entry,
-  });
+class const GitDiffResult({
+  required final List<GitDiffFile> files,
+  final bool truncated = false,
+});
 
-  final GitChangeTreeRowKind kind;
-  final String name;
-  final String path;
-  final int depth;
-  final int fileCount;
-  final GitChangeEntry? entry;
-}
+class const GitDiffFile({
+  required final String path,
+  required final GitChangeArea area,
+  required final GitChangeStatus status,
+  final List<GitDiffLine> lines = const [],
+  final String? oldPath,
+  final int? added,
+  final int? removed,
+  final bool isBinary = false,
+  final bool isLarge = false,
+  final bool isGitlink = false,
+  final bool truncated = false,
+  final bool linePreviewTruncated = false,
+  final String? sourceLabel,
+});
 
-class GitDiffResult {
-  const GitDiffResult({required this.files, this.truncated = false});
+class const GitDiffLine({
+  required final String text,
+  required final GitDiffLineKind kind,
+}) {
+  const new addition(String text) : this(text: text, kind: .addition);
 
-  final List<GitDiffFile> files;
-  final bool truncated;
-}
+  const new deletion(String text) : this(text: text, kind: .deletion);
 
-class GitDiffFile {
-  const GitDiffFile({
-    required this.path,
-    required this.area,
-    required this.status,
-    this.lines = const [],
-    this.oldPath,
-    this.added,
-    this.removed,
-    this.isBinary = false,
-    this.isLarge = false,
-    this.isGitlink = false,
-    this.truncated = false,
-    this.linePreviewTruncated = false,
-    this.sourceLabel,
-  });
+  const new hunk(String text) : this(text: text, kind: .hunk);
 
-  final String path;
-  final String? oldPath;
-  final GitChangeArea area;
-  final GitChangeStatus status;
-  final List<GitDiffLine> lines;
-  final int? added;
-  final int? removed;
-  final bool isBinary;
-  final bool isLarge;
-  final bool isGitlink;
-  final bool truncated;
-  final bool linePreviewTruncated;
-  final String? sourceLabel;
-}
+  const new header(String text) : this(text: text, kind: .header);
 
-class GitDiffLine {
-  const GitDiffLine({required this.text, required this.kind});
-
-  const GitDiffLine.addition(String text)
-    : this(text: text, kind: GitDiffLineKind.addition);
-
-  const GitDiffLine.deletion(String text)
-    : this(text: text, kind: GitDiffLineKind.deletion);
-
-  const GitDiffLine.hunk(String text)
-    : this(text: text, kind: GitDiffLineKind.hunk);
-
-  const GitDiffLine.header(String text)
-    : this(text: text, kind: GitDiffLineKind.header);
-
-  const GitDiffLine.context(String text)
-    : this(text: text, kind: GitDiffLineKind.context);
-
-  final String text;
-  final GitDiffLineKind kind;
+  const new context(String text) : this(text: text, kind: .context);
 }

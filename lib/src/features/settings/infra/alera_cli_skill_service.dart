@@ -15,26 +15,18 @@ const String aleraComputerUseSkillName = 'alera-computer-use';
 const String aleraEmulatorSkillName = 'alera-emulator';
 const String aleraAgentCanvasSkillName = 'alera-agent-canvas';
 
-enum AleraAgentSkill {
+enum AleraAgentSkill(final String name) {
   cli(aleraCliSkillName),
   orchestration(aleraOrchestrationSkillName),
   computerUse(aleraComputerUseSkillName),
   emulator(aleraEmulatorSkillName),
-  agentCanvas(aleraAgentCanvasSkillName);
-
-  const AleraAgentSkill(this.name);
-
-  final String name;
+  agentCanvas(aleraAgentCanvasSkillName),
 }
 
-enum AleraCliSkillRunner {
+enum AleraCliSkillRunner(final String label) {
   auto('Auto'),
   npx('npx'),
-  bunx('bunx');
-
-  const AleraCliSkillRunner(this.label);
-
-  final String label;
+  bunx('bunx'),
 }
 
 String aleraCliSkillInstallCommand({
@@ -49,8 +41,8 @@ String aleraCliSkillInstallCommand({
   if (os == 'windows') {
     return _windowsAutoInstallCommand(skill);
   }
-  final npxCommand = _installCommandFor(AleraCliSkillRunner.npx, skill);
-  return '$npxCommand || ${_installCommandFor(AleraCliSkillRunner.bunx, skill)}';
+  final npxCommand = _installCommandFor(.npx, skill);
+  return '$npxCommand || ${_installCommandFor(.bunx, skill)}';
 }
 
 /// Builds the one-line command used by the settings action that installs every
@@ -80,8 +72,8 @@ String aleraAllSkillsInstallCommand({
 /// `Get-Command` beats a `$LASTEXITCODE` chain because a missing `npx` raises
 /// CommandNotFoundException without touching `$LASTEXITCODE`.
 String _windowsAutoInstallCommand(AleraAgentSkill skill) {
-  final npxCommand = _installCommandFor(AleraCliSkillRunner.npx, skill);
-  final bunxCommand = _installCommandFor(AleraCliSkillRunner.bunx, skill);
+  final npxCommand = _installCommandFor(.npx, skill);
+  final bunxCommand = _installCommandFor(.bunx, skill);
   return 'if (Get-Command npx -ErrorAction SilentlyContinue) '
       '{ $npxCommand } else { $bunxCommand }';
 }
@@ -104,19 +96,12 @@ List<String> _skillInstallArguments(AleraAgentSkill skill) => <String>[
   '--yes',
 ];
 
-class AleraCliSkillInstallAttempt {
-  const AleraCliSkillInstallAttempt({
-    required this.runner,
-    required this.exitCode,
-    required this.stdout,
-    required this.stderr,
-  });
-
-  final AleraCliSkillRunner runner;
-  final int exitCode;
-  final String stdout;
-  final String stderr;
-
+class const AleraCliSkillInstallAttempt({
+  required final AleraCliSkillRunner runner,
+  required final int exitCode,
+  required final String stdout,
+  required final String stderr,
+}) {
   bool get succeeded => exitCode == 0;
 
   /// Both streams, because installers split their diagnostics across them and
@@ -139,17 +124,11 @@ class AleraCliSkillInstallAttempt {
   }
 }
 
-class AleraCliSkillInstallResult {
-  const AleraCliSkillInstallResult({
-    required this.runner,
-    required this.skill,
-    required this.attempts,
-  });
-
-  final AleraCliSkillRunner runner;
-  final AleraAgentSkill skill;
-  final List<AleraCliSkillInstallAttempt> attempts;
-
+class const AleraCliSkillInstallResult({
+  required final AleraCliSkillRunner runner,
+  required final AleraAgentSkill skill,
+  required final List<AleraCliSkillInstallAttempt> attempts,
+}) {
   AleraCliSkillInstallAttempt get lastAttempt => attempts.last;
 
   bool get succeeded => lastAttempt.succeeded;
@@ -197,15 +176,15 @@ String _firstLine(String value) {
   return '';
 }
 
-class AleraCliSkillService {
-  AleraCliSkillService({
-    required this.processRunner,
-    CommandEnvironmentResolver? commandEnvironmentResolver,
-    this.workingDirectory,
-  }) : commandEnvironmentResolver =
-           commandEnvironmentResolver ?? UserCommandEnvironmentResolver();
+class AleraCliSkillService({
+  required final ProcessRunner processRunner,
+  CommandEnvironmentResolver? commandEnvironmentResolver,
+  this.workingDirectory,
+}) {
+  this
+    : commandEnvironmentResolver =
+          commandEnvironmentResolver ?? UserCommandEnvironmentResolver();
 
-  final ProcessRunner processRunner;
   final CommandEnvironmentResolver commandEnvironmentResolver;
 
   /// Overridable so tests do not depend on the machine's home directory.

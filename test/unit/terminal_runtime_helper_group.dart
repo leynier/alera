@@ -6,47 +6,43 @@ void _registerTerminalRuntimeHelperGroup() {
       'platform, font, separator, cursor, and color helpers cover branches',
       () {
         expect(
-          isSupportedNativeDesktopTerminalPlatformForTesting(
-            TargetPlatform.macOS,
-          ),
+          isSupportedNativeDesktopTerminalPlatformForTesting(.macOS),
           isTrue,
         );
         expect(
-          isSupportedNativeDesktopTerminalPlatformForTesting(
-            TargetPlatform.iOS,
-          ),
+          isSupportedNativeDesktopTerminalPlatformForTesting(.iOS),
           isFalse,
         );
         expect(
           isSupportedNativeDesktopTerminalPlatformForTesting(
-            TargetPlatform.macOS,
+            .macOS,
             isWeb: true,
           ),
           isFalse,
         );
 
         expect(
-          xtermTargetPlatformForTesting(TargetPlatform.macOS),
+          xtermTargetPlatformForTesting(.macOS),
           xterm.TerminalTargetPlatform.macos,
         );
         expect(
-          xtermTargetPlatformForTesting(TargetPlatform.windows),
+          xtermTargetPlatformForTesting(.windows),
           xterm.TerminalTargetPlatform.windows,
         );
         expect(
-          xtermTargetPlatformForTesting(TargetPlatform.linux),
+          xtermTargetPlatformForTesting(.linux),
           xterm.TerminalTargetPlatform.linux,
         );
         expect(
-          xtermTargetPlatformForTesting(TargetPlatform.android),
+          xtermTargetPlatformForTesting(.android),
           xterm.TerminalTargetPlatform.android,
         );
         expect(
-          xtermTargetPlatformForTesting(TargetPlatform.iOS),
+          xtermTargetPlatformForTesting(.iOS),
           xterm.TerminalTargetPlatform.ios,
         );
         expect(
-          xtermTargetPlatformForTesting(TargetPlatform.fuchsia),
+          xtermTargetPlatformForTesting(.fuchsia),
           xterm.TerminalTargetPlatform.fuchsia,
         );
         expect(
@@ -69,28 +65,19 @@ void _registerTerminalRuntimeHelperGroup() {
         );
 
         expect(
-          xtermCursorTypeForTesting(TerminalCursorShape.bar),
+          xtermCursorTypeForTesting(.bar),
           xterm.TerminalCursorType.verticalBar,
         );
         expect(
-          xtermCursorTypeForTesting(TerminalCursorShape.underline),
+          xtermCursorTypeForTesting(.underline),
           xterm.TerminalCursorType.underline,
         );
+        expect(terminalHardwareKeyboardOnlyForTesting(.windows), isFalse);
         expect(
-          terminalHardwareKeyboardOnlyForTesting(TargetPlatform.windows),
+          terminalHardwareKeyboardOnlyForTesting(.windows, isWeb: true),
           isFalse,
         );
-        expect(
-          terminalHardwareKeyboardOnlyForTesting(
-            TargetPlatform.windows,
-            isWeb: true,
-          ),
-          isFalse,
-        );
-        expect(
-          terminalHardwareKeyboardOnlyForTesting(TargetPlatform.macOS),
-          isFalse,
-        );
+        expect(terminalHardwareKeyboardOnlyForTesting(.macOS), isFalse);
 
         expect(colorFromHexForTesting('#112233'), const Color(0xFF112233));
         expect(colorFromHexForTesting(null), isNull);
@@ -110,27 +97,19 @@ void _registerTerminalRuntimeHelperGroup() {
         expect(theme.background, const Color(0xFF010203));
 
         expect(
-          isSupportedNativeDesktopTerminalPlatformForTesting(
-            TargetPlatform.linux,
-          ),
+          isSupportedNativeDesktopTerminalPlatformForTesting(.linux),
           isTrue,
         );
         expect(
-          isSupportedNativeDesktopTerminalPlatformForTesting(
-            TargetPlatform.windows,
-          ),
+          isSupportedNativeDesktopTerminalPlatformForTesting(.windows),
           isTrue,
         );
         expect(
-          isSupportedNativeDesktopTerminalPlatformForTesting(
-            TargetPlatform.android,
-          ),
+          isSupportedNativeDesktopTerminalPlatformForTesting(.android),
           isFalse,
         );
         expect(
-          isSupportedNativeDesktopTerminalPlatformForTesting(
-            TargetPlatform.fuchsia,
-          ),
+          isSupportedNativeDesktopTerminalPlatformForTesting(.fuchsia),
           isFalse,
         );
         expect(
@@ -537,7 +516,7 @@ void _registerTerminalRuntimeHelperGroup() {
               throw StateError('resize failed'),
           events: events,
         );
-        await Future<void>.delayed(Duration.zero);
+        await Future<void>.delayed(.zero);
 
         expect(emitted.whereType<TerminalPtyErrorEvent>(), hasLength(2));
       },

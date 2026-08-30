@@ -246,11 +246,10 @@ class _E2eTerminalRuntime implements TerminalRuntime {
   }
 }
 
-class _E2eTerminalSessionHandle extends TerminalSessionHandle {
-  _E2eTerminalSessionHandle({required this.workspace, required this.tab});
-
-  final Workspace workspace;
-  final WorkspaceTabRecord tab;
+class _E2eTerminalSessionHandle({
+  required final Workspace workspace,
+  required final WorkspaceTabRecord tab,
+}) extends TerminalSessionHandle {
   bool _started = false;
 
   @override

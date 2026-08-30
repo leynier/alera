@@ -115,8 +115,8 @@ List<CodexTimelineCell>? _reduceLegacyTaskCompletion(
       _newCell(
         id: 'assistant-${event.turnId}',
         turnId: event.turnId,
-        kind: CodexTimelineKind.assistantMessage,
-        status: CodexTimelineStatus.completed,
+        kind: .assistantMessage,
+        status: .completed,
         timestamp: event.timestamp,
         title: 'Codex',
         markdownText: text,
@@ -129,7 +129,7 @@ List<CodexTimelineCell>? _reduceLegacyTaskCompletion(
     for (final cell in next)
       if (cell.turnId == event.turnId && cell.isStreaming)
         cell.copyWith(
-          status: CodexTimelineStatus.completed,
+          status: .completed,
           isStreaming: false,
           updatedAt: event.timestamp,
         )
@@ -164,8 +164,8 @@ List<CodexTimelineCell>? _reduceTurnDiff(_CodexTimelineEvent event) {
     _newCell(
       id: id,
       turnId: event.turnId,
-      kind: CodexTimelineKind.diff,
-      status: CodexTimelineStatus.inProgress,
+      kind: .diff,
+      status: .inProgress,
       timestamp: event.timestamp,
       title: 'File changes',
       detailsText: diff,
@@ -219,7 +219,7 @@ List<CodexTimelineCell>? _reduceAssistantDelta(_CodexTimelineEvent event) {
       kind: finalAnswer || existingKind == CodexTimelineKind.assistantMessage
           ? CodexTimelineKind.assistantMessage
           : CodexTimelineKind.progressText,
-      status: CodexTimelineStatus.inProgress,
+      status: .inProgress,
       timestamp: event.timestamp,
       markdownText: '$current$delta',
       isStreaming: true,
@@ -255,8 +255,8 @@ List<CodexTimelineCell>? _reduceReasoningDelta(_CodexTimelineEvent event) {
       id: id,
       itemId: event.itemId.isEmpty ? null : event.itemId,
       turnId: event.turnId,
-      kind: CodexTimelineKind.reasoning,
-      status: CodexTimelineStatus.inProgress,
+      kind: .reasoning,
+      status: .inProgress,
       timestamp: event.timestamp,
       title: 'Reasoning',
       markdownText: '${existing?.markdownText ?? ''}$delta',
@@ -304,7 +304,7 @@ List<CodexTimelineCell>? _reduceItemOutputDelta(_CodexTimelineEvent event) {
       itemId: event.itemId.isEmpty ? null : event.itemId,
       turnId: event.turnId,
       kind: kind,
-      status: CodexTimelineStatus.inProgress,
+      status: .inProgress,
       timestamp: event.timestamp,
       title: _titleFor(event.type, event.lowerMethod),
       detailsText: '$details$delta',
@@ -339,7 +339,7 @@ List<CodexTimelineCell>? _reduceSubAgentEvent(_CodexTimelineEvent event) {
       id: id,
       itemId: event.itemId.isEmpty ? null : event.itemId,
       turnId: event.turnId,
-      kind: CodexTimelineKind.subAgent,
+      kind: .subAgent,
       status:
           event.lowerMethod.contains('completed') ||
               event.lowerMethod.contains('end')
@@ -378,8 +378,8 @@ List<CodexTimelineCell>? _reduceError(_CodexTimelineEvent event) {
     _newCell(
       id: 'error-${event.timestamp.microsecondsSinceEpoch}',
       turnId: event.turnId.isEmpty ? null : event.turnId,
-      kind: CodexTimelineKind.systemNotice,
-      status: CodexTimelineStatus.failed,
+      kind: .systemNotice,
+      status: .failed,
       timestamp: event.timestamp,
       title: 'Codex error',
       markdownText: text,
@@ -406,8 +406,8 @@ List<CodexTimelineCell>? _reduceReview(_CodexTimelineEvent event) {
       id: id,
       itemId: event.itemId.isEmpty ? null : event.itemId,
       turnId: event.turnId,
-      kind: CodexTimelineKind.toolCall,
-      status: CodexTimelineStatus.completed,
+      kind: .toolCall,
+      status: .completed,
       timestamp: event.timestamp,
       title: title,
       detailsText: review.isEmpty ? null : review,
@@ -424,8 +424,8 @@ List<CodexTimelineCell>? _reduceReview(_CodexTimelineEvent event) {
     _newCell(
       id: 'review-body-${event.turnId}',
       turnId: event.turnId,
-      kind: CodexTimelineKind.progressText,
-      status: CodexTimelineStatus.completed,
+      kind: .progressText,
+      status: .completed,
       timestamp: event.timestamp,
       markdownText: review,
       metadata: <String, Object?>{

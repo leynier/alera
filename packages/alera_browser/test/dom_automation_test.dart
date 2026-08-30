@@ -42,7 +42,7 @@ void main() {
     () {
       final script = aleraBrowserActionScript(
         const AleraBrowserAction(
-          kind: AleraBrowserActionKind.drag,
+          kind: .drag,
           elementRef: 'source',
           targetElementRef: 'target',
         ),
@@ -60,7 +60,7 @@ void main() {
   test('action events use the target element document realm', () {
     final script = aleraBrowserActionScript(
       const AleraBrowserAction(
-        kind: AleraBrowserActionKind.drag,
+        kind: .drag,
         elementRef: 'source',
         targetElementRef: 'target',
       ),

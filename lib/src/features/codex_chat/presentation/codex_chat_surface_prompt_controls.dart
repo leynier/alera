@@ -1,7 +1,7 @@
 part of 'codex_chat_surface.dart';
 
 class _CodexPromptOptionRow extends StatefulWidget {
-  const _CodexPromptOptionRow({
+  const new({
     required this.index,
     required this.label,
     required this.selected,
@@ -11,7 +11,7 @@ class _CodexPromptOptionRow extends StatefulWidget {
   }) : other = false,
        trailing = null;
 
-  const _CodexPromptOptionRow.other({
+  const new other({
     required this.label,
     required this.selected,
     required this.onTap,
@@ -53,10 +53,10 @@ class _CodexPromptOptionRowState extends State<_CodexPromptOptionRow> {
         mouseCursor: widget.onTap == null
             ? SystemMouseCursors.basic
             : SystemMouseCursors.click,
-        borderRadius: BorderRadius.circular(AleraTokens.radiusLg),
+        borderRadius: .circular(AleraTokens.radiusLg),
         child: AnimatedContainer(
           key: ValueKey<String>('codex-option-row-${widget.index ?? 'other'}'),
-          width: double.infinity,
+          width: .infinity,
           duration: AleraTokens.durationFast,
           margin: const EdgeInsets.only(bottom: AleraTokens.space2),
           padding: const EdgeInsets.symmetric(
@@ -74,7 +74,7 @@ class _CodexPromptOptionRowState extends State<_CodexPromptOptionRow> {
                 height: AleraTokens.space32,
                 alignment: Alignment.center,
                 decoration: BoxDecoration(
-                  shape: BoxShape.circle,
+                  shape: .circle,
                   border: Border.all(color: AleraTokens.border),
                 ),
                 child: widget.other
@@ -92,8 +92,8 @@ class _CodexPromptOptionRowState extends State<_CodexPromptOptionRow> {
               const SizedBox(width: AleraTokens.space12),
               Expanded(
                 child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: .min,
+                  crossAxisAlignment: .start,
                   children: <Widget>[
                     Row(
                       children: <Widget>[
@@ -172,25 +172,15 @@ class _CodexPromptOptionRowState extends State<_CodexPromptOptionRow> {
   }
 }
 
-class _CodexPromptInlineAnswerRow extends StatefulWidget {
-  const _CodexPromptInlineAnswerRow({
-    required this.controller,
-    required this.hintText,
-    required this.actionLabel,
-    required this.onChanged,
-    required this.onSkip,
-    required this.onSubmit,
-    this.obscureText = false,
-  });
-
-  final TextEditingController controller;
-  final String hintText;
-  final String actionLabel;
-  final VoidCallback onChanged;
-  final VoidCallback? onSkip;
-  final VoidCallback? onSubmit;
-  final bool obscureText;
-
+class const _CodexPromptInlineAnswerRow({
+  required final TextEditingController controller,
+  required final String hintText,
+  required final String actionLabel,
+  required final VoidCallback onChanged,
+  required final VoidCallback? onSkip,
+  required final VoidCallback? onSubmit,
+  final bool obscureText = false,
+}) extends StatefulWidget {
   @override
   State<_CodexPromptInlineAnswerRow> createState() =>
       _CodexPromptInlineAnswerRowState();
@@ -274,12 +264,12 @@ class _CodexPromptInlineAnswerRowState
                       fillColor: Colors.transparent,
                       hoverColor: Colors.transparent,
                       contentPadding: EdgeInsets.zero,
-                      border: InputBorder.none,
-                      enabledBorder: InputBorder.none,
-                      focusedBorder: InputBorder.none,
-                      disabledBorder: InputBorder.none,
-                      errorBorder: InputBorder.none,
-                      focusedErrorBorder: InputBorder.none,
+                      border: .none,
+                      enabledBorder: .none,
+                      focusedBorder: .none,
+                      disabledBorder: .none,
+                      errorBorder: .none,
+                      focusedErrorBorder: .none,
                     ),
                   ),
                 ),
@@ -294,7 +284,7 @@ class _CodexPromptInlineAnswerRowState
                     height: AleraTokens.space32,
                     alignment: Alignment.center,
                     decoration: BoxDecoration(
-                      shape: BoxShape.circle,
+                      shape: .circle,
                       border: Border.all(color: AleraTokens.border),
                     ),
                     child: const Icon(
@@ -316,12 +306,12 @@ class _CodexPromptInlineAnswerRowState
                         ? FilledButton(
                             onPressed: widget.onSubmit,
                             style: FilledButton.styleFrom(
-                              minimumSize: Size.zero,
+                              minimumSize: .zero,
                               padding: const EdgeInsets.symmetric(
                                 horizontal: AleraTokens.space12,
                                 vertical: AleraTokens.space6,
                               ),
-                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                              tapTargetSize: .shrinkWrap,
                               shape: const StadiumBorder(),
                             ),
                             child: Text(widget.actionLabel),
@@ -338,21 +328,18 @@ class _CodexPromptInlineAnswerRowState
   }
 }
 
-class _CodexSkipButton extends StatelessWidget {
-  const _CodexSkipButton({required this.onPressed});
-
-  final VoidCallback? onPressed;
-
+class const _CodexSkipButton({required final VoidCallback? onPressed})
+    extends StatelessWidget {
   @override
   Widget build(BuildContext context) => OutlinedButton(
     onPressed: onPressed,
     style: OutlinedButton.styleFrom(
-      minimumSize: Size.zero,
+      minimumSize: .zero,
       padding: const EdgeInsets.symmetric(
         horizontal: AleraTokens.space12,
         vertical: AleraTokens.space6,
       ),
-      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+      tapTargetSize: .shrinkWrap,
       shape: const StadiumBorder(),
     ),
     child: const Text('Skip'),

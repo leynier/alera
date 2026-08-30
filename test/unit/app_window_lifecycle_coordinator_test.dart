@@ -17,7 +17,7 @@ void main() {
       final coordinator = AppWindowLifecycleCoordinator(
         repository: repository,
         window: window,
-        saveDebounce: Duration.zero,
+        saveDebounce: .zero,
         logger: logger,
         closeGate: () async {
           gateCalls += 1;
@@ -52,7 +52,7 @@ void main() {
       final coordinator = AppWindowLifecycleCoordinator(
         repository: repository,
         window: window,
-        saveDebounce: Duration.zero,
+        saveDebounce: .zero,
         logger: logger,
       );
       await coordinator.start();
@@ -82,7 +82,7 @@ void main() {
       final coordinator = AppWindowLifecycleCoordinator(
         repository: repository,
         window: window,
-        saveDebounce: Duration.zero,
+        saveDebounce: .zero,
         logger: logger,
         closeGate: () {
           gateCalls += 1;
@@ -97,7 +97,7 @@ void main() {
       finishSave.complete();
       await _waitFor(() => records.isNotEmpty);
       gate.complete(false);
-      await Future<void>.delayed(Duration.zero);
+      await Future<void>.delayed(.zero);
 
       expect(records.single.message, 'failed to save app window state');
       expect(window.destroyCalls, 0);
@@ -111,7 +111,7 @@ void main() {
       final coordinator = AppWindowLifecycleCoordinator(
         repository: repository,
         window: window,
-        saveDebounce: Duration.zero,
+        saveDebounce: .zero,
         hideOnClose: () => true,
       );
       await coordinator.start();
@@ -130,7 +130,7 @@ void main() {
       final coordinator = AppWindowLifecycleCoordinator(
         repository: repository,
         window: window,
-        saveDebounce: Duration.zero,
+        saveDebounce: .zero,
         hideOnClose: () => true,
       );
       await coordinator.start();
@@ -157,7 +157,7 @@ void main() {
         final coordinator = AppWindowLifecycleCoordinator(
           repository: repository,
           window: window,
-          saveDebounce: Duration.zero,
+          saveDebounce: .zero,
           hideOnClose: () => true,
           closeGate: () {
             gateCalls += 1;
@@ -173,7 +173,7 @@ void main() {
         expect(gateCalls, 0);
 
         final quit = coordinator.requestQuit();
-        await Future<void>.delayed(Duration.zero);
+        await Future<void>.delayed(.zero);
         expect(gateCalls, 0);
         expect(window.hideCalls, 0);
         expect(window.destroyCalls, 0);
@@ -203,7 +203,7 @@ void main() {
       final coordinator = AppWindowLifecycleCoordinator(
         repository: _RecordingStateRepository(),
         window: window,
-        saveDebounce: Duration.zero,
+        saveDebounce: .zero,
         hideOnClose: () => true,
         closeGate: () {
           gateCalls += 1;
@@ -217,7 +217,7 @@ void main() {
       expect(gateCalls, 0);
 
       final quit = coordinator.requestQuit();
-      await Future<void>.delayed(Duration.zero);
+      await Future<void>.delayed(.zero);
       expect(gateCalls, 0);
       expect(window.destroyCalls, 0);
 
@@ -239,7 +239,7 @@ void main() {
       final coordinator = AppWindowLifecycleCoordinator(
         repository: repository,
         window: window,
-        saveDebounce: Duration.zero,
+        saveDebounce: .zero,
         closeGate: () {
           gateCalls += 1;
           return gate.future;
@@ -297,7 +297,7 @@ class _RecordingStateRepository implements AppWindowStateRepository {
 class _RecordingWindowController implements AppWindowController {
   final List<AppWindowEventListener> listeners = <AppWindowEventListener>[];
   final List<bool> preventCloseValues = <bool>[];
-  Rect bounds = const Rect.fromLTWH(20, 30, 800, 500);
+  Rect bounds = const .fromLTWH(20, 30, 800, 500);
   int destroyCalls = 0;
   int hideCalls = 0;
   int showCalls = 0;
@@ -400,6 +400,6 @@ Future<void> _waitFor(bool Function() predicate) async {
     if (DateTime.now().isAfter(deadline)) {
       throw TimeoutException('condition was not reached');
     }
-    await Future<void>.delayed(Duration.zero);
+    await Future<void>.delayed(.zero);
   }
 }

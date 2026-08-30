@@ -42,23 +42,14 @@ Future<void> main(List<String> args) async {
   stdout.writeln('Wrote ${bullets.length} entries to ${options.output}');
 }
 
-final class ReleaseNotesOptions {
-  const ReleaseNotesOptions({
-    required this.scope,
-    required this.repo,
-    required this.tag,
-    required this.target,
-    required this.output,
-    this.previousTag,
-  });
-
-  final String scope;
-  final String repo;
-  final String tag;
-  final String target;
-  final String output;
-  final String? previousTag;
-}
+final class const ReleaseNotesOptions({
+  required final String scope,
+  required final String repo,
+  required final String tag,
+  required final String target,
+  required final String output,
+  final String? previousTag,
+});
 
 ReleaseNotesOptions parseOptions(List<String> args) {
   final values = <String, String>{};
@@ -91,12 +82,10 @@ ReleaseNotesOptions parseOptions(List<String> args) {
   );
 }
 
-final class HistoryEntry {
-  const HistoryEntry({required this.sha, required this.subject});
-
-  final String sha;
-  final String subject;
-
+final class const HistoryEntry({
+  required final String sha,
+  required final String subject,
+}) {
   int? get pullRequestNumber {
     final match = RegExp(r'^Merge pull request #(\d+)\b').firstMatch(subject);
     return match == null ? null : int.parse(match.group(1)!);

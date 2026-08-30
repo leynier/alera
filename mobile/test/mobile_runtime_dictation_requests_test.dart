@@ -66,9 +66,8 @@ void main() {
   });
 }
 
-class _FakeMobileRuntimeDictationClient with MobileRuntimeDictationRequests {
-  _FakeMobileRuntimeDictationClient(this.runtimeCapabilities);
-
+class _FakeMobileRuntimeDictationClient(this.runtimeCapabilities)
+    with MobileRuntimeDictationRequests {
   @override
   final Set<String> runtimeCapabilities;
   String? lastType;

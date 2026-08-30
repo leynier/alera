@@ -16,7 +16,7 @@ void main() {
     );
     expect(
       await coordinator.decidePermission(
-        _permission(permission: BrowserPermissionType.displayCapture),
+        _permission(permission: .displayCapture),
       ),
       BrowserPermissionDecision.deny,
     );
@@ -34,16 +34,12 @@ void main() {
     );
 
     expect(
-      await coordinator.decidePermission(
-        _permission(permission: BrowserPermissionType.geolocation),
-      ),
+      await coordinator.decidePermission(_permission(permission: .geolocation)),
       BrowserPermissionDecision.allow,
     );
     registration.dispose();
     expect(
-      await coordinator.decidePermission(
-        _permission(permission: BrowserPermissionType.geolocation),
-      ),
+      await coordinator.decidePermission(_permission(permission: .geolocation)),
       BrowserPermissionDecision.deny,
     );
   });
@@ -61,7 +57,7 @@ void main() {
       BrowserDownloadRequest(
         pageId: 'page',
         url: Uri.parse('https://example.com/file.zip'),
-        requestedAt: DateTime.utc(2026),
+        requestedAt: .utc(2026),
       ),
     );
 
@@ -109,8 +105,8 @@ void main() {
 
     expect(
       await coordinator.decidePermissions(<BrowserPermissionRequest>[
-        _permission(permission: BrowserPermissionType.camera),
-        _permission(permission: BrowserPermissionType.microphone),
+        _permission(permission: .camera),
+        _permission(permission: .microphone),
       ]),
       BrowserPermissionDecision.deny,
     );
@@ -137,7 +133,7 @@ void main() {
           pageId: 'page',
           host: 'localhost',
           fingerprintSha256: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
-          requestedAt: DateTime.utc(2026),
+          requestedAt: .utc(2026),
         ),
       ),
       isTrue,
@@ -153,6 +149,6 @@ BrowserPermissionRequest _permission({
     pageId: 'page',
     origin: 'https://example.com',
     permission: permission,
-    requestedAt: DateTime.utc(2026),
+    requestedAt: .utc(2026),
   );
 }

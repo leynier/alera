@@ -21,17 +21,14 @@ abstract interface class TerminalHostProcessLauncher {
 }
 
 // coverage:ignore-start
-final class DefaultTerminalHostProcessLauncher
-    implements TerminalHostProcessLauncher {
-  factory DefaultTerminalHostProcessLauncher({AleraCliResolver? cliResolver}) {
+final class DefaultTerminalHostProcessLauncher._(
+  final AleraCliResolver _cliResolver,
+) implements TerminalHostProcessLauncher {
+  factory({AleraCliResolver? cliResolver}) {
     return DefaultTerminalHostProcessLauncher._(
       cliResolver ?? DefaultAleraCliResolver(),
     );
   }
-
-  DefaultTerminalHostProcessLauncher._(this._cliResolver);
-
-  final AleraCliResolver _cliResolver;
 
   @override
   Future<void> start({
@@ -61,7 +58,7 @@ final class DefaultTerminalHostProcessLauncher
         if (config.crashReporting) '--crash-reporting',
       ],
       workingDirectory: command.workingDirectory,
-      mode: ProcessStartMode.detached,
+      mode: .detached,
       environment: await _terminalHostEnvironment(),
     );
   }

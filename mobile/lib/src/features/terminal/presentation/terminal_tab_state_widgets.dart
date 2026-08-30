@@ -1,10 +1,8 @@
 part of 'terminal_tab_view.dart';
 
-class _OutputEndedBanner extends StatelessWidget {
-  const _OutputEndedBanner({required this.onReconnect});
-
-  final Future<void> Function() onReconnect;
-
+class const _OutputEndedBanner({
+  required final Future<void> Function() onReconnect,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ColoredBox(
@@ -34,9 +32,7 @@ class _OutputEndedBanner extends StatelessWidget {
   }
 }
 
-class _DirectModeBanner extends StatelessWidget {
-  const _DirectModeBanner();
-
+class const _DirectModeBanner() extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ColoredBox(
@@ -61,18 +57,16 @@ class _DirectModeBanner extends StatelessWidget {
   }
 }
 
-class _TerminalRestoreState extends StatelessWidget {
-  const _TerminalRestoreState({required this.progress});
-
-  final TerminalRestoreProgress progress;
-
+class const _TerminalRestoreState({
+  required final TerminalRestoreProgress progress,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return DecoratedBox(
       decoration: const BoxDecoration(color: AleraTokens.background),
       child: Center(
         child: Column(
-          mainAxisSize: MainAxisSize.min,
+          mainAxisSize: .min,
           children: <Widget>[
             Text(
               'Restoring terminal',
@@ -92,11 +86,9 @@ class _TerminalRestoreState extends StatelessWidget {
 
 enum _TerminalLoadingOperation { starting, reconnecting, restarting }
 
-class _SessionLoading extends StatefulWidget {
-  const _SessionLoading({required this.operation});
-
-  final _TerminalLoadingOperation operation;
-
+class const _SessionLoading({
+  required final _TerminalLoadingOperation operation,
+}) extends StatefulWidget {
   @override
   State<_SessionLoading> createState() => _SessionLoadingState();
 }
@@ -145,7 +137,7 @@ class _SessionLoadingState extends State<_SessionLoading> {
     };
     return Center(
       child: Column(
-        mainAxisSize: MainAxisSize.min,
+        mainAxisSize: .min,
         children: <Widget>[
           const CircularProgressIndicator(),
           const SizedBox(height: AleraTokens.spaceMd),
@@ -164,24 +156,18 @@ class _SessionLoadingState extends State<_SessionLoading> {
   }
 }
 
-class _SessionError extends StatelessWidget {
-  const _SessionError({
-    required this.error,
-    required this.onReconnect,
-    this.onRestart,
-  });
-
-  final Object error;
-  final Future<void> Function() onReconnect;
-  final Future<void> Function()? onRestart;
-
+class const _SessionError({
+  required final Object error,
+  required final Future<void> Function() onReconnect,
+  final Future<void> Function()? onRestart,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Center(
       child: Padding(
         padding: AleraTokens.contentPadding,
         child: Column(
-          mainAxisSize: MainAxisSize.min,
+          mainAxisSize: .min,
           children: <Widget>[
             Icon(
               Icons.terminal,
@@ -196,14 +182,14 @@ class _SessionError extends StatelessWidget {
             const SizedBox(height: AleraTokens.spaceSm),
             Text(
               error.toString(),
-              textAlign: TextAlign.center,
+              textAlign: .center,
               style: Theme.of(context).textTheme.bodyMedium,
             ),
             const SizedBox(height: AleraTokens.spaceLg),
             Wrap(
               spacing: AleraTokens.spaceSm,
               runSpacing: AleraTokens.spaceSm,
-              alignment: WrapAlignment.center,
+              alignment: .center,
               children: <Widget>[
                 FilledButton.icon(
                   onPressed: () => unawaited(onReconnect()),

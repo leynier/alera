@@ -18,18 +18,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gpt_markdown/gpt_markdown.dart';
 
-class WorkspaceMarkdownViewerSurface extends ConsumerStatefulWidget {
-  const WorkspaceMarkdownViewerSurface({
-    super.key,
-    required this.workspace,
-    required this.tab,
-    required this.onOpenEditorTab,
-  });
-
-  final Workspace workspace;
-  final WorkspaceTabRecord tab;
-  final ValueChanged<String> onOpenEditorTab;
-
+class const WorkspaceMarkdownViewerSurface({
+  super.key,
+  required final Workspace workspace,
+  required final WorkspaceTabRecord tab,
+  required final ValueChanged<String> onOpenEditorTab,
+}) extends ConsumerStatefulWidget {
   @override
   ConsumerState<WorkspaceMarkdownViewerSurface> createState() =>
       _WorkspaceMarkdownViewerSurfaceState();
@@ -93,7 +87,7 @@ class _WorkspaceMarkdownViewerSurfaceState
           padding: const EdgeInsets.all(AleraTokens.space24),
           child: GptMarkdownTheme(
             gptThemeData: GptMarkdownThemeData(
-              brightness: Brightness.dark,
+              brightness: .dark,
               linkColor: AleraTokens.info,
               highlightColor: AleraTokens.accentSubtle,
             ),
@@ -116,7 +110,7 @@ class _WorkspaceMarkdownViewerSurfaceState
     return DecoratedBox(
       decoration: const BoxDecoration(color: AleraTokens.bg),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
+        crossAxisAlignment: .stretch,
         children: <Widget>[
           _MarkdownViewerFileBar(
             path: workspaceEditorDisplayPath(
@@ -267,13 +261,13 @@ class _WorkspaceMarkdownViewerSurfaceState
   Future<void> _openLink(String rawUrl) async {
     final uri = Uri.tryParse(rawUrl);
     if (!isSupportedMarkdownViewerLinkUri(uri)) {
-      _showToast('Link cannot be opened', tone: AleraToastTone.error);
+      _showToast('Link cannot be opened', tone: .error);
       return;
     }
     try {
       await ref.read(externalUriLauncherProvider).open(uri!);
     } catch (_) {
-      _showToast('Link cannot be opened', tone: AleraToastTone.error);
+      _showToast('Link cannot be opened', tone: .error);
     }
   }
 
@@ -313,19 +307,12 @@ bool shouldUpdateMarkdownViewerDirtyContent({
       currentContent != dirtyEditorContent;
 }
 
-class _MarkdownViewerFileBar extends StatelessWidget {
-  const _MarkdownViewerFileBar({
-    required this.path,
-    required this.loading,
-    required this.onRefresh,
-    required this.onOpenEditor,
-  });
-
-  final String path;
-  final bool loading;
-  final VoidCallback onRefresh;
-  final VoidCallback onOpenEditor;
-
+class const _MarkdownViewerFileBar({
+  required final String path,
+  required final bool loading,
+  required final VoidCallback onRefresh,
+  required final VoidCallback onOpenEditor,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
@@ -336,7 +323,7 @@ class _MarkdownViewerFileBar extends StatelessWidget {
           children: <Widget>[
             AleraFileIcon(
               pathOrName: path,
-              kind: AleraFileIconKind.file,
+              kind: .file,
               size: 16,
               fallbackColor: AleraTokens.foregroundMuted,
             ),
@@ -345,7 +332,7 @@ class _MarkdownViewerFileBar extends StatelessWidget {
               child: Text(
                 path,
                 maxLines: 1,
-                overflow: TextOverflow.ellipsis,
+                overflow: .ellipsis,
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
                   color: AleraTokens.foregroundMuted,
                   fontFamily: 'JetBrains Mono',
@@ -371,11 +358,8 @@ class _MarkdownViewerFileBar extends StatelessWidget {
   }
 }
 
-class _MarkdownViewerMessage extends StatelessWidget {
-  const _MarkdownViewerMessage({required this.message});
-
-  final String message;
-
+class const _MarkdownViewerMessage({required final String message})
+    extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Center(

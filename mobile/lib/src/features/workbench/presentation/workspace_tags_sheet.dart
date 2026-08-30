@@ -18,7 +18,7 @@ Future<void> showWorkspaceTagsSheet(
         child: ValueListenableBuilder<Set<String>>(
           valueListenable: selected,
           builder: (context, values, _) => Column(
-            mainAxisSize: MainAxisSize.min,
+            mainAxisSize: .min,
             children: <Widget>[
               const ListTile(title: Text('Workspace Tags')),
               const Divider(height: 1),
@@ -138,9 +138,9 @@ Future<String?> _promptForTagName(BuildContext context) async {
 enum _TagActionKind { apply, create, delete }
 
 class _TagAction {
-  const _TagAction.apply() : kind = _TagActionKind.apply, tagId = null;
-  const _TagAction.create() : kind = _TagActionKind.create, tagId = null;
-  const _TagAction.delete(this.tagId) : kind = _TagActionKind.delete;
+  const new apply() : kind = _TagActionKind.apply, tagId = null;
+  const new create() : kind = _TagActionKind.create, tagId = null;
+  const new delete(this.tagId) : kind = _TagActionKind.delete;
 
   final _TagActionKind kind;
   final String? tagId;

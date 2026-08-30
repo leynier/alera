@@ -20,9 +20,8 @@ abstract interface class AgentSurfaceRenderer {
 /// The renderer pins the accepted document contract to one version. Agent
 /// payloads are data only: component names and action kinds are allowlisted by
 /// this renderer and validated again by the runtime host.
-final class PinnedGenUiAgentSurfaceRenderer implements AgentSurfaceRenderer {
-  const PinnedGenUiAgentSurfaceRenderer();
-
+final class const PinnedGenUiAgentSurfaceRenderer()
+    implements AgentSurfaceRenderer {
   static const int version = 1;
 
   @override
@@ -35,12 +34,10 @@ final class PinnedGenUiAgentSurfaceRenderer implements AgentSurfaceRenderer {
   }
 }
 
-class _AgentSurfaceDocument extends StatelessWidget {
-  const _AgentSurfaceDocument({required this.canvas, required this.onAction});
-
-  final AgentCanvas canvas;
-  final AgentCanvasActionCallback onAction;
-
+class const _AgentSurfaceDocument({
+  required final AgentCanvas canvas,
+  required final AgentCanvasActionCallback onAction,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final components = canvas.document['components'];
@@ -127,11 +124,10 @@ String? _decisionId(Map<String, Object?> props, AgentCanvas canvas) {
   return null;
 }
 
-class AgentRunHeader extends StatelessWidget {
-  const AgentRunHeader({super.key, required this.props});
-
-  final Map<String, Object?> props;
-
+class const AgentRunHeader({
+  super.key,
+  required final Map<String, Object?> props,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return _SurfaceCard(
@@ -152,11 +148,8 @@ class AgentRunHeader extends StatelessWidget {
   }
 }
 
-class TaskProgress extends StatelessWidget {
-  const TaskProgress({super.key, required this.props});
-
-  final Map<String, Object?> props;
-
+class const TaskProgress({super.key, required final Map<String, Object?> props})
+    extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final completed = _number(props, 'completed');
@@ -164,7 +157,7 @@ class TaskProgress extends StatelessWidget {
     final progress = (completed / total).clamp(0.0, 1.0);
     return _SurfaceCard(
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
+        crossAxisAlignment: .stretch,
         children: <Widget>[
           Text(_string(props, 'label', fallback: 'Task Progress')),
           const SizedBox(height: AleraTokens.space8),
@@ -180,18 +173,12 @@ class TaskProgress extends StatelessWidget {
   }
 }
 
-class DecisionRequest extends StatelessWidget {
-  const DecisionRequest({
-    super.key,
-    required this.props,
-    required this.onAction,
-    this.decisionId,
-  });
-
-  final Map<String, Object?> props;
-  final AgentCanvasActionCallback onAction;
-  final String? decisionId;
-
+class const DecisionRequest({
+  super.key,
+  required final Map<String, Object?> props,
+  required final AgentCanvasActionCallback onAction,
+  final String? decisionId,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final options = props['options'];
@@ -200,7 +187,7 @@ class DecisionRequest extends StatelessWidget {
     return _SurfaceCard(
       emphasized: true,
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
+        crossAxisAlignment: .stretch,
         children: <Widget>[
           Text(
             'Decision Request',
@@ -230,11 +217,10 @@ class DecisionRequest extends StatelessWidget {
   }
 }
 
-class ChangeSummary extends StatelessWidget {
-  const ChangeSummary({super.key, required this.props});
-
-  final Map<String, Object?> props;
-
+class const ChangeSummary({
+  super.key,
+  required final Map<String, Object?> props,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return _SurfaceCard(
@@ -247,29 +233,24 @@ class ChangeSummary extends StatelessWidget {
   }
 }
 
-class FileReferenceList extends StatelessWidget {
-  const FileReferenceList({
-    super.key,
-    required this.props,
-    required this.onAction,
-  });
-
-  final Map<String, Object?> props;
-  final AgentCanvasActionCallback onAction;
-
+class const FileReferenceList({
+  super.key,
+  required final Map<String, Object?> props,
+  required final AgentCanvasActionCallback onAction,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final files = props['files'];
     final values = files is List ? files : const <Object?>[];
     return _SurfaceCard(
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
+        crossAxisAlignment: .stretch,
         children: <Widget>[
           const Text('Files'),
           const SizedBox(height: AleraTokens.space6),
           for (final file in values)
             Material(
-              type: MaterialType.transparency,
+              type: .transparency,
               child: ListTile(
                 dense: true,
                 contentPadding: EdgeInsets.zero,
@@ -289,18 +270,17 @@ class FileReferenceList extends StatelessWidget {
   }
 }
 
-class ValidationResults extends StatelessWidget {
-  const ValidationResults({super.key, required this.props});
-
-  final Map<String, Object?> props;
-
+class const ValidationResults({
+  super.key,
+  required final Map<String, Object?> props,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final results = props['results'];
     final values = results is List ? results : const <Object?>[];
     return _SurfaceCard(
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
+        crossAxisAlignment: .stretch,
         children: <Widget>[
           const Text('Validation Results'),
           const SizedBox(height: AleraTokens.space6),
@@ -315,11 +295,8 @@ class ValidationResults extends StatelessWidget {
   }
 }
 
-class RiskSummary extends StatelessWidget {
-  const RiskSummary({super.key, required this.props});
-
-  final Map<String, Object?> props;
-
+class const RiskSummary({super.key, required final Map<String, Object?> props})
+    extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final level = _string(props, 'level', fallback: 'unknown');
@@ -338,12 +315,11 @@ class RiskSummary extends StatelessWidget {
   }
 }
 
-class ArtifactCard extends StatelessWidget {
-  const ArtifactCard({super.key, required this.props, required this.onAction});
-
-  final Map<String, Object?> props;
-  final AgentCanvasActionCallback onAction;
-
+class const ArtifactCard({
+  super.key,
+  required final Map<String, Object?> props,
+  required final AgentCanvasActionCallback onAction,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final artifactId = _string(props, 'artifactId');
@@ -367,12 +343,11 @@ class ArtifactCard extends StatelessWidget {
   }
 }
 
-class AgentNotice extends StatelessWidget {
-  const AgentNotice({super.key, required this.tone, required this.text});
-
-  final String tone;
-  final String text;
-
+class const AgentNotice({
+  super.key,
+  required final String tone,
+  required final String text,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final color = switch (tone) {
@@ -383,7 +358,7 @@ class AgentNotice extends StatelessWidget {
     };
     return _SurfaceCard(
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: .start,
         children: <Widget>[
           Icon(AleraIcons.info, size: 17, color: color),
           const SizedBox(width: AleraTokens.space8),
@@ -394,12 +369,11 @@ class AgentNotice extends StatelessWidget {
   }
 }
 
-class ActionGroup extends StatelessWidget {
-  const ActionGroup({super.key, required this.props, required this.onAction});
-
-  final Map<String, Object?> props;
-  final AgentCanvasActionCallback onAction;
-
+class const ActionGroup({
+  super.key,
+  required final Map<String, Object?> props,
+  required final AgentCanvasActionCallback onAction,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final actions = props['actions'];

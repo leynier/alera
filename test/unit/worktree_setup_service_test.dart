@@ -28,8 +28,8 @@ void main() {
         id: 'project-1',
         name: 'Project',
         repoPath: repoDir.path,
-        createdAt: DateTime.utc(2026),
-        updatedAt: DateTime.utc(2026),
+        createdAt: .utc(2026),
+        updatedAt: .utc(2026),
       );
       workspace = Workspace(
         id: 'workspace-1',
@@ -37,10 +37,10 @@ void main() {
         name: 'Feature',
         branch: 'feature/setup',
         path: workspaceDir.path,
-        createdAt: DateTime.utc(2026),
-        updatedAt: DateTime.utc(2026),
-        kind: WorkspaceKind.linked,
-        status: WorkspaceStatus.active,
+        createdAt: .utc(2026),
+        updatedAt: .utc(2026),
+        kind: .linked,
+        status: .active,
       );
       processRunner = _FakeProcessRunner();
     });
@@ -54,7 +54,7 @@ void main() {
           .writeAsString('{}');
       final service = WorktreeSetupService(
         processRunner: processRunner,
-        operatingSystem: WorktreeSetupOperatingSystem.posix,
+        operatingSystem: .posix,
       );
 
       final report = await service.run(
@@ -138,7 +138,7 @@ void main() {
       processRunner.exitCodeByCommand['make fail'] = 2;
       final service = WorktreeSetupService(
         processRunner: processRunner,
-        operatingSystem: WorktreeSetupOperatingSystem.posix,
+        operatingSystem: .posix,
       );
 
       final report = await service.run(
@@ -165,7 +165,7 @@ void main() {
         commandEnvironmentResolver: _FakeCommandEnvironmentResolver(
           environment,
         ),
-        operatingSystem: WorktreeSetupOperatingSystem.posix,
+        operatingSystem: .posix,
       );
 
       final report = await service.run(
@@ -183,7 +183,7 @@ void main() {
     test('closes setup command stdin immediately', () async {
       final service = WorktreeSetupService(
         processRunner: processRunner,
-        operatingSystem: WorktreeSetupOperatingSystem.posix,
+        operatingSystem: .posix,
       );
 
       final report = await service.run(
@@ -206,7 +206,7 @@ void main() {
       processRunner.stderrByCommand['make loud'] = stderr;
       final service = WorktreeSetupService(
         processRunner: processRunner,
-        operatingSystem: WorktreeSetupOperatingSystem.posix,
+        operatingSystem: .posix,
       );
 
       final report = await service.run(
@@ -230,14 +230,14 @@ void main() {
     test('builds platform shell invocations', () {
       final posix = shellInvocationFor(
         command: 'echo hi',
-        operatingSystem: WorktreeSetupOperatingSystem.posix,
+        operatingSystem: .posix,
       );
       expect(posix.executable, '/bin/sh');
       expect(posix.arguments, <String>['-c', 'echo hi']);
 
       final windows = shellInvocationFor(
         command: 'echo hi',
-        operatingSystem: WorktreeSetupOperatingSystem.windows,
+        operatingSystem: .windows,
       );
       expect(windows.executable, 'cmd.exe');
       expect(windows.arguments, <String>['/d', '/s', '/c', 'echo hi']);
@@ -310,11 +310,9 @@ class _FakeProcessRunner implements ProcessRunner {
   }
 }
 
-class _FakeCommandEnvironmentResolver implements CommandEnvironmentResolver {
-  const _FakeCommandEnvironmentResolver(this._environment);
-
-  final Map<String, String> _environment;
-
+class const _FakeCommandEnvironmentResolver(
+  final Map<String, String> _environment,
+) implements CommandEnvironmentResolver {
   @override
   Future<Map<String, String>> environment() async => _environment;
 
@@ -334,16 +332,9 @@ Stream<List<int>> _streamText(String value) {
   ]);
 }
 
-class _ProcessCall {
-  const _ProcessCall({
-    required this.executable,
-    required this.arguments,
-    required this.workingDirectory,
-    required this.environment,
-  });
-
-  final String executable;
-  final List<String> arguments;
-  final String? workingDirectory;
-  final Map<String, String>? environment;
-}
+class const _ProcessCall({
+  required final String executable,
+  required final List<String> arguments,
+  required final String? workingDirectory,
+  required final Map<String, String>? environment,
+});

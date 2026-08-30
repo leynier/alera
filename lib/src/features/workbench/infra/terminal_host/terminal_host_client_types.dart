@@ -3,7 +3,7 @@ part of 'terminal_host_client.dart';
 final class _TerminalHostConnection {
   /// Socket owned by this isolate. Used when the reader isolate could not be
   /// spawned, so a terminal never depends on the offload succeeding.
-  _TerminalHostConnection(
+  new(
     this._socket, {
     required this.supportsRuntime,
     required this.supportsOrchestration,
@@ -26,7 +26,7 @@ final class _TerminalHostConnection {
 
   /// Socket owned by a reader isolate, which also does the framing and decodes
   /// terminal output, so nothing here touches raw bytes.
-  _TerminalHostConnection.isolate(
+  new isolate(
     _TerminalHostSocketReader reader, {
     required this.supportsRuntime,
     required this.supportsOrchestration,
@@ -108,7 +108,7 @@ final class _TerminalHostConnection {
 
   void completeAuthenticationError(Object error) {
     if (!_authenticated.isCompleted) {
-      _authenticated.completeError(error, StackTrace.current);
+      _authenticated.completeError(error, .current);
     }
   }
 
@@ -135,51 +135,31 @@ final class _TerminalHostConnection {
   }
 }
 
-final class _TerminalHostPaths {
-  const _TerminalHostPaths({
-    required this.runtimeDir,
-    required this.controlFile,
-    required this.runtimeControlFile,
-  });
+final class const _TerminalHostPaths({
+  required final Directory runtimeDir,
+  required final File controlFile,
+  required final File runtimeControlFile,
+});
 
-  final Directory runtimeDir;
-  final File controlFile;
-  final File runtimeControlFile;
-}
+final class const _TerminalHostControl({
+  required final int port,
+  required final String token,
+  required final bool supportsRuntime,
+  required final bool supportsOrchestration,
+  final bool supportsBinaryFrames = false,
+  final bool supportsTerminalRestart = false,
+  final bool supportsDeferredInput = false,
+  final bool supportsTerminalPulse = false,
+  final bool supportsRemoteAiDictation = false,
+});
 
-final class _TerminalHostControl {
-  const _TerminalHostControl({
-    required this.port,
-    required this.token,
-    required this.supportsRuntime,
-    required this.supportsOrchestration,
-    this.supportsBinaryFrames = false,
-    this.supportsTerminalRestart = false,
-    this.supportsDeferredInput = false,
-    this.supportsTerminalPulse = false,
-    this.supportsRemoteAiDictation = false,
-  });
+final class const _PendingHostRequest(
+  final _TerminalHostConnection connection,
+  final Completer<Object?> completer,
+);
 
-  final int port;
-  final String token;
-  final bool supportsRuntime;
-  final bool supportsOrchestration;
-  final bool supportsBinaryFrames;
-  final bool supportsTerminalRestart;
-  final bool supportsDeferredInput;
-  final bool supportsTerminalPulse;
-  final bool supportsRemoteAiDictation;
-}
-
-final class _PendingHostRequest {
-  const _PendingHostRequest(this.connection, this.completer);
-
-  final _TerminalHostConnection connection;
-  final Completer<Object?> completer;
-}
-
-final class _RuntimeMutationInProgressError extends StateError {
-  _RuntimeMutationInProgressError() : super(_runtimeMutationInProgressMessage);
+final class _RuntimeMutationInProgressError() extends StateError {
+  this : super(_runtimeMutationInProgressMessage);
 }
 
 enum _HostConnectionRole { terminal, runtime }

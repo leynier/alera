@@ -4,21 +4,13 @@ enum SpeechRecognitionMode { batch, streaming }
 
 enum SpeechExecutionProvider { auto, cpu, coreMl, qnnHtp, nnApi }
 
-class SpeechModelArtifact {
-  const SpeechModelArtifact({
-    required this.id,
-    required this.relativePath,
-    required this.uri,
-    required this.sha256,
-    required this.sizeBytes,
-  });
-
-  final String id;
-  final String relativePath;
-  final String uri;
-  final String sha256;
-  final int sizeBytes;
-
+class const SpeechModelArtifact({
+  required final String id,
+  required final String relativePath,
+  required final String uri,
+  required final String sha256,
+  required final int sizeBytes,
+}) {
   Map<String, Object?> toJson() => <String, Object?>{
     'id': id,
     'relativePath': relativePath,
@@ -27,53 +19,43 @@ class SpeechModelArtifact {
     'sizeBytes': sizeBytes,
   };
 
-  factory SpeechModelArtifact.fromJson(Map<String, Object?> json) =>
-      SpeechModelArtifact(
-        id: _requiredString(json, 'id'),
-        relativePath: _requiredString(json, 'relativePath'),
-        uri: _requiredString(json, 'uri'),
-        sha256: _requiredString(json, 'sha256'),
-        sizeBytes: _requiredInt(json, 'sizeBytes'),
-      );
+  factory fromJson(Map<String, Object?> json) => SpeechModelArtifact(
+    id: _requiredString(json, 'id'),
+    relativePath: _requiredString(json, 'relativePath'),
+    uri: _requiredString(json, 'uri'),
+    sha256: _requiredString(json, 'sha256'),
+    sizeBytes: _requiredInt(json, 'sizeBytes'),
+  );
 }
 
-class SpeechModelDescriptor {
-  SpeechModelDescriptor({
-    required this.id,
-    required this.label,
-    required this.description,
-    required this.runtime,
-    required this.mode,
-    required List<SpeechModelArtifact> artifacts,
-    this.languages = const <String>[],
-    this.supportsAutomaticLanguageDetection = false,
-    this.supportsInitialPrompt = false,
-    this.supportedProviders = const <SpeechExecutionProvider>{
-      SpeechExecutionProvider.cpu,
-    },
-    SpeechExecutionProvider? preferredProvider,
-    this.storageVersion = 1,
-  }) : artifacts = List<SpeechModelArtifact>.unmodifiable(artifacts),
-       preferredProvider =
-           preferredProvider ??
-           (supportedProviders.contains(SpeechExecutionProvider.auto)
-               ? SpeechExecutionProvider.auto
-               : SpeechExecutionProvider.cpu) {
+class SpeechModelDescriptor({
+  required final String id,
+  required final String label,
+  required final String description,
+  required final SpeechModelRuntime runtime,
+  required final SpeechRecognitionMode mode,
+  required List<SpeechModelArtifact> artifacts,
+  final List<String> languages = const <String>[],
+  final bool supportsAutomaticLanguageDetection = false,
+  final bool supportsInitialPrompt = false,
+  final Set<SpeechExecutionProvider> supportedProviders =
+      const <SpeechExecutionProvider>{SpeechExecutionProvider.cpu},
+  SpeechExecutionProvider? preferredProvider,
+  final int storageVersion = 1,
+}) {
+  this
+    : artifacts = List<SpeechModelArtifact>.unmodifiable(artifacts),
+      preferredProvider =
+          preferredProvider ??
+          (supportedProviders.contains(SpeechExecutionProvider.auto)
+              ? SpeechExecutionProvider.auto
+              : SpeechExecutionProvider.cpu) {
     _validate();
   }
 
-  final String id;
-  final String label;
-  final String description;
-  final SpeechModelRuntime runtime;
-  final SpeechRecognitionMode mode;
   final List<SpeechModelArtifact> artifacts;
-  final List<String> languages;
-  final bool supportsAutomaticLanguageDetection;
-  final bool supportsInitialPrompt;
-  final Set<SpeechExecutionProvider> supportedProviders;
+
   final SpeechExecutionProvider preferredProvider;
-  final int storageVersion;
 
   Map<String, Object?> toJson() => <String, Object?>{
     'id': id,
@@ -92,7 +74,7 @@ class SpeechModelDescriptor {
     'storageVersion': storageVersion,
   };
 
-  factory SpeechModelDescriptor.fromJson(Map<String, Object?> json) {
+  factory fromJson(Map<String, Object?> json) {
     final rawArtifacts = json['artifacts'];
     final rawProviders = json['supportedProviders'];
     return SpeechModelDescriptor(

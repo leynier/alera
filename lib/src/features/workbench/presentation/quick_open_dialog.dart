@@ -15,9 +15,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 const _quickOpenResultLimit = 50;
 
-class QuickOpenDialog extends ConsumerStatefulWidget {
-  const QuickOpenDialog({super.key});
-
+class const QuickOpenDialog({super.key}) extends ConsumerStatefulWidget {
   @override
   ConsumerState<QuickOpenDialog> createState() => _QuickOpenDialogState();
 }
@@ -313,7 +311,7 @@ class _QuickOpenDialogState extends ConsumerState<QuickOpenDialog> {
           child: Padding(
             padding: const EdgeInsets.all(AleraTokens.space20),
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
+              crossAxisAlignment: .stretch,
               children: <Widget>[
                 Row(
                   children: <Widget>[
@@ -324,7 +322,7 @@ class _QuickOpenDialogState extends ConsumerState<QuickOpenDialog> {
                         child: Text(
                           workspace.name,
                           maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
+                          overflow: .ellipsis,
                           style: theme.textTheme.bodySmall?.copyWith(
                             color: AleraTokens.foregroundMuted,
                           ),
@@ -363,7 +361,7 @@ class _QuickOpenDialogState extends ConsumerState<QuickOpenDialog> {
     if (_loading) {
       return const Center(
         child: Column(
-          mainAxisSize: MainAxisSize.min,
+          mainAxisSize: .min,
           children: <Widget>[
             CircularProgressIndicator(),
             SizedBox(height: AleraTokens.space12),
@@ -377,24 +375,24 @@ class _QuickOpenDialogState extends ConsumerState<QuickOpenDialog> {
         child: Padding(
           padding: const EdgeInsets.all(AleraTokens.space16),
           child: Column(
-            mainAxisSize: MainAxisSize.min,
+            mainAxisSize: .min,
             children: <Widget>[
               Icon(AleraIcons.error, color: AleraTokens.error),
               const SizedBox(height: AleraTokens.space8),
               Text(
                 'Could not load workspace files.',
                 style: theme.textTheme.bodyMedium,
-                textAlign: TextAlign.center,
+                textAlign: .center,
               ),
               const SizedBox(height: AleraTokens.space4),
               Text(
                 _loadError.toString(),
                 maxLines: 3,
-                overflow: TextOverflow.ellipsis,
+                overflow: .ellipsis,
                 style: theme.textTheme.bodySmall?.copyWith(
                   color: AleraTokens.foregroundMuted,
                 ),
-                textAlign: TextAlign.center,
+                textAlign: .center,
               ),
             ],
           ),
@@ -411,7 +409,7 @@ class _QuickOpenDialogState extends ConsumerState<QuickOpenDialog> {
           style: theme.textTheme.bodyMedium?.copyWith(
             color: AleraTokens.foregroundMuted,
           ),
-          textAlign: TextAlign.center,
+          textAlign: .center,
         ),
       );
     }
@@ -445,7 +443,7 @@ class _QuickOpenDialogState extends ConsumerState<QuickOpenDialog> {
                 children: <Widget>[
                   AleraFileIcon(
                     pathOrName: match.relativePath,
-                    kind: AleraFileIconKind.file,
+                    kind: .file,
                     size: AleraTokens.space16,
                   ),
                   const SizedBox(width: AleraTokens.space12),
@@ -453,7 +451,7 @@ class _QuickOpenDialogState extends ConsumerState<QuickOpenDialog> {
                     child: Text(
                       match.relativePath,
                       maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+                      overflow: .ellipsis,
                       style: theme.textTheme.bodyMedium,
                     ),
                   ),

@@ -35,7 +35,7 @@ AleraBrowserCapabilities _capabilities({
   required Set<String> requiredSources,
   bool linuxGtkOverlay = true,
 }) => AleraBrowserCapabilities(
-  engine: AleraBrowserEngine.webKitGtk,
+  engine: .webKitGtk,
   engineAvailable: true,
   pageSurface: true,
   isolatedProfiles: true,
@@ -48,7 +48,7 @@ AleraBrowserCapabilities _capabilities({
   fullCookies: true,
   permissionCallbacks: true,
   tlsCallbacks: true,
-  tlsTrustScope: AleraBrowserTlsTrustScope.profileSession,
+  tlsTrustScope: .profileSession,
   popupCallbacks: true,
   downloadCallbacks: true,
   domSnapshot: true,

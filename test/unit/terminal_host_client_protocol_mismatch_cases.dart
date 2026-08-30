@@ -37,7 +37,7 @@ void _registerTerminalHostClientProtocolMismatchTests() {
     addTearDown(client.dispose);
 
     await expectLater(
-      client.ensureStarted(config: TerminalHostConfig.defaults),
+      client.ensureStarted(config: .defaults),
       throwsA(
         isA<StateError>().having(
           (error) => error.message,
@@ -86,7 +86,7 @@ void _registerTerminalHostClientProtocolMismatchTests() {
     );
     addTearDown(client.dispose);
 
-    await client.ensureStarted(config: TerminalHostConfig.defaults);
+    await client.ensureStarted(config: .defaults);
 
     expect(launcher.starts, 1);
   });

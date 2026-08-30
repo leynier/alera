@@ -51,10 +51,8 @@ class FakeProjectConfigRepository implements ProjectConfigRepository {
   }
 }
 
-class FakeProjectConfigFileStore implements ProjectConfigFileStore {
-  FakeProjectConfigFileStore({this.config});
-
-  ProjectConfig? config;
+class FakeProjectConfigFileStore({var ProjectConfig? config})
+    implements ProjectConfigFileStore {
   Object? error;
 
   @override

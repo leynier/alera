@@ -38,8 +38,8 @@ void main() {
         entries: <GitChangeEntry>[
           GitChangeEntry(
             path: 'lib/new.dart',
-            area: GitChangeArea.untracked,
-            status: GitChangeStatus.untracked,
+            area: .untracked,
+            status: .untracked,
             added: 12,
             removed: 0,
           ),
@@ -54,7 +54,7 @@ void main() {
             FakeSourceControlWatcher(),
           ),
           settingsControllerProvider.overrideWith(
-            () => _PanelSettingsController(AleraSettings.defaults),
+            () => _PanelSettingsController(.defaults),
           ),
         ],
         child: MaterialApp(
@@ -65,9 +65,9 @@ void main() {
               child: WorkspaceGitDiffPanel(
                 workspace: _workspace(),
                 sourceControlScope: _sourceControlScope(),
-                viewMode: GitDiffViewMode.flat,
+                viewMode: .flat,
                 onViewModeChanged: (_) {},
-                groupMode: GitDiffGroupMode.byArea,
+                groupMode: .byArea,
                 onGroupModeChanged: (_) {},
                 onOpenGitDiff: ({
                   area,
@@ -112,13 +112,13 @@ void main() {
         entries: <GitChangeEntry>[
           GitChangeEntry(
             path: 'lib/foo.dart',
-            area: GitChangeArea.unstaged,
-            status: GitChangeStatus.modified,
+            area: .unstaged,
+            status: .modified,
           ),
           GitChangeEntry(
             path: 'test/foo.dart',
-            area: GitChangeArea.unstaged,
-            status: GitChangeStatus.modified,
+            area: .unstaged,
+            status: .modified,
           ),
         ],
       );
@@ -131,7 +131,7 @@ void main() {
             FakeSourceControlWatcher(),
           ),
           settingsControllerProvider.overrideWith(
-            () => _PanelSettingsController(AleraSettings.defaults),
+            () => _PanelSettingsController(.defaults),
           ),
         ],
         child: MaterialApp(
@@ -142,9 +142,9 @@ void main() {
               child: WorkspaceGitDiffPanel(
                 workspace: _workspace(),
                 sourceControlScope: _sourceControlScope(),
-                viewMode: GitDiffViewMode.flat,
+                viewMode: .flat,
                 onViewModeChanged: (_) {},
-                groupMode: GitDiffGroupMode.byArea,
+                groupMode: .byArea,
                 onGroupModeChanged: (_) {},
                 onOpenGitDiff: ({
                   area,
@@ -188,8 +188,8 @@ void main() {
         entries: <GitChangeEntry>[
           GitChangeEntry(
             path: 'lib/new.dart',
-            area: GitChangeArea.untracked,
-            status: GitChangeStatus.untracked,
+            area: .untracked,
+            status: .untracked,
           ),
         ],
       );
@@ -218,8 +218,8 @@ void main() {
         entries: <GitChangeEntry>[
           GitChangeEntry(
             path: 'lib/new.dart',
-            area: GitChangeArea.untracked,
-            status: GitChangeStatus.untracked,
+            area: .untracked,
+            status: .untracked,
           ),
         ],
       );
@@ -323,13 +323,13 @@ void main() {
             compareRef: 'abc1234',
             baseRef: 'empty-tree',
             changedFiles: 1,
-            status: GitCommitCompareStatus.ready,
+            status: .ready,
           ),
           entries: <GitCommitChangeEntry>[
             GitCommitChangeEntry(
               path: 'lib/new.dart',
               oldPath: 'lib/old.dart',
-              status: GitChangeStatus.renamed,
+              status: .renamed,
             ),
           ],
         );
@@ -385,8 +385,8 @@ void main() {
         entries: <GitChangeEntry>[
           GitChangeEntry(
             path: 'lib/new.dart',
-            area: GitChangeArea.untracked,
-            status: GitChangeStatus.untracked,
+            area: .untracked,
+            status: .untracked,
           ),
         ],
       )
@@ -464,8 +464,8 @@ void main() {
         entries: <GitChangeEntry>[
           GitChangeEntry(
             path: 'lib/new.dart',
-            area: GitChangeArea.untracked,
-            status: GitChangeStatus.untracked,
+            area: .untracked,
+            status: .untracked,
           ),
         ],
       )
@@ -621,8 +621,8 @@ void main() {
         entries: <GitChangeEntry>[
           GitChangeEntry(
             path: 'lib/new.dart',
-            area: GitChangeArea.untracked,
-            status: GitChangeStatus.untracked,
+            area: .untracked,
+            status: .untracked,
           ),
         ],
       );
@@ -673,13 +673,13 @@ void main() {
         entries: <GitChangeEntry>[
           GitChangeEntry(
             path: 'lib/new.dart',
-            area: GitChangeArea.untracked,
-            status: GitChangeStatus.untracked,
+            area: .untracked,
+            status: .untracked,
           ),
           GitChangeEntry(
             path: 'lib/staged.dart',
-            area: GitChangeArea.staged,
-            status: GitChangeStatus.modified,
+            area: .staged,
+            status: .modified,
           ),
         ],
       );
@@ -715,20 +715,20 @@ void main() {
           GitChangeEntry(
             path: 'lib/new.dart',
             oldPath: 'lib/old.dart',
-            area: GitChangeArea.untracked,
-            status: GitChangeStatus.renamed,
+            area: .untracked,
+            status: .renamed,
           ),
           GitChangeEntry(
             path: 'lib/dirty_new.dart',
             oldPath: 'lib/dirty_old.dart',
-            area: GitChangeArea.unstaged,
-            status: GitChangeStatus.renamed,
+            area: .unstaged,
+            status: .renamed,
           ),
           GitChangeEntry(
             path: 'lib/staged_new.dart',
             oldPath: 'lib/staged_old.dart',
-            area: GitChangeArea.staged,
-            status: GitChangeStatus.renamed,
+            area: .staged,
+            status: .renamed,
           ),
         ],
       );
@@ -776,8 +776,8 @@ void main() {
         entries: <GitChangeEntry>[
           GitChangeEntry(
             path: 'lib/changed.dart',
-            area: GitChangeArea.unstaged,
-            status: GitChangeStatus.modified,
+            area: .unstaged,
+            status: .modified,
           ),
         ],
       );
@@ -807,8 +807,8 @@ void main() {
         entries: <GitChangeEntry>[
           GitChangeEntry(
             path: 'lib/foo.dart',
-            area: GitChangeArea.unstaged,
-            status: GitChangeStatus.modified,
+            area: .unstaged,
+            status: .modified,
           ),
         ],
       );
@@ -859,8 +859,8 @@ void main() {
         entries: <GitChangeEntry>[
           GitChangeEntry(
             path: 'lib/new.dart',
-            area: GitChangeArea.untracked,
-            status: GitChangeStatus.untracked,
+            area: .untracked,
+            status: .untracked,
           ),
         ],
       );
@@ -882,8 +882,8 @@ void main() {
         entries: <GitChangeEntry>[
           GitChangeEntry(
             path: 'lib/staged.dart',
-            area: GitChangeArea.staged,
-            status: GitChangeStatus.modified,
+            area: .staged,
+            status: .modified,
           ),
         ],
       );
@@ -920,8 +920,8 @@ void main() {
         entries: <GitChangeEntry>[
           GitChangeEntry(
             path: 'lib/staged.dart',
-            area: GitChangeArea.staged,
-            status: GitChangeStatus.modified,
+            area: .staged,
+            status: .modified,
           ),
         ],
       );
@@ -968,8 +968,8 @@ void main() {
         entries: <GitChangeEntry>[
           GitChangeEntry(
             path: 'lib/unstaged.dart',
-            area: GitChangeArea.unstaged,
-            status: GitChangeStatus.modified,
+            area: .unstaged,
+            status: .modified,
           ),
         ],
       );
@@ -996,8 +996,8 @@ void main() {
         entries: <GitChangeEntry>[
           GitChangeEntry(
             path: 'lib/staged.dart',
-            area: GitChangeArea.staged,
-            status: GitChangeStatus.modified,
+            area: .staged,
+            status: .modified,
           ),
         ],
       );
@@ -1026,8 +1026,8 @@ void main() {
         entries: <GitChangeEntry>[
           GitChangeEntry(
             path: 'lib/staged.dart',
-            area: GitChangeArea.staged,
-            status: GitChangeStatus.modified,
+            area: .staged,
+            status: .modified,
           ),
         ],
       );
@@ -1061,8 +1061,8 @@ void main() {
         entries: <GitChangeEntry>[
           GitChangeEntry(
             path: 'lib/staged.dart',
-            area: GitChangeArea.staged,
-            status: GitChangeStatus.modified,
+            area: .staged,
+            status: .modified,
           ),
         ],
       );
@@ -1100,7 +1100,7 @@ void main() {
     expect(tester.widget<TextField>(_messageField()).enabled, isFalse);
     expect(_messageEditable(tester).controller.text, isEmpty);
 
-    final gesture = await tester.createGesture(kind: PointerDeviceKind.mouse);
+    final gesture = await tester.createGesture(kind: .mouse);
     await gesture.addPointer();
     await gesture.moveTo(
       tester.getCenter(find.byTooltip('Stop generating commit message')),
@@ -1130,8 +1130,8 @@ void main() {
         entries: <GitChangeEntry>[
           GitChangeEntry(
             path: 'lib/staged.dart',
-            area: GitChangeArea.staged,
-            status: GitChangeStatus.modified,
+            area: .staged,
+            status: .modified,
           ),
         ],
       );
@@ -1164,8 +1164,8 @@ void main() {
         entries: <GitChangeEntry>[
           GitChangeEntry(
             path: 'lib/staged.dart',
-            area: GitChangeArea.staged,
-            status: GitChangeStatus.modified,
+            area: .staged,
+            status: .modified,
           ),
         ],
       );
@@ -1270,13 +1270,13 @@ void main() {
         entries: <GitChangeEntry>[
           GitChangeEntry(
             path: 'lib/visible.dart',
-            area: GitChangeArea.unstaged,
-            status: GitChangeStatus.modified,
+            area: .unstaged,
+            status: .modified,
           ),
           GitChangeEntry(
             path: 'test/hidden.dart',
-            area: GitChangeArea.untracked,
-            status: GitChangeStatus.untracked,
+            area: .untracked,
+            status: .untracked,
           ),
         ],
       );
@@ -1350,8 +1350,8 @@ void main() {
         entries: <GitChangeEntry>[
           GitChangeEntry(
             path: 'lib/dirty.dart',
-            area: GitChangeArea.unstaged,
-            status: GitChangeStatus.modified,
+            area: .unstaged,
+            status: .modified,
           ),
         ],
       );
@@ -1381,13 +1381,13 @@ void main() {
         entries: <GitChangeEntry>[
           GitChangeEntry(
             path: 'lib/src/dirty.dart',
-            area: GitChangeArea.unstaged,
-            status: GitChangeStatus.modified,
+            area: .unstaged,
+            status: .modified,
           ),
         ],
       );
 
-    await _pumpPanel(tester, backend: backend, viewMode: GitDiffViewMode.tree);
+    await _pumpPanel(tester, backend: backend, viewMode: .tree);
     await tester.pumpAndSettle();
 
     await tester.tap(find.byTooltip('Stage').first);
@@ -1511,11 +1511,8 @@ WorkspaceSourceControlScope _sourceControlScope([Workspace? workspace]) {
   );
 }
 
-class _PanelSettingsController extends SettingsController {
-  _PanelSettingsController(this._settings);
-
-  final AleraSettings _settings;
-
+class _PanelSettingsController(final AleraSettings _settings)
+    extends SettingsController {
   @override
   AleraSettings build() => _settings;
 }
@@ -1575,7 +1572,7 @@ Workspace _workspace({
     path: path,
     createdAt: now,
     updatedAt: now,
-    kind: WorkspaceKind.main,
-    status: WorkspaceStatus.active,
+    kind: .main,
+    status: .active,
   );
 }

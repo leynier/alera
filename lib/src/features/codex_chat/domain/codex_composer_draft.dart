@@ -3,17 +3,11 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
 @immutable
-class CodexComposerDraft {
-  const CodexComposerDraft({
-    this.value = const TextEditingValue(),
-    this.attachments = const <CodexInputAttachment>[],
-    this.draftItems = const <CodexDraftItem>[],
-  });
-
-  final TextEditingValue value;
-  final List<CodexInputAttachment> attachments;
-  final List<CodexDraftItem> draftItems;
-
+class const CodexComposerDraft({
+  final TextEditingValue value = const TextEditingValue(),
+  final List<CodexInputAttachment> attachments = const <CodexInputAttachment>[],
+  final List<CodexDraftItem> draftItems = const <CodexDraftItem>[],
+}) {
   bool get isEmpty =>
       value.text.isEmpty && attachments.isEmpty && draftItems.isEmpty;
 

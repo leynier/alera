@@ -17,11 +17,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 enum _ProjectAction { rename, setup, remove }
 
-class ProjectsScreen extends ConsumerWidget {
-  const ProjectsScreen({super.key, required this.host});
-
-  final PairedHostProfile host;
-
+class const ProjectsScreen({super.key, required final PairedHostProfile host})
+    extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(projectsControllerProvider(host.id));
@@ -293,12 +290,10 @@ class ProjectsScreen extends ConsumerWidget {
   }
 }
 
-class _ProjectListTile extends StatelessWidget {
-  const _ProjectListTile({required this.project, required this.onAction});
-
-  final ProjectSummary project;
-  final ValueChanged<_ProjectAction> onAction;
-
+class const _ProjectListTile({
+  required final ProjectSummary project,
+  required final ValueChanged<_ProjectAction> onAction,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListTile(
@@ -307,41 +302,29 @@ class _ProjectListTile extends StatelessWidget {
             ? Icons.folder_outlined
             : Icons.account_tree_outlined,
       ),
-      title: Text(project.name, overflow: TextOverflow.ellipsis),
+      title: Text(project.name, overflow: .ellipsis),
       subtitle: Text(
         project.repoPath,
-        overflow: TextOverflow.ellipsis,
+        overflow: .ellipsis,
         style: const TextStyle(fontFamily: AleraTokens.monoFontFamily),
       ),
       trailing: PopupMenuButton<_ProjectAction>(
         onSelected: onAction,
         itemBuilder: (_) => const <PopupMenuEntry<_ProjectAction>>[
-          PopupMenuItem(value: _ProjectAction.rename, child: Text('Rename')),
-          PopupMenuItem(
-            value: _ProjectAction.setup,
-            child: Text('Project Setup'),
-          ),
-          PopupMenuItem(
-            value: _ProjectAction.remove,
-            child: Text('Remove Project'),
-          ),
+          PopupMenuItem(value: .rename, child: Text('Rename')),
+          PopupMenuItem(value: .setup, child: Text('Project Setup')),
+          PopupMenuItem(value: .remove, child: Text('Remove Project')),
         ],
       ),
     );
   }
 }
 
-class _CloneJobCard extends StatelessWidget {
-  const _CloneJobCard({
-    required this.job,
-    required this.onCancel,
-    required this.onOpen,
-  });
-
-  final ProjectCloneJob job;
-  final VoidCallback? onCancel;
-  final VoidCallback? onOpen;
-
+class const _CloneJobCard({
+  required final ProjectCloneJob job,
+  required final VoidCallback? onCancel,
+  required final VoidCallback? onOpen,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final progress = job.progressPercent;
@@ -349,7 +332,7 @@ class _CloneJobCard extends StatelessWidget {
       child: Padding(
         padding: AleraTokens.contentPadding,
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
+          crossAxisAlignment: .stretch,
           children: <Widget>[
             Row(
               children: <Widget>[
@@ -382,7 +365,7 @@ class _CloneJobCard extends StatelessWidget {
               ),
             Text(
               job.destinationPath,
-              overflow: TextOverflow.ellipsis,
+              overflow: .ellipsis,
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
                 fontFamily: AleraTokens.monoFontFamily,
                 color: AleraTokens.foregroundMuted,
@@ -413,28 +396,24 @@ class _CloneJobCard extends StatelessWidget {
   }
 }
 
-class _UnsupportedState extends StatelessWidget {
-  const _UnsupportedState();
-
+class const _UnsupportedState() extends StatelessWidget {
   @override
   Widget build(BuildContext context) => const Center(
     child: Padding(
       padding: AleraTokens.contentPadding,
       child: Text(
         'Update the Alera runtime to manage projects from mobile.',
-        textAlign: TextAlign.center,
+        textAlign: .center,
       ),
     ),
   );
 }
 
-class _EmptyProjects extends StatelessWidget {
-  const _EmptyProjects();
-
+class const _EmptyProjects() extends StatelessWidget {
   @override
   Widget build(BuildContext context) => const Center(
     child: Column(
-      mainAxisSize: MainAxisSize.min,
+      mainAxisSize: .min,
       children: <Widget>[
         Icon(Icons.create_new_folder_outlined, size: AleraTokens.emptyIcon),
         SizedBox(height: AleraTokens.spaceLg),
@@ -446,20 +425,18 @@ class _EmptyProjects extends StatelessWidget {
   );
 }
 
-class _ErrorState extends StatelessWidget {
-  const _ErrorState({required this.error, required this.onRetry});
-
-  final Object error;
-  final VoidCallback onRetry;
-
+class const _ErrorState({
+  required final Object error,
+  required final VoidCallback onRetry,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Center(
     child: Padding(
       padding: AleraTokens.contentPadding,
       child: Column(
-        mainAxisSize: MainAxisSize.min,
+        mainAxisSize: .min,
         children: <Widget>[
-          Text(error.toString(), textAlign: TextAlign.center),
+          Text(error.toString(), textAlign: .center),
           const SizedBox(height: AleraTokens.spaceLg),
           FilledButton(onPressed: onRetry, child: const Text('Try Again')),
         ],

@@ -3,11 +3,8 @@ import 'package:alera/src/features/projects/domain/project.dart';
 import 'package:alera/src/features/projects/domain/project_config.dart';
 import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_protocol.dart';
 
-class RuntimeProjectConfigFileStore implements ProjectConfigFileStore {
-  const RuntimeProjectConfigFileStore(this._client);
-
-  final RuntimeHostClient _client;
-
+class const RuntimeProjectConfigFileStore(final RuntimeHostClient _client)
+    implements ProjectConfigFileStore {
   @override
   Future<ProjectConfig?> load(Project project) async {
     final payload = _asMap(

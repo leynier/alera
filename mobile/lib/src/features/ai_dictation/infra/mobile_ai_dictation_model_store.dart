@@ -9,39 +9,40 @@ import 'package:http/http.dart' as http;
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
-class MobileAiDictationModel extends SpeechModelDescriptor {
-  MobileAiDictationModel({
-    required super.id,
-    required super.label,
-    required super.description,
-    String? fileName,
-    String? uri,
-    String? sha256,
-    int? sizeBytes,
-    List<SpeechModelArtifact>? artifacts,
-    super.languages = const <String>[],
-    super.supportsAutomaticLanguageDetection = true,
-    super.supportsInitialPrompt = true,
-    super.supportedProviders = const <SpeechExecutionProvider>{
-      SpeechExecutionProvider.cpu,
-    },
-    super.preferredProvider,
-    super.storageVersion = 1,
-    super.runtime = SpeechModelRuntime.whisperCpp,
-    super.mode = SpeechRecognitionMode.batch,
-  }) : super(
-         artifacts:
-             artifacts ??
-             <SpeechModelArtifact>[
-               SpeechModelArtifact(
-                 id: 'primary',
-                 relativePath: fileName!,
-                 uri: uri!,
-                 sha256: sha256!,
-                 sizeBytes: sizeBytes!,
-               ),
-             ],
-       );
+class MobileAiDictationModel({
+  required super.id,
+  required super.label,
+  required super.description,
+  String? fileName,
+  String? uri,
+  String? sha256,
+  int? sizeBytes,
+  List<SpeechModelArtifact>? artifacts,
+  super.languages = const <String>[],
+  super.supportsAutomaticLanguageDetection = true,
+  super.supportsInitialPrompt = true,
+  super.supportedProviders = const <SpeechExecutionProvider>{
+    SpeechExecutionProvider.cpu,
+  },
+  super.preferredProvider,
+  super.storageVersion = 1,
+  super.runtime = SpeechModelRuntime.whisperCpp,
+  super.mode = SpeechRecognitionMode.batch,
+}) extends SpeechModelDescriptor {
+  this
+    : super(
+        artifacts:
+            artifacts ??
+            <SpeechModelArtifact>[
+              SpeechModelArtifact(
+                id: 'primary',
+                relativePath: fileName!,
+                uri: uri!,
+                sha256: sha256!,
+                sizeBytes: sizeBytes!,
+              ),
+            ],
+      );
 
   SpeechModelArtifact get primaryArtifact => artifacts.first;
   String get fileName => primaryArtifact.relativePath;
@@ -52,15 +53,16 @@ class MobileAiDictationModel extends SpeechModelDescriptor {
       artifacts.fold<int>(0, (total, artifact) => total + artifact.sizeBytes);
 }
 
-class MobileAiDictationModelStore {
-  MobileAiDictationModelStore({
-    http.Client Function()? clientFactory,
-    Future<Directory> Function()? supportDirectory,
-    List<MobileAiDictationModel>? catalog,
-  }) : _clientFactory = clientFactory ?? http.Client.new,
-       _supportDirectory =
-           supportDirectory ?? (() => getApplicationSupportDirectory()),
-       catalog = catalog ?? models;
+class MobileAiDictationModelStore({
+  http.Client Function()? clientFactory,
+  Future<Directory> Function()? supportDirectory,
+  List<MobileAiDictationModel>? catalog,
+}) {
+  this
+    : _clientFactory = clientFactory ?? http.Client.new,
+      _supportDirectory =
+          supportDirectory ?? (() => getApplicationSupportDirectory()),
+      catalog = catalog ?? models;
 
   static final models = <MobileAiDictationModel>[
     MobileAiDictationModel(
@@ -424,9 +426,7 @@ class MobileAiDictationModelStore {
   }
 }
 
-class MobileAiModelDownloadCancelled implements Exception {
-  const MobileAiModelDownloadCancelled();
-}
+class const MobileAiModelDownloadCancelled() implements Exception;
 
 void _validateContentRange(
   http.StreamedResponse response,

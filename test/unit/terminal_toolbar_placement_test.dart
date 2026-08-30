@@ -8,19 +8,19 @@ void main() {
     const inset = AleraTokens.space4;
 
     expect(
-      TerminalToolbarAnchor.forCorner(TerminalToolbarCorner.topRight),
+      TerminalToolbarAnchor.forCorner(.topRight),
       const TerminalToolbarAnchor(top: inset, right: inset),
     );
     expect(
-      TerminalToolbarAnchor.forCorner(TerminalToolbarCorner.topLeft),
+      TerminalToolbarAnchor.forCorner(.topLeft),
       const TerminalToolbarAnchor(top: inset, left: inset),
     );
     expect(
-      TerminalToolbarAnchor.forCorner(TerminalToolbarCorner.bottomLeft),
+      TerminalToolbarAnchor.forCorner(.bottomLeft),
       const TerminalToolbarAnchor(bottom: inset, left: inset),
     );
     expect(
-      TerminalToolbarAnchor.forCorner(TerminalToolbarCorner.bottomRight),
+      TerminalToolbarAnchor.forCorner(.bottomRight),
       const TerminalToolbarAnchor(bottom: inset, right: inset),
     );
   });
@@ -67,19 +67,19 @@ void main() {
   test('keeps search clear of a top-side toolbar', () {
     const buttonCount = 3;
     final topRight = terminalSearchOverlayLayout(
-      toolbarCorner: TerminalToolbarCorner.topRight,
+      toolbarCorner: .topRight,
       toolbarButtonCount: buttonCount,
     );
     final topLeft = terminalSearchOverlayLayout(
-      toolbarCorner: TerminalToolbarCorner.topLeft,
+      toolbarCorner: .topLeft,
       toolbarButtonCount: buttonCount,
     );
     final bottomLeft = terminalSearchOverlayLayout(
-      toolbarCorner: TerminalToolbarCorner.bottomLeft,
+      toolbarCorner: .bottomLeft,
       toolbarButtonCount: buttonCount,
     );
     final bottomRight = terminalSearchOverlayLayout(
-      toolbarCorner: TerminalToolbarCorner.bottomRight,
+      toolbarCorner: .bottomRight,
       toolbarButtonCount: buttonCount,
     );
 
@@ -124,7 +124,7 @@ void main() {
 
     expect(
       terminalToolbarOffset(
-        corner: TerminalToolbarCorner.topLeft,
+        corner: .topLeft,
         viewportWidth: viewportWidth,
         viewportHeight: viewportHeight,
         toolbarWidth: toolbarWidth,
@@ -134,7 +134,7 @@ void main() {
     );
     expect(
       terminalToolbarOffset(
-        corner: TerminalToolbarCorner.topRight,
+        corner: .topRight,
         viewportWidth: viewportWidth,
         viewportHeight: viewportHeight,
         toolbarWidth: toolbarWidth,
@@ -144,7 +144,7 @@ void main() {
     );
     expect(
       terminalToolbarOffset(
-        corner: TerminalToolbarCorner.bottomLeft,
+        corner: .bottomLeft,
         viewportWidth: viewportWidth,
         viewportHeight: viewportHeight,
         toolbarWidth: toolbarWidth,
@@ -154,7 +154,7 @@ void main() {
     );
     expect(
       terminalToolbarOffset(
-        corner: TerminalToolbarCorner.bottomRight,
+        corner: .bottomRight,
         viewportWidth: viewportWidth,
         viewportHeight: viewportHeight,
         toolbarWidth: toolbarWidth,

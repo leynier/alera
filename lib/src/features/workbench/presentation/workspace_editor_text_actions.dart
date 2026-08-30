@@ -39,7 +39,7 @@ extension _WorkspaceEditorTextActions on _WorkspaceEditorSurfaceState {
   Offset _editorCenterGlobalPosition(BuildContext context) {
     final renderObject = context.findRenderObject();
     if (renderObject is RenderBox) {
-      return renderObject.localToGlobal(renderObject.size.center(Offset.zero));
+      return renderObject.localToGlobal(renderObject.size.center(.zero));
     }
     return Offset.zero;
   }

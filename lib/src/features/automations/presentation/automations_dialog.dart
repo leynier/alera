@@ -27,9 +27,7 @@ Future<void> showAutomationsDialog(BuildContext context) {
   );
 }
 
-class AutomationsDialog extends ConsumerStatefulWidget {
-  const AutomationsDialog({super.key});
-
+class const AutomationsDialog({super.key}) extends ConsumerStatefulWidget {
   @override
   ConsumerState<AutomationsDialog> createState() => _AutomationsDialogState();
 }
@@ -61,7 +59,7 @@ class _AutomationsDialogState extends ConsumerState<AutomationsDialog> {
         child: SizedBox(
           height: AleraTokens.automationDialogHeight,
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
+            crossAxisAlignment: .stretch,
             children: <Widget>[
               AutomationDialogHeader(
                 onClose: () => Navigator.of(context).pop(),
@@ -123,7 +121,7 @@ class _AutomationsDialogState extends ConsumerState<AutomationsDialog> {
               ),
             )
           : AleraPanel(
-              clipBehavior: Clip.antiAlias,
+              clipBehavior: .antiAlias,
               children: <Widget>[
                 Padding(
                   padding: const EdgeInsets.all(AleraTokens.space8),

@@ -196,9 +196,9 @@ void main() {
   );
 }
 
-class _MemoryRepository implements CloudAccountRepository {
-  _MemoryRepository(CloudAccountSession session)
-    : sessions = <CloudAccountSession>[session];
+class _MemoryRepository(CloudAccountSession session)
+    implements CloudAccountRepository {
+  this : sessions = <CloudAccountSession>[session];
 
   final List<CloudAccountSession> sessions;
 
@@ -221,10 +221,8 @@ class _MemoryRepository implements CloudAccountRepository {
   }
 }
 
-class _RefreshApi implements AleraCloudApi {
-  _RefreshApi(this.reenrolled);
-
-  final CloudAccountSession reenrolled;
+class _RefreshApi(final CloudAccountSession reenrolled)
+    implements AleraCloudApi {
   final Completer<void> refreshStarted = Completer<void>();
   final Completer<void> refreshRelease = Completer<void>();
   int refreshCalls = 0;
@@ -287,10 +285,7 @@ class _RefreshApi implements AleraCloudApi {
   Future<void> revokeSession(CloudAccountSession session) async {}
 }
 
-class _RemovalApi implements AleraCloudApi {
-  _RemovalApi({this.removalError});
-
-  final Object? removalError;
+class _RemovalApi({final Object? removalError}) implements AleraCloudApi {
   int pushTokenDeleteCalls = 0;
 
   @override

@@ -97,7 +97,7 @@ void _registerWorkbenchControllerFailureTests() {
         workspaceId: workspace.id,
         tabId: secondTab.id,
         targetGroupId: groupId,
-        zone: WorkbenchDropZone.right,
+        zone: .right,
       );
       final splitLayout = _controller.state.layoutFor(workspace.id)!;
       final firstGroupId = splitLayout.groupIdForTab(firstTab.id)!;
@@ -351,7 +351,7 @@ void _registerWorkbenchControllerFailureTests() {
       activeWorkspaceId: secondWorkspace.id,
     );
     await _harness.workbenchRepository.upsertWorkspace(
-      secondWorkspace.copyWith(updatedAt: DateTime.utc(2026, 5, 23)),
+      secondWorkspace.copyWith(updatedAt: .utc(2026, 5, 23)),
     );
     await _flush();
 
@@ -362,7 +362,7 @@ void _registerWorkbenchControllerFailureTests() {
       activeWorkspaceId: secondWorkspace.id,
     );
     await _harness.workbenchRepository.upsertWorkspace(
-      secondWorkspace.copyWith(updatedAt: DateTime.utc(2026, 5, 24)),
+      secondWorkspace.copyWith(updatedAt: .utc(2026, 5, 24)),
     );
     await _flush();
 

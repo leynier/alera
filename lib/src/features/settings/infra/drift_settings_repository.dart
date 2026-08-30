@@ -8,11 +8,8 @@ import 'package:logging/logging.dart';
 
 final Logger _log = Logger('DriftSettingsRepository');
 
-class DriftSettingsRepository implements SettingsRepository {
-  DriftSettingsRepository(this._db);
-
-  final AleraDatabase _db;
-
+class DriftSettingsRepository(final AleraDatabase _db)
+    implements SettingsRepository {
   static const int _rowId = 1;
 
   @override

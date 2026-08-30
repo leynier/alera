@@ -124,7 +124,7 @@ void main() {
     test('forces GitHub on a self-hosted enterprise host', () {
       final id = parseRemoteAsProvider(
         'https://github.mycorp.com/team/service.git',
-        GitHostingProvider.github,
+        .github,
       );
       expect(id, isNotNull);
       expect(id!.provider, GitHostingProvider.github);
@@ -136,7 +136,7 @@ void main() {
     test('forces Azure on a dev.azure.com remote', () {
       final id = parseRemoteAsProvider(
         'https://dev.azure.com/myorg/myproject/_git/myrepo',
-        GitHostingProvider.azureDevops,
+        .azureDevops,
       );
       expect(id!.provider, GitHostingProvider.azureDevops);
       expect(id.owner, 'myorg');
@@ -146,7 +146,7 @@ void main() {
     test('forces GitLab on a self-hosted instance with nested groups', () {
       final id = parseRemoteAsProvider(
         'git@gitlab.acme.test:platform/mobile/app.git',
-        GitHostingProvider.gitlab,
+        .gitlab,
       );
       expect(id!.provider, GitHostingProvider.gitlab);
       expect(id.host, 'gitlab.acme.test');
@@ -157,7 +157,7 @@ void main() {
     test('preserves the HTTPS port for a self-hosted GitLab instance', () {
       final id = parseRemoteAsProvider(
         'https://gitlab.acme.test:8443/platform/mobile/app.git',
-        GitHostingProvider.gitlab,
+        .gitlab,
       );
       expect(id!.host, 'gitlab.acme.test:8443');
       expect(id.owner, 'platform/mobile');
@@ -166,7 +166,7 @@ void main() {
     test('does not use an SSH transport port as the GitLab API port', () {
       final id = parseRemoteAsProvider(
         'ssh://git@gitlab.acme.test:2222/platform/mobile/app.git',
-        GitHostingProvider.gitlab,
+        .gitlab,
       );
       expect(id!.host, 'gitlab.acme.test');
       expect(id.owner, 'platform/mobile');
@@ -176,7 +176,7 @@ void main() {
       // A plain owner/repo remote cannot yield an Azure project.
       final id = parseRemoteAsProvider(
         'git@example.com:owner/repo.git',
-        GitHostingProvider.azureDevops,
+        .azureDevops,
       );
       expect(id, isNull);
     });

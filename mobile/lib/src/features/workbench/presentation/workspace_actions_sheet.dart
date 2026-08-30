@@ -46,7 +46,7 @@ Future<void> showWorkspaceActionsSheet(
           maxHeight: MediaQuery.sizeOf(context).height * 0.85,
         ),
         child: Column(
-          mainAxisSize: MainAxisSize.min,
+          mainAxisSize: .min,
           children: <Widget>[
             _WorkspaceActionsHeader(workspace: workspace),
             const Divider(height: 1),
@@ -207,11 +207,8 @@ Future<void> showWorkspaceActionsSheet(
   }
 }
 
-class _WorkspaceActionsHeader extends StatelessWidget {
-  const _WorkspaceActionsHeader({required this.workspace});
-
-  final WorkspaceSummary workspace;
-
+class const _WorkspaceActionsHeader({required final WorkspaceSummary workspace})
+    extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -225,7 +222,7 @@ class _WorkspaceActionsHeader extends StatelessWidget {
         AleraTokens.space12,
       ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: .start,
         children: <Widget>[
           Row(
             children: <Widget>[
@@ -233,9 +230,9 @@ class _WorkspaceActionsHeader extends StatelessWidget {
                 child: Text(
                   workspace.name,
                   maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+                  overflow: .ellipsis,
                   style: theme.textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w600,
+                    fontWeight: .w600,
                   ),
                 ),
               ),
@@ -263,7 +260,7 @@ class _WorkspaceActionsHeader extends StatelessWidget {
                   child: Text(
                     branch,
                     maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
+                    overflow: .ellipsis,
                     style: theme.textTheme.bodyMedium?.copyWith(
                       color: AleraTokens.foregroundMuted,
                       fontFamily: AleraTokens.monoFontFamily,

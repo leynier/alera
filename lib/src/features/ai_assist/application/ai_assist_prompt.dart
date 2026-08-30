@@ -2,40 +2,24 @@ import 'package:alera/src/features/ai_assist/domain/ai_assist_settings.dart';
 
 const int stagedDiffPromptBudget = 200000;
 
-class AiAssistCommitContext {
-  const AiAssistCommitContext({
-    required this.branch,
-    required this.stagedSummary,
-    required this.stagedPatch,
-  });
+class const AiAssistCommitContext({
+  required final String? branch,
+  required final String stagedSummary,
+  required final String stagedPatch,
+});
 
-  final String? branch;
-  final String stagedSummary;
-  final String stagedPatch;
-}
+class const AiAssistPullRequestContext({
+  required final String baseBranch,
+  required final String? headBranch,
+  required final String commitSummary,
+  required final String fileSummary,
+  required final String patch,
+});
 
-class AiAssistPullRequestContext {
-  const AiAssistPullRequestContext({
-    required this.baseBranch,
-    required this.headBranch,
-    required this.commitSummary,
-    required this.fileSummary,
-    required this.patch,
-  });
-
-  final String baseBranch;
-  final String? headBranch;
-  final String commitSummary;
-  final String fileSummary;
-  final String patch;
-}
-
-class GeneratedPullRequestDetails {
-  const GeneratedPullRequestDetails({required this.title, this.body});
-
-  final String title;
-  final String? body;
-}
+class const GeneratedPullRequestDetails({
+  required final String title,
+  final String? body,
+});
 
 String buildCommitMessagePrompt({
   required AiAssistCommitContext context,

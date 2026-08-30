@@ -4,7 +4,7 @@ part of 'codex_chat_models.dart';
 /// Streaming deltas can replace the live segment without copying or indexing
 /// the full conversation on the Flutter isolate.
 final class CodexTimelineCells extends ListBase<CodexTimelineCell> {
-  CodexTimelineCells.segmented({
+  new segmented({
     required List<CodexTimelineCell> history,
     required List<CodexTimelineCell> live,
   }) : _history = List<CodexTimelineCell>.unmodifiable(history),
@@ -24,7 +24,7 @@ final class CodexTimelineCells extends ListBase<CodexTimelineCell> {
              cell.id.substring(5),
        });
 
-  CodexTimelineCells._withLive(
+  new _withLive(
     this._history,
     List<CodexTimelineCell> live,
     this._historyPromptHistory,
@@ -92,11 +92,12 @@ final class CodexTimelineCells extends ListBase<CodexTimelineCell> {
 
 /// Shares the immutable prompt-history prefix loaded from earlier pages while
 /// the bounded live suffix changes during streaming.
-final class CodexPromptHistory extends ListBase<String> {
-  CodexPromptHistory._withLive(this._history, List<String> live)
-    : _live = List<String>.unmodifiable(live);
+final class CodexPromptHistory._withLive(
+  final List<String> _history,
+  List<String> live,
+) extends ListBase<String> {
+  this : _live = List<String>.unmodifiable(live);
 
-  final List<String> _history;
   final List<String> _live;
 
   List<String> get history => _history;
@@ -122,21 +123,20 @@ final class CodexPromptHistory extends ListBase<String> {
 }
 
 @immutable
-class CodexChatSnapshot {
-  const CodexChatSnapshot({
-    this.events = const <CodexTimelineEvent>[],
-    this.timelineCells = const <CodexTimelineCell>[],
-    this.pendingRequests = const <CodexPendingRequest>[],
-    this.promptHistory = const <String>[],
-    this.mcpInitializing = false,
-    this.activeTurnId,
-    this.contextUsed,
-    this.contextLimit,
-    this.title,
-    this.goal,
-  });
-
-  factory CodexChatSnapshot.fromJson(Object? value) {
+class const CodexChatSnapshot({
+  final List<CodexTimelineEvent> events = const <CodexTimelineEvent>[],
+  final List<CodexTimelineCell> timelineCells = const <CodexTimelineCell>[],
+  final List<CodexPendingRequest> pendingRequests =
+      const <CodexPendingRequest>[],
+  final List<String> promptHistory = const <String>[],
+  final bool mcpInitializing = false,
+  final String? activeTurnId,
+  final int? contextUsed,
+  final int? contextLimit,
+  final String? title,
+  final CodexThreadGoal? goal,
+}) {
+  factory fromJson(Object? value) {
     final json = _map(value);
     final events = _codexTimelineEvents(json['events']);
     var cells = <CodexTimelineCell>[
@@ -196,17 +196,6 @@ class CodexChatSnapshot {
       goal: _codexDeltaValue(json, 'goal', goal, _codexThreadGoal),
     );
   }
-
-  final List<CodexTimelineEvent> events;
-  final List<CodexTimelineCell> timelineCells;
-  final List<CodexPendingRequest> pendingRequests;
-  final List<String> promptHistory;
-  final bool mcpInitializing;
-  final String? activeTurnId;
-  final int? contextUsed;
-  final int? contextLimit;
-  final String? title;
-  final CodexThreadGoal? goal;
 
   bool get isBusy => activeTurnId != null;
 

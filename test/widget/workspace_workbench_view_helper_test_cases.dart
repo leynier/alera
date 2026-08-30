@@ -51,38 +51,23 @@ void _registerWorkspaceWorkbenchViewHelperTests() {
       const size = Size(200, 160);
 
       expect(
-        resolveWorkbenchDropOverlayRect(
-          zone: WorkbenchDropZone.left,
-          paneSize: size,
-        ),
+        resolveWorkbenchDropOverlayRect(zone: .left, paneSize: size),
         const Rect.fromLTWH(0, 0, 100, 160),
       );
       expect(
-        resolveWorkbenchDropOverlayRect(
-          zone: WorkbenchDropZone.right,
-          paneSize: size,
-        ),
+        resolveWorkbenchDropOverlayRect(zone: .right, paneSize: size),
         const Rect.fromLTWH(100, 0, 100, 160),
       );
       expect(
-        resolveWorkbenchDropOverlayRect(
-          zone: WorkbenchDropZone.up,
-          paneSize: size,
-        ),
+        resolveWorkbenchDropOverlayRect(zone: .up, paneSize: size),
         const Rect.fromLTWH(0, 0, 200, 80),
       );
       expect(
-        resolveWorkbenchDropOverlayRect(
-          zone: WorkbenchDropZone.down,
-          paneSize: size,
-        ),
+        resolveWorkbenchDropOverlayRect(zone: .down, paneSize: size),
         const Rect.fromLTWH(0, 80, 200, 80),
       );
       expect(
-        resolveWorkbenchDropOverlayRect(
-          zone: WorkbenchDropZone.center,
-          paneSize: size,
-        ),
+        resolveWorkbenchDropOverlayRect(zone: .center, paneSize: size),
         const Rect.fromLTWH(52, 32, 96, 96),
       );
     });
@@ -91,24 +76,15 @@ void _registerWorkspaceWorkbenchViewHelperTests() {
       'split direction helpers cover center fill, repaint, and flex clamping',
       () {
         expect(
-          splitDirectionFillRectForTesting(
-            WorkbenchDropZone.center,
-            const Size(200, 160),
-          ),
+          splitDirectionFillRectForTesting(.center, const Size(200, 160)),
           Rect.zero,
         );
         expect(
-          splitDirectionPainterShouldRepaintForTesting(
-            WorkbenchDropZone.left,
-            WorkbenchDropZone.left,
-          ),
+          splitDirectionPainterShouldRepaintForTesting(.left, .left),
           isFalse,
         );
         expect(
-          splitDirectionPainterShouldRepaintForTesting(
-            WorkbenchDropZone.left,
-            WorkbenchDropZone.right,
-          ),
+          splitDirectionPainterShouldRepaintForTesting(.left, .right),
           isTrue,
         );
         expect(splitRatioFlexForTesting(0), 1);
@@ -127,7 +103,7 @@ void _registerWorkspaceWorkbenchViewHelperTests() {
               height: 12,
               child: buildSplitViewForAvailableSizeForTesting(
                 available: 12,
-                axis: WorkbenchSplitAxis.vertical,
+                axis: .vertical,
                 ratio: 0.5,
                 first: const SizedBox.expand(
                   child: ColoredBox(color: Colors.red),
@@ -163,7 +139,7 @@ void _registerWorkspaceWorkbenchViewHelperTests() {
           sourceGroupId: 'group-a',
           targetGroupId: 'group-b',
           targetTabCount: 1,
-          zone: WorkbenchDropZone.center,
+          zone: .center,
         ),
         isTrue,
       );
@@ -172,7 +148,7 @@ void _registerWorkspaceWorkbenchViewHelperTests() {
           sourceGroupId: 'group-a',
           targetGroupId: 'group-a',
           targetTabCount: 1,
-          zone: WorkbenchDropZone.center,
+          zone: .center,
         ),
         isFalse,
       );
@@ -181,7 +157,7 @@ void _registerWorkspaceWorkbenchViewHelperTests() {
           sourceGroupId: 'group-a',
           targetGroupId: 'group-a',
           targetTabCount: 2,
-          zone: WorkbenchDropZone.right,
+          zone: .right,
         ),
         isTrue,
       );
@@ -191,25 +167,25 @@ void _registerWorkspaceWorkbenchViewHelperTests() {
       final imageTab = _tab(
         'tab-1',
         title: 'logo.png',
-        kind: WorkspaceTabKind.editor,
+        kind: .editor,
         filePath: 'assets/logo.png',
       );
       final textTab = _tab(
         'tab-2',
         title: 'main.dart',
-        kind: WorkspaceTabKind.editor,
+        kind: .editor,
         filePath: 'lib/main.dart',
       );
       final svgTab = _tab(
         'tab-3',
         title: 'icon.svg',
-        kind: WorkspaceTabKind.editor,
+        kind: .editor,
         filePath: 'assets/icon.svg',
       );
       final icoTab = _tab(
         'tab-4',
         title: 'app.ico',
-        kind: WorkspaceTabKind.editor,
+        kind: .editor,
         filePath: 'assets/app.ico',
       );
 
@@ -223,20 +199,20 @@ void _registerWorkspaceWorkbenchViewHelperTests() {
       final editorTab = _tab(
         'tab-1',
         title: 'diagram.mmd',
-        kind: WorkspaceTabKind.editor,
+        kind: .editor,
         filePath: 'docs/diagram.mmd',
       );
       final previewTab = _tab(
         'tab-2',
         title: 'diagram.mmd preview',
-        kind: WorkspaceTabKind.editor,
+        kind: .editor,
         filePath: 'docs/diagram.mmd',
         mermanPreview: true,
       );
       final mermaidTab = _tab(
         'tab-3',
         title: 'diagram.mermaid preview',
-        kind: WorkspaceTabKind.editor,
+        kind: .editor,
         filePath: 'docs/diagram.mermaid',
         mermanPreview: true,
       );
@@ -250,13 +226,13 @@ void _registerWorkspaceWorkbenchViewHelperTests() {
       final pdfTab = _tab(
         'tab-1',
         title: 'guide.pdf',
-        kind: WorkspaceTabKind.pdf,
+        kind: .pdf,
         filePath: 'docs/guide.pdf',
       );
       final editorTab = _tab(
         'tab-2',
         title: 'guide.pdf',
-        kind: WorkspaceTabKind.editor,
+        kind: .editor,
         filePath: 'docs/guide.pdf',
       );
 

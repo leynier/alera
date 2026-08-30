@@ -4,18 +4,11 @@ import 'package:logging/logging.dart';
 
 final Logger _log = Logger('RuntimeWorkspaceActivityRepository');
 
-class RuntimeWorkspaceActivityRepository
-    implements WorkspaceActivityRepository {
-  RuntimeWorkspaceActivityRepository({
-    required this.client,
-    required this.legacyRepository,
-    this.beforeAccess,
-  });
-
-  final RuntimeHostClient client;
-  final WorkspaceActivityRepository legacyRepository;
-  final Future<void> Function()? beforeAccess;
-
+class RuntimeWorkspaceActivityRepository({
+  required final RuntimeHostClient client,
+  required final WorkspaceActivityRepository legacyRepository,
+  final Future<void> Function()? beforeAccess,
+}) implements WorkspaceActivityRepository {
   @override
   Future<Map<String, DateTime>> loadAll() async {
     final local = await legacyRepository.loadAll();

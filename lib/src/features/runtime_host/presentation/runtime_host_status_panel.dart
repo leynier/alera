@@ -11,18 +11,12 @@ const double runtimeHostPanelMaxHeight = 360;
 const double _statusLabelWidth = 116;
 
 /// Compact status-bar chip for the local runtime host.
-class RuntimeHostStatusChip extends StatelessWidget {
-  const RuntimeHostStatusChip({
-    super.key,
-    required this.snapshot,
-    required this.loading,
-    required this.onPressed,
-  });
-
-  final RuntimeHostStatusSnapshot? snapshot;
-  final bool loading;
-  final VoidCallback onPressed;
-
+class const RuntimeHostStatusChip({
+  super.key,
+  required final RuntimeHostStatusSnapshot? snapshot,
+  required final bool loading,
+  required final VoidCallback onPressed,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final label = _chipLabel(snapshot, loading: loading);
@@ -41,7 +35,7 @@ class RuntimeHostStatusChip extends StatelessWidget {
             border: Border(left: BorderSide(color: AleraTokens.borderSubtle)),
           ),
           child: Row(
-            mainAxisSize: MainAxisSize.min,
+            mainAxisSize: .min,
             children: <Widget>[
               Icon(AleraIcons.host, size: 13, color: color),
               const SizedBox(width: AleraTokens.space6),
@@ -61,26 +55,16 @@ class RuntimeHostStatusChip extends StatelessWidget {
 }
 
 /// Interactive panel opened from the runtime status-bar chip.
-class RuntimeHostStatusPanel extends StatelessWidget {
-  const RuntimeHostStatusPanel({
-    super.key,
-    required this.snapshot,
-    required this.loading,
-    required this.onRefresh,
-    required this.onStart,
-    required this.onStop,
-    required this.onUpdate,
-    this.busy = false,
-  });
-
-  final RuntimeHostStatusSnapshot? snapshot;
-  final bool loading;
-  final bool busy;
-  final VoidCallback onRefresh;
-  final VoidCallback onStart;
-  final VoidCallback onStop;
-  final VoidCallback onUpdate;
-
+class const RuntimeHostStatusPanel({
+  super.key,
+  required final RuntimeHostStatusSnapshot? snapshot,
+  required final bool loading,
+  required final VoidCallback onRefresh,
+  required final VoidCallback onStart,
+  required final VoidCallback onStop,
+  required final VoidCallback onUpdate,
+  final bool busy = false,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -113,7 +97,7 @@ class RuntimeHostStatusPanel extends StatelessWidget {
           child: SingleChildScrollView(
             padding: const EdgeInsets.all(AleraTokens.space12),
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
+              crossAxisAlignment: .stretch,
               children: <Widget>[
                 Text('Runtime', style: theme.textTheme.titleSmall),
                 const SizedBox(height: AleraTokens.space8),
@@ -165,7 +149,7 @@ class RuntimeHostStatusPanel extends StatelessWidget {
                 ],
                 const SizedBox(height: AleraTokens.space12),
                 Wrap(
-                  alignment: WrapAlignment.end,
+                  alignment: .end,
                   spacing: AleraTokens.space8,
                   runSpacing: AleraTokens.space8,
                   children: <Widget>[
@@ -207,13 +191,11 @@ class RuntimeHostStatusPanel extends StatelessWidget {
   }
 }
 
-class _StatusRow extends StatelessWidget {
-  const _StatusRow({required this.label, required this.value, this.valueColor});
-
-  final String label;
-  final String value;
-  final Color? valueColor;
-
+class const _StatusRow({
+  required final String label,
+  required final String value,
+  final Color? valueColor,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
@@ -236,7 +218,7 @@ class _StatusRow extends StatelessWidget {
                 fontSize: 11,
                 color: valueColor,
               ),
-              overflow: TextOverflow.ellipsis,
+              overflow: .ellipsis,
             ),
           ),
         ],

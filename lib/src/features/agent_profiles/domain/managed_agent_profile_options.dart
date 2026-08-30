@@ -1,12 +1,7 @@
 import 'package:alera/src/features/agent_profiles/domain/agent_profile_adapters.dart';
 import 'package:alera/src/features/agent_status/domain/agent_status.dart';
 
-class ManagedAgentOption {
-  const ManagedAgentOption(this.value, this.label);
-
-  final String value;
-  final String label;
-}
+class const ManagedAgentOption(final String value, final String label);
 
 const List<ManagedAgentOption> codexEffortOptions = <ManagedAgentOption>[
   ManagedAgentOption('minimal', 'Minimal'),

@@ -1,26 +1,20 @@
 import 'dart:async';
 import 'dart:convert';
 
-import 'package:alera_mobile/src/features/ai_dictation/domain/speech_capabilities.dart';
 import 'package:alera_mobile/src/features/ai_dictation/domain/speech_provider_profile.dart';
 import 'package:alera_mobile/src/features/ai_dictation/infra/mobile_ai_dictation_credential_store.dart';
 import 'package:http/http.dart' as http;
 
 typedef MobileDictationHttpClientFactory = http.Client Function();
 
-class MobileOpenAiDictationResult {
-  const MobileOpenAiDictationResult(this.text);
+class const MobileOpenAiDictationResult(final String text);
 
-  final String text;
-}
+class MobileOpenAiDictationProvider(
+  final MobileAiDictationCredentialStore _credentials, {
+  MobileDictationHttpClientFactory? clientFactory,
+}) {
+  this : _clientFactory = clientFactory ?? http.Client.new;
 
-class MobileOpenAiDictationProvider {
-  MobileOpenAiDictationProvider(
-    this._credentials, {
-    MobileDictationHttpClientFactory? clientFactory,
-  }) : _clientFactory = clientFactory ?? http.Client.new;
-
-  final MobileAiDictationCredentialStore _credentials;
   final MobileDictationHttpClientFactory _clientFactory;
   final Map<String, http.Client> _activeClients = <String, http.Client>{};
   final Set<String> _cancelled = <String>{};
@@ -42,7 +36,7 @@ class MobileOpenAiDictationProvider {
     final profile = SpeechProviderProfile(
       id: 'mobile-direct',
       label: 'OpenAI-Compatible API',
-      type: SpeechBackend.openAiCompatible,
+      type: .openAiCompatible,
       baseUrl: baseUrl,
       defaultModel: normalizedModel,
       timeoutSeconds: timeout.inSeconds,

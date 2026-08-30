@@ -9,14 +9,12 @@ const nativeHelperBundleGenerator =
     'tool/native_helpers/prepare_native_helpers.dart';
 const supportedNativeHelperPlatforms = <String>{'linux', 'macos', 'windows'};
 
-final class NativeHelperManifest {
-  NativeHelperManifest({
-    required this.schemaVersion,
-    required this.noticeDirectory,
-    required this.assets,
-  });
-
-  factory NativeHelperManifest.read(File file) {
+final class NativeHelperManifest({
+  required final int schemaVersion,
+  required final String noticeDirectory,
+  required final List<NativeHelperAsset> assets,
+}) {
+  factory read(File file) {
     if (!file.existsSync()) {
       throw FormatException(
         'Native helper manifest does not exist: ${file.path}',
@@ -57,13 +55,9 @@ final class NativeHelperManifest {
     return NativeHelperManifest(
       schemaVersion: 1,
       noticeDirectory: noticeDirectory,
-      assets: List.unmodifiable(assets),
+      assets: .unmodifiable(assets),
     );
   }
-
-  final int schemaVersion;
-  final String noticeDirectory;
-  final List<NativeHelperAsset> assets;
 
   List<NativeHelperAsset> assetsFor(String platform) {
     final normalized = normalizeNativeHelperPlatform(platform);
@@ -107,24 +101,22 @@ final class NativeHelperManifest {
   }
 }
 
-final class NativeHelperAsset {
-  NativeHelperAsset({
-    required this.id,
-    required this.version,
-    required this.platforms,
-    required this.sourceUrl,
-    required this.sourceSha256,
-    required this.sourceCommit,
-    required this.payloadSha256,
-    required this.relativePath,
-    required this.archiveMember,
-    required this.executable,
-    required this.license,
-    required this.licensePath,
-    required this.derivation,
-  });
-
-  factory NativeHelperAsset.fromJson(Object? value) {
+final class NativeHelperAsset({
+  required final String id,
+  required final String version,
+  required final Set<String> platforms,
+  required final Uri sourceUrl,
+  required final String sourceSha256,
+  required final String sourceCommit,
+  required final String? payloadSha256,
+  required final String relativePath,
+  required final String? archiveMember,
+  required final bool executable,
+  required final String license,
+  required final String licensePath,
+  required final NativeHelperDerivation? derivation,
+}) {
+  factory fromJson(Object? value) {
     if (value is! Map<String, Object?>) {
       throw const FormatException(
         'Each native helper asset must be a JSON object.',
@@ -185,7 +177,7 @@ final class NativeHelperAsset {
     return NativeHelperAsset(
       id: id,
       version: version,
-      platforms: Set.unmodifiable(platforms),
+      platforms: .unmodifiable(platforms),
       sourceUrl: sourceUrl,
       sourceSha256: _requiredSha256(value, 'sourceSha256', id),
       sourceCommit: _requiredCommit(value, 'sourceCommit', id),
@@ -198,20 +190,6 @@ final class NativeHelperAsset {
       derivation: derivation,
     );
   }
-
-  final String id;
-  final String version;
-  final Set<String> platforms;
-  final Uri sourceUrl;
-  final String sourceSha256;
-  final String sourceCommit;
-  final String? payloadSha256;
-  final String relativePath;
-  final String? archiveMember;
-  final bool executable;
-  final String license;
-  final String licensePath;
-  final NativeHelperDerivation? derivation;
 }
 
 String normalizeNativeHelperPlatform(String platform) {

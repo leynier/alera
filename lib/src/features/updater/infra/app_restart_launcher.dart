@@ -17,28 +17,27 @@ abstract interface class AleraAppRestarter {
 /// A system-shell helper owns the handoff so Windows can release the running
 /// executable before it is opened again and every platform avoids briefly
 /// running two app instances against the same state.
-class AppRestartLauncher implements AleraAppRestarter {
-  AppRestartLauncher({
-    required this.processRunner,
-    String? platform,
-    String? resolvedExecutable,
-    int? processId,
-    AleraAppExit? exitApp,
-    AppRestartDirectory? restartDirectory,
-    this.handoffTimeout = const Duration(seconds: 30),
-  }) : _platform = platform ?? Platform.operatingSystem,
-       _resolvedExecutable = resolvedExecutable ?? Platform.resolvedExecutable,
-       _processId = processId ?? pid,
-       _exitApp = exitApp ?? _exitCurrentApp,
-       _restartDirectory = restartDirectory ?? _defaultRestartDirectory;
+class AppRestartLauncher({
+  required final ProcessRunner processRunner,
+  String? platform,
+  String? resolvedExecutable,
+  int? processId,
+  AleraAppExit? exitApp,
+  AppRestartDirectory? restartDirectory,
+  final Duration handoffTimeout = const Duration(seconds: 30),
+}) implements AleraAppRestarter {
+  this
+    : _platform = platform ?? Platform.operatingSystem,
+      _resolvedExecutable = resolvedExecutable ?? Platform.resolvedExecutable,
+      _processId = processId ?? pid,
+      _exitApp = exitApp ?? _exitCurrentApp,
+      _restartDirectory = restartDirectory ?? _defaultRestartDirectory;
 
-  final ProcessRunner processRunner;
   final String _platform;
   final String _resolvedExecutable;
   final int _processId;
   final AleraAppExit _exitApp;
   final AppRestartDirectory _restartDirectory;
-  final Duration handoffTimeout;
 
   @override
   Future<void> restart() async {
@@ -91,19 +90,12 @@ class AppRestartLauncher implements AleraAppRestarter {
   }
 }
 
-class _AppRestartScript {
-  const _AppRestartScript({
-    required this.fileName,
-    required this.contents,
-    required this.executable,
-    required this.arguments,
-  });
-
-  final String fileName;
-  final String contents;
-  final String executable;
-  final List<String> arguments;
-}
+class const _AppRestartScript({
+  required final String fileName,
+  required final String contents,
+  required final String executable,
+  required final List<String> arguments,
+});
 
 _AppRestartScript _restartScriptFor(String platform) {
   return switch (platform) {

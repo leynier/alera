@@ -10,12 +10,9 @@ import 'package:flutter/material.dart';
 Widget aleraTextSelectionToolbarPreview() => AleraTextSelectionToolbar(
   anchors: const TextSelectionToolbarAnchors(primaryAnchor: Offset(140, 180)),
   buttonItems: <ContextMenuButtonItem>[
-    ContextMenuButtonItem(type: ContextMenuButtonType.cut, onPressed: _noop),
-    ContextMenuButtonItem(type: ContextMenuButtonType.copy, onPressed: _noop),
-    ContextMenuButtonItem(
-      type: ContextMenuButtonType.selectAll,
-      onPressed: _noop,
-    ),
+    ContextMenuButtonItem(type: .cut, onPressed: _noop),
+    ContextMenuButtonItem(type: .copy, onPressed: _noop),
+    ContextMenuButtonItem(type: .selectAll, onPressed: _noop),
   ],
 );
 

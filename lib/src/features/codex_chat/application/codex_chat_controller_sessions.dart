@@ -37,7 +37,7 @@ extension CodexChatControllerSessions on CodexChatController {
       _threadGeneration += 1;
       state = _applyConfiguration(
         state.copyWith(
-          snapshot: CodexChatSnapshot.fromJson(response['snapshot']),
+          snapshot: .fromJson(response['snapshot']),
           activeCwd: _string(response['cwd']) ?? cwd ?? thread.cwd,
           historyNextCursor: _string(response['historyNextCursor']),
           recovery: response['recovery'] == null
@@ -96,7 +96,7 @@ extension CodexChatControllerSessions on CodexChatController {
       _threadGeneration += 1;
       state = _applyConfiguration(
         state.copyWith(
-          snapshot: CodexChatSnapshot.fromJson(response['snapshot']),
+          snapshot: .fromJson(response['snapshot']),
           activeCwd: _string(response['cwd']) ?? state.activeCwd,
           historyNextCursor: null,
           recovery: null,

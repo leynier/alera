@@ -13,11 +13,8 @@ abstract interface class AiDictationSpeechProcessor {
   Future<void> cancel(String operationId);
 }
 
-class RuntimeAiDictationSpeechProcessor implements AiDictationSpeechProcessor {
-  const RuntimeAiDictationSpeechProcessor(this._client);
-
-  final RuntimeHostClient _client;
-
+class const RuntimeAiDictationSpeechProcessor(final RuntimeHostClient _client)
+    implements AiDictationSpeechProcessor {
   @override
   Future<AiDictationSpeechProcessingResult> process({
     required String operationId,
@@ -57,14 +54,8 @@ class RuntimeAiDictationSpeechProcessor implements AiDictationSpeechProcessor {
   }
 }
 
-class AiDictationSpeechProcessingResult {
-  const AiDictationSpeechProcessingResult({
-    required this.text,
-    required this.agentLabel,
-    required this.model,
-  });
-
-  final String text;
-  final String agentLabel;
-  final String model;
-}
+class const AiDictationSpeechProcessingResult({
+  required final String text,
+  required final String agentLabel,
+  required final String model,
+});

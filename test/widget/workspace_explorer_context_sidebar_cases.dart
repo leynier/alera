@@ -14,7 +14,7 @@ void _registerWorkspaceExplorerContextSidebarTests() {
               body: WorkspaceContextSidebar(
                 workspace: _workspace(),
                 prefs: WorkbenchViewPrefs.defaults.copyWith(
-                  activeContextPanelTab: WorkbenchContextPanelTab.gitDiff,
+                  activeContextPanelTab: .gitDiff,
                 ),
                 onToggleVisible: () {},
                 onResize: (_) {},
@@ -72,7 +72,7 @@ void _registerWorkspaceExplorerContextSidebarTests() {
               body: WorkspaceContextSidebar(
                 workspace: _workspace(),
                 prefs: WorkbenchViewPrefs.defaults.copyWith(
-                  activeContextPanelTab: WorkbenchContextPanelTab.pullRequests,
+                  activeContextPanelTab: .pullRequests,
                   rightSidebarVisible: false,
                 ),
                 onToggleVisible: () {},
@@ -122,7 +122,7 @@ void _registerWorkspaceExplorerContextSidebarTests() {
               body: WorkspaceContextSidebar(
                 workspace: _workspace(),
                 prefs: WorkbenchViewPrefs.defaults.copyWith(
-                  activeContextPanelTab: WorkbenchContextPanelTab.pullRequests,
+                  activeContextPanelTab: .pullRequests,
                 ),
                 onToggleVisible: () {},
                 onResize: (_) {},

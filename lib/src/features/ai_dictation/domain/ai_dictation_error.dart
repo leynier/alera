@@ -9,13 +9,11 @@ enum AiDictationErrorKind {
   transcription,
 }
 
-class AiDictationException implements Exception {
-  const AiDictationException(this.kind, this.message, {this.cause});
-
-  final AiDictationErrorKind kind;
-  final String message;
-  final Object? cause;
-
+class const AiDictationException(
+  final AiDictationErrorKind kind,
+  final String message, {
+  final Object? cause,
+}) implements Exception {
   @override
   String toString() => message;
 }

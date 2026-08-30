@@ -8,11 +8,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:logging/logging.dart';
 
-class AppWindowLifecycleScope extends ConsumerStatefulWidget {
-  const AppWindowLifecycleScope({super.key, required this.child});
-
-  final Widget child;
-
+class const AppWindowLifecycleScope({super.key, required final Widget child})
+    extends ConsumerStatefulWidget {
   @override
   ConsumerState<AppWindowLifecycleScope> createState() =>
       _AppWindowLifecycleScopeState();

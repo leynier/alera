@@ -15,8 +15,8 @@ void _registerWorkspaceServiceRemovalTests() {
           id: 'tab-1',
           workspaceId: linkedWorkspace.id,
           title: 'Terminal 1',
-          createdAt: DateTime.utc(2026, 5, 20),
-          updatedAt: DateTime.utc(2026, 5, 20),
+          createdAt: .utc(2026, 5, 20),
+          updatedAt: .utc(2026, 5, 20),
         ),
       );
 
@@ -265,10 +265,10 @@ void _registerWorkspaceServiceRemovalTests() {
       name: 'Detached',
       branch: '',
       path: p.join(tempDir.path, 'detached'),
-      createdAt: DateTime.utc(2026, 5, 20),
-      updatedAt: DateTime.utc(2026, 5, 20),
-      kind: WorkspaceKind.linked,
-      status: WorkspaceStatus.active,
+      createdAt: .utc(2026, 5, 20),
+      updatedAt: .utc(2026, 5, 20),
+      kind: .linked,
+      status: .active,
     );
 
     await expectLater(

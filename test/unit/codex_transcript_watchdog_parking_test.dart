@@ -49,7 +49,7 @@ void main() {
           terminalSessionId: 'session-1',
           workspaceId: 'workspace-1',
           tabId: 'tab-1',
-          agentType: AgentType.codex,
+          agentType: .codex,
           hookEventName: 'UserPromptSubmit',
           payload: <String, Object?>{
             'turn_id': 'turn-1',
@@ -62,7 +62,7 @@ void main() {
     /// Append the line that ends the turn, without touching the watcher, so a
     /// scan is the only thing that can observe it.
     void completeTurnOnDisk() {
-      transcript.writeAsStringSync(_turnComplete, mode: FileMode.append);
+      transcript.writeAsStringSync(_turnComplete, mode: .append);
     }
 
     Future<void> waitOutSeveralIntervals() async {

@@ -147,8 +147,8 @@ void _registerMobileCodexReviewRegression5Tests() {
     final composer = find.byType(TextField).last;
 
     await tester.tap(composer);
-    await tester.sendKeyEvent(LogicalKeyboardKey.arrowUp);
-    await tester.sendKeyEvent(LogicalKeyboardKey.arrowUp);
+    await tester.sendKeyEvent(.arrowUp);
+    await tester.sendKeyEvent(.arrowUp);
     await tester.pump();
     expect(tester.widget<TextField>(composer).controller?.text, 'Old prompt 1');
     client.emit(
@@ -175,7 +175,7 @@ void _registerMobileCodexReviewRegression5Tests() {
       }),
     );
     await tester.pump(const Duration(milliseconds: 30));
-    await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
+    await tester.sendKeyEvent(.arrowDown);
     await tester.pump();
 
     expect(tester.takeException(), isNull);

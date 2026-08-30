@@ -29,3 +29,13 @@ The isolated generator probe passes JSON field annotations, inherited defaults, 
 The initial performance series is not acceptance evidence: unrelated Flutter tests and native compilation raised host load sharply and materially changed frame times. The raw samples and baseline source are preserved for a matched comparison. Final modernization, native builds and performance validation are still in progress.
 
 Language references: [primary constructors](https://dart.dev/language/primary-constructors), [constructor syntax](https://dart.dev/language/constructors#concise-constructor-syntax), and [Dart 3.13.2 changelog](https://github.com/dart-lang/sdk/blob/3.13.2/CHANGELOG.md).
+
+## Transformation review and exceptions
+
+The review covers tracked own production code, tools, tests and previews. Primary constructors and declaring parameters remove repeated declarations; concise constructors retain multiple-constructor and redirecting designs. Explicit field declarations remain in mapped models to preserve serialization order, and field documentation and annotations are retained. Existing super parameters are preserved, with the generated Drift compatibility fixture also exercising primary super parameters.
+
+Dot shorthands use a concrete expected type. Keep explicit types where a generic call must infer its own type argument, such as `Navigator.pop` and an untyped `_guarded` fallback, and in map indexing because its key parameter is `Object?`. Unnamed widget constructors remain explicit so widget trees retain their component names. `_CodexMenuHeader` keeps an in-body constructor: its primary form triggers the SDK's immutable-constructor lint despite the nonconstant `Text` initializer.
+
+Null-aware entries preserve omission of optional serialized fields in browser and mobile payloads. Configuration parsers use type patterns while retaining map-key casts, invalid-schema errors, scalar fallbacks, null values and list order. Existing asynchronous isolate, process and native boundaries remain unchanged. Benchmark harnesses receive formatting only.
+
+The playback monitor regression test now drives stream delivery and retry timers with `fake_async`; it no longer races a real one-millisecond timer under host load. It retains the original recovery and disposal assertions. New compatibility tests cover annotated primary enums and models, inherited defaults, constant identity, generated JSON and `copyWith`, Riverpod family defaults, Drift row defaults, immutable application snapshots and zero/nonzero event-loop pauses.

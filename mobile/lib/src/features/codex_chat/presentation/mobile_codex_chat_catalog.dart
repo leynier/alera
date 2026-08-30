@@ -1,23 +1,14 @@
 part of 'mobile_codex_chat_screen.dart';
 
-class _MobileComposerCatalog extends StatefulWidget {
-  const _MobileComposerCatalog({
-    super.key,
-    required this.textController,
-    required this.chatController,
-    required this.state,
-    required this.workspaceId,
-    required this.onAddAttachment,
-    required this.onCatalogSelection,
-  });
-
-  final TextEditingController textController;
-  final MobileCodexController chatController;
-  final MobileCodexState state;
-  final String workspaceId;
-  final ValueChanged<Map<String, Object?>> onAddAttachment;
-  final ValueChanged<Map<String, Object?>> onCatalogSelection;
-
+class const _MobileComposerCatalog({
+  super.key,
+  required final TextEditingController textController,
+  required final MobileCodexController chatController,
+  required final MobileCodexState state,
+  required final String workspaceId,
+  required final ValueChanged<Map<String, Object?>> onAddAttachment,
+  required final ValueChanged<Map<String, Object?>> onCatalogSelection,
+}) extends StatefulWidget {
   @override
   State<_MobileComposerCatalog> createState() => _MobileComposerCatalogState();
 }
@@ -368,7 +359,7 @@ class _MobileComposerCatalogState extends State<_MobileComposerCatalog> {
         borderRadius: BorderRadius.circular(AleraTokens.radiusLg),
         border: Border.all(color: AleraTokens.border),
       ),
-      clipBehavior: Clip.antiAlias,
+      clipBehavior: .antiAlias,
       child: ListView.builder(
         controller: _scroll,
         itemExtent: AleraTokens.codexCatalogRowHeight,
@@ -376,7 +367,7 @@ class _MobileComposerCatalogState extends State<_MobileComposerCatalog> {
         itemBuilder: (context, index) {
           final item = _items[index];
           return Material(
-            type: MaterialType.transparency,
+            type: .transparency,
             child: ListTile(
               selected: index == _selected,
               selectedTileColor: AleraTokens.surfaceVariant,
@@ -384,16 +375,8 @@ class _MobileComposerCatalogState extends State<_MobileComposerCatalog> {
                 borderRadius: BorderRadius.circular(AleraTokens.radiusMd),
               ),
               leading: _MobileCatalogIcon(item: item),
-              title: Text(
-                item.title,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-              subtitle: Text(
-                item.subtitle,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
+              title: Text(item.title, maxLines: 1, overflow: .ellipsis),
+              subtitle: Text(item.subtitle, maxLines: 1, overflow: .ellipsis),
               trailing: Text(item.kind),
               onTap: () => _select(item),
             ),

@@ -5,11 +5,8 @@ import 'package:alera/src/features/workbench/domain/workspace.dart';
 import 'package:flutter/material.dart';
 
 /// Compact main-worktree marker shown next to a workspace name.
-class WorkspaceRoleBadge extends StatelessWidget {
-  const WorkspaceRoleBadge({super.key, required this.workspace});
-
-  final Workspace workspace;
-
+class const WorkspaceRoleBadge({super.key, required final Workspace workspace})
+    extends StatelessWidget {
   /// Whether [workspace] has a role to show. Callers use this to gate the
   /// adjacent spacer so the predicate lives in one place instead of being
   /// duplicated at every call site.
@@ -35,11 +32,8 @@ class WorkspaceRoleBadge extends StatelessWidget {
 /// the host it runs on (when not local), how many children it has, and its
 /// tags. Renders nothing for a plain local workspace with no relationships or
 /// tags, so the common case adds no visual weight.
-class WorkspaceGraphChips extends StatelessWidget {
-  const WorkspaceGraphChips({super.key, required this.workspace});
-
-  final Workspace workspace;
-
+class const WorkspaceGraphChips({super.key, required final Workspace workspace})
+    extends StatelessWidget {
   static const int _maxVisibleTags = 3;
 
   /// Whether [workspace] has any graph metadata to render. Lets callers gate

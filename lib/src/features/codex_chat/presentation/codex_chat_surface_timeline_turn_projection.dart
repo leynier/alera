@@ -1,19 +1,17 @@
 part of 'codex_chat_surface.dart';
 
-class _CodexTurnProjection {
-  const _CodexTurnProjection({
-    required this.turnId,
-    required this.users,
-    required this.assistants,
-    required this.secondaryRows,
-    required this.outside,
-    required this.working,
-    required this.workedLabel,
-    required this.startedAt,
-    required this.sourceCells,
-  });
-
-  factory _CodexTurnProjection.reuseOrCreate(
+class const _CodexTurnProjection({
+  required final String turnId,
+  required final List<CodexTimelineCell> users,
+  required final List<CodexTimelineCell> assistants,
+  required final List<_CodexSecondaryRowProjection> secondaryRows,
+  required final List<CodexTimelineCell> outside,
+  required final bool working,
+  required final String workedLabel,
+  required final DateTime? startedAt,
+  required final List<CodexTimelineCell> sourceCells,
+}) {
+  factory reuseOrCreate(
     _CodexTurnProjection? previous,
     List<CodexTimelineCell> cells, {
     required bool working,
@@ -26,10 +24,7 @@ class _CodexTurnProjection {
     return _CodexTurnProjection.fromCells(cells, working: working);
   }
 
-  factory _CodexTurnProjection.fromCells(
-    List<CodexTimelineCell> cells, {
-    required bool working,
-  }) {
+  factory fromCells(List<CodexTimelineCell> cells, {required bool working}) {
     final users = <CodexTimelineCell>[];
     final assistants = <CodexTimelineCell>[];
     final secondary = <CodexTimelineCell>[];
@@ -103,16 +98,6 @@ class _CodexTurnProjection {
     );
   }
 
-  final String turnId;
-  final List<CodexTimelineCell> users;
-  final List<CodexTimelineCell> assistants;
-  final List<_CodexSecondaryRowProjection> secondaryRows;
-  final List<CodexTimelineCell> outside;
-  final bool working;
-  final String workedLabel;
-  final DateTime? startedAt;
-  final List<CodexTimelineCell> sourceCells;
-
   bool get hasSecondaryRows => secondaryRows.isNotEmpty;
   bool get collapsesSecondaryRows =>
       secondaryRows.fold<int>(
@@ -125,14 +110,14 @@ class _CodexTurnProjection {
 }
 
 class _CodexSecondaryRowProjection {
-  const _CodexSecondaryRowProjection.cell(this.cell)
+  const new cell(this.cell)
     : actions = const <_CodexWorkedAction>[],
       summary = null,
       summaryIcon = null,
       streaming = false,
       waiting = false;
 
-  _CodexSecondaryRowProjection.actions(
+  new actions(
     this.actions, {
     required this.summary,
     required this.summaryIcon,
@@ -140,10 +125,7 @@ class _CodexSecondaryRowProjection {
     required this.waiting,
   }) : cell = null;
 
-  factory _CodexSecondaryRowProjection.fromCells(
-    List<CodexTimelineCell> cells, {
-    required bool waiting,
-  }) {
+  factory fromCells(List<CodexTimelineCell> cells, {required bool waiting}) {
     if (!_isWorkedActionCell(cells.first)) {
       return _CodexSecondaryRowProjection.cell(cells.single);
     }

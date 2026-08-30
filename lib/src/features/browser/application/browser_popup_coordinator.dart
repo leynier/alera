@@ -16,14 +16,12 @@ typedef BrowserWorkspaceTabCreator = Future<WorkspaceTabRecord> Function({
   required String initialUrl,
 });
 
-final class BrowserPopupCoordinator {
-  BrowserPopupCoordinator({
-    required BrowserSessionRegistry registry,
-    required BrowserWorkspaceTabCreator createWorkspaceTab,
-    DateTime Function()? now,
-  }) : _registry = registry,
-       _createWorkspaceTab = createWorkspaceTab,
-       _now = now ?? _defaultNow {
+final class BrowserPopupCoordinator({
+  required this._registry,
+  required this._createWorkspaceTab,
+  DateTime Function()? now,
+}) {
+  this : _now = now ?? _defaultNow {
     _registrySubscription = _registry.events.listen(_onRegistryEvent);
   }
 

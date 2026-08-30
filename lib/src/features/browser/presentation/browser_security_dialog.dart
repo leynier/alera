@@ -5,16 +5,11 @@ import 'package:alera/src/design_system/menus/alera_text_selection_toolbar.dart'
 import 'package:alera/src/features/browser/domain/browser_security.dart';
 import 'package:flutter/material.dart';
 
-class BrowserSecurityDialog extends StatelessWidget {
-  const BrowserSecurityDialog({
-    super.key,
-    required this.security,
-    this.onTrustLocalCertificate,
-  });
-
-  final BrowserSecurityState security;
-  final VoidCallback? onTrustLocalCertificate;
-
+class const BrowserSecurityDialog({
+  super.key,
+  required final BrowserSecurityState security,
+  final VoidCallback? onTrustLocalCertificate,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -24,8 +19,8 @@ class BrowserSecurityDialog extends StatelessWidget {
       child: Padding(
         padding: const EdgeInsets.all(AleraTokens.space20),
         child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: .min,
+          crossAxisAlignment: .start,
           children: <Widget>[
             Row(
               children: <Widget>[
@@ -76,7 +71,7 @@ class BrowserSecurityDialog extends StatelessWidget {
                 onTrustLocalCertificate != null) ...<Widget>[
               const SizedBox(height: AleraTokens.space20),
               SizedBox(
-                width: double.infinity,
+                width: .infinity,
                 child: FilledButton(
                   onPressed: () {
                     Navigator.of(context).pop();
@@ -93,19 +88,17 @@ class BrowserSecurityDialog extends StatelessWidget {
   }
 }
 
-class _SecurityDetail extends StatelessWidget {
-  const _SecurityDetail({required this.label, required this.value});
-
-  final String label;
-  final String value;
-
+class const _SecurityDetail({
+  required final String label,
+  required final String value,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Padding(
       padding: const EdgeInsets.only(bottom: AleraTokens.space6),
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: .start,
         children: <Widget>[
           SizedBox(
             width: AleraTokens.space48 * 2,

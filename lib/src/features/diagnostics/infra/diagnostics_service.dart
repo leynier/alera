@@ -8,37 +8,30 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'package:url_launcher/url_launcher.dart' as url_launcher;
 
 /// Runtime facts the bundle records, read from `status.get`.
-class RuntimeDiagnosticsInfo {
-  const RuntimeDiagnosticsInfo({
-    this.version,
-    this.commit,
-    this.protocolVersion,
-    this.logDirectory,
-    this.capabilities = const <String>[],
-  });
-
-  final String? version;
-  final String? commit;
-  final int? protocolVersion;
-
+class const RuntimeDiagnosticsInfo({
+  final String? version,
+  final String? commit,
+  final int? protocolVersion,
+  this.logDirectory,
+  final List<String> capabilities = const <String>[],
+}) {
   /// Reported by hosts advertising `hostDiagnosticsLogsV1`. Absent on older
   /// hosts, which simply contribute no runtime logs to the bundle.
   final String? logDirectory;
-  final List<String> capabilities;
 }
 
 /// Collects logs and metadata, and reveals the log folder.
-class DiagnosticsService {
-  DiagnosticsService({
-    this.builder = const DiagnosticsBundleBuilder(),
-    Future<bool> Function(Uri uri)? openUri,
-    Future<PackageInfo> Function()? packageInfo,
-    DateTime Function()? now,
-  }) : _openUri = openUri ?? _launchUri,
-       _packageInfo = packageInfo ?? PackageInfo.fromPlatform,
-       _now = now ?? DateTime.now;
+class DiagnosticsService({
+  final DiagnosticsBundleBuilder builder = const DiagnosticsBundleBuilder(),
+  Future<bool> Function(Uri uri)? openUri,
+  Future<PackageInfo> Function()? packageInfo,
+  DateTime Function()? now,
+}) {
+  this
+    : _openUri = openUri ?? _launchUri,
+      _packageInfo = packageInfo ?? PackageInfo.fromPlatform,
+      _now = now ?? DateTime.now;
 
-  final DiagnosticsBundleBuilder builder;
   final Future<bool> Function(Uri uri) _openUri;
   final Future<PackageInfo> Function() _packageInfo;
   final DateTime Function() _now;
@@ -59,7 +52,7 @@ class DiagnosticsService {
     if (!directory.existsSync()) {
       await directory.create(recursive: true);
     }
-    return _openUri(Uri.file(directory.path));
+    return _openUri(.file(directory.path));
   }
 
   /// Builds the bundle bytes for the current machine.

@@ -178,7 +178,7 @@ void main() {
         final assertion = MacosSystemSleepAssertion(
           processRunner: runner,
           platform: 'macos',
-          retryDelay: Duration.zero,
+          retryDelay: .zero,
         );
 
         await assertion.start('status-change');
@@ -354,8 +354,8 @@ Future<void> _waitForStartCalls(
   }
 }
 
-class _FakeStartedProcess {
-  _FakeStartedProcess() {
+class _FakeStartedProcess() {
+  this {
     startedProcess = StartedProcess(
       stdinWrite: (_) {},
       stdout: const Stream<List<int>>.empty(),
@@ -386,14 +386,9 @@ class _FakeStartedProcess {
 
   void completeExitError(Object error) {
     if (!_exitCode.isCompleted) {
-      _exitCode.completeError(error, StackTrace.current);
+      _exitCode.completeError(error, .current);
     }
   }
 }
 
-class _StartCall {
-  const _StartCall(this.executable, this.arguments);
-
-  final String executable;
-  final List<String> arguments;
-}
+class const _StartCall(final String executable, final List<String> arguments);

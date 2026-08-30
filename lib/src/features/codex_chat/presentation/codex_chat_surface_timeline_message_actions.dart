@@ -1,28 +1,18 @@
 part of 'codex_chat_surface.dart';
 
-class _CodexMessageActions extends StatelessWidget {
-  const _CodexMessageActions({
-    required this.visible,
-    required this.raw,
-    required this.copyText,
-    required this.alignment,
-    required this.timestamp,
-    required this.onToggleRaw,
-    this.timestampFirst = false,
-  });
-
-  final bool visible;
-  final bool raw;
-  final String copyText;
-  final MainAxisAlignment alignment;
-  final DateTime timestamp;
-  final bool timestampFirst;
-  final VoidCallback onToggleRaw;
-
+class const _CodexMessageActions({
+  required final bool visible,
+  required final bool raw,
+  required final String copyText,
+  required final MainAxisAlignment alignment,
+  required final DateTime timestamp,
+  required final VoidCallback onToggleRaw,
+  final bool timestampFirst = false,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final buttons = Row(
-      mainAxisSize: MainAxisSize.min,
+      mainAxisSize: .min,
       children: <Widget>[
         AleraIconButton(
           tooltip: 'Copy Message',
@@ -51,7 +41,7 @@ class _CodexMessageActions extends StatelessWidget {
           alignment: alignment == MainAxisAlignment.end
               ? WrapAlignment.end
               : WrapAlignment.start,
-          crossAxisAlignment: WrapCrossAlignment.center,
+          crossAxisAlignment: .center,
           spacing: AleraTokens.space8,
           runSpacing: AleraTokens.space4,
           children: timestampFirst
@@ -63,11 +53,8 @@ class _CodexMessageActions extends StatelessWidget {
   }
 }
 
-class _CodexMessageTimestamp extends StatelessWidget {
-  const _CodexMessageTimestamp({required this.timestamp});
-
-  final DateTime timestamp;
-
+class const _CodexMessageTimestamp({required final DateTime timestamp})
+    extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final local = timestamp.toLocal();
@@ -80,10 +67,8 @@ class _CodexMessageTimestamp extends StatelessWidget {
       'Saturday',
       'Sunday',
     ];
-    final time = MaterialLocalizations.of(context).formatTimeOfDay(
-      TimeOfDay.fromDateTime(local),
-      alwaysUse24HourFormat: false,
-    );
+    final time = MaterialLocalizations.of(context)
+        .formatTimeOfDay(.fromDateTime(local), alwaysUse24HourFormat: false);
     return Text(
       '${weekdays[local.weekday - 1]} $time',
       key: const ValueKey<String>('codex-message-timestamp'),

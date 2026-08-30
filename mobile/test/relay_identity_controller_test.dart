@@ -47,7 +47,7 @@ void main() {
 
 class _IdentityRepository implements VersionedCloudRelayIdentityRepository {
   CloudRelayIdentity value = CloudRelayIdentity(
-    base64UrlEncode(List.filled(32, 7)),
+    base64UrlEncode(.filled(32, 7)),
     1,
   );
   int rotations = 0;
@@ -64,7 +64,7 @@ class _IdentityRepository implements VersionedCloudRelayIdentityRepository {
   ) async {
     rotations++;
     return value = CloudRelayIdentity(
-      base64UrlEncode(List.filled(32, 8)),
+      base64UrlEncode(.filled(32, 8)),
       previous.keyVersion + 1,
     );
   }

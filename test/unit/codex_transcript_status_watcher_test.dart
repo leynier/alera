@@ -62,7 +62,7 @@ void main() {
             }),
           },
         })}\n',
-        mode: FileMode.append,
+        mode: .append,
       );
       await watcher.scanNowForTesting('session-1');
 
@@ -108,7 +108,7 @@ void main() {
           'type': 'response_item',
           'payload': <String, Object?>{'type': 'function_call_output', 'call_id': 'call-1', 'output': '{}'},
         })}\n',
-        mode: FileMode.append,
+        mode: .append,
       );
       await watcher.scanNowForTesting('session-1');
 
@@ -153,7 +153,7 @@ void main() {
           'type': 'event_msg',
           'payload': <String, Object?>{'type': 'request_permissions', 'call_id': 'permission-1', 'reason': 'Need access'},
         })}\n',
-        mode: FileMode.append,
+        mode: .append,
       );
       await watcher.scanNowForTesting('session-1');
 
@@ -190,12 +190,12 @@ void main() {
           'arguments': 'raw approval',
         },
       });
-      transcript.writeAsStringSync('$call\n$call\n', mode: FileMode.append);
+      transcript.writeAsStringSync('$call\n$call\n', mode: .append);
       await watcher.scanNowForTesting('session-1');
       watcher.observeHookEvent(
         _event(hookEventName: 'Stop', payload: const <String, Object?>{}),
       );
-      transcript.writeAsStringSync('$call\n', mode: FileMode.append);
+      transcript.writeAsStringSync('$call\n', mode: .append);
       await watcher.scanNowForTesting('session-1');
 
       expect(sink.events, hasLength(1));
@@ -229,7 +229,7 @@ void main() {
           'type': 'response_item',
           'payload': <String, Object?>{'type': 'function_call', 'name': 'request_user_input', 'call_id': 'call-1', 'arguments': '{}'},
         })}\n',
-        mode: FileMode.append,
+        mode: .append,
       );
       await watcher.scanNowForTesting('session-1');
 
@@ -243,7 +243,7 @@ void main() {
           terminalSessionId: 'session-2',
           workspaceId: 'workspace-1',
           tabId: 'tab-1',
-          agentType: AgentType.claude,
+          agentType: .claude,
           hookEventName: 'UserPromptSubmit',
           payload: <String, Object?>{'transcript_path': transcript.path},
         ),
@@ -286,7 +286,7 @@ void main() {
           'type': 'event_msg',
           'payload': <String, Object?>{'type': 'turn_aborted', 'turn_id': 'turn-1', 'reason': 'interrupted'},
         })}\n',
-        mode: FileMode.append,
+        mode: .append,
       );
       await watcher.scanNowForTesting('session-1');
 
@@ -316,7 +316,7 @@ void main() {
           'type': 'event_msg',
           'payload': <String, Object?>{'type': 'task_complete', 'turn_id': 'turn-1', 'last_agent_message': 'Done.'},
         })}\n',
-        mode: FileMode.append,
+        mode: .append,
       );
       await watcher.scanNowForTesting('session-1');
 
@@ -357,7 +357,7 @@ void main() {
             }),
           },
         })}\n',
-        mode: FileMode.append,
+        mode: .append,
       );
       await watcher.scanNowForTesting('session-1');
 
@@ -374,7 +374,7 @@ AgentHookEvent _event({
     terminalSessionId: 'session-1',
     workspaceId: 'workspace-1',
     tabId: 'tab-1',
-    agentType: AgentType.codex,
+    agentType: .codex,
     hookEventName: hookEventName,
     payload: payload,
   );

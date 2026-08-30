@@ -24,13 +24,13 @@ bool _looksUnauthenticated(String stderr) {
 CreateReviewFailure mapGitHubCreateFailure(ProcessRunOutput result) {
   if (ghLooksLikeMissingCli(result)) {
     return const CreateReviewFailure(
-      code: CreateReviewErrorCode.cliMissing,
+      code: .cliMissing,
       message: 'The gh CLI was not found on PATH.',
     );
   }
   if (_looksUnauthenticated(result.stderr)) {
     return const CreateReviewFailure(
-      code: CreateReviewErrorCode.notAuthenticated,
+      code: .notAuthenticated,
       message: 'Run `gh auth login` to authenticate.',
     );
   }
@@ -38,12 +38,12 @@ CreateReviewFailure mapGitHubCreateFailure(ProcessRunOutput result) {
   if (stderr.contains('already exists') ||
       stderr.contains('a pull request for branch')) {
     return const CreateReviewFailure(
-      code: CreateReviewErrorCode.alreadyExists,
+      code: .alreadyExists,
       message: 'A pull request already exists for this branch.',
     );
   }
   return CreateReviewFailure(
-    code: CreateReviewErrorCode.unknown,
+    code: .unknown,
     message: result.stderr.trim().isEmpty
         ? 'gh pr create failed.'
         : result.stderr.trim(),
@@ -53,18 +53,18 @@ CreateReviewFailure mapGitHubCreateFailure(ProcessRunOutput result) {
 UpdateReviewFailure mapGitHubUpdateFailure(ProcessRunOutput result) {
   if (ghLooksLikeMissingCli(result)) {
     return const UpdateReviewFailure(
-      code: UpdateReviewErrorCode.cliMissing,
+      code: .cliMissing,
       message: 'The gh CLI was not found on PATH.',
     );
   }
   if (_looksUnauthenticated(result.stderr)) {
     return const UpdateReviewFailure(
-      code: UpdateReviewErrorCode.notAuthenticated,
+      code: .notAuthenticated,
       message: 'Run `gh auth login` to authenticate.',
     );
   }
   return UpdateReviewFailure(
-    code: UpdateReviewErrorCode.unknown,
+    code: .unknown,
     message: result.stderr.trim().isEmpty
         ? 'gh pr edit failed.'
         : result.stderr.trim(),

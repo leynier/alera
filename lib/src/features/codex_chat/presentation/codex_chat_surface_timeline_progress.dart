@@ -1,10 +1,8 @@
 part of 'codex_chat_surface.dart';
 
-class _CodexPlanProgressIndicator extends StatelessWidget {
-  const _CodexPlanProgressIndicator({required this.progress});
-
-  final _CodexPlanProgressProjection progress;
-
+class const _CodexPlanProgressIndicator({
+  required final _CodexPlanProgressProjection progress,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Align(
@@ -28,7 +26,7 @@ class _CodexPlanProgressIndicator extends StatelessWidget {
               border: Border.all(color: AleraTokens.border),
             ),
             child: Row(
-              mainAxisSize: MainAxisSize.min,
+              mainAxisSize: .min,
               children: <Widget>[
                 SizedBox.square(
                   dimension: AleraTokens.iconLg,
@@ -54,11 +52,9 @@ class _CodexPlanProgressIndicator extends StatelessWidget {
   }
 }
 
-class _CodexPlanProgressDock extends StatelessWidget {
-  const _CodexPlanProgressDock({required this.progress});
-
-  final _CodexPlanProgressProjection progress;
-
+class const _CodexPlanProgressDock({
+  required final _CodexPlanProgressProjection progress,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Padding(
     key: const ValueKey<String>('codex-plan-progress-dock'),
@@ -67,14 +63,12 @@ class _CodexPlanProgressDock extends StatelessWidget {
   );
 }
 
-class _CodexPlanProgressProjection {
-  const _CodexPlanProgressProjection({
-    required this.cell,
-    required this.steps,
-    required this.current,
-    required this.completed,
-  });
-
+class const _CodexPlanProgressProjection({
+  required final CodexTimelineCell cell,
+  required final List<(String, String)> steps,
+  required final int current,
+  required final int completed,
+}) {
   static _CodexPlanProgressProjection? fromSnapshot(
     CodexChatSnapshot snapshot,
   ) {
@@ -109,11 +103,6 @@ class _CodexPlanProgressProjection {
     return null;
   }
 
-  final CodexTimelineCell cell;
-  final List<(String, String)> steps;
-  final int current;
-  final int completed;
-
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -123,11 +112,9 @@ class _CodexPlanProgressProjection {
   int get hashCode => identityHashCode(cell);
 }
 
-class _CodexPlanProgressCard extends StatelessWidget {
-  const _CodexPlanProgressCard({required this.steps});
-
-  final List<(String, String)> steps;
-
+class const _CodexPlanProgressCard({
+  required final List<(String, String)> steps,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Container(
     key: const ValueKey<String>('codex-plan-progress-card'),

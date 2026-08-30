@@ -21,10 +21,10 @@ void _registerTerminalRuntimePulseTests() {
     try {
       final startup = session.ensureStarted();
       while (pty.statusCalls == 0) {
-        await Future<void>.delayed(Duration.zero);
+        await Future<void>.delayed(.zero);
       }
       pty.emitExit(7);
-      await Future<void>.delayed(Duration.zero);
+      await Future<void>.delayed(.zero);
       delayedStatus.complete(_pulseState);
       await startup;
 
@@ -57,10 +57,10 @@ void _registerTerminalRuntimePulseTests() {
 
       final restart = session.restart();
       while (pty.statusCalls < 2) {
-        await Future<void>.delayed(Duration.zero);
+        await Future<void>.delayed(.zero);
       }
       pty.emitExit(7);
-      await Future<void>.delayed(Duration.zero);
+      await Future<void>.delayed(.zero);
       expect(session.isRunning, isFalse);
       expect(session.supportsTerminalPulse, isFalse);
       expect(session.terminalPulseState.value.armed, isFalse);
@@ -124,19 +124,13 @@ const TerminalPulseState _armedPulseState = TerminalPulseState(
   armed: true,
 );
 
-class _FakeRecoverablePulseTerminalPtySession extends _FakeTerminalPtySession
+class _FakeRecoverablePulseTerminalPtySession(
+  final Completer<TerminalPulseState> delayedStatus, {
+  final bool delayInitialStatus = false,
+  final TerminalPulseState initialStatus = _pulseState,
+  final Object? restartError,
+}) extends _FakeTerminalPtySession
     implements RecoverableTerminalPtySession, TerminalPulsePtySession {
-  _FakeRecoverablePulseTerminalPtySession(
-    this.delayedStatus, {
-    this.delayInitialStatus = false,
-    this.initialStatus = _pulseState,
-    this.restartError,
-  });
-
-  final Completer<TerminalPulseState> delayedStatus;
-  final bool delayInitialStatus;
-  final TerminalPulseState initialStatus;
-  final Object? restartError;
   int statusCalls = 0;
 
   @override

@@ -12,7 +12,7 @@ Image mobileCodexRasterPreview(File file) => Image(
     FileImage(file),
     width: AleraTokens.codexRasterPreviewCacheDimension,
     height: AleraTokens.codexRasterPreviewCacheDimension,
-    policy: ResizeImagePolicy.fit,
+    policy: .fit,
   ),
 );
 
@@ -65,21 +65,13 @@ int _incompleteUtf8TrailingBytes(List<int> bytes) {
   return expected > available ? available : 0;
 }
 
-class _MobileRemoteImagePreview extends StatelessWidget {
-  const _MobileRemoteImagePreview({
-    required this.file,
-    required this.complete,
-    required this.canLoadMore,
-    required this.loading,
-    required this.onLoadMore,
-  });
-
-  final File? file;
-  final bool complete;
-  final bool canLoadMore;
-  final bool loading;
-  final Future<void> Function() onLoadMore;
-
+class const _MobileRemoteImagePreview({
+  required final File? file,
+  required final bool complete,
+  required final bool canLoadMore,
+  required final bool loading,
+  required final Future<void> Function() onLoadMore,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (complete && file != null) {
@@ -96,21 +88,13 @@ class _MobileRemoteImagePreview extends StatelessWidget {
   }
 }
 
-class _MobileUnsupportedFilePreview extends StatelessWidget {
-  const _MobileUnsupportedFilePreview({
-    required this.complete,
-    required this.shareable,
-    required this.canLoadMore,
-    required this.loading,
-    required this.onLoadMore,
-  });
-
-  final bool complete;
-  final bool shareable;
-  final bool canLoadMore;
-  final bool loading;
-  final Future<void> Function() onLoadMore;
-
+class const _MobileUnsupportedFilePreview({
+  required final bool complete,
+  required final bool shareable,
+  required final bool canLoadMore,
+  required final bool loading,
+  required final Future<void> Function() onLoadMore,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) => !shareable
       ? const Center(
@@ -118,7 +102,7 @@ class _MobileUnsupportedFilePreview extends StatelessWidget {
             padding: AleraTokens.contentPadding,
             child: Text(
               'This file is larger than the mobile sharing limit.',
-              textAlign: TextAlign.center,
+              textAlign: .center,
             ),
           ),
         )
@@ -128,7 +112,7 @@ class _MobileUnsupportedFilePreview extends StatelessWidget {
             padding: AleraTokens.contentPadding,
             child: Text(
               'This file cannot be previewed. Use Share File to open it in another app.',
-              textAlign: TextAlign.center,
+              textAlign: .center,
             ),
           ),
         )
@@ -140,27 +124,20 @@ class _MobileUnsupportedFilePreview extends StatelessWidget {
         );
 }
 
-class _MobileRemoteLoadMore extends StatelessWidget {
-  const _MobileRemoteLoadMore({
-    required this.message,
-    required this.canLoadMore,
-    required this.loading,
-    required this.onLoadMore,
-  });
-
-  final String message;
-  final bool canLoadMore;
-  final bool loading;
-  final Future<void> Function() onLoadMore;
-
+class const _MobileRemoteLoadMore({
+  required final String message,
+  required final bool canLoadMore,
+  required final bool loading,
+  required final Future<void> Function() onLoadMore,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Center(
     child: Padding(
       padding: AleraTokens.contentPadding,
       child: Column(
-        mainAxisSize: MainAxisSize.min,
+        mainAxisSize: .min,
         children: <Widget>[
-          Text(message, textAlign: TextAlign.center),
+          Text(message, textAlign: .center),
           const SizedBox(height: AleraTokens.space12),
           if (canLoadMore)
             FilledButton(
@@ -173,23 +150,14 @@ class _MobileRemoteLoadMore extends StatelessWidget {
   );
 }
 
-class _MobileWorkspaceFileViewerView extends StatelessWidget {
-  const _MobileWorkspaceFileViewerView({
-    required this.displayName,
-    required this.range,
-    required this.loading,
-    required this.sharing,
-    required this.onShare,
-    required this.body,
-  });
-
-  final String displayName;
-  final MobileWorkspaceFileRange? range;
-  final bool loading;
-  final bool sharing;
-  final Future<void> Function(BuildContext context) onShare;
-  final Widget body;
-
+class const _MobileWorkspaceFileViewerView({
+  required final String displayName,
+  required final MobileWorkspaceFileRange? range,
+  required final bool loading,
+  required final bool sharing,
+  required final Future<void> Function(BuildContext context) onShare,
+  required final Widget body,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Scaffold(
     appBar: AppBar(
@@ -216,33 +184,19 @@ class _MobileWorkspaceFileViewerView extends StatelessWidget {
   );
 }
 
-class _MobileWorkspaceFileViewerBody extends StatelessWidget {
-  const _MobileWorkspaceFileViewerBody({
-    required this.range,
-    required this.error,
-    required this.rasterFile,
-    required this.lines,
-    required this.targetLine,
-    required this.loadedPreviewBytes,
-    required this.loading,
-    required this.sharing,
-    required this.scrollController,
-    required this.targetLineKey,
-    required this.onLoadMore,
-  });
-
-  final MobileWorkspaceFileRange? range;
-  final Object? error;
-  final File? rasterFile;
-  final List<String> lines;
-  final int? targetLine;
-  final int loadedPreviewBytes;
-  final bool loading;
-  final bool sharing;
-  final ScrollController scrollController;
-  final GlobalKey targetLineKey;
-  final Future<void> Function() onLoadMore;
-
+class const _MobileWorkspaceFileViewerBody({
+  required final MobileWorkspaceFileRange? range,
+  required final Object? error,
+  required final File? rasterFile,
+  required final List<String> lines,
+  required final int? targetLine,
+  required final int loadedPreviewBytes,
+  required final bool loading,
+  required final bool sharing,
+  required final ScrollController scrollController,
+  required final GlobalKey targetLineKey,
+  required final Future<void> Function() onLoadMore,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (error != null) {
@@ -289,29 +243,17 @@ class _MobileWorkspaceFileViewerBody extends StatelessWidget {
   }
 }
 
-class _MobileWorkspaceTextPreview extends StatelessWidget {
-  const _MobileWorkspaceTextPreview({
-    required this.lines,
-    required this.targetLine,
-    required this.hasMore,
-    required this.previewLimitReached,
-    required this.loading,
-    required this.sharing,
-    required this.scrollController,
-    required this.targetLineKey,
-    required this.onLoadMore,
-  });
-
-  final List<String> lines;
-  final int? targetLine;
-  final bool hasMore;
-  final bool previewLimitReached;
-  final bool loading;
-  final bool sharing;
-  final ScrollController scrollController;
-  final GlobalKey targetLineKey;
-  final Future<void> Function() onLoadMore;
-
+class const _MobileWorkspaceTextPreview({
+  required final List<String> lines,
+  required final int? targetLine,
+  required final bool hasMore,
+  required final bool previewLimitReached,
+  required final bool loading,
+  required final bool sharing,
+  required final ScrollController scrollController,
+  required final GlobalKey targetLineKey,
+  required final Future<void> Function() onLoadMore,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) => ListView.builder(
     controller: scrollController,
@@ -344,7 +286,7 @@ class _MobileWorkspaceTextPreview extends StatelessWidget {
           vertical: AleraTokens.space2,
         ),
         child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment: .start,
           children: <Widget>[
             SizedBox(
               width: AleraTokens.space48,

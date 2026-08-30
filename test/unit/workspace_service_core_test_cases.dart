@@ -26,7 +26,7 @@ void _registerWorkspaceServiceCoreTests() {
   );
 
   test('ensureMainWorkspace stores a folder project without Git', () async {
-    final folderProject = project.copyWith(kind: ProjectKind.folder);
+    final folderProject = project.copyWith(kind: .folder);
 
     final workspace = await service.ensureMainWorkspace(folderProject);
 
@@ -46,10 +46,10 @@ void _registerWorkspaceServiceCoreTests() {
       name: 'Production checkout',
       branch: 'old-main',
       path: '/old/path',
-      createdAt: DateTime.utc(2026, 5, 19),
-      updatedAt: DateTime.utc(2026, 5, 19),
-      kind: WorkspaceKind.main,
-      status: WorkspaceStatus.active,
+      createdAt: .utc(2026, 5, 19),
+      updatedAt: .utc(2026, 5, 19),
+      kind: .main,
+      status: .active,
     );
     await repository.upsertWorkspace(existing);
     gitBackend.headBranch = 'main';
@@ -79,10 +79,10 @@ void _registerWorkspaceServiceCoreTests() {
       name: 'Old name',
       branch: 'main',
       path: project.repoPath,
-      createdAt: DateTime.utc(2026, 5, 19),
-      updatedAt: DateTime.utc(2026, 5, 19),
-      kind: WorkspaceKind.main,
-      status: WorkspaceStatus.active,
+      createdAt: .utc(2026, 5, 19),
+      updatedAt: .utc(2026, 5, 19),
+      kind: .main,
+      status: .active,
     );
     await repository.upsertWorkspace(workspace);
 
@@ -112,7 +112,7 @@ void _registerWorkspaceServiceCoreTests() {
 
   test('listSourceBranches skips folder projects', () async {
     final branches = await service.listSourceBranches(
-      project.copyWith(kind: ProjectKind.folder),
+      project.copyWith(kind: .folder),
     );
 
     expect(branches, isEmpty);
@@ -356,10 +356,10 @@ void _registerWorkspaceServiceCoreTests() {
         name: 'Existing branch',
         branch: 'feature/duplicate',
         path: p.join(tempDir.path, 'duplicate-branch'),
-        createdAt: DateTime.utc(2026, 5, 19),
-        updatedAt: DateTime.utc(2026, 5, 19),
-        kind: WorkspaceKind.linked,
-        status: WorkspaceStatus.active,
+        createdAt: .utc(2026, 5, 19),
+        updatedAt: .utc(2026, 5, 19),
+        kind: .linked,
+        status: .active,
       ),
     );
 
@@ -384,10 +384,10 @@ void _registerWorkspaceServiceCoreTests() {
           'repo-project-1',
           'feature-path-dup',
         ),
-        createdAt: DateTime.utc(2026, 5, 19),
-        updatedAt: DateTime.utc(2026, 5, 19),
-        kind: WorkspaceKind.linked,
-        status: WorkspaceStatus.active,
+        createdAt: .utc(2026, 5, 19),
+        updatedAt: .utc(2026, 5, 19),
+        kind: .linked,
+        status: .active,
       ),
     );
 
@@ -517,17 +517,17 @@ void _registerWorkspaceServiceCoreTests() {
   test(
     'reconcile keeps only the primary workspace for folder projects',
     () async {
-      final folderProject = project.copyWith(kind: ProjectKind.folder);
+      final folderProject = project.copyWith(kind: .folder);
       final linkedWorkspace = Workspace(
         id: 'linked-folder-workspace',
         projectId: folderProject.id,
         name: 'Linked',
         branch: 'feature/remove-me',
         path: p.join(tempDir.path, 'linked-folder-workspace'),
-        createdAt: DateTime.utc(2026, 5, 20),
-        updatedAt: DateTime.utc(2026, 5, 20),
-        kind: WorkspaceKind.linked,
-        status: WorkspaceStatus.active,
+        createdAt: .utc(2026, 5, 20),
+        updatedAt: .utc(2026, 5, 20),
+        kind: .linked,
+        status: .active,
       );
       await repository.upsertWorkspace(linkedWorkspace);
 
@@ -549,7 +549,7 @@ void _registerWorkspaceServiceCoreTests() {
   test(
     'createLinkedWorkspace rejects folder projects before Git calls',
     () async {
-      final folderProject = project.copyWith(kind: ProjectKind.folder);
+      final folderProject = project.copyWith(kind: .folder);
 
       await expectLater(
         service.createLinkedWorkspace(

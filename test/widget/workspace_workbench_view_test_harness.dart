@@ -156,8 +156,8 @@ Project _project() => Project(
   id: 'project-1',
   name: 'Alera',
   repoPath: '/tmp/alera',
-  createdAt: DateTime.utc(2026, 5, 22),
-  updatedAt: DateTime.utc(2026, 5, 22),
+  createdAt: .utc(2026, 5, 22),
+  updatedAt: .utc(2026, 5, 22),
 );
 
 Workspace _workspace() => Workspace(
@@ -166,10 +166,10 @@ Workspace _workspace() => Workspace(
   name: 'Main',
   branch: 'main',
   path: '/tmp/alera',
-  createdAt: DateTime.utc(2026, 5, 22),
-  updatedAt: DateTime.utc(2026, 5, 22),
-  kind: WorkspaceKind.main,
-  status: WorkspaceStatus.active,
+  createdAt: .utc(2026, 5, 22),
+  updatedAt: .utc(2026, 5, 22),
+  kind: .main,
+  status: .active,
 );
 
 WorkspaceTabRecord _tab(
@@ -192,8 +192,8 @@ WorkspaceTabRecord _tab(
     title: title,
     kind: kind,
     payload: payload,
-    createdAt: DateTime.utc(2026, 5, 22),
-    updatedAt: DateTime.utc(2026, 5, 22),
+    createdAt: .utc(2026, 5, 22),
+    updatedAt: .utc(2026, 5, 22),
   );
 }
 
@@ -205,22 +205,21 @@ AgentStatusEntry _agentStatus(
     terminalSessionId: tab.terminalSessionId,
     workspaceId: tab.workspaceId,
     tabId: tab.id,
-    agentType: AgentType.codex,
+    agentType: .codex,
     state: state,
     prompt: '',
-    updatedAt: DateTime.utc(2026, 5, 22),
-    stateStartedAt: DateTime.utc(2026, 5, 22),
+    updatedAt: .utc(2026, 5, 22),
+    stateStartedAt: .utc(2026, 5, 22),
   );
 }
 
-final class _WorkbenchBrowserProfileService implements BrowserProfileService {
-  const _WorkbenchBrowserProfileService();
-
+final class const _WorkbenchBrowserProfileService()
+    implements BrowserProfileService {
   static final BrowserProfile _profile = BrowserProfile(
     id: defaultBrowserProfileId,
     label: 'Default',
-    kind: BrowserProfileKind.defaultProfile,
-    createdAt: DateTime.fromMillisecondsSinceEpoch(0, isUtc: true),
+    kind: .defaultProfile,
+    createdAt: .fromMillisecondsSinceEpoch(0, isUtc: true),
   );
 
   @override
@@ -252,10 +251,10 @@ WorkbenchLayout _splitLayout({
 }) {
   return WorkbenchLayout(
     workspaceId: _workspaceId,
-    root: WorkbenchLayoutNode.split(
+    root: .split(
       axis: axis,
-      first: WorkbenchLayoutNode.leaf('group-a'),
-      second: WorkbenchLayoutNode.leaf('group-b'),
+      first: .leaf('group-a'),
+      second: .leaf('group-b'),
       ratio: 0.5,
     ),
     groups: <String, WorkbenchPaneGroup>{
@@ -328,13 +327,11 @@ class _FakeTerminalRuntime implements TerminalRuntime {
   void dispose() {}
 }
 
-class _FakeTerminalSessionHandle extends TerminalSessionHandle {
-  _FakeTerminalSessionHandle({
-    required this.tabId,
-    required this.workspaceId,
-    required this.displayTitle,
-  });
-
+class _FakeTerminalSessionHandle({
+  required this.tabId,
+  required this.workspaceId,
+  required this.displayTitle,
+}) extends TerminalSessionHandle {
   @override
   final String tabId;
 
@@ -400,10 +397,8 @@ class _FakeTerminalSessionHandle extends TerminalSessionHandle {
   }
 }
 
-final class _FakeTerminalVisibilityLease implements TerminalVisibilityLease {
-  _FakeTerminalVisibilityLease(this._onDispose);
-
-  final void Function() _onDispose;
+final class _FakeTerminalVisibilityLease(final void Function() _onDispose)
+    implements TerminalVisibilityLease {
   bool _disposed = false;
 
   @override
@@ -416,12 +411,7 @@ final class _FakeTerminalVisibilityLease implements TerminalVisibilityLease {
   }
 }
 
-class _SelectedTabAction {
-  const _SelectedTabAction(this.groupId, this.tabId);
-
-  final String groupId;
-  final String tabId;
-
+class const _SelectedTabAction(final String groupId, final String tabId) {
   @override
   bool operator ==(Object other) {
     return other is _SelectedTabAction &&
@@ -433,19 +423,12 @@ class _SelectedTabAction {
   int get hashCode => Object.hash(groupId, tabId);
 }
 
-class _MovedTabAction {
-  const _MovedTabAction(
-    this.tabId,
-    this.targetGroupId,
-    this.zone, {
-    this.index,
-  });
-
-  final String tabId;
-  final String targetGroupId;
-  final WorkbenchDropZone zone;
-  final int? index;
-
+class const _MovedTabAction(
+  final String tabId,
+  final String targetGroupId,
+  final WorkbenchDropZone zone, {
+  final int? index,
+}) {
   @override
   bool operator ==(Object other) {
     return other is _MovedTabAction &&
@@ -463,12 +446,10 @@ class _MovedTabAction {
       '_MovedTabAction($tabId, $targetGroupId, $zone, index: $index)';
 }
 
-class _SplitGroupAction {
-  const _SplitGroupAction(this.groupId, this.zone);
-
-  final String groupId;
-  final WorkbenchDropZone zone;
-
+class const _SplitGroupAction(
+  final String groupId,
+  final WorkbenchDropZone zone,
+) {
   @override
   bool operator ==(Object other) {
     return other is _SplitGroupAction &&
@@ -480,12 +461,10 @@ class _SplitGroupAction {
   int get hashCode => Object.hash(groupId, zone);
 }
 
-class _UpdatedSplitRatioAction {
-  const _UpdatedSplitRatioAction(this.nodePath, this.ratio);
-
-  final List<int> nodePath;
-  final double ratio;
-
+class const _UpdatedSplitRatioAction(
+  final List<int> nodePath,
+  final double ratio,
+) {
   @override
   bool operator ==(Object other) {
     return other is _UpdatedSplitRatioAction &&

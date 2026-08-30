@@ -25,26 +25,24 @@ abstract final class CodexTimelineMetadata {
 }
 
 @immutable
-class CodexTimelineCell {
-  const CodexTimelineCell({
-    required this.id,
-    required this.kind,
-    required this.status,
-    required this.createdAt,
-    required this.updatedAt,
-    this.turnId,
-    this.isStreaming = false,
-    this.isCollapsed = false,
-    this.title,
-    this.subtitle,
-    this.markdownText,
-    this.renderedMarkdownText,
-    this.detailsText,
-    this.itemId,
-    this.metadata = const <String, Object?>{},
-  });
-
-  factory CodexTimelineCell.fromJson(Map<String, Object?> json) {
+class const CodexTimelineCell({
+  required final String id,
+  required final CodexTimelineKind kind,
+  required final CodexTimelineStatus status,
+  required final DateTime createdAt,
+  required final DateTime updatedAt,
+  final String? turnId,
+  final bool isStreaming = false,
+  final bool isCollapsed = false,
+  final String? title,
+  final String? subtitle,
+  final String? markdownText,
+  final String? renderedMarkdownText,
+  final String? detailsText,
+  final String? itemId,
+  final Map<String, Object?> metadata = const <String, Object?>{},
+}) {
+  factory fromJson(Map<String, Object?> json) {
     final id = json['id']?.toString().trim();
     if (id == null || id.isEmpty) {
       throw const FormatException('Timeline cell has no id.');
@@ -75,22 +73,6 @@ class CodexTimelineCell {
       metadata: _map(json['metadata']),
     );
   }
-
-  final String id;
-  final String? turnId;
-  final CodexTimelineKind kind;
-  final CodexTimelineStatus status;
-  final DateTime createdAt;
-  final DateTime updatedAt;
-  final bool isStreaming;
-  final bool isCollapsed;
-  final String? title;
-  final String? subtitle;
-  final String? markdownText;
-  final String? renderedMarkdownText;
-  final String? detailsText;
-  final String? itemId;
-  final Map<String, Object?> metadata;
 
   CodexTimelineCell copyWith({
     CodexTimelineKind? kind,

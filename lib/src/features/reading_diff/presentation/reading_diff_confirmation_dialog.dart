@@ -5,11 +5,10 @@ import 'package:alera/src/features/ai_assist/application/ai_assist_agent_runner.
 import 'package:alera/src/features/reading_diff/domain/reading_diff_models.dart';
 import 'package:flutter/material.dart';
 
-class ReadingDiffConfirmationDialog extends StatelessWidget {
-  const ReadingDiffConfirmationDialog({super.key, required this.preparation});
-
-  final ReadingDiffPreparation preparation;
-
+class const ReadingDiffConfirmationDialog({
+  super.key,
+  required final ReadingDiffPreparation preparation,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -19,8 +18,8 @@ class ReadingDiffConfirmationDialog extends StatelessWidget {
       child: Padding(
         padding: const EdgeInsets.all(AleraTokens.space20),
         child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
+          mainAxisSize: .min,
+          crossAxisAlignment: .stretch,
           children: <Widget>[
             Row(
               children: <Widget>[
@@ -38,7 +37,7 @@ class ReadingDiffConfirmationDialog extends StatelessWidget {
             Flexible(
               child: SingleChildScrollView(
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  crossAxisAlignment: .stretch,
                   children: <Widget>[
                     Text(
                       'This manually runs the configured AI Assist agent and may consume subscription quota or other provider usage. The complete selected patch is provided, including portions hidden by preview truncation.',
@@ -88,7 +87,7 @@ class ReadingDiffConfirmationDialog extends StatelessWidget {
             ),
             const SizedBox(height: AleraTokens.space12),
             Wrap(
-              alignment: WrapAlignment.end,
+              alignment: .end,
               spacing: AleraTokens.space8,
               runSpacing: AleraTokens.space8,
               children: <Widget>[
@@ -109,12 +108,10 @@ class ReadingDiffConfirmationDialog extends StatelessWidget {
   }
 }
 
-class _ReadingDiffDetail extends StatelessWidget {
-  const _ReadingDiffDetail({required this.label, required this.value});
-
-  final String label;
-  final String value;
-
+class const _ReadingDiffDetail({
+  required final String label,
+  required final String value,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(

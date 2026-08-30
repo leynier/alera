@@ -7,19 +7,12 @@ String _terminalPathForGitEntry(String workspacePath, String relativePath) {
   );
 }
 
-class _GitPathDragRegion extends StatelessWidget {
-  const _GitPathDragRegion({
-    required this.absolutePath,
-    required this.label,
-    required this.isDirectory,
-    required this.child,
-  });
-
-  final String absolutePath;
-  final String label;
-  final bool isDirectory;
-  final Widget child;
-
+class const _GitPathDragRegion({
+  required final String absolutePath,
+  required final String label,
+  required final bool isDirectory,
+  required final Widget child,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return TerminalPathDraggable<TerminalPathDragData>(
@@ -30,12 +23,10 @@ class _GitPathDragRegion extends StatelessWidget {
   }
 }
 
-class _GitPathDragFeedback extends StatelessWidget {
-  const _GitPathDragFeedback({required this.label, required this.isDirectory});
-
-  final String label;
-  final bool isDirectory;
-
+class const _GitPathDragFeedback({
+  required final String label,
+  required final bool isDirectory,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
@@ -60,7 +51,7 @@ class _GitPathDragFeedback extends StatelessWidget {
           ],
         ),
         child: Row(
-          mainAxisSize: MainAxisSize.min,
+          mainAxisSize: .min,
           children: <Widget>[
             AleraFileIcon(
               pathOrName: label,
@@ -74,7 +65,7 @@ class _GitPathDragFeedback extends StatelessWidget {
               child: Text(
                 label,
                 maxLines: 1,
-                overflow: TextOverflow.ellipsis,
+                overflow: .ellipsis,
                 style: Theme.of(context).textTheme.bodySmall
                     ?.copyWith(color: AleraTokens.foreground),
               ),
@@ -86,27 +77,19 @@ class _GitPathDragFeedback extends StatelessWidget {
   }
 }
 
-class _GitDiffBaseRow extends StatelessWidget {
-  const _GitDiffBaseRow({
-    required this.depth,
-    required this.child,
-    required this.onTap,
-    this.onSecondaryTapDown,
-    this.onLongPressStart,
-  });
-
-  final int depth;
-  final Widget child;
-  final VoidCallback onTap;
-  final GestureTapDownCallback? onSecondaryTapDown;
-  final GestureLongPressStartCallback? onLongPressStart;
-
+class const _GitDiffBaseRow({
+  required final int depth,
+  required final Widget child,
+  required final VoidCallback onTap,
+  final GestureTapDownCallback? onSecondaryTapDown,
+  final GestureLongPressStartCallback? onLongPressStart,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MouseRegion(
       cursor: SystemMouseCursors.click,
       child: GestureDetector(
-        behavior: HitTestBehavior.translucent,
+        behavior: .translucent,
         onTap: onTap,
         onSecondaryTapDown: onSecondaryTapDown,
         onLongPressStart: onLongPressStart,
@@ -124,12 +107,8 @@ class _GitDiffBaseRow extends StatelessWidget {
   }
 }
 
-class _LineStats extends StatelessWidget {
-  const _LineStats({required this.added, required this.removed});
-
-  final int? added;
-  final int? removed;
-
+class const _LineStats({required final int? added, required final int? removed})
+    extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final visibleAdded = added != null && added! > 0 ? added : null;
@@ -141,14 +120,14 @@ class _LineStats extends StatelessWidget {
     return SizedBox(
       width: 64,
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.end,
+        mainAxisAlignment: .end,
         children: <Widget>[
           if (visibleAdded case final added?)
             Flexible(
               child: Text(
                 '+$added',
                 maxLines: 1,
-                overflow: TextOverflow.ellipsis,
+                overflow: .ellipsis,
                 style: style?.copyWith(color: AleraTokens.success),
               ),
             ),
@@ -158,7 +137,7 @@ class _LineStats extends StatelessWidget {
               child: Text(
                 '-$removed',
                 maxLines: 1,
-                overflow: TextOverflow.ellipsis,
+                overflow: .ellipsis,
                 style: style?.copyWith(color: AleraTokens.error),
               ),
             ),
@@ -169,16 +148,11 @@ class _LineStats extends StatelessWidget {
   }
 }
 
-class _GitStatusLabel extends StatelessWidget {
-  const _GitStatusLabel({
-    required this.status,
-    this.area,
-    this.showAreaMarker = false,
-  });
-
-  final GitChangeStatus status;
-  final GitChangeArea? area;
-
+class const _GitStatusLabel({
+  required final GitChangeStatus status,
+  final GitChangeArea? area,
+  this.showAreaMarker = false,
+}) extends StatelessWidget {
   /// When true, append a small staged/unstaged marker next to the letter so
   /// files can share one list without area section headers.
   final bool showAreaMarker;
@@ -196,13 +170,13 @@ class _GitStatusLabel extends StatelessWidget {
     final areaMarker = showAreaMarker ? _areaMarker(area) : null;
     final tooltip = showAreaMarker ? _areaTooltip(area) : null;
     final content = Row(
-      mainAxisSize: MainAxisSize.min,
+      mainAxisSize: .min,
       children: <Widget>[
         SizedBox(
           width: 12,
           child: Text(
             label,
-            textAlign: TextAlign.center,
+            textAlign: .center,
             style: Theme.of(context).textTheme.labelSmall
                 ?.copyWith(color: color),
           ),
@@ -212,7 +186,7 @@ class _GitStatusLabel extends StatelessWidget {
             width: 10,
             child: Text(
               areaMarker,
-              textAlign: TextAlign.left,
+              textAlign: .left,
               style: Theme.of(context).textTheme.labelSmall?.copyWith(
                 color: area == GitChangeArea.staged
                     ? AleraTokens.success

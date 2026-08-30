@@ -131,9 +131,8 @@ void main() {
 
     expect((await service.get()).searchEngine, BrowserSearchEngine.kagi);
     expect(
-      (await service.set(
-        const BrowserSettings(searchEngine: BrowserSearchEngine.bing),
-      )).searchEngine,
+      (await service.set(const BrowserSettings(searchEngine: .bing)))
+          .searchEngine,
       BrowserSearchEngine.bing,
     );
   });
@@ -166,15 +165,15 @@ void main() {
         await service.decisionFor(
           profileId: 'work',
           origin: 'https://example.com',
-          permission: BrowserPermissionType.camera,
+          permission: .camera,
         ),
         BrowserPermissionDecision.allow,
       );
       await service.remember(
         profileId: 'work',
         origin: 'https://example.com',
-        permission: BrowserPermissionType.camera,
-        decision: BrowserPermissionDecision.deny,
+        permission: .camera,
+        decision: .deny,
       );
 
       expect(requests[0].$2['profileId'], 'work');
@@ -190,11 +189,8 @@ typedef _RuntimeHandler = Object? Function(
   Map<String, Object?> payload,
 );
 
-final class _FakeRuntimeHostClient implements RuntimeHostClient {
-  const _FakeRuntimeHostClient(this._handler);
-
-  final _RuntimeHandler _handler;
-
+final class const _FakeRuntimeHostClient(final _RuntimeHandler _handler)
+    implements RuntimeHostClient {
   @override
   Stream<RuntimeHostEvent> get runtimeEvents =>
       const Stream<RuntimeHostEvent>.empty();

@@ -1,10 +1,8 @@
 part of 'mobile_codex_chat_screen.dart';
 
-class _MobileCodexReviewSheet extends StatefulWidget {
-  const _MobileCodexReviewSheet({required this.branches});
-
-  final Future<MobileCodexReviewBranches> branches;
-
+class const _MobileCodexReviewSheet({
+  required final Future<MobileCodexReviewBranches> branches,
+}) extends StatefulWidget {
   @override
   State<_MobileCodexReviewSheet> createState() =>
       _MobileCodexReviewSheetState();
@@ -15,9 +13,8 @@ class _MobileCodexReviewSheetState extends State<_MobileCodexReviewSheet> {
   final TextEditingController _commitSha = TextEditingController();
   final TextEditingController _commitTitle = TextEditingController();
   final TextEditingController _instructions = TextEditingController();
-  _MobileCodexReviewTarget _target =
-      _MobileCodexReviewTarget.uncommittedChanges;
-  _MobileCodexReviewDelivery _delivery = _MobileCodexReviewDelivery.inline;
+  _MobileCodexReviewTarget _target = .uncommittedChanges;
+  _MobileCodexReviewDelivery _delivery = .inline;
   List<String> _branches = const <String>[];
   String? _selectedBranch;
   bool _loadingBranches = true;
@@ -99,8 +96,8 @@ class _MobileCodexReviewSheetState extends State<_MobileCodexReviewSheet> {
               AleraTokens.space16,
             ),
             child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
+              mainAxisSize: .min,
+              crossAxisAlignment: .stretch,
               children: <Widget>[
                 _buildHeader(context),
                 const SizedBox(height: AleraTokens.space12),
@@ -108,7 +105,7 @@ class _MobileCodexReviewSheetState extends State<_MobileCodexReviewSheet> {
                   child: SingleChildScrollView(
                     key: const ValueKey<String>('mobile-codex-review-form'),
                     child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      crossAxisAlignment: .stretch,
                       children: <Widget>[
                         _MobileReviewChoiceField(
                           key: const ValueKey<String>(
@@ -136,7 +133,7 @@ class _MobileCodexReviewSheetState extends State<_MobileCodexReviewSheet> {
                 ),
                 const SizedBox(height: AleraTokens.space16),
                 Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
+                  mainAxisAlignment: .end,
                   children: <Widget>[
                     TextButton(
                       onPressed: () => Navigator.of(context).pop(),
@@ -228,7 +225,7 @@ class _MobileCodexReviewSheetState extends State<_MobileCodexReviewSheet> {
         controller: _instructions,
         labelText: 'Review Instructions',
         hintText: 'Describe what the reviewer should inspect',
-        keyboardType: TextInputType.multiline,
+        keyboardType: .multiline,
         minLines: 4,
         maxLines: 8,
         autofocus: true,
@@ -292,23 +289,16 @@ class _MobileCodexReviewSheetState extends State<_MobileCodexReviewSheet> {
   }
 }
 
-class _MobileReviewChoiceField extends StatelessWidget {
-  const _MobileReviewChoiceField({
-    super.key,
-    required this.label,
-    required this.value,
-    required this.description,
-    required this.onTap,
-  });
-
-  final String label;
-  final String value;
-  final String description;
-  final VoidCallback onTap;
-
+class const _MobileReviewChoiceField({
+  super.key,
+  required final String label,
+  required final String value,
+  required final String description,
+  required final VoidCallback onTap,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
+    crossAxisAlignment: .start,
     children: <Widget>[
       Text(
         label,
@@ -322,7 +312,7 @@ class _MobileReviewChoiceField extends StatelessWidget {
           borderRadius: BorderRadius.circular(AleraTokens.radiusLg),
           side: const BorderSide(color: AleraTokens.border),
         ),
-        clipBehavior: Clip.antiAlias,
+        clipBehavior: .antiAlias,
         child: InkWell(
           onTap: onTap,
           child: ConstrainedBox(
@@ -338,7 +328,7 @@ class _MobileReviewChoiceField extends StatelessWidget {
                 children: <Widget>[
                   Expanded(
                     child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                      crossAxisAlignment: .start,
                       children: <Widget>[
                         Text(value),
                         const SizedBox(height: AleraTokens.space2),
@@ -366,9 +356,7 @@ class _MobileReviewChoiceField extends StatelessWidget {
   );
 }
 
-class _MobileReviewLoadingField extends StatelessWidget {
-  const _MobileReviewLoadingField();
-
+class const _MobileReviewLoadingField() extends StatelessWidget {
   @override
   Widget build(BuildContext context) => const SizedBox(
     height: AleraTokens.minTapTarget,
@@ -399,7 +387,7 @@ Future<T?> _showMobileReviewOptions<T>(
     child: Padding(
       padding: const EdgeInsets.only(bottom: AleraTokens.space16),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
+        crossAxisAlignment: .stretch,
         children: <Widget>[
           Padding(
             padding: const EdgeInsets.symmetric(

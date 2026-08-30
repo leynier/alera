@@ -1,18 +1,11 @@
 part of 'workspace_git_diff_panel.dart';
 
-class _GitHistoryCommitRow extends StatelessWidget {
-  const _GitHistoryCommitRow({
-    required this.viewModel,
-    required this.expanded,
-    required this.onTap,
-    required this.onOpenActions,
-  });
-
-  final GitHistoryItemViewModel viewModel;
-  final bool expanded;
-  final VoidCallback? onTap;
-  final void Function(BuildContext context)? onOpenActions;
-
+class const _GitHistoryCommitRow({
+  required final GitHistoryItemViewModel viewModel,
+  required final bool expanded,
+  required final VoidCallback? onTap,
+  required final void Function(BuildContext context)? onOpenActions,
+}) extends StatelessWidget {
   static const double _chevronSlotWidth = 14;
   static const double _actionsButtonWidth = 30;
   static const double _hiddenRefCountWidth = 24;
@@ -104,7 +97,7 @@ class _GitHistoryCommitRow extends StatelessWidget {
                       child: Text(
                         item.subject,
                         maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
+                        overflow: .ellipsis,
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
                           color: boundary
                               ? AleraTokens.foregroundMuted
@@ -150,11 +143,8 @@ class _GitHistoryCommitRow extends StatelessWidget {
   }
 }
 
-class _GitRefBadge extends StatelessWidget {
-  const _GitRefBadge({required this.itemRef});
-
-  final GitHistoryItemRef itemRef;
-
+class const _GitRefBadge({required final GitHistoryItemRef itemRef})
+    extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final color = _graphColor(itemRef.color);
@@ -171,7 +161,7 @@ class _GitRefBadge extends StatelessWidget {
         child: Text(
           itemRef.name,
           maxLines: 1,
-          overflow: TextOverflow.ellipsis,
+          overflow: .ellipsis,
           style: Theme.of(context).textTheme.labelSmall?.copyWith(
             color: color ?? AleraTokens.foregroundMuted,
             fontSize: 10,

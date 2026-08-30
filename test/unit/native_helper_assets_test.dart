@@ -147,9 +147,7 @@ void main() {
       final directPayload = utf8.encode('scrcpy payload');
       final archivedPayload = utf8.encode('serve-sim payload');
       final archive = Archive()
-        ..addFile(
-          ArchiveFile.bytes('package/bin/serve-sim-bin', archivedPayload),
-        );
+        ..addFile(.bytes('package/bin/serve-sim-bin', archivedPayload));
       final archiveSource = const GZipEncoder().encodeBytes(
         TarEncoder().encodeBytes(archive),
       );

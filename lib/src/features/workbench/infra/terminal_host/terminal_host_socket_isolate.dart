@@ -27,19 +27,12 @@ const String terminalHostIsolateError = 'error';
 const String terminalHostIsolateWrite = 'write';
 const String terminalHostIsolateClose = 'close';
 
-class TerminalHostSocketIsolateConfig {
-  const TerminalHostSocketIsolateConfig({
-    required this.host,
-    required this.port,
-    required this.toMain,
-    required this.connectTimeoutMillis,
-  });
-
-  final String host;
-  final int port;
-  final SendPort toMain;
-  final int connectTimeoutMillis;
-}
+class const TerminalHostSocketIsolateConfig({
+  required final String host,
+  required final int port,
+  required final SendPort toMain,
+  required final int connectTimeoutMillis,
+});
 
 /// Isolate entry point. Sends [terminalHostIsolateReady] with its command port
 /// once connected, then streams frames until the socket or the owner closes it.
@@ -59,7 +52,7 @@ Future<void> terminalHostSocketIsolateMain(
     toMain.send(const <Object?>[terminalHostIsolateClosed]);
     return;
   }
-  socket.setOption(SocketOption.tcpNoDelay, true);
+  socket.setOption(.tcpNoDelay, true);
 
   final commands = ReceivePort();
   final reader = TerminalHostFrameReader();

@@ -1,15 +1,10 @@
 part of 'codex_chat_surface.dart';
 
-class _CodexRecoveryQuestionDock extends StatelessWidget {
-  const _CodexRecoveryQuestionDock({
-    super.key,
-    required this.message,
-    required this.onContinue,
-  });
-
-  final String message;
-  final Future<void> Function() onContinue;
-
+class const _CodexRecoveryQuestionDock({
+  super.key,
+  required final String message,
+  required final Future<void> Function() onContinue,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Padding(
     key: const ValueKey<String>('codex-thread-recovery-dock'),
@@ -35,15 +30,10 @@ class _CodexRecoveryQuestionDock extends StatelessWidget {
   );
 }
 
-class _CodexRecoveryQuestionCard extends StatefulWidget {
-  const _CodexRecoveryQuestionCard({
-    required this.message,
-    required this.onContinue,
-  });
-
-  final String message;
-  final Future<void> Function() onContinue;
-
+class const _CodexRecoveryQuestionCard({
+  required final String message,
+  required final Future<void> Function() onContinue,
+}) extends StatefulWidget {
   @override
   State<_CodexRecoveryQuestionCard> createState() =>
       _CodexRecoveryQuestionCardState();
@@ -59,7 +49,7 @@ class _CodexRecoveryQuestionCardState
     header: Text(
       'Continue in a new thread?',
       style: Theme.of(context).textTheme.titleSmall
-          ?.copyWith(fontWeight: FontWeight.w600),
+          ?.copyWith(fontWeight: .w600),
     ),
     body: _CodexPromptOptionRow(
       index: 1,

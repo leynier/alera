@@ -71,10 +71,7 @@ void main() {
   });
 }
 
-class _FakeProcessRunner implements ProcessRunner {
-  _FakeProcessRunner(this._results);
-
-  final List<Object> _results;
+class _FakeProcessRunner(final List<Object> _results) implements ProcessRunner {
   final List<_ProcessCall> calls = <_ProcessCall>[];
 
   @override
@@ -104,9 +101,4 @@ class _FakeProcessRunner implements ProcessRunner {
   }
 }
 
-class _ProcessCall {
-  const _ProcessCall(this.executable, this.arguments);
-
-  final String executable;
-  final List<String> arguments;
-}
+class const _ProcessCall(final String executable, final List<String> arguments);

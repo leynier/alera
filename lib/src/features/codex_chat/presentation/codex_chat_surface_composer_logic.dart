@@ -70,9 +70,7 @@ extension _CodexComposerLogic on _CodexComposerState {
     final next = '${before.substring(0, match.start)}$replacement$after';
     widget.controller.value = TextEditingValue(
       text: next,
-      selection: TextSelection.collapsed(
-        offset: match.start + replacement.length,
-      ),
+      selection: .collapsed(offset: match.start + replacement.length),
     );
     return TextRange(start: match.start, end: match.start + replacement.length);
   }
@@ -105,7 +103,7 @@ extension _CodexComposerLogic on _CodexComposerState {
       unawaited(
         widget.onDropAttachments(
           <String>[resolvedPath],
-          origin: CodexInputAttachmentOrigin.mention,
+          origin: .mention,
           tokenText: token,
           tokenStart: inserted.start,
         ),
@@ -116,7 +114,7 @@ extension _CodexComposerLogic on _CodexComposerState {
     widget.onDraftItemSelected(
       CodexDraftItem(
         id: 'mention-$path',
-        kind: CodexDraftItemKind.mention,
+        kind: .mention,
         name: p.basename(path),
         path: path,
         tokenText: token,
@@ -182,8 +180,8 @@ extension _CodexComposerLogic on _CodexComposerState {
         : value.selection.end;
     widget.controller.value = value.copyWith(
       text: value.text.replaceRange(start, end, '\n'),
-      selection: TextSelection.collapsed(offset: start + 1),
-      composing: TextRange.empty,
+      selection: .collapsed(offset: start + 1),
+      composing: .empty,
     );
   }
 
@@ -218,7 +216,7 @@ extension _CodexComposerLogic on _CodexComposerState {
       key: const ValueKey<String>('composer-action-button'),
       onPressed: onPressed,
       mouseCursor: SystemMouseCursors.click,
-      constraints: const BoxConstraints.tightFor(
+      constraints: const .tightFor(
         width: AleraTokens.space24,
         height: AleraTokens.space24,
       ),
@@ -236,9 +234,9 @@ extension _CodexComposerLogic on _CodexComposerState {
         disabledForegroundColor: emphasized
             ? AleraTokens.onAccent
             : AleraTokens.onAccent,
-        minimumSize: const Size.square(AleraTokens.space24),
-        maximumSize: const Size.square(AleraTokens.space24),
-        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        minimumSize: const .square(AleraTokens.space24),
+        maximumSize: const .square(AleraTokens.space24),
+        tapTargetSize: .shrinkWrap,
         shape: const CircleBorder(),
       ),
       icon: icon,

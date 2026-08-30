@@ -9,7 +9,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'terminal_host_test_fakes.dart';
 
 const TerminalSessionDriver _phoneDriver = TerminalSessionDriver(
-  kind: TerminalSessionDriverKind.mobile,
+  kind: .mobile,
   deviceId: 'device-1',
   deviceName: 'Pixel',
 );
@@ -38,14 +38,12 @@ void main() {
     final client = _fakeClient()
       ..drivers = <String, TerminalSessionDriver>{
         'session-1': _phoneDriver,
-        'session-2': const TerminalSessionDriver(
-          kind: TerminalSessionDriverKind.desktop,
-        ),
+        'session-2': const TerminalSessionDriver(kind: .desktop),
       };
     final container = _container(client);
 
     expect(container.read(terminalDriverPresenceControllerProvider), isEmpty);
-    await Future<void>.delayed(Duration.zero);
+    await Future<void>.delayed(.zero);
 
     final drivers = container.read(terminalDriverPresenceControllerProvider);
     expect(drivers.keys, <String>['session-1']);
@@ -65,7 +63,7 @@ void main() {
         rows: 22,
       ),
     );
-    await Future<void>.delayed(Duration.zero);
+    await Future<void>.delayed(.zero);
     expect(
       container.read(terminalDriverPresenceControllerProvider)['session-1'],
       isNotNull,
@@ -74,12 +72,12 @@ void main() {
     client.emit(
       const TerminalHostDriverChangedEvent(
         'session-1',
-        TerminalSessionDriver(kind: TerminalSessionDriverKind.desktop),
+        TerminalSessionDriver(kind: .desktop),
         cols: 120,
         rows: 40,
       ),
     );
-    await Future<void>.delayed(Duration.zero);
+    await Future<void>.delayed(.zero);
     expect(container.read(terminalDriverPresenceControllerProvider), isEmpty);
   });
 
@@ -103,7 +101,7 @@ void main() {
         rows: 22,
       ),
     );
-    await Future<void>.delayed(Duration.zero);
+    await Future<void>.delayed(.zero);
 
     final controller = container.read(
       terminalDriverPresenceControllerProvider.notifier,

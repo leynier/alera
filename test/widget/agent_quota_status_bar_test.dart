@@ -6,7 +6,6 @@ import 'package:alera/src/features/agent_quota/domain/agent_quota.dart';
 import 'package:alera/src/features/agent_quota/presentation/agent_quota_provider_icon.dart';
 import 'package:alera/src/features/agent_quota/presentation/agent_quota_status_bar.dart';
 import 'package:alera/src/features/settings/domain/alera_settings.dart';
-import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -28,13 +27,13 @@ void main() {
         ),
         snapshots: <AgentQuotaSnapshot>[
           _snapshot(
-            provider: AgentQuotaProviderId.claude,
+            provider: .claude,
             accountId: 'dev',
             displayName: 'ignored-dev-label',
             windows: <AgentQuotaWindow>[_window('Weekly', 55)],
           ),
           _snapshot(
-            provider: AgentQuotaProviderId.claude,
+            provider: .claude,
             windows: <AgentQuotaWindow>[
               _window('5 Hour', 20),
               _window('Weekly', 40),
@@ -42,13 +41,13 @@ void main() {
             buckets: <AgentQuotaBucket>[_bucket('Fable Weekly', 30)],
           ),
           _snapshot(
-            provider: AgentQuotaProviderId.claude,
+            provider: .claude,
             accountId: 'sonnet41',
             displayName: 'ignored-41-label',
             windows: <AgentQuotaWindow>[_window('Weekly', 50)],
           ),
           _snapshot(
-            provider: AgentQuotaProviderId.antigravity,
+            provider: .antigravity,
             buckets: <AgentQuotaBucket>[
               _bucket('Gemini Models - 5 Hour', 10),
               _bucket(
@@ -91,9 +90,9 @@ void main() {
     // One hover card per pinned provider summary plus the overview button.
     expect(find.byType(AleraHoverCard), findsNWidgets(5));
 
-    final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+    final mouse = await tester.createGesture(kind: .mouse);
     addTearDown(mouse.removePointer);
-    await mouse.addPointer(location: Offset.zero);
+    await mouse.addPointer(location: .zero);
     await mouse.moveTo(tester.getCenter(find.text('G·W')));
     await tester.pump(const Duration(milliseconds: 400));
 
@@ -134,7 +133,7 @@ void main() {
         loading: true,
         snapshots: <AgentQuotaSnapshot>[
           _snapshot(
-            provider: AgentQuotaProviderId.claude,
+            provider: .claude,
             windows: <AgentQuotaWindow>[_window('Weekly', 40)],
           ),
         ],
@@ -180,11 +179,11 @@ void main() {
         ),
         snapshots: <AgentQuotaSnapshot>[
           _snapshot(
-            provider: AgentQuotaProviderId.claude,
+            provider: .claude,
             windows: <AgentQuotaWindow>[_window('Weekly', 40)],
           ),
           _snapshot(
-            provider: AgentQuotaProviderId.claude,
+            provider: .claude,
             accountId: 'dev',
             displayName: 'ignored-dev-label',
             windows: <AgentQuotaWindow>[_window('Weekly', 20)],
@@ -210,11 +209,11 @@ void main() {
         ),
         snapshots: <AgentQuotaSnapshot>[
           _snapshot(
-            provider: AgentQuotaProviderId.claude,
+            provider: .claude,
             windows: <AgentQuotaWindow>[_window('Weekly', 40)],
           ),
           _snapshot(
-            provider: AgentQuotaProviderId.antigravity,
+            provider: .antigravity,
             buckets: <AgentQuotaBucket>[_bucket('Gemini Models - Weekly', 15)],
           ),
         ],
@@ -243,19 +242,19 @@ void main() {
         ),
         snapshots: <AgentQuotaSnapshot>[
           _snapshot(
-            provider: AgentQuotaProviderId.claude,
+            provider: .claude,
             windows: <AgentQuotaWindow>[_window('Weekly', 40)],
           ),
           _snapshot(
-            provider: AgentQuotaProviderId.claude,
+            provider: .claude,
             accountId: 'dev',
             displayName: 'ignored-dev-label',
-            status: AgentQuotaStatus.unavailable,
+            status: .unavailable,
             error: 'OAuth Unavailable',
           ),
           _snapshot(
-            provider: AgentQuotaProviderId.antigravity,
-            status: AgentQuotaStatus.error,
+            provider: .antigravity,
+            status: .error,
             error: 'TUI Failed',
             buckets: <AgentQuotaBucket>[_bucket('Gemini Models - Weekly', 15)],
           ),
@@ -263,9 +262,9 @@ void main() {
       ),
     );
 
-    final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+    final mouse = await tester.createGesture(kind: .mouse);
     addTearDown(mouse.removePointer);
-    await mouse.addPointer(location: Offset.zero);
+    await mouse.addPointer(location: .zero);
 
     await mouse.moveTo(tester.getCenter(find.text('Default')));
     await tester.pump(const Duration(milliseconds: 400));
@@ -298,7 +297,7 @@ void main() {
         ),
         snapshots: <AgentQuotaSnapshot>[
           _snapshot(
-            provider: AgentQuotaProviderId.minimax,
+            provider: .minimax,
             displayName: 'MiniMax',
             buckets: <AgentQuotaBucket>[_bucket('general Weekly', 0)],
           ),
@@ -306,9 +305,9 @@ void main() {
       ),
     );
 
-    final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+    final mouse = await tester.createGesture(kind: .mouse);
     addTearDown(mouse.removePointer);
-    await mouse.addPointer(location: Offset.zero);
+    await mouse.addPointer(location: .zero);
     expect(find.text('G·W'), findsOneWidget);
     await mouse.moveTo(tester.getCenter(find.text('G·W')));
     await tester.pump(const Duration(milliseconds: 400));
@@ -329,22 +328,22 @@ void main() {
         ),
         snapshots: <AgentQuotaSnapshot>[
           _snapshot(
-            provider: AgentQuotaProviderId.claude,
+            provider: .claude,
             windows: <AgentQuotaWindow>[_window('Weekly', 40)],
           ),
           _snapshot(
-            provider: AgentQuotaProviderId.antigravity,
+            provider: .antigravity,
             buckets: <AgentQuotaBucket>[_bucket('Gemini Models - Weekly', 15)],
           ),
         ],
       ),
     );
 
-    final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+    final mouse = await tester.createGesture(kind: .mouse);
     addTearDown(mouse.removePointer);
-    await mouse.addPointer(location: Offset.zero);
+    await mouse.addPointer(location: .zero);
 
-    await tester.tap(find.text('G·W'), kind: PointerDeviceKind.mouse);
+    await tester.tap(find.text('G·W'), kind: .mouse);
     await tester.pumpAndSettle();
     expect(find.text('Antigravity'), findsOneWidget);
 
@@ -355,12 +354,12 @@ void main() {
     // A second card must not overlap the pinned one. The status bar shows the
     // bare reading while the card spells it out as "60% Left".
     final claudeEntry = find.text('60%');
-    await tester.tap(claudeEntry, kind: PointerDeviceKind.mouse);
+    await tester.tap(claudeEntry, kind: .mouse);
     await tester.pumpAndSettle();
     expect(find.text('Antigravity'), findsNothing);
     expect(find.text('Claude Code'), findsOneWidget);
 
-    await tester.tap(claudeEntry, kind: PointerDeviceKind.mouse);
+    await tester.tap(claudeEntry, kind: .mouse);
     await tester.pumpAndSettle();
     expect(find.text('Claude Code'), findsNothing);
   });
@@ -377,18 +376,18 @@ void main() {
         ),
         snapshots: <AgentQuotaSnapshot>[
           _snapshot(
-            provider: AgentQuotaProviderId.antigravity,
+            provider: .antigravity,
             buckets: <AgentQuotaBucket>[_bucket('Gemini Models - Weekly', 15)],
           ),
         ],
       ),
     );
 
-    await tester.tap(find.text('G·W'), kind: PointerDeviceKind.mouse);
+    await tester.tap(find.text('G·W'), kind: .mouse);
     await tester.pumpAndSettle();
     expect(find.text('Antigravity'), findsOneWidget);
 
-    await tester.tapAt(const Offset(20, 20), kind: PointerDeviceKind.mouse);
+    await tester.tapAt(const Offset(20, 20), kind: .mouse);
     await tester.pumpAndSettle();
     expect(find.text('Antigravity'), findsNothing);
   });
@@ -441,7 +440,7 @@ AgentQuotaSnapshot _snapshot({
     accountId: accountId,
     displayName: displayName,
     status: status,
-    updatedAt: DateTime.utc(2026),
+    updatedAt: .utc(2026),
     error: error,
     windows: windows,
     buckets: buckets,

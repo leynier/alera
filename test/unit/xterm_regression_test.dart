@@ -9,7 +9,7 @@ void main() {
       onOutput: output.add,
     );
 
-    terminal.keyInput(TerminalKey.enter, shift: true);
+    terminal.keyInput(.enter, shift: true);
 
     expect(output, <String>['\x1b[13;2u']);
   });

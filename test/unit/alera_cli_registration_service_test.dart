@@ -338,22 +338,17 @@ void main() {
   });
 }
 
-class _FakeAleraCliResolver implements AleraCliResolver {
-  const _FakeAleraCliResolver(this._command);
-
-  final AleraCliCommand _command;
-
+class const _FakeAleraCliResolver(final AleraCliCommand _command)
+    implements AleraCliResolver {
   @override
   Future<AleraCliCommand> resolve({required String runtimeDir}) async {
     return _command;
   }
 }
 
-class _FakeCommandEnvironmentResolver implements CommandEnvironmentResolver {
-  const _FakeCommandEnvironmentResolver(this._environment);
-
-  final Map<String, String> _environment;
-
+class const _FakeCommandEnvironmentResolver(
+  final Map<String, String> _environment,
+) implements CommandEnvironmentResolver {
   @override
   Future<Map<String, String>> environment() async => _environment;
 
@@ -362,11 +357,8 @@ class _FakeCommandEnvironmentResolver implements CommandEnvironmentResolver {
       const <String, String>{};
 }
 
-class _FakeProcessRunner implements ProcessRunner {
-  const _FakeProcessRunner({this.applyChmod = true});
-
-  final bool applyChmod;
-
+class const _FakeProcessRunner({final bool applyChmod = true})
+    implements ProcessRunner {
   @override
   Future<ProcessRunOutput> run(
     String executable,

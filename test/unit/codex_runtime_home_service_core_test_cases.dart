@@ -465,7 +465,7 @@ void _registerCodexRuntimeHomeServiceCoreTests() {
     final windowsService = CodexRuntimeHomeService(
       homeDirectory: home.path,
       applicationSupportDirectory: () async => support,
-      platform: ManagedAgentHookPlatform.windows,
+      platform: .windows,
       environment: <String, String>{'USERPROFILE': home.path},
     );
 

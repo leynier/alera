@@ -1,52 +1,28 @@
 part of 'create_workspace_dialog.dart';
 
-class _CreateWorkspaceSelectionStep extends StatelessWidget {
-  const _CreateWorkspaceSelectionStep({
-    required this.projects,
-    required this.selectedProject,
-    required this.projectQuery,
-    required this.projectSearchController,
-    required this.onProjectQueryChanged,
-    required this.onSelectProject,
-    required this.getProjectActiveBranch,
-    required this.reuseExistingBranch,
-    required this.onReuseExistingBranchChanged,
-    required this.loadingBranches,
-    required this.branches,
-    required this.selectedBranch,
-    required this.branchQuery,
-    required this.branchSearchController,
-    required this.onBranchQueryChanged,
-    required this.onSelectBranch,
-    required this.branchesError,
-    required this.onRetryBranches,
-    required this.sourceBranchController,
-    required this.sourceBranchError,
-    required this.onManualSourceBranchChanged,
-  });
-
-  final List<Project> projects;
-  final Project? selectedProject;
-  final String projectQuery;
-  final TextEditingController projectSearchController;
-  final ValueChanged<String> onProjectQueryChanged;
-  final ValueChanged<Project> onSelectProject;
-  final String? Function(Project project) getProjectActiveBranch;
-  final bool reuseExistingBranch;
-  final ValueChanged<bool> onReuseExistingBranchChanged;
-  final bool loadingBranches;
-  final List<String> branches;
-  final String? selectedBranch;
-  final String branchQuery;
-  final TextEditingController branchSearchController;
-  final ValueChanged<String> onBranchQueryChanged;
-  final ValueChanged<String> onSelectBranch;
-  final String? branchesError;
-  final VoidCallback onRetryBranches;
-  final TextEditingController sourceBranchController;
-  final String? sourceBranchError;
-  final ValueChanged<String> onManualSourceBranchChanged;
-
+class const _CreateWorkspaceSelectionStep({
+  required final List<Project> projects,
+  required final Project? selectedProject,
+  required final String projectQuery,
+  required final TextEditingController projectSearchController,
+  required final ValueChanged<String> onProjectQueryChanged,
+  required final ValueChanged<Project> onSelectProject,
+  required final String? Function(Project project) getProjectActiveBranch,
+  required final bool reuseExistingBranch,
+  required final ValueChanged<bool> onReuseExistingBranchChanged,
+  required final bool loadingBranches,
+  required final List<String> branches,
+  required final String? selectedBranch,
+  required final String branchQuery,
+  required final TextEditingController branchSearchController,
+  required final ValueChanged<String> onBranchQueryChanged,
+  required final ValueChanged<String> onSelectBranch,
+  required final String? branchesError,
+  required final VoidCallback onRetryBranches,
+  required final TextEditingController sourceBranchController,
+  required final String? sourceBranchError,
+  required final ValueChanged<String> onManualSourceBranchChanged,
+}) extends StatelessWidget {
   String get _branchLabel =>
       reuseExistingBranch ? 'Existing Branch' : 'Source Branch';
 
@@ -61,8 +37,8 @@ class _CreateWorkspaceSelectionStep extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: .min,
+      crossAxisAlignment: .start,
       children: <Widget>[
         _ProjectPicker(
           projects: projects,
@@ -111,28 +87,19 @@ class _CreateWorkspaceSelectionStep extends StatelessWidget {
   }
 }
 
-class _ManualSourceBranchField extends StatelessWidget {
-  const _ManualSourceBranchField({
-    required this.label,
-    required this.controller,
-    required this.errorText,
-    required this.loadError,
-    required this.onRetry,
-    required this.onChanged,
-  });
-
-  final String label;
-  final TextEditingController controller;
-  final String? errorText;
-  final String? loadError;
-  final VoidCallback onRetry;
-  final ValueChanged<String> onChanged;
-
+class const _ManualSourceBranchField({
+  required final String label,
+  required final TextEditingController controller,
+  required final String? errorText,
+  required final String? loadError,
+  required final VoidCallback onRetry,
+  required final ValueChanged<String> onChanged,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Column(
-      mainAxisSize: MainAxisSize.min,
+      mainAxisSize: .min,
       children: <Widget>[
         if (loadError case final message?) ...[
           Row(

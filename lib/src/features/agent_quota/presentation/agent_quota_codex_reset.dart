@@ -1,16 +1,10 @@
 part of 'agent_quota_status_bar.dart';
 
-class _CodexResetCreditsPanel extends ConsumerStatefulWidget {
-  const _CodexResetCreditsPanel({
-    required this.hostId,
-    required this.snapshot,
-    this.compact = false,
-  });
-
-  final String hostId;
-  final AgentQuotaSnapshot snapshot;
-  final bool compact;
-
+class const _CodexResetCreditsPanel({
+  required final String hostId,
+  required final AgentQuotaSnapshot snapshot,
+  final bool compact = false,
+}) extends ConsumerStatefulWidget {
   @override
   ConsumerState<_CodexResetCreditsPanel> createState() =>
       _CodexResetCreditsPanelState();
@@ -94,7 +88,7 @@ class _CodexResetCreditsPanelState
       AleraToast.show(
         context,
         message: 'Codex reset failed: $error',
-        tone: AleraToastTone.error,
+        tone: .error,
       );
     } finally {
       if (mounted) setState(() => _loading = false);
@@ -110,14 +104,14 @@ class _CodexResetCreditsPanelState
     }
     final expiry = _codexResetExpiryText(credits.nextExpiresAt);
     final summary = Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: .start,
       children: <Widget>[
         Text(
           '${credits.availableCount} Rate-Limit ${credits.availableCount == 1 ? 'Reset' : 'Resets'} Available',
           style: AleraTokens.monoStyle.copyWith(
             fontSize: 10,
             color: AleraTokens.foregroundMuted,
-            fontWeight: FontWeight.w600,
+            fontWeight: .w600,
           ),
         ),
         if (expiry != null)
@@ -146,7 +140,7 @@ class _CodexResetCreditsPanelState
                   horizontal: AleraTokens.space6,
                 ),
                 minimumSize: const Size(0, 24),
-                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                tapTargetSize: .shrinkWrap,
               ),
               child: Text(_loading ? 'Applying...' : 'Use Reset'),
             ),

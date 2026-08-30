@@ -7,9 +7,9 @@ import 'package:alera_mobile/src/features/terminal/application/accessory_layout_
 import 'package:alera_mobile/src/features/terminal/domain/terminal_accessory_layout.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-class LocalAccessoryLayoutRepository implements AccessoryLayoutRepository {
-  LocalAccessoryLayoutRepository({SharedPreferencesAsync? preferences})
-    : _preferences = preferences ?? SharedPreferencesAsync();
+class LocalAccessoryLayoutRepository({SharedPreferencesAsync? preferences})
+    implements AccessoryLayoutRepository {
+  this : _preferences = preferences ?? SharedPreferencesAsync();
 
   static const String _key = 'alera.mobile.terminalAccessoryLayout';
 

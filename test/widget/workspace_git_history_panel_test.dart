@@ -2,7 +2,6 @@ import 'package:alera/src/design_system/surfaces/hover_container.dart';
 import 'package:alera/src/features/settings/application/settings_controller.dart';
 import 'package:alera/src/features/settings/domain/alera_settings.dart';
 import 'package:alera/src/features/workbench/application/source_control_watcher.dart';
-import 'package:alera/src/features/workbench/domain/workbench_view_prefs.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
 import 'package:alera/src/features/workbench/domain/workspace_source_control_scope.dart';
 import 'package:alera/src/features/workbench/presentation/workspace_git_diff_panel.dart';
@@ -138,7 +137,7 @@ Future<void> _pumpPanel(
           FakeSourceControlWatcher(),
         ),
         settingsControllerProvider.overrideWith(
-          () => _PanelSettingsController(AleraSettings.defaults),
+          () => _PanelSettingsController(.defaults),
         ),
       ],
       child: MaterialApp(
@@ -153,9 +152,9 @@ Future<void> _pumpPanel(
                 workspacePath: workspace.path,
                 path: workspace.path,
               ),
-              viewMode: GitDiffViewMode.flat,
+              viewMode: .flat,
               onViewModeChanged: (_) {},
-              groupMode: GitDiffGroupMode.byArea,
+              groupMode: .byArea,
               onGroupModeChanged: (_) {},
               onOpenGitDiff: ({
                 area,
@@ -193,16 +192,13 @@ Workspace _workspace() {
     path: '/tmp/project',
     createdAt: now,
     updatedAt: now,
-    kind: WorkspaceKind.main,
-    status: WorkspaceStatus.active,
+    kind: .main,
+    status: .active,
   );
 }
 
-class _PanelSettingsController extends SettingsController {
-  _PanelSettingsController(this._settings);
-
-  final AleraSettings _settings;
-
+class _PanelSettingsController(final AleraSettings _settings)
+    extends SettingsController {
   @override
   AleraSettings build() => _settings;
 }

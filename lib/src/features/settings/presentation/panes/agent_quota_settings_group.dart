@@ -17,16 +17,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 part 'agent_quota_settings_controls.dart';
 
-class AgentQuotaSettingsPane extends ConsumerWidget {
-  const AgentQuotaSettingsPane({
-    super.key,
-    required this.settings,
-    this.groupKeys = const <String, GlobalKey>{},
-  });
-
-  final AgentQuotaSettings settings;
-  final Map<String, GlobalKey> groupKeys;
-
+class const AgentQuotaSettingsPane({
+  super.key,
+  required final AgentQuotaSettings settings,
+  final Map<String, GlobalKey> groupKeys = const <String, GlobalKey>{},
+}) extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final hostId = ref.watch(
@@ -42,7 +37,7 @@ class AgentQuotaSettingsPane extends ConsumerWidget {
     final controller = ref.read(settingsControllerProvider.notifier);
 
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+      crossAxisAlignment: .stretch,
       children: <Widget>[
         KeyedSubtree(
           key: groupKeys['providers'],
@@ -57,7 +52,7 @@ class AgentQuotaSettingsPane extends ConsumerWidget {
                   alignment: Alignment.centerRight,
                   child: Text(
                     hostId == 'local' ? 'Local' : hostId,
-                    overflow: TextOverflow.ellipsis,
+                    overflow: .ellipsis,
                     style: AleraTokens.monoStyle,
                   ),
                 ),
@@ -121,7 +116,7 @@ class AgentQuotaSettingsPane extends ConsumerWidget {
             children: <Widget>[
               SettingsSwitchRow(
                 title: 'Claude Code Quotas',
-                description: _providerDescription(AgentQuotaProviderId.claude),
+                description: _providerDescription(.claude),
                 value: hostSettings.enabledProviders.contains(
                   AgentQuotaProviderId.claude,
                 ),
@@ -129,7 +124,7 @@ class AgentQuotaSettingsPane extends ConsumerWidget {
                   unawaited(
                     controller.setAgentQuotaProviderEnabled(
                       hostId: hostId,
-                      provider: AgentQuotaProviderId.claude,
+                      provider: .claude,
                       value: value,
                     ),
                   );
@@ -140,9 +135,7 @@ class AgentQuotaSettingsPane extends ConsumerWidget {
                 description: 'Query the default Claude account separately from configured CCS profiles.',
                 value: hostSettings.claudeDefaultEnabled,
                 secondary: _QuotaPinButton(
-                  pinned: hostSettings.isQuotaPinned(
-                    AgentQuotaProviderId.claude,
-                  ),
+                  pinned: hostSettings.isQuotaPinned(.claude),
                   enabled:
                       hostSettings.claudeDefaultEnabled &&
                       hostSettings.enabledProviders.contains(
@@ -152,9 +145,7 @@ class AgentQuotaSettingsPane extends ConsumerWidget {
                     unawaited(
                       controller.setAgentQuotaPinned(
                         hostId: hostId,
-                        pinKey: AgentQuotaHostSettings.quotaPinKey(
-                          AgentQuotaProviderId.claude,
-                        ),
+                        pinKey: AgentQuotaHostSettings.quotaPinKey(.claude),
                         pinned: pinned,
                       ),
                     );
@@ -190,7 +181,7 @@ class AgentQuotaSettingsPane extends ConsumerWidget {
                 child: _ClaudeProfilesControl(
                   profiles: hostSettings.claudeProfiles,
                   isPinned: (profile) => hostSettings.isQuotaPinned(
-                    AgentQuotaProviderId.claude,
+                    .claude,
                     claudeAccountId: profile,
                   ),
                   onPinnedChanged: (profile, pinned) {
@@ -198,7 +189,7 @@ class AgentQuotaSettingsPane extends ConsumerWidget {
                       controller.setAgentQuotaPinned(
                         hostId: hostId,
                         pinKey: AgentQuotaHostSettings.quotaPinKey(
-                          AgentQuotaProviderId.claude,
+                          .claude,
                           claudeAccountId: profile,
                         ),
                         pinned: pinned,
@@ -345,23 +336,16 @@ String _providerDescription(AgentQuotaProviderId provider) {
   };
 }
 
-class _EnvironmentPresence extends StatelessWidget {
-  const _EnvironmentPresence({
-    required this.names,
-    required this.presence,
-    required this.loading,
-    required this.onRefresh,
-  });
-
-  final List<String> names;
-  final Map<String, bool> presence;
-  final bool loading;
-  final VoidCallback onRefresh;
-
+class const _EnvironmentPresence({
+  required final List<String> names,
+  required final Map<String, bool> presence,
+  required final bool loading,
+  required final VoidCallback onRefresh,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+      crossAxisAlignment: .stretch,
       children: <Widget>[
         for (final name in names)
           Padding(
@@ -379,7 +363,7 @@ class _EnvironmentPresence extends StatelessWidget {
                 Expanded(
                   child: Text(
                     name,
-                    overflow: TextOverflow.ellipsis,
+                    overflow: .ellipsis,
                     style: AleraTokens.monoStyle,
                   ),
                 ),

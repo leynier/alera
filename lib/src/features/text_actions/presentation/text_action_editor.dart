@@ -9,42 +9,24 @@ import 'package:alera/src/features/ai_assist/domain/ai_assist_settings.dart';
 import 'package:alera/src/features/settings/presentation/rows/settings_rows.dart';
 import 'package:flutter/material.dart';
 
-class TextActionEditor extends StatelessWidget {
-  const TextActionEditor({
-    super.key,
-    required this.nameController,
-    required this.promptController,
-    required this.enabled,
-    required this.agentOverride,
-    required this.modelOverride,
-    required this.reasoningByModel,
-    required this.aiAssistSettings,
-    required this.error,
-    required this.onEnabledChanged,
-    required this.onAgentChanged,
-    required this.onModelChanged,
-    required this.onReasoningChanged,
-    required this.onSave,
-    required this.onDelete,
-    required this.isNew,
-  });
-
-  final TextEditingController nameController;
-  final TextEditingController promptController;
-  final bool enabled;
-  final AiAssistAgent? agentOverride;
-  final String? modelOverride;
-  final Map<String, String> reasoningByModel;
-  final AiAssistSettings aiAssistSettings;
-  final String? error;
-  final ValueChanged<bool> onEnabledChanged;
-  final ValueChanged<AiAssistAgent?> onAgentChanged;
-  final ValueChanged<String?> onModelChanged;
-  final ValueChanged<String?> onReasoningChanged;
-  final VoidCallback onSave;
-  final VoidCallback onDelete;
-  final bool isNew;
-
+class const TextActionEditor({
+  super.key,
+  required final TextEditingController nameController,
+  required final TextEditingController promptController,
+  required final bool enabled,
+  required final AiAssistAgent? agentOverride,
+  required final String? modelOverride,
+  required final Map<String, String> reasoningByModel,
+  required final AiAssistSettings aiAssistSettings,
+  required final String? error,
+  required final ValueChanged<bool> onEnabledChanged,
+  required final ValueChanged<AiAssistAgent?> onAgentChanged,
+  required final ValueChanged<String?> onModelChanged,
+  required final ValueChanged<String?> onReasoningChanged,
+  required final VoidCallback onSave,
+  required final VoidCallback onDelete,
+  required final bool isNew,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final agent = agentOverride ?? aiAssistSettings.agent;
@@ -72,7 +54,7 @@ class TextActionEditor extends StatelessWidget {
         ?.label;
     return SingleChildScrollView(
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
+        crossAxisAlignment: .stretch,
         children: <Widget>[
           AleraSettingsGroup(
             title: 'Action',
@@ -99,7 +81,7 @@ class TextActionEditor extends StatelessWidget {
                   hintText: 'Describe the replacement to generate.',
                   minLines: 5,
                   maxLines: 10,
-                  keyboardType: TextInputType.multiline,
+                  keyboardType: .multiline,
                 ),
               ),
               SettingsSwitchRow(
@@ -189,7 +171,7 @@ class TextActionEditor extends StatelessWidget {
           ],
           const SizedBox(height: AleraTokens.space16),
           Row(
-            mainAxisAlignment: MainAxisAlignment.end,
+            mainAxisAlignment: .end,
             children: <Widget>[
               if (!isNew)
                 TextButton.icon(

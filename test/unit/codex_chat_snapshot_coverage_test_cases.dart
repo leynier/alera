@@ -322,7 +322,7 @@ void registerCodexSnapshotCoverageTests(DateTime now) {
     final tab = WorkspaceTabRecord(
       id: 'codex-tab',
       workspaceId: 'workspace',
-      kind: WorkspaceTabKind.codex,
+      kind: .codex,
       title: 'Codex',
       createdAt: now,
       updatedAt: now,
@@ -341,7 +341,7 @@ void registerCodexSnapshotCoverageTests(DateTime now) {
     final empty = WorkspaceTabRecord(
       id: 'empty',
       workspaceId: 'workspace',
-      kind: WorkspaceTabKind.codex,
+      kind: .codex,
       title: 'Codex',
       createdAt: now,
       updatedAt: now,

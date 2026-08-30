@@ -40,9 +40,7 @@ void main() {
       addTearDown(scheduler.dispose);
 
       scheduler.enqueue(<AgentStatusEntry>[_entry()]);
-      scheduler.enqueue(<AgentStatusEntry>[
-        _entry(state: AgentStatusState.done),
-      ]);
+      scheduler.enqueue(<AgentStatusEntry>[_entry(state: .done)]);
       await timers.fire();
 
       expect(batches.single, hasLength(1));
@@ -112,7 +110,7 @@ void main() {
 /// Records the pending timer so a test can fire it, and carries the clock the
 /// scheduler measures the max delay with.
 class _FakeTimers {
-  DateTime now = DateTime.utc(2026, 5, 26, 12);
+  DateTime now = .utc(2026, 5, 26, 12);
   void Function()? _pending;
 
   Timer schedule(Duration duration, void Function() callback) {
@@ -126,7 +124,7 @@ class _FakeTimers {
     final callback = _pending;
     _pending = null;
     callback?.call();
-    await Future<void>.delayed(Duration.zero);
+    await Future<void>.delayed(.zero);
   }
 }
 
@@ -149,10 +147,10 @@ AgentStatusEntry _entry({
     terminalSessionId: sessionId,
     workspaceId: 'workspace-1',
     tabId: 'tab-1',
-    agentType: AgentType.codex,
+    agentType: .codex,
     state: state,
     prompt: 'Run tests',
-    updatedAt: DateTime.utc(2026, 5, 26, 12),
-    stateStartedAt: DateTime.utc(2026, 5, 26, 12),
+    updatedAt: .utc(2026, 5, 26, 12),
+    stateStartedAt: .utc(2026, 5, 26, 12),
   );
 }

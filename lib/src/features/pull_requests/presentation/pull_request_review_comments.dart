@@ -1,26 +1,16 @@
 part of 'pull_request_review_view.dart';
 
-class _PullRequestCommentsSection extends StatefulWidget {
-  const _PullRequestCommentsSection({
-    required this.comments,
-    required this.canComment,
-    required this.canEditComments,
-    required this.savingCommentIds,
-    required this.action,
-    required this.onAddComment,
-    required this.onToggleTask,
-    required this.onOpenUrl,
-  });
-
-  final List<ReviewComment> comments;
-  final bool canComment;
-  final bool canEditComments;
-  final Set<String> savingCommentIds;
-  final PullRequestAction? action;
-  final Future<bool> Function(String body) onAddComment;
-  final Future<void> Function(String commentId, int itemIndex) onToggleTask;
-  final Future<void> Function(String url) onOpenUrl;
-
+class const _PullRequestCommentsSection({
+  required final List<ReviewComment> comments,
+  required final bool canComment,
+  required final bool canEditComments,
+  required final Set<String> savingCommentIds,
+  required final PullRequestAction? action,
+  required final Future<bool> Function(String body) onAddComment,
+  required final Future<void> Function(String commentId, int itemIndex)
+  onToggleTask,
+  required final Future<void> Function(String url) onOpenUrl,
+}) extends StatefulWidget {
   @override
   State<_PullRequestCommentsSection> createState() =>
       _PullRequestCommentsSectionState();
@@ -63,7 +53,7 @@ class _PullRequestCommentsSectionState
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+      crossAxisAlignment: .stretch,
       children: <Widget>[
         Row(
           children: <Widget>[
@@ -95,7 +85,7 @@ class _PullRequestCommentsSectionState
             enabled: !_busy,
             minLines: 3,
             maxLines: 8,
-            keyboardType: TextInputType.multiline,
+            keyboardType: .multiline,
             style: theme.textTheme.bodySmall?.copyWith(
               color: AleraTokens.foreground,
             ),
@@ -107,7 +97,7 @@ class _PullRequestCommentsSectionState
           ),
           const SizedBox(height: AleraTokens.space8),
           Row(
-            mainAxisAlignment: MainAxisAlignment.end,
+            mainAxisAlignment: .end,
             children: <Widget>[
               TextButton(
                 onPressed: _busy
@@ -163,21 +153,13 @@ class _PullRequestCommentsSectionState
   }
 }
 
-class _ReviewCommentCard extends StatelessWidget {
-  const _ReviewCommentCard({
-    required this.comment,
-    required this.onOpenUrl,
-    required this.taskListEditable,
-    required this.taskListSaving,
-    required this.onTaskListItemToggle,
-  });
-
-  final ReviewComment comment;
-  final Future<void> Function(String url) onOpenUrl;
-  final bool taskListEditable;
-  final bool taskListSaving;
-  final Future<void> Function(int itemIndex) onTaskListItemToggle;
-
+class const _ReviewCommentCard({
+  required final ReviewComment comment,
+  required final Future<void> Function(String url) onOpenUrl,
+  required final bool taskListEditable,
+  required final bool taskListSaving,
+  required final Future<void> Function(int itemIndex) onTaskListItemToggle,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -191,7 +173,7 @@ class _ReviewCommentCard extends StatelessWidget {
       child: Padding(
         padding: const EdgeInsets.all(AleraTokens.space12),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment: .start,
           children: <Widget>[
             Row(
               children: <Widget>[
@@ -199,7 +181,7 @@ class _ReviewCommentCard extends StatelessWidget {
                   child: Text(
                     comment.author,
                     maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
+                    overflow: .ellipsis,
                     style: theme.textTheme.labelMedium?.copyWith(
                       color: AleraTokens.foreground,
                     ),
@@ -235,7 +217,7 @@ class _ReviewCommentCard extends StatelessWidget {
                     child: Text(
                       location,
                       maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+                      overflow: .ellipsis,
                       style: theme.textTheme.labelSmall?.copyWith(
                         color: AleraTokens.foregroundMuted,
                       ),

@@ -5,8 +5,7 @@ mixin _FakeGitBackendStatus {
   GitException? get statusError;
 
   GitStatusResult gitStatusResult = const GitStatusResult(entries: []);
-  GitExplorerStatusSnapshot gitExplorerStatusSnapshot =
-      const GitExplorerStatusSnapshot.empty();
+  GitExplorerStatusSnapshot gitExplorerStatusSnapshot = const .empty();
 
   Future<GitStatusResult> status(String path) async {
     calls.add(GitBackendCall('status', <String, Object?>{'path': path}));

@@ -1,11 +1,9 @@
 part of 'mobile_codex_chat_screen.dart';
 
-class _MobileCodexShimmerScope extends StatefulWidget {
-  const _MobileCodexShimmerScope({required this.enabled, required this.child});
-
-  final bool enabled;
-  final Widget child;
-
+class const _MobileCodexShimmerScope({
+  required final bool enabled,
+  required final Widget child,
+}) extends StatefulWidget {
   @override
   State<_MobileCodexShimmerScope> createState() =>
       _MobileCodexShimmerScopeState();
@@ -52,24 +50,21 @@ class _MobileCodexShimmerScopeState extends State<_MobileCodexShimmerScope> {
       : widget.child;
 }
 
-class _MobileCodexShimmerPhase
-    extends InheritedNotifier<ValueNotifier<double>> {
-  const _MobileCodexShimmerPhase({
-    required ValueNotifier<double> phase,
-    required super.child,
-  }) : super(notifier: phase);
+class const _MobileCodexShimmerPhase({
+  required ValueNotifier<double> phase,
+  required super.child,
+}) extends InheritedNotifier<ValueNotifier<double>> {
+  this : super(notifier: phase);
 
   static ValueNotifier<double>? maybeOf(BuildContext context) => context
       .dependOnInheritedWidgetOfExactType<_MobileCodexShimmerPhase>()
       ?.notifier;
 }
 
-class _MobileCodexShimmerText extends StatelessWidget {
-  const _MobileCodexShimmerText({required this.text, this.style});
-
-  final String text;
-  final TextStyle? style;
-
+class const _MobileCodexShimmerText({
+  required final String text,
+  final TextStyle? style,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final phase = _MobileCodexShimmerPhase.maybeOf(context);
@@ -78,7 +73,7 @@ class _MobileCodexShimmerText extends StatelessWidget {
       child: AnimatedBuilder(
         animation: phase,
         builder: (context, child) => ShaderMask(
-          blendMode: BlendMode.srcIn,
+          blendMode: .srcIn,
           shaderCallback: (bounds) {
             final center = phase.value * 2.4 - 0.7;
             return LinearGradient(

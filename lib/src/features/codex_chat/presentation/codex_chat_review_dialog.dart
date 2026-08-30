@@ -47,29 +47,17 @@ enum _CodexReviewDelivery {
   };
 }
 
-final class _CodexReviewSelection {
-  const _CodexReviewSelection({
-    required this.target,
-    required this.delivery,
-    this.argument,
-    this.commitTitle,
-  });
+final class const _CodexReviewSelection({
+  required final _CodexReviewTarget target,
+  required final _CodexReviewDelivery delivery,
+  final String? argument,
+  final String? commitTitle,
+});
 
-  final _CodexReviewTarget target;
-  final _CodexReviewDelivery delivery;
-  final String? argument;
-  final String? commitTitle;
-}
-
-class _CodexReviewDialog extends StatefulWidget {
-  const _CodexReviewDialog({
-    required this.branches,
-    required this.branchLookupFailed,
-  });
-
-  final List<String> branches;
-  final bool branchLookupFailed;
-
+class const _CodexReviewDialog({
+  required final List<String> branches,
+  required final bool branchLookupFailed,
+}) extends StatefulWidget {
   @override
   State<_CodexReviewDialog> createState() => _CodexReviewDialogState();
 }
@@ -79,8 +67,8 @@ class _CodexReviewDialogState extends State<_CodexReviewDialog> {
   final TextEditingController _commitSha = TextEditingController();
   final TextEditingController _commitTitle = TextEditingController();
   final TextEditingController _instructions = TextEditingController();
-  _CodexReviewTarget _target = _CodexReviewTarget.uncommittedChanges;
-  _CodexReviewDelivery _delivery = _CodexReviewDelivery.inline;
+  _CodexReviewTarget _target = .uncommittedChanges;
+  _CodexReviewDelivery _delivery = .inline;
   String? _selectedBranch;
 
   @override
@@ -132,8 +120,8 @@ class _CodexReviewDialogState extends State<_CodexReviewDialog> {
       child: Padding(
         padding: const EdgeInsets.all(AleraTokens.space20),
         child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
+          mainAxisSize: .min,
+          crossAxisAlignment: .stretch,
           children: <Widget>[
             AleraDialogHeader(
               title: 'Start Review',
@@ -144,7 +132,7 @@ class _CodexReviewDialogState extends State<_CodexReviewDialog> {
               child: SingleChildScrollView(
                 key: const ValueKey<String>('codex-review-form-scroll'),
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  crossAxisAlignment: .stretch,
                   children: <Widget>[
                     AleraDropdownField<_CodexReviewTarget>(
                       key: const ValueKey<String>('codex-review-target'),
@@ -201,7 +189,7 @@ class _CodexReviewDialogState extends State<_CodexReviewDialog> {
             ),
             const SizedBox(height: AleraTokens.space20),
             Row(
-              mainAxisAlignment: MainAxisAlignment.end,
+              mainAxisAlignment: .end,
               children: <Widget>[
                 TextButton(
                   onPressed: () => Navigator.of(context).pop(),
@@ -278,7 +266,7 @@ class _CodexReviewDialogState extends State<_CodexReviewDialog> {
         controller: _instructions,
         labelText: 'Review Instructions',
         hintText: 'Describe what the reviewer should inspect',
-        keyboardType: TextInputType.multiline,
+        keyboardType: .multiline,
         minLines: 4,
         maxLines: 8,
       ),

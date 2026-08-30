@@ -140,7 +140,7 @@ void _registerWorkbenchControllerSelectionTests() {
     final secondTab = await _controller.splitWorkbenchGroupWithTerminal(
       workspace: workspace,
       groupId: groupId,
-      zone: WorkbenchDropZone.right,
+      zone: .right,
     );
     await _flush();
 
@@ -167,7 +167,7 @@ void _registerWorkbenchControllerSelectionTests() {
       final movedTab = await _controller.splitWorkbenchGroupWithTerminal(
         workspace: workspace,
         groupId: firstGroupId,
-        zone: WorkbenchDropZone.down,
+        zone: .down,
       );
       await _flush();
       final splitLayout = _controller.state.layoutFor(workspace.id)!;
@@ -177,7 +177,7 @@ void _registerWorkbenchControllerSelectionTests() {
         workspaceId: workspace.id,
         tabId: movedTab.id,
         targetGroupId: firstGroupId,
-        zone: WorkbenchDropZone.center,
+        zone: .center,
       );
       await _flush();
 
@@ -195,7 +195,7 @@ void _registerWorkbenchControllerSelectionTests() {
     await _controller.splitWorkbenchGroupWithTerminal(
       workspace: workspace,
       groupId: groupId,
-      zone: WorkbenchDropZone.right,
+      zone: .right,
     );
     await _flush();
 
@@ -240,24 +240,24 @@ void _registerWorkbenchControllerSelectionTests() {
       name: 'Main',
       branch: 'main',
       path: _harness.project.repoPath,
-      createdAt: DateTime.utc(2026, 5, 22),
-      updatedAt: DateTime.utc(2026, 5, 22),
-      kind: WorkspaceKind.main,
-      status: WorkspaceStatus.active,
+      createdAt: .utc(2026, 5, 22),
+      updatedAt: .utc(2026, 5, 22),
+      kind: .main,
+      status: .active,
     );
     final firstTab = WorkspaceTabRecord(
       id: 'tab-1',
       workspaceId: workspace.id,
       title: 'Terminal 1',
-      createdAt: DateTime.utc(2026, 5, 22),
-      updatedAt: DateTime.utc(2026, 5, 22),
+      createdAt: .utc(2026, 5, 22),
+      updatedAt: .utc(2026, 5, 22),
     );
     final secondTab = WorkspaceTabRecord(
       id: 'tab-2',
       workspaceId: workspace.id,
       title: 'Terminal 2',
-      createdAt: DateTime.utc(2026, 5, 22),
-      updatedAt: DateTime.utc(2026, 5, 22),
+      createdAt: .utc(2026, 5, 22),
+      updatedAt: .utc(2026, 5, 22),
     );
     final savedLayout =
         WorkbenchLayout.single(
@@ -265,7 +265,7 @@ void _registerWorkbenchControllerSelectionTests() {
           tabIds: <String>[firstTab.id],
         ).splitWithGroup(
           targetGroupId: WorkbenchLayout.defaultGroupId(workspace.id),
-          zone: WorkbenchDropZone.right,
+          zone: .right,
           newGroup: WorkbenchPaneGroup(
             id: 'group-2',
             tabIds: <String>[secondTab.id],

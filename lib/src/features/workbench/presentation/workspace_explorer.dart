@@ -33,31 +33,22 @@ part 'workspace_explorer_widgets.dart';
 bool _isDirectoryEntry(native.WorkspaceFileEntry? entry) =>
     entry?.kind.name == 'directory';
 
-class WorkspaceExplorer extends ConsumerStatefulWidget {
-  const WorkspaceExplorer({
-    super.key,
-    required this.workspace,
-    required this.mode,
-    required this.onModeChanged,
-    required this.onOpenFile,
-    this.onOpenFilePermanently,
-    required this.onPathMoved,
-    this.focusedSourceControlRoot,
-    this.onFocusSourceControlFolder,
-    this.onClearSourceControlRoot,
-  });
-
-  final Workspace workspace;
-  final WorkspaceExplorerMode mode;
-  final ValueChanged<WorkspaceExplorerMode> onModeChanged;
-  final ValueChanged<String> onOpenFile;
-  final ValueChanged<String>? onOpenFilePermanently;
-  final Future<void> Function(String oldRelativePath, String newRelativePath)
-  onPathMoved;
-  final String? focusedSourceControlRoot;
-  final Future<bool> Function(String relativePath)? onFocusSourceControlFolder;
-  final VoidCallback? onClearSourceControlRoot;
-
+class const WorkspaceExplorer({
+  super.key,
+  required final Workspace workspace,
+  required final WorkspaceExplorerMode mode,
+  required final ValueChanged<WorkspaceExplorerMode> onModeChanged,
+  required final ValueChanged<String> onOpenFile,
+  final ValueChanged<String>? onOpenFilePermanently,
+  required final Future<void> Function(
+    String oldRelativePath,
+    String newRelativePath,
+  )
+  onPathMoved,
+  final String? focusedSourceControlRoot,
+  final Future<bool> Function(String relativePath)? onFocusSourceControlFolder,
+  final VoidCallback? onClearSourceControlRoot,
+}) extends ConsumerStatefulWidget {
   @override
   ConsumerState<WorkspaceExplorer> createState() => _WorkspaceExplorerState();
 }
@@ -81,8 +72,7 @@ class _WorkspaceExplorerState extends ConsumerState<WorkspaceExplorer> {
   late final EditorSessionRegistry _editorSessions;
   late final WorkspaceFolderOpener _folderOpener;
   late final GitBackend _gitBackend;
-  GitExplorerStatusSnapshot _gitStatusSnapshot =
-      const GitExplorerStatusSnapshot.empty();
+  GitExplorerStatusSnapshot _gitStatusSnapshot = const .empty();
   _ExplorerClipboard? _clipboard;
   bool _loading = true;
   bool _suppressNextBackgroundMenu = false;
@@ -133,7 +123,7 @@ class _WorkspaceExplorerState extends ConsumerState<WorkspaceExplorer> {
   Widget build(BuildContext context) {
     _listenForRevealRequest();
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+      crossAxisAlignment: .stretch,
       children: <Widget>[
         _ExplorerToolbar(
           title: widget.workspace.name,
@@ -164,9 +154,7 @@ class _WorkspaceExplorerState extends ConsumerState<WorkspaceExplorer> {
                     ),
                     child: tree.DirectoryTreeView(
                       controller: _controller,
-                      padding: const EdgeInsets.symmetric(
-                        vertical: AleraTokens.space4,
-                      ),
+                      padding: const .symmetric(vertical: AleraTokens.space4),
                       expanderSize: AleraTokens.space24,
                       expanderGap: 0,
                       expanderBuilder: _buildExpander,
@@ -473,9 +461,7 @@ class _WorkspaceExplorerState extends ConsumerState<WorkspaceExplorer> {
   }
 }
 
-class _AleraFlattenStrategy extends tree.FlattenStrategy {
-  const _AleraFlattenStrategy();
-
+class const _AleraFlattenStrategy() extends tree.FlattenStrategy {
   static const tree.DefaultFlattenStrategy _delegate =
       tree.DefaultFlattenStrategy();
 

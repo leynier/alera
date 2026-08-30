@@ -36,27 +36,16 @@ typedef _TabStripGapDragCallback = void Function(
   int gapIndex,
 );
 
-class _TabStripChipDropTarget extends StatelessWidget {
-  const _TabStripChipDropTarget({
-    required this.chipIndex,
-    required this.workspaceId,
-    required this.showLeadingIndicator,
-    required this.showTrailingIndicator,
-    required this.onHoverGap,
-    required this.onLeave,
-    required this.onDropGap,
-    required this.child,
-  });
-
-  final int chipIndex;
-  final String workspaceId;
-  final bool showLeadingIndicator;
-  final bool showTrailingIndicator;
-  final _TabStripGapDragCallback onHoverGap;
-  final VoidCallback onLeave;
-  final _TabStripGapDragCallback onDropGap;
-  final Widget child;
-
+class const _TabStripChipDropTarget({
+  required final int chipIndex,
+  required final String workspaceId,
+  required final bool showLeadingIndicator,
+  required final bool showTrailingIndicator,
+  required final _TabStripGapDragCallback onHoverGap,
+  required final VoidCallback onLeave,
+  required final _TabStripGapDragCallback onDropGap,
+  required final Widget child,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return DragTarget<_WorkspaceTabDragData>(
@@ -69,7 +58,7 @@ class _TabStripChipDropTarget extends StatelessWidget {
           _reportGap(context, details.data, details.offset, onDropGap),
       builder: (context, _, _) {
         return Stack(
-          clipBehavior: Clip.none,
+          clipBehavior: .none,
           children: <Widget>[
             child,
             if (showLeadingIndicator)
@@ -116,23 +105,14 @@ class _TabStripChipDropTarget extends StatelessWidget {
   }
 }
 
-class _TabStripAppendDropTarget extends StatelessWidget {
-  const _TabStripAppendDropTarget({
-    required this.workspaceId,
-    required this.tabCount,
-    required this.onHoverGap,
-    required this.onLeave,
-    required this.onDropGap,
-    required this.child,
-  });
-
-  final String workspaceId;
-  final int tabCount;
-  final _TabStripGapDragCallback onHoverGap;
-  final VoidCallback onLeave;
-  final _TabStripGapDragCallback onDropGap;
-  final Widget child;
-
+class const _TabStripAppendDropTarget({
+  required final String workspaceId,
+  required final int tabCount,
+  required final _TabStripGapDragCallback onHoverGap,
+  required final VoidCallback onLeave,
+  required final _TabStripGapDragCallback onDropGap,
+  required final Widget child,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return DragTarget<_WorkspaceTabDragData>(
@@ -146,16 +126,14 @@ class _TabStripAppendDropTarget extends StatelessWidget {
   }
 }
 
-class _TabStripInsertionIndicator extends StatelessWidget {
-  const _TabStripInsertionIndicator();
-
+class const _TabStripInsertionIndicator() extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return const DecoratedBox(
       key: ValueKey<String>('tab-strip-insertion-indicator'),
       decoration: BoxDecoration(
         color: AleraTokens.accent,
-        borderRadius: BorderRadius.all(Radius.circular(AleraTokens.radiusSm)),
+        borderRadius: BorderRadius.all(.circular(AleraTokens.radiusSm)),
       ),
     );
   }

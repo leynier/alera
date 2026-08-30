@@ -81,14 +81,8 @@ class _FakeUrlLauncherPlatform extends UrlLauncherPlatform
   }
 }
 
-class _LaunchCall {
-  const _LaunchCall({
-    required this.useSafariVC,
-    required this.useWebView,
-    required this.universalLinksOnly,
-  });
-
-  final bool useSafariVC;
-  final bool useWebView;
-  final bool universalLinksOnly;
-}
+class const _LaunchCall({
+  required final bool useSafariVC,
+  required final bool useWebView,
+  required final bool universalLinksOnly,
+});

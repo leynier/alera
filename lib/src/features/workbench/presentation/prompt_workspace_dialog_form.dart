@@ -6,8 +6,8 @@ extension _PromptWorkspaceDialogForm on _PromptWorkspaceDialogState {
     return Flexible(
       child: SingleChildScrollView(
         child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: .min,
+          crossAxisAlignment: .start,
           children: <Widget>[
             AiDictationFieldOverlay(
               controller: _promptController,
@@ -119,7 +119,7 @@ extension _PromptWorkspaceDialogForm on _PromptWorkspaceDialogState {
             ),
             const SizedBox(height: AleraTokens.space20),
             Row(
-              mainAxisAlignment: MainAxisAlignment.end,
+              mainAxisAlignment: .end,
               children: <Widget>[
                 if (_working) ...<Widget>[
                   const SizedBox(

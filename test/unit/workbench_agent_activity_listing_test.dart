@@ -7,7 +7,7 @@ import 'package:alera/src/features/workbench/domain/workspace.dart';
 import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-final DateTime _now = DateTime.utc(2026, 5, 1);
+final DateTime _now = .utc(2026, 5, 1);
 
 Project _project(String id, String name, {int recencyOffset = 0}) {
   return Project(
@@ -35,8 +35,8 @@ Workspace _workspace(
     path: '/repo/$projectId/$id',
     createdAt: _now,
     updatedAt: _now.add(Duration(days: recencyOffset)),
-    kind: WorkspaceKind.linked,
-    status: WorkspaceStatus.active,
+    kind: .linked,
+    status: .active,
     parentWorkspaceId: parentWorkspaceId,
     isPinned: isPinned,
   );
@@ -119,8 +119,8 @@ List<String> _workspaceIds(List<WorkbenchSidebarRow> rows) {
 void main() {
   test('needs-you workspaces rank above working and inactive workspaces', () {
     final prefs = WorkbenchViewPrefs.defaults.copyWith(
-      groupBy: WorkbenchGroupBy.none,
-      workspaceSort: WorkbenchSortBy.activity,
+      groupBy: .none,
+      workspaceSort: .activity,
     );
     final state = _activityState(prefs);
 
@@ -137,9 +137,7 @@ void main() {
   });
 
   test('active project headers rank above inactive projects', () {
-    final prefs = WorkbenchViewPrefs.defaults.copyWith(
-      projectSort: WorkbenchSortBy.activity,
-    );
+    final prefs = WorkbenchViewPrefs.defaults.copyWith(projectSort: .activity);
     final state = _activityState(prefs);
     final headers = buildSidebarRows(
       state,
@@ -151,9 +149,7 @@ void main() {
   });
 
   test('active projects rank by their most urgent workspace', () {
-    final prefs = WorkbenchViewPrefs.defaults.copyWith(
-      projectSort: WorkbenchSortBy.activity,
-    );
+    final prefs = WorkbenchViewPrefs.defaults.copyWith(projectSort: .activity);
     final alpha = _project('p-alpha', 'alpha');
     final zeta = _project('p-zeta', 'zeta');
     final working = _workspace('w-working', alpha.id, 'working');
@@ -174,14 +170,8 @@ void main() {
       bootstrapped: true,
     );
     final statuses = <String, AgentStatusEntry>{
-      workingTab.terminalSessionId: _status(
-        workingTab,
-        AgentStatusState.working,
-      ),
-      waitingTab.terminalSessionId: _status(
-        waitingTab,
-        AgentStatusState.waiting,
-      ),
+      workingTab.terminalSessionId: _status(workingTab, .working),
+      waitingTab.terminalSessionId: _status(waitingTab, .waiting),
     };
 
     expect(
@@ -195,9 +185,7 @@ void main() {
   });
 
   test('inactive projects sort alphabetically', () {
-    final prefs = WorkbenchViewPrefs.defaults.copyWith(
-      projectSort: WorkbenchSortBy.activity,
-    );
+    final prefs = WorkbenchViewPrefs.defaults.copyWith(projectSort: .activity);
     final zeta = _project('p-zeta', 'zeta', recencyOffset: 10);
     final alpha = _project('p-alpha', 'alpha');
     final state = WorkbenchState(
@@ -220,8 +208,8 @@ void main() {
 
   test('the selected workspace does not override strict activity order', () {
     final prefs = WorkbenchViewPrefs.defaults.copyWith(
-      groupBy: WorkbenchGroupBy.none,
-      workspaceSort: WorkbenchSortBy.activity,
+      groupBy: .none,
+      workspaceSort: .activity,
     );
     final state = _activityState(prefs, activeWorkspaceId: 'w-working');
 
@@ -239,8 +227,8 @@ void main() {
 
   test('inactive workspaces ignore recency and sort alphabetically', () {
     final prefs = WorkbenchViewPrefs.defaults.copyWith(
-      groupBy: WorkbenchGroupBy.none,
-      workspaceSort: WorkbenchSortBy.activity,
+      groupBy: .none,
+      workspaceSort: .activity,
     );
     final project = _project('p-alera', 'alera');
     final alpha = _workspace('w-a', project.id, 'aaa');
@@ -270,8 +258,8 @@ void main() {
 
   test('an open terminal is active without a live agent status', () {
     final prefs = WorkbenchViewPrefs.defaults.copyWith(
-      groupBy: WorkbenchGroupBy.none,
-      workspaceSort: WorkbenchSortBy.activity,
+      groupBy: .none,
+      workspaceSort: .activity,
     );
     final project = _project('p-alera', 'alera');
     final active = _workspace('w-active', project.id, 'zebra');
@@ -296,8 +284,8 @@ void main() {
 
   test('an open Codex tab is active without a live agent status', () {
     final prefs = WorkbenchViewPrefs.defaults.copyWith(
-      groupBy: WorkbenchGroupBy.none,
-      workspaceSort: WorkbenchSortBy.activity,
+      groupBy: .none,
+      workspaceSort: .activity,
     );
     final project = _project('p-alera', 'alera');
     final active = _workspace('w-active', project.id, 'zebra');
@@ -309,7 +297,7 @@ void main() {
       },
       tabsByWorkspace: <String, List<WorkspaceTabRecord>>{
         active.id: <WorkspaceTabRecord>[
-          _tab('c-active', active.id, kind: WorkspaceTabKind.codex),
+          _tab('c-active', active.id, kind: .codex),
         ],
       },
       viewPrefs: prefs,
@@ -324,18 +312,14 @@ void main() {
 
   test('a waiting Codex tab outranks a working terminal', () {
     final prefs = WorkbenchViewPrefs.defaults.copyWith(
-      groupBy: WorkbenchGroupBy.none,
-      workspaceSort: WorkbenchSortBy.activity,
+      groupBy: .none,
+      workspaceSort: .activity,
     );
     final project = _project('p-alera', 'alera');
     final working = _workspace('w-working', project.id, 'alpha');
     final waiting = _workspace('w-waiting', project.id, 'zeta');
     final workingTab = _tab('t-working', working.id);
-    final waitingTab = _tab(
-      'c-waiting',
-      waiting.id,
-      kind: WorkspaceTabKind.codex,
-    );
+    final waitingTab = _tab('c-waiting', waiting.id, kind: .codex);
     final state = WorkbenchState(
       projects: <Project>[project],
       workspacesByProject: <String, List<Workspace>>{
@@ -349,11 +333,8 @@ void main() {
       bootstrapped: true,
     );
     final statuses = <String, AgentStatusEntry>{
-      workingTab.terminalSessionId: _status(
-        workingTab,
-        AgentStatusState.working,
-      ),
-      'codex:${waitingTab.id}': _status(waitingTab, AgentStatusState.waiting),
+      workingTab.terminalSessionId: _status(workingTab, .working),
+      'codex:${waitingTab.id}': _status(waitingTab, .waiting),
     };
 
     expect(
@@ -366,7 +347,7 @@ void main() {
 
   test('global pinned section keeps active workspaces first', () {
     final prefs = WorkbenchViewPrefs.defaults.copyWith(
-      workspaceSort: WorkbenchSortBy.activity,
+      workspaceSort: .activity,
     );
     final alpha = _project('p-alpha', 'alpha');
     final zeta = _project('p-zeta', 'zeta');
@@ -401,8 +382,8 @@ void main() {
 
   test('active descendants promote and rank their workspace trees', () {
     final prefs = WorkbenchViewPrefs.defaults.copyWith(
-      groupBy: WorkbenchGroupBy.none,
-      workspaceSort: WorkbenchSortBy.activity,
+      groupBy: .none,
+      workspaceSort: .activity,
     );
     final project = _project('p-tree', 'tree');
     final workingRoot = _workspace('w-working-root', project.id, 'alpha-root');
@@ -441,14 +422,8 @@ void main() {
       bootstrapped: true,
     );
     final statuses = <String, AgentStatusEntry>{
-      workingTab.terminalSessionId: _status(
-        workingTab,
-        AgentStatusState.working,
-      ),
-      waitingTab.terminalSessionId: _status(
-        waitingTab,
-        AgentStatusState.waiting,
-      ),
+      workingTab.terminalSessionId: _status(workingTab, .working),
+      waitingTab.terminalSessionId: _status(waitingTab, .waiting),
     };
 
     expect(

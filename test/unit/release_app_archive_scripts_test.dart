@@ -374,17 +374,11 @@ Future<_SigningKeys> _signingKeys({required int seed}) async {
   );
 }
 
-class _SigningKeys {
-  const _SigningKeys({
-    required this.seed,
-    required this.privateKey,
-    required this.publicKey,
-  });
-
-  final List<int> seed;
-  final String privateKey;
-  final String publicKey;
-
+class const _SigningKeys({
+  required final List<int> seed,
+  required final String privateKey,
+  required final String publicKey,
+}) {
   Map<String, String> toEnvironment() {
     return <String, String>{
       'ALERA_UPDATE_MANIFEST_PRIVATE_KEY': privateKey,

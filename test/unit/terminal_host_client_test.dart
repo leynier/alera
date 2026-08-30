@@ -263,7 +263,7 @@ void main() {
       );
       addTearDown(client.dispose);
 
-      final warmup = client.ensureStarted(config: TerminalHostConfig.defaults);
+      final warmup = client.ensureStarted(config: .defaults);
       await _waitForLauncherStart(launcher);
       final runtimeRequest = client.runtimeRequest('project.list');
       await Future<void>.delayed(const Duration(milliseconds: 10));
@@ -305,7 +305,7 @@ void main() {
 
     final runtimeRequest = client.runtimeRequest('project.list');
     await _waitForLauncherStart(launcher);
-    final warmup = client.ensureStarted(config: TerminalHostConfig.defaults);
+    final warmup = client.ensureStarted(config: .defaults);
     await Future<void>.delayed(const Duration(milliseconds: 10));
 
     expect(launcher.starts, 1);
@@ -337,7 +337,7 @@ void main() {
     );
     addTearDown(client.dispose);
 
-    await client.ensureStarted(config: TerminalHostConfig.defaults);
+    await client.ensureStarted(config: .defaults);
     final outputEvent = client.events
         .where((event) => event is TerminalHostOutputEvent)
         .cast<TerminalHostOutputEvent>()
@@ -408,7 +408,7 @@ void main() {
       );
       addTearDown(activeClient.dispose);
 
-      await activeClient.ensureStarted(config: TerminalHostConfig.defaults);
+      await activeClient.ensureStarted(config: .defaults);
       await activeClient.configure(config);
 
       expect(server.requestTypes, <String>['hello', 'configure', 'configure']);
@@ -498,7 +498,7 @@ void main() {
       final client = SocketTerminalHostClient(
         launcher: _NoopTerminalHostLauncher(),
         applicationSupportDirectory: () async => tempDir,
-        startupTimeout: Duration.zero,
+        startupTimeout: .zero,
       );
       addTearDown(client.dispose);
 
@@ -553,7 +553,7 @@ void main() {
     final client = SocketTerminalHostClient(
       launcher: _NoopTerminalHostLauncher(),
       applicationSupportDirectory: () async => tempDir,
-      startupTimeout: Duration.zero,
+      startupTimeout: .zero,
     );
     addTearDown(client.dispose);
 
@@ -633,7 +633,7 @@ void main() {
     );
     addTearDown(client.dispose);
 
-    await client.ensureStarted(config: TerminalHostConfig.defaults);
+    await client.ensureStarted(config: .defaults);
 
     expect(launcher.starts, 0);
     expect(server.requestTypes, <String>['hello', 'configure']);
@@ -1063,10 +1063,7 @@ void main() {
       client.write(sessionId: 'session-1', bytes: const <int>[1]),
       throwsA(isA<StateError>()),
     );
-    await expectLater(
-      client.configure(TerminalHostConfig.defaults),
-      throwsA(isA<StateError>()),
-    );
+    await expectLater(client.configure(.defaults), throwsA(isA<StateError>()));
   });
 }
 
@@ -1136,22 +1133,15 @@ Future<void> _writeControlFile({
       .writeAsString(jsonEncode(payload));
 }
 
-final class _QueuedTerminalHostLaunch {
-  const _QueuedTerminalHostLaunch({
-    required this.server,
-    this.beforePublish,
-    this.includeOrchestrationCapability = true,
-  });
+final class const _QueuedTerminalHostLaunch({
+  required final _TerminalHostTestServer server,
+  final Future<void>? beforePublish,
+  final bool includeOrchestrationCapability = true,
+});
 
-  final _TerminalHostTestServer server;
-  final Future<void>? beforePublish;
-  final bool includeOrchestrationCapability;
-}
-
-final class _QueuedTerminalHostLauncher implements TerminalHostProcessLauncher {
-  _QueuedTerminalHostLauncher(this._launches);
-
-  final List<_QueuedTerminalHostLaunch> _launches;
+final class _QueuedTerminalHostLauncher(
+  final List<_QueuedTerminalHostLaunch> _launches,
+) implements TerminalHostProcessLauncher {
   int starts = 0;
 
   @override

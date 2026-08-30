@@ -49,7 +49,7 @@ void main() {
 
     final visible = client.attachPage('page', leaseId: 'visible');
     final automation = client.attachPage('page', leaseId: 'automation');
-    await Future<void>.delayed(Duration.zero);
+    await Future<void>.delayed(.zero);
     expect(platform.attachCalls, 1);
 
     attachGate.complete();
@@ -68,7 +68,7 @@ void main() {
 
     final attach = client.attachPage('page');
     final dispose = client.dispose();
-    await Future<void>.delayed(Duration.zero);
+    await Future<void>.delayed(.zero);
     expect(platform.disposeCalls, 0);
 
     attachGate.complete();
@@ -101,7 +101,7 @@ void main() {
 
     await tester.pumpWidget(
       Directionality(
-        textDirection: TextDirection.ltr,
+        textDirection: .ltr,
         child: AleraBrowserView(client: client, pageId: 'page'),
       ),
     );

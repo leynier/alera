@@ -11,23 +11,18 @@ import 'package:logging/logging.dart';
 
 final _credentialLog = Logger('MobileAiDictationProviderSettings');
 
-class MobileAiDictationProviderSettings extends StatelessWidget {
-  const MobileAiDictationProviderSettings({
-    super.key,
-    required this.settings,
-    required this.onChanged,
-  });
-
-  final MobileAiDictationSettings settings;
-  final ValueChanged<MobileAiDictationSettings> onChanged;
-
+class const MobileAiDictationProviderSettings({
+  super.key,
+  required final MobileAiDictationSettings settings,
+  required final ValueChanged<MobileAiDictationSettings> onChanged,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final openAi = settings.engine == MobileAiDictationEngine.openAiCompatible;
     final codex = settings.engine == MobileAiDictationEngine.codexSubscription;
     if (!openAi && !codex) return const SizedBox.shrink();
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+      crossAxisAlignment: .stretch,
       children: <Widget>[
         const SizedBox(height: AleraTokens.spaceXl),
         Text('Remote Provider', style: Theme.of(context).textTheme.titleMedium),
@@ -44,7 +39,7 @@ class MobileAiDictationProviderSettings extends StatelessWidget {
           child: Padding(
             padding: AleraTokens.contentPadding,
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
+              crossAxisAlignment: .stretch,
               children: <Widget>[
                 if (openAi) ...<Widget>[
                   _CommittedProviderField(
@@ -118,11 +113,8 @@ class MobileAiDictationProviderSettings extends StatelessWidget {
   }
 }
 
-class _DirectTokenField extends ConsumerStatefulWidget {
-  const _DirectTokenField({required this.baseUrl});
-
-  final String baseUrl;
-
+class const _DirectTokenField({required final String baseUrl})
+    extends ConsumerStatefulWidget {
   @override
   ConsumerState<_DirectTokenField> createState() => _DirectTokenFieldState();
 }
@@ -173,7 +165,7 @@ class _DirectTokenFieldState extends ConsumerState<_DirectTokenField> {
     final configured = status.value?.configured == true;
     final matches = status.value?.matchesBaseUrl == true;
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+      crossAxisAlignment: .stretch,
       children: <Widget>[
         AleraTextField(
           key: const ValueKey<String>('mobile-ai-dictation-api-token'),
@@ -202,7 +194,7 @@ class _DirectTokenFieldState extends ConsumerState<_DirectTokenField> {
         ),
         const SizedBox(height: AleraTokens.spaceSm),
         Wrap(
-          alignment: WrapAlignment.end,
+          alignment: .end,
           spacing: AleraTokens.spaceSm,
           children: <Widget>[
             if (configured)
@@ -221,21 +213,13 @@ class _DirectTokenFieldState extends ConsumerState<_DirectTokenField> {
   }
 }
 
-class _CommittedProviderField extends StatefulWidget {
-  const _CommittedProviderField({
-    required this.label,
-    required this.value,
-    required this.hintText,
-    required this.onChanged,
-    this.allowEmpty = false,
-  });
-
-  final String label;
-  final String value;
-  final String hintText;
-  final ValueChanged<String> onChanged;
-  final bool allowEmpty;
-
+class const _CommittedProviderField({
+  required final String label,
+  required final String value,
+  required final String hintText,
+  required final ValueChanged<String> onChanged,
+  final bool allowEmpty = false,
+}) extends StatefulWidget {
   @override
   State<_CommittedProviderField> createState() =>
       _CommittedProviderFieldState();

@@ -2,7 +2,7 @@ part of 'workbench_controller_test.dart';
 
 class _FakeWorkbenchViewPrefsRepository
     implements WorkbenchViewPrefsRepository {
-  WorkbenchViewPrefs prefs = WorkbenchViewPrefs.defaults;
+  WorkbenchViewPrefs prefs = .defaults;
   Object? loadError;
   Object? saveError;
   int saveCount = 0;

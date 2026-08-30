@@ -20,12 +20,12 @@ void _registerTerminalSurfaceInteractionTests() {
       factory.sessions.single.emitOutput(utf8.encode('https://example.com'));
       await _pumpTerminalOutput(tester);
 
-      await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+      await tester.sendKeyDownEvent(.controlLeft);
       await tester.pump();
       await tester.tapAt(_cellCenter(tester, const xterm.CellOffset(1, 0)));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 300));
-      await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+      await tester.sendKeyUpEvent(.controlLeft);
 
       expect(launcher.openedUris, <Uri>[Uri.parse('https://example.com')]);
     } finally {
@@ -52,12 +52,12 @@ void _registerTerminalSurfaceInteractionTests() {
       factory.sessions.single.emitOutput(utf8.encode('https://example.com'));
       await _pumpTerminalOutput(tester);
 
-      await tester.sendKeyDownEvent(LogicalKeyboardKey.metaLeft);
+      await tester.sendKeyDownEvent(.metaLeft);
       await tester.pump();
       await tester.tapAt(_cellCenter(tester, const xterm.CellOffset(1, 0)));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 300));
-      await tester.sendKeyUpEvent(LogicalKeyboardKey.metaLeft);
+      await tester.sendKeyUpEvent(.metaLeft);
 
       expect(
         find.text('Could not open link: https://example.com'),
@@ -320,7 +320,7 @@ void _registerTerminalSurfaceInteractionTests() {
         final allowedSession = _ShortcutCaptureSessionHandle(tabId: 'tab-1');
         final allowedController = _FakeWorkbenchController();
         await pumpShortcutSurface(
-          settings: AleraSettings.defaults,
+          settings: .defaults,
           session: allowedSession,
           controller: allowedController,
         );
@@ -329,55 +329,55 @@ void _registerTerminalSurfaceInteractionTests() {
           allowedSession.onKeyEvent?.call(
             focusNode,
             const KeyUpEvent(
-              timeStamp: Duration.zero,
-              physicalKey: PhysicalKeyboardKey.keyB,
-              logicalKey: LogicalKeyboardKey.keyB,
+              timeStamp: .zero,
+              physicalKey: .keyB,
+              logicalKey: .keyB,
             ),
           ),
           KeyEventResult.ignored,
         );
 
-        await tester.sendKeyDownEvent(LogicalKeyboardKey.metaLeft);
+        await tester.sendKeyDownEvent(.metaLeft);
         final allowedResult = allowedSession.onKeyEvent!.call(
           focusNode,
           const KeyDownEvent(
-            timeStamp: Duration.zero,
-            physicalKey: PhysicalKeyboardKey.keyB,
-            logicalKey: LogicalKeyboardKey.keyB,
+            timeStamp: .zero,
+            physicalKey: .keyB,
+            logicalKey: .keyB,
           ),
         );
-        await tester.sendKeyUpEvent(LogicalKeyboardKey.metaLeft);
+        await tester.sendKeyUpEvent(.metaLeft);
         await tester.pump();
 
         expect(allowedResult, KeyEventResult.handled);
         expect(allowedController.collapsedValues, <bool>[true]);
 
-        await tester.sendKeyDownEvent(LogicalKeyboardKey.metaLeft);
+        await tester.sendKeyDownEvent(.metaLeft);
         final allowedSearchResult = allowedSession.onKeyEvent!.call(
           focusNode,
           const KeyDownEvent(
-            timeStamp: Duration.zero,
-            physicalKey: PhysicalKeyboardKey.keyF,
-            logicalKey: LogicalKeyboardKey.keyF,
+            timeStamp: .zero,
+            physicalKey: .keyF,
+            logicalKey: .keyF,
           ),
         );
-        await tester.sendKeyUpEvent(LogicalKeyboardKey.metaLeft);
+        await tester.sendKeyUpEvent(.metaLeft);
 
         expect(allowedSearchResult, KeyEventResult.handled);
         expect(allowedSession.openSearchCallCount, 1);
 
-        await tester.sendKeyDownEvent(LogicalKeyboardKey.metaLeft);
-        await tester.sendKeyDownEvent(LogicalKeyboardKey.shiftLeft);
+        await tester.sendKeyDownEvent(.metaLeft);
+        await tester.sendKeyDownEvent(.shiftLeft);
         final composerResult = allowedSession.onKeyEvent!.call(
           focusNode,
           const KeyDownEvent(
-            timeStamp: Duration.zero,
-            physicalKey: PhysicalKeyboardKey.enter,
-            logicalKey: LogicalKeyboardKey.enter,
+            timeStamp: .zero,
+            physicalKey: .enter,
+            logicalKey: .enter,
           ),
         );
-        await tester.sendKeyUpEvent(LogicalKeyboardKey.shiftLeft);
-        await tester.sendKeyUpEvent(LogicalKeyboardKey.metaLeft);
+        await tester.sendKeyUpEvent(.shiftLeft);
+        await tester.sendKeyUpEvent(.metaLeft);
 
         expect(composerResult, KeyEventResult.handled);
         expect(allowedSession.composerController.visible, isTrue);
@@ -387,37 +387,37 @@ void _registerTerminalSurfaceInteractionTests() {
         await pumpShortcutSurface(
           settings: AleraSettings.defaults.copyWith(
             keyboard: AleraSettings.defaults.keyboard.copyWithPolicy(
-              TerminalShortcutPolicy.terminalFirst,
+              .terminalFirst,
             ),
           ),
           session: blockedSession,
           controller: blockedController,
         );
 
-        await tester.sendKeyDownEvent(LogicalKeyboardKey.metaLeft);
+        await tester.sendKeyDownEvent(.metaLeft);
         final blockedResult = blockedSession.onKeyEvent!.call(
           focusNode,
           const KeyDownEvent(
-            timeStamp: Duration.zero,
-            physicalKey: PhysicalKeyboardKey.keyT,
-            logicalKey: LogicalKeyboardKey.keyT,
+            timeStamp: .zero,
+            physicalKey: .keyT,
+            logicalKey: .keyT,
           ),
         );
-        await tester.sendKeyUpEvent(LogicalKeyboardKey.metaLeft);
+        await tester.sendKeyUpEvent(.metaLeft);
 
         expect(blockedResult, KeyEventResult.ignored);
         expect(blockedController.collapsedValues, isEmpty);
 
-        await tester.sendKeyDownEvent(LogicalKeyboardKey.metaLeft);
+        await tester.sendKeyDownEvent(.metaLeft);
         final terminalFirstSearchResult = blockedSession.onKeyEvent!.call(
           focusNode,
           const KeyDownEvent(
-            timeStamp: Duration.zero,
-            physicalKey: PhysicalKeyboardKey.keyF,
-            logicalKey: LogicalKeyboardKey.keyF,
+            timeStamp: .zero,
+            physicalKey: .keyF,
+            logicalKey: .keyF,
           ),
         );
-        await tester.sendKeyUpEvent(LogicalKeyboardKey.metaLeft);
+        await tester.sendKeyUpEvent(.metaLeft);
 
         expect(terminalFirstSearchResult, KeyEventResult.handled);
         expect(blockedSession.openSearchCallCount, 1);
@@ -448,7 +448,7 @@ void _registerTerminalSurfaceInteractionTests() {
       expect(find.byType(TextField), findsOneWidget);
       expect(tester.binding.focusManager.primaryFocus, isNotNull);
 
-      await tester.sendKeyDownEvent(LogicalKeyboardKey.escape);
+      await tester.sendKeyDownEvent(.escape);
       await tester.pump();
       await tester.pump();
 

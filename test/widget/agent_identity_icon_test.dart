@@ -1,4 +1,3 @@
-import 'package:alera/src/features/agent_status/domain/agent_status.dart';
 import 'package:alera/src/features/agent_status/presentation/agent_identity_icon.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -12,16 +11,16 @@ void main() {
       const MaterialApp(
         home: Row(
           children: <Widget>[
-            AgentIdentityIcon(agentType: AgentType.codex),
-            AgentIdentityIcon(agentType: AgentType.claude),
-            AgentIdentityIcon(agentType: AgentType.copilot),
-            AgentIdentityIcon(agentType: AgentType.cursor),
-            AgentIdentityIcon(agentType: AgentType.agy),
-            AgentIdentityIcon(agentType: AgentType.opencode),
-            AgentIdentityIcon(agentType: AgentType.pi),
-            AgentIdentityIcon(agentType: AgentType.amp),
-            AgentIdentityIcon(agentType: AgentType.grok),
-            AgentIdentityIcon(agentType: AgentType.fx),
+            AgentIdentityIcon(agentType: .codex),
+            AgentIdentityIcon(agentType: .claude),
+            AgentIdentityIcon(agentType: .copilot),
+            AgentIdentityIcon(agentType: .cursor),
+            AgentIdentityIcon(agentType: .agy),
+            AgentIdentityIcon(agentType: .opencode),
+            AgentIdentityIcon(agentType: .pi),
+            AgentIdentityIcon(agentType: .amp),
+            AgentIdentityIcon(agentType: .grok),
+            AgentIdentityIcon(agentType: .fx),
           ],
         ),
       ),

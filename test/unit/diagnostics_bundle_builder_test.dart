@@ -32,7 +32,7 @@ void main() {
       flavor: 'dev',
       operatingSystem: 'linux',
       operatingSystemVersion: 'test-kernel',
-      collectedAt: DateTime.utc(2026, 7, 28, 12),
+      collectedAt: .utc(2026, 7, 28, 12),
       runtimeHostVersion: runtimeVersion,
       runtimeHostCommit: runtimeVersion == null ? null : 'abc1234',
       protocolVersion: runtimeVersion == null ? null : 4,
@@ -135,7 +135,7 @@ void main() {
 
   test('suggested file name is filesystem safe', () {
     final name = DiagnosticsBundleBuilder.suggestedFileName(
-      DateTime.utc(2026, 7, 28, 12, 30, 15),
+      .utc(2026, 7, 28, 12, 30, 15),
     );
 
     expect(name, 'alera-diagnostics-20260728T123015.zip');

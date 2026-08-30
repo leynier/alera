@@ -11,7 +11,6 @@ import 'package:alera/src/features/ai_assist/domain/ai_assist_settings.dart';
 import 'package:alera/src/features/projects/application/project_repository.dart';
 import 'package:alera/src/features/projects/application/project_config_service.dart';
 import 'package:alera/src/features/projects/domain/project.dart';
-import 'package:alera/src/features/projects/domain/project_config.dart';
 import 'package:alera/src/features/remote_hosts/application/ssh_target_providers.dart';
 import 'package:alera/src/features/remote_hosts/domain/ssh_target.dart';
 import 'package:alera/src/features/remote_hosts/infra/runtime_ssh_target_repository.dart';
@@ -36,10 +35,8 @@ import 'package:alera/src/design_system/forms/alera_text_field.dart';
 import 'package:alera/src/design_system/menus/alera_dropdown_entry.dart';
 import 'package:file_selector_platform_interface/file_selector_platform_interface.dart';
 import 'package:flutter_colorpicker/flutter_colorpicker.dart';
-import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:plugin_platform_interface/plugin_platform_interface.dart';
 

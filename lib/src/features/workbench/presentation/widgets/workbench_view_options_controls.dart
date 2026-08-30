@@ -1,11 +1,9 @@
 part of 'workbench_view_options_menu.dart';
 
-class _ProjectsHeader extends StatelessWidget {
-  const _ProjectsHeader({required this.count, required this.onClear});
-
-  final int count;
-  final VoidCallback? onClear;
-
+class const _ProjectsHeader({
+  required final int count,
+  required final VoidCallback? onClear,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -27,7 +25,7 @@ class _ProjectsHeader extends StatelessWidget {
                 horizontal: AleraTokens.space8,
               ),
               minimumSize: const Size(0, 24),
-              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              tapTargetSize: .shrinkWrap,
             ),
             child: Text('Clear', style: theme.textTheme.labelSmall),
           ),
@@ -37,30 +35,25 @@ class _ProjectsHeader extends StatelessWidget {
   }
 }
 
-class _SectionLabel extends StatelessWidget {
-  const _SectionLabel({required this.text});
-
-  final String text;
-
+class const _SectionLabel({required final String text})
+    extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Text(
       text,
       style: Theme.of(context).textTheme.labelSmall?.copyWith(
         color: AleraTokens.foregroundFaint,
-        fontWeight: FontWeight.w600,
+        fontWeight: .w600,
         letterSpacing: 0.4,
       ),
     );
   }
 }
 
-class _GroupBySegmented extends StatelessWidget {
-  const _GroupBySegmented({required this.value, required this.onChanged});
-
-  final WorkbenchGroupBy value;
-  final ValueChanged<WorkbenchGroupBy> onChanged;
-
+class const _GroupBySegmented({
+  required final WorkbenchGroupBy value,
+  required final ValueChanged<WorkbenchGroupBy> onChanged,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return AleraSegmentedButton<WorkbenchGroupBy>(
@@ -74,19 +67,17 @@ class _GroupBySegmented extends StatelessWidget {
       selected: value,
       onSelectionChanged: onChanged,
       segments: const <ButtonSegment<WorkbenchGroupBy>>[
-        ButtonSegment(value: WorkbenchGroupBy.none, label: Text('None')),
-        ButtonSegment(value: WorkbenchGroupBy.project, label: Text('Project')),
+        ButtonSegment(value: .none, label: Text('None')),
+        ButtonSegment(value: .project, label: Text('Project')),
       ],
     );
   }
 }
 
-class _WorkspaceKindSegmented extends StatelessWidget {
-  const _WorkspaceKindSegmented({required this.value, required this.onChanged});
-
-  final WorkspaceKindFilter value;
-  final ValueChanged<WorkspaceKindFilter> onChanged;
-
+class const _WorkspaceKindSegmented({
+  required final WorkspaceKindFilter value,
+  required final ValueChanged<WorkspaceKindFilter> onChanged,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return AleraSegmentedButton<WorkspaceKindFilter>(
@@ -100,31 +91,19 @@ class _WorkspaceKindSegmented extends StatelessWidget {
       selected: value,
       onSelectionChanged: onChanged,
       segments: const <ButtonSegment<WorkspaceKindFilter>>[
-        ButtonSegment(value: WorkspaceKindFilter.all, label: Text('All')),
-        ButtonSegment(
-          value: WorkspaceKindFilter.defaultOnly,
-          label: Text('Default'),
-        ),
-        ButtonSegment(
-          value: WorkspaceKindFilter.nonDefaultOnly,
-          label: Text('Non-Default'),
-        ),
+        ButtonSegment(value: .all, label: Text('All')),
+        ButtonSegment(value: .defaultOnly, label: Text('Default')),
+        ButtonSegment(value: .nonDefaultOnly, label: Text('Non-Default')),
       ],
     );
   }
 }
 
-class _SortRow extends StatelessWidget {
-  const _SortRow({
-    required this.label,
-    required this.value,
-    required this.onChanged,
-  });
-
-  final String label;
-  final WorkbenchSortBy value;
-  final ValueChanged<WorkbenchSortBy> onChanged;
-
+class const _SortRow({
+  required final String label,
+  required final WorkbenchSortBy value,
+  required final ValueChanged<WorkbenchSortBy> onChanged,
+}) extends StatelessWidget {
   static const Map<WorkbenchSortBy, String> _labels = <WorkbenchSortBy, String>{
     WorkbenchSortBy.name: 'Name',
     WorkbenchSortBy.recent: 'Recent',
@@ -150,33 +129,27 @@ class _SortRow extends StatelessWidget {
   }
 }
 
-class _SortPopupButton extends StatelessWidget {
-  const _SortPopupButton({
-    required this.value,
-    required this.labels,
-    required this.onChanged,
-  });
-
-  final WorkbenchSortBy value;
-  final Map<WorkbenchSortBy, String> labels;
-  final ValueChanged<WorkbenchSortBy> onChanged;
-
+class const _SortPopupButton({
+  required final WorkbenchSortBy value,
+  required final Map<WorkbenchSortBy, String> labels,
+  required final ValueChanged<WorkbenchSortBy> onChanged,
+}) extends StatelessWidget {
   Future<void> _openMenu(BuildContext context) async {
     final button = context.findRenderObject()! as RenderBox;
     final overlay =
         Navigator.of(context).overlay!.context.findRenderObject()! as RenderBox;
     final topLeft = button.localToGlobal(
-      button.size.bottomLeft(Offset.zero),
+      button.size.bottomLeft(.zero),
       ancestor: overlay,
     );
     final bottomRight = button.localToGlobal(
-      button.size.bottomRight(Offset.zero) + const Offset(0, 200),
+      button.size.bottomRight(.zero) + const Offset(0, 200),
       ancestor: overlay,
     );
     final selected = await showMenu<WorkbenchSortBy>(
       context: context,
-      position: RelativeRect.fromRect(
-        Rect.fromPoints(topLeft, bottomRight),
+      position: .fromRect(
+        .fromPoints(topLeft, bottomRight),
         Offset.zero & overlay.size,
       ),
       constraints: const BoxConstraints(minWidth: 160),
@@ -202,14 +175,14 @@ class _SortPopupButton extends StatelessWidget {
       child: InkWell(
         onTap: () => _openMenu(context),
         mouseCursor: SystemMouseCursors.click,
-        borderRadius: BorderRadius.circular(AleraTokens.radiusMd),
+        borderRadius: .circular(AleraTokens.radiusMd),
         child: Padding(
           padding: const EdgeInsets.symmetric(
             horizontal: AleraTokens.space8,
             vertical: AleraTokens.space4,
           ),
           child: Row(
-            mainAxisSize: MainAxisSize.min,
+            mainAxisSize: .min,
             children: <Widget>[
               Text(
                 labels[value] ?? value.name,
@@ -232,21 +205,13 @@ class _SortPopupButton extends StatelessWidget {
   }
 }
 
-class _AvailableProjectsList extends StatelessWidget {
-  const _AvailableProjectsList({
-    required this.projects,
-    required this.hasSelection,
-    required this.query,
-    required this.onPick,
-    required this.theme,
-  });
-
-  final List<Project> projects;
-  final bool hasSelection;
-  final String query;
-  final ValueChanged<Project> onPick;
-  final ThemeData theme;
-
+class const _AvailableProjectsList({
+  required final List<Project> projects,
+  required final bool hasSelection,
+  required final String query,
+  required final ValueChanged<Project> onPick,
+  required final ThemeData theme,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (projects.isEmpty) {
@@ -269,8 +234,8 @@ class _AvailableProjectsList extends StatelessWidget {
       constraints: const BoxConstraints(maxHeight: 240),
       child: SingleChildScrollView(
         child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
+          mainAxisSize: .min,
+          crossAxisAlignment: .stretch,
           children: <Widget>[
             for (final project in projects)
               _AvailableProjectRow(
@@ -284,12 +249,10 @@ class _AvailableProjectsList extends StatelessWidget {
   }
 }
 
-class _AvailableProjectRow extends StatefulWidget {
-  const _AvailableProjectRow({required this.project, required this.onPick});
-
-  final Project project;
-  final VoidCallback onPick;
-
+class const _AvailableProjectRow({
+  required final Project project,
+  required final VoidCallback onPick,
+}) extends StatefulWidget {
   @override
   State<_AvailableProjectRow> createState() => _AvailableProjectRowState();
 }
@@ -306,7 +269,7 @@ class _AvailableProjectRowState extends State<_AvailableProjectRow> {
       child: InkWell(
         onTap: widget.onPick,
         mouseCursor: SystemMouseCursors.click,
-        borderRadius: BorderRadius.circular(AleraTokens.radiusSm),
+        borderRadius: .circular(AleraTokens.radiusSm),
         child: AnimatedContainer(
           duration: AleraTokens.durationFast,
           decoration: BoxDecoration(
@@ -325,7 +288,7 @@ class _AvailableProjectRowState extends State<_AvailableProjectRow> {
                 child: Text(
                   widget.project.name,
                   maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+                  overflow: .ellipsis,
                   style: Theme.of(context).textTheme.bodySmall
                       ?.copyWith(color: AleraTokens.foreground),
                 ),

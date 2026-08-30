@@ -21,7 +21,7 @@ void main() {
     );
     const draftItem = CodexDraftItem(
       id: 'skill-1',
-      kind: CodexDraftItemKind.skill,
+      kind: .skill,
       name: 'Review',
       path: '/skills/review',
       tokenText: r'$Review',

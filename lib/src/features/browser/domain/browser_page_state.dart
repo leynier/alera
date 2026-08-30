@@ -7,24 +7,22 @@ enum BrowserLoadPhase { started, committed, finished, failed }
 
 enum BrowserEngineAvailability { available, degraded, unavailable }
 
-final class BrowserPageState {
-  const BrowserPageState({
-    required this.page,
-    required this.url,
-    required this.title,
-    required this.loadPhase,
-    required this.canGoBack,
-    required this.canGoForward,
-    required this.security,
-    required this.downloads,
-    required this.engineAvailability,
-    required this.updatedAt,
-    this.loadProgress,
-    this.error,
-    this.capabilityReason,
-  });
-
-  factory BrowserPageState.initial(
+final class const BrowserPageState({
+  required final BrowserPage page,
+  required final Uri url,
+  required final String title,
+  required final BrowserLoadPhase loadPhase,
+  required final bool canGoBack,
+  required final bool canGoForward,
+  required final BrowserSecurityState security,
+  required final List<BrowserDownload> downloads,
+  required final BrowserEngineAvailability engineAvailability,
+  required final DateTime updatedAt,
+  final double? loadProgress,
+  final BrowserFailure? error,
+  final String? capabilityReason,
+}) {
+  factory initial(
     BrowserPage page, {
     BrowserEngineAvailability availability =
         BrowserEngineAvailability.available,
@@ -34,31 +32,17 @@ final class BrowserPageState {
       page: page,
       url: page.initialUrl,
       title: '',
-      loadPhase: BrowserLoadPhase.finished,
+      loadPhase: .finished,
       loadProgress: null,
       canGoBack: false,
       canGoForward: false,
-      security: BrowserSecurityState.unknown,
+      security: .unknown,
       downloads: const <BrowserDownload>[],
       engineAvailability: availability,
       capabilityReason: capabilityReason,
       updatedAt: page.createdAt,
     );
   }
-
-  final BrowserPage page;
-  final Uri url;
-  final String title;
-  final BrowserLoadPhase loadPhase;
-  final double? loadProgress;
-  final bool canGoBack;
-  final bool canGoForward;
-  final BrowserSecurityState security;
-  final BrowserFailure? error;
-  final List<BrowserDownload> downloads;
-  final BrowserEngineAvailability engineAvailability;
-  final String? capabilityReason;
-  final DateTime updatedAt;
 
   String get pageId => page.pageId;
 
@@ -112,8 +96,4 @@ final class BrowserPageState {
   }
 }
 
-final class BrowserSurfaceToken {
-  const BrowserSurfaceToken(this.pageId);
-
-  final String pageId;
-}
+final class const BrowserSurfaceToken(final String pageId);

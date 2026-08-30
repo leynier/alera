@@ -4,11 +4,8 @@ import 'package:alera/src/features/ai_dictation/domain/ai_dictation_request.dart
 import 'package:alera/src/features/ai_dictation/domain/ai_dictation_result.dart';
 import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_protocol.dart';
 
-class RuntimeAiDictationProvider implements AiDictationProvider {
-  RuntimeAiDictationProvider(this._client);
-
-  final RuntimeHostClient _client;
-
+class RuntimeAiDictationProvider(final RuntimeHostClient _client)
+    implements AiDictationProvider {
   @override
   String get id => 'runtime-whisper';
 
@@ -17,7 +14,7 @@ class RuntimeAiDictationProvider implements AiDictationProvider {
     final engine = request.remoteEngine;
     if (engine == null) {
       throw const AiDictationException(
-        AiDictationErrorKind.invalidRequest,
+        .invalidRequest,
         'A remote dictation engine is required.',
       );
     }
@@ -59,7 +56,7 @@ class RuntimeAiDictationProvider implements AiDictationProvider {
       rethrow;
     } on Object catch (error) {
       throw AiDictationException(
-        AiDictationErrorKind.transcription,
+        .transcription,
         'Runtime Whisper transcription failed.',
         cause: error,
       );

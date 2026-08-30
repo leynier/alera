@@ -99,14 +99,12 @@ void main() {
   });
 }
 
-final class _SigningFixture {
-  _SigningFixture({
-    required this.root,
-    required this.output,
-    required this.manifest,
-    required this.payload,
-  });
-
+final class _SigningFixture({
+  required final Directory root,
+  required final Directory output,
+  required final NativeHelperManifest manifest,
+  required final File payload,
+}) {
   static Future<_SigningFixture> create({
     required Map<String, Object?> manifestJson,
     required List<int> initialPayload,
@@ -137,11 +135,6 @@ final class _SigningFixture {
       payload: payload,
     );
   }
-
-  final Directory root;
-  final Directory output;
-  final NativeHelperManifest manifest;
-  final File payload;
 
   String get generatedSha256 {
     final generated = jsonDecode(

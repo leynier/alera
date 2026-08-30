@@ -2,12 +2,10 @@ part of 'fake_git_backend.dart';
 
 /// A recorded [GitBackend] invocation, used by tests to assert which git
 /// operations a service performed and with which arguments.
-class GitBackendCall {
-  GitBackendCall(this.method, [this.args = const <String, Object?>{}]);
-
-  final String method;
-  final Map<String, Object?> args;
-}
+class GitBackendCall(
+  final String method, [
+  final Map<String, Object?> args = const <String, Object?>{},
+]);
 
 GitCommitCompareResult _defaultGitCommitCompareResult() =>
     const GitCommitCompareResult(
@@ -17,7 +15,7 @@ GitCommitCompareResult _defaultGitCommitCompareResult() =>
         compareRef: 'abc123',
         baseRef: 'def456',
         changedFiles: 0,
-        status: GitCommitCompareStatus.ready,
+        status: .ready,
       ),
       entries: <GitCommitChangeEntry>[],
     );
@@ -34,12 +32,7 @@ GitRangeContext _defaultGitRangeContext() => const GitRangeContext(
     ),
   ],
   files: <GitRangeFile>[
-    GitRangeFile(
-      path: 'lib/foo.dart',
-      status: GitChangeStatus.modified,
-      added: 2,
-      removed: 1,
-    ),
+    GitRangeFile(path: 'lib/foo.dart', status: .modified, added: 2, removed: 1),
   ],
   patch: 'diff --git a/lib/foo.dart b/lib/foo.dart\n+new line',
 );

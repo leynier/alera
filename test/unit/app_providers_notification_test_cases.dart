@@ -34,13 +34,13 @@ void _registerAgentNotificationCoordinatorTests() {
                 terminalSessionId: 'session-1',
                 workspaceId: 'workspace-1',
                 tabId: 'tab-1',
-                agentType: AgentType.codex,
+                agentType: .codex,
                 hookEventName: 'Stop',
                 payload: <String, Object?>{'prompt': 'Run tests'},
               ),
             );
-        await Future<void>.delayed(Duration.zero);
-        await Future<void>.delayed(Duration.zero);
+        await Future<void>.delayed(.zero);
+        await Future<void>.delayed(.zero);
 
         expect(presenter.initializeCalls, 1);
         expect(presenter.notifications, hasLength(1));
@@ -77,13 +77,13 @@ void _registerAgentNotificationCoordinatorTests() {
             terminalSessionId: 'session-1',
             workspaceId: 'workspace-1',
             tabId: 'tab-1',
-            agentType: AgentType.codex,
+            agentType: .codex,
             hookEventName: 'Stop',
             payload: <String, Object?>{'prompt': 'Run tests'},
           ),
         );
-        await Future<void>.delayed(Duration.zero);
-        await Future<void>.delayed(Duration.zero);
+        await Future<void>.delayed(.zero);
+        await Future<void>.delayed(.zero);
 
         expect(presenter.notifications, isEmpty);
 
@@ -92,13 +92,13 @@ void _registerAgentNotificationCoordinatorTests() {
             terminalSessionId: 'session-1',
             workspaceId: 'workspace-1',
             tabId: 'tab-1',
-            agentType: AgentType.codex,
+            agentType: .codex,
             hookEventName: 'PermissionRequest',
             payload: <String, Object?>{'prompt': 'Run tests'},
           ),
         );
-        await Future<void>.delayed(Duration.zero);
-        await Future<void>.delayed(Duration.zero);
+        await Future<void>.delayed(.zero);
+        await Future<void>.delayed(.zero);
 
         expect(presenter.notifications, hasLength(1));
         expect(presenter.notifications.single.title, 'Codex needs attention');
@@ -136,7 +136,7 @@ void _registerAgentNotificationCoordinatorTests() {
               terminalSessionId: 'session-1',
               workspaceId: 'workspace-1',
               tabId: 'tab-1',
-              agentType: AgentType.codex,
+              agentType: .codex,
               hookEventName: 'PermissionRequest',
               payload: <String, Object?>{'prompt': 'Run tests'},
             ),
@@ -144,8 +144,8 @@ void _registerAgentNotificationCoordinatorTests() {
         }
 
         requestPermission();
-        await Future<void>.delayed(Duration.zero);
-        await Future<void>.delayed(Duration.zero);
+        await Future<void>.delayed(.zero);
+        await Future<void>.delayed(.zero);
         expect(presenter.notifications, hasLength(1));
 
         // Toggling a hook used to rebuild the coordinator, which dropped the
@@ -165,14 +165,14 @@ void _registerAgentNotificationCoordinatorTests() {
             terminalSessionId: 'session-1',
             workspaceId: 'workspace-1',
             tabId: 'tab-1',
-            agentType: AgentType.codex,
+            agentType: .codex,
             hookEventName: 'PostToolUse',
             payload: <String, Object?>{'prompt': 'Run tests'},
           ),
         );
         requestPermission();
-        await Future<void>.delayed(Duration.zero);
-        await Future<void>.delayed(Duration.zero);
+        await Future<void>.delayed(.zero);
+        await Future<void>.delayed(.zero);
 
         expect(presenter.notifications, hasLength(1));
       },
@@ -191,8 +191,8 @@ void _registerAgentNotificationCoordinatorTests() {
         path: project.repoPath,
         createdAt: now,
         updatedAt: now,
-        kind: WorkspaceKind.main,
-        status: WorkspaceStatus.active,
+        kind: .main,
+        status: .active,
       );
       final tab = WorkspaceTabRecord(
         id: 'tab-1',
@@ -245,19 +245,19 @@ void _registerAgentNotificationCoordinatorTests() {
               terminalSessionId: 'session-1',
               workspaceId: 'workspace-1',
               tabId: 'tab-1',
-              agentType: AgentType.codex,
+              agentType: .codex,
               hookEventName: 'PermissionRequest',
               payload: <String, Object?>{'prompt': 'Run tests'},
             ),
           );
-      await Future<void>.delayed(Duration.zero);
-      await Future<void>.delayed(Duration.zero);
+      await Future<void>.delayed(.zero);
+      await Future<void>.delayed(.zero);
 
       expect(presenter.notifications, hasLength(1));
       expect(presenter.notifications.single.body, 'Workspace Main in Alera');
 
       presenter.onSelected!(presenter.notifications.single.payload);
-      await Future<void>.delayed(Duration.zero);
+      await Future<void>.delayed(.zero);
 
       expect(windowActivator.calls, 1);
       expect(controller.selectedWorkspaceIds, <String>['workspace-1']);

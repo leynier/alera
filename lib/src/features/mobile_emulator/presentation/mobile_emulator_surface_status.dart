@@ -24,16 +24,13 @@ double? mobileEmulatorDecodedAspectRatio({
   return isQuarterTurn ? height / width : width / height;
 }
 
-class MobileEmulatorLoading extends StatelessWidget {
-  const MobileEmulatorLoading({super.key, this.state});
-
-  final String? state;
-
+class const MobileEmulatorLoading({super.key, final String? state})
+    extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Center(
       child: Column(
-        mainAxisSize: MainAxisSize.min,
+        mainAxisSize: .min,
         children: <Widget>[
           const CircularProgressIndicator(),
           const SizedBox(height: AleraTokens.space12),
@@ -48,16 +45,11 @@ class MobileEmulatorLoading extends StatelessWidget {
   }
 }
 
-class MobileEmulatorFailure extends StatelessWidget {
-  const MobileEmulatorFailure({
-    super.key,
-    required this.error,
-    required this.onRetry,
-  });
-
-  final Object error;
-  final VoidCallback onRetry;
-
+class const MobileEmulatorFailure({
+  super.key,
+  required final Object error,
+  required final VoidCallback onRetry,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final exception = error is MobileEmulatorException
@@ -66,7 +58,7 @@ class MobileEmulatorFailure extends StatelessWidget {
     final detail = exception?.message ?? error.toString();
     return Center(
       child: Column(
-        mainAxisSize: MainAxisSize.min,
+        mainAxisSize: .min,
         children: <Widget>[
           Text(
             'Mobile emulator unavailable',
@@ -81,7 +73,7 @@ class MobileEmulatorFailure extends StatelessWidget {
               children: <Widget>[
                 Text(
                   detail,
-                  textAlign: TextAlign.center,
+                  textAlign: .center,
                   style: Theme.of(context).textTheme.bodySmall
                       ?.copyWith(color: AleraTokens.foregroundMuted),
                 ),
@@ -90,7 +82,7 @@ class MobileEmulatorFailure extends StatelessWidget {
                     padding: const EdgeInsets.only(top: AleraTokens.space6),
                     child: Text(
                       step,
-                      textAlign: TextAlign.center,
+                      textAlign: .center,
                       style: Theme.of(context).textTheme.bodySmall
                           ?.copyWith(color: AleraTokens.foregroundMuted),
                     ),

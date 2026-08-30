@@ -15,13 +15,12 @@ const Set<String> _mobileChangeEventNames = <String>{
   'mobileGatewayChanged',
 };
 
-class RuntimeMobileAccessRepository {
-  RuntimeMobileAccessRepository(
-    this._client, {
-    RuntimeChangeCoalescer? coalescer,
-  }) : _coalescer = coalescer ?? RuntimeChangeCoalescer();
+class RuntimeMobileAccessRepository(
+  final RuntimeHostClient _client, {
+  RuntimeChangeCoalescer? coalescer,
+}) {
+  this : _coalescer = coalescer ?? RuntimeChangeCoalescer();
 
-  final RuntimeHostClient _client;
   final RuntimeChangeCoalescer _coalescer;
 
   Future<MobileAccessStatus> status() async {

@@ -7,20 +7,12 @@ import 'package:flutter/material.dart';
 const List<ReviewCheck> _checks = <ReviewCheck>[
   ReviewCheck(
     name: 'build',
-    status: ReviewCheckStatus.completed,
-    conclusion: ReviewCheckConclusion.success,
+    status: .completed,
+    conclusion: .success,
     url: 'https://example.com/build',
   ),
-  ReviewCheck(
-    name: 'tests',
-    status: ReviewCheckStatus.inProgress,
-    conclusion: ReviewCheckConclusion.pending,
-  ),
-  ReviewCheck(
-    name: 'lint',
-    status: ReviewCheckStatus.completed,
-    conclusion: ReviewCheckConclusion.failure,
-  ),
+  ReviewCheck(name: 'tests', status: .inProgress, conclusion: .pending),
+  ReviewCheck(name: 'lint', status: .completed, conclusion: .failure),
 ];
 
 @AleraPreview(name: 'Check list', group: 'PR checks')
@@ -34,7 +26,7 @@ Widget pullRequestCheckListPreview() => SizedBox(
       event: 'push',
       description: 'Build finished',
       startedAt: DateTime.now().subtract(const Duration(minutes: 5)),
-      completedAt: DateTime.now(),
+      completedAt: .now(),
     ),
   ),
 );

@@ -15,9 +15,7 @@ void main() {
     () async {
       final http = HttpClient();
       addTearDown(() => http.close(force: true));
-      final identity = await RelayIdentityKeyPair.fromPrivate(
-        List.filled(32, 7),
-      );
+      final identity = await RelayIdentityKeyPair.fromPrivate(.filled(32, 7));
       Future<CloudRelayGrant> grant(String id) async {
         final response = await (await http.getUrl(
           Uri.parse('$origin/fixture/grant?role=mobile&client=$id'),
@@ -118,9 +116,7 @@ void main() {
         }
         http.close(force: true);
       });
-      final identity = await RelayIdentityKeyPair.fromPrivate(
-        List.filled(32, 7),
-      );
+      final identity = await RelayIdentityKeyPair.fromPrivate(.filled(32, 7));
       Future<MobileRuntimeClient> connect(String id) async {
         final response = await (await http.getUrl(
           Uri.parse(origin!).replace(
@@ -176,13 +172,12 @@ void main() {
   );
 }
 
-class _RawPeer {
-  _RawPeer(this.socket, this.messages, this.id, this.session);
-  final WebSocket socket;
-  final StreamIterator<dynamic> messages;
-  final String id;
-  final RelayCryptoSession? session;
-
+class _RawPeer(
+  final WebSocket socket,
+  final StreamIterator<dynamic> messages,
+  final String id,
+  final RelayCryptoSession? session,
+) {
   static Future<_RawPeer> open(
     CloudRelayGrant grant,
     RelayIdentityKeyPair identity, {

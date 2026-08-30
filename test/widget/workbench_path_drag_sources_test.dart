@@ -41,7 +41,7 @@ void main() {
               height: 480,
               child: WorkspaceExplorer(
                 workspace: _workspace(),
-                mode: WorkspaceExplorerMode.hideIgnored,
+                mode: .hideIgnored,
                 onModeChanged: (_) {},
                 onOpenFile: (_) {},
                 onPathMoved: (_, _) async {},
@@ -84,13 +84,13 @@ void main() {
             entries: <GitChangeEntry>[
               GitChangeEntry(
                 path: 'lib/main.dart',
-                area: GitChangeArea.unstaged,
-                status: GitChangeStatus.modified,
+                area: .unstaged,
+                status: .modified,
               ),
               GitChangeEntry(
                 path: 'lib/old file.dart',
-                area: GitChangeArea.staged,
-                status: GitChangeStatus.deleted,
+                area: .staged,
+                status: .deleted,
               ),
             ],
           );
@@ -117,8 +117,8 @@ void main() {
         entries: <GitChangeEntry>[
           GitChangeEntry(
             path: 'modules/sample',
-            area: GitChangeArea.unstaged,
-            status: GitChangeStatus.modified,
+            area: .unstaged,
+            status: .modified,
             submodule: GitSubmoduleStatus(
               commitChanged: false,
               trackedChanges: true,
@@ -130,15 +130,11 @@ void main() {
       )
       ..gitSubmoduleStatusResult = const GitStatusResult(
         entries: <GitChangeEntry>[
-          GitChangeEntry(
-            path: 'README.md',
-            area: GitChangeArea.unstaged,
-            status: GitChangeStatus.modified,
-          ),
+          GitChangeEntry(path: 'README.md', area: .unstaged, status: .modified),
         ],
       );
 
-    await _pumpSourceControl(tester, backend, viewMode: GitDiffViewMode.flat);
+    await _pumpSourceControl(tester, backend, viewMode: .flat);
     await tester.tap(find.text('modules/sample'));
     await tester.pumpAndSettle();
 
@@ -183,7 +179,7 @@ Future<void> _pumpSourceControl(
               ),
               viewMode: viewMode,
               onViewModeChanged: (_) {},
-              groupMode: GitDiffGroupMode.byArea,
+              groupMode: .byArea,
               onGroupModeChanged: (_) {},
               onOpenGitDiff: ({
                 area,
@@ -232,8 +228,8 @@ Workspace _workspace() {
     path: '/tmp/project',
     createdAt: now,
     updatedAt: now,
-    kind: WorkspaceKind.main,
-    status: WorkspaceStatus.active,
+    kind: .main,
+    status: .active,
   );
 }
 
@@ -351,7 +347,7 @@ native.WorkspaceFileEntry _entry(
     relativePath: relativePath,
     name: relativePath.split('/').last,
     kind: kind,
-    size: BigInt.zero,
+    size: .zero,
     modifiedMillis: 0,
     contentToken: '$relativePath-token',
     isIgnored: false,

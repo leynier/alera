@@ -58,14 +58,10 @@ IconButton _button(WidgetTester tester, String tooltip) {
 
 void _noop() {}
 
-class _ToolbarTestController extends WorkbenchController {
-  _ToolbarTestController({
-    this.canGoBackValue = false,
-    this.canGoForwardValue = false,
-  });
-
-  final bool canGoBackValue;
-  final bool canGoForwardValue;
+class _ToolbarTestController({
+  final bool canGoBackValue = false,
+  final bool canGoForwardValue = false,
+}) extends WorkbenchController {
   int backCalls = 0;
   int forwardCalls = 0;
 

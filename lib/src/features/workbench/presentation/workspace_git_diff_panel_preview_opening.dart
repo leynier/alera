@@ -51,11 +51,7 @@ extension on _WorkspaceGitDiffPanelState {
       );
     } catch (error) {
       if (mounted) {
-        AleraToast.show(
-          context,
-          message: _messageFor(error),
-          tone: AleraToastTone.error,
-        );
+        AleraToast.show(context, message: _messageFor(error), tone: .error);
       }
     }
   }
@@ -125,7 +121,7 @@ final class _GitDiffPreviewOpening {
       return onOpen(
         relativePath: relativePath,
         oldPath: oldPath,
-        scope: WorkspaceGitDiffScope.file,
+        scope: .file,
         gitDiffRoot: gitDiffRoot,
         commitOid: commitOid,
         parentOid: parentOid,

@@ -1,11 +1,9 @@
 import 'package:alera_mobile/src/features/accounts/application/cloud_account_repository.dart';
 import 'package:alera_mobile/src/features/accounts/domain/cloud_account_session.dart';
 
-class MemoryCloudAccountRepository implements CloudAccountRepository {
-  MemoryCloudAccountRepository([this.sessions = const <CloudAccountSession>[]]);
-
-  final List<CloudAccountSession> sessions;
-
+class MemoryCloudAccountRepository([
+  final List<CloudAccountSession> sessions = const <CloudAccountSession>[],
+]) implements CloudAccountRepository {
   @override
   Future<String> getOrCreateInstallationId() async => 'cloud-installation-1';
 

@@ -8,7 +8,6 @@ import 'package:alera_mobile/src/features/hosts/application/host_providers.dart'
 import 'package:alera_mobile/src/features/hosts/domain/paired_host_profile.dart';
 import 'package:alera_mobile/src/features/runtime/application/host_connection_controller.dart';
 import 'package:alera_mobile/src/features/terminal/application/terminal_providers.dart';
-import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -263,7 +262,7 @@ void main() {
         isTrue,
       );
 
-      lifecycle.setLifecycleState(AppLifecycleState.resumed);
+      lifecycle.setLifecycleState(.resumed);
       await reconnected.future.timeout(const Duration(seconds: 5));
       await _waitUntil(
         () => container
@@ -338,7 +337,7 @@ void main() {
       ),
       'token-1',
     );
-    final lifecycle = ControlledAppLifecycle(AppLifecycleState.resumed);
+    final lifecycle = ControlledAppLifecycle(.resumed);
     final container = ProviderContainer(
       overrides: [
         hostRepositoryProvider.overrideWithValue(repository),
@@ -356,8 +355,8 @@ void main() {
     addTearDown(connection.close);
     await container.read(hostConnectionControllerProvider('runtime-1').future);
 
-    lifecycle.setLifecycleState(AppLifecycleState.inactive);
-    lifecycle.setLifecycleState(AppLifecycleState.resumed);
+    lifecycle.setLifecycleState(.inactive);
+    lifecycle.setLifecycleState(.resumed);
     await reconnected.future.timeout(const Duration(seconds: 5));
     await _waitUntil(
       () => container

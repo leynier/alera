@@ -85,14 +85,14 @@ void main() {
     engine.eventController.add(
       BrowserNavigationStarted(
         pageId: 'page-1',
-        occurredAt: DateTime.utc(2026),
+        occurredAt: .utc(2026),
         url: Uri.parse('https://example.com/next'),
       ),
     );
     engine.eventController.add(
       BrowserNavigationFinished(
         pageId: 'page-1',
-        occurredAt: DateTime.utc(2026),
+        occurredAt: .utc(2026),
         url: Uri.parse('https://example.com/next'),
         title: 'Next',
       ),
@@ -123,7 +123,7 @@ void main() {
     engine.eventController.add(
       BrowserNavigationFinished(
         pageId: 'page-1',
-        occurredAt: DateTime.utc(2026),
+        occurredAt: .utc(2026),
         url: Uri.parse('https://example.com/docs'),
         title: rawTitle,
       ),
@@ -137,7 +137,7 @@ void main() {
     engine.eventController.add(
       BrowserNavigationFinished(
         pageId: 'page-1',
-        occurredAt: DateTime.utc(2026),
+        occurredAt: .utc(2026),
         url: Uri.parse('https://example.com/oauth/callback?code=secret'),
         title: 'Private Account',
       ),
@@ -203,7 +203,7 @@ void main() {
         engine.eventController.add(
           BrowserNavigationStarted(
             pageId: 'page-1',
-            occurredAt: DateTime.utc(2026),
+            occurredAt: .utc(2026),
             url: Uri.parse('https://example.com/next'),
           ),
         );
@@ -262,7 +262,7 @@ void main() {
       engine.eventController.add(
         BrowserNavigationStarted(
           pageId: 'page-1',
-          occurredAt: DateTime.utc(2026),
+          occurredAt: .utc(2026),
           url: Uri.parse('https://example.com/reloaded'),
         ),
       );
@@ -316,7 +316,7 @@ void main() {
     engine.eventController.add(
       BrowserNavigationStarted(
         pageId: 'page-1',
-        occurredAt: DateTime.utc(2026),
+        occurredAt: .utc(2026),
         url: Uri.parse('https://example.com/next'),
       ),
     );
@@ -418,7 +418,7 @@ void main() {
           url: Uri.parse('https://example.com'),
           title: 'Example',
           nodes: const <BrowserAutomationNode>[],
-          capturedAt: DateTime.utc(2026),
+          capturedAt: .utc(2026),
         ),
       );
       await close.timeout(const Duration(seconds: 1));
@@ -464,7 +464,7 @@ void main() {
         url: Uri.parse('https://example.com'),
         title: 'Example',
         nodes: const <BrowserAutomationNode>[],
-        capturedAt: DateTime.utc(2026),
+        capturedAt: .utc(2026),
       ),
     );
     await close.timeout(const Duration(seconds: 1));

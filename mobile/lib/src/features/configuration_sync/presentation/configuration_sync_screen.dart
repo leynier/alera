@@ -7,8 +7,7 @@ import 'package:alera_mobile/src/features/hosts/application/paired_hosts_control
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-class ConfigurationSyncScreen extends ConsumerWidget {
-  const ConfigurationSyncScreen({super.key});
+class const ConfigurationSyncScreen({super.key}) extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final accounts =
@@ -71,10 +70,10 @@ class ConfigurationSyncScreen extends ConsumerWidget {
   }
 }
 
-class _SyncTarget extends ConsumerWidget {
-  const _SyncTarget({required this.accountId, required this.hostId});
-  final String accountId;
-  final String? hostId;
+class const _SyncTarget({
+  required final String accountId,
+  required final String? hostId,
+}) extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final serviceProvider = configurationSyncServiceProvider(accountId, hostId);

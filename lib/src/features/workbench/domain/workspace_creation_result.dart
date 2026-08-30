@@ -1,17 +1,11 @@
 import 'package:alera/src/features/workbench/domain/workspace.dart';
 
-class WorkspaceCreationResult {
-  const WorkspaceCreationResult({
-    required this.workspace,
-    required this.setupReport,
-    this.parentLinkError,
-    this.deferredSetupCommand,
-  });
-
-  final Workspace workspace;
-  final WorktreeSetupReport setupReport;
-  final String? parentLinkError;
-
+class const WorkspaceCreationResult({
+  required final Workspace workspace,
+  required final WorktreeSetupReport setupReport,
+  final String? parentLinkError,
+  this.deferredSetupCommand,
+}) {
   /// Single line to run in a terminal tab named "Setup" instead of having the
   /// host run the worktree setup inline. Null when the setup already ran, which
   /// is what a host without deferral support always reports.
@@ -22,11 +16,9 @@ class WorkspaceCreationResult {
   bool get hasParentLinkError => parentLinkError != null;
 }
 
-class WorktreeSetupReport {
-  const WorktreeSetupReport({this.steps = const <WorktreeSetupStepReport>[]});
-
-  final List<WorktreeSetupStepReport> steps;
-
+class const WorktreeSetupReport({
+  final List<WorktreeSetupStepReport> steps = const <WorktreeSetupStepReport>[],
+}) {
   bool get hasFailures => steps.any((step) => !step.succeeded);
 
   bool get isEmpty => steps.isEmpty;
@@ -47,22 +39,12 @@ class WorktreeSetupReport {
 
 enum WorktreeSetupStepKind { copy, command, config }
 
-class WorktreeSetupStepReport {
-  const WorktreeSetupStepReport({
-    required this.kind,
-    required this.label,
-    required this.succeeded,
-    this.message,
-    this.exitCode,
-    this.stdoutTail,
-    this.stderrTail,
-  });
-
-  final WorktreeSetupStepKind kind;
-  final String label;
-  final bool succeeded;
-  final String? message;
-  final int? exitCode;
-  final String? stdoutTail;
-  final String? stderrTail;
-}
+class const WorktreeSetupStepReport({
+  required final WorktreeSetupStepKind kind,
+  required final String label,
+  required final bool succeeded,
+  final String? message,
+  final int? exitCode,
+  final String? stdoutTail,
+  final String? stderrTail,
+});

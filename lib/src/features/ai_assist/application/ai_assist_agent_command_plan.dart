@@ -240,27 +240,16 @@ Future<void> _deleteTemporaryDirectory(Directory directory) async {
   }
 }
 
-class _AiAssistAgentCommandPlan {
-  const _AiAssistAgentCommandPlan({
-    required this.binary,
-    required this.args,
-    required this.stdinPayload,
-    required this.label,
-    this.environmentOverrides = const <String, String>{},
-    this.exactEnvironment,
-    this.promptDirectory,
-    this.outputFile,
-  });
-
-  final String binary;
-  final List<String> args;
-  final String? stdinPayload;
-  final String label;
-  final Map<String, String> environmentOverrides;
-  final Map<String, String>? exactEnvironment;
-  final Directory? promptDirectory;
-  final File? outputFile;
-
+class const _AiAssistAgentCommandPlan({
+  required final String binary,
+  required final List<String> args,
+  required final String? stdinPayload,
+  required final String label,
+  final Map<String, String> environmentOverrides = const <String, String>{},
+  final Map<String, String>? exactEnvironment,
+  final Directory? promptDirectory,
+  final File? outputFile,
+}) {
   Future<void> dispose() async {
     final directory = promptDirectory;
     if (directory == null) {

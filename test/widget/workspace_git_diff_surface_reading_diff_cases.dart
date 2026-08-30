@@ -9,8 +9,8 @@ void _registerWorkspaceGitDiffSurfaceReadingDiffTests() {
         files: <GitDiffFile>[
           GitDiffFile(
             path: 'lib/old.dart',
-            area: GitChangeArea.unstaged,
-            status: GitChangeStatus.modified,
+            area: .unstaged,
+            status: .modified,
             lines: <GitDiffLine>[GitDiffLine.addition('+new')],
             added: 1,
             removed: 0,
@@ -57,8 +57,8 @@ void _registerWorkspaceGitDiffSurfaceReadingDiffTests() {
           files: <GitDiffFile>[
             GitDiffFile(
               path: 'lib/main.dart',
-              area: GitChangeArea.unstaged,
-              status: GitChangeStatus.modified,
+              area: .unstaged,
+              status: .modified,
               lines: <GitDiffLine>[GitDiffLine.addition('+new')],
               added: 1,
               removed: 1,
@@ -116,8 +116,8 @@ void _registerWorkspaceGitDiffSurfaceReadingDiffTests() {
         files: <GitDiffFile>[
           GitDiffFile(
             path: 'lib/main.dart',
-            area: GitChangeArea.unstaged,
-            status: GitChangeStatus.modified,
+            area: .unstaged,
+            status: .modified,
             lines: <GitDiffLine>[GitDiffLine.addition('+new')],
             added: 1,
             removed: 1,
@@ -163,8 +163,8 @@ void _registerWorkspaceGitDiffSurfaceReadingDiffTests() {
         files: <GitDiffFile>[
           GitDiffFile(
             path: 'lib/main.dart',
-            area: GitChangeArea.unstaged,
-            status: GitChangeStatus.modified,
+            area: .unstaged,
+            status: .modified,
             lines: <GitDiffLine>[GitDiffLine.addition('+new')],
             added: 1,
             removed: 1,
@@ -172,9 +172,7 @@ void _registerWorkspaceGitDiffSurfaceReadingDiffTests() {
         ],
       );
     final service = _BlockingReadingDiffService(backend);
-    final settingsController = _MutableSettingsController(
-      AleraSettings.defaults,
-    );
+    final settingsController = _MutableSettingsController(.defaults);
     await _pumpDiffSurface(
       tester,
       backend: backend,
@@ -204,8 +202,8 @@ void _registerWorkspaceGitDiffSurfaceReadingDiffTests() {
         files: <GitDiffFile>[
           GitDiffFile(
             path: 'lib/main.dart',
-            area: GitChangeArea.unstaged,
-            status: GitChangeStatus.modified,
+            area: .unstaged,
+            status: .modified,
             lines: <GitDiffLine>[GitDiffLine.addition('+new')],
             added: 1,
             removed: 1,
@@ -243,8 +241,8 @@ void _registerWorkspaceGitDiffSurfaceReadingDiffTests() {
         files: <GitDiffFile>[
           GitDiffFile(
             path: 'lib/main.dart',
-            area: GitChangeArea.unstaged,
-            status: GitChangeStatus.modified,
+            area: .unstaged,
+            status: .modified,
             lines: <GitDiffLine>[GitDiffLine.addition('+new')],
             added: 1,
             removed: 1,
@@ -287,8 +285,8 @@ void _registerWorkspaceGitDiffSurfaceReadingDiffTests() {
         files: <GitDiffFile>[
           GitDiffFile(
             path: 'lib/main.dart',
-            area: GitChangeArea.unstaged,
-            status: GitChangeStatus.modified,
+            area: .unstaged,
+            status: .modified,
             lines: <GitDiffLine>[GitDiffLine.addition('+new')],
             added: 1,
             removed: 1,
@@ -331,17 +329,15 @@ void _registerWorkspaceGitDiffSurfaceReadingDiffTests() {
           files: <GitDiffFile>[
             GitDiffFile(
               path: 'lib/main.dart',
-              area: GitChangeArea.unstaged,
-              status: GitChangeStatus.modified,
+              area: .unstaged,
+              status: .modified,
               lines: <GitDiffLine>[GitDiffLine.addition('+new')],
               added: 1,
               removed: 1,
             ),
           ],
         );
-      final settingsController = _MutableSettingsController(
-        AleraSettings.defaults,
-      );
+      final settingsController = _MutableSettingsController(.defaults);
       await _pumpDiffSurface(
         tester,
         backend: backend,
@@ -373,8 +369,8 @@ void _registerWorkspaceGitDiffSurfaceReadingDiffTests() {
         files: <GitDiffFile>[
           GitDiffFile(
             path: 'lib/main.dart',
-            area: GitChangeArea.unstaged,
-            status: GitChangeStatus.modified,
+            area: .unstaged,
+            status: .modified,
             lines: <GitDiffLine>[GitDiffLine.addition('+new')],
             added: 1,
             removed: 1,

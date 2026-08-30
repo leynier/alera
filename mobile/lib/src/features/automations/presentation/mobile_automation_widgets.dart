@@ -6,20 +6,13 @@ import 'package:alera_mobile/src/features/automations/infra/mobile_runtime_autom
 import 'package:alera_mobile/src/features/runtime/infra/mobile_runtime_client.dart';
 import 'package:flutter/material.dart';
 
-class MobileAutomationCard extends StatelessWidget {
-  const MobileAutomationCard({
-    required this.clientFuture,
-    required this.automation,
-    required this.onChanged,
-    required this.onOpen,
-    super.key,
-  });
-
-  final Future<MobileRuntimeClient> clientFuture;
-  final MobileAutomation automation;
-  final VoidCallback onChanged;
-  final VoidCallback onOpen;
-
+class const MobileAutomationCard({
+  required final Future<MobileRuntimeClient> clientFuture,
+  required final MobileAutomation automation,
+  required final VoidCallback onChanged,
+  required final VoidCallback onOpen,
+  super.key,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Card(
@@ -28,7 +21,7 @@ class MobileAutomationCard extends StatelessWidget {
         child: Padding(
           padding: AleraTokens.contentPadding,
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            crossAxisAlignment: .start,
             children: <Widget>[
               Row(
                 children: <Widget>[
@@ -136,16 +129,11 @@ class MobileAutomationCard extends StatelessWidget {
   }
 }
 
-class MobilePolicyDialog extends StatefulWidget {
-  const MobilePolicyDialog({
-    required this.profile,
-    required this.project,
-    super.key,
-  });
-
-  final Map<String, Object?> profile;
-  final Map<String, Object?> project;
-
+class const MobilePolicyDialog({
+  required final Map<String, Object?> profile,
+  required final Map<String, Object?> project,
+  super.key,
+}) extends StatefulWidget {
   @override
   State<MobilePolicyDialog> createState() => _MobilePolicyDialogState();
 }
@@ -170,7 +158,7 @@ class _MobilePolicyDialogState extends State<MobilePolicyDialog> {
     title: const Text('Effective Automation Policy'),
     content: SingleChildScrollView(
       child: Column(
-        mainAxisSize: MainAxisSize.min,
+        mainAxisSize: .min,
         children: <Widget>[
           SwitchListTile(
             contentPadding: EdgeInsets.zero,
@@ -217,9 +205,7 @@ class _MobilePolicyDialogState extends State<MobilePolicyDialog> {
   );
 }
 
-class MobileRunChoiceDialog extends StatefulWidget {
-  const MobileRunChoiceDialog({super.key});
-
+class const MobileRunChoiceDialog({super.key}) extends StatefulWidget {
   @override
   State<MobileRunChoiceDialog> createState() => _MobileRunChoiceDialogState();
 }
@@ -234,7 +220,7 @@ class _MobileRunChoiceDialogState extends State<MobileRunChoiceDialog> {
   Widget build(BuildContext context) => AlertDialog(
     title: const Text('Run Now'),
     content: Column(
-      mainAxisSize: MainAxisSize.min,
+      mainAxisSize: .min,
       children: <Widget>[
         SwitchListTile.adaptive(
           title: const Text('Run Precheck'),
@@ -290,9 +276,7 @@ class _MobileRunChoiceDialogState extends State<MobileRunChoiceDialog> {
   );
 }
 
-class MobilePauseChoiceDialog extends StatelessWidget {
-  const MobilePauseChoiceDialog({super.key});
-
+class const MobilePauseChoiceDialog({super.key}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) => AlertDialog(
     title: const Text('Pause Automation'),

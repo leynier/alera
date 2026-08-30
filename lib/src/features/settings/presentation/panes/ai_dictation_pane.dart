@@ -17,19 +17,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 const _systemRecognitionConsentVersion = 1;
 
-class AiDictationSettingsPane extends ConsumerWidget {
-  const AiDictationSettingsPane({
-    super.key,
-    required this.settings,
-    required this.onChanged,
-    this.groupKeys = const <String, GlobalKey>{},
-  });
-
-  final AiDictationSettings settings;
-  final ValueChanged<AiDictationSettings Function(AiDictationSettings)>
-  onChanged;
-  final Map<String, GlobalKey> groupKeys;
-
+class const AiDictationSettingsPane({
+  super.key,
+  required final AiDictationSettings settings,
+  required final ValueChanged<AiDictationSettings Function(AiDictationSettings)>
+  onChanged,
+  final Map<String, GlobalKey> groupKeys = const <String, GlobalKey>{},
+}) extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final transfers = ref.watch(aiDictationModelTransfersProvider);
@@ -49,7 +43,7 @@ class AiDictationSettingsPane extends ConsumerWidget {
         : AiDictationTranscriptionEngine.localWhisper;
     return SingleChildScrollView(
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
+        crossAxisAlignment: .stretch,
         children: <Widget>[
           KeyedSubtree(
             key: groupKeys['transcription'],
@@ -175,15 +169,15 @@ class AiDictationSettingsPane extends ConsumerWidget {
                     entries:
                         const <AleraDropdownFieldEntry<AiDictationRewriteMode>>[
                           AleraDropdownFieldEntry<AiDictationRewriteMode>(
-                            value: AiDictationRewriteMode.off,
+                            value: .off,
                             label: 'Off',
                           ),
                           AleraDropdownFieldEntry<AiDictationRewriteMode>(
-                            value: AiDictationRewriteMode.cleanUp,
+                            value: .cleanUp,
                             label: 'Clean Up',
                           ),
                           AleraDropdownFieldEntry<AiDictationRewriteMode>(
-                            value: AiDictationRewriteMode.summarize,
+                            value: .summarize,
                             label: 'Summarize',
                           ),
                         ],
@@ -207,27 +201,16 @@ class AiDictationSettingsPane extends ConsumerWidget {
   }
 }
 
-class _WhisperModelRow extends StatelessWidget {
-  const _WhisperModelRow({
-    required this.model,
-    required this.transfer,
-    required this.selected,
-    required this.anotherDownloadActive,
-    required this.onDownload,
-    required this.onCancel,
-    required this.onSelect,
-    required this.onRemove,
-  });
-
-  final AiDictationModel model;
-  final AiDictationModelTransfer transfer;
-  final bool selected;
-  final bool anotherDownloadActive;
-  final Future<void> Function() onDownload;
-  final Future<void> Function() onCancel;
-  final VoidCallback onSelect;
-  final Future<void> Function() onRemove;
-
+class const _WhisperModelRow({
+  required final AiDictationModel model,
+  required final AiDictationModelTransfer transfer,
+  required final bool selected,
+  required final bool anotherDownloadActive,
+  required final Future<void> Function() onDownload,
+  required final Future<void> Function() onCancel,
+  required final VoidCallback onSelect,
+  required final Future<void> Function() onRemove,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final busy =
@@ -254,7 +237,7 @@ class _WhisperModelRow extends StatelessWidget {
       description: statusText,
       controlWidth: 360,
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
+        crossAxisAlignment: .stretch,
         children: <Widget>[
           if (busy) ...<Widget>[
             LinearProgressIndicator(
@@ -265,7 +248,7 @@ class _WhisperModelRow extends StatelessWidget {
             const SizedBox(height: AleraTokens.space8),
           ],
           Wrap(
-            alignment: WrapAlignment.end,
+            alignment: .end,
             spacing: AleraTokens.space8,
             runSpacing: AleraTokens.space8,
             children: <Widget>[

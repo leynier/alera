@@ -15,60 +15,33 @@ import 'package:alera/src/features/agent_status/presentation/agent_identity_icon
 import 'package:alera/src/features/settings/presentation/panes/agent_profile_managed_editor.dart';
 import 'package:flutter/material.dart';
 
-class AgentProfileEditor extends StatelessWidget {
-  const AgentProfileEditor({
-    super.key,
-    required this.nameController,
-    required this.commandController,
-    required this.customPromptController,
-    required this.descriptionController,
-    required this.quotaGroupController,
-    required this.adapter,
-    required this.launchMode,
-    required this.managedConfig,
-    required this.models,
-    required this.personas,
-    required this.hasSelection,
-    required this.saving,
-    required this.onAdapterChanged,
-    required this.onLaunchModeChanged,
-    required this.onManagedConfigChanged,
-    required this.onRefreshModels,
-    required this.onRefreshPersonas,
-    required this.onSave,
-    required this.onRemove,
-    this.onTestCommand,
-    this.modelsLoading = false,
-    this.personasLoading = false,
-    this.discoveryError,
-    this.error,
-  });
-
-  final TextEditingController nameController;
-  final TextEditingController commandController;
-  final TextEditingController customPromptController;
-  final TextEditingController descriptionController;
-  final TextEditingController quotaGroupController;
-  final AgentType adapter;
-  final AgentProfileLaunchMode launchMode;
-  final Map<String, Object?> managedConfig;
-  final List<ManagedAgentOption> models;
-  final List<ManagedAgentOption> personas;
-  final bool hasSelection;
-  final bool saving;
-  final bool modelsLoading;
-  final bool personasLoading;
-  final ValueChanged<AgentType> onAdapterChanged;
-  final ValueChanged<AgentProfileLaunchMode> onLaunchModeChanged;
-  final ValueChanged<Map<String, Object?>> onManagedConfigChanged;
-  final VoidCallback? onRefreshModels;
-  final VoidCallback? onRefreshPersonas;
-  final VoidCallback onSave;
-  final VoidCallback? onRemove;
-  final VoidCallback? onTestCommand;
-  final String? discoveryError;
-  final String? error;
-
+class const AgentProfileEditor({
+  super.key,
+  required final TextEditingController nameController,
+  required final TextEditingController commandController,
+  required final TextEditingController customPromptController,
+  required final TextEditingController descriptionController,
+  required final TextEditingController quotaGroupController,
+  required final AgentType adapter,
+  required final AgentProfileLaunchMode launchMode,
+  required final Map<String, Object?> managedConfig,
+  required final List<ManagedAgentOption> models,
+  required final List<ManagedAgentOption> personas,
+  required final bool hasSelection,
+  required final bool saving,
+  required final ValueChanged<AgentType> onAdapterChanged,
+  required final ValueChanged<AgentProfileLaunchMode> onLaunchModeChanged,
+  required final ValueChanged<Map<String, Object?>> onManagedConfigChanged,
+  required final VoidCallback? onRefreshModels,
+  required final VoidCallback? onRefreshPersonas,
+  required final VoidCallback onSave,
+  required final VoidCallback? onRemove,
+  final VoidCallback? onTestCommand,
+  final bool modelsLoading = false,
+  final bool personasLoading = false,
+  final String? discoveryError,
+  final String? error,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -78,7 +51,7 @@ class AgentProfileEditor extends StatelessWidget {
     );
     return SingleChildScrollView(
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
+        crossAxisAlignment: .stretch,
         children: <Widget>[
           AleraSettingsGroup(
             title: 'Profile',
@@ -158,7 +131,7 @@ class AgentProfileEditor extends StatelessWidget {
                 ),
               ] else
                 Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  crossAxisAlignment: .stretch,
                   children: <Widget>[
                     AleraSettingRow(
                       title: 'Command Preview',
@@ -227,7 +200,7 @@ class AgentProfileEditor extends StatelessWidget {
               Padding(
                 padding: const EdgeInsets.only(top: AleraTokens.space12),
                 child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                  crossAxisAlignment: .start,
                   children: <Widget>[
                     const Icon(
                       AleraIcons.warning,
@@ -327,22 +300,17 @@ class AgentProfileEditor extends StatelessWidget {
 
 /// How the dispatched prompt reaches the agent in Command mode, where the user
 /// writes the launch line and nothing else says where the prompt goes.
-class _PromptDeliveryNote extends StatelessWidget {
-  const _PromptDeliveryNote({
-    required this.adapter,
-    required this.commandController,
-  });
-
-  final AgentType adapter;
-  final TextEditingController commandController;
-
+class const _PromptDeliveryNote({
+  required final AgentType adapter,
+  required final TextEditingController commandController,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Padding(
       padding: const EdgeInsets.all(AleraTokens.space16),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: .start,
         children: <Widget>[
           Row(
             children: <Widget>[
@@ -356,7 +324,7 @@ class _PromptDeliveryNote extends StatelessWidget {
                 'Prompt Delivery',
                 style: theme.textTheme.bodyMedium?.copyWith(
                   color: AleraTokens.foreground,
-                  fontWeight: FontWeight.w500,
+                  fontWeight: .w500,
                 ),
               ),
             ],
@@ -387,17 +355,15 @@ class _PromptDeliveryNote extends StatelessWidget {
   }
 }
 
-class _LaunchModeDropdown extends StatelessWidget {
-  const _LaunchModeDropdown({required this.value, required this.onChanged});
-
-  final AgentProfileLaunchMode value;
-  final ValueChanged<AgentProfileLaunchMode>? onChanged;
-
+class const _LaunchModeDropdown({
+  required final AgentProfileLaunchMode value,
+  required final ValueChanged<AgentProfileLaunchMode>? onChanged,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: .start,
       children: <Widget>[
         Text(
           'Launch Mode',
@@ -411,11 +377,11 @@ class _LaunchModeDropdown extends StatelessWidget {
           value: value,
           entries: const <AleraDropdownFieldEntry<AgentProfileLaunchMode>>[
             AleraDropdownFieldEntry<AgentProfileLaunchMode>(
-              value: AgentProfileLaunchMode.managed,
+              value: .managed,
               label: 'Managed',
             ),
             AleraDropdownFieldEntry<AgentProfileLaunchMode>(
-              value: AgentProfileLaunchMode.command,
+              value: .command,
               label: 'Command',
             ),
           ],
@@ -427,22 +393,16 @@ class _LaunchModeDropdown extends StatelessWidget {
   }
 }
 
-class _AgentProfileDropdown extends StatelessWidget {
-  const _AgentProfileDropdown({
-    required this.label,
-    required this.value,
-    required this.onChanged,
-  });
-
-  final String label;
-  final AgentType value;
-  final ValueChanged<AgentType>? onChanged;
-
+class const _AgentProfileDropdown({
+  required final String label,
+  required final AgentType value,
+  required final ValueChanged<AgentType>? onChanged,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: .start,
       children: <Widget>[
         Text(
           label,

@@ -113,10 +113,7 @@ void main() {
     expect(client.isConnectionUsable, isTrue);
     final failure = client.connectionFailures.first;
     sockets.single.add(
-      wrapRelayFrame(
-        'phone',
-        fragmentRelayPayload(List.filled(70000, 0)).first,
-      ),
+      wrapRelayFrame('phone', fragmentRelayPayload(.filled(70000, 0)).first),
     );
     expect(
       (await failure.timeout(const Duration(seconds: 12))).$1,

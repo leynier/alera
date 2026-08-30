@@ -42,7 +42,7 @@ Future<void> pumpActionHarness(
   final lifecycle = AppWindowLifecycleCoordinator(
     repository: MemoryAppWindowStateRepository(),
     window: resolvedWindow,
-    saveDebounce: Duration.zero,
+    saveDebounce: .zero,
   );
   await lifecycle.start();
   await tester.pumpWidget(
@@ -52,16 +52,13 @@ Future<void> pumpActionHarness(
           () =>
               updateController ??
               FakeUpdateController(
-                AleraUpdateState(
-                  status: AleraUpdateStatus.idle,
-                  config: updateConfig(),
-                ),
+                AleraUpdateState(status: .idle, config: updateConfig()),
               ),
         ),
         appWindowControllerProvider.overrideWithValue(resolvedWindow),
         appWindowLifecycleCoordinatorProvider.overrideWithValue(lifecycle),
         settingsControllerProvider.overrideWith(
-          () => FakeSettingsController(AleraSettings.defaults),
+          () => FakeSettingsController(.defaults),
         ),
       ],
       child: MaterialApp(
@@ -92,7 +89,7 @@ Future<void> pumpMenuScope(
   final lifecycle = AppWindowLifecycleCoordinator(
     repository: MemoryAppWindowStateRepository(),
     window: resolvedWindow,
-    saveDebounce: Duration.zero,
+    saveDebounce: .zero,
   );
   await lifecycle.start();
   await tester.pumpWidget(
@@ -102,16 +99,13 @@ Future<void> pumpMenuScope(
           () =>
               updateController ??
               FakeUpdateController(
-                AleraUpdateState(
-                  status: AleraUpdateStatus.idle,
-                  config: updateConfig(),
-                ),
+                AleraUpdateState(status: .idle, config: updateConfig()),
               ),
         ),
         appWindowControllerProvider.overrideWithValue(resolvedWindow),
         appWindowLifecycleCoordinatorProvider.overrideWithValue(lifecycle),
         settingsControllerProvider.overrideWith(
-          () => FakeSettingsController(AleraSettings.defaults),
+          () => FakeSettingsController(.defaults),
         ),
       ],
       child: MaterialApp(
@@ -179,25 +173,20 @@ AleraUpdateConfig updateConfig() {
   return AleraUpdateConfig(
     archiveUrl: Uri.parse('https://example.com/app-archive.json'),
     releasePageUrl: Uri.parse('https://example.com/releases'),
-    channel: AleraUpdateChannel.stable,
+    channel: .stable,
     autoInstallEnabled: true,
     signedRelease: true,
   );
 }
 
-class FakeSettingsController extends SettingsController {
-  FakeSettingsController(this._seed);
-
-  final AleraSettings _seed;
-
+class FakeSettingsController(final AleraSettings _seed)
+    extends SettingsController {
   @override
   AleraSettings build() => _seed;
 }
 
-class FakeUpdateController extends AleraUpdateController {
-  FakeUpdateController(this._seed);
-
-  final AleraUpdateState _seed;
+class FakeUpdateController(final AleraUpdateState _seed)
+    extends AleraUpdateController {
   int checkForUpdatesCalls = 0;
 
   @override
@@ -207,7 +196,7 @@ class FakeUpdateController extends AleraUpdateController {
   Future<void> checkForUpdates() async {
     checkForUpdatesCalls += 1;
     state = state.copyWith(
-      status: AleraUpdateStatus.notAvailable,
+      status: .notAvailable,
       message: 'Alera is up to date.',
     );
   }

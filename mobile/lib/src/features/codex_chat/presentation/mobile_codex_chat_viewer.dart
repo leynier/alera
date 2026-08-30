@@ -1,22 +1,13 @@
 part of 'mobile_codex_chat_screen.dart';
 
-class _MobileWorkspaceFileViewer extends StatefulWidget {
-  const _MobileWorkspaceFileViewer({
-    required this.client,
-    required this.workspaceId,
-    required this.cwd,
-    required this.target,
-    required this.promptAttachment,
-    this.fallbackToPromptAttachment = false,
-  });
-
-  final MobileCodexWorkspaceClient client;
-  final String workspaceId;
-  final String? cwd;
-  final MobileCodexWorkspaceLinkTarget target;
-  final bool promptAttachment;
-  final bool fallbackToPromptAttachment;
-
+class const _MobileWorkspaceFileViewer({
+  required final MobileCodexWorkspaceClient client,
+  required final String workspaceId,
+  required final String? cwd,
+  required final MobileCodexWorkspaceLinkTarget target,
+  required final bool promptAttachment,
+  final bool fallbackToPromptAttachment = false,
+}) extends StatefulWidget {
   @override
   State<_MobileWorkspaceFileViewer> createState() =>
       _MobileWorkspaceFileViewerState();

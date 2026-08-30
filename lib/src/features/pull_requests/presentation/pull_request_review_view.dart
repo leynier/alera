@@ -31,74 +31,46 @@ part 'pull_request_review_comments.dart';
 /// Presentational body for a linked review: header, inline title/base-branch
 /// editing, expandable checks, and review actions. Pure: data and callbacks in
 /// via parameters, no Riverpod reads.
-class PullRequestReviewView extends StatefulWidget {
-  const PullRequestReviewView({
-    super.key,
-    required this.review,
-    this.stack,
-    this.stackSupported = false,
-    this.stackErrorMessage,
-    this.localWorkspaceBranches = const <String>{},
-    this.stackWorkspaceCandidates = const <ReviewStackWorkspaceCandidate>[],
-    this.stackDefaultDraft = false,
-    required this.checks,
-    required this.comments,
-    required this.baseBranches,
-    required this.mergeMethods,
-    required this.canCloseReview,
-    required this.canChangeDraftStatus,
-    required this.canComment,
-    this.canEditComments = false,
-    this.savingCommentIds = const <String>{},
-    required this.action,
-    required this.onOpenUrl,
-    this.onOpenDiff,
-    this.onOpenWorkspaceBranch,
-    required this.onUnlink,
-    this.onLinkStack = _ignorePullRequestStackLink,
-    this.onCreateStackFromWorkspaces = _ignorePullRequestWorkspaceStack,
-    required this.onMerge,
-    required this.onClose,
-    required this.onDraftStatusChanged,
-    required this.onAddComment,
-    this.onToggleTask = _ignorePullRequestTaskToggle,
-    required this.onUpdate,
-    required this.onLoadCheckDetails,
-  });
-
-  final HostedReview review;
-  final HostedReviewStack? stack;
-  final bool stackSupported;
-  final String? stackErrorMessage;
-  final Set<String> localWorkspaceBranches;
-  final List<ReviewStackWorkspaceCandidate> stackWorkspaceCandidates;
-  final bool stackDefaultDraft;
-  final List<ReviewCheck> checks;
-  final List<ReviewComment> comments;
-  final List<String> baseBranches;
-  final List<ReviewMergeMethod> mergeMethods;
-  final bool canCloseReview;
-  final bool canChangeDraftStatus;
-  final bool canComment;
-  final bool canEditComments;
-  final Set<String> savingCommentIds;
-  final PullRequestAction? action;
-  final Future<void> Function(String url) onOpenUrl;
-  final VoidCallback? onOpenDiff;
-  final Future<void> Function(String branch)? onOpenWorkspaceBranch;
-  final Future<void> Function() onUnlink;
-  final Future<void> Function(List<int> reviewNumbers) onLinkStack;
+class const PullRequestReviewView({
+  super.key,
+  required final HostedReview review,
+  final HostedReviewStack? stack,
+  final bool stackSupported = false,
+  final String? stackErrorMessage,
+  final Set<String> localWorkspaceBranches = const <String>{},
+  final List<ReviewStackWorkspaceCandidate> stackWorkspaceCandidates =
+      const <ReviewStackWorkspaceCandidate>[],
+  final bool stackDefaultDraft = false,
+  required final List<ReviewCheck> checks,
+  required final List<ReviewComment> comments,
+  required final List<String> baseBranches,
+  required final List<ReviewMergeMethod> mergeMethods,
+  required final bool canCloseReview,
+  required final bool canChangeDraftStatus,
+  required final bool canComment,
+  final bool canEditComments = false,
+  final Set<String> savingCommentIds = const <String>{},
+  required final PullRequestAction? action,
+  required final Future<void> Function(String url) onOpenUrl,
+  final VoidCallback? onOpenDiff,
+  final Future<void> Function(String branch)? onOpenWorkspaceBranch,
+  required final Future<void> Function() onUnlink,
+  final Future<void> Function(List<int> reviewNumbers) onLinkStack =
+      _ignorePullRequestStackLink,
   final Future<void> Function(ReviewStackWorkspaceRequest request)
-  onCreateStackFromWorkspaces;
-  final Future<void> Function(ReviewMergeMethod method) onMerge;
-  final Future<void> Function() onClose;
-  final Future<void> Function(bool draft) onDraftStatusChanged;
-  final Future<bool> Function(String body) onAddComment;
-  final Future<void> Function(String commentId, int itemIndex) onToggleTask;
-  final Future<UpdateReviewResult> Function(UpdateReviewInput input) onUpdate;
-  final Future<ReviewCheckDetails?> Function(ReviewCheck check)
-  onLoadCheckDetails;
-
+      onCreateStackFromWorkspaces =
+      _ignorePullRequestWorkspaceStack,
+  required final Future<void> Function(ReviewMergeMethod method) onMerge,
+  required final Future<void> Function() onClose,
+  required final Future<void> Function(bool draft) onDraftStatusChanged,
+  required final Future<bool> Function(String body) onAddComment,
+  final Future<void> Function(String commentId, int itemIndex) onToggleTask =
+      _ignorePullRequestTaskToggle,
+  required final Future<UpdateReviewResult> Function(UpdateReviewInput input)
+  onUpdate,
+  required final Future<ReviewCheckDetails?> Function(ReviewCheck check)
+  onLoadCheckDetails,
+}) extends StatefulWidget {
   @override
   State<PullRequestReviewView> createState() => _PullRequestReviewViewState();
 }
@@ -190,7 +162,7 @@ class _PullRequestReviewViewState extends State<PullRequestReviewView> {
     return Padding(
       padding: const EdgeInsets.all(AleraTokens.space12),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
+        crossAxisAlignment: .stretch,
         children: <Widget>[
           Expanded(
             child: ListView(
@@ -364,7 +336,7 @@ class _PullRequestReviewViewState extends State<PullRequestReviewView> {
         review.headBranch!,
     ].join(' · ');
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: .start,
       children: <Widget>[
         Text(review.title, style: theme.textTheme.bodyMedium),
         if (subtitle.isNotEmpty) ...<Widget>[
@@ -382,7 +354,7 @@ class _PullRequestReviewViewState extends State<PullRequestReviewView> {
 
   Widget _editor(ThemeData theme) {
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+      crossAxisAlignment: .stretch,
       children: <Widget>[
         Text(
           'Title',
@@ -450,11 +422,8 @@ class _PullRequestReviewViewState extends State<PullRequestReviewView> {
   }
 }
 
-class _StateChip extends StatelessWidget {
-  const _StateChip({required this.state});
-
-  final HostedReviewState state;
-
+class const _StateChip({required final HostedReviewState state})
+    extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -477,7 +446,7 @@ class _StateChip extends StatelessWidget {
         label,
         style: theme.textTheme.labelSmall?.copyWith(
           color: color,
-          fontWeight: FontWeight.w600,
+          fontWeight: .w600,
         ),
       ),
     );

@@ -19,7 +19,7 @@ void _registerWorkspaceWorkbenchViewTabTests() {
             _tab('shell', title: 'Shell'),
           ],
           terminalRuntime: terminalRuntime,
-          layout: WorkbenchLayout.single(
+          layout: .single(
             workspaceId: _workspaceId,
             groupId: 'group-a',
             tabIds: [tab.id, 'shell'],
@@ -66,16 +66,12 @@ void _registerWorkspaceWorkbenchViewTabTests() {
     tester,
   ) async {
     final terminal = _tab('terminal-1', title: 'Terminal');
-    final codex = _tab(
-      'codex-1',
-      title: 'Generated title',
-      kind: WorkspaceTabKind.codex,
-    );
+    final codex = _tab('codex-1', title: 'Generated title', kind: .codex);
     await _pumpWorkbenchView(
       tester,
       tabs: <WorkspaceTabRecord>[codex, terminal],
       terminalRuntime: terminalRuntime,
-      layout: WorkbenchLayout.single(
+      layout: .single(
         workspaceId: _workspaceId,
         groupId: 'group-a',
         tabIds: <String>[codex.id, terminal.id],
@@ -107,7 +103,7 @@ void _registerWorkspaceWorkbenchViewTabTests() {
       tester,
       tabs: tabs,
       terminalRuntime: terminalRuntime,
-      layout: WorkbenchLayout.single(
+      layout: .single(
         workspaceId: _workspaceId,
         groupId: 'group-a',
         tabIds: tabs.map((tab) => tab.id).toList(),
@@ -153,7 +149,7 @@ void _registerWorkspaceWorkbenchViewTabTests() {
       tester,
       tabs: tabs,
       terminalRuntime: terminalRuntime,
-      layout: WorkbenchLayout.single(
+      layout: .single(
         workspaceId: _workspaceId,
         groupId: 'group-a',
         tabIds: tabs.map((tab) => tab.id).toList(),
@@ -182,10 +178,7 @@ void _registerWorkspaceWorkbenchViewTabTests() {
     await tester.tap(find.text('Split Right'));
     await tester.pumpAndSettle();
 
-    expect(
-      splitGroups,
-      contains(const _SplitGroupAction('group-a', WorkbenchDropZone.right)),
-    );
+    expect(splitGroups, contains(const _SplitGroupAction('group-a', .right)));
   });
 
   testWidgets('tab context menu routes split up, down, left, and close', (
@@ -200,7 +193,7 @@ void _registerWorkspaceWorkbenchViewTabTests() {
       tester,
       tabs: tabs,
       terminalRuntime: terminalRuntime,
-      layout: WorkbenchLayout.single(
+      layout: .single(
         workspaceId: _workspaceId,
         groupId: 'group-a',
         tabIds: tabs.map((tab) => tab.id).toList(),
@@ -229,9 +222,9 @@ void _registerWorkspaceWorkbenchViewTabTests() {
     expect(
       splitGroups,
       containsAll(<_SplitGroupAction>[
-        const _SplitGroupAction('group-a', WorkbenchDropZone.up),
-        const _SplitGroupAction('group-a', WorkbenchDropZone.down),
-        const _SplitGroupAction('group-a', WorkbenchDropZone.left),
+        const _SplitGroupAction('group-a', .up),
+        const _SplitGroupAction('group-a', .down),
+        const _SplitGroupAction('group-a', .left),
       ]),
     );
     expect(closedTabs, <String>['tab-2']);
@@ -251,7 +244,7 @@ void _registerWorkspaceWorkbenchViewTabTests() {
       terminalRuntime: terminalRuntime,
       layout: WorkbenchLayout(
         workspaceId: _workspaceId,
-        root: WorkbenchLayoutNode.leaf('group-a'),
+        root: .leaf('group-a'),
         groups: <String, WorkbenchPaneGroup>{
           'group-a': WorkbenchPaneGroup(
             id: 'group-a',
@@ -286,15 +279,9 @@ void _registerWorkspaceWorkbenchViewTabTests() {
       tester,
       tabs: <WorkspaceTabRecord>[tab],
       terminalRuntime: terminalRuntime,
-      layout: WorkbenchLayout.single(
-        workspaceId: _workspaceId,
-        tabIds: <String>[tab.id],
-      ),
+      layout: .single(workspaceId: _workspaceId, tabIds: <String>[tab.id]),
       agentStatuses: <String, AgentStatusEntry>{
-        tab.terminalSessionId: _agentStatus(
-          tab,
-          state: AgentStatusState.waiting,
-        ),
+        tab.terminalSessionId: _agentStatus(tab, state: .waiting),
       },
       createdTabs: createdTabs,
       selectedTabs: selectedTabs,
@@ -311,16 +298,13 @@ void _registerWorkspaceWorkbenchViewTabTests() {
   });
 
   testWidgets('browser tabs use the browser icon in the chip', (tester) async {
-    final tab = _tab('tab-1', title: 'Browser', kind: WorkspaceTabKind.browser);
+    final tab = _tab('tab-1', title: 'Browser', kind: .browser);
 
     await _pumpWorkbenchView(
       tester,
       tabs: <WorkspaceTabRecord>[tab],
       terminalRuntime: terminalRuntime,
-      layout: WorkbenchLayout.single(
-        workspaceId: _workspaceId,
-        tabIds: <String>[tab.id],
-      ),
+      layout: .single(workspaceId: _workspaceId, tabIds: <String>[tab.id]),
       createdTabs: createdTabs,
       selectedTabs: selectedTabs,
       closedTabs: closedTabs,
@@ -349,7 +333,7 @@ void _registerWorkspaceWorkbenchViewTabTests() {
     final editorTab = _tab(
       'tab-2',
       title: 'main.dart',
-      kind: WorkspaceTabKind.editor,
+      kind: .editor,
       filePath: 'lib/main.dart',
     );
 
@@ -359,7 +343,7 @@ void _registerWorkspaceWorkbenchViewTabTests() {
       terminalRuntime: terminalRuntime,
       layout: WorkbenchLayout(
         workspaceId: _workspaceId,
-        root: WorkbenchLayoutNode.leaf('group-a'),
+        root: .leaf('group-a'),
         groups: <String, WorkbenchPaneGroup>{
           'group-a': WorkbenchPaneGroup(
             id: 'group-a',
@@ -392,7 +376,7 @@ void _registerWorkspaceWorkbenchViewTabTests() {
     final viewerTab = _tab(
       'tab-2',
       title: 'readme.md',
-      kind: WorkspaceTabKind.markdownViewer,
+      kind: .markdownViewer,
       filePath: 'docs/readme.md',
     );
 
@@ -402,7 +386,7 @@ void _registerWorkspaceWorkbenchViewTabTests() {
       terminalRuntime: terminalRuntime,
       layout: WorkbenchLayout(
         workspaceId: _workspaceId,
-        root: WorkbenchLayoutNode.leaf('group-a'),
+        root: .leaf('group-a'),
         groups: <String, WorkbenchPaneGroup>{
           'group-a': WorkbenchPaneGroup(
             id: 'group-a',
@@ -437,13 +421,13 @@ void _registerWorkspaceWorkbenchViewTabTests() {
     final editorTab = _tab(
       'tab-2',
       title: 'very_long_editor_file_name.dart',
-      kind: WorkspaceTabKind.editor,
+      kind: .editor,
       filePath: 'lib/very_long_editor_file_name.dart',
     );
     final gitDiffTab = _tab(
       'tab-3',
       title: 'very_long_git_diff_file_name.dart',
-      kind: WorkspaceTabKind.gitDiff,
+      kind: .gitDiff,
       filePath: 'lib/very_long_git_diff_file_name.dart',
     );
 
@@ -453,7 +437,7 @@ void _registerWorkspaceWorkbenchViewTabTests() {
       terminalRuntime: terminalRuntime,
       layout: WorkbenchLayout(
         workspaceId: _workspaceId,
-        root: WorkbenchLayoutNode.leaf('group-a'),
+        root: .leaf('group-a'),
         groups: <String, WorkbenchPaneGroup>{
           'group-a': WorkbenchPaneGroup(
             id: 'group-a',

@@ -5,12 +5,13 @@ import 'package:alera/src/features/browser/domain/browser_popup.dart';
 import 'package:alera/src/features/browser/domain/browser_security.dart';
 import 'package:alera_browser/alera_browser.dart';
 
-final class PluginBrowserCallbackBridge {
-  PluginBrowserCallbackBridge({
-    required BrowserNativeCallbackCoordinator coordinator,
-    DateTime Function()? now,
-  }) : _coordinator = coordinator, // ignore: prefer_initializing_formals
-       _now = now ?? _defaultNow;
+final class PluginBrowserCallbackBridge({
+  required BrowserNativeCallbackCoordinator coordinator,
+  DateTime Function()? now,
+}) {
+  this
+    : _coordinator = coordinator, // ignore: prefer_initializing_formals
+      _now = now ?? _defaultNow;
 
   final BrowserNativeCallbackCoordinator _coordinator;
   final DateTime Function() _now;

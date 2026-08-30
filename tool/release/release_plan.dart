@@ -7,13 +7,11 @@ enum ReleaseChannel { stable, rc }
 
 enum VersionBump { patch, minor, major }
 
-final class SemanticVersion implements Comparable<SemanticVersion> {
-  const SemanticVersion(this.major, this.minor, this.patch);
-
-  final int major;
-  final int minor;
-  final int patch;
-
+final class const SemanticVersion(
+  final int major,
+  final int minor,
+  final int patch,
+) implements Comparable<SemanticVersion> {
   SemanticVersion bump(VersionBump bump) => switch (bump) {
     VersionBump.major => SemanticVersion(major + 1, 0, 0),
     VersionBump.minor => SemanticVersion(major, minor + 1, 0),
@@ -40,19 +38,12 @@ final class SemanticVersion implements Comparable<SemanticVersion> {
   String toString() => '$major.$minor.$patch';
 }
 
-final class ReleaseTag implements Comparable<ReleaseTag> {
-  const ReleaseTag({
-    required this.name,
-    required this.product,
-    required this.core,
-    this.rc,
-  });
-
-  final String name;
-  final ReleaseProduct product;
-  final SemanticVersion core;
-  final int? rc;
-
+final class const ReleaseTag({
+  required final String name,
+  required final ReleaseProduct product,
+  required final SemanticVersion core,
+  final int? rc,
+}) implements Comparable<ReleaseTag> {
   bool get isStable => rc == null;
 
   @override
@@ -109,17 +100,11 @@ bool pathsMatchProduct(ReleaseProduct product, Iterable<String> paths) {
   };
 }
 
-final class ReleaseChange {
-  const ReleaseChange({
-    required this.subject,
-    required this.body,
-    required this.paths,
-  });
-
-  final String subject;
-  final String body;
-  final List<String> paths;
-}
+final class const ReleaseChange({
+  required final String subject,
+  required final String body,
+  required final List<String> paths,
+});
 
 VersionBump? classifyChanges(
   ReleaseProduct product,
@@ -147,31 +132,18 @@ VersionBump? classifyChanges(
   return result;
 }
 
-final class ProductReleasePlan {
-  const ProductReleasePlan({
-    required this.product,
-    required this.stableBase,
-    required this.hasChanges,
-    required this.shouldRelease,
-    required this.bump,
-    required this.artifactVersion,
-    required this.releaseVersion,
-    required this.buildNumber,
-    required this.tag,
-    required this.previousTag,
-  });
-
-  final ReleaseProduct product;
-  final SemanticVersion stableBase;
-  final bool hasChanges;
-  final bool shouldRelease;
-  final VersionBump? bump;
-  final String artifactVersion;
-  final String releaseVersion;
-  final int buildNumber;
-  final String tag;
-  final String previousTag;
-}
+final class const ProductReleasePlan({
+  required final ReleaseProduct product,
+  required final SemanticVersion stableBase,
+  required final bool hasChanges,
+  required final bool shouldRelease,
+  required final VersionBump? bump,
+  required final String artifactVersion,
+  required final String releaseVersion,
+  required final int buildNumber,
+  required final String tag,
+  required final String previousTag,
+});
 
 ProductReleasePlan planProductRelease({
   required ReleaseProduct product,
@@ -297,24 +269,15 @@ Future<void> main(List<String> arguments) async {
   _writeSummary(options.summary, plans);
 }
 
-final class _CliOptions {
-  const _CliOptions({
-    required this.target,
-    required this.channel,
-    required this.repository,
-    required this.runNumber,
-    required this.dryRun,
-    required this.githubOutput,
-    required this.summary,
-  });
-  final String target;
-  final ReleaseChannel channel;
-  final String repository;
-  final int runNumber;
-  final bool dryRun;
-  final String githubOutput;
-  final String summary;
-}
+final class const _CliOptions({
+  required final String target,
+  required final ReleaseChannel channel,
+  required final String repository,
+  required final int runNumber,
+  required final bool dryRun,
+  required final String githubOutput,
+  required final String summary,
+});
 
 _CliOptions _parseCli(List<String> arguments) {
   if (arguments.length.isOdd) {
@@ -435,7 +398,7 @@ void _writeOutputs(
       '${prefix}_previous_tag=${plan.previousTag}',
     ]);
   }
-  File(path).writeAsStringSync('${lines.join('\n')}\n', mode: FileMode.append);
+  File(path).writeAsStringSync('${lines.join('\n')}\n', mode: .append);
 }
 
 void _writeSummary(String path, List<ProductReleasePlan> plans) {
@@ -451,7 +414,7 @@ void _writeSummary(String path, List<ProductReleasePlan> plans) {
       '${plan.tag.isEmpty ? '-' : plan.tag} | ${plan.buildNumber} |',
     );
   }
-  File(path).writeAsStringSync(buffer.toString(), mode: FileMode.append);
+  File(path).writeAsStringSync(buffer.toString(), mode: .append);
 }
 
 Future<String> _run(String executable, List<String> arguments) async {

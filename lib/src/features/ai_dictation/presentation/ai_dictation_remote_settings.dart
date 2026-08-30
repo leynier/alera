@@ -12,21 +12,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 const aiDictationRemoteConsentVersion = 1;
 
-class AiDictationRemoteSettings extends ConsumerStatefulWidget {
-  const AiDictationRemoteSettings({
-    super.key,
-    required this.settings,
-    required this.onChanged,
-    required this.supported,
-    this.groupKey,
-  });
-
-  final AiDictationSettings settings;
-  final ValueChanged<AiDictationSettings Function(AiDictationSettings)>
-  onChanged;
-  final bool supported;
-  final GlobalKey? groupKey;
-
+class const AiDictationRemoteSettings({
+  super.key,
+  required final AiDictationSettings settings,
+  required final ValueChanged<AiDictationSettings Function(AiDictationSettings)>
+  onChanged,
+  required final bool supported,
+  final GlobalKey? groupKey,
+}) extends ConsumerStatefulWidget {
   @override
   ConsumerState<AiDictationRemoteSettings> createState() =>
       _AiDictationRemoteSettingsState();
@@ -254,7 +247,7 @@ class _AiDictationRemoteSettingsState
       description: 'Optional Bearer token. It uses the system credential store, with a private 0600 file fallback on Linux, and is never stored in Settings.',
       controlWidth: 360,
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
+        crossAxisAlignment: .stretch,
         children: <Widget>[
           AleraTextField(
             key: const ValueKey<String>('ai-dictation-api-token'),
@@ -277,7 +270,7 @@ class _AiDictationRemoteSettingsState
           ),
           const SizedBox(height: AleraTokens.space8),
           Wrap(
-            alignment: WrapAlignment.end,
+            alignment: .end,
             spacing: AleraTokens.space8,
             runSpacing: AleraTokens.space8,
             children: <Widget>[

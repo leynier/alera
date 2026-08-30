@@ -3,18 +3,18 @@ part of 'terminal_host_client_test.dart';
 const String _runtimeMutationBusyMessage =
     'A runtime mutation is in progress. Wait for it to finish and retry.';
 
-final class _TerminalHostTestServer {
-  _TerminalHostTestServer._(
-    this._server, {
-    this.errorForType,
-    this.closeForType,
-    this.closeAfterResponseForType,
-    this.beforeResponse,
-    this.statusPayload,
-    this.negotiateBinaryFrames = false,
-    this._runtimeMutationBusyForType,
-    int runtimeMutationBusyResponses = 0,
-  }) : _remainingRuntimeMutationBusyResponses = runtimeMutationBusyResponses;
+final class _TerminalHostTestServer._(
+  final ServerSocket _server, {
+  final String? errorForType,
+  final String? closeForType,
+  final String? closeAfterResponseForType,
+  final Future<void> Function(String type)? beforeResponse,
+  final Map<String, Object?>? statusPayload,
+  final bool negotiateBinaryFrames = false,
+  final String? _runtimeMutationBusyForType,
+  int runtimeMutationBusyResponses = 0,
+}) {
+  this : _remainingRuntimeMutationBusyResponses = runtimeMutationBusyResponses;
 
   static Future<_TerminalHostTestServer> start({
     String? errorForType,
@@ -42,14 +42,6 @@ final class _TerminalHostTestServer {
     return server;
   }
 
-  final ServerSocket _server;
-  final String? errorForType;
-  final String? closeForType;
-  final String? closeAfterResponseForType;
-  final Future<void> Function(String type)? beforeResponse;
-  final Map<String, Object?>? statusPayload;
-  final bool negotiateBinaryFrames;
-  final String? _runtimeMutationBusyForType;
   int _remainingRuntimeMutationBusyResponses;
   final List<Map<String, Object?>> requests = <Map<String, Object?>>[];
   StreamSubscription<Socket>? _sub;
@@ -293,11 +285,10 @@ final class _TerminalHostTestServer {
   }
 }
 
-final class _FakeTerminalHostLauncher implements TerminalHostProcessLauncher {
-  _FakeTerminalHostLauncher({required this.server, this.beforePublish});
-
-  final _TerminalHostTestServer server;
-  final Future<void>? beforePublish;
+final class _FakeTerminalHostLauncher({
+  required final _TerminalHostTestServer server,
+  final Future<void>? beforePublish,
+}) implements TerminalHostProcessLauncher {
   int starts = 0;
   final List<TerminalHostConfig> configs = <TerminalHostConfig>[];
   final List<String> controlFilePaths = <String>[];

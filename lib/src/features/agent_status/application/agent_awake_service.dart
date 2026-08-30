@@ -16,19 +16,18 @@ abstract interface class AgentAwakeAssertion {
   Future<void> dispose();
 }
 
-class AgentAwakeService {
-  AgentAwakeService({
-    required this.displayLock,
-    required List<AgentAwakeAssertion> assertions,
-    DateTime Function()? now,
-    this.statusStaleAfter = agentAwakeStatusStaleAfter,
-    Logger? logger,
-  }) : _assertions = List<AgentAwakeAssertion>.unmodifiable(assertions),
-       _now = now ?? (() => DateTime.now().toUtc()),
-       _logger = logger ?? Logger('AgentAwakeService');
+class AgentAwakeService({
+  required final AgentAwakeDisplayLock displayLock,
+  required List<AgentAwakeAssertion> assertions,
+  DateTime Function()? now,
+  final Duration statusStaleAfter = agentAwakeStatusStaleAfter,
+  Logger? logger,
+}) {
+  this
+    : _assertions = List<AgentAwakeAssertion>.unmodifiable(assertions),
+      _now = now ?? (() => DateTime.now().toUtc()),
+      _logger = logger ?? Logger('AgentAwakeService');
 
-  final AgentAwakeDisplayLock displayLock;
-  final Duration statusStaleAfter;
   final List<AgentAwakeAssertion> _assertions;
   final DateTime Function() _now;
   final Logger _logger;
@@ -38,7 +37,7 @@ class AgentAwakeService {
   bool _disposed = false;
   Future<void> _operationTail = Future<void>.value();
   Future<void>? _disposeFuture;
-  AgentStatusHookSettings _hookSettings = AgentStatusHookSettings.defaults;
+  AgentStatusHookSettings _hookSettings = .defaults;
   Map<String, AgentStatusEntry> _statuses = const <String, AgentStatusEntry>{};
   Timer? _staleTimer;
 

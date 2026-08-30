@@ -2,16 +2,11 @@ import 'package:alera_mobile/src/app/theme/alera_tokens.dart';
 import 'package:alera_mobile/src/features/quotas/domain/quota_settings.dart';
 import 'package:flutter/material.dart';
 
-class ClaudeQuotaProfileDialog extends StatefulWidget {
-  const ClaudeQuotaProfileDialog({
-    super.key,
-    required this.profiles,
-    this.initial,
-  });
-
-  final List<ClaudeQuotaProfile> profiles;
-  final ClaudeQuotaProfile? initial;
-
+class const ClaudeQuotaProfileDialog({
+  super.key,
+  required final List<ClaudeQuotaProfile> profiles,
+  final ClaudeQuotaProfile? initial,
+}) extends StatefulWidget {
   @override
   State<ClaudeQuotaProfileDialog> createState() =>
       _ClaudeQuotaProfileDialogState();
@@ -61,7 +56,7 @@ class _ClaudeQuotaProfileDialogState extends State<ClaudeQuotaProfileDialog> {
         widget.initial == null ? 'Add CCS Profile' : 'Edit CCS Profile',
       ),
       content: Column(
-        mainAxisSize: MainAxisSize.min,
+        mainAxisSize: .min,
         children: <Widget>[
           TextField(
             controller: _alias,

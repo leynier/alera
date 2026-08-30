@@ -1,20 +1,18 @@
 part of 'codex_chat_surface.dart';
 
-class _CodexToolDetailsProjection {
-  const _CodexToolDetailsProjection({
-    required this.overview,
-    required this.arguments,
-    required this.commandActions,
-    required this.response,
-    required this.responseLabel,
-    required this.images,
-    required this.details,
-    required this.showDetails,
-    required this.isDiff,
-    required this.diffLines,
-  });
-
-  factory _CodexToolDetailsProjection.fromCell(CodexTimelineCell cell) {
+class const _CodexToolDetailsProjection({
+  required final List<(String, String)> overview,
+  required final Object? arguments,
+  required final Object? commandActions,
+  required final Object? response,
+  required final String responseLabel,
+  required final List<String> images,
+  required final String details,
+  required final bool showDetails,
+  required final bool isDiff,
+  required final List<String> diffLines,
+}) {
+  factory fromCell(CodexTimelineCell cell) {
     final metadata = cell.metadata;
     final details = cell.detailsText ?? cell.markdownText ?? '';
     final arguments = _decodeCodexStructuredValue(metadata['arguments']);
@@ -122,17 +120,6 @@ class _CodexToolDetailsProjection {
           : const <String>[],
     );
   }
-
-  final List<(String, String)> overview;
-  final Object? arguments;
-  final Object? commandActions;
-  final Object? response;
-  final String responseLabel;
-  final List<String> images;
-  final String details;
-  final bool showDetails;
-  final bool isDiff;
-  final List<String> diffLines;
 }
 
 String? _codexToolAppLabel(Object? value) {

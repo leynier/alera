@@ -126,7 +126,7 @@ extension _MobileCodexHistoryActions on _MobileCodexChatScreenState {
   double? get _historyAnchorTop {
     final renderObject = _historyAnchorKey.currentContext?.findRenderObject();
     if (renderObject is! RenderBox || !renderObject.attached) return null;
-    return renderObject.localToGlobal(Offset.zero).dy;
+    return renderObject.localToGlobal(.zero).dy;
   }
 
   void _finishLoadingEarlier() {

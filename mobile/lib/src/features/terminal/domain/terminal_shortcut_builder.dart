@@ -8,26 +8,20 @@ library;
 
 enum TerminalShortcutModifier { ctrl, alt, shift }
 
-class TerminalShortcutBinding {
-  const TerminalShortcutBinding({required this.key, required this.modifiers});
-
+class const TerminalShortcutBinding({
+  required this.key,
+  required final Set<TerminalShortcutModifier> modifiers,
+}) {
   /// A special key id (see [terminalShortcutSpecialKeys]) or one printable
   /// ASCII character.
   final String key;
-  final Set<TerminalShortcutModifier> modifiers;
 }
 
-class TerminalShortcutBuildResult {
-  const TerminalShortcutBuildResult({
-    required this.label,
-    required this.bytes,
-    required this.accessibilityLabel,
-  });
-
-  final String label;
-  final List<int> bytes;
-  final String accessibilityLabel;
-}
+class const TerminalShortcutBuildResult({
+  required final String label,
+  required final List<int> bytes,
+  required final String accessibilityLabel,
+});
 
 const int _esc = 0x1b;
 

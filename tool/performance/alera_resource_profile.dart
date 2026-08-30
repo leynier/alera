@@ -30,17 +30,11 @@ Future<void> main(List<String> arguments) async {
   stdout.writeln('Resource profile: ${output.path}');
 }
 
-final class MacOsResourceProfiler {
-  MacOsResourceProfiler({
-    required this.appName,
-    required this.runtimeDirectory,
-    this.explicitAppPid,
-  });
-
-  final String appName;
-  final String runtimeDirectory;
-  final int? explicitAppPid;
-
+final class MacOsResourceProfiler({
+  required final String appName,
+  required final String runtimeDirectory,
+  final int? explicitAppPid,
+}) {
   Future<Map<String, Object?>> capture({
     required String scenario,
     required Duration duration,
@@ -162,21 +156,13 @@ final class MacOsResourceProfiler {
   }
 }
 
-final class ProcessRecord {
-  const ProcessRecord({
-    required this.pid,
-    required this.parentPid,
-    required this.cpuPercent,
-    required this.residentKilobytes,
-    required this.command,
-  });
-
-  final int pid;
-  final int parentPid;
-  final double cpuPercent;
-  final int residentKilobytes;
-  final String command;
-}
+final class const ProcessRecord({
+  required final int pid,
+  required final int parentPid,
+  required final double cpuPercent,
+  required final int residentKilobytes,
+  required final String command,
+});
 
 Future<List<ProcessRecord>> _readProcessTable() async {
   final result = await Process.run('ps', const <String>[
@@ -392,27 +378,16 @@ void _printSummary(Map<String, Object?> report) {
   }
 }
 
-final class ResourceProfileOptions {
-  const ResourceProfileOptions({
-    required this.scenario,
-    required this.outputPath,
-    required this.duration,
-    required this.interval,
-    required this.appName,
-    required this.buildMode,
-    this.appPid,
-    this.runtimeDirectory,
-  });
-
-  final String scenario;
-  final String outputPath;
-  final Duration duration;
-  final Duration interval;
-  final String appName;
-  final String buildMode;
-  final int? appPid;
-  final String? runtimeDirectory;
-
+final class const ResourceProfileOptions({
+  required final String scenario,
+  required final String outputPath,
+  required final Duration duration,
+  required final Duration interval,
+  required final String appName,
+  required final String buildMode,
+  final int? appPid,
+  final String? runtimeDirectory,
+}) {
   static ResourceProfileOptions parse(List<String> arguments) {
     var scenario = 'idle';
     var outputPath = '.dart_tool/performance/resources_idle.json';

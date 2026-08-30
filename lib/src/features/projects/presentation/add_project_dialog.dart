@@ -9,34 +9,22 @@ import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
 import 'package:path/path.dart' as p;
 
-sealed class AddProjectResult {
-  const AddProjectResult({required this.name});
+sealed class const AddProjectResult({required final String? name});
 
-  final String? name;
-}
+class const AddLocalProjectResult({
+  required final String path,
+  required super.name,
+}) extends AddProjectResult;
 
-class AddLocalProjectResult extends AddProjectResult {
-  const AddLocalProjectResult({required this.path, required super.name});
-
-  final String path;
-}
-
-class CloneProjectResult extends AddProjectResult {
-  const CloneProjectResult({
-    required this.gitUrl,
-    required this.destinationPath,
-    required super.name,
-  });
-
-  final String gitUrl;
-  final String destinationPath;
-}
+class const CloneProjectResult({
+  required final String gitUrl,
+  required final String destinationPath,
+  required super.name,
+}) extends AddProjectResult;
 
 enum _AddProjectMode { localFolder, cloneFromUrl }
 
-class AddProjectDialog extends StatefulWidget {
-  const AddProjectDialog({super.key});
-
+class const AddProjectDialog({super.key}) extends StatefulWidget {
   @override
   State<AddProjectDialog> createState() => _AddProjectDialogState();
 }
@@ -48,7 +36,7 @@ class _AddProjectDialogState extends State<AddProjectDialog> {
       TextEditingController();
   final TextEditingController _nameController = TextEditingController();
 
-  _AddProjectMode _mode = _AddProjectMode.localFolder;
+  _AddProjectMode _mode = .localFolder;
   bool _nameTouched = false;
   bool _cloneDestinationTouched = false;
   String? _cloneParentDirectory;
@@ -117,7 +105,7 @@ class _AddProjectDialogState extends State<AddProjectDialog> {
     AleraToast.show(
       context,
       message: 'Native folder picker is not available; paste path manually.',
-      tone: AleraToastTone.info,
+      tone: .info,
     );
   }
 
@@ -216,8 +204,8 @@ class _AddProjectDialogState extends State<AddProjectDialog> {
       child: Padding(
         padding: const EdgeInsets.all(AleraTokens.space20),
         child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: .min,
+          crossAxisAlignment: .start,
           children: <Widget>[
             Row(
               children: <Widget>[
@@ -234,8 +222,8 @@ class _AddProjectDialogState extends State<AddProjectDialog> {
             Flexible(
               child: SingleChildScrollView(
                 child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: .min,
+                  crossAxisAlignment: .start,
                   children: <Widget>[
                     Text(
                       'Choose an existing local folder or clone a Git repository from a URL.',
@@ -247,12 +235,12 @@ class _AddProjectDialogState extends State<AddProjectDialog> {
                       onSelectionChanged: _selectMode,
                       segments: const <ButtonSegment<_AddProjectMode>>[
                         ButtonSegment<_AddProjectMode>(
-                          value: _AddProjectMode.localFolder,
+                          value: .localFolder,
                           icon: Icon(AleraIcons.folderOpen, size: 16),
                           label: Text('Local Folder'),
                         ),
                         ButtonSegment<_AddProjectMode>(
-                          value: _AddProjectMode.cloneFromUrl,
+                          value: .cloneFromUrl,
                           icon: Icon(AleraIcons.cloudDownload, size: 16),
                           label: Text('Clone From URL'),
                         ),
@@ -289,7 +277,7 @@ class _AddProjectDialogState extends State<AddProjectDialog> {
             ),
             const SizedBox(height: AleraTokens.space16),
             Row(
-              mainAxisAlignment: MainAxisAlignment.end,
+              mainAxisAlignment: .end,
               children: <Widget>[
                 TextButton(
                   onPressed: () => Navigator.of(context).pop(),
@@ -309,28 +297,19 @@ class _AddProjectDialogState extends State<AddProjectDialog> {
   }
 }
 
-class _LocalFolderFields extends StatelessWidget {
-  const _LocalFolderFields({
-    required this.pathController,
-    required this.nameController,
-    required this.onBrowse,
-    required this.onPathChanged,
-    required this.onNameChanged,
-    required this.onSubmitted,
-  });
-
-  final TextEditingController pathController;
-  final TextEditingController nameController;
-  final VoidCallback onBrowse;
-  final ValueChanged<String> onPathChanged;
-  final VoidCallback onNameChanged;
-  final VoidCallback onSubmitted;
-
+class const _LocalFolderFields({
+  required final TextEditingController pathController,
+  required final TextEditingController nameController,
+  required final VoidCallback onBrowse,
+  required final ValueChanged<String> onPathChanged,
+  required final VoidCallback onNameChanged,
+  required final VoidCallback onSubmitted,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: .start,
       children: <Widget>[
         Text(
           'Alera will detect whether the folder is a Git repository. Non-Git folders only get a primary workspace.',
@@ -364,32 +343,21 @@ class _LocalFolderFields extends StatelessWidget {
   }
 }
 
-class _CloneFromUrlFields extends StatelessWidget {
-  const _CloneFromUrlFields({
-    required this.urlController,
-    required this.destinationController,
-    required this.nameController,
-    required this.onBrowseParent,
-    required this.onUrlChanged,
-    required this.onDestinationChanged,
-    required this.onNameChanged,
-    required this.onSubmitted,
-  });
-
-  final TextEditingController urlController;
-  final TextEditingController destinationController;
-  final TextEditingController nameController;
-  final VoidCallback onBrowseParent;
-  final ValueChanged<String> onUrlChanged;
-  final VoidCallback onDestinationChanged;
-  final VoidCallback onNameChanged;
-  final VoidCallback onSubmitted;
-
+class const _CloneFromUrlFields({
+  required final TextEditingController urlController,
+  required final TextEditingController destinationController,
+  required final TextEditingController nameController,
+  required final VoidCallback onBrowseParent,
+  required final ValueChanged<String> onUrlChanged,
+  required final VoidCallback onDestinationChanged,
+  required final VoidCallback onNameChanged,
+  required final VoidCallback onSubmitted,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: .start,
       children: <Widget>[
         Text(
           'Alera will run git clone into the destination folder and register the cloned repository.',
@@ -431,17 +399,11 @@ class _CloneFromUrlFields extends StatelessWidget {
   }
 }
 
-class _DisplayNameField extends StatelessWidget {
-  const _DisplayNameField({
-    required this.controller,
-    required this.onChanged,
-    required this.onSubmitted,
-  });
-
-  final TextEditingController controller;
-  final VoidCallback onChanged;
-  final VoidCallback onSubmitted;
-
+class const _DisplayNameField({
+  required final TextEditingController controller,
+  required final VoidCallback onChanged,
+  required final VoidCallback onSubmitted,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return AleraTextField(
@@ -453,11 +415,8 @@ class _DisplayNameField extends StatelessWidget {
   }
 }
 
-class AddProjectProgressDialog extends StatelessWidget {
-  const AddProjectProgressDialog({super.key, required this.message});
-
-  final String message;
-
+class const AddProjectProgressDialog({super.key, required final String message})
+    extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -466,7 +425,7 @@ class AddProjectProgressDialog extends StatelessWidget {
       child: Padding(
         padding: const EdgeInsets.all(AleraTokens.space20),
         child: Row(
-          mainAxisSize: MainAxisSize.min,
+          mainAxisSize: .min,
           children: <Widget>[
             const SizedBox(
               width: 20,

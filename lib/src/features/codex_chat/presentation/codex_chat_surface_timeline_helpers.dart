@@ -1,22 +1,13 @@
 part of 'codex_chat_surface.dart';
 
-class _WorkedForDivider extends StatefulWidget {
-  const _WorkedForDivider({
-    required this.label,
-    required this.expanded,
-    required this.working,
-    required this.startedAt,
-    required this.canToggle,
-    required this.onTap,
-  });
-
-  final String label;
-  final bool expanded;
-  final bool working;
-  final DateTime? startedAt;
-  final bool canToggle;
-  final VoidCallback onTap;
-
+class const _WorkedForDivider({
+  required final String label,
+  required final bool expanded,
+  required final bool working,
+  required final DateTime? startedAt,
+  required final bool canToggle,
+  required final VoidCallback onTap,
+}) extends StatefulWidget {
   @override
   State<_WorkedForDivider> createState() => _WorkedForDividerState();
 }
@@ -87,19 +78,19 @@ class _WorkedForDividerState extends State<_WorkedForDivider>
       mouseCursor: widget.canToggle
           ? SystemMouseCursors.click
           : SystemMouseCursors.basic,
-      borderRadius: BorderRadius.circular(AleraTokens.radiusPill),
+      borderRadius: .circular(AleraTokens.radiusPill),
       child: Row(
         children: <Widget>[
           Padding(
             padding: const EdgeInsets.only(right: AleraTokens.space12),
             child: Row(
-              mainAxisSize: MainAxisSize.min,
+              mainAxisSize: .min,
               children: <Widget>[
                 if (widget.working)
                   _CodexShimmerText(
                     text: widget.startedAt == null
                         ? 'Working'
-                        : _workingFor(widget.startedAt!, DateTime.now()),
+                        : _workingFor(widget.startedAt!, .now()),
                     style: Theme.of(context).textTheme.labelSmall
                         ?.copyWith(color: AleraTokens.foregroundMuted),
                   )

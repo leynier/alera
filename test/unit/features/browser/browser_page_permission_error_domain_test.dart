@@ -186,8 +186,8 @@ void main() {
         requestId: 'request-3',
         pageId: 'page-1',
         origin: 'https://example.com',
-        permission: BrowserPermissionType.notifications,
-        requestedAt: DateTime.utc(2026),
+        permission: .notifications,
+        requestedAt: .utc(2026),
       );
       expect(direct.userGesture, isFalse);
     });
@@ -227,17 +227,11 @@ void main() {
         );
 
         expect(
-          policy.decisionFor(BrowserPermissionType.displayCapture),
+          policy.decisionFor(.displayCapture),
           BrowserPermissionDecision.deny,
         );
-        expect(
-          policy.decisionFor(BrowserPermissionType.camera),
-          BrowserPermissionDecision.deny,
-        );
-        expect(
-          policy.decisionFor(BrowserPermissionType.microphone),
-          BrowserPermissionDecision.ask,
-        );
+        expect(policy.decisionFor(.camera), BrowserPermissionDecision.deny);
+        expect(policy.decisionFor(.microphone), BrowserPermissionDecision.ask);
         expect(const BrowserPermissionPolicy().decisions, isEmpty);
       },
     );
@@ -281,7 +275,7 @@ void main() {
         'details': 'invalid',
       });
       const direct = BrowserFailure(
-        code: BrowserErrorCode.engineUnavailable,
+        code: .engineUnavailable,
         message: 'Unavailable.',
       );
 

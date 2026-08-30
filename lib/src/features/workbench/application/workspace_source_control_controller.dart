@@ -10,19 +10,12 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 part 'workspace_source_control_controller.g.dart';
 
-class WorkspaceSourceControlState {
-  const WorkspaceSourceControlState({
-    required this.status,
-    required this.repositoryState,
-    required this.stashes,
-    this.action,
-  });
-
-  final GitStatusResult status;
-  final GitRepositoryState repositoryState;
-  final List<GitStashEntry> stashes;
-  final WorkspaceSourceControlAction? action;
-
+class const WorkspaceSourceControlState({
+  required final GitStatusResult status,
+  required final GitRepositoryState repositoryState,
+  required final List<GitStashEntry> stashes,
+  final WorkspaceSourceControlAction? action,
+}) {
   bool get isBusy => action != null;
 
   List<GitChangeEntry> get stagedEntries => status.entries
@@ -95,16 +88,15 @@ class WorkspaceSourceControlController
     return _load();
   }
 
-  Future<void> refresh() =>
-      _run(WorkspaceSourceControlAction.refresh, (_) async {});
+  Future<void> refresh() => _run(.refresh, (_) async {});
 
   Future<void> stage(String? filePath) => _run(
-    WorkspaceSourceControlAction.stage,
+    .stage,
     (backend) => backend.stage(path: workspacePath, filePath: filePath),
   );
 
   Future<void> stageArea(GitChangeArea area, {String? filePath}) => _run(
-    WorkspaceSourceControlAction.stage,
+    .stage,
     (backend) =>
         backend.stageArea(path: workspacePath, area: area, filePath: filePath),
   );
@@ -113,7 +105,7 @@ class WorkspaceSourceControlController
     if (!entry.canStageFromParent) {
       return Future<void>.value();
     }
-    return _run(WorkspaceSourceControlAction.stage, (backend) async {
+    return _run(.stage, (backend) async {
       for (final filePath in _actionPaths(entry)) {
         await backend.stage(path: workspacePath, filePath: filePath);
       }
@@ -121,12 +113,12 @@ class WorkspaceSourceControlController
   }
 
   Future<void> unstage(String? filePath) => _run(
-    WorkspaceSourceControlAction.unstage,
+    .unstage,
     (backend) => backend.unstage(path: workspacePath, filePath: filePath),
   );
 
   Future<void> unstageArea(GitChangeArea area, {String? filePath}) => _run(
-    WorkspaceSourceControlAction.unstage,
+    .unstage,
     (backend) => backend.unstageArea(
       path: workspacePath,
       area: area,
@@ -138,7 +130,7 @@ class WorkspaceSourceControlController
     if (!entry.canUnstageFromParent) {
       return Future<void>.value();
     }
-    return _run(WorkspaceSourceControlAction.unstage, (backend) async {
+    return _run(.unstage, (backend) async {
       for (final filePath in _actionPaths(entry)) {
         await backend.unstage(path: workspacePath, filePath: filePath);
       }
@@ -146,12 +138,12 @@ class WorkspaceSourceControlController
   }
 
   Future<void> discard(String? filePath) => _run(
-    WorkspaceSourceControlAction.discard,
+    .discard,
     (backend) => backend.discard(path: workspacePath, filePath: filePath),
   );
 
   Future<void> discardArea(GitChangeArea area, {String? filePath}) => _run(
-    WorkspaceSourceControlAction.discard,
+    .discard,
     (backend) => backend.discardArea(
       path: workspacePath,
       area: area,
@@ -163,7 +155,7 @@ class WorkspaceSourceControlController
     if (!entry.canDiscardFromParent) {
       return Future<void>.value();
     }
-    return _run(WorkspaceSourceControlAction.discard, (backend) async {
+    return _run(.discard, (backend) async {
       for (final filePath in _actionPaths(entry)) {
         await backend.discard(path: workspacePath, filePath: filePath);
       }
@@ -171,18 +163,18 @@ class WorkspaceSourceControlController
   }
 
   Future<void> commit(String message) => _run(
-    WorkspaceSourceControlAction.commit,
+    .commit,
     (backend) => backend.commit(path: workspacePath, message: message.trim()),
   );
 
   Future<void> commitAndPush(String message) =>
-      _run(WorkspaceSourceControlAction.commitPush, (backend) async {
+      _run(.commitPush, (backend) async {
         await backend.commit(path: workspacePath, message: message.trim());
         await backend.push(workspacePath);
       });
 
   Future<void> commitAndSync(String message) =>
-      _run(WorkspaceSourceControlAction.commitSync, (backend) async {
+      _run(.commitSync, (backend) async {
         await backend.commit(path: workspacePath, message: message.trim());
         if (!(state.asData?.value.repositoryState.hasUpstream ?? false)) {
           throw const NoUpstreamException('set an upstream before syncing');
@@ -192,42 +184,31 @@ class WorkspaceSourceControlController
       });
 
   Future<void> amendCommit(String message) => _run(
-    WorkspaceSourceControlAction.amend,
+    .amend,
     (backend) =>
         backend.amendCommit(path: workspacePath, message: message.trim()),
   );
 
-  Future<void> fetch() => _run(
-    WorkspaceSourceControlAction.fetch,
-    (backend) => backend.fetch(workspacePath),
-  );
+  Future<void> fetch() =>
+      _run(.fetch, (backend) => backend.fetch(workspacePath));
 
-  Future<void> pull() => _run(
-    WorkspaceSourceControlAction.pull,
-    (backend) => backend.pull(workspacePath),
-  );
+  Future<void> pull() => _run(.pull, (backend) => backend.pull(workspacePath));
 
-  Future<void> push() => _run(
-    WorkspaceSourceControlAction.push,
-    (backend) => backend.push(workspacePath),
-  );
+  Future<void> push() => _run(.push, (backend) => backend.push(workspacePath));
 
-  Future<void> sync() =>
-      _run(WorkspaceSourceControlAction.sync, (backend) async {
-        if (!(state.asData?.value.repositoryState.hasUpstream ?? false)) {
-          throw const NoUpstreamException('set an upstream before syncing');
-        }
-        await backend.pull(workspacePath);
-        await backend.push(workspacePath);
-      });
+  Future<void> sync() => _run(.sync, (backend) async {
+    if (!(state.asData?.value.repositoryState.hasUpstream ?? false)) {
+      throw const NoUpstreamException('set an upstream before syncing');
+    }
+    await backend.pull(workspacePath);
+    await backend.push(workspacePath);
+  });
 
-  Future<void> stash() => _run(
-    WorkspaceSourceControlAction.stash,
-    (backend) => backend.stash(workspacePath),
-  );
+  Future<void> stash() =>
+      _run(.stash, (backend) => backend.stash(workspacePath));
 
   Future<void> stashPop(int stashIndex) => _run(
-    WorkspaceSourceControlAction.stashPop,
+    .stashPop,
     (backend) => backend.stashPop(path: workspacePath, stashIndex: stashIndex),
   );
 

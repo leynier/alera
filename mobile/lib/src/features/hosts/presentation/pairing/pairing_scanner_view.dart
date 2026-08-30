@@ -5,16 +5,11 @@ import 'package:mobile_scanner/mobile_scanner.dart';
 /// Full-bleed QR scanner with a centered viewfinder frame, torch toggle, and
 /// a manual entry escape hatch. Falls back to [onScannerUnavailable] copy when
 /// the camera cannot start (permission denied, no camera, simulator).
-class PairingScannerView extends StatefulWidget {
-  const PairingScannerView({
-    super.key,
-    required this.onOffer,
-    required this.onEnterManually,
-  });
-
-  final ValueChanged<String> onOffer;
-  final VoidCallback onEnterManually;
-
+class const PairingScannerView({
+  super.key,
+  required final ValueChanged<String> onOffer,
+  required final VoidCallback onEnterManually,
+}) extends StatefulWidget {
   @override
   State<PairingScannerView> createState() => _PairingScannerViewState();
 }
@@ -48,7 +43,7 @@ class _PairingScannerViewState extends State<PairingScannerView> {
   @override
   Widget build(BuildContext context) {
     return Stack(
-      fit: StackFit.expand,
+      fit: .expand,
       children: <Widget>[
         MobileScanner(
           controller: _controller,
@@ -101,7 +96,7 @@ class _PairingScannerViewState extends State<PairingScannerView> {
             child: Padding(
               padding: const EdgeInsets.only(bottom: AleraTokens.spaceXl),
               child: Column(
-                mainAxisSize: MainAxisSize.min,
+                mainAxisSize: .min,
                 children: <Widget>[
                   IconButton.filledTonal(
                     tooltip: 'Toggle Torch',
@@ -124,11 +119,8 @@ class _PairingScannerViewState extends State<PairingScannerView> {
   }
 }
 
-class _ScannerUnavailable extends StatelessWidget {
-  const _ScannerUnavailable({required this.onEnterManually});
-
-  final VoidCallback onEnterManually;
-
+class const _ScannerUnavailable({required final VoidCallback onEnterManually})
+    extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ColoredBox(
@@ -137,7 +129,7 @@ class _ScannerUnavailable extends StatelessWidget {
         child: Padding(
           padding: AleraTokens.contentPadding,
           child: Column(
-            mainAxisSize: MainAxisSize.min,
+            mainAxisSize: .min,
             children: <Widget>[
               Icon(
                 Icons.no_photography_outlined,
@@ -152,7 +144,7 @@ class _ScannerUnavailable extends StatelessWidget {
               const SizedBox(height: AleraTokens.spaceSm),
               Text(
                 'Allow camera access or paste the pairing offer instead.',
-                textAlign: TextAlign.center,
+                textAlign: .center,
                 style: Theme.of(context).textTheme.bodyMedium,
               ),
               const SizedBox(height: AleraTokens.spaceLg),

@@ -191,10 +191,10 @@ void _registerMobileCodexReviewRegression2Tests() {
               .overrideWith((ref) async => client),
         ],
         child: MaterialApp(
-          theme: ThemeData.dark(),
+          theme: .dark(),
           home: Scaffold(
             appBar: const PreferredSize(
-              preferredSize: Size.fromHeight(180),
+              preferredSize: .fromHeight(180),
               child: SizedBox.expand(),
             ),
             body: const MobileCodexChatScreen(

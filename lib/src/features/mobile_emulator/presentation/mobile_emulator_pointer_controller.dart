@@ -10,10 +10,9 @@ typedef MobileEmulatorPointerDispatch = void Function(
   MobileEmulatorTarget target,
 );
 
-class MobileEmulatorPointerController {
-  MobileEmulatorPointerController({required this.onPointer});
-
-  final MobileEmulatorPointerDispatch onPointer;
+class MobileEmulatorPointerController({
+  required final MobileEmulatorPointerDispatch onPointer,
+}) {
   Timer? _moveTimer;
   Offset? _pendingMove;
   Offset? _lastPosition;

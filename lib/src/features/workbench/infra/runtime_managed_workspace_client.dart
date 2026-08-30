@@ -8,13 +8,10 @@ import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_p
 const Duration _managedWorkspaceCreateTimeout = Duration(minutes: 30);
 const Duration _managedWorkspaceRemoveTimeout = Duration(minutes: 10);
 
-class RuntimeManagedWorkspaceClient
-    implements ManagedWorkspaceRuntime, WorkspaceStorageRuntime {
-  RuntimeManagedWorkspaceClient(this._client, {this.beforeAccess});
-
-  final RuntimeHostClient _client;
-  final Future<void> Function()? beforeAccess;
-
+class RuntimeManagedWorkspaceClient(
+  final RuntimeHostClient _client, {
+  final Future<void> Function()? beforeAccess,
+}) implements ManagedWorkspaceRuntime, WorkspaceStorageRuntime {
   @override
   Future<WorkspaceStorageImpact> storageImpact({
     required String workspaceId,

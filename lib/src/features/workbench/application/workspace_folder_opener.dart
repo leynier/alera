@@ -4,28 +4,25 @@ import 'package:alera/src/shared/infra/process/process_runner.dart';
 
 enum WorkspaceFolderPlatform { macos, windows, linux, other }
 
-class WorkspaceFolderOpenResult {
-  const WorkspaceFolderOpenResult._({required this.ok, this.message});
+class const WorkspaceFolderOpenResult._({
+  required final bool ok,
+  final String? message,
+}) {
+  const new success() : this._(ok: true);
 
-  const WorkspaceFolderOpenResult.success() : this._(ok: true);
-
-  const WorkspaceFolderOpenResult.failure(String message)
-    : this._(ok: false, message: message);
-
-  final bool ok;
-  final String? message;
+  const new failure(String message) : this._(ok: false, message: message);
 }
 
-class WorkspaceFolderOpener {
-  WorkspaceFolderOpener({
-    required this.processRunner,
-    WorkspaceFolderPlatform? platform,
-    Future<bool> Function(String path)? directoryExists,
-  }) : _platform = platform ?? currentWorkspaceFolderPlatform(),
-       _directoryExists =
-           directoryExists ?? ((path) async => Directory(path).exists());
+class WorkspaceFolderOpener({
+  required final ProcessRunner processRunner,
+  WorkspaceFolderPlatform? platform,
+  Future<bool> Function(String path)? directoryExists,
+}) {
+  this
+    : _platform = platform ?? currentWorkspaceFolderPlatform(),
+      _directoryExists =
+          directoryExists ?? ((path) async => Directory(path).exists());
 
-  final ProcessRunner processRunner;
   final WorkspaceFolderPlatform _platform;
   final Future<bool> Function(String path) _directoryExists;
 
@@ -202,9 +199,7 @@ WorkspaceFolderPlatform workspaceFolderPlatformForOperatingSystem(
   };
 }
 
-class _WorkspaceFolderOpenCommand {
-  const _WorkspaceFolderOpenCommand(this.executable, this.arguments);
-
-  final String executable;
-  final List<String> arguments;
-}
+class const _WorkspaceFolderOpenCommand(
+  final String executable,
+  final List<String> arguments,
+);

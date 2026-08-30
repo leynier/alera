@@ -2,12 +2,11 @@ import 'dart:async';
 
 import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_protocol.dart';
 
-class CodexChatHostClient {
-  CodexChatHostClient(this._client) {
+class CodexChatHostClient(final RuntimeHostClient _client) {
+  this {
     _runtimeEvents = _client.runtimeEvents.listen(_handleRuntimeEvent);
   }
 
-  final RuntimeHostClient _client;
   late final StreamSubscription<RuntimeHostEvent> _runtimeEvents;
   Future<Set<String>>? _runtimeCapabilities;
 

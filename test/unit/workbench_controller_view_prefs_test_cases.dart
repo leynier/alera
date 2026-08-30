@@ -10,24 +10,24 @@ void _registerWorkbenchControllerViewPrefsTests() {
         name: 'Main',
         branch: 'main',
         path: _harness.project.repoPath,
-        createdAt: DateTime.utc(2026, 5, 22),
-        updatedAt: DateTime.utc(2026, 5, 22),
-        kind: WorkspaceKind.main,
-        status: WorkspaceStatus.active,
+        createdAt: .utc(2026, 5, 22),
+        updatedAt: .utc(2026, 5, 22),
+        kind: .main,
+        status: .active,
       );
       final firstTab = WorkspaceTabRecord(
         id: 'tab-1',
         workspaceId: workspace.id,
         title: 'Terminal 1',
-        createdAt: DateTime.utc(2026, 5, 22),
-        updatedAt: DateTime.utc(2026, 5, 22),
+        createdAt: .utc(2026, 5, 22),
+        updatedAt: .utc(2026, 5, 22),
       );
       final secondTab = WorkspaceTabRecord(
         id: 'tab-2',
         workspaceId: workspace.id,
         title: 'Terminal 2',
-        createdAt: DateTime.utc(2026, 5, 22),
-        updatedAt: DateTime.utc(2026, 5, 22),
+        createdAt: .utc(2026, 5, 22),
+        updatedAt: .utc(2026, 5, 22),
       );
       final savedLayout =
           WorkbenchLayout.single(
@@ -35,7 +35,7 @@ void _registerWorkbenchControllerViewPrefsTests() {
             tabIds: <String>[firstTab.id],
           ).splitWithGroup(
             targetGroupId: WorkbenchLayout.defaultGroupId(workspace.id),
-            zone: WorkbenchDropZone.right,
+            zone: .right,
             newGroup: WorkbenchPaneGroup(
               id: 'group-2',
               tabIds: <String>[secondTab.id],
@@ -165,11 +165,11 @@ void _registerWorkbenchControllerViewPrefsTests() {
       containsAll(<String>[mainWorkspace.id, linkedWorkspace.id]),
     );
 
-    _controller.setGroupBy(WorkbenchGroupBy.none);
+    _controller.setGroupBy(.none);
     _controller.setWorkspaceExpanded(mainWorkspace.id, false);
     _controller.setWorkspaceExpanded(linkedWorkspace.id, false);
-    _controller.setProjectSort(WorkbenchSortBy.recent);
-    _controller.setWorkspaceSort(WorkbenchSortBy.recent);
+    _controller.setProjectSort(.recent);
+    _controller.setWorkspaceSort(.recent);
     _controller.toggleCollapseAll();
     expect(
       _controller.state.viewPrefs.expandedWorkspaceIds,
@@ -220,7 +220,7 @@ void _registerWorkbenchControllerViewPrefsTests() {
       repoPath: folderPath,
       createdAt: now,
       updatedAt: now,
-      kind: ProjectKind.folder,
+      kind: .folder,
     );
 
     await _harness.projectRepository.add(folderProject);
@@ -258,7 +258,7 @@ void _registerWorkbenchControllerViewPrefsTests() {
 
   test('selecting a git workspace keeps source control active', () async {
     await _controller.bootstrap();
-    _controller.setContextPanelTab(WorkbenchContextPanelTab.gitDiff);
+    _controller.setContextPanelTab(.gitDiff);
     await _flush();
 
     final workspace = await _selectMainWorkspace(_controller, _harness);
@@ -287,7 +287,7 @@ void _registerWorkbenchControllerViewPrefsTests() {
         repoPath: folderPath,
         createdAt: now,
         updatedAt: now,
-        kind: ProjectKind.folder,
+        kind: .folder,
       );
       await _harness.projectRepository.add(folderProject);
       await _flushUntil(
@@ -359,7 +359,7 @@ void _registerWorkbenchControllerViewPrefsTests() {
         repoPath: folderPath,
         createdAt: now,
         updatedAt: now,
-        kind: ProjectKind.folder,
+        kind: .folder,
       );
       await _harness.projectRepository.add(folderProject);
       await _flushUntil(
@@ -411,7 +411,7 @@ void _registerWorkbenchControllerViewPrefsTests() {
         repoPath: folderPath,
         createdAt: now,
         updatedAt: now,
-        kind: ProjectKind.folder,
+        kind: .folder,
       );
       await _harness.projectRepository.add(folderProject);
       await _flushUntil(
@@ -471,7 +471,7 @@ void _registerWorkbenchControllerViewPrefsTests() {
         repoPath: folderPath,
         createdAt: now,
         updatedAt: now,
-        kind: ProjectKind.folder,
+        kind: .folder,
       );
       await _harness.projectRepository.add(folderProject);
       await _flushUntil(
@@ -672,7 +672,7 @@ void _registerWorkbenchControllerViewPrefsTests() {
     final splitTab = await _controller.splitWorkbenchGroupWithTerminal(
       workspace: workspace,
       groupId: firstGroupId,
-      zone: WorkbenchDropZone.right,
+      zone: .right,
     );
     await _flush();
 
@@ -690,7 +690,7 @@ void _registerWorkbenchControllerViewPrefsTests() {
         workspaceId: workspace.id,
         tabId: splitTab.id,
         targetGroupId: targetGroupId,
-        zone: WorkbenchDropZone.center,
+        zone: .center,
       ),
       throwsStateError,
     );
@@ -720,7 +720,7 @@ void _registerWorkbenchControllerViewPrefsTests() {
       _controller.splitWorkbenchGroupWithTerminal(
         workspace: workspace,
         groupId: targetGroupId,
-        zone: WorkbenchDropZone.down,
+        zone: .down,
       ),
       throwsStateError,
     );

@@ -15,18 +15,12 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-class WorkspaceImagePreviewSurface extends ConsumerStatefulWidget {
-  const WorkspaceImagePreviewSurface({
-    super.key,
-    required this.workspace,
-    required this.tab,
-    required this.autofocus,
-  });
-
-  final Workspace workspace;
-  final WorkspaceTabRecord tab;
-  final bool autofocus;
-
+class const WorkspaceImagePreviewSurface({
+  super.key,
+  required final Workspace workspace,
+  required final WorkspaceTabRecord tab,
+  required final bool autofocus,
+}) extends ConsumerStatefulWidget {
   @override
   ConsumerState<WorkspaceImagePreviewSurface> createState() =>
       _WorkspaceImagePreviewSurfaceState();
@@ -99,7 +93,7 @@ class _WorkspaceImagePreviewSurfaceState
         child: DecoratedBox(
           decoration: const BoxDecoration(color: AleraTokens.bg),
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
+            crossAxisAlignment: .stretch,
             children: <Widget>[
               _ImagePreviewFileBar(path: displayPath),
               const Divider(height: 1, color: AleraTokens.borderSubtle),
@@ -224,11 +218,8 @@ class _WorkspaceImagePreviewSurfaceState
   }
 }
 
-class _ImagePreviewFileBar extends StatelessWidget {
-  const _ImagePreviewFileBar({required this.path});
-
-  final String path;
-
+class const _ImagePreviewFileBar({required final String path})
+    extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -238,17 +229,13 @@ class _ImagePreviewFileBar extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: AleraTokens.space8),
         child: Row(
           children: <Widget>[
-            AleraFileIcon(
-              pathOrName: path,
-              kind: AleraFileIconKind.file,
-              size: 16,
-            ),
+            AleraFileIcon(pathOrName: path, kind: .file, size: 16),
             const SizedBox(width: AleraTokens.space8),
             Expanded(
               child: Text(
                 path,
                 maxLines: 1,
-                overflow: TextOverflow.ellipsis,
+                overflow: .ellipsis,
                 style: theme.textTheme.bodySmall?.copyWith(
                   color: AleraTokens.foregroundMuted,
                   fontFamily: 'JetBrains Mono',
@@ -262,18 +249,16 @@ class _ImagePreviewFileBar extends StatelessWidget {
   }
 }
 
-class _ImagePreviewCanvas extends StatelessWidget {
-  const _ImagePreviewCanvas({required this.resolvedImage});
-
-  final _ResolvedPreviewImage resolvedImage;
-
+class const _ImagePreviewCanvas({
+  required final _ResolvedPreviewImage resolvedImage,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ClipRect(
       child: InteractiveViewer(
         minScale: 0.25,
         maxScale: 8,
-        boundaryMargin: const EdgeInsets.all(AleraTokens.space48),
+        boundaryMargin: const .all(AleraTokens.space48),
         child: Center(
           child: Padding(
             padding: const EdgeInsets.all(AleraTokens.space24),
@@ -284,7 +269,7 @@ class _ImagePreviewCanvas extends StatelessWidget {
                   resolvedImage.file,
                 ),
                 image: resolvedImage.provider,
-                fit: BoxFit.contain,
+                fit: .contain,
                 errorBuilder: (_, _, _) => const _ImagePreviewMessage(
                   message: 'Image cannot be opened',
                 ),
@@ -307,29 +292,24 @@ bool workspaceImagePreviewUsesIcoDecoderForTesting(String openedPath) {
   return isWorkspaceIcoFilePath(openedPath);
 }
 
-class _ResolvedPreviewImage {
-  const _ResolvedPreviewImage({required this.file, required this.provider});
-
-  final ResolvedWorkspaceFile file;
-  final ImageProvider<Object> provider;
-}
+class const _ResolvedPreviewImage({
+  required final ResolvedWorkspaceFile file,
+  required final ImageProvider<Object> provider,
+});
 
 @visibleForTesting
 Uint8List workspaceImagePreviewDecodeIcoToPngBytesForTesting(Uint8List bytes) {
   return decodeWorkspaceIcoToPngBytes(bytes);
 }
 
-class _ImagePreviewMessage extends StatelessWidget {
-  const _ImagePreviewMessage({required this.message});
-
-  final String message;
-
+class const _ImagePreviewMessage({required final String message})
+    extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Center(
       child: Text(
         message,
-        textAlign: TextAlign.center,
+        textAlign: .center,
         style: Theme.of(context).textTheme.bodyMedium
             ?.copyWith(color: AleraTokens.foregroundMuted),
       ),

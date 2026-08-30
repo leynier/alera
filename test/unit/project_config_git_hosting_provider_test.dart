@@ -5,9 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 void main() {
   group('ProjectConfig.gitHostingProvider serialization', () {
     test('round-trips through JSON', () {
-      const config = ProjectConfig(
-        gitHostingProvider: GitHostingProvider.azureDevops,
-      );
+      const config = ProjectConfig(gitHostingProvider: .azureDevops);
       final json = config.toMap();
       final restored = ProjectConfig.fromJson(json);
       expect(restored.gitHostingProvider, GitHostingProvider.azureDevops);
@@ -33,16 +31,12 @@ void main() {
     });
 
     test('a provider override makes the config non-empty', () {
-      const config = ProjectConfig(
-        gitHostingProvider: GitHostingProvider.github,
-      );
+      const config = ProjectConfig(gitHostingProvider: .github);
       expect(config.isEmpty, isFalse);
     });
 
     test('round-trips GitLab through JSON', () {
-      const config = ProjectConfig(
-        gitHostingProvider: GitHostingProvider.gitlab,
-      );
+      const config = ProjectConfig(gitHostingProvider: .gitlab);
       expect(
         ProjectConfig.fromJson(config.toMap()).gitHostingProvider,
         GitHostingProvider.gitlab,

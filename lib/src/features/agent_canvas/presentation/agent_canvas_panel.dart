@@ -27,28 +27,17 @@ typedef AgentCanvasSourceControlAction = Future<void> Function(
   Map<String, Object?> action,
 );
 
-class AgentCanvasPanel extends ConsumerStatefulWidget {
-  const AgentCanvasPanel({
-    super.key,
-    required this.workspace,
-    required this.onOpenFile,
-    required this.onOpenDiff,
-    required this.onFocusTerminal,
-    required this.onOpenPullRequest,
-    required this.onOpenArtifact,
-    required this.onSwitchContextPanel,
-    this.onSourceControlAction,
-  });
-
-  final Workspace workspace;
-  final AgentCanvasFileOpener onOpenFile;
-  final AgentCanvasPathOpener onOpenDiff;
-  final AgentCanvasTerminalFocuser onFocusTerminal;
-  final VoidCallback onOpenPullRequest;
-  final AgentCanvasArtifactOpener onOpenArtifact;
-  final ValueChanged<WorkbenchContextPanelTab> onSwitchContextPanel;
-  final AgentCanvasSourceControlAction? onSourceControlAction;
-
+class const AgentCanvasPanel({
+  super.key,
+  required final Workspace workspace,
+  required final AgentCanvasFileOpener onOpenFile,
+  required final AgentCanvasPathOpener onOpenDiff,
+  required final AgentCanvasTerminalFocuser onFocusTerminal,
+  required final VoidCallback onOpenPullRequest,
+  required final AgentCanvasArtifactOpener onOpenArtifact,
+  required final ValueChanged<WorkbenchContextPanelTab> onSwitchContextPanel,
+  final AgentCanvasSourceControlAction? onSourceControlAction,
+}) extends ConsumerStatefulWidget {
   @override
   ConsumerState<AgentCanvasPanel> createState() => _AgentCanvasPanelState();
 }
@@ -126,7 +115,7 @@ class _AgentCanvasPanelState extends ConsumerState<AgentCanvasPanel> {
     );
 
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+      crossAxisAlignment: .stretch,
       children: <Widget>[
         _PanelToolbar(
           showHistory: _showHistory,
@@ -146,7 +135,7 @@ class _AgentCanvasPanelState extends ConsumerState<AgentCanvasPanel> {
         else
           Expanded(
             child: Row(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
+              crossAxisAlignment: .stretch,
               children: <Widget>[
                 SizedBox(
                   width: AleraTokens.agentCanvasListWidth,
@@ -334,7 +323,7 @@ class _AgentCanvasPanelState extends ConsumerState<AgentCanvasPanel> {
           await widget.onOpenDiff(path);
         }
       case 'openSearch':
-        widget.onSwitchContextPanel(WorkbenchContextPanelTab.search);
+        widget.onSwitchContextPanel(.search);
       case 'focusTerminal':
         final sessionId = action['terminalSessionId'];
         widget.onFocusTerminal(

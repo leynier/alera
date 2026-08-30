@@ -8,24 +8,15 @@ import 'package:flutter/material.dart';
 ///
 /// Pass [destructive] when the action removes data; the primary button then
 /// uses the error background so the consequence is visually obvious.
-class AleraConfirmDialog extends StatelessWidget {
-  const AleraConfirmDialog({
-    super.key,
-    required this.title,
-    required this.message,
-    required this.confirmLabel,
-    this.cancelLabel = 'Cancel',
-    this.destructive = false,
-    this.confirmEnabled = true,
-  });
-
-  final String title;
-  final String message;
-  final String confirmLabel;
-  final String cancelLabel;
-  final bool destructive;
-  final bool confirmEnabled;
-
+class const AleraConfirmDialog({
+  super.key,
+  required final String title,
+  required final String message,
+  required final String confirmLabel,
+  final String cancelLabel = 'Cancel',
+  final bool destructive = false,
+  final bool confirmEnabled = true,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -40,8 +31,8 @@ class AleraConfirmDialog extends StatelessWidget {
       child: Padding(
         padding: const EdgeInsets.all(AleraTokens.space20),
         child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: .min,
+          crossAxisAlignment: .start,
           children: <Widget>[
             Text(title, style: theme.textTheme.titleMedium),
             const SizedBox(height: AleraTokens.space12),
@@ -57,11 +48,7 @@ class AleraConfirmDialog extends StatelessWidget {
                 Expanded(
                   child: TextButton(
                     onPressed: () => Navigator.of(context).pop(false),
-                    child: Text(
-                      cancelLabel,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
+                    child: Text(cancelLabel, maxLines: 1, overflow: .ellipsis),
                   ),
                 ),
                 const SizedBox(width: AleraTokens.space8),
@@ -71,11 +58,7 @@ class AleraConfirmDialog extends StatelessWidget {
                         ? () => Navigator.of(context).pop(true)
                         : null,
                     style: confirmStyle,
-                    child: Text(
-                      confirmLabel,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
+                    child: Text(confirmLabel, maxLines: 1, overflow: .ellipsis),
                   ),
                 ),
               ],

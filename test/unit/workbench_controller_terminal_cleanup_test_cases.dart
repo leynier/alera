@@ -34,7 +34,7 @@ void _registerWorkbenchControllerTerminalCleanupTests() {
           displayContent: 'original',
           contentToken: 'token',
           modifiedMillis: 0,
-          size: BigInt.zero,
+          size: .zero,
         ),
       )
       ..updateCurrentText('unsaved');
@@ -98,7 +98,7 @@ void _registerWorkbenchControllerTerminalCleanupTests() {
           displayContent: 'original',
           contentToken: 'token-1',
           modifiedMillis: 0,
-          size: BigInt.zero,
+          size: .zero,
         ),
       )
       ..updateCurrentText('edited');

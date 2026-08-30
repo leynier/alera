@@ -135,7 +135,7 @@ class CodexChatController extends _$CodexChatController {
       _threadGeneration += 1;
       state = _applyConfiguration(
         state.copyWith(
-          snapshot: CodexChatSnapshot.fromJson(response['snapshot']),
+          snapshot: .fromJson(response['snapshot']),
           historyNextCursor: null,
           recovery: null,
           error: null,

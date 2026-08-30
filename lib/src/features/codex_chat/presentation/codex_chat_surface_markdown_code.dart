@@ -1,16 +1,10 @@
 part of 'codex_chat_surface.dart';
 
-class _CodexMarkdownCodeBlock extends StatefulWidget {
-  const _CodexMarkdownCodeBlock({
-    required this.language,
-    required this.code,
-    required this.closed,
-  });
-
-  final String language;
-  final String code;
-  final bool closed;
-
+class const _CodexMarkdownCodeBlock({
+  required final String language,
+  required final String code,
+  required final bool closed,
+}) extends StatefulWidget {
   @override
   State<_CodexMarkdownCodeBlock> createState() =>
       _CodexMarkdownCodeBlockState();
@@ -47,7 +41,7 @@ class _CodexMarkdownCodeBlockState extends State<_CodexMarkdownCodeBlock> {
         borderRadius: BorderRadius.circular(AleraTokens.radiusMd),
       ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
+        crossAxisAlignment: .stretch,
         children: <Widget>[
           if (widget.language.trim().isNotEmpty || _hovered) ...<Widget>[
             Padding(
@@ -83,7 +77,7 @@ class _CodexMarkdownCodeBlockState extends State<_CodexMarkdownCodeBlock> {
             ),
           ],
           SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
+            scrollDirection: .horizontal,
             padding: const EdgeInsets.all(AleraTokens.space12),
             child: SelectableText.rich(
               _highlighted ??

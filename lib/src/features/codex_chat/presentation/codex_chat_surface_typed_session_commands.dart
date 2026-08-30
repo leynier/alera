@@ -1,27 +1,21 @@
 part of 'codex_chat_surface.dart';
 
-enum _TypedSessionCommandKind {
+enum _TypedSessionCommandKind(final String token) {
   goal('goal'),
   rename('rename'),
   newThread('new'),
   clear('clear'),
-  resume('resume');
-
-  const _TypedSessionCommandKind(this.token);
-
-  final String token;
+  resume('resume'),
 }
 
-final class _TypedSessionCommand {
-  const _TypedSessionCommand({required this.kind, required this.argument});
-
+final class const _TypedSessionCommand({
+  required final _TypedSessionCommandKind kind,
+  required final String? argument,
+}) {
   static final RegExp _pattern = RegExp(
     r'^/(goal|rename|new|clear|resume)(?:\s+(.+))?$',
     caseSensitive: false,
   );
-
-  final _TypedSessionCommandKind kind;
-  final String? argument;
 
   bool get hasArgument => argument != null && argument!.isNotEmpty;
 
@@ -90,9 +84,9 @@ extension _CodexTypedSessionCommands on _CodexChatSurfaceState {
   ) async {
     switch (command.argument?.toLowerCase()) {
       case 'pause':
-        await controller.updateGoalStatus(CodexThreadGoalStatus.paused);
+        await controller.updateGoalStatus(.paused);
       case 'resume':
-        await controller.updateGoalStatus(CodexThreadGoalStatus.active);
+        await controller.updateGoalStatus(.active);
       case 'clear':
         await controller.clearGoal();
       case 'edit':

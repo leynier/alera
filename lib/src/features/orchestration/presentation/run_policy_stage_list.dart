@@ -4,16 +4,15 @@ import 'package:flutter/material.dart';
 
 /// Read-only rendering of a plan: its stages, the preferred profile per stage,
 /// and the fallbacks the run may use.
-class RunPolicyStageList extends StatelessWidget {
-  const RunPolicyStageList({super.key, required this.policy});
-
-  final RunExecutionPolicy policy;
-
+class const RunPolicyStageList({
+  super.key,
+  required final RunExecutionPolicy policy,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: .start,
       children: <Widget>[
         Row(
           children: <Widget>[
@@ -21,10 +20,10 @@ class RunPolicyStageList extends StatelessWidget {
               child: Text(
                 policy.runId,
                 maxLines: 1,
-                overflow: TextOverflow.ellipsis,
+                overflow: .ellipsis,
                 style: theme.textTheme.bodyMedium?.copyWith(
                   color: AleraTokens.foreground,
-                  fontWeight: FontWeight.w600,
+                  fontWeight: .w600,
                 ),
               ),
             ),

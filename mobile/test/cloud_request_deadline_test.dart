@@ -108,7 +108,7 @@ class _ProxyFailureClient extends http.BaseClient {
   @override
   Future<http.StreamedResponse> send(http.BaseRequest request) async =>
       http.StreamedResponse(
-        Stream.value(utf8.encode('<html>Temporarily unavailable</html>')),
+        .value(utf8.encode('<html>Temporarily unavailable</html>')),
         503,
         headers: {'retry-after': '90'},
       );

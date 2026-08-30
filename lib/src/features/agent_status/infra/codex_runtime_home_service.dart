@@ -1,7 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:alera/src/features/agent_status/domain/agent_status.dart';
 import 'package:alera/src/features/agent_status/infra/agent_hook_endpoint_file.dart';
 import 'package:alera/src/features/agent_status/infra/managed_agent_hook_installer.dart';
 import 'package:alera/src/shared/infra/files/posix_file_mode.dart';
@@ -25,34 +24,29 @@ typedef CodexResourceLinkCreator = void Function({
   required String targetPath,
 });
 
-final class CodexRuntimeHomePreparation {
-  const CodexRuntimeHomePreparation({
-    required this.runtimeHomePath,
-    required this.environment,
-    required this.hookStatus,
-  });
+final class const CodexRuntimeHomePreparation({
+  required final String runtimeHomePath,
+  required final Map<String, String> environment,
+  required final ManagedAgentHookInstallStatus hookStatus,
+});
 
-  final String runtimeHomePath;
-  final Map<String, String> environment;
-  final ManagedAgentHookInstallStatus hookStatus;
-}
-
-final class CodexRuntimeHomeService {
-  CodexRuntimeHomeService({
-    String? homeDirectory,
-    CodexApplicationSupportDirectoryResolver? applicationSupportDirectory,
-    ManagedAgentHookPlatform? platform,
-    Map<String, String>? environment,
-    @visibleForTesting CodexResourceLinkCreator? resourceLinkCreator,
-  }) : _homeDirectory = homeDirectory ?? _resolveHome(environment),
-       _applicationSupportDirectory =
-           applicationSupportDirectory ?? getApplicationSupportDirectory,
-       _platform =
-           platform ??
-           (Platform.isWindows
-               ? ManagedAgentHookPlatform.windows
-               : ManagedAgentHookPlatform.posix),
-       _resourceLinkCreator = resourceLinkCreator ?? _createResourceLink;
+final class CodexRuntimeHomeService({
+  String? homeDirectory,
+  CodexApplicationSupportDirectoryResolver? applicationSupportDirectory,
+  ManagedAgentHookPlatform? platform,
+  Map<String, String>? environment,
+  @visibleForTesting CodexResourceLinkCreator? resourceLinkCreator,
+}) {
+  this
+    : _homeDirectory = homeDirectory ?? _resolveHome(environment),
+      _applicationSupportDirectory =
+          applicationSupportDirectory ?? getApplicationSupportDirectory,
+      _platform =
+          platform ??
+          (Platform.isWindows
+              ? ManagedAgentHookPlatform.windows
+              : ManagedAgentHookPlatform.posix),
+      _resourceLinkCreator = resourceLinkCreator ?? _createResourceLink;
 
   final String _homeDirectory;
   final CodexApplicationSupportDirectoryResolver _applicationSupportDirectory;
@@ -81,8 +75,8 @@ final class CodexRuntimeHomeService {
     final config = _readJsonObject(descriptor.configPath);
     if (config == null) {
       return ManagedAgentHookInstallStatus(
-        agentType: AgentType.codex,
-        state: ManagedAgentHookInstallState.error,
+        agentType: .codex,
+        state: .error,
         configPath: descriptor.configPath,
         managedHooksPresent: false,
         detail: 'Could not parse Codex runtime hooks.json.',
@@ -136,16 +130,16 @@ final class CodexRuntimeHomeService {
 
     if (presentCount == 0) {
       return ManagedAgentHookInstallStatus(
-        agentType: AgentType.codex,
-        state: ManagedAgentHookInstallState.notInstalled,
+        agentType: .codex,
+        state: .notInstalled,
         configPath: descriptor.configPath,
         managedHooksPresent: false,
       );
     }
     if (missing.isEmpty && trustMissing.isEmpty && disabled.isEmpty) {
       return ManagedAgentHookInstallStatus(
-        agentType: AgentType.codex,
-        state: ManagedAgentHookInstallState.installed,
+        agentType: .codex,
+        state: .installed,
         configPath: descriptor.configPath,
         managedHooksPresent: true,
       );
@@ -159,8 +153,8 @@ final class CodexRuntimeHomeService {
         'Managed hook disabled for events: ${disabled.join(', ')}.',
     ];
     return ManagedAgentHookInstallStatus(
-      agentType: AgentType.codex,
-      state: ManagedAgentHookInstallState.partial,
+      agentType: .codex,
+      state: .partial,
       configPath: descriptor.configPath,
       managedHooksPresent: true,
       detail: details.join(' '),
@@ -178,8 +172,8 @@ final class CodexRuntimeHomeService {
     final runtimeConfig = _readJsonObject(descriptor.configPath);
     if (runtimeConfig == null) {
       return ManagedAgentHookInstallStatus(
-        agentType: AgentType.codex,
-        state: ManagedAgentHookInstallState.error,
+        agentType: .codex,
+        state: .error,
         configPath: descriptor.configPath,
         managedHooksPresent: false,
         detail: 'Could not parse Codex runtime hooks.json.',
@@ -239,8 +233,8 @@ final class CodexRuntimeHomeService {
     final config = _readJsonObject(descriptor.configPath);
     if (config == null) {
       return ManagedAgentHookInstallStatus(
-        agentType: AgentType.codex,
-        state: ManagedAgentHookInstallState.error,
+        agentType: .codex,
+        state: .error,
         configPath: descriptor.configPath,
         managedHooksPresent: false,
         detail: 'Could not parse Codex runtime hooks.json.',
@@ -352,82 +346,48 @@ const Map<String, String> _codexEventLabels = <String, String>{
 
 String _codexEventLabel(String eventName) => _codexEventLabels[eventName]!;
 
-final class _CodexRuntimeHookDescriptor {
-  const _CodexRuntimeHookDescriptor({
-    required this.configPath,
-    required this.tomlPath,
-    required this.systemConfigPath,
-    required this.systemTomlPath,
-    required this.scriptPath,
-    required this.managedScriptFileNames,
-  });
+final class const _CodexRuntimeHookDescriptor({
+  required final String configPath,
+  required final String tomlPath,
+  required final String systemConfigPath,
+  required final String systemTomlPath,
+  required final String scriptPath,
+  required final Set<String> managedScriptFileNames,
+});
 
-  final String configPath;
-  final String tomlPath;
-  final String systemConfigPath;
-  final String systemTomlPath;
-  final String scriptPath;
-  final Set<String> managedScriptFileNames;
-}
+final class const _RuntimeHookPlan(
+  final Map<String, Object?> hooks,
+  final List<_MirroredRuntimeUserHookTrustEntry> trustEntries,
+);
 
-final class _RuntimeHookPlan {
-  const _RuntimeHookPlan(this.hooks, this.trustEntries);
+final class const _CodexHookTrustEntry({
+  required final String sourcePath,
+  required final String eventLabel,
+  required final int groupIndex,
+  required final int handlerIndex,
+  required final String command,
+  final int? timeoutSec,
+  final bool? async,
+  final String? matcher,
+  final String? statusMessage,
+});
 
-  final Map<String, Object?> hooks;
-  final List<_MirroredRuntimeUserHookTrustEntry> trustEntries;
-}
+final class const _CodexHookTrustState({
+  final String? trustedHash,
+  final bool? enabled,
+});
 
-final class _CodexHookTrustEntry {
-  const _CodexHookTrustEntry({
-    required this.sourcePath,
-    required this.eventLabel,
-    required this.groupIndex,
-    required this.handlerIndex,
-    required this.command,
-    this.timeoutSec,
-    this.async,
-    this.matcher,
-    this.statusMessage,
-  });
+final class const _ParsedTrustKey({
+  required final String sourcePath,
+  required final String eventLabel,
+});
 
-  final String sourcePath;
-  final String eventLabel;
-  final int groupIndex;
-  final int handlerIndex;
-  final String command;
-  final int? timeoutSec;
-  final bool? async;
-  final String? matcher;
-  final String? statusMessage;
-}
+final class const _MirroredRuntimeUserHookTrustEntry(
+  final _CodexHookTrustEntry entry,
+  final bool enabled,
+);
 
-final class _CodexHookTrustState {
-  const _CodexHookTrustState({this.trustedHash, this.enabled});
-
-  final String? trustedHash;
-  final bool? enabled;
-}
-
-final class _ParsedTrustKey {
-  const _ParsedTrustKey({required this.sourcePath, required this.eventLabel});
-
-  final String sourcePath;
-  final String eventLabel;
-}
-
-final class _MirroredRuntimeUserHookTrustEntry {
-  const _MirroredRuntimeUserHookTrustEntry(this.entry, this.enabled);
-
-  final _CodexHookTrustEntry entry;
-  final bool enabled;
-}
-
-final class _CopiedResourceMarker {
-  const _CopiedResourceMarker({
-    required this.sourcePath,
-    required this.sourceFingerprint,
-  });
-
-  final String sourcePath;
-  final String? sourceFingerprint;
-}
+final class const _CopiedResourceMarker({
+  required final String sourcePath,
+  required final String? sourceFingerprint,
+});

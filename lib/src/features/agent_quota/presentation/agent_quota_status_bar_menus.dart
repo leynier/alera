@@ -1,20 +1,12 @@
 part of 'agent_quota_status_bar_content.dart';
 
-class _QuotaProviderSummary extends StatelessWidget {
-  const _QuotaProviderSummary({
-    required this.snapshot,
-    required this.profileLabel,
-    required this.compact,
-    required this.hostId,
-    this.actions = const AgentQuotaInlineActions(),
-  });
-
-  final AgentQuotaSnapshot snapshot;
-  final String? profileLabel;
-  final bool compact;
-  final String hostId;
-  final AgentQuotaInlineActions actions;
-
+class const _QuotaProviderSummary({
+  required final AgentQuotaSnapshot snapshot,
+  required final String? profileLabel,
+  required final bool compact,
+  required final String hostId,
+  final AgentQuotaInlineActions actions = const AgentQuotaInlineActions(),
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final readings = _quotaReadings(snapshot);
@@ -39,7 +31,7 @@ class _QuotaProviderSummary extends StatelessWidget {
             border: Border(right: BorderSide(color: AleraTokens.borderSubtle)),
           ),
           child: Row(
-            mainAxisSize: MainAxisSize.min,
+            mainAxisSize: .min,
             children: <Widget>[
               AgentQuotaProviderIcon(
                 provider: snapshot.provider,
@@ -53,7 +45,7 @@ class _QuotaProviderSummary extends StatelessWidget {
                   style: AleraTokens.monoStyle.copyWith(
                     fontSize: compact ? 8 : 9,
                     color: AleraTokens.foregroundMuted,
-                    fontWeight: FontWeight.w600,
+                    fontWeight: .w600,
                   ),
                 ),
               ],
@@ -86,31 +78,18 @@ class _QuotaProviderSummary extends StatelessWidget {
   }
 }
 
-class _CollapsedQuotaBar extends StatelessWidget {
-  const _CollapsedQuotaBar({
-    required this.hostId,
-    this.actions = const AgentQuotaInlineActions(),
-    required this.snapshots,
-    required this.settings,
-    required this.loading,
-    required this.error,
-    required this.onRefresh,
-    required this.onTogglePinned,
-    this.onOpenUsage,
-    this.trailing,
-  });
-
-  final String hostId;
-  final AgentQuotaInlineActions actions;
-  final List<AgentQuotaSnapshot> snapshots;
-  final AgentQuotaHostSettings settings;
-  final bool loading;
-  final String? error;
-  final VoidCallback onRefresh;
-  final AgentQuotaPinToggle onTogglePinned;
-  final VoidCallback? onOpenUsage;
-  final Widget? trailing;
-
+class const _CollapsedQuotaBar({
+  required final String hostId,
+  final AgentQuotaInlineActions actions = const AgentQuotaInlineActions(),
+  required final List<AgentQuotaSnapshot> snapshots,
+  required final AgentQuotaHostSettings settings,
+  required final bool loading,
+  required final String? error,
+  required final VoidCallback onRefresh,
+  required final AgentQuotaPinToggle onTogglePinned,
+  final VoidCallback? onOpenUsage,
+  final Widget? trailing,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final semanticsLabel = snapshots.isEmpty
@@ -167,7 +146,7 @@ class _CollapsedQuotaBar extends StatelessWidget {
                             ? 'Refreshing quotas'
                             : '${snapshots.length} agent quotas - '
                                   '${hostId == 'local' ? 'Local' : hostId}',
-                        overflow: TextOverflow.ellipsis,
+                        overflow: .ellipsis,
                         style: AleraTokens.monoStyle.copyWith(fontSize: 10),
                       ),
                     ),
@@ -184,12 +163,10 @@ class _CollapsedQuotaBar extends StatelessWidget {
   }
 }
 
-class _QuotaRefreshButton extends StatefulWidget {
-  const _QuotaRefreshButton({required this.loading, required this.onRefresh});
-
-  final bool loading;
-  final VoidCallback onRefresh;
-
+class const _QuotaRefreshButton({
+  required final bool loading,
+  required final VoidCallback onRefresh,
+}) extends StatefulWidget {
   @override
   State<_QuotaRefreshButton> createState() => _QuotaRefreshButtonState();
 }
@@ -234,7 +211,7 @@ class _QuotaRefreshButtonState extends State<_QuotaRefreshButton>
           : 'Refresh Quotas - Automatically Refreshes Every 5 Minutes',
       onPressed: widget.loading ? null : widget.onRefresh,
       iconSize: 13,
-      visualDensity: VisualDensity.compact,
+      visualDensity: .compact,
       color: AleraTokens.foregroundMuted,
       disabledColor: AleraTokens.foregroundFaint,
       icon: RotationTransition(
@@ -322,7 +299,7 @@ String _normalizeQuotaText(String value) {
 
 String? _resetText(DateTime? resetsAt, String? description) {
   if (resetsAt != null) {
-    return 'Resets in ${_compactResetDuration(resetsAt.difference(DateTime.now()))}';
+    return 'Resets in ${_compactResetDuration(resetsAt.difference(.now()))}';
   }
   if (description != null && description.trim().isNotEmpty) {
     final duration = _durationFromResetDescription(description);

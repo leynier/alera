@@ -19,7 +19,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'fake_recording_process_runner.dart';
 
 const _identity = GitRemoteIdentity(
-  provider: GitHostingProvider.gitlab,
+  provider: .gitlab,
   host: 'gitlab.acme.test:8443',
   owner: 'platform/mobile',
   repo: 'alera',
@@ -224,7 +224,7 @@ ${_reviewJson.trim()}
           repoPath: '/repo',
           number: 42,
           locator: const ReviewCommentLocator(
-            source: ReviewCommentSource.conversation,
+            source: .conversation,
             commentId: '7',
           ),
           body: '- [x] exact',
@@ -247,7 +247,7 @@ ${_reviewJson.trim()}
           repoPath: '/repo',
           number: 42,
           locator: const ReviewCommentLocator(
-            source: ReviewCommentSource.reviewThread,
+            source: .reviewThread,
             commentId: '8',
             parentId: 'discussion-1',
           ),
@@ -275,7 +275,7 @@ ${_reviewJson.trim()}
         identity: _identity,
         repoPath: '/repo',
         input: const CreateReviewInput(
-          provider: GitHostingProvider.gitlab,
+          provider: .gitlab,
           title: 'feat: gitlab',
           baseBranch: 'main',
           headBranch: 'feature',
@@ -339,7 +339,7 @@ ${_reviewJson.trim()}
           identity: _identity,
           repoPath: '/repo',
           number: 42,
-          method: ReviewMergeMethod.rebase,
+          method: .rebase,
         ),
         throwsA(isA<ForgeRequestFailed>()),
       );

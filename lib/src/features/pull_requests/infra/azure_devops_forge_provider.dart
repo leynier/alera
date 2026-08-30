@@ -28,13 +28,9 @@ part 'azure_devops_review_comments.dart';
 /// [ForgeProvider] for Azure DevOps, wrapping the official `az` CLI (with the
 /// `azure-devops` extension). Authentication relies on `az login`. Checks are
 /// derived from PR policy evaluations.
-class AzureDevOpsForgeProvider
+class const AzureDevOpsForgeProvider(final ProcessRunner _processRunner)
     with _AzureDevOpsReviewActions, _AzureDevOpsReviewComments
     implements ForgeProvider {
-  const AzureDevOpsForgeProvider(this._processRunner);
-
-  final ProcessRunner _processRunner;
-
   @override
   GitHostingProvider get id => GitHostingProvider.azureDevops;
 
@@ -106,7 +102,7 @@ class AzureDevOpsForgeProvider
     final project = identity.project;
     if (input.baseBranch != null && (project == null || project.isEmpty)) {
       return const UpdateReviewFailure(
-        code: UpdateReviewErrorCode.blocked,
+        code: .blocked,
         message:
             'The Azure DevOps project could not be determined from the '
             'remote.',
@@ -142,7 +138,7 @@ class AzureDevOpsForgeProvider
     );
     if (review == null) {
       return const UpdateReviewFailure(
-        code: UpdateReviewErrorCode.unknown,
+        code: .unknown,
         message: 'The pull request was updated but could not be read back.',
       );
     }
@@ -172,7 +168,7 @@ class AzureDevOpsForgeProvider
       ], workingDirectory: repoPath);
     } catch (_) {
       return const UpdateReviewFailure(
-        code: UpdateReviewErrorCode.cliMissing,
+        code: .cliMissing,
         message: 'The az CLI was not found on PATH.',
       );
     }
@@ -234,7 +230,7 @@ class AzureDevOpsForgeProvider
       } catch (_) {
         return annotate(
           const UpdateReviewFailure(
-            code: UpdateReviewErrorCode.cliMissing,
+            code: .cliMissing,
             message: 'The az CLI was not found on PATH.',
           ),
         );
@@ -404,7 +400,7 @@ class AzureDevOpsForgeProvider
       ], workingDirectory: repoPath);
     } catch (_) {
       return const CreateReviewFailure(
-        code: CreateReviewErrorCode.cliMissing,
+        code: .cliMissing,
         message: 'The az CLI was not found on PATH.',
       );
     }
@@ -416,7 +412,7 @@ class AzureDevOpsForgeProvider
       return CreateReviewSuccess(mapAzureReview(identity, decoded));
     }
     return const CreateReviewFailure(
-      code: CreateReviewErrorCode.unknown,
+      code: .unknown,
       message: 'The pull request was created but could not be read back.',
     );
   }

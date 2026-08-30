@@ -5,7 +5,7 @@ import 'package:alera/src/features/workbench/domain/workbench_view_prefs.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-final DateTime _now = DateTime.utc(2026, 7, 16);
+final DateTime _now = .utc(2026, 7, 16);
 
 Project _project(String id) {
   return Project(
@@ -32,8 +32,8 @@ Workspace _workspace(
     path: '/repo/$projectId/$id',
     createdAt: _now,
     updatedAt: _now,
-    kind: WorkspaceKind.linked,
-    status: WorkspaceStatus.active,
+    kind: .linked,
+    status: .active,
     isPinned: isPinned,
     parentWorkspaceId: parentWorkspaceId,
   );
@@ -176,9 +176,7 @@ void main() {
     test(
       'group by none adds a collapsible all section after the pinned copies',
       () {
-        final prefs = WorkbenchViewPrefs.defaults.copyWith(
-          groupBy: WorkbenchGroupBy.none,
-        );
+        final prefs = WorkbenchViewPrefs.defaults.copyWith(groupBy: .none);
         final rows = buildSidebarRows(_state(prefs: prefs));
 
         final pinnedHeader = rows.first as WorkbenchPinnedHeaderRow;
@@ -209,7 +207,7 @@ void main() {
 
     test('flat list can exclude pinned workspaces from All', () {
       final prefs = WorkbenchViewPrefs.defaults.copyWith(
-        groupBy: WorkbenchGroupBy.none,
+        groupBy: .none,
         showPinnedWorkspacesBelow: false,
       );
       final rows = buildSidebarRows(_state(prefs: prefs));
@@ -231,7 +229,7 @@ void main() {
       'flat list omits an empty All section when every workspace is pinned',
       () {
         final prefs = WorkbenchViewPrefs.defaults.copyWith(
-          groupBy: WorkbenchGroupBy.none,
+          groupBy: .none,
           showPinnedWorkspacesBelow: false,
         );
         final project = _project('alera');
@@ -259,7 +257,7 @@ void main() {
 
     test('collapsed pinned section keeps the headers and drops the copies', () {
       final prefs = WorkbenchViewPrefs.defaults.copyWith(
-        groupBy: WorkbenchGroupBy.none,
+        groupBy: .none,
         pinnedSectionCollapsed: true,
       );
       final rows = buildSidebarRows(_state(prefs: prefs));
@@ -278,7 +276,7 @@ void main() {
       'collapsed all section keeps pinned copies and drops the flat list',
       () {
         final prefs = WorkbenchViewPrefs.defaults.copyWith(
-          groupBy: WorkbenchGroupBy.none,
+          groupBy: .none,
           allSectionCollapsed: true,
         );
         final rows = buildSidebarRows(_state(prefs: prefs));
@@ -316,9 +314,7 @@ void main() {
     );
 
     test('flat list without pinned workspaces has no section headers', () {
-      final prefs = WorkbenchViewPrefs.defaults.copyWith(
-        groupBy: WorkbenchGroupBy.none,
-      );
+      final prefs = WorkbenchViewPrefs.defaults.copyWith(groupBy: .none);
       final rows = buildSidebarRows(_state(prefs: prefs, pinFeature: false));
 
       expect(rows.whereType<WorkbenchPinnedHeaderRow>(), isEmpty);

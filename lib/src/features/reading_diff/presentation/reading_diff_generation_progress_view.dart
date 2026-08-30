@@ -2,18 +2,12 @@ import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/features/reading_diff/application/reading_diff_generation_progress.dart';
 import 'package:flutter/material.dart';
 
-class ReadingDiffGenerationProgressView extends StatelessWidget {
-  const ReadingDiffGenerationProgressView({
-    super.key,
-    required this.progress,
-    this.agentLabel,
-    this.model,
-  });
-
-  final ReadingDiffGenerationProgress progress;
-  final String? agentLabel;
-  final String? model;
-
+class const ReadingDiffGenerationProgressView({
+  super.key,
+  required final ReadingDiffGenerationProgress progress,
+  final String? agentLabel,
+  final String? model,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final detail = <String>[?agentLabel, ?model].join(' · ');
@@ -34,7 +28,7 @@ class ReadingDiffGenerationProgressView extends StatelessWidget {
             const SizedBox(width: AleraTokens.space8),
             Expanded(
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+                crossAxisAlignment: .start,
                 children: <Widget>[
                   Text(
                     progress.label,
@@ -51,7 +45,7 @@ class ReadingDiffGenerationProgressView extends StatelessWidget {
                     Text(
                       detail,
                       maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+                      overflow: .ellipsis,
                       style: Theme.of(context).textTheme.labelSmall?.copyWith(
                         color: AleraTokens.foregroundMuted,
                         fontFamily: 'JetBrains Mono',

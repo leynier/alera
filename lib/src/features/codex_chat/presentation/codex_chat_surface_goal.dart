@@ -1,20 +1,12 @@
 part of 'codex_chat_surface.dart';
 
-class _CodexGoalBar extends StatefulWidget {
-  const _CodexGoalBar({
-    required this.goal,
-    required this.turnActive,
-    required this.onEdit,
-    required this.onPauseResume,
-    required this.onClear,
-  });
-
-  final CodexThreadGoal goal;
-  final bool turnActive;
-  final VoidCallback onEdit;
-  final VoidCallback? onPauseResume;
-  final VoidCallback onClear;
-
+class const _CodexGoalBar({
+  required final CodexThreadGoal goal,
+  required final bool turnActive,
+  required final VoidCallback onEdit,
+  required final VoidCallback? onPauseResume,
+  required final VoidCallback onClear,
+}) extends StatefulWidget {
   @override
   State<_CodexGoalBar> createState() => _CodexGoalBarState();
 }
@@ -102,7 +94,7 @@ class _CodexGoalBarState extends State<_CodexGoalBar> {
                   _goalStatusLabel(widget.goal.status),
                   style: Theme.of(context).textTheme.labelMedium?.copyWith(
                     color: AleraTokens.foreground,
-                    fontWeight: FontWeight.w600,
+                    fontWeight: .w600,
                   ),
                 ),
                 const SizedBox(width: AleraTokens.space6),
@@ -110,7 +102,7 @@ class _CodexGoalBarState extends State<_CodexGoalBar> {
                   child: Text(
                     widget.goal.objective,
                     maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
+                    overflow: .ellipsis,
                     style: Theme.of(context).textTheme.bodySmall
                         ?.copyWith(color: AleraTokens.foregroundMuted),
                   ),
@@ -152,22 +144,16 @@ class _CodexGoalBarState extends State<_CodexGoalBar> {
   }
 }
 
-class _CodexGoalAction extends StatelessWidget {
-  const _CodexGoalAction({
-    super.key,
-    required this.tooltip,
-    required this.icon,
-    required this.onPressed,
-  });
-
-  final String tooltip;
-  final IconData icon;
-  final VoidCallback? onPressed;
-
+class const _CodexGoalAction({
+  super.key,
+  required final String tooltip,
+  required final IconData icon,
+  required final VoidCallback? onPressed,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) => IconButton(
     tooltip: tooltip,
-    visualDensity: VisualDensity.compact,
+    visualDensity: .compact,
     iconSize: AleraTokens.iconMd,
     color: AleraTokens.foregroundMuted,
     onPressed: onPressed,
@@ -212,11 +198,8 @@ Future<String?> _showCodexGoalEditor(
   );
 }
 
-class _CodexGoalEditDialog extends StatefulWidget {
-  const _CodexGoalEditDialog({required this.initialObjective});
-
-  final String initialObjective;
-
+class const _CodexGoalEditDialog({required final String initialObjective})
+    extends StatefulWidget {
   @override
   State<_CodexGoalEditDialog> createState() => _CodexGoalEditDialogState();
 }
@@ -247,8 +230,8 @@ class _CodexGoalEditDialogState extends State<_CodexGoalEditDialog> {
       child: Padding(
         padding: const EdgeInsets.all(AleraTokens.space20),
         child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
+          mainAxisSize: .min,
+          crossAxisAlignment: .stretch,
           children: <Widget>[
             Row(
               children: <Widget>[
@@ -290,7 +273,7 @@ class _CodexGoalEditDialogState extends State<_CodexGoalEditDialog> {
             ),
             const SizedBox(height: AleraTokens.space12),
             Row(
-              mainAxisAlignment: MainAxisAlignment.end,
+              mainAxisAlignment: .end,
               children: <Widget>[
                 TextButton(
                   onPressed: () => Navigator.of(context).pop(),

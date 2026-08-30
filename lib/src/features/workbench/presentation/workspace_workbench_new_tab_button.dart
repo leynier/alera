@@ -2,41 +2,34 @@ part of 'workspace_workbench_view.dart';
 
 enum _NewTabMenuAction { terminal, codex, browser, mobileEmulator }
 
-class _NewTabButton extends StatelessWidget {
-  const _NewTabButton({
-    required this.groupId,
-    required this.onCreateTab,
-    required this.onCreateBrowserTab,
-    required this.onCreateCodexTab,
-  });
-
-  final String groupId;
-  final VoidCallback onCreateTab;
-  final VoidCallback? onCreateBrowserTab;
-  final VoidCallback? onCreateCodexTab;
-
+class const _NewTabButton({
+  required final String groupId,
+  required final VoidCallback onCreateTab,
+  required final VoidCallback? onCreateBrowserTab,
+  required final VoidCallback? onCreateCodexTab,
+}) extends StatelessWidget {
   Future<void> _openMenu(BuildContext context) async {
     final onOpenMobileEmulator = _MobileEmulatorOpenScope.maybeOf(context);
     final button = context.findRenderObject()! as RenderBox;
     final overlay =
         Navigator.of(context).overlay!.context.findRenderObject()! as RenderBox;
     final topLeft = button.localToGlobal(
-      button.size.bottomLeft(Offset.zero),
+      button.size.bottomLeft(.zero),
       ancestor: overlay,
     );
     final bottomRight = button.localToGlobal(
-      button.size.bottomRight(Offset.zero),
+      button.size.bottomRight(.zero),
       ancestor: overlay,
     );
     final selected = await showMenu<_NewTabMenuAction>(
       context: context,
-      position: RelativeRect.fromRect(
-        Rect.fromPoints(topLeft, bottomRight),
+      position: .fromRect(
+        .fromPoints(topLeft, bottomRight),
         Offset.zero & overlay.size,
       ),
       items: <PopupMenuEntry<_NewTabMenuAction>>[
         const AleraDropdownEntry<_NewTabMenuAction>(
-          value: _NewTabMenuAction.terminal,
+          value: .terminal,
           label: 'New Terminal',
           leading: Icon(
             AleraIcons.terminal,
@@ -46,12 +39,12 @@ class _NewTabButton extends StatelessWidget {
         ),
         if (onCreateCodexTab != null)
           const AleraDropdownEntry<_NewTabMenuAction>(
-            value: _NewTabMenuAction.codex,
+            value: .codex,
             label: 'New Codex Chat',
             leading: ExcludeSemantics(
               child: AgentIdentityIcon(
                 key: ValueKey<String>('new-tab-codex-icon'),
-                agentType: AgentType.codex,
+                agentType: .codex,
                 size: 16,
                 color: AleraTokens.foregroundMuted,
                 showTooltip: false,
@@ -60,7 +53,7 @@ class _NewTabButton extends StatelessWidget {
           ),
         if (onCreateBrowserTab != null)
           const AleraDropdownEntry<_NewTabMenuAction>(
-            value: _NewTabMenuAction.browser,
+            value: .browser,
             label: 'New Browser Tab',
             leading: Icon(
               AleraIcons.public,
@@ -69,7 +62,7 @@ class _NewTabButton extends StatelessWidget {
             ),
           ),
         AleraDropdownEntry<_NewTabMenuAction>(
-          value: _NewTabMenuAction.mobileEmulator,
+          value: .mobileEmulator,
           label: 'New Mobile Emulator',
           enabled: onOpenMobileEmulator != null,
           leading: const Icon(

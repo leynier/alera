@@ -10,7 +10,7 @@ Future<void> main(List<String> args) async {
     final options = _Options.parse(args);
     final manifest = NativeHelperManifest.read(File(options.manifestPath));
     await NativeHelperMaterializer(
-      repositoryRoot: Directory.current,
+      repositoryRoot: .current,
       manifest: manifest,
     ).prepare(
       platform: options.platform,
@@ -28,16 +28,14 @@ Future<void> main(List<String> args) async {
   }
 }
 
-final class _Options {
-  _Options({
-    required this.platform,
-    required this.outputPath,
-    required this.cachePath,
-    required this.manifestPath,
-    required this.offline,
-  });
-
-  factory _Options.parse(List<String> args) {
+final class _Options({
+  required final String platform,
+  required final String outputPath,
+  required final String cachePath,
+  required final String manifestPath,
+  required final bool offline,
+}) {
+  factory parse(List<String> args) {
     final values = <String, String>{};
     var offline = false;
     for (var index = 0; index < args.length; index += 1) {
@@ -69,10 +67,4 @@ final class _Options {
       offline: offline,
     );
   }
-
-  final String platform;
-  final String outputPath;
-  final String cachePath;
-  final String manifestPath;
-  final bool offline;
 }

@@ -7,24 +7,15 @@ import 'package:alera_mobile/src/features/ai_dictation/application/mobile_ai_dic
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-class MobileAiDictationControl extends ConsumerWidget {
-  const MobileAiDictationControl({
-    super.key,
-    required this.hostId,
-    required this.targetKey,
-    required this.controller,
-    this.workspaceId,
-    this.tabId,
-    this.enabled = true,
-  });
-
-  final String hostId;
-  final String targetKey;
-  final TextEditingController controller;
-  final String? workspaceId;
-  final String? tabId;
-  final bool enabled;
-
+class const MobileAiDictationControl({
+  super.key,
+  required final String hostId,
+  required final String targetKey,
+  required final TextEditingController controller,
+  final String? workspaceId,
+  final String? tabId,
+  final bool enabled = true,
+}) extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final settings = ref.watch(mobileAiDictationSettingsControllerProvider);
@@ -95,8 +86,8 @@ class MobileAiDictationControl extends ConsumerWidget {
     final end = selection.isValid ? selection.end : value.text.length;
     controller.value = value.copyWith(
       text: value.text.replaceRange(start, end, text),
-      selection: TextSelection.collapsed(offset: start + text.length),
-      composing: TextRange.empty,
+      selection: .collapsed(offset: start + text.length),
+      composing: .empty,
     );
   }
 }

@@ -113,7 +113,7 @@ Body line.
           files: <GitRangeFile>[
             GitRangeFile(
               path: 'lib/foo.dart',
-              status: GitChangeStatus.modified,
+              status: .modified,
               added: 2,
               removed: 1,
             ),
@@ -130,9 +130,9 @@ Body line.
 
       final result = await service.generate(
         const AiAssistRequest(
-          operation: AiAssistOperation.pullRequestDetails,
+          operation: .pullRequestDetails,
           workspacePath: '/repo',
-          settings: AiAssistSettings(agent: AiAssistAgent.agy),
+          settings: AiAssistSettings(agent: .agy),
           baseBranch: 'main',
           headBranch: 'feature/ai-pr',
         ),
@@ -154,9 +154,9 @@ Body line.
       await expectLater(
         service.generate(
           const AiAssistRequest(
-            operation: AiAssistOperation.pullRequestDetails,
+            operation: .pullRequestDetails,
             workspacePath: '/repo',
-            settings: AiAssistSettings(agent: AiAssistAgent.agy),
+            settings: AiAssistSettings(agent: .agy),
           ),
         ),
         throwsA(
@@ -180,8 +180,8 @@ Body line.
             entries: <GitChangeEntry>[
               GitChangeEntry(
                 path: 'lib/foo.dart',
-                area: GitChangeArea.staged,
-                status: GitChangeStatus.modified,
+                area: .staged,
+                status: .modified,
               ),
             ],
           );
@@ -196,9 +196,9 @@ Body line.
 
         await service.generate(
           const AiAssistRequest(
-            operation: AiAssistOperation.commitMessage,
+            operation: .commitMessage,
             workspacePath: '/repo',
-            settings: AiAssistSettings(agent: AiAssistAgent.agy),
+            settings: AiAssistSettings(agent: .agy),
           ),
         );
 
@@ -215,8 +215,8 @@ Body line.
           entries: <GitChangeEntry>[
             GitChangeEntry(
               path: 'lib/foo.dart',
-              area: GitChangeArea.staged,
-              status: GitChangeStatus.modified,
+              area: .staged,
+              status: .modified,
             ),
           ],
         );
@@ -228,9 +228,9 @@ Body line.
 
       await service.generate(
         const AiAssistRequest(
-          operation: AiAssistOperation.commitMessage,
+          operation: .commitMessage,
           workspacePath: '/repo',
-          settings: AiAssistSettings(agent: AiAssistAgent.amp),
+          settings: AiAssistSettings(agent: .amp),
         ),
       );
 
@@ -248,8 +248,8 @@ Body line.
           entries: <GitChangeEntry>[
             GitChangeEntry(
               path: 'lib/large.dart',
-              area: GitChangeArea.staged,
-              status: GitChangeStatus.modified,
+              area: .staged,
+              status: .modified,
             ),
           ],
         )
@@ -257,8 +257,8 @@ Body line.
           files: <GitDiffFile>[
             GitDiffFile(
               path: 'lib/large.dart',
-              area: GitChangeArea.staged,
-              status: GitChangeStatus.modified,
+              area: .staged,
+              status: .modified,
               lines: <GitDiffLine>[
                 GitDiffLine.addition(
                   '+${List<String>.filled(30000, 'x').join()}',
@@ -275,9 +275,9 @@ Body line.
 
       final result = await service.generate(
         const AiAssistRequest(
-          operation: AiAssistOperation.commitMessage,
+          operation: .commitMessage,
           workspacePath: '/repo',
-          settings: AiAssistSettings(agent: AiAssistAgent.opencode),
+          settings: AiAssistSettings(agent: .opencode),
         ),
       );
 
@@ -303,7 +303,7 @@ openai-codex    gpt-5.5                 272K     128K     yes       yes
       );
       final service = CliAiAssistModelDiscoveryService(processRunner: runner);
 
-      final result = await service.discover(AiAssistAgent.pi);
+      final result = await service.discover(.pi);
 
       expect(result.success, isTrue);
       expect(result.models.map((model) => model.id), <String>[
@@ -316,7 +316,7 @@ openai-codex    gpt-5.5                 272K     128K     yes       yes
       final runner = _FakeProcessRunner(stdout: 'unused');
       final service = CliAiAssistModelDiscoveryService(processRunner: runner);
 
-      final result = await service.discover(AiAssistAgent.amp);
+      final result = await service.discover(.amp);
 
       expect(result.success, isTrue);
       expect(result.defaultModelId, 'smart');
@@ -329,7 +329,7 @@ openai-codex    gpt-5.5                 272K     128K     yes       yes
         final runner = _FakeProcessRunner(stdout: 'unparseable output');
         final service = CliAiAssistModelDiscoveryService(processRunner: runner);
 
-        final result = await service.discover(AiAssistAgent.cursor);
+        final result = await service.discover(.cursor);
 
         expect(result.success, isTrue);
         expect(result.defaultModelId, 'auto');
@@ -345,7 +345,7 @@ openai-codex    gpt-5.5                 272K     128K     yes       yes
       );
       final service = CliAiAssistModelDiscoveryService(processRunner: runner);
 
-      final result = await service.discover(AiAssistAgent.agy);
+      final result = await service.discover(.agy);
 
       expect(result.success, isFalse);
       expect(result.error, 'Antigravity model discovery failed: auth expired');
@@ -361,7 +361,7 @@ openai-codex    gpt-5.5                 272K     128K     yes       yes
       await expectLater(
         service.generate(
           const AiAssistRequest(
-            operation: AiAssistOperation.commitMessage,
+            operation: .commitMessage,
             workspacePath: '/repo',
             settings: AiAssistSettings(),
           ),
@@ -386,8 +386,8 @@ openai-codex    gpt-5.5                 272K     128K     yes       yes
           entries: <GitChangeEntry>[
             GitChangeEntry(
               path: 'lib/foo.dart',
-              area: GitChangeArea.staged,
-              status: GitChangeStatus.modified,
+              area: .staged,
+              status: .modified,
             ),
           ],
         );
@@ -404,9 +404,9 @@ openai-codex    gpt-5.5                 272K     128K     yes       yes
       await expectLater(
         service.generate(
           const AiAssistRequest(
-            operation: AiAssistOperation.commitMessage,
+            operation: .commitMessage,
             workspacePath: '/repo',
-            settings: AiAssistSettings(agent: AiAssistAgent.agy),
+            settings: AiAssistSettings(agent: .agy),
           ),
         ),
         throwsA(
@@ -430,8 +430,8 @@ openai-codex    gpt-5.5                 272K     128K     yes       yes
             entries: <GitChangeEntry>[
               GitChangeEntry(
                 path: 'lib/foo.dart',
-                area: GitChangeArea.staged,
-                status: GitChangeStatus.modified,
+                area: .staged,
+                status: .modified,
               ),
             ],
           );
@@ -447,14 +447,14 @@ openai-codex    gpt-5.5                 272K     128K     yes       yes
 
         final generation = service.generate(
           const AiAssistRequest(
-            operation: AiAssistOperation.commitMessage,
+            operation: .commitMessage,
             workspacePath: '/repo',
-            settings: AiAssistSettings(agent: AiAssistAgent.agy),
+            settings: AiAssistSettings(agent: .agy),
           ),
         );
         await untilCalled(() => runner.started);
 
-        service.cancel('/repo', AiAssistOperation.commitMessage);
+        service.cancel('/repo', .commitMessage);
 
         await expectLater(
           generation,
@@ -473,8 +473,8 @@ openai-codex    gpt-5.5                 272K     128K     yes       yes
           entries: <GitChangeEntry>[
             GitChangeEntry(
               path: 'lib/foo.dart',
-              area: GitChangeArea.staged,
-              status: GitChangeStatus.modified,
+              area: .staged,
+              status: .modified,
             ),
           ],
         );
@@ -491,21 +491,21 @@ openai-codex    gpt-5.5                 272K     128K     yes       yes
 
       final generation = service.generate(
         const AiAssistRequest(
-          operation: AiAssistOperation.commitMessage,
+          operation: .commitMessage,
           workspacePath: '/repo',
-          settings: AiAssistSettings(agent: AiAssistAgent.agy),
+          settings: AiAssistSettings(agent: .agy),
         ),
       );
       await untilCalled(() => runner.started);
 
-      service.cancel('/repo', AiAssistOperation.commitMessage);
+      service.cancel('/repo', .commitMessage);
 
       await expectLater(
         service.generate(
           const AiAssistRequest(
-            operation: AiAssistOperation.commitMessage,
+            operation: .commitMessage,
             workspacePath: '/repo',
-            settings: AiAssistSettings(agent: AiAssistAgent.agy),
+            settings: AiAssistSettings(agent: .agy),
           ),
         ),
         throwsA(
@@ -531,8 +531,8 @@ openai-codex    gpt-5.5                 272K     128K     yes       yes
           entries: <GitChangeEntry>[
             GitChangeEntry(
               path: 'lib/foo.dart',
-              area: GitChangeArea.staged,
-              status: GitChangeStatus.modified,
+              area: .staged,
+              status: .modified,
             ),
           ],
         );
@@ -544,14 +544,14 @@ openai-codex    gpt-5.5                 272K     128K     yes       yes
 
       final generation = service.generate(
         const AiAssistRequest(
-          operation: AiAssistOperation.commitMessage,
+          operation: .commitMessage,
           workspacePath: '/repo',
-          settings: AiAssistSettings(agent: AiAssistAgent.agy),
+          settings: AiAssistSettings(agent: .agy),
         ),
       );
       await untilCalled(() => git.diffStarted);
 
-      service.cancel('/repo', AiAssistOperation.commitMessage);
+      service.cancel('/repo', .commitMessage);
       git.completeDiff();
 
       await expectLater(generation, throwsA(isA<AiAssistCanceledException>()));
@@ -567,8 +567,8 @@ openai-codex    gpt-5.5                 272K     128K     yes       yes
           entries: <GitChangeEntry>[
             GitChangeEntry(
               path: 'lib/foo.dart',
-              area: GitChangeArea.staged,
-              status: GitChangeStatus.modified,
+              area: .staged,
+              status: .modified,
             ),
           ],
         )
@@ -576,8 +576,8 @@ openai-codex    gpt-5.5                 272K     128K     yes       yes
           files: <GitDiffFile>[
             GitDiffFile(
               path: 'lib/foo.dart',
-              area: GitChangeArea.staged,
-              status: GitChangeStatus.modified,
+              area: .staged,
+              status: .modified,
               lines: <GitDiffLine>[
                 GitDiffLine.addition(
                   '+${List<String>.filled(30000, 'x').join()}',
@@ -595,9 +595,9 @@ openai-codex    gpt-5.5                 272K     128K     yes       yes
       await expectLater(
         service.generate(
           const AiAssistRequest(
-            operation: AiAssistOperation.commitMessage,
+            operation: .commitMessage,
             workspacePath: '/repo',
-            settings: AiAssistSettings(agent: AiAssistAgent.copilot),
+            settings: AiAssistSettings(agent: .copilot),
           ),
         ),
         throwsA(

@@ -11,10 +11,10 @@ void _registerWorkspaceTabPathMoveTests() {
         WorkspaceTabRecord(
           id: 'tab-1',
           workspaceId: 'workspace-1',
-          kind: WorkspaceTabKind.editor,
+          kind: .editor,
           title: 'note.txt',
-          createdAt: DateTime.utc(2026, 5, 21),
-          updatedAt: DateTime.utc(2026, 5, 21),
+          createdAt: .utc(2026, 5, 21),
+          updatedAt: .utc(2026, 5, 21),
           payload: const <String, Object?>{
             workspaceTabFilePathPayloadKey: 'docs/note.txt',
           },
@@ -45,10 +45,10 @@ void _registerWorkspaceTabPathMoveTests() {
         WorkspaceTabRecord(
           id: 'tab-1',
           workspaceId: 'workspace-1',
-          kind: WorkspaceTabKind.editor,
+          kind: .editor,
           title: 'main.dart',
-          createdAt: DateTime.utc(2026, 5, 21),
-          updatedAt: DateTime.utc(2026, 5, 21),
+          createdAt: .utc(2026, 5, 21),
+          updatedAt: .utc(2026, 5, 21),
           payload: const <String, Object?>{
             workspaceTabFilePathPayloadKey: 'src/main.dart',
           },
@@ -56,10 +56,10 @@ void _registerWorkspaceTabPathMoveTests() {
         WorkspaceTabRecord(
           id: 'tab-2',
           workspaceId: 'workspace-1',
-          kind: WorkspaceTabKind.markdownViewer,
+          kind: .markdownViewer,
           title: 'readme.md',
-          createdAt: DateTime.utc(2026, 5, 21),
-          updatedAt: DateTime.utc(2026, 5, 21),
+          createdAt: .utc(2026, 5, 21),
+          updatedAt: .utc(2026, 5, 21),
           payload: const <String, Object?>{
             workspaceTabFilePathPayloadKey: 'src/readme.md',
           },
@@ -90,10 +90,10 @@ void _registerWorkspaceTabPathMoveTests() {
         WorkspaceTabRecord(
           id: 'tab-1',
           workspaceId: 'workspace-1',
-          kind: WorkspaceTabKind.editor,
+          kind: .editor,
           title: 'diagram.mmd preview',
-          createdAt: DateTime.utc(2026, 5, 21),
-          updatedAt: DateTime.utc(2026, 5, 21),
+          createdAt: .utc(2026, 5, 21),
+          updatedAt: .utc(2026, 5, 21),
           payload: const <String, Object?>{
             workspaceTabFilePathPayloadKey: 'docs/diagram.mmd',
             workspaceTabFileRolePayloadKey: workspaceTabFileRoleMermanPreview,
@@ -123,10 +123,10 @@ void _registerWorkspaceTabPathMoveTests() {
         WorkspaceTabRecord(
           id: 'preview-tab',
           workspaceId: 'workspace-1',
-          kind: WorkspaceTabKind.editor,
+          kind: .editor,
           title: 'diagram.mmd preview',
-          createdAt: DateTime.utc(2026, 5, 21),
-          updatedAt: DateTime.utc(2026, 5, 21),
+          createdAt: .utc(2026, 5, 21),
+          updatedAt: .utc(2026, 5, 21),
           payload: const <String, Object?>{
             workspaceTabFilePathPayloadKey: 'docs/diagram.mmd',
             workspaceTabFileRolePayloadKey: workspaceTabFileRoleMermanPreview,
@@ -169,10 +169,10 @@ void _registerWorkspaceTabPathMoveTests() {
         WorkspaceTabRecord(
           id: 'editor-tab',
           workspaceId: 'workspace-1',
-          kind: WorkspaceTabKind.editor,
+          kind: .editor,
           title: 'diagram.mmd',
-          createdAt: DateTime.utc(2026, 5, 21),
-          updatedAt: DateTime.utc(2026, 5, 21),
+          createdAt: .utc(2026, 5, 21),
+          updatedAt: .utc(2026, 5, 21),
           payload: const <String, Object?>{
             workspaceTabFilePathPayloadKey: 'docs/diagram.mmd',
           },
@@ -180,10 +180,10 @@ void _registerWorkspaceTabPathMoveTests() {
         WorkspaceTabRecord(
           id: 'preview-tab',
           workspaceId: 'workspace-1',
-          kind: WorkspaceTabKind.editor,
+          kind: .editor,
           title: 'diagram.mmd preview',
-          createdAt: DateTime.utc(2026, 5, 21),
-          updatedAt: DateTime.utc(2026, 5, 21),
+          createdAt: .utc(2026, 5, 21),
+          updatedAt: .utc(2026, 5, 21),
           payload: const <String, Object?>{
             workspaceTabFilePathPayloadKey: 'docs/diagram.mmd',
             workspaceTabFileRolePayloadKey: workspaceTabFileRoleMermanPreview,
@@ -217,10 +217,10 @@ void _registerWorkspaceTabPathMoveTests() {
           WorkspaceTabRecord(
             id: 'tab-1',
             workspaceId: 'workspace-1',
-            kind: WorkspaceTabKind.gitDiff,
+            kind: .gitDiff,
             title: 'note.txt unstaged',
-            createdAt: DateTime.utc(2026, 5, 21),
-            updatedAt: DateTime.utc(2026, 5, 21),
+            createdAt: .utc(2026, 5, 21),
+            updatedAt: .utc(2026, 5, 21),
             payload: const <String, Object?>{
               workspaceTabFilePathPayloadKey: 'docs/note.txt',
               workspaceTabGitDiffScopePayloadKey: 'file',
@@ -254,10 +254,10 @@ void _registerWorkspaceTabPathMoveTests() {
         WorkspaceTabRecord(
           id: 'tab-1',
           workspaceId: 'workspace-1',
-          kind: WorkspaceTabKind.gitDiff,
+          kind: .gitDiff,
           title: 'note.txt staged',
-          createdAt: DateTime.utc(2026, 5, 21),
-          updatedAt: DateTime.utc(2026, 5, 21),
+          createdAt: .utc(2026, 5, 21),
+          updatedAt: .utc(2026, 5, 21),
           payload: const <String, Object?>{
             workspaceTabFilePathPayloadKey: 'docs/note.txt',
             workspaceTabGitDiffScopePayloadKey: 'file',
@@ -288,10 +288,10 @@ void _registerWorkspaceTabPathMoveTests() {
         WorkspaceTabRecord(
           id: 'tab-1',
           workspaceId: 'workspace-1',
-          kind: WorkspaceTabKind.gitDiff,
+          kind: .gitDiff,
           title: 'main.dart staged',
-          createdAt: DateTime.utc(2026, 5, 21),
-          updatedAt: DateTime.utc(2026, 5, 21),
+          createdAt: .utc(2026, 5, 21),
+          updatedAt: .utc(2026, 5, 21),
           payload: const <String, Object?>{
             workspaceTabFilePathPayloadKey: 'packages/app/lib/main.dart',
             workspaceTabGitDiffScopePayloadKey: 'file',
@@ -326,10 +326,10 @@ void _registerWorkspaceTabPathMoveTests() {
           WorkspaceTabRecord(
             id: 'tab-1',
             workspaceId: 'workspace-1',
-            kind: WorkspaceTabKind.editor,
+            kind: .editor,
             title: 'readme.md',
-            createdAt: DateTime.utc(2026, 5, 21),
-            updatedAt: DateTime.utc(2026, 5, 21),
+            createdAt: .utc(2026, 5, 21),
+            updatedAt: .utc(2026, 5, 21),
             payload: const <String, Object?>{
               workspaceTabFilePathPayloadKey: 'docs/readme.md',
             },
@@ -337,10 +337,10 @@ void _registerWorkspaceTabPathMoveTests() {
           WorkspaceTabRecord(
             id: 'tab-2',
             workspaceId: 'workspace-1',
-            kind: WorkspaceTabKind.markdownViewer,
+            kind: .markdownViewer,
             title: 'readme.md',
-            createdAt: DateTime.utc(2026, 5, 21),
-            updatedAt: DateTime.utc(2026, 5, 21),
+            createdAt: .utc(2026, 5, 21),
+            updatedAt: .utc(2026, 5, 21),
             payload: const <String, Object?>{
               workspaceTabFilePathPayloadKey: 'docs/readme.md',
             },
@@ -371,10 +371,10 @@ void _registerWorkspaceTabPathMoveTests() {
         WorkspaceTabRecord(
           id: 'tab-1',
           workspaceId: 'workspace-1',
-          kind: WorkspaceTabKind.pdf,
+          kind: .pdf,
           title: 'guide.pdf',
-          createdAt: DateTime.utc(2026, 5, 21),
-          updatedAt: DateTime.utc(2026, 5, 21),
+          createdAt: .utc(2026, 5, 21),
+          updatedAt: .utc(2026, 5, 21),
           payload: const <String, Object?>{
             workspaceTabFilePathPayloadKey: 'docs/guide.pdf',
           },
@@ -407,10 +407,10 @@ void _registerWorkspaceTabPathMoveTests() {
           WorkspaceTabRecord(
             id: 'tab-1',
             workspaceId: 'workspace-1',
-            kind: WorkspaceTabKind.editor,
+            kind: .editor,
             title: 'note.txt',
-            createdAt: DateTime.utc(2026, 5, 21),
-            updatedAt: DateTime.utc(2026, 5, 21),
+            createdAt: .utc(2026, 5, 21),
+            updatedAt: .utc(2026, 5, 21),
             payload: const <String, Object?>{
               workspaceTabFilePathPayloadKey: 'docs/note.txt',
             },
@@ -444,10 +444,10 @@ void _registerWorkspaceTabPathMoveTests() {
           WorkspaceTabRecord(
             id: 'tab-1',
             workspaceId: 'workspace-1',
-            kind: WorkspaceTabKind.pdf,
+            kind: .pdf,
             title: 'guide.pdf',
-            createdAt: DateTime.utc(2026, 5, 21),
-            updatedAt: DateTime.utc(2026, 5, 21),
+            createdAt: .utc(2026, 5, 21),
+            updatedAt: .utc(2026, 5, 21),
             payload: const <String, Object?>{
               workspaceTabFilePathPayloadKey: 'docs/guide.pdf',
             },

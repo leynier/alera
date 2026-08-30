@@ -1,19 +1,18 @@
 part of 'codex_chat_controller_test.dart';
 
 Future<void> _settle() async {
-  await Future<void>.delayed(Duration.zero);
+  await Future<void>.delayed(.zero);
   await Future<void>.delayed(const Duration(milliseconds: 10));
 }
 
-final class _FakeCodexRuntimeClient implements RuntimeHostClient {
-  _FakeCodexRuntimeClient({
-    this.runtimeCapabilities = const <String>[
-      aleraRuntimeHostCodexSessionsCapability,
-      aleraRuntimeHostCodexTurnPolicyCapability,
-    ],
-    this.requestHandler,
-  });
-
+final class _FakeCodexRuntimeClient({
+  final List<String> runtimeCapabilities = const <String>[
+    aleraRuntimeHostCodexSessionsCapability,
+    aleraRuntimeHostCodexTurnPolicyCapability,
+  ],
+  final Future<Object?>? Function(String type, Map<String, Object?> payload)?
+  requestHandler,
+}) implements RuntimeHostClient {
   final StreamController<RuntimeHostEvent> _events =
       StreamController<RuntimeHostEvent>.broadcast();
   final List<_Request> requests = <_Request>[];
@@ -29,9 +28,6 @@ final class _FakeCodexRuntimeClient implements RuntimeHostClient {
   Map<String, Object?>? openSnapshot;
   String? openThreadId;
   Map<String, Object?>? historyResponse;
-  final List<String> runtimeCapabilities;
-  final Future<Object?>? Function(String type, Map<String, Object?> payload)?
-  requestHandler;
 
   @override
   Stream<RuntimeHostEvent> get runtimeEvents => _events.stream;
@@ -160,9 +156,7 @@ final class _AutoReviewTestSettingsController extends SettingsController {
   }
 }
 
-final class _Request {
-  const _Request(this.type, this.payload);
-
-  final String type;
-  final Map<String, Object?> payload;
-}
+final class const _Request(
+  final String type,
+  final Map<String, Object?> payload,
+);

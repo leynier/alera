@@ -9,7 +9,7 @@ extension _SocketTerminalHostClientConnections on SocketTerminalHostClient {
     final control = await _readControl(runtime.controlFile);
     if (control != null) {
       try {
-        return await _connectToControl(control, _HostConnectionRole.terminal);
+        return await _connectToControl(control, .terminal);
       } catch (_) {
         if (_disposed) {
           throw const TerminalHostConnectionClosedException();
@@ -20,10 +20,7 @@ extension _SocketTerminalHostClientConnections on SocketTerminalHostClient {
     final runtimeControl = await _readControl(runtime.runtimeControlFile);
     if (runtimeControl?.supportsRuntime == true) {
       try {
-        return await _connectToControl(
-          runtimeControl!,
-          _HostConnectionRole.terminal,
-        );
+        return await _connectToControl(runtimeControl!, .terminal);
       } catch (_) {
         if (_disposed) {
           throw const TerminalHostConnectionClosedException();
@@ -68,7 +65,7 @@ extension _SocketTerminalHostClientConnections on SocketTerminalHostClient {
     final control = await _readControl(runtime.controlFile);
     if (_controlSupportsRuntime(control, requireOrchestration)) {
       try {
-        return await _connectToControl(control!, _HostConnectionRole.runtime);
+        return await _connectToControl(control!, .runtime);
       } catch (_) {
         if (_disposed) {
           throw const TerminalHostConnectionClosedException();
@@ -85,10 +82,7 @@ extension _SocketTerminalHostClientConnections on SocketTerminalHostClient {
     final runtimeControl = await _readControl(runtime.runtimeControlFile);
     if (_controlSupportsRuntime(runtimeControl, requireOrchestration)) {
       try {
-        return await _connectToControl(
-          runtimeControl!,
-          _HostConnectionRole.runtime,
-        );
+        return await _connectToControl(runtimeControl!, .runtime);
       } catch (_) {
         if (_disposed) {
           throw const TerminalHostConnectionClosedException();
@@ -156,10 +150,7 @@ extension _SocketTerminalHostClientConnections on SocketTerminalHostClient {
         continue;
       }
       try {
-        return await _connectToControl(
-          nextControl,
-          _HostConnectionRole.runtime,
-        );
+        return await _connectToControl(nextControl, .runtime);
       } catch (error) {
         lastError = error;
       }
@@ -169,7 +160,7 @@ extension _SocketTerminalHostClientConnections on SocketTerminalHostClient {
     if (lastError case final error?) {
       AppLogger.recordError(
         error,
-        StackTrace.current,
+        .current,
         context: 'SocketTerminalHostClient',
       );
     }

@@ -27,78 +27,55 @@ part 'prompt_workspace_dialog_selection_order.dart';
 
 enum NewWorkspaceMode { fromPrompt, manual }
 
-class PromptWorkspaceDialogResult {
-  const PromptWorkspaceDialogResult({
-    this.creation,
-    this.agentTabId,
-    this.openManual = false,
-  });
+class const PromptWorkspaceDialogResult({
+  final WorkspaceCreationResult? creation,
+  final String? agentTabId,
+  final bool openManual = false,
+});
 
-  final WorkspaceCreationResult? creation;
-  final String? agentTabId;
-  final bool openManual;
-}
-
-class PromptWorkspaceDialog extends StatefulWidget {
-  const PromptWorkspaceDialog({
-    super.key,
-    required this.projects,
-    required this.agentProfiles,
-    required this.loadBranches,
-    required this.checkBranchExists,
-    required this.workspaceBranches,
-    required this.parentWorkspaces,
-    required this.generateIdentity,
-    required this.cancelGeneration,
-    required this.createWorkspace,
-    required this.launchAgent,
-    required this.supportsIdempotentAgentLaunch,
-    this.clipboard = const NativePromptWorkspaceClipboard(),
-    this.initialProject,
-    this.defaultAgentProfileId,
-    this.onCreateAnother,
-  });
-
-  final List<Project> projects;
-  final List<AgentProfile> agentProfiles;
-  final Project? initialProject;
-  final Future<List<String>> Function(Project project) loadBranches;
-  final Future<bool> Function(Project project, String branchName)
-  checkBranchExists;
-  final Set<String> Function(Project project) workspaceBranches;
-  final List<Workspace> parentWorkspaces;
-  final Future<GeneratedWorkspaceIdentity> Function({
+class const PromptWorkspaceDialog({
+  super.key,
+  required final List<Project> projects,
+  required final List<AgentProfile> agentProfiles,
+  required final Future<List<String>> Function(Project project) loadBranches,
+  required final Future<bool> Function(Project project, String branchName)
+  checkBranchExists,
+  required final Set<String> Function(Project project) workspaceBranches,
+  required final List<Workspace> parentWorkspaces,
+  required final Future<GeneratedWorkspaceIdentity> Function({
     required String operationId,
     required String projectId,
     required String prompt,
   })
-  generateIdentity;
-  final Future<void> Function(String operationId) cancelGeneration;
-  final Future<WorkspaceCreationResult> Function({
+  generateIdentity,
+  required final Future<void> Function(String operationId) cancelGeneration,
+  required final Future<WorkspaceCreationResult> Function({
     required Project project,
     required String sourceBranch,
     required String newBranchName,
     required String name,
     String? parentWorkspaceId,
   })
-  createWorkspace;
-  final Future<AgentProfileLaunchResult> Function({
+  createWorkspace,
+  required final Future<AgentProfileLaunchResult> Function({
     required String workspaceId,
     required String profileId,
     required String prompt,
     required String clientMutationId,
     required bool requireIdempotency,
   })
-  launchAgent;
-  final Future<bool> Function() supportsIdempotentAgentLaunch;
-  final PromptWorkspaceClipboard clipboard;
-  final String? defaultAgentProfileId;
+  launchAgent,
+  required final Future<bool> Function() supportsIdempotentAgentLaunch,
+  final PromptWorkspaceClipboard clipboard =
+      const NativePromptWorkspaceClipboard(),
+  final Project? initialProject,
+  final String? defaultAgentProfileId,
   final Future<void> Function({
     required WorkspaceCreationResult creation,
     required String agentTabId,
   })?
-  onCreateAnother;
-
+  onCreateAnother,
+}) extends StatefulWidget {
   @override
   State<PromptWorkspaceDialog> createState() => _PromptWorkspaceDialogState();
 }
@@ -106,7 +83,7 @@ class PromptWorkspaceDialog extends StatefulWidget {
 class _PromptWorkspaceDialogState extends State<PromptWorkspaceDialog> {
   final TextEditingController _promptController = TextEditingController();
   final FocusNode _promptFocusNode = FocusNode();
-  NewWorkspaceMode _mode = NewWorkspaceMode.fromPrompt;
+  NewWorkspaceMode _mode = .fromPrompt;
   Project? _project;
   AgentProfile? _profile;
   List<String> _branches = const <String>[];
@@ -397,8 +374,8 @@ class _PromptWorkspaceDialogState extends State<PromptWorkspaceDialog> {
       child: Padding(
         padding: const EdgeInsets.all(AleraTokens.space20),
         child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: .min,
+          crossAxisAlignment: .start,
           children: <Widget>[
             Row(
               children: <Widget>[
@@ -408,7 +385,7 @@ class _PromptWorkspaceDialogState extends State<PromptWorkspaceDialog> {
                   child: Text(
                     'New Workspace',
                     style: theme.textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
+                      fontWeight: .bold,
                     ),
                   ),
                 ),
@@ -426,12 +403,12 @@ class _PromptWorkspaceDialogState extends State<PromptWorkspaceDialog> {
               dense: true,
               segments: const <ButtonSegment<NewWorkspaceMode>>[
                 ButtonSegment<NewWorkspaceMode>(
-                  value: NewWorkspaceMode.fromPrompt,
+                  value: .fromPrompt,
                   label: Text('From Prompt'),
                   icon: Icon(AleraIcons.agent, size: 16),
                 ),
                 ButtonSegment<NewWorkspaceMode>(
-                  value: NewWorkspaceMode.manual,
+                  value: .manual,
                   label: Text('Manual'),
                   icon: Icon(AleraIcons.gitBranch, size: 16),
                 ),
@@ -454,8 +431,8 @@ class _PromptWorkspaceDialogState extends State<PromptWorkspaceDialog> {
 
   Widget _buildManualMode(ThemeData theme) {
     return Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: .min,
+      crossAxisAlignment: .start,
       children: <Widget>[
         Text(
           'Choose every workspace setting yourself, including the branch name and optional parent workspace.',

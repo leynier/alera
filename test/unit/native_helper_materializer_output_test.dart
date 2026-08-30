@@ -71,15 +71,13 @@ void main() {
   );
 }
 
-final class _MaterializerFixture {
-  _MaterializerFixture({
-    required this.root,
-    required this.manifest,
-    required this.materializer,
-    required this.output,
-    required this.cache,
-  });
-
+final class _MaterializerFixture({
+  required final Directory root,
+  required final NativeHelperManifest manifest,
+  required final NativeHelperMaterializer materializer,
+  required final Directory output,
+  required final Directory cache,
+}) {
   static Future<_MaterializerFixture> create() async {
     final root = await Directory.systemTemp.createTemp(
       'alera-native-helper-output-',
@@ -130,12 +128,6 @@ final class _MaterializerFixture {
       cache: Directory(p.join(root.path, 'cache')),
     );
   }
-
-  final Directory root;
-  final NativeHelperManifest manifest;
-  final NativeHelperMaterializer materializer;
-  final Directory output;
-  final Directory cache;
 
   Future<void> prepare() {
     return materializer.prepare(

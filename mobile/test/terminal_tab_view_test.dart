@@ -103,10 +103,7 @@ void main() {
     await _pumpTab(tester, client);
     final before = _terminalOf(tester);
 
-    client.emitOutput(
-      'session-tab-1',
-      Uint8List.fromList(utf8.encode('hello')),
-    );
+    client.emitOutput('session-tab-1', .fromList(utf8.encode('hello')));
     await tester.pumpAndSettle();
 
     expect(_terminalOf(tester), same(before));
@@ -332,7 +329,7 @@ void main() {
     // answered with a snapshot. Appending it would duplicate the scrollback.
     client.emitOutput(
       'session-tab-1',
-      Uint8List.fromList(utf8.encode('restored')),
+      .fromList(utf8.encode('restored')),
       replacesScrollback: true,
     );
     await tester.pumpAndSettle();

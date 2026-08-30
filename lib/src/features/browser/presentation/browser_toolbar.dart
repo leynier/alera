@@ -6,40 +6,23 @@ import 'package:alera/src/features/browser/domain/browser_page_state.dart';
 import 'package:alera/src/features/browser/domain/browser_security.dart';
 import 'package:flutter/material.dart';
 
-class BrowserToolbar extends StatelessWidget {
-  const BrowserToolbar({
-    super.key,
-    required this.state,
-    required this.addressController,
-    required this.addressFocusNode,
-    required this.profileLabel,
-    required this.onBack,
-    required this.onForward,
-    required this.onStopOrReload,
-    required this.onSubmitAddress,
-    required this.onShowSecurity,
-    required this.onSelectProfile,
-    required this.onShowDownloads,
-    this.onAnnotate,
-    required this.onOpenDevTools,
-    required this.onOpenExternally,
-  });
-
-  final BrowserPageState state;
-  final TextEditingController addressController;
-  final FocusNode addressFocusNode;
-  final String profileLabel;
-  final VoidCallback? onBack;
-  final VoidCallback? onForward;
-  final VoidCallback? onStopOrReload;
-  final ValueChanged<String> onSubmitAddress;
-  final VoidCallback onShowSecurity;
-  final VoidCallback onSelectProfile;
-  final VoidCallback onShowDownloads;
-  final VoidCallback? onAnnotate;
-  final VoidCallback? onOpenDevTools;
-  final VoidCallback? onOpenExternally;
-
+class const BrowserToolbar({
+  super.key,
+  required final BrowserPageState state,
+  required final TextEditingController addressController,
+  required final FocusNode addressFocusNode,
+  required final String profileLabel,
+  required final VoidCallback? onBack,
+  required final VoidCallback? onForward,
+  required final VoidCallback? onStopOrReload,
+  required final ValueChanged<String> onSubmitAddress,
+  required final VoidCallback onShowSecurity,
+  required final VoidCallback onSelectProfile,
+  required final VoidCallback onShowDownloads,
+  final VoidCallback? onAnnotate,
+  required final VoidCallback? onOpenDevTools,
+  required final VoidCallback? onOpenExternally,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
@@ -51,7 +34,7 @@ class BrowserToolbar extends StatelessWidget {
             final wide =
                 constraints.maxWidth >= AleraTokens.wideContentBreakpoint;
             return Stack(
-              fit: StackFit.expand,
+              fit: .expand,
               children: <Widget>[
                 Padding(
                   padding: const EdgeInsets.symmetric(
@@ -98,7 +81,7 @@ class BrowserToolbar extends StatelessWidget {
                           denseHeight: AleraTokens.space32,
                           // The constrained decorator centers its text line
                           // only when the editable content uses bottom alignment.
-                          textAlignVertical: TextAlignVertical.bottom,
+                          textAlignVertical: .bottom,
                           // Toolbar chrome is surface; dense defaults to a
                           // surface fill meant for surface-variant sidebars.
                           fillColor: AleraTokens.surfaceVariant,
@@ -157,16 +140,14 @@ class BrowserToolbar extends StatelessWidget {
   }
 }
 
-class _BrowserDownloadsButton extends StatelessWidget {
-  const _BrowserDownloadsButton({required this.count, required this.onPressed});
-
-  final int count;
-  final VoidCallback onPressed;
-
+class const _BrowserDownloadsButton({
+  required final int count,
+  required final VoidCallback onPressed,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Stack(
-      clipBehavior: Clip.none,
+      clipBehavior: .none,
       children: <Widget>[
         AleraIconButton(
           tooltip: count == 0 ? 'Downloads' : 'Downloads ($count Active)',
@@ -180,7 +161,7 @@ class _BrowserDownloadsButton extends StatelessWidget {
             child: DecoratedBox(
               decoration: const BoxDecoration(
                 color: AleraTokens.info,
-                shape: BoxShape.circle,
+                shape: .circle,
               ),
               child: ConstrainedBox(
                 constraints: const BoxConstraints(
@@ -193,7 +174,7 @@ class _BrowserDownloadsButton extends StatelessWidget {
                   ),
                   child: Text(
                     count > 9 ? '9+' : '$count',
-                    textAlign: TextAlign.center,
+                    textAlign: .center,
                     style: Theme.of(context).textTheme.labelSmall
                         ?.copyWith(color: AleraTokens.onAccent),
                   ),

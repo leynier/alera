@@ -130,7 +130,7 @@ void main() {
       const policy = RunExecutionPolicy(
         runId: 'run_1',
         workspaceId: 'ws',
-        status: RunPolicyStatus.approved,
+        status: .approved,
         blocksDispatch: false,
       );
 

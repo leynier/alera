@@ -4,17 +4,14 @@ import 'package:alera/src/features/app_window/application/app_window_controller.
 import 'package:alera/src/features/desktop_presence/infra/desktop_presence_channel.dart';
 import 'package:logging/logging.dart';
 
-class DesktopPresenceCoordinator {
-  DesktopPresenceCoordinator({
-    required this.backend,
-    required this.window,
-    required this.lifecycle,
-    Logger? logger,
-  }) : _logger = logger ?? Logger('DesktopPresenceCoordinator');
+class DesktopPresenceCoordinator({
+  required final DesktopPresenceBackend backend,
+  required final AppWindowController window,
+  required final AppWindowLifecycleCoordinator lifecycle,
+  Logger? logger,
+}) {
+  this : _logger = logger ?? Logger('DesktopPresenceCoordinator');
 
-  final DesktopPresenceBackend backend;
-  final AppWindowController window;
-  final AppWindowLifecycleCoordinator lifecycle;
   final Logger _logger;
 
   DesktopPresenceSnapshot? _last;
@@ -88,7 +85,7 @@ class DesktopPresenceCoordinator {
   }
 
   Future<void> _recoverIfStillUninstalled() async {
-    await Future<void>.delayed(Duration.zero);
+    await Future<void>.delayed(.zero);
     if (_trayInstalled) {
       return;
     }

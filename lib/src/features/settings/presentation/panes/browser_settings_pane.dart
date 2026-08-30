@@ -26,14 +26,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 part 'browser_settings_widgets.dart';
 
-class BrowserSettingsPane extends ConsumerStatefulWidget {
-  const BrowserSettingsPane({
-    super.key,
-    this.groupKeys = const <String, GlobalKey>{},
-  });
-
-  final Map<String, GlobalKey> groupKeys;
-
+class const BrowserSettingsPane({
+  super.key,
+  final Map<String, GlobalKey> groupKeys = const <String, GlobalKey>{},
+}) extends ConsumerStatefulWidget {
   @override
   ConsumerState<BrowserSettingsPane> createState() =>
       _BrowserSettingsPaneState();
@@ -92,7 +88,7 @@ class _BrowserSettingsPaneState extends ConsumerState<BrowserSettingsPane> {
       return const Center(child: CircularProgressIndicator());
     }
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+      crossAxisAlignment: .stretch,
       children: <Widget>[
         KeyedSubtree(
           key: widget.groupKeys['general'],
@@ -341,7 +337,7 @@ class _BrowserSettingsPaneState extends ConsumerState<BrowserSettingsPane> {
         final byteLength = await file.length();
         if (byteLength > browserManualCookieImportMaximumBytes) {
           throw BrowserFailure(
-            code: BrowserErrorCode.invalidPayload,
+            code: .invalidPayload,
             message: 'Manual cookie import is limited to 16 MiB.',
             recoverable: true,
             details: <String, Object?>{
@@ -450,11 +446,7 @@ class _BrowserSettingsPaneState extends ConsumerState<BrowserSettingsPane> {
     } catch (error) {
       if (mounted) {
         setState(() => _error = error.toString());
-        AleraToast.show(
-          context,
-          message: error.toString(),
-          tone: AleraToastTone.error,
-        );
+        AleraToast.show(context, message: error.toString(), tone: .error);
       }
     } finally {
       if (mounted) {

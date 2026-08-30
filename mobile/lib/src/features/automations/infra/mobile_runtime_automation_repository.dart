@@ -2,10 +2,7 @@ import 'package:alera_mobile/src/features/automations/domain/mobile_automation.d
 import 'package:alera_mobile/src/features/runtime/infra/mobile_runtime_client.dart';
 import 'package:logging/logging.dart';
 
-class MobileRuntimeAutomationRepository {
-  MobileRuntimeAutomationRepository(this._client);
-
-  final MobileRuntimeClient _client;
+class MobileRuntimeAutomationRepository(final MobileRuntimeClient _client) {
   final Logger _logger = Logger('MobileRuntimeAutomationRepository');
 
   Future<List<MobileAutomation>> list({

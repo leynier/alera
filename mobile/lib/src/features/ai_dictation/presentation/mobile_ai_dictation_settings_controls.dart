@@ -1,11 +1,9 @@
 part of 'mobile_ai_dictation_settings_screen.dart';
 
-class _EnableCard extends StatelessWidget {
-  const _EnableCard({required this.enabled, required this.onChanged});
-
-  final bool enabled;
-  final ValueChanged<bool> onChanged;
-
+class const _EnableCard({
+  required final bool enabled,
+  required final ValueChanged<bool> onChanged,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -34,7 +32,7 @@ class _EnableCard extends StatelessWidget {
             const SizedBox(width: AleraTokens.spaceMd),
             Expanded(
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+                crossAxisAlignment: .start,
                 children: <Widget>[
                   Text(
                     'Enable AI Dictation',
@@ -59,12 +57,10 @@ class _EnableCard extends StatelessWidget {
   }
 }
 
-class _LanguageField extends StatefulWidget {
-  const _LanguageField({required this.language, required this.onChanged});
-
-  final String? language;
-  final ValueChanged<String?> onChanged;
-
+class const _LanguageField({
+  required final String? language,
+  required final ValueChanged<String?> onChanged,
+}) extends StatefulWidget {
   @override
   State<_LanguageField> createState() => _LanguageFieldState();
 }
@@ -120,18 +116,16 @@ class _LanguageFieldState extends State<_LanguageField> {
   }
 }
 
-class _SectionTitle extends StatelessWidget {
-  const _SectionTitle({required this.title, required this.description});
-
-  final String title;
-  final String description;
-
+class const _SectionTitle({
+  required final String title,
+  required final String description,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.only(bottom: AleraTokens.spaceSm),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: .start,
         children: <Widget>[
           Text(title, style: Theme.of(context).textTheme.titleMedium),
           const SizedBox(height: AleraTokens.space4),
@@ -146,11 +140,7 @@ class _SectionTitle extends StatelessWidget {
   }
 }
 
-class _HelperText extends StatelessWidget {
-  const _HelperText(this.text);
-
-  final String text;
-
+class const _HelperText(final String text) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Text(

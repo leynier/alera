@@ -6,17 +6,11 @@ import 'package:alera/src/features/keyboard/domain/keyboard_action.dart';
 import 'package:alera/src/features/text_actions/domain/text_actions_settings.dart';
 import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_protocol.dart';
 
-class RuntimeSettingsRepository implements SettingsRepository {
-  RuntimeSettingsRepository({
-    required this.client,
-    required this.legacyRepository,
-    this.beforeAccess,
-  });
-
-  final RuntimeHostClient client;
-  final SettingsRepository legacyRepository;
-  final Future<void> Function()? beforeAccess;
-
+class RuntimeSettingsRepository({
+  required final RuntimeHostClient client,
+  required final SettingsRepository legacyRepository,
+  final Future<void> Function()? beforeAccess,
+}) implements SettingsRepository {
   @override
   Future<AleraSettings> load() async {
     var legacy = await legacyRepository.load();
@@ -76,9 +70,7 @@ class RuntimeSettingsRepository implements SettingsRepository {
         ),
         agents: legacy.agents.copyWith(
           defaultAgentProfileId: defaultAgentProfileId,
-          agentStatusHooks: AgentStatusHookSettings.fromJson(
-            _asMap(runtime['agentStatusHooks']),
-          ),
+          agentStatusHooks: .fromJson(_asMap(runtime['agentStatusHooks'])),
           quotas: legacy.agents.quotas.withHost(
             'local',
             // The runtime host stores only the quota fields it needs to fetch

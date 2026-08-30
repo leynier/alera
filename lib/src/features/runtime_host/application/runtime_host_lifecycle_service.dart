@@ -25,12 +25,9 @@ abstract interface class RuntimeHostLifecycleClient {
   Future<void> ensureStarted({required TerminalHostConfig config});
 }
 
-final class SocketRuntimeHostLifecycleClient
-    implements RuntimeHostLifecycleClient {
-  SocketRuntimeHostLifecycleClient(this._client);
-
-  final SocketTerminalHostClient _client;
-
+final class SocketRuntimeHostLifecycleClient(
+  final SocketTerminalHostClient _client,
+) implements RuntimeHostLifecycleClient {
   @override
   Future<Map<String, Object?>?> probeRuntimeStatus() =>
       _client.probeRuntimeStatus();
@@ -44,19 +41,12 @@ final class SocketRuntimeHostLifecycleClient
       _client.ensureStarted(config: config);
 }
 
-final class RuntimeHostLifecycleService {
-  RuntimeHostLifecycleService({
-    required this._client,
-    required this._bundledVersionProbe,
-    required this._readConfig,
-    this._shutdownSettleTimeout = const Duration(seconds: 8),
-  });
-
-  final RuntimeHostLifecycleClient _client;
-  final BundledSidecarVersionProbe _bundledVersionProbe;
-  final TerminalHostConfig Function() _readConfig;
-  final Duration _shutdownSettleTimeout;
-
+final class RuntimeHostLifecycleService({
+  required final RuntimeHostLifecycleClient _client,
+  required final BundledSidecarVersionProbe _bundledVersionProbe,
+  required final TerminalHostConfig Function() _readConfig,
+  final Duration _shutdownSettleTimeout = const Duration(seconds: 8),
+}) {
   Future<RuntimeHostStatusSnapshot> loadStatus() async {
     BundledSidecarVersion bundled;
     try {

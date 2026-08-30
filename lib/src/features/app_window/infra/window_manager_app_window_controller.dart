@@ -4,9 +4,9 @@ import 'dart:ui';
 import 'package:alera/src/features/app_window/application/app_window_controller.dart';
 import 'package:window_manager/window_manager.dart';
 
-class WindowManagerAppWindowController implements AppWindowController {
-  WindowManagerAppWindowController({WindowManager? manager})
-    : _manager = manager ?? windowManager;
+class WindowManagerAppWindowController({WindowManager? manager})
+    implements AppWindowController {
+  this : _manager = manager ?? windowManager;
 
   final WindowManager _manager;
   final Map<AppWindowEventListener, WindowListener> _listeners =
@@ -98,11 +98,8 @@ class WindowManagerAppWindowController implements AppWindowController {
   Future<void> destroy() => _manager.destroy();
 }
 
-class _WindowManagerListenerAdapter with WindowListener {
-  _WindowManagerListenerAdapter(this._delegate);
-
-  final AppWindowEventListener _delegate;
-
+class _WindowManagerListenerAdapter(final AppWindowEventListener _delegate)
+    with WindowListener {
   @override
   void onWindowClose() => _delegate.onWindowClose();
 

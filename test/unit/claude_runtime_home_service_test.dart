@@ -24,7 +24,7 @@ void main() {
       service = ClaudeRuntimeHomeService(
         homeDirectory: home.path,
         applicationSupportDirectory: () async => support,
-        platform: ManagedAgentHookPlatform.posix,
+        platform: .posix,
         environment: <String, String>{'HOME': home.path},
         syncMacOSKeychainCredentials: false,
       );
@@ -137,7 +137,7 @@ void main() {
         final customService = ClaudeRuntimeHomeService(
           homeDirectory: home.path,
           applicationSupportDirectory: () async => support,
-          platform: ManagedAgentHookPlatform.posix,
+          platform: .posix,
           environment: <String, String>{
             'HOME': home.path,
             'CLAUDE_CONFIG_DIR': customConfig.path,
@@ -222,7 +222,7 @@ void main() {
       final windowsService = ClaudeRuntimeHomeService(
         homeDirectory: home.path,
         applicationSupportDirectory: () async => support,
-        platform: ManagedAgentHookPlatform.windows,
+        platform: .windows,
         environment: <String, String>{'USERPROFILE': home.path},
         syncMacOSKeychainCredentials: false,
       );
@@ -627,7 +627,7 @@ void main() {
         final keychainService = ClaudeRuntimeHomeService(
           homeDirectory: home.path,
           applicationSupportDirectory: () async => support,
-          platform: ManagedAgentHookPlatform.posix,
+          platform: .posix,
           environment: <String, String>{'HOME': home.path},
           keychainCredentialsStore: keychain,
         );
@@ -649,7 +649,7 @@ void main() {
         final keychainService = ClaudeRuntimeHomeService(
           homeDirectory: home.path,
           applicationSupportDirectory: () async => support,
-          platform: ManagedAgentHookPlatform.posix,
+          platform: .posix,
           environment: <String, String>{'HOME': home.path},
           keychainCredentialsStore: keychain,
         );
@@ -667,7 +667,7 @@ void main() {
       final keychainService = ClaudeRuntimeHomeService(
         homeDirectory: home.path,
         applicationSupportDirectory: () async => support,
-        platform: ManagedAgentHookPlatform.posix,
+        platform: .posix,
         environment: <String, String>{'HOME': home.path},
         keychainCredentialsStore: _ThrowingClaudeKeychainCredentialsStore(),
       );
@@ -684,7 +684,7 @@ void main() {
       expect(
         () => ClaudeRuntimeHomeService(
           applicationSupportDirectory: () async => support,
-          platform: ManagedAgentHookPlatform.posix,
+          platform: .posix,
           environment: const <String, String>{},
           syncMacOSKeychainCredentials: false,
         ),
@@ -701,7 +701,7 @@ ClaudeRuntimeHomeService _serviceWithFailingResourceLinks({
   return ClaudeRuntimeHomeService(
     homeDirectory: home.path,
     applicationSupportDirectory: () async => support,
-    platform: ManagedAgentHookPlatform.posix,
+    platform: .posix,
     environment: <String, String>{'HOME': home.path},
     syncMacOSKeychainCredentials: false,
     resourceLinkCreator: ({required sourcePath, required targetPath}) =>
@@ -709,11 +709,9 @@ ClaudeRuntimeHomeService _serviceWithFailingResourceLinks({
   );
 }
 
-final class _FakeClaudeKeychainCredentialsStore
-    implements ClaudeKeychainCredentialsStore {
-  _FakeClaudeKeychainCredentialsStore({this.legacyCredentials});
-
-  final String? legacyCredentials;
+final class _FakeClaudeKeychainCredentialsStore({
+  final String? legacyCredentials,
+}) implements ClaudeKeychainCredentialsStore {
   final scopedCredentials = <String, String>{};
   final deletedConfigDirs = <String>[];
 

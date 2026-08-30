@@ -42,7 +42,7 @@ class HostConnectionController extends _$HostConnectionController {
   Completer<void>? _buildAttempt;
   Future<void>? _connectionAttempt;
   int _lifecycleEpoch = 0;
-  AppLifecycleState _lifecycleState = AppLifecycleState.resumed;
+  AppLifecycleState _lifecycleState = .resumed;
   int _retryIndex = 0;
   bool _building = false;
   bool _disposed = false;
@@ -261,11 +261,8 @@ class HostConnectionController extends _$HostConnectionController {
         failure.$1,
         failure.$2 ?? StackTrace.current,
       ),
-      onDone: () => _handleClientEnded(
-        client,
-        const RuntimeConnectionLost(),
-        StackTrace.current,
-      ),
+      onDone: () =>
+          _handleClientEnded(client, const RuntimeConnectionLost(), .current),
       cancelOnError: false,
     );
     _closeSub = closeSub;

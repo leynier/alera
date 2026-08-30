@@ -24,9 +24,7 @@ part 'workbench_view_options_tags.dart';
 /// Filter/sort/group icon button that opens the view-options modal centered on
 /// screen. Using a centered dialog (instead of an anchored popover) sidesteps
 /// the dropdown clipping issues we hit with the previous overlay-based panel.
-class WorkbenchViewOptionsButton extends ConsumerWidget {
-  const WorkbenchViewOptionsButton({super.key});
-
+class const WorkbenchViewOptionsButton({super.key}) extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final prefs = ref.watch(
@@ -45,7 +43,7 @@ class WorkbenchViewOptionsButton extends ConsumerWidget {
         prefs.projectSort != WorkbenchViewPrefs.defaults.projectSort ||
         prefs.workspaceSort != WorkbenchViewPrefs.defaults.workspaceSort;
     return Stack(
-      clipBehavior: Clip.none,
+      clipBehavior: .none,
       children: <Widget>[
         AleraIconButton(
           tooltip: 'View options',
@@ -73,7 +71,7 @@ class WorkbenchViewOptionsButton extends ConsumerWidget {
           backgroundColor: AleraTokens.surfaceElevated,
           elevation: 0,
           maxWidth: 460,
-          insetPadding: const EdgeInsets.symmetric(
+          insetPadding: const .symmetric(
             horizontal: AleraTokens.space24,
             vertical: AleraTokens.space32,
           ),
@@ -86,9 +84,7 @@ class WorkbenchViewOptionsButton extends ConsumerWidget {
   }
 }
 
-class _ActiveDot extends StatelessWidget {
-  const _ActiveDot();
-
+class const _ActiveDot() extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -96,17 +92,14 @@ class _ActiveDot extends StatelessWidget {
       height: 6,
       decoration: const BoxDecoration(
         color: AleraTokens.accent,
-        shape: BoxShape.circle,
+        shape: .circle,
       ),
     );
   }
 }
 
-class _WorkbenchViewOptionsPanel extends ConsumerStatefulWidget {
-  const _WorkbenchViewOptionsPanel({required this.onDismiss});
-
-  final VoidCallback onDismiss;
-
+class const _WorkbenchViewOptionsPanel({required final VoidCallback onDismiss})
+    extends ConsumerStatefulWidget {
   @override
   ConsumerState<_WorkbenchViewOptionsPanel> createState() =>
       _WorkbenchViewOptionsPanelState();
@@ -243,8 +236,8 @@ class _WorkbenchViewOptionsPanelState
         AleraTokens.space16,
       ),
       child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
+        mainAxisSize: .min,
+        crossAxisAlignment: .stretch,
         children: <Widget>[
           AleraDialogHeader(title: 'View Options', onClose: widget.onDismiss),
           const SizedBox(height: AleraTokens.space12),
@@ -253,8 +246,8 @@ class _WorkbenchViewOptionsPanelState
           Flexible(
             child: SingleChildScrollView(
               child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
+                mainAxisSize: .min,
+                crossAxisAlignment: .stretch,
                 children: <Widget>[
                   _SectionLabel(text: 'Group By'),
                   const SizedBox(height: AleraTokens.space6),

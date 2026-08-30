@@ -19,9 +19,7 @@ void main() {
         }
         http.close(force: true);
       });
-      final identity = await RelayIdentityKeyPair.fromPrivate(
-        List.filled(32, 7),
-      );
+      final identity = await RelayIdentityKeyPair.fromPrivate(.filled(32, 7));
       Future<CloudRelayGrant> grant(int client) async {
         final request = await http.getUrl(
           Uri.parse('$origin/fixture/grant?role=mobile&client=phone-$client'),

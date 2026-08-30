@@ -194,7 +194,7 @@ void main() {
 
       final settings = await repository.updateSettings(
         enabled: true,
-        endpointMode: MobileEndpointMode.tailscale,
+        endpointMode: .tailscale,
       );
 
       expect(settings.endpointMode, MobileEndpointMode.tailscale);
@@ -219,8 +219,8 @@ void main() {
         final repository = RuntimeMobileAccessRepository(client);
 
         final settings = await repository.updateSettings(
-          endpointMode: MobileEndpointMode.netbird,
-          netbirdEndpoint: MobileNetbirdEndpoint.dns,
+          endpointMode: .netbird,
+          netbirdEndpoint: .dns,
         );
 
         expect(settings.netbirdEndpoint, MobileNetbirdEndpoint.dns);

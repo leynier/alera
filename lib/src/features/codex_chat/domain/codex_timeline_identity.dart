@@ -49,8 +49,8 @@ List<CodexTimelineCell> codexTimelineCellsWithoutClaimedMatches(
   ];
 }
 
-final class _CodexTimelineIdentityIndex {
-  _CodexTimelineIdentityIndex(this.cells) {
+final class _CodexTimelineIdentityIndex(final List<CodexTimelineCell> cells) {
+  this {
     for (var index = 0; index < cells.length; index++) {
       final cell = cells[index];
       _add(ids, cell.id, index);
@@ -60,7 +60,6 @@ final class _CodexTimelineIdentityIndex {
 
   static const _textMatchWindow = _timelineTextMatchWindow;
 
-  final List<CodexTimelineCell> cells;
   final Set<int> claimed = <int>{};
   final Map<String, ListQueue<int>> ids = <String, ListQueue<int>>{};
   final Map<String, ListQueue<int>> canonicalIds = <String, ListQueue<int>>{};

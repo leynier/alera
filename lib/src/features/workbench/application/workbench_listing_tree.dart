@@ -1,16 +1,12 @@
 import 'package:alera/src/features/workbench/domain/workspace.dart';
 
 /// One workspace positioned in the sidebar tree.
-class WorkspaceTreeEntry {
-  const WorkspaceTreeEntry({
-    required this.workspace,
-    required this.depth,
-    required this.visibleChildCount,
-    required this.childrenCollapsed,
-  });
-
-  final Workspace workspace;
-
+class const WorkspaceTreeEntry({
+  required final Workspace workspace,
+  required this.depth,
+  required this.visibleChildCount,
+  required this.childrenCollapsed,
+}) {
   /// Nesting depth relative to the sibling group root (0 = root level).
   final int depth;
 

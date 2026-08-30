@@ -46,34 +46,29 @@ RuntimeStateMigration runtimeStateMigration(Ref ref) {
   );
 }
 
-final class RuntimeStateLegacyRepositories {
-  const RuntimeStateLegacyRepositories({
-    required this.projectRepository,
-    required this.projectConfigRepository,
-    required this.settingsRepository,
-    required this.workbenchRepository,
-  });
+final class const RuntimeStateLegacyRepositories({
+  required final ProjectRepository projectRepository,
+  required final ProjectConfigRepository projectConfigRepository,
+  required final SettingsRepository settingsRepository,
+  required final WorkbenchRepository workbenchRepository,
+});
 
-  final ProjectRepository projectRepository;
-  final ProjectConfigRepository projectConfigRepository;
-  final SettingsRepository settingsRepository;
-  final WorkbenchRepository workbenchRepository;
-}
-
-final class RuntimeStateMigration {
-  RuntimeStateMigration({
-    required RuntimeHostClient runtimeClient,
-    required this.legacyRepositories,
-    ProjectRepository? runtimeProjects,
-    WorkbenchRepository? runtimeWorkbench,
-  }) : _runtimeClient = runtimeClient,
-       _runtimeProjects =
-           runtimeProjects ?? RuntimeProjectRepository(runtimeClient),
-       _runtimeWorkbench =
-           runtimeWorkbench ?? RuntimeWorkbenchRepository(runtimeClient);
+final class RuntimeStateMigration({
+  required RuntimeHostClient runtimeClient,
+  required final Future<RuntimeStateLegacyRepositories> Function()
+  legacyRepositories,
+  ProjectRepository? runtimeProjects,
+  WorkbenchRepository? runtimeWorkbench,
+}) {
+  this
+    : _runtimeClient = runtimeClient,
+      _runtimeProjects =
+          runtimeProjects ?? RuntimeProjectRepository(runtimeClient),
+      _runtimeWorkbench =
+          runtimeWorkbench ?? RuntimeWorkbenchRepository(runtimeClient);
 
   final RuntimeHostClient _runtimeClient;
-  final Future<RuntimeStateLegacyRepositories> Function() legacyRepositories;
+
   final ProjectRepository _runtimeProjects;
   final WorkbenchRepository _runtimeWorkbench;
 

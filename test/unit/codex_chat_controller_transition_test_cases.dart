@@ -16,7 +16,7 @@ void registerCodexChatControllerTransitionTests() {
               },
             }),
           );
-          await Future<void>.delayed(Duration.zero);
+          await Future<void>.delayed(.zero);
           return <String, Object?>{
             'snapshot': <String, Object?>{
               'timelineCells': <Object?>[],

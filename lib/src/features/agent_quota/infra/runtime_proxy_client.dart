@@ -9,20 +9,18 @@ import 'package:alera/src/shared/infra/process/process_runner.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
-class RuntimeProxyClient {
-  RuntimeProxyClient({
-    required this.processRunner,
-    this._environmentResolver,
-    this._platformEnvironment,
-    AleraCliResolver? cliResolver,
-    Future<Directory> Function()? applicationSupportDirectory,
-  }) : _cliResolver = cliResolver ?? DefaultAleraCliResolver(),
-       _applicationSupportDirectory =
-           applicationSupportDirectory ?? getApplicationSupportDirectory;
+class RuntimeProxyClient({
+  required final ProcessRunner processRunner,
+  final CommandEnvironmentResolver? _environmentResolver,
+  final Map<String, String>? _platformEnvironment,
+  AleraCliResolver? cliResolver,
+  Future<Directory> Function()? applicationSupportDirectory,
+}) {
+  this
+    : _cliResolver = cliResolver ?? DefaultAleraCliResolver(),
+      _applicationSupportDirectory =
+          applicationSupportDirectory ?? getApplicationSupportDirectory;
 
-  final ProcessRunner processRunner;
-  final CommandEnvironmentResolver? _environmentResolver;
-  final Map<String, String>? _platformEnvironment;
   final AleraCliResolver _cliResolver;
   final Future<Directory> Function() _applicationSupportDirectory;
 
@@ -187,16 +185,10 @@ class RuntimeProxyClient {
   }
 }
 
-class _RuntimeProxyInvocation {
-  const _RuntimeProxyInvocation({
-    required this.executable,
-    required this.arguments,
-    this.workingDirectory,
-  });
-
-  final String executable;
-  final List<String> arguments;
-  final String? workingDirectory;
-}
+class const _RuntimeProxyInvocation({
+  required final String executable,
+  required final List<String> arguments,
+  final String? workingDirectory,
+});
 
 String _shellQuote(String value) => "'${value.replaceAll("'", "'\\''")}'";

@@ -39,31 +39,19 @@ final class BrowserCallbackCancellation {
   }
 }
 
-final class BrowserNativeCallbackHandlers {
-  const BrowserNativeCallbackHandlers({
-    this.permission,
-    this.tls,
-    this.popup,
-    this.download,
-  });
+final class const BrowserNativeCallbackHandlers({
+  final BrowserPermissionHandler? permission,
+  final BrowserTlsHandler? tls,
+  final BrowserPopupHandler? popup,
+  final BrowserDownloadHandler? download,
+});
 
-  final BrowserPermissionHandler? permission;
-  final BrowserTlsHandler? tls;
-  final BrowserPopupHandler? popup;
-  final BrowserDownloadHandler? download;
-}
-
-final class BrowserNativeCallbackCoordinator {
-  BrowserNativeCallbackCoordinator({
-    this.deadline = const Duration(seconds: 15),
-    this.tlsDeadline = const Duration(seconds: 60),
-    BrowserPermissionHandler? fallbackPermission,
-    BrowserPopupHandler? fallbackPopup,
-  }) : _fallbackPermission = fallbackPermission,
-       _fallbackPopup = fallbackPopup;
-
-  final Duration deadline;
-  final Duration tlsDeadline;
+final class BrowserNativeCallbackCoordinator({
+  final Duration deadline = const Duration(seconds: 15),
+  final Duration tlsDeadline = const Duration(seconds: 60),
+  this._fallbackPermission,
+  this._fallbackPopup,
+}) {
   final BrowserPermissionHandler? _fallbackPermission;
   final BrowserPopupHandler? _fallbackPopup;
   BrowserNativeCallbackHandlers? _handlers;
@@ -107,7 +95,7 @@ final class BrowserNativeCallbackCoordinator {
         }
       }
       return BrowserPermissionDecision.allow;
-    }, BrowserPermissionDecision.deny);
+    }, .deny);
   }
 
   Future<bool> decideTls(BrowserTlsRequest request) {
@@ -127,7 +115,7 @@ final class BrowserNativeCallbackCoordinator {
         ? Future<BrowserPopupDecision>.value(const BrowserPopupDecision.deny())
         : _guarded(
             (cancellation) => handler(request, cancellation),
-            const BrowserPopupDecision.deny(),
+            const .deny(),
           );
   }
 
@@ -172,10 +160,7 @@ final class BrowserNativeCallbackCoordinator {
   }
 }
 
-final class BrowserCallbackRegistration {
-  BrowserCallbackRegistration._(this._release);
-
-  final void Function() _release;
+final class BrowserCallbackRegistration._(final void Function() _release) {
   var _disposed = false;
 
   void dispose() {

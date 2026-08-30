@@ -16,15 +16,10 @@ typedef NativeHelperPinnedSourceResolver = Future<File> Function(
   bool offline,
 );
 
-final class NativeHelperSwiftBuilder {
-  NativeHelperSwiftBuilder({
-    required this.repositoryRoot,
-    required this.sourceResolver,
-  });
-
-  final Directory repositoryRoot;
-  final NativeHelperPinnedSourceResolver sourceResolver;
-
+final class NativeHelperSwiftBuilder({
+  required final Directory repositoryRoot,
+  required final NativeHelperPinnedSourceResolver sourceResolver,
+}) {
   Future<Uint8List> build({
     required NativeHelperAsset asset,
     required NativeHelperDerivation derivation,

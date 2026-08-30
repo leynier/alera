@@ -40,7 +40,7 @@ void main() {
           autosaveDelaySeconds: 3,
         ),
         aiAssist: AiAssistSettings(
-          agent: AiAssistAgent.agy,
+          agent: .agy,
           selectedModelByAgent: <AiAssistAgent, String>{
             AiAssistAgent.agy: 'Gemini 3.5 Flash (Medium)',
           },
@@ -62,7 +62,7 @@ void main() {
           lineHeight: 1.4,
           paddingX: 8,
           paddingY: 10,
-          cursorShape: TerminalCursorShape.bar,
+          cursorShape: .bar,
           cursorBlink: true,
           cursorOpacity: 0.75,
           themeName: TerminalThemeNames.dracula,
@@ -78,7 +78,7 @@ void main() {
           hostEmptyShutdownDelaySeconds: 5,
           hostDetachedSessionShutdownDelaySeconds: 120,
           hostScrollbackBytes: 24 * 1000 * 1000,
-          toolbarCorner: TerminalToolbarCorner.bottomRight,
+          toolbarCorner: .bottomRight,
         ),
         keyboard: KeyboardShortcutSettings(
           overrides: <KeyboardActionId, List<String>>{
@@ -119,12 +119,9 @@ void main() {
       expect(restored.editor.autosaveEnabled, isTrue);
       expect(restored.editor.autosaveDelaySeconds, 3);
       expect(restored.aiAssist.agent, AiAssistAgent.agy);
+      expect(restored.aiAssist.modelFor(.agy), 'Gemini 3.5 Flash (Medium)');
       expect(
-        restored.aiAssist.modelFor(AiAssistAgent.agy),
-        'Gemini 3.5 Flash (Medium)',
-      );
-      expect(
-        restored.aiAssist.instructionsFor(AiAssistOperation.commitMessage),
+        restored.aiAssist.instructionsFor(.commitMessage),
         'Use conventional commits.',
       );
       expect(restored.codexChat.selectedModel, 'gpt-current');

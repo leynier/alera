@@ -1,17 +1,11 @@
 part of 'terminal_runtime.dart';
 
-class _InteractiveTerminalView extends StatefulWidget {
-  const _InteractiveTerminalView({
-    super.key,
-    required this.session,
-    required this.autofocus,
-    this.onKeyEvent,
-  });
-
-  final _XtermTerminalSessionHandle session;
-  final bool autofocus;
-  final FocusOnKeyEventCallback? onKeyEvent;
-
+class const _InteractiveTerminalView({
+  super.key,
+  required final _XtermTerminalSessionHandle session,
+  required final bool autofocus,
+  final FocusOnKeyEventCallback? onKeyEvent,
+}) extends StatefulWidget {
   @override
   State<_InteractiveTerminalView> createState() =>
       _InteractiveTerminalViewState();
@@ -104,26 +98,17 @@ class _InteractiveTerminalViewState extends State<_InteractiveTerminalView> {
   }
 }
 
-class _TerminalPtySize {
-  const _TerminalPtySize({
-    required this.cols,
-    required this.rows,
-    required this.cellWidthPx,
-    required this.cellHeightPx,
-  });
-
-  final int cols;
-  final int rows;
-  final int cellWidthPx;
-  final int cellHeightPx;
-}
+class const _TerminalPtySize({
+  required final int cols,
+  required final int rows,
+  required final int cellWidthPx,
+  required final int cellHeightPx,
+});
 
 const Duration _ptyResizeDebounceDuration = Duration(milliseconds: 150);
 
-final class _TerminalVisibilityLease implements TerminalVisibilityLease {
-  _TerminalVisibilityLease(this._onDispose);
-
-  final VoidCallback _onDispose;
+final class _TerminalVisibilityLease(final VoidCallback _onDispose)
+    implements TerminalVisibilityLease {
   bool _disposed = false;
 
   @override

@@ -145,8 +145,8 @@ class _FakeProcessRunner implements ProcessRunner {
   }
 }
 
-class _FakeStartedProcess {
-  _FakeStartedProcess() {
+class _FakeStartedProcess() {
+  this {
     startedProcess = StartedProcess(
       stdinWrite: (_) {},
       stdout: const Stream<List<int>>.empty(),
@@ -172,12 +172,7 @@ class _FakeStartedProcess {
   }
 }
 
-class _StartCall {
-  const _StartCall(this.executable, this.arguments);
-
-  final String executable;
-  final List<String> arguments;
-
+class const _StartCall(final String executable, final List<String> arguments) {
   @override
   bool operator ==(Object other) {
     return other is _StartCall &&

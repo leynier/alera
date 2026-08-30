@@ -8,7 +8,7 @@ extension _WorkspaceEditorSave on _WorkspaceEditorSurfaceState {
     }
     final loadError = _loadError;
     if (loadError != null) {
-      _showToast(_messageFor(loadError), tone: AleraToastTone.error);
+      _showToast(_messageFor(loadError), tone: .error);
       return;
     }
     if (!_document.canSave || !mounted) {
@@ -33,7 +33,7 @@ extension _WorkspaceEditorSave on _WorkspaceEditorSurfaceState {
         _autosave.pause();
         await _resolveSaveConflict();
       } else {
-        _showToast(_messageFor(error), tone: AleraToastTone.error);
+        _showToast(_messageFor(error), tone: .error);
       }
     } finally {
       if (mounted) {
@@ -111,7 +111,7 @@ extension _WorkspaceEditorSave on _WorkspaceEditorSurfaceState {
       return true;
     } catch (error) {
       if (mounted) {
-        _showToast(_messageFor(error), tone: AleraToastTone.error);
+        _showToast(_messageFor(error), tone: .error);
       }
       return false;
     }
@@ -178,9 +178,6 @@ extension _WorkspaceEditorSave on _WorkspaceEditorSurfaceState {
       unawaited(_resolveSaveConflict());
       return;
     }
-    _showToast(
-      'Autosave paused: ${_messageFor(error)}',
-      tone: AleraToastTone.error,
-    );
+    _showToast('Autosave paused: ${_messageFor(error)}', tone: .error);
   }
 }

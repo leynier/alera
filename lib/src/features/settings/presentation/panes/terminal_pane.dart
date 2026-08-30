@@ -7,30 +7,24 @@ import 'package:alera/src/features/settings/presentation/rows/settings_font_auto
 import 'package:alera/src/features/settings/presentation/rows/settings_rows.dart';
 import 'package:flutter/material.dart';
 
-class TerminalSettingsPane extends StatelessWidget {
-  const TerminalSettingsPane({
-    super.key,
-    required this.settings,
-    required this.fontSuggestions,
-    required this.onChanged,
-    this.onReloadShellEnvironment,
-    this.groupKeys = const <String, GlobalKey>{},
-  });
-
-  final TerminalSettings settings;
-  final List<String> fontSuggestions;
-  final ValueChanged<TerminalSettings Function(TerminalSettings)> onChanged;
-
+class const TerminalSettingsPane({
+  super.key,
+  required final TerminalSettings settings,
+  required final List<String> fontSuggestions,
+  required final ValueChanged<TerminalSettings Function(TerminalSettings)>
+  onChanged,
+  this.onReloadShellEnvironment,
+  final Map<String, GlobalKey> groupKeys = const <String, GlobalKey>{},
+}) extends StatelessWidget {
   /// Re-probes the login shell so a tool installed mid-session resolves without
   /// restarting the runtime. When null the row is omitted.
   final Future<void> Function()? onReloadShellEnvironment;
-  final Map<String, GlobalKey> groupKeys;
 
   @override
   Widget build(BuildContext context) {
     final overrides = settings.colorOverrides;
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+      crossAxisAlignment: .stretch,
       children: <Widget>[
         KeyedSubtree(
           key: groupKeys['typography'],

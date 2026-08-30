@@ -1,18 +1,11 @@
 part of 'mobile_codex_chat_screen.dart';
 
-class _MobileWorkedRow extends StatelessWidget {
-  const _MobileWorkedRow({
-    required this.cell,
-    required this.expanded,
-    required this.canToggle,
-    required this.onToggle,
-  });
-
-  final MobileCodexTimelineCell cell;
-  final bool expanded;
-  final bool canToggle;
-  final VoidCallback onToggle;
-
+class const _MobileWorkedRow({
+  required final MobileCodexTimelineCell cell,
+  required final bool expanded,
+  required final bool canToggle,
+  required final VoidCallback onToggle,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final duration = _mobileDuration(
@@ -44,7 +37,7 @@ class _MobileWorkedRow extends StatelessWidget {
       padding: const EdgeInsets.only(bottom: AleraTokens.space12),
       child: canToggle
           ? InkWell(
-              borderRadius: BorderRadius.circular(AleraTokens.radiusPill),
+              borderRadius: .circular(AleraTokens.radiusPill),
               onTap: onToggle,
               child: content,
             )
@@ -53,11 +46,8 @@ class _MobileWorkedRow extends StatelessWidget {
   }
 }
 
-class _MobileWarningNotice extends StatelessWidget {
-  const _MobileWarningNotice({required this.cell});
-
-  final MobileCodexTimelineCell cell;
-
+class const _MobileWarningNotice({required final MobileCodexTimelineCell cell})
+    extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Container(
     margin: const EdgeInsets.only(bottom: AleraTokens.space8),
@@ -68,13 +58,13 @@ class _MobileWarningNotice extends StatelessWidget {
       border: Border.all(color: AleraTokens.warning.withValues(alpha: 0.32)),
     ),
     child: Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: .start,
       children: <Widget>[
         const Icon(Icons.warning_amber_rounded, color: AleraTokens.warning),
         const SizedBox(width: AleraTokens.space8),
         Expanded(
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            crossAxisAlignment: .start,
             children: <Widget>[
               Text(
                 cell.title ?? 'Codex Warning',
@@ -91,11 +81,8 @@ class _MobileWarningNotice extends StatelessWidget {
   );
 }
 
-class _MobileMcpStatus extends StatelessWidget {
-  const _MobileMcpStatus({required this.cell});
-
-  final MobileCodexTimelineCell cell;
-
+class const _MobileMcpStatus({required final MobileCodexTimelineCell cell})
+    extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final ready = !cell.isStreaming && cell.status != 'failed';
@@ -119,7 +106,7 @@ class _MobileMcpStatus extends StatelessWidget {
         border: Border.all(color: AleraTokens.border),
       ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
+        crossAxisAlignment: .stretch,
         children: <Widget>[
           Row(
             children: <Widget>[
@@ -129,7 +116,7 @@ class _MobileMcpStatus extends StatelessWidget {
                 child: Text(
                   cell.title ?? 'MCP Server',
                   maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+                  overflow: .ellipsis,
                 ),
               ),
               if (cell.isStreaming)

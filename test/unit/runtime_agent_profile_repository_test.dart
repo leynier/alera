@@ -185,7 +185,7 @@ void main() {
       await repository.upsert(
         name: 'Codex Sol',
         agentType: 'codex',
-        launchMode: AgentProfileLaunchMode.command,
+        launchMode: .command,
         command: 'codex',
         customPrompt: 'Prefer Small, Reviewable Changes',
       );
@@ -232,8 +232,8 @@ void main() {
         description: 'Backend implementation',
         customPrompt: 'Prefer Small, Reviewable Changes',
         quotaGroup: 'codex-personal',
-        createdAt: DateTime.utc(2026, 7),
-        updatedAt: DateTime.utc(2026, 7),
+        createdAt: .utc(2026, 7),
+        updatedAt: .utc(2026, 7),
       );
       await container
           .read(agentProfilesProvider.notifier)
@@ -268,7 +268,7 @@ void main() {
       await repository.upsert(
         name: 'Managed Codex',
         agentType: 'codex',
-        launchMode: AgentProfileLaunchMode.managed,
+        launchMode: .managed,
         command: 'this must not be trusted',
         managedConfig: const <String, Object?>{
           'model': 'gpt-5.6-sol',
@@ -298,7 +298,7 @@ void main() {
         repository.upsert(
           name: 'Managed Codex',
           agentType: 'codex',
-          launchMode: AgentProfileLaunchMode.managed,
+          launchMode: .managed,
         ),
         throwsA(
           isA<StateError>().having(
@@ -379,7 +379,7 @@ void main() {
             expectedRevision: 0,
             name: 'New Name',
             agentType: 'codex',
-            launchMode: AgentProfileLaunchMode.command,
+            launchMode: .command,
             command: 'codex',
           );
 

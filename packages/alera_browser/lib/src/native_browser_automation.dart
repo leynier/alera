@@ -10,18 +10,12 @@ typedef AleraBrowserJavaScriptEvaluator = Future<Object?> Function(
 );
 typedef AleraBrowserAutomationGeneration = int Function(String pageId);
 
-final class AleraNativeBrowserAutomation {
-  AleraNativeBrowserAutomation({
-    required this.evaluate,
-    required this.generation,
-    required this.now,
-    required this.namespace,
-  });
-
-  final AleraBrowserJavaScriptEvaluator evaluate;
-  final AleraBrowserAutomationGeneration generation;
-  final DateTime Function() now;
-  final String namespace;
+final class AleraNativeBrowserAutomation({
+  required final AleraBrowserJavaScriptEvaluator evaluate,
+  required final AleraBrowserAutomationGeneration generation,
+  required final DateTime Function() now,
+  required final String namespace,
+}) {
   final Map<String, int> _snapshotSequences = <String, int>{};
 
   void invalidate(String pageId) {

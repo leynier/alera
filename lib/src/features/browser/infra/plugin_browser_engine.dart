@@ -16,9 +16,11 @@ import 'package:alera_browser/alera_browser.dart';
 part 'plugin_browser_engine_mappers.dart';
 part 'plugin_browser_engine_profiles.dart';
 
-final class PluginBrowserEngine implements BrowserEngine {
-  PluginBrowserEngine(this.client, {DateTime Function()? now})
-    : _now = now ?? _defaultNow {
+final class PluginBrowserEngine(
+  final AleraBrowserClient client, {
+  DateTime Function()? now,
+}) implements BrowserEngine {
+  this : _now = now ?? _defaultNow {
     _profiles = _PluginBrowserProfiles(client: client, now: _now);
     _events = client.events
         .map<BrowserEngineEvent?>((event) {
@@ -32,7 +34,6 @@ final class PluginBrowserEngine implements BrowserEngine {
         .asBroadcastStream();
   }
 
-  final AleraBrowserClient client;
   final DateTime Function() _now;
   final Map<String, BrowserPage> _pages = <String, BrowserPage>{};
   final Map<String, String> _latestSnapshotIds = <String, String>{};
@@ -297,7 +298,7 @@ final class PluginBrowserEngine implements BrowserEngine {
       final target = action.target;
       if (target == null) {
         throw const BrowserFailure(
-          code: BrowserErrorCode.invalidPayload,
+          code: .invalidPayload,
           message: 'The browser action requires a target.',
           recoverable: true,
         );
@@ -314,7 +315,7 @@ final class PluginBrowserEngine implements BrowserEngine {
       if (action.kind == BrowserAutomationActionKind.drag &&
           secondaryTarget == null) {
         throw const BrowserFailure(
-          code: BrowserErrorCode.invalidPayload,
+          code: .invalidPayload,
           message: 'The browser drag action requires a second target.',
           recoverable: true,
         );
@@ -371,7 +372,7 @@ final class PluginBrowserEngine implements BrowserEngine {
     BrowserPermissionRequest request,
     BrowserPermissionDecision decision,
   ) => throw const BrowserFailure(
-    code: BrowserErrorCode.unsupportedCapability,
+    code: .unsupportedCapability,
     message: 'Permission decisions must be answered in the engine callback.',
   );
 
@@ -380,14 +381,14 @@ final class PluginBrowserEngine implements BrowserEngine {
     String challengeId, {
     required bool proceed,
   }) => throw const BrowserFailure(
-    code: BrowserErrorCode.unsupportedCapability,
+    code: .unsupportedCapability,
     message: 'TLS decisions must be answered in the engine callback.',
   );
 
   @override
   Future<void> answerPopup(String requestId, {required bool allow}) =>
       throw const BrowserFailure(
-        code: BrowserErrorCode.unsupportedCapability,
+        code: .unsupportedCapability,
         message: 'Popup decisions must be answered in the engine callback.',
       );
 
@@ -395,7 +396,7 @@ final class PluginBrowserEngine implements BrowserEngine {
     final page = _pages[pageId];
     if (page == null) {
       throw BrowserFailure(
-        code: BrowserErrorCode.pageNotFound,
+        code: .pageNotFound,
         message: 'Browser page $pageId was not found.',
         recoverable: true,
       );

@@ -210,27 +210,16 @@ printf 'rpm fixture\\n' >"\$topdir/RPMS/x86_64/alera-test.rpm"
 /// `apt-ftparchive` and `createrepo_c` are stubbed on `PATH` because the script
 /// only needs them to produce files it then signs, and neither is installed on
 /// a developer machine by default.
-class _LinuxRepositoryFixture {
-  _LinuxRepositoryFixture._({
-    required this.root,
-    required this.publicDir,
-    required this.releaseAssets,
-    required this.tempRoot,
-    required this.gpgHome,
-    required this.fingerprint,
-    required this.privateKeyBase64,
-    required this.fakeBin,
-  });
-
-  final Directory root;
-  final Directory publicDir;
-  final Directory releaseAssets;
-  final Directory tempRoot;
-  final Directory gpgHome;
-  final String fingerprint;
-  final String privateKeyBase64;
-  final Directory fakeBin;
-
+class _LinuxRepositoryFixture._({
+  required final Directory root,
+  required final Directory publicDir,
+  required final Directory releaseAssets,
+  required final Directory tempRoot,
+  required final Directory gpgHome,
+  required final String fingerprint,
+  required final String privateKeyBase64,
+  required final Directory fakeBin,
+}) {
   static Future<_LinuxRepositoryFixture> create() async {
     final root = await Directory.systemTemp.createTemp('alera-linux-repo-');
     final gpgHome = Directory(p.join(root.path, 'gpg'))..createSync();

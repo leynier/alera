@@ -14,35 +14,20 @@ abstract interface class AgentStatusNotificationPresenter {
   Future<void> show(AgentStatusNotification notification);
 }
 
-class AgentStatusNotification {
-  const AgentStatusNotification({
-    required this.id,
-    required this.title,
-    required this.body,
-    required this.payload,
-  });
+class const AgentStatusNotification({
+  required final int id,
+  required final String title,
+  required final String body,
+  required final String payload,
+});
 
-  final int id;
-  final String title;
-  final String body;
-  final String payload;
-}
-
-class AgentStatusNotificationPayload {
-  const AgentStatusNotificationPayload({
-    required this.terminalSessionId,
-    required this.workspaceId,
-    required this.tabId,
-    required this.agentType,
-    required this.state,
-  });
-
-  final String terminalSessionId;
-  final String workspaceId;
-  final String tabId;
-  final AgentType agentType;
-  final AgentStatusState state;
-
+class const AgentStatusNotificationPayload({
+  required final String terminalSessionId,
+  required final String workspaceId,
+  required final String tabId,
+  required final AgentType agentType,
+  required final AgentStatusState state,
+}) {
   String encode() => jsonEncode(<String, String>{
     'terminalSessionId': terminalSessionId,
     'workspaceId': workspaceId,
@@ -97,20 +82,14 @@ AgentStatusNotificationPayload? decodeAgentStatusNotificationPayload(
 /// notifications.
 const Duration agentStatusNotificationCooldown = Duration(seconds: 60);
 
-class AgentStatusNotificationTracker {
-  AgentStatusNotificationTracker({
-    required this.now,
-    required this.notifiableFrom,
-    this.cooldown = agentStatusNotificationCooldown,
-  });
-
-  final DateTime Function() now;
-
+class AgentStatusNotificationTracker({
+  required final DateTime Function() now,
+  required this.notifiableFrom,
+  final Duration cooldown = agentStatusNotificationCooldown,
+}) {
   /// States that started before this are what the runtime was already holding
   /// when the coordinator came up, not events the user just caused.
   final DateTime notifiableFrom;
-
-  final Duration cooldown;
 
   /// Last delivery per terminal session and state. The state start time is
   /// deliberately absent from the key: the local hook path and the runtime

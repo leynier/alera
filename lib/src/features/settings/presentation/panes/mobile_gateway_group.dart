@@ -24,34 +24,20 @@ MobileEndpointMode displayedEndpointMode(MobileGatewaySettings settings) {
 
 /// Gateway settings group with the connection-mode selector. Presentational:
 /// state and runtime calls stay in the mobile devices pane.
-class MobileGatewayGroup extends StatelessWidget {
-  const MobileGatewayGroup({
-    super.key,
-    required this.status,
-    required this.bindHostController,
-    required this.gatewayPort,
-    required this.applying,
-    required this.onEnabledChanged,
-    required this.onRemoteAccessChanged,
-    required this.onModeSelected,
-    required this.onNetbirdEndpointSelected,
-    required this.onBindHostChanged,
-    required this.onPortChanged,
-    required this.onApply,
-  });
-
-  final MobileAccessStatus status;
-  final TextEditingController bindHostController;
-  final int gatewayPort;
-  final bool applying;
-  final ValueChanged<bool> onEnabledChanged;
-  final ValueChanged<bool> onRemoteAccessChanged;
-  final ValueChanged<MobileEndpointMode> onModeSelected;
-  final ValueChanged<MobileNetbirdEndpoint> onNetbirdEndpointSelected;
-  final ValueChanged<String> onBindHostChanged;
-  final ValueChanged<int> onPortChanged;
-  final VoidCallback onApply;
-
+class const MobileGatewayGroup({
+  super.key,
+  required final MobileAccessStatus status,
+  required final TextEditingController bindHostController,
+  required final int gatewayPort,
+  required final bool applying,
+  required final ValueChanged<bool> onEnabledChanged,
+  required final ValueChanged<bool> onRemoteAccessChanged,
+  required final ValueChanged<MobileEndpointMode> onModeSelected,
+  required final ValueChanged<MobileNetbirdEndpoint> onNetbirdEndpointSelected,
+  required final ValueChanged<String> onBindHostChanged,
+  required final ValueChanged<int> onPortChanged,
+  required final VoidCallback onApply,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final settings = status.settings;
@@ -111,20 +97,20 @@ class MobileGatewayGroup extends StatelessWidget {
               dense: true,
               segments: <ButtonSegment<MobileEndpointMode>>[
                 const ButtonSegment<MobileEndpointMode>(
-                  value: MobileEndpointMode.loopback,
+                  value: .loopback,
                   label: Text('This Device'),
                 ),
                 const ButtonSegment<MobileEndpointMode>(
-                  value: MobileEndpointMode.tailscale,
+                  value: .tailscale,
                   label: Text('Tailscale'),
                 ),
                 if (status.netbird != null)
                   const ButtonSegment<MobileEndpointMode>(
-                    value: MobileEndpointMode.netbird,
+                    value: .netbird,
                     label: Text('NetBird'),
                   ),
                 const ButtonSegment<MobileEndpointMode>(
-                  value: MobileEndpointMode.manual,
+                  value: .manual,
                   label: Text('Manual'),
                 ),
               ],
@@ -239,7 +225,7 @@ class MobileGatewayGroup extends StatelessWidget {
       child: Align(
         alignment: Alignment.centerRight,
         child: Row(
-          mainAxisSize: MainAxisSize.min,
+          mainAxisSize: .min,
           children: <Widget>[
             AleraStatusDot(active: active),
             const SizedBox(width: AleraTokens.space6),
@@ -287,7 +273,7 @@ class MobileGatewayGroup extends StatelessWidget {
       child: Align(
         alignment: Alignment.centerRight,
         child: Row(
-          mainAxisSize: MainAxisSize.min,
+          mainAxisSize: .min,
           children: <Widget>[
             AleraStatusDot(active: active),
             const SizedBox(width: AleraTokens.space6),
@@ -302,24 +288,24 @@ class MobileGatewayGroup extends StatelessWidget {
     final netbird = status.netbird;
     final segments = <ButtonSegment<MobileNetbirdEndpoint>>[
       const ButtonSegment<MobileNetbirdEndpoint>(
-        value: MobileNetbirdEndpoint.ip,
+        value: .ip,
         label: Text('IP Address'),
       ),
       if (netbird?.dnsHostname != null ||
           status.settings.netbirdEndpoint == MobileNetbirdEndpoint.dns)
         ButtonSegment<MobileNetbirdEndpoint>(
-          value: MobileNetbirdEndpoint.dns,
+          value: .dns,
           label: Text('DNS Hostname'),
         ),
       if (netbird?.interfaceName case final String interfaceName)
         ButtonSegment<MobileNetbirdEndpoint>(
-          value: MobileNetbirdEndpoint.interface,
+          value: .interface,
           label: Text('Interface ($interfaceName)'),
         ),
       if (netbird?.interfaceName == null &&
           status.settings.netbirdEndpoint == MobileNetbirdEndpoint.interface)
         const ButtonSegment<MobileNetbirdEndpoint>(
-          value: MobileNetbirdEndpoint.interface,
+          value: .interface,
           label: Text('Private Interface'),
         ),
     ];

@@ -9,13 +9,11 @@ import 'package:flutter_test/flutter_test.dart';
 
 /// Drives the isolate against a real loopback socket and collects what it
 /// sends back to the main isolate.
-class _IsolateHarness {
-  _IsolateHarness(this.server, this.messages, this.ready);
-
-  final ServerSocket server;
-  final StreamController<List<Object?>> messages;
-  final Future<Socket> ready;
-}
+class _IsolateHarness(
+  final ServerSocket server,
+  final StreamController<List<Object?>> messages,
+  final Future<Socket> ready,
+);
 
 Future<_IsolateHarness> _startIsolate() async {
   final server = await ServerSocket.bind(InternetAddress.loopbackIPv4, 0);

@@ -4,17 +4,13 @@ import 'package:alera/src/features/settings/presentation/panes/alera_skill_termi
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-class AleraAgentCanvasSkillControl extends ConsumerWidget {
-  const AleraAgentCanvasSkillControl({super.key});
-
+class const AleraAgentCanvasSkillControl({super.key}) extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return AleraSkillTerminalInstallControl(
       dialogTitle: 'Install Agent Canvas Skill',
-      commandFor: (runner) => aleraCliSkillInstallCommand(
-        runner: runner,
-        skill: AleraAgentSkill.agentCanvas,
-      ),
+      commandFor: (runner) =>
+          aleraCliSkillInstallCommand(runner: runner, skill: .agentCanvas),
       runCommand: (context, request) =>
           showCommandTerminalDialog(context, ref, request),
     );

@@ -9,28 +9,26 @@ enum WorkspaceKind { main, linked }
 enum WorkspaceStatus { active, removed }
 
 @MappableClass()
-class Workspace with WorkspaceMappable {
-  const Workspace({
-    required this.id,
-    required this.projectId,
-    required this.name,
-    required this.path,
-    required this.createdAt,
-    required this.updatedAt,
-    required this.kind,
-    required this.status,
-    this.branch,
-    this.sourceBranch,
-    this.reusesExistingBranch = false,
-    this.instanceId,
-    this.hostId = 'local',
-    this.isPinned = false,
-    this.tagIds = const <String>[],
-    this.tagNames = const <String>[],
-    this.parentWorkspaceId,
-    this.childCount = 0,
-  });
-
+class const Workspace({
+  required this.id,
+  required this.projectId,
+  required this.name,
+  required this.path,
+  required this.createdAt,
+  required this.updatedAt,
+  required this.kind,
+  required this.status,
+  this.branch,
+  this.sourceBranch,
+  this.reusesExistingBranch = false,
+  this.instanceId,
+  this.hostId = 'local',
+  this.isPinned = false,
+  this.tagIds = const <String>[],
+  this.tagNames = const <String>[],
+  this.parentWorkspaceId,
+  this.childCount = 0,
+}) with WorkspaceMappable {
   final String id;
   final String projectId;
   final String name;
@@ -56,6 +54,6 @@ class Workspace with WorkspaceMappable {
 
   bool get hasParentWorkspace => parentWorkspaceId?.trim().isNotEmpty ?? false;
 
-  factory Workspace.fromJson(Map<String, Object?> json) =>
+  factory fromJson(Map<String, Object?> json) =>
       WorkspaceMapper.fromMap(Map<String, dynamic>.from(json));
 }

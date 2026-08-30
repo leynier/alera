@@ -49,7 +49,7 @@ void main() {
 
   test('round-trips settings through the generated mapper', () {
     const settings = AiAssistSettings(
-      agent: AiAssistAgent.custom,
+      agent: .custom,
       customCommand: 'generate',
       selectedModelByAgent: <AiAssistAgent, String>{
         AiAssistAgent.codex: 'gpt-5',
@@ -59,7 +59,7 @@ void main() {
       },
       promptSettingsByOperation: <AiAssistOperation, AiAssistPromptSettings>{
         AiAssistOperation.commitMessage: AiAssistPromptSettings(
-          agent: AiAssistAgent.claude,
+          agent: .claude,
           model: 'opus',
         ),
       },
@@ -70,53 +70,28 @@ void main() {
 
   test('resolves prompt agent and model overrides independently', () {
     const settings = AiAssistSettings(
-      agent: AiAssistAgent.codex,
+      agent: .codex,
       selectedModelByAgent: <AiAssistAgent, String>{
         AiAssistAgent.codex: 'gpt-global',
         AiAssistAgent.claude: 'sonnet',
         AiAssistAgent.opencode: 'provider/reading-model',
       },
       promptSettingsByOperation: <AiAssistOperation, AiAssistPromptSettings>{
-        AiAssistOperation.commitMessage: AiAssistPromptSettings(
-          agent: AiAssistAgent.claude,
-        ),
+        AiAssistOperation.commitMessage: AiAssistPromptSettings(agent: .claude),
         AiAssistOperation.pullRequestDetails: AiAssistPromptSettings(
           model: 'gpt-pull-request',
         ),
-        AiAssistOperation.readingDiff: AiAssistPromptSettings(
-          agent: AiAssistAgent.opencode,
-        ),
+        AiAssistOperation.readingDiff: AiAssistPromptSettings(agent: .opencode),
       },
     );
 
-    expect(
-      settings.agentFor(AiAssistOperation.commitMessage),
-      AiAssistAgent.claude,
-    );
-    expect(
-      settings.modelForOperation(AiAssistOperation.commitMessage),
-      'sonnet',
-    );
-    expect(
-      settings.agentFor(AiAssistOperation.pullRequestDetails),
-      AiAssistAgent.codex,
-    );
-    expect(
-      settings.modelForOperation(AiAssistOperation.pullRequestDetails),
-      'gpt-pull-request',
-    );
-    expect(
-      settings.agentFor(AiAssistOperation.readingDiff),
-      AiAssistAgent.opencode,
-    );
-    expect(
-      settings.modelForOperation(AiAssistOperation.readingDiff),
-      'provider/reading-model',
-    );
-    expect(
-      settings.modelForOperation(AiAssistOperation.workspaceIdentity),
-      'gpt-global',
-    );
+    expect(settings.agentFor(.commitMessage), AiAssistAgent.claude);
+    expect(settings.modelForOperation(.commitMessage), 'sonnet');
+    expect(settings.agentFor(.pullRequestDetails), AiAssistAgent.codex);
+    expect(settings.modelForOperation(.pullRequestDetails), 'gpt-pull-request');
+    expect(settings.agentFor(.readingDiff), AiAssistAgent.opencode);
+    expect(settings.modelForOperation(.readingDiff), 'provider/reading-model');
+    expect(settings.modelForOperation(.workspaceIdentity), 'gpt-global');
   });
 
   test('keeps operation reasoning overrides isolated with global fallback', () {
@@ -127,25 +102,16 @@ void main() {
       },
     );
 
+    expect(settings.thinkingForOperation(.commitMessage, 'gpt-5.5'), 'high');
     expect(
-      settings.thinkingForOperation(AiAssistOperation.commitMessage, 'gpt-5.5'),
-      'high',
-    );
-    expect(
-      settings.thinkingForOperation(
-        AiAssistOperation.pullRequestDetails,
-        'gpt-5.5',
-      ),
+      settings.thinkingForOperation(.pullRequestDetails, 'gpt-5.5'),
       'low',
     );
   });
 
   test('reports whether prompt settings inherit each global value', () {
     const inherited = AiAssistPromptSettings(model: '  ');
-    const overridden = AiAssistPromptSettings(
-      agent: AiAssistAgent.claude,
-      model: 'sonnet',
-    );
+    const overridden = AiAssistPromptSettings(agent: .claude, model: 'sonnet');
 
     expect(inherited.inheritsAgent, isTrue);
     expect(inherited.inheritsModel, isTrue);

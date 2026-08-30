@@ -16,20 +16,18 @@ extension AgentCanvasStateX on AgentCanvasState {
 enum AgentCanvasDecisionState { pending, resolved, timeout }
 
 @MappableClass()
-class AgentCanvasDecision with AgentCanvasDecisionMappable {
-  const AgentCanvasDecision({
-    required this.id,
-    required this.canvasId,
-    required this.revision,
-    required this.question,
-    required this.options,
-    required this.state,
-    required this.createdAt,
-    this.resolution,
-    this.resolvedAt,
-    this.expiresAt,
-  });
-
+class const AgentCanvasDecision({
+  required this.id,
+  required this.canvasId,
+  required this.revision,
+  required this.question,
+  required this.options,
+  required this.state,
+  required this.createdAt,
+  this.resolution,
+  this.resolvedAt,
+  this.expiresAt,
+}) with AgentCanvasDecisionMappable {
   final String id;
   final String canvasId;
   final int revision;
@@ -41,34 +39,32 @@ class AgentCanvasDecision with AgentCanvasDecisionMappable {
   final DateTime? resolvedAt;
   final DateTime? expiresAt;
 
-  factory AgentCanvasDecision.fromJson(Map<String, Object?> json) =>
+  factory fromJson(Map<String, Object?> json) =>
       AgentCanvasDecisionMapper.fromMap(Map<String, dynamic>.from(json));
 
   bool get isPending => state == AgentCanvasDecisionState.pending;
 }
 
 @MappableClass()
-class AgentCanvas with AgentCanvasMappable {
-  const AgentCanvas({
-    required this.id,
-    required this.workspaceId,
-    required this.terminalSessionId,
-    required this.agentType,
-    required this.title,
-    required this.state,
-    required this.pinned,
-    required this.frozen,
-    required this.revision,
-    required this.document,
-    required this.decisions,
-    required this.createdAt,
-    required this.updatedAt,
-    this.tabId,
-    this.finalRevision,
-    this.completedAt,
-    this.expiresAt,
-  });
-
+class const AgentCanvas({
+  required this.id,
+  required this.workspaceId,
+  required this.terminalSessionId,
+  required this.agentType,
+  required this.title,
+  required this.state,
+  required this.pinned,
+  required this.frozen,
+  required this.revision,
+  required this.document,
+  required this.decisions,
+  required this.createdAt,
+  required this.updatedAt,
+  this.tabId,
+  this.finalRevision,
+  this.completedAt,
+  this.expiresAt,
+}) with AgentCanvasMappable {
   final String id;
   final String workspaceId;
   final String terminalSessionId;
@@ -87,7 +83,7 @@ class AgentCanvas with AgentCanvasMappable {
   final DateTime? completedAt;
   final DateTime? expiresAt;
 
-  factory AgentCanvas.fromJson(Map<String, Object?> json) =>
+  factory fromJson(Map<String, Object?> json) =>
       AgentCanvasMapper.fromMap(Map<String, dynamic>.from(json));
 
   bool get isActive =>
@@ -100,16 +96,14 @@ class AgentCanvas with AgentCanvasMappable {
 }
 
 @MappableClass()
-class AgentCanvasEvent with AgentCanvasEventMappable {
-  const AgentCanvasEvent({
-    required this.sequence,
-    required this.canvasId,
-    required this.workspaceId,
-    required this.eventType,
-    required this.payload,
-    required this.createdAt,
-  });
-
+class const AgentCanvasEvent({
+  required this.sequence,
+  required this.canvasId,
+  required this.workspaceId,
+  required this.eventType,
+  required this.payload,
+  required this.createdAt,
+}) with AgentCanvasEventMappable {
   final int sequence;
   final String canvasId;
   final String workspaceId;
@@ -117,6 +111,6 @@ class AgentCanvasEvent with AgentCanvasEventMappable {
   final Map<String, Object?> payload;
   final DateTime createdAt;
 
-  factory AgentCanvasEvent.fromJson(Map<String, Object?> json) =>
+  factory fromJson(Map<String, Object?> json) =>
       AgentCanvasEventMapper.fromMap(Map<String, dynamic>.from(json));
 }

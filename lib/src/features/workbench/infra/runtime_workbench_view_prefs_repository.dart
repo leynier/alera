@@ -5,17 +5,11 @@ import 'package:logging/logging.dart';
 
 final Logger _log = Logger('RuntimeWorkbenchViewPrefsRepository');
 
-class RuntimeWorkbenchViewPrefsRepository
-    implements WorkbenchViewPrefsRepository {
-  RuntimeWorkbenchViewPrefsRepository({
-    required this.client,
-    required this.legacyRepository,
-    this.beforeAccess,
-  });
-
-  final RuntimeHostClient client;
-  final WorkbenchViewPrefsRepository legacyRepository;
-  final Future<void> Function()? beforeAccess;
+class RuntimeWorkbenchViewPrefsRepository({
+  required final RuntimeHostClient client,
+  required final WorkbenchViewPrefsRepository legacyRepository,
+  final Future<void> Function()? beforeAccess,
+}) implements WorkbenchViewPrefsRepository {
   int? _revision;
 
   @override

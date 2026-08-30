@@ -289,7 +289,7 @@ void _registerTerminalHostClientResilienceTests() {
       final client = SocketTerminalHostClient(
         launcher: launcher,
         applicationSupportDirectory: () async => tempDir,
-        startupTimeout: Duration.zero,
+        startupTimeout: .zero,
       );
       addTearDown(client.dispose);
 
@@ -330,7 +330,7 @@ void _registerTerminalHostClientResilienceTests() {
     );
     addTearDown(client.dispose);
 
-    await client.ensureStarted(config: TerminalHostConfig.defaults);
+    await client.ensureStarted(config: .defaults);
     final runtimeEvent = client.runtimeEvents.first;
 
     server.send(<String, Object?>{

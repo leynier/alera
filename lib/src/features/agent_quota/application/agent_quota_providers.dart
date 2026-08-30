@@ -98,11 +98,10 @@ String agentQuotaRequestKey(AgentQuotaHostSettings settings) {
   });
 }
 
-class AgentQuotaService {
-  AgentQuotaService(this._client, [this._runtimeClient]);
-
-  final RuntimeProxyClient _client;
-  final RuntimeHostClient? _runtimeClient;
+class AgentQuotaService(
+  final RuntimeProxyClient _client, [
+  final RuntimeHostClient? _runtimeClient,
+]) {
   final Map<String, AgentQuotaState> _cache = <String, AgentQuotaState>{};
   final Set<String> _forceRefreshHosts = <String>{};
 

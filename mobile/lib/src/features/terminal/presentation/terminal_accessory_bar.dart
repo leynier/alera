@@ -11,18 +11,12 @@ import 'package:flutter/material.dart';
 /// with a fixed rail. Repeatable keys auto-repeat while long-pressed.
 /// Presentational: actions flow out via callbacks and configuration lives with
 /// the caller.
-class TerminalAccessoryBar extends StatelessWidget {
-  const TerminalAccessoryBar({
-    super.key,
-    required this.keys,
-    required this.onKey,
-    required this.onAction,
-  });
-
-  final List<TerminalAccessoryKey> keys;
-  final ValueChanged<List<int>> onKey;
-  final Future<void> Function(TerminalAccessoryAction action) onAction;
-
+class const TerminalAccessoryBar({
+  super.key,
+  required final List<TerminalAccessoryKey> keys,
+  required final ValueChanged<List<int>> onKey,
+  required final Future<void> Function(TerminalAccessoryAction action) onAction,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ColoredBox(
@@ -38,17 +32,11 @@ class TerminalAccessoryBar extends StatelessWidget {
 /// The scrolling row of keys, with a fade at whichever edge has more keys
 /// behind it. Without the fade a key cut off by the viewport reads as a
 /// squashed button rather than as a row that continues.
-class _AccessoryKeyStrip extends StatefulWidget {
-  const _AccessoryKeyStrip({
-    required this.keys,
-    required this.onKey,
-    required this.onAction,
-  });
-
-  final List<TerminalAccessoryKey> keys;
-  final ValueChanged<List<int>> onKey;
-  final Future<void> Function(TerminalAccessoryAction action) onAction;
-
+class const _AccessoryKeyStrip({
+  required final List<TerminalAccessoryKey> keys,
+  required final ValueChanged<List<int>> onKey,
+  required final Future<void> Function(TerminalAccessoryAction action) onAction,
+}) extends StatefulWidget {
   @override
   State<_AccessoryKeyStrip> createState() => _AccessoryKeyStripState();
 }
@@ -100,7 +88,7 @@ class _AccessoryKeyStripState extends State<_AccessoryKeyStrip> {
       children: <Widget>[
         ListView.separated(
           controller: _controller,
-          scrollDirection: Axis.horizontal,
+          scrollDirection: .horizontal,
           padding: const EdgeInsets.symmetric(
             horizontal: AleraTokens.terminalInputInset,
             vertical: AleraTokens.spaceXs,
@@ -116,12 +104,12 @@ class _AccessoryKeyStripState extends State<_AccessoryKeyStrip> {
         ),
         if (_fadeStart)
           const _EdgeFade(
-            alignment: Alignment.centerLeft,
+            alignment: .centerLeft,
             valueKey: ValueKey<String>('terminal-accessory-fade-start'),
           ),
         if (_fadeEnd)
           const _EdgeFade(
-            alignment: Alignment.centerRight,
+            alignment: .centerRight,
             valueKey: ValueKey<String>('terminal-accessory-fade-end'),
           ),
       ],
@@ -129,12 +117,10 @@ class _AccessoryKeyStripState extends State<_AccessoryKeyStrip> {
   }
 }
 
-class _EdgeFade extends StatelessWidget {
-  const _EdgeFade({required this.alignment, required this.valueKey});
-
-  final Alignment alignment;
-  final ValueKey<String> valueKey;
-
+class const _EdgeFade({
+  required final Alignment alignment,
+  required final ValueKey<String> valueKey,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final toEdge = alignment == Alignment.centerLeft;
@@ -162,17 +148,11 @@ class _EdgeFade extends StatelessWidget {
   }
 }
 
-class _AccessoryKeyButton extends StatefulWidget {
-  const _AccessoryKeyButton({
-    required this.accessoryKey,
-    required this.onKey,
-    required this.onAction,
-  });
-
-  final TerminalAccessoryKey accessoryKey;
-  final ValueChanged<List<int>> onKey;
-  final Future<void> Function(TerminalAccessoryAction action) onAction;
-
+class const _AccessoryKeyButton({
+  required final TerminalAccessoryKey accessoryKey,
+  required final ValueChanged<List<int>> onKey,
+  required final Future<void> Function(TerminalAccessoryAction action) onAction,
+}) extends StatefulWidget {
   @override
   State<_AccessoryKeyButton> createState() => _AccessoryKeyButtonState();
 }
@@ -267,7 +247,7 @@ class _AccessoryKeyButtonState extends State<_AccessoryKeyButton> {
           : Material(
               color: Colors.transparent,
               child: InkWell(
-                borderRadius: BorderRadius.circular(AleraTokens.radiusSm),
+                borderRadius: .circular(AleraTokens.radiusSm),
                 onTap: _activate,
                 child: child,
               ),

@@ -11,19 +11,13 @@ const double _kSectionIconSize = 18;
 /// Minimum number of pane groups before the header shows subsection chips.
 const int _kGroupChipsThreshold = 3;
 
-class SettingsContent extends StatefulWidget {
-  const SettingsContent({
-    super.key,
-    required this.section,
-    required this.onClose,
-    this.groupKeys = const <String, GlobalKey>{},
-    this.scrollToGroupId,
-  });
-
-  final SettingsSectionData section;
-  final VoidCallback onClose;
-  final Map<String, GlobalKey> groupKeys;
-
+class const SettingsContent({
+  super.key,
+  required final SettingsSectionData section,
+  required final VoidCallback onClose,
+  final Map<String, GlobalKey> groupKeys = const <String, GlobalKey>{},
+  this.scrollToGroupId,
+}) extends StatefulWidget {
   /// When set (search jump), the content scrolls to this group after build.
   final String? scrollToGroupId;
 
@@ -77,7 +71,7 @@ class _SettingsContentState extends State<SettingsContent> {
     final section = widget.section;
     final showGroupChips = section.groups.length >= _kGroupChipsThreshold;
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+      crossAxisAlignment: .stretch,
       children: <Widget>[
         Padding(
           padding: const EdgeInsets.fromLTRB(
@@ -87,10 +81,10 @@ class _SettingsContentState extends State<SettingsContent> {
             AleraTokens.space16,
           ),
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            crossAxisAlignment: .start,
             children: <Widget>[
               Row(
-                crossAxisAlignment: CrossAxisAlignment.center,
+                crossAxisAlignment: .center,
                 children: <Widget>[
                   Icon(
                     section.icon,
@@ -109,7 +103,7 @@ class _SettingsContentState extends State<SettingsContent> {
                     TextButton(
                       onPressed: () async {
                         FocusManager.instance.primaryFocus?.unfocus();
-                        await Future<void>.delayed(Duration.zero);
+                        await Future<void>.delayed(.zero);
                         await section.onReset!();
                       },
                       child: Text('Reset ${section.title}'),
@@ -168,28 +162,23 @@ class _SettingsContentState extends State<SettingsContent> {
   }
 }
 
-class _GroupChip extends StatelessWidget {
-  const _GroupChip({required this.title, required this.onTap});
-
-  final String title;
-  final VoidCallback onTap;
-
+class const _GroupChip({
+  required final String title,
+  required final VoidCallback onTap,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(AleraTokens.radiusSm),
+      borderRadius: .circular(AleraTokens.radiusSm),
       mouseCursor: SystemMouseCursors.click,
       child: AleraChip(label: title),
     );
   }
 }
 
-class NoSettingsResults extends StatelessWidget {
-  const NoSettingsResults({super.key, required this.onClose});
-
-  final VoidCallback onClose;
-
+class const NoSettingsResults({super.key, required final VoidCallback onClose})
+    extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Stack(

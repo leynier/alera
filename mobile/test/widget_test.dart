@@ -31,7 +31,7 @@ void main() {
         endpoint: 'ws://127.0.0.1:6768',
         runtimeId: 'runtime',
         deviceId: 'phone',
-        pairedAt: DateTime.utc(2026),
+        pairedAt: .utc(2026),
       ),
       'token',
     );
@@ -187,17 +187,14 @@ class _OfflineHostConnection extends HostConnectionController {
   }
 }
 
-class _ReadyHostConnection extends HostConnectionController {
-  _ReadyHostConnection(this.client);
-
-  final MobileRuntimeClient client;
-
+class _ReadyHostConnection(final MobileRuntimeClient client)
+    extends HostConnectionController {
   @override
   Future<MobileRuntimeClient> build(String hostId) async => client;
 }
 
-class _TestWebSocketChannel implements WebSocketChannel {
-  _TestWebSocketChannel() {
+class _TestWebSocketChannel() implements WebSocketChannel {
+  this {
     _outgoing.stream.listen((raw) {
       final message = jsonDecode(raw! as String) as Map<String, Object?>;
       _incoming.add(
@@ -242,11 +239,8 @@ class _TestWebSocketChannel implements WebSocketChannel {
   }
 }
 
-class _TestWebSocketSink implements WebSocketSink {
-  _TestWebSocketSink(this._sink);
-
-  final StreamSink<Object?> _sink;
-
+class _TestWebSocketSink(final StreamSink<Object?> _sink)
+    implements WebSocketSink {
   @override
   Future<void> get done => _sink.done;
 

@@ -76,13 +76,13 @@ void _registerXtermRuntimeRemintTests() {
       visibility = acquireTerminalVisibilityForTesting(session);
       await session.ensureStarted();
       fakeSession.emitOutput(utf8.encode('stale-cursor'));
-      await Future<void>.delayed(Duration.zero);
+      await Future<void>.delayed(.zero);
 
       visibility.dispose();
       visibility = null;
-      await Future<void>.delayed(Duration.zero);
+      await Future<void>.delayed(.zero);
       resumedVisibility = acquireTerminalVisibilityForTesting(session);
-      await Future<void>.delayed(Duration.zero);
+      await Future<void>.delayed(.zero);
 
       fakeSession.emitSnapshot(
         utf8.encode(
@@ -90,7 +90,7 @@ void _registerXtermRuntimeRemintTests() {
         ),
         resetInteractionModes: true,
       );
-      await Future<void>.delayed(Duration.zero);
+      await Future<void>.delayed(.zero);
       // A restored snapshot is drained by the frame batcher, not written
       // synchronously, so it lands on the next flush.
       flushTerminalOutputForTesting(session);
@@ -131,19 +131,19 @@ void _registerXtermRuntimeRemintTests() {
       await session.ensureStarted();
       visibility.dispose();
       visibility = null;
-      await Future<void>.delayed(Duration.zero);
+      await Future<void>.delayed(.zero);
 
       fakeSession.emitSnapshot(const <int>[], resetInteractionModes: true);
-      await Future<void>.delayed(Duration.zero);
+      await Future<void>.delayed(.zero);
 
       visibility = acquireTerminalVisibilityForTesting(session);
-      await Future<void>.delayed(Duration.zero);
+      await Future<void>.delayed(.zero);
       fakeSession.emitSnapshot(
         utf8.encode(
           'fresh prompt\x1b[?1h\x1b[?25l\x1b[?1004h\x1b=\x1b[?1049h\x1b[?1000h\x1b[?2004hdead tui',
         ),
       );
-      await Future<void>.delayed(Duration.zero);
+      await Future<void>.delayed(.zero);
       flushTerminalOutputForTesting(session);
 
       expect(terminalBufferTextForTesting(session), contains('fresh prompt'));

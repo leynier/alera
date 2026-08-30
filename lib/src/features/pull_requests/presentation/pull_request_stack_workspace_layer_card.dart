@@ -1,28 +1,16 @@
 part of 'pull_request_stack_workspace_dialog.dart';
 
-class _WorkspaceLayerCard extends StatelessWidget {
-  const _WorkspaceLayerCard({
-    required this.index,
-    required this.total,
-    required this.layer,
-    required this.baseBranch,
-    required this.removable,
-    required this.onMoveUp,
-    required this.onMoveDown,
-    required this.onRemove,
-    required this.onDraftChanged,
-  });
-
-  final int index;
-  final int total;
-  final _WorkspaceLayerDraft layer;
-  final String baseBranch;
-  final bool removable;
-  final VoidCallback onMoveUp;
-  final VoidCallback onMoveDown;
-  final VoidCallback onRemove;
-  final ValueChanged<bool> onDraftChanged;
-
+class const _WorkspaceLayerCard({
+  required final int index,
+  required final int total,
+  required final _WorkspaceLayerDraft layer,
+  required final String baseBranch,
+  required final bool removable,
+  required final VoidCallback onMoveUp,
+  required final VoidCallback onMoveDown,
+  required final VoidCallback onRemove,
+  required final ValueChanged<bool> onDraftChanged,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -35,7 +23,7 @@ class _WorkspaceLayerCard extends StatelessWidget {
         border: Border.all(color: AleraTokens.borderSubtle),
       ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
+        crossAxisAlignment: .stretch,
         children: <Widget>[
           Row(
             children: <Widget>[
@@ -49,7 +37,7 @@ class _WorkspaceLayerCard extends StatelessWidget {
               Expanded(
                 child: Text(
                   candidate.branch,
-                  overflow: TextOverflow.ellipsis,
+                  overflow: .ellipsis,
                   style: theme.textTheme.labelSmall?.copyWith(
                     color: AleraTokens.foregroundMuted,
                   ),
@@ -110,19 +98,18 @@ class _WorkspaceLayerCard extends StatelessWidget {
   }
 }
 
-class _WorkspaceLayerDraft {
-  _WorkspaceLayerDraft({
-    required this.candidate,
-    required String title,
-    required String? body,
-    required this.draft,
-  }) : titleController = TextEditingController(text: title),
-       bodyController = TextEditingController(text: body);
+class _WorkspaceLayerDraft({
+  required final ReviewStackWorkspaceCandidate candidate,
+  required String title,
+  required String? body,
+  required var bool draft,
+}) {
+  this
+    : titleController = TextEditingController(text: title),
+      bodyController = TextEditingController(text: body);
 
-  final ReviewStackWorkspaceCandidate candidate;
   final TextEditingController titleController;
   final TextEditingController bodyController;
-  bool draft;
 
   void dispose() {
     titleController.dispose();

@@ -1,10 +1,8 @@
 part of 'terminal_surface.dart';
 
-class _TerminalOperationState extends StatefulWidget {
-  const _TerminalOperationState({required this.operation});
-
-  final TerminalSessionOperation operation;
-
+class const _TerminalOperationState({
+  required final TerminalSessionOperation operation,
+}) extends StatefulWidget {
   @override
   State<_TerminalOperationState> createState() =>
       _TerminalOperationStateState();
@@ -56,7 +54,7 @@ class _TerminalOperationStateState extends State<_TerminalOperationState> {
       decoration: const BoxDecoration(color: AleraTokens.bg),
       child: Center(
         child: Column(
-          mainAxisSize: MainAxisSize.min,
+          mainAxisSize: .min,
           children: <Widget>[
             const CircularProgressIndicator(),
             const SizedBox(height: AleraTokens.space12),
@@ -76,18 +74,16 @@ class _TerminalOperationStateState extends State<_TerminalOperationState> {
   }
 }
 
-class _TerminalRestoreState extends StatelessWidget {
-  const _TerminalRestoreState({required this.progress});
-
-  final TerminalRestoreProgress progress;
-
+class const _TerminalRestoreState({
+  required final TerminalRestoreProgress progress,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return DecoratedBox(
       decoration: const BoxDecoration(color: AleraTokens.bg),
       child: Center(
         child: Column(
-          mainAxisSize: MainAxisSize.min,
+          mainAxisSize: .min,
           children: <Widget>[
             Text(
               'Restoring terminal',
@@ -105,17 +101,11 @@ class _TerminalRestoreState extends StatelessWidget {
   }
 }
 
-class _TerminalErrorState extends StatelessWidget {
-  const _TerminalErrorState({
-    required this.message,
-    required this.onReconnect,
-    this.onRestart,
-  });
-
-  final String message;
-  final Future<void> Function() onReconnect;
-  final Future<void> Function()? onRestart;
-
+class const _TerminalErrorState({
+  required final String message,
+  required final Future<void> Function() onReconnect,
+  final Future<void> Function()? onRestart,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -130,8 +120,8 @@ class _TerminalErrorState extends StatelessWidget {
             border: Border.all(color: AleraTokens.border),
           ),
           child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: .min,
+            crossAxisAlignment: .start,
             children: <Widget>[
               Text('Terminal unavailable', style: theme.textTheme.titleMedium),
               const SizedBox(height: AleraTokens.space8),

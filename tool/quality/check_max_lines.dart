@@ -104,27 +104,15 @@ void main(List<String> args) {
   exit(1);
 }
 
-class _FileLines {
-  const _FileLines(this.path, this.lines);
-  final String path;
-  final int lines;
-}
+class const _FileLines(final String path, final int lines);
 
-class _Args {
-  const _Args({
-    required this.maxLines,
-    required this.roots,
-    required this.baseline,
-    required this.writeBaseline,
-    required this.listOversized,
-  });
-
-  final int maxLines;
-  final List<String> roots;
-  final String? baseline;
-  final bool writeBaseline;
-  final bool listOversized;
-
+class const _Args({
+  required final int maxLines,
+  required final List<String> roots,
+  required final String? baseline,
+  required final bool writeBaseline,
+  required final bool listOversized,
+}) {
   static _Args parse(List<String> args) {
     var maxLines = 500;
     var roots = <String>[

@@ -90,17 +90,11 @@ class _FocusableTerminalRuntime implements TerminalRuntime {
   }
 }
 
-class _FocusableTerminalSessionHandle extends TerminalSessionHandle {
-  _FocusableTerminalSessionHandle({
-    required this.workspace,
-    required this.tab,
-    required this.onFocus,
-  });
-
-  final Workspace workspace;
-  final WorkspaceTabRecord tab;
-  final VoidCallback onFocus;
-
+class _FocusableTerminalSessionHandle({
+  required final Workspace workspace,
+  required final WorkspaceTabRecord tab,
+  required final VoidCallback onFocus,
+}) extends TerminalSessionHandle {
   @override
   String get displayTitle => tab.title;
 

@@ -15,7 +15,7 @@ Widget _buildMobileAutomationEditor(
     child: SafeArea(
       child: SingleChildScrollView(
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
+          crossAxisAlignment: .stretch,
           children: <Widget>[
             Text(
               state.widget.initial == null
@@ -170,26 +170,17 @@ Widget _buildMobileAutomationEditor(
   );
 }
 
-class MobileAutomationChoice {
-  const MobileAutomationChoice({required this.id, required this.label});
+class const MobileAutomationChoice({
+  required final String id,
+  required final String label,
+});
 
-  final String id;
-  final String label;
-}
-
-class MobileAutomationEditorOptions {
-  const MobileAutomationEditorOptions({
-    required this.projects,
-    required this.workspaces,
-    required this.profiles,
-    required this.tabs,
-  });
-
-  final List<ProjectSummary> projects;
-  final List<WorkspaceSummary> workspaces;
-  final List<AgentProfileSummary> profiles;
-  final List<WorkspaceTabSummary> tabs;
-
+class const MobileAutomationEditorOptions({
+  required final List<ProjectSummary> projects,
+  required final List<WorkspaceSummary> workspaces,
+  required final List<AgentProfileSummary> profiles,
+  required final List<WorkspaceTabSummary> tabs,
+}) {
   List<MobileAutomationChoice> tabsFor(String workspaceId) => tabs
       .where((tab) => tab.workspaceId == workspaceId)
       .map(

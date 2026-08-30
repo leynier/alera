@@ -5,27 +5,17 @@ import 'package:alera/src/features/agent_status/domain/agent_status.dart';
 import 'package:alera/src/shared/infra/process/command_environment_resolver.dart';
 import 'package:alera/src/shared/infra/process/process_runner.dart';
 
-class AgentProfilePersonaDiscoveryResult {
-  const AgentProfilePersonaDiscoveryResult({
-    required this.personas,
-    this.error,
-  });
+class const AgentProfilePersonaDiscoveryResult({
+  required final List<String> personas,
+  final String? error,
+});
 
-  final List<String> personas;
-  final String? error;
-}
-
-class AgentProfilePersonaDiscovery {
-  AgentProfilePersonaDiscovery({
-    required this.processRunner,
-    required this.commandEnvironmentResolver,
-  });
-
+class AgentProfilePersonaDiscovery({
+  required final ProcessRunner processRunner,
+  required final CommandEnvironmentResolver commandEnvironmentResolver,
+}) {
   static const Duration _timeout = Duration(seconds: 30);
   static const int _maxOutputBytes = 1024 * 1024;
-
-  final ProcessRunner processRunner;
-  final CommandEnvironmentResolver commandEnvironmentResolver;
 
   Future<AgentProfilePersonaDiscoveryResult> discover(AgentType adapter) async {
     final command = switch (adapter) {
@@ -157,6 +147,4 @@ class AgentProfilePersonaDiscovery {
   }
 }
 
-class _PersonaOutputLimitException implements Exception {
-  const _PersonaOutputLimitException();
-}
+class const _PersonaOutputLimitException() implements Exception;

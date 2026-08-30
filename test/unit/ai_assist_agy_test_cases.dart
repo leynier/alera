@@ -35,8 +35,8 @@ Gemini 3.5 Flash (Medium)
           entries: <GitChangeEntry>[
             GitChangeEntry(
               path: 'lib/foo.dart',
-              area: GitChangeArea.staged,
-              status: GitChangeStatus.modified,
+              area: .staged,
+              status: .modified,
               added: 2,
               removed: 1,
             ),
@@ -46,8 +46,8 @@ Gemini 3.5 Flash (Medium)
           files: <GitDiffFile>[
             GitDiffFile(
               path: 'lib/foo.dart',
-              area: GitChangeArea.staged,
-              status: GitChangeStatus.modified,
+              area: .staged,
+              status: .modified,
               lines: <GitDiffLine>[GitDiffLine.addition('+new line')],
             ),
           ],
@@ -60,9 +60,9 @@ Gemini 3.5 Flash (Medium)
 
       final result = await service.generate(
         const AiAssistRequest(
-          operation: AiAssistOperation.commitMessage,
+          operation: .commitMessage,
           workspacePath: '/repo',
-          settings: AiAssistSettings(agent: AiAssistAgent.agy),
+          settings: AiAssistSettings(agent: .agy),
         ),
       );
 
@@ -84,8 +84,8 @@ Gemini 3.5 Flash (Medium)
         entries: <GitChangeEntry>[
           GitChangeEntry(
             path: 'lib/foo.dart',
-            area: GitChangeArea.staged,
-            status: GitChangeStatus.modified,
+            area: .staged,
+            status: .modified,
           ),
         ],
       );
@@ -94,10 +94,10 @@ Gemini 3.5 Flash (Medium)
 
     await service.generate(
       const AiAssistRequest(
-        operation: AiAssistOperation.commitMessage,
+        operation: .commitMessage,
         workspacePath: '/repo',
         settings: AiAssistSettings(
-          agent: AiAssistAgent.agy,
+          agent: .agy,
           selectedModelByAgent: <AiAssistAgent, String>{
             AiAssistAgent.agy: 'gemini-3.1-pro-low',
           },
@@ -120,7 +120,7 @@ gemini-3.1-pro-low
     );
     final service = CliAiAssistModelDiscoveryService(processRunner: runner);
 
-    final result = await service.discover(AiAssistAgent.agy);
+    final result = await service.discover(.agy);
 
     expect(result.success, isTrue);
     expect(result.defaultModelId, isNull);
@@ -141,7 +141,7 @@ gemini-3.1-pro-low
       ),
     );
 
-    await service.discover(AiAssistAgent.agy);
+    await service.discover(.agy);
 
     expect(runner.environment, containsPair('PATH', '/shell/bin:/usr/bin'));
   });

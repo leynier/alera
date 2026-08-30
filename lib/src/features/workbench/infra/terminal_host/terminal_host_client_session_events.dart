@@ -103,10 +103,7 @@ mixin _TerminalHostClientSessionEvents {
       case 'terminalPulseChanged':
         _emitHostEvent(
           sessionId,
-          TerminalHostPulseChangedEvent(
-            sessionId,
-            TerminalPulseState.fromJson(payload),
-          ),
+          TerminalHostPulseChangedEvent(sessionId, .fromJson(payload)),
         );
     }
   }

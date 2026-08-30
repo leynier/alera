@@ -1,24 +1,14 @@
 part of 'workspace_git_diff_panel.dart';
 
-class _SubmoduleChanges extends ConsumerWidget {
-  const _SubmoduleChanges({
-    required this.workspacePath,
-    required this.entry,
-    required this.depth,
-    required this.busy,
-    required this.onOpenGitDiff,
-    this.onOpenFile,
-    required this.onRevealInExplorer,
-  });
-
-  final String workspacePath;
-  final GitChangeEntry entry;
-  final int depth;
-  final bool busy;
-  final OpenGitDiffTabCallback onOpenGitDiff;
-  final ValueChanged<String>? onOpenFile;
-  final ValueChanged<String> onRevealInExplorer;
-
+class const _SubmoduleChanges({
+  required final String workspacePath,
+  required final GitChangeEntry entry,
+  required final int depth,
+  required final bool busy,
+  required final OpenGitDiffTabCallback onOpenGitDiff,
+  final ValueChanged<String>? onOpenFile,
+  required final ValueChanged<String> onRevealInExplorer,
+}) extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final status = ref.watch(
@@ -46,7 +36,7 @@ class _SubmoduleChanges extends ConsumerWidget {
           );
         }
         return Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
+          crossAxisAlignment: .stretch,
           children: <Widget>[
             for (final child in result.entries)
               _GitDiffFileRow(
@@ -69,7 +59,7 @@ class _SubmoduleChanges extends ConsumerWidget {
                   onOpenGitDiff(
                     relativePath: child.path,
                     area: child.area,
-                    scope: WorkspaceGitDiffScope.file,
+                    scope: .file,
                     preview: true,
                   ),
                 ),
@@ -81,23 +71,17 @@ class _SubmoduleChanges extends ConsumerWidget {
   }
 }
 
-class _SubmoduleFeedbackRow extends StatelessWidget {
-  const _SubmoduleFeedbackRow({
-    required this.depth,
-    required this.message,
-    this.tooltip,
-  });
-
-  final int depth;
-  final String message;
-  final String? tooltip;
-
+class const _SubmoduleFeedbackRow({
+  required final int depth,
+  required final String message,
+  final String? tooltip,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final text = Text(
       message,
       maxLines: 1,
-      overflow: TextOverflow.ellipsis,
+      overflow: .ellipsis,
       style: Theme.of(context).textTheme.labelSmall
           ?.copyWith(color: AleraTokens.foregroundFaint),
     );
