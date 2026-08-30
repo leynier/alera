@@ -224,7 +224,7 @@ Current status: Linux packages are distributed through a repository whose metada
 
 ### Run from source
 
-Alera is a Flutter desktop app. Use Flutter 3.44.8 or newer with Dart 3.12.1 or newer; CI is pinned to Flutter 3.44.8. You also need a working Rust toolchain (`rustup`), [Zig](https://ziglang.org/download/) 0.16.0, Git, and the native compiler toolchain for your desktop platform. The Rust workspace under `rust/` provides both the native terminal-host sidecar (`alera-cli`) and the git layer (`alera_native`, compiled into the app through `flutter_rust_bridge`). Zig builds the vendored `ghostty_vte` terminal engine, which a checkout like this one compiles from its own submodule rather than downloading.
+Alera is a Flutter desktop app. Use Flutter 3.47.2 or newer with Dart 3.13.2 or newer; CI is pinned to Flutter 3.47.2. You also need a working Rust toolchain (`rustup`), [Zig](https://ziglang.org/download/) 0.16.0, Git, and the native compiler toolchain for your desktop platform. The Rust workspace under `rust/` provides both the native terminal-host sidecar (`alera-cli`) and the git layer (`alera_native`, compiled into the app through `flutter_rust_bridge`). Zig builds the vendored `ghostty_vte` terminal engine, which a checkout like this one compiles from its own submodule rather than downloading.
 
 Linux source builds also require system development packages. Install the [Ubuntu and Debian prerequisites](.github/CONTRIBUTING.md#local-setup) before running the app.
 
@@ -242,7 +242,7 @@ flutter run -d linux
 
 #### Windows source setup
 
-Install Visual Studio 2022 with the **Desktop development with C++** workload and a Windows 10 or 11 SDK, Flutter 3.44.8 or newer, Git for Windows, and Rustup. PowerShell 7 is recommended for the repository debug flows. Then run the idempotent setup from a normal PowerShell terminal; it also pins native builds to the supported Visual Studio 2022 CMake generator:
+Install Visual Studio 2022 with the **Desktop development with C++** workload and a Windows 10 or 11 SDK, Flutter 3.47.2 or newer, Git for Windows, and Rustup. PowerShell 7 is recommended for the repository debug flows. Then run the idempotent setup from a normal PowerShell terminal; it also pins native builds to the supported Visual Studio 2022 CMake generator:
 
 ```powershell
 pwsh -File tool/development/setup_windows.ps1 -InstallMissingTools
@@ -257,7 +257,7 @@ To diagnose an existing machine without changing it, use:
 pwsh -File tool/development/setup_windows.ps1 -CheckOnly
 ```
 
-If `flutter pub get` reports that Dart 3.12.0 is too old, switch the checkout to Flutter 3.44.8 or newer instead of changing Alera's locked dependencies.
+If `flutter pub get` reports an unsupported Flutter or Dart SDK, switch the checkout to Flutter 3.47.2 or newer instead of changing Alera's locked dependencies.
 
 By default a local build runs as **Alera Dev** (`dev.leynier.alera.dev`) so it can coexist with an installed release without sharing user data. Set `ALERA_FLAVOR=release` to opt back into the release identifier.
 

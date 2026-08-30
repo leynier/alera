@@ -23,26 +23,20 @@ void main() {
       },
     );
 
-    test(
-      'refuses a read-only directory',
-      () async {
-        final directory = await Directory.systemTemp.createTemp(
-          'alera-install-',
-        );
-        addTearDown(() {
-          Process.runSync('chmod', <String>['u+w', directory.path]);
-          directory.deleteSync(recursive: true);
-        });
-        final chmod = Process.runSync('chmod', <String>['a-w', directory.path]);
-        expect(chmod.exitCode, 0, reason: chmod.stderr.toString());
+    test('refuses a read-only directory', () async {
+      final directory = await Directory.systemTemp.createTemp('alera-install-');
+      addTearDown(() {
+        Process.runSync('chmod', <String>['u+w', directory.path]);
+        directory.deleteSync(recursive: true);
+      });
+      final chmod = Process.runSync('chmod', <String>['a-w', directory.path]);
+      expect(chmod.exitCode, 0, reason: chmod.stderr.toString());
 
-        expect(
-          await canReplaceInstallDirectory(p.join(directory.path, 'alera')),
-          isFalse,
-        );
-      },
-      skip: Platform.isWindows ? 'POSIX permissions only' : false,
-    );
+      expect(
+        await canReplaceInstallDirectory(p.join(directory.path, 'alera')),
+        isFalse,
+      );
+    }, skip: Platform.isWindows ? 'POSIX permissions only' : false);
 
     test('refuses a directory that does not exist', () async {
       expect(

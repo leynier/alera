@@ -112,33 +112,29 @@ void main() {
       expect(processRunner.calls, isEmpty);
     });
 
-    test(
-      'rejects destination symlink ancestors',
-      () async {
-        await File(p.join(repoDir.path, '.env')).writeAsString('TOKEN=1\n');
-        final outsideDir = Directory(p.join(tempDir.path, 'outside'))
-          ..createSync();
-        await Link(p.join(workspaceDir.path, 'linked')).create(outsideDir.path);
-        final service = WorktreeSetupService(processRunner: processRunner);
+    test('rejects destination symlink ancestors', () async {
+      await File(p.join(repoDir.path, '.env')).writeAsString('TOKEN=1\n');
+      final outsideDir = Directory(p.join(tempDir.path, 'outside'))
+        ..createSync();
+      await Link(p.join(workspaceDir.path, 'linked')).create(outsideDir.path);
+      final service = WorktreeSetupService(processRunner: processRunner);
 
-        final report = await service.run(
-          project: project,
-          workspace: workspace,
-          config: const ProjectConfig(
-            worktree: WorktreeSetupConfig(
-              copy: <WorktreeCopyRule>[
-                WorktreeCopyRule(from: '.env', to: 'linked/.env'),
-              ],
-            ),
+      final report = await service.run(
+        project: project,
+        workspace: workspace,
+        config: const ProjectConfig(
+          worktree: WorktreeSetupConfig(
+            copy: <WorktreeCopyRule>[
+              WorktreeCopyRule(from: '.env', to: 'linked/.env'),
+            ],
           ),
-        );
+        ),
+      );
 
-        expect(report.hasFailures, isTrue);
-        expect(report.steps.single.message, contains('symlink'));
-        expect(File(p.join(outsideDir.path, '.env')).existsSync(), isFalse);
-      },
-      skip: Platform.isWindows ? 'Windows symlink privileges vary.' : false,
-    );
+      expect(report.hasFailures, isTrue);
+      expect(report.steps.single.message, contains('symlink'));
+      expect(File(p.join(outsideDir.path, '.env')).existsSync(), isFalse);
+    }, skip: Platform.isWindows ? 'Windows symlink privileges vary.' : false);
 
     test('stops command execution after the first failure', () async {
       processRunner.exitCodeByCommand['make fail'] = 2;

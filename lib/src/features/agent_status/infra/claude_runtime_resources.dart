@@ -412,7 +412,10 @@ extension _ClaudeRuntimeResources on ClaudeRuntimeHomeService {
         records.add(<String, Object?>{
           'path': relativePath,
           'type': 'directory',
-          'modified': stat.modified.microsecondsSinceEpoch,
+          // Persist the same precision as markers written before Dart 3.13.
+          'modified':
+              stat.modified.millisecondsSinceEpoch *
+              Duration.microsecondsPerMillisecond,
         });
         final children = Directory(currentPath).listSync(followLinks: false)
           ..sort((a, b) => p.basename(a.path).compareTo(p.basename(b.path)));
@@ -430,7 +433,9 @@ extension _ClaudeRuntimeResources on ClaudeRuntimeHomeService {
           'path': relativePath,
           'type': 'file',
           'size': stat.size,
-          'modified': stat.modified.microsecondsSinceEpoch,
+          'modified':
+              stat.modified.millisecondsSinceEpoch *
+              Duration.microsecondsPerMillisecond,
         });
         return;
       }

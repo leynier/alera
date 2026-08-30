@@ -286,7 +286,7 @@ class MobileAiDictationModelStore {
       final intent = File(await intentPath(id));
       if (await intent.exists()) await intent.delete();
       onProgress?.call(total, total);
-      return modelPath(id);
+      return await modelPath(id);
     } on Object {
       if (_cancelRequested) throw const MobileAiModelDownloadCancelled();
       rethrow;

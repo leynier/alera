@@ -1,4 +1,4 @@
-part of 'agent_quota_status_bar.dart';
+part of 'agent_quota_status_bar_content.dart';
 
 class _QuotaReading {
   const _QuotaReading({

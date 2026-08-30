@@ -76,8 +76,9 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
-          aleraDatabaseProvider.overrideWith((ref) async {
+          aleraDatabaseProvider.overrideWith((ref) {
             ref.onDispose(closeDb);
+            // Match main's completed desktop bootstrap before mounting the app.
             return db;
           }),
           projectRepositoryProvider.overrideWithValue(projectRepository),
