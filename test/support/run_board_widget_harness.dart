@@ -7,8 +7,10 @@ import 'package:alera/src/features/orchestration/presentation/run_board_page.dar
 import 'package:alera/src/features/projects/domain/project.dart';
 import 'package:alera/src/features/workbench/application/workbench_controller.dart';
 import 'package:alera/src/features/workbench/application/workbench_state.dart';
+import 'package:alera/src/features/workbench/application/workbench_providers.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
 import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
+import 'package:alera/src/features/workbench/presentation/terminal_runtime.dart';
 import 'package:alera/src/shared/infra/git/git_diff_models.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -114,10 +116,16 @@ class BoardTestWorkbench extends WorkbenchController {
 ProviderContainer boardContainer(
   BoardTestRepository repository, {
   BoardTestWorkbench? workbench,
+  TerminalRuntime? terminalRuntime,
 }) => ProviderContainer(
   overrides: [
     runBoardRepositoryProvider.overrideWithValue(repository),
     appForegroundProvider.overrideWithValue(const AlwaysForeground()),
+    terminalRuntimeProvider.overrideWith((ref) {
+      final runtime = terminalRuntime ?? XtermTerminalRuntime();
+      if (terminalRuntime == null) ref.onDispose(runtime.dispose);
+      return runtime;
+    }),
     workbenchControllerProvider.overrideWith(
       () => workbench ?? BoardTestWorkbench(),
     ),

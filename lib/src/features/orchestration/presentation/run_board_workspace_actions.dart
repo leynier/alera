@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:alera/src/design_system/feedback/alera_toast.dart';
 import 'package:alera/src/features/orchestration/application/run_board_navigation.dart';
 import 'package:alera/src/features/workbench/application/workbench_controller.dart';
+import 'package:alera/src/features/workbench/application/workbench_providers.dart';
 import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -62,6 +63,12 @@ VoidCallback? runBoardWorkspaceAction(
       }
       if (context.mounted) {
         ref.read(runBoardNavigationProvider.notifier).close();
+        if (action == RunBoardWorkspaceAction.terminal) {
+          ref
+              .read(terminalRuntimeProvider)
+              .sessionFor(workspace: workspace, tab: tab!)
+              .requestFocus();
+        }
       }
     } on Object catch (error) {
       if (context.mounted) {

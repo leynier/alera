@@ -85,6 +85,45 @@ void registerNativeRunBoardEditorLifecycleTest() {
 }
 
 void _registerAleraShellRunBoardTests() {
+  testWidgets('Board Open Terminal focuses the retained shell session', (
+    tester,
+  ) async {
+    final repository = BoardTestRepository();
+    addTearDown(repository.dispose);
+    final seed = boardWorkbenchState().copyWith(
+      activeProjectId: 'project-1',
+      activeWorkspaceId: 'ws-1',
+    );
+    final harness = await _pumpShell(
+      tester,
+      state: seed,
+      boardRepository: repository,
+    );
+    final session = harness.runtime._sessions['session-1']!;
+    final requestsBefore = session.requestFocusCalls;
+    final container = ProviderScope.containerOf(
+      tester.element(find.byType(AleraShellPage)),
+    );
+    container.read(runBoardNavigationProvider.notifier)
+      ..open()
+      ..selectRun('run-1')
+      ..selectTask('task-2');
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 200));
+    expect(session.visibilityLeases, 0);
+    expect(session.requestFocusCalls, requestsBefore);
+    await tester.ensureVisible(find.text('Open Terminal'));
+    await tester.tap(find.text('Open Terminal'));
+    await tester.pump();
+    await tester.pump();
+    expect(container.read(runBoardNavigationProvider).visible, isFalse);
+    expect(harness.runtime._sessions['session-1'], same(session));
+    expect(session.visibilityLeases, 1);
+    expect(session.requestFocusCalls, requestsBefore + 1);
+    expect(harness.runtime.closedTabIds, isEmpty);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets(
     'Board suspends terminal visibility without stopping its session',
     (tester) async {

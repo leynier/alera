@@ -5,6 +5,7 @@ import 'package:alera/src/features/orchestration/application/run_board_providers
 import 'package:alera/src/features/orchestration/presentation/run_board_page.dart';
 import 'package:alera/src/features/workbench/presentation/workspace_editor_surface.dart';
 import '../support/run_board_fixtures.dart';
+import '../support/run_board_widget_harness.dart';
 
 import 'package:alera/src/app/providers.dart';
 import 'package:alera/src/app/theme/alera_tokens.dart';
