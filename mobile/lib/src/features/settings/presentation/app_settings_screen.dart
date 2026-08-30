@@ -3,6 +3,7 @@ import 'package:alera_mobile/src/design_system/icons/alera_icons.dart';
 import 'package:alera_mobile/src/features/accounts/presentation/accounts_screen.dart';
 import 'package:alera_mobile/src/features/diagnostics/presentation/diagnostics_screen.dart';
 import 'package:alera_mobile/src/features/ai_dictation/presentation/mobile_ai_dictation_settings_screen.dart';
+import 'package:alera_mobile/src/features/quotas/presentation/quota_hosts_settings_screen.dart';
 import 'package:alera_mobile/src/features/terminal/presentation/terminal_keys_settings_screen.dart';
 import 'package:flutter/material.dart';
 
@@ -52,6 +53,23 @@ class AppSettingsScreen extends StatelessWidget {
             ),
             const SizedBox(height: AleraTokens.spaceXl),
             Text('AI', style: Theme.of(context).textTheme.titleMedium),
+            const SizedBox(height: AleraTokens.spaceSm),
+            Card(
+              child: ListTile(
+                leading: const Icon(Icons.data_usage),
+                title: const Text('Quota Hosts'),
+                subtitle: const Text('Choose which hosts show quotas on Home'),
+                trailing: const Icon(
+                  AleraIcons.chevronRight,
+                  size: AleraTokens.space16,
+                ),
+                onTap: () => Navigator.of(context).push<void>(
+                  MaterialPageRoute<void>(
+                    builder: (_) => const QuotaHostsSettingsScreen(),
+                  ),
+                ),
+              ),
+            ),
             const SizedBox(height: AleraTokens.spaceSm),
             Card(
               child: ListTile(
