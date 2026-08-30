@@ -19,7 +19,6 @@ class _XtermTerminalSessionHandle extends TerminalSessionHandle
     this._onVisibilityChanged,
   ) {
     _terminal = _createTerminal();
-    _osc8LinkTracker = Osc8TerminalLinkTracker(terminal: _terminal);
     _attachTerminal(_terminal);
     _terminalController.addListener(_handleSelectionChanged);
     _decodedOutputSub = _ptyOutputController.stream
@@ -47,8 +46,6 @@ class _XtermTerminalSessionHandle extends TerminalSessionHandle
   TerminalSettings _settings;
   @override
   late xterm.Terminal _terminal;
-  @override
-  late Osc8TerminalLinkTracker _osc8LinkTracker;
   @override
   final GlobalKey<xterm.TerminalViewState> _terminalViewKey =
       GlobalKey<xterm.TerminalViewState>();
@@ -237,6 +234,8 @@ class _XtermTerminalSessionHandle extends TerminalSessionHandle
     return xterm.TerminalView(
       _terminal,
       key: _terminalViewKey,
+      shortcuts: xterm.clipboardTerminalShortcuts,
+      shiftOverridesMouseReporting: true,
       controller: _terminalController,
       scrollController: _scrollController,
       focusNode: _focusNode,
@@ -269,11 +268,7 @@ class _XtermTerminalSessionHandle extends TerminalSessionHandle
   }
 
   TerminalLinkRange? _linkAt(xterm.CellOffset offset) {
-    return resolveTerminalLinkAt(
-      terminal: _terminal,
-      offset: offset,
-      osc8Tracker: _osc8LinkTracker,
-    );
+    return resolveTerminalLinkAt(terminal: _terminal, offset: offset);
   }
 
   Future<void> _openLink(Uri uri) {
@@ -541,10 +536,6 @@ class _XtermTerminalSessionHandle extends TerminalSessionHandle
       );
     }
     unawaited(_stopPtySessionWithMode(suppressExit: true, terminate: false));
-  }
-
-  void _handlePrivateOsc(String code, List<String> args) {
-    _handleTerminalPrivateOsc(this, code, args);
   }
 
   Future<void> _pasteFromClipboard() => _pasteTerminalClipboard(this);

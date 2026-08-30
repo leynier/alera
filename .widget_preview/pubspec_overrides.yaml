@@ -4,5 +4,5 @@ dependency_overrides:
     path: ../third_party/dart_terminal/pkgs/vte/ghostty_vte
   ghostty_vte_flutter:
     path: ../third_party/dart_terminal/pkgs/vte/ghostty_vte_flutter
-  xterm:
+  xterm2:
     path: ../third_party/xterm

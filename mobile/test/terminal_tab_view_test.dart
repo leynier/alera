@@ -11,12 +11,15 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:alera_mobile/src/features/terminal/application/terminal_accessory_layout_controller.dart';
-import 'package:xterm/xterm.dart';
+import 'package:xterm2/xterm.dart';
 
 import 'support/fake_terminal_client.dart';
 import 'support/memory_accessory_layout_repository.dart';
 
+part 'terminal_tab_view_clipboard_cases.dart';
+
 void main() {
+  _registerTerminalClipboardSecurityTests();
   testWidgets(
     'Refresh control remounts the view and preserves terminal state',
     (tester) async {
@@ -336,6 +339,14 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(_terminalOf(tester), isNot(same(before)));
+    final retiredText = before.buffer.getText();
+    before.write('must not reach a retired emulator');
+    expect(before.buffer.getText(), retiredText);
+    final current = _terminalOf(tester);
+    await tester.pumpWidget(const SizedBox());
+    final closedText = current.buffer.getText();
+    current.write('must not reach a closed emulator');
+    expect(current.buffer.getText(), closedText);
   });
 
   testWidgets('A dead connection offers explicit recovery', (tester) async {

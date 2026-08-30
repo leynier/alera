@@ -73,13 +73,12 @@ extension _TerminalRestoreProgressTracking on _XtermTerminalSessionHandle {
     final viewWidth = previousTerminal.viewWidth;
     final viewHeight = previousTerminal.viewHeight;
     _detachTerminal(previousTerminal);
-    _osc8LinkTracker.dispose();
 
     final nextTerminal = _createTerminal()..resize(viewWidth, viewHeight);
     _terminal = nextTerminal;
-    _osc8LinkTracker = Osc8TerminalLinkTracker(terminal: nextTerminal);
     _attachTerminal(nextTerminal);
     searchController.attachTerminal(nextTerminal);
+    previousTerminal.dispose();
     // Scrollback can reach the host's 10 MB cap, and parsing all of it in one
     // synchronous write blocked the frame that showed the terminal. Go through
     // the same per-frame batcher as live output instead.

@@ -74,6 +74,22 @@ class RelayCryptoSession {
   int _nextReceiveCounter = 0;
   Future<void> _sendTail = Future<void>.value();
   Future<void> _receiveTail = Future<void>.value();
+  int _queuedBytes = 0;
+  bool _closed = false;
+
+  void close() => _closed = true;
+
+  Future<T> _bounded<T>(int bytes, Future<T> Function() operation) {
+    if (_closed ||
+        bytes > 1024 * 1024 ||
+        _queuedBytes + bytes > 4 * 1024 * 1024) {
+      return Future.error(
+        const RelayCryptoException('Relay crypto queue is unavailable.'),
+      );
+    }
+    _queuedBytes += bytes;
+    return operation().whenComplete(() => _queuedBytes -= bytes);
+  }
 
   static Future<RelayCryptoSession> derive({
     required RelayIdentityKeyPair localStatic,
@@ -204,7 +220,13 @@ class RelayCryptoSession {
   }
 
   Future<Uint8List> seal(List<int> plaintext) {
-    final result = _sendTail.then((_) => _seal(plaintext));
+    final result = _bounded(
+      plaintext.length,
+      () => _sendTail.then((_) {
+        if (_closed) throw const RelayCryptoException('Relay session closed.');
+        return _seal(plaintext);
+      }),
+    );
     _sendTail = result.then<void>((_) {}, onError: (_, _) {});
     return result;
   }
@@ -231,7 +253,13 @@ class RelayCryptoSession {
   }
 
   Future<Uint8List> open(List<int> envelope) {
-    final result = _receiveTail.then((_) => _open(envelope));
+    final result = _bounded(
+      envelope.length,
+      () => _receiveTail.then((_) {
+        if (_closed) throw const RelayCryptoException('Relay session closed.');
+        return _open(envelope);
+      }),
+    );
     _receiveTail = result.then<void>((_) {}, onError: (_, _) {});
     return result;
   }

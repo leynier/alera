@@ -1,7 +1,7 @@
 import 'package:alera/src/features/workbench/domain/terminal_search.dart';
 import 'package:alera/src/features/workbench/presentation/terminal_search_controller.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:xterm/xterm.dart' as xterm;
+import 'package:xterm2/xterm.dart' as xterm;
 
 void main() {
   test('finds literal matches case-insensitively by default', () {

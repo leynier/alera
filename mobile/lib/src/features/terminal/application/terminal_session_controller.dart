@@ -13,6 +13,7 @@ import 'package:logging/logging.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 part 'terminal_session_controller.g.dart';
+part 'terminal_session_input.dart';
 
 const Duration _foregroundProbeTimeout = Duration(seconds: 8);
 
@@ -26,6 +27,7 @@ class TerminalSessionController extends _$TerminalSessionController {
   bool _disposed = false;
   bool _recovering = false;
   bool _desktopReclaimed = false;
+  int _lifecycleEpoch = 0;
   Completer<void>? _recoveryCompletion;
   MobileTerminalClient? _pendingRecoveryClient;
   // Null until the terminal has been laid out. Claiming a viewport resizes the
@@ -75,6 +77,7 @@ class TerminalSessionController extends _$TerminalSessionController {
     AppLifecycleState? previous,
     AppLifecycleState next,
   ) {
+    _lifecycleEpoch += 1;
     if (_disposed ||
         next != AppLifecycleState.resumed ||
         previous == AppLifecycleState.resumed ||
@@ -95,11 +98,16 @@ class TerminalSessionController extends _$TerminalSessionController {
   /// round trip separates the two cases, and a connection that answers is
   /// still delivering output, so nothing needs re-attaching.
   Future<void> _recoverIfConnectionLost(MobileTerminalClient client) async {
+    final epoch = _lifecycleEpoch;
     try {
       await client.probeConnection().timeout(_foregroundProbeTimeout);
       return;
     } on Object catch (error, stackTrace) {
-      if (_disposed || !identical(_client, client)) {
+      if (_disposed ||
+          !identical(_client, client) ||
+          epoch != _lifecycleEpoch ||
+          ref.read(appLifecycleControllerProvider) !=
+              AppLifecycleState.resumed) {
         return;
       }
       _logger.warning(
@@ -365,52 +373,6 @@ class TerminalSessionController extends _$TerminalSessionController {
       }
       state = AsyncError(error, stackTrace);
     }
-  }
-
-  /// Raw accessory/direct keys are never pasted or deferred.
-  Future<void> write(List<int> bytes) => _runAttachedOperation(
-    (client, sessionId) => client.writeTerminal(sessionId, bytes),
-  );
-
-  /// Explicit paste never submits and brackets only when the text needs it.
-  Future<void> pasteText(String text) => _runAttachedOperation((client, id) {
-    final delivery = TerminalComposeDelivery.forText(
-      text,
-      withEnter: false,
-      hostSupportsDeferredInput: client.supportsDeferredTerminalInput,
-    );
-    return client.writeTerminal(
-      id,
-      delivery.bytes,
-      bracketedPaste: delivery.bracketedPaste,
-    );
-  });
-
-  /// Compose send separates prompt bytes from Enter when the host supports it.
-  Future<void> sendComposedText(String text, {required bool withEnter}) =>
-      _runAttachedOperation((client, id) {
-        final delivery = TerminalComposeDelivery.forText(
-          text,
-          withEnter: withEnter,
-          hostSupportsDeferredInput: client.supportsDeferredTerminalInput,
-        );
-        return client.writeTerminal(
-          id,
-          delivery.bytes,
-          bracketedPaste: delivery.bracketedPaste,
-          deferredEnter: delivery.deferredEnter,
-        );
-      });
-
-  Future<void> resize(int cols, int rows) async {
-    if (cols <= 0 || rows <= 0) {
-      return;
-    }
-    _cols = cols;
-    _rows = rows;
-    await _runAttachedOperation(
-      (client, sessionId) => client.resizeTerminal(sessionId, cols, rows),
-    );
   }
 
   Future<void> _runAttachedOperation(

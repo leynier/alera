@@ -205,6 +205,7 @@ impl ServerActor {
             return;
         };
         let release_emulator = client.authenticated && matches!(client.kind, ClientKind::Local);
+        let mobile_disconnected = client.authenticated && matches!(client.kind, ClientKind::Mobile);
         self.orchestration_waiters.remove_client(client_id);
         self.handle_browser_client_disconnect(client_id);
         self.cancel_queued_emulator_requests(client_id);
@@ -219,6 +220,9 @@ impl ServerActor {
             self.immediate_checkpoint(&session_id).await;
         }
         self.clients.remove(&client_id);
+        if mobile_disconnected {
+            self.broadcast_authenticated(event("mobileDevicesChanged", json!({})));
+        }
         if release_emulator {
             self.queue_emulator_client_release(client_id, !self.has_authenticated_clients());
         }

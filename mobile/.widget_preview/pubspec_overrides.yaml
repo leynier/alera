@@ -1,4 +1,4 @@
 # Keep previews on the same terminal fork as the mobile app.
 dependency_overrides:
-  xterm:
+  xterm2:
     path: ../../third_party/xterm

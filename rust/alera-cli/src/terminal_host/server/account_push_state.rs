@@ -23,6 +23,12 @@ pub(super) struct AccountPushState {
     pub(super) flush_generation: u64,
     pub(super) relay_task: Option<JoinHandle<()>>,
     pub(super) relay_stop: Option<oneshot::Sender<()>>,
+    pub(super) relay_generation: u64,
+    pub(super) relay_status: serde_json::Value,
+    pub(super) relay_presence: std::collections::HashMap<
+        u64,
+        (chrono::DateTime<chrono::Utc>, chrono::DateTime<chrono::Utc>),
+    >,
 }
 
 impl AccountPushState {
@@ -56,6 +62,9 @@ impl AccountPushState {
             flush_generation: 0,
             relay_task: None,
             relay_stop: None,
+            relay_generation: 0,
+            relay_status: serde_json::json!({ "state": "disabled" }),
+            relay_presence: Default::default(),
         })
     }
 }

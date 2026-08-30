@@ -119,6 +119,14 @@ pub async fn mobile_status(
     store: &RuntimeStore,
     runtime_host_active: Option<bool>,
 ) -> Result<MobileStatusPayload> {
+    mobile_status_with_network(store, runtime_host_active, true).await
+}
+
+pub async fn mobile_status_with_network(
+    store: &RuntimeStore,
+    runtime_host_active: Option<bool>,
+    include_network_status: bool,
+) -> Result<MobileStatusPayload> {
     let settings = store.mobile_access_settings().await?;
     let devices = store
         .list_mobile_devices(true)
@@ -138,8 +146,16 @@ pub async fn mobile_status(
         devices,
         active_pairings,
         runtime_host_active,
-        tailscale: Some(crate::tailscale::detect().await),
-        netbird: Some(crate::netbird::detect().await),
+        tailscale: if include_network_status {
+            Some(crate::tailscale::detect().await)
+        } else {
+            None
+        },
+        netbird: if include_network_status {
+            Some(crate::netbird::detect().await)
+        } else {
+            None
+        },
     })
 }
 

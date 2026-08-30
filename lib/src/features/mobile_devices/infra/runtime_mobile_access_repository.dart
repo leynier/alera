@@ -11,6 +11,7 @@ const Set<String> _mobileChangeEventNames = <String>{
   'mobileSettingsChanged',
   'mobilePairingsChanged',
   'mobileDevicesChanged',
+  'mobileRelayChanged',
   'mobileGatewayChanged',
 };
 

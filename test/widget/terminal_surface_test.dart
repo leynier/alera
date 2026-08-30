@@ -24,9 +24,10 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:ghostty_vte_flutter/ghostty_vte_flutter.dart';
-import 'package:xterm/xterm.dart' as xterm;
+import 'package:xterm2/xterm.dart' as xterm;
 
 part 'terminal_surface_core_test_cases.dart';
+part 'terminal_surface_clipboard_test_cases.dart';
 part 'terminal_surface_composer_test_cases.dart';
 part 'terminal_surface_composer_submit_test_cases.dart';
 part 'terminal_surface_interaction_test_cases.dart';
@@ -36,6 +37,7 @@ part 'terminal_surface_test_harness.dart';
 
 void main() {
   _registerTerminalSurfaceRuntimeTests();
+  _registerTerminalSurfaceClipboardTests();
   _registerTerminalSurfaceComposerTests();
   _registerTerminalSurfaceComposerSubmitTests();
   _registerTerminalSurfaceInteractionTests();

@@ -11,9 +11,9 @@ use serde_json::{json, Map, Value};
 use crate::mobile_access::{
     apply_mobile_settings_update_resolved, cancel_mobile_pairing_offer,
     create_mobile_pairing_offer_for_settings, delete_mobile_device, list_mobile_devices,
-    mobile_status, pair_mobile_device, prepare_mobile_pairing_offer_settings_resolved,
-    rename_mobile_device, revoke_mobile_device, MobileDevicePairRequest,
-    MobilePairingCreateRequest, MobileSettingsUpdateRequest,
+    pair_mobile_device, prepare_mobile_pairing_offer_settings_resolved, rename_mobile_device,
+    revoke_mobile_device, MobileDevicePairRequest, MobilePairingCreateRequest,
+    MobileSettingsUpdateRequest,
 };
 use crate::ssh_bootstrap::{build_ssh_bootstrap_plan, SshTargetBootstrapRequest};
 use crate::terminal_host::host_error::{HostError, HostResult};
@@ -164,6 +164,9 @@ impl ServerActor {
     ) -> HostResult<Value> {
         match request_type {
             "hello" => self.handle_hello(client_id, payload),
+            "mobile.relayAuthorization.renew" => Err(HostError::state(
+                "Relay authorization renewal requires an encrypted relay connection",
+            )),
             "mobile.hello" => self.handle_mobile_hello(client_id, payload).await,
             "mobile.device.pair" if self.is_mobile_client(client_id) => {
                 let request: MobileDevicePairRequest = parse_payload(payload)?;
@@ -987,7 +990,7 @@ impl ServerActor {
             }
             "mobile.status.get" => {
                 self.require_auth(client_id)?;
-                json_result(mobile_status(&self.runtime_store, Some(true)).await)
+                self.mobile_access_snapshot(payload).await
             }
             "mobile.settings.update" => {
                 self.require_auth(client_id)?;
