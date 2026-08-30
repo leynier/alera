@@ -108,10 +108,11 @@ impl ServerActor {
                         }
                     }
                     if request_type.starts_with("orchestration.") {
-                        match self
+                        let result = self
                             .handle_orchestration_request(client_id, id, &request_type, &payload)
-                            .await
-                        {
+                            .await;
+                        self.broadcast_orchestration_board_change().await;
+                        match result {
                             // A parked waiter answers later (wake or timeout).
                             Ok(None) => return,
                             Ok(Some(value)) => {
