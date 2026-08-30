@@ -195,6 +195,7 @@ impl ServerActor {
     }
 
     pub(super) async fn terminate_sessions_for_tab(&mut self, tab_id: &str) {
+        self.cancel_agent_title_job(tab_id);
         close_emulator_tab_deferred(self.emulators.clone(), tab_id.to_string());
         self.terminate_terminal_sessions_for_tab(tab_id).await;
     }

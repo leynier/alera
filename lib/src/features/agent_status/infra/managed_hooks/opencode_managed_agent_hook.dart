@@ -33,7 +33,37 @@ let warnedBadEndpoint = false;
 let cachedEndpointKey = "";
 let cachedEndpointValues = null;
 let lastStatus = "idle";
-const childSessionById = new Map();
+let lastSessionId = null;
+let readTitleSession = null;
+const titleSessionContextById = new Map();
+
+async function titleSessionContext(payload) {
+  const id = payload?.sessionId ?? payload?.sessionID;
+  if (!id || !readTitleSession) return { agentTitleIgnore: true };
+  if (titleSessionContextById.has(id)) return titleSessionContextById.get(id);
+  let timer;
+  try {
+    const result = await Promise.race([
+      readTitleSession(id),
+      new Promise((_, reject) => {
+        timer = setTimeout(() => reject(new Error("session lookup timeout")), 250);
+      }),
+    ]);
+    const info = result?.data ?? result;
+    if (info?.id !== id) return { agentTitleIgnore: true };
+    const context = info.parentID ? { parent_session_id: info.parentID } : {};
+    if (titleSessionContextById.size >= 128) {
+      titleSessionContextById.delete(titleSessionContextById.keys().next().value);
+    }
+    titleSessionContextById.set(id, context);
+    return context;
+  } catch {
+    // Presence still flows when ancestry is unknown, but titles must not guess.
+    return { agentTitleIgnore: true };
+  } finally {
+    clearTimeout(timer);
+  }
+}
 const messageRoleById = new Map();
 
 function readEndpointFile() {
@@ -92,29 +122,6 @@ function rememberMessageRole(messageID, role) {
   messageRoleById.set(messageID, role);
 }
 
-async function isChildSession(client, sessionID) {
-  if (!sessionID) return false;
-  if (childSessionById.has(sessionID)) return childSessionById.get(sessionID);
-  if (!client?.session?.list) return false;
-  try {
-    const sessions = await Promise.race([
-      client.session.list(),
-      new Promise((_, reject) => setTimeout(() => reject(new Error("session.list timeout")), 250)),
-    ]);
-    const list = Array.isArray(sessions?.data) ? sessions.data : [];
-    const session = list.find((entry) => entry?.id === sessionID);
-    const isChild = !!session?.parentID;
-    if (childSessionById.size >= 128) {
-      const first = childSessionById.keys().next().value;
-      if (first !== undefined) childSessionById.delete(first);
-    }
-    childSessionById.set(sessionID, isChild);
-    return isChild;
-  } catch {
-    return false;
-  }
-}
-
 function isStatusEvent(event) {
   return event.type === "permission.asked" ||
     event.type === "question.asked" ||
@@ -132,12 +139,13 @@ async function post(hookEventName, extraProperties) {
   const tabId = process.env.ALERA_TAB_ID;
   if (!coords.port || !coords.token || !terminalSessionId || !workspaceId || !tabId) return;
   const url = `http://127.0.0.1:${coords.port}/hook/opencode`;
+  const titleContext = await titleSessionContext(extraProperties);
   const body = JSON.stringify({
     terminalSessionId,
     workspaceId,
     tabId,
     version: coords.version,
-    payload: { hook_event_name: hookEventName, ...(extraProperties || {}) },
+    payload: { hook_event_name: hookEventName, ...(extraProperties || {}), ...titleContext },
   });
   try {
     const options = {
@@ -156,13 +164,17 @@ async function post(hookEventName, extraProperties) {
 }
 
 async function setStatus(next, extraProperties) {
-  if (lastStatus === next) return;
+  const sessionId = extraProperties?.sessionId;
+  if (lastStatus === next && lastSessionId === sessionId) return;
   lastStatus = next;
+  lastSessionId = sessionId;
   await post(next === "busy" ? "SessionBusy" : "SessionIdle", extraProperties);
 }
 
 export const AleraOpenCodeStatusPlugin = async (_ctx) => {
-  const client = _ctx?.client;
+  readTitleSession = _ctx?.client?.session?.get
+    ? (id) => _ctx.client.session.get({ path: { id } }) : null;
+  titleSessionContextById.clear();
   return {
     event: async ({ event }) => {
       if (!event?.type) return;
@@ -195,23 +207,23 @@ export const AleraOpenCodeStatusPlugin = async (_ctx) => {
         if (!part || part.type !== "text" || !part.text) return;
         const role = messageRoleById.get(part.messageID);
         if (!role) return;
-        await post("MessagePart", { role, text: part.text });
+        await post("MessagePart", { role, text: part.text, sessionId: part.sessionID });
         return;
       }
 
       if (event.type === "session.idle" || event.type === "session.error") {
-        await setStatus("idle");
+        await setStatus("idle", { sessionId: event.properties?.sessionID });
         return;
       }
 
       if (event.type === "session.status") {
         const statusType = getStatusType(event);
         if (statusType === "busy" || statusType === "retry") {
-          await setStatus("busy");
+          await setStatus("busy", { sessionId: event.properties?.sessionID });
           return;
         }
         if (statusType === "idle") {
-          await setStatus("idle");
+          await setStatus("idle", { sessionId: event.properties?.sessionID });
         }
       }
     },

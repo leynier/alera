@@ -700,6 +700,19 @@ impl ServerActor {
                     .map_err(|error| HostError::state(error.to_string()))?
                 {
                     super::tab_compatibility::preserve_host_owned_tab_payload(&stored, &mut tab);
+                    if tab.payload["agentTitleRevision"] != stored.payload["agentTitleRevision"] {
+                        self.cancel_agent_title_job(&tab.id);
+                    }
+                } else if let Some(payload) = tab.payload.as_object_mut() {
+                    for key in [
+                        "agentTitleStateV1",
+                        "agentTitleConversationId",
+                        "agentTitleRevision",
+                        "agentTitleSource",
+                        "agentTitleStatus",
+                    ] {
+                        payload.remove(key);
+                    }
                 }
                 let value = self.upsert_workspace_tab_and_spawn(tab).await?;
                 Ok(json!(self.workspace_tab_for_client(client_id, value)))
@@ -708,6 +721,7 @@ impl ServerActor {
                 self.require_auth(client_id)?;
                 let id = require_string_key(payload, "id")?;
                 let title = require_string_key(payload, "title")?;
+                self.cancel_agent_title_job(&id);
                 let tab = self
                     .runtime_store
                     .rename_workspace_tab(&id, &title)

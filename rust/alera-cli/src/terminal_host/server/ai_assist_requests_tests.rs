@@ -1,4 +1,5 @@
 use super::*;
+use crate::terminal_host::server::ai_assist_failure_detail::ai_assist_failure_detail;
 
 #[test]
 fn custom_command_uses_stdin_without_placeholder() {

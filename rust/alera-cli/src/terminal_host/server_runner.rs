@@ -80,6 +80,7 @@ pub async fn run_terminal_host_server(
         sessions: HashMap::new(),
         ssh_bootstrap_jobs: HashMap::new(),
         project_clone_jobs: HashMap::new(),
+        agent_title_jobs: HashMap::new(),
         managed_workspace_jobs: 0,
         emulator_requests: Default::default(),
         agent_quota_cache: None,

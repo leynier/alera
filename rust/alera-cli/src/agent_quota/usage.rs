@@ -1,7 +1,10 @@
 mod aggregation;
+mod grok_transcripts;
 mod pricing;
 mod transcripts;
 
+#[cfg(test)]
+mod grok_tests;
 #[cfg(test)]
 mod tests;
 
@@ -18,6 +21,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 
 use self::aggregation::UsageAggregator;
+use self::grok_transcripts::{grok_usage_source, parse_grok_line};
 use self::pricing::{load_rates, PricingState, RateTable};
 use self::transcripts::{
     might_carry_usage, parse_claude_line, parse_codex_line, CodexScanState, UsageRecord,
@@ -32,6 +36,7 @@ const MTIME_SLACK_MILLIS: i64 = 36 * 60 * 60 * 1000;
 enum UsageProvider {
     Claude,
     Codex,
+    Grok,
 }
 
 impl UsageProvider {
@@ -39,6 +44,7 @@ impl UsageProvider {
         match self {
             Self::Claude => "claude",
             Self::Codex => "codex",
+            Self::Grok => "grok",
         }
     }
 }
@@ -100,6 +106,8 @@ struct UsageBucket {
 struct UsageRequest {
     since_day: String,
     until_day: String,
+    #[serde(default)]
+    include_grok: bool,
     #[serde(default = "usage_default_true")]
     claude_default_enabled: bool,
     #[serde(default)]
@@ -208,6 +216,8 @@ async fn resolve_sources(request: &UsageRequest) -> Result<Vec<UsageSourceConfig
         display_name: "Default".to_string(),
         directory: codex_home.join("sessions"),
     });
+    let grok_home = shell_environment_value("GROK_HOME").await;
+    sources.extend(grok_usage_source(request, &home, grok_home.as_deref()));
     Ok(sources)
 }
 
@@ -261,7 +271,8 @@ fn scan_source(
     if !source.directory.is_dir() {
         return source_result(source, "missing", 0, 0, 0, Some("No transcript directory."));
     }
-    let (files, walk_failed) = list_transcript_files(&source.directory, since_millis);
+    let (files, walk_failed) =
+        list_transcript_files(&source.directory, since_millis, source.provider);
     let mut scanned_files = 0;
     let mut skipped_files = 0;
     let mut sessions = HashSet::new();
@@ -318,7 +329,11 @@ fn source_result(
     }
 }
 
-fn list_transcript_files(root: &Path, since_millis: i64) -> (Vec<PathBuf>, bool) {
+fn list_transcript_files(
+    root: &Path,
+    since_millis: i64,
+    provider: UsageProvider,
+) -> (Vec<PathBuf>, bool) {
     let mut pending = vec![root.to_path_buf()];
     let mut files = Vec::new();
     let mut failed = false;
@@ -342,6 +357,9 @@ fn list_transcript_files(root: &Path, since_millis: i64) -> (Vec<PathBuf>, bool)
             }
             if !file_type.is_file()
                 || path.extension().and_then(|value| value.to_str()) != Some("jsonl")
+                // Grok's chat_history and events logs do not carry turn usage.
+                || (provider == UsageProvider::Grok
+                    && path.file_name().and_then(|value| value.to_str()) != Some("updates.jsonl"))
             {
                 continue;
             }
@@ -385,12 +403,10 @@ fn read_file_records(path: &Path, provider: UsageProvider) -> Option<Vec<UsageRe
         if !might_carry_usage(&line, provider) {
             continue;
         }
-        let record = match provider {
-            UsageProvider::Claude => parse_claude_line(&line),
-            UsageProvider::Codex => parse_codex_line(&line, &mut codex_state),
-        };
-        if let Some(record) = record {
-            records.push(record);
+        match provider {
+            UsageProvider::Claude => records.extend(parse_claude_line(&line)),
+            UsageProvider::Codex => records.extend(parse_codex_line(&line, &mut codex_state)),
+            UsageProvider::Grok => records.extend(parse_grok_line(&line)),
         }
     }
     if let Ok(mut cache) = scan_cache().lock() {

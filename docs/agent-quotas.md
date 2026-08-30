@@ -16,9 +16,25 @@ The left-to-right provider order is configurable in **Settings → Quotas → Pr
 - Z.ai.
 - OpenCode Go and OpenCode Zen.
 
+## Historical Usage
+
+The desktop **Usage** panel reads Claude Code, Codex, and Grok Build session history from the active host. It shows processed tokens, costs, cache savings, daily activity, and profile, provider, and model breakdowns. These historical costs are separate from subscription quotas and billing.
+
+Grok Build history comes from `$GROK_HOME/sessions/**/updates.jsonl`, falling back to `~/.grok/sessions`. Only persisted `turn_completed` updates with usage are counted; interactive turns without such a record do not appear. Alera reads no Grok credentials and makes no Grok API calls for this history. Scanning runs off the runtime's async executor, streams files line by line, and caches parsed records by file size and modification time. Other Grok logs are excluded.
+
+Grok's per-model usage takes precedence over aggregate tokens so totals are not counted twice. Cache tokens are separated from input, reasoning remains a subset of output, and repeated session/prompt/model records are deduplicated. Provider-reported costs use `10^10` ticks per USD. When only the turn total is available, the cost remaining after explicit model costs is distributed by token share among models without costs; that per-model allocation is an estimate. Without reported cost, Alera uses available model rates or marks the records unpriced.
+
+The Grok transcript format and cost interpretation were verified against [T3 Code's usage parser](https://github.com/pingdotgg/t3code/blob/1f8ed54add4133ac39effceded8fc1fff12d8e03/apps/server/src/usage/usageTranscripts.ts) and [source discovery](https://github.com/pingdotgg/t3code/blob/1f8ed54add4133ac39effceded8fc1fff12d8e03/apps/server/src/usage/UsageService.ts). T3 Code is a reference only, not a runtime dependency.
+
+Grok-aware clients send `includeGrok: true` on both local and SSH usage requests. Requests that omit it retain the Claude/Codex-only response, so older clients sharing an updated runtime do not misclassify Grok. This is additive and does not change the terminal-host protocol version. Persisted desktop Usage snapshots use a new cache version that older apps reject; previous caches are refreshed from the host.
+
+## Quota Hosts
+
 The quota host follows the active workspace. Local desktop and mobile requests go through the runtime-host quota service, which keeps a 15-minute in-memory cache and returns the last successful snapshot as stale data when a provider refresh fails. Automatic reads reuse that cache; the explicit refresh button bypasses it. For the local desktop host, Alera resolves configured variables missing from the GUI process through the user's login shell and sends their values directly to the runtime host in memory. Values are never persisted or returned in quota responses. Alera must be restarted after changing those shell exports because the resolver caches them for the app lifetime. SSH workspaces run `alera runtime-proxy` through the Alera runtime installed on that remote host, so credentials stay on the machine where the agent runs.
 
 Mobile exposes a dedicated **Quotas** screen with the same provider ordering, Claude Default and CCS profile configuration, environment variable names, manual refresh, and remaining/reset details as desktop. When a Claude profile is not `ok` and the runtime advertises `agentQuotaClaudeTuiV1`, the card also offers **Try With TUI**. Codex reset credits and their next expiry appear when the runtime advertises `codexResetCreditsV1`. It refreshes when opened and every 15 minutes while visible. Disabling every provider is supported and produces an empty snapshot rather than falling back to defaults.
+
+Mobile Home shows quotas from all available hosts by default. Use **Settings > Quota Hosts** or **Choose Hosts** beside the Home quota heading to hide hosts that share the same accounts. Each switch applies to all quotas from that host in the Home summary, and hidden hosts are not polled for quotas by that summary. The selection is saved only on this phone by runtime ID, survives host renaming and reconnection, and includes newly added hosts by default. All hosts may be hidden; **Choose Hosts** remains available to restore them. Individual host Quotas screens, provider settings, and desktop behavior are unchanged.
 
 ## Codex Reset Credits
 

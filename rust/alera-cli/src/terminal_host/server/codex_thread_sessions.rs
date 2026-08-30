@@ -243,6 +243,7 @@ impl ServerActor {
         self.handle_codex_force_flush(tab_id).await;
         let tab = self.codex_tab(tab_id).await?;
         ensure_thread_switch_allowed(&tab)?;
+        self.cancel_agent_title_job(tab_id);
         Ok(tab)
     }
 
@@ -361,6 +362,21 @@ impl ServerActor {
 }
 
 fn sync_resumed_thread_title(tab: &mut WorkspaceTabRecord) {
+    let mut state = super::super::agent_title_state::AgentTitleState::new(false);
+    state.agent = Some("codex".into());
+    state.native_id = tab_thread_id(tab);
+    state.initial_prompt = super::super::agent_title_events::first_codex_prompt(tab);
+    state.write(tab);
+    tab.payload["agentTitleStatus"] = json!("idle");
+    if super::super::agent_title_state::is_manual(tab) {
+        let mut protected = snapshot(tab);
+        protected["title"] = json!(tab.title);
+        super::super::codex_state::persist_snapshot(tab, protected);
+        return;
+    }
+    tab.payload
+        .as_object_mut()
+        .map(|p| p.remove("agentTitleSource"));
     if let Some(title) = snapshot(tab)
         .get("title")
         .and_then(Value::as_str)
@@ -377,6 +393,19 @@ fn sync_resumed_thread_title(tab: &mut WorkspaceTabRecord) {
 }
 
 fn reset_new_thread_title(tab: &mut WorkspaceTabRecord) {
+    let mut state = super::super::agent_title_state::AgentTitleState::new(true);
+    state.agent = Some("codex".into());
+    state.native_id = tab_thread_id(tab);
+    state.write(tab);
+    tab.payload["agentTitleStatus"] = json!("idle");
+    if super::super::agent_title_state::is_manual(tab)
+        || tab.payload["agentTitleSource"] == "generated"
+    {
+        let mut protected = snapshot(tab);
+        protected["title"] = json!(tab.title);
+        super::super::codex_state::persist_snapshot(tab, protected);
+        return;
+    }
     tab.title = "Codex Chat".to_string();
     if let Some(payload) = tab.payload.as_object_mut() {
         payload.remove("manualTitle");

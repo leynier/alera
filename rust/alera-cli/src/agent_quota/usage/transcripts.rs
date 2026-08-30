@@ -16,6 +16,7 @@ pub(super) struct UsageRecord {
 pub(super) fn might_carry_usage(line: &str, provider: UsageProvider) -> bool {
     match provider {
         UsageProvider::Claude => line.contains("\"usage\""),
+        UsageProvider::Grok => line.contains("\"turn_completed\""),
         UsageProvider::Codex => {
             line.contains("\"token_count\"")
                 || line.contains("\"turn_context\"")
@@ -173,7 +174,7 @@ fn parse_timestamp(value: &Value) -> Option<i64> {
         .map(|date| date.timestamp_millis())
 }
 
-fn positive_int(value: Option<&Value>) -> u64 {
+pub(super) fn positive_int(value: Option<&Value>) -> u64 {
     value
         .and_then(|value| {
             value
