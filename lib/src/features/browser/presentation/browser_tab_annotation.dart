@@ -347,6 +347,7 @@ class _BrowserNativePageSurface extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    if (!TickerMode.valuesOf(context).enabled) return const SizedBox.shrink();
     return AleraBrowserView(
       client: ref.watch(aleraBrowserClientProvider),
       pageId: pageId,

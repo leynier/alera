@@ -93,9 +93,13 @@ class _AleraShellPageBodyState extends ConsumerState<_AleraShellPageBody> {
               return Column(
                 children: <Widget>[
                   Expanded(
-                    child: showRunBoard
-                        ? const RunBoardPage()
-                        : Row(
+                    child: Stack(
+                      fit: StackFit.expand,
+                      children: [
+                        Visibility(
+                          visible: !showRunBoard,
+                          maintainState: true,
+                          child: Row(
                             crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: <Widget>[
                               const ProjectWorkbenchSidebar(),
@@ -317,6 +321,10 @@ class _AleraShellPageBodyState extends ConsumerState<_AleraShellPageBody> {
                                 ),
                             ],
                           ),
+                        ),
+                        if (showRunBoard) const RunBoardPage(),
+                      ],
+                    ),
                   ),
                   const AgentQuotaStatusBar(
                     trailing: Row(

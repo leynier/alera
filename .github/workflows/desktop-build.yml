@@ -165,11 +165,13 @@ jobs:
           ALERA_VISUAL_REVIEW_DIR: ${{ github.workspace }}/build/run-board-review
         run: |
           set -euo pipefail
-          if [[ "$PLATFORM" == "linux" ]]; then
-            xvfb-run -a flutter test integration_test/run_board_flow_test.dart -d linux --reporter expanded
-          else
-            flutter test integration_test/run_board_flow_test.dart -d "$PLATFORM" --reporter expanded
-          fi
+          for suite in integration_test/run_board_flow_test.dart integration_test/run_board_editor_flow_test.dart; do
+            if [[ "$PLATFORM" == "linux" ]]; then
+              xvfb-run -a flutter test "$suite" -d linux --reporter expanded
+            else
+              flutter test "$suite" -d "$PLATFORM" --reporter expanded
+            fi
+          done
 
       - name: Upload Run Board captures
         uses: actions/upload-artifact@v7

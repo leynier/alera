@@ -74,7 +74,7 @@ class _BrowserTabSurfaceState extends ConsumerState<BrowserTabSurface> {
   void initState() {
     super.initState();
     _addressController.text = widget.tab.browserUrl ?? '';
-    _session = _loadSession();
+    _session = _loadSessionFor(widget.tab);
     unawaited(_loadProfiles());
     if (widget.autofocus) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -92,7 +92,7 @@ class _BrowserTabSurfaceState extends ConsumerState<BrowserTabSurface> {
         oldWidget.tab.workspaceId != widget.tab.workspaceId ||
         oldWidget.tab.browserProfileId != widget.tab.browserProfileId) {
       unawaited(_releasePresentation());
-      _session = _loadSession();
+      _session = _loadSessionFor(widget.tab);
       unawaited(_loadProfiles());
     }
   }
@@ -103,10 +103,6 @@ class _BrowserTabSurfaceState extends ConsumerState<BrowserTabSurface> {
     _addressController.dispose();
     _addressFocusNode.dispose();
     super.dispose();
-  }
-
-  Future<BrowserSessionHandle> _loadSession() async {
-    return _loadSessionFor(widget.tab);
   }
 
   Future<BrowserSessionHandle> _loadSessionFor(
@@ -187,7 +183,9 @@ class _BrowserTabSurfaceState extends ConsumerState<BrowserTabSurface> {
             final routeIsCurrent = ModalRoute.of(context)?.isCurrent ?? true;
             _syncNativeVisibility(
               handle,
-              browserStateShowsNativeSurface(state) && routeIsCurrent,
+              browserStateShowsNativeSurface(state) &&
+                  routeIsCurrent &&
+                  TickerMode.valuesOf(context).enabled,
             );
             _syncNativeObscuration(
               handle,

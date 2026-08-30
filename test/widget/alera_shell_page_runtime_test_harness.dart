@@ -160,6 +160,7 @@ class _FakeTerminalSessionHandle extends TerminalSessionHandle {
   final Workspace workspace;
   final WorkspaceTabRecord tab;
   bool _started = false;
+  int visibilityLeases = 0;
 
   @override
   String get tabId => tab.id;
@@ -193,8 +194,10 @@ class _FakeTerminalSessionHandle extends TerminalSessionHandle {
   Future<void> restart() => ensureStarted();
 
   @override
-  TerminalVisibilityLease acquireVisibility() =>
-      const NoopTerminalVisibilityLease();
+  TerminalVisibilityLease acquireVisibility() {
+    visibilityLeases++;
+    return _ShellVisibilityLease(() => visibilityLeases--);
+  }
 
   @override
   Widget buildView({
@@ -213,6 +216,16 @@ class _FakeTerminalSessionHandle extends TerminalSessionHandle {
   @override
   void requestFocus() {
     requestFocusCalls += 1;
+  }
+}
+
+class _ShellVisibilityLease implements TerminalVisibilityLease {
+  _ShellVisibilityLease(this.onDispose);
+  VoidCallback? onDispose;
+  @override
+  void dispose() {
+    onDispose?.call();
+    onDispose = null;
   }
 }
 

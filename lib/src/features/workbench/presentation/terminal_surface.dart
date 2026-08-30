@@ -47,9 +47,23 @@ class _TerminalSurfaceState extends ConsumerState<TerminalSurface> {
   @override
   void initState() {
     super.initState();
-    _visibilityLease = widget.session.acquireVisibility();
     _attachComposer(widget.session);
     _scheduleStart(widget.session);
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _syncVisibilityLease();
+  }
+
+  void _syncVisibilityLease() {
+    if (TickerMode.valuesOf(context).enabled) {
+      _visibilityLease ??= widget.session.acquireVisibility();
+    } else {
+      _visibilityLease?.dispose();
+      _visibilityLease = null;
+    }
   }
 
   @override
@@ -59,7 +73,8 @@ class _TerminalSurfaceState extends ConsumerState<TerminalSurface> {
       _refreshGeneration += 1;
       _refreshing = false;
       _visibilityLease?.dispose();
-      _visibilityLease = widget.session.acquireVisibility();
+      _visibilityLease = null;
+      _syncVisibilityLease();
       _detachComposer(oldWidget.session);
       _attachComposer(widget.session);
       _scheduleStart(widget.session);
