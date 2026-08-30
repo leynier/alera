@@ -63,6 +63,7 @@ impl RuntimeStore {
         };
         store.migrate().await?;
         store.migrate_orchestration_board().await?;
+        store.migrate_workflow_catalog().await?;
         harden_sqlite_files(&path)?;
         Ok(store)
     }

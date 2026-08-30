@@ -199,6 +199,9 @@ mod terminal_pulse;
 mod terminal_session_requests;
 mod terminal_spawn;
 mod terminal_startup_commands;
+mod workflow_catalog_requests;
+#[cfg(test)]
+mod workflow_catalog_tests;
 mod workspace_pinning;
 mod workspace_section_requests;
 #[cfg(test)]
@@ -1655,9 +1658,15 @@ mod tests {
     #[tokio::test]
     async fn coordinator_does_not_spawn_worker_tab_for_cli_only_client() {
         let dir = tempfile::tempdir().unwrap();
-        let store = TerminalHostHistoryStore::open(dir.path()).await.unwrap();
-        let runtime_store = RuntimeStore::open(dir.path()).await.unwrap();
-        runtime_store
+        let (handle, _control_out_rx) = ClientHandle::test_channels();
+        let mut actor = super::actor_test_harness::test_actor(
+            &dir,
+            HashMap::from([(1, ClientState::local(handle, false))]),
+            HashMap::new(),
+        )
+        .await;
+        actor
+            .runtime_store
             .create_orchestration_task(NewOrchestrationTask {
                 spec: "do work".to_string(),
                 task_title: None,
@@ -1672,50 +1681,6 @@ mod tests {
             })
             .await
             .unwrap();
-        let (inbox, _rx) = mpsc::unbounded_channel();
-        let (handle, _control_out_rx) = ClientHandle::test_channels();
-        let mut actor = ServerActor {
-            runtime_dir: dir.path().to_path_buf(),
-            control_file_path: dir.path().join("runtime-host.json"),
-            token: "token".to_string(),
-            config: TerminalHostConfig::default(),
-            store,
-            runtime_store: runtime_store.clone(),
-            automation_wake: Arc::new(Notify::new()),
-            automations_active: false,
-            sessions: HashMap::new(),
-            ssh_bootstrap_jobs: HashMap::new(),
-            project_clone_jobs: HashMap::new(),
-            agent_title_jobs: HashMap::new(),
-            managed_workspace_jobs: 0,
-            emulator_requests: Default::default(),
-            agent_quota_cache: None,
-            configuration_transfers: Default::default(),
-            account_push: account_push_for_test(&dir, &runtime_store).await,
-            clients: HashMap::from([(1, ClientState::local(handle, false))]),
-            mobile_prompt_file_uploads: HashMap::new(),
-            pending_output_writes: HashMap::new(),
-            agent_presence: AgentPresenceRegistry::default(),
-            orchestration_waiters: MessageWaiterRegistry::default(),
-            orchestration_delivery_in_flight: HashSet::new(),
-            orchestration_delivery_backpressured: HashSet::new(),
-            orchestration_activity_last_recorded: HashMap::new(),
-            coordinators: HashMap::new(),
-            resources: ResourceMonitorState::default(),
-            terminal_pulses: Default::default(),
-            browser: BrowserBroker::default(),
-            emulators: None,
-            codex: None,
-            codex_presence: HashMap::new(),
-            codex_presence_scheduled: false,
-            codex_pending_messages: HashMap::new(),
-            codex_flush_scheduled: HashSet::new(),
-            inbox,
-            next_client_id: Arc::new(AtomicU64::new(2)),
-            mobile_gateway: None,
-            shutdown_gen: 0,
-            disposed: false,
-        };
         let response = actor
             .orchestration_run(&json!({
                 "spec": "coordinate",

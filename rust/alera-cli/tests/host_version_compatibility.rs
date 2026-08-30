@@ -213,6 +213,7 @@ fn v049_host_accepts_current_baseline_client() {
         .expect("ALERA_PREVIOUS_HOST_VERSION must identify the pinned host");
     let capabilities = assert_v049_baseline(&binary, Some(&version));
     assert!(!capabilities.contains(&json!(PROFILE_ORDERING_CAPABILITY)));
+    assert!(!capabilities.contains(&json!("workflowRecipeCatalogV1")));
 
     let (_guard, mut writer, mut reader) = spawn_host(&binary, Some(&version));
     send(
@@ -248,4 +249,13 @@ fn v049_host_accepts_current_baseline_client() {
     let response = read_response(&mut reader, 8);
     assert_eq!(response["ok"], json!(true));
     assert!(response["payload"]["items"].as_array().unwrap().is_empty());
+    send(
+        &mut writer,
+        json!({"id": 9, "type": "workflows.catalog", "payload": {}}),
+    );
+    let response = read_response(&mut reader, 9);
+    assert_eq!(response["ok"], json!(false));
+    assert!(response["error"]
+        .as_str()
+        .is_some_and(|error| error.contains("Unknown terminal host request: workflows.catalog")));
 }

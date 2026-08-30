@@ -29,6 +29,9 @@ pub async fn run_orchestration_command(command: OrchestrationCommand) -> i32 {
     let runtime = command.runtime;
     let json_output = command.output.json;
     match command.action {
+        OrchestrationAction::Recipes(args) => {
+            crate::workflow_recipe_commands::run_workflow_recipes(&runtime, args, json_output).await
+        }
         OrchestrationAction::AgentSpawn(args) => run_agent_spawn(&runtime, args, json_output).await,
         OrchestrationAction::Send(args) => match build_send_payload(args) {
             Ok(payload) => {
