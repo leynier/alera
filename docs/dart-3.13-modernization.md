@@ -26,7 +26,7 @@ The baseline is main commit `49355a781f99bb919361118535d51a83f3444398`, using th
 
 The isolated generator probe passes JSON field annotations, inherited defaults, constant identity and `copyWith`, a Riverpod family with default arguments, and an in-memory Drift table with its schema and default value. The old generator failure and the successful compatible run are retained as local evidence.
 
-The initial performance series is not acceptance evidence: unrelated Flutter tests and native compilation raised host load sharply and materially changed frame times. The raw samples and baseline source are preserved for a matched comparison. Final modernization, native builds and performance validation are still in progress.
+The initial performance series is not acceptance evidence: unrelated Flutter tests and native compilation raised host load sharply and materially changed frame times. The raw samples and baseline source are preserved for a matched comparison. Build, performance and final review results are recorded in [PR #593](https://github.com/leynier/alera/pull/593), together with the tested commit identities.
 
 Language references: [primary constructors](https://dart.dev/language/primary-constructors), [constructor syntax](https://dart.dev/language/constructors#concise-constructor-syntax), and [Dart 3.13.2 changelog](https://github.com/dart-lang/sdk/blob/3.13.2/CHANGELOG.md).
 

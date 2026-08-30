@@ -91,10 +91,11 @@ jobs:
         shell: bash
         env:
           ALERA_FLAVOR: dev
+          ALERA_NATIVE_TEST_CLIPBOARD: '1'
           PLATFORM: ${{ matrix.platform }}
         run: |
           set -euo pipefail
-          for suite in rust_process_runner_test alera_smoke_flow_test; do
+          for suite in rust_process_runner_test alera_smoke_flow_test terminal_input_native_test; do
             if [[ "$PLATFORM" == "linux" ]]; then
               xvfb-run -a flutter test "integration_test/${suite}.dart" -d linux --reporter expanded
             else
