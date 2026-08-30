@@ -20,6 +20,8 @@ The quota host follows the active workspace. Local desktop and mobile requests g
 
 Mobile exposes a dedicated **Quotas** screen with the same provider ordering, Claude Default and CCS profile configuration, environment variable names, manual refresh, and remaining/reset details as desktop. When a Claude profile is not `ok` and the runtime advertises `agentQuotaClaudeTuiV1`, the card also offers **Try With TUI**. Codex reset credits and their next expiry appear when the runtime advertises `codexResetCreditsV1`. It refreshes when opened and every 15 minutes while visible. Disabling every provider is supported and produces an empty snapshot rather than falling back to defaults.
 
+Mobile Home shows quotas from all available hosts by default. Use **Settings > Quota Hosts** or **Choose Hosts** beside the Home quota heading to hide hosts that share the same accounts. Each switch applies to all quotas from that host in the Home summary, and hidden hosts are not polled for quotas by that summary. The selection is saved only on this phone by runtime ID, survives host renaming and reconnection, and includes newly added hosts by default. All hosts may be hidden; **Choose Hosts** remains available to restore them. Individual host Quotas screens, provider settings, and desktop behavior are unchanged.
+
 ## Codex Reset Credits
 
 For the default Codex account, desktop hover cards, the desktop quota overview, and the mobile Quotas card show how many earned rate-limit resets are available and when the next available credit expires. Alera always asks for confirmation before spending one.
