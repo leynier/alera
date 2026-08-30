@@ -1,3 +1,6 @@
+import 'package:alera/src/features/workbench/domain/workspace_section.dart';
+import 'package:alera/src/features/workbench/application/workspace_section_repository.dart';
+
 import 'dart:async';
 
 import 'package:alera/src/features/workbench/application/workbench_repository.dart';
@@ -9,13 +12,16 @@ import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_p
 import 'package:alera/src/shared/infra/runtime/runtime_change_coalescer.dart';
 import 'package:alera/src/shared/infra/runtime/runtime_snapshot_stream.dart';
 
+part 'runtime_workbench_sections.dart';
+
 class RuntimeWorkbenchRepository(
-  final RuntimeHostClient _client, {
+  @override final RuntimeHostClient _client, {
   final Future<void> Function()? beforeAccess,
   RuntimeChangeCoalescer? coalescer,
-}) implements WorkbenchRepository {
+}) with _RuntimeWorkbenchSections implements WorkbenchRepository {
   this : _coalescer = coalescer ?? RuntimeChangeCoalescer();
 
+  @override
   final RuntimeChangeCoalescer _coalescer;
 
   @override
@@ -218,6 +224,7 @@ class RuntimeWorkbenchRepository(
     });
   }
 
+  @override
   Future<void> _ensureReady() async {
     final callback = beforeAccess;
     if (callback != null) {
@@ -250,6 +257,7 @@ Workspace _workspaceFromJson(Map<String, Object?> json) {
     isPinned: json['isPinned'] == true,
     tagIds: _stringList(json['tagIds']),
     tagNames: _stringList(json['tagNames']),
+    sectionId: _emptyToNull(json['sectionId']),
     parentWorkspaceId: _emptyToNull(json['parentWorkspaceId']),
     childCount: (json['childCount'] as num?)?.toInt() ?? 0,
   );

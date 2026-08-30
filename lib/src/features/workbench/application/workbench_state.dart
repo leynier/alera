@@ -1,3 +1,4 @@
+import 'package:alera/src/features/workbench/domain/workspace_section.dart';
 import 'package:alera/src/features/projects/domain/project.dart';
 import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
 import 'package:alera/src/features/workbench/domain/workbench_layout.dart';
@@ -9,6 +10,8 @@ part 'workbench_state.mapper.dart';
 
 @MappableClass()
 class const WorkbenchState({
+  this.sections = const <WorkspaceSection>[],
+  this.supportsSections = false,
   this.projects = const <Project>[],
   this.workspacesByProject = const <String, List<Workspace>>{},
   this.tabsByWorkspace = const <String, List<WorkspaceTabRecord>>{},
@@ -22,6 +25,8 @@ class const WorkbenchState({
   this.searchQuery = '',
   this.collapsed = false,
 }) with WorkbenchStateMappable {
+  final List<WorkspaceSection> sections;
+  final bool supportsSections;
   final List<Project> projects;
   final Map<String, List<Workspace>> workspacesByProject;
   final Map<String, List<WorkspaceTabRecord>> tabsByWorkspace;

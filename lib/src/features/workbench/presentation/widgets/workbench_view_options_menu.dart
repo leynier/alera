@@ -252,22 +252,33 @@ class _WorkbenchViewOptionsPanelState
                   _SectionLabel(text: 'Group By'),
                   const SizedBox(height: AleraTokens.space6),
                   _GroupBySegmented(
-                    value: prefs.groupBy,
+                    supportsSections: state.supportsSections,
+                    value:
+                        !state.supportsSections &&
+                            prefs.groupBy == WorkbenchGroupBy.section
+                        ? WorkbenchGroupBy.project
+                        : prefs.groupBy,
                     onChanged: controller.setGroupBy,
                   ),
                   const SizedBox(height: AleraTokens.space12),
                   _SortRow(
                     label: prefs.groupBy == WorkbenchGroupBy.project
                         ? 'Sort Projects By'
+                        : prefs.groupBy == WorkbenchGroupBy.section
+                        ? 'Sort Sections By'
                         : 'Sort Workspaces By',
                     value: prefs.groupBy == WorkbenchGroupBy.project
                         ? prefs.projectSort
+                        : prefs.groupBy == WorkbenchGroupBy.section
+                        ? prefs.sectionSort
                         : prefs.workspaceSort,
                     onChanged: prefs.groupBy == WorkbenchGroupBy.project
                         ? controller.setProjectSort
+                        : prefs.groupBy == WorkbenchGroupBy.section
+                        ? controller.setSectionSort
                         : controller.setWorkspaceSort,
                   ),
-                  if (prefs.groupBy == WorkbenchGroupBy.project) ...<Widget>[
+                  if (prefs.groupBy != WorkbenchGroupBy.none) ...<Widget>[
                     const SizedBox(height: AleraTokens.space8),
                     _SortRow(
                       label: 'Then Workspaces By',

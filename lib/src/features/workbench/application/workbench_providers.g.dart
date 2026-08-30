@@ -155,21 +155,13 @@ String _$workbenchViewPrefsRepositoryHash() =>
     r'307cb46e7f48379a186243cc2863d6f89141eebc';
 
 /// The sidebar row list, recomputed once per state change instead of once per
-/// widget rebuild.
-///
-/// `buildSidebarRows` filters and multi-key sorts every workspace, and the
-/// sidebar used to run it inline on every rebuild while also mutating the
-/// order memory during build.
+/// widget rebuild. Filtering and sorting stay out of widget build methods.
 
 @ProviderFor(workbenchSidebarRows)
 final workbenchSidebarRowsProvider = WorkbenchSidebarRowsProvider._();
 
 /// The sidebar row list, recomputed once per state change instead of once per
-/// widget rebuild.
-///
-/// `buildSidebarRows` filters and multi-key sorts every workspace, and the
-/// sidebar used to run it inline on every rebuild while also mutating the
-/// order memory during build.
+/// widget rebuild. Filtering and sorting stay out of widget build methods.
 
 final class WorkbenchSidebarRowsProvider
     extends
@@ -180,11 +172,7 @@ final class WorkbenchSidebarRowsProvider
         >
     with $Provider<List<WorkbenchSidebarRow>> {
   /// The sidebar row list, recomputed once per state change instead of once per
-  /// widget rebuild.
-  ///
-  /// `buildSidebarRows` filters and multi-key sorts every workspace, and the
-  /// sidebar used to run it inline on every rebuild while also mutating the
-  /// order memory during build.
+  /// widget rebuild. Filtering and sorting stay out of widget build methods.
   WorkbenchSidebarRowsProvider._()
     : super(
         from: null,
@@ -220,7 +208,7 @@ final class WorkbenchSidebarRowsProvider
 }
 
 String _$workbenchSidebarRowsHash() =>
-    r'9f8ecfca092c1ba351c67de8e473579701ca983e';
+    r'0b482653907b020b8dfc01c1a3a1f2550bcee5b2';
 
 /// Rechecks the terminal memory budget when the active workspace changes.
 

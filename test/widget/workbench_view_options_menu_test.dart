@@ -13,6 +13,23 @@ import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   group('WorkbenchViewOptionsButton', () {
+    testWidgets(
+      'Section grouping exposes independent sort controls when supported',
+      (tester) async {
+        final controller = _ViewOptionsTestController(
+          const WorkbenchState(supportsSections: true),
+        );
+        await _pumpButton(tester, controller);
+        await tester.tap(_viewOptionsButton());
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Section'));
+        await tester.pumpAndSettle();
+        expect(controller.state.viewPrefs.groupBy, WorkbenchGroupBy.section);
+        expect(find.text('Sort Sections By'), findsOneWidget);
+        expect(find.text('Then Workspaces By'), findsOneWidget);
+      },
+    );
+
     testWidgets('opens the dialog and updates grouping, sorting, and filters', (
       tester,
     ) async {

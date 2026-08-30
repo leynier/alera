@@ -1,3 +1,4 @@
+import 'package:alera_mobile/src/features/runtime/domain/workspace_section_summary.dart';
 import 'package:alera_mobile/src/core/json_payload_fields.dart';
 import 'package:alera_mobile/src/features/runtime/domain/project_summary.dart';
 import 'package:alera_mobile/src/features/runtime/domain/workspace_summary.dart';
@@ -53,6 +54,7 @@ class const AgentPresenceSummary({
 }
 
 class const WorkspaceSidebarSnapshot({
+  final List<WorkspaceSectionSummary> sections = const [],
   required final List<ProjectSummary> projects,
   required final List<WorkspaceSummary> workspaces,
   required final List<WorkspaceTagSummary> tags,
@@ -76,6 +78,10 @@ class const WorkspaceSidebarSnapshot({
       }
     }
     return WorkspaceSidebarSnapshot(
+      sections: [
+        for (final item in json.objectList('sections'))
+          WorkspaceSectionSummary.fromJson(asJsonMap(item)),
+      ],
       projects: <ProjectSummary>[
         for (final item in json.objectList('projects'))
           ProjectSummary.fromJson(asJsonMap(item)),

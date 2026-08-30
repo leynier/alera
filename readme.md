@@ -84,6 +84,8 @@ Register existing local folders or clone Git repositories from one place. Git-ba
 
 ### 🌳 Worktree-native workflow
 
+Group workspaces by project, keep a flat list, or organize them into custom **Sections** across projects. Desktop and mobile share section assignments and view preferences; unassigned workspaces appear under **Others**. See [Workspace Sections](docs/workspace-storage.md#workspace-sections).
+
 Every workspace is a worktree. Less branch juggling, fewer "wait, what was I working on?" moments. Switching contexts is instant, and your agents never collide on the same files.
 
 ### 🤖 Multi-agent terminals

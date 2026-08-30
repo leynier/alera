@@ -197,6 +197,12 @@ class WorkspaceMapper extends ClassMapperBase<Workspace> {
     opt: true,
     def: const <String>[],
   );
+  static String? _$sectionId(Workspace v) => v.sectionId;
+  static const Field<Workspace, String> _f$sectionId = Field(
+    'sectionId',
+    _$sectionId,
+    opt: true,
+  );
   static String? _$parentWorkspaceId(Workspace v) => v.parentWorkspaceId;
   static const Field<Workspace, String> _f$parentWorkspaceId = Field(
     'parentWorkspaceId',
@@ -229,6 +235,7 @@ class WorkspaceMapper extends ClassMapperBase<Workspace> {
     #isPinned: _f$isPinned,
     #tagIds: _f$tagIds,
     #tagNames: _f$tagNames,
+    #sectionId: _f$sectionId,
     #parentWorkspaceId: _f$parentWorkspaceId,
     #childCount: _f$childCount,
   };
@@ -251,6 +258,7 @@ class WorkspaceMapper extends ClassMapperBase<Workspace> {
       isPinned: data.dec(_f$isPinned),
       tagIds: data.dec(_f$tagIds),
       tagNames: data.dec(_f$tagNames),
+      sectionId: data.dec(_f$sectionId),
       parentWorkspaceId: data.dec(_f$parentWorkspaceId),
       childCount: data.dec(_f$childCount),
     );
@@ -334,6 +342,7 @@ abstract class WorkspaceCopyWith<$R, $In extends Workspace, $Out>
     bool? isPinned,
     List<String>? tagIds,
     List<String>? tagNames,
+    String? sectionId,
     String? parentWorkspaceId,
     int? childCount,
   });
@@ -380,6 +389,7 @@ class _WorkspaceCopyWithImpl<$R, $Out>
     bool? isPinned,
     List<String>? tagIds,
     List<String>? tagNames,
+    Object? sectionId = $none,
     Object? parentWorkspaceId = $none,
     int? childCount,
   }) => $apply(
@@ -401,6 +411,7 @@ class _WorkspaceCopyWithImpl<$R, $Out>
       if (isPinned != null) #isPinned: isPinned,
       if (tagIds != null) #tagIds: tagIds,
       if (tagNames != null) #tagNames: tagNames,
+      if (sectionId != $none) #sectionId: sectionId,
       if (parentWorkspaceId != $none) #parentWorkspaceId: parentWorkspaceId,
       if (childCount != null) #childCount: childCount,
     }),
@@ -426,6 +437,7 @@ class _WorkspaceCopyWithImpl<$R, $Out>
     isPinned: data.get(#isPinned, or: $value.isPinned),
     tagIds: data.get(#tagIds, or: $value.tagIds),
     tagNames: data.get(#tagNames, or: $value.tagNames),
+    sectionId: data.get(#sectionId, or: $value.sectionId),
     parentWorkspaceId: data.get(
       #parentWorkspaceId,
       or: $value.parentWorkspaceId,

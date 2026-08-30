@@ -1,10 +1,44 @@
+import 'package:alera_mobile/src/features/runtime/domain/workspace_section_summary.dart';
 import 'package:alera_mobile/src/core/json_payload_fields.dart';
 import 'package:alera_mobile/src/features/runtime/domain/runtime_client_surfaces.dart';
 import 'package:alera_mobile/src/features/runtime/domain/workspace_sidebar_snapshot.dart';
 import 'package:alera_mobile/src/features/runtime/domain/workspace_summary.dart';
 import 'package:alera_mobile/src/features/workbench/domain/mobile_view_prefs.dart';
 
-mixin MobileRuntimeWorkspaceSidebarClient {
+mixin MobileRuntimeWorkspaceSidebarClient
+    implements MobileWorkspaceSectionClient {
+  @override
+  bool get supportsWorkspaceSections =>
+      runtimeCapabilities.contains('workspaceSectionsV1');
+  @override
+  Future<List<WorkspaceSectionSummary>> listWorkspaceSections() async => [
+    for (final item in await requestList('workspaceSection.list'))
+      WorkspaceSectionSummary.fromJson(asJsonMap(item)),
+  ];
+  @override
+  Future<void> createWorkspaceSection(String name, String workspaceId) async {
+    await request('workspaceSection.create', {
+      'name': name,
+      'workspaceId': workspaceId,
+    });
+  }
+
+  @override
+  Future<void> setWorkspaceSection(
+    String workspaceId,
+    String? sectionId,
+  ) async {
+    await request('workspaceSection.setForWorkspace', {
+      'workspaceId': workspaceId,
+      'sectionId': sectionId,
+    });
+  }
+
+  @override
+  Future<void> removeWorkspaceSection(String sectionId) async {
+    await request('workspaceSection.remove', {'id': sectionId});
+  }
+
   Set<String> get runtimeCapabilities;
   Future<Object?> request(
     String type, [
@@ -31,20 +65,35 @@ mixin MobileRuntimeWorkspaceSidebarClient {
   }
 
   Future<MobileViewPrefs> loadWorkbenchViewPrefs() async {
-    return MobileViewPrefs.fromRecordJson(
-      await requestMap('workbenchViewPrefs.get'),
-    );
+    return _prefsForRuntime(await requestMap('workbenchViewPrefs.get'));
   }
 
   Future<MobileViewPrefs> updateWorkbenchViewPrefs(
     MobileViewPrefs prefs,
   ) async {
-    return MobileViewPrefs.fromRecordJson(
+    final shared = prefs.toJson();
+    if (!supportsWorkspaceSections) {
+      shared.remove('sectionSort');
+      shared.remove('collapsedSectionIds');
+      shared.remove('othersSectionCollapsed');
+      if (prefs.groupBy == MobileWorkspaceGroupBy.section) {
+        shared['groupBy'] = 'project';
+      }
+    }
+    return _prefsForRuntime(
       await requestMap('workbenchViewPrefs.update', <String, Object?>{
         'expectedRevision': prefs.revision,
-        'prefs': prefs.toJson(),
+        'prefs': shared,
       }),
     );
+  }
+
+  MobileViewPrefs _prefsForRuntime(Map<String, Object?> record) {
+    final prefs = MobileViewPrefs.fromRecordJson(record);
+    return !supportsWorkspaceSections &&
+            prefs.groupBy == MobileWorkspaceGroupBy.section
+        ? prefs.copyWith(groupBy: MobileWorkspaceGroupBy.project)
+        : prefs;
   }
 
   Future<List<AgentPresenceSummary>> listAgentPresence() async {

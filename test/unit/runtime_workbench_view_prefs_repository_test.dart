@@ -5,6 +5,51 @@ import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_p
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
+  test(
+    'sections roundtrip on supported hosts and are omitted on older hosts',
+    () async {
+      final client = _FakeRuntimeHostClient()..supportsSections = true;
+      client.responses['workbenchViewPrefs.get'] = {
+        'revision': 4,
+        'desktopInitialized': true,
+        'prefs': {
+          'groupBy': 'section',
+          'sectionSort': 'recent',
+          'collapsedSectionIds': ['s'],
+          'othersSectionCollapsed': true,
+        },
+      };
+      final repo = RuntimeWorkbenchViewPrefsRepository(
+        client: client,
+        legacyRepository: _MemoryViewPrefsRepository(),
+      );
+      final prefs = await repo.load();
+      expect(prefs.groupBy, WorkbenchGroupBy.section);
+      expect(prefs.sectionSort, WorkbenchSortBy.recent);
+      expect(prefs.collapsedSectionIds, {'s'});
+      await repo.save(prefs);
+      expect(
+        client.payloads['workbenchViewPrefs.update']!.last['prefs'],
+        containsPair('groupBy', 'section'),
+      );
+      expect(
+        client.payloads['workbenchViewPrefs.update']!.last['prefs'],
+        containsPair('othersSectionCollapsed', true),
+      );
+      client.supportsSections = false;
+      final fallback = await repo.load();
+      expect(fallback.groupBy, WorkbenchGroupBy.project);
+      expect(fallback.sectionSort, WorkbenchSortBy.recent);
+      expect(fallback.collapsedSectionIds, {'s'});
+      await repo.save(prefs);
+      final old =
+          client.payloads['workbenchViewPrefs.update']!.last['prefs'] as Map;
+      expect(old['groupBy'], 'project');
+      expect(old.containsKey('sectionSort'), isFalse);
+      expect(old.containsKey('collapsedSectionIds'), isFalse);
+    },
+  );
+
   test('loads and saves the shared active workspace filter', () async {
     final client = _FakeRuntimeHostClient()
       ..responses['workbenchViewPrefs.get'] = <String, Object?>{
@@ -49,7 +94,12 @@ final class _MemoryViewPrefsRepository implements WorkbenchViewPrefsRepository {
   }
 }
 
-final class _FakeRuntimeHostClient implements RuntimeHostClient {
+final class _FakeRuntimeHostClient
+    implements RuntimeHostClient, RuntimeHostCapabilityClient {
+  bool supportsSections = false;
+  @override
+  Future<bool> supportsRuntimeCapability(String capability) async =>
+      supportsSections && capability == 'workspaceSectionsV1';
   final responses = <String, Object?>{};
   final payloads = <String, List<Map<String, Object?>>>{};
 

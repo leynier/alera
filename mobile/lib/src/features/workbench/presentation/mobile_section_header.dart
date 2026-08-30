@@ -9,6 +9,7 @@ class const MobileSectionHeader({
   required final bool collapsed,
   required final VoidCallback onToggle,
   final IconData? icon,
+  final VoidCallback? onLongPress,
 }) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
@@ -21,6 +22,7 @@ class const MobileSectionHeader({
       ),
       child: InkWell(
         onTap: onToggle,
+        onLongPress: onLongPress,
         borderRadius: .circular(AleraTokens.radiusLg),
         child: ConstrainedBox(
           constraints: const BoxConstraints(

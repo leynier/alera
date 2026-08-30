@@ -12,12 +12,18 @@ sealed class const WorkbenchSidebarRow() {
 }
 
 class const WorkbenchSidebarCollapseTargets({
+  final Set<String> sectionIds = const {},
+  final bool hasOthers = false,
   required final Set<String> projectIds,
   required final Set<String> workspaceIds,
   required final Set<String> parentWorkspaceIds,
 }) {
   bool get isEmpty =>
-      projectIds.isEmpty && workspaceIds.isEmpty && parentWorkspaceIds.isEmpty;
+      sectionIds.isEmpty &&
+      !hasOthers &&
+      projectIds.isEmpty &&
+      workspaceIds.isEmpty &&
+      parentWorkspaceIds.isEmpty;
 
   bool isCollapsed(WorkbenchViewPrefs prefs) {
     final projectsCollapsed = projectIds.every(
@@ -29,7 +35,11 @@ class const WorkbenchSidebarCollapseTargets({
     final agentsCollapsed = !workspaceIds.any(
       prefs.expandedWorkspaceIds.contains,
     );
-    return projectsCollapsed && childTreesCollapsed && agentsCollapsed;
+    return sectionIds.every(prefs.collapsedSectionIds.contains) &&
+        (!hasOthers || prefs.othersSectionCollapsed) &&
+        projectsCollapsed &&
+        childTreesCollapsed &&
+        agentsCollapsed;
   }
 }
 
@@ -89,4 +99,19 @@ class const WorkbenchWorkspaceRow({
       'workspace:${isPinnedCopy ? 'pinned' : 'all'}:${workspace.id}';
 
   bool get hasVisibleChildren => visibleChildCount > 0;
+}
+
+class WorkbenchSectionHeaderRow extends WorkbenchSidebarRow {
+  const WorkbenchSectionHeaderRow({
+    required this.section,
+    required this.workspaceCount,
+    required this.collapsed,
+  });
+  final WorkspaceSection? section;
+  final int workspaceCount;
+  final bool collapsed;
+  String get label => section?.name ?? 'Others';
+  @override
+  String get key =>
+      section == null ? 'others-header' : 'section:${section!.id}';
 }

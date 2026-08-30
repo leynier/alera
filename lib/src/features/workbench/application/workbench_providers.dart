@@ -82,16 +82,13 @@ WorkbenchViewPrefsRepository workbenchViewPrefsRepository(Ref ref) {
 }
 
 /// The sidebar row list, recomputed once per state change instead of once per
-/// widget rebuild.
-///
-/// `buildSidebarRows` filters and multi-key sorts every workspace, and the
-/// sidebar used to run it inline on every rebuild while also mutating the
-/// order memory during build.
+/// widget rebuild. Filtering and sorting stay out of widget build methods.
 @Riverpod(keepAlive: true)
 List<WorkbenchSidebarRow> workbenchSidebarRows(Ref ref) {
   final state = ref.watch(
     workbenchControllerProvider.select(
       (state) => (
+        sections: state.sections,
         projects: state.projects,
         searchQuery: state.searchQuery,
         tabsByWorkspace: state.tabsByWorkspace,
@@ -102,6 +99,7 @@ List<WorkbenchSidebarRow> workbenchSidebarRows(Ref ref) {
   );
   return buildSidebarRows(
     WorkbenchState(
+      sections: state.sections,
       projects: state.projects,
       workspacesByProject: state.workspacesByProject,
       tabsByWorkspace: state.tabsByWorkspace,
