@@ -173,6 +173,18 @@ If there is no visual change, say that explicitly in the PR description.
 
 Mergify validates pull requests in batches of one to four. A single ready pull request starts speculative checks immediately. When more than one pull request is eligible, the queue may wait up to 10 minutes to fill a larger batch. Unrelated or unready changes must not be used to bypass the required checks.
 
+### Validate A Stack Before Merge
+
+Run **Desktop Builds** manually with `full_validation=true` and `source_sha` set to the full, lowercase, 40-character head commit of the top pull request. Select a workflow branch containing the validation inputs. For example:
+
+```bash
+gh workflow run desktop-build.yml --ref <workflow-branch> -f source_sha=<top-pr-head-sha> -F full_validation=true
+```
+
+The workflow checks out that exact commit for every native desktop build, golden test, and Linux desktop E2E suite. Its revision summary records both the source and workflow commits. Verify `desktop-validation-ready` and the normal PR checks before handing off the stack; a dispatch run's own head SHA can identify the workflow branch rather than the selected source commit. A later push or rebase requires new evidence for the changed commit.
+
+Without the optional inputs, existing callers continue building their triggering commit without repeating the merge queue's golden and E2E jobs. This manual validation does not enqueue, merge, sign, or publish anything.
+
 ## Release Process
 
 Version bumps, release tags, update manifests, and published assets are maintainer-managed through the **Cut Release** GitHub Actions workflow. The workflow detects desktop and mobile changes independently and derives their SemVer bumps from Conventional Commit metadata. Do not include release version changes in normal contributions unless a maintainer asks for them.
