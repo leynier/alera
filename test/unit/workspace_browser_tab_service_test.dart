@@ -210,7 +210,10 @@ class _BrowserTabRepository implements WorkbenchRepository {
   }
 
   @override
-  Future<WorkspaceTabRecord> upsertWorkspaceTab(WorkspaceTabRecord tab) async {
+  Future<WorkspaceTabRecord> upsertWorkspaceTab(
+    WorkspaceTabRecord tab, {
+    bool manualRename = false,
+  }) async {
     final saved = upsertTransform?.call(tab) ?? tab;
     tabs.removeWhere((candidate) => candidate.id == saved.id);
     tabs.add(saved);

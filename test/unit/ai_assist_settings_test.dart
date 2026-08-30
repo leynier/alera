@@ -12,6 +12,7 @@ void main() {
         'Branch Names',
         'Reading Diffs',
         'Workspace Identity',
+        'Agent Titles',
         'Speech Messages',
       ],
     );

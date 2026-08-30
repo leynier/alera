@@ -7,6 +7,12 @@ use super::{DurableOutputBatch, OutputBatch, Session};
 /// generations, so a slow writer cannot hold up delivery and a paused client
 /// cannot hold up persistence.
 impl Session {
+    pub fn recent_output_since(&self, cursor: Option<u64>, max_bytes: usize) -> Vec<u8> {
+        let (base, end) = self.output_stream_range();
+        let available = end.saturating_sub(cursor.unwrap_or(base).max(base));
+        self.buffer.tail(available.min(max_bytes as u64) as usize)
+    }
+
     pub fn output_batch_len(&self) -> usize {
         self.output_batch.len()
     }

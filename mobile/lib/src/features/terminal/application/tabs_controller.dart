@@ -123,6 +123,15 @@ class TabsController extends _$TabsController {
     return true;
   }
 
+  Future<void> generateTitle(WorkspaceTabSummary tab) async {
+    final client = await ref.read(workspaceClientProvider(hostId).future);
+    if (client is! MobileAgentTitleClient) {
+      throw UnsupportedError('This runtime cannot generate agent titles.');
+    }
+    await (client as MobileAgentTitleClient).generateAgentTitle(tab);
+    if (ref.mounted) ref.invalidateSelf();
+  }
+
   Future<void> renameTab(WorkspaceTabSummary tab, String title) async {
     final client = await ref.read(workspaceClientProvider(hostId).future);
     await client.renameTab(tab.id, title);

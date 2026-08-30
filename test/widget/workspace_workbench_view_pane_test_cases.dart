@@ -462,7 +462,7 @@ void _registerWorkspaceWorkbenchViewPaneTests() {
       updatedRatios: updatedRatios,
     );
 
-    expect(find.text('Codex Chat'), findsOneWidget);
+    expect(find.text('Generated title'), findsOneWidget);
     expect(
       find.byKey(const ValueKey<String>('workspace-tab-codex-icon-codex-tab')),
       findsOneWidget,

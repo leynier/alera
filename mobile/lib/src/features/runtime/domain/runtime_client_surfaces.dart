@@ -43,6 +43,13 @@ const String mobileHostToolsCapability = 'mobileHostToolsV1';
 // keep advertising the same feature.
 const String aiAssistWorkspaceIdentityCapability = 'aiTextWorkspaceIdentityV1';
 const String aiAssistSpeechMessageCapability = 'aiTextSpeechMessageV1';
+const String aiAssistAgentTitleCapability = 'aiTextAgentTitleV1';
+
+abstract interface class MobileAgentTitleClient {
+  bool get supportsAgentTitles;
+  Future<void> generateAgentTitle(WorkspaceTabSummary tab);
+}
+
 const String agentProfilePromptLaunchCapability = 'agentProfilePromptLaunchV1';
 const String agentProfileLaunchIdempotencyCapability =
     'agentProfileLaunchIdempotencyV1';

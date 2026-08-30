@@ -157,7 +157,10 @@ class DriftWorkbenchRepository implements WorkbenchRepository {
   }
 
   @override
-  Future<WorkspaceTabRecord> upsertWorkspaceTab(WorkspaceTabRecord tab) async {
+  Future<WorkspaceTabRecord> upsertWorkspaceTab(
+    WorkspaceTabRecord tab, {
+    bool manualRename = false,
+  }) async {
     await _db
         .into(_db.workspaceTabsTable)
         .insertOnConflictUpdate(_workspaceTabCompanion(tab));

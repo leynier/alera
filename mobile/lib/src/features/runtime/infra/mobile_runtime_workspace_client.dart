@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:alera_mobile/src/features/runtime/domain/workspace_tab_summary.dart';
 import 'dart:convert';
 
 import 'package:alera_mobile/src/core/json_payload_fields.dart';
@@ -35,6 +36,17 @@ mixin MobileRuntimeWorkspaceClient {
     String type, [
     Map<String, Object?> payload = const <String, Object?>{},
   ]);
+
+  bool get supportsAgentTitles =>
+      runtimeCapabilities.contains(aiAssistAgentTitleCapability);
+
+  Future<void> generateAgentTitle(WorkspaceTabSummary tab) async {
+    await request('aiText.agentTitle.generate', <String, Object?>{
+      'tabId': tab.id,
+      'expectedConversationId': tab.payload['agentTitleConversationId'],
+      'expectedRevision': tab.payload['agentTitleRevision'],
+    }, const Duration(minutes: 11));
+  }
 
   bool get supportsWorkspaceMutations =>
       runtimeCapabilities.contains(mobileWorkspaceMutationsCapability);

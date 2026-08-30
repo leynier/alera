@@ -97,7 +97,7 @@ class _DraggableWorkspaceTabChip extends StatelessWidget {
   }
 }
 
-class _WorkspaceTabChip extends StatelessWidget {
+class _WorkspaceTabChip extends ConsumerWidget {
   const _WorkspaceTabChip({
     required this.tab,
     required this.terminalSession,
@@ -125,150 +125,24 @@ class _WorkspaceTabChip extends StatelessWidget {
   final ValueChanged<WorkbenchDropZone> onSplit;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    ref.watch(agentTitleAvailableProvider);
     final session = terminalSession;
     if (session == null) {
-      return _buildChip(context, _workspaceTabTitle(tab));
+      return _buildChip(context, _workspaceTabTitle(tab), ref);
     }
     // Title only: listening to the whole session rebuilt every chip on each
     // OSC title change, which shells emit per prompt.
     return ValueListenableBuilder<String>(
       valueListenable: session.titleListenable,
-      builder: (context, title, _) => _buildChip(context, title),
+      builder: (context, title, _) => _buildChip(context, title, ref),
     );
   }
 
-  Future<void> _openContextMenu(
-    BuildContext context,
-    Offset globalPosition,
-  ) async {
-    final overlay =
-        Navigator.of(context).overlay!.context.findRenderObject()! as RenderBox;
-    final tabIndex = groupTabs.indexWhere(
-      (candidate) => candidate.id == tab.id,
-    );
-    final closeOthers = <String>[
-      for (final candidate in groupTabs)
-        if (candidate.id != tab.id) candidate.id,
-    ];
-    final closeRight = tabIndex < 0
-        ? const <String>[]
-        : <String>[
-            for (final candidate in groupTabs.skip(tabIndex + 1)) candidate.id,
-          ];
-    final selected = await showMenu<_TabMenuAction>(
-      context: context,
-      position: RelativeRect.fromRect(
-        Rect.fromPoints(globalPosition, globalPosition),
-        Offset.zero & overlay.size,
-      ),
-      items: <PopupMenuEntry<_TabMenuAction>>[
-        const AleraDropdownEntry<_TabMenuAction>(
-          value: _TabMenuAction.splitUp,
-          label: 'Split Up',
-          leading: _SplitDirectionGlyph(zone: WorkbenchDropZone.up),
-        ),
-        const AleraDropdownEntry<_TabMenuAction>(
-          value: _TabMenuAction.splitDown,
-          label: 'Split Down',
-          leading: _SplitDirectionGlyph(zone: WorkbenchDropZone.down),
-        ),
-        const AleraDropdownEntry<_TabMenuAction>(
-          value: _TabMenuAction.splitLeft,
-          label: 'Split Left',
-          leading: _SplitDirectionGlyph(zone: WorkbenchDropZone.left),
-        ),
-        const AleraDropdownEntry<_TabMenuAction>(
-          value: _TabMenuAction.splitRight,
-          label: 'Split Right',
-          leading: _SplitDirectionGlyph(zone: WorkbenchDropZone.right),
-        ),
-        const PopupMenuDivider(height: AleraTokens.space8),
-        if (tab.isPreview && _KeepPreviewTabScope.maybeOf(context) != null)
-          const AleraDropdownEntry<_TabMenuAction>(
-            value: _TabMenuAction.keepOpen,
-            label: 'Keep Open',
-            leading: Icon(AleraIcons.pin, size: 16),
-          ),
-        const AleraDropdownEntry<_TabMenuAction>(
-          value: _TabMenuAction.close,
-          label: 'Close',
-          leading: Icon(AleraIcons.close, size: 16),
-        ),
-        AleraDropdownEntry<_TabMenuAction>(
-          value: _TabMenuAction.closeOthers,
-          label: 'Close Others',
-          leading: Icon(
-            AleraIcons.tabUnselected,
-            size: 16,
-            color: closeOthers.isEmpty
-                ? AleraTokens.foregroundFaint
-                : AleraTokens.foreground,
-          ),
-          enabled: closeOthers.isNotEmpty,
-        ),
-        AleraDropdownEntry<_TabMenuAction>(
-          value: _TabMenuAction.closeRight,
-          label: 'Close Tabs to the Right',
-          leading: Icon(
-            AleraIcons.tab,
-            size: 16,
-            color: closeRight.isEmpty
-                ? AleraTokens.foregroundFaint
-                : AleraTokens.foreground,
-          ),
-          enabled: closeRight.isNotEmpty,
-        ),
-        if (tab.kind !=
-            WorkspaceTabKind.codex) ...<PopupMenuEntry<_TabMenuAction>>[
-          const PopupMenuDivider(height: AleraTokens.space8),
-          const AleraDropdownEntry<_TabMenuAction>(
-            value: _TabMenuAction.changeTitle,
-            label: 'Change Title',
-            leading: Icon(AleraIcons.edit, size: 16),
-          ),
-        ],
-      ],
-    );
-    if (selected == null || !context.mounted) {
-      return;
-    }
-    switch (selected) {
-      case _TabMenuAction.splitUp:
-        onSplit(WorkbenchDropZone.up);
-      case _TabMenuAction.splitDown:
-        onSplit(WorkbenchDropZone.down);
-      case _TabMenuAction.splitLeft:
-        onSplit(WorkbenchDropZone.left);
-      case _TabMenuAction.splitRight:
-        onSplit(WorkbenchDropZone.right);
-      case _TabMenuAction.keepOpen:
-        _KeepPreviewTabScope.maybeOf(context)?.call(tab.id);
-      case _TabMenuAction.close:
-        onClose();
-      case _TabMenuAction.closeOthers:
-        onCloseTabs(closeOthers);
-      case _TabMenuAction.closeRight:
-        onCloseTabs(closeRight);
-      case _TabMenuAction.changeTitle:
-        final title = await showRenameDialog(
-          context,
-          title: 'Change Terminal Title',
-          labelText: 'Terminal Title',
-          initialValue:
-              terminalSession?.displayTitle ?? _workspaceTabTitle(tab),
-          confirmLabel: 'Change Title',
-        );
-        if (title != null) {
-          onRename(title);
-        }
-    }
-  }
-
-  Widget _buildChip(BuildContext context, String title) {
+  Widget _buildChip(BuildContext context, String title, WidgetRef ref) {
     return GestureDetector(
       onSecondaryTapDown: (details) =>
-          unawaited(_openContextMenu(context, details.globalPosition)),
+          unawaited(_openContextMenu(context, details.globalPosition, ref)),
       child: Material(
         color: active ? AleraTokens.surfaceElevated : AleraTokens.surface,
         borderRadius: BorderRadius.circular(AleraTokens.radiusMd),
@@ -341,6 +215,17 @@ class _WorkspaceTabChip extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: AleraTokens.space4),
+                if (tab.payload['agentTitleStatus'] == 'generating') ...[
+                  const Tooltip(
+                    message: 'Generating title...',
+                    child: Icon(
+                      AleraIcons.loading,
+                      size: AleraTokens.iconSm,
+                      color: AleraTokens.foregroundMuted,
+                    ),
+                  ),
+                  const SizedBox(width: AleraTokens.space4),
+                ],
                 InkWell(
                   onTap: onClose,
                   mouseCursor: SystemMouseCursors.click,
@@ -373,6 +258,7 @@ enum _TabMenuAction {
   closeOthers,
   closeRight,
   changeTitle,
+  generateTitle,
 }
 
 class _WorkspaceTabLeadingIcon extends StatelessWidget {

@@ -40,19 +40,29 @@ pub fn normalize_hook_event(
     let tool_name = tool_name(&event.payload);
     let state = normalize_state(event, &event_name, tool_name.as_deref(), previous)?;
     let starts_turn = starts_new_turn(event, &event_name);
-    let prompt = first_string(
-        &event.payload,
-        &[
-            "prompt",
-            "user_prompt",
-            "userPrompt",
-            "initial_prompt",
-            "initialPrompt",
-            "user_message",
-            "userMessage",
-            "message",
-        ],
-    )
+    let prompt = (if matches!(event.agent_type.as_str(), "opencode" | "opencode2")
+        && event_name == "MessagePart"
+        && event.payload["role"] == "user"
+    {
+        first_string(&event.payload, &["text"])
+    } else {
+        None
+    })
+    .or_else(|| {
+        first_string(
+            &event.payload,
+            &[
+                "prompt",
+                "user_prompt",
+                "userPrompt",
+                "initial_prompt",
+                "initialPrompt",
+                "user_message",
+                "userMessage",
+                "message",
+            ],
+        )
+    })
     .unwrap_or_else(|| {
         previous
             .filter(|_| !starts_turn)

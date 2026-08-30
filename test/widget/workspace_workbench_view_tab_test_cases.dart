@@ -1,6 +1,67 @@
 part of 'workspace_workbench_view_test.dart';
 
 void _registerWorkspaceWorkbenchViewTabTests() {
+  for (final kind in [WorkspaceTabKind.terminal, WorkspaceTabKind.codex]) {
+    for (final mode in ['unsupported', 'new', 'generated', 'generating']) {
+      testWidgets('title action respects $kind capability and $mode state', (
+        tester,
+      ) async {
+        final tab = _tab('title-tab', title: 'Agent Task', kind: kind).copyWith(
+          payload: <String, Object?>{
+            if (mode == 'generated') 'agentTitleSource': 'generated',
+            if (mode == 'generating') 'agentTitleStatus': 'generating',
+          },
+        );
+        await _pumpWorkbenchView(
+          tester,
+          tabs: [
+            tab,
+            _tab('shell', title: 'Shell'),
+          ],
+          terminalRuntime: terminalRuntime,
+          layout: WorkbenchLayout.single(
+            workspaceId: _workspaceId,
+            groupId: 'group-a',
+            tabIds: [tab.id, 'shell'],
+          ),
+          createdTabs: createdTabs,
+          selectedTabs: selectedTabs,
+          closedTabs: closedTabs,
+          closedTabGroups: closedTabGroups,
+          renamedTabs: renamedTabs,
+          movedTabs: movedTabs,
+          splitGroups: splitGroups,
+          mergedGroups: mergedGroups,
+          updatedRatios: updatedRatios,
+          agentTitlesAvailable: mode != 'unsupported',
+        );
+        await tester.pumpAndSettle();
+        await _openTabContextMenu(tester, 'Agent Task');
+        final label = mode == 'generating'
+            ? 'Generating title...'
+            : mode == 'generated'
+            ? 'Regenerate Title'
+            : 'Generate Title';
+        expect(
+          find.text(label),
+          mode == 'unsupported' ? findsNothing : findsOneWidget,
+        );
+        if (mode == 'generating') {
+          expect(find.byTooltip('Generating title...'), findsOneWidget);
+          final entry = tester.widget<AleraDropdownEntry<Object?>>(
+            find.ancestor(
+              of: find.text(label),
+              matching: find.byWidgetPredicate(
+                (widget) => widget is AleraDropdownEntry,
+              ),
+            ),
+          );
+          expect(entry.enabled, isFalse);
+        }
+      });
+    }
+  }
+
   testWidgets('Codex tab context menu does not offer generic rename', (
     tester,
   ) async {
@@ -30,7 +91,7 @@ void _registerWorkspaceWorkbenchViewTabTests() {
       updatedRatios: updatedRatios,
     );
 
-    await _openTabContextMenu(tester, 'Codex Chat');
+    await _openTabContextMenu(tester, 'Generated title');
     expect(find.text('Change Title'), findsNothing);
     expect(find.text('Close'), findsOneWidget);
   });

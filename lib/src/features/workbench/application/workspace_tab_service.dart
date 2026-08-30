@@ -161,10 +161,10 @@ class WorkspaceTabService {
       payload: <String, Object?>{
         ...tab.payload,
         workspaceTabManualTitlePayloadKey: true,
+        'agentTitleSource': 'manual',
       },
     );
-    await _repository.upsertWorkspaceTab(next);
-    return next;
+    return _repository.upsertWorkspaceTab(next, manualRename: true);
   }
 
   int _nextOrdinal(List<WorkspaceTabRecord> tabs) {
