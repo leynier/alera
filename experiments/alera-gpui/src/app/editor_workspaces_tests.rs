@@ -9,6 +9,68 @@ fn document(content: &str, token: &str) -> EditorDocument {
 fn key(owner: &str) -> EditorKey { EditorKey { workspace: owner.into(), path: "same.txt".into() } }
 
 #[gpui::test]
+fn editor_save_all_collects_live_dirty_targets_across_workspace_banks(cx: &mut gpui::TestAppContext) {
+    cx.update(gpui_component::init);
+    let cx = cx.add_empty_window();
+    cx.update(|window, cx| {
+        let a = cx.new(|cx| EditorState::new(window, cx));
+        let b = cx.new(|cx| EditorState::new(window, cx));
+        let clean = cx.new(|cx| EditorState::new(window, cx));
+        a.update(cx, |input, cx| input.set_value("a dirty", window, cx));
+        b.update(cx, |input, cx| input.set_value("b dirty", window, cx));
+        clean.update(cx, |input, cx| input.set_value("baseline", window, cx));
+        let mut bank = EditorWorkspaces::default();
+        let mut active = bank.switch(Some("a".into()), WorkspaceEditors::default());
+        active.inputs.insert("same.txt".into(), a.clone());
+        active.documents.insert("same.txt".into(), document("a baseline", "a0"));
+        let mut active = bank.switch(Some("b".into()), active);
+        active.inputs.insert("same.txt".into(), b.clone());
+        active.documents.insert("same.txt".into(), document("b baseline", "b0"));
+        active.inputs.insert("clean.txt".into(), clean);
+        active.documents.insert("clean.txt".into(), document("baseline", "c0"));
+        let targets = bank.save_targets(&active, cx).into_iter().map(|target| (target.key, target.editor)).collect::<BTreeMap<_, _>>();
+        assert_eq!(targets.len(), 2);
+        assert_eq!(targets[&key("a")], a.entity_id());
+        assert_eq!(targets[&key("b")], b.entity_id());
+        active.load_errors.insert("same.txt".into());
+        assert_eq!(bank.save_targets(&active, cx).len(), 1, "a failed read is not eligible for Save All");
+        active.load_errors.clear();
+        bank.retain_live_tabs(&[]);
+        assert_eq!(bank.save_targets(&active, cx).len(), 1, "retired parked tabs must not be saved");
+    });
+}
+
+#[gpui::test]
+fn editor_replace_invalidates_clean_parked_documents_without_losing_new_edits(cx: &mut gpui::TestAppContext) {
+    cx.update(gpui_component::init);
+    let cx = cx.add_empty_window();
+    cx.update(|window, cx| {
+        let clean = cx.new(|cx| EditorState::new(window, cx));
+        clean.update(cx, |input, cx| input.set_value("baseline", window, cx));
+        let dirty = cx.new(|cx| EditorState::new(window, cx));
+        dirty.update(cx, |input, cx| input.set_value("new edit before event", window, cx));
+        let mut state = WorkspaceEditors::default();
+        state.inputs.insert("clean.txt".into(), clean.clone());
+        state.inputs.insert("dirty.txt".into(), dirty.clone());
+        state.documents.insert("clean.txt".into(), document("baseline", "c0"));
+        state.documents.insert("dirty.txt".into(), document("baseline", "d0"));
+        state.buffers.insert("clean.txt".into(), "baseline".into());
+        let mut bank = EditorWorkspaces::default();
+        let empty = bank.switch(Some("a".into()), WorkspaceEditors::default());
+        assert!(empty.inputs.is_empty());
+        bank.switch(Some("b".into()), state);
+        let affected = BTreeSet::from(["clean.txt".into(), "dirty.txt".into()]);
+        let invalidated = bank.parked.get_mut("a").unwrap().invalidate_clean_paths(&affected, cx);
+        assert_eq!(invalidated, BTreeSet::from(["clean.txt".into()]));
+        assert!(!bank.parked["a"].documents.contains_key("clean.txt"));
+        assert!(!bank.parked["a"].buffers.contains_key("clean.txt"));
+        assert!(bank.parked["a"].documents.contains_key("dirty.txt"));
+        assert_eq!(dirty.read(cx).value().as_str(), "new edit before event");
+        assert_eq!(bank.owner.as_deref(), Some("b"));
+    });
+}
+
+#[gpui::test]
 async fn editor_writes_accept_reversed_responses_in_their_own_workspaces(cx: &mut gpui::TestAppContext) {
     cx.update(gpui_component::init);
     let cx = cx.add_empty_window();

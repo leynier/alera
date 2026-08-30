@@ -10,8 +10,8 @@ use gpui_component::tooltip::Tooltip;
 
 use super::context_pull_request_review_actions::PullRequestReviewAction;
 use super::AleraApp;
-use crate::forge_service::{ForgeAuthStatus, ForgeCheck, ForgeUnavailableReason};
-use crate::icons::{icon, loading_indicator, AleraIcon};
+use crate::forge_service::ForgeCheck;
+use crate::icons::{icon, AleraIcon};
 use crate::theme;
 
 impl AleraApp {
@@ -20,61 +20,8 @@ impl AleraApp {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) -> AnyElement {
-        if self.selected_source_control_scope().is_none() {
-            return pull_request_message(
-                AleraIcon::GitPullRequest,
-                Some("Pull Request Unavailable"),
-                "This workspace is not connected to a Git repository, so there are no Pull Requests to show.",
-                None,
-                cx,
-            );
-        }
-        if self.forge_busy && self.forge_snapshot.auth_status == ForgeAuthStatus::Unknown {
-            return div()
-                .flex()
-                .flex_1()
-                .items_center()
-                .justify_center()
-                .child(loading_indicator(20.0, theme::text_muted()))
-                .into_any_element();
-        }
-        if let Some(reason) = self.forge_snapshot.unavailable_reason {
-            let (title, message) = match reason {
-                ForgeUnavailableReason::NoRemote => (
-                    "No Remote",
-                    "This repository has no remote to detect a provider from.",
-                ),
-                ForgeUnavailableReason::ProviderNotDetected => (
-                    "Provider Not Detected",
-                    "Could not detect the git hosting provider. Set it in Project settings.",
-                ),
-                ForgeUnavailableReason::UnsupportedProvider => (
-                    "Unsupported Provider",
-                    "This hosting provider is not supported yet.",
-                ),
-            };
-            return pull_request_message(AleraIcon::GitPullRequest, Some(title), message, None, cx);
-        }
-        match self.forge_snapshot.auth_status {
-            ForgeAuthStatus::CliMissing => {
-                return pull_request_message(
-                    AleraIcon::Error,
-                    Some("CLI Not Found"),
-                    "Install `gh` and ensure it is on your PATH.",
-                    None,
-                    cx,
-                );
-            }
-            ForgeAuthStatus::NotAuthenticated => {
-                return pull_request_message(
-                    AleraIcon::Error,
-                    Some("Not Authenticated"),
-                    "Run `gh auth login` to sign in, then refresh.",
-                    Some("Refresh"),
-                    cx,
-                );
-            }
-            ForgeAuthStatus::Unknown | ForgeAuthStatus::Authenticated => {}
+        if let Some(state) = self.render_pull_request_unavailable(cx) {
+            return state;
         }
         let Some(review) = self.forge_snapshot.review.as_ref() else {
             return self.render_pull_request_composer(cx);
@@ -958,52 +905,6 @@ impl AleraApp {
             })
             .into_any_element()
     }
-}
-
-fn pull_request_message(
-    message_icon: AleraIcon,
-    title: Option<&'static str>,
-    message: &'static str,
-    action: Option<&'static str>,
-    cx: &mut Context<AleraApp>,
-) -> AnyElement {
-    div()
-        .flex()
-        .flex_col()
-        .flex_1()
-        .items_center()
-        .justify_center()
-        .p_4()
-        .gap_3()
-        .text_center()
-        .child(icon(message_icon, 28.0, theme::text_muted()))
-        .when_some(title, |body, title| {
-            body.child(
-                div()
-                    .text_size(crate::theme::body_size())
-                    .font_weight(gpui::FontWeight::SEMIBOLD)
-                    .child(title),
-            )
-        })
-        .child(
-            div()
-                .max_w(px(280.0))
-                .text_size(crate::theme::body_size())
-                .text_color(theme::text_muted())
-                .child(message),
-        )
-        .when_some(action, |body, label| {
-            body.child(
-                pr_button(
-                    "context-pr-message-action",
-                    AleraIcon::Refresh,
-                    label,
-                    false,
-                )
-                .on_click(cx.listener(|this, _, _, cx| this.refresh_forge(cx))),
-            )
-        })
-        .into_any_element()
 }
 
 pub(super) fn pull_request_error_banner(error: SharedString) -> gpui::Div {

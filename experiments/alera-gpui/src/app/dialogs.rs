@@ -3,18 +3,17 @@ use gpui::{
     InteractiveElement as _, IntoElement, ParentElement as _, Role,
     StatefulInteractiveElement as _, Styled as _, Toggled,
 };
-use gpui_component::input::Textarea;
 
 use super::workspace_prompt_dropdown::WorkspacePromptDropdown;
 use super::{AleraApp, NewWorkspaceMode, NewWorkspaceStep};
 use crate::design_system;
-use crate::icons::{icon, loading_indicator, AleraIcon};
+use crate::icons::{icon, AleraIcon};
 use crate::theme;
 
 impl AleraApp {
-    pub(super) fn render_new_workspace_dialog(&self, cx: &mut Context<Self>) -> impl IntoElement {
+    pub(super) fn render_new_workspace_dialog(&self, window: &gpui::Window, cx: &mut Context<Self>) -> impl IntoElement {
         let dialog = match self.new_workspace_step {
-            NewWorkspaceStep::Entry => self.render_workspace_entry(cx),
+            NewWorkspaceStep::Entry => self.render_workspace_entry(window, cx),
             NewWorkspaceStep::ManualSelection => self.render_workspace_selection(cx),
             NewWorkspaceStep::ManualSettings => self.render_workspace_settings(cx),
         };
@@ -32,7 +31,7 @@ impl AleraApp {
             .child(dialog)
     }
 
-    fn render_workspace_entry(&self, cx: &mut Context<Self>) -> AnyElement {
+    fn render_workspace_entry(&self, window: &gpui::Window, cx: &mut Context<Self>) -> AnyElement {
         let prompt_mode = self.new_workspace_mode == NewWorkspaceMode::FromPrompt;
         let project_label = self
             .selected_workspace_project()
@@ -40,7 +39,7 @@ impl AleraApp {
             .unwrap_or_else(|| "Select Project".to_string());
         let source_branch = self
             .workspace_branches_loading
-            .then(|| "Loading Branches".to_owned())
+            .then(|| "Loading branches".to_owned())
             .or_else(|| self.selected_workspace_source_branch.clone())
             .unwrap_or_else(|| "Select Branch".to_string());
         let parent_workspace = self.workspace_parent_label();
@@ -56,21 +55,25 @@ impl AleraApp {
             .id("new-workspace-dialog")
             .role(Role::Dialog)
             .aria_label("New Workspace")
-            .w(px(630.0))
-            .rounded_lg()
+            .w(px(620.0).min((window.viewport_size().width - px(64.0)).max(px(100.0))))
+            .max_h(px(720.0).min((window.viewport_size().height - px(64.0)).max(px(100.0))))
+            .flex()
+            .flex_col()
+            .rounded(px(12.0))
             .border_1()
-            .border_color(theme::border())
-            .bg(theme::surface_raised())
+            .border_color(theme::border_subtle())
+            .bg(theme::surface())
             .shadow_lg()
-            .px_4()
-            .py_8()
+            // Flutter's shape border paints inside its padding box.
+            .p(px(19.0))
             .child(self.workspace_dialog_header("New Workspace", None, false, cx))
             .child(
                 div()
                     .flex()
                     .mt_4()
-                    .w(px(202.0))
+                    .w(px(266.0))
                     .h(px(30.0))
+                    .flex_shrink_0()
                     .rounded_md()
                     .border_1()
                     .border_color(theme::border())
@@ -90,43 +93,40 @@ impl AleraApp {
                     )),
             )
             .when(prompt_mode, |dialog| {
-                dialog
-                    .child(form_label("Initial Prompt"))
+                dialog.child(super::workspace_prompt_layout::prompt_form(div().flex_shrink_0()
                     .child(
                         div()
-                            .h(px(94.0))
                             .capture_action(cx.listener(Self::on_prompt_paste))
                             .child(
-                                Textarea::new(&self.workspace_prompt_input)
+                                design_system::AleraTextArea::new(&self.workspace_prompt_input, "Initial Prompt")
                                     .disabled(
                                         self.workspace_creation_busy
                                             || self.workspace_prompt_created.is_some(),
-                                    )
-                                    .h_full(),
+                                    ),
                             ),
                     )
-                    .child(form_label("Project"))
+                    .child(prompt_form_label("Project").mt(px(16.0)))
                     .child(self.workspace_prompt_select_field(
                         "prompt-workspace-project",
                         project_label,
                         WorkspacePromptDropdown::Project,
                         cx,
                     ))
-                    .child(form_label("Source Branch"))
+                    .child(prompt_form_label("Source Branch"))
                     .child(self.workspace_prompt_select_field(
                         "prompt-workspace-source-branch",
                         source_branch,
                         WorkspacePromptDropdown::SourceBranch,
                         cx,
                     ))
-                    .child(form_label("Parent Workspace"))
+                    .child(prompt_form_label("Parent Workspace"))
                     .child(self.workspace_prompt_select_field(
                         "prompt-workspace-parent",
                         parent_workspace,
                         WorkspacePromptDropdown::ParentWorkspace,
                         cx,
                     ))
-                    .child(form_label("Agent Profile"))
+                    .child(prompt_form_label("Agent Profile"))
                     .child(self.workspace_prompt_select_field(
                         "prompt-workspace-agent-profile",
                         agent_profile,
@@ -164,7 +164,7 @@ impl AleraApp {
                             .flex()
                             .items_center()
                             .gap_2()
-                            .mt_4()
+                            .mt(px(12.0))
                             .when(
                                 !self.workspace_creation_busy
                                     && self.workspace_prompt_created.is_none(),
@@ -180,14 +180,10 @@ impl AleraApp {
                                 self.create_another_workspace,
                                 !self.workspace_creation_busy
                                     && self.workspace_prompt_created.is_none(),
-                                None,
-                            ))
-                            .child(
-                                div()
-                                    .child("Create Another"),
-                            ),
+                                Some("Create Another".into()),
+                            )),
                     )
-                    .child(self.render_workspace_prompt_actions(prompt_is_empty, cx))
+                    .child(self.render_workspace_prompt_actions(prompt_is_empty, cx)), &self.workspace_prompt_scroll_handle))
             })
             .when(!prompt_mode, |dialog| {
                 dialog
@@ -197,14 +193,14 @@ impl AleraApp {
                             .text_size(crate::theme::body_size())
                             .text_color(theme::text_muted())
                             .child(
-                                "Choose Every Workspace Setting Yourself, Including The Branch Name And Optional Parent Workspace.",
+                                "Choose every workspace setting yourself, including the branch name and optional parent workspace.",
                             ),
                     )
                     .child(
                         div()
                             .flex()
                             .justify_end()
-                            .mt_5()
+                            .mt(px(24.0))
                             .child(
                                 primary_button(
                                     "continue-manual-workspace",
@@ -245,7 +241,8 @@ impl AleraApp {
         div()
             .flex()
             .items_center()
-            .h(px(28.0))
+            .h(px(40.0))
+            .flex_shrink_0()
             .when(back, |header| {
                 header.child(
                     div()
@@ -267,12 +264,12 @@ impl AleraApp {
                     .mr_2()
                     .text_size(crate::theme::title_size())
                     .text_color(theme::accent())
-                    .child(icon(AleraIcon::GitFork, 18.0, theme::accent())),
+                    .child(icon(AleraIcon::GitFork, 24.0, theme::accent())),
             )
             .child(
                 div()
-                    .text_size(crate::theme::title_size())
-                    .font_weight(gpui::FontWeight::SEMIBOLD)
+                    .text_size(px(14.0))
+                    .font_weight(gpui::FontWeight::BOLD)
                     .child(title),
             )
             .child(div().flex_1())
@@ -286,6 +283,10 @@ impl AleraApp {
                     .tab_stop(true)
                     .role(Role::Button)
                     .aria_label("Close New Workspace")
+                    .size(px(40.0))
+                    .flex()
+                    .items_center()
+                    .justify_center()
                     .ml_3()
                     .text_size(crate::theme::title_size())
                     .text_color(theme::text_muted())
@@ -293,7 +294,7 @@ impl AleraApp {
                     .on_click(cx.listener(|this, _, _, cx| {
                         this.close_new_workspace_dialog(cx);
                     }))
-                    .child(icon(AleraIcon::Close, 16.0, theme::text_muted())),
+                    .child(icon(AleraIcon::Close, 24.0, theme::text_muted())),
             )
     }
 
@@ -326,14 +327,16 @@ impl AleraApp {
             .when(!self.workspace_creation_busy, |button| {
                 button.cursor(CursorStyle::PointingHand)
             })
-            .when(selected, |button| button.bg(theme::surface()))
+            .when(selected, |button| button.bg(theme::surface_raised()))
+            .font_weight(gpui::FontWeight::MEDIUM)
+            .text_color(if selected { theme::text() } else { theme::text_muted() })
             .on_click(cx.listener(move |this, _, _, cx| {
                 if !this.workspace_creation_busy {
                     this.select_new_workspace_mode(mode, cx);
                 }
             }))
-            .gap_1()
-            .child(icon(icon_kind, 14.0, theme::text_muted()))
+            .gap(px(8.0))
+            .child(icon(icon_kind, 16.0, if selected { theme::text() } else { theme::text_muted() }))
             .child(label)
     }
 
@@ -358,6 +361,10 @@ pub(super) fn form_label(label: &'static str) -> gpui::Div {
         .child(label)
 }
 
+fn prompt_form_label(label: &'static str) -> gpui::Div {
+    form_label(label).mt(px(12.0)).text_size(px(10.0)).line_height(px(15.0)).font_weight(gpui::FontWeight::MEDIUM)
+}
+
 pub(super) fn radio(selected: bool) -> gpui::Div {
     design_system::radio(selected, true)
 }
@@ -380,34 +387,7 @@ pub(super) fn primary_button_with_loading(
     disabled: bool,
     loading: bool,
 ) -> gpui::Stateful<gpui::Div> {
-    div()
-        .id(id)
-        .focusable()
-        .tab_stop(!disabled)
-        .role(Role::Button)
-        .aria_label(label)
-        .flex()
-        .items_center()
-        .justify_center()
-        .h(px(32.0))
-        .px_4()
-        .rounded_lg()
-        .bg(if disabled {
-            theme::surface_selected()
-        } else {
-            theme::accent()
-        })
-        .text_color(if disabled {
-            theme::text_faint()
-        } else {
-            theme::app_background()
-        })
-        .font_weight(gpui::FontWeight::SEMIBOLD)
-        .when(!disabled, |button| button.cursor(CursorStyle::PointingHand))
-        .when(loading, |button| {
-            button.child(loading_indicator(14.0, theme::text_faint()))
-        })
-        .child(label)
+    design_system::button_with_loading(id, label, design_system::ButtonKind::Filled, disabled, loading)
 }
 
 pub(super) fn primary_icon_button(
@@ -417,33 +397,12 @@ pub(super) fn primary_icon_button(
     disabled: bool,
 ) -> gpui::Stateful<gpui::Div> {
     let foreground = if disabled {
-        theme::text_faint()
+        theme::disabled_control_foreground()
     } else {
         theme::app_background()
     };
-    div()
-        .id(id)
-        .focusable()
-        .tab_stop(!disabled)
-        .role(Role::Button)
-        .aria_label(label)
-        .flex()
-        .items_center()
-        .justify_center()
-        .gap_2()
-        .h(px(32.0))
-        .px_4()
-        .rounded_lg()
-        .bg(if disabled {
-            theme::surface_selected()
-        } else {
-            theme::accent()
-        })
-        .text_color(foreground)
-        .font_weight(gpui::FontWeight::SEMIBOLD)
-        .when(!disabled, |button| button.cursor(CursorStyle::PointingHand))
-        .child(icon(icon_kind, 14.0, foreground))
-        .child(label)
+    design_system::button_with_leading_icon(id, label, design_system::ButtonKind::Filled,
+        disabled, icon(icon_kind, 16.0, foreground).into_any_element())
 }
 
 pub(super) fn secondary_button(id: &'static str, label: &'static str) -> gpui::Stateful<gpui::Div> {

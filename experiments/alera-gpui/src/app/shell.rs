@@ -958,11 +958,28 @@ impl AleraApp {
         } else if self.sidebar_dialog.is_some() && !self.sidebar_action_busy {
             self.close_sidebar_dialog(cx);
             true
+        } else if self.agent_canvas_confirmation.is_some() {
+            self.cancel_canvas_confirmation(window, cx);
+            true
+        } else if self.text_actions_delete_id.is_some() {
+            self.cancel_text_action_delete(window, cx);
+            true
+        } else if self.text_actions_menu.is_some() {
+            self.close_text_action_menu(true, window, cx);
+            true
         } else if self.show_settings_dialog {
             self.close_settings_dialog(window, cx);
             true
         } else if self.show_automations_dialog {
-            self.close_automations_dialog(cx);
+            if self.cancel_automation_action_choice(window, cx) {
+                return true;
+            } else if self.close_automation_select(window, cx) {
+                return true;
+            } else if self.automation_editor_open {
+                self.cancel_automation_editor(window, cx);
+            } else {
+                self.close_automations_dialog(window, cx);
+            }
             true
         } else if self.show_add_project_dialog && !self.add_project_busy {
             self.close_add_project_dialog(window, cx);
@@ -1015,6 +1032,8 @@ impl Render for AleraApp {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         self.ensure_selected_editor_loaded(window, cx);
         self.sync_editor_busy();
+        self.ensure_text_action_selected(window, cx);
+        self.reconcile_text_action_menu(window, cx);
         self.sync_terminal_size(window, cx);
         // Terminal attachment waits for the first measured pane bounds, just
         // like Flutter waits for TerminalView layout before creating its PTY.
@@ -1026,6 +1045,7 @@ impl Render for AleraApp {
         let toast_entries = self.visible_toast_entries();
         div()
             .id("alera-app")
+            .track_focus(&self.shell_focus)
             .role(Role::Application)
             .aria_label("Alera Dev")
             .on_key_down(cx.listener(Self::handle_shell_key_down))
@@ -1131,7 +1151,7 @@ impl Render for AleraApp {
                 },
             )
             .when(self.show_new_workspace_dialog, |root| {
-                root.child(self.render_new_workspace_dialog(cx))
+                root.child(self.render_new_workspace_dialog(window, cx))
             })
             .when(self.quick_open_open, |root| {
                 root.child(self.render_quick_open_overlay(cx))
@@ -1143,7 +1163,10 @@ impl Render for AleraApp {
                 root.child(self.render_add_project_dialog(cx))
             })
             .when(self.show_settings_dialog, |root| {
-                root.child(self.render_settings_dialog(cx))
+                root.child(self.render_settings_dialog(window, cx))
+            })
+            .when(self.show_settings_dialog && self.text_actions_delete_id.is_some(), |root| {
+                root.child(self.render_text_action_delete_dialog(cx))
             })
             .when(self.show_automations_dialog, |root| {
                 root.child(self.render_automations_dialog(cx))
@@ -1198,6 +1221,9 @@ impl Render for AleraApp {
             })
             .when(self.forge_review_confirmation.is_some(), |root| {
                 root.child(self.render_pull_request_confirmation(cx))
+            })
+            .when(self.agent_canvas_confirmation.is_some(), |root| {
+                root.child(self.render_canvas_confirmation(cx))
             })
             .children(toast_entries.into_iter().rev().enumerate().map(
                 |(stack_index, (message, exiting))| {

@@ -31,6 +31,8 @@ mod orchestration_commands;
 mod orchestration_terminal_commands;
 mod project_config_toml;
 mod project_management;
+mod project_clone_publish;
+mod project_clone_staging;
 #[cfg(windows)]
 mod pty_job_bootstrap;
 mod runtime_archive;

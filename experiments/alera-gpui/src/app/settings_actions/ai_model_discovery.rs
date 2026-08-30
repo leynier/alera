@@ -97,5 +97,5 @@ impl AleraApp {
 }
 
 pub(super) fn supports_ai_model_discovery(agent: &str) -> bool {
-    matches!(agent, "codex" | "cursor" | "agy" | "opencode" | "opencode2" | "pi" | "grok")
+    matches!(agent, "codex" | "cursor" | "agy" | "opencode" | "opencode2" | "pi" | "grok" | "fx")
 }

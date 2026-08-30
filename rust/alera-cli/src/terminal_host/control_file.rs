@@ -18,7 +18,7 @@ use crate::terminal_host::ai_assist_capabilities::{
 };
 use crate::terminal_host::ai_dictation_capabilities::RUNTIME_HOST_REMOTE_AI_DICTATION_CAPABILITY;
 use crate::terminal_host::protocol::{
-    PROTOCOL_VERSION, RUNTIME_HOST_ACCOUNT_CAPABILITY, RUNTIME_HOST_AGENT_PROFILES_CAPABILITY,
+    PROTOCOL_VERSION, RUNTIME_HOST_ACCOUNT_CAPABILITY, RUNTIME_HOST_AGENT_CANVAS_CAPABILITY, RUNTIME_HOST_AGENT_PROFILES_CAPABILITY,
     RUNTIME_HOST_AGENT_PROFILE_ORDERING_CAPABILITY,
     RUNTIME_HOST_AGENT_PROFILE_PROMPT_LAUNCH_CAPABILITY,
     RUNTIME_HOST_AGENT_QUOTA_CLAUDE_TUI_CAPABILITY, RUNTIME_HOST_AGENT_STATUS_CAPABILITY,
@@ -81,6 +81,7 @@ pub fn write_control_file(
             RUNTIME_HOST_AGENT_QUOTA_CLAUDE_TUI_CAPABILITY,
             RUNTIME_HOST_MOBILE_HOST_TOOLS_CAPABILITY,
             RUNTIME_HOST_ORCHESTRATION_CAPABILITY,
+            RUNTIME_HOST_AGENT_CANVAS_CAPABILITY,
             RUNTIME_HOST_AGENT_PROFILES_CAPABILITY,
             RUNTIME_HOST_AGENT_PROFILE_ORDERING_CAPABILITY,
             RUNTIME_HOST_AGENT_PROFILE_REMOVAL_CAPABILITY,
@@ -160,6 +161,15 @@ mod tests {
     use serde_json::Value;
 
     #[test]
+    fn control_file_advertises_canvas_for_cli_publication() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("host.json");
+        write_control_file(&path, 54321, "test-token", false).unwrap();
+        let value: Value = serde_json::from_str(&std::fs::read_to_string(path).unwrap()).unwrap();
+        assert!(value["runtimeCapabilities"].as_array().unwrap().contains(&json!(crate::terminal_host::protocol::RUNTIME_HOST_AGENT_CANVAS_CAPABILITY)));
+    }
+
+    #[test]
     fn writes_and_reads_back_metadata() {
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("host.json");
@@ -191,6 +201,7 @@ mod tests {
                 RUNTIME_HOST_AGENT_QUOTA_CLAUDE_TUI_CAPABILITY,
                 RUNTIME_HOST_MOBILE_HOST_TOOLS_CAPABILITY,
                 RUNTIME_HOST_ORCHESTRATION_CAPABILITY,
+                RUNTIME_HOST_AGENT_CANVAS_CAPABILITY,
                 RUNTIME_HOST_AGENT_PROFILES_CAPABILITY,
                 RUNTIME_HOST_AGENT_PROFILE_ORDERING_CAPABILITY,
                 RUNTIME_HOST_AGENT_PROFILE_REMOVAL_CAPABILITY,

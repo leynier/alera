@@ -39,6 +39,21 @@ pub fn surface_selected() -> Rgba {
     rgb(0x202020)
 }
 
+pub fn disabled_control_background() -> Rgba {
+    rgba(0xf5f5f51f)
+}
+
+pub fn disabled_control_foreground() -> Rgba {
+    rgba(0xf5f5f561)
+}
+
+pub fn adaptive_switch_track(selected: bool) -> Rgba {
+    // Flutter Switch.adaptive uses Cupertino defaults on dark macOS.
+    if selected { rgb(0x30d158) } else { rgba(0x78788051) }
+}
+
+pub fn adaptive_switch_thumb() -> Rgba { rgb(0xffffff) }
+
 pub fn border() -> Rgba {
     rgb(0x323232)
 }
@@ -73,6 +88,12 @@ pub fn accent_subtle() -> Rgba {
 
 pub fn text_selection() -> Rgba {
     rgba(0x2195f36e)
+}
+
+pub fn ui_text_selection() -> Rgba {
+    // MaterialApp defaults to colorScheme.primary at 40% opacity; terminal
+    // selection is independently controlled by its palette and overrides.
+    rgba(0xe0e0e066)
 }
 
 pub fn on_accent() -> Rgba {

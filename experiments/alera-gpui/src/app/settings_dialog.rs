@@ -1,6 +1,6 @@
 use gpui::{
     div, prelude::FluentBuilder as _, px, relative, AppContext as _, Context, CursorStyle,
-    InteractiveElement as _, IntoElement, MouseDownEvent, MouseMoveEvent, MouseUpEvent,
+    InteractiveElement as _, IntoElement, MouseDownEvent, MouseUpEvent,
     ParentElement as _, Role, StatefulInteractiveElement as _, Styled as _,
 };
 use gpui_component::tooltip::Tooltip;
@@ -21,6 +21,7 @@ impl AleraApp {
             SettingsMasterResizeTarget::Projects => self.settings_project_master_width,
             SettingsMasterResizeTarget::AgentProfiles => self.settings_agent_profiles_master_width,
             SettingsMasterResizeTarget::TextActions => self.settings_text_actions_master_width,
+            SettingsMasterResizeTarget::Automations => self.automation_master_width,
         };
         self.settings_master_resize = Some(SettingsMasterResizeState {
             target,
@@ -28,23 +29,19 @@ impl AleraApp {
             initial_width,
         });
         cx.notify();
-        cx.stop_propagation();
     }
 
     pub(super) fn update_settings_master_resize(
         &mut self,
-        event: &MouseMoveEvent,
+        position: &gpui::Point<gpui::Pixels>,
         cx: &mut Context<Self>,
     ) {
         let Some(resize) = self.settings_master_resize else {
             return;
         };
-        if !event.dragging() {
-            return;
-        }
         const MIN_WIDTH: f32 = 180.0;
         const MAX_WIDTH: f32 = 420.0;
-        let width = (resize.initial_width + f32::from(event.position.x - resize.start_x))
+        let width = (resize.initial_width + f32::from(position.x - resize.start_x))
             .clamp(MIN_WIDTH, MAX_WIDTH);
         match resize.target {
             SettingsMasterResizeTarget::Projects => self.settings_project_master_width = width,
@@ -54,6 +51,7 @@ impl AleraApp {
             SettingsMasterResizeTarget::TextActions => {
                 self.settings_text_actions_master_width = width
             }
+            SettingsMasterResizeTarget::Automations => self.automation_master_width = width,
         }
         cx.notify();
     }
@@ -122,6 +120,11 @@ impl AleraApp {
         cx: &mut Context<Self>,
     ) {
         self.show_settings_dialog = false;
+        self.text_actions_menu = None;
+        self.text_actions_delete_id = None;
+        self.text_actions_confirm_previous_focus = None;
+        self.text_actions_selected_id = None;
+        self.text_actions_creating_new = false;
         self.mobile_access.overlay = None;
         self.keyboard_settings.recording_id = None;
         self.keyboard_settings.conflict = None;
@@ -167,7 +170,7 @@ impl AleraApp {
         cx.notify();
     }
 
-    pub(super) fn render_settings_dialog(&self, cx: &mut Context<Self>) -> impl IntoElement {
+    pub(super) fn render_settings_dialog(&self, window: &mut gpui::Window, cx: &mut Context<Self>) -> impl IntoElement {
         let query = self
             .settings_search_input
             .read(cx)
@@ -217,7 +220,7 @@ impl AleraApp {
                             .min_h_0()
                             .overflow_hidden()
                             .child(self.render_settings_header(cx))
-                            .child(self.render_settings_pane(cx))
+                            .child(self.render_settings_pane(window, cx))
                             .into_any_element()
                     } else {
                         self.render_no_settings_results(cx).into_any_element()
@@ -302,7 +305,7 @@ impl AleraApp {
                                 .flex()
                                 .items_center()
                                 .justify_center()
-                                .h(px(34.0))
+                                .h(px(32.0))
                                 .px_3()
                                 .rounded_lg()
                                 .cursor(CursorStyle::PointingHand)
@@ -332,8 +335,8 @@ impl AleraApp {
                             .flex()
                             .items_center()
                             .justify_center()
-                            .w(px(34.0))
-                            .h(px(34.0))
+                            .w(px(26.0))
+                            .h(px(26.0))
                             .rounded_md()
                             .tooltip(|_, cx| cx.new(|_| Tooltip::new("Close")).into())
                             .cursor(CursorStyle::PointingHand)
@@ -577,7 +580,6 @@ fn settings_pane_supports_reset(pane: SettingsPane) -> bool {
     matches!(
         pane,
         SettingsPane::AiAssist
-            | SettingsPane::TextActions
             | SettingsPane::Editor
             | SettingsPane::Terminal
             | SettingsPane::Keyboard

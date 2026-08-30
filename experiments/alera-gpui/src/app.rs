@@ -18,6 +18,15 @@ mod add_project_dialog;
 mod add_project_draft;
 mod add_project_fields;
 mod agent_canvas;
+mod agent_canvas_catalog;
+mod agent_canvas_catalog_view;
+mod agent_canvas_confirmation;
+mod agent_canvas_document;
+mod agent_canvas_cards;
+mod agent_canvas_ui_actions;
+mod agent_canvas_controller_actions;
+mod agent_canvas_document_view;
+mod agent_canvas_details;
 mod agent_profile_record;
 mod agent_profile_removal;
 mod agent_profile_settings;
@@ -33,16 +42,30 @@ mod agent_profile_settings_render;
 mod ai_assist_settings_catalog;
 mod app_helpers;
 mod app_init;
+mod app_focus;
 mod app_lifecycle;
 mod app_menu_dialog;
 mod automations;
 mod automation_request_epoch;
+mod automation_catalog_state;
+mod automation_catalog_view;
+mod automation_form;
+mod automation_editor_state;
+mod automation_editor_view;
+mod automation_editor_select;
+mod automation_action_choice;
+mod automation_detail_data;
+mod automation_detail_view;
+#[cfg(all(test,feature="gpui-tests"))]
+mod automation_modal_tests;
+mod master_detail_resize;
 mod claude_profile_dialog;
 mod claude_profile_identity;
 #[allow(dead_code)]
 mod codex_surface;
 mod command_terminal;
 mod context_pull_request;
+mod context_pull_request_state;
 mod context_pull_request_ai;
 mod context_pull_request_comments;
 mod context_pull_request_composer;
@@ -58,6 +81,8 @@ mod context_source_history;
 mod dialogs;
 mod editor_actions;
 mod editor_requests;
+mod editor_save_all;
+mod editor_replacements;
 mod editor_reveal;
 mod editor_writes;
 mod editor_workspaces;
@@ -82,6 +107,7 @@ mod mobile_access;
 mod mobile_driver;
 mod preview_surface;
 mod project_actions;
+mod project_activation;
 mod project_config_request_scope;
 mod project_config_settings;
 mod quick_open;
@@ -91,6 +117,7 @@ mod run_policy;
 mod run_policy_dialog;
 mod search_surface;
 mod search_surface_rows;
+mod search_result_layout;
 mod settings_actions;
 mod settings_dialog;
 mod settings_panes;
@@ -134,6 +161,13 @@ mod terminal_toolbar;
 mod terminal_toolbar_menu;
 mod text_actions_execution;
 mod text_actions_settings;
+mod text_action_edits;
+mod text_action_editor_state;
+mod text_action_editor;
+mod text_action_select;
+mod text_action_reorder;
+mod text_action_delete;
+mod text_actions_settings_render;
 mod toast;
 mod welcome_dashboard;
 mod workbench;
@@ -143,6 +177,7 @@ mod workspace_selection;
 mod workspace_manual_dialog;
 mod workspace_manual_rows;
 mod workspace_prompt_actions;
+mod workspace_prompt_layout;
 mod workspace_prompt_agent_launch;
 mod workspace_prompt_dropdown;
 mod workspace_surface;
@@ -181,6 +216,7 @@ pub(crate) use keyboard_actions::register as register_keyboard_actions;
 pub struct AleraApp {
     bridge: RuntimeBridge,
     snapshot: WorkbenchSnapshot,
+    active_project_id: Option<String>,
     selected_workspace_id: Option<String>,
     pending_workspace_terminal_id: Option<String>,
     pending_workspace_setup: Option<PendingWorkspaceSetup>,
@@ -286,6 +322,9 @@ pub struct AleraApp {
     #[allow(dead_code)]
     codex_collapsed_cells: BTreeSet<String>,
     agent_canvas_generation: u64,
+    agent_canvas_confirmation: Option<agent_canvas_confirmation::CanvasConfirmation>,
+    agent_canvas_action_epoch: u64,
+    agent_canvas_refresh_pending: bool,
     agent_canvas_loading: bool,
     agent_canvas_error: Option<SharedString>,
     agent_canvas_capabilities: Option<Value>,
@@ -320,6 +359,7 @@ pub struct AleraApp {
     terminal_output_last_frame_at: Instant,
     terminal_app_foreground: bool,
     terminal_focus: FocusHandle,
+    shell_focus: FocusHandle,
     terminal_selection_drag: Option<String>,
     terminal_marked_text: Option<String>,
     terminal_scrollbar_drag: Option<String>,
@@ -411,9 +451,18 @@ pub struct AleraApp {
     text_actions_creating_new: bool,
     text_actions_name_input: Entity<InputState>,
     text_actions_prompt_input: Entity<TextareaState>,
-    text_actions_agent_input: Entity<InputState>,
-    text_actions_model_input: Entity<InputState>,
-    text_actions_reasoning_input: Entity<InputState>,
+    text_actions_draft: text_action_editor_state::TextActionDraft,
+    text_actions_menu: Option<text_action_editor_state::TextActionMenu>,
+    text_actions_menu_epoch: u64,
+    text_actions_menu_index: usize,
+    text_actions_menu_focus: FocusHandle,
+    text_actions_menu_scroll: ScrollHandle,
+    text_actions_field_focus: [FocusHandle; 3],
+    text_actions_field_bounds: [std::rc::Rc<std::cell::Cell<gpui::Bounds<gpui::Pixels>>>; 3],
+    text_actions_delete_id: Option<String>,
+    text_actions_delete_epoch: u64,
+    text_actions_confirm_focus: FocusHandle,
+    text_actions_confirm_previous_focus: Option<FocusHandle>,
     text_actions_error: Option<SharedString>,
     text_action_operation_id: Option<String>,
     text_action_pending: Option<TextActionPending>,
@@ -451,6 +500,7 @@ pub struct AleraApp {
     editor_document: Option<EditorDocument>,
     editor_workspaces: editor_workspaces::EditorWorkspaces,
     editor_requests: editor_requests::EditorRequests,
+    editor_save_all_busy: bool,
     editor_inputs: BTreeMap<String, Entity<EditorState>>,
     editor_input_subscriptions: BTreeMap<String, Subscription>,
     editor_documents: BTreeMap<String, EditorDocument>,
@@ -481,6 +531,7 @@ pub struct AleraApp {
     show_add_project_dialog: bool,
     add_project_busy: bool,
     workspace_prompt_input: Entity<TextareaState>,
+    workspace_prompt_scroll_handle: ScrollHandle,
     workspace_dropdown_search_input: Entity<InputState>,
     workspace_project_search_input: Entity<InputState>,
     workspace_branch_search_input: Entity<InputState>,
@@ -579,20 +630,22 @@ pub struct AleraApp {
     automation_selected_id: Option<String>,
     automation_detail: Option<Value>,
     automation_detail_loading: bool,
+    automation_detail_error: Option<SharedString>,
+    automation_detail_tab: automation_detail_data::DetailTab,
+    automation_detail_tab_focus: [FocusHandle; 3],
+    automation_prompt_selection: gpui_base::TextSelectionHandle,
     automation_search_input: Entity<InputState>,
-    automation_state_filter: Option<String>,
+    automation_previous_focus: Option<FocusHandle>,
+    automation_dialog_focus: FocusHandle,
+    automation_filters: automation_catalog_state::AutomationFilters,
+    automation_master_width: f32,
     automation_include_trashed: bool,
     automation_action_busy: bool,
     automation_editor_open: bool,
     automation_editor_id: Option<String>,
     automation_editor_definition: Value,
-    automation_editor_name_input: Entity<InputState>,
-    automation_editor_slug_input: Entity<InputState>,
-    automation_editor_description_input: Entity<InputState>,
-    automation_editor_prompt_input: Entity<TextareaState>,
-    automation_editor_cron_input: Entity<InputState>,
-    automation_editor_workspace_input: Entity<InputState>,
-    automation_editor_profile_input: Entity<InputState>,
+    automation_editor: Option<automation_editor_state::AutomationEditor>,
+    automation_action_dialog: Option<automation_action_choice::AutomationActionDialog>,
     automation_editor_error: Option<SharedString>,
     automation_settings_loading: bool,
     automation_settings_saving: bool,

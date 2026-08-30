@@ -50,7 +50,7 @@ impl AleraApp {
                     )
                     .when(has_git_projects, |action| {
                         action.on_click(cx.listener(|this, _, window, cx| {
-                            this.open_new_workspace_dialog(window, cx)
+                            this.open_new_workspace_dialog_for_project(None, window, cx)
                         }))
                     }),
                 )

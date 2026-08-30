@@ -67,7 +67,7 @@ fn application_workspace_panel(
     ])
 }
 
-fn exact_settings_group(
+pub(super) fn exact_settings_group(
     title: &'static str,
     description: &'static str,
     rows: Vec<gpui::Div>,
@@ -76,7 +76,7 @@ fn exact_settings_group(
         .child(
             div()
                 .ml_1()
-                .mb_4()
+                .mb_2()
                 .child(
                     div()
                         .text_size(px(13.0))
@@ -162,34 +162,17 @@ pub(super) fn settings_master_resize_handle(
     target: SettingsMasterResizeTarget,
     cx: &mut Context<AleraApp>,
 ) -> gpui::Stateful<gpui::Div> {
-    div()
-        .id("settings-master-detail-resize-handle")
-        .w(px(33.0))
-        .h_full()
-        .flex_shrink_0()
-        .flex()
-        .items_center()
-        .justify_center()
-        .cursor(CursorStyle::ResizeLeftRight)
-        .on_mouse_down(
-            MouseButton::Left,
-            cx.listener(move |this, event: &MouseDownEvent, _, cx| {
-                this.begin_settings_master_resize(target, event, cx);
-            }),
-        )
-        .on_drag(ResizeDrag, |_, _, _, cx| cx.new(|_| Empty))
-        .on_drag_move(cx.listener(|this, event: &DragMoveEvent<ResizeDrag>, _, cx| {
-            this.update_settings_master_resize(&event.event, cx);
-        }))
-        .on_mouse_up(
-            MouseButton::Left,
-            cx.listener(AleraApp::finish_settings_master_resize),
-        )
-        .on_mouse_up_out(
-            MouseButton::Left,
-            cx.listener(AleraApp::finish_settings_master_resize),
-        )
-        .child(div().w(px(1.0)).h_full().bg(theme::border_subtle()))
+    super::master_detail_resize::handle(
+        match target {
+            SettingsMasterResizeTarget::Projects => "Resize Projects List",
+            SettingsMasterResizeTarget::AgentProfiles => "Resize Agent Profiles List",
+            SettingsMasterResizeTarget::TextActions => "Resize Text Actions List",
+            SettingsMasterResizeTarget::Automations => "Resize Automations List",
+        },
+        cx.listener(move |this, event, _, cx| this.begin_settings_master_resize(target, event, cx)),
+        cx.listener(|this, event, _, cx| this.update_settings_master_resize(event, cx)),
+        cx.listener(AleraApp::finish_settings_master_resize),
+    )
 }
 
 pub(super) fn exact_settings_row(

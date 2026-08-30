@@ -332,6 +332,9 @@ impl AleraApp {
         self.git_generation += 1;
         self.forge_generation = self.forge_generation.wrapping_add(1);
         self.agent_canvas_generation = self.agent_canvas_generation.wrapping_add(1);
+        self.agent_canvas_confirmation = None;
+        self.agent_canvas_action_epoch = self.agent_canvas_action_epoch.wrapping_add(1);
+        self.agent_canvas_refresh_pending = false;
         self.explorer_generation += 1;
         self.editor_generation += 1;
         self.editor_autosave_generation = self.editor_autosave_generation.wrapping_add(1);

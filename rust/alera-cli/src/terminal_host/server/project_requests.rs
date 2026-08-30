@@ -1,25 +1,21 @@
-use std::process::Stdio;
-
-use alera_core::child_process::windowless_async_command;
 use alera_core::runtime::{
     ProjectCloneJob, ProjectCloneJobPhase, ProjectCloneJobStatus, ProjectConfig,
 };
 use chrono::Utc;
-use regex::Regex;
 use serde::Deserialize;
 use serde_json::{json, Value};
-use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio::sync::oneshot;
 use uuid::Uuid;
 
 use crate::project_management::{
     effective_project_config, host_directory_roots, list_host_directory, register_project,
-    remove_owned_clone_destination, rename_project, validate_clone_destination,
+    rename_project, validate_clone_destination,
 };
 use crate::terminal_host::host_error::{HostError, HostResult};
 use crate::terminal_host::protocol::event;
 
 use super::{ServerActor, ServerCommand};
+use super::project_clone_job::{run_clone_job, sanitized_clone_source};
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -226,10 +222,10 @@ impl ServerActor {
             }
         };
         for job in jobs {
-            let cleanup = remove_owned_clone_destination(&job.parent_path, &job.destination_path);
+            let cleanup = crate::project_clone_staging::cleanup_clone_staging(&job.parent_path, &job.id).await;
             let error = match cleanup {
-                Ok(()) => "Runtime Restarted During Clone".to_string(),
-                Err(error) => format!("Runtime Restarted During Clone; Cleanup Failed: {error}"),
+                Ok(()) => "Runtime restarted during clone; final destination was preserved.".to_string(),
+                Err(error) => format!("Runtime restarted during clone; final destination was preserved. Cleanup failed: {error}"),
             };
             let _ = self
                 .runtime_store
@@ -263,191 +259,6 @@ impl ServerActor {
         self.broadcast_workspaces_changed(None);
         self.broadcast_workspace_tabs_changed(None);
     }
-}
-
-async fn run_clone_job(
-    store: alera_core::runtime::RuntimeStore,
-    inbox: tokio::sync::mpsc::UnboundedSender<ServerCommand>,
-    job: ProjectCloneJob,
-    raw_url: String,
-    mut cancel: oneshot::Receiver<()>,
-) {
-    let _ = store
-        .update_project_clone_job(
-            &job.id,
-            ProjectCloneJobStatus::Running,
-            ProjectCloneJobPhase::Cloning,
-            None,
-            Some("Cloning Repository"),
-            None,
-            None,
-            None,
-        )
-        .await;
-    let _ = inbox.send(ServerCommand::ProjectCloneChanged {
-        job_id: job.id.clone(),
-    });
-
-    let mut child = match windowless_async_command("git")
-        .arg("-C")
-        .arg(&job.parent_path)
-        .args(["clone", "--progress", "--"])
-        .arg(&raw_url)
-        .arg(&job.directory_name)
-        .stdin(Stdio::null())
-        .stdout(Stdio::null())
-        .stderr(Stdio::piped())
-        .kill_on_drop(true)
-        .spawn()
-    {
-        Ok(child) => child,
-        Err(error) => {
-            finish_failed_clone(&store, &job, &raw_url, &error.to_string()).await;
-            return;
-        }
-    };
-    let stderr = child.stderr.take().expect("clone stderr is piped");
-    let mut lines = BufReader::new(stderr).lines();
-    let progress_pattern = Regex::new(r"(?:Receiving objects|Resolving deltas):\s+(\d+)%").unwrap();
-    let mut last_progress = None;
-    let mut last_message = "Cloning Repository".to_string();
-    loop {
-        tokio::select! {
-            _ = &mut cancel => {
-                let _ = child.kill().await;
-                let _ = remove_owned_clone_destination(&job.parent_path, &job.destination_path);
-                let _ = store.update_project_clone_job(
-                    &job.id,
-                    ProjectCloneJobStatus::Cancelled,
-                    ProjectCloneJobPhase::Cloning,
-                    last_progress,
-                    Some("Clone Cancelled"),
-                    None,
-                    None,
-                    None,
-                ).await;
-                return;
-            }
-            line = lines.next_line() => {
-                match line {
-                    Ok(Some(line)) => {
-                        last_message = sanitize_error(&line, &raw_url, &job.source);
-                        last_progress = progress_pattern
-                            .captures(&line)
-                            .and_then(|captures| captures.get(1))
-                            .and_then(|value| value.as_str().parse::<i64>().ok())
-                            .or(last_progress);
-                        let _ = store.update_project_clone_job(
-                            &job.id,
-                            ProjectCloneJobStatus::Running,
-                            ProjectCloneJobPhase::Cloning,
-                            last_progress,
-                            Some(&last_message),
-                            None,
-                            None,
-                            None,
-                        ).await;
-                        let _ = inbox.send(ServerCommand::ProjectCloneChanged { job_id: job.id.clone() });
-                    }
-                    Ok(None) => break,
-                    Err(error) => {
-                        last_message = error.to_string();
-                        break;
-                    }
-                }
-            }
-        }
-    }
-    match child.wait().await {
-        Ok(status) if status.success() => {}
-        Ok(status) => {
-            finish_failed_clone(
-                &store,
-                &job,
-                &raw_url,
-                &format!(
-                    "Git Clone Failed With Exit Code {}: {last_message}",
-                    status.code().unwrap_or(-1)
-                ),
-            )
-            .await;
-            return;
-        }
-        Err(error) => {
-            finish_failed_clone(&store, &job, &raw_url, &error.to_string()).await;
-            return;
-        }
-    }
-
-    let _ = store
-        .update_project_clone_job(
-            &job.id,
-            ProjectCloneJobStatus::Running,
-            ProjectCloneJobPhase::Registering,
-            Some(100),
-            Some("Registering Project"),
-            None,
-            None,
-            None,
-        )
-        .await;
-    match register_project(&store, &job.destination_path, job.project_name.as_deref()).await {
-        Ok(result) => {
-            let _ = store
-                .update_project_clone_job(
-                    &job.id,
-                    ProjectCloneJobStatus::Completed,
-                    ProjectCloneJobPhase::Registering,
-                    Some(100),
-                    Some("Project Ready"),
-                    None,
-                    Some(&result.project.id),
-                    Some(&result.main_workspace.id),
-                )
-                .await;
-        }
-        Err(error) => finish_failed_clone(&store, &job, &raw_url, &error.to_string()).await,
-    }
-}
-
-async fn finish_failed_clone(
-    store: &alera_core::runtime::RuntimeStore,
-    job: &ProjectCloneJob,
-    raw_url: &str,
-    error: &str,
-) {
-    let cleanup_error = remove_owned_clone_destination(&job.parent_path, &job.destination_path)
-        .err()
-        .map(|error| error.to_string());
-    let mut error = sanitize_error(error, raw_url, &job.source);
-    if let Some(cleanup_error) = cleanup_error {
-        error.push_str(&format!("; Cleanup Failed: {cleanup_error}"));
-    }
-    let _ = store
-        .update_project_clone_job(
-            &job.id,
-            ProjectCloneJobStatus::Failed,
-            job.phase,
-            job.progress_percent,
-            Some("Clone Failed"),
-            Some(&error),
-            None,
-            None,
-        )
-        .await;
-}
-
-fn sanitized_clone_source(raw: &str) -> String {
-    let Ok(mut url) = url::Url::parse(raw) else {
-        return raw.to_string();
-    };
-    let _ = url.set_username("");
-    let _ = url.set_password(None);
-    url.to_string()
-}
-
-fn sanitize_error(error: &str, raw_url: &str, safe_url: &str) -> String {
-    error.replace(raw_url, safe_url)
 }
 
 fn parse<T: for<'de> Deserialize<'de>>(payload: &Value) -> HostResult<T> {

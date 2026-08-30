@@ -147,6 +147,7 @@ mod output_delivery;
 #[cfg(test)]
 mod output_resume_tests;
 mod project_requests;
+mod project_clone_job;
 mod prompt_file_requests;
 mod prompt_file_store;
 mod prompt_image_requests;

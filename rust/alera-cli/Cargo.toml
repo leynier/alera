@@ -108,7 +108,7 @@ atspi = { version = "0.30", default-features = false, features = ["proxies", "co
 
 [target.'cfg(target_os = "windows")'.dependencies]
 uiautomation = "0.25"
-windows = { version = "0.62.2", features = ["Win32_Foundation", "Win32_Security", "Win32_System_Console", "Win32_System_JobObjects", "Win32_System_RemoteDesktop", "Win32_System_Threading"] }
+windows = { version = "0.62.2", features = ["Win32_Foundation", "Win32_Security", "Win32_Storage_FileSystem", "Win32_System_Console", "Win32_System_JobObjects", "Win32_System_RemoteDesktop", "Win32_System_Threading"] }
 
 [target.'cfg(target_os = "macos")'.dependencies]
 objc2-application-services = "0.3"

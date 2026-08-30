@@ -26,6 +26,7 @@ impl AleraApp {
         self.add_project_mode = mode;
         self.error = None;
         self.sync_add_project_defaults(true, window, cx);
+        focus_project_mode_input(mode, &self.local_project_path_input, &self.clone_project_url_input, window, cx);
         cx.notify();
     }
 
@@ -113,5 +114,48 @@ impl AleraApp {
                 this.sync_add_project_defaults(false, window, cx);
             });
         }).detach();
+    }
+}
+
+fn focus_project_mode_input(mode:AddProjectMode,local:&gpui::Entity<gpui_component::input::InputState>,clone_url:&gpui::Entity<gpui_component::input::InputState>,window:&mut Window,cx:&mut gpui::App){
+    let input=match mode{AddProjectMode::LocalFolder=>local,AddProjectMode::CloneFromUrl=>clone_url};
+    input.update(cx,|input,cx|input.focus(window,cx));
+}
+
+#[cfg(all(test,feature="gpui-tests"))]
+mod tests{
+    use super::*;
+    use gpui::{AppContext as _,Entity,InteractiveElement as _,IntoElement,ParentElement as _,Render,StatefulInteractiveElement as _,Styled as _,TestAppContext,div,px};
+    use gpui_component::input::InputState;
+
+    struct Probe{mode:AddProjectMode,local:Entity<InputState>,url:Entity<InputState>}
+    impl Render for Probe{
+        fn render(&mut self,_:&mut Window,cx:&mut Context<Self>)->impl IntoElement{
+            div().w(px(500.0)).child(div().id("switch-clone").debug_selector(||"switch-clone".into()).h(px(32.0)).child("Clone")
+                .on_click(cx.listener(|this,_,window,cx|{this.mode=AddProjectMode::CloneFromUrl;focus_project_mode_input(this.mode,&this.local,&this.url,window,cx);cx.notify();})))
+                .child(div().id("switch-local").debug_selector(||"switch-local".into()).h(px(32.0)).child("Local")
+                    .on_click(cx.listener(|this,_,window,cx|{this.mode=AddProjectMode::LocalFolder;focus_project_mode_input(this.mode,&this.local,&this.url,window,cx);cx.notify();})))
+                .child(crate::design_system::text_field(if self.mode==AddProjectMode::LocalFolder{&self.local}else{&self.url}).label("Path"))
+        }
+    }
+    #[gpui::test]
+    fn project_mode_focus_routes_typing_to_the_newly_mounted_field(cx:&mut TestAppContext){
+        cx.update(gpui_component::init);cx.update(crate::design_system::configure_component_theme);
+        let (view,cx)=cx.add_window_view(|window,cx|{
+            let local=cx.new(|cx|InputState::new(window,cx));let url=cx.new(|cx|InputState::new(window,cx));
+            local.update(cx,|input,cx|input.focus(window,cx));Probe{mode:AddProjectMode::LocalFolder,local,url}
+        });
+        cx.run_until_parked();cx.update(|window,cx|{let _=window.draw(cx);});
+        let position=cx.debug_bounds("switch-clone").unwrap().center();
+        cx.simulate_click(position,gpui::Modifiers::default());cx.run_until_parked();
+        cx.update(|window,cx|{let _=window.draw(cx);});
+        cx.simulate_keystrokes("c l o n e");
+        cx.update(|_,cx|{assert_eq!(view.read(cx).url.read(cx).value().as_ref(),"clone");assert!(view.read(cx).local.read(cx).value().is_empty());});
+        cx.update(|window,cx|{let _=window.draw(cx);});
+        let position=cx.debug_bounds("switch-local").unwrap().center();
+        cx.simulate_click(position,gpui::Modifiers::default());cx.run_until_parked();
+        cx.update(|window,cx|{let _=window.draw(cx);});
+        cx.simulate_keystrokes("l o c a l");
+        cx.update(|_,cx|{assert_eq!(view.read(cx).local.read(cx).value().as_ref(),"local");assert_eq!(view.read(cx).url.read(cx).value().as_ref(),"clone");});
     }
 }

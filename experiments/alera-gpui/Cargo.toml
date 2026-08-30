@@ -28,6 +28,7 @@ dirs = "6"
 gpui = { version = "=0.2.2", git = "https://github.com/zed-industries/zed", default-features = false, features = ["font-kit"] }
 gpui-platform = { package = "gpui_platform", git = "https://github.com/zed-industries/zed", default-features = false, features = ["font-kit"] }
 gpui-component = { git = "https://github.com/longbridge/gpui-component.git", rev = "6d07863fe7077f85abfa0ec2fcb05f3e17c573b2", features = ["tree-sitter-languages"] }
+gpui-base = { git = "https://github.com/longbridge/gpui-component.git", rev = "6d07863fe7077f85abfa0ec2fcb05f3e17c573b2" }
 futures = "0.3"
 image = { version = "0.25", default-features = false, features = ["bmp", "gif", "jpeg", "png", "tiff", "webp"] }
 libloading = "0.8"

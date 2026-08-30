@@ -97,8 +97,7 @@ impl AleraApp {
                 .when(can_create_workspace, |button| {
                     button.on_click(cx.listener(move |this, _, window, cx| {
                         cx.stop_propagation();
-                        this.selected_workspace_project_id = Some(workspace_id.clone());
-                        this.open_new_workspace_dialog(window, cx);
+                        this.open_new_workspace_dialog_for_project(Some(workspace_id.clone()), window, cx);
                         this.sidebar_menu = None;
                     }))
                 })

@@ -31,6 +31,20 @@ impl AleraApp {
         })
     }
 
+    pub(super) fn owned_editor_document(&self, key: &EditorKey) -> Option<&EditorDocument> {
+        if self.editor_workspaces.owner.as_deref() == Some(key.workspace.as_str()) {
+            if self.editor_load_error_paths.contains(&key.path) { return None; }
+            self.editor_documents.get(&key.path)
+        } else {
+            self.editor_workspaces.parked.get(&key.workspace)?.document(&key.path)
+        }
+    }
+
+    pub(super) fn owned_editor_is_dirty(&self, key: &EditorKey, cx: &gpui::App) -> bool {
+        self.owned_editor_input(key).zip(self.owned_editor_document(key))
+            .is_some_and(|(input, document)| input.read(cx).value().as_str() != document.display_content)
+    }
+
     pub(super) fn sync_editor_busy(&mut self) {
         self.editor_busy = self.snapshot.tabs.iter().find(|tab| Some(tab.id.as_str()) == self.selected_tab_id.as_deref())
             .and_then(|tab| tab.payload.get("filePath").and_then(serde_json::Value::as_str))
@@ -49,14 +63,7 @@ impl AleraApp {
     }
 
     pub(super) fn save_editor_key(&mut self, key: EditorKey, overwrite: bool, cx: &mut Context<Self>) {
-        if self.editor_workspaces.owner.as_deref() != Some(key.workspace.as_str()) || self.editor_loading_path.as_deref() == Some(key.path.as_str()) { return; }
-        let Some(workspace) = self.snapshot.workspace(&key.workspace) else { return; };
-        let workspace_path = workspace.path.clone();
-        let Some(document) = self.editor_documents.get(&key.path).cloned() else { return; };
-        let Some(input) = self.owned_editor_input(&key) else { return; };
-        let content = input.read(cx).value().to_string();
-        let Some(request) = self.editor_requests.begin_write(key, input.entity_id(), workspace_path, content, overwrite) else { return; };
-        self.sync_editor_busy();
+        let Some((request, document)) = self.begin_editor_write(key, overwrite, cx) else { return; };
         let service = self.workspace_service.clone();
         cx.spawn(async move |this, cx| {
             let result = service.write(request.workspace_path.clone(), document, request.content.clone(), request.overwrite).await;
@@ -66,7 +73,19 @@ impl AleraApp {
         cx.notify();
     }
 
-    fn complete_editor_write(&mut self, request: EditorWrite, result: Result<EditorDocument, String>, cx: &mut Context<Self>) {
+    pub(super) fn begin_editor_write(&mut self, key: EditorKey, overwrite: bool, cx: &mut Context<Self>) -> Option<(EditorWrite, EditorDocument)> {
+        if self.editor_workspaces.owner.as_deref() == Some(key.workspace.as_str()) && self.editor_loading_path.as_deref() == Some(key.path.as_str()) { return None; }
+        let workspace_path = self.snapshot.workspace(&key.workspace)?.path.clone();
+        let document = self.owned_editor_document(&key)?.clone();
+        let input = self.owned_editor_input(&key)?;
+        let content = input.read(cx).value().to_string();
+        let request = self.editor_requests.begin_write(key, input.entity_id(), workspace_path, content, overwrite)?;
+        self.sync_editor_busy();
+        cx.notify();
+        Some((request, document))
+    }
+
+    pub(super) fn complete_editor_write(&mut self, request: EditorWrite, result: Result<EditorDocument, String>, cx: &mut Context<Self>) {
         if !self.editor_requests.finish_write(&request) { return; }
         let live = self.snapshot.workspace(&request.key.workspace).is_some_and(|workspace| workspace.path == request.workspace_path)
             && self.owned_editor_input(&request.key).is_some_and(|input| input.entity_id() == request.editor);

@@ -21,6 +21,7 @@ fn component_theme_synchronizes_dark_paint_tokens(cx: &mut gpui::TestAppContext)
         }
         assert_eq!(configured.table, gpui::Hsla::from(theme::app_background()));
         assert_eq!(configured.table_head_foreground, gpui::Hsla::from(theme::text()));
+        assert_eq!(configured.muted_foreground, gpui::Hsla::from(theme::text_muted()));
     });
 }
 

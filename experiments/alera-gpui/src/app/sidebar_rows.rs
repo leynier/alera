@@ -468,8 +468,7 @@ impl AleraApp {
                             .aria_label("New Workspace in This Project")
                             .on_click(cx.listener(move |this, _, window, cx| {
                                 cx.stop_propagation();
-                                this.open_new_workspace_dialog(window, cx);
-                                this.select_workspace_project(new_workspace_project_id.clone(), cx);
+                                this.open_new_workspace_dialog_for_project(Some(new_workspace_project_id.clone()), window, cx);
                             }))
                     })
                     .child(icon(AleraIcon::Add, 14.0, theme::text_muted())),

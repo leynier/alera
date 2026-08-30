@@ -5,6 +5,7 @@ use gpui::{Context, Window};
 use serde_json::{json, Value};
 
 use super::{AddProjectMode, AleraApp};
+use super::project_activation::AddedProject;
 #[cfg(test)]
 use super::add_project_draft::repository_name;
 use crate::runtime_bridge::RuntimeBridge;
@@ -80,9 +81,9 @@ impl AleraApp {
                 this.add_project_busy = false;
                 if this.show_add_project_dialog { this.close_add_project_dialog(window, cx); }
                 match result {
-                    Ok(()) => {
+                    Ok(project) => {
+                        this.activate_added_project(project, cx);
                         this.local_message = Some(if cloning { "Project cloned" } else { "Project added" }.into());
-                        this.refresh(cx);
                     }
                     Err(error) => {
                         this.local_message = Some(error.into());
@@ -112,13 +113,13 @@ enum AddProjectOperation {
 async fn run_add_project_operation(
     bridge: &RuntimeBridge,
     operation: AddProjectOperation,
-) -> Result<(), String> {
+) -> Result<AddedProject, String> {
     match operation {
         AddProjectOperation::Register { path, name } => {
             let mut payload = json!({ "path": path });
             insert_optional_name(&mut payload, name);
-            bridge.request("project.register", payload).await?;
-            Ok(())
+            let registered = bridge.request("project.register", payload).await?;
+            AddedProject::registered(&registered)
         }
         AddProjectOperation::Clone {
             url,
@@ -142,7 +143,7 @@ async fn run_add_project_operation(
     }
 }
 
-async fn wait_for_clone(bridge: &RuntimeBridge, job_id: &str) -> Result<(), String> {
+async fn wait_for_clone(bridge: &RuntimeBridge, job_id: &str) -> Result<AddedProject, String> {
     let deadline = Instant::now() + Duration::from_secs(30 * 60);
     while Instant::now() < deadline {
         let jobs = bridge.request("project.clone.list", json!({})).await?;
@@ -154,7 +155,7 @@ async fn wait_for_clone(bridge: &RuntimeBridge, job_id: &str) -> Result<(), Stri
             })
             .ok_or_else(|| format!("Clone Job Disappeared: {job_id}"))?;
         match job.get("status").and_then(Value::as_str) {
-            Some("completed") => return Ok(()),
+            Some("completed") => return AddedProject::cloned(job),
             Some("failed") => {
                 return Err(job
                     .get("error")

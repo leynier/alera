@@ -13,6 +13,7 @@ impl AleraApp {
         crate::app_log::set_level(&settings_state.diagnostics_log_level);
         crate::app_log::set_crash_reporting_enabled(settings_state.crash_reporting_enabled);
         let terminal_focus = cx.focus_handle();
+        let shell_focus = super::app_focus::initialize_shell_focus(window, cx);
         let sidebar_filter_input = cx.new(|cx| {
             InputState::new(window, cx)
                 .placeholder("Search workspaces")
@@ -39,8 +40,9 @@ impl AleraApp {
             cx.new(|cx| InputState::new(window, cx).placeholder("Display Name (Optional)"));
         let workspace_prompt_input = cx.new(|cx| {
             TextareaState::new(window, cx)
-                .placeholder("Describe What The Agent Should Build")
+                .placeholder("Describe what the agent should build or paste an image")
                 .soft_wrap(true)
+                .auto_grow(4, 8)
         });
         let terminal_search_input = cx.new(|cx| {
             InputState::new(window, cx)
@@ -118,19 +120,13 @@ impl AleraApp {
         let mobile_access = MobileAccessState::new(window, cx);
         let project_config_settings = ProjectConfigSettingsState::new(window, cx);
         let text_actions_name_input =
-            cx.new(|cx| InputState::new(window, cx).placeholder("Action Name"));
+            cx.new(|cx| InputState::new(window, cx));
         let text_actions_prompt_input = cx.new(|cx| {
             TextareaState::new(window, cx)
-                .placeholder("Describe The Replacement To Generate")
+                .placeholder("Describe the replacement to generate.")
                 .soft_wrap(true)
-                .rows(5)
+                .auto_grow(5, 10)
         });
-        let text_actions_agent_input =
-            cx.new(|cx| InputState::new(window, cx).placeholder("Global Agent"));
-        let text_actions_model_input =
-            cx.new(|cx| InputState::new(window, cx).placeholder("Global Model"));
-        let text_actions_reasoning_input =
-            cx.new(|cx| InputState::new(window, cx).placeholder("Reasoning (Optional)"));
         let ai_model_id = ai_assist_settings_catalog::selected_model_id(
             &settings_state,
             &settings_state.ai_assist_agent,
@@ -427,24 +423,6 @@ impl AleraApp {
                 .placeholder("Search automations")
                 .clean_on_escape()
         });
-        let automation_editor_name_input =
-            cx.new(|cx| InputState::new(window, cx).placeholder("Daily Automation"));
-        let automation_editor_slug_input =
-            cx.new(|cx| InputState::new(window, cx).placeholder("daily-automation"));
-        let automation_editor_description_input =
-            cx.new(|cx| InputState::new(window, cx).placeholder("Description"));
-        let automation_editor_prompt_input = cx.new(|cx| {
-            TextareaState::new(window, cx)
-                .placeholder("Review the current workspace and report the result.")
-                .soft_wrap(true)
-                .rows(4)
-        });
-        let automation_editor_cron_input =
-            cx.new(|cx| InputState::new(window, cx).placeholder("0 9 * * 1-5"));
-        let automation_editor_workspace_input =
-            cx.new(|cx| InputState::new(window, cx).placeholder("Workspace ID"));
-        let automation_editor_profile_input =
-            cx.new(|cx| InputState::new(window, cx).placeholder("Agent Profile ID"));
         forge_base_input.update(cx, |input, cx| {
             input.set_value("main", window, cx);
         });
@@ -452,6 +430,9 @@ impl AleraApp {
             input.set_value("main", window, cx);
         });
         let mut subscriptions = vec![
+            cx.subscribe_in(&text_actions_name_input, window, |_, _, _: &InputEvent, _, cx| cx.notify()),
+            cx.subscribe_in(&text_actions_prompt_input, window, |_, _, _: &InputEvent, _, cx| cx.notify()),
+            cx.subscribe_in(&workspace_prompt_input, window, |_, _, _: &InputEvent, _, cx| cx.notify()),
             cx.subscribe_in(
                 &codex_resume_search_input,
                 window,
@@ -889,70 +870,7 @@ impl AleraApp {
                 window,
                 |this, _, event: &InputEvent, _, cx| {
                     if matches!(event, InputEvent::Change) && this.show_automations_dialog {
-                        cx.notify();
-                    }
-                },
-            ),
-            cx.subscribe_in(
-                &automation_editor_name_input,
-                window,
-                |_, _, event: &InputEvent, _, cx| {
-                    if matches!(event, InputEvent::Change) {
-                        cx.notify();
-                    }
-                },
-            ),
-            cx.subscribe_in(
-                &automation_editor_slug_input,
-                window,
-                |_, _, event: &InputEvent, _, cx| {
-                    if matches!(event, InputEvent::Change) {
-                        cx.notify();
-                    }
-                },
-            ),
-            cx.subscribe_in(
-                &automation_editor_description_input,
-                window,
-                |_, _, event: &InputEvent, _, cx| {
-                    if matches!(event, InputEvent::Change) {
-                        cx.notify();
-                    }
-                },
-            ),
-            cx.subscribe_in(
-                &automation_editor_prompt_input,
-                window,
-                |_, _, event: &InputEvent, _, cx| {
-                    if matches!(event, InputEvent::Change) {
-                        cx.notify();
-                    }
-                },
-            ),
-            cx.subscribe_in(
-                &automation_editor_cron_input,
-                window,
-                |_, _, event: &InputEvent, _, cx| {
-                    if matches!(event, InputEvent::Change) {
-                        cx.notify();
-                    }
-                },
-            ),
-            cx.subscribe_in(
-                &automation_editor_workspace_input,
-                window,
-                |_, _, event: &InputEvent, _, cx| {
-                    if matches!(event, InputEvent::Change) {
-                        cx.notify();
-                    }
-                },
-            ),
-            cx.subscribe_in(
-                &automation_editor_profile_input,
-                window,
-                |_, _, event: &InputEvent, _, cx| {
-                    if matches!(event, InputEvent::Change) {
-                        cx.notify();
+                        this.reconcile_automation_selection(false, cx);
                     }
                 },
             ),
@@ -1069,6 +987,7 @@ impl AleraApp {
         Self {
             bridge,
             snapshot: WorkbenchSnapshot::default(),
+            active_project_id: None,
             selected_workspace_id: None,
             pending_workspace_terminal_id: None,
             pending_workspace_setup: None,
@@ -1169,6 +1088,9 @@ impl AleraApp {
             codex_queued_messages: BTreeMap::new(),
             codex_collapsed_cells: BTreeSet::new(),
             agent_canvas_generation: 0,
+            agent_canvas_confirmation: None,
+            agent_canvas_action_epoch: 0,
+            agent_canvas_refresh_pending: false,
             agent_canvas_loading: false,
             agent_canvas_error: None,
             agent_canvas_capabilities: None,
@@ -1203,6 +1125,7 @@ impl AleraApp {
             terminal_output_last_frame_at: Instant::now() - Duration::from_millis(50),
             terminal_app_foreground: true,
             terminal_focus,
+            shell_focus,
             terminal_selection_drag: None,
             terminal_marked_text: None,
             terminal_scrollbar_drag: None,
@@ -1295,9 +1218,18 @@ impl AleraApp {
             text_actions_creating_new: false,
             text_actions_name_input,
             text_actions_prompt_input,
-            text_actions_agent_input,
-            text_actions_model_input,
-            text_actions_reasoning_input,
+            text_actions_draft: Default::default(),
+            text_actions_menu: None,
+            text_actions_menu_epoch: 0,
+            text_actions_menu_index: 0,
+            text_actions_menu_focus: cx.focus_handle(),
+            text_actions_menu_scroll: ScrollHandle::new(),
+            text_actions_field_focus: std::array::from_fn(|_| cx.focus_handle()),
+            text_actions_field_bounds: std::array::from_fn(|_| std::rc::Rc::new(std::cell::Cell::new(Default::default()))),
+            text_actions_delete_id: None,
+            text_actions_delete_epoch: 0,
+            text_actions_confirm_focus: cx.focus_handle(),
+            text_actions_confirm_previous_focus: None,
             text_actions_error: None,
             text_action_operation_id: None,
             text_action_pending: None,
@@ -1335,6 +1267,7 @@ impl AleraApp {
             editor_document: None,
             editor_workspaces: Default::default(),
             editor_requests: Default::default(),
+            editor_save_all_busy: false,
             editor_inputs: BTreeMap::new(),
             editor_input_subscriptions: BTreeMap::new(),
             editor_documents: BTreeMap::new(),
@@ -1365,6 +1298,7 @@ impl AleraApp {
             show_add_project_dialog: false,
             add_project_busy: false,
             workspace_prompt_input,
+            workspace_prompt_scroll_handle: ScrollHandle::new(),
             workspace_dropdown_search_input,
             workspace_project_search_input,
             workspace_branch_search_input,
@@ -1461,21 +1395,23 @@ impl AleraApp {
             automations_error: None,
             automation_selected_id: None,
             automation_detail: None,
+            automation_detail_error: None,
+            automation_detail_tab: Default::default(),
+            automation_detail_tab_focus: std::array::from_fn(|_| cx.focus_handle()),
+            automation_prompt_selection: gpui_base::TextSelectionHandle::new("", cx),
             automation_detail_loading: false,
             automation_search_input,
-            automation_state_filter: None,
+            automation_previous_focus: None,
+            automation_dialog_focus: cx.focus_handle(),
+            automation_filters: Default::default(),
+            automation_master_width: 240.0,
             automation_include_trashed: false,
             automation_action_busy: false,
             automation_editor_open: false,
             automation_editor_id: None,
             automation_editor_definition: serde_json::json!({}),
-            automation_editor_name_input,
-            automation_editor_slug_input,
-            automation_editor_description_input,
-            automation_editor_prompt_input,
-            automation_editor_cron_input,
-            automation_editor_workspace_input,
-            automation_editor_profile_input,
+            automation_editor: None,
+            automation_action_dialog: None,
             automation_editor_error: None,
             automation_settings_loading: false,
             automation_settings_saving: false,

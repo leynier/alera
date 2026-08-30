@@ -21,6 +21,38 @@ pub(super) struct WorkspaceEditors {
 }
 
 impl WorkspaceEditors {
+    pub(super) fn document(&self, path: &str) -> Option<&EditorDocument> {
+        if self.load_errors.contains(path) { return None; }
+        self.documents.get(path)
+    }
+
+    fn save_targets(&self, workspace: &str, cx: &gpui::App) -> Vec<super::editor_save_all::EditorSaveTarget> {
+        self.inputs.iter().filter_map(|(path, input)| {
+            let document = self.document(path)?;
+            (input.read(cx).value().as_str() != document.display_content).then(|| super::editor_save_all::EditorSaveTarget {
+                key: super::editor_requests::EditorKey { workspace: workspace.to_owned(), path: path.clone() }, editor: input.entity_id(),
+            })
+        }).collect()
+    }
+
+    pub(super) fn invalidate_clean_paths(&mut self, paths: &BTreeSet<String>, cx: &gpui::App) -> BTreeSet<String> {
+        let mut invalidated = BTreeSet::new();
+        for path in paths {
+            // InputEvent delivery may trail the response; inspect live text too.
+            let changed = self.inputs.get(path).zip(self.documents.get(path))
+                .is_some_and(|(input, document)| input.read(cx).value().as_str() != document.display_content);
+            if self.dirty.contains(path) || changed { continue; }
+            self.buffers.remove(path);
+            self.documents.remove(path);
+            self.previews.remove(path);
+            self.markdown.remove(path);
+            self.load_errors.remove(path);
+            self.errors.remove(path);
+            invalidated.insert(path.clone());
+        }
+        invalidated
+    }
+
     pub(super) fn accept_saved(&mut self, request: &super::editor_requests::EditorWrite, document: EditorDocument, cx: &gpui::App) -> bool {
         let Some(input) = self.inputs.get(&request.key.path).filter(|input| input.entity_id() == request.editor) else { return false; };
         if document.relative_path != request.key.path { return false; }
@@ -96,6 +128,12 @@ pub(super) struct EditorWorkspaces {
 }
 
 impl EditorWorkspaces {
+    pub(super) fn save_targets(&self, active: &WorkspaceEditors, cx: &gpui::App) -> Vec<super::editor_save_all::EditorSaveTarget> {
+        let mut targets = self.owner.as_ref().map(|owner| active.save_targets(owner, cx)).unwrap_or_default();
+        for (owner, state) in &self.parked { targets.extend(state.save_targets(owner, cx)); }
+        targets
+    }
+
     pub(super) fn accept_saved(&mut self, active: &mut WorkspaceEditors, request: &super::editor_requests::EditorWrite, document: EditorDocument, cx: &gpui::App) -> bool {
         if self.owner.as_deref() == Some(request.key.workspace.as_str()) {
             active.accept_saved(request, document, cx)

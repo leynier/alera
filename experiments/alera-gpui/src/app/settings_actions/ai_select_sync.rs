@@ -15,9 +15,9 @@ impl AleraApp {
                 .map(|model| SettingsSelectOption::new(model.label.clone()))
                 .collect::<Vec<_>>();
             if !model_id.is_empty()
-                && !options
+                && !model_choices
                     .iter()
-                    .any(|candidate| candidate.as_str() == model_id)
+                    .any(|candidate| candidate.id == model_id)
             {
                 options.push(SettingsSelectOption::new(model_id.clone()));
             }
@@ -142,9 +142,9 @@ impl AleraApp {
                         )
                         .collect::<Vec<_>>();
                 if let Some(custom_model) = prompt.and_then(|prompt| prompt.model.as_deref()) {
-                    if !options
+                    if !effective_models
                         .iter()
-                        .any(|candidate| candidate.as_str() == custom_model)
+                        .any(|candidate| candidate.id == custom_model)
                     {
                         options.push(SettingsSelectOption::new(custom_model.to_string()));
                     }

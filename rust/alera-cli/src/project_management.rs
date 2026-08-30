@@ -251,22 +251,6 @@ pub fn validate_clone_destination(parent_path: &str, directory_name: &str) -> Re
     Ok(destination)
 }
 
-pub fn remove_owned_clone_destination(parent_path: &str, destination_path: &str) -> Result<()> {
-    let parent = std::fs::canonicalize(parent_path)?;
-    let destination = PathBuf::from(destination_path);
-    if destination.parent() != Some(parent.as_path()) || destination.file_name().is_none() {
-        bail!("Refusing to clean an unsafe clone destination.");
-    }
-    if let Ok(metadata) = std::fs::symlink_metadata(&destination) {
-        if metadata.file_type().is_symlink() || metadata.is_file() {
-            std::fs::remove_file(destination)?;
-        } else if metadata.is_dir() {
-            std::fs::remove_dir_all(destination)?;
-        }
-    }
-    Ok(())
-}
-
 fn validate_existing_directory(raw_path: &str) -> Result<PathBuf> {
     let trimmed = raw_path.trim();
     if trimmed.is_empty() {
@@ -356,15 +340,19 @@ mod tests {
     }
 
     #[test]
-    fn cleanup_never_removes_outside_parent() {
+    fn clone_cleanup_never_removes_a_competing_destination() {
         let parent = tempfile::tempdir().unwrap();
-        let outside = tempfile::tempdir().unwrap();
-        assert!(remove_owned_clone_destination(
-            parent.path().to_str().unwrap(),
-            outside.path().to_str().unwrap(),
-        )
-        .is_err());
-        assert!(outside.path().exists());
+        let destination = validate_clone_destination(parent.path().to_str().unwrap(), "repo").unwrap();
+        let staging = crate::project_clone_staging::ProjectCloneStaging::create(
+            parent.path().to_str().unwrap(), &uuid::Uuid::new_v4().to_string(),
+        ).unwrap();
+        std::fs::create_dir(staging.checkout_path()).unwrap();
+        std::fs::create_dir(&destination).unwrap();
+        let sentinel = destination.join("other-job.txt");
+        std::fs::write(&sentinel, "keep the competing clone").unwrap();
+        assert!(staging.publish(&destination).is_err());
+        staging.cleanup().unwrap();
+        assert!(sentinel.exists(), "failed clone cleanup must not delete a competing job's directory");
     }
 
     #[tokio::test]

@@ -457,6 +457,9 @@ impl AleraApp {
                             .cloned()
                             .collect::<Vec<_>>();
                         this.snapshot = snapshot;
+                        if this.active_project_id.as_ref().is_some_and(|id| !this.snapshot.projects.iter().any(|project| &project.id == id)) {
+                            this.active_project_id = None;
+                        }
                         this.editor_workspaces.retain_live_tabs(&this.snapshot.all_tabs);
                         this.editor_requests.retain_live_tabs(&this.snapshot.all_tabs);
                         if !retired_tabs.is_empty() {
@@ -519,6 +522,7 @@ impl AleraApp {
         } else {
             self.pending_workspace_terminal_id = Some(workspace_id.clone());
         }
+        self.active_project_id = self.snapshot.project_for_workspace(&workspace_id).map(|project| project.id.clone());
         self.selected_workspace_id = Some(workspace_id);
         self.selected_tab_id = None;
         self.ensure_selected_terminal(cx);

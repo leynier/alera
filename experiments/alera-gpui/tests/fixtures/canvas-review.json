@@ -1,0 +1,19 @@
+{
+  "version": 1,
+  "components": [
+    {"type": "AgentRunHeader", "props": {"title": "Review Canvas Alpha", "status": "live"}},
+    {"type": "TaskProgress", "props": {"label": "Parity Scenarios", "completed": 2, "total": 5}},
+    {"type": "DecisionRequest", "props": {"question": "Which fixture view should be reviewed next?", "options": ["Editor", "Terminal"]}},
+    {"type": "ChangeSummary", "props": {"added": 1, "modified": 2, "deleted": 0, "summary": "Disposable review fixtures only."}},
+    {"type": "FileReferenceList", "props": {"files": ["conflict.txt", "src/reveal-review.txt"]}},
+    {"type": "ValidationResults", "props": {"results": ["Fixture initialized", "Unicode: á, 日本語, 😀"]}},
+    {"type": "RiskSummary", "props": {"level": "low", "summary": "No production data or external writes."}},
+    {"type": "ArtifactCard", "props": {"title": "Review Evidence"}},
+    {"type": "Notice", "props": {"tone": "info", "text": "This is a synthetic Canvas used for UI comparison."}},
+    {"type": "ActionGroup", "props": {"actions": [
+      {"label": "Open Search", "kind": "openSearch"},
+      {"label": "Open Fixture", "kind": "openFile", "relativePath": "src/reveal-review.txt"},
+      {"label": "Copy Marker", "kind": "copyText", "text": "canvas-review-marker"}
+    ]}}
+  ]
+}

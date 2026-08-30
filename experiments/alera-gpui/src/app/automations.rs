@@ -1,11 +1,10 @@
 use gpui::{
-    div, prelude::FluentBuilder as _, px, AnyElement, Context, CursorStyle, Entity,
+    div, prelude::FluentBuilder as _, px, AnyElement, Context, CursorStyle,
     InteractiveElement as _, IntoElement, ParentElement as _, Role, SharedString,
     StatefulInteractiveElement as _, Styled as _, Toggled, Window,
 };
-use gpui_component::input::{InputState, Textarea};
-use gpui_component::scroll::ScrollableElement as _;
-use serde_json::{json, Map, Value};
+use gpui_component::FocusTrapElement as _;
+use serde_json::{json, Value};
 use uuid::Uuid;
 
 use super::AleraApp;
@@ -14,31 +13,26 @@ use crate::icons::{icon, loading_indicator, AleraIcon};
 use crate::theme;
 include!("automation_requests.rs");
 
-const AUTOMATION_FINAL_RUN_STATUSES: &[&str] = &[
-    "success",
-    "failure",
-    "blocked",
-    "timeout",
-    "cancelled",
-    "precheckSkipped",
-    "misfireSkipped",
-    "overlapSkipped",
-    "queueLimitSkipped",
-];
-
 impl AleraApp {
     pub(crate) fn open_automations_dialog(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         if self.show_automations_dialog { return; }
+        self.automation_previous_focus = window.focused(cx);
+        self.automation_dialog_focus.focus(window, cx);
         self.automation_requests.reset_view();
         self.automations_loading = false;
         self.automation_detail_loading = false;
         self.automation_action_busy = false;
         self.automation_editor_open = false;
+        self.automation_editor = None;
+        self.automation_action_dialog = None;
         self.show_automations_dialog = true;
         self.automations_error = None;
         self.automation_detail = None;
+        self.automation_detail_error = None;
+        self.automation_detail_tab = Default::default();
         self.automation_selected_id = None;
-        self.automation_state_filter = None;
+        self.automation_filters = Default::default();
+        self.automation_master_width = 240.0;
         self.automation_include_trashed = false;
         self.automation_search_input
             .update(cx, |input, cx| input.set_value("", window, cx));
@@ -46,207 +40,78 @@ impl AleraApp {
         cx.notify();
     }
 
-    pub(crate) fn close_automations_dialog(&mut self, cx: &mut Context<Self>) {
+    pub(crate) fn close_automations_dialog(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        gpui_base::TextSelection::clear(window, cx);
+        if self.settings_master_resize.is_some_and(|resize| resize.target == super::SettingsMasterResizeTarget::Automations) {
+            self.settings_master_resize = None;
+        }
         self.automation_requests.reset_view();
         self.automations_loading = false;
         self.automation_detail_loading = false;
         self.automation_action_busy = false;
         self.show_automations_dialog = false;
         self.automation_editor_open = false;
+        self.automation_editor = None;
+        self.automation_action_dialog = None;
         self.automation_editor_error = None;
         self.automations_error = None;
+        self.automation_previous_focus.take().unwrap_or_else(|| self.shell_focus.clone()).focus(window, cx);
         cx.notify();
     }
 
 
-    fn open_automation_editor(
-        &mut self,
-        initial: Option<Value>,
-        window: &mut Window,
-        cx: &mut Context<Self>,
+    pub(super) fn open_automation_editor(
+        &mut self, initial: Option<Value>, window: &mut Window, cx: &mut Context<Self>,
     ) {
-        if self.automation_action_busy || !self.show_automations_dialog { return; }
+        if self.automation_action_busy || !self.show_automations_dialog || self.automation_action_dialog.is_some() { return; }
         self.automation_editor_definition = super::automation_request_epoch::editor_definition(initial.as_ref());
-        let automation = Some(&self.automation_editor_definition);
-        self.automation_editor_id = automation.and_then(|value| value_string(value, "id"));
-        set_input_value(
-            &self.automation_editor_name_input,
-            automation
-                .and_then(|value| value_string(value, "name"))
-                .unwrap_or_else(|| "Daily Automation".to_owned()),
-            window,
-            cx,
-        );
-        set_input_value(
-            &self.automation_editor_slug_input,
-            automation
-                .and_then(|value| value_string(value, "slug"))
-                .unwrap_or_else(|| "daily-automation".to_owned()),
-            window,
-            cx,
-        );
-        set_input_value(
-            &self.automation_editor_description_input,
-            automation
-                .and_then(|value| value_string(value, "description"))
-                .unwrap_or_default(),
-            window,
-            cx,
-        );
-        set_input_value(
-            &self.automation_editor_cron_input,
-            automation
-                .and_then(|value| nested_string(value, "schedule", "recurring", "cron"))
-                .unwrap_or_else(|| "0 9 * * 1-5".to_owned()),
-            window,
-            cx,
-        );
-        set_input_value(
-            &self.automation_editor_workspace_input,
-            automation
-                .and_then(|value| target_string(value, &["workspaceId", "sourceWorkspaceId"]))
-                .or_else(|| self.selected_workspace_id.clone())
-                .unwrap_or_default(),
-            window,
-            cx,
-        );
-        set_input_value(
-            &self.automation_editor_profile_input,
-            automation
-                .and_then(|value| target_string(value, &["agentProfileId"]))
-                .or_else(|| self.settings_state.default_agent_profile_id.clone())
-                .unwrap_or_default(),
-            window,
-            cx,
-        );
-        let prompt = automation
-            .and_then(|value| value_string(value, "promptTemplate"))
-            .unwrap_or_else(|| "Review the current workspace and report the result.".to_owned());
-        self.automation_editor_prompt_input
-            .update(cx, |input, cx| input.set_value(prompt, window, cx));
+        self.automation_editor_id = value_string(&self.automation_editor_definition, "id");
+        let form = super::automation_form::AutomationForm::from_definition(&self.automation_editor_definition, &format_timestamp());
+        let mut editor = super::automation_editor_state::AutomationEditor::new(form, window, cx);
+        editor.profiles_loading = true;
+        let epoch = editor.epoch;
+        self.automation_editor = Some(editor);
         self.automation_editor_error = None;
         self.automation_editor_open = true;
+        self.automation_dialog_focus.focus(window, cx);
+        let bridge = self.bridge.clone();
+        cx.spawn(async move |this, cx| {
+            let result = bridge.request("agentProfile.list", json!({})).await;
+            let Some(this) = this.upgrade() else { return; };
+            this.update(cx, |this, cx| {
+                if !this.show_automations_dialog { return; }
+                let Some(editor) = &mut this.automation_editor else { return; };
+                if editor.epoch != epoch { return; }
+                editor.profiles_loading = false;
+                match result {
+                    Ok(value) => editor.profiles = value["items"].as_array().into_iter().flatten()
+                        .filter_map(|profile| Some((profile["id"].as_str()?.to_owned(), profile["name"].as_str()?.to_owned()))).collect(),
+                    Err(error) => this.automation_editor_error = Some(format!("Could not load agent profiles: {error}").into()),
+                }
+                cx.notify();
+            });
+        }).detach();
         cx.notify();
     }
 
-    fn save_automation_editor(&mut self, _window: &mut Window, cx: &mut Context<Self>) {
+    pub(super) fn save_automation_editor(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         if self.automation_action_busy || !self.automation_editor_open { return; }
-        let name = self
-            .automation_editor_name_input
-            .read(cx)
-            .value()
-            .trim()
-            .to_owned();
-        let slug = self
-            .automation_editor_slug_input
-            .read(cx)
-            .value()
-            .trim()
-            .to_owned();
-        let prompt = self
-            .automation_editor_prompt_input
-            .read(cx)
-            .value()
-            .trim()
-            .to_owned();
-        let workspace_id = self
-            .automation_editor_workspace_input
-            .read(cx)
-            .value()
-            .trim()
-            .to_owned();
-        let profile_id = self
-            .automation_editor_profile_input
-            .read(cx)
-            .value()
-            .trim()
-            .to_owned();
-        if name.is_empty() || slug.is_empty() || prompt.is_empty() {
-            self.automation_editor_error =
-                Some("Name, slug, and prompt template are required.".into());
-            cx.notify();
-            return;
-        }
-        if workspace_id.is_empty() || profile_id.is_empty() {
-            self.automation_editor_error =
-                Some("A workspace and agent profile are required for a fresh tab target.".into());
-            cx.notify();
-            return;
-        }
-        let cron = self
-            .automation_editor_cron_input
-            .read(cx)
-            .value()
-            .trim()
-            .to_owned();
-        let description = self
-            .automation_editor_description_input
-            .read(cx)
-            .value()
-            .trim()
-            .to_owned();
-        let now = format_timestamp();
-        let id = self
-            .automation_editor_id
-            .clone()
-            .unwrap_or_else(|| Uuid::new_v4().to_string());
-        let existing = self.automation_editor_definition.clone();
-        let mut definition = existing.as_object().cloned().unwrap_or_default();
-        definition.insert("id".into(), Value::String(id.clone()));
-        definition.insert("slug".into(), Value::String(slug));
-        definition.insert("name".into(), Value::String(name));
-        definition.insert("description".into(), Value::String(description));
-        definition.insert("promptTemplate".into(), Value::String(prompt));
-        definition.insert(
-            "schedule".into(),
-            json!({"recurring": {"cron": cron, "timezone": "UTC"}}),
-        );
-        definition.insert(
-            "target".into(),
-            json!({"freshTab": {"workspaceId": workspace_id, "agentProfileId": profile_id}}),
-        );
-        definition.entry("projectId").or_insert(Value::Null);
-        definition.entry("tagIds").or_insert(json!([]));
-        definition.entry("setupPolicy").or_insert(json!("wait"));
-        definition
-            .entry("cleanupPolicy")
-            .or_insert(json!("preserve"));
-        definition.entry("overlapPolicy").or_insert(json!("skip"));
-        definition.entry("queueCap").or_insert(json!(10));
-        definition
-            .entry("inactivityTimeoutSeconds")
-            .or_insert(json!(7200));
-        definition
-            .entry("heartbeatIntervalSeconds")
-            .or_insert(json!(60));
-        definition
-            .entry("misfireGraceSeconds")
-            .or_insert(json!(900));
-        definition.entry("misfirePolicy").or_insert(json!("skip"));
-        definition.entry("retryMaxAttempts").or_insert(json!(3));
-        definition.entry("retryBackoffSeconds").or_insert(json!(60));
-        definition
-            .entry("circuitFailureThreshold")
-            .or_insert(json!(3));
-        definition.entry("circuitOpenSeconds").or_insert(json!(900));
-        definition.entry("precheck").or_insert(Value::Null);
-        definition.entry("notifyOnSuccess").or_insert(json!(false));
-        definition.entry("state").or_insert(json!("draft"));
-        definition.entry("revision").or_insert(json!(0));
-        definition.entry("approvedRevision").or_insert(Value::Null);
-        definition
-            .entry("createdBy")
-            .or_insert(json!({"kind": "humanDesktop"}));
-        definition
-            .entry("modifiedBy")
-            .or_insert(json!({"kind": "humanDesktop"}));
-        definition.entry("createdAt").or_insert(json!(now.clone()));
-        definition.insert("updatedAt".into(), json!(now));
+        let Some(editor) = &self.automation_editor else { return; };
+        let id = self.automation_editor_id.clone().unwrap_or_else(|| Uuid::new_v4().to_string());
+        let definition = match editor.snapshot(cx).definition(&self.automation_editor_definition, &id, &format_timestamp()) {
+            Ok(value) => value,
+            Err(error) => {
+                self.automation_editor_error = Some(error.into());
+                cx.notify();
+                return;
+            }
+        };
         self.automation_action_busy = true;
         self.automation_editor_error = None;
-        self.automation_editor_open = false;
+        self.automation_dialog_focus.focus(window, cx);
         let bridge = self.bridge.clone();
         let view_epoch = self.automation_requests.view();
+        let editor_epoch = self.automation_editor.as_ref().map(|editor| editor.epoch);
         let selected_before = self.automation_selected_id.clone();
         cx.spawn(async move |this, cx| {
             let result = bridge
@@ -256,10 +121,12 @@ impl AleraApp {
                 return;
             };
             this.update(cx, |this, cx| {
-                if !this.automation_requests.accepts_view(view_epoch) { return; }
+                if !this.automation_requests.accepts_view(view_epoch) || this.automation_editor.as_ref().map(|editor| editor.epoch) != editor_epoch { return; }
                 this.automation_action_busy = false;
                 match result {
                     Ok(value) => {
+                        this.automation_editor_open = false;
+                        this.automation_editor = None;
                         if this.automation_selected_id == selected_before {
                             this.automation_selected_id = value_string(&value, "id").or(Some(id.clone()));
                         }
@@ -268,12 +135,7 @@ impl AleraApp {
                         this.refresh_automation_catalog_after_mutation(cx);
                     }
                     Err(error) => {
-                        if this.automation_selected_id == selected_before {
-                            this.automation_editor_open = true;
-                            this.automation_editor_error = Some(error.into());
-                        } else {
-                            this.automations_error = Some(format!("Could not save automation {id}: {error}").into());
-                        }
+                        this.automation_editor_error = Some(error.into());
                     }
                 }
                 cx.notify();
@@ -316,7 +178,7 @@ impl AleraApp {
         self.open_automation_editor(Some(Value::Object(clone)), window, cx);
     }
 
-    fn automation_export(&mut self, cx: &mut Context<Self>) {
+    pub(super) fn automation_export(&mut self, cx: &mut Context<Self>) {
         if !self.show_automations_dialog { return; }
         let bridge = self.bridge.clone();
         let view_epoch = self.automation_requests.view();
@@ -341,7 +203,7 @@ impl AleraApp {
         .detach();
     }
 
-    fn automation_import(&mut self, cx: &mut Context<Self>) {
+    pub(super) fn automation_import(&mut self, cx: &mut Context<Self>) {
         if self.automation_action_busy || !self.show_automations_dialog { return; }
         let Some(text) = cx.read_from_clipboard().and_then(|item| item.text()) else {
             self.automations_error =
@@ -385,248 +247,31 @@ impl AleraApp {
     }
 
     pub(super) fn render_automations_dialog(&self, cx: &mut Context<Self>) -> AnyElement {
-        let content = if self.automation_editor_open {
-            self.render_automation_editor(cx)
-        } else {
-            self.render_automation_catalog(cx)
-        };
-        div()
-            .absolute()
-            .inset_0()
-            .occlude()
-            .flex()
-            .items_center()
-            .justify_center()
-            .bg(theme::overlay_scrim())
-            .on_mouse_down(
-                gpui::MouseButton::Left,
-                cx.listener(|this, _, _, cx| {
-                    this.close_automations_dialog(cx);
-                }),
-            )
-            .child(
-                div()
-                    .id("automations-dialog")
-                    .role(Role::Dialog)
-                    .aria_label("Automations")
-                    .w(px(1180.0))
-                    .h(px(680.0))
-                    .max_w(px(1180.0))
-                    .max_h(px(760.0))
-                    .flex()
-                    .flex_col()
-                    .rounded_xl()
-                    .border_1()
-                    .border_color(theme::border_subtle())
-                    .bg(theme::surface())
-                    .shadow_lg()
-                    .p_5()
-                    .on_mouse_down(gpui::MouseButton::Left, |_, _, cx| cx.stop_propagation())
-                    .child(content),
-            )
-            .into_any_element()
+        let catalog = self.automation_modal_frame(self.render_automation_catalog(cx), false, cx);
+        div().absolute().inset_0().child(catalog)
+            .when(self.automation_editor_open,|root|root.child(self.automation_modal_frame(self.render_automation_editor(cx),true,cx)))
+            .when(self.automation_action_dialog.is_some(),|root|root.child(self.render_automation_action_choice(cx))).into_any_element()
     }
 
-    fn render_automation_catalog(&self, cx: &mut Context<Self>) -> AnyElement {
-        let query = self
-            .automation_search_input
-            .read(cx)
-            .value()
-            .trim()
-            .to_lowercase();
-        let visible: Vec<Value> = self
-            .automations
-            .iter()
-            .filter(|item| {
-                let state = value_string(item, "state").unwrap_or_else(|| "draft".into());
-                let name = value_string(item, "name")
-                    .unwrap_or_default()
-                    .to_lowercase();
-                let slug = value_string(item, "slug")
-                    .unwrap_or_default()
-                    .to_lowercase();
-                let description = value_string(item, "description")
-                    .unwrap_or_default()
-                    .to_lowercase();
-                (self.automation_state_filter.is_none()
-                    || self.automation_state_filter.as_deref() == Some(state.as_str()))
-                    && (query.is_empty()
-                        || name.contains(&query)
-                        || slug.contains(&query)
-                        || description.contains(&query))
-            })
-            .cloned()
-            .collect();
-        div()
-            .flex()
-            .flex_col()
-            .flex_1()
-            .min_h_0()
-            .child(
-                div()
-                    .flex()
-                    .items_center()
-                    .gap_2()
-                    .child(icon(AleraIcon::Workflow, 18.0, theme::text_muted()))
-                    .child(
-                        div()
-                            .flex_1()
-                            .text_size(crate::theme::title_size())
-                            .font_weight(gpui::FontWeight::SEMIBOLD)
-                            .child("Automations"),
-                    )
-                    .child(
-                        design_system::button_with_leading_icon(
-                            "automation-new",
-                            "New Automation",
-                            ButtonKind::Filled,
-                            self.automation_action_busy,
-                            icon(AleraIcon::Add, 14.0, theme::on_accent()),
-                        )
-                        .on_click(cx.listener(|this, _, window, cx| {
-                            this.open_automation_editor(None, window, cx);
-                        })),
-                    )
-                    .child(
-                        design_system::icon_button(
-                            "automation-import",
-                            "Import",
-                            AleraIcon::Download,
-                            !self.automation_action_busy,
-                            30.0,
-                            None,
-                            None,
-                        )
-                        .on_click(cx.listener(|this, _, _, cx| this.automation_import(cx))),
-                    )
-                    .child(
-                        design_system::icon_button(
-                            "automation-export",
-                            "Export",
-                            AleraIcon::External,
-                            !self.automation_action_busy,
-                            30.0,
-                            None,
-                            None,
-                        )
-                        .on_click(cx.listener(|this, _, _, cx| this.automation_export(cx))),
-                    )
-                    .child(
-                        design_system::icon_button(
-                            "automation-close",
-                            "Close",
-                            AleraIcon::Close,
-                            true,
-                            30.0,
-                            None,
-                            None,
-                        )
-                        .on_click(cx.listener(|this, _, _, cx| this.close_automations_dialog(cx))),
-                    ),
-            )
-            .child(
-                div()
-                    .mt_4()
-                    .flex()
-                    .items_center()
-                    .gap_2()
-                    .child(
-                        div()
-                            .flex_1()
-                            .child(design_system::search_field(&self.automation_search_input, false)),
-                    )
-                    .child(self.automation_filter_button("All States", None, cx))
-                    .child(self.automation_filter_button("Draft", Some("draft"), cx))
-                    .child(self.automation_filter_button("Active", Some("active"), cx))
-                    .child(self.automation_filter_button("Paused", Some("paused"), cx))
-                    .child(
-                        div()
-                            .id("automation-trash-filter")
-                            .focusable()
-                            .tab_stop(true)
-                            .role(Role::CheckBox)
-                            .aria_label("Include Trash")
-                            .aria_toggled(if self.automation_include_trashed {
-                                Toggled::True
-                            } else {
-                                Toggled::False
-                            })
-                            .flex()
-                            .items_center()
-                            .gap_1()
-                            .cursor(CursorStyle::PointingHand)
-                            .on_click(cx.listener(|this, _, _, cx| {
-                                this.automation_include_trashed = !this.automation_include_trashed;
-                                this.load_automations(cx);
-                            }))
-                            .child(design_system::checkbox(self.automation_include_trashed, true, None))
-                            .child("Trash"),
-                    ),
-            )
-            .child(
-                div()
-                    .mt_4()
-                    .flex()
-                    .flex_1()
-                    .min_h_0()
-                    .gap_4()
-                    .child(
-                        div()
-                            .w(px(330.0))
-                            .flex_shrink_0()
-                            .min_h_0()
-                            .overflow_y_scrollbar()
-                            .rounded_lg()
-                            .border_1()
-                            .border_color(theme::border_subtle())
-                            .bg(theme::surface_selected())
-                            .when(self.automations_loading && self.automations.is_empty(), |list| {
-                                list.flex().items_center().justify_center().child(loading_indicator(22.0, theme::text_muted()))
-                            })
-                            .when(!self.automations_loading || !self.automations.is_empty(), |list| {
-                                let rows = visible
-                                    .iter()
-                                    .map(|item| self.render_automation_list_row(item, cx))
-                                    .collect::<Vec<_>>();
-                                list.children(rows)
-                            })
-                            .when(self.automations.is_empty() && !self.automations_loading, |list| {
-                                list.child(automation_empty_state("No Automations", "Create a schedule to run approved work in a runtime-owned target."))
-                            }),
-                    )
-                    .child(div().w(px(1.0)).h_full().bg(theme::border_subtle()))
-                    .child(div().flex_1().min_w_0().min_h_0().child(self.render_automation_detail(cx))),
-            )
-            .when_some(self.automations_error.clone(), |catalog, error| {
-                catalog.child(div().mt_2().text_size(crate::theme::body_size()).text_color(theme::danger()).child(error))
-            })
-            .into_any_element()
+    fn automation_modal_frame(&self, content: AnyElement, editor: bool, cx: &mut Context<Self>) -> AnyElement {
+        let content = div().w_full().min_w_0().flex().flex_col().flex_1().min_h_0().child(content);
+        let content = if editor || (!self.automation_editor_open && self.automation_action_dialog.is_none()) {
+            content.focus_trap(if editor { "automation-editor-focus" } else { "automations-dialog-focus" }, &self.automation_dialog_focus).into_any_element()
+        } else { content.into_any_element() };
+        let title = if editor { if self.automation_editor_id.is_some() { "Edit Automation" } else { "New Automation" } } else { "Automations" };
+        let view_epoch = self.automation_requests.view();
+        let editor_epoch = self.automation_editor.as_ref().map(|editor| editor.epoch);
+        automation_modal_surface(editor, title, content, cx.listener(move |this, _, window, cx| {
+            if !this.automation_requests.accepts_view(view_epoch) { return; }
+            if editor {
+                if this.automation_editor.as_ref().map(|editor| editor.epoch) == editor_epoch { this.cancel_automation_editor(window, cx); }
+            } else if !this.automation_editor_open && this.automation_action_dialog.is_none() {
+                this.close_automations_dialog(window, cx);
+            }
+        })).into_any_element()
     }
 
-    fn automation_filter_button(
-        &self,
-        label: &'static str,
-        state: Option<&'static str>,
-        cx: &mut Context<Self>,
-    ) -> gpui::Stateful<gpui::Div> {
-        let selected = self.automation_state_filter.as_deref() == state;
-        design_system::button(
-            SharedString::from(format!("automation-filter-{label}")),
-            label,
-            if selected {
-                ButtonKind::Elevated
-            } else {
-                ButtonKind::Text
-            },
-            false,
-        )
-        .on_click(cx.listener(move |this, _, _, cx| {
-            this.automation_state_filter = state.map(str::to_owned);
-            this.load_automations(cx);
-        }))
-    }
-
-    fn render_automation_list_row(
+    pub(super) fn render_automation_list_row(
         &self,
         item: &Value,
         cx: &mut Context<Self>,
@@ -702,7 +347,22 @@ impl AleraApp {
             )
     }
 
-    fn render_automation_detail(&self, cx: &mut Context<Self>) -> AnyElement {
+    pub(super) fn render_automation_detail(&self, cx: &mut Context<Self>) -> AnyElement {
+        if self.automation_detail_loading {
+            return div()
+                .flex()
+                .flex_1()
+                .items_center()
+                .justify_center()
+                .child(loading_indicator(22.0, theme::text_muted()))
+                .into_any_element();
+        }
+        if let Some(error) = self.automation_detail_error.clone() {
+            let id = self.automation_selected_id.clone();
+            return design_system::empty_state_with_action("automation-detail-error", AleraIcon::Error, Some("Automation Unavailable".into()), error,
+                Some(design_system::button("automation-detail-retry", "Retry", ButtonKind::Filled, false)
+                    .on_click(cx.listener(move |this, _, _, cx| { if let Some(id) = &id { if this.automation_selected_id.as_ref() == Some(id) { this.load_automation_detail(id.clone(), cx); } } })).into_any_element())).into_any_element();
+        }
         let Some(detail) = self.automation_detail.as_ref() else {
             return automation_empty_state(
                 "Select An Automation",
@@ -715,15 +375,6 @@ impl AleraApp {
                 "The runtime returned no automation definition.",
             );
         };
-        if self.automation_detail_loading {
-            return div()
-                .flex()
-                .flex_1()
-                .items_center()
-                .justify_center()
-                .child(loading_indicator(22.0, theme::text_muted()))
-                .into_any_element();
-        }
         let id = value_string(automation, "id").unwrap_or_default();
         let name = value_string(automation, "name").unwrap_or_else(|| "Automation".into());
         let state = value_string(automation, "state").unwrap_or_else(|| "draft".into());
@@ -731,16 +382,6 @@ impl AleraApp {
         let approved = value_i64(automation, "approvedRevision") == Some(revision);
         let can_pause = state == "active";
         let can_resume = state == "paused";
-        let runs = detail
-            .get("runs")
-            .and_then(Value::as_array)
-            .cloned()
-            .unwrap_or_default();
-        let audit = detail
-            .get("audit")
-            .and_then(Value::as_array)
-            .cloned()
-            .unwrap_or_default();
         let id_for_refresh = id.clone();
         let id_for_edit = id.clone();
         let id_for_approve = id.clone();
@@ -749,338 +390,39 @@ impl AleraApp {
         let id_for_resume = id.clone();
         let id_for_trash = id.clone();
         let id_for_restore = id.clone();
-        div()
-            .id("automation-detail")
-            .flex()
-            .flex_col()
-            .size_full()
-            .min_h_0()
+        super::automation_detail_view::detail_frame()
             .child(
                 div()
+                    .w_full().min_w_0()
                     .flex()
                     .items_center()
                     .gap_2()
-                    .child(div().flex_1().text_size(crate::theme::title_size()).font_weight(gpui::FontWeight::SEMIBOLD).child(name))
+                    .child(div().flex_1().min_w_0().text_size(px(14.0)).font_weight(gpui::FontWeight::MEDIUM).child(name))
                     .child(div().text_size(crate::theme::body_size()).text_color(theme::text_muted()).child(state.clone()))
-                    .child(design_system::icon_button("automation-refresh", "Refresh", AleraIcon::Refresh, true, 28.0, None, None).on_click(cx.listener(move |this, _, _, cx| this.load_automation_detail(id_for_refresh.clone(), cx))))
-                    .child(design_system::icon_button("automation-edit", "Edit", AleraIcon::Edit, !self.automation_action_busy, 28.0, None, None).on_click(cx.listener(move |this, _, window, cx| {
-                        if let Some(detail) = this.automation_detail.clone() { this.open_automation_editor(Some(detail), window, cx); }
-                        let _ = &id_for_edit;
+                    .child(design_system::icon_button("automation-refresh", "Refresh", AleraIcon::Refresh, true, 22.0, None, None).on_click(cx.listener(move |this, _, _, cx| this.load_automation_detail(id_for_refresh.clone(), cx))))
+                    .child(design_system::icon_button("automation-edit", "Edit", AleraIcon::Edit, !self.automation_action_busy, 22.0, None, None).on_click(cx.listener(move |this, _, window, cx| {
+                        if this.automation_selected_id.as_deref() != Some(id_for_edit.as_str()) { return; }
+                        if let Some(automation) = this.selected_automation().cloned() {
+                            this.open_automation_editor(Some(automation), window, cx);
+                        }
                     })))
-                    .child(design_system::icon_button("automation-clone", "Clone", AleraIcon::Duplicate, !self.automation_action_busy, 28.0, None, None).on_click(cx.listener(|this, _, window, cx| this.clone_selected_automation(window, cx)))),
+                    .child(design_system::icon_button("automation-clone", "Clone", AleraIcon::Duplicate, !self.automation_action_busy, 22.0, None, None).on_click(cx.listener(|this, _, window, cx| this.clone_selected_automation(window, cx)))),
             )
             .child(
                 div()
                     .mt_3()
-                    .flex()
+                    .flex().flex_wrap()
                     .gap_2()
                     .children([
-                        approved.then(|| design_system::button_with_leading_icon("automation-approved", "Approved", ButtonKind::Outlined, true, icon(AleraIcon::CheckCheck, 14.0, theme::success()))),
-                        (!approved).then(|| design_system::button_with_leading_icon("automation-approve", "Approve", ButtonKind::Filled, self.automation_action_busy, icon(AleraIcon::CheckCheck, 14.0, theme::on_accent())).on_click(cx.listener(move |this, _, _, cx| this.run_automation_request("automation.approve", json!({"id": id_for_approve.clone(), "revision": revision}), "Automation approved", cx)))),
-                        Some(design_system::button_with_leading_icon("automation-run-now", "Run Now", ButtonKind::Filled, self.automation_action_busy, icon(AleraIcon::Agent, 14.0, theme::on_accent())).on_click(cx.listener(move |this, _, _, cx| this.run_automation_request("automation.runNow", json!({"id": id_for_run.clone(), "precheck": true, "overlap": "skip", "draftTest": false}), "Automation run started", cx)))),
-                        can_pause.then(|| design_system::button("automation-pause", "Pause", ButtonKind::Outlined, self.automation_action_busy).on_click(cx.listener(move |this, _, _, cx| this.run_automation_request("automation.pause", json!({"id": id_for_pause.clone(), "activeRuns": "continue-active"}), "Automation paused", cx)))),
-                        can_resume.then(|| design_system::button("automation-resume", "Resume", ButtonKind::Outlined, self.automation_action_busy).on_click(cx.listener(move |this, _, _, cx| this.run_automation_request("automation.resume", json!({"id": id_for_resume.clone()}), "Automation resumed", cx)))),
+                        (!approved).then(|| design_system::button_with_leading_icon("automation-approve", "Approve", ButtonKind::Filled, self.automation_action_busy, icon(AleraIcon::ShieldCheck, 16.0, theme::on_accent())).on_click(cx.listener(move |this, _, _, cx| this.run_automation_request("automation.approve", json!({"id": id_for_approve.clone(), "revision": revision}), "Automation approved", cx)))),
+                        Some(design_system::button_with_leading_icon("automation-run-now", "Run Now", ButtonKind::Filled, self.automation_action_busy, icon(AleraIcon::Agent, 14.0, theme::on_accent())).on_click(cx.listener(move |this, _, window, cx| this.open_automation_action_choice(id_for_run.clone(), revision, super::automation_action_choice::ActionKind::RunNow, window, cx)))),
+                        can_pause.then(|| design_system::button("automation-pause", "Pause", ButtonKind::Outlined, self.automation_action_busy).on_click(cx.listener(move |this, _, window, cx| this.open_automation_action_choice(id_for_pause.clone(), revision, super::automation_action_choice::ActionKind::Pause, window, cx)))),
+                        (!can_pause).then(|| design_system::button("automation-resume", "Resume", ButtonKind::Outlined, self.automation_action_busy || !can_resume).on_click(cx.listener(move |this, _, _, cx| this.run_automation_request("automation.resume", json!({"id": id_for_resume.clone()}), "Automation resumed", cx)))),
                         (state != "trashed").then(|| design_system::button("automation-trash", "Trash", ButtonKind::Text, self.automation_action_busy).on_click(cx.listener(move |this, _, _, cx| this.run_automation_request("automation.trash", json!({"id": id_for_trash.clone()}), "Automation trashed", cx)))),
                         (state == "trashed").then(|| design_system::button("automation-restore", "Restore", ButtonKind::Text, self.automation_action_busy).on_click(cx.listener(move |this, _, _, cx| this.run_automation_request("automation.restore", json!({"id": id_for_restore.clone()}), "Automation restored", cx)))),
                     ].into_iter().flatten()),
             )
-            .child(
-                div()
-                    .mt_4()
-                    .flex()
-                    .flex_1()
-                    .min_h_0()
-                    .overflow_y_scrollbar()
-                    .child(
-                        div()
-                            .flex()
-                            .flex_col()
-                            .gap_3()
-                            .pb_4()
-                            .child(self.render_automation_info(automation))
-                            .child(self.render_automation_runs(&runs, cx))
-                            .child(self.render_automation_audit(&audit)),
-                    ),
-            )
-            .into_any_element()
-    }
-
-    fn render_automation_info(&self, automation: &Value) -> gpui::Div {
-        let schedule = nested_object(automation, "schedule", "recurring")
-            .or_else(|| nested_object(automation, "schedule", "oneTime"))
-            .unwrap_or_default();
-        let target = automation
-            .get("target")
-            .and_then(Value::as_object)
-            .and_then(|target| target.values().next())
-            .and_then(Value::as_object)
-            .cloned()
-            .unwrap_or_default();
-        let schedule_kind = if automation
-            .get("schedule")
-            .and_then(|value| value.get("recurring"))
-            .is_some()
-        {
-            "Recurring"
-        } else {
-            "One-time"
-        };
-        let target_kind = automation
-            .get("target")
-            .and_then(Value::as_object)
-            .and_then(|target| target.keys().next())
-            .map(|key| match key.as_str() {
-                "existingTab" => "Existing tab",
-                "managedWorkspace" => "Managed workspace",
-                _ => "Fresh tab",
-            })
-            .unwrap_or("Target");
-        let rows = [
-            ("Slug", value_string(automation, "slug").unwrap_or_default()),
-            (
-                "Schedule",
-                format!(
-                    "{schedule_kind} · {}",
-                    schedule
-                        .get("timezone")
-                        .and_then(Value::as_str)
-                        .unwrap_or("UTC")
-                ),
-            ),
-            (
-                "Cron / Time",
-                schedule
-                    .get("cron")
-                    .or_else(|| schedule.get("at"))
-                    .map(value_display)
-                    .unwrap_or_else(|| "Not set".into()),
-            ),
-            (
-                "Target",
-                format!(
-                    "{target_kind} · {}",
-                    target
-                        .get("workspaceId")
-                        .or_else(|| target.get("sourceWorkspaceId"))
-                        .map(value_display)
-                        .unwrap_or_else(|| "Not set".into())
-                ),
-            ),
-            (
-                "Policies",
-                format!(
-                    "Setup {} · Overlap {} · Misfire {} · Cleanup {}",
-                    value_string(automation, "setupPolicy").unwrap_or_else(|| "wait".into()),
-                    value_string(automation, "overlapPolicy").unwrap_or_else(|| "skip".into()),
-                    value_string(automation, "misfirePolicy").unwrap_or_else(|| "skip".into()),
-                    value_string(automation, "cleanupPolicy").unwrap_or_else(|| "preserve".into())
-                ),
-            ),
-            (
-                "Limits",
-                format!(
-                    "Queue {} · Inactivity {}s · Heartbeat {}s · Retries {}",
-                    value_i64(automation, "queueCap").unwrap_or(10),
-                    value_i64(automation, "inactivityTimeoutSeconds").unwrap_or(7200),
-                    value_i64(automation, "heartbeatIntervalSeconds").unwrap_or(60),
-                    value_i64(automation, "retryMaxAttempts").unwrap_or(3)
-                ),
-            ),
-            (
-                "Revision",
-                format!(
-                    "{}{}",
-                    value_i64(automation, "revision").unwrap_or_default(),
-                    if value_i64(automation, "approvedRevision")
-                        == value_i64(automation, "revision")
-                    {
-                        " · approved"
-                    } else {
-                        " · draft changes"
-                    }
-                ),
-            ),
-            (
-                "Description",
-                value_string(automation, "description").unwrap_or_default(),
-            ),
-            (
-                "Prompt",
-                value_string(automation, "promptTemplate").unwrap_or_default(),
-            ),
-        ];
-        div()
-            .rounded_lg()
-            .border_1()
-            .border_color(theme::border_subtle())
-            .bg(theme::surface_selected())
-            .p_3()
-            .child(
-                div()
-                    .font_weight(gpui::FontWeight::SEMIBOLD)
-                    .child("Overview"),
-            )
-            .children(
-                rows.into_iter()
-                    .filter(|(_, value)| !value.is_empty())
-                    .map(|(label, value)| automation_info_row(label, value)),
-            )
-    }
-
-    fn render_automation_runs(&self, runs: &[Value], cx: &mut Context<Self>) -> gpui::Div {
-        let mut panel = div()
-            .rounded_lg()
-            .border_1()
-            .border_color(theme::border_subtle())
-            .bg(theme::surface_selected())
-            .p_3()
-            .child(div().font_weight(gpui::FontWeight::SEMIBOLD).child("Runs"));
-        if runs.is_empty() {
-            return panel.child(
-                div()
-                    .mt_2()
-                    .text_size(crate::theme::body_size())
-                    .text_color(theme::text_muted())
-                    .child("No runs yet."),
-            );
-        }
-        for (index, run) in runs.iter().enumerate() {
-            let status = value_string(run, "status").unwrap_or_else(|| "pending".into());
-            let run_id = value_string(run, "id").unwrap_or_else(|| format!("run-{index}"));
-            let final_status = AUTOMATION_FINAL_RUN_STATUSES.contains(&status.as_str());
-            let target_identity = run
-                .get("targetIdentity")
-                .cloned()
-                .unwrap_or_else(|| json!({}));
-            let target_identity_for_wait = target_identity.clone();
-            let target_identity_for_extend = target_identity.clone();
-            let run_for_cancel = run_id.clone();
-            let run_for_wait = run_id.clone();
-            let run_for_extend = run_id.clone();
-            let mut row = div()
-                .mt_2()
-                .p_2()
-                .rounded_md()
-                .border_1()
-                .border_color(theme::border_subtle())
-                .child(div().text_size(crate::theme::body_size()).child(format!(
-                    "Run #{} · {status}",
-                    value_i64(run, "number").unwrap_or(0)
-                )))
-                .child(
-                    div()
-                        .mt_1()
-                        .text_size(crate::theme::caption_size())
-                        .text_color(theme::text_muted())
-                        .child(
-                            value_string(run, "summary")
-                                .or_else(|| value_string(run, "error"))
-                                .unwrap_or_default(),
-                        ),
-                );
-            if !final_status {
-                row = row.child(
-                    div()
-                        .mt_2()
-                        .flex()
-                        .gap_2()
-                        .child(design_system::button("automation-cancel-run", "Cancel", ButtonKind::Text, self.automation_action_busy).on_click(cx.listener(move |this, _, _, cx| this.run_automation_request("automation.cancel", json!({"run": run_for_cancel.clone(), "targetIdentity": target_identity.clone()}), "Automation cancellation requested", cx))))
-                        .when(status == "waitingForUser", |actions| {
-                            actions
-                                .child(design_system::button("automation-resume-waiting", "Resume Waiting", ButtonKind::Text, self.automation_action_busy).on_click(cx.listener(move |this, _, _, cx| this.run_automation_request("automation.wait", json!({"run": run_for_wait.clone(), "targetIdentity": target_identity_for_wait.clone(), "waiting": false}), "Waiting run resumed", cx))))
-                                .child(design_system::button("automation-extend-waiting", "Extend", ButtonKind::Text, self.automation_action_busy).on_click(cx.listener(move |this, _, _, cx| this.run_automation_request("automation.extend", json!({"run": run_for_extend.clone(), "targetIdentity": target_identity_for_extend.clone(), "seconds": 3600}), "Waiting run extended", cx))))
-                        }),
-                );
-            }
-            panel = panel.child(row);
-        }
-        panel
-    }
-
-    fn render_automation_audit(&self, events: &[Value]) -> gpui::Div {
-        let mut panel = div()
-            .rounded_lg()
-            .border_1()
-            .border_color(theme::border_subtle())
-            .bg(theme::surface_selected())
-            .p_3()
-            .child(div().font_weight(gpui::FontWeight::SEMIBOLD).child("Audit"));
-        if events.is_empty() {
-            return panel.child(
-                div()
-                    .mt_2()
-                    .text_size(crate::theme::body_size())
-                    .text_color(theme::text_muted())
-                    .child("No audit events yet."),
-            );
-        }
-        for event in events {
-            panel = panel.child(
-                div()
-                    .mt_2()
-                    .text_size(crate::theme::body_size())
-                    .child(value_string(event, "action").unwrap_or_else(|| "Event".into()))
-                    .child(
-                        div()
-                            .mt_1()
-                            .text_size(crate::theme::caption_size())
-                            .text_color(theme::text_muted())
-                            .child(format!(
-                                "{} · {}",
-                                value_string(event, "createdAt").unwrap_or_default(),
-                                value_string(event, "actor").unwrap_or_default()
-                            )),
-                    ),
-            );
-        }
-        panel
-    }
-
-    fn render_automation_editor(&self, cx: &mut Context<Self>) -> AnyElement {
-        div()
-            .flex()
-            .flex_col()
-            .flex_1()
-            .min_h_0()
-            .child(
-                div()
-                    .flex()
-                    .items_center()
-                    .child(div().flex_1().text_size(crate::theme::title_size()).font_weight(gpui::FontWeight::SEMIBOLD).child(if self.automation_editor_id.is_some() { "Edit Automation" } else { "New Automation" }))
-                    .child(design_system::icon_button("close-automation-editor", "Close", AleraIcon::Close, true, 30.0, None, None).on_click(cx.listener(|this, _, _, cx| { this.automation_editor_open = false; this.automation_editor_error = None; cx.notify(); }))),
-            )
-            .child(
-                div()
-                    .mt_4()
-                    .flex_1()
-                    .min_h_0()
-                    .overflow_y_scrollbar()
-                    .child(
-                        div()
-                            .flex()
-                            .flex_col()
-                            .gap_3()
-                            .pb_4()
-                            .child(design_system::text_field(&self.automation_editor_name_input).label("Name"))
-                            .child(design_system::text_field(&self.automation_editor_slug_input).label("Slug"))
-                            .child(design_system::text_field(&self.automation_editor_description_input).label("Description"))
-                            .child(div().child(div().mb_1().text_size(crate::theme::body_size()).text_color(theme::text_muted()).child("Prompt Template")).h(px(110.0)).child(Textarea::new(&self.automation_editor_prompt_input).h_full()))
-                            .child(design_system::text_field(&self.automation_editor_cron_input).label("Five-field Cron"))
-                            .child(design_system::text_field(&self.automation_editor_workspace_input).label("Workspace ID"))
-                            .child(design_system::text_field(&self.automation_editor_profile_input).label("Agent Profile ID"))
-                            .child(div().text_size(crate::theme::caption_size()).text_color(theme::text_muted()).child("This GPUI editor creates a recurring fresh-tab automation. Existing definitions retain their complete runtime policies when edited."))
-                            .when_some(self.automation_editor_error.clone(), |form, error| form.child(div().text_size(crate::theme::body_size()).text_color(theme::danger()).child(error))),
-                    ),
-            )
-            .child(
-                div()
-                    .mt_4()
-                    .flex()
-                    .justify_end()
-                    .gap_2()
-                    .child(design_system::button("cancel-automation-editor", "Cancel", ButtonKind::Text, self.automation_action_busy).on_click(cx.listener(|this, _, _, cx| { if !this.automation_action_busy { this.automation_editor_open = false; this.automation_editor_error = None; cx.notify(); } })))
-                    .child(design_system::button_with_loading("save-automation-editor", if self.automation_action_busy { "Saving" } else { "Save Automation" }, ButtonKind::Filled, self.automation_action_busy, self.automation_action_busy).on_click(cx.listener(|this, _, window, cx| this.save_automation_editor(window, cx)))),
-            )
+            .child(self.render_automation_detail_tabs(detail, cx))
             .into_any_element()
     }
 
@@ -1624,15 +966,6 @@ fn policy_group(title: &'static str, description: &'static str) -> gpui::Div {
         )
 }
 
-fn set_input_value(
-    input: &Entity<InputState>,
-    value: String,
-    window: &mut Window,
-    cx: &mut Context<AleraApp>,
-) {
-    input.update(cx, |input, cx| input.set_value(value, window, cx));
-}
-
 fn value_string(value: &Value, key: &str) -> Option<String> {
     value.get(key).and_then(Value::as_str).map(str::to_owned)
 }
@@ -1647,54 +980,23 @@ fn value_bool(value: &Value, key: &str) -> bool {
     value.get(key).and_then(Value::as_bool).unwrap_or(false)
 }
 
-fn nested_string(value: &Value, outer: &str, inner: &str, key: &str) -> Option<String> {
-    value
-        .get(outer)?
-        .get(inner)?
-        .get(key)?
-        .as_str()
-        .map(str::to_owned)
-}
-
-fn nested_object(value: &Value, outer: &str, inner: &str) -> Option<Map<String, Value>> {
-    value.get(outer)?.get(inner)?.as_object().cloned()
-}
-
-fn target_string(value: &Value, keys: &[&str]) -> Option<String> {
-    let target = value
-        .get("target")?
-        .as_object()?
-        .values()
-        .next()?
-        .as_object()?;
-    keys.iter()
-        .find_map(|key| target.get(*key).and_then(Value::as_str).map(str::to_owned))
-}
-
-fn value_display(value: &Value) -> String {
-    value
-        .as_str()
-        .map(str::to_owned)
-        .unwrap_or_else(|| value.to_string())
-}
-
 fn format_timestamp() -> String {
     chrono::Utc::now().to_rfc3339()
 }
 
-fn automation_info_row(label: &'static str, value: String) -> gpui::Div {
-    div()
-        .flex()
-        .items_start()
-        .py_1()
-        .child(
-            div()
-                .w(px(135.0))
-                .text_size(px(11.0))
-                .text_color(theme::text_muted())
-                .child(label),
-        )
-        .child(div().flex_1().text_size(px(12.0)).child(value))
+pub(super) fn automation_modal_surface(editor:bool,title:&'static str,content:AnyElement,on_dismiss:impl Fn(&gpui::MouseDownEvent,&mut Window,&mut gpui::App)+'static)->gpui::Div{
+    // Outside-capture handlers reach lower modals first. Decide on the
+    // bubbled backdrop hit without consuming interior text-selection events.
+    let bounds=std::rc::Rc::new(std::cell::Cell::new(gpui::Bounds::default()));
+    let hit_bounds=bounds.clone();
+    div().absolute().inset_0().occlude().flex().items_center().justify_center().bg(theme::overlay_scrim()).p(px(32.0))
+        .on_mouse_down(gpui::MouseButton::Left,move|event,window,cx|{
+            if !hit_bounds.get().contains(&event.position){on_dismiss(event,window,cx);cx.stop_propagation();}
+        })
+        .child(div().id(if editor{"automation-editor-dialog"}else{"automations-dialog"}).role(Role::Dialog).aria_label(title).relative()
+            .w(px(if editor{560.0}else{1180.0})).h(px(if editor{520.0}else{720.0})).max_w_full().max_h_full().flex().flex_col()
+            .rounded_xl().border_1().border_color(theme::border_subtle()).bg(theme::surface()).shadow_lg().p(px(19.0)).child(content)
+            .child(gpui::canvas(move|measured,_,_|bounds.set(measured),|_,_,_,_|{}).absolute().top_0().left_0().size_full()))
 }
 
 fn automation_empty_state(title: &'static str, message: &'static str) -> AnyElement {

@@ -73,6 +73,9 @@ impl AleraApp {
             WorkspacePromptDropdown::Project | WorkspacePromptDropdown::ParentWorkspace => false,
         };
         design_system::dropdown_trigger_with_loading(id, value, expanded, enabled, loading)
+            .when(dropdown == WorkspacePromptDropdown::AgentProfile && self.workspace_selected_agent_profile_id.is_none(), |trigger| {
+                trigger.text_color(theme::text_muted())
+            })
             .when(enabled, |trigger| {
                 trigger.on_click(cx.listener(move |this, _, window, cx| {
                     let opening = !expanded;
@@ -229,7 +232,7 @@ impl AleraApp {
                                 .text_size(crate::theme::caption_size())
                                 .text_color(theme::text_muted())
                                 .child(if dropdown == WorkspacePromptDropdown::AgentProfile {
-                                    "Create An Agent Profile In Settings"
+                                    "Create an agent profile in settings"
                                 } else {
                                     "No Matching Options"
                                 }),
@@ -436,12 +439,24 @@ impl AleraApp {
                     .find(|profile| profile.id == selected)
             })
             .map(|profile| profile.name.clone())
-            .unwrap_or_else(|| {
-                if self.workspace_profiles_loading {
-                    "Loading Agent Profiles".to_owned()
-                } else {
-                    "Create An Agent Profile In Settings".to_owned()
-                }
-            })
+            .unwrap_or_else(|| agent_profile_placeholder(self.workspace_profiles_loading, !self.workspace_agent_profiles.is_empty()).to_owned())
+    }
+}
+
+fn agent_profile_placeholder(loading: bool, has_profiles: bool) -> &'static str {
+    match (loading, has_profiles) {
+        (true, _) => "Loading agent profiles",
+        (false, true) => "Select Agent Profile",
+        (false, false) => "Create an agent profile in settings",
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn workspace_profile_placeholder_distinguishes_empty_and_unselected() {
+        assert_eq!(super::agent_profile_placeholder(false, false), "Create an agent profile in settings");
+        assert_eq!(super::agent_profile_placeholder(false, true), "Select Agent Profile");
+        assert_eq!(super::agent_profile_placeholder(true, true), "Loading agent profiles");
     }
 }

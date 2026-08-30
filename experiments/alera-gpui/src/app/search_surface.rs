@@ -154,6 +154,8 @@ impl AleraApp {
     }
 
     pub(super) fn request_replace(&mut self, match_ids: Vec<String>, cx: &mut Context<Self>) {
+        if self.search_replacing || self.snapshot.selected_workspace_id != self.selected_workspace_id { return; }
+        let Some(workspace_id) = self.selected_workspace_id.clone() else { return; };
         let Some(options) = self.current_search_options(cx) else {
             self.search_error = Some("Enter A Search Query".into());
             self.search_error_is_query_failure = false;
@@ -170,27 +172,16 @@ impl AleraApp {
         let replacement = self.replace_input.read(cx).value().to_string();
         let replace_all = match_ids.is_empty();
 
-        // Flutter refuses a replace before the confirmation step when one of the
-        // affected files is already dirty in an editor. GPUI currently keeps one
-        // active editor document, so use that document as the same guard rather
-        // than allowing the confirmation toast to hide the data-loss warning.
-        if self.editor_dirty {
-            if let Some(opened_path) = self.opened_file_path.as_ref() {
-                let affects_dirty_file = self.search_results.files.iter().any(|file| {
-                    file.relative_path == *opened_path
-                        && (replace_all
-                            || file.matches.iter().any(|item| match_ids.contains(&item.id)))
-                });
-                if affects_dirty_file {
-                    let message: SharedString =
-                        format!("Save or discard {opened_path} before replacing.").into();
-                    self.local_message = Some(message.clone());
-                    self.search_error = Some(message);
-                    self.search_error_is_query_failure = false;
-                    cx.notify();
-                    return;
-                }
-            }
+        let affected_paths = self.search_results.files.iter()
+            .filter(|file| replace_all || file.matches.iter().any(|item| match_ids.contains(&item.id)))
+            .map(|file| file.relative_path.clone()).collect::<BTreeSet<_>>();
+        if let Some(message) = self.replacement_blocker(&workspace_id, &affected_paths, cx) {
+            let message: SharedString = message.into();
+            self.local_message = Some(message.clone());
+            self.search_error = Some(message);
+            self.search_error_is_query_failure = false;
+            cx.notify();
+            return;
         }
 
         let expected_files = self
@@ -217,6 +208,7 @@ impl AleraApp {
         self.search_replacing = true;
         let service = self.workspace_service.clone();
         let preserve_case = self.search_preserve_case;
+        let workspace_path = options.workspace_path.clone();
         cx.spawn(async move |this, cx| {
             // Use the exact matches and content tokens from the visible preview.
             // Recomputing the preview here would hide edits made before confirmation.
@@ -233,6 +225,11 @@ impl AleraApp {
                 return;
             };
             this.update(cx, |this, cx| {
+                // Disk mutation completion belongs to its documents even if
+                // the user changed the query or workspace while it ran.
+                if result.is_ok() {
+                    this.reload_replaced_editors(&workspace_id, &workspace_path, &affected_paths, cx);
+                }
                 if generation != this.search_generation {
                     return;
                 }
@@ -877,6 +874,7 @@ pub(super) fn search_toggle(
         .justify_center()
         .w(px(24.0))
         .h(px(24.0))
+        .flex_shrink_0()
         .rounded(px(4.0))
         .text_size(px(11.0))
         .font_weight(if selected {

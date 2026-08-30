@@ -16,9 +16,6 @@ impl SettingsSelectOption {
         }
     }
 
-    pub(super) fn as_str(&self) -> &str {
-        self.value.as_ref()
-    }
 }
 
 impl SelectItem for SettingsSelectOption {

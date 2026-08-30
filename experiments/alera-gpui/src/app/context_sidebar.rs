@@ -227,7 +227,7 @@ impl AleraApp {
             .child(
                 panel_toolbar_button("explorer-save-all", AleraIcon::Save, "Save all files")
                     .on_click(cx.listener(|this, _, _, cx| {
-                        this.save_editor(false, cx);
+                        this.save_all_editors(cx);
                     })),
             )
             .child(

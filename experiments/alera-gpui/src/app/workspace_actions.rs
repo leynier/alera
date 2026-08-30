@@ -157,6 +157,19 @@ impl AleraApp {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
+        let project_id = self.selected_workspace_id.as_deref()
+            .and_then(|workspace_id| self.snapshot.project_for_workspace(workspace_id))
+            .map(|project| project.id.clone())
+            .or_else(|| self.active_project_id.clone());
+        self.open_new_workspace_dialog_for_project(project_id, window, cx);
+    }
+
+    pub(super) fn open_new_workspace_dialog_for_project(
+        &mut self,
+        project_id: Option<String>,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
         if !self
             .snapshot
             .projects
@@ -167,11 +180,9 @@ impl AleraApp {
             cx.notify();
             return;
         }
-        let project = self
-            .selected_workspace_id
-            .as_deref()
-            .and_then(|workspace_id| self.snapshot.project_for_workspace(workspace_id))
-            .filter(|project| project.kind == "gitRepository")
+        let project = self.snapshot.projects.iter().find(|project| {
+                project_id.as_deref() == Some(project.id.as_str()) && project.kind == "gitRepository"
+            })
             .or_else(|| self.workspace_prompt_projects().into_iter().next());
         self.selected_workspace_project_id = project.map(|project| project.id.clone());
         self.selected_workspace_source_branch = Some("main".to_string());
@@ -194,6 +205,8 @@ impl AleraApp {
         self.workspace_prompt_agent_launch_mutation_id = None;
         self.workspace_prompt_original_agent_launch_idempotent = None;
         self.show_new_workspace_dialog = true;
+        self.workspace_prompt_scroll_handle.set_offset(gpui::point(gpui::px(0.0), gpui::px(0.0)));
+        self.workspace_prompt_input.update(cx, |input, cx| input.set_value("", window, cx));
         self.error = None;
         self.load_workspace_prompt_profiles(cx);
         if let Some(project_id) = self.selected_workspace_project_id.clone() {
@@ -285,6 +298,7 @@ impl AleraApp {
         cx: &mut Context<Self>,
     ) {
         self.new_workspace_mode = mode;
+        self.workspace_prompt_scroll_handle.set_offset(gpui::point(gpui::px(0.0), gpui::px(0.0)));
         self.new_workspace_step = NewWorkspaceStep::Entry;
         self.error = None;
         cx.notify();

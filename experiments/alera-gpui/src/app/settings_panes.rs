@@ -1,7 +1,7 @@
 use gpui::{
     div, prelude::FluentBuilder as _, px, rgb, AnyElement, AppContext as _, Context, CursorStyle,
-    DragMoveEvent, Empty, Entity, InteractiveElement as _, IntoElement, MouseButton,
-    MouseDownEvent, ParentElement as _, Role, SharedString, StatefulInteractiveElement as _,
+    Entity, InteractiveElement as _, IntoElement,
+    ParentElement as _, Role, SharedString, StatefulInteractiveElement as _,
     Styled as _, Toggled,
 };
 use gpui_component::input::{InputState, Textarea, TextareaState};
@@ -12,7 +12,7 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use super::settings_select_option::SettingsSelectOption;
 use super::settings_state::{GitHubStarState, SettingsState};
-use super::{AleraApp, ResizeDrag, SettingsGroupAnchors, SettingsMasterResizeTarget};
+use super::{AleraApp, SettingsGroupAnchors, SettingsMasterResizeTarget};
 use crate::activity::SettingsPane;
 use crate::{
     design_system,
@@ -26,7 +26,7 @@ type SettingsInputs = BTreeMap<String, Entity<InputState>>;
 type SettingsTextareas = BTreeMap<String, Entity<TextareaState>>;
 
 impl AleraApp {
-    pub(super) fn render_settings_pane(&self, cx: &mut Context<Self>) -> AnyElement {
+    pub(super) fn render_settings_pane(&self, window: &mut gpui::Window, cx: &mut Context<Self>) -> AnyElement {
         self.settings_scroll_last_offset
             .set(self.settings_scroll_handle.offset().y);
         let content = match self.settings_pane {
@@ -69,7 +69,7 @@ impl AleraApp {
                 &self.settings_group_anchors,
                 cx,
             ),
-            SettingsPane::TextActions => self.render_text_actions_settings_pane(cx),
+            SettingsPane::TextActions => self.render_text_actions_settings_pane(window, cx),
             SettingsPane::Editor => editor_pane(
                 &self.editor_theme_search_input,
                 &self.settings_inputs,
@@ -154,7 +154,7 @@ impl AleraApp {
                         .child(message),
                 )
             });
-        if self.settings_pane == SettingsPane::AgentProfiles {
+        if matches!(self.settings_pane, SettingsPane::AgentProfiles | SettingsPane::TextActions) {
             pane.flex_1().min_h_0().overflow_hidden().into_any_element()
         } else {
             let scroll_handle = self.settings_scroll_handle.clone();

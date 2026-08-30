@@ -12,6 +12,14 @@ use gpui_component::{
 use crate::{icons::loading_indicator, theme};
 
 mod controls;
+mod empty_state;
+pub use empty_state::{empty_state, empty_state_with_action};
+#[cfg(all(test, feature = "gpui-tests"))]
+mod control_geometry_tests;
+mod text_area;
+mod selectable_text;
+pub use selectable_text::AleraSelectableText;
+pub use text_area::AleraTextArea;
 #[cfg(all(test, feature = "gpui-tests"))]
 mod theme_tests;
 #[cfg(all(test, feature = "gpui-tests"))]
@@ -49,7 +57,7 @@ pub fn configure_component_theme(cx: &mut gpui::App) {
     colors.ring = theme::accent().into();
     colors.caret = theme::text().into();
     colors.muted = theme::surface_raised().into();
-    colors.muted_foreground = theme::text_faint().into();
+    colors.muted_foreground = theme::text_muted().into();
     colors.popover = theme::surface().into();
     colors.popover_foreground = theme::text().into();
     colors.primary = theme::accent().into();
@@ -61,7 +69,7 @@ pub fn configure_component_theme(cx: &mut gpui::App) {
     colors.danger = theme::danger().into();
     colors.danger_foreground = theme::on_danger().into();
     colors.link = theme::info().into();
-    colors.selection = theme::text_selection().into();
+    colors.selection = theme::ui_text_selection().into();
     colors.sidebar = theme::surface_selected().into();
     colors.sidebar_border = theme::border_subtle().into();
     colors.table = theme::app_background().into();
@@ -376,7 +384,10 @@ pub fn button_with_loading_and_leading_icon(
         .items_center()
         .justify_center()
         .min_w(px(0.0))
-        .h(px(34.0))
+        .h(px(match kind {
+            ButtonKind::Filled | ButtonKind::Outlined | ButtonKind::Destructive => 26.0,
+            ButtonKind::Text | ButtonKind::Elevated => 32.0,
+        }))
         .px(px(match kind {
             ButtonKind::Outlined => 24.0,
             ButtonKind::Text => 12.0,
@@ -386,12 +397,12 @@ pub fn button_with_loading_and_leading_icon(
         .text_size(px(13.0))
         .font_weight(gpui::FontWeight::MEDIUM)
         .bg(if disabled {
-            theme::surface_raised()
+            if filled || elevated { theme::disabled_control_background() } else { theme::transparent() }
         } else {
             background
         })
         .text_color(if disabled {
-            theme::text_faint()
+            theme::disabled_control_foreground()
         } else {
             foreground
         })
@@ -411,7 +422,7 @@ pub fn button_with_loading_and_leading_icon(
     if loading {
         button = button.child(loading_indicator(14.0, theme::text_faint()));
     } else if let Some(leading) = leading {
-        button = button.child(div().mr(px(6.0)).child(leading));
+        button = button.child(div().mr(px(8.0)).child(leading));
     }
     button.child(label)
 }

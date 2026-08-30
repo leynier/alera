@@ -156,6 +156,8 @@ impl AleraApp {
         let accessibility_name = format!("Toggle {name}");
         div()
             .id(SharedString::from(format!("search-directory-{path}")))
+            .w_full()
+            .min_w_0()
             .focusable()
             .tab_stop(true)
             .role(Role::Button)
@@ -234,6 +236,8 @@ impl AleraApp {
                 "search-file-{}",
                 file.relative_path
             )))
+            .w_full()
+            .min_w_0()
             .focusable()
             .tab_stop(true)
             .role(Role::Button)
@@ -276,10 +280,12 @@ impl AleraApp {
                     .items_center()
                     .gap_2()
                     .flex_1()
+                    .min_w_0()
                     .overflow_hidden()
                     .child(
                         div()
-                            .flex_shrink_0()
+                            .min_w_0()
+                            .text_ellipsis()
                             .text_size(px(12.0))
                             .font_weight(FontWeight::SEMIBOLD)
                             .child(name),
@@ -337,62 +343,27 @@ impl AleraApp {
         let can_replace = self.search_replace_expanded && !self.search_busy;
         let preview = styled_match_preview(&item, self.search_replace_expanded);
         let accessibility_name = format!("Open {path} line {line}");
-        div()
-            .id(SharedString::from(format!(
-                "search-match-{path}-{match_id}"
-            )))
+        let row_id = SharedString::from(format!("search-match-{path}-{match_id}"));
+        let action = super::search_surface::search_icon_button(
+            SharedString::from(format!("replace-search-match-{path}-{match_id}")),
+            AleraIcon::Replace, can_replace, false, "Replace match",
+        ).when(can_replace, |button| {
+            button.on_click(cx.listener(move |this, _, _, cx| {
+                this.request_replace(vec![match_id.clone()], cx);
+                cx.stop_propagation();
+            }))
+        }).into_any_element();
+        super::search_result_layout::match_row(line, preview, action, depth)
+            .id(row_id)
             .focusable()
             .tab_stop(true)
             .role(Role::Button)
             .aria_label(accessibility_name)
-            .flex()
-            .items_start()
-            .pt(px(4.0))
-            .pb(px(6.0))
-            .pr_2()
-            .pl(px(8.0 + depth as f32 * 16.0))
             .cursor(CursorStyle::PointingHand)
             .hover(|style| style.bg(theme::surface_selected()))
             .on_click(cx.listener(move |this, _, window, cx| {
                 this.open_search_match(open_path.clone(), line, column, match_length, window, cx);
             }))
-            .child(
-                div()
-                    .w(px(32.0))
-                    .text_align(gpui::TextAlign::Right)
-                    .font_family("JetBrains Mono")
-                    .text_size(px(12.0))
-                    .text_color(theme::text_faint())
-                    .child(item.line.to_string()),
-            )
-            .child(div().w(px(6.0)))
-            .child(
-                div()
-                    .flex_1()
-                    .max_h(px(32.0))
-                    .overflow_hidden()
-                    .font_family("JetBrains Mono")
-                    .text_size(px(12.0))
-                    .line_height(px(16.0))
-                    .text_color(theme::text_muted())
-                    .child(preview),
-            )
-            .child(div().w(px(4.0)))
-            .child(
-                super::search_surface::search_icon_button(
-                    SharedString::from(format!("replace-search-match-{path}-{match_id}")),
-                    AleraIcon::Replace,
-                    can_replace,
-                    false,
-                    "Replace match",
-                )
-                .when(can_replace, |button| {
-                    button.on_click(cx.listener(move |this, _, _, cx| {
-                        this.request_replace(vec![match_id.clone()], cx);
-                        cx.stop_propagation();
-                    }))
-                }),
-            )
             .into_any_element()
     }
 }

@@ -75,7 +75,7 @@ impl AleraApp {
             .items_center()
             .justify_end()
             .gap_2()
-            .mt_4()
+            .mt(gpui::px(20.0))
             .when(self.workspace_creation_busy, |row| {
                 row.child(loading_indicator(16.0, theme::text_muted()))
                     .child(

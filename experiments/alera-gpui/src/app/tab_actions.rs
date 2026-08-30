@@ -897,13 +897,15 @@ impl AleraApp {
         {
             let editor_input = self.editor_input_for_path(&path);
             let text = editor_input.read(cx).value().to_string();
-            self.editor_buffer_text.insert(path.clone(), text);
+            let dirty = self.editor_documents.get(&path).is_some_and(|document| document.display_content != text);
             let cursor = editor_input.read(cx).cursor_position();
             self.editor_cursor_positions
                 .insert(path.clone(), (cursor.line, cursor.character));
-            if self.editor_dirty {
+            if dirty {
+                self.editor_buffer_text.insert(path.clone(), text);
                 self.editor_dirty_paths.insert(path.clone());
             } else {
+                self.editor_buffer_text.remove(&path);
                 self.editor_dirty_paths.remove(&path);
             }
         }

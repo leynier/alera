@@ -60,11 +60,7 @@ pub fn dropdown_field_with_loading(
         .gap(px(8.0))
         .rounded_md()
         .border_1()
-        .border_color(if expanded && enabled {
-            theme::accent()
-        } else {
-            theme::border()
-        })
+        .border_color(theme::border())
         .bg(theme::surface_selected())
         .text_size(px(13.0))
         .text_color(if enabled {
@@ -182,9 +178,9 @@ pub fn switch(enabled: bool, interactive: bool) -> gpui::Div {
         .items_center()
         .w(px(52.0))
         .h(px(32.0))
-        .p(px(4.0))
+        .px(px(if enabled { 2.0 } else { 6.0 }))
         .rounded_full()
-        .border_1()
+        .border_2()
         .border_color(if enabled {
             theme::accent()
         } else {
@@ -193,15 +189,15 @@ pub fn switch(enabled: bool, interactive: bool) -> gpui::Div {
         .bg(if enabled {
             theme::accent()
         } else {
-            theme::surface_raised()
+            theme::surface_selected()
         })
         .when(interactive, |control| {
             control.cursor(CursorStyle::PointingHand)
         })
         .child(
             div()
-                .w(px(24.0))
-                .h(px(24.0))
+                .w(px(if enabled { 24.0 } else { 16.0 }))
+                .h(px(if enabled { 24.0 } else { 16.0 }))
                 .rounded_full()
                 .bg(if enabled {
                     theme::on_accent()

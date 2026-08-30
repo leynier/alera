@@ -69,6 +69,7 @@ pub(super) enum SettingsMasterResizeTarget {
     Projects,
     AgentProfiles,
     TextActions,
+    Automations,
 }
 
 #[derive(Clone, Copy, Debug)]

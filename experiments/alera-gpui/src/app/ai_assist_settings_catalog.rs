@@ -109,26 +109,6 @@ const COPILOT_MODELS: &[AiAssistModel] = &[
     model("gpt-5.4-mini", "GPT-5.4 Mini", OPENAI_THINKING, Some("low")),
 ];
 const CURSOR_MODELS: &[AiAssistModel] = &[model("auto", "Auto", &[], None)];
-const AGY_MODELS: &[AiAssistModel] = &[
-    model(
-        "Gemini 3.5 Flash (Medium)",
-        "Gemini 3.5 Flash (Medium)",
-        &[],
-        None,
-    ),
-    model(
-        "Gemini 3.5 Flash (High)",
-        "Gemini 3.5 Flash (High)",
-        &[],
-        None,
-    ),
-    model(
-        "Gemini 3.5 Flash (Low)",
-        "Gemini 3.5 Flash (Low)",
-        &[],
-        None,
-    ),
-];
 const OPENCODE_MODELS: &[AiAssistModel] = &[model(
     "opencode/deepseek-v4-flash-free",
     "OpenCode DeepSeek V4 Flash Free",
@@ -193,7 +173,7 @@ pub(super) fn models_for(agent: &str) -> &'static [AiAssistModel] {
         "codex" => CODEX_MODELS,
         "copilot" => COPILOT_MODELS,
         "cursor" => CURSOR_MODELS,
-        "agy" => AGY_MODELS,
+        "agy" => &[],
         "opencode" | "opencode2" => OPENCODE_MODELS,
         "pi" => PI_MODELS,
         "amp" => AMP_MODELS,
@@ -216,12 +196,28 @@ pub(super) fn default_model(agent: &str) -> &'static str {
         "amp" => "smart",
         "grok" => "grok-4.6",
         "fx" => "",
-        _ => "",
+        _ => "custom",
     }
 }
 
 pub(super) fn model_choices(settings: &SettingsState, agent: &str) -> Vec<AiAssistModelChoice> {
-    let mut models = models_for(agent)
+    let mut models = Vec::new();
+    if model_can_inherit(agent) {
+        models.push(AiAssistModelChoice { id: String::new(), label: "Agent Default".into(), thinking_levels: Vec::new(), default_thinking: None });
+    }
+    // Flutter deduplicates discovered entries first, retaining their order and metadata.
+    if let Some(discovered) = settings.ai_assist_discovered_models_by_agent.get(agent) {
+        for discovered in discovered {
+            if !models.iter().any(|model| model.id == discovered.id) {
+                models.push(AiAssistModelChoice {
+                    id: discovered.id.clone(), label: discovered.label.clone(),
+                    thinking_levels: discovered.thinking_levels.iter().map(|level| (level.id.clone(), level.label.clone())).collect(),
+                    default_thinking: discovered.default_thinking_level.clone(),
+                });
+            }
+        }
+    }
+    for choice in models_for(agent)
         .iter()
         .map(|model| AiAssistModelChoice {
             id: model.id.to_string(),
@@ -233,39 +229,31 @@ pub(super) fn model_choices(settings: &SettingsState, agent: &str) -> Vec<AiAssi
                 .collect(),
             default_thinking: model.default_thinking.map(str::to_string),
         })
-        .collect::<Vec<_>>();
-    if let Some(discovered) = settings.ai_assist_discovered_models_by_agent.get(agent) {
-        for discovered in discovered {
-            let choice = AiAssistModelChoice {
-                id: discovered.id.clone(),
-                label: discovered.label.clone(),
-                thinking_levels: discovered
-                    .thinking_levels
-                    .iter()
-                    .map(|level| (level.id.clone(), level.label.clone()))
-                    .collect(),
-                default_thinking: discovered.default_thinking_level.clone(),
-            };
-            if let Some(existing) = models.iter_mut().find(|model| model.id == choice.id) {
-                *existing = choice;
-            } else {
-                models.push(choice);
-            }
+    {
+        if !models.iter().any(|model| model.id == choice.id) {
+            models.push(choice);
         }
     }
     models
+}
+
+fn model_can_inherit(agent: &str) -> bool {
+    matches!(agent, "agy" | "fx")
 }
 
 pub(super) fn selected_model_id(settings: &SettingsState, agent: &str) -> String {
     settings
         .ai_assist_selected_model_by_agent
         .get(agent)
-        .cloned()
+        .map(|id| id.trim().to_owned())
+        .filter(|id| !id.is_empty())
         .or_else(|| {
+            if model_can_inherit(agent) { return None; }
             settings
                 .ai_assist_discovered_default_model_by_agent
                 .get(agent)
-                .cloned()
+                .map(|id| id.trim().to_owned())
+                .filter(|id| !id.is_empty())
         })
         .unwrap_or_else(|| default_model(agent).to_string())
 }
@@ -277,6 +265,38 @@ mod tests {
     use super::{
         instruction_key, instruction_values, SettingsState, GROUP_TITLES, PROMPT_OPERATIONS,
     };
+
+    #[test]
+    fn ai_assist_model_catalog_preserves_discovery_order_and_first_metadata() {
+        let mut settings = SettingsState::default();
+        settings.ai_assist_discovered_models_by_agent.insert("codex".into(), serde_json::from_value(serde_json::json!([
+            {"id":"new-model","label":"New Model"},
+            {"id":"gpt-5.4","label":"Discovered 5.4","defaultThinkingLevel":"medium"},
+            {"id":"gpt-5.4","label":"Duplicate"}
+        ])).unwrap());
+        let choices = super::model_choices(&settings, "codex");
+        assert_eq!(choices.iter().map(|model| model.id.as_str()).collect::<Vec<_>>(), ["new-model", "gpt-5.4", "gpt-5.5", "gpt-5.4-mini"]);
+        assert_eq!(choices[1].label, "Discovered 5.4");
+        assert_eq!(choices[1].default_thinking.as_deref(), Some("medium"));
+    }
+
+    #[test]
+    fn ai_assist_model_catalog_keeps_agent_default_even_after_discovery() {
+        let mut settings = SettingsState::default();
+        for agent in ["agy", "fx"] {
+            settings.ai_assist_discovered_default_model_by_agent.insert(agent.into(), "discovered".into());
+            settings.ai_assist_discovered_models_by_agent.insert(agent.into(), serde_json::from_value(serde_json::json!([
+                {"id":"discovered","label":"Discovered"}
+            ])).unwrap());
+            let choices = super::model_choices(&settings, agent);
+            assert_eq!(choices.iter().map(|model| model.id.as_str()).collect::<Vec<_>>(), ["", "discovered"]);
+            assert_eq!(choices[0].label, "Agent Default");
+            assert_eq!(super::selected_model_id(&settings, agent), "");
+            settings.ai_assist_selected_model_by_agent.insert(agent.into(), " discovered ".into());
+            assert_eq!(super::selected_model_id(&settings, agent), "discovered");
+        }
+        assert_eq!(super::selected_model_id(&settings, "custom"), "custom");
+    }
 
     #[test]
     fn ai_assist_initializes_instructions_for_every_rendered_prompt() {
