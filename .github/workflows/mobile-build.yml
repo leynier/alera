@@ -93,3 +93,7 @@ jobs:
           path: mobile/ios/Podfile.lock
           if-no-files-found: error
           retention-days: 7
+
+      - name: Verify iOS dependency lock is current
+        if: matrix.platform == 'ios'
+        run: git diff --exit-code -- mobile/ios/Podfile.lock

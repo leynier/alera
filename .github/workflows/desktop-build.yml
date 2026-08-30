@@ -41,6 +41,7 @@ jobs:
         uses: ./.github/actions/setup-flutter-workspace
         with:
           rust: 'true'
+          xvfb: 'true'
 
       - name: Tune Windows build environment
         if: runner.os == 'Windows'
@@ -62,6 +63,27 @@ jobs:
 
       - name: Build desktop app
         run: flutter build ${{ matrix.platform }} --release --dart-define=ALERA_FLAVOR=release
+
+      - name: Capture native typography at three scales
+        shell: bash
+        env:
+          PLATFORM: ${{ matrix.platform }}
+          ALERA_VISUAL_REVIEW_DIR: ${{ github.workspace }}/build/typography-review
+        run: |
+          set -euo pipefail
+          if [[ "$PLATFORM" == "linux" ]]; then
+            xvfb-run -a flutter test integration_test/typography_rendering_test.dart -d linux --reporter expanded
+          else
+            flutter test integration_test/typography_rendering_test.dart -d "$PLATFORM" --reporter expanded
+          fi
+
+      - name: Upload native typography captures
+        uses: actions/upload-artifact@v7
+        with:
+          name: typography-${{ matrix.platform }}
+          path: build/typography-review/*.png
+          if-no-files-found: error
+          retention-days: 7
 
       - name: Verify macOS startup and desktop presence
         if: matrix.platform == 'macos'

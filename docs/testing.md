@@ -2,6 +2,8 @@
 
 This guide defines the default testing layers for Alera and the commands that should be used before shipping features, UI changes, and refactors.
 
+Native text rendering is covered by `flutter test integration_test/typography_rendering_test.dart -d <linux|macos|windows>`. Set `ALERA_VISUAL_REVIEW_DIR` to an absolute output directory to save PNG captures at 1x, 1.5x, and 2x text scales. `Desktop Builds` uploads these as `typography-<platform>` artifacts; review them alongside the goldens because the goldens obscure text and cannot validate native glyph rendering.
+
 ## Test Layers
 
 - Unit tests cover pure domain logic, controllers, repositories, command construction, parsers, and platform branches with the smallest possible setup.

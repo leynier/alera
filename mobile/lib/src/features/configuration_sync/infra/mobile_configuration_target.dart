@@ -57,23 +57,19 @@ class MobileConfigurationTarget implements ConfigurationLocalTarget {
       if (before.fingerprint != expectedFingerprint) {
         throw StateError('Phone configuration changed. Review it again.');
       }
-      final writes = await compute(
-        encodeMobileConfigurationApplication,
-        (
-          document: document,
-          before: before.document,
-          base: base,
-          pending: pending,
-          stateKey: _stateKey,
-          backupKey: 'alera.configuration.backup.$accountId',
-          dictationRaw: await MobileConfigurationPreferences.dictation(prefs),
-          // Host ids stay local and never enter the portable document.
-          hostPreferenceKeys: (await prefs.getKeys())
-              .where((key) => key.startsWith('alera.mobile.codex.preferences.'))
-              .toList(),
-        ),
-        debugLabel: 'configuration-application',
-      );
+      final writes = await compute(encodeMobileConfigurationApplication, (
+        document: document,
+        before: before.document,
+        base: base,
+        pending: pending,
+        stateKey: _stateKey,
+        backupKey: 'alera.configuration.backup.$accountId',
+        dictationRaw: await MobileConfigurationPreferences.dictation(prefs),
+        // Host ids stay local and never enter the portable document.
+        hostPreferenceKeys: (await prefs.getKeys())
+            .where((key) => key.startsWith('alera.mobile.codex.preferences.'))
+            .toList(),
+      ), debugLabel: 'configuration-application');
       await ensureAccount();
       await MobileConfigurationPreferences.apply(prefs, writes);
     });
@@ -87,15 +83,11 @@ class MobileConfigurationTarget implements ConfigurationLocalTarget {
   ) async {
     await ensureAccount();
     await MobileConfigurationPreferences.transaction((prefs) async {
-      final encoded = await compute(
-        encodeMobileConfigurationPublication,
-        (
-          state: await prefs.getString(_stateKey),
-          operationId: operationId,
-          revision: revision,
-        ),
-        debugLabel: 'configuration-publication',
-      );
+      final encoded = await compute(encodeMobileConfigurationPublication, (
+        state: await prefs.getString(_stateKey),
+        operationId: operationId,
+        revision: revision,
+      ), debugLabel: 'configuration-publication');
       await ensureAccount();
       await prefs.setString(_stateKey, encoded);
     });
