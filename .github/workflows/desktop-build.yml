@@ -63,6 +63,24 @@ jobs:
       - name: Build desktop app
         run: flutter build ${{ matrix.platform }} --release --dart-define=ALERA_FLAVOR=release
 
+      - name: Verify macOS startup and desktop presence
+        if: matrix.platform == 'macos'
+        run: flutter test integration_test/desktop_presence_macos_test.dart -d macos --reporter expanded
+
+      - name: Verify Windows single-instance runner
+        if: matrix.platform == 'windows'
+        shell: pwsh
+        run: |
+          $cache = Get-Content build/windows/x64/CMakeCache.txt
+          $generator = ($cache | Select-String '^CMAKE_GENERATOR:INTERNAL=').Line.Split('=', 2)[1]
+          if (-not $generator) { throw 'Flutter CMake generator was not found' }
+          cmake -S windows/runner/tests -B build/windows-runner-tests -G $generator -A x64
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          cmake --build build/windows-runner-tests --config Release
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          ctest --test-dir build/windows-runner-tests -C Release --output-on-failure
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
       - name: Verify bundled helper and video runtimes
         shell: bash
         env:

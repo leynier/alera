@@ -6,7 +6,7 @@ Desktop and mobile use Flutter 3.47.2 / Dart 3.13.2 while retaining Dart languag
 
 ## Compatibility Decisions
 
-- Keep the new desktop renderer defaults. Validate performance and real text separately from goldens, which obscure text.
+- Preserve Skia on Linux using Flutter's supported embedder API. Five samples with the new Impeller default increased median terminal CPU from 47.1% to 84.2% of one core for line output and from 53.0% to 91.3% for full-screen output; raster time increased from 4.67 to 15.77 ms and from 5.71 to 16.92 ms respectively. Other platforms retain their defaults. Validate performance and real text separately from goldens, which obscure text.
 - Preserve resource fingerprint timestamps at millisecond precision, serialized as microseconds. Tests use hashes captured with Dart 3.12.2 and verify legacy markers, changed sources, and unmanaged resources.
 - Adapt `AleraPreview` to the new abstract `PreviewThemeData.apply` API while retaining the dark theme and Inter typography.
 - Preserve the terminal overrides in each generated preview scaffold. Separate quota presentation from native reset/TUI actions because the new preview detector includes these previews in its web compilation; the existing application widget retains both actions and its constructor interface.
@@ -31,6 +31,8 @@ Full desktop regression, native builds, performance comparison, and native visua
 
 During validation, `main` incorporated xterm2 and relay changes. These were merged without replacing their pinned dependencies; an additional awaited return restores Dart 3.13 compatibility in relay identity migration. After integration, desktop analysis and 3,392 tests pass (one skipped), mobile analysis and 619 tests pass (three explicit integration-only skips). Ten xterm2 input/selection/clipboard tests and 18 quota behavior tests pass. The desktop previewer now compiles all 89 previews with its default detector and renders the quota views without browser console errors. Performance comparisons are being repeated with xterm2 rather than attributing the concurrent terminal migration to the SDK.
 
+The subsequent integration of `main` at `3cf74356` preserves configuration sync, macOS startup/tray fixes, and the Windows single-instance runner. Desktop, mobile, and the new configuration package pass analysis; all 13 configuration-package tests pass. Desktop CI now also exercises the existing native macOS presence test and Windows runner tests. The iOS workflow retains its resolved CocoaPods lockfile for dependency review.
+
 ## Reproduction
 
 Run the format, analysis, test, and native build commands documented in [Testing](testing.md). `Mobile Builds` adds Android release builds with the existing debug-signing fallback, native-library verification, unsigned iOS release builds, and iOS simulator builds. `Desktop Builds` remains the existing three-platform release build workflow. Neither workflow distributes an app.
@@ -45,3 +47,4 @@ Run the terminal render and flush-cadence benchmarks five times per SDK on the s
 - [Dart changelog](https://dart.dev/changelog)
 - [Analyzer plugins](https://dart.dev/tools/analyzer-plugins)
 - [PreviewThemeData API](https://api.flutter.dev/flutter/widget_previews/PreviewThemeData-class.html)
+- [Impeller availability and Linux opt-out](https://docs.flutter.dev/perf/impeller)
