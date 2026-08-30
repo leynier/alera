@@ -6,6 +6,7 @@ import 'package:alera/src/features/app_window/domain/app_window_state.dart';
 import 'package:alera/src/features/app_window/infra/window_manager_app_window_controller.dart';
 import 'package:alera/src/features/desktop_presence/application/desktop_presence_coordinator.dart';
 import 'package:alera/src/features/desktop_presence/infra/desktop_presence_channel.dart';
+import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:window_manager/window_manager.dart';
@@ -13,9 +14,10 @@ import 'package:window_manager/window_manager.dart';
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
 
-  test(
+  testWidgets(
     'macOS startup registers tray and badge and closing hides the window',
-    () async {
+    (tester) async {
+      await tester.pumpWidget(const SizedBox());
       await windowManager.ensureInitialized();
       final window = WindowManagerAppWindowController();
       final repository = _MemoryWindowStateRepository();
