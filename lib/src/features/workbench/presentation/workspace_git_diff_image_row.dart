@@ -86,7 +86,7 @@ class _WorkspaceGitDiffImageRowState
           ? (widget.file.oldPath ?? widget.file.path)
           : widget.file.path;
       if (isWorkspaceIcoFilePath(sidePath)) {
-        return compute(decodeWorkspaceIcoToPngBytes, bytes);
+        return await compute(decodeWorkspaceIcoToPngBytes, bytes);
       }
       return bytes;
     } on GitException {

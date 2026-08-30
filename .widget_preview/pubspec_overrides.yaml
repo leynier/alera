@@ -1,0 +1,8 @@
+# Preview scaffolds do not inherit the parent package's dependency overrides.
+dependency_overrides:
+  ghostty_vte:
+    path: ../third_party/dart_terminal/pkgs/vte/ghostty_vte
+  ghostty_vte_flutter:
+    path: ../third_party/dart_terminal/pkgs/vte/ghostty_vte_flutter
+  xterm2:
+    path: ../third_party/xterm

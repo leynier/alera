@@ -275,7 +275,7 @@ class AiDictationService extends ChangeNotifier {
           timeout: Duration(seconds: settings.timeoutSeconds),
         ),
       );
-      return _finishTranscript(targetId, result);
+      return await _finishTranscript(targetId, result);
     } finally {
       final audioFile = File(path);
       if (await audioFile.exists()) await audioFile.delete();

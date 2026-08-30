@@ -1,0 +1,101 @@
+name: Mobile Builds
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - pubspec.yaml
+      - pubspec.lock
+      - mobile/**
+      - packages/alera_configuration/**
+      - third_party/xterm
+      - .gitmodules
+      - rust/**
+      - rust_builder/**
+      - .github/actions/setup-flutter-workspace/**
+      - .github/actions/setup-rust-sccache/**
+      - .github/actions/init-required-submodules/**
+      - .github/workflows/mobile-build.yml
+      - tool/release/verify_android_native_dependencies.sh
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: build mobile ${{ matrix.platform }}
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: android
+            os: ubuntu-latest
+          - platform: ios
+            os: macos-latest
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          submodules: false
+
+      - name: Setup Flutter workspace
+        uses: ./.github/actions/setup-flutter-workspace
+        with:
+          working-directory: mobile
+          submodules: third_party/xterm
+          linux-toolchain: 'false'
+          native-assets: 'false'
+          preflight: 'false'
+          rust: 'true'
+
+      - name: Select Java 17
+        if: matrix.platform == 'android'
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -x "$JAVA_HOME_17_X64/bin/java"
+          echo "JAVA_HOME=$JAVA_HOME_17_X64" >> "$GITHUB_ENV"
+          echo "$JAVA_HOME_17_X64/bin" >> "$GITHUB_PATH"
+
+      # No distribution credentials are available here. Android uses its
+      # existing debug-key fallback; Apple builds explicitly disable signing.
+      - name: Build Android release APK
+        if: matrix.platform == 'android'
+        working-directory: mobile
+        run: flutter build apk --release
+
+      - name: Verify Android native dependencies
+        if: matrix.platform == 'android'
+        shell: bash
+        run: bash tool/release/verify_android_native_dependencies.sh mobile/build/app/outputs/flutter-apk
+
+      - name: Build iOS device release
+        if: matrix.platform == 'ios'
+        working-directory: mobile
+        run: flutter build ios --release --no-codesign --verbose
+
+      - name: Build iOS simulator
+        if: matrix.platform == 'ios'
+        working-directory: mobile
+        run: flutter build ios --simulator --debug --no-codesign --verbose
+
+      - name: Record resolved iOS dependencies
+        if: matrix.platform == 'ios'
+        uses: actions/upload-artifact@v7
+        with:
+          name: ios-dependency-lock
+          path: mobile/ios/Podfile.lock
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Verify iOS dependency lock is current
+        if: matrix.platform == 'ios'
+        run: git diff --exit-code -- mobile/ios/Podfile.lock

@@ -101,66 +101,89 @@ void main() {
     }
   });
 
-  group(
-    'ubuntu revision and completion guards',
-    () {
-      test('rejects mutable refs and malformed SHAs', () {
-        final script =
-            step('revision', 'Require an immutable revision')['run'] as String;
-        final sha = '0123456789abcdef0123456789abcdef01234567';
-        for (final value in [
-          sha,
-          'ffffffffffffffffffffffffffffffffffffffff',
-          'main',
-          'v1.0.0',
-          'abc123',
+  test('exact revision builds retain native visual and runner checks', () {
+    expect(step('build', 'Setup Flutter workspace')['with']['xvfb'], 'true');
+    final typography = step(
+      'build',
+      'Capture native typography at three scales',
+    );
+    expect(typography['env']['ALERA_FLAVOR'], 'dev');
+    expect(
+      typography['run'],
+      contains('integration_test/typography_rendering_test.dart'),
+    );
+    expect(
+      step(
+        'build',
+        'Upload native typography captures',
+      )['with']['if-no-files-found'],
+      'error',
+    );
+    final macos = step('build', 'Verify macOS startup and desktop presence');
+    expect(macos['if'], "matrix.platform == 'macos'");
+    expect(macos['env']['ALERA_FLAVOR'], 'dev');
+    expect(
+      step('build', 'Verify Windows single-instance runner')['if'],
+      "matrix.platform == 'windows'",
+    );
+  });
+
+  group('ubuntu revision and completion guards', () {
+    test('rejects mutable refs and malformed SHAs', () {
+      final script =
+          step('revision', 'Require an immutable revision')['run'] as String;
+      final sha = '0123456789abcdef0123456789abcdef01234567';
+      for (final value in [
+        sha,
+        'ffffffffffffffffffffffffffffffffffffffff',
+        'main',
+        'v1.0.0',
+        'abc123',
+        '',
+        '$sha\nmain',
+      ]) {
+        final result = Process.runSync(
+          'bash',
+          ['-c', script],
+          environment: {'SOURCE_SHA': value, 'TRIGGER_SHA': sha},
+        );
+        expect(result.exitCode, value == sha ? 0 : 1, reason: value);
+      }
+    });
+
+    test('fails closed for failure, cancelled, skipped and missing jobs', () {
+      final script =
+          step('validation_ready', 'Require all validation jobs')['run']
+              as String;
+      final directory = Directory.systemTemp.createTempSync('alera-ci-test-');
+      addTearDown(() => directory.deleteSync(recursive: true));
+      final results = {
+        'REVISION_RESULT': 'success',
+        'BUILD_RESULT': 'success',
+        'GOLDEN_RESULT': 'success',
+        'E2E_RESULT': 'success',
+      };
+      for (final key in results.keys) {
+        for (final status in [
+          'success',
+          'failure',
+          'cancelled',
+          'skipped',
           '',
-          '$sha\nmain',
         ]) {
           final result = Process.runSync(
             'bash',
             ['-c', script],
-            environment: {'SOURCE_SHA': value, 'TRIGGER_SHA': sha},
+            environment: {
+              ...results,
+              key: status,
+              'SOURCE_SHA': '0123456789abcdef0123456789abcdef01234567',
+              'GITHUB_STEP_SUMMARY': '${directory.path}/summary',
+            },
           );
-          expect(result.exitCode, value == sha ? 0 : 1, reason: value);
+          expect(result.exitCode, status == 'success' ? 0 : 1);
         }
-      });
-
-      test('fails closed for failure, cancelled, skipped and missing jobs', () {
-        final script =
-            step('validation_ready', 'Require all validation jobs')['run']
-                as String;
-        final directory = Directory.systemTemp.createTempSync('alera-ci-test-');
-        addTearDown(() => directory.deleteSync(recursive: true));
-        final results = {
-          'REVISION_RESULT': 'success',
-          'BUILD_RESULT': 'success',
-          'GOLDEN_RESULT': 'success',
-          'E2E_RESULT': 'success',
-        };
-        for (final key in results.keys) {
-          for (final status in [
-            'success',
-            'failure',
-            'cancelled',
-            'skipped',
-            '',
-          ]) {
-            final result = Process.runSync(
-              'bash',
-              ['-c', script],
-              environment: {
-                ...results,
-                key: status,
-                'SOURCE_SHA': '0123456789abcdef0123456789abcdef01234567',
-                'GITHUB_STEP_SUMMARY': '${directory.path}/summary',
-              },
-            );
-            expect(result.exitCode, status == 'success' ? 0 : 1);
-          }
-        }
-      });
-    },
-    skip: Platform.isWindows ? 'These guards run on Ubuntu only.' : false,
-  );
+      }
+    });
+  }, skip: Platform.isWindows ? 'These guards run on Ubuntu only.' : false);
 }

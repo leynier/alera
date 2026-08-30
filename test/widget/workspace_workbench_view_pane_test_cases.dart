@@ -158,11 +158,10 @@ void _registerWorkspaceWorkbenchViewPaneTests() {
       'tab-1': false,
       'tab-2': true,
     });
-    expect(
-      terminalRuntime.requestedTabIds,
-      <String>['tab-1', 'tab-2'],
-      reason: 'a handle is created only when a tab is actually rendered',
-    );
+    expect(terminalRuntime.requestedTabIds, <String>[
+      'tab-1',
+      'tab-2',
+    ], reason: 'a handle is created only when a tab is actually rendered');
   });
 
   testWidgets('dragging the split handle updates the split ratio', (

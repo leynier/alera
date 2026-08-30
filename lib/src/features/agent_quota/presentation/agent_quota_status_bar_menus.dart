@@ -1,4 +1,4 @@
-part of 'agent_quota_status_bar.dart';
+part of 'agent_quota_status_bar_content.dart';
 
 class _QuotaProviderSummary extends StatelessWidget {
   const _QuotaProviderSummary({
@@ -6,12 +6,14 @@ class _QuotaProviderSummary extends StatelessWidget {
     required this.profileLabel,
     required this.compact,
     required this.hostId,
+    this.actions = const AgentQuotaInlineActions(),
   });
 
   final AgentQuotaSnapshot snapshot;
   final String? profileLabel;
   final bool compact;
   final String hostId;
+  final AgentQuotaInlineActions actions;
 
   @override
   Widget build(BuildContext context) {
@@ -26,6 +28,7 @@ class _QuotaProviderSummary extends StatelessWidget {
               ? const <String, String>{}
               : <String, String>{snapshot.key: profileLabel!},
           hostId: hostId,
+          actions: actions,
         ),
         child: Container(
           height: AleraTokens.statusBarHeight,
@@ -86,6 +89,7 @@ class _QuotaProviderSummary extends StatelessWidget {
 class _CollapsedQuotaBar extends StatelessWidget {
   const _CollapsedQuotaBar({
     required this.hostId,
+    this.actions = const AgentQuotaInlineActions(),
     required this.snapshots,
     required this.settings,
     required this.loading,
@@ -97,6 +101,7 @@ class _CollapsedQuotaBar extends StatelessWidget {
   });
 
   final String hostId;
+  final AgentQuotaInlineActions actions;
   final List<AgentQuotaSnapshot> snapshots;
   final AgentQuotaHostSettings settings;
   final bool loading;
@@ -134,6 +139,7 @@ class _CollapsedQuotaBar extends StatelessWidget {
                 settings: settings,
                 emptyMessage: error ?? 'No quota data',
                 hostId: hostId,
+                actions: actions,
                 onTogglePinned: onTogglePinned,
                 onOpenUsage: onOpenUsage,
                 profileLabels: <String, String>{

@@ -176,7 +176,7 @@ final class NativeHelperSwiftBuilder {
         '-verify_arch',
         ...derivation.architectures,
       ]);
-      return payload.readAsBytes();
+      return await payload.readAsBytes();
     } finally {
       if (work.existsSync()) {
         await work.delete(recursive: true);
