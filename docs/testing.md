@@ -108,6 +108,18 @@ Keep E2E tests deterministic:
 - Avoid network access.
 - Avoid native file pickers; paste paths directly into dialogs.
 
+## Windows Desktop Reopening
+
+The runner's native regression tests use real Windows processes and windows without loading Flutter or user data. Run them from a shell with CMake and the Visual Studio C++ toolchain available:
+
+```powershell
+cmake -S windows/runner/tests -B build/windows-runner-tests
+cmake --build build/windows-runner-tests --config Debug
+ctest --test-dir build/windows-runner-tests -C Debug --output-on-failure
+```
+
+The suite covers second launches before window creation, simultaneous cold launches, dev/release separation, restart after quit or crash, hidden and minimized window activation, maximization preservation, and synchronization failures. For the packaged app smoke, enable the tray, close the window, and launch the same shortcut again: the original process and tray icon must remain and its window must appear in front. Repeat while minimized and while already visible, then quit through the tray and confirm a fresh launch works. Keep Alera Dev open alongside Alera to verify flavor isolation.
+
 ## Terminal Host Checks
 
 Terminal persistence changes should include focused unit tests for the host client/session boundary and at least one manual or integration smoke on the current desktop platform: start a long-running terminal command, close Alera, reopen it, and confirm the terminal output continues under the same workspace tab. Explicit tab or workspace close must be checked separately because it should terminate the durable session instead of detaching.

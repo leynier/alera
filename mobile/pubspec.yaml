@@ -29,6 +29,8 @@ environment:
 # the latest version available on pub.dev. To see which dependencies have newer
 # versions available, run `flutter pub outdated`.
 dependencies:
+  alera_configuration:
+    path: ../packages/alera_configuration
   flutter:
     sdk: flutter
 
@@ -68,6 +70,7 @@ dependencies:
   speech_to_text: ^7.4.0
 
 dev_dependencies:
+  shared_preferences_platform_interface: ^2.4.2
   flutter_test:
     sdk: flutter
 

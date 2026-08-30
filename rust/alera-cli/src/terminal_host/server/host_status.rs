@@ -64,6 +64,7 @@ impl ServerActor {
             "skillVersion": crate::terminal_host::protocol::ORCHESTRATION_SKILL_VERSION,
             "runtime": "alera",
             "runtimeCapabilities": [
+                "configurationSyncV1",
                 RUNTIME_HOST_CAPABILITY,
                 RUNTIME_HOST_ACCOUNT_CAPABILITY,
                 RUNTIME_HOST_CLOUD_PUSH_CAPABILITY,

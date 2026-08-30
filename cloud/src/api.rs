@@ -16,6 +16,22 @@ use crate::{accounts, auth, error::ApiError, mobile, push, relay, runtimes, stat
 
 pub fn router(state: AppState) -> Router {
     Router::new()
+        .merge(
+            Router::new()
+                .route(
+                    "/v1/configuration",
+                    get(crate::configuration::head).post(crate::configuration::publish),
+                )
+                .route(
+                    "/v1/configuration/history",
+                    get(crate::configuration::history),
+                )
+                .route(
+                    "/v1/configuration/revisions/{revision}",
+                    get(crate::configuration::revision),
+                )
+                .layer(DefaultBodyLimit::max(1024 * 1024)),
+        )
         .route("/health", get(health))
         .route("/.well-known/jwks.json", get(auth::jwks))
         .route("/v1/auth/transactions", post(auth::create_transaction))

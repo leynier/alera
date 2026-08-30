@@ -375,7 +375,9 @@ class _TerminalSurfaceState extends ConsumerState<TerminalSurface> {
     unawaited(
       ref
           .read(settingsControllerProvider.notifier)
-          .updateTerminal(terminal.copyWith(toolbarCorner: corner)),
+          .updateTerminal(
+            (terminal) => terminal.copyWith(toolbarCorner: corner),
+          ),
     );
   }
 

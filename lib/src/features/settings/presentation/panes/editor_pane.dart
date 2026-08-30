@@ -18,7 +18,7 @@ class EditorSettingsPane extends StatelessWidget {
   });
 
   final EditorSettings settings;
-  final ValueChanged<EditorSettings> onChanged;
+  final ValueChanged<EditorSettings Function(EditorSettings)> onChanged;
 
   @override
   Widget build(BuildContext context) {
@@ -32,7 +32,7 @@ class EditorSettingsPane extends StatelessWidget {
             _EditorThemePickerSetting(
               value: settings.themeName,
               onChanged: (value) =>
-                  onChanged(settings.copyWith(themeName: value)),
+                  onChanged((settings) => settings.copyWith(themeName: value)),
             ),
           ],
         ),
@@ -51,7 +51,7 @@ class EditorSettingsPane extends StatelessWidget {
               step: 1,
               suffix: 'spaces',
               onChanged: (value) =>
-                  onChanged(settings.copyWith(tabSize: value)),
+                  onChanged((settings) => settings.copyWith(tabSize: value)),
             ),
           ],
         ),
@@ -64,8 +64,9 @@ class EditorSettingsPane extends StatelessWidget {
               title: 'Autosave',
               description: 'Automatically save editor changes after a pause.',
               value: settings.autosaveEnabled,
-              onChanged: (value) =>
-                  onChanged(settings.copyWith(autosaveEnabled: value)),
+              onChanged: (value) => onChanged(
+                (settings) => settings.copyWith(autosaveEnabled: value),
+              ),
             ),
             SettingsIntegerRow(
               key: const ValueKey<String>('editor-autosave-delay-row'),
@@ -76,8 +77,9 @@ class EditorSettingsPane extends StatelessWidget {
               max: EditorSettings.maxAutosaveDelaySeconds,
               step: 1,
               suffix: 'seconds',
-              onChanged: (value) =>
-                  onChanged(settings.copyWith(autosaveDelaySeconds: value)),
+              onChanged: (value) => onChanged(
+                (settings) => settings.copyWith(autosaveDelaySeconds: value),
+              ),
             ),
           ],
         ),
