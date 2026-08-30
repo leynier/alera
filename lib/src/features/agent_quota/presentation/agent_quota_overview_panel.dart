@@ -1,4 +1,4 @@
-part of 'agent_quota_status_bar.dart';
+part of 'agent_quota_status_bar_content.dart';
 
 const double _quotaOverviewPanelWidth = 380;
 const double _quotaOverviewPanelMaxHeight = 480;
@@ -8,6 +8,7 @@ class _QuotaOverviewButton extends StatelessWidget {
     required this.snapshots,
     required this.settings,
     required this.hostId,
+    this.actions = const AgentQuotaInlineActions(),
     required this.error,
     required this.onTogglePinned,
     required this.profileLabelFor,
@@ -17,6 +18,7 @@ class _QuotaOverviewButton extends StatelessWidget {
   final List<AgentQuotaSnapshot> snapshots;
   final AgentQuotaHostSettings settings;
   final String hostId;
+  final AgentQuotaInlineActions actions;
   final String? error;
   final AgentQuotaPinToggle onTogglePinned;
   final String? Function(AgentQuotaSnapshot snapshot) profileLabelFor;
@@ -32,6 +34,7 @@ class _QuotaOverviewButton extends StatelessWidget {
           snapshots: snapshots,
           settings: settings,
           hostId: hostId,
+          actions: actions,
           emptyMessage: error ?? 'No quota data',
           onTogglePinned: onTogglePinned,
           onOpenUsage: onOpenUsage,
@@ -59,6 +62,7 @@ class _AgentQuotaOverviewPanel extends StatelessWidget {
     required this.snapshots,
     required this.settings,
     required this.hostId,
+    this.actions = const AgentQuotaInlineActions(),
     required this.onTogglePinned,
     this.profileLabels = const <String, String>{},
     this.emptyMessage = 'No quota data',
@@ -68,6 +72,7 @@ class _AgentQuotaOverviewPanel extends StatelessWidget {
   final List<AgentQuotaSnapshot> snapshots;
   final AgentQuotaHostSettings settings;
   final String hostId;
+  final AgentQuotaInlineActions actions;
   final AgentQuotaPinToggle onTogglePinned;
   final Map<String, String> profileLabels;
   final String emptyMessage;
@@ -115,6 +120,7 @@ class _AgentQuotaOverviewPanel extends StatelessWidget {
                   _QuotaOverviewRow(
                     snapshot: snapshot,
                     hostId: hostId,
+                    actions: actions,
                     profileLabel: profileLabels[snapshot.key],
                     pinned: !settings.unpinnedQuotaKeys.contains(
                       snapshot.pinKey,
@@ -145,6 +151,7 @@ class _QuotaOverviewRow extends StatelessWidget {
   const _QuotaOverviewRow({
     required this.snapshot,
     required this.hostId,
+    this.actions = const AgentQuotaInlineActions(),
     required this.profileLabel,
     required this.pinned,
     required this.onTogglePinned,
@@ -152,6 +159,7 @@ class _QuotaOverviewRow extends StatelessWidget {
 
   final AgentQuotaSnapshot snapshot;
   final String hostId;
+  final AgentQuotaInlineActions actions;
   final String? profileLabel;
   final bool pinned;
   final AgentQuotaPinToggle onTogglePinned;
@@ -235,7 +243,7 @@ class _QuotaOverviewRow extends StatelessWidget {
           ),
           if (snapshot.provider == AgentQuotaProviderId.codex &&
               snapshot.rateLimitResetCredits != null)
-            _CodexResetCreditsPanel(
+            actions.buildCodexReset(
               hostId: hostId,
               snapshot: snapshot,
               compact: true,

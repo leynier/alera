@@ -22,7 +22,7 @@ final class _AleraPreviewTheme extends PreviewThemeData {
 /// provides: a [ProviderScope] for Riverpod reads and the global background so
 /// dark surfaces render against the right backdrop.
 Widget aleraPreviewSurface(Widget child) => ProviderScope(
-  child: ColoredBox(
+  child: Material(
     color: AleraTokens.background,
     child: Padding(
       padding: const EdgeInsets.all(AleraTokens.spaceXl),
@@ -36,10 +36,13 @@ Widget aleraPreviewSurface(Widget child) => ProviderScope(
 /// ambient scaffolding already applied. Run the previewer with
 /// `flutter widget-preview start` from the `mobile/` directory.
 final class AleraPreview extends Preview {
-  const AleraPreview({super.name, super.group, super.size})
-    : super(
-        brightness: Brightness.dark,
-        theme: aleraPreviewTheme,
-        wrapper: aleraPreviewSurface,
-      );
+  const AleraPreview({
+    super.name,
+    super.group,
+    super.size = AleraTokens.previewPhoneSize,
+  }) : super(
+         brightness: Brightness.dark,
+         theme: aleraPreviewTheme,
+         wrapper: aleraPreviewSurface,
+       );
 }

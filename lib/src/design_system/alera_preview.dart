@@ -22,7 +22,7 @@ final class _AleraPreviewTheme extends PreviewThemeData {
 /// provides: a [ProviderScope] for Riverpod reads and the global background so
 /// dark surfaces render against the right backdrop.
 Widget aleraPreviewSurface(Widget child) => ProviderScope(
-  child: ColoredBox(
+  child: Material(
     color: AleraTokens.bg,
     child: Padding(
       padding: const EdgeInsets.all(AleraTokens.space24),

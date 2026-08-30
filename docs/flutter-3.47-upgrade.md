@@ -9,6 +9,8 @@ Desktop and mobile use Flutter 3.47.2 / Dart 3.13.2 while retaining Dart languag
 - Keep the new desktop renderer defaults. Validate performance and real text separately from goldens, which obscure text.
 - Preserve resource fingerprint timestamps at millisecond precision, serialized as microseconds. Tests use hashes captured with Dart 3.12.2 and verify legacy markers, changed sources, and unmanaged resources.
 - Adapt `AleraPreview` to the new abstract `PreviewThemeData.apply` API while retaining the dark theme and Inter typography.
+- Preserve the terminal overrides in each generated preview scaffold. Separate quota presentation from native reset/TUI actions because the new preview detector includes these previews in its web compilation; the existing application widget retains both actions and its constructor interface.
+- Give mobile previews a bounded phone viewport and use a Material surface in both preview wrappers so Flutter's ListTile ink validation does not reject an intervening opaque ColoredBox. Both mobile previews render, with layout regression tests. A transient SDK analysis-server concurrent-modification error was observed during hot reload; a fresh launch with the default detector successfully renders the galleries. The hidden legacy detector is not a workaround because its scaffold does not establish the required DTD connection.
 - Move the existing Riverpod lint plugin to the supported top-level analyzer plugin configuration, pinned to the existing 3.1.4 version. Do not suppress its warnings.
 - Await asynchronous work inside `try` blocks so errors reach the intended handlers and temporary files remain available until readers finish.
 - Retain Android AGP 8.13.2, Gradle 8.14.3, Kotlin 2.3.20, Java 17, and CocoaPods. Mobile explicitly opts out of the new default SwiftPM migration. The first iOS CI build demonstrated that Flutter raises the deployment target from 13.0 to 15.0, so the checked-in project and Podfile now agree with that requirement.
@@ -26,6 +28,8 @@ Seven golden changes were inspected before regeneration: four desktop snapshots 
 The Android release APK builds locally with the existing debug-key fallback. Native dependencies are verified for armeabi-v7a, arm64-v8a, and x86_64, including the required bundled C++ runtime. AGP/Gradle deprecation warnings remain visible; neither version nor validation is bypassed.
 
 Full desktop regression, native builds, performance comparison, and native visual/behavior checks are in progress. The PR must remain unmerged and unpublished while required validation is outstanding.
+
+During validation, `main` incorporated xterm2 and relay changes. These were merged without replacing their pinned dependencies; an additional awaited return restores Dart 3.13 compatibility in relay identity migration. After integration, desktop analysis and 3,392 tests pass (one skipped), mobile analysis and 619 tests pass (three explicit integration-only skips). Ten xterm2 input/selection/clipboard tests and 18 quota behavior tests pass. The desktop previewer now compiles all 89 previews with its default detector and renders the quota views without browser console errors. Performance comparisons are being repeated with xterm2 rather than attributing the concurrent terminal migration to the SDK.
 
 ## Reproduction
 
