@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:alera/src/app/providers.dart';
 import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/features/agent_status/application/runtime_agent_status_sync.dart';
+import 'package:alera/src/features/agent_status/domain/agent_status.dart';
 import 'package:alera/src/features/agent_quota/presentation/agent_quota_status_bar.dart';
 import 'package:alera/src/features/agent_canvas/application/agent_canvas_providers.dart';
 import 'package:alera/src/features/keep_alive/application/keep_alive_providers.dart';

@@ -37,21 +37,32 @@ void main() {
       expect(estimateTerminalBufferBytes(lines: -1, columns: -1), 0);
     });
 
-    test('measures allocated line capacity after a viewport shrink', () {
+    test('measures compacted history rows and full viewport rows', () {
       final terminal = xterm.Terminal(maxLines: 100);
       terminal.resize(120, 24);
       terminal.write(List<String>.filled(150, 'line\r\n').join());
 
       final lineCount = terminal.buffer.lines.length;
-      final wideBytes = measureTerminalCellBufferBytes(terminal);
-      // BufferLine rounds 120 columns to 128 cells, with 16 bytes per cell.
-      expect(wideBytes, lineCount * 128 * 16);
+      final scrollBack = terminal.buffer.scrollBack;
+      final bytes = measureTerminalCellBufferBytes(terminal);
+      // History rows compact to their content ('line' is 4 cells); the
+      // viewport keeps its rounded 128-cell allocation for in-place edits.
+      expect(
+        bytes,
+        lessThan(lineCount * 128 * 16),
+        reason: 'history rows release the slack blank capacity',
+      );
+      expect(
+        bytes,
+        greaterThanOrEqualTo((lineCount - scrollBack) * 128 * 16),
+        reason: 'viewport rows keep their full allocation',
+      );
 
       terminal.resize(80, 24);
       expect(
         measureTerminalCellBufferBytes(terminal),
-        wideBytes,
-        reason: 'shrinking the viewport retains each line allocation',
+        lessThanOrEqualTo(bytes),
+        reason: 'a width resize re-compacts the rebuilt history rows',
       );
     });
   });

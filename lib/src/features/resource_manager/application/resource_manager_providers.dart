@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'dart:io' show pid;
 
+import 'package:alera/src/features/app_window/application/app_window_providers.dart';
+import 'package:alera/src/features/app_window/domain/foreground_parked_refresh.dart';
 import 'package:alera/src/features/resource_manager/application/resource_snapshot_projection.dart';
 import 'package:alera/src/features/resource_manager/domain/resource_snapshot.dart';
 import 'package:alera/src/features/resource_manager/domain/resource_tree.dart';
@@ -40,11 +42,20 @@ class ResourcePanelOpen extends _$ResourcePanelOpen {
 Future<ResourceSnapshot> resourceSnapshot(Ref ref) async {
   final open = ref.watch(resourcePanelOpenProvider);
   final client = ref.watch(runtimeHostClientProvider);
+  final foreground = ref.watch(appForegroundProvider);
   final interval = open
       ? resourceSnapshotOpenInterval
       : resourceSnapshotClosedInterval;
-  final timer = Timer.periodic(interval, (_) => ref.invalidateSelf());
-  ref.onDispose(timer.cancel);
+  // Park while the window is hidden: nobody can see the chip, and every poll
+  // keeps the host's process sweep alive. The host's demand-driven ticker
+  // stops on its own once the requests stop, and the refresh on return brings
+  // the numbers back before anyone can read stale ones.
+  final poll = ForegroundParkedRefresh(
+    foreground: foreground,
+    interval: interval,
+    refresh: ref.invalidateSelf,
+  );
+  ref.onDispose(poll.dispose);
   return fetchResourceSnapshot(client: client, appPid: pid, interval: interval);
 }
 

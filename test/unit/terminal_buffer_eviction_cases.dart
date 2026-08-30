@@ -1,8 +1,11 @@
 part of 'terminal_runtime_native_test.dart';
 
 /// Grows a terminal's scrollback so the budget has something to weigh.
+///
+/// The rows must carry real cells: history rows are compacted to their
+/// content when they scroll out, so blank filler would cost nothing.
 void _fillScrollback(TerminalSessionHandle session, {int lines = 4000}) {
-  queueTerminalOutputForTesting(session, '\n' * lines);
+  queueTerminalOutputForTesting(session, '${'x' * 64}\n' * lines);
   flushTerminalOutputForTesting(session);
 }
 
