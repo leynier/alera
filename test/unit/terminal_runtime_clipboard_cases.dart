@@ -1,6 +1,29 @@
 part of 'terminal_runtime_native_test.dart';
 
 void _registerXtermRuntimeClipboardTests() {
+  for (final size in [7000, 98304]) {
+    test('gated OSC 52 copies $size bytes through the escape parser', () async {
+      final clipboard = _FakeTerminalClipboard();
+      final runtime = XtermTerminalRuntime(
+        terminalClipboard: clipboard,
+        ptySessionFactory: _FakeTerminalPtySessionFactory(),
+        shellLaunchesBuilder: () => <GhosttyTerminalShellLaunch>[
+          _launch('shell', shell: '/bin/sh'),
+        ],
+      );
+      addTearDown(runtime.dispose);
+      runtime.updateSettings(
+        TerminalSettings.defaults.copyWith(allowOsc52Clipboard: true),
+      );
+      final session = runtime.sessionFor(workspace: _workspace(), tab: _tab());
+      final text = 'a' * size;
+      final payload = base64.encode(utf8.encode(text));
+      handlePrivateOscForTesting(session, '52', ['c', payload]);
+      await Future<void>.delayed(Duration.zero);
+      expect(clipboard.writes, [text]);
+    });
+  }
+
   test('handles gated OSC 52 clipboard writes once per runtime', () async {
     final clipboard = _FakeTerminalClipboard();
     final notices = <String>[];
@@ -29,6 +52,18 @@ void _registerXtermRuntimeClipboardTests() {
     handlePrivateOscForTesting(session, '52', <String>['c', payload]);
     await Future<void>.delayed(Duration.zero);
 
+    expect(clipboard.writes, <String>['from tui']);
+    handlePrivateOscForTesting(session, '52', ['', payload]);
+    handlePrivateOscForTesting(session, '52', ['c', '?']);
+    handlePrivateOscForTesting(session, '52', ['c', payload, 'trailing']);
+    handlePrivateOscForTesting(session, '5522', ['type=write', payload]);
+    handlePrivateOscForTesting(session, '52', ['c', '====']);
+    handlePrivateOscForTesting(session, '52', ['c', 'A' * (128 * 1024 + 4)]);
+    writeTerminalOutputForTesting(
+      session,
+      '\x1b]1337;CopyToClipboard=c\x07secret\x1b]1337;EndCopy\x07',
+    );
+    await Future<void>.delayed(Duration.zero);
     expect(clipboard.writes, <String>['from tui']);
   });
 

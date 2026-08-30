@@ -54,6 +54,12 @@ impl ServerActor {
             false,
         )
         .await;
+        let title_prompt = super::super::codex_user_messages::visible_text(
+            &original_input,
+            payload.get("userMessage"),
+        );
+        self.observe_agent_title(&tab.id, "codex", Some(&thread_id), &title_prompt, true)
+            .await;
         Ok(result)
     }
 
@@ -122,6 +128,9 @@ impl ServerActor {
             set_thread_owned_by_alera(&mut tab, true);
             thread_id
         };
+        if created_thread {
+            super::super::agent_title_state::initialize(&mut tab, "");
+        }
         if created_thread || payload.get("configuration").is_some() {
             tab = self
                 .runtime_store
@@ -234,6 +243,7 @@ impl ServerActor {
     pub(super) async fn rename_codex_thread(&mut self, payload: &Value) -> HostResult<Value> {
         let tab_id = require_string_key(payload, "tabId")?;
         let title = require_string_key(payload, "name")?;
+        self.cancel_agent_title_job(&tab_id);
         let tab = self.codex_tab(&tab_id).await?;
         if let Some(thread_id) = tab_thread_id(&tab) {
             self.codex_server_request(
@@ -259,6 +269,7 @@ impl ServerActor {
                 "snapshot": snapshot(&saved),
             }),
         ));
+        super::super::tab_compatibility::redact_private_tab_payload(&mut saved);
         Ok(json!(saved))
     }
 

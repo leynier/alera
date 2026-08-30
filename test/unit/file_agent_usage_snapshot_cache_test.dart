@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:alera/src/features/agent_usage/infra/file_agent_usage_snapshot_cache.dart';
@@ -56,6 +57,25 @@ void main() {
     expect(files, hasLength(1));
     await files.single.writeAsString('{not json');
 
+    expect(await createCache().read(hostId: 'local', days: 90), isNull);
+  });
+
+  test('Grok snapshots are incompatible with legacy cache readers', () async {
+    final snapshot = _snapshot(readAt: 90);
+    snapshot['buckets'] = <Object?>[
+      <String, Object?>{'provider': 'grok'},
+    ];
+    await createCache().write(hostId: 'local', days: 90, snapshot: snapshot);
+    final file = await Directory(
+      '${supportDirectory.path}${Platform.pathSeparator}agent_usage',
+    ).list().where((entry) => entry is File).cast<File>().single;
+    final envelope =
+        jsonDecode(await file.readAsString()) as Map<String, dynamic>;
+    // Version 1 readers reject any other version before parsing provider names.
+    expect(envelope['version'], isNot(1));
+    expect(await createCache().read(hostId: 'local', days: 90), snapshot);
+    envelope['version'] = 1;
+    await file.writeAsString(jsonEncode(envelope));
     expect(await createCache().read(hostId: 'local', days: 90), isNull);
   });
 }

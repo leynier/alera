@@ -425,6 +425,20 @@ const List<SettingsSearchEntry> aiAssistSearchEntries = <SettingsSearchEntry>[
     ],
     groupId: 'pullRequestDetails',
   ),
+  SettingsSearchEntry(
+    title: 'AI Assist Agent Titles',
+    description:
+        'Configure automatic conversation titles, provider, model and instructions.',
+    keywords: <String>[
+      'title',
+      'name',
+      'rename',
+      'regenerate',
+      'automatic',
+      'prompt',
+    ],
+    groupId: 'agentTitle',
+  ),
   ...readingDiffSearchEntries,
   SettingsSearchEntry(
     title: 'AI Assist Workspace Identity',

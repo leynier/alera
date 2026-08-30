@@ -2,7 +2,7 @@ import 'dart:math' show min;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
-import 'package:xterm/xterm.dart' as xterm;
+import 'package:xterm2/xterm.dart' as xterm;
 
 final class TerminalLinkRange {
   const TerminalLinkRange({
@@ -48,9 +48,8 @@ final class TerminalLinkRange {
 TerminalLinkRange? resolveTerminalLinkAt({
   required xterm.Terminal terminal,
   required xterm.CellOffset offset,
-  Osc8TerminalLinkTracker? osc8Tracker,
 }) {
-  final osc8Link = osc8Tracker?.linkAt(offset);
+  final osc8Link = _resolveNativeHyperlink(terminal, offset);
   if (osc8Link != null) {
     return osc8Link;
   }
@@ -118,124 +117,46 @@ bool isTerminalLinkActivation({
   };
 }
 
-class Osc8TerminalLinkTracker {
-  Osc8TerminalLinkTracker({required this._terminal});
-
-  final xterm.Terminal _terminal;
-  final List<_TrackedOsc8Link> _links = <_TrackedOsc8Link>[];
-  _PendingOsc8Link? _activeLink;
-
-  /// Links are only detached when their anchors scroll out of the buffer, so
-  /// pruning on every close was O(n) per link and quadratic over a session
-  /// with many hyperlinks. Prune on growth instead, which amortizes to O(1).
-  int _nextPruneThreshold = _osc8LinkPruneFloor;
-
-  void handlePrivateOsc(String code, List<String> args) {
-    if (code != '8') {
-      return;
-    }
-    final rawTarget = args.length >= 2 ? args[1].trim() : '';
-    if (rawTarget.isEmpty) {
-      _closeActiveLink();
-      return;
-    }
-    final uri = Uri.tryParse(rawTarget);
-    if (!_supportsWebUri(uri)) {
-      _closeActiveLink();
-      return;
-    }
-    _startLink(uri!);
-  }
-
-  TerminalLinkRange? linkAt(xterm.CellOffset offset) {
-    _pruneDetachedLinks();
-    for (final link in _links.reversed) {
-      final materialized = link.materialize();
-      if (materialized != null && materialized.contains(offset)) {
-        return materialized;
-      }
-    }
-    final activeLink = _activeLink;
-    if (activeLink == null || !activeLink.attached) {
-      return null;
-    }
-    final materialized = activeLink.materialize(_currentCursorOffset());
-    if (materialized != null && materialized.contains(offset)) {
-      return materialized;
-    }
+TerminalLinkRange? _resolveNativeHyperlink(
+  xterm.Terminal terminal,
+  xterm.CellOffset offset,
+) {
+  final buffer = terminal.buffer;
+  if (offset.y < 0 ||
+      offset.y >= buffer.lines.length ||
+      offset.x < 0 ||
+      offset.x >= buffer.viewWidth) {
     return null;
   }
-
-  void dispose() {
-    _activeLink?.dispose();
-    _activeLink = null;
-    for (final link in _links) {
-      link.dispose();
-    }
-    _links.clear();
+  final target = terminal.hyperlinkAt(offset);
+  final uri = target == null ? null : Uri.tryParse(target);
+  if (!_supportsWebUri(uri)) return null;
+  final id = terminal.hyperlinkIdAt(offset);
+  var start = offset;
+  var end = offset;
+  while (true) {
+    final previous = start.x > 0
+        ? xterm.CellOffset(start.x - 1, start.y)
+        : start.y > 0 && buffer.lines[start.y].isWrapped
+        ? xterm.CellOffset(buffer.viewWidth - 1, start.y - 1)
+        : null;
+    if (previous == null || terminal.hyperlinkIdAt(previous) != id) break;
+    start = previous;
   }
-
-  void _startLink(Uri uri) {
-    _closeActiveLink();
-    _activeLink = _PendingOsc8Link(
-      uri: uri,
-      start: _terminal.buffer.createAnchorFromOffset(_currentCursorOffset()),
-    );
+  while (true) {
+    final next = end.x + 1 < buffer.viewWidth
+        ? xterm.CellOffset(end.x + 1, end.y)
+        : end.y + 1 < buffer.lines.length && buffer.lines[end.y + 1].isWrapped
+        ? xterm.CellOffset(0, end.y + 1)
+        : null;
+    if (next == null || terminal.hyperlinkIdAt(next) != id) break;
+    end = next;
   }
-
-  void _closeActiveLink() {
-    final activeLink = _activeLink;
-    if (activeLink == null) {
-      return;
-    }
-    final materialized = activeLink.materialize(_currentCursorOffset());
-    final end = _terminal.buffer.createAnchorFromOffset(_currentCursorOffset());
-    if (materialized != null && !materialized.isEmpty) {
-      _links.add(
-        _TrackedOsc8Link(
-          uri: activeLink.uri,
-          start: activeLink.start,
-          end: end,
-        ),
-      );
-    } else {
-      end.dispose();
-      activeLink.start.dispose();
-    }
-    _activeLink = null;
-    _pruneDetachedLinks();
-  }
-
-  void _pruneDetachedLinks({bool force = false}) {
-    if (!force && _links.length < _nextPruneThreshold) {
-      return;
-    }
-    _links.removeWhere((link) {
-      final keep = link.attached;
-      if (!keep) {
-        link.dispose();
-      }
-      return !keep;
-    });
-    final doubled = _links.length * 2;
-    _nextPruneThreshold = doubled > _osc8LinkPruneFloor
-        ? doubled
-        : _osc8LinkPruneFloor;
-  }
-
-  xterm.CellOffset _currentCursorOffset() {
-    final buffer = _terminal.buffer;
-    final row = buffer.absoluteCursorY;
-    final line = buffer.lines[row];
-    // Why: xterm's public cursorX clamps to the last visible cell, which loses
-    // the exclusive line-end position immediately after writing the last glyph.
-    // Using the current line's trimmed length preserves OSC 8 boundaries at the
-    // true end of the rendered link label.
-    final x = line
-        .getTrimmedLength(buffer.viewWidth)
-        .clamp(0, buffer.viewWidth);
-    return xterm.CellOffset(x, row);
-  }
+  return TerminalLinkRange(
+    uri: uri!,
+    start: start,
+    end: xterm.CellOffset(end.x + 1, end.y),
+  );
 }
 
 final class _LogicalTerminalLine {
@@ -303,6 +224,11 @@ final class _LogicalTerminalLine {
         if (codePoint > 0xffff) {
           spans.add(span);
         }
+        final combining = line.getCombiningCharacters(column);
+        if (combining != null) {
+          text.write(combining);
+          spans.addAll(List.filled(combining.length, span));
+        }
       }
     }
     return _LogicalTerminalLine(text: text.toString(), spans: spans);
@@ -331,58 +257,6 @@ final class _CharacterCellSpan {
 
   bool contains(xterm.CellOffset offset) {
     return offset.y == row && offset.x >= startX && offset.x < endXExclusive;
-  }
-}
-
-final class _PendingOsc8Link {
-  const _PendingOsc8Link({required this.uri, required this.start});
-
-  final Uri uri;
-  final xterm.CellAnchor start;
-
-  bool get attached => start.attached;
-
-  TerminalLinkRange? materialize(xterm.CellOffset end) {
-    if (!attached) {
-      return null;
-    }
-    final range = TerminalLinkRange(uri: uri, start: start.offset, end: end);
-    return range.isEmpty ? null : range;
-  }
-
-  void dispose() {
-    start.dispose();
-  }
-}
-
-final class _TrackedOsc8Link {
-  const _TrackedOsc8Link({
-    required this.uri,
-    required this.start,
-    required this.end,
-  });
-
-  final Uri uri;
-  final xterm.CellAnchor start;
-  final xterm.CellAnchor end;
-
-  bool get attached => start.attached && end.attached;
-
-  TerminalLinkRange? materialize() {
-    if (!attached) {
-      return null;
-    }
-    final range = TerminalLinkRange(
-      uri: uri,
-      start: start.offset,
-      end: end.offset,
-    );
-    return range.isEmpty ? null : range;
-  }
-
-  void dispose() {
-    start.dispose();
-    end.dispose();
   }
 }
 
@@ -450,7 +324,6 @@ final RegExp _visibleHttpUrlPattern = RegExp(
 
 /// Below this many tracked links the O(n) sweep is cheap enough to skip the
 /// growth heuristic entirely.
-const int _osc8LinkPruneFloor = 64;
 
 const Set<String> _alwaysTrimmedTrailingUrlCharacters = <String>{
   '.',

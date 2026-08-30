@@ -313,6 +313,11 @@ impl ServerActor {
                 }
             }
         }
+        if next.payload["manualTitle"] == true {
+            let mut protected = snapshot(&next);
+            protected["title"] = json!(next.title);
+            super::codex_state::persist_snapshot(&mut next, protected);
+        }
         let next_snapshot = snapshot(&next);
         let retained_history_window = retained_timeline_window(&previous_snapshot, &next_snapshot);
         let delta = snapshot_delta(&previous_snapshot, &next_snapshot, &normalized_messages);

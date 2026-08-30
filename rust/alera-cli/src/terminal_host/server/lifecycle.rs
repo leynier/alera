@@ -73,6 +73,10 @@ impl ServerActor {
             || !self.ssh_bootstrap_jobs.is_empty()
             || self.managed_workspace_jobs > 0
             || self.emulator_requests.outstanding() > 0
+            || !self
+                .emulator_requests
+                .pending_workspace_shutdowns
+                .is_empty()
             || self.account_push.cloud_jobs > 0
             || !self.project_clone_jobs.is_empty()
             || self.mobile_gateway.is_some()
@@ -137,7 +141,14 @@ impl ServerActor {
     }
 
     pub(super) async fn handle_shutdown_tick(&mut self, generation: u64) {
-        if generation == self.shutdown_gen && !self.disposed && !self.has_authenticated_clients() {
+        if generation == self.shutdown_gen
+            && !self.disposed
+            && !self.has_authenticated_clients()
+            && self
+                .emulator_requests
+                .pending_workspace_shutdowns
+                .is_empty()
+        {
             self.dispose().await;
         }
     }

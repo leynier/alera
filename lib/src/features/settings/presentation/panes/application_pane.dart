@@ -65,10 +65,9 @@ class ApplicationSettingsPane extends ConsumerWidget {
               SettingsSwitchRow(
                 title: 'Confirm Workspace Removal',
                 description:
-                    'Ask before removing a linked workspace and deleting its branch.',
-                value: general.confirmWorkspaceRemoval,
-                onChanged: (value) =>
-                    controller.setConfirmWorkspaceRemoval(value),
+                    'Always required because removal closes all tabs, stops running processes, and discards unsaved changes.',
+                value: true,
+                onChanged: null,
               ),
             ],
           ),

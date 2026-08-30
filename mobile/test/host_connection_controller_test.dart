@@ -12,6 +12,7 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'support/controlled_app_lifecycle.dart';
 import 'support/memory_cloud_account_repository.dart';
 import 'support/memory_host_repository.dart';
 
@@ -33,11 +34,13 @@ void main() {
       final socket = await WebSocketTransformer.upgrade(request);
       sockets.add(socket);
       socket.listen((raw) {
+        if (socket.readyState != WebSocket.open) return;
         final message = jsonDecode(raw as String) as Map<String, Object?>;
         if (message['type'] == 'mobile.hello' && !helloPayload.isCompleted) {
           helloPayload.complete(message['payload']! as Map<String, Object?>);
         }
-        socket.add(
+        _replyToGatewayRequest(
+          socket,
           jsonEncode(<String, Object?>{
             'id': message['id'],
             'ok': true,
@@ -98,6 +101,7 @@ void main() {
       final socket = await WebSocketTransformer.upgrade(request);
       sockets.add(socket);
       socket.listen((raw) {
+        if (socket.readyState != WebSocket.open) return;
         final message = jsonDecode(raw as String) as Map<String, Object?>;
         if (message['type'] == 'mobile.hello') {
           helloCount += 1;
@@ -105,7 +109,8 @@ void main() {
             reconnected.complete();
           }
         }
-        socket.add(
+        _replyToGatewayRequest(
+          socket,
           jsonEncode(<String, Object?>{
             'id': message['id'],
             'ok': true,
@@ -141,6 +146,14 @@ void main() {
     final dependent = container.listen(dependentProvider, (_, _) {});
     addTearDown(dependent.close);
     final firstClient = await container.read(dependentProvider.future);
+    await _waitUntil(
+      () =>
+          container
+              .read(hostConnectionControllerProvider('runtime-1'))
+              .requireValue
+              .debugPendingRequestCount ==
+          0,
+    );
     final pausedEvents = firstClient.events.listen((_) {});
     pausedEvents.pause();
     addTearDown(pausedEvents.cancel);
@@ -184,11 +197,13 @@ void main() {
         final socket = await WebSocketTransformer.upgrade(request);
         sockets.add(socket);
         socket.listen((raw) {
+          if (socket.readyState != WebSocket.open) return;
           final message = jsonDecode(raw as String) as Map<String, Object?>;
           if (message['type'] == 'mobile.hello') {
             helloCount += 1;
           }
-          socket.add(
+          _replyToGatewayRequest(
+            socket,
             jsonEncode(<String, Object?>{
               'id': message['id'],
               'ok': true,
@@ -216,7 +231,7 @@ void main() {
         ),
         'token-1',
       );
-      final lifecycle = _TestAppLifecycleController();
+      final lifecycle = ControlledAppLifecycle();
       final container = ProviderContainer(
         overrides: [
           hostRepositoryProvider.overrideWithValue(repository),
@@ -231,6 +246,14 @@ void main() {
       final dependent = container.listen(dependentProvider, (_, _) {});
       addTearDown(dependent.close);
       final firstClient = await container.read(dependentProvider.future);
+      await _waitUntil(
+        () =>
+            container
+                .read(hostConnectionControllerProvider('runtime-1'))
+                .requireValue
+                .debugPendingRequestCount ==
+            0,
+      );
 
       await sockets.single.close();
       await Future<void>.delayed(const Duration(milliseconds: 100));
@@ -277,6 +300,7 @@ void main() {
       final socket = await WebSocketTransformer.upgrade(request);
       sockets.add(socket);
       socket.listen((raw) async {
+        if (socket.readyState != WebSocket.open) return;
         final message = jsonDecode(raw as String) as Map<String, Object?>;
         if (message['type'] == 'mobile.hello') {
           helloCount += 1;
@@ -285,7 +309,8 @@ void main() {
           await socket.close();
           return;
         }
-        socket.add(
+        _replyToGatewayRequest(
+          socket,
           jsonEncode(<String, Object?>{
             'id': message['id'],
             'ok': true,
@@ -313,7 +338,7 @@ void main() {
       ),
       'token-1',
     );
-    final lifecycle = _TestAppLifecycleController(AppLifecycleState.resumed);
+    final lifecycle = ControlledAppLifecycle(AppLifecycleState.resumed);
     final container = ProviderContainer(
       overrides: [
         hostRepositoryProvider.overrideWithValue(repository),
@@ -406,8 +431,10 @@ void main() {
       final socket = await WebSocketTransformer.upgrade(request);
       sockets.add(socket);
       socket.listen((raw) {
+        if (socket.readyState != WebSocket.open) return;
         final message = jsonDecode(raw as String) as Map<String, Object?>;
-        socket.add(
+        _replyToGatewayRequest(
+          socket,
           jsonEncode(<String, Object?>{
             'id': message['id'],
             'ok': true,
@@ -448,19 +475,6 @@ void main() {
   });
 }
 
-class _TestAppLifecycleController extends AppLifecycleController {
-  _TestAppLifecycleController([this.initialState = AppLifecycleState.paused]);
-
-  final AppLifecycleState initialState;
-
-  @override
-  AppLifecycleState build() => initialState;
-
-  void setLifecycleState(AppLifecycleState next) {
-    state = next;
-  }
-}
-
 Future<void> _waitUntil(bool Function() condition) async {
   final deadline = DateTime.now().add(const Duration(seconds: 5));
   while (!condition()) {
@@ -468,5 +482,14 @@ Future<void> _waitUntil(bool Function() condition) async {
       throw TimeoutException('Condition was not reached.');
     }
     await Future<void>.delayed(const Duration(milliseconds: 10));
+  }
+}
+
+void _replyToGatewayRequest(WebSocket socket, String message) {
+  try {
+    socket.add(message);
+  } on StateError catch (error) {
+    // A metadata reply may race the test closing the socket after authentication.
+    if (error.message != 'StreamSink is closed') rethrow;
   }
 }

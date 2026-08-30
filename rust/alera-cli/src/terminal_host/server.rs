@@ -58,6 +58,15 @@ mod agent_canvas_requests;
 mod agent_hook_events;
 mod agent_profile_launch_requests;
 mod agent_prompt_composition;
+mod agent_title_context;
+mod agent_title_events;
+mod agent_title_generation;
+#[cfg(all(test, unix))]
+mod agent_title_provider_tests;
+mod agent_title_state;
+#[cfg(test)]
+mod agent_title_tests;
+mod ai_assist_command_execution;
 mod ai_assist_failure_detail;
 mod ai_assist_fx_plan;
 mod ai_assist_grok_plan;
@@ -126,9 +135,13 @@ mod host_service_agent_quota;
 mod host_service_requests;
 mod host_status;
 mod lifecycle;
+#[cfg(test)]
+mod managed_workspace_cleanup_tests;
 mod managed_workspace_requests;
 mod mobile_gateway_surface;
 mod mobile_hello_requests;
+#[cfg(test)]
+mod mobile_relay_presence_tests;
 mod mobile_terminal_requests;
 #[cfg(test)]
 mod mobile_terminal_viewport_tests;
@@ -163,6 +176,7 @@ mod runtime_mutations;
 mod server_command;
 #[path = "server_runner.rs"]
 mod server_runner;
+mod server_shutdown;
 mod session_termination;
 #[cfg(test)]
 mod session_termination_tests;
@@ -238,6 +252,7 @@ struct ServerActor {
     sessions: HashMap<String, Session>,
     ssh_bootstrap_jobs: HashMap<String, SshBootstrapJobState>,
     project_clone_jobs: HashMap<String, tokio::sync::oneshot::Sender<()>>,
+    agent_title_jobs: HashMap<String, agent_title_generation::AgentTitleJob>,
     managed_workspace_jobs: usize,
     emulator_requests: emulator_request_queue::EmulatorRequestQueue,
     agent_quota_cache: Option<(Instant, u64, Value)>,
@@ -416,6 +431,10 @@ impl ServerActor {
 
     async fn handle(&mut self, command: ServerCommand) {
         match command {
+            command @ (ServerCommand::RelayActivity { .. }
+            | ServerCommand::RelayStatus { .. }
+            | ServerCommand::RelayClientConnected { .. }
+            | ServerCommand::RelayClientLine { .. }) => self.handle_relay_command(command).await,
             ServerCommand::ClientConnected { id, handle, kind } => {
                 self.clients.insert(
                     id,
@@ -434,30 +453,18 @@ impl ServerActor {
                     },
                 );
             }
-            ServerCommand::RelayClientConnected {
-                id,
-                handle,
-                client_id,
-            } => {
-                self.clients.insert(
-                    id,
-                    ClientState {
-                        handle,
-                        authenticated: false,
-                        binary_frames: false,
-                        supports_mobile_emulator_tab_kind: false,
-                        supports_codex_tab_kind: false,
-                        kind: ClientKind::Mobile,
-                        local_role: client_delivery::LocalClientRole::Cli,
-                        mobile_device_id: None,
-                        mobile_device_name: Some("Remote Mobile".to_string()),
-                        cloud_device_id: Some(client_id.clone()),
-                        relay_client_id: Some(client_id),
-                    },
-                );
-            }
             ServerCommand::ClientLine { id, line } => self.handle_line(id, line).await,
-            ServerCommand::ClientDisconnected { id } => self.dispose_client(id).await,
+            ServerCommand::ClientDisconnected { id } => {
+                self.account_push.relay_presence.remove(&id);
+                self.dispose_client(id).await;
+            }
+            ServerCommand::MobileStatusFinished {
+                client_id,
+                request_id,
+                payload,
+            } => {
+                self.finish_mobile_network_snapshot(client_id, request_id, payload);
+            }
             ServerCommand::EmulatorPointerTimeout {
                 tab_id,
                 client_id,
@@ -521,6 +528,12 @@ impl ServerActor {
             } => {
                 self.handle_workspace_setup_finished(client_id, request_id, result)
                     .await
+            }
+            ServerCommand::AgentTitleReady { tab_id, id } => {
+                self.start_agent_title(tab_id, id).await
+            }
+            ServerCommand::AgentTitleFinished { tab_id, id, result } => {
+                self.finish_agent_title(tab_id, id, result).await
             }
             ServerCommand::AiAssistFinished {
                 client_id,
@@ -608,6 +621,13 @@ impl ServerActor {
             }
             ServerCommand::RuntimeMutationFinished(finished) => {
                 self.handle_runtime_mutation_finished(finished).await
+            }
+            ServerCommand::PrepareRuntimeMutation {
+                request,
+                completion,
+            } => {
+                let result = self.prepare_runtime_mutation(&request).await;
+                let _ = completion.send(result);
             }
             ServerCommand::OrchestrationWaitTimeout {
                 waiter_id,
@@ -1133,38 +1153,6 @@ impl ServerActor {
             });
         });
     }
-
-    async fn dispose(&mut self) {
-        if self.disposed {
-            return;
-        }
-        self.disposed = true;
-        self.cancel_shutdown_timer();
-        self.codex = None;
-        self.stop_remote_relay().await;
-        if let Some(handle) = self.mobile_gateway.take() {
-            handle.abort();
-        }
-        if let Some(emulators) = self.emulators.as_ref() {
-            emulators.lock().await.dispose().await;
-        }
-        // Closing client handles ends their connection loops.
-        self.browser = BrowserBroker::default();
-        self.clients.clear();
-        let store = self.store.clone();
-        let session_ids: Vec<String> = self.sessions.keys().cloned().collect();
-        for session_id in session_ids {
-            self.terminal_pulses.disarm(&session_id);
-            self.cleanup_orchestration_for_closed_session(&session_id, "terminal host shut down")
-                .await;
-            self.flush_all_output(&session_id);
-            self.await_output_writes(&session_id).await;
-            if let Some(mut session) = self.sessions.remove(&session_id) {
-                session.terminate(false, &store).await;
-            }
-        }
-        control_file::delete_control_file(&self.control_file_path);
-    }
 }
 
 #[cfg(test)]
@@ -1213,6 +1201,7 @@ mod tests {
                 },
             )]),
             project_clone_jobs: HashMap::new(),
+            agent_title_jobs: HashMap::new(),
             managed_workspace_jobs: 0,
             emulator_requests: Default::default(),
             agent_quota_cache: None,
@@ -1292,6 +1281,7 @@ mod tests {
             sessions: HashMap::new(),
             ssh_bootstrap_jobs: HashMap::new(),
             project_clone_jobs: HashMap::new(),
+            agent_title_jobs: HashMap::new(),
             managed_workspace_jobs: 0,
             emulator_requests: Default::default(),
             agent_quota_cache: None,
@@ -1389,6 +1379,7 @@ mod tests {
             sessions: HashMap::new(),
             ssh_bootstrap_jobs: HashMap::new(),
             project_clone_jobs: HashMap::new(),
+            agent_title_jobs: HashMap::new(),
             managed_workspace_jobs: 0,
             emulator_requests: Default::default(),
             agent_quota_cache: None,
@@ -1481,6 +1472,7 @@ mod tests {
             sessions: HashMap::new(),
             ssh_bootstrap_jobs: HashMap::new(),
             project_clone_jobs: HashMap::new(),
+            agent_title_jobs: HashMap::new(),
             managed_workspace_jobs: 0,
             emulator_requests: Default::default(),
             agent_quota_cache: None,
@@ -1595,6 +1587,7 @@ mod tests {
             sessions: HashMap::from([("term-1".to_string(), session)]),
             ssh_bootstrap_jobs: HashMap::new(),
             project_clone_jobs: HashMap::new(),
+            agent_title_jobs: HashMap::new(),
             managed_workspace_jobs: 0,
             emulator_requests: Default::default(),
             agent_quota_cache: None,
@@ -1682,6 +1675,7 @@ mod tests {
             sessions: HashMap::new(),
             ssh_bootstrap_jobs: HashMap::new(),
             project_clone_jobs: HashMap::new(),
+            agent_title_jobs: HashMap::new(),
             managed_workspace_jobs: 0,
             emulator_requests: Default::default(),
             agent_quota_cache: None,
@@ -1756,6 +1750,7 @@ mod tests {
             sessions: HashMap::new(),
             ssh_bootstrap_jobs: HashMap::new(),
             project_clone_jobs: HashMap::new(),
+            agent_title_jobs: HashMap::new(),
             managed_workspace_jobs: 0,
             emulator_requests: Default::default(),
             agent_quota_cache: None,

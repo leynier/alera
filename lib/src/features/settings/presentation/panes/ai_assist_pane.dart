@@ -37,6 +37,7 @@ class _AiAssistSettingsPaneState extends ConsumerState<AiAssistSettingsPane> {
         AiAssistOperation.pullRequestDetails,
         AiAssistOperation.readingDiff,
         AiAssistOperation.workspaceIdentity,
+        AiAssistOperation.agentTitle,
         AiAssistOperation.speechMessage,
       ];
 
@@ -92,10 +93,20 @@ class _AiAssistSettingsPaneState extends ConsumerState<AiAssistSettingsPane> {
               SettingsSwitchRow(
                 title: 'Enable AI Assist',
                 description:
-                    'Show generation actions in source control and pull requests.',
+                    'Generate text for source control, workspaces, and agent conversations.',
                 value: widget.settings.enabled,
                 onChanged: (value) => widget.onChanged(
                   (settings) => settings.copyWith(enabled: value),
+                ),
+              ),
+              SettingsSwitchRow(
+                title: 'Auto-Generate Agent Titles',
+                description:
+                    'Name new agent conversations from their first prompt or recent context.',
+                value: settings.autoGenerateAgentTitles,
+                onChanged: (value) => widget.onChanged(
+                  (settings) =>
+                      settings.copyWith(autoGenerateAgentTitles: value),
                 ),
               ),
               AiAssistAgentRow(

@@ -6,6 +6,7 @@
 
 use crate::terminal_host::agent_profile_capabilities::RUNTIME_HOST_AGENT_PROFILE_LAUNCH_IDEMPOTENCY_CAPABILITY;
 use crate::terminal_host::ai_assist_capabilities::{
+    RUNTIME_HOST_AI_ASSIST_AGENT_TITLE_CAPABILITY,
     RUNTIME_HOST_AI_ASSIST_SPEECH_MESSAGE_CAPABILITY,
     RUNTIME_HOST_AI_ASSIST_WORKSPACE_IDENTITY_CAPABILITY,
 };
@@ -43,6 +44,7 @@ use crate::terminal_host::protocol::{
 /// the older code path with no version to blame.
 pub(super) const MOBILE_HELLO_CAPABILITIES: &[&str] = &[
     "configurationSyncV1",
+    "relayAuthorizationRenewalV1",
     RUNTIME_HOST_CAPABILITY,
     RUNTIME_HOST_MANAGED_WORKSPACE_CAPABILITY,
     RUNTIME_HOST_MOBILE_CAPABILITY,
@@ -65,6 +67,7 @@ pub(super) const MOBILE_HELLO_CAPABILITIES: &[&str] = &[
     RUNTIME_HOST_AGENT_STATUS_CAPABILITY,
     RUNTIME_HOST_AGENT_PROFILES_CAPABILITY,
     RUNTIME_HOST_AI_ASSIST_WORKSPACE_IDENTITY_CAPABILITY,
+    RUNTIME_HOST_AI_ASSIST_AGENT_TITLE_CAPABILITY,
     RUNTIME_HOST_AI_ASSIST_SPEECH_MESSAGE_CAPABILITY,
     RUNTIME_HOST_AGENT_PROFILE_PROMPT_LAUNCH_CAPABILITY,
     RUNTIME_HOST_AGENT_PROFILE_LAUNCH_IDEMPOTENCY_CAPABILITY,
@@ -83,12 +86,21 @@ pub(super) const MOBILE_HELLO_CAPABILITIES: &[&str] = &[
     RUNTIME_HOST_AI_DICTATION_BACKENDS_CAPABILITY,
     RUNTIME_HOST_REMOTE_AI_DICTATION_CAPABILITY,
 ];
+pub(super) fn mobile_hello_capabilities(renewal_enabled: bool) -> Vec<&'static str> {
+    MOBILE_HELLO_CAPABILITIES
+        .iter()
+        .copied()
+        .filter(|capability| renewal_enabled || *capability != "relayAuthorizationRenewalV1")
+        .collect()
+}
+
 pub(super) fn mobile_request_allowed(request_type: &str) -> bool {
     matches!(
         request_type,
         "status.get"
             | "host.restart"
             | "mobile.status.get"
+            | "mobile.relayAuthorization.renew"
             | "project.list"
             | "hostDirectory.roots"
             | "hostDirectory.list"
@@ -120,6 +132,7 @@ pub(super) fn mobile_request_allowed(request_type: &str) -> bool {
             | "agentProfile.list"
             | "agentProfile.launch"
             | "agentProfile.launchIdempotent"
+            | "aiText.agentTitle.generate"
             | "aiText.workspaceIdentity.generate"
             | "aiText.speechMessage.generate"
             | "aiText.cancel"
@@ -277,5 +290,17 @@ mod mobile_codex_file_surface_tests {
         assert!(MOBILE_HELLO_CAPABILITIES.contains(&RUNTIME_HOST_AI_DICTATION_BACKENDS_CAPABILITY));
         assert!(MOBILE_HELLO_CAPABILITIES.contains(&RUNTIME_HOST_REMOTE_AI_DICTATION_CAPABILITY));
         assert!(mobile_request_allowed("mobile.aiDictation.capabilities"));
+    }
+}
+
+#[cfg(test)]
+mod relay_renewal_tests {
+    #[test]
+    fn disabling_renewal_preserves_all_other_mobile_capabilities() {
+        let enabled = super::mobile_hello_capabilities(true);
+        let disabled = super::mobile_hello_capabilities(false);
+        assert!(enabled.contains(&"relayAuthorizationRenewalV1"));
+        assert!(!disabled.contains(&"relayAuthorizationRenewalV1"));
+        assert_eq!(enabled.len(), disabled.len() + 1);
     }
 }

@@ -205,6 +205,7 @@ impl ServerActor {
             return;
         };
         let release_emulator = client.authenticated && matches!(client.kind, ClientKind::Local);
+        let mobile_disconnected = client.authenticated && matches!(client.kind, ClientKind::Mobile);
         self.orchestration_waiters.remove_client(client_id);
         self.handle_browser_client_disconnect(client_id);
         self.cancel_queued_emulator_requests(client_id);
@@ -220,6 +221,9 @@ impl ServerActor {
         }
         self.clients.remove(&client_id);
         self.configuration_transfers.disconnect(client_id);
+        if mobile_disconnected {
+            self.broadcast_authenticated(event("mobileDevicesChanged", json!({})));
+        }
         if release_emulator {
             self.queue_emulator_client_release(client_id, !self.has_authenticated_clients());
         }
@@ -313,6 +317,7 @@ mod tests {
             sessions: HashMap::new(),
             ssh_bootstrap_jobs: HashMap::new(),
             project_clone_jobs: HashMap::new(),
+            agent_title_jobs: HashMap::new(),
             managed_workspace_jobs: 0,
             emulator_requests: Default::default(),
             agent_quota_cache: None,

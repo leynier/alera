@@ -263,6 +263,7 @@ class _ShellTestWorkbenchController extends WorkbenchController {
     if (deleteWorkspaceFailure case final Object failure) {
       throw failure;
     }
+    ref.read(terminalRuntimeProvider).closeWorkspace(workspace.id);
     final nextWorkspaces = <Workspace>[
       for (final candidate in state.workspacesFor(project.id))
         if (candidate.id != workspace.id) candidate,

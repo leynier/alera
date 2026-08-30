@@ -151,7 +151,26 @@ impl ServerActor {
             let settings: RuntimeAiAssistSettings = serde_json::from_value(value.clone())
                 .map_err(|_| HostError::format("AI Assist settings are invalid."))?;
             validate_ai_assist_settings(&settings)?;
+            let cancel_titles = self
+                .agent_title_jobs
+                .iter()
+                .filter(|(_, job)| {
+                    !settings.enabled || (job.automatic && !settings.auto_generate_agent_titles)
+                })
+                .map(|(tab, _)| tab.clone())
+                .collect::<Vec<_>>();
             runtime_value(self.runtime_store.set_ai_assist_settings(settings).await)?;
+            let titles_canceled = !cancel_titles.is_empty();
+            for tab_id in cancel_titles {
+                self.cancel_agent_title_job(&tab_id);
+                if let Ok(Some(mut tab)) = self.runtime_store.find_workspace_tab(&tab_id).await {
+                    tab.payload["agentTitleStatus"] = json!("idle");
+                    let _ = self.runtime_store.upsert_workspace_tab(tab).await;
+                }
+            }
+            if titles_canceled {
+                self.broadcast_workspace_tabs_changed(None);
+            }
         }
         if let Some(value) = payload.get("textActions") {
             let settings: RuntimeTextActionsSettings = serde_json::from_value(value.clone())

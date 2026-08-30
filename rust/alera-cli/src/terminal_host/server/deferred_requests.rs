@@ -23,6 +23,15 @@ impl ServerActor {
             return Ok(true);
         }
         match request_type {
+            "mobile.status.get"
+                if payload.get("includeNetworkStatus").and_then(Value::as_bool) != Some(false) =>
+            {
+                self.require_auth(client_id)?;
+                self.require_request_allowed(client_id, request_type)?;
+                self.start_mobile_network_snapshot(client_id, request_id)
+                    .await?;
+                Ok(true)
+            }
             "aiDictation.transcribe" => {
                 self.require_authenticated_local_request(client_id, request_type)?;
                 self.start_ai_dictation(client_id, request_id, payload)
@@ -34,6 +43,13 @@ impl ServerActor {
                 self.require_request_allowed(client_id, request_type)?;
                 self.try_start_mobile_ai_dictation(client_id, request_id, payload)
                     .await
+            }
+            "aiText.agentTitle.generate" => {
+                self.require_auth(client_id)?;
+                self.require_request_allowed(client_id, request_type)?;
+                self.request_agent_title(client_id, request_id, payload)
+                    .await?;
+                Ok(true)
             }
             "aiText.workspaceIdentity.generate" => {
                 self.require_auth(client_id)?;
@@ -104,6 +120,10 @@ impl ServerActor {
                     request_id,
                     workspace_id,
                     active_workspace_id,
+                    payload
+                        .get("closeSessions")
+                        .and_then(Value::as_bool)
+                        .unwrap_or(false),
                 );
                 Ok(true)
             }
@@ -111,19 +131,22 @@ impl ServerActor {
                 self.require_auth(client_id)?;
                 self.require_request_allowed(client_id, request_type)?;
                 let request: ManagedWorkspaceRemoveRequest = parse_payload(payload)?;
-                if request.active_workspace_id.as_deref() == Some(request.id.as_str()) {
+                if !request.close_sessions
+                    && request.active_workspace_id.as_deref() == Some(request.id.as_str())
+                {
                     return Err(HostError::state("Workspace is active in the workbench"));
                 }
-                if self
-                    .sessions
-                    .values()
-                    .any(|session| session.workspace_id == request.id && session.running())
+                if !request.close_sessions
+                    && self
+                        .sessions
+                        .values()
+                        .any(|session| session.workspace_id == request.id && session.running())
                 {
                     return Err(HostError::state(
                         "Workspace has a live terminal session or process",
                     ));
                 }
-                if self.browser.has_pages_for_workspace(&request.id) {
+                if !request.close_sessions && self.browser.has_pages_for_workspace(&request.id) {
                     return Err(HostError::state("Workspace has a live browser session"));
                 }
                 let has_active_automation =
@@ -222,6 +245,7 @@ impl ServerActor {
                 self.require_auth(client_id)?;
                 self.require_request_allowed(client_id, request_type)?;
                 let tab_id = require_string_key(payload, "id")?;
+                self.cancel_agent_title_job(&tab_id);
                 let cleanup = self.plan_codex_tab_cleanup(&tab_id).await?;
                 self.start_runtime_mutation_after_codex_cleanup(
                     client_id,

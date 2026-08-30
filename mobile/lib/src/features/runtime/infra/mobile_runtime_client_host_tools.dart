@@ -1,6 +1,7 @@
 part of 'mobile_runtime_client.dart';
 
 mixin MobileRuntimeClientHostTools {
+  bool get isConnectionUsable;
   int _nextHostToolOperationId = 1;
 
   Future<Map<String, Object?>> requestMap(
@@ -12,7 +13,7 @@ mixin MobileRuntimeClientHostTools {
   Future<void> _refreshCrashReportingRuntimeContext() async {
     try {
       final status = await requestMap('status.get');
-      CrashReporting.updateRuntimeContext(this, status);
+      if (isConnectionUsable) CrashReporting.updateRuntimeContext(this, status);
     } on Object {
       // Version metadata must never make an otherwise compatible host unusable.
       CrashReporting.clearRuntimeContext(this);

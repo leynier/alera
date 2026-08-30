@@ -13,12 +13,29 @@ pub(crate) const DEFAULT_CLOUD_BASE_URL: &str = "https://api.alera.build";
 #[error("{path}: {message}")]
 pub(crate) struct CloudRequestError {
     status: StatusCode,
+    retry_after: Option<std::time::Duration>,
     code: Option<String>,
     path: String,
     message: String,
 }
 
 impl CloudRequestError {
+    pub(crate) fn retry_after(&self) -> Option<std::time::Duration> {
+        self.retry_after
+    }
+    pub(crate) fn is_permanent_failure(&self) -> bool {
+        self.status.is_client_error()
+            && !matches!(
+                self.status,
+                StatusCode::REQUEST_TIMEOUT | StatusCode::TOO_MANY_REQUESTS
+            )
+    }
+    pub(crate) fn can_refresh_authorization(&self) -> bool {
+        self.status == StatusCode::UNAUTHORIZED && self.code.as_deref() != Some("session_revoked")
+    }
+    pub(crate) fn is_permanent_authorization_failure(&self) -> bool {
+        self.status == StatusCode::UNAUTHORIZED || self.status == StatusCode::FORBIDDEN
+    }
     pub(crate) fn is_relay_key_rotation_conflict(&self) -> bool {
         self.status == StatusCode::CONFLICT
             && self.code.as_deref() == Some("relay_key_rotation_conflict")
@@ -390,8 +407,17 @@ impl CloudAccountClient {
             return Ok(response);
         }
         let status = response.status();
+        let retry_after = response
+            .headers()
+            .get("retry-after")
+            .and_then(|value| value.to_str().ok())
+            .and_then(parse_retry_after);
         let body = response.text().await.unwrap_or_default();
-        Err(cloud_error(status, &body, path))
+        let mut error = cloud_error(status, &body, path);
+        if let Some(request) = error.downcast_mut::<CloudRequestError>() {
+            request.retry_after = retry_after;
+        }
+        Err(error)
     }
 }
 
@@ -410,11 +436,21 @@ fn cloud_error(status: StatusCode, body: &str, path: &str) -> anyhow::Error {
         .unwrap_or_else(|| format!("cloud request failed with HTTP {status}"));
     CloudRequestError {
         status,
+        retry_after: None,
         code,
         path: path.to_owned(),
         message,
     }
     .into()
+}
+
+fn parse_retry_after(value: &str) -> Option<std::time::Duration> {
+    if let Ok(seconds) = value.parse::<u64>() {
+        return Some(std::time::Duration::from_secs(seconds));
+    }
+    DateTime::parse_from_rfc2822(value).ok().map(|date| {
+        std::time::Duration::from_secs((date.timestamp() - Utc::now().timestamp()).max(0) as u64)
+    })
 }
 
 #[cfg(test)]

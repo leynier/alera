@@ -24,6 +24,7 @@ Future<void> _pumpWorkbenchView(
   Map<String, AgentStatusEntry> agentStatuses =
       const <String, AgentStatusEntry>{},
   FakeBrowserEngine? providedBrowserEngine,
+  bool agentTitlesAvailable = false,
 }) async {
   final browserEngine = providedBrowserEngine ?? FakeBrowserEngine();
   final browserRegistry = BrowserSessionRegistry(engine: browserEngine);
@@ -31,6 +32,9 @@ Future<void> _pumpWorkbenchView(
   await tester.pumpWidget(
     ProviderScope(
       overrides: [
+        agentTitleAvailableProvider.overrideWith(
+          (ref) async => agentTitlesAvailable,
+        ),
         browserSessionRegistryProvider.overrideWithValue(browserRegistry),
         browserProfileServiceProvider.overrideWithValue(
           const _WorkbenchBrowserProfileService(),

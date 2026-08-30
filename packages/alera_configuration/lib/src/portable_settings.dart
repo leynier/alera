@@ -38,6 +38,7 @@ const desktopPortableFields = <String, List<String>>{
   ],
   'aiTextGeneration': [
     'enabled',
+    'autoGenerateAgentTitles',
     'agent',
     'selectedModelByAgent',
     'selectedThinkingByModel',

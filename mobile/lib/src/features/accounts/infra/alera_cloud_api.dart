@@ -1,4 +1,8 @@
 import 'dart:convert';
+import 'dart:typed_data';
+import 'dart:async';
+import 'dart:io' show HttpDate;
+import 'package:alera_mobile/src/features/runtime/domain/connection_attempt.dart';
 
 import 'package:alera_mobile/src/features/accounts/domain/cloud_account_session.dart';
 import 'package:alera_mobile/src/features/accounts/domain/runtime_push_preferences.dart';
@@ -26,11 +30,17 @@ class AleraCloudConfiguration {
 }
 
 class AleraCloudException implements Exception {
-  const AleraCloudException(this.message, {this.statusCode, this.code});
+  const AleraCloudException(
+    this.message, {
+    this.statusCode,
+    this.code,
+    this.retryAfter,
+  });
 
   final String message;
   final int? statusCode;
   final String? code;
+  final Duration? retryAfter;
 
   @override
   String toString() => message;
@@ -345,7 +355,16 @@ class HttpAleraCloudApi
     String? accessToken,
     Map<String, Object?>? body,
   }) async {
-    final request = http.Request(method, configuration.baseUri.resolve(path));
+    final abort = Completer<void>();
+    final scope = ConnectionAttempt.current;
+    scope?.check();
+    final request = http.AbortableRequest(
+      method,
+      configuration.baseUri.resolve(path),
+      abortTrigger: scope == null
+          ? abort.future
+          : Future.any([abort.future, scope.cancelled]),
+    );
     request.headers['accept'] = 'application/json';
     if (body != null) {
       request.headers['content-type'] = 'application/json';
@@ -354,13 +373,35 @@ class HttpAleraCloudApi
     if (accessToken != null) {
       request.headers['authorization'] = 'Bearer $accessToken';
     }
-    final streamed = await _client
-        .send(request)
-        .timeout(configuration.requestTimeout);
-    final response = await http.Response.fromStream(streamed);
-    final decoded = response.body.trim().isEmpty
-        ? const <String, Object?>{}
-        : _decodeMap(response.body);
+    final operation = () async {
+      final streamed = await _client.send(request);
+      final bytes = BytesBuilder(copy: false);
+      await for (final chunk in streamed.stream) {
+        if (bytes.length + chunk.length > 4 * 1024 * 1024) {
+          throw const FormatException('Cloud response exceeds its size limit.');
+        }
+        bytes.add(chunk);
+      }
+      return http.Response.bytes(
+        bytes.takeBytes(),
+        streamed.statusCode,
+        headers: streamed.headers,
+      );
+    }();
+    late final http.Response response;
+    try {
+      response = await operation.timeout(configuration.requestTimeout);
+    } finally {
+      if (!abort.isCompleted) abort.complete();
+    }
+    var decoded = const <String, Object?>{};
+    if (response.body.trim().isNotEmpty) {
+      try {
+        decoded = _decodeMap(response.body);
+      } on AleraCloudException {
+        if (response.statusCode >= 200 && response.statusCode < 300) rethrow;
+      }
+    }
     if (response.statusCode < 200 || response.statusCode >= 300) {
       final error = _map(decoded['error']);
       throw AleraCloudException(
@@ -368,12 +409,27 @@ class HttpAleraCloudApi
             _optionalString(decoded, 'message') ??
             'Cloud request failed',
         statusCode: response.statusCode,
+        retryAfter: _retryAfter(response.headers['retry-after']),
         code:
             _optionalString(error, 'code') ?? _optionalString(decoded, 'code'),
       );
     }
     return decoded;
   }
+}
+
+Duration? _retryAfter(String? value) {
+  final seconds = int.tryParse(value ?? '');
+  if (seconds != null && seconds >= 0) return Duration(seconds: seconds);
+  if (value != null) {
+    try {
+      final delay = HttpDate.parse(value).difference(DateTime.now().toUtc());
+      return delay.isNegative ? Duration.zero : delay;
+    } on FormatException {
+      return null;
+    }
+  }
+  return null;
 }
 
 Map<String, Object?> _decodeMap(String encoded) {

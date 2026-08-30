@@ -125,6 +125,7 @@ impl ServerActor {
             .await
             .map_err(|error| HostError::state(error.to_string()))?
             .ok_or_else(|| HostError::state(format!("Agent profile not found: {profile_id}")))?;
+        let title_prompt = prompt.clone();
         let prompt = compose_agent_prompt(
             &prompt,
             &profile.custom_prompt,
@@ -165,7 +166,7 @@ impl ServerActor {
                     "could not encode agent profile launch snapshot: {error}"
                 ))
             })?;
-        let tab = WorkspaceTabRecord {
+        let mut tab = WorkspaceTabRecord {
             id: id.clone(),
             workspace_id: workspace_id.clone(),
             kind: "terminal".to_string(),
@@ -174,6 +175,7 @@ impl ServerActor {
             updated_at: now,
             payload: tab_payload,
         };
+        super::agent_title_state::initialize(&mut tab, &title_prompt);
         let mut projected_tab = tab.clone();
         redact_private_tab_payload(&mut projected_tab);
         let result = json!({
@@ -183,6 +185,8 @@ impl ServerActor {
         });
         let Some(mutation_id) = client_mutation_id.as_deref() else {
             let mut saved = self.upsert_workspace_tab_and_spawn(tab).await?;
+            self.observe_agent_title(&saved.id, adapter.agent_type, None, &title_prompt, true)
+                .await;
             redact_private_tab_payload(&mut saved);
             return Ok(json!({
                 "tab": saved,
@@ -218,6 +222,8 @@ impl ServerActor {
             self.terminate_sessions_for_tab(&tab.id).await;
             return Err(error);
         }
+        self.observe_agent_title(&tab.id, adapter.agent_type, None, &title_prompt, true)
+            .await;
         self.broadcast_workspace_tabs_changed(Some(&workspace_id));
         Ok(result)
     }

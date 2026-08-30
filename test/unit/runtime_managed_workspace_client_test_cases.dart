@@ -34,6 +34,7 @@ void _registerRuntimeManagedWorkspaceClientTests() {
       <String, Object?>{
         'id': 'workspace-1',
         'activeWorkspaceId': 'workspace-1',
+        'closeSessions': true,
       },
     );
   });
@@ -72,6 +73,7 @@ void _registerRuntimeManagedWorkspaceClientTests() {
           'id': 'workspace-1',
           'activeWorkspaceId': 'workspace-2',
           'deleteBranch': true,
+          'closeSessions': true,
         },
       );
     },

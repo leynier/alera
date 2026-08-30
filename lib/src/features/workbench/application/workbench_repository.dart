@@ -23,7 +23,11 @@ abstract interface class WorkbenchRepository {
 
   Future<WorkspaceTabRecord?> findWorkspaceTabById(String tabId);
 
-  Future<WorkspaceTabRecord> upsertWorkspaceTab(WorkspaceTabRecord tab);
+  /// Explicit renames must invalidate pending title jobs even if the text is unchanged.
+  Future<WorkspaceTabRecord> upsertWorkspaceTab(
+    WorkspaceTabRecord tab, {
+    bool manualRename = false,
+  });
 
   Future<void> removeWorkspaceTab(String tabId);
 

@@ -252,7 +252,10 @@ class _FakeWorkbenchRepository implements WorkbenchRepository {
   }
 
   @override
-  Future<WorkspaceTabRecord> upsertWorkspaceTab(WorkspaceTabRecord tab) async {
+  Future<WorkspaceTabRecord> upsertWorkspaceTab(
+    WorkspaceTabRecord tab, {
+    bool manualRename = false,
+  }) async {
     final index = tabs.indexWhere((entry) => entry.id == tab.id);
     if (index == -1) {
       tabs.add(tab);

@@ -51,7 +51,10 @@ void main() {
         ),
       ],
     );
-    addTearDown(runtime.dispose);
+    var runtimeDisposed = false;
+    addTearDown(() {
+      if (!runtimeDisposed) runtime.dispose();
+    });
     final session = runtime.sessionFor(workspace: _workspace(), tab: _tab());
 
     await tester.pumpWidget(
@@ -97,6 +100,12 @@ void main() {
     print(report.format(snapshot));
     expect(samples, hasLength(_measuredRuns));
     expect(samples.every((sample) => sample.frames.isNotEmpty), isTrue);
+    // The measurement deliberately leaves live output queued. Retire its frame
+    // callback before the test binding checks for outstanding animations.
+    await tester.pumpWidget(const SizedBox());
+    runtime.dispose();
+    runtimeDisposed = true;
+    await tester.pump();
   });
 }
 

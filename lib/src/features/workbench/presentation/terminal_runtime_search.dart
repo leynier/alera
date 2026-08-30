@@ -32,8 +32,6 @@ mixin _TerminalSearchSessionSupport on TerminalSessionHandle {
 
   ValueNotifier<TerminalRestoreProgress?> get _restoreProgress;
 
-  Osc8TerminalLinkTracker get _osc8LinkTracker;
-
   Set<Object> get _visibilityLeases;
 
   set _visible(bool value);
@@ -90,11 +88,11 @@ mixin _TerminalSearchSessionSupport on TerminalSessionHandle {
     _appForeground = false;
     _pointerInputResumePending = false;
     _pointerInputCatchUpChars = 0;
-    _osc8LinkTracker.dispose();
     _searchController.dispose();
     _terminalController.removeListener(_handleSelectionChanged);
     _terminalController.dispose();
     _detachTerminal(_terminal);
+    _terminal.dispose();
     _clearPendingTerminalOutput();
     unawaited(
       _stopPtySessionWithMode(suppressExit: true, terminate: terminatePty),

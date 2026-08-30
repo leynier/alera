@@ -58,6 +58,8 @@ impl Write for RecordingWriter {
 
 fn test_session() -> Session {
     Session {
+        #[cfg(unix)]
+        child_reaper: Arc::default(),
         instance_id: next_session_instance_id(),
         initial_agent_prompt_delivered: false,
         id: "session-1".to_string(),

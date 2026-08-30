@@ -148,6 +148,7 @@ class CliAiAssistService implements AiAssistService {
       AiAssistOperation.branchName ||
       AiAssistOperation.readingDiff ||
       AiAssistOperation.workspaceIdentity ||
+      AiAssistOperation.agentTitle ||
       AiAssistOperation.speechMessage => throw AiAssistException(
         '${request.operation.label} generation is not wired yet.',
       ),
