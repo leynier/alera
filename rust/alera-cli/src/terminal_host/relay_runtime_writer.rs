@@ -98,9 +98,12 @@ mod tests {
         for complete in [true, false] {
             let (inbox, mut commands) = mpsc::unbounded_channel();
             let (output, mut envelopes) = mpsc::channel(2);
-            let local = IdentityKeyPair::from_private([2; 32]);
-            let ephemeral = IdentityKeyPair::from_private([3; 32]);
-            let remote = IdentityKeyPair::from_private([7; 32]);
+            let local = IdentityKeyPair::generate();
+            let ephemeral = IdentityKeyPair::generate();
+            let remote = IdentityKeyPair::generate();
+            let high = u128::from(rand_core::RngCore::next_u64(&mut rand_core::OsRng));
+            let low = u128::from(rand_core::RngCore::next_u64(&mut rand_core::OsRng));
+            let nonce = ((high << 64) | low).to_be_bytes();
             let (_, session) = relay_wire::derive_sessions(
                 &local,
                 &ephemeral,
@@ -108,7 +111,7 @@ mod tests {
                 remote.public_bytes(),
                 "runtime",
                 "mobile",
-                &[1; 16],
+                &nonce,
             )
             .unwrap();
             let lifetime = Arc::new(socket_writer::PeerLifetime {
