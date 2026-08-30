@@ -92,7 +92,7 @@ class XtermTerminalRuntime implements TerminalRuntime {
             _interactionNotice,
             _notifyOsc52Blocked,
             _handleSessionExit,
-            _handleVisibilityChanged,
+            _handleEvictionEligibilityChanged,
           )..setAppForeground(_appForeground);
           // Apply only at session creation so toggling the setting later does
           // not reopen composers the user already closed.
@@ -129,12 +129,11 @@ class XtermTerminalRuntime implements TerminalRuntime {
     }
   }
 
-  void _handleVisibilityChanged(_XtermTerminalSessionHandle handle) {
-    if (handle.isVisible) {
+  void _handleEvictionEligibilityChanged(_XtermTerminalSessionHandle handle) {
+    if (handle.isVisible || handle._retentionLeases.isNotEmpty) {
       return;
     }
-    // A terminal going off screen is the only moment a new eviction candidate
-    // appears, so this is the sweep trigger rather than a timer.
+    // Sweep when a handle loses its last owner instead of using a timer.
     _enforceBufferBudget();
   }
 
@@ -151,7 +150,8 @@ class XtermTerminalRuntime implements TerminalRuntime {
     }
     final pinned = <String>{
       for (final entry in _sessions.entries)
-        if (entry.value.isVisible) entry.key,
+        if (entry.value.isVisible || entry.value._retentionLeases.isNotEmpty)
+          entry.key,
     };
     final evictions = budget.selectEvictions(
       live: <TerminalBufferUsage>[

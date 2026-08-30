@@ -40,6 +40,7 @@ class TerminalSurface extends ConsumerStatefulWidget {
 
 class _TerminalSurfaceState extends ConsumerState<TerminalSurface> {
   TerminalVisibilityLease? _visibilityLease;
+  late TerminalRetentionLease _retentionLease;
   bool _refreshing = false;
   int _refreshGeneration = 0;
   late bool _composerVisible;
@@ -47,6 +48,7 @@ class _TerminalSurfaceState extends ConsumerState<TerminalSurface> {
   @override
   void initState() {
     super.initState();
+    _retentionLease = widget.session.acquireRetention();
     _attachComposer(widget.session);
     _scheduleStart(widget.session);
   }
@@ -74,8 +76,12 @@ class _TerminalSurfaceState extends ConsumerState<TerminalSurface> {
       _refreshing = false;
       _visibilityLease?.dispose();
       _visibilityLease = null;
-      _syncVisibilityLease();
       _detachComposer(oldWidget.session);
+      final oldRetention = _retentionLease;
+      // Releasing an owner may sweep every handle, including the replacement.
+      _retentionLease = widget.session.acquireRetention();
+      oldRetention.dispose();
+      _syncVisibilityLease();
       _attachComposer(widget.session);
       _scheduleStart(widget.session);
     }
@@ -86,6 +92,7 @@ class _TerminalSurfaceState extends ConsumerState<TerminalSurface> {
     _visibilityLease?.dispose();
     _visibilityLease = null;
     _detachComposer(widget.session);
+    _retentionLease.dispose();
     super.dispose();
   }
 

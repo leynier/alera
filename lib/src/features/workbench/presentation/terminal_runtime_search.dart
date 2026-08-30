@@ -34,6 +34,8 @@ mixin _TerminalSearchSessionSupport on TerminalSessionHandle {
 
   Set<Object> get _visibilityLeases;
 
+  Set<Object> get _retentionLeases;
+
   set _visible(bool value);
 
   set _appForeground(bool value);
@@ -84,6 +86,7 @@ mixin _TerminalSearchSessionSupport on TerminalSessionHandle {
     _startAttempt += 1;
     _outputVisibilityGeneration += 1;
     _visibilityLeases.clear();
+    _retentionLeases.clear();
     _visible = false;
     _appForeground = false;
     _pointerInputResumePending = false;

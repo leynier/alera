@@ -1,16 +1,24 @@
 import 'package:alera/src/app/theme/alera_dark_theme.dart';
+import 'package:alera/src/features/ai_assist/application/agent_title_providers.dart';
 import 'package:alera/src/features/mobile_emulator/application/mobile_emulator_lease_coordinator.dart';
 import 'package:alera/src/features/mobile_emulator/application/mobile_emulator_providers.dart';
 import 'package:alera/src/features/mobile_emulator/infra/mobile_emulator_service.dart';
 import 'package:alera/src/features/mobile_emulator/presentation/mobile_emulator_surface.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
+import 'package:alera/src/features/projects/domain/project.dart';
+import 'package:alera/src/features/workbench/application/workbench_tab_attention.dart';
+import 'package:alera/src/features/workbench/presentation/terminal_runtime.dart';
+import 'package:alera/src/features/workbench/presentation/workspace_workbench_view.dart';
 import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
 import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_protocol.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+part 'mobile_emulator_workbench_visibility_test_cases.dart';
+
 void main() {
+  _registerWorkbenchEmulatorVisibilityTests();
   testWidgets('releases the emulator lease after the surface is unmounted', (
     tester,
   ) async {
@@ -74,6 +82,7 @@ final WorkspaceTabRecord _tab = WorkspaceTabRecord(
 );
 
 final class _SurfaceRuntimeHostClient implements RuntimeHostClient {
+  final requests = <String>[];
   int acquireRequests = 0;
   int releaseRequests = 0;
 
@@ -87,6 +96,7 @@ final class _SurfaceRuntimeHostClient implements RuntimeHostClient {
     Map<String, Object?> payload = const <String, Object?>{},
     Duration? timeout,
   ]) async {
+    requests.add(type);
     return switch (type) {
       'status.get' => <String, Object?>{
         'runtimeCapabilities': <String>[

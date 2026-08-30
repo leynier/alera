@@ -39,6 +39,58 @@ void _fillAndHide(TerminalSessionHandle session) {
 }
 
 void _registerTerminalBufferEvictionTests() {
+  test('retention tokens pin hidden handles until the last owner releases', () {
+    final runtime = XtermTerminalRuntime();
+    addTearDown(runtime.dispose);
+    final session = runtime.sessionFor(workspace: _workspace(), tab: _tab());
+    final first = session.acquireRetention();
+    final second = session.acquireRetention();
+    _fillAndHide(session);
+    runtime.updateSettings(
+      TerminalSettings.defaults.copyWith(bufferBudgetMegabytes: 1),
+    );
+    expect(session.isVisible, isFalse);
+    first.dispose();
+    first.dispose();
+    expect(runtime.peekSession(session.tabId), same(session));
+    second.dispose();
+    second.dispose();
+    expect(runtime.peekSession(session.tabId), isNull);
+  });
+
+  test('visibility still pins a handle after its last retention releases', () {
+    final runtime = XtermTerminalRuntime();
+    addTearDown(runtime.dispose);
+    final session = runtime.sessionFor(workspace: _workspace(), tab: _tab());
+    final retention = session.acquireRetention();
+    final visibility = session.acquireVisibility();
+    _fillScrollback(session);
+    runtime.updateSettings(
+      TerminalSettings.defaults.copyWith(bufferBudgetMegabytes: 1),
+    );
+    retention.dispose();
+    expect(runtime.peekSession(session.tabId), same(session));
+    visibility.dispose();
+    expect(runtime.peekSession(session.tabId), isNull);
+  });
+
+  for (final terminate in [false, true]) {
+    test('explicit ${terminate ? 'close' : 'release'} bypasses retention', () {
+      final runtime = XtermTerminalRuntime();
+      addTearDown(runtime.dispose);
+      final session = runtime.sessionFor(workspace: _workspace(), tab: _tab());
+      final retention = session.acquireRetention();
+      if (terminate) {
+        runtime.closeTab(session.tabId);
+      } else {
+        runtime.releaseTab(session.tabId);
+      }
+      expect(runtime.peekSession(session.tabId), isNull);
+      retention.dispose();
+      session.acquireRetention().dispose();
+    });
+  }
+
   test('a cold terminal is evicted without terminating its PTY', () async {
     // The property the whole policy rests on: eviction detaches, so the agent
     // in that terminal keeps running on the host and its scrollback comes back
