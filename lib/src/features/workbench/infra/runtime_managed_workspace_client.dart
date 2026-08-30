@@ -21,7 +21,7 @@ class RuntimeManagedWorkspaceClient
     String? activeWorkspaceId,
   }) async {
     await _ensureReady();
-    final request = <String, Object?>{'id': workspaceId};
+    final request = <String, Object?>{'id': workspaceId, 'closeSessions': true};
     if (activeWorkspaceId != null) {
       request['activeWorkspaceId'] = activeWorkspaceId;
     }
@@ -83,7 +83,10 @@ class RuntimeManagedWorkspaceClient
     String? activeWorkspaceId,
   }) async {
     await _ensureReady();
-    final request = <String, Object?>{'id': workspace.id};
+    final request = <String, Object?>{
+      'id': workspace.id,
+      'closeSessions': true,
+    };
     if (activeWorkspaceId != null) {
       request['activeWorkspaceId'] = activeWorkspaceId;
     }

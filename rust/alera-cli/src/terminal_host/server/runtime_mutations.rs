@@ -18,7 +18,8 @@ mod hosted_review_retentions;
 #[cfg(test)]
 mod tests;
 
-pub(super) enum RuntimeMutationRequest {
+#[derive(Clone)]
+pub(crate) enum RuntimeMutationRequest {
     RemoveProject {
         project_id: String,
     },
@@ -56,6 +57,13 @@ pub(crate) struct RuntimeMutationOutcome {
     pub(super) closed_session_tab_ids: Vec<String>,
     pub(super) committed_tab_ids: Vec<String>,
     pub(super) effect_on_error: Option<RuntimeMutationEffect>,
+    pub(super) stopped_workspace_tab_ids: Vec<String>,
+    pub(super) pending_workspace_shutdown: Option<
+        Box<(
+            String,
+            crate::terminal_host::session::workspace_shutdown::WorkspaceShutdown,
+        )>,
+    >,
 }
 
 pub(crate) struct RuntimeMutationFinished {
@@ -111,6 +119,8 @@ pub(super) async fn run_runtime_mutation(
                     closed_session_tab_ids: Vec::new(),
                     committed_tab_ids: Vec::new(),
                     effect_on_error: None,
+                    stopped_workspace_tab_ids: Vec::new(),
+                    pending_workspace_shutdown: None,
                 };
             }
         }
@@ -342,6 +352,8 @@ pub(super) async fn run_runtime_mutation(
         closed_session_tab_ids,
         committed_tab_ids,
         effect_on_error,
+        stopped_workspace_tab_ids: Vec::new(),
+        pending_workspace_shutdown: None,
     }
 }
 

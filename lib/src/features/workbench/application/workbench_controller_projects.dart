@@ -153,6 +153,20 @@ mixin _WorkbenchControllerProjects
         deleteBranch: deleteBranch,
         activeWorkspaceId: activeWorkspaceId,
       );
+      // The managed runtime has already stopped the process trees. Keep local
+      // disposal here so deletion from any caller releases the UI resources.
+      ref.read(terminalRuntimeProvider).closeWorkspace(workspace.id);
+      for (final tab in workspaceTabs) {
+        ref.read(editorSessionRegistryProvider).forget(tab.id);
+        if (tab.kind == WorkspaceTabKind.mobileEmulator) {
+          ref.read(mobileEmulatorLeaseCoordinatorProvider).close(tab.id);
+        }
+      }
+      if (ref.exists(browserSessionRegistryProvider)) {
+        await ref
+            .read(browserSessionRegistryProvider)
+            .closeWorkspace(workspace.id);
+      }
       for (final tab in workspaceTabs) {
         await _releaseHostedReviewTab(
           workspace,
@@ -170,6 +184,9 @@ mixin _WorkbenchControllerProjects
           .clearWorkspace(workspace.id);
       final overlay = ref.read(agentRuntimeOverlayServiceProvider);
       for (final sessionId in terminalSessionIds) {
+        if (ref.exists(agentHookReceiverProvider)) {
+          ref.read(agentHookReceiverProvider).clearTerminalSession(sessionId);
+        }
         unawaited(
           overlay.clearTerminalOverlays(sessionId).catchError((Object _) {}),
         );

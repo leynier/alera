@@ -32,6 +32,7 @@ mod tests;
 mod title_tracker;
 #[cfg(windows)]
 mod windows_process_job;
+pub(crate) mod workspace_shutdown;
 
 #[cfg(test)]
 use input_queue::PtyDeferredWrite;
@@ -114,8 +115,11 @@ pub struct DurableOutputBatch {
 }
 
 /// A hosted terminal session. The PTY is read on a dedicated OS thread; other
-/// state transitions run in its owning server actor, so no locks are required.
+/// state transitions run in its owning server actor. On Unix, a reaper lease
+/// preserves the shell's OS identity while workspace shutdown tracks its jobs.
 pub struct Session {
+    #[cfg(unix)]
+    child_reaper: Arc<tokio::sync::Mutex<()>>,
     instance_id: u64,
     /// Guards against re-delivery after this PTY accepts its after-ready prompt.
     pub(super) initial_agent_prompt_delivered: bool,
@@ -217,6 +221,8 @@ impl Session {
         let mut title_tracker = TerminalTitleTracker::default();
         title_tracker.feed(initial_scrollback);
         let mut session = Session {
+            #[cfg(unix)]
+            child_reaper: Arc::default(),
             instance_id: next_session_instance_id(),
             initial_agent_prompt_delivered: false,
             id,
@@ -257,7 +263,13 @@ impl Session {
             title_tracker,
         };
         session.write_checkpoint(store, None).await?;
-        spawn_reader(reader, child, Arc::clone(&on_event));
+        spawn_reader(
+            reader,
+            child,
+            Arc::clone(&on_event),
+            #[cfg(unix)]
+            Arc::clone(&session.child_reaper),
+        );
         spawn_writer(writer, input_rx, on_event);
         Ok(session)
     }

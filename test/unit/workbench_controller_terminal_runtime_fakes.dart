@@ -1,5 +1,17 @@
 part of 'workbench_controller_test.dart';
 
+class _FakeAgentHookReceiver implements AgentHookReceiver {
+  final clearedSessionIds = <String>[];
+
+  @override
+  void clearTerminalSession(String terminalSessionId) {
+    clearedSessionIds.add(terminalSessionId);
+  }
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
 class _FakeTerminalRuntime implements TerminalRuntime {
   final Map<String, _FakeTerminalSessionHandle> sessions =
       <String, _FakeTerminalSessionHandle>{};
@@ -29,6 +41,7 @@ class _FakeTerminalRuntime implements TerminalRuntime {
   }
 
   final List<String> closedTabIds = <String>[];
+  final List<String> closedWorkspaceIds = <String>[];
   final List<String> releasedTabIds = <String>[];
   final List<String> releasedWorkspaceIds = <String>[];
 
@@ -40,6 +53,7 @@ class _FakeTerminalRuntime implements TerminalRuntime {
 
   @override
   void closeWorkspace(String workspaceId) {
+    closedWorkspaceIds.add(workspaceId);
     final tabIds = <String>[
       for (final entry in sessions.entries)
         if (entry.value.workspaceId == workspaceId) entry.key,

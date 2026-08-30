@@ -25,19 +25,21 @@ impl ServerActor {
         request_id: i64,
         workspace_id: String,
         active_workspace_id: Option<String>,
+        close_sessions: bool,
     ) {
         let mut blockers = Vec::new();
-        if active_workspace_id.as_deref() == Some(workspace_id.as_str()) {
+        if !close_sessions && active_workspace_id.as_deref() == Some(workspace_id.as_str()) {
             blockers.push("Workspace is active in the workbench".to_string());
         }
-        if self
-            .sessions
-            .values()
-            .any(|session| session.workspace_id == workspace_id && session.running())
+        if !close_sessions
+            && self
+                .sessions
+                .values()
+                .any(|session| session.workspace_id == workspace_id && session.running())
         {
             blockers.push("Workspace has a live terminal session or process".to_string());
         }
-        if self.browser.has_pages_for_workspace(&workspace_id) {
+        if !close_sessions && self.browser.has_pages_for_workspace(&workspace_id) {
             blockers.push("Workspace has a live browser session".to_string());
         }
         self.managed_workspace_jobs += 1;

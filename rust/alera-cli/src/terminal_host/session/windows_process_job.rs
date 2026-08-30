@@ -31,6 +31,14 @@ pub(super) struct WindowsProcessJob {
 }
 
 impl WindowsProcessJob {
+    pub(super) fn shutdown_handle(&self) -> HostResult<OwnedHandle> {
+        self.handle.try_clone().map_err(|error| {
+            HostError::state(format!(
+                "failed to retain PTY process job for shutdown: {error}"
+            ))
+        })
+    }
+
     pub(super) fn create() -> HostResult<Self> {
         // Safe: both arguments are null, so Windows creates an unnamed job with
         // default security attributes and returns an owned handle.
@@ -244,6 +252,43 @@ mod tests {
             unsafe { WaitForSingleObject(descendant, 5_000) },
             WAIT_OBJECT_0
         );
+        let _ = unsafe { windows::Win32::Foundation::CloseHandle(descendant) };
+        let _ = root.wait();
+    }
+
+    #[tokio::test]
+    async fn workspace_shutdown_waits_for_the_retained_job_and_its_descendant() {
+        let job = WindowsProcessJob::create().expect("job");
+        let temp = tempfile::tempdir().expect("temp dir");
+        let pid_file = temp.path().join("descendant.pid");
+        let mut root = spawn_gated_root(&job, "wait", &pid_file);
+        let root_handle = process_handle(&root);
+        job.assign_process(root_handle).expect("assign root");
+        release(&job);
+        let descendant = wait_for_descendant(&pid_file);
+        let mut session = super::super::Session::driver_test_stub("test", 80, 24);
+        session.process_job = Some(job);
+        let mut shutdown =
+            super::super::workspace_shutdown::WorkspaceShutdown::capture(std::iter::once(&session))
+                .await
+                .expect("retain job");
+        session.process_job.take();
+
+        shutdown.fail_next_waits(1);
+        assert!(shutdown.wait().await.is_err());
+        assert_eq!(
+            unsafe { WaitForSingleObject(root_handle, 0) },
+            windows::Win32::Foundation::WAIT_TIMEOUT
+        );
+        let mut retry = super::super::workspace_shutdown::WorkspaceShutdown::default();
+        retry.merge(shutdown);
+        retry.wait().await.expect("workspace shutdown retry");
+
+        assert_eq!(
+            unsafe { WaitForSingleObject(root_handle, 0) },
+            WAIT_OBJECT_0
+        );
+        assert_eq!(unsafe { WaitForSingleObject(descendant, 0) }, WAIT_OBJECT_0);
         let _ = unsafe { windows::Win32::Foundation::CloseHandle(descendant) };
         let _ = root.wait();
     }

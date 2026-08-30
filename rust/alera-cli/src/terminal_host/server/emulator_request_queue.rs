@@ -65,6 +65,8 @@ pub(super) struct EmulatorRequestQueue {
     runtime_mutations: usize,
     park_all_outstanding: bool,
     pub(super) active_pointers: HashMap<String, ActivePointerState>,
+    pub(super) pending_workspace_shutdowns:
+        HashMap<String, crate::terminal_host::session::workspace_shutdown::WorkspaceShutdown>,
     next_pointer_generation: u64,
 }
 
