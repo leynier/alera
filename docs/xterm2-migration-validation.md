@@ -6,11 +6,11 @@ Desktop and mobile now use `xterm2` 5.3.0 from the existing `third_party/xterm` 
 
 | Fork | Final `next` SHA | Purpose |
 | --- | --- | --- |
-| `leynier/xterm2` | `52fec4dae89c9b8af6e7071096673fe4a5af4ba1` | Upstream base plus focused compatibility, regression tests and renderer cache optimization |
-| `leynier/xterm.dart` | `8e130dd687b0ff036443a5aff318e74275163eee` | Preserves legacy code through `14ebe14844b5f35cff20c582f09fd97dd6bedc28`, plus branch policy and CI documentation |
-| `leynier/dart_terminal` | `e7028139cd90a0676c0323b2ec5f4312d14c4932` | Preserves `dca082113f7e7a04d465431440a765e71468d3ee`, plus branch links and workflow updates |
+| `leynier/xterm2` | `cd99d34fbcc4b2001418546c94dd7e3533251a12` | Upstream base plus focused compatibility, regression tests and renderer cache optimization |
+| `leynier/xterm.dart` | `dd37dbe3cb0ea5f2de529ba158395af062351e62` | Preserves legacy code through `14ebe14844b5f35cff20c582f09fd97dd6bedc28`, plus branch policy and CI documentation |
+| `leynier/dart_terminal` | `7bfb6c57f8da75742891ac27b568cc651f77501a` | Preserves `dca082113f7e7a04d465431440a765e71468d3ee`, plus branch links and workflow updates |
 
-There is no SDK upgrade, Ghostty renderer migration, pub.dev publication or Alera release. `dart_terminal` is not updated to upstream 0.2.0-beta.2 and does not acquire `native_prebuilt` or a Dart 3.13 requirement. Its nested Ghostty stays at `08f039fbb3dea9c6b1cdb5ff4550666598122346`.
+There is no SDK upgrade, Ghostty renderer migration, pub.dev publication or Alera release. The consumed `dart_terminal:next` is not updated to upstream 0.2.0-beta.2 and does not acquire `native_prebuilt` or a Dart 3.13 requirement. Its nested Ghostty stays at `08f039fbb3dea9c6b1cdb5ff4550666598122346`. Its separate `master` mirror tracks current upstream without changing this pin.
 
 ## Compatibility decisions
 
@@ -32,7 +32,7 @@ Local application validation uses isolated Flutter 3.44.8 / Dart 3.12.2 without 
 | --- | --- |
 | xterm2 upstream baseline | 742 passed, two skipped, two existing text-scaler golden failures |
 | xterm2 fork | 851 non-golden tests passed, two skipped; static analysis clean |
-| xterm2 CI | [Final commit CI](https://github.com/leynier/xterm2/actions/runs/33290021630) passed on Linux, macOS and Windows using Flutter 3.44.8 |
+| xterm2 CI | [Final pinned commit CI](https://github.com/leynier/xterm2/actions/runs/33292022130) passed on Linux, macOS and Windows using Flutter 3.44.8 |
 | Alera desktop suite | Final complete run: 3,353 passed, one skipped (`flutter test --concurrency 2`) |
 | Alera mobile suite | 575 passed again against the final pin, including lifecycle/reconnect assertions |
 | Static analysis | Complete desktop and mobile analysis clean |
@@ -43,11 +43,25 @@ Local application validation uses isolated Flutter 3.44.8 / Dart 3.12.2 without 
 | Repeated Ghostty source builds | Two successful native hook runs; nested Ghostty checkout remains unchanged |
 | Linux native application | Built successfully and ran all three integration benchmark executables |
 | macOS native input | 10 xterm interaction tests and 145 Alera terminal/input/link/widget tests passed against final sources |
-| Windows native input | 10 xterm interaction tests and 129 Alera terminal/input/widget tests passed; two platform-specific tests skipped |
+| Windows native input | 10 xterm interaction tests and 143 Alera terminal/input/link/widget tests passed against final sources; two platform-specific tests skipped |
+| Windows native application | Full debug build and final-source incremental build passed, including the Rust library and CLI sidecar |
 | Android build | Debug APK built successfully, including its native Rust library |
 | macOS / iOS builds | Blocked by missing CocoaPods on the Mac; no machine-wide installation was performed |
 
 The two upstream text-scaler golden tests retain their original images and are tagged `platform-golden`. CI gates all other tests and runs those goldens in a separate non-blocking step; unfiltered `flutter test` still reports their failures. They are not presented as passing checks.
+
+The final branch-policy commits change documentation and the disabled autotag workflow only. Runtime source and tests are identical to the validated xterm2 `52fec4dae89c9b8af6e7071096673fe4a5af4ba1` and dart_terminal `e7028139cd90a0676c0323b2ec5f4312d14c4932` pins.
+
+For a repeatable local check, activate Flutter 3.44.8 only in the current process environment, initialize submodules, and run these commands from the indicated package directories. Native builds also require the project's platform toolchains; the Mac currently lacks CocoaPods.
+
+| Directory | Commands |
+| --- | --- |
+| Repository root | `flutter pub get`, `flutter analyze --no-pub`, `flutter test --concurrency 2` |
+| `third_party/xterm` | `flutter pub get`, `flutter analyze --fatal-infos`, `flutter test --exclude-tags platform-golden` |
+| `mobile` | `flutter pub get`, `flutter analyze --no-pub`, `flutter test`, `flutter build apk --debug` |
+| `third_party/dart_terminal/pkgs/vte/ghostty_vte` | `flutter pub get`, `flutter test test/hook_build_test.dart test/build_cache_test.dart` |
+
+On Linux, run each benchmark separately with `xvfb-run -a flutter test integration_test/<benchmark>.dart -d linux --reporter expanded`, using `terminal_render_benchmark`, `terminal_flush_cadence_benchmark` and `terminal_restore_benchmark`. Stop this task's other builds first and record host load; do not stop another task's processes to obtain a quieter sample.
 
 An earlier parallel desktop suite run had an isolated failure in `mobile_emulator_playback_monitor_test.dart: reports player errors without treating them as completion` (expected one event, observed zero). All five tests in that file passed on isolated retry, and the final complete run with concurrency two passed all 3,353 tests. No unrelated playback implementation or test was changed. Automated widget/protocol tests do not substitute for interactive IME, clipboard/image, gesture or device smoke testing.
 
@@ -73,7 +87,17 @@ An identical 20,000-line short-output scenario retaining 10,000 rows measured 68
 
 The [machine-readable manifest](terminal-fork-branches.json) records every previous branch SHA and its conservation proof. All 10 legacy xterm branches are ancestors of its final `next`. Seven dart_terminal branches are divergent only because they were squash-merged: stable patch IDs match their squash commits, those commits are ancestors of `next`, and the generated binding/WASM blobs checked in the ABI update match exactly.
 
-Before changing refs, full Git bundles and branch manifests were saved and verified. The two old `next` branches were fast-forwarded, default branches changed to `next`, and automatic deletion after merge enabled. Non-`next` branches were removed with atomic pushes and explicit per-ref SHA leases after rechecking refs and open PRs. Tags, releases and repositories were preserved; the legacy fork was not archived.
+Before changing refs, full Git bundles and branch manifests were saved and verified. The two old `next` branches were fast-forwarded, default branches changed to `next`, and automatic deletion after merge enabled. Initial branch cleanup used atomic pushes and explicit per-ref SHA leases after rechecking refs and open PRs. The final requested policy retains `master` as an upstream mirror alongside `next`; all other branches were removed. Tags, releases and repositories were preserved; the legacy fork was not archived.
+
+Each repository now has exactly `master` and `next`, with `next` as default. Active deletion-only rulesets protect both branches without preventing mirror updates. The inherited autotag workflow is disabled in both xterm forks before restoring their mirrors, preventing sync pushes from generating tags. `dart_terminal` retains its 20 existing tags and two releases; no upstream tags were pushed.
+
+| Fork mirror | Upstream | Verified mirror SHA |
+| --- | --- | --- |
+| `leynier/xterm.dart:master` | `TerminalStudio/xterm.dart:master` | `d35ba2cc72d0b89b0fd19af69d57df2c02f26a16` |
+| `leynier/xterm2:master` | `SoFluffyOS/xterm2:master` | `2a339558ba103e38a304a4eda7c984b45c47e186` |
+| `leynier/dart_terminal:master` | `kingwill101/dart_terminal:master` | `3146f58d2b675d50383c86b5b5eb5d89e6c1058c` |
+
+Select `master` explicitly when syncing a fork. Merging upstream into `next` requires separate review, especially for the deferred dart_terminal SDK upgrade. The backup's `mirror-final-state.json` records live branch SHAs, rulesets, workflow state and preserved tag/release inventories.
 
 The external backup directory contains `xterm-original.bundle`, `dart-terminal-original.bundle`, final bundles for all three forks, before-delete manifests, conservation proofs and GitHub inventory snapshots. A fresh recovery repository can import a bundle's refs without contacting GitHub:
 

@@ -1,12 +1,11 @@
 {
-  "verifiedAt": "2026-08-30T03:28:52.123Z",
+  "verifiedAt": "2026-08-30T04:17:55.272Z",
   "backupDirectory": "/home/leynier/.codex/artifacts/alera-terminal-forks-20260829-6e04",
   "repositories": [
     {
       "repository": "leynier/xterm.dart",
       "defaultBranch": "next",
-      "onlyBranch": "next",
-      "next": "8e130dd687b0ff036443a5aff318e74275163eee",
+      "next": "dd37dbe3cb0ea5f2de529ba158395af062351e62",
       "deleteBranchOnMerge": true,
       "archived": false,
       "tagsPreserved": 0,
@@ -48,13 +47,23 @@
           "name": "master",
           "sha": "d35ba2cc72d0b89b0fd19af69d57df2c02f26a16"
         }
-      ]
+      ],
+      "permanentBranches": [
+        "master",
+        "next"
+      ],
+      "mirror": {
+        "branch": "master",
+        "upstream": "TerminalStudio/xterm.dart",
+        "sha": "d35ba2cc72d0b89b0fd19af69d57df2c02f26a16"
+      },
+      "deletionProtectionRuleset": 21840088,
+      "autotagState": "disabled_manually"
     },
     {
       "repository": "leynier/dart_terminal",
       "defaultBranch": "next",
-      "onlyBranch": "next",
-      "next": "e7028139cd90a0676c0323b2ec5f4312d14c4932",
+      "next": "7bfb6c57f8da75742891ac27b568cc651f77501a",
       "deleteBranchOnMerge": true,
       "archived": false,
       "tagsPreserved": 20,
@@ -104,13 +113,23 @@
           "name": "master",
           "sha": "cea5f7289c1c9509b2290299b2d9bb2b8192a932"
         }
-      ]
+      ],
+      "permanentBranches": [
+        "master",
+        "next"
+      ],
+      "mirror": {
+        "branch": "master",
+        "upstream": "kingwill101/dart_terminal",
+        "sha": "3146f58d2b675d50383c86b5b5eb5d89e6c1058c"
+      },
+      "deletionProtectionRuleset": 21840090,
+      "autotagState": null
     },
     {
       "repository": "leynier/xterm2",
       "defaultBranch": "next",
-      "onlyBranch": "next",
-      "next": "52fec4dae89c9b8af6e7071096673fe4a5af4ba1",
+      "next": "cd99d34fbcc4b2001418546c94dd7e3533251a12",
       "deleteBranchOnMerge": true,
       "archived": false,
       "tagsPreserved": 0,
@@ -120,7 +139,18 @@
           "name": "master",
           "sha": "2a339558ba103e38a304a4eda7c984b45c47e186"
         }
-      ]
+      ],
+      "permanentBranches": [
+        "master",
+        "next"
+      ],
+      "mirror": {
+        "branch": "master",
+        "upstream": "SoFluffyOS/xterm2",
+        "sha": "2a339558ba103e38a304a4eda7c984b45c47e186"
+      },
+      "deletionProtectionRuleset": 21840089,
+      "autotagState": "disabled_manually"
     }
   ],
   "conservation": [
