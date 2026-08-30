@@ -28,6 +28,7 @@ mod mobile_access;
 mod netbird;
 mod orchestration_command_summaries;
 mod orchestration_commands;
+mod orchestration_contract_commands;
 mod orchestration_terminal_commands;
 mod project_config_toml;
 mod project_management;

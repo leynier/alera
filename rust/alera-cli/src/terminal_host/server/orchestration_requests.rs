@@ -1,10 +1,9 @@
 use std::time::Duration;
 
 use alera_core::runtime::{
-    NewOrchestrationMessage, NewOrchestrationTask, OrchestrationCoordinatorStatus,
-    OrchestrationDispatchContext, OrchestrationDispatchStatus, OrchestrationGateStatus,
-    OrchestrationMessage, OrchestrationMessagePriority, OrchestrationMessageType,
-    OrchestrationTaskStatus,
+    NewOrchestrationMessage, OrchestrationDispatchContext, OrchestrationDispatchStatus,
+    OrchestrationGateStatus, OrchestrationMessage, OrchestrationMessagePriority,
+    OrchestrationMessageType, OrchestrationTaskStatus,
 };
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
@@ -48,14 +47,6 @@ fn validate_result_schema(
     validator
         .validate(&Value::Object(result.clone()))
         .map_err(|error| HostError::format(format!("result does not match schema: {error}")))
-}
-
-fn validate_result_schema_definition(schema_raw: &str) -> HostResult<()> {
-    let schema: Value = serde_json::from_str(schema_raw)
-        .map_err(|error| HostError::format(format!("result schema is invalid JSON: {error}")))?;
-    jsonschema::validator_for(&schema)
-        .map(|_| ())
-        .map_err(|error| HostError::format(format!("result schema is invalid: {error}")))
 }
 
 impl ServerActor {
@@ -165,7 +156,14 @@ impl ServerActor {
                 self.orchestration_task_wait(client_id, request_id, payload)
                     .await
             }
-            "orchestration.taskCreate" => self.orchestration_task_create(payload).await.map(Some),
+            "orchestration.taskCreate" => self
+                .orchestration_task_create(payload, false)
+                .await
+                .map(Some),
+            "orchestration.taskCreateContracted" => self
+                .orchestration_task_create(payload, true)
+                .await
+                .map(Some),
             "orchestration.taskList" => self.orchestration_task_list(payload).await.map(Some),
             "orchestration.taskShow" => self.orchestration_task_show(payload).await.map(Some),
             "orchestration.taskCancel" => self.orchestration_task_cancel(payload).await.map(Some),
@@ -705,100 +703,6 @@ impl ServerActor {
     }
 
     // --- tasks --------------------------------------------------------------
-
-    async fn orchestration_task_create(&mut self, payload: &Value) -> HostResult<Value> {
-        let spec = require_string(payload, "spec")?;
-        let result_schema = optional_string(payload, "resultSchema");
-        if let Some(schema) = result_schema.as_deref() {
-            validate_result_schema_definition(schema)?;
-        }
-        let created_by = optional_string(payload, "createdBy");
-        let requested_coordinator = optional_string(payload, "coordinator");
-        let workspace_id =
-            optional_string(payload, "workspace").unwrap_or_else(|| "global".to_string());
-        let run_id = optional_string(payload, "run");
-        let coordinator_handle = if let Some(run_id) = run_id.as_deref() {
-            let run = self
-                .runtime_store
-                .orchestration_coordinator_run_by_id(run_id)
-                .await
-                .map_err(state_error)?
-                .ok_or_else(|| HostError::state(format!("coordinator run not found: {run_id}")))?;
-            if run.status != OrchestrationCoordinatorStatus::Running {
-                return Err(HostError::state(format!(
-                    "coordinator run is not accepting tasks: {run_id}"
-                )));
-            }
-            if workspace_id != run.workspace_id {
-                return Err(HostError::state(format!(
-                    "task workspace {workspace_id} does not match run workspace {}",
-                    run.workspace_id
-                )));
-            }
-            let run_coordinator = run.coordinator_handle.ok_or_else(|| {
-                HostError::state(format!("coordinator run has no owner: {run_id}"))
-            })?;
-            if requested_coordinator
-                .as_deref()
-                .is_some_and(|coordinator| coordinator != run_coordinator.as_str())
-            {
-                return Err(HostError::state(format!(
-                    "task coordinator does not match run coordinator {run_coordinator}"
-                )));
-            }
-            run_coordinator
-        } else {
-            requested_coordinator
-                .or_else(|| created_by.clone())
-                .unwrap_or_else(|| "coord".to_string())
-        };
-        let deps: Vec<String> = payload
-            .get("deps")
-            .and_then(Value::as_array)
-            .map(|items| {
-                items
-                    .iter()
-                    .filter_map(Value::as_str)
-                    .map(str::to_string)
-                    .collect()
-            })
-            .unwrap_or_default();
-        let task = self
-            .runtime_store
-            .create_orchestration_task(NewOrchestrationTask {
-                spec,
-                task_title: optional_string(payload, "taskTitle"),
-                display_name: None,
-                deps,
-                parent_id: optional_string(payload, "parent"),
-                created_by_terminal_handle: created_by,
-                run_id,
-                workspace_id,
-                coordinator_handle,
-                result_schema,
-            })
-            .await
-            .map_err(state_error)?;
-        // Binding the stage after creation keeps `create_orchestration_task`
-        // free of policy concerns; the stage is validated against the run's
-        // approved plan rather than trusted from the payload.
-        if let Some(stage) = optional_string(payload, "stage") {
-            self.bind_task_to_policy_stage(&task.id, task.run_id.as_deref(), &stage)
-                .await?;
-            // Re-read rather than returning task_show: taskCreate always answers
-            // with a bare task, and the stage must not change that shape.
-            let stored = self
-                .runtime_store
-                .orchestration_task_by_id(&task.id)
-                .await
-                .map_err(state_error)?
-                .ok_or_else(|| {
-                    HostError::state(format!("orchestration task not found: {}", task.id))
-                })?;
-            return Ok(json!(stored));
-        }
-        Ok(json!(task))
-    }
 
     async fn orchestration_task_list(&mut self, payload: &Value) -> HostResult<Value> {
         let status = match optional_string(payload, "status") {
@@ -1376,10 +1280,14 @@ impl ServerActor {
         self.compose_orchestration_task_prompt(&mut task, dispatch.agent_profile.as_deref())
             .await?;
         let gate_resolution = self.latest_resolved_gate(&dispatch.task_id).await?;
-        let worker_instructions = build_worker_contract(
+        let mut worker_instructions = build_worker_contract(
             &dispatch.coordinator_handle,
             WorkerKind::PromptReturningAgent,
         );
+        if let Some(task) = task.as_ref() {
+            worker_instructions =
+                super::agent_prompt_composition::append_role_contract(task, &worker_instructions)?;
+        }
         Ok(json!({
             "task": task,
             "dispatch": dispatch,

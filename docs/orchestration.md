@@ -35,6 +35,8 @@ alera orchestration run-stop --id <run-id> [--cancel-active] --reason "Stopped b
 
 ## Agent Profile Catalog
 
+Tasks may independently carry [versioned role contracts](orchestration-role-contracts.md), which freeze portable instructions, inputs and completion requirements without changing profile launch configuration.
+
 An agent profile is a user-declared launch configuration a run can dispatch to. Each profile carries a unique name, an adapter type from the built-in registry, a launch mode, a custom prompt, a free-text description used as a routing signal, and an optional quota group. Profiles are user configuration, not run state: they live in the runtime schema next to `sshTargets`, so resetting orchestration state never destroys them.
 
 ```bash

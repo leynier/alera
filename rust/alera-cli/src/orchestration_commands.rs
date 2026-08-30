@@ -65,6 +65,13 @@ pub async fn run_orchestration_command(command: OrchestrationCommand) -> i32 {
         }
         OrchestrationAction::Ask(args) => run_ask(&runtime, args, json_output).await,
         OrchestrationAction::TaskCreate(args) => {
+            let contract_fields = match crate::orchestration_contract_commands::contract_fields(
+                args.role_contract.as_deref(),
+                args.contract_inputs.as_deref(),
+            ) {
+                Ok(fields) => fields,
+                Err(error) => return usage_error(&error.to_string()),
+            };
             let deps: Vec<String> = match args.deps.as_deref() {
                 None => Vec::new(),
                 Some(raw) => match serde_json::from_str(raw) {
@@ -81,19 +88,26 @@ pub async fn run_orchestration_command(command: OrchestrationCommand) -> i32 {
             };
             request(
                 &runtime,
-                "orchestration.taskCreate",
-                json!({
-                    "spec": args.spec,
-                    "taskTitle": args.task_title,
-                    "deps": deps,
-                    "parent": args.parent,
-                    "createdBy": created_by,
-                    "coordinator": coordinator,
-                    "workspace": workspace,
-                    "run": args.run,
-                    "stage": args.stage,
-                    "resultSchema": args.result_schema,
-                }),
+                if contract_fields.is_some() {
+                    "orchestration.taskCreateContracted"
+                } else {
+                    "orchestration.taskCreate"
+                },
+                crate::orchestration_contract_commands::with_contract_fields(
+                    json!({
+                        "spec": args.spec,
+                        "taskTitle": args.task_title,
+                        "deps": deps,
+                        "parent": args.parent,
+                        "createdBy": created_by,
+                        "coordinator": coordinator,
+                        "workspace": workspace,
+                        "run": args.run,
+                        "stage": args.stage,
+                        "resultSchema": args.result_schema,
+                    }),
+                    contract_fields,
+                ),
                 json_output,
                 None,
             )

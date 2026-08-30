@@ -227,4 +227,25 @@ fn v049_host_accepts_current_baseline_client() {
         ),
         "new feature returned an opaque error: {response}"
     );
+    send(
+        &mut writer,
+        json!({"id": 7, "type": "orchestration.taskCreateContracted", "payload": {
+            "spec": "Must not become an uncontracted task", "workspace": "compat-workspace",
+            "roleContract": {"version": 1}, "contractInputs": {}
+        }}),
+    );
+    let response = read_response(&mut reader, 7);
+    assert_eq!(response["ok"], json!(false));
+    assert!(
+        response["error"].as_str().is_some_and(|error| error
+            .contains("Unknown orchestration request: orchestration.taskCreateContracted")),
+        "old host silently accepted a contracted task: {response}"
+    );
+    send(
+        &mut writer,
+        json!({"id": 8, "type": "orchestration.taskList", "payload": {}}),
+    );
+    let response = read_response(&mut reader, 8);
+    assert_eq!(response["ok"], json!(true));
+    assert!(response["payload"]["items"].as_array().unwrap().is_empty());
 }

@@ -181,7 +181,7 @@ impl RuntimeStore {
         for statement in super::runtime_schema::AGENT_PROFILE_REFERENCE_TRIGGERS {
             sqlx::query(*statement).execute(&self.pool).await?;
         }
-        Ok(())
+        self.migrate_role_contracts().await
     }
 
     async fn migrate_legacy_orchestration_schema(&self) -> Result<()> {

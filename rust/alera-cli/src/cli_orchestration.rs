@@ -311,6 +311,17 @@ pub struct OrchestrationTaskCreateArgs {
     /// Optional JSON Schema applied to structured completion results.
     #[arg(long = "result-schema", value_name = "json")]
     pub result_schema: Option<String>,
+    /// Portable version 1 role contract JSON. Requires concrete inputs.
+    #[arg(
+        long,
+        value_name = "json",
+        requires = "contract_inputs",
+        conflicts_with = "result_schema"
+    )]
+    pub role_contract: Option<String>,
+    /// Concrete JSON inputs to freeze with the role contract.
+    #[arg(long, value_name = "json", requires = "role_contract")]
+    pub contract_inputs: Option<String>,
 }
 
 #[derive(Debug, Args)]
