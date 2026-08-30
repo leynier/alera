@@ -187,7 +187,7 @@ pub(super) fn append_goal_user_input(
     next
 }
 
-fn visible_text(input: &Value, user_message: Option<&Value>) -> String {
+pub(super) fn visible_text(input: &Value, user_message: Option<&Value>) -> String {
     if let Some(text) = user_message
         .and_then(|message| message.get("text"))
         .and_then(Value::as_str)

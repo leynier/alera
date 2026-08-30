@@ -7,17 +7,26 @@ use crate::terminal_host::protocol::{CODEX_TAB_KIND, MOBILE_EMULATOR_TAB_KIND};
 use super::terminal_pulse::TERMINAL_PULSE_PAYLOAD_KEY;
 use super::{ClientKind, ServerActor};
 
-const HOST_OWNED_TAB_PAYLOAD_KEYS: [&str; 3] = [
+const HOST_OWNED_TAB_PAYLOAD_KEYS: [&str; 8] = [
     "agentProfileLaunchV1",
     "initialPrompt",
     "pendingAgentPrompt",
+    super::agent_title_state::PRIVATE_KEY,
+    "agentTitleConversationId",
+    "agentTitleRevision",
+    "agentTitleStatus",
+    "agentTitleSource",
 ];
 
 /// Removes host-owned bootstrap text from a tab before it crosses the runtime
 /// protocol. The persisted copy is recovery state, not workbench UI state.
 pub(super) fn redact_private_tab_payload(tab: &mut WorkspaceTabRecord) {
     if let Some(payload) = tab.payload.as_object_mut() {
-        for key in ["initialPrompt", "pendingAgentPrompt"] {
+        for key in [
+            "initialPrompt",
+            "pendingAgentPrompt",
+            super::agent_title_state::PRIVATE_KEY,
+        ] {
             payload.remove(key);
         }
     }
@@ -30,6 +39,10 @@ pub(super) fn preserve_host_owned_tab_payload(
     stored: &WorkspaceTabRecord,
     incoming: &mut WorkspaceTabRecord,
 ) {
+    let manual_rename = incoming.payload["manualTitle"] == true
+        && (incoming.title != stored.title
+            || (incoming.payload["agentTitleSource"] == "manual"
+                && stored.payload["agentTitleSource"] != "manual"));
     let Some(stored_payload) = stored.payload.as_object() else {
         return;
     };
@@ -56,6 +69,9 @@ pub(super) fn preserve_host_owned_tab_payload(
             }
         }
     }
+    if manual_rename {
+        super::agent_title_state::invalidate(incoming);
+    }
 }
 
 impl ServerActor {
@@ -79,6 +95,11 @@ impl ServerActor {
             tab.payload
                 .as_object_mut()
                 .map(|payload| payload.remove(TERMINAL_PULSE_PAYLOAD_KEY));
+        }
+        if tab.payload["agentTitleStatus"] == "generating"
+            && !self.agent_title_jobs.contains_key(&tab.id)
+        {
+            tab.payload["agentTitleStatus"] = serde_json::json!("failed");
         }
         redact_private_tab_payload(&mut tab);
         Some(tab)

@@ -61,7 +61,7 @@ impl ServerActor {
         if auto_close_on_success {
             tab_payload["autoCloseOnSuccess"] = Value::Bool(true);
         }
-        let tab = WorkspaceTabRecord {
+        let mut tab = WorkspaceTabRecord {
             id: tab_id.clone(),
             workspace_id: workspace.id.clone(),
             kind: "terminal".to_string(),
@@ -70,6 +70,7 @@ impl ServerActor {
             updated_at: now,
             payload: tab_payload,
         };
+        super::agent_title_state::initialize(&mut tab, "");
         let tab = self
             .runtime_store
             .upsert_workspace_tab(tab)

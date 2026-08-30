@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:alera/src/features/browser/application/browser_providers.dart';
+import 'package:alera/src/features/browser/application/browser_session_registry.dart';
 import 'package:alera/src/features/agent_status/application/agent_status_controller.dart';
 import 'package:alera/src/features/agent_status/application/agent_status_providers.dart';
 import 'package:alera/src/features/codex_chat/application/codex_composer_draft_store.dart';

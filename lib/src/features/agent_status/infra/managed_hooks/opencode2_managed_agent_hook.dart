@@ -35,6 +35,37 @@ String aleraOpenCode2StatusPluginSource() => r'''
 // ALERA_AGENT_STATUS_MANAGED_FILE
 // OpenCode v2 plugin (default export with setup + event.subscribe).
 let lastStatus = "idle";
+let lastSessionId = null;
+let readTitleSession = null;
+const titleSessionContextById = new Map();
+
+async function titleSessionContext(payload) {
+  const id = payload?.sessionId ?? payload?.sessionID;
+  if (!id || !readTitleSession) return { agentTitleIgnore: true };
+  if (titleSessionContextById.has(id)) return titleSessionContextById.get(id);
+  let timer;
+  try {
+    const result = await Promise.race([
+      readTitleSession(id),
+      new Promise((_, reject) => {
+        timer = setTimeout(() => reject(new Error("session lookup timeout")), 250);
+      }),
+    ]);
+    const info = result?.data ?? result;
+    if (info?.id !== id) return { agentTitleIgnore: true };
+    const context = info.parentID ? { parent_session_id: info.parentID } : {};
+    if (titleSessionContextById.size >= 128) {
+      titleSessionContextById.delete(titleSessionContextById.keys().next().value);
+    }
+    titleSessionContextById.set(id, context);
+    return context;
+  } catch {
+    // Presence still flows when ancestry is unknown, but titles must not guess.
+    return { agentTitleIgnore: true };
+  } finally {
+    clearTimeout(timer);
+  }
+}
 
 function endpointPath() {
   if (process.env.ALERA_AGENT_HOOK_ENDPOINT) return process.env.ALERA_AGENT_HOOK_ENDPOINT;
@@ -61,6 +92,7 @@ async function post(eventName, payload = {}) {
   const workspaceId = process.env.ALERA_WORKSPACE_ID;
   const tabId = process.env.ALERA_TAB_ID;
   if (!port || !token || !terminalSessionId || !workspaceId || !tabId) return;
+  const titleContext = await titleSessionContext(payload);
   try {
     await fetch(`http://127.0.0.1:${port}/hook/opencode2`, {
       method: "POST",
@@ -72,7 +104,7 @@ async function post(eventName, payload = {}) {
         terminalSessionId,
         workspaceId,
         tabId,
-        payload: { hook_event_name: eventName, ...payload },
+        payload: { hook_event_name: eventName, ...payload, ...titleContext },
       }),
       signal:
         typeof AbortSignal !== "undefined" && AbortSignal.timeout
@@ -82,10 +114,11 @@ async function post(eventName, payload = {}) {
   } catch {}
 }
 
-async function setStatus(status) {
-  if (lastStatus === status) return;
+async function setStatus(status, sessionId) {
+  if (lastStatus === status && lastSessionId === sessionId) return;
   lastStatus = status;
-  await post(status === "busy" ? "SessionBusy" : "SessionIdle");
+  lastSessionId = sessionId;
+  await post(status === "busy" ? "SessionBusy" : "SessionIdle", { sessionId });
 }
 
 function statusType(event) {
@@ -104,6 +137,7 @@ function textFromSessionTextEnded(event) {
 
 async function handleEvent(event) {
   if (!event?.type) return;
+  const sessionId = event.sessionID ?? event.sessionId ?? event.data?.sessionID ?? event.data?.sessionId;
 
   if (event.type === "permission.asked") {
     await post("PermissionRequest", event.data || {});
@@ -115,32 +149,35 @@ async function handleEvent(event) {
   }
   if (event.type === "session.input.admitted") {
     const text = textFromInputAdmitted(event);
-    if (text) await post("MessagePart", { role: "user", text });
-    await setStatus("busy");
+    if (text) await post("MessagePart", { role: "user", text, sessionId });
+    await setStatus("busy", sessionId);
     return;
   }
   if (event.type === "session.text.ended") {
     const text = textFromSessionTextEnded(event);
-    if (text) await post("MessagePart", { role: "assistant", text });
+    if (text) await post("MessagePart", { role: "assistant", text, sessionId });
     return;
   }
   if (event.type === "session.idle" || event.type === "session.error") {
-    await setStatus("idle");
+    await setStatus("idle", sessionId);
     return;
   }
   if (event.type === "session.status") {
     const status = statusType(event);
     if (status === "busy" || status === "retry") {
-      await setStatus("busy");
+      await setStatus("busy", sessionId);
       return;
     }
     if (status === "idle") {
-      await setStatus("idle");
+      await setStatus("idle", sessionId);
     }
   }
 }
 
 async function setup(ctx) {
+  readTitleSession = ctx?.session?.get
+    ? (sessionID) => ctx.session.get({ sessionID }) : null;
+  titleSessionContextById.clear();
   const stream = ctx?.event?.subscribe?.();
   if (!stream || typeof stream[Symbol.asyncIterator] !== "function") return;
   for await (const event of stream) {

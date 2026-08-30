@@ -6,8 +6,10 @@ pub(in crate::terminal_host::server) fn session_response(
     operation: Option<&str>,
     history_next_cursor: Option<String>,
 ) -> Value {
+    let mut public_tab = tab.clone();
+    super::super::super::tab_compatibility::redact_private_tab_payload(&mut public_tab);
     json!({
-        "tab": tab,
+        "tab": public_tab,
         "tabId": tab.id,
         "threadId": tab_thread_id(tab),
         "cwd": active_cwd(tab),

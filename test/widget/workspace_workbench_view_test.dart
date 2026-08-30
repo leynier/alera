@@ -1,6 +1,8 @@
 // ignore_for_file: library_private_types_in_public_api
 
+import 'package:alera/src/features/ai_assist/application/agent_title_providers.dart';
 import 'package:alera/src/design_system/feedback/alera_status_dot.dart';
+import 'package:alera/src/design_system/menus/alera_dropdown_entry.dart';
 import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/features/agent_status/domain/agent_status.dart';
 import 'package:alera/src/features/agent_status/presentation/agent_identity_icon.dart';
@@ -43,7 +45,7 @@ late List<String> mergedGroups;
 late List<_UpdatedSplitRatioAction> updatedRatios;
 
 void main() {
-  test('Codex tabs always use the fixed chat title', () {
+  test('Codex tabs display their conversation title', () {
     expect(
       workspaceTabTitleForTesting(
         _tab(
@@ -52,7 +54,7 @@ void main() {
           kind: WorkspaceTabKind.codex,
         ),
       ),
-      'Codex Chat',
+      'Generated thread title',
     );
   });
 

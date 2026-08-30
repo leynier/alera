@@ -12,6 +12,7 @@ pub(super) fn spawn_reader(
     mut reader: Box<dyn Read + Send>,
     mut child: Box<dyn portable_pty::Child + Send + Sync>,
     on_event: Arc<dyn Fn(PtyEvent) + Send + Sync>,
+    child_reaper: Arc<tokio::sync::Mutex<()>>,
 ) {
     std::thread::Builder::new()
         .name("alera-pty-reader".to_string())
@@ -22,22 +23,24 @@ pub(super) fn spawn_reader(
                     Ok(0) => break,
                     Ok(read) => on_event(PtyEvent::Output(buffer[..read].to_vec())),
                     Err(error) => {
-                        let code = child
-                            .try_wait()
-                            .ok()
-                            .flatten()
-                            .map(|status| status.exit_code() as i32)
-                            .unwrap_or(-1);
                         on_event(PtyEvent::Error(error.to_string()));
-                        on_event(PtyEvent::Exit(code));
-                        return;
+                        break;
                     }
                 }
             }
-            let code = child
-                .wait()
-                .map(|status| status.exit_code() as i32)
-                .unwrap_or(-1);
+            let code = loop {
+                // A workspace shutdown retains the unreaped shell as its OS
+                // session anchor, so its PID cannot be recycled mid-cleanup.
+                let status = {
+                    let _lease = child_reaper.blocking_lock();
+                    child.try_wait()
+                };
+                match status {
+                    Ok(Some(status)) => break status.exit_code() as i32,
+                    Err(_) => break -1,
+                    Ok(None) => std::thread::sleep(std::time::Duration::from_millis(50)),
+                }
+            };
             on_event(PtyEvent::Exit(code));
         })
         .expect("failed to spawn pty reader thread");

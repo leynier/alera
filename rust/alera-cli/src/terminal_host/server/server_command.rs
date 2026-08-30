@@ -84,6 +84,15 @@ pub enum ServerCommand {
         request_id: i64,
         result: HostResult<Value>,
     },
+    AgentTitleReady {
+        tab_id: String,
+        id: String,
+    },
+    AgentTitleFinished {
+        tab_id: String,
+        id: String,
+        result: HostResult<String>,
+    },
     AiAssistFinished {
         client_id: u64,
         request_id: i64,
@@ -139,6 +148,12 @@ pub enum ServerCommand {
     },
     EmulatorMaintenanceFinished(emulator_request_queue::EmulatorMaintenanceCompletion),
     RuntimeMutationFinished(runtime_mutations::RuntimeMutationFinished),
+    PrepareRuntimeMutation {
+        request: runtime_mutations::RuntimeMutationRequest,
+        completion: tokio::sync::oneshot::Sender<
+            HostResult<crate::terminal_host::session::workspace_shutdown::WorkspaceShutdown>,
+        >,
+    },
     EmulatorPointerTimeout {
         tab_id: String,
         client_id: u64,

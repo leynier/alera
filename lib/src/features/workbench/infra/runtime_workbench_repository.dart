@@ -138,9 +138,17 @@ class RuntimeWorkbenchRepository implements WorkbenchRepository {
   }
 
   @override
-  Future<WorkspaceTabRecord> upsertWorkspaceTab(WorkspaceTabRecord tab) async {
+  Future<WorkspaceTabRecord> upsertWorkspaceTab(
+    WorkspaceTabRecord tab, {
+    bool manualRename = false,
+  }) async {
     await _ensureReady();
-    final payload = await _client.runtimeRequest('tab.upsert', _tabToJson(tab));
+    final payload = await _client.runtimeRequest(
+      manualRename ? 'tab.rename' : 'tab.upsert',
+      manualRename
+          ? <String, Object?>{'id': tab.id, 'title': tab.title}
+          : _tabToJson(tab),
+    );
     return _tabFromJson(_asMap(payload));
   }
 

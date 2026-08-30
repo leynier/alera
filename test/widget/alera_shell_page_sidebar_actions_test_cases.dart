@@ -411,6 +411,8 @@ void _registerAleraShellSidebarActionTests() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('Remove'));
     await tester.pumpAndSettle();
+    expect(find.textContaining('All tabs will close'), findsOneWidget);
+    expect(harness.runtime.closedWorkspaceIds, isEmpty);
     await tester.tap(find.widgetWithText(FilledButton, 'Clean Up'));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
@@ -421,6 +423,32 @@ void _registerAleraShellSidebarActionTests() {
       <String>['workspace-1'],
     );
     expect(find.text('Feature login'), findsNothing);
+  });
+
+  testWidgets('cancelling workspace removal leaves its tabs and runtime open', (
+    tester,
+  ) async {
+    final harness = await _pumpShell(
+      tester,
+      state: _linkedWorkbenchState(linkedExpanded: true),
+    );
+    await tester.tapAt(
+      tester.getCenter(find.text('Feature login').first),
+      buttons: kSecondaryMouseButton,
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Remove'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(TextButton, 'Cancel'));
+    await tester.pumpAndSettle();
+    expect(harness.runtime.closedWorkspaceIds, isEmpty);
+    expect(
+      harness.controller.state
+          .workspacesFor('project-1')
+          .map((workspace) => workspace.id),
+      contains('workspace-2'),
+    );
+    expect(harness.controller.state.tabsFor('workspace-2'), isNotEmpty);
   });
 
   testWidgets('project removal closes every workspace runtime', (tester) async {
