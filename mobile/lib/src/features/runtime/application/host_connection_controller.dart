@@ -1,4 +1,7 @@
 import 'dart:async';
+import 'package:alera_mobile/src/features/runtime/domain/host_retry_policy.dart';
+import 'package:alera_mobile/src/features/runtime/application/host_connection_health.dart';
+import 'package:alera_mobile/src/features/runtime/domain/connection_attempt.dart';
 
 import 'package:alera_mobile/src/app/lifecycle/app_lifecycle_controller.dart';
 import 'package:alera_mobile/src/features/accounts/application/cloud_account_providers.dart';
@@ -13,6 +16,7 @@ import 'package:flutter/widgets.dart';
 import 'package:logging/logging.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
+export 'host_connection_reader.dart';
 export 'package:alera_mobile/src/features/runtime/domain/host_reachability.dart'
     show HostUnreachableException, RuntimeConnectionLost;
 
@@ -20,41 +24,6 @@ part 'host_connection_controller.g.dart';
 
 const Duration _runtimeRestartReconnectDelay = Duration(milliseconds: 300);
 const Duration _connectionCleanupTimeout = Duration(seconds: 2);
-const List<Duration> _retryDelays = <Duration>[
-  Duration(seconds: 1),
-  Duration(seconds: 2),
-  Duration(seconds: 4),
-  Duration(seconds: 8),
-  Duration(seconds: 16),
-  Duration(seconds: 30),
-];
-
-Future<MobileRuntimeClient> watchHostConnection(Ref ref, String hostId) {
-  final provider = hostConnectionControllerProvider(hostId);
-  ref.listen(provider, (previous, next) {
-    if (previous != null && (previous.hasValue || previous.hasError)) {
-      ref.invalidateSelf();
-    }
-  });
-  final state = ref.read(provider);
-  final client = state.value;
-  if (client != null &&
-      !state.isLoading &&
-      !state.hasError &&
-      client.isConnectionUsable) {
-    return Future<MobileRuntimeClient>.value(client);
-  }
-  if (state.isLoading && !state.hasValue && !state.hasError) {
-    return ref.read(provider.future);
-  }
-  if (state.hasError && !state.isLoading) {
-    return Future<MobileRuntimeClient>.error(
-      state.error!,
-      state.stackTrace ?? StackTrace.current,
-    );
-  }
-  return ref.read(provider.notifier).requireUsableClient();
-}
 
 /// Owns the WebSocket connection to one paired runtime host. The client is
 /// connected and authenticated before it is exposed. Transport failures recover
@@ -66,6 +35,8 @@ class HostConnectionController extends _$HostConnectionController {
   MobileRuntimeClient? _client;
   StreamSubscription<(Object, StackTrace?)>? _closeSub;
   Timer? _retryTimer;
+  Timer? _healthyTimer;
+  ConnectionAttempt? _openingAttempt;
   Completer<void>? _buildAttempt;
   Future<void>? _connectionAttempt;
   int _lifecycleEpoch = 0;
@@ -81,6 +52,7 @@ class HostConnectionController extends _$HostConnectionController {
     _building = true;
     _lifecycleState = ref.read(appLifecycleControllerProvider);
     ref.listen(appLifecycleControllerProvider, _handleLifecycleChange);
+    ref.listen(hostConnectionHealthControllerProvider(hostId), (_, _) {});
     ref.onDispose(_dispose);
     try {
       final client = await _openClient();
@@ -165,7 +137,22 @@ class HostConnectionController extends _$HostConnectionController {
   }
 
   Future<MobileRuntimeClient> _openClient() async {
+    _health(const HostConnectionHealth());
+    final attempt = ConnectionAttempt();
+    _openingAttempt = attempt;
+    try {
+      return await attempt.run(() => _openClientWithin(attempt));
+    } finally {
+      attempt.finish();
+      if (identical(_openingAttempt, attempt)) _openingAttempt = null;
+    }
+  }
+
+  Future<MobileRuntimeClient> _openClientWithin(
+    ConnectionAttempt attempt,
+  ) async {
     final hosts = await ref.read(pairedHostsControllerProvider.future);
+    attempt.check();
     final host = hosts.where((host) => host.id == hostId).firstOrNull;
     if (host != null) {
       try {
@@ -175,6 +162,7 @@ class HostConnectionController extends _$HostConnectionController {
           rethrow;
         }
         final accountId = await _findRemoteAccountId();
+        attempt.check();
         if (accountId == null) {
           Error.throwWithStackTrace(error, stackTrace);
         }
@@ -182,6 +170,7 @@ class HostConnectionController extends _$HostConnectionController {
       }
     }
     final accountId = await _findRemoteAccountId();
+    attempt.check();
     if (accountId == null) {
       throw StateError('Host is not paired or available remotely.');
     }
@@ -197,19 +186,25 @@ class HostConnectionController extends _$HostConnectionController {
   }
 
   Future<MobileRuntimeClient> _openPairedClient(PairedHostProfile host) async {
+    final attempt = ConnectionAttempt.current;
     final deviceToken = await ref
         .read(hostRepositoryProvider)
         .readDeviceToken(hostId);
+    attempt?.check();
     if (deviceToken == null || deviceToken.trim().isEmpty) {
       throw StateError('Device token is missing.');
     }
     final cloudDeviceId = await ref
         .read(cloudAccountRepositoryProvider)
         .getOrCreateInstallationId();
+    attempt?.check();
     final client = await MobileRuntimeClient.connect(
       host.endpoint,
       connectTimeout: const Duration(seconds: 3),
     );
+    if (attempt != null) {
+      unawaited(attempt.cancelled.then((_) => client.dispose()));
+    }
     try {
       await client.authenticate(
         deviceId: host.deviceId,
@@ -245,7 +240,19 @@ class HostConnectionController extends _$HostConnectionController {
       throw const RuntimeConnectionLost();
     }
     _client = client;
-    _retryIndex = 0;
+    _health(
+      HostConnectionHealth(
+        phase: 'connected',
+        transport: client.transport,
+        connectedAt: DateTime.now().toUtc(),
+      ),
+    );
+    _healthyTimer?.cancel();
+    _healthyTimer = Timer(const Duration(seconds: 30), () {
+      if (identical(_client, client) && client.isConnectionUsable) {
+        _retryIndex = 0;
+      }
+    });
     final closeSub = client.connectionFailures.listen(
       (failure) => _handleClientEnded(
         client,
@@ -272,6 +279,7 @@ class HostConnectionController extends _$HostConnectionController {
     }
     _client = null;
     final closeSub = _closeSub;
+    _healthyTimer?.cancel();
     _closeSub = null;
     unawaited(_cancelCloseSubscription(closeSub));
     // Failure delivery is synchronous; finish it before closing its stream.
@@ -292,6 +300,7 @@ class HostConnectionController extends _$HostConnectionController {
     _lifecycleState = next;
     _lifecycleEpoch += 1;
     if (next != AppLifecycleState.resumed) {
+      if (next == AppLifecycleState.paused) _openingAttempt?.cancel();
       _retryTimer?.cancel();
       _retryTimer = null;
       return;
@@ -301,7 +310,9 @@ class HostConnectionController extends _$HostConnectionController {
     }
     final client = _client;
     if (client == null) {
-      unawaited(reconnectNow());
+      if (!state.hasError || isRetryableHostFailure(state.error!)) {
+        unawaited(_runReconnect());
+      }
       return;
     }
     unawaited(_probe(client));
@@ -323,31 +334,38 @@ class HostConnectionController extends _$HostConnectionController {
         error,
         stackTrace,
       );
-      await reconnectNow();
+      await _runReconnect();
     }
   }
 
   void _scheduleRetry(Object error, {bool immediate = false}) {
+    if (!_disposed && !isRetryableHostFailure(error)) {
+      _health(
+        HostConnectionHealth(phase: 'blocked', error: hostFailureCause(error)),
+      );
+    }
     if (_disposed ||
         _lifecycleState != AppLifecycleState.resumed ||
-        !_isRetryable(error) ||
+        !isRetryableHostFailure(error) ||
         _retryTimer != null) {
       return;
     }
-    final delay = immediate
-        ? Duration.zero
-        : _retryDelays[_retryIndex.clamp(0, _retryDelays.length - 1)];
-    if (!immediate && _retryIndex < _retryDelays.length - 1) {
+    final delay = hostRetryDelay(_retryIndex, error, immediate: immediate);
+    if (_retryIndex < 5) {
       _retryIndex += 1;
     }
+    _health(
+      HostConnectionHealth(
+        phase: 'retrying',
+        error: hostFailureCause(error),
+        nextRetryAt: DateTime.now().toUtc().add(delay),
+      ),
+    );
     _retryTimer = Timer(delay, () {
       _retryTimer = null;
       unawaited(_runReconnect());
     });
   }
-
-  bool _isRetryable(Object error) =>
-      error is! StateError && error is! FormatException;
 
   Future<void> _runReconnect() {
     final buildAttempt = _buildAttempt;
@@ -421,6 +439,8 @@ class HostConnectionController extends _$HostConnectionController {
 
   void _dispose() {
     _disposed = true;
+    _openingAttempt?.cancel();
+    _healthyTimer?.cancel();
     _retryTimer?.cancel();
     _retryTimer = null;
     final closeSub = _closeSub;
@@ -433,5 +453,15 @@ class HostConnectionController extends _$HostConnectionController {
     if (client != null) {
       unawaited(client.dispose());
     }
+  }
+
+  void _health(HostConnectionHealth value) {
+    scheduleMicrotask(() {
+      if (!_disposed && ref.mounted) {
+        ref
+            .read(hostConnectionHealthControllerProvider(hostId).notifier)
+            .update(value);
+      }
+    });
   }
 }

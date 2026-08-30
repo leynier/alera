@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:alera_mobile/src/features/runtime/application/host_connection_health.dart';
 
 import 'package:alera_mobile/src/app/theme/alera_tokens.dart';
 import 'package:alera_mobile/src/design_system/feedback/alera_status_dot.dart';
@@ -264,6 +265,7 @@ class _HostCard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final connection = ref.watch(hostConnectionControllerProvider(host.id));
+    final health = ref.watch(hostConnectionHealthControllerProvider(host.id));
     return Card(
       child: InkWell(
         borderRadius: BorderRadius.circular(AleraTokens.radiusSm),
@@ -312,7 +314,13 @@ class _HostCard extends ConsumerWidget {
                       overflow: TextOverflow.ellipsis,
                     ),
                     const SizedBox(height: AleraTokens.spaceSm),
+                    if (host.discoveryStale)
+                      Text(
+                        'Discovery unavailable. Showing the last known host.',
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
                     _HostConnectionStatus(
+                      health: health,
                       connecting: connection.isLoading,
                       ready: connection.hasValue && !connection.hasError,
                       onRetry: () => unawaited(
@@ -346,18 +354,24 @@ class _HostConnectionStatus extends StatelessWidget {
     required this.connecting,
     required this.ready,
     required this.onRetry,
+    required this.health,
   });
 
   final bool connecting;
   final bool ready;
   final VoidCallback onRetry;
+  final HostConnectionHealth health;
 
   @override
   Widget build(BuildContext context) {
-    final label = connecting
+    final label = health.phase == 'blocked'
+        ? 'Sign-in or connection review required'
+        : connecting
         ? 'Connecting'
         : ready
-        ? 'Ready'
+        ? 'Ready${health.transport == null ? '' : ' via ${health.transport}'}'
+        : health.nextRetryAt != null
+        ? 'Retrying at ${TimeOfDay.fromDateTime(health.nextRetryAt!.toLocal()).format(context)}'
         : 'Unavailable';
     return Row(
       children: <Widget>[
@@ -373,7 +387,9 @@ class _HostConnectionStatus extends StatelessWidget {
             color: ready ? null : AleraTokens.error,
           ),
         const SizedBox(width: AleraTokens.spaceSm),
-        Text(label, style: Theme.of(context).textTheme.labelSmall),
+        Flexible(
+          child: Text(label, style: Theme.of(context).textTheme.labelSmall),
+        ),
         if (!connecting && !ready) ...<Widget>[
           const SizedBox(width: AleraTokens.spaceSm),
           TextButton(onPressed: onRetry, child: const Text('Retry')),

@@ -93,11 +93,16 @@ class AvailableHosts extends _$AvailableHosts {
         try {
           final session = await accounts.sessionForRequest(accountId);
           if (session == null) return <PairedHostProfile>[];
-          final runtimes = await api.discoverRuntimes(session);
+          final runtimes = await accounts.withSession(
+            accountId,
+            api.discoverRuntimes,
+          );
           final hosts = runtimes
               .map(
-                (runtime) =>
-                    PairedHostProfile.fromCloudRuntime(accountId, runtime),
+                (runtime) => PairedHostProfile.fromCloudRuntime(
+                  accountId,
+                  runtime,
+                ).withDiscovery(stale: false, at: DateTime.now().toUtc()),
               )
               .toList();
           if (ref.mounted) _remoteHosts[accountId] = hosts;
@@ -109,7 +114,9 @@ class AvailableHosts extends _$AvailableHosts {
             stackTrace,
           );
           // A temporary discovery outage does not revoke a known host or its connection.
-          return _remoteHosts[accountId] ?? <PairedHostProfile>[];
+          return (_remoteHosts[accountId] ?? <PairedHostProfile>[])
+              .map((host) => host.withDiscovery(stale: true))
+              .toList();
         }
       }),
     );
@@ -117,7 +124,12 @@ class AvailableHosts extends _$AvailableHosts {
       final pairedHost = byRuntime[remote.runtimeId];
       byRuntime[remote.runtimeId] = pairedHost == null
           ? remote
-          : pairedHost.withCloudAccount(remote.accountId!);
+          : pairedHost
+                .withCloudAccount(remote.accountId!)
+                .withDiscovery(
+                  stale: remote.discoveryStale,
+                  at: remote.discoveredAt,
+                );
     }
     return byRuntime.values.toList(growable: false);
   }

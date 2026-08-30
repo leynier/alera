@@ -5,8 +5,13 @@ const Duration _defaultTransportCloseTimeout = Duration(seconds: 2);
 
 extension MobileRuntimeClientLifecycle on MobileRuntimeClient {
   void _handleSocketClosed() {
-    // A closed transport is recoverable; StateError would suppress retries.
-    _handleSocketError(const RuntimeConnectionLost());
+    _handleSocketError(switch (_channel.closeCode) {
+      4001 => const RuntimeConnectionReplaced(),
+      1007 || 1008 || 1009 || 4004 => const RelayCryptoException(
+        'Relay authorization or protocol was rejected.',
+      ),
+      _ => const RuntimeConnectionLost(),
+    });
   }
 
   Future<void> dispose() async {
@@ -14,6 +19,14 @@ extension MobileRuntimeClientLifecycle on MobileRuntimeClient {
       return;
     }
     _disposed = true;
+    _stopRelayRenewal();
+    _relayFragmentTimer?.cancel();
+    _relayFragments.clear();
+    _relaySession?.close();
+    final handshake = _relayHandshake;
+    if (handshake != null && !handshake.isCompleted) {
+      handshake.completeError(const RuntimeConnectionLost());
+    }
     CrashReporting.clearRuntimeContext(this);
     for (final completer in _pending.values) {
       if (!completer.isCompleted) {

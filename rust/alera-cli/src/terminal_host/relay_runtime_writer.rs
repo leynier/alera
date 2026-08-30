@@ -1,126 +1,157 @@
 use super::*;
-use crate::terminal_host::relay_crypto;
 use tokio::sync::mpsc::{Receiver, UnboundedReceiver};
 
-pub(super) async fn write_peer(
-    numeric_id: u64,
-    client_id: String,
-    mut session: relay_crypto::RelaySession,
-    inbox: UnboundedSender<ServerCommand>,
-    outbound_tx: Sender<RelayOutbound>,
-    mut control_rx: UnboundedReceiver<ClientFrame>,
-    mut terminal_rx: Receiver<ClientFrame>,
-) {
-    let mut binary = false;
-    let mut ordering = ClientFrameOrdering::default();
-    loop {
-        tokio::select! {
-            control = control_rx.recv() => {
-                let Some(control) = control else { break; };
-                let mut output = PeerOutput {
-                    numeric_id,
-                    terminal_rx: &mut terminal_rx,
-                    ordering: &mut ordering,
-                    binary: &mut binary,
-                    outbound_tx: &outbound_tx,
-                    inbox: &inbox,
-                };
-                if send_control(&mut session, &client_id, control, &mut output)
-                    .await
-                    .is_err()
-                {
+pub(super) struct PeerWriter {
+    pub client_id: String,
+    pub session: super::relay_crypto::RelaySession,
+    pub inbox: UnboundedSender<ServerCommand>,
+    pub output: Sender<socket_writer::Envelope>,
+    pub lifetime: Arc<socket_writer::PeerLifetime>,
+}
+
+impl PeerWriter {
+    pub async fn run(
+        mut self,
+        mut control: UnboundedReceiver<ClientFrame>,
+        mut terminal: Receiver<ClientFrame>,
+    ) {
+        let mut binary = false;
+        let mut ordering = ClientFrameOrdering::default();
+        loop {
+            // before_control can stage a later terminal frame. Drain it before
+            // accepting another terminal item, preserving the causal watermark.
+            if ordering.has_pending_terminal() {
+                let frame = ordering.take_pending_terminal().unwrap();
+                if self.send(frame, &mut binary).await.is_err() {
                     break;
                 }
+                continue;
             }
-            terminal = terminal_rx.recv() => {
-                let Some(terminal) = terminal else { break; };
-                ordering.stage_terminal(terminal);
-                let frame = ordering.take_pending_terminal().expect("staged terminal frame");
-                if send_frame(numeric_id, &mut session, &client_id, frame, &mut binary, &outbound_tx, &inbox).await.is_err() { break; }
+            tokio::select! {
+                frame = control.recv() => {
+                    let Some(frame) = frame else { break; };
+                    let (preceding, frame) = ordering.before_control(frame, &mut terminal);
+                    let mut failed = false;
+                    for item in preceding {
+                        if self.send(item, &mut binary).await.is_err() { failed = true; break; }
+                    }
+                    if failed || self.send(frame, &mut binary).await.is_err() { break; }
+                }
+                frame = terminal.recv() => {
+                    let Some(frame) = frame else { break; };
+                    ordering.stage_terminal(frame);
+                    if self.send(ordering.take_pending_terminal().unwrap(), &mut binary).await.is_err() { break; }
+                }
             }
         }
     }
-    let _ = inbox.send(ServerCommand::ClientDisconnected { id: numeric_id });
-}
 
-struct PeerOutput<'a> {
-    numeric_id: u64,
-    terminal_rx: &'a mut Receiver<ClientFrame>,
-    ordering: &'a mut ClientFrameOrdering,
-    binary: &'a mut bool,
-    outbound_tx: &'a Sender<RelayOutbound>,
-    inbox: &'a UnboundedSender<ServerCommand>,
-}
-
-async fn send_control(
-    session: &mut relay_crypto::RelaySession,
-    client_id: &str,
-    control: ClientFrame,
-    output: &mut PeerOutput<'_>,
-) -> anyhow::Result<()> {
-    let (terminal, control) = output.ordering.before_control(control, output.terminal_rx);
-    for frame in terminal {
-        send_frame(
-            output.numeric_id,
-            session,
-            client_id,
-            frame,
-            output.binary,
-            output.outbound_tx,
-            output.inbox,
-        )
-        .await?;
-    }
-    send_frame(
-        output.numeric_id,
-        session,
-        client_id,
-        control,
-        output.binary,
-        output.outbound_tx,
-        output.inbox,
-    )
-    .await
-}
-
-async fn send_frame(
-    numeric_id: u64,
-    session: &mut relay_crypto::RelaySession,
-    client_id: &str,
-    frame: ClientFrame,
-    binary: &mut bool,
-    outbound_tx: &Sender<RelayOutbound>,
-    inbox: &UnboundedSender<ServerCommand>,
-) -> anyhow::Result<()> {
-    if matches!(frame, ClientFrame::UpgradeToBinary) {
-        *binary = true;
-        return Ok(());
-    }
-    if let ClientFrame::RestartRuntimeAfterWrite { .. } = frame {
-        let _ = inbox.send(ServerCommand::RequestedRestart);
-        return Ok(());
-    }
-    let payload = if *binary {
-        if let ClientFrame::Output { session_id, data } = &frame {
-            encode_output_payload(session_id, data)
-        } else {
-            serde_json::to_vec(&frame.as_json().unwrap_or_default())?
-        }
-    } else {
-        let Some(value) = frame.as_json() else {
-            return Ok(());
+    async fn send(&mut self, frame: ClientFrame, binary: &mut bool) -> anyhow::Result<()> {
+        let (frame, _reservation) = match frame {
+            ClientFrame::Budgeted { reservation, frame } => (*frame, Some(reservation)),
+            frame => (frame, None),
         };
-        serde_json::to_vec(&value)?
-    };
-    let payload = session
-        .seal(&payload)
-        .map_err(|error| anyhow::anyhow!(error))?;
-    outbound_tx
-        .send(RelayOutbound {
-            numeric_id,
-            client_id: client_id.to_owned(),
-            payload,
-        })
-        .await
-        .map_err(|_| anyhow::anyhow!("relay writer is closed"))
+        if !self.lifetime.valid() {
+            anyhow::bail!("relay peer expired");
+        }
+        match frame {
+            ClientFrame::UpgradeToBinary => {
+                *binary = true;
+                return Ok(());
+            }
+            ClientFrame::RestartRuntimeAfterWrite { .. } => {
+                // Every earlier enqueue awaited its actual socket write receipt.
+                let _ = self.inbox.send(ServerCommand::RequestedRestart);
+                return Ok(());
+            }
+            ClientFrame::ShutdownRuntimeAfterWrite { .. } => {
+                let _ = self.inbox.send(ServerCommand::RequestedShutdown);
+                return Ok(());
+            }
+            _ => {}
+        }
+        let payload = match (&frame, *binary) {
+            (ClientFrame::Output { session_id, data }, true) => {
+                encode_output_payload(session_id, data)
+            }
+            _ => serde_json::to_vec(
+                &frame
+                    .as_json()
+                    .ok_or_else(|| anyhow::anyhow!("invalid relay frame"))?,
+            )?,
+        };
+        let encrypted = self
+            .session
+            .seal(&payload)
+            .map_err(|_| anyhow::anyhow!("relay encryption failed"))?;
+        socket_writer::enqueue(&self.output, &self.client_id, &encrypted, &self.lifetime).await
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::sync::atomic::{AtomicBool, AtomicI64, AtomicU16};
+
+    #[tokio::test]
+    async fn restart_waits_for_the_response_write_receipt_and_cancellation_never_restarts() {
+        for complete in [true, false] {
+            let (inbox, mut commands) = mpsc::unbounded_channel();
+            let (output, mut envelopes) = mpsc::channel(2);
+            let local = IdentityKeyPair::from_private([2; 32]);
+            let ephemeral = IdentityKeyPair::from_private([3; 32]);
+            let remote = IdentityKeyPair::from_private([7; 32]);
+            let (_, session) = relay_wire::derive_sessions(
+                &local,
+                &ephemeral,
+                remote.public_bytes(),
+                remote.public_bytes(),
+                "runtime",
+                "mobile",
+                &[1; 16],
+            )
+            .unwrap();
+            let lifetime = Arc::new(socket_writer::PeerLifetime {
+                alive: AtomicBool::new(true),
+                expires_at: AtomicI64::new(chrono::Utc::now().timestamp() + 120),
+                close_code: AtomicU16::new(1013),
+                connection_id: std::sync::Mutex::new(None),
+                announce_connection: AtomicBool::new(false),
+            });
+            let (control, control_rx) = mpsc::unbounded_channel();
+            let (_terminal, terminal_rx) = mpsc::channel(2);
+            control
+                .send(ClientFrame::Json(serde_json::json!({"id": 1, "ok": true})))
+                .unwrap();
+            control
+                .send(ClientFrame::RestartRuntimeAfterWrite {
+                    inbox: inbox.clone(),
+                })
+                .unwrap();
+            let task = tokio::spawn(
+                PeerWriter {
+                    client_id: "mobile".into(),
+                    session,
+                    inbox,
+                    output,
+                    lifetime,
+                }
+                .run(control_rx, terminal_rx),
+            );
+            let response = envelopes.recv().await.unwrap();
+            assert!(commands.try_recv().is_err());
+            if complete {
+                response.written.send(()).unwrap();
+                assert!(matches!(
+                    commands.recv().await,
+                    Some(ServerCommand::RequestedRestart)
+                ));
+                task.abort();
+            } else {
+                drop(response);
+                task.await.unwrap();
+                assert!(commands.try_recv().is_err());
+            }
+        }
+    }
 }

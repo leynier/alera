@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:math';
+import 'package:alera_mobile/src/features/runtime/domain/connection_attempt.dart';
+import 'package:alera_mobile/src/features/accounts/infra/alera_cloud_api.dart';
 
 import 'package:alera_mobile/src/core/json_payload_fields.dart';
 import 'package:alera_mobile/src/core/mobile_protocol.dart';
@@ -33,6 +35,8 @@ export 'package:alera_mobile/src/features/runtime/domain/runtime_client_surfaces
 part 'mobile_runtime_client_host_tools.dart';
 part 'mobile_runtime_client_lifecycle.dart';
 part 'mobile_runtime_client_relay.dart';
+part 'mobile_runtime_transport_connection.dart';
+part 'mobile_runtime_relay_authorization.dart';
 part 'mobile_runtime_dictation_requests.dart';
 part 'mobile_runtime_terminal_requests.dart';
 part 'mobile_terminal_output_resync.dart';
@@ -81,68 +85,22 @@ class MobileRuntimeClient
   static Future<MobileRuntimeClient> connect(
     String endpoint, {
     Duration connectTimeout = _defaultRequestTimeout,
-  }) async {
-    final client = MobileRuntimeClient._(
-      IOWebSocketChannel.connect(
-        Uri.parse(endpoint),
-        connectTimeout: connectTimeout,
-      ),
-    );
-    try {
-      await client._channel.ready.timeout(connectTimeout);
-      return client;
-    } on Object catch (error, stackTrace) {
-      await client.dispose();
-      // Convert only transport reachability at this boundary. Authentication
-      // and protocol errors happen later and retain their original types.
-      Error.throwWithStackTrace(
-        normalizeHostConnectionError(error),
-        stackTrace,
-      );
-    }
-  }
+  }) => _connectDirectTransport(endpoint, connectTimeout: connectTimeout);
 
   static Future<MobileRuntimeClient> connectRelay({
     required CloudRelayGrant grant,
     required RelayIdentityKeyPair identity,
-  }) async {
-    final channel = IOWebSocketChannel.connect(
-      grant.relayUrl,
-      headers: <String, dynamic>{'authorization': 'Bearer ${grant.grant}'},
-    );
-    final client = MobileRuntimeClient._(channel);
-    try {
-      await channel.ready.timeout(client._requestTimeout);
-      await client._performRelayHandshake(grant, identity);
-      return client;
-    } on Object {
-      await client.dispose();
-      rethrow;
-    }
-  }
+    Future<CloudRelayGrant> Function()? requestGrant,
+  }) => _connectRelayTransport(
+    grant: grant,
+    identity: identity,
+    requestGrant: requestGrant,
+  );
 
   static Future<PairedDeviceCredentials> pairDevice(
     PairingOffer offer, {
     String? deviceName,
-  }) async {
-    final client = await MobileRuntimeClient.connect(offer.endpoint);
-    try {
-      final deviceNameOverride = deviceName?.trim();
-      final requestPayload = <String, Object?>{
-        'pairingId': offer.pairingId,
-        'pairingSecret': offer.pairingSecret,
-        if (deviceNameOverride != null && deviceNameOverride.isNotEmpty)
-          'deviceName': deviceNameOverride,
-      };
-      final payload = await client.requestMap(
-        'mobile.device.pair',
-        requestPayload,
-      );
-      return PairedDeviceCredentials.fromJson(payload);
-    } finally {
-      await client.dispose();
-    }
-  }
+  }) => _pairDirectDevice(offer, deviceName: deviceName);
 
   @override
   final WebSocketChannel _channel;
@@ -160,10 +118,19 @@ class MobileRuntimeClient
   late final StreamSubscription<Object?> _subscription;
   int _nextRequestId = 1;
   bool _disposed = false;
+  DateTime? lastActivityAt;
   Object? _closedError;
   StackTrace? _closedStackTrace;
   Set<String> _runtimeCapabilities = const <String>{};
   bool _binaryFrames = false;
+  CloudRelayGrant? _relayGrant;
+  Future<CloudRelayGrant> Function()? _requestRelayGrant;
+  Timer? _relayRenewalTimer;
+  Timer? _relayExpiryTimer;
+  ConnectionAttempt? _renewalAttempt;
+  Completer<Map<String, Object?>>? _relayAuthorizationReply;
+  int _relayAuthorizationId = 0;
+  String get transport => _relaySession == null ? 'direct' : 'relay';
   @override
   Stream<MobileRuntimeEvent> get events => _events.stream;
   @override
@@ -324,6 +291,9 @@ class MobileRuntimeClient
       return Future<Object?>.error(closedError, _closedStackTrace);
     }
     final id = _nextRequestId++;
+    if (_pending.length >= 256) {
+      return Future.error(StateError('Too many pending runtime requests.'));
+    }
     final completer = Completer<Object?>();
     _pending[id] = completer;
     final encoded = jsonEncode(<String, Object?>{
@@ -376,6 +346,8 @@ class MobileRuntimeClient
 
   void _handleMessage(Object? raw) {
     if (!isConnectionUsable) return;
+    lastActivityAt = DateTime.now().toUtc();
+    if (_handleRelayControl(raw)) return;
     if (_relayHandshake != null) {
       unawaited(_handleRelayHandshakeMessage(raw));
       return;
@@ -404,10 +376,12 @@ class MobileRuntimeClient
   void _applyRelayCapabilities(Map<String, Object?> payload) {
     _runtimeCapabilities = payload.stringList('runtimeCapabilities').toSet();
     _binaryFrames = payload['binaryFrames'] == true;
+    _startRelayRenewal();
   }
 
   @override
   void _handleDecodedMessage(Object? raw) {
+    if (!isConnectionUsable) return;
     // Relay control responses are decrypted into bytes even though direct
     // WebSockets normally carry them as text. Recognize JSON first because a
     // large JSON object can otherwise look like a valid binary output frame.
@@ -462,6 +436,9 @@ class MobileRuntimeClient
 
   @override
   void _handleSocketError(Object error, [StackTrace? stackTrace]) {
+    _stopRelayRenewal();
+    _relayFragmentTimer?.cancel();
+    _relayFragments.clear();
     // The single funnel every transport failure passes through, and the most
     // common thing a user reports about this app.
     final normalized = normalizeHostConnectionError(error);

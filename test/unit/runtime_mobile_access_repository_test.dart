@@ -108,6 +108,7 @@ void main() {
         'mobileSettingsChanged',
         'mobilePairingsChanged',
         'mobileDevicesChanged',
+        'mobileRelayChanged',
         'mobileGatewayChanged',
         'projectsChanged',
       ]) {
@@ -115,7 +116,7 @@ void main() {
       }
       await Future<void>.delayed(const Duration(milliseconds: 250));
 
-      // The four mobile events collapse into a single refetch; the non-mobile
+      // The five mobile events collapse into a single refetch; the non-mobile
       // event must not trigger one at all.
       expect(received, hasLength(2));
       expect(

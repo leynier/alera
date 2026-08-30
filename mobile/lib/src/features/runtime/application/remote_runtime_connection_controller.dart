@@ -1,5 +1,7 @@
 import 'dart:async';
-import 'dart:convert';
+import 'package:alera_mobile/src/features/accounts/domain/cloud_account_session.dart';
+import 'package:alera_mobile/src/features/accounts/application/relay_identity_controller.dart';
+import 'package:alera_mobile/src/features/runtime/domain/connection_attempt.dart';
 
 import 'package:alera_mobile/src/features/accounts/application/cloud_account_providers.dart';
 import 'package:alera_mobile/src/features/accounts/application/cloud_accounts_controller.dart';
@@ -7,7 +9,7 @@ import 'package:alera_mobile/src/features/hosts/application/host_providers.dart'
 import 'package:alera_mobile/src/features/hosts/application/paired_hosts_controller.dart';
 import 'package:alera_mobile/src/features/runtime/domain/host_reachability.dart';
 import 'package:alera_mobile/src/features/runtime/infra/mobile_runtime_client.dart';
-import 'package:alera_mobile/src/features/runtime/infra/relay_crypto.dart';
+
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 part 'remote_runtime_connection_controller.g.dart';
@@ -26,38 +28,23 @@ Future<MobileRuntimeClient> connectRuntimeThroughRelay(
   String accountId,
   String runtimeId,
 ) async {
-  final session = await ref
-      .read(cloudAccountsControllerProvider.notifier)
-      .sessionForRequest(accountId);
-  if (session == null) throw StateError('Cloud account session is missing.');
-  final privateKey = await ref
-      .read(cloudRelayIdentityRepositoryProvider)
-      .getOrCreatePrivateKey(accountId);
-  final identity = await RelayIdentityKeyPair.fromPrivate(
-    base64Url.decode(base64Url.normalize(privateKey)),
-  );
-  final installationId = await ref
-      .read(cloudAccountRepositoryProvider)
-      .getOrCreateInstallationId();
+  final attempt = ConnectionAttempt.current;
+  final identity = await ref
+      .read(relayIdentityControllerProvider.notifier)
+      .requireIdentity(accountId);
+  attempt?.check();
+  final accounts = ref.read(cloudAccountsControllerProvider.notifier);
   final api = ref.read(aleraRelayCloudApiProvider);
-  final registration = await api.registerRelayIdentity(
-    session: session,
-    publicKey: base64UrlNoPadding(identity.publicBytes),
-    keyVersion: 1,
+  Future<CloudRelayGrant> requestGrant() => accounts.withSession(
+    accountId,
+    (session) => api.requestRelayGrant(session: session, runtimeId: runtimeId),
   );
-  if (registration.clientId != installationId ||
-      registration.clientKind != 'mobile' ||
-      registration.publicKey != base64UrlNoPadding(identity.publicBytes) ||
-      registration.keyVersion != 1) {
-    throw const FormatException('Cloud returned an invalid mobile identity');
-  }
-  final grant = await api.requestRelayGrant(
-    session: session,
-    runtimeId: runtimeId,
-  );
+  final grant = await requestGrant();
+  attempt?.check();
   final client = await MobileRuntimeClient.connectRelay(
     grant: grant,
     identity: identity,
+    requestGrant: requestGrant,
   );
   try {
     await client.authenticateRelay(cloudDeviceId: grant.clientId);
@@ -75,10 +62,19 @@ class RemoteRuntimeConnectionController
 
   @override
   Future<MobileRuntimeClient> build(String accountId, String runtimeId) async {
+    final attempt = ConnectionAttempt();
     ref.onDispose(() {
+      attempt.cancel();
       unawaited(_client?.dispose());
     });
-    final client = await _connectDirectFirst(accountId, runtimeId);
+    final MobileRuntimeClient client;
+    try {
+      client = await attempt.run(
+        () => _connectDirectFirst(accountId, runtimeId),
+      );
+    } finally {
+      attempt.finish();
+    }
     if (!ref.mounted) {
       await client.dispose();
       throw const RuntimeConnectionLost();

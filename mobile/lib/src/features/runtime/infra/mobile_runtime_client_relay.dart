@@ -4,9 +4,11 @@ mixin MobileRuntimeClientRelay {
   RelayCryptoSession? _relaySession;
   String? _relayClientId;
   Completer<Map<String, Object?>>? _relayHandshake;
+  Timer? _relayFragmentTimer;
   final RelayFragmentReassembler _relayFragments = RelayFragmentReassembler();
 
   WebSocketChannel get _channel;
+  bool get isConnectionUsable;
   Duration get _requestTimeout;
   Future<Map<String, Object?>> requestMap(
     String type, [
@@ -65,8 +67,14 @@ mixin MobileRuntimeClientRelay {
       }
       final envelope = _relayFragments.accept(payload);
       if (envelope == null) {
+        _relayFragmentTimer ??= Timer(const Duration(seconds: 10), () {
+          _relayFragments.clear();
+          _handleSocketError(TimeoutException('Relay fragments expired.'));
+        });
         return;
       }
+      _relayFragmentTimer?.cancel();
+      _relayFragmentTimer = null;
       final clear = await _relaySession!.open(envelope);
       _handleDecodedMessage(clear);
     } on Object catch (error, stackTrace) {
@@ -82,6 +90,7 @@ mixin MobileRuntimeClientRelay {
       throw const FormatException('The relay grant is not a mobile grant.');
     }
     if (grant.expiresIn <= 0 ||
+        grant.expiresIn > 120 ||
         grant.clientKeyVersion <= 0 ||
         grant.clientPublicKey != base64UrlNoPadding(identity.publicBytes)) {
       throw const FormatException('The relay grant identity is invalid.');
@@ -92,6 +101,7 @@ mixin MobileRuntimeClientRelay {
     _relayClientId = grant.clientId;
     final handshake = Completer<Map<String, Object?>>();
     _relayHandshake = handshake;
+    if (!isConnectionUsable) throw const RuntimeConnectionLost();
     _channel.sink.add(
       wrapRelayFrame(
         grant.clientId,
@@ -142,6 +152,10 @@ mixin MobileRuntimeClientRelay {
     await session.verifyPeerConfirmation(
       decodeBase64Fixed(ack['confirmation']),
     );
+    if (!isConnectionUsable) {
+      session.close();
+      throw const RuntimeConnectionLost();
+    }
     _relaySession = session;
     _channel.sink.add(
       wrapRelayFrame(

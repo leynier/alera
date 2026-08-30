@@ -88,7 +88,7 @@ final class AvailableHostsProvider
   AvailableHosts create() => AvailableHosts();
 }
 
-String _$availableHostsHash() => r'18c242a48f6d092079092282b2898dbc42533dad';
+String _$availableHostsHash() => r'1adb738db9f5b1cfa0843fb5f7636868fe03e5fb';
 
 abstract class _$AvailableHosts
     extends $AsyncNotifier<List<PairedHostProfile>> {

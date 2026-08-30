@@ -1,3 +1,10 @@
+import {
+  bearerToken,
+  verifyRelayGrant,
+  RELAY_CONTROL_PROTOCOL,
+  RelayAuthorizationUnavailable,
+  type RelayAttachment,
+} from './relay_authorization';
 interface RateLimitBinding {
   limit(options: { key: string }): Promise<{ success: boolean }>;
 }
@@ -15,26 +22,7 @@ export interface EdgeEnvironment {
   RELAY_OBJECTS?: RelayNamespace;
   RELAY_ISSUER?: string;
   RELAY_JWKS_URL?: string;
-}
-
-interface RelayClaims {
-  iss: string;
-  aud: string;
-  exp: number;
-  iat: number;
-  nbf: number;
-  jti: string;
-  accountId: string;
-  runtimeId: string;
-  clientId: string;
-  role: 'runtime' | 'mobile';
-  keyVersion: number;
-  clientPublicKey: string;
-  runtimePublicKey: string;
-}
-
-interface RelayAttachment extends RelayClaims {
-  suppressDisconnect?: boolean;
+  RELAY_RENEWAL_ENABLED?: string;
 }
 
 type OriginFetch = (request: Request) => Promise<Response>;
@@ -47,12 +35,10 @@ const PUBLIC_EXACT_PATHS = new Set(['/health', '/.well-known/jwks.json']);
 const PUBLIC_PREFIXES = ['/v1/'];
 const RELAY_PREFIX = '/v1/relay/';
 const RELAY_CONTROL_PATHS = new Set(['/v1/relay/identity', '/v1/relay/grants']);
-const RELAY_AUDIENCE = 'alera-relay';
 const MAX_RELAY_FRAME_BYTES = 1024 * 1024;
-const MAX_RELAY_MOBILE_CONNECTIONS = 8;
 const MAX_RELAY_CLIENT_ID_BYTES = 128;
 
-function jsonError(status: number, code: string, message: string): Response {
+export function jsonError(status: number, code: string, message: string): Response {
   return new Response(JSON.stringify({ error: { code, message } }), {
     status,
     headers: {
@@ -86,7 +72,7 @@ async function requestLimitKey(request: Request, pathname: string): Promise<stri
   return `address:${address}:${pathname}`;
 }
 
-function originRequest(request: Request, env: EdgeEnvironment, incomingUrl: URL): Request {
+export function originRequest(request: Request, env: EdgeEnvironment, incomingUrl: URL): Request {
   const originUrl = new URL(env.ORIGIN_BASE_URL);
   originUrl.pathname = incomingUrl.pathname;
   originUrl.search = incomingUrl.search;
@@ -98,6 +84,7 @@ function originRequest(request: Request, env: EdgeEnvironment, incomingUrl: URL)
   headers.set('x-forwarded-proto', 'https');
 
   return new Request(originUrl, {
+    signal: request.signal,
     body: SAFE_METHODS.has(request.method) ? undefined : request.body,
     headers,
     method: request.method,
@@ -118,116 +105,6 @@ function secureResponse(response: Response): Response {
   });
 }
 
-function base64UrlBytes(value: string): Uint8Array {
-  const normalized = value.replace(/-/g, '+').replace(/_/g, '/');
-  const padded = normalized.padEnd(Math.ceil(normalized.length / 4) * 4, '=');
-  const binary = atob(padded);
-  return Uint8Array.from(binary, (character) => character.charCodeAt(0));
-}
-
-function decodeJsonPart<T>(value: string): T {
-  return JSON.parse(new TextDecoder().decode(base64UrlBytes(value))) as T;
-}
-
-function bearerToken(request: Request): string | null {
-  const value = request.headers.get('authorization');
-  return value?.startsWith('Bearer ') ? value.slice('Bearer '.length) : null;
-}
-
-async function verifyRelayGrant(
-  token: string,
-  env: EdgeEnvironment,
-  fetcher: RelayFetch = (request) => fetch(request),
-): Promise<RelayAttachment | null> {
-  const parts = token.split('.');
-  if (parts.length !== 3 || !env.RELAY_JWKS_URL) return null;
-  let header: { alg?: string; typ?: string; kid?: string };
-  let claims: RelayClaims;
-  try {
-    header = decodeJsonPart(parts[0]);
-    claims = decodeJsonPart(parts[1]);
-  } catch {
-    return null;
-  }
-  let publicKeyBytes: Uint8Array;
-  let runtimeKeyBytes: Uint8Array;
-  try {
-    publicKeyBytes = base64UrlBytes(claims.clientPublicKey);
-    runtimeKeyBytes = base64UrlBytes(claims.runtimePublicKey);
-  } catch {
-    return null;
-  }
-  if (
-    header.alg !== 'EdDSA' ||
-    header.typ !== 'relay+jwt' ||
-    !header.kid ||
-    claims.aud !== RELAY_AUDIENCE ||
-    claims.iss !== (env.RELAY_ISSUER ?? '') ||
-    claims.exp <= Math.floor(Date.now() / 1000) ||
-    claims.nbf > Math.floor(Date.now() / 1000) + 30 ||
-    claims.iat > Math.floor(Date.now() / 1000) + 30 ||
-    !claims.jti ||
-    !claims.accountId ||
-    !claims.runtimeId ||
-    !claims.clientId ||
-    !['runtime', 'mobile'].includes(claims.role) ||
-    !Number.isInteger(claims.keyVersion) ||
-    claims.keyVersion <= 0 ||
-    publicKeyBytes.byteLength !== 32 ||
-    runtimeKeyBytes.byteLength !== 32
-  ) {
-    return null;
-  }
-
-  let jwks: {
-    keys?: Array<{
-      kid?: string;
-      kty?: string;
-      crv?: string;
-      x?: string;
-      alg?: string;
-    }>;
-  };
-  try {
-    const response = await fetcher(
-      new Request(env.RELAY_JWKS_URL, {
-        headers: { accept: 'application/json' },
-      }),
-    );
-    if (!response.ok) return null;
-    jwks = (await response.json()) as typeof jwks;
-  } catch {
-    return null;
-  }
-  const key = jwks.keys?.find(
-    (candidate) =>
-      candidate.kid === header.kid &&
-      candidate.kty === 'OKP' &&
-      candidate.crv === 'Ed25519' &&
-      candidate.alg === 'EdDSA' &&
-      typeof candidate.x === 'string',
-  );
-  if (!key?.x) return null;
-  try {
-    const cryptoKey = await crypto.subtle.importKey(
-      'raw',
-      base64UrlBytes(key.x),
-      { name: 'Ed25519', namedCurve: 'Ed25519' },
-      false,
-      ['verify'],
-    );
-    const valid = await crypto.subtle.verify(
-      { name: 'Ed25519' },
-      cryptoKey,
-      base64UrlBytes(parts[2]),
-      new TextEncoder().encode(`${parts[0]}.${parts[1]}`),
-    );
-    return valid ? claims : null;
-  } catch {
-    return null;
-  }
-}
-
 function relayRuntimeId(pathname: string): string | null {
   if (!pathname.startsWith(RELAY_PREFIX)) return null;
   const encoded = pathname.slice(RELAY_PREFIX.length);
@@ -240,7 +117,7 @@ function relayRuntimeId(pathname: string): string | null {
   }
 }
 
-function isWebSocketUpgrade(request: Request): boolean {
+export function isWebSocketUpgrade(request: Request): boolean {
   return request.headers.get('upgrade')?.toLowerCase() === 'websocket';
 }
 
@@ -258,13 +135,15 @@ export function relayFrameClientId(message: Uint8Array): string | null {
     return null;
   }
   try {
-    return new TextDecoder('utf-8', { fatal: true, ignoreBOM: true }).decode(message.subarray(2, idLength + 2));
+    return new TextDecoder('utf-8', { fatal: true, ignoreBOM: true }).decode(
+      message.subarray(2, idLength + 2),
+    );
   } catch {
     return null;
   }
 }
 
-function relayDisconnectFrame(clientId: string): Uint8Array {
+export function relayDisconnectFrame(clientId: string): Uint8Array {
   const id = new TextEncoder().encode(clientId);
   return new Uint8Array([(id.length >> 8) & 0xff, id.length & 0xff, ...id]);
 }
@@ -284,14 +163,32 @@ async function handleRelayRequest(
   }
   const token = bearerToken(request);
   if (!token) return jsonError(401, 'missing_bearer', 'A relay grant is required.');
-  const claims = await verifyRelayGrant(token, env, fetcher);
+  let claims: RelayAttachment | null;
+  try {
+    claims = await verifyRelayGrant(token, env, fetcher);
+  } catch (error) {
+    if (error instanceof RelayAuthorizationUnavailable)
+      return jsonError(
+        503,
+        'relay_authorization_unavailable',
+        'Relay authorization is temporarily unavailable.',
+      );
+    throw error;
+  }
   if (!claims || claims.runtimeId !== runtimeId) {
     return jsonError(403, 'invalid_relay_grant', 'The relay grant is invalid or out of scope.');
   }
+  const controlProtocol =
+    env.RELAY_RENEWAL_ENABLED !== 'false' &&
+    request.headers
+      .get('sec-websocket-protocol')
+      ?.split(',')
+      .some((value) => value.trim() === RELAY_CONTROL_PROTOCOL);
+  const attachment = { ...claims, controlProtocol: controlProtocol === true };
   const forwarded = new Request(request, {
     headers: new Headers({
       upgrade: 'websocket',
-      'x-alera-relay-claims': encodedClaims(claims),
+      'x-alera-relay-claims': encodedClaims(attachment),
     }),
   });
   const objectId = env.RELAY_OBJECTS.idFromName(runtimeId);
@@ -346,163 +243,7 @@ export async function handleRequest(
   }
 }
 
-export class RuntimeRelayDurableObject {
-  private readonly ctx: DurableObjectState;
-
-  constructor(ctx: DurableObjectState) {
-    this.ctx = ctx;
-  }
-
-  async fetch(request: Request): Promise<Response> {
-    if (!isWebSocketUpgrade(request)) {
-      return jsonError(426, 'websocket_required', 'The relay requires a WebSocket connection.');
-    }
-    const encoded = request.headers.get('x-alera-relay-claims');
-    if (!encoded) return jsonError(403, 'missing_relay_claims', 'Relay claims are missing.');
-    let attachment: RelayAttachment;
-    try {
-      const bytes = base64UrlBytes(encoded);
-      attachment = JSON.parse(new TextDecoder().decode(bytes)) as RelayAttachment;
-    } catch {
-      return jsonError(403, 'invalid_relay_claims', 'Relay claims are invalid.');
-    }
-    const peers = this.ctx.getWebSockets();
-    const peerAttachments = peers.map((peer) => peer.deserializeAttachment() as RelayAttachment);
-    if (attachment.role === 'mobile' && !peerAttachments.some((peer) =>
-      peer.role === 'runtime' && !peer.suppressDisconnect && peer.exp > Math.floor(Date.now() / 1000) &&
-      peer.accountId === attachment.accountId && peer.runtimeId === attachment.runtimeId
-    )) {
-      return jsonError(503, 'relay_runtime_unavailable', 'The runtime is reconnecting. Try again shortly.');
-    }
-    const replacingDuplicate = peerAttachments.some(
-      (peer) => peer.role === attachment.role && peer.clientId === attachment.clientId,
-    );
-    for (const peer of peers) {
-      const peerAttachment = peer.deserializeAttachment() as RelayAttachment;
-      if (peerAttachment.role === attachment.role && peerAttachment.clientId === attachment.clientId) {
-        if (peerAttachment.role === 'mobile') {
-          peer.serializeAttachment({ ...peerAttachment, suppressDisconnect: true });
-          this.notifyRuntimeOfMobileDisconnect(peerAttachment);
-        } else {
-          peer.serializeAttachment({ ...peerAttachment, suppressDisconnect: true });
-          this.disconnectMobilesForRuntime(peerAttachment);
-        }
-        peer.close(
-          4001,
-          attachment.role === 'runtime' ? 'replaced by a newer runtime' : 'replaced by a newer mobile connection',
-        );
-      }
-    }
-    if (
-      attachment.role === 'mobile' &&
-      peerAttachments.filter((peer) => peer.role === 'mobile' && !peer.suppressDisconnect && peer.exp > Math.floor(Date.now() / 1000)).length >= MAX_RELAY_MOBILE_CONNECTIONS &&
-      !replacingDuplicate
-    ) {
-      return jsonError(429, 'relay_mobile_limit', 'This runtime has reached its mobile connection limit.');
-    }
-    const webSocketPair = new WebSocketPair();
-    const [client, server] = Object.values(webSocketPair) as [WebSocket, WebSocket];
-    this.ctx.acceptWebSocket(server, [attachment.role, attachment.clientId]);
-    server.serializeAttachment(attachment);
-    return new Response(null, { status: 101, webSocket: client });
-  }
-
-  webSocketMessage(socket: WebSocket, message: ArrayBuffer | string): void {
-    const bytes = typeof message === 'string' ? new TextEncoder().encode(message) : new Uint8Array(message);
-    if (bytes.byteLength > MAX_RELAY_FRAME_BYTES) {
-      socket.close(1009, 'relay frame too large');
-      return;
-    }
-    const sender = socket.deserializeAttachment() as RelayAttachment;
-    if (sender.suppressDisconnect) return;
-    const now = Math.floor(Date.now() / 1000);
-    if (sender.exp <= now) {
-      socket.close(4003, 'relay grant expired');
-      return;
-    }
-    const clientId = relayFrameClientId(bytes);
-    if (!clientId) {
-      socket.close(1007, 'invalid relay frame');
-      return;
-    }
-    if (sender.role === 'mobile' && sender.clientId !== clientId) {
-      socket.close(1008, 'relay client id mismatch');
-      return;
-    }
-    for (const peer of this.ctx.getWebSockets()) {
-      if (peer === socket) continue;
-      const target = peer.deserializeAttachment() as RelayAttachment;
-      if (target.suppressDisconnect) continue;
-      if (target.exp <= now) {
-        peer.close(4003, 'relay grant expired');
-        continue;
-      }
-      if (
-        sender.role === target.role ||
-        sender.accountId !== target.accountId ||
-        sender.runtimeId !== target.runtimeId ||
-        (sender.role === 'runtime' && target.clientId !== clientId)
-      ) {
-        continue;
-      }
-      try {
-        peer.send(bytes);
-      } catch {
-        peer.close(1011, 'relay forwarding failed');
-      }
-    }
-  }
-
-  webSocketClose(socket: WebSocket): void {
-    this.handlePeerDisconnectOnce(socket);
-  }
-
-  webSocketError(socket: WebSocket): void {
-    this.handlePeerDisconnectOnce(socket);
-  }
-
-  private handlePeerDisconnectOnce(socket: WebSocket): void {
-    const peer = socket.deserializeAttachment() as RelayAttachment;
-    if (peer.suppressDisconnect) return;
-    socket.serializeAttachment({ ...peer, suppressDisconnect: true });
-    if (peer.role === 'mobile') {
-      this.notifyRuntimeOfMobileDisconnect(peer);
-    } else {
-      this.disconnectMobilesForRuntime(peer);
-    }
-  }
-
-  private notifyRuntimeOfMobileDisconnect(mobile: RelayAttachment): void {
-    if (mobile.role !== 'mobile') return;
-    const frame = relayDisconnectFrame(mobile.clientId);
-    for (const peer of this.ctx.getWebSockets('runtime')) {
-      const runtime = peer.deserializeAttachment() as RelayAttachment;
-      if (runtime.suppressDisconnect) continue;
-      if (runtime.accountId !== mobile.accountId || runtime.runtimeId !== mobile.runtimeId) continue;
-      try {
-        peer.send(frame);
-      } catch {
-        peer.close(1011, 'relay forwarding failed');
-      }
-    }
-  }
-
-  private disconnectMobilesForRuntime(runtime: RelayAttachment): void {
-    if (runtime.role !== 'runtime') return;
-    for (const peer of this.ctx.getWebSockets('mobile')) {
-      const mobile = peer.deserializeAttachment() as RelayAttachment;
-      if (
-        mobile.role !== 'mobile' ||
-        mobile.accountId !== runtime.accountId ||
-        mobile.runtimeId !== runtime.runtimeId
-      ) {
-        continue;
-      }
-      peer.serializeAttachment({ ...mobile, suppressDisconnect: true });
-      peer.close(4002, 'runtime disconnected');
-    }
-  }
-}
+export { RuntimeRelayDurableObject } from './runtime_relay';
 
 export default {
   fetch(request: Request, env: EdgeEnvironment): Promise<Response> {

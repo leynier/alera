@@ -1,126 +1,34 @@
 import { describe, expect, test } from 'bun:test';
-import { handleRequest, relayFrameClientId, RuntimeRelayDurableObject, type EdgeEnvironment } from '../src/index';
+import {
+  handleRequest,
+  relayFrameClientId,
+  RuntimeRelayDurableObject,
+  type EdgeEnvironment,
+} from '../src/index';
 
-function environment(success = true): EdgeEnvironment {
-  return {
-    EDGE_BURST_LIMITER: {
-      async limit() {
-        return { success };
-      },
-    },
-    EDGE_ORIGIN_TOKEN: 'edge-secret',
-    ORIGIN_BASE_URL: 'https://alera-cloud.example.run.app',
-  };
-}
-
-function base64Url(value: string | Uint8Array): string {
-  const bytes = typeof value === 'string' ? new TextEncoder().encode(value) : value;
-  return btoa(String.fromCharCode(...bytes))
-    .replace(/=/g, '')
-    .replace(/\+/g, '-')
-    .replace(/\//g, '_');
-}
-
-function relayFrame(clientId: string, payload: number[] = [1]): Uint8Array {
-  const id = new TextEncoder().encode(clientId);
-  return new Uint8Array([(id.length >> 8) & 0xff, id.length & 0xff, ...id, ...payload]);
-}
-
-function relayAttachment(role: 'runtime' | 'mobile', clientId: string, expiresIn = 120) {
-  const now = Math.floor(Date.now() / 1000);
-  return {
-    iss: 'https://api.alera.build',
-    aud: 'alera-relay',
-    exp: now + expiresIn,
-    iat: now,
-    nbf: now,
-    jti: `${role}-${clientId}`,
-    accountId: 'account-1',
-    runtimeId: 'runtime-1',
-    clientId,
-    role,
-    keyVersion: 1,
-    clientPublicKey: base64Url(new Uint8Array(32).fill(1)),
-    runtimePublicKey: base64Url(new Uint8Array(32).fill(2)),
-  };
-}
-
-async function signedRelayGrant(expiresIn = 120) {
-  const keyPair = (await crypto.subtle.generateKey({ name: 'Ed25519', namedCurve: 'Ed25519' }, true, [
-    'sign',
-    'verify',
-  ])) as CryptoKeyPair;
-  const publicJwk = (await crypto.subtle.exportKey('jwk', keyPair.publicKey)) as JsonWebKey;
-  const header = base64Url(JSON.stringify({ alg: 'EdDSA', typ: 'relay+jwt', kid: 'key-1' }));
-  const encodedClaims = base64Url(JSON.stringify(relayAttachment('mobile', 'mobile-1', expiresIn)));
-  const signingInput = `${header}.${encodedClaims}`;
-  const signature = new Uint8Array(
-    await crypto.subtle.sign({ name: 'Ed25519' }, keyPair.privateKey, new TextEncoder().encode(signingInput)),
-  );
-  return {
-    grant: `${signingInput}.${base64Url(signature)}`,
-    publicJwk,
-    signingInput,
-  };
-}
-
-function relayJwks(publicJwk: JsonWebKey) {
-  return async () =>
-    new Response(
-      JSON.stringify({
-        keys: [{ ...publicJwk, kid: 'key-1', alg: 'EdDSA' }],
-      }),
-    );
-}
-
-function relayEnvironment(stub: DurableObjectStub): EdgeEnvironment {
-  return {
-    ...environment(),
-    RELAY_ENABLED: 'true',
-    RELAY_ISSUER: 'https://api.alera.build',
-    RELAY_JWKS_URL: 'https://api.alera.build/.well-known/jwks.json',
-    RELAY_OBJECTS: {
-      idFromName: () => ({}) as DurableObjectId,
-      get: () => stub,
-    },
-  };
-}
-
-class TestSocket {
-  constructor(public attachment: ReturnType<typeof relayAttachment> & { suppressDisconnect?: boolean }) {}
-
-  readonly sent: Uint8Array[] = [];
-  closed: { code: number; reason: string } | null = null;
-
-  deserializeAttachment() {
-    return this.attachment;
-  }
-
-  serializeAttachment(attachment: ReturnType<typeof relayAttachment> & { suppressDisconnect?: boolean }) {
-    this.attachment = attachment;
-  }
-
-  send(value: Uint8Array) {
-    this.sent.push(value);
-  }
-
-  close(code: number, reason: string) {
-    this.closed = { code, reason };
-  }
-}
-
-function relayObject(sockets: TestSocket[]): RuntimeRelayDurableObject {
-  return new RuntimeRelayDurableObject({
-    getWebSockets: () => sockets as unknown as WebSocket[],
-  } as unknown as DurableObjectState);
-}
+import {
+  environment,
+  base64Url,
+  relayFrame,
+  relayAttachment,
+  signedRelayGrant,
+  relayJwks,
+  relayEnvironment,
+  TestSocket,
+  relayObject,
+} from './relay_fixture';
 
 describe('Alera API edge', () => {
   test('rejects mobile admission immediately while its runtime is unavailable', async () => {
     for (const runtimes of [[], [new TestSocket(relayAttachment('runtime', 'runtime-1', -1))]]) {
-      const response = await relayObject(runtimes).fetch(new Request('https://relay.test/v1/relay/runtime-1', {
-        headers: { upgrade: 'websocket', 'x-alera-relay-claims': base64Url(JSON.stringify(relayAttachment('mobile', 'mobile-1'))) },
-      }));
+      const response = await relayObject(runtimes).fetch(
+        new Request('https://relay.test/v1/relay/runtime-1', {
+          headers: {
+            upgrade: 'websocket',
+            'x-alera-relay-claims': base64Url(JSON.stringify(relayAttachment('mobile', 'mobile-1'))),
+          },
+        }),
+      );
       expect(response.status).toBe(503);
     }
   });
@@ -136,7 +44,10 @@ describe('Alera API edge', () => {
 
   test('late frames cannot cross between a replaced socket and a new session', () => {
     const runtime = new TestSocket(relayAttachment('runtime', 'runtime-1'));
-    const oldMobile = new TestSocket({ ...relayAttachment('mobile', 'mobile-1'), suppressDisconnect: true });
+    const oldMobile = new TestSocket({
+      ...relayAttachment('mobile', 'mobile-1'),
+      suppressDisconnect: true,
+    });
     const newMobile = new TestSocket(relayAttachment('mobile', 'mobile-1'));
     const relay = relayObject([runtime, oldMobile, newMobile]);
     const frame = relayFrame('mobile-1');
@@ -301,9 +212,13 @@ describe('Alera API edge', () => {
   });
 
   test('maps an unreachable origin to a bounded error', async () => {
-    const response = await handleRequest(new Request('https://api.alera.build/health'), environment(), async () => {
-      throw new Error('network unavailable');
-    });
+    const response = await handleRequest(
+      new Request('https://api.alera.build/health'),
+      environment(),
+      async () => {
+        throw new Error('network unavailable');
+      },
+    );
     expect(response.status).toBe(502);
   });
 

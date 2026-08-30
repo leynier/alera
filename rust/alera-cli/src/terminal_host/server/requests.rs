@@ -164,6 +164,9 @@ impl ServerActor {
     ) -> HostResult<Value> {
         match request_type {
             "hello" => self.handle_hello(client_id, payload),
+            "mobile.relayAuthorization.renew" => Err(HostError::state(
+                "Relay authorization renewal requires an encrypted relay connection",
+            )),
             "mobile.hello" => self.handle_mobile_hello(client_id, payload).await,
             "mobile.device.pair" if self.is_mobile_client(client_id) => {
                 let request: MobileDevicePairRequest = parse_payload(payload)?;

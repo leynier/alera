@@ -114,5 +114,17 @@ void main() {
       'second',
       'third',
     ]);
+    final queued = List.generate(
+      4,
+      (_) => client.seal(List.filled(1024 * 1024, 0)),
+    );
+    final rejected = client.seal([1]);
+    client.close();
+    await Future.wait(
+      [...queued, rejected].map(
+        (operation) =>
+            expectLater(operation, throwsA(isA<RelayCryptoException>())),
+      ),
+    );
   });
 }

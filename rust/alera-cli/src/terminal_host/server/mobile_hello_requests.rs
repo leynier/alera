@@ -5,7 +5,7 @@ use crate::mobile_access::{authenticate_mobile_device, MOBILE_PROTOCOL_VERSION};
 use crate::terminal_host::host_error::{HostError, HostResult};
 use crate::terminal_host::protocol::{event, ok_response};
 
-use super::mobile_gateway_surface::MOBILE_HELLO_CAPABILITIES;
+use super::mobile_gateway_surface::mobile_hello_capabilities;
 use super::request_payloads::parse_payload;
 use super::{ServerActor, ServerCommand};
 
@@ -39,23 +39,30 @@ impl ServerActor {
         let mut value =
             serde_json::to_value(status).map_err(|error| HostError::state(error.to_string()))?;
         value["connectedRelayDevices"] = self.connected_relay_devices();
+        value["relayStatus"] = self.account_push.relay_status.clone();
         Ok(value)
     }
 
     fn connected_relay_devices(&self) -> Value {
         let mut devices = std::collections::BTreeMap::new();
-        for client in self.clients.values().filter(|client| client.authenticated) {
+        for (numeric_id, client) in self
+            .clients
+            .iter()
+            .filter(|(_, client)| client.authenticated)
+        {
             let Some(id) = &client.relay_client_id else {
                 continue;
             };
+            let presence = self.account_push.relay_presence.get(numeric_id);
             devices.insert(
                 id.clone(),
                 json!({
                     "id": id,
                     "displayName": client.mobile_device_name.as_deref().unwrap_or("Remote Mobile"),
                     "permission": "fullControl",
-                    "pairedAt": Utc::now(),
-                    "lastSeenAt": Utc::now(),
+                    "pairedAt": presence.map(|(connected, _)| *connected).unwrap_or(chrono::DateTime::UNIX_EPOCH),
+                    "connectedAt": presence.map(|(connected, _)| connected),
+                    "lastSeenAt": presence.map(|(_, activity)| activity),
                     "transport": "relay",
                 }),
             );
@@ -98,6 +105,7 @@ impl ServerActor {
             return;
         }
         payload["connectedRelayDevices"] = self.connected_relay_devices();
+        payload["relayStatus"] = self.account_push.relay_status.clone();
         self.client_write(client_id, ok_response(request_id, payload));
     }
 
@@ -189,7 +197,7 @@ impl ServerActor {
         Ok(json!({
             "protocolVersion": MOBILE_PROTOCOL_VERSION,
             "runtime": "alera",
-            "runtimeCapabilities": MOBILE_HELLO_CAPABILITIES,
+            "runtimeCapabilities": mobile_hello_capabilities(crate::terminal_host::relay_connection::renewal_enabled()),
             "authenticated": true,
             "binaryFrames": binary_frames,
             "supportedTabKinds": request.supported_tab_kinds,

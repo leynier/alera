@@ -1,4 +1,11 @@
+use rand_core::{OsRng, RngCore};
 use std::time::Duration;
+
+pub(super) const CONTROL_PROTOCOL: &str = "alera-relay-control-v1";
+
+pub(super) fn renewal_enabled() -> bool {
+    std::env::var("ALERA_RELAY_RENEWAL_ENABLED").as_deref() != Ok("false")
+}
 
 use tokio_tungstenite::tungstenite::{
     client::IntoClientRequest,
@@ -23,7 +30,9 @@ impl RelayRetryBackoff {
     pub(super) fn next_delay(&mut self) -> Duration {
         let delay = RETRY_DELAYS[self.index];
         self.index = (self.index + 1).min(RETRY_DELAYS.len() - 1);
-        delay
+        Duration::from_millis(
+            delay.as_millis() as u64 / 2 + OsRng.next_u64() % (delay.as_millis() as u64 / 2 + 1),
+        )
     }
 
     pub(super) fn reset(&mut self) {
@@ -33,6 +42,12 @@ impl RelayRetryBackoff {
 
 pub(super) fn relay_request(relay_url: &str, grant: &str) -> anyhow::Result<Request<()>> {
     let mut request = relay_url.into_client_request()?;
+    if renewal_enabled() {
+        request.headers_mut().insert(
+            header::SEC_WEBSOCKET_PROTOCOL,
+            HeaderValue::from_static(CONTROL_PROTOCOL),
+        );
+    }
     request.headers_mut().insert(
         header::AUTHORIZATION,
         HeaderValue::from_str(&format!("Bearer {grant}"))?,
