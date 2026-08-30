@@ -27,6 +27,7 @@ mod output_batching;
 mod pty_spawn;
 #[cfg(unix)]
 mod shell_tree_termination;
+mod termination;
 #[cfg(test)]
 mod tests;
 mod title_tracker;
@@ -40,8 +41,6 @@ use input_queue::PtyWrite;
 use instance_state::next_session_instance_id;
 use io_threads::{spawn_reader, spawn_writer};
 use pty_spawn::{spawn_pty, SpawnedPty};
-#[cfg(unix)]
-use shell_tree_termination::kill_shell_tree;
 use title_tracker::TerminalTitleTracker;
 #[cfg(windows)]
 use windows_process_job::WindowsProcessJob;
@@ -431,69 +430,6 @@ impl Session {
             "sessionId": self.id,
             "snapshotBase64": encode_bytes(&self.buffer.to_bytes()),
         })
-    }
-
-    /// Terminate the session: kill the shell and everything it spawned, release
-    /// the PTY, and either delete or finalize the checkpoint.
-    pub async fn terminate(&mut self, remove_history: bool, store: &TerminalHostHistoryStore) {
-        self.terminated = true;
-        self.running = false;
-        #[cfg(unix)]
-        // Read before clearing. The sweep needs the sealed shell to prove which
-        // tree it is allowed to signal, and it has to run before the root is
-        // killed: a dead root's children reparent away and stop being findable.
-        let shell = self.shell.take();
-        #[cfg(windows)]
-        {
-            self.shell = None;
-        }
-        #[cfg(windows)]
-        {
-            // KILL_ON_JOB_CLOSE terminates the shell and every associated
-            // descendant, including processes that detached from the console.
-            self.process_job = None;
-        }
-        #[cfg(unix)]
-        if let Some(mut killer) = self.killer.take() {
-            kill_shell_tree(shell, move || {
-                // The child may have already exited between checks.
-                let _ = killer.kill();
-            })
-            .await;
-        }
-        #[cfg(windows)]
-        if let Some(mut killer) = self.killer.take() {
-            // The job normally killed the root already. Keep the PTY's direct
-            // killer as a best-effort fallback if Windows raced job teardown.
-            let _ = killer.kill();
-        }
-        self.input_tx = None;
-        self.master = None;
-        self.checkpoint_armed = false;
-        self.output_batch.clear();
-        self.output_batch_armed = false;
-        self.output_batch_gen = self.output_batch_gen.wrapping_add(1);
-        self.durable_output_batch.clear();
-        self.durable_output_batch_armed = false;
-        self.durable_output_batch_gen = self.durable_output_batch_gen.wrapping_add(1);
-        if remove_history {
-            if let Err(error) = store.delete(&self.id).await {
-                tracing::warn!(
-                    session_id = %self.id,
-                    "failed to remove terminal history: {error}"
-                );
-            }
-        } else {
-            let ended = self.ended_at.unwrap_or_else(Utc::now);
-            // A dropped final checkpoint is what the user sees as a terminal
-            // that came back with its scrollback truncated.
-            if let Err(error) = self.write_checkpoint(store, Some(ended)).await {
-                tracing::warn!(
-                    session_id = %self.id,
-                    "failed to write the final terminal checkpoint: {error}"
-                );
-            }
-        }
     }
 
     /// Arm a debounced checkpoint timer if one is not already pending. Returns
