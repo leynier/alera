@@ -76,7 +76,9 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
-          aleraDatabaseProvider.overrideWith((ref) async {
+          // Match the desktop bootstrap: dependents need the prepared database
+          // on their first build, not an initial AsyncLoading value.
+          aleraDatabaseProvider.overrideWith((ref) {
             ref.onDispose(closeDb);
             return db;
           }),
