@@ -158,9 +158,6 @@ mixin _ProjectWorkbenchSidebarActions
         return;
       }
     }
-    final shouldConfirm =
-        impact != null ||
-        ref.read(settingsControllerProvider).general.confirmWorkspaceRemoval;
     final lastActivity =
         ref.read(workspaceActivityControllerProvider)[workspace.id] ??
         impact?.lastActivityAt ??
@@ -170,20 +167,17 @@ mixin _ProjectWorkbenchSidebarActions
         : 'Measured size: ${formatResourceMemory(impact.sizeBytes)} '
               'across ${impact.entryCount} entries.\n'
               'Last activity: ${_workspaceStorageTimestamp(lastActivity)}.\n\n';
-    final confirmed = shouldConfirm
-        ? await showDialog<bool>(
-            context: context,
-            builder: (_) => AleraConfirmDialog(
-              title: impact == null
-                  ? 'Remove Workspace?'
-                  : 'Clean Up Workspace?',
-              message:
-                  '$impactSummary${!deleteBranch || branch == null || branch.isEmpty ? 'This removes the worktree for "${workspace.name}".' : 'This removes the worktree for "${workspace.name}" and deletes branch "$branch".'}',
-              confirmLabel: impact == null ? 'Remove' : 'Clean Up',
-              destructive: true,
-            ),
-          )
-        : true;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (_) => AleraConfirmDialog(
+        title: impact == null ? 'Remove Workspace?' : 'Clean Up Workspace?',
+        message:
+            '$impactSummary${!deleteBranch || branch == null || branch.isEmpty ? 'This removes the worktree for "${workspace.name}".' : 'This removes the worktree for "${workspace.name}" and deletes branch "$branch".'}'
+            '\n\nAll tabs will close and running terminals, agents, and their child processes will stop. Unsaved changes will be lost. If removal fails, stopped sessions will not restart automatically.',
+        confirmLabel: impact == null ? 'Remove' : 'Clean Up',
+        destructive: true,
+      ),
+    );
     if (confirmed != true || !mounted) {
       return;
     }
@@ -200,12 +194,6 @@ mixin _ProjectWorkbenchSidebarActions
                   .read(workbenchControllerProvider)
                   .activeWorkspaceId,
             );
-        await ref
-            .read(browserSessionRegistryProvider)
-            .closeWorkspace(workspace.id);
-        // Only dispose the live terminal sessions once the worktree was actually
-        // removed, so a failed git removal doesn't orphan a still-valid workspace.
-        ref.read(terminalRuntimeProvider).closeWorkspace(workspace.id);
         return _WorkbenchSidebarMutationResult.applied;
       },
     );

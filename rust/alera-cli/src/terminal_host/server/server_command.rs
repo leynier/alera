@@ -167,6 +167,12 @@ pub enum ServerCommand {
     },
     EmulatorMaintenanceFinished(emulator_request_queue::EmulatorMaintenanceCompletion),
     RuntimeMutationFinished(runtime_mutations::RuntimeMutationFinished),
+    PrepareRuntimeMutation {
+        request: runtime_mutations::RuntimeMutationRequest,
+        completion: tokio::sync::oneshot::Sender<
+            HostResult<crate::terminal_host::session::workspace_shutdown::WorkspaceShutdown>,
+        >,
+    },
     EmulatorPointerTimeout {
         tab_id: String,
         client_id: u64,

@@ -22,6 +22,8 @@ impl Session {
         let mut title_tracker = TerminalTitleTracker::default();
         title_tracker.feed(&checkpoint.buffer);
         Some(Session {
+            #[cfg(unix)]
+            child_reaper: Arc::default(),
             instance_id: next_session_instance_id(),
             initial_agent_prompt_delivered: false,
             id: session_id,
