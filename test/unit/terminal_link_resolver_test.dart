@@ -1,8 +1,45 @@
 import 'package:alera/src/features/workbench/presentation/terminal_link_resolver.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:xterm/xterm.dart' as xterm;
+import 'package:xterm2/xterm.dart' as xterm;
 
 void main() {
+  test('native links follow reflow and disappear when overwritten', () {
+    final terminal = xterm.Terminal()..resize(10, 4);
+    addTearDown(terminal.dispose);
+    terminal.write(
+      '\x1b]8;;https://example.com\x1b\\abcdef'
+      '\x1b]8;;\x1b\\',
+    );
+    terminal.resize(4, 4);
+    final link = resolveTerminalLinkAt(
+      terminal: terminal,
+      offset: const xterm.CellOffset(1, 1),
+    );
+    expect(link?.start, const xterm.CellOffset(0, 0));
+    expect(link?.end, const xterm.CellOffset(2, 1));
+    terminal.setCursor(0, 1 - terminal.buffer.scrollBack);
+    terminal.write('XX');
+    expect(
+      resolveTerminalLinkAt(
+        terminal: terminal,
+        offset: const xterm.CellOffset(1, 1),
+      ),
+      isNull,
+    );
+  });
+
+  test('visible URL spans include combining characters in their label', () {
+    final terminal = xterm.Terminal()..resize(80, 4);
+    addTearDown(terminal.dispose);
+    terminal.write('https://example.com/e\u0301');
+    final link = resolveVisibleHttpLinkAt(
+      terminal: terminal,
+      offset: const xterm.CellOffset(20, 0),
+    );
+    expect(link?.uri, Uri.parse('https://example.com/e\u0301'));
+    expect(link?.end.x, 21);
+  });
+
   test('terminal link ranges handle multiline containment and equality', () {
     final range = TerminalLinkRange(
       uri: Uri.parse('https://example.com'),
@@ -123,19 +160,16 @@ void main() {
     expect(link!.uri.toString(), 'https://example.com/path');
   });
 
-  test('tracks osc8 hyperlinks from private OSC sequences', () {
+  test('resolves native OSC 8 hyperlinks', () {
     final terminal = xterm.Terminal();
     terminal.resize(80, 24);
-    final tracker = Osc8TerminalLinkTracker(terminal: terminal);
-    addTearDown(tracker.dispose);
-    terminal.onPrivateOSC = tracker.handlePrivateOsc;
+    addTearDown(terminal.dispose);
 
     terminal.write('\x1b]8;;https://example.com\x1b\\click here\x1b]8;;\x1b\\');
 
     final link = resolveTerminalLinkAt(
       terminal: terminal,
       offset: const xterm.CellOffset(2, 0),
-      osc8Tracker: tracker,
     );
 
     expect(link, isNotNull);
@@ -145,13 +179,15 @@ void main() {
   test('tracks active osc8 links before they are explicitly closed', () {
     final terminal = xterm.Terminal();
     terminal.resize(80, 24);
-    final tracker = Osc8TerminalLinkTracker(terminal: terminal);
-    addTearDown(tracker.dispose);
+    addTearDown(terminal.dispose);
 
-    tracker.handlePrivateOsc('8', <String>['', 'https://example.com']);
+    terminal.write('\x1b]8;;https://example.com\x1b\\');
     terminal.write('hover me');
 
-    final link = tracker.linkAt(const xterm.CellOffset(2, 0));
+    final link = resolveTerminalLinkAt(
+      terminal: terminal,
+      offset: const xterm.CellOffset(2, 0),
+    );
 
     expect(link, isNotNull);
     expect(link!.uri, Uri.parse('https://example.com'));
@@ -160,16 +196,27 @@ void main() {
   test('ignores invalid osc8 targets and discards empty links on close', () {
     final terminal = xterm.Terminal();
     terminal.resize(80, 24);
-    final tracker = Osc8TerminalLinkTracker(terminal: terminal);
-    addTearDown(tracker.dispose);
+    addTearDown(terminal.dispose);
 
-    tracker.handlePrivateOsc('8', <String>['', 'mailto:test@example.com']);
-    expect(tracker.linkAt(const xterm.CellOffset(0, 0)), isNull);
+    terminal.write('\x1b]8;;mailto:test@example.com\x1b\\');
+    expect(
+      resolveTerminalLinkAt(
+        terminal: terminal,
+        offset: const xterm.CellOffset(0, 0),
+      ),
+      isNull,
+    );
 
-    tracker.handlePrivateOsc('8', <String>['', 'https://example.com']);
-    tracker.handlePrivateOsc('8', const <String>['', '']);
+    terminal.write('\x1b]8;;https://example.com\x1b\\');
+    terminal.write('\x1b]8;;\x1b\\');
 
-    expect(tracker.linkAt(const xterm.CellOffset(0, 0)), isNull);
+    expect(
+      resolveTerminalLinkAt(
+        terminal: terminal,
+        offset: const xterm.CellOffset(0, 0),
+      ),
+      isNull,
+    );
   });
 
   test('keeps visible url spans aligned after wide characters', () {
@@ -201,19 +248,24 @@ void main() {
     expect(link.uri, Uri.parse('https://example.com'));
   });
 
-  test('prunes detached osc8 anchors after scrolling them away', () {
+  test('discards native OSC 8 links after scrolling them away', () {
     final terminal = xterm.Terminal(maxLines: 64);
     terminal.resize(8, 4);
-    final tracker = Osc8TerminalLinkTracker(terminal: terminal);
-    addTearDown(tracker.dispose);
+    addTearDown(terminal.dispose);
 
-    tracker.handlePrivateOsc('8', <String>['', 'https://example.com']);
+    terminal.write('\x1b]8;;https://example.com\x1b\\');
     terminal.write('link');
-    tracker.handlePrivateOsc('8', const <String>['', '']);
+    terminal.write('\x1b]8;;\x1b\\');
     for (var index = 0; index < 100; index += 1) {
       terminal.write('\r\nline $index');
     }
 
-    expect(tracker.linkAt(const xterm.CellOffset(0, 0)), isNull);
+    expect(
+      resolveTerminalLinkAt(
+        terminal: terminal,
+        offset: const xterm.CellOffset(0, 0),
+      ),
+      isNull,
+    );
   });
 }

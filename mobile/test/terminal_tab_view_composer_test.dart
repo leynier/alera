@@ -10,7 +10,7 @@ import 'package:alera_mobile/src/features/workbench/application/workbench_provid
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:xterm/xterm.dart';
+import 'package:xterm2/xterm.dart';
 
 import 'support/fake_terminal_client.dart';
 import 'support/memory_accessory_layout_repository.dart';
