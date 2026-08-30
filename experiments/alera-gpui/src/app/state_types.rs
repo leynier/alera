@@ -78,12 +78,15 @@ pub(super) struct SettingsMasterResizeState {
     pub(super) initial_width: f32,
 }
 
-#[derive(Clone, Debug)]
 pub(super) struct TerminalSearchState {
     pub(super) session_id: String,
     pub(super) query: String,
     pub(super) matches: Vec<crate::terminal::TerminalSearchMatch>,
     pub(super) selected_index: usize,
+    pub(super) matcher: crate::terminal::TerminalSearchQuery,
+    pub(super) revision: Option<u64>,
+    pub(super) refresh_task: Option<gpui::Task<()>>,
+    pub(super) scroll_to_first: bool,
 }
 
 #[derive(Clone, Copy, Debug)]

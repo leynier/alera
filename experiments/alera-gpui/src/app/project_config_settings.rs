@@ -7,6 +7,7 @@ use gpui_component::input::{InputState, TextareaState};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 
+use super::project_config_request_scope::ProjectConfigRequestScope;
 use super::AleraApp;
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
@@ -73,10 +74,12 @@ pub(super) struct ProjectConfigSettingsState {
     pub error: Option<SharedString>,
     generation: u64,
     seed_signature: Option<String>,
+    selection_epoch: u64,
+    seeded_draft: Option<String>,
 }
 
 impl ProjectConfigSettingsState {
-    pub fn new(window: &mut Window, cx: &mut Context<AleraApp>) -> Self {
+    pub fn new(window: &mut Window, cx: &mut gpui::App) -> Self {
         Self {
             selected_project_id: None,
             override_project_ids: BTreeSet::new(),
@@ -96,6 +99,8 @@ impl ProjectConfigSettingsState {
             error: None,
             generation: 0,
             seed_signature: None,
+            selection_epoch: 0,
+            seeded_draft: None,
         }
     }
 
@@ -103,8 +108,9 @@ impl ProjectConfigSettingsState {
         &mut self,
         effective: EffectiveProjectConfig,
         project_id: &str,
+        replace_draft: bool,
         window: &mut Window,
-        cx: &mut Context<AleraApp>,
+        cx: &mut gpui::App,
     ) {
         let signature = serde_json::to_string(&effective.config).unwrap_or_default();
         let should_seed = self.selected_project_id.as_deref() != Some(project_id)
@@ -112,7 +118,7 @@ impl ProjectConfigSettingsState {
         self.selected_project_id = Some(project_id.to_string());
         self.origin = effective.origin;
         self.source_error = effective.error.map(Into::into);
-        if !should_seed {
+        if !should_seed || !replace_draft {
             return;
         }
         let prompt = effective.config.new_workspace.prompt_append;
@@ -135,88 +141,38 @@ impl ProjectConfigSettingsState {
             .collect();
         self.git_hosting_provider = effective.config.git_hosting_provider;
         self.seed_signature = Some(signature);
+        self.seeded_draft = Some(self.draft_signature(cx));
+    }
+
+    fn draft_signature(&self, cx: &gpui::App) -> String {
+        json!({
+            "prompt": self.prompt_append_input.read(cx).value().to_string(),
+            "copy": self.copy_rules.iter().map(|rule| (
+                rule.from_input.read(cx).value().to_string(),
+                rule.to_input.read(cx).value().to_string(), rule.overwrite,
+            )).collect::<Vec<_>>(),
+            "setup": self.setup_commands.iter().map(|command| command.input.read(cx).value().to_string()).collect::<Vec<_>>(),
+            "hosting": self.git_hosting_provider,
+        }).to_string()
+    }
+
+    pub(super) fn select_project(&mut self, project_id: String) {
+        if self.selected_project_id.as_deref() != Some(project_id.as_str()) {
+            self.reset_selection();
+            self.selected_project_id = Some(project_id);
+        }
     }
 
     pub(super) fn reset_selection(&mut self) {
         self.selected_project_id = None;
         self.seed_signature = None;
+        self.seeded_draft = None;
+        self.selection_epoch = self.selection_epoch.wrapping_add(1);
+        self.generation = self.generation.wrapping_add(1);
     }
 }
 
 impl AleraApp {
-    pub(super) fn refresh_project_config_settings(
-        &mut self,
-        window: &mut Window,
-        cx: &mut Context<Self>,
-    ) {
-        let mut projects = self.snapshot.projects.iter().collect::<Vec<_>>();
-        projects.sort_by(super::sidebar_view_options::compare_project_selection);
-        let selected = self
-            .project_config_settings
-            .selected_project_id
-            .clone()
-            .filter(|id| {
-                self.snapshot
-                    .projects
-                    .iter()
-                    .any(|project| &project.id == id)
-            })
-            .or_else(|| projects.first().map(|project| project.id.clone()));
-        let Some(project_id) = selected else {
-            self.project_config_settings.loading = false;
-            self.project_config_settings.selected_project_id = None;
-            cx.notify();
-            return;
-        };
-        self.load_automation_project_policy(Some(&project_id), cx);
-        self.project_config_settings.generation += 1;
-        let generation = self.project_config_settings.generation;
-        self.project_config_settings.loading = true;
-        self.project_config_settings.error = None;
-        let bridge = self.bridge.clone();
-        let request_project_id = project_id.clone();
-        cx.spawn_in(window, async move |this, cx| {
-            let result = async {
-                let overrides = bridge.request("projectConfig.list", json!({})).await?;
-                let effective = bridge
-                    .request(
-                        "projectConfig.effective",
-                        json!({"projectId": request_project_id}),
-                    )
-                    .await?;
-                let override_ids = overrides
-                    .as_object()
-                    .ok_or_else(|| "Project Config List Must Be An Object".to_string())?
-                    .keys()
-                    .cloned()
-                    .collect::<BTreeSet<_>>();
-                let effective = serde_json::from_value::<EffectiveProjectConfig>(effective)
-                    .map_err(|error| format!("Invalid Effective Project Config: {error}"))?;
-                Ok::<_, String>((override_ids, effective))
-            }
-            .await;
-            let Some(this) = this.upgrade() else {
-                return;
-            };
-            let _ = this.update_in(cx, |this, window, cx| {
-                if generation != this.project_config_settings.generation {
-                    return;
-                }
-                this.project_config_settings.loading = false;
-                match result {
-                    Ok((override_ids, effective)) => {
-                        this.project_config_settings.override_project_ids = override_ids;
-                        this.project_config_settings
-                            .seed(effective, &project_id, window, cx);
-                    }
-                    Err(error) => this.project_config_settings.error = Some(error.into()),
-                }
-                cx.notify();
-            });
-        })
-        .detach();
-    }
-
     pub(super) fn select_project_config(
         &mut self,
         project_id: String,
@@ -226,10 +182,9 @@ impl AleraApp {
         if self.project_config_settings.selected_project_id.as_deref() == Some(&project_id) {
             return;
         }
-        self.project_config_settings.selected_project_id = Some(project_id);
+        self.project_config_settings.select_project(project_id);
         let selected_project_id = self.project_config_settings.selected_project_id.clone();
         self.load_automation_project_policy(selected_project_id.as_deref(), cx);
-        self.project_config_settings.seed_signature = None;
         self.project_config_settings.provider_dropdown_open = false;
         self.refresh_project_config_settings(window, cx);
     }
@@ -373,44 +328,12 @@ impl AleraApp {
             cx,
         );
     }
-
-    fn run_project_config_request(
-        &mut self,
-        verb: &'static str,
-        payload: Value,
-        window: &mut Window,
-        cx: &mut Context<Self>,
-    ) {
-        self.project_config_settings.saving = true;
-        self.project_config_settings.error = None;
-        let bridge = self.bridge.clone();
-        cx.spawn_in(window, async move |this, cx| {
-            let result = bridge
-                .request_with_timeout(verb, payload, Duration::from_secs(10))
-                .await;
-            let Some(this) = this.upgrade() else {
-                return;
-            };
-            let _ = this.update_in(cx, |this, window, cx| {
-                this.project_config_settings.saving = false;
-                match result {
-                    Ok(_) => {
-                        this.project_config_settings.seed_signature = None;
-                        this.refresh_project_config_settings(window, cx);
-                    }
-                    Err(error) => this.project_config_settings.error = Some(error.into()),
-                }
-                cx.notify();
-            });
-        })
-        .detach();
-    }
 }
 
 fn project_copy_rule_draft(
     rule: WorktreeCopyRule,
     window: &mut Window,
-    cx: &mut Context<AleraApp>,
+    cx: &mut gpui::App,
 ) -> ProjectCopyRuleDraft {
     let from = rule.from;
     let to = rule.to.unwrap_or_default();
@@ -434,7 +357,7 @@ fn project_copy_rule_draft(
 fn project_setup_command_draft(
     command: String,
     window: &mut Window,
-    cx: &mut Context<AleraApp>,
+    cx: &mut gpui::App,
 ) -> ProjectSetupCommandDraft {
     let input = cx.new(|cx| {
         let mut input = InputState::new(window, cx).placeholder("make bootstrap");
@@ -454,3 +377,8 @@ fn validate_project_config_path(value: &str, label: &str) -> Option<String> {
 }
 
 include!("project_config_settings_render.rs");
+include!("project_config_requests.rs");
+
+#[cfg(all(test, feature = "gpui-tests"))]
+#[path = "project_config_settings_tests.rs"]
+mod tests;

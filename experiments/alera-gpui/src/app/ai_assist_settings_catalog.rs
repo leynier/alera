@@ -1,5 +1,44 @@
 use super::settings_state::SettingsState;
 
+// Initialization and rendering must enumerate the same prompts or the pane can
+// request a control that was never created.
+pub(super) const PROMPT_OPERATIONS: &[(&str, &str)] = &[
+    ("commitMessage", "Commit Messages"),
+    ("pullRequestDetails", "Pull Request Details"),
+    ("readingDiff", "Reading Diffs"),
+    ("workspaceIdentity", "Workspace Identity"),
+    ("speechMessage", "Speech Messages"),
+];
+
+pub(super) const GROUP_TITLES: [&str; PROMPT_OPERATIONS.len() + 1] = {
+    let mut titles = ["Generation"; PROMPT_OPERATIONS.len() + 1];
+    let mut index = 0;
+    while index < PROMPT_OPERATIONS.len() {
+        titles[index + 1] = PROMPT_OPERATIONS[index].1;
+        index += 1;
+    }
+    titles
+};
+
+pub(super) fn instruction_key(operation: &str) -> String {
+    format!("ai-instructions-{operation}")
+}
+
+pub(super) fn instruction_values(
+    settings: &SettingsState,
+) -> impl Iterator<Item = (String, String)> + '_ {
+    PROMPT_OPERATIONS.iter().map(|(operation, _)| {
+        (
+            instruction_key(operation),
+            settings
+                .ai_assist_instructions_by_operation
+                .get(*operation)
+                .cloned()
+                .unwrap_or_default(),
+        )
+    })
+}
+
 pub(super) struct AiAssistModel {
     pub id: &'static str,
     pub label: &'static str,
@@ -229,4 +268,63 @@ pub(super) fn selected_model_id(settings: &SettingsState, agent: &str) -> String
                 .cloned()
         })
         .unwrap_or_else(|| default_model(agent).to_string())
+}
+
+#[cfg(test)]
+mod tests {
+    use std::collections::BTreeMap;
+
+    use super::{
+        instruction_key, instruction_values, SettingsState, GROUP_TITLES, PROMPT_OPERATIONS,
+    };
+
+    #[test]
+    fn ai_assist_initializes_instructions_for_every_rendered_prompt() {
+        let settings = SettingsState::default();
+        let values = instruction_values(&settings).collect::<BTreeMap<_, _>>();
+        assert_eq!(values.len(), 5);
+        for operation in [
+            "commitMessage",
+            "pullRequestDetails",
+            "readingDiff",
+            "workspaceIdentity",
+            "speechMessage",
+        ] {
+            assert_eq!(
+                values.get(&instruction_key(operation)),
+                Some(&String::new())
+            );
+        }
+    }
+
+    #[test]
+    fn ai_assist_instruction_fields_preserve_saved_multiline_text() {
+        let mut settings = SettingsState::default();
+        for &(operation, _) in PROMPT_OPERATIONS {
+            settings.ai_assist_instructions_by_operation.insert(
+                operation.to_owned(),
+                format!("Guía para {operation}\nMantén el contexto."),
+            );
+        }
+        let mut restored = SettingsState::default();
+        restored.apply_runtime_settings(
+            &serde_json::json!({"aiTextGeneration": settings.runtime_ai_assist_payload()}),
+        );
+        for (key, value) in instruction_values(&restored) {
+            let operation = key.strip_prefix("ai-instructions-").unwrap();
+            assert_eq!(
+                value,
+                settings.ai_assist_instructions_by_operation[operation]
+            );
+        }
+    }
+
+    #[test]
+    fn ai_assist_navigation_includes_every_prompt_in_render_order() {
+        assert_eq!(GROUP_TITLES[0], "Generation");
+        assert_eq!(GROUP_TITLES.last(), Some(&"Speech Messages"));
+        for (index, &(_, title)) in PROMPT_OPERATIONS.iter().enumerate() {
+            assert_eq!(GROUP_TITLES[index + 1], title);
+        }
+    }
 }

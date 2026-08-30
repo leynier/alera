@@ -11,6 +11,7 @@ build = "build.rs"
 default = ["wayland"]
 wayland = ["gpui/wayland", "gpui-platform/wayland"]
 x11 = ["gpui/x11", "gpui-platform/x11"]
+gpui-tests = ["gpui/test-support"]
 
 [dependencies]
 alera-native = { package = "alera_native", path = "../../rust" }

@@ -56,6 +56,7 @@ const AI_ASSIST: &[&str] = &[
     "Pull Request Details Agent Model prompt override",
     "Workspace Identity Agent Model prompt override",
     "Reading Diffs Agent Model reasoning instructions diff only",
+    "Speech Messages Agent Model reasoning instructions prompt override",
     "Instructions optional prompt guidance",
 ];
 const TEXT_ACTIONS: &[&str] = &[
@@ -222,6 +223,13 @@ pub(super) fn first_matching_group(pane: SettingsPane, query: &str) -> Option<us
                 "Reasoning",
                 "Instructions",
             ],
+            &[
+                "Speech Messages",
+                "Agent",
+                "Model",
+                "Reasoning",
+                "Instructions",
+            ],
         ],
         SettingsPane::TextActions => &[&[
             "Actions",
@@ -292,5 +300,21 @@ mod tests {
             super::first_matching_group(SettingsPane::AiAssist, "workspace"),
             Some(4)
         );
+    }
+
+    #[test]
+    fn ai_assist_search_reaches_every_rendered_prompt() {
+        for (index, (_, title)) in super::super::ai_assist_settings_catalog::PROMPT_OPERATIONS
+            .iter()
+            .enumerate()
+        {
+            let query = title.to_lowercase();
+            assert!(pane_matches(SettingsPane::AiAssist, &query), "{title}");
+            assert_eq!(
+                super::first_matching_group(SettingsPane::AiAssist, &query),
+                Some(index + 1),
+                "{title}"
+            );
+        }
     }
 }

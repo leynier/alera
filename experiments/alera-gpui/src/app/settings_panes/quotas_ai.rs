@@ -320,12 +320,12 @@ fn claude_profiles_control(
                 .child("No CCS Profiles Configured"),
         );
     } else {
-        for (index, profile) in settings.claude_profiles.iter().enumerate() {
+        for profile in &settings.claude_profiles {
             let profile_name = profile.profile.clone();
-            let edit_index = index;
-            let remove_index = index;
-            let move_up_index = index;
-            let move_down_index = index;
+            let edit_name = profile_name.clone();
+            let remove_name = profile_name.clone();
+            let move_up_name = profile_name.clone();
+            let move_down_name = profile_name.clone();
             let pinned = !settings
                 .quota_unpinned_keys
                 .contains(&format!("claude:{profile_name}"));
@@ -362,7 +362,7 @@ fn claude_profiles_control(
                     )
                     .child(
                         project_icon_button(
-                            SharedString::from(format!("pin-claude-profile-{index}")),
+                            SharedString::from(format!("pin-claude-profile-{}", profile.profile)),
                             if pinned {
                                 AleraIcon::Pin
                             } else {
@@ -377,6 +377,9 @@ fn claude_profiles_control(
                         )
                         .on_click(
                             cx.listener(move |this, _, _, cx| {
+                                if !this.settings_state.claude_profiles.iter().any(|profile| profile.profile == profile_name) {
+                                    return;
+                                }
                                 this.update_quota_settings(
                                     |settings| {
                                         toggle_quota_pin(
@@ -391,53 +394,53 @@ fn claude_profiles_control(
                     )
                     .child(
                         project_icon_button(
-                            SharedString::from(format!("move-claude-profile-up-{index}")),
+                            SharedString::from(format!("move-claude-profile-up-{}", profile.profile)),
                             AleraIcon::ChevronUp,
                             false,
                             format!("Move {} Earlier", profile.alias),
                         )
                         .on_click(
                             cx.listener(move |this, _, _, cx| {
-                                this.move_claude_profile(move_up_index, -1, cx);
+                                this.move_claude_profile(&move_up_name, -1, cx);
                             }),
                         ),
                     )
                     .child(
                         project_icon_button(
-                            SharedString::from(format!("move-claude-profile-down-{index}")),
+                            SharedString::from(format!("move-claude-profile-down-{}", profile.profile)),
                             AleraIcon::ChevronDown,
                             false,
                             format!("Move {} Later", profile.alias),
                         )
                         .on_click(
                             cx.listener(move |this, _, _, cx| {
-                                this.move_claude_profile(move_down_index, 1, cx);
+                                this.move_claude_profile(&move_down_name, 1, cx);
                             }),
                         ),
                     )
                     .child(
                         project_icon_button(
-                            SharedString::from(format!("edit-claude-profile-{index}")),
+                            SharedString::from(format!("edit-claude-profile-{}", profile.profile)),
                             AleraIcon::Edit,
                             false,
                             "Edit CCS Profile",
                         )
                         .on_click(
                             cx.listener(move |this, _, window, cx| {
-                                this.open_claude_profile_dialog(Some(edit_index), window, cx);
+                                this.open_claude_profile_dialog(Some(edit_name.clone()), window, cx);
                             }),
                         ),
                     )
                     .child(
                         project_icon_button(
-                            SharedString::from(format!("remove-claude-profile-{index}")),
+                            SharedString::from(format!("remove-claude-profile-{}", profile.profile)),
                             AleraIcon::Delete,
                             false,
                             "Remove CCS Profile",
                         )
                         .on_click(
                             cx.listener(move |this, _, _, cx| {
-                                this.remove_claude_profile(remove_index, cx);
+                                this.remove_claude_profile(&remove_name, cx);
                             }),
                         ),
                     ),
@@ -613,15 +616,9 @@ fn ai_assist_pane(
         .id(("settings-group-anchor", 0usize))
         .anchor_scroll(settings_group_anchor(anchors, SettingsPane::AiAssist, 0)),
     );
-    for (index, (operation, title)) in [
-        ("commitMessage", "Commit Messages"),
-        ("pullRequestDetails", "Pull Request Details"),
-        ("readingDiff", "Reading Diffs"),
-        ("workspaceIdentity", "Workspace Identity"),
-        ("speechMessage", "Speech Messages"),
-    ]
-    .into_iter()
-    .enumerate()
+    for (index, &(operation, title)) in super::ai_assist_settings_catalog::PROMPT_OPERATIONS
+        .iter()
+        .enumerate()
     {
         pane = pane.child(
             div().mt_4().child(
@@ -717,7 +714,7 @@ fn prompt_operation_rows(
     }
     rows.push(instruction_row(
         "Instructions",
-        settings_textarea(textareas, &format!("ai-instructions-{operation}")),
+        settings_textarea(textareas, &super::ai_assist_settings_catalog::instruction_key(operation)),
     ));
     rows
 }

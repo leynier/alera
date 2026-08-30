@@ -272,36 +272,6 @@ pub(super) fn build_settings_inputs(
             false,
         ),
         (
-            "ai-instructions-commitMessage",
-            settings
-                .ai_assist_instructions_by_operation
-                .get("commitMessage")
-                .cloned()
-                .unwrap_or_default(),
-            "Extra Guidance",
-            true,
-        ),
-        (
-            "ai-instructions-pullRequestDetails",
-            settings
-                .ai_assist_instructions_by_operation
-                .get("pullRequestDetails")
-                .cloned()
-                .unwrap_or_default(),
-            "Extra Guidance",
-            true,
-        ),
-        (
-            "ai-instructions-workspaceIdentity",
-            settings
-                .ai_assist_instructions_by_operation
-                .get("workspaceIdentity")
-                .cloned()
-                .unwrap_or_default(),
-            "Extra Guidance",
-            true,
-        ),
-        (
             "quota-env-kimiApiKey",
             settings
                 .quota_environment
@@ -355,6 +325,13 @@ pub(super) fn build_settings_inputs(
 
     let mut inputs = BTreeMap::new();
     let mut textareas = BTreeMap::new();
+    let values = values
+        .into_iter()
+        .map(|(key, value, placeholder, multiline)| (key.to_owned(), value, placeholder, multiline))
+        .chain(
+            ai_assist_settings_catalog::instruction_values(settings)
+                .map(|(key, value)| (key, value, "Extra Guidance", true)),
+        );
     for (key, value, placeholder, multi_line) in values {
         if multi_line {
             let input = cx.new(|cx| {
@@ -364,14 +341,14 @@ pub(super) fn build_settings_inputs(
                 input.set_value(value, window, cx);
                 input
             });
-            textareas.insert(key.to_string(), input);
+            textareas.insert(key, input);
         } else {
             let input = cx.new(|cx| {
                 let mut input = InputState::new(window, cx).placeholder(placeholder);
                 input.set_value(value, window, cx);
                 input
             });
-            inputs.insert(key.to_string(), input);
+            inputs.insert(key, input);
         }
     }
     (inputs, textareas)

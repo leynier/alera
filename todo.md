@@ -6,6 +6,9 @@ Lograr paridad visual, funcional e interactiva del cliente desktop GPUI frente a
 
 ## Estado actual
 
+- Hecho (2026-08-29): crash de Settings > AI Assist corregido con catálogo único para los cinco prompts. El binario previo reprodujo el panic por textareas ausentes de `readingDiff` y `speechMessage`; el recompilado abre ambos. Se completaron navegación/búsqueda de Speech Messages y cuatro regresiones; 171 tests GPUI pasan.
+- Hecho (2026-08-29): review de estabilidad GPUI, con barrido de 169 archivos y seguimiento de productores, consumidores, guardas e índices. Las once secciones de Settings abren sin panic; Computer Use verificó AI Assist y Speech Messages. Cinco hallazgos nuevos quedan pendientes, con evidencia y límites de validación en `docs/gpui-crash-review.md`.
+- En curso por petición del usuario: corregir los cinco hallazgos de `docs/gpui-crash-review.md`. Implementados el mapeo Unicode a offsets originales, el resaltado sobre filas actuales y la combinación con ANSI; el recálculo de navegación usa revisión de contenido y lotes cancelables. Perfiles Claude ya usa identidad en lugar de índices capturados; Project Settings protege selección y borrador al aplicar respuestas. Faltan completar regresiones, compilar y validar la app.
 - Fase completada: `main` local y `origin/main` coinciden en `09d33fe1`; los 19 commits nuevos #401-#419 están mezclados uno por uno y `commits.md` marca 419 filas como `merged`, sin pendientes ni `in_progress`.
 - Decisión de alcance #401 (2026-08-29): tray, Dock/taskbar badge y hide-on-close se mezclan en Flutter pero quedan explícitamente fuera de GPUI; no se implementarán integración nativa ni settings equivalentes en el cliente GPUI.
 - Bloque #401-#406 completado: la implementación y correcciones de desktop presence quedaron mezcladas solo para Flutter; GPUI no incorpora tray, badge ni hide-on-close.

@@ -5,6 +5,7 @@ use gpui::{
 };
 use gpui_component::input::InputState;
 
+use super::claude_profile_identity::{profile_index, profile_move_indices};
 use super::settings_state::ClaudeQuotaProfile;
 use super::AleraApp;
 use crate::{design_system, theme};
@@ -12,10 +13,16 @@ use crate::{design_system, theme};
 impl AleraApp {
     pub(super) fn open_claude_profile_dialog(
         &mut self,
-        index: Option<usize>,
+        profile_name: Option<String>,
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
+        let index = profile_name
+            .as_deref()
+            .and_then(|name| profile_index(&self.settings_state.claude_profiles, name));
+        if profile_name.is_some() && index.is_none() {
+            return;
+        }
         let profile = index.and_then(|index| self.settings_state.claude_profiles.get(index));
         let alias = profile
             .map(|profile| profile.alias.clone())
@@ -35,7 +42,7 @@ impl AleraApp {
             .update(cx, |input, cx| input.set_value(name, window, cx));
         self.claude_profile_usage_name_input
             .update(cx, |input, cx| input.set_value(usage_name, window, cx));
-        self.editing_claude_profile_index = index;
+        self.editing_claude_profile_name = profile_name;
         self.claude_profile_error = None;
         self.show_claude_profile_dialog = true;
         self.claude_profile_alias_input
@@ -46,7 +53,7 @@ impl AleraApp {
 
     pub(super) fn close_claude_profile_dialog(&mut self, cx: &mut Context<Self>) {
         self.show_claude_profile_dialog = false;
-        self.editing_claude_profile_index = None;
+        self.editing_claude_profile_name = None;
         self.claude_profile_error = None;
         cx.notify();
     }
@@ -75,7 +82,18 @@ impl AleraApp {
             cx.notify();
             return;
         }
-        let editing = self.editing_claude_profile_index;
+        let editing = self
+            .editing_claude_profile_name
+            .as_deref()
+            .and_then(|name| profile_index(&self.settings_state.claude_profiles, name));
+        if self.editing_claude_profile_name.is_some() && editing.is_none() {
+            self.claude_profile_error = Some(
+                "This profile no longer exists. Close the dialog and select a current profile."
+                    .into(),
+            );
+            cx.notify();
+            return;
+        }
         let duplicate =
             self.settings_state
                 .claude_profiles
@@ -113,24 +131,22 @@ impl AleraApp {
 
     pub(super) fn move_claude_profile(
         &mut self,
-        index: usize,
+        profile_name: &str,
         offset: isize,
         cx: &mut Context<Self>,
     ) {
-        let target = index as isize + offset;
-        if target < 0 || target >= self.settings_state.claude_profiles.len() as isize {
+        let Some((index, target)) =
+            profile_move_indices(&self.settings_state.claude_profiles, profile_name, offset)
+        else {
             return;
-        }
-        self.update_quota_settings(
-            |settings| settings.claude_profiles.swap(index, target as usize),
-            cx,
-        );
+        };
+        self.update_quota_settings(|settings| settings.claude_profiles.swap(index, target), cx);
     }
 
-    pub(super) fn remove_claude_profile(&mut self, index: usize, cx: &mut Context<Self>) {
-        if index >= self.settings_state.claude_profiles.len() {
+    pub(super) fn remove_claude_profile(&mut self, profile_name: &str, cx: &mut Context<Self>) {
+        let Some(index) = profile_index(&self.settings_state.claude_profiles, profile_name) else {
             return;
-        }
+        };
         self.update_quota_settings(
             |settings| {
                 let removed = settings.claude_profiles.remove(index);
@@ -155,7 +171,7 @@ impl AleraApp {
                 div()
                     .id("claude-profile-dialog")
                     .role(Role::Dialog)
-                    .aria_label(if self.editing_claude_profile_index.is_some() {
+                    .aria_label(if self.editing_claude_profile_name.is_some() {
                         "Edit CCS Profile"
                     } else {
                         "Add CCS Profile"
@@ -171,7 +187,7 @@ impl AleraApp {
                         div()
                             .text_size(px(18.0))
                             .font_weight(gpui::FontWeight::SEMIBOLD)
-                            .child(if self.editing_claude_profile_index.is_some() {
+                            .child(if self.editing_claude_profile_name.is_some() {
                                 "Edit CCS Profile"
                             } else {
                                 "Add CCS Profile"

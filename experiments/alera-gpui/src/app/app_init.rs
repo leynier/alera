@@ -268,13 +268,7 @@ impl AleraApp {
                 settings_select(window, cx, &["Auto", "npx", "bunx"], "Auto", false),
             );
         }
-        for operation in [
-            "commitMessage",
-            "pullRequestDetails",
-            "readingDiff",
-            "workspaceIdentity",
-            "speechMessage",
-        ] {
+        for &(operation, _) in ai_assist_settings_catalog::PROMPT_OPERATIONS {
             let prompt = settings_state
                 .ai_assist_prompt_settings_by_operation
                 .get(operation);
@@ -1384,7 +1378,7 @@ impl AleraApp {
             claude_profile_name_input,
             claude_profile_usage_name_input,
             show_claude_profile_dialog: false,
-            editing_claude_profile_index: None,
+            editing_claude_profile_name: None,
             claude_profile_show_in_usage: true,
             claude_profile_error: None,
             new_workspace_mode: NewWorkspaceMode::default(),

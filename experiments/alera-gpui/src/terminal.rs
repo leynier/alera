@@ -1,5 +1,6 @@
 use std::cell::RefCell;
 use std::ops::Range;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::OnceLock;
 use std::sync::{Arc, Mutex};
 use std::time::Instant;
@@ -16,6 +17,16 @@ use gpui::{FontStyle, FontWeight, HighlightStyle, SharedString, StyledText};
 use regex::Regex;
 
 use crate::{terminal_palette::resolve_color, terminal_theme_catalog::terminal_theme_palette};
+
+#[path = "terminal_search.rs"]
+mod search;
+pub use search::{search_highlights, TerminalSearchQuery};
+
+#[cfg(test)]
+#[path = "terminal_search_tests.rs"]
+mod search_tests;
+
+static NEXT_SEARCH_REVISION: AtomicU64 = AtomicU64::new(1);
 
 const DEFAULT_COLUMNS: usize = 100;
 const DEFAULT_ROWS: usize = 30;
@@ -50,6 +61,7 @@ impl EventListener for TerminalEventSink {
 }
 
 pub struct TerminalEmulator {
+    search_revision: u64,
     terminal: Term<TerminalEventSink>,
     parser: ansi::Processor,
     event_sink: TerminalEventSink,
@@ -147,6 +159,7 @@ impl TerminalEmulator {
             event_sink.clone(),
         );
         Self {
+            search_revision: NEXT_SEARCH_REVISION.fetch_add(1, Ordering::Relaxed),
             terminal,
             parser: ansi::Processor::new(),
             event_sink,
@@ -159,11 +172,15 @@ impl TerminalEmulator {
 
     pub fn write(&mut self, bytes: &[u8]) {
         self.parser.advance(&mut self.terminal, bytes);
+        if !bytes.is_empty() {
+            self.search_revision = NEXT_SEARCH_REVISION.fetch_add(1, Ordering::Relaxed);
+        }
     }
 
     pub fn resize(&mut self, columns: usize, rows: usize) {
         self.terminal
             .resize(TermSize::new(columns.max(2), rows.max(2)));
+        self.search_revision = NEXT_SEARCH_REVISION.fetch_add(1, Ordering::Relaxed);
     }
 
     pub fn scroll_display(&mut self, lines: i32) {
@@ -564,20 +581,30 @@ impl TerminalEmulator {
     /// Finds literal, non-overlapping matches across the retained terminal
     /// scrollback. The returned line indexes are stable until new output or a
     /// resize changes the emulator grid.
+    #[cfg(test)]
     pub fn search_matches(&self, query: &str, case_sensitive: bool) -> Vec<TerminalSearchMatch> {
-        let query = query.trim();
+        self.search_matches_in_rows(
+            &TerminalSearchQuery::new(query, case_sensitive),
+            0..usize::MAX,
+        )
+    }
+
+    pub fn search_revision(&self) -> u64 {
+        self.search_revision
+    }
+
+    pub fn search_matches_in_rows(
+        &self,
+        query: &TerminalSearchQuery,
+        rows: Range<usize>,
+    ) -> Vec<TerminalSearchMatch> {
         if query.is_empty() {
             return Vec::new();
         }
         let (_, history, screen_lines) = self.scroll_metrics();
         let total_lines = history + screen_lines;
-        let needle = if case_sensitive {
-            query.to_owned()
-        } else {
-            query.to_lowercase()
-        };
         let mut matches = Vec::new();
-        for line_index in 0..total_lines {
+        for line_index in rows.start..rows.end.min(total_lines) {
             let line_number = line_index as i32 - history as i32;
             let row = &self.terminal.grid()[Line(line_number)];
             let mut text = String::with_capacity(self.terminal.columns());
@@ -595,24 +622,12 @@ impl TerminalEmulator {
                     text.extend(zerowidth);
                 }
             }
-            let haystack = if case_sensitive {
-                text
-            } else {
-                text.to_lowercase()
-            };
-            let mut start = 0;
-            while start < haystack.len() {
-                let Some(offset) = haystack[start..].find(&needle) else {
-                    break;
-                };
-                let match_start = start + offset;
-                let match_end = match_start + needle.len();
+            for range in query.ranges(&text) {
                 matches.push(TerminalSearchMatch {
                     line_index,
-                    start: match_start,
-                    end: match_end,
+                    start: range.start,
+                    end: range.end,
                 });
-                start = match_end;
             }
         }
         matches

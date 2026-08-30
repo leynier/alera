@@ -77,7 +77,7 @@ impl AleraApp {
     ) {
         self.open_settings_dialog(window, cx);
         self.settings_pane = SettingsPane::Projects;
-        self.project_config_settings.selected_project_id = Some(project_id);
+        self.project_config_settings.select_project(project_id);
         self.refresh_project_config_settings(window, cx);
         cx.notify();
     }
@@ -551,13 +551,7 @@ pub(super) fn settings_pane_groups(pane: SettingsPane) -> &'static [&'static str
         ],
         SettingsPane::Agents => &["CLI And Skills", "Status Hooks", "Behavior"],
         SettingsPane::Quotas => &["Providers", "Claude", "Credentials"],
-        SettingsPane::AiAssist => &[
-            "Generation",
-            "Commit Messages",
-            "Pull Request Details",
-            "Reading Diffs",
-            "Workspace Identity",
-        ],
+        SettingsPane::AiAssist => &super::ai_assist_settings_catalog::GROUP_TITLES,
         SettingsPane::TextActions => &["Actions"],
         SettingsPane::Editor => &[],
         SettingsPane::Terminal => &[

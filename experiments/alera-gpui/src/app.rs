@@ -35,6 +35,7 @@ mod app_lifecycle;
 mod app_menu_dialog;
 mod automations;
 mod claude_profile_dialog;
+mod claude_profile_identity;
 #[allow(dead_code)]
 mod codex_surface;
 mod command_terminal;
@@ -74,6 +75,7 @@ mod mobile_access;
 mod mobile_driver;
 mod preview_surface;
 mod project_actions;
+mod project_config_request_scope;
 mod project_config_settings;
 mod quick_open;
 mod reading_diff;
@@ -118,6 +120,7 @@ mod tab_strip;
 mod terminal_composer;
 mod terminal_input;
 mod terminal_pulse;
+mod terminal_search_refresh;
 mod terminal_surface;
 mod terminal_toolbar;
 mod terminal_toolbar_menu;
@@ -483,7 +486,7 @@ pub struct AleraApp {
     claude_profile_name_input: Entity<InputState>,
     claude_profile_usage_name_input: Entity<InputState>,
     show_claude_profile_dialog: bool,
-    editing_claude_profile_index: Option<usize>,
+    editing_claude_profile_name: Option<String>,
     claude_profile_show_in_usage: bool,
     claude_profile_error: Option<String>,
     new_workspace_mode: NewWorkspaceMode,

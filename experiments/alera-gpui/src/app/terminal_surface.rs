@@ -440,14 +440,11 @@ impl AleraApp {
             .as_ref()
             .filter(|(hovered_session_id, _)| hovered_session_id == session_id)
             .map(|(_, link)| link);
-        let search_matches = self
+        let search_query = self
             .terminal_search
             .as_ref()
             .filter(|search| search.session_id == session_id)
-            .map(|search| search.matches.clone())
-            .unwrap_or_default();
-        let (display_offset, history, screen_lines) = session.emulator.scroll_metrics();
-        let visible_top = history.saturating_sub(display_offset);
+            .map(|search| &search.matcher);
         let lines = session
             .emulator
             .visible_lines(&self.settings_state.terminal_theme_name)
@@ -455,24 +452,19 @@ impl AleraApp {
             .enumerate()
             .map(|(row_index, line)| {
                 let text = line.plain_text;
-                let mut highlights = line.highlights;
-                let absolute_row = visible_top + row_index.min(screen_lines.saturating_sub(1));
-                for search_match in search_matches
-                    .iter()
-                    .filter(|search_match| search_match.line_index == absolute_row)
-                {
-                    let start = search_match.start.min(text.len());
-                    let end = search_match.end.min(text.len());
-                    if start < end {
-                        highlights.push((
-                            start..end,
-                            gpui::HighlightStyle {
-                                background_color: Some(theme::accent_subtle().into()),
-                                ..gpui::HighlightStyle::default()
-                            },
-                        ));
-                    }
-                }
+                // Paint from the displayed row, never cached scrollback byte
+                // offsets that may belong to an older grid or compacted row.
+                let highlights =
+                    if let Some(query) = search_query.filter(|_| line.source_row.is_some()) {
+                        crate::terminal::search_highlights(
+                            &text,
+                            line.highlights,
+                            query,
+                            theme::accent_subtle().into(),
+                        )
+                    } else {
+                        line.highlights
+                    };
                 TerminalFrameLine {
                     cursor_column: (active && cursor_visible)
                         .then_some(line.cursor_column)
@@ -521,16 +513,15 @@ impl AleraApp {
             self.terminal_search_input
                 .update(cx, |input, cx| input.set_value("", window, cx));
         }
-        let matches = self
-            .terminal_sessions
-            .get(&session_id)
-            .map(|session| session.emulator.search_matches(&query, false))
-            .unwrap_or_default();
         self.terminal_search = Some(TerminalSearchState {
             session_id,
+            matcher: crate::terminal::TerminalSearchQuery::new(&query, false),
             query,
-            matches,
+            matches: Vec::new(),
             selected_index: 0,
+            revision: None,
+            refresh_task: None,
+            scroll_to_first: false,
         });
         self.terminal_search_input
             .update(cx, |input, cx| input.focus(window, cx));
@@ -539,33 +530,28 @@ impl AleraApp {
     }
 
     pub(super) fn update_terminal_search_query(&mut self, query: String, cx: &mut Context<Self>) {
-        let Some(search) = self.terminal_search.as_ref() else {
+        if self.terminal_search.is_none() {
             return;
-        };
-        let query = query.trim().to_owned();
-        let session_id = search.session_id.clone();
-        let matches = self
-            .terminal_sessions
-            .get(&session_id)
-            .map(|session| session.emulator.search_matches(&query, false))
-            .unwrap_or_default();
-        if let Some(search) = self.terminal_search.as_mut() {
-            search.query = query;
-            search.matches = matches;
-            search.selected_index = 0;
         }
-        if let Some(search_match) = self
-            .terminal_search
-            .as_ref()
-            .and_then(|search| search.matches.first())
-        {
-            self.scroll_terminal_to_search_match(&session_id, search_match.line_index, cx);
+        let query = query.trim().to_owned();
+        if let Some(search) = self.terminal_search.as_mut() {
+            search.matcher = crate::terminal::TerminalSearchQuery::new(&query, false);
+            search.query = query;
+            search.matches.clear();
+            search.selected_index = 0;
+            search.revision = None;
+            search.refresh_task = None;
+            search.scroll_to_first = true;
         }
         self.refresh_terminal_frame_views(cx);
         cx.notify();
     }
 
     pub(super) fn next_terminal_search(&mut self, cx: &mut Context<Self>) {
+        if !self.terminal_search_is_current() {
+            self.schedule_terminal_search_refresh(cx);
+            return;
+        }
         let Some(search) = self.terminal_search.as_mut() else {
             return;
         };
@@ -581,6 +567,10 @@ impl AleraApp {
     }
 
     pub(super) fn previous_terminal_search(&mut self, cx: &mut Context<Self>) {
+        if !self.terminal_search_is_current() {
+            self.schedule_terminal_search_refresh(cx);
+            return;
+        }
         let Some(search) = self.terminal_search.as_mut() else {
             return;
         };
@@ -609,7 +599,7 @@ impl AleraApp {
         cx.notify();
     }
 
-    fn scroll_terminal_to_search_match(
+    pub(super) fn scroll_terminal_to_search_match(
         &mut self,
         session_id: &str,
         line_index: usize,
@@ -641,7 +631,9 @@ impl AleraApp {
         else {
             return div().into_any_element();
         };
-        let count = if search.matches.is_empty() {
+        let count = if !search.matcher.is_empty() && !self.terminal_search_is_current() {
+            "Searching…".to_owned()
+        } else if search.matches.is_empty() {
             "No Matches".to_owned()
         } else {
             format!("{} of {}", search.selected_index + 1, search.matches.len())
@@ -765,13 +757,15 @@ impl AleraApp {
         });
     }
 
-    pub(super) fn refresh_terminal_frame_views(&self, cx: &mut Context<Self>) {
+    pub(super) fn refresh_terminal_frame_views(&mut self, cx: &mut Context<Self>) {
+        self.schedule_terminal_search_refresh(cx);
         for session_id in self.terminal_frame_views.keys() {
             self.refresh_terminal_frame_view(session_id, cx);
         }
     }
 
     pub(super) fn flush_terminal_output_frames(&mut self, cx: &mut Context<Self>) {
+        self.schedule_terminal_search_refresh(cx);
         let dirty = std::mem::take(&mut self.terminal_output_dirty_sessions);
         for session_id in dirty {
             self.refresh_terminal_frame_view(&session_id, cx);
