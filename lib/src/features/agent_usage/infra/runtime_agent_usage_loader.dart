@@ -13,6 +13,7 @@ class RuntimeAgentUsageLoader implements AgentUsageLoader {
     final payload = <String, Object?>{
       'sinceDay': request.sinceDay,
       'untilDay': request.untilDay,
+      'includeGrok': true,
     };
     if (request.hostId == 'local') {
       return _mapValue(
