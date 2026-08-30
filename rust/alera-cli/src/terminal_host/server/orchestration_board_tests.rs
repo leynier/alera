@@ -21,12 +21,28 @@ async fn board_read_is_authenticated_local_only_and_does_not_trust_actor_fields(
     assert!(actor
         .start_orchestration_board_read(
             1,
+            11,
+            "orchestration.taskInspection",
+            &json!({"run_id": "run", "task_id": "task", "actor": "app"})
+        )
+        .is_err());
+    assert!(actor
+        .start_orchestration_board_read(
+            1,
             10,
             "orchestration.boardSnapshot",
             &json!({"actor": "app"})
         )
         .is_err());
     actor.clients.insert(1, local_client(handle));
+    assert!(actor
+        .start_orchestration_board_read(
+            1,
+            11,
+            "orchestration.taskInspection",
+            &json!({"run_id": "run", "task_id": "task", "actor": "app"})
+        )
+        .is_err());
     assert!(actor
         .start_orchestration_board_read(
             1,

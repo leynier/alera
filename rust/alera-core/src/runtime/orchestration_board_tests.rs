@@ -380,6 +380,10 @@ async fn run_details_bound_payloads_and_page_tasks_without_results_or_tokens() {
     for id in ["a", "b", "c"] {
         task(&store, id, "run", "pending").await;
     }
+    sqlx::query("UPDATE orchestrationTasks SET deps = '[\"c\"]' WHERE id = 'a'")
+        .execute(store.pool())
+        .await
+        .unwrap();
     let query = OrchestrationRunSnapshotQuery {
         run_id: "run".into(),
         after_task_id: None,
@@ -391,6 +395,8 @@ async fn run_details_bound_payloads_and_page_tasks_without_results_or_tokens() {
     assert_eq!(first.objective.chars().count(), 16384);
     assert!(first.objective_truncated);
     assert_eq!(first.tasks.len(), 2);
+    assert_eq!(first.tasks[0].dependencies, vec!["c"]);
+    assert!(!first.tasks[0].dependencies_truncated);
     assert_eq!(first.next_task_id.as_deref(), Some("b"));
     let encoded = serde_json::to_value(&first).unwrap();
     assert!(encoded["tasks"][0].get("result").is_none());

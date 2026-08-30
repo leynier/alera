@@ -73,6 +73,7 @@ class _NativeAppMenuBridgeState extends ConsumerState<_NativeAppMenuBridge> {
 }
 
 enum _AppMenuAction {
+  openRunBoard,
   openSettings,
   openAutomations,
   reviewExecutionPlans,
@@ -132,6 +133,10 @@ class _AleraAppMenuButtonState extends ConsumerState<AleraAppMenuButton> {
       ),
       requestFocus: false,
       items: const <PopupMenuEntry<_AppMenuAction>>[
+        AleraDropdownEntry<_AppMenuAction>(
+          value: _AppMenuAction.openRunBoard,
+          label: 'Run Board',
+        ),
         AleraDropdownEntry<_AppMenuAction>(
           value: _AppMenuAction.openSettings,
           label: 'Settings',
@@ -196,6 +201,8 @@ class _AleraAppMenuButtonState extends ConsumerState<AleraAppMenuButton> {
     }
 
     switch (selected) {
+      case _AppMenuAction.openRunBoard:
+        openRunBoardFromAppMenu(ref);
       case _AppMenuAction.openSettings:
         await openAppMenuSettings(context);
       case _AppMenuAction.openAutomations:
@@ -284,6 +291,10 @@ class _MacOsPlatformMenuBar extends ConsumerWidget {
                   onSelected: () {
                     unawaited(openAutomationsDialog(context));
                   },
+                ),
+                PlatformMenuItem(
+                  label: 'Run Board',
+                  onSelected: () => openRunBoardFromAppMenu(ref),
                 ),
                 PlatformMenuItem(
                   label: 'Execution Plans',

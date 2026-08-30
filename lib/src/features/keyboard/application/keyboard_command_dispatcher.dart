@@ -1,4 +1,6 @@
 import 'dart:async';
+import 'package:alera/src/features/app_menu/presentation/app_menu_actions.dart';
+import 'package:alera/src/features/orchestration/application/run_board_navigation.dart';
 
 import 'package:alera/src/app/providers.dart';
 import 'package:alera/src/design_system/layout/alera_confirm_dialog.dart';
@@ -28,7 +30,14 @@ class KeyboardCommandDispatcher {
   final TerminalSessionHandle? terminalSession;
 
   void dispatch(KeyboardActionId id) {
+    if (ref.read(runBoardNavigationProvider).visible &&
+        keybindingDefinitions.firstWhere((action) => action.id == id).group !=
+            KeyboardActionGroup.global) {
+      return;
+    }
     switch (id) {
+      case KeyboardActionId.openRunBoard:
+        openRunBoardFromAppMenu(ref);
       case KeyboardActionId.openSettings:
         unawaited(openSettingsDialog(context));
       case KeyboardActionId.openAutomations:

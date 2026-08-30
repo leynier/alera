@@ -48,6 +48,7 @@ enum KeyboardActionGroup {
 enum KeyboardActionId {
   openSettings,
   openAutomations,
+  openRunBoard,
   openQuickOpen,
   openCommandPalette,
   addProject,
@@ -164,6 +165,15 @@ const List<KeybindingDefinition> keybindingDefinitions = <KeybindingDefinition>[
     description: 'Open the runtime-local automation manager.',
     defaultBindings: PlatformBindings.uniform(<String>['Mod+Shift+A']),
     searchKeywords: <String>['schedule', 'runs', 'workflow', 'jobs'],
+    allowInTerminal: true,
+  ),
+  KeybindingDefinition(
+    id: KeyboardActionId.openRunBoard,
+    label: 'Open Run Board',
+    group: KeyboardActionGroup.global,
+    description: 'Inspect orchestration runs across projects.',
+    defaultBindings: PlatformBindings.uniform(<String>[]),
+    searchKeywords: <String>['orchestration', 'attention', 'workflow'],
     allowInTerminal: true,
   ),
   KeybindingDefinition(

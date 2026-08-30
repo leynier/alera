@@ -23,7 +23,9 @@ impl ServerActor {
             return Ok(true);
         }
         match request_type {
-            "orchestration.boardSnapshot" | "orchestration.runSnapshot" => {
+            "orchestration.boardSnapshot"
+            | "orchestration.runSnapshot"
+            | "orchestration.taskInspection" => {
                 self.start_orchestration_board_read(client_id, request_id, request_type, payload)?;
                 Ok(true)
             }

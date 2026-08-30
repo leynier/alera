@@ -65,6 +65,9 @@ mod orchestration_stall_store;
 mod orchestration_stall_store_tests;
 #[cfg(test)]
 mod orchestration_store_tests;
+mod orchestration_task_inspection;
+#[cfg(test)]
+mod orchestration_task_inspection_tests;
 mod orchestration_task_store;
 mod project_clone_job_store;
 mod project_clone_models;
@@ -115,6 +118,7 @@ pub use orchestration_message_store::{
 };
 pub use orchestration_models::*;
 pub use orchestration_run_snapshot::*;
+pub use orchestration_task_inspection::*;
 pub use orchestration_task_store::NewOrchestrationTask;
 pub use project_clone_models::*;
 pub use runtime_file_security::*;

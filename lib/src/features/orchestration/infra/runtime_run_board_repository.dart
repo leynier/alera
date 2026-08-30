@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:alera/src/features/orchestration/domain/task_inspection.dart';
 
 import 'package:alera/src/features/orchestration/domain/run_board_snapshot.dart';
 import 'package:alera/src/features/orchestration/domain/run_snapshot.dart';
@@ -72,4 +73,29 @@ class RuntimeRunBoardRepository {
     key: 'run-board-detail:$runId',
     read: () => readRun(runId),
   );
+
+  Future<TaskInspection> readTask(
+    String runId,
+    String taskId, {
+    TaskHistoryCursor? cursor,
+    int limit = 20,
+  }) async {
+    await _requireCapability();
+    final payload = await _client
+        .runtimeRequest('orchestration.taskInspection', {
+          'run_id': runId,
+          'task_id': taskId,
+          'cursor': ?cursor?.toJson(),
+          'limit': limit,
+        }, runtimeSnapshotRequestTimeout);
+    return TaskInspection.fromJson(boardJsonObject(payload));
+  }
+
+  Stream<TaskInspection> watchTask(String runId, String taskId) =>
+      watchRunBoard(
+        client: _client,
+        coalescer: _coalescer,
+        key: 'run-board-task:$runId:$taskId',
+        read: () => readTask(runId, taskId),
+      );
 }
