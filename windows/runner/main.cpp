@@ -5,9 +5,21 @@
 #include "flutter_window.h"
 #include "utils.h"
 #include "win32_dark_mode.h"
+#include "win32_single_instance.h"
 
 int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
                       _In_ wchar_t *command_line, _In_ int show_command) {
+  Win32SingleInstance single_instance(ALERA_APP_ID);
+  const auto start = single_instance.Start();
+  if (start == Win32SingleInstance::StartResult::forwarded) {
+    return EXIT_SUCCESS;
+  }
+  if (start == Win32SingleInstance::StartResult::failed) {
+    ::MessageBoxW(nullptr, L"Unable to activate the Alera application instance.",
+                  ALERA_APP_NAME, MB_OK | MB_ICONERROR);
+    return EXIT_FAILURE;
+  }
+
   // Alera is dark-only; must run before any menu or window is created so the
   // OS renders dark popup menus for the whole process.
   EnableAleraDarkMode();
@@ -37,12 +49,8 @@ int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
   }
   window.SetQuitOnClose(true);
 
-  ::MSG msg;
-  while (::GetMessage(&msg, nullptr, 0, 0)) {
-    ::TranslateMessage(&msg);
-    ::DispatchMessage(&msg);
-  }
+  const int exit_code = single_instance.RunMessageLoop(window.GetHandle());
 
   ::CoUninitialize();
-  return EXIT_SUCCESS;
+  return exit_code;
 }
