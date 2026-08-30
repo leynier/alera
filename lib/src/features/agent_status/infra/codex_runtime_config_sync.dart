@@ -32,9 +32,8 @@ extension _CodexRuntimeHomeServiceConfigSync on CodexRuntimeHomeService {
       return config;
     }
     final lines = config.split('\n');
-    final featureSections = _tomlSections(
-      config,
-    ).where((section) => _sectionHeaderKey(section.header) == '[features]');
+    final featureSections = _tomlSections(config)
+        .where((section) => _sectionHeaderKey(section.header) == '[features]');
     for (final section in featureSections.toList(growable: false).reversed) {
       final start = section.start + 1;
       final end = section.start + section.block.split('\n').length;

@@ -7,9 +7,7 @@ import 'package:alera_mobile/src/features/hosts/presentation/pairing/pairing_sca
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-class PairHostScreen extends ConsumerWidget {
-  const PairHostScreen({super.key});
-
+class const PairHostScreen({super.key}) extends ConsumerWidget {
   Future<void> _enterManually(BuildContext context, WidgetRef ref) async {
     final raw = await showPairingManualEntrySheet(context);
     if (raw == null || raw.trim().isEmpty) {
@@ -71,18 +69,15 @@ class PairHostScreen extends ConsumerWidget {
   }
 }
 
-class _ManualFirstEntry extends StatelessWidget {
-  const _ManualFirstEntry({required this.onEnterManually});
-
-  final VoidCallback onEnterManually;
-
+class const _ManualFirstEntry({required final VoidCallback onEnterManually})
+    extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Center(
       child: Padding(
         padding: AleraTokens.contentPadding,
         child: Column(
-          mainAxisSize: MainAxisSize.min,
+          mainAxisSize: .min,
           children: <Widget>[
             Icon(
               Icons.qr_code_2_outlined,
@@ -97,7 +92,7 @@ class _ManualFirstEntry extends StatelessWidget {
             const SizedBox(height: AleraTokens.spaceSm),
             Text(
               'Paste the offer from the Alera mobile --json pairing create command.',
-              textAlign: TextAlign.center,
+              textAlign: .center,
               style: Theme.of(context).textTheme.bodyMedium,
             ),
             const SizedBox(height: AleraTokens.spaceLg),
@@ -113,18 +108,15 @@ class _ManualFirstEntry extends StatelessWidget {
   }
 }
 
-class _PairingSuccessView extends StatelessWidget {
-  const _PairingSuccessView({required this.hostName});
-
-  final String hostName;
-
+class const _PairingSuccessView({required final String hostName})
+    extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Center(
       child: Padding(
         padding: AleraTokens.contentPadding,
         child: Column(
-          mainAxisSize: MainAxisSize.min,
+          mainAxisSize: .min,
           children: <Widget>[
             const Icon(
               Icons.check_circle_outline,
@@ -136,7 +128,7 @@ class _PairingSuccessView extends StatelessWidget {
             const SizedBox(height: AleraTokens.spaceSm),
             Text(
               hostName,
-              textAlign: TextAlign.center,
+              textAlign: .center,
               style: Theme.of(context).textTheme.bodyMedium,
             ),
           ],
@@ -146,19 +138,12 @@ class _PairingSuccessView extends StatelessWidget {
   }
 }
 
-class _PairingFailureView extends StatelessWidget {
-  const _PairingFailureView({
-    required this.reason,
-    required this.detail,
-    required this.onRetry,
-    required this.onEnterManually,
-  });
-
-  final PairingFailureReason reason;
-  final String detail;
-  final VoidCallback onRetry;
-  final VoidCallback onEnterManually;
-
+class const _PairingFailureView({
+  required final PairingFailureReason reason,
+  required final String detail,
+  required final VoidCallback onRetry,
+  required final VoidCallback onEnterManually,
+}) extends StatelessWidget {
   String get _title {
     return switch (reason) {
       PairingFailureReason.invalidOffer => 'Invalid offer',
@@ -198,19 +183,19 @@ class _PairingFailureView extends StatelessWidget {
           const SizedBox(height: AleraTokens.spaceLg),
           Text(
             _title,
-            textAlign: TextAlign.center,
+            textAlign: .center,
             style: Theme.of(context).textTheme.titleLarge,
           ),
           const SizedBox(height: AleraTokens.spaceSm),
           Text(
             _hint,
-            textAlign: TextAlign.center,
+            textAlign: .center,
             style: Theme.of(context).textTheme.bodyMedium,
           ),
           const SizedBox(height: AleraTokens.spaceSm),
           Text(
             detail,
-            textAlign: TextAlign.center,
+            textAlign: .center,
             style: Theme.of(context).textTheme.bodySmall,
           ),
           const SizedBox(height: AleraTokens.spaceLg),

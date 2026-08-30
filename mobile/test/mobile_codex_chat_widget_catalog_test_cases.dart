@@ -9,7 +9,7 @@ void _registerMobileCodexCatalogTests() {
     await _pumpScreen(tester, client: client, hostId: 'host-catalog-key');
 
     await tester.enterText(find.byType(TextField).last, '/');
-    await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
+    await tester.sendKeyEvent(.arrowDown);
 
     expect(tester.takeException(), isNull);
   });
@@ -162,7 +162,7 @@ void _registerMobileCodexCatalogTests() {
       );
       textController.value = const TextEditingValue(
         text: r'$shared ',
-        selection: TextSelection.collapsed(offset: 0),
+        selection: .collapsed(offset: 0),
       );
       await tester.pump();
       await tester.tap(find.byTooltip('Send'));
@@ -346,7 +346,7 @@ void _registerMobileCodexCatalogTests() {
 
     await tester.tap(find.text('notes.md'));
     await tester.runAsync(
-      () => Future<void>.delayed(const Duration(milliseconds: 100)),
+      () => Future.pause(const Duration(milliseconds: 100)),
     );
     await tester.pump(const Duration(milliseconds: 500));
     await tester.pump();
@@ -373,7 +373,7 @@ void _registerMobileCodexCatalogTests() {
       ),
     );
     await tester.runAsync(
-      () => Future<void>.delayed(const Duration(milliseconds: 100)),
+      () => Future.pause(const Duration(milliseconds: 100)),
     );
     await tester.pump(const Duration(milliseconds: 500));
     await tester.pump();

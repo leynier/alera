@@ -10,7 +10,7 @@ void main() {
       host: 'example.test',
       port: 22,
       username: 'user',
-      authKind: SshAuthKind.key,
+      authKind: .key,
       createdAt: createdAt,
       updatedAt: createdAt,
       platform: 'linux',
@@ -20,7 +20,7 @@ void main() {
       runtimeVersion: '0.14.0',
       runtimePlatform: 'linux',
       runtimeArch: 'x64',
-      bootstrapStatus: SshBootstrapStatus.installed,
+      bootstrapStatus: .installed,
       lastBootstrapAt: createdAt,
       lastCheckedAt: createdAt,
       lastError: 'old warning',
@@ -33,7 +33,7 @@ void main() {
       username: 'other',
       platform: 'macos',
       arch: 'arm64',
-      authKind: SshAuthKind.agent,
+      authKind: .agent,
       installDir: '/srv/alera',
     );
 

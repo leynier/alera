@@ -9,14 +9,14 @@ void _registerAgyAgentStatusControllerTests(
 
     controller.applyHookEvent(
       _event(
-        agentType: AgentType.agy,
+        agentType: .agy,
         hookEventName: 'PreInvocation',
         payload: <String, Object?>{'prompt': 'fix test'},
       ),
     );
     controller.applyHookEvent(
       _event(
-        agentType: AgentType.agy,
+        agentType: .agy,
         hookEventName: 'PreToolUse',
         payload: <String, Object?>{
           'toolCall': <String, Object?>{
@@ -35,7 +35,7 @@ void _registerAgyAgentStatusControllerTests(
 
     controller.applyHookEvent(
       _event(
-        agentType: AgentType.agy,
+        agentType: .agy,
         hookEventName: 'PostInvocation',
         payload: <String, Object?>{},
       ),
@@ -49,7 +49,7 @@ void _registerAgyAgentStatusControllerTests(
 
     controller.applyHookEvent(
       _event(
-        agentType: AgentType.agy,
+        agentType: .agy,
         hookEventName: 'Stop',
         payload: <String, Object?>{
           'fullyIdle': false,
@@ -65,7 +65,7 @@ void _registerAgyAgentStatusControllerTests(
 
     controller.applyHookEvent(
       _event(
-        agentType: AgentType.agy,
+        agentType: .agy,
         hookEventName: 'PostToolUse',
         payload: <String, Object?>{
           'transcriptPath': '/tmp/agy-turn.jsonl',
@@ -83,7 +83,7 @@ void _registerAgyAgentStatusControllerTests(
 
     controller.applyHookEvent(
       _event(
-        agentType: AgentType.agy,
+        agentType: .agy,
         hookEventName: 'Stop',
         payload: <String, Object?>{
           'fullyIdle': true,
@@ -97,7 +97,7 @@ void _registerAgyAgentStatusControllerTests(
 
     controller.applyHookEvent(
       _event(
-        agentType: AgentType.agy,
+        agentType: .agy,
         hookEventName: 'PostToolUse',
         payload: <String, Object?>{
           'transcriptPath': '/tmp/agy-turn.jsonl',
@@ -115,7 +115,7 @@ void _registerAgyAgentStatusControllerTests(
 
     controller.applyHookEvent(
       _event(
-        agentType: AgentType.agy,
+        agentType: .agy,
         hookEventName: 'PreInvocation',
         payload: <String, Object?>{'prompt': 'next turn'},
       ),

@@ -1,10 +1,8 @@
 part of 'mobile_codex_chat_screen.dart';
 
-class _MobileCodexToolMediaSummary extends StatelessWidget {
-  const _MobileCodexToolMediaSummary({required this.value});
-
-  final _MobileCodexToolMediaValue value;
-
+class const _MobileCodexToolMediaSummary({
+  required final _MobileCodexToolMediaValue value,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Row(
     children: <Widget>[
@@ -24,13 +22,11 @@ class _MobileCodexToolMediaSummary extends StatelessWidget {
   );
 }
 
-class _MobileCodexToolMediaValue {
-  const _MobileCodexToolMediaValue(this.kind, this.mimeType, this.byteLength);
-
-  final String kind;
-  final String mimeType;
-  final int? byteLength;
-}
+class const _MobileCodexToolMediaValue(
+  final String kind,
+  final String mimeType,
+  final int? byteLength,
+);
 
 String _mobileCodexToolByteSize(int bytes) {
   if (bytes < 1024) return '$bytes B';

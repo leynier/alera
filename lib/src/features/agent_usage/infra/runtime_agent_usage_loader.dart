@@ -2,12 +2,10 @@ import 'package:alera/src/features/agent_quota/infra/runtime_proxy_client.dart';
 import 'package:alera/src/features/agent_usage/application/agent_usage_loader.dart';
 import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_protocol.dart';
 
-class RuntimeAgentUsageLoader implements AgentUsageLoader {
-  const RuntimeAgentUsageLoader(this._runtimeClient, this._proxyClient);
-
-  final RuntimeHostClient _runtimeClient;
-  final RuntimeProxyClient _proxyClient;
-
+class const RuntimeAgentUsageLoader(
+  final RuntimeHostClient _runtimeClient,
+  final RuntimeProxyClient _proxyClient,
+) implements AgentUsageLoader {
   @override
   Future<Map<String, Object?>> fetch(AgentUsageRequest request) async {
     final payload = <String, Object?>{

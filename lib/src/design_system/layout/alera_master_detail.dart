@@ -9,26 +9,16 @@ import 'package:flutter/material.dart';
 ///
 /// Used by settings resource panes (Projects, Remote Hosts, Agent Profiles)
 /// so entity CRUD screens share one layout.
-class AleraMasterDetail extends StatefulWidget {
-  const AleraMasterDetail({
-    super.key,
-    required this.masterTitle,
-    this.masterAction,
-    required this.master,
-    required this.detail,
-    this.masterWidth = AleraTokens.masterDetailDefaultWidth,
-    this.masterMinWidth = AleraTokens.masterDetailMinWidth,
-    this.masterMaxWidth = AleraTokens.masterDetailMaxWidth,
-  });
-
-  final String masterTitle;
-  final Widget? masterAction;
-  final Widget master;
-  final Widget detail;
-  final double masterWidth;
-  final double masterMinWidth;
-  final double masterMaxWidth;
-
+class const AleraMasterDetail({
+  super.key,
+  required final String masterTitle,
+  final Widget? masterAction,
+  required final Widget master,
+  required final Widget detail,
+  final double masterWidth = AleraTokens.masterDetailDefaultWidth,
+  final double masterMinWidth = AleraTokens.masterDetailMinWidth,
+  final double masterMaxWidth = AleraTokens.masterDetailMaxWidth,
+}) extends StatefulWidget {
   @override
   State<AleraMasterDetail> createState() => _AleraMasterDetailState();
 }
@@ -60,12 +50,12 @@ class _AleraMasterDetailState extends State<AleraMasterDetail> {
             .clamp(widget.masterMinWidth, maximumMasterWidth)
             .toDouble();
         return Row(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
+          crossAxisAlignment: .stretch,
           children: <Widget>[
             SizedBox(
               width: masterWidth,
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
+                crossAxisAlignment: .stretch,
                 children: <Widget>[
                   Padding(
                     padding: const EdgeInsets.only(
@@ -79,7 +69,7 @@ class _AleraMasterDetailState extends State<AleraMasterDetail> {
                             widget.masterTitle,
                             style: theme.textTheme.titleSmall?.copyWith(
                               color: AleraTokens.foreground,
-                              fontWeight: FontWeight.w600,
+                              fontWeight: .w600,
                             ),
                           ),
                         ),
@@ -125,21 +115,13 @@ class _AleraMasterDetailState extends State<AleraMasterDetail> {
 const double _masterDetailHandleWidth =
     AleraTokens.space16 * 2 + AleraTokens.dividerExtent;
 
-class _MasterDetailResizeHandle extends StatefulWidget {
-  const _MasterDetailResizeHandle({
-    required this.currentWidth,
-    required this.minWidth,
-    required this.maxWidth,
-    required this.label,
-    required this.onResize,
-  });
-
-  final double currentWidth;
-  final double minWidth;
-  final double maxWidth;
-  final String label;
-  final ValueChanged<double> onResize;
-
+class const _MasterDetailResizeHandle({
+  required final double currentWidth,
+  required final double minWidth,
+  required final double maxWidth,
+  required final String label,
+  required final ValueChanged<double> onResize,
+}) extends StatefulWidget {
   @override
   State<_MasterDetailResizeHandle> createState() =>
       _MasterDetailResizeHandleState();
@@ -162,7 +144,7 @@ class _MasterDetailResizeHandleState extends State<_MasterDetailResizeHandle> {
         onExit: (_) => setState(() => _hovered = false),
         child: GestureDetector(
           key: const ValueKey<String>('alera-master-detail-resize-handle'),
-          behavior: HitTestBehavior.translucent,
+          behavior: .translucent,
           onHorizontalDragStart: (_) {
             _dragWidth = widget.currentWidth;
             setState(() => _dragging = true);

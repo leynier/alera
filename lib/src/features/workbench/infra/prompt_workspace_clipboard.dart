@@ -7,13 +7,9 @@ abstract interface class PromptWorkspaceClipboard {
   Future<String?> saveImageAsTempFile();
 }
 
-final class NativePromptWorkspaceClipboard implements PromptWorkspaceClipboard {
-  const NativePromptWorkspaceClipboard({
-    this._clipboard = const NativeTerminalClipboard(),
-  });
-
-  final TerminalClipboard _clipboard;
-
+final class const NativePromptWorkspaceClipboard({
+  final TerminalClipboard _clipboard = const NativeTerminalClipboard(),
+}) implements PromptWorkspaceClipboard {
   @override
   Future<String?> readText() => _clipboard.readText();
 

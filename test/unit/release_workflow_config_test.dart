@@ -5,16 +5,13 @@ import 'package:flutter_test/flutter_test.dart';
 void main() {
   group('release workflow configuration', () {
     test('packages the system browser engines required by desktop tabs', () {
-      final setup = File(
-        '.github/actions/setup-flutter-workspace/action.yml',
-      ).readAsStringSync();
-      final linuxPackage = File(
-        'tool/release/package_linux.sh',
-      ).readAsStringSync();
+      final setup = File('.github/actions/setup-flutter-workspace/action.yml')
+          .readAsStringSync();
+      final linuxPackage = File('tool/release/package_linux.sh')
+          .readAsStringSync();
       final podfile = File('macos/Podfile').readAsStringSync();
-      final xcodeProject = File(
-        'macos/Runner.xcodeproj/project.pbxproj',
-      ).readAsStringSync();
+      final xcodeProject = File('macos/Runner.xcodeproj/project.pbxproj')
+          .readAsStringSync();
       final macInfo = File('macos/Runner/Info.plist').readAsStringSync();
       final windowsBrowserCmake = File(
         'packages/alera_browser/windows/CMakeLists.txt',
@@ -61,9 +58,9 @@ void main() {
     });
 
     test('enables autonomous updates everywhere a package manager does not', () {
-      final workflow = File(
-        '.github/workflows/release-cut.yml',
-      ).readAsStringSync().replaceAll('\r\n', '\n');
+      final workflow = File('.github/workflows/release-cut.yml')
+          .readAsStringSync()
+          .replaceAll('\r\n', '\n');
 
       expect(
         workflow,
@@ -109,14 +106,13 @@ void main() {
     });
 
     test('uses only the desktop_updater 2.7 release format', () {
-      final workflow = File(
-        '.github/workflows/release-cut.yml',
-      ).readAsStringSync();
+      final workflow = File('.github/workflows/release-cut.yml')
+          .readAsStringSync();
       final config = File('desktop_updater.yaml').readAsStringSync();
       final pubspec = File('pubspec.yaml').readAsStringSync();
-      final updaterSources = Directory(
-        'lib/src/features/updater',
-      ).listSync(recursive: true).whereType<File>();
+      final updaterSources = Directory('lib/src/features/updater')
+          .listSync(recursive: true)
+          .whereType<File>();
 
       expect(pubspec, contains('desktop_updater: ^2.7.0'));
       expect(
@@ -135,9 +131,9 @@ void main() {
     });
 
     test('builds native apps and cross runtimes in parallel', () {
-      final workflow = File(
-        '.github/workflows/release-cut.yml',
-      ).readAsStringSync().replaceAll('\r\n', '\n');
+      final workflow = File('.github/workflows/release-cut.yml')
+          .readAsStringSync()
+          .replaceAll('\r\n', '\n');
       final appJob = workflow.substring(
         workflow.indexOf('  build_desktop_app:'),
         workflow.indexOf('  build_runtime_cross:'),
@@ -206,15 +202,12 @@ void main() {
     });
 
     test('caches both standard and shortened Cargokit build layouts', () {
-      final desktopBuild = File(
-        '.github/workflows/desktop-build.yml',
-      ).readAsStringSync();
-      final warmCache = File(
-        '.github/workflows/warm-cache.yml',
-      ).readAsStringSync();
-      final release = File(
-        '.github/workflows/release-cut.yml',
-      ).readAsStringSync();
+      final desktopBuild = File('.github/workflows/desktop-build.yml')
+          .readAsStringSync();
+      final warmCache = File('.github/workflows/warm-cache.yml')
+          .readAsStringSync();
+      final release = File('.github/workflows/release-cut.yml')
+          .readAsStringSync();
       final cachePaths = RegExp(
         r'path: \|\s+build/\*\*/cargokit_build\s+build/\*\*/ck',
       );
@@ -226,9 +219,8 @@ void main() {
     });
 
     test('gates publishing on complete desktop runtime packaging', () {
-      final workflow = File(
-        '.github/workflows/release-cut.yml',
-      ).readAsStringSync();
+      final workflow = File('.github/workflows/release-cut.yml')
+          .readAsStringSync();
       final publish = workflow.substring(workflow.indexOf('  publish:'));
 
       expect(publish, contains('- build_desktop_app'));
@@ -243,22 +235,17 @@ void main() {
     });
 
     test('builds and ships macOS for Apple Silicon only', () {
-      final appInfo = File(
-        'macos/Runner/Configs/AppInfo.xcconfig',
-      ).readAsStringSync();
+      final appInfo = File('macos/Runner/Configs/AppInfo.xcconfig')
+          .readAsStringSync();
       final podfile = File('macos/Podfile').readAsStringSync();
-      final xcodeProject = File(
-        'macos/Runner.xcodeproj/project.pbxproj',
-      ).readAsStringSync();
-      final helperAssets = File(
-        'tool/native_helpers/native_helper_assets.json',
-      ).readAsStringSync();
-      final releaseWorkflow = File(
-        '.github/workflows/release-cut.yml',
-      ).readAsStringSync();
-      final buildWorkflow = File(
-        '.github/workflows/desktop-build.yml',
-      ).readAsStringSync();
+      final xcodeProject = File('macos/Runner.xcodeproj/project.pbxproj')
+          .readAsStringSync();
+      final helperAssets = File('tool/native_helpers/native_helper_assets.json')
+          .readAsStringSync();
+      final releaseWorkflow = File('.github/workflows/release-cut.yml')
+          .readAsStringSync();
+      final buildWorkflow = File('.github/workflows/desktop-build.yml')
+          .readAsStringSync();
 
       expect(appInfo, contains('ARCHS = arm64'));
       expect(appInfo, contains('EXCLUDED_ARCHS[sdk=macosx*] = x86_64'));
@@ -273,16 +260,14 @@ void main() {
     });
 
     test('uses dedicated R2 sccache credentials with local fallback', () {
-      final workflow = File(
-        '.github/workflows/release-cut.yml',
-      ).readAsStringSync();
+      final workflow = File('.github/workflows/release-cut.yml')
+          .readAsStringSync();
       final buildJobs = workflow.substring(
         workflow.indexOf('  build_desktop_app:'),
         workflow.indexOf('  build_android:'),
       );
-      final setup = File(
-        '.github/actions/setup-rust-sccache/action.yml',
-      ).readAsStringSync();
+      final setup = File('.github/actions/setup-rust-sccache/action.yml')
+          .readAsStringSync();
 
       expect(buildJobs, contains(r'vars.SCCACHE_R2_ACCOUNT_ID'));
       expect(buildJobs, contains(r'vars.SCCACHE_R2_BUCKET'));
@@ -304,9 +289,8 @@ void main() {
     });
 
     test('skips Chocolatey only while its first version is in moderation', () {
-      final workflow = File(
-        '.github/workflows/release-cut.yml',
-      ).readAsStringSync();
+      final workflow = File('.github/workflows/release-cut.yml')
+          .readAsStringSync();
       final chocolateyJob = workflow.substring(
         workflow.indexOf('  publish_chocolatey:'),
       );
@@ -324,9 +308,8 @@ void main() {
     });
 
     test('publishes desktop packages when the mobile build is skipped', () {
-      final workflow = File(
-        '.github/workflows/release-cut.yml',
-      ).readAsStringSync();
+      final workflow = File('.github/workflows/release-cut.yml')
+          .readAsStringSync();
       final packageJob = workflow.substring(
         workflow.indexOf('  publish_packages:'),
         workflow.indexOf('  publish_chocolatey:'),
@@ -345,9 +328,8 @@ void main() {
     });
 
     test('publishes only after the prepared version pull request merges', () {
-      final workflow = File(
-        '.github/workflows/release-cut.yml',
-      ).readAsStringSync();
+      final workflow = File('.github/workflows/release-cut.yml')
+          .readAsStringSync();
       final publish = workflow.substring(workflow.indexOf('  publish:'));
 
       expect(workflow, contains('pull_request:'));
@@ -409,9 +391,8 @@ void main() {
     });
 
     test('cleans closed pull request caches without a checkout', () {
-      final cleanup = File(
-        '.github/workflows/cache-cleanup.yml',
-      ).readAsStringSync();
+      final cleanup = File('.github/workflows/cache-cleanup.yml')
+          .readAsStringSync();
 
       expect(cleanup, contains('pull_request:'));
       expect(cleanup, contains('- closed'));

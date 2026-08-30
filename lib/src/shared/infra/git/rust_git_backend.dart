@@ -17,9 +17,9 @@ part 'rust_git_backend_enum_mappers.dart';
 part 'rust_git_backend_hosted_review.dart';
 
 /// Rust-backed [GitBackend] translating bridge values into domain values.
-class RustGitBackend with _RustGitBackendHostedReview implements GitBackend {
-  const RustGitBackend();
-
+class const RustGitBackend()
+    with _RustGitBackendHostedReview
+    implements GitBackend {
   @override
   Future<bool> isGitRepository(String path) =>
       _guard(() => rust.isGitRepository(path: path));

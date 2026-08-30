@@ -21,7 +21,7 @@ void main() {
     );
 
     await tester.enterText(find.byType(TextField), 'not-a-number');
-    await tester.testTextInput.receiveAction(TextInputAction.done);
+    await tester.testTextInput.receiveAction(.done);
     await tester.pump();
 
     expect(

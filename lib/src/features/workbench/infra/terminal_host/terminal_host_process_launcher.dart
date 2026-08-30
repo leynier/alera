@@ -1,4 +1,5 @@
 import 'dart:io';
+
 import 'package:alera/src/core/build_flavor.dart';
 
 import 'package:alera/src/features/workbench/infra/terminal_host/alera_cli_sidecar.dart';
@@ -20,17 +21,14 @@ abstract interface class TerminalHostProcessLauncher {
 }
 
 // coverage:ignore-start
-final class DefaultTerminalHostProcessLauncher
-    implements TerminalHostProcessLauncher {
-  factory DefaultTerminalHostProcessLauncher({AleraCliResolver? cliResolver}) {
+final class DefaultTerminalHostProcessLauncher._(
+  final AleraCliResolver _cliResolver,
+) implements TerminalHostProcessLauncher {
+  factory({AleraCliResolver? cliResolver}) {
     return DefaultTerminalHostProcessLauncher._(
       cliResolver ?? DefaultAleraCliResolver(),
     );
   }
-
-  DefaultTerminalHostProcessLauncher._(this._cliResolver);
-
-  final AleraCliResolver _cliResolver;
 
   @override
   Future<void> start({

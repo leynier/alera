@@ -22,13 +22,13 @@ void main() {
         attachments: const <TerminalComposerAttachment>[
           TerminalComposerAttachment(
             id: 'image',
-            kind: TerminalComposerAttachmentKind.image,
+            kind: .image,
             path: '/tmp/before\x1b[201~after.png',
             displayName: 'after.png',
           ),
           TerminalComposerAttachment(
             id: 'file',
-            kind: TerminalComposerAttachmentKind.file,
+            kind: .file,
             path: '/tmp/report.pdf',
             displayName: 'report.pdf',
           ),
@@ -49,7 +49,7 @@ void main() {
         attachments: const <TerminalComposerAttachment>[
           TerminalComposerAttachment(
             id: 'file',
-            kind: TerminalComposerAttachmentKind.file,
+            kind: .file,
             path: '/tmp/report.pdf',
             displayName: 'report.pdf',
           ),
@@ -74,19 +74,19 @@ void main() {
         attachments: const <TerminalComposerAttachment>[
           TerminalComposerAttachment(
             id: 'image',
-            kind: TerminalComposerAttachmentKind.image,
+            kind: .image,
             path: '/tmp/project/assets/before.png',
             displayName: 'before.png',
           ),
           TerminalComposerAttachment(
             id: 'file',
-            kind: TerminalComposerAttachmentKind.file,
+            kind: .file,
             path: '/tmp/project/docs/report.pdf',
             displayName: 'report.pdf',
           ),
           TerminalComposerAttachment(
             id: 'outside',
-            kind: TerminalComposerAttachmentKind.file,
+            kind: .file,
             path: '/tmp/other/notes.txt',
             displayName: 'notes.txt',
           ),

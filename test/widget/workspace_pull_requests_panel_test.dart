@@ -12,12 +12,10 @@ import 'package:alera/src/features/pull_requests/presentation/pull_request_compo
 import 'package:alera/src/design_system/buttons/alera_icon_button.dart';
 import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/features/settings/application/settings_controller.dart';
-import 'package:alera/src/features/settings/domain/alera_settings.dart';
 import 'package:alera/src/features/workbench/application/workbench_controller.dart';
 import 'package:alera/src/features/workbench/application/workbench_state.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
 import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
-import 'package:alera/src/features/workbench/domain/workbench_view_prefs.dart';
 import 'package:alera/src/shared/infra/git/git_providers.dart';
 import 'package:alera/src/shared/infra/git/git_diff_models.dart';
 import 'package:alera/src/shared/infra/git/git_exception.dart';
@@ -31,10 +29,10 @@ import '../unit/fake_git_backend.dart';
 part 'workspace_pull_requests_panel_reading_diff_cases.dart';
 
 HostedReview _review(int number) => HostedReview(
-  provider: GitHostingProvider.github,
+  provider: .github,
   number: number,
   title: 'feat: $number',
-  state: HostedReviewState.open,
+  state: .open,
   url: 'https://github.com/leynier/alera/pull/$number',
   author: 'leynier',
   baseBranch: 'main',
@@ -77,7 +75,7 @@ class _PanelWorkbenchController extends WorkbenchController {
     return WorkspaceTabRecord(
       id: 'pr-diff',
       workspaceId: workspace.id,
-      kind: WorkspaceTabKind.gitDiff,
+      kind: .gitDiff,
       title: 'Pull request #$pullRequestNumber',
       createdAt: now,
       updatedAt: now,
@@ -100,7 +98,7 @@ void main() {
       ProviderScope(
         overrides: [
           gitBackendProvider.overrideWithValue(FakeGitBackend()),
-          settingsControllerProvider.overrideWithValue(AleraSettings.defaults),
+          settingsControllerProvider.overrideWithValue(.defaults),
         ],
         child: MaterialApp(
           home: Scaffold(
@@ -115,7 +113,7 @@ void main() {
                 canCreate: true,
                 busy: false,
                 suggestedReview: null,
-                createAction: PullRequestCreateAction.publish,
+                createAction: .publish,
                 onCreate: (_) {},
                 onLink: (_) {},
                 onCreateActionChanged: (_) {},
@@ -185,8 +183,8 @@ void main() {
       path: '/repo',
       createdAt: now,
       updatedAt: now,
-      kind: WorkspaceKind.linked,
-      status: WorkspaceStatus.active,
+      kind: .linked,
+      status: .active,
     );
     final forge = FakeForgeProvider()..branchReview = _review(123);
     final git = FakeGitBackend()
@@ -286,8 +284,8 @@ void main() {
       path: '/repo',
       createdAt: now,
       updatedAt: now,
-      kind: WorkspaceKind.linked,
-      status: WorkspaceStatus.active,
+      kind: .linked,
+      status: .active,
     );
     final review = _review(123);
     final forge = FakeForgeProvider()
@@ -296,7 +294,7 @@ void main() {
     final linkedReviews = FakeLinkedReviewRepository()
       ..store[workspace.id] = LinkedReview.dismissal(
         workspaceId: workspace.id,
-        provider: GitHostingProvider.github,
+        provider: .github,
         number: 123,
         url: review.url,
       );
@@ -316,7 +314,7 @@ void main() {
             ForgeProviderRegistry(<ForgeProvider>[forge]),
           ),
           linkedReviewRepositoryProvider.overrideWithValue(linkedReviews),
-          settingsControllerProvider.overrideWithValue(AleraSettings.defaults),
+          settingsControllerProvider.overrideWithValue(.defaults),
           workbenchControllerProvider.overrideWith(
             _PanelWorkbenchController.new,
           ),
@@ -371,8 +369,8 @@ void main() {
       path: '/repo',
       createdAt: now,
       updatedAt: now,
-      kind: WorkspaceKind.linked,
-      status: WorkspaceStatus.active,
+      kind: .linked,
+      status: .active,
     );
     for (final entry in <(GitHostingProvider, String, String)>[
       (

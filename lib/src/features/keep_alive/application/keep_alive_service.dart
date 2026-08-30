@@ -4,13 +4,14 @@ import 'package:alera/src/features/keep_alive/domain/keep_alive_snapshot.dart';
 import 'package:alera/src/features/keep_alive/infra/keep_alive_backend.dart';
 import 'package:logging/logging.dart';
 
-class KeepAliveService {
-  KeepAliveService({required this.backend, Logger? logger})
-    : _logger = logger ?? Logger('KeepAliveService');
+class KeepAliveService({
+  required final KeepAliveBackend backend,
+  Logger? logger,
+}) {
+  this : _logger = logger ?? Logger('KeepAliveService');
 
-  final KeepAliveBackend backend;
   final Logger _logger;
-  KeepAliveSnapshot _snapshot = const KeepAliveSnapshot.inactive();
+  KeepAliveSnapshot _snapshot = const .inactive();
   Future<void> _operationTail = Future<void>.value();
   bool _disposed = false;
 

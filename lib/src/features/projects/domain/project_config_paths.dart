@@ -1,10 +1,6 @@
 import 'package:path/path.dart' as p;
 
-class ProjectConfigPathException implements Exception {
-  ProjectConfigPathException(this.message);
-
-  final String message;
-
+class ProjectConfigPathException(final String message) implements Exception {
   @override
   String toString() => message;
 }

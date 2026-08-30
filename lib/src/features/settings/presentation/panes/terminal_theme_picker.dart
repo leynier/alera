@@ -7,16 +7,11 @@ import 'package:alera/src/features/settings/domain/terminal_theme_catalog.dart';
 import 'package:alera/src/features/settings/presentation/rows/settings_rows.dart';
 import 'package:flutter/material.dart';
 
-class ThemePickerSetting extends StatefulWidget {
-  const ThemePickerSetting({
-    super.key,
-    required this.value,
-    required this.onChanged,
-  });
-
-  final String value;
-  final ValueChanged<String> onChanged;
-
+class const ThemePickerSetting({
+  super.key,
+  required final String value,
+  required final ValueChanged<String> onChanged,
+}) extends StatefulWidget {
   @override
   State<ThemePickerSetting> createState() => _ThemePickerSettingState();
 }
@@ -76,13 +71,13 @@ class _ThemePickerSettingState extends State<ThemePickerSetting> {
     return Padding(
       padding: const EdgeInsets.all(AleraTokens.space16),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: .start,
         children: <Widget>[
           Text(
             'Theme Preset',
             style: theme.textTheme.bodyMedium?.copyWith(
               color: AleraTokens.foreground,
-              fontWeight: FontWeight.w500,
+              fontWeight: .w500,
             ),
           ),
           const SizedBox(height: AleraTokens.space4),
@@ -97,7 +92,7 @@ class _ThemePickerSettingState extends State<ThemePickerSetting> {
             builder: (context, constraints) {
               if (constraints.maxWidth < 560) {
                 return Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  crossAxisAlignment: .stretch,
                   children: <Widget>[
                     searchAndList,
                     const SizedBox(height: AleraTokens.space12),
@@ -106,7 +101,7 @@ class _ThemePickerSettingState extends State<ThemePickerSetting> {
                 );
               }
               return Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
+                crossAxisAlignment: .start,
                 children: <Widget>[
                   Expanded(child: searchAndList),
                   const SizedBox(width: AleraTokens.space16),
@@ -124,30 +119,20 @@ class _ThemePickerSettingState extends State<ThemePickerSetting> {
   }
 }
 
-class _ThemeSearchList extends StatelessWidget {
-  const _ThemeSearchList({
-    required this.controller,
-    required this.selectedName,
-    required this.themes,
-    required this.highlightedIndex,
-    required this.onQueryChanged,
-    required this.onHoverTheme,
-    required this.onSelectTheme,
-  });
-
-  final TextEditingController controller;
-  final String selectedName;
-  final List<TerminalThemeEntry> themes;
-  final int highlightedIndex;
-  final ValueChanged<String> onQueryChanged;
-  final ValueChanged<int> onHoverTheme;
-  final ValueChanged<TerminalThemeEntry> onSelectTheme;
-
+class const _ThemeSearchList({
+  required final TextEditingController controller,
+  required final String selectedName,
+  required final List<TerminalThemeEntry> themes,
+  required final int highlightedIndex,
+  required final ValueChanged<String> onQueryChanged,
+  required final ValueChanged<int> onHoverTheme,
+  required final ValueChanged<TerminalThemeEntry> onSelectTheme,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+      crossAxisAlignment: .stretch,
       children: <Widget>[
         AleraSearchField(
           key: const ValueKey<String>('terminal-theme-search-field'),
@@ -170,7 +155,7 @@ class _ThemeSearchList extends StatelessWidget {
                   Expanded(
                     child: Text(
                       'Selected: $selectedName',
-                      overflow: TextOverflow.ellipsis,
+                      overflow: .ellipsis,
                       maxLines: 1,
                       style: theme.textTheme.bodySmall?.copyWith(
                         color: AleraTokens.foregroundMuted,
@@ -219,11 +204,8 @@ class _ThemeSearchList extends StatelessWidget {
   }
 }
 
-class _ThemeColorDots extends StatelessWidget {
-  const _ThemeColorDots({required this.entry});
-
-  final TerminalThemeEntry entry;
-
+class const _ThemeColorDots({required final TerminalThemeEntry entry})
+    extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
@@ -240,11 +222,8 @@ class _ThemeColorDots extends StatelessWidget {
   }
 }
 
-class ThemeColorDot extends StatelessWidget {
-  const ThemeColorDot({super.key, required this.color});
-
-  final Color color;
-
+class const ThemeColorDot({super.key, required final Color color})
+    extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Expanded(
@@ -259,11 +238,8 @@ class ThemeColorDot extends StatelessWidget {
   }
 }
 
-class _TerminalThemePreview extends StatelessWidget {
-  const _TerminalThemePreview({required this.entry});
-
-  final TerminalThemeEntry entry;
-
+class const _TerminalThemePreview({required final TerminalThemeEntry entry})
+    extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -283,7 +259,7 @@ class _TerminalThemePreview extends StatelessWidget {
       child: DefaultTextStyle.merge(
         style: monoStyle,
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment: .start,
           children: <Widget>[
             Row(
               children: <Widget>[
@@ -299,7 +275,7 @@ class _TerminalThemePreview extends StatelessWidget {
                 Expanded(
                   child: Text(
                     entry.name,
-                    overflow: TextOverflow.ellipsis,
+                    overflow: .ellipsis,
                     maxLines: 1,
                     style: monoStyle?.copyWith(
                       color: terminalTheme.foreground.withValues(alpha: 0.75),
@@ -317,13 +293,13 @@ class _TerminalThemePreview extends StatelessWidget {
             Text(
               'M  lib/src/features/settings/presentation/settings_dialog.dart',
               maxLines: 1,
-              overflow: TextOverflow.ellipsis,
+              overflow: .ellipsis,
               style: monoStyle?.copyWith(color: terminalTheme.red),
             ),
             Text(
               'A  lib/src/features/settings/domain/terminal_theme_catalog.dart',
               maxLines: 1,
-              overflow: TextOverflow.ellipsis,
+              overflow: .ellipsis,
               style: monoStyle?.copyWith(color: terminalTheme.green),
             ),
             const SizedBox(height: AleraTokens.space8),
@@ -341,7 +317,7 @@ class _TerminalThemePreview extends StatelessWidget {
             ),
             const SizedBox(height: AleraTokens.space8),
             Row(
-              mainAxisSize: MainAxisSize.min,
+              mainAxisSize: .min,
               children: <Widget>[
                 Text(
                   r'$ echo "cursor" ',

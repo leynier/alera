@@ -15,9 +15,9 @@ void main() {
         theme: buildAleraDarkTheme(),
         home: Row(
           children: <Widget>[
-            AgentStatusDot(status: _entry(AgentStatusState.working)),
-            AgentStatusDot(status: _entry(AgentStatusState.waiting)),
-            AgentStatusDot(status: _entry(AgentStatusState.done)),
+            AgentStatusDot(status: _entry(.working)),
+            AgentStatusDot(status: _entry(.waiting)),
+            AgentStatusDot(status: _entry(.done)),
           ],
         ),
       ),
@@ -32,9 +32,7 @@ void main() {
     ]);
     expect(find.byType(Tooltip), findsNWidgets(3));
     expect(
-      agentStatusTooltip(
-        _entry(AgentStatusState.working, agentType: AgentType.cursor),
-      ),
+      agentStatusTooltip(_entry(.working, agentType: .cursor)),
       'Cursor working',
     );
   });
@@ -51,7 +49,7 @@ AgentStatusEntry _entry(
     agentType: agentType,
     state: state,
     prompt: '',
-    updatedAt: DateTime.utc(2026, 5, 26),
-    stateStartedAt: DateTime.utc(2026, 5, 26),
+    updatedAt: .utc(2026, 5, 26),
+    stateStartedAt: .utc(2026, 5, 26),
   );
 }

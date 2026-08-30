@@ -1,4 +1,3 @@
-import 'package:alera/src/shared/git_hosting/domain/git_hosting_provider.dart';
 import 'package:alera/src/features/pull_requests/domain/hosted_review.dart';
 import 'package:alera/src/features/pull_requests/domain/review_check.dart';
 import 'package:alera/src/features/pull_requests/domain/review_check_details.dart';
@@ -11,7 +10,7 @@ HostedReview mapGitHubReview(Map<String, Object?> json) {
   final author = json['author'];
   final mergeCommit = json['mergeCommit'];
   return HostedReview(
-    provider: GitHostingProvider.github,
+    provider: .github,
     number: (json['number'] as num?)?.toInt() ?? 0,
     title: json['title'] as String? ?? '',
     state: _mapState(state, isDraft),

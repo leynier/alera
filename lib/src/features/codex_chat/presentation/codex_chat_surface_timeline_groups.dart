@@ -72,7 +72,7 @@ class _CodexTimelineState extends State<_CodexTimeline>
       _timelineHasSelection = false;
     }
     if (!oldWidget.loadingEarlier && widget.loadingEarlier) {
-      _frozenHistoryLiveCells = List<CodexTimelineCell>.unmodifiable(
+      _frozenHistoryLiveCells = List<CodexTimelineCell>.unmodifiableOf(
         _projection.live.sourceCells,
       );
     }
@@ -225,7 +225,7 @@ class _CodexTimelineState extends State<_CodexTimeline>
         _timelineViewportKey.currentContext?.findRenderObject() as RenderBox?;
     final source = sourceContext.findRenderObject() as RenderBox?;
     if (viewport == null || source == null || !viewport.hasSize) return;
-    final sourceOrigin = source.localToGlobal(Offset.zero, ancestor: viewport);
+    final sourceOrigin = source.localToGlobal(.zero, ancestor: viewport);
     _planTimelineOffset = widget.timeline.hasClients
         ? widget.timeline.position.pixels
         : null;
@@ -250,7 +250,7 @@ class _CodexTimelineState extends State<_CodexTimeline>
         !source.hasSize) {
       return null;
     }
-    return source.localToGlobal(Offset.zero, ancestor: viewport) & source.size;
+    return source.localToGlobal(.zero, ancestor: viewport) & source.size;
   }
 
   void _handlePlanFlightStatus(AnimationStatus status) {
@@ -319,7 +319,7 @@ class _CodexTimelineState extends State<_CodexTimeline>
         ),
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: AleraTokens.space16),
-          child: SizedBox(width: double.infinity, child: child),
+          child: SizedBox(width: .infinity, child: child),
         ),
       ),
     );
@@ -371,7 +371,7 @@ class _CodexTimelineState extends State<_CodexTimeline>
         !widget.showRawLogs) {
       return Center(
         child: Column(
-          mainAxisSize: MainAxisSize.min,
+          mainAxisSize: .min,
           children: <Widget>[
             Text(
               widget.title.trim().isEmpty ? 'New Session' : widget.title,
@@ -401,7 +401,7 @@ class _CodexTimelineState extends State<_CodexTimeline>
       onPreviewOverflowChanged: _handlePlanPreviewOverflow,
       child: Stack(
         key: _timelineViewportKey,
-        clipBehavior: Clip.hardEdge,
+        clipBehavior: .hardEdge,
         children: <Widget>[
           SelectionArea(
             key: _timelineSelectionAreaKey,

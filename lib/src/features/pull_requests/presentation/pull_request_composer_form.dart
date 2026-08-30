@@ -61,7 +61,7 @@ extension _PullRequestComposerForm on _PullRequestComposerState {
       child: descriptionField,
     );
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+      crossAxisAlignment: .stretch,
       children: <Widget>[
         AleraDropdownField<String>(
           labelText: 'Base Branch',
@@ -118,7 +118,7 @@ extension _PullRequestComposerForm on _PullRequestComposerState {
     required Widget child,
   }) {
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: .start,
       children: <Widget>[
         Text(
           label,

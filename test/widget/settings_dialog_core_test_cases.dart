@@ -106,8 +106,8 @@ void _registerSettingsDialogCoreTests() {
       id: 'project-1',
       name: 'Alera',
       repoPath: '/repo/alera',
-      createdAt: DateTime.utc(2026, 6, 27),
-      updatedAt: DateTime.utc(2026, 6, 27),
+      createdAt: .utc(2026, 6, 27),
+      updatedAt: .utc(2026, 6, 27),
     );
     final configRepository = FakeProjectConfigRepository();
     addTearDown(configRepository.dispose);
@@ -187,15 +187,15 @@ void _registerSettingsDialogCoreTests() {
       id: 'project-1',
       name: 'Alera',
       repoPath: '/repo/alera',
-      createdAt: DateTime.utc(2026, 6, 27),
-      updatedAt: DateTime.utc(2026, 6, 27),
+      createdAt: .utc(2026, 6, 27),
+      updatedAt: .utc(2026, 6, 27),
     );
     final configRepository = FakeProjectConfigRepository();
     addTearDown(configRepository.dispose);
     await configRepository.save(
       projectId: project.id,
-      config: ProjectConfig.empty,
-      updatedAt: DateTime.utc(2026, 6, 27),
+      config: .empty,
+      updatedAt: .utc(2026, 6, 27),
     );
     final configService = ProjectConfigService(
       repository: configRepository,
@@ -316,7 +316,7 @@ void _registerSettingsDialogCoreTests() {
       container
           .read(settingsControllerProvider)
           .aiAssist
-          .discoveredModelsFor(AiAssistAgent.agy)
+          .discoveredModelsFor(.agy)
           .map((model) => model.id),
       contains('gpt-5.5'),
     );
@@ -345,7 +345,7 @@ void _registerSettingsDialogCoreTests() {
       container
           .read(settingsControllerProvider)
           .aiAssist
-          .instructionsFor(AiAssistOperation.commitMessage),
+          .instructionsFor(.commitMessage),
       'Use conventional commits.',
     );
 
@@ -378,7 +378,7 @@ void _registerSettingsDialogCoreTests() {
       container
           .read(settingsControllerProvider)
           .aiAssist
-          .instructionsFor(AiAssistOperation.commitMessage),
+          .instructionsFor(.commitMessage),
       isEmpty,
     );
   });
@@ -388,7 +388,7 @@ void _registerSettingsDialogCoreTests() {
     await selectTerminalSectionLocal(tester);
 
     await tester.enterText(find.byType(TextField).at(2), '18');
-    await tester.testTextInput.receiveAction(TextInputAction.done);
+    await tester.testTextInput.receiveAction(.done);
     await tester.pump(const Duration(milliseconds: 50));
 
     expect(container.read(settingsControllerProvider).terminal.fontSize, 18);
@@ -699,10 +699,10 @@ void _registerSettingsDialogCoreTests() {
 
       expect(find.text('SF Mono'), findsWidgets);
 
-      await tester.sendKeyDownEvent(LogicalKeyboardKey.arrowDown);
-      await tester.sendKeyUpEvent(LogicalKeyboardKey.arrowDown);
-      await tester.sendKeyDownEvent(LogicalKeyboardKey.enter);
-      await tester.sendKeyUpEvent(LogicalKeyboardKey.enter);
+      await tester.sendKeyDownEvent(.arrowDown);
+      await tester.sendKeyUpEvent(.arrowDown);
+      await tester.sendKeyDownEvent(.enter);
+      await tester.sendKeyUpEvent(.enter);
       await tester.pump(const Duration(milliseconds: 50));
 
       expect(
@@ -717,8 +717,8 @@ void _registerSettingsDialogCoreTests() {
 
       expect(find.text('No matching fonts.'), findsOneWidget);
 
-      await tester.sendKeyDownEvent(LogicalKeyboardKey.escape);
-      await tester.sendKeyUpEvent(LogicalKeyboardKey.escape);
+      await tester.sendKeyDownEvent(.escape);
+      await tester.sendKeyUpEvent(.escape);
       await tester.pump();
 
       expect(find.text('No matching fonts.'), findsNothing);
@@ -732,7 +732,7 @@ void _registerSettingsDialogCoreTests() {
     final field = find.byType(TextField).at(1);
 
     await tester.enterText(field, '/tmp/alera-workspaces');
-    await tester.testTextInput.receiveAction(TextInputAction.done);
+    await tester.testTextInput.receiveAction(.done);
     await tester.pump(const Duration(milliseconds: 50));
 
     expect(
@@ -741,7 +741,7 @@ void _registerSettingsDialogCoreTests() {
     );
 
     await tester.enterText(field, '   ');
-    await tester.testTextInput.receiveAction(TextInputAction.done);
+    await tester.testTextInput.receiveAction(.done);
     await tester.pump(const Duration(milliseconds: 50));
 
     expect(
@@ -756,8 +756,8 @@ void _registerSettingsDialogCoreTests() {
       final container = await pumpSettingsDialogLocal(
         tester,
         starController: _FakeGitHubStarController(
-          GitHubStarState.notStarred,
-          nextStarState: GitHubStarState.starred,
+          .notStarred,
+          nextStarState: .starred,
         ),
       );
 
@@ -776,8 +776,8 @@ void _registerSettingsDialogCoreTests() {
       );
 
       final errorController = _FakeGitHubStarController(
-        GitHubStarState.error,
-        nextStarState: GitHubStarState.starred,
+        .error,
+        nextStarState: .starred,
       );
       container.dispose();
       await pumpSettingsDialogLocal(tester, starController: errorController);
@@ -798,7 +798,7 @@ void _registerSettingsDialogCoreTests() {
   ) async {
     await pumpSettingsDialogLocal(
       tester,
-      starController: _FakeGitHubStarController(GitHubStarState.hidden),
+      starController: _FakeGitHubStarController(.hidden),
     );
 
     expect(find.text('Support Alera'), findsNothing);
@@ -863,10 +863,7 @@ void _registerSettingsDialogCoreTests() {
     await tester.pumpWidget(
       MaterialApp(
         home: Scaffold(
-          body: buildStarControlForTesting(
-            state: GitHubStarState.hidden,
-            onStar: () {},
-          ),
+          body: buildStarControlForTesting(state: .hidden, onStar: () {}),
         ),
       ),
     );

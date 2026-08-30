@@ -4,17 +4,11 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:xterm2/xterm.dart' as xterm;
 
-final class TerminalLinkRange {
-  const TerminalLinkRange({
-    required this.uri,
-    required this.start,
-    required this.end,
-  });
-
-  final Uri uri;
-  final xterm.CellOffset start;
-  final xterm.CellOffset end;
-
+final class const TerminalLinkRange({
+  required final Uri uri,
+  required final xterm.CellOffset start,
+  required final xterm.CellOffset end,
+}) {
   bool get isEmpty => start == end;
 
   bool contains(xterm.CellOffset offset) {
@@ -159,12 +153,10 @@ TerminalLinkRange? _resolveNativeHyperlink(
   );
 }
 
-final class _LogicalTerminalLine {
-  _LogicalTerminalLine({required this.text, required this.spans});
-
-  final String text;
-  final List<_CharacterCellSpan> spans;
-
+final class _LogicalTerminalLine({
+  required final String text,
+  required final List<_CharacterCellSpan> spans,
+}) {
   static _LogicalTerminalLine? fromBuffer(xterm.Buffer buffer, int row) {
     if (row < 0 || row >= buffer.lines.length) {
       return null;
@@ -244,17 +236,11 @@ final class _LogicalTerminalLine {
   }
 }
 
-final class _CharacterCellSpan {
-  const _CharacterCellSpan({
-    required this.row,
-    required this.startX,
-    required this.endXExclusive,
-  });
-
-  final int row;
-  final int startX;
-  final int endXExclusive;
-
+final class const _CharacterCellSpan({
+  required final int row,
+  required final int startX,
+  required final int endXExclusive,
+}) {
   bool contains(xterm.CellOffset offset) {
     return offset.y == row && offset.x >= startX && offset.x < endXExclusive;
   }

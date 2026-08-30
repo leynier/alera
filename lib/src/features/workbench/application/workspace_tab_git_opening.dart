@@ -158,7 +158,7 @@ extension WorkspaceTabGitOpening on WorkspaceTabService {
     final tab = WorkspaceTabRecord(
       id: _uuid.v4(),
       workspaceId: workspaceId,
-      kind: WorkspaceTabKind.gitDiff,
+      kind: .gitDiff,
       title: 'Pull request #$pullRequestNumber',
       createdAt: _now(),
       updatedAt: _now(),
@@ -192,7 +192,7 @@ extension WorkspaceTabGitOpening on WorkspaceTabService {
       final replace = _previewTabToReplace(existing, replacePreviewTabId);
       if (replace != null) {
         final next = replace.copyWith(
-          kind: WorkspaceTabKind.gitDiff,
+          kind: .gitDiff,
           title: title,
           updatedAt: _now(),
           payload: payload,
@@ -204,7 +204,7 @@ extension WorkspaceTabGitOpening on WorkspaceTabService {
     final tab = WorkspaceTabRecord(
       id: _uuid.v4(),
       workspaceId: workspaceId,
-      kind: WorkspaceTabKind.gitDiff,
+      kind: .gitDiff,
       title: title,
       createdAt: _now(),
       updatedAt: _now(),

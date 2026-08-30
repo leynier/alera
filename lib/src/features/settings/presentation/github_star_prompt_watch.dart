@@ -14,11 +14,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 /// Must sit under a [Navigator] route (shell home), not in
 /// `MaterialApp.builder`. Declining or completing the flow mutes the prompt via
 /// [SettingsController.markStarClicked].
-class GitHubStarPromptWatch extends ConsumerStatefulWidget {
-  const GitHubStarPromptWatch({super.key, required this.child});
-
-  final Widget child;
-
+class const GitHubStarPromptWatch({super.key, required final Widget child})
+    extends ConsumerStatefulWidget {
   @override
   ConsumerState<GitHubStarPromptWatch> createState() =>
       _GitHubStarPromptWatchState();

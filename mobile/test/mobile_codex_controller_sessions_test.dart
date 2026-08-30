@@ -59,9 +59,8 @@ void main() {
     );
     final container = ProviderContainer(
       overrides: [
-        mobileCodexClientProvider(
-          'host-session',
-        ).overrideWith((ref) async => client),
+        mobileCodexClientProvider('host-session')
+            .overrideWith((ref) async => client),
       ],
     );
     addTearDown(() {
@@ -129,7 +128,7 @@ void main() {
               },
             }),
           );
-          await Future<void>.delayed(Duration.zero);
+          await Future.pause(.zero);
           return <String, Object?>{
             'snapshot': <String, Object?>{
               'timelineCells': <Object?>[],
@@ -141,9 +140,8 @@ void main() {
     );
     final container = ProviderContainer(
       overrides: [
-        mobileCodexClientProvider(
-          'host-session-queue',
-        ).overrideWith((ref) async => client),
+        mobileCodexClientProvider('host-session-queue')
+            .overrideWith((ref) async => client),
       ],
     );
     addTearDown(() {
@@ -167,12 +165,12 @@ void main() {
         'snapshot': <String, Object?>{'activeTurnId': 'turn-old'},
       }),
     );
-    await Future<void>.delayed(Duration.zero);
+    await Future.pause(.zero);
     final controller = container.read(provider.notifier);
     await controller.send('queued for the old thread');
 
     await controller.newThread();
-    await Future<void>.delayed(Duration.zero);
+    await Future.pause(.zero);
 
     expect(container.read(provider).value!.queuedMessages, isEmpty);
     expect(
@@ -189,9 +187,8 @@ void main() {
     );
     final container = ProviderContainer(
       overrides: [
-        mobileCodexClientProvider(
-          'host-transition-queue',
-        ).overrideWith((ref) async => client),
+        mobileCodexClientProvider('host-transition-queue')
+            .overrideWith((ref) async => client),
       ],
     );
     addTearDown(() {
@@ -212,7 +209,7 @@ void main() {
     final controller = container.read(provider.notifier);
 
     final transition = controller.newThread();
-    await Future<void>.delayed(Duration.zero);
+    await Future.pause(.zero);
     await controller.send('queued during transition');
     transitionResponse.complete(<String, Object?>{
       'threadId': 'thread-new',
@@ -222,7 +219,7 @@ void main() {
       },
     });
     expect(await transition, isTrue);
-    await Future<void>.delayed(Duration.zero);
+    await Future.pause(.zero);
 
     final turnStarts = client.calls
         .where((call) => call.type == 'codex.turn.start')
@@ -239,9 +236,8 @@ void main() {
     );
     final container = ProviderContainer(
       overrides: [
-        mobileCodexClientProvider(
-          'host-disposed-transition',
-        ).overrideWith((ref) async => client),
+        mobileCodexClientProvider('host-disposed-transition')
+            .overrideWith((ref) async => client),
       ],
     );
     addTearDown(client.dispose);
@@ -256,7 +252,7 @@ void main() {
     );
     await container.read(provider.future);
     final transition = container.read(provider.notifier).newThread();
-    await Future<void>.delayed(Duration.zero);
+    await Future.pause(.zero);
 
     listener.close();
     container.dispose();
@@ -282,9 +278,8 @@ void main() {
       );
       final container = ProviderContainer(
         overrides: [
-          mobileCodexClientProvider(
-            'host-overlapping-transition',
-          ).overrideWith((ref) async => client),
+          mobileCodexClientProvider('host-overlapping-transition')
+              .overrideWith((ref) async => client),
         ],
       );
       addTearDown(() {
@@ -305,16 +300,16 @@ void main() {
       final controller = container.read(provider.notifier);
 
       final first = controller.newThread();
-      await Future<void>.delayed(Duration.zero);
+      await Future.pause(.zero);
       final second = controller.clearThread();
-      await Future<void>.delayed(Duration.zero);
+      await Future.pause(.zero);
       await controller.send('queued until both transitions finish');
       firstResponse.complete(<String, Object?>{
         'threadId': 'thread-first',
         'snapshot': <String, Object?>{'timelineCells': const <Object?>[]},
       });
       expect(await first, isTrue);
-      await Future<void>.delayed(Duration.zero);
+      await Future.pause(.zero);
       expect(
         client.calls.where((call) => call.type == 'codex.turn.start'),
         isEmpty,
@@ -325,7 +320,7 @@ void main() {
         'snapshot': <String, Object?>{'timelineCells': const <Object?>[]},
       });
       expect(await second, isTrue);
-      await Future<void>.delayed(Duration.zero);
+      await Future.pause(.zero);
 
       final turnStarts = client.calls
           .where((call) => call.type == 'codex.turn.start')
@@ -354,9 +349,8 @@ void main() {
       );
       final container = ProviderContainer(
         overrides: [
-          mobileCodexClientProvider(
-            'host-overlapping-failed-transition',
-          ).overrideWith((ref) async => client),
+          mobileCodexClientProvider('host-overlapping-failed-transition')
+              .overrideWith((ref) async => client),
         ],
       );
       addTearDown(() {
@@ -378,13 +372,13 @@ void main() {
       await controller.send('queued for the old thread');
 
       final first = controller.newThread();
-      await Future<void>.delayed(Duration.zero);
+      await Future.pause(.zero);
       final second = controller.clearThread();
-      await Future<void>.delayed(Duration.zero);
+      await Future.pause(.zero);
       await controller.send('queued during transition');
       firstResponse.completeError(StateError('first transition failed'));
       expect(await first, isFalse);
-      await Future<void>.delayed(Duration.zero);
+      await Future.pause(.zero);
       expect(
         client.calls.where((call) => call.type == 'codex.turn.start'),
         isEmpty,
@@ -395,7 +389,7 @@ void main() {
         'snapshot': <String, Object?>{'timelineCells': const <Object?>[]},
       });
       expect(await second, isTrue);
-      await Future<void>.delayed(Duration.zero);
+      await Future.pause(.zero);
 
       final turnStarts = client.calls
           .where((call) => call.type == 'codex.turn.start')
@@ -425,9 +419,8 @@ void main() {
     );
     final container = ProviderContainer(
       overrides: [
-        mobileCodexClientProvider(
-          'host-history-race',
-        ).overrideWith((ref) async => client),
+        mobileCodexClientProvider('host-history-race')
+            .overrideWith((ref) async => client),
       ],
     );
     addTearDown(() {
@@ -448,7 +441,7 @@ void main() {
     final controller = container.read(provider.notifier);
 
     final history = controller.loadHistory(cursor: 'older');
-    await Future<void>.delayed(Duration.zero);
+    await Future.pause(.zero);
     expect(await controller.newThread(), isTrue);
     historyResponse.complete(<String, Object?>{
       'snapshot': <String, Object?>{

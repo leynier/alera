@@ -83,9 +83,8 @@ Future<Directory> _createWorkspace() async {
   }
   for (var index = 0; index < _fileCount; index++) {
     final group = groups[index % groups.length];
-    File(
-      p.join(group.path, 'file_${index.toString().padLeft(5, '0')}.txt'),
-    ).writeAsStringSync('');
+    File(p.join(group.path, 'file_${index.toString().padLeft(5, '0')}.txt'))
+        .writeAsStringSync('');
   }
   return workspace;
 }

@@ -234,8 +234,8 @@ void _registerTerminalSurfaceRuntimeTests() {
         id: 'tab-1',
         workspaceId: 'ws-1',
         title: 'Terminal 1',
-        createdAt: DateTime.utc(2026),
-        updatedAt: DateTime.utc(2026),
+        createdAt: .utc(2026),
+        updatedAt: .utc(2026),
       );
       Workspace workspaceWithPath(String path) => Workspace(
         id: 'ws-1',
@@ -243,10 +243,10 @@ void _registerTerminalSurfaceRuntimeTests() {
         name: 'Main',
         branch: 'main',
         path: path,
-        createdAt: DateTime.utc(2026),
-        updatedAt: DateTime.utc(2026),
-        kind: WorkspaceKind.main,
-        status: WorkspaceStatus.active,
+        createdAt: .utc(2026),
+        updatedAt: .utc(2026),
+        kind: .main,
+        status: .active,
       );
 
       final pathNotifier = ValueNotifier<String>('/tmp/a');
@@ -340,12 +340,12 @@ void _registerTerminalSurfaceRuntimeTests() {
       factory.sessions.single.emitOutput(utf8.encode('https://example.com'));
       await _pumpTerminalOutput(tester);
 
-      await tester.sendKeyDownEvent(LogicalKeyboardKey.metaLeft);
+      await tester.sendKeyDownEvent(.metaLeft);
       await tester.pump();
       await tester.tapAt(_cellCenter(tester, const xterm.CellOffset(1, 0)));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 300));
-      await tester.sendKeyUpEvent(LogicalKeyboardKey.metaLeft);
+      await tester.sendKeyUpEvent(.metaLeft);
 
       expect(launcher.openedUris, <Uri>[Uri.parse('https://example.com')]);
     } finally {
@@ -419,7 +419,7 @@ void _registerTerminalSurfaceRuntimeTests() {
       );
       await _pumpTerminalOutput(tester);
 
-      final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+      final mouse = await tester.createGesture(kind: .mouse);
       addTearDown(() => mouse.removePointer());
       await mouse.addPointer();
       await mouse.moveTo(_cellCenter(tester, const xterm.CellOffset(1, 0)));

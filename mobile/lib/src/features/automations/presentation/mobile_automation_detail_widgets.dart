@@ -8,20 +8,13 @@ import 'package:alera_mobile/src/features/automations/presentation/mobile_automa
 import 'package:alera_mobile/src/features/runtime/infra/mobile_runtime_client.dart';
 import 'package:flutter/material.dart';
 
-class MobileAutomationDetailSheet extends StatelessWidget {
-  const MobileAutomationDetailSheet({
-    required this.detail,
-    required this.repository,
-    required this.client,
-    required this.onChanged,
-    super.key,
-  });
-
-  final MobileAutomationDetail detail;
-  final MobileRuntimeAutomationRepository repository;
-  final MobileRuntimeClient client;
-  final VoidCallback onChanged;
-
+class const MobileAutomationDetailSheet({
+  required final MobileAutomationDetail detail,
+  required final MobileRuntimeAutomationRepository repository,
+  required final MobileRuntimeClient client,
+  required final VoidCallback onChanged,
+  super.key,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final automation = detail.automation;
@@ -194,7 +187,7 @@ class MobileAutomationDetailSheet extends StatelessWidget {
     if (!context.mounted) return;
     final definition = await showMobileAutomationEditor(
       context,
-      initial: MobileAutomation.fromJson(raw),
+      initial: .fromJson(raw),
       options: options,
     );
     if (definition != null) {
@@ -244,7 +237,7 @@ class MobileAutomationDetailSheet extends StatelessWidget {
       };
       final definition = await showMobileAutomationEditor(
         context,
-        initial: MobileAutomation.fromJson(raw),
+        initial: .fromJson(raw),
         options: options,
       );
       if (definition != null) {

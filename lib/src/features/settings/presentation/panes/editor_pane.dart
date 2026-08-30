@@ -10,20 +10,16 @@ import 'package:alera/src/features/settings/presentation/panes/terminal_theme_pi
 import 'package:alera/src/features/settings/presentation/rows/settings_rows.dart';
 import 'package:flutter/material.dart';
 
-class EditorSettingsPane extends StatelessWidget {
-  const EditorSettingsPane({
-    super.key,
-    required this.settings,
-    required this.onChanged,
-  });
-
-  final EditorSettings settings;
-  final ValueChanged<EditorSettings Function(EditorSettings)> onChanged;
-
+class const EditorSettingsPane({
+  super.key,
+  required final EditorSettings settings,
+  required final ValueChanged<EditorSettings Function(EditorSettings)>
+  onChanged,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+      crossAxisAlignment: .stretch,
       children: <Widget>[
         AleraSettingsGroup(
           title: 'Appearance',
@@ -88,15 +84,10 @@ class EditorSettingsPane extends StatelessWidget {
   }
 }
 
-class _EditorThemePickerSetting extends StatefulWidget {
-  const _EditorThemePickerSetting({
-    required this.value,
-    required this.onChanged,
-  });
-
-  final String value;
-  final ValueChanged<String> onChanged;
-
+class const _EditorThemePickerSetting({
+  required final String value,
+  required final ValueChanged<String> onChanged,
+}) extends StatefulWidget {
   @override
   State<_EditorThemePickerSetting> createState() =>
       _EditorThemePickerSettingState();
@@ -157,13 +148,13 @@ class _EditorThemePickerSettingState extends State<_EditorThemePickerSetting> {
     return Padding(
       padding: const EdgeInsets.all(AleraTokens.space16),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: .start,
         children: <Widget>[
           Text(
             'Theme Preset',
             style: theme.textTheme.bodyMedium?.copyWith(
               color: AleraTokens.foreground,
-              fontWeight: FontWeight.w500,
+              fontWeight: .w500,
             ),
           ),
           const SizedBox(height: AleraTokens.space4),
@@ -178,7 +169,7 @@ class _EditorThemePickerSettingState extends State<_EditorThemePickerSetting> {
             builder: (context, constraints) {
               if (constraints.maxWidth < 560) {
                 return Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  crossAxisAlignment: .stretch,
                   children: <Widget>[
                     searchAndList,
                     const SizedBox(height: AleraTokens.space12),
@@ -187,7 +178,7 @@ class _EditorThemePickerSettingState extends State<_EditorThemePickerSetting> {
                 );
               }
               return Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
+                crossAxisAlignment: .start,
                 children: <Widget>[
                   Expanded(child: searchAndList),
                   const SizedBox(width: AleraTokens.space16),
@@ -205,30 +196,20 @@ class _EditorThemePickerSettingState extends State<_EditorThemePickerSetting> {
   }
 }
 
-class _EditorThemeSearchList extends StatelessWidget {
-  const _EditorThemeSearchList({
-    required this.controller,
-    required this.selectedName,
-    required this.themes,
-    required this.highlightedIndex,
-    required this.onQueryChanged,
-    required this.onHoverTheme,
-    required this.onSelectTheme,
-  });
-
-  final TextEditingController controller;
-  final String selectedName;
-  final List<EditorSyntaxThemeEntry> themes;
-  final int highlightedIndex;
-  final ValueChanged<String> onQueryChanged;
-  final ValueChanged<int> onHoverTheme;
-  final ValueChanged<EditorSyntaxThemeEntry> onSelectTheme;
-
+class const _EditorThemeSearchList({
+  required final TextEditingController controller,
+  required final String selectedName,
+  required final List<EditorSyntaxThemeEntry> themes,
+  required final int highlightedIndex,
+  required final ValueChanged<String> onQueryChanged,
+  required final ValueChanged<int> onHoverTheme,
+  required final ValueChanged<EditorSyntaxThemeEntry> onSelectTheme,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+      crossAxisAlignment: .stretch,
       children: <Widget>[
         AleraSearchField(
           key: const ValueKey<String>('editor-theme-search-field'),
@@ -251,7 +232,7 @@ class _EditorThemeSearchList extends StatelessWidget {
                   Expanded(
                     child: Text(
                       'Selected: $selectedName',
-                      overflow: TextOverflow.ellipsis,
+                      overflow: .ellipsis,
                       maxLines: 1,
                       style: theme.textTheme.bodySmall?.copyWith(
                         color: AleraTokens.foregroundMuted,
@@ -301,11 +282,8 @@ class _EditorThemeSearchList extends StatelessWidget {
   }
 }
 
-class _EditorThemeColorDots extends StatelessWidget {
-  const _EditorThemeColorDots({required this.entry});
-
-  final EditorSyntaxThemeEntry entry;
-
+class const _EditorThemeColorDots({required final EditorSyntaxThemeEntry entry})
+    extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
@@ -322,11 +300,8 @@ class _EditorThemeColorDots extends StatelessWidget {
   }
 }
 
-class _EditorThemePreview extends StatelessWidget {
-  const _EditorThemePreview({required this.entry});
-
-  final EditorSyntaxThemeEntry entry;
-
+class const _EditorThemePreview({required final EditorSyntaxThemeEntry entry})
+    extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -349,7 +324,7 @@ class _EditorThemePreview extends StatelessWidget {
       child: DefaultTextStyle.merge(
         style: monoStyle,
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment: .start,
           children: <Widget>[
             Row(
               children: <Widget>[
@@ -365,7 +340,7 @@ class _EditorThemePreview extends StatelessWidget {
                 Expanded(
                   child: Text(
                     entry.name,
-                    overflow: TextOverflow.ellipsis,
+                    overflow: .ellipsis,
                     maxLines: 1,
                     style: monoStyle?.copyWith(
                       color: foreground.withValues(alpha: 0.75),
@@ -391,7 +366,7 @@ class _EditorThemePreview extends StatelessWidget {
                 ],
               ),
               maxLines: 1,
-              overflow: TextOverflow.ellipsis,
+              overflow: .ellipsis,
             ),
             Text.rich(
               TextSpan(
@@ -415,7 +390,7 @@ class _EditorThemePreview extends StatelessWidget {
                 ],
               ),
               maxLines: 1,
-              overflow: TextOverflow.ellipsis,
+              overflow: .ellipsis,
             ),
             Text.rich(
               TextSpan(
@@ -429,7 +404,7 @@ class _EditorThemePreview extends StatelessWidget {
                 ],
               ),
               maxLines: 1,
-              overflow: TextOverflow.ellipsis,
+              overflow: .ellipsis,
             ),
             const Text('}'),
           ],

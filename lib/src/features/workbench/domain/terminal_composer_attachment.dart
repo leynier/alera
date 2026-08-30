@@ -2,19 +2,12 @@ import 'package:path/path.dart' as p;
 
 enum TerminalComposerAttachmentKind { image, file }
 
-final class TerminalComposerAttachment {
-  const TerminalComposerAttachment({
-    required this.id,
-    required this.kind,
-    required this.path,
-    required this.displayName,
-  });
-
-  final String id;
-  final TerminalComposerAttachmentKind kind;
-  final String path;
-  final String displayName;
-}
+final class const TerminalComposerAttachment({
+  required final String id,
+  required final TerminalComposerAttachmentKind kind,
+  required final String path,
+  required final String displayName,
+});
 
 TerminalComposerAttachmentKind terminalComposerAttachmentKindForPath(
   String path,

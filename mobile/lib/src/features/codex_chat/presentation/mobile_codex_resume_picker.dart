@@ -1,25 +1,16 @@
 part of 'mobile_codex_chat_screen.dart';
 
-class _MobileResumeSelection {
-  const _MobileResumeSelection(this.thread);
+class const _MobileResumeSelection(final MobileCodexThreadSummary thread);
 
-  final MobileCodexThreadSummary thread;
-}
-
-class _MobileCodexResumePicker extends StatefulWidget {
-  const _MobileCodexResumePicker({
-    required this.workspaceId,
-    required this.loadPage,
-  });
-
-  final String workspaceId;
-  final Future<MobileCodexThreadPage> Function({
+class const _MobileCodexResumePicker({
+  required final String workspaceId,
+  required final Future<MobileCodexThreadPage> Function({
     String? workspaceId,
     String? searchTerm,
     String? cursor,
   })
-  loadPage;
-
+  loadPage,
+}) extends StatefulWidget {
   @override
   State<_MobileCodexResumePicker> createState() =>
       _MobileCodexResumePickerState();
@@ -96,7 +87,7 @@ class _MobileCodexResumePickerState extends State<_MobileCodexResumePicker> {
       child: Padding(
         padding: AleraTokens.contentPadding,
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
+          crossAxisAlignment: .stretch,
           children: <Widget>[
             Text(
               'Resume Codex Thread',
@@ -163,7 +154,7 @@ class _MobileCodexResumePickerState extends State<_MobileCodexResumePicker> {
               if (thread.isBound) 'Already Open',
             ].join(' · '),
             maxLines: 2,
-            overflow: TextOverflow.ellipsis,
+            overflow: .ellipsis,
           ),
           onTap: () =>
               Navigator.of(context).pop(_MobileResumeSelection(thread)),

@@ -20,7 +20,7 @@ void _registerAleraShellSidebarIdentityTests() {
         terminalSessionId: 'tab-2',
         workspaceId: 'workspace-2',
         tabId: 'tab-2',
-        state: AgentStatusState.waiting,
+        state: .waiting,
       ),
     });
     await tester.pump();
@@ -42,7 +42,7 @@ void _registerAleraShellSidebarIdentityTests() {
         terminalSessionId: 'tab-1',
         workspaceId: 'workspace-1',
         tabId: 'tab-1',
-        state: AgentStatusState.working,
+        state: .working,
       ),
     });
     await tester.pump();
@@ -63,13 +63,13 @@ void _registerAleraShellSidebarIdentityTests() {
           terminalSessionId: 'tab-1',
           workspaceId: 'workspace-1',
           tabId: 'tab-1',
-          state: AgentStatusState.working,
+          state: .working,
         ),
         'tab-2': _agentStatusEntry(
           terminalSessionId: 'tab-2',
           workspaceId: 'workspace-2',
           tabId: 'tab-2',
-          state: AgentStatusState.working,
+          state: .working,
         ),
       },
     );

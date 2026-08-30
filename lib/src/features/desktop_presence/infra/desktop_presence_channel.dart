@@ -16,17 +16,12 @@ abstract final class DesktopPresenceEvent {
   static const String trayInstallationChanged = 'trayInstallationChanged';
 }
 
-class DesktopPresenceSnapshot {
-  const DesktopPresenceSnapshot({
-    required this.trayVisible,
-    required this.tooltip,
-    required this.badgeCount,
-    this.trayBadgeCount = 0,
-  });
-
-  final bool trayVisible;
-  final String tooltip;
-
+class const DesktopPresenceSnapshot({
+  required final bool trayVisible,
+  required final String tooltip,
+  required this.badgeCount,
+  this.trayBadgeCount = 0,
+}) {
   /// Dock, taskbar, or launcher-entry badge.
   final int badgeCount;
 
@@ -59,9 +54,9 @@ abstract interface class DesktopPresenceBackend {
   Future<void> destroy();
 }
 
-class MethodChannelDesktopPresenceBackend implements DesktopPresenceBackend {
-  MethodChannelDesktopPresenceBackend({MethodChannel? channel})
-    : _channel = channel ?? const MethodChannel(desktopPresenceChannelName);
+class MethodChannelDesktopPresenceBackend({MethodChannel? channel})
+    implements DesktopPresenceBackend {
+  this : _channel = channel ?? const MethodChannel(desktopPresenceChannelName);
 
   final MethodChannel _channel;
   bool _listening = false;
@@ -91,12 +86,14 @@ class MethodChannelDesktopPresenceBackend implements DesktopPresenceBackend {
 
   @override
   Future<void> apply(DesktopPresenceSnapshot snapshot) async {
-    final installed = await _channel
-        .invokeMethod<Object?>(DesktopPresenceMethod.setTray, <String, Object?>{
-          'visible': snapshot.trayVisible,
-          'tooltip': snapshot.tooltip,
-          'badgeCount': snapshot.trayBadgeCount,
-        });
+    final installed = await _channel.invokeMethod<Object?>(
+      DesktopPresenceMethod.setTray,
+      <String, Object?>{
+        'visible': snapshot.trayVisible,
+        'tooltip': snapshot.tooltip,
+        'badgeCount': snapshot.trayBadgeCount,
+      },
+    );
     if (snapshot.trayVisible && installed == false) {
       throw StateError('desktop tray was not installed');
     }

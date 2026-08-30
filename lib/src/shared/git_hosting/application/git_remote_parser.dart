@@ -56,17 +56,11 @@ GitRemoteIdentity? parseRemoteAsProvider(
   };
 }
 
-class _ParsedRemoteUrl {
-  const _ParsedRemoteUrl({
-    required this.host,
-    required this.hostname,
-    required this.segments,
-  });
-
-  final String host;
-  final String hostname;
-  final List<String> segments;
-}
+class const _ParsedRemoteUrl({
+  required final String host,
+  required final String hostname,
+  required final List<String> segments,
+});
 
 /// Splits a git remote URL into a lowercased host and its `.git`-stripped,
 /// non-empty path segments. Handles `scheme://[user@]host[:port]/path`,
@@ -136,7 +130,7 @@ GitRemoteIdentity? _asGitHub(String host, List<String> segments) {
     return null;
   }
   return GitRemoteIdentity(
-    provider: GitHostingProvider.github,
+    provider: .github,
     host: host,
     owner: segments[0],
     repo: segments[1],
@@ -148,7 +142,7 @@ GitRemoteIdentity? _asGitLab(String host, List<String> segments) {
     return null;
   }
   return GitRemoteIdentity(
-    provider: GitHostingProvider.gitlab,
+    provider: .gitlab,
     host: host,
     owner: segments.sublist(0, segments.length - 1).join('/'),
     repo: segments.last,
@@ -185,7 +179,7 @@ GitRemoteIdentity? _azureFromGitSegments(String host, List<String> segments) {
     final org = host.substring(0, host.length - '.visualstudio.com'.length);
     final project = before.last;
     return GitRemoteIdentity(
-      provider: GitHostingProvider.azureDevops,
+      provider: .azureDevops,
       host: host,
       owner: org,
       repo: repo,
@@ -198,7 +192,7 @@ GitRemoteIdentity? _azureFromGitSegments(String host, List<String> segments) {
   final org = before[before.length - 2];
   final project = before[before.length - 1];
   return GitRemoteIdentity(
-    provider: GitHostingProvider.azureDevops,
+    provider: .azureDevops,
     host: host,
     owner: org,
     repo: repo,
@@ -213,7 +207,7 @@ GitRemoteIdentity? _azureFromSshSegments(String host, List<String> segments) {
     return null;
   }
   return GitRemoteIdentity(
-    provider: GitHostingProvider.azureDevops,
+    provider: .azureDevops,
     host: host,
     owner: base[0],
     repo: base[2],

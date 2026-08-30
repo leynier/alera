@@ -8,9 +8,7 @@ import 'package:flutter/material.dart';
 @AleraPreview(name: 'Terminal', group: 'Composer', size: Size(560, 220))
 Widget aleraComposerPreview() => const _ComposerPreview();
 
-class _ComposerPreview extends StatefulWidget {
-  const _ComposerPreview();
-
+class const _ComposerPreview() extends StatefulWidget {
   @override
   State<_ComposerPreview> createState() => _ComposerPreviewState();
 }
@@ -44,9 +42,7 @@ class _ComposerPreviewState extends State<_ComposerPreview> {
   }
 }
 
-class _PreviewAttachmentBar extends StatelessWidget {
-  const _PreviewAttachmentBar();
-
+class const _PreviewAttachmentBar() extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
@@ -65,7 +61,7 @@ class _PreviewAttachmentBar extends StatelessWidget {
             borderRadius: BorderRadius.circular(AleraTokens.radiusMd),
           ),
           child: const Row(
-            mainAxisSize: MainAxisSize.min,
+            mainAxisSize: .min,
             children: <Widget>[
               SizedBox(
                 width: AleraTokens.space32,

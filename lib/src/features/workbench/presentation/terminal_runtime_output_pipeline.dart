@@ -2,12 +2,10 @@ part of 'terminal_runtime.dart';
 
 enum _TerminalOutputSource { restore, control, live }
 
-class _TerminalOutputSegment {
-  _TerminalOutputSegment(this.text, this.source);
-
-  final String text;
-  final _TerminalOutputSource source;
-
+class _TerminalOutputSegment(
+  final String text,
+  final _TerminalOutputSource source,
+) {
   /// How far this segment has already been consumed or deliberately trimmed.
   int head = 0;
 

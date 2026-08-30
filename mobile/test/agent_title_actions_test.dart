@@ -44,15 +44,12 @@ void main() {
         await tester.pumpWidget(
           ProviderScope(
             overrides: [
-              terminalClientProvider(
-                'host',
-              ).overrideWith((ref) async => client),
-              workspaceClientProvider(
-                'host',
-              ).overrideWith((ref) async => client),
-              mobileCodexClientProvider(
-                'host',
-              ).overrideWith((ref) async => codex),
+              terminalClientProvider('host')
+                  .overrideWith((ref) async => client),
+              workspaceClientProvider('host')
+                  .overrideWith((ref) async => client),
+              mobileCodexClientProvider('host')
+                  .overrideWith((ref) async => codex),
             ],
             child: const MaterialApp(
               home: WorkspaceTabsScreen(

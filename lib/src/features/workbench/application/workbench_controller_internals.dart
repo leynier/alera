@@ -25,6 +25,7 @@ mixin _WorkbenchControllerInternals on _$WorkbenchController {
   WorkbenchViewPrefsRepository? get _viewPrefsRepository =>
       ref.read(workbenchViewPrefsRepositoryProvider);
 
+  StreamSubscription<WorkspaceSectionSnapshot>? _sectionsSub;
   StreamSubscription<List<Project>>? _projectsSub;
   StreamSubscription<WorkbenchViewPrefs>? _viewPrefsSub;
   final Map<String, StreamSubscription<List<Workspace>>> _workspaceSubs =

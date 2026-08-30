@@ -59,6 +59,8 @@ pub struct Workspace {
     pub tag_ids: Vec<String>,
     #[serde(default)]
     pub tag_names: Vec<String>,
+    #[serde(default)]
+    pub section_id: Option<String>,
     pub parent_workspace_id: Option<String>,
     #[serde(default)]
     pub child_count: i64,

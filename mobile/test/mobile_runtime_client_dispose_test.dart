@@ -49,11 +49,9 @@ final class _HangingCloseWebSocketChannel
   late final WebSocketSink sink = _HangingCloseWebSocketSink(this);
 }
 
-final class _HangingCloseWebSocketSink implements WebSocketSink {
-  _HangingCloseWebSocketSink(this.channel);
-
-  final _HangingCloseWebSocketChannel channel;
-
+final class _HangingCloseWebSocketSink(
+  final _HangingCloseWebSocketChannel channel,
+) implements WebSocketSink {
   @override
   Future<void> get done => channel._close.future;
 

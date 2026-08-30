@@ -24,15 +24,13 @@ const Map<String, String> quotaProviderLabels = <String, String>{
   'opencode': 'OpenCode',
 };
 
-class QuotaSettings {
-  const QuotaSettings({
-    required this.enabledProviders,
-    required this.claudeDefaultEnabled,
-    required this.claudeProfiles,
-    required this.environment,
-  });
-
-  factory QuotaSettings.fromJson(Map<String, Object?> json) {
+class const QuotaSettings({
+  required final List<String> enabledProviders,
+  required final bool claudeDefaultEnabled,
+  required final List<ClaudeQuotaProfile> claudeProfiles,
+  required final QuotaEnvironment environment,
+}) {
+  factory fromJson(Map<String, Object?> json) {
     final providers = json.containsKey('enabledProviders')
         ? json.stringList('enabledProviders')
         : supportedQuotaProviders;
@@ -45,14 +43,9 @@ class QuotaSettings {
         for (final item in json.objectList('claudeProfiles'))
           if (item is Map) ClaudeQuotaProfile.fromJson(asJsonMap(item)),
       ],
-      environment: QuotaEnvironment.fromJson(json.mapValue('environment')),
+      environment: .fromJson(json.mapValue('environment')),
     );
   }
-
-  final List<String> enabledProviders;
-  final bool claudeDefaultEnabled;
-  final List<ClaudeQuotaProfile> claudeProfiles;
-  final QuotaEnvironment environment;
 
   Map<String, Object?> toJson() => <String, Object?>{
     'enabledProviders': enabledProviders,
@@ -78,18 +71,16 @@ class QuotaSettings {
   }
 }
 
-class ClaudeQuotaProfile {
-  const ClaudeQuotaProfile({required this.alias, required this.profile});
-
-  factory ClaudeQuotaProfile.fromJson(Map<String, Object?> json) {
+class const ClaudeQuotaProfile({
+  required final String alias,
+  required final String profile,
+}) {
+  factory fromJson(Map<String, Object?> json) {
     return ClaudeQuotaProfile(
       alias: json['alias'] as String? ?? '',
       profile: json['profile'] as String? ?? '',
     );
   }
-
-  final String alias;
-  final String profile;
 
   Map<String, String> toJson() => <String, String>{
     'alias': alias,
@@ -97,16 +88,14 @@ class ClaudeQuotaProfile {
   };
 }
 
-class QuotaEnvironment {
-  const QuotaEnvironment({
-    this.kimiApiKey = 'KIMI_API_KEY',
-    this.zaiApiKey = 'ZAI_API_KEY',
-    this.zaiBaseUrl = 'ZAI_BASE_URL',
-    this.minimaxApiKey = 'MINIMAX_API_KEY',
-    this.minimaxApiHost = 'MINIMAX_API_HOST',
-  });
-
-  factory QuotaEnvironment.fromJson(Map<String, Object?> json) {
+class const QuotaEnvironment({
+  final String kimiApiKey = 'KIMI_API_KEY',
+  final String zaiApiKey = 'ZAI_API_KEY',
+  final String zaiBaseUrl = 'ZAI_BASE_URL',
+  final String minimaxApiKey = 'MINIMAX_API_KEY',
+  final String minimaxApiHost = 'MINIMAX_API_HOST',
+}) {
+  factory fromJson(Map<String, Object?> json) {
     return QuotaEnvironment(
       kimiApiKey: json['kimiApiKey'] as String? ?? 'KIMI_API_KEY',
       zaiApiKey: json['zaiApiKey'] as String? ?? 'ZAI_API_KEY',
@@ -115,12 +104,6 @@ class QuotaEnvironment {
       minimaxApiHost: json['minimaxApiHost'] as String? ?? 'MINIMAX_API_HOST',
     );
   }
-
-  final String kimiApiKey;
-  final String zaiApiKey;
-  final String zaiBaseUrl;
-  final String minimaxApiKey;
-  final String minimaxApiHost;
 
   Map<String, String> toJson() => <String, String>{
     'kimiApiKey': kimiApiKey,

@@ -4,8 +4,8 @@ import 'package:flutter/material.dart';
 
 @AleraPreview(name: 'States', group: 'Checkbox', size: Size(280, 160))
 Widget aleraCheckboxPreview() => const Column(
-  mainAxisSize: MainAxisSize.min,
-  crossAxisAlignment: CrossAxisAlignment.start,
+  mainAxisSize: .min,
+  crossAxisAlignment: .start,
   children: <Widget>[
     AleraCheckbox(value: true, onChanged: _ignoreValue, label: 'Overwrite'),
     AleraCheckbox(value: false, onChanged: _ignoreValue, label: 'Overwrite'),

@@ -16,9 +16,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 /// Settings pane for viewing and remapping keyboard shortcuts.
-class KeyboardSettingsPane extends ConsumerStatefulWidget {
-  const KeyboardSettingsPane({super.key});
-
+class const KeyboardSettingsPane({super.key}) extends ConsumerStatefulWidget {
   @override
   ConsumerState<KeyboardSettingsPane> createState() =>
       _KeyboardSettingsPaneState();
@@ -65,7 +63,7 @@ class _KeyboardSettingsPaneState extends ConsumerState<KeyboardSettingsPane> {
     if (_isModifierKey(event.logicalKey)) {
       return KeyEventResult.handled;
     }
-    final modifiers = KeyModifierState.fromKeyboard(HardwareKeyboard.instance);
+    final modifiers = KeyModifierState.fromKeyboard(.instance);
     final result = KeyChord.fromKeyEvent(event, modifiers, isMacOS: _isMacOS);
     if (result is KeyChordParseFailure) {
       setState(() => _errors[id] = result.message);
@@ -134,7 +132,7 @@ class _KeyboardSettingsPaneState extends ConsumerState<KeyboardSettingsPane> {
       focusNode: _recordFocus,
       onKeyEvent: _handleRecordKey,
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
+        crossAxisAlignment: .stretch,
         children: <Widget>[
           _behaviorGroup(settings),
           for (final group in KeyboardActionGroup.values) ...<Widget>[
@@ -164,11 +162,11 @@ class _KeyboardSettingsPaneState extends ConsumerState<KeyboardSettingsPane> {
                 .setTerminalShortcutPolicy(policy),
             segments: const <ButtonSegment<TerminalShortcutPolicy>>[
               ButtonSegment<TerminalShortcutPolicy>(
-                value: TerminalShortcutPolicy.appFirst,
+                value: .appFirst,
                 label: Text('App First'),
               ),
               ButtonSegment<TerminalShortcutPolicy>(
-                value: TerminalShortcutPolicy.terminalFirst,
+                value: .terminalFirst,
                 label: Text('Terminal First'),
               ),
             ],
@@ -223,33 +221,19 @@ class _KeyboardSettingsPaneState extends ConsumerState<KeyboardSettingsPane> {
   }
 }
 
-class _ShortcutBindingRow extends StatelessWidget {
-  const _ShortcutBindingRow({
-    required this.label,
-    required this.description,
-    required this.chords,
-    required this.disabled,
-    required this.modified,
-    required this.recording,
-    required this.error,
-    required this.isMacOS,
-    required this.onRecordToggle,
-    required this.onReset,
-    required this.onDisable,
-  });
-
-  final String label;
-  final String description;
-  final List<KeyChord> chords;
-  final bool disabled;
-  final bool modified;
-  final bool recording;
-  final String? error;
-  final bool isMacOS;
-  final VoidCallback onRecordToggle;
-  final VoidCallback? onReset;
-  final VoidCallback? onDisable;
-
+class const _ShortcutBindingRow({
+  required final String label,
+  required final String description,
+  required final List<KeyChord> chords,
+  required final bool disabled,
+  required final bool modified,
+  required final bool recording,
+  required final String? error,
+  required final bool isMacOS,
+  required final VoidCallback onRecordToggle,
+  required final VoidCallback? onReset,
+  required final VoidCallback? onDisable,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return AleraSettingRow(
@@ -257,7 +241,7 @@ class _ShortcutBindingRow extends StatelessWidget {
       description: description,
       controlWidth: 280,
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.end,
+        mainAxisAlignment: .end,
         children: <Widget>[
           Expanded(child: _bindingDisplay(context)),
           const SizedBox(width: AleraTokens.space8),
@@ -292,23 +276,23 @@ class _ShortcutBindingRow extends StatelessWidget {
     if (recording) {
       return Text(
         'Press keys… (Esc to cancel)',
-        textAlign: TextAlign.right,
+        textAlign: .right,
         style: theme.textTheme.bodySmall?.copyWith(color: AleraTokens.accent),
       );
     }
     if (error case final String message) {
       return Text(
         message,
-        textAlign: TextAlign.right,
+        textAlign: .right,
         maxLines: 2,
-        overflow: TextOverflow.ellipsis,
+        overflow: .ellipsis,
         style: theme.textTheme.bodySmall?.copyWith(color: AleraTokens.error),
       );
     }
     if (disabled) {
       return Text(
         'Disabled',
-        textAlign: TextAlign.right,
+        textAlign: .right,
         style: theme.textTheme.bodySmall?.copyWith(
           color: AleraTokens.foregroundMuted,
         ),
@@ -317,14 +301,14 @@ class _ShortcutBindingRow extends StatelessWidget {
     if (chords.isEmpty) {
       return Text(
         'Unassigned',
-        textAlign: TextAlign.right,
+        textAlign: .right,
         style: theme.textTheme.bodySmall?.copyWith(
           color: AleraTokens.foregroundMuted,
         ),
       );
     }
     return Wrap(
-      alignment: WrapAlignment.end,
+      alignment: .end,
       spacing: AleraTokens.space4,
       runSpacing: AleraTokens.space4,
       children: <Widget>[
@@ -335,22 +319,16 @@ class _ShortcutBindingRow extends StatelessWidget {
   }
 }
 
-class _GroupCard extends StatelessWidget {
-  const _GroupCard({
-    required this.title,
-    required this.description,
-    required this.children,
-  });
-
-  final String title;
-  final String? description;
-  final List<Widget> children;
-
+class const _GroupCard({
+  required final String title,
+  required final String? description,
+  required final List<Widget> children,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+      crossAxisAlignment: .stretch,
       children: <Widget>[
         Padding(
           padding: const EdgeInsets.only(
@@ -358,13 +336,13 @@ class _GroupCard extends StatelessWidget {
             bottom: AleraTokens.space8,
           ),
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            crossAxisAlignment: .start,
             children: <Widget>[
               Text(
                 title,
                 style: theme.textTheme.titleSmall?.copyWith(
                   color: AleraTokens.foreground,
-                  fontWeight: FontWeight.w600,
+                  fontWeight: .w600,
                 ),
               ),
               if (description case final String text) ...<Widget>[

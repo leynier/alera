@@ -65,9 +65,8 @@ void main() {
         containsPair('ALERA_OPENCODE_CONFIG_DIR', overlay),
       );
 
-      final plugin = File(
-        p.join(overlay!, 'plugins', 'alera-agent-status.js'),
-      ).readAsStringSync();
+      final plugin = File(p.join(overlay!, 'plugins', 'alera-agent-status.js'))
+          .readAsStringSync();
       expect(plugin, contains('ALERA_AGENT_STATUS_MANAGED_FILE'));
       expect(plugin, contains('AleraOpenCodeStatusPlugin'));
     });
@@ -77,17 +76,14 @@ void main() {
       () async {
         final userConfig = Directory(p.join(home.path, 'opencode-user'))
           ..createSync(recursive: true);
-        File(
-          p.join(userConfig.path, 'opencode.json'),
-        ).writeAsStringSync('{"theme":"solarized"}');
+        File(p.join(userConfig.path, 'opencode.json'))
+            .writeAsStringSync('{"theme":"solarized"}');
         final plugins = Directory(p.join(userConfig.path, 'plugins'))
           ..createSync();
-        File(
-          p.join(plugins.path, 'user-plugin.js'),
-        ).writeAsStringSync('export default function userPlugin() {}\n');
-        File(
-          p.join(plugins.path, 'alera-agent-status.js'),
-        ).writeAsStringSync('USER OWNED PLUGIN\n');
+        File(p.join(plugins.path, 'user-plugin.js'))
+            .writeAsStringSync('export default function userPlugin() {}\n');
+        File(p.join(plugins.path, 'alera-agent-status.js'))
+            .writeAsStringSync('USER OWNED PLUGIN\n');
 
         final preparation = await service(
           environment: <String, String>{'OPENCODE_CONFIG_DIR': userConfig.path},
@@ -109,9 +105,8 @@ void main() {
         expect(overlayPlugin, contains('AleraOpenCodeStatusPlugin'));
         expect(overlayPlugin, isNot('USER OWNED PLUGIN\n'));
         expect(
-          File(
-            p.join(plugins.path, 'alera-agent-status.js'),
-          ).readAsStringSync(),
+          File(p.join(plugins.path, 'alera-agent-status.js'))
+              .readAsStringSync(),
           'USER OWNED PLUGIN\n',
         );
       },
@@ -178,9 +173,8 @@ void main() {
       final userConfig = Directory(p.join(home.path, 'plain-opencode'))
         ..createSync(recursive: true);
       File(p.join(userConfig.path, 'opencode.json')).writeAsStringSync('{}');
-      File(
-        p.join(home.path, '.bashrc'),
-      ).writeAsStringSync('export OPENCODE_CONFIG_DIR=${userConfig.path}\n');
+      File(p.join(home.path, '.bashrc'))
+          .writeAsStringSync('export OPENCODE_CONFIG_DIR=${userConfig.path}\n');
 
       final preparation = await service(
         environment: <String, String>{'SHELL': '/bin/bash'},
@@ -197,9 +191,8 @@ void main() {
         File(p.join(userConfig.path, 'opencode.json')).writeAsStringSync('{}');
         final zdotdir = Directory(p.join(home.path, 'zsh-config'))
           ..createSync(recursive: true);
-        File(
-          p.join(home.path, '.zshenv'),
-        ).writeAsStringSync('export ZDOTDIR="\${HOME}/zsh-config"\n');
+        File(p.join(home.path, '.zshenv'))
+            .writeAsStringSync('export ZDOTDIR="\${HOME}/zsh-config"\n');
         File(p.join(zdotdir.path, '.zshrc')).writeAsStringSync(
           "export OPENCODE_CONFIG_DIR='${userConfig.path}' # literal source\n",
         );
@@ -210,9 +203,8 @@ void main() {
 
         expect(preparation.sourcePath, userConfig.path);
         expect(
-          File(
-            p.join(preparation.overlayPath!, 'opencode.json'),
-          ).readAsStringSync(),
+          File(p.join(preparation.overlayPath!, 'opencode.json'))
+              .readAsStringSync(),
           '{}',
         );
       },
@@ -223,14 +215,12 @@ void main() {
       () async {
         final explicitSource = Directory(p.join(home.path, 'explicit-opencode'))
           ..createSync(recursive: true);
-        File(
-          p.join(explicitSource.path, 'opencode.json'),
-        ).writeAsStringSync('{"source":"explicit"}');
+        File(p.join(explicitSource.path, 'opencode.json'))
+            .writeAsStringSync('{"source":"explicit"}');
         final publicSource = Directory(p.join(home.path, 'public-opencode'))
           ..createSync(recursive: true);
-        File(
-          p.join(publicSource.path, 'opencode.json'),
-        ).writeAsStringSync('{"source":"public"}');
+        File(p.join(publicSource.path, 'opencode.json'))
+            .writeAsStringSync('{"source":"public"}');
 
         final preparation = await service(
           environment: <String, String>{
@@ -241,9 +231,8 @@ void main() {
 
         expect(preparation.sourcePath, explicitSource.path);
         expect(
-          File(
-            p.join(preparation.overlayPath!, 'opencode.json'),
-          ).readAsStringSync(),
+          File(p.join(preparation.overlayPath!, 'opencode.json'))
+              .readAsStringSync(),
           '{"source":"explicit"}',
         );
       },
@@ -263,9 +252,8 @@ void main() {
       ).prepareOpenCodeForTerminalLaunch(terminalSessionId: 'session-copy');
 
       expect(
-        File(
-          p.join(preparation.overlayPath!, 'nested', 'config.json'),
-        ).readAsStringSync(),
+        File(p.join(preparation.overlayPath!, 'nested', 'config.json'))
+            .readAsStringSync(),
         'nested',
       );
       final markerRoot = Directory(
@@ -288,9 +276,10 @@ void main() {
               environment: <String, String>{
                 'OPENCODE_CONFIG_DIR': userConfig.path,
               },
-              resourceLinkCreator:
-                  ({required sourcePath, required targetPath}) =>
-                      throw const FileSystemException('links disabled'),
+              resourceLinkCreator: ({
+                required sourcePath,
+                required targetPath,
+              }) => throw const FileSystemException('links disabled'),
             ).prepareOpenCodeForTerminalLaunch(
               terminalSessionId: 'session-copy-link',
             );
@@ -310,11 +299,10 @@ void main() {
       final missing = p.join(home.path, 'missing-copilot');
 
       final preparation =
-          await service(
-            environment: <String, String>{'COPILOT_HOME': missing},
-          ).prepareCopilotForTerminalLaunch(
-            terminalSessionId: 'session-copilot-missing',
-          );
+          await service(environment: <String, String>{'COPILOT_HOME': missing})
+              .prepareCopilotForTerminalLaunch(
+                terminalSessionId: 'session-copilot-missing',
+              );
 
       expect(preparation.overlayPath, isNull);
       expect(preparation.sourcePath, missing);
@@ -385,17 +373,14 @@ void main() {
         ..createSync(recursive: true);
       File(p.join(piAgent.path, 'auth.json')).writeAsStringSync('secret token');
       Directory(p.join(piAgent.path, 'sessions')).createSync();
-      File(
-        p.join(piAgent.path, 'sessions', 'session.json'),
-      ).writeAsStringSync('{}');
+      File(p.join(piAgent.path, 'sessions', 'session.json'))
+          .writeAsStringSync('{}');
       final extensions = Directory(p.join(piAgent.path, 'extensions'))
         ..createSync();
-      File(
-        p.join(extensions.path, 'user-extension.ts'),
-      ).writeAsStringSync('export default function userExtension() {}\n');
-      File(
-        p.join(extensions.path, 'alera-agent-status.ts'),
-      ).writeAsStringSync('USER OWNED EXTENSION\n');
+      File(p.join(extensions.path, 'user-extension.ts'))
+          .writeAsStringSync('export default function userExtension() {}\n');
+      File(p.join(extensions.path, 'alera-agent-status.ts'))
+          .writeAsStringSync('USER OWNED EXTENSION\n');
 
       final preparation = await service().preparePiForTerminalLaunch(
         terminalSessionId: 'session-4',
@@ -415,9 +400,8 @@ void main() {
         '{}',
       );
       expect(
-        File(
-          p.join(overlay, 'extensions', 'user-extension.ts'),
-        ).readAsStringSync(),
+        File(p.join(overlay, 'extensions', 'user-extension.ts'))
+            .readAsStringSync(),
         'export default function userExtension() {}\n',
       );
       final statusExtension = File(
@@ -426,9 +410,8 @@ void main() {
       expect(statusExtension, contains('ALERA_AGENT_STATUS_MANAGED_FILE'));
       expect(statusExtension, contains("pi.on('agent_start'"));
       expect(
-        File(
-          p.join(extensions.path, 'alera-agent-status.ts'),
-        ).readAsStringSync(),
+        File(p.join(extensions.path, 'alera-agent-status.ts'))
+            .readAsStringSync(),
         'USER OWNED EXTENSION\n',
       );
     });
@@ -454,15 +437,13 @@ void main() {
         containsPair('ALERA_COPILOT_HOME', overlay),
       );
       expect(File(p.join(overlay, 'settings.json')).readAsStringSync(), '{}');
-      final overlayHooks = File(
-        p.join(overlay, 'hooks', 'alera.json'),
-      ).readAsStringSync();
+      final overlayHooks = File(p.join(overlay, 'hooks', 'alera.json'))
+          .readAsStringSync();
       expect(overlayHooks, contains('ALERA_COPILOT_HOOK_EVENT'));
       expect(overlayHooks, contains('UserPromptSubmit'));
       expect(
-        File(
-          p.join(overlay, '.alera', 'agent-hooks', 'alera-copilot-hook.sh'),
-        ).readAsStringSync(),
+        File(p.join(overlay, '.alera', 'agent-hooks', 'alera-copilot-hook.sh'))
+            .readAsStringSync(),
         contains('/hook/copilot'),
       );
       expect(
@@ -476,9 +457,8 @@ void main() {
       () async {
         final explicitSource = Directory(p.join(home.path, 'explicit-amp'))
           ..createSync(recursive: true);
-        File(
-          p.join(explicitSource.path, 'settings.json'),
-        ).writeAsStringSync('{"source":"explicit"}\n');
+        File(p.join(explicitSource.path, 'settings.json'))
+            .writeAsStringSync('{"source":"explicit"}\n');
         final explicitPreparation =
             await service(
               environment: <String, String>{
@@ -491,9 +471,8 @@ void main() {
 
         final publicSource = Directory(p.join(home.path, 'public-amp'))
           ..createSync(recursive: true);
-        File(
-          p.join(publicSource.path, 'settings.json'),
-        ).writeAsStringSync('{"source":"public"}\n');
+        File(p.join(publicSource.path, 'settings.json'))
+            .writeAsStringSync('{"source":"public"}\n');
         final publicPreparation = await service(
           environment: <String, String>{
             'AMP_CONFIG_DIR': publicSource.path,
@@ -505,9 +484,8 @@ void main() {
         final xdgHome = Directory(p.join(home.path, 'xdg'))..createSync();
         final xdgSource = Directory(p.join(xdgHome.path, 'amp'))
           ..createSync(recursive: true);
-        File(
-          p.join(xdgSource.path, 'settings.json'),
-        ).writeAsStringSync('{"source":"xdg"}\n');
+        File(p.join(xdgSource.path, 'settings.json'))
+            .writeAsStringSync('{"source":"xdg"}\n');
         final xdgPreparation = await service(
           environment: <String, String>{'XDG_CONFIG_HOME': xdgHome.path},
         ).prepareAmpForTerminalLaunch(terminalSessionId: 'session-amp-xdg');
@@ -515,9 +493,8 @@ void main() {
 
         final defaultAmp = Directory(p.join(home.path, '.config', 'amp'))
           ..createSync(recursive: true);
-        File(
-          p.join(defaultAmp.path, 'settings.json'),
-        ).writeAsStringSync('{"source":"default"}\n');
+        File(p.join(defaultAmp.path, 'settings.json'))
+            .writeAsStringSync('{"source":"default"}\n');
         final skippedXdgPreparation = await service(
           environment: <String, String>{
             'XDG_CONFIG_HOME': xdgHome.path,
@@ -534,9 +511,8 @@ void main() {
         final defaultOpenCode = Directory(
           p.join(home.path, '.config', 'opencode'),
         )..createSync(recursive: true);
-        File(
-          p.join(defaultOpenCode.path, 'opencode.json'),
-        ).writeAsStringSync('{"source":"default"}');
+        File(p.join(defaultOpenCode.path, 'opencode.json'))
+            .writeAsStringSync('{"source":"default"}');
 
         final preparation =
             await service(
@@ -557,9 +533,8 @@ void main() {
       () async {
         final userConfig = Directory(p.join(home.path, 'opencode-managed-dir'))
           ..createSync(recursive: true);
-        Directory(
-          p.join(userConfig.path, 'plugins', 'alera-agent-status.js'),
-        ).createSync(recursive: true);
+        Directory(p.join(userConfig.path, 'plugins', 'alera-agent-status.js'))
+            .createSync(recursive: true);
 
         final preparation =
             await service(
@@ -594,7 +569,7 @@ void main() {
       File(p.join(amp.path, 'settings.json')).writeAsStringSync('{}');
 
       final windowsService = service(
-        platform: ManagedAgentHookPlatform.windows,
+        platform: .windows,
         environment: <String, String>{
           'USERPROFILE': home.path,
           'APPDATA': appData.path,
@@ -618,9 +593,8 @@ void main() {
           ..createSync(recursive: true);
         final piAgent = Directory(p.join(profileHome.path, '.pi', 'agent'))
           ..createSync(recursive: true);
-        File(
-          p.join(piAgent.path, 'auth.json'),
-        ).writeAsStringSync('profile auth');
+        File(p.join(piAgent.path, 'auth.json'))
+            .writeAsStringSync('profile auth');
         final profileService = AgentRuntimeOverlayService(
           environment: <String, String>{'USERPROFILE': profileHome.path},
           applicationSupportDirectory: () async => support,

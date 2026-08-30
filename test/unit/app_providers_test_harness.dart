@@ -8,7 +8,7 @@ Project _project({required String id, required String path}) {
     repoPath: path,
     createdAt: now,
     updatedAt: now,
-    kind: ProjectKind.gitRepository,
+    kind: .gitRepository,
   );
 }
 
@@ -48,9 +48,8 @@ final _immediateNotificationDelivery = [
   )),
 ];
 
-class _TestSettingsController extends SettingsController {
-  _TestSettingsController(this._seed);
-  final AleraSettings _seed;
+class _TestSettingsController(final AleraSettings _seed)
+    extends SettingsController {
   @override
   AleraSettings build() => _seed;
   void setState(AleraSettings next) {
@@ -58,8 +57,9 @@ class _TestSettingsController extends SettingsController {
   }
 }
 
-final class _FakeTerminalHostClient implements TerminalHostClient {
-  _FakeTerminalHostClient({TerminalHostAttachment? attachment})
+final class _FakeTerminalHostClient({TerminalHostAttachment? attachment})
+    implements TerminalHostClient {
+  this
     : attachment =
           attachment ??
           TerminalHostAttachment(
@@ -361,17 +361,11 @@ class _FakeProcessRunner implements ProcessRunner {
   }
 }
 
-class _ProcessCall {
-  const _ProcessCall({
-    required this.executable,
-    required this.arguments,
-    required this.workingDirectory,
-  });
-
-  final String executable;
-  final List<String> arguments;
-  final String? workingDirectory;
-}
+class const _ProcessCall({
+  required final String executable,
+  required final List<String> arguments,
+  required final String? workingDirectory,
+});
 
 class _FakeExternalUriLauncher implements ExternalUriLauncher {
   @override
@@ -518,10 +512,8 @@ class _FakeAgentHookServer implements AgentHookServer {
   }
 }
 
-class _TestWorkbenchController extends WorkbenchController {
-  _TestWorkbenchController(this._seed);
-
-  final WorkbenchState _seed;
+class _TestWorkbenchController(final WorkbenchState _seed)
+    extends WorkbenchController {
   final List<String> selectedWorkspaceIds = <String>[];
   final Map<String, String> activeTabs = <String, String>{};
 
@@ -579,12 +571,9 @@ class _FakeAwakeAssertion implements AgentAwakeAssertion {
   Future<void> dispose() async {}
 }
 
-class _FakePathProviderPlatform extends PathProviderPlatform
+class _FakePathProviderPlatform(final String applicationSupportPath)
+    extends PathProviderPlatform
     with MockPlatformInterfaceMixin {
-  _FakePathProviderPlatform(this.applicationSupportPath);
-
-  final String applicationSupportPath;
-
   @override
   Future<String?> getApplicationSupportPath() async => applicationSupportPath;
 }

@@ -8,17 +8,15 @@ import 'dart:convert';
 /// the prompt landed in the composer instead of being sent. The host already
 /// solves this: `deferredEnter` queues the CR as its own write half a second
 /// later, atomically, so no other client can interleave between the two.
-class TerminalComposeDelivery {
-  const TerminalComposeDelivery({
-    required this.bytes,
-    required this.bracketedPaste,
-    required this.deferredEnter,
-  });
-
+class const TerminalComposeDelivery({
+  required final List<int> bytes,
+  required final bool bracketedPaste,
+  required final bool deferredEnter,
+}) {
   /// Splits the prompt from its Enter when the host supports it. Without that
   /// support the only option is the single write, which is the behavior that
   /// produced the newline.
-  factory TerminalComposeDelivery.forText(
+  factory forText(
     String text, {
     required bool withEnter,
     required bool hostSupportsDeferredInput,
@@ -36,10 +34,6 @@ class TerminalComposeDelivery {
       deferredEnter: withEnter,
     );
   }
-
-  final List<int> bytes;
-  final bool bracketedPaste;
-  final bool deferredEnter;
 }
 
 /// Whether the host should wrap this text in bracketed paste before writing it.

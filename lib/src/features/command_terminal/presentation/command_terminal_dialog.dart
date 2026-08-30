@@ -19,16 +19,11 @@ import 'package:flutter/services.dart';
 /// watch and to answer: a `sudo` password prompt, an `apt` confirmation, a
 /// installer asking which version to keep. Nothing here polls for completion -
 /// the shell outlives the command, and the returning prompt is the signal.
-class CommandTerminalDialog extends StatefulWidget {
-  const CommandTerminalDialog({
-    super.key,
-    required this.request,
-    required this.session,
-  });
-
-  final CommandTerminalRequest request;
-  final TerminalSessionHandle session;
-
+class const CommandTerminalDialog({
+  super.key,
+  required final CommandTerminalRequest request,
+  required final TerminalSessionHandle session,
+}) extends StatefulWidget {
   @override
   State<CommandTerminalDialog> createState() => _CommandTerminalDialogState();
 }
@@ -84,7 +79,7 @@ class _CommandTerminalDialogState extends State<CommandTerminalDialog> {
           child: Padding(
             padding: const EdgeInsets.all(AleraTokens.space16),
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
+              crossAxisAlignment: .stretch,
               children: <Widget>[
                 AleraDialogHeader(
                   title: widget.request.title,
@@ -134,7 +129,7 @@ class _CommandTerminalDialogState extends State<CommandTerminalDialog> {
                 ),
                 const SizedBox(height: AleraTokens.space12),
                 Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
+                  mainAxisAlignment: .end,
                   children: <Widget>[
                     FilledButton(
                       onPressed: () => unawaited(_requestClose()),

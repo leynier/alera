@@ -1,16 +1,10 @@
 part of 'codex_chat_surface.dart';
 
-class _CodexContextUsageIndicator extends StatefulWidget {
-  const _CodexContextUsageIndicator({
-    required this.used,
-    required this.limit,
-    required this.onCompact,
-  });
-
-  final int used;
-  final int limit;
-  final VoidCallback onCompact;
-
+class const _CodexContextUsageIndicator({
+  required final int used,
+  required final int limit,
+  required final VoidCallback onCompact,
+}) extends StatefulWidget {
   @override
   State<_CodexContextUsageIndicator> createState() =>
       _CodexContextUsageIndicatorState();
@@ -101,8 +95,8 @@ class _CodexContextUsageIndicatorState
     width: AleraTokens.contextMenuWidth,
     child: CompositedTransformFollower(
       link: _layerLink,
-      targetAnchor: Alignment.topRight,
-      followerAnchor: Alignment.bottomRight,
+      targetAnchor: .topRight,
+      followerAnchor: .bottomRight,
       offset: const Offset(0, -AleraTokens.space8),
       child: MouseRegion(
         onEnter: (_) => _hovered = true,
@@ -127,8 +121,8 @@ class _CodexContextUsageIndicatorState
               ],
             ),
             child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
+              mainAxisSize: .min,
+              crossAxisAlignment: .stretch,
               children: <Widget>[
                 const Text('Context Window'),
                 const SizedBox(height: AleraTokens.space4),

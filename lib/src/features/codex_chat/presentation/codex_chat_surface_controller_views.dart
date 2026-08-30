@@ -1,29 +1,17 @@
 part of 'codex_chat_surface.dart';
 
-class _CodexControllerTimeline extends ConsumerWidget {
-  const _CodexControllerTimeline({
-    required this.tabId,
-    required this.workspacePath,
-    required this.fallbackTitle,
-    required this.showRawLogs,
-    required this.timeline,
-    required this.timelineKey,
-    required this.loadingEarlier,
-    required this.planDecisionRevision,
-    required this.onOpenAttachment,
-  });
-
-  final String tabId;
-  final String workspacePath;
-  final String fallbackTitle;
-  final bool showRawLogs;
-  final ScrollController timeline;
-  final GlobalKey<_CodexTimelineState> timelineKey;
-  final bool loadingEarlier;
-  final ValueNotifier<int> planDecisionRevision;
-  final Future<void> Function(String path, {required bool isImage})
-  onOpenAttachment;
-
+class const _CodexControllerTimeline({
+  required final String tabId,
+  required final String workspacePath,
+  required final String fallbackTitle,
+  required final bool showRawLogs,
+  required final ScrollController timeline,
+  required final GlobalKey<_CodexTimelineState> timelineKey,
+  required final bool loadingEarlier,
+  required final ValueNotifier<int> planDecisionRevision,
+  required final Future<void> Function(String path, {required bool isImage})
+  onOpenAttachment,
+}) extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final view = ref.watch(
@@ -70,71 +58,48 @@ class _CodexControllerTimeline extends ConsumerWidget {
   }
 }
 
-class _CodexControllerFooter extends ConsumerWidget {
-  const _CodexControllerFooter({
-    required this.tabId,
-    required this.composerController,
-    required this.composerFocus,
-    required this.attachments,
-    required this.draftItems,
-    required this.savedPrompts,
-    required this.workspacePath,
-    required this.workspaceId,
-    required this.workspaceFiles,
-    required this.onEditQueued,
-    required this.onDraftItemSelected,
-    required this.onCommand,
-    required this.onSend,
-    required this.onAddAttachment,
-    required this.onPaste,
-    required this.onDropAttachments,
-    required this.onRemoveAttachment,
-    required this.onOpenAttachment,
-    required this.onRemoveDraftItem,
-    required this.onSubmitQuestions,
-    required this.onPlanInteraction,
-    required this.onImplementPlan,
-    required this.onDeclinePlan,
-    required this.onRefinePlan,
-  });
-
-  final String tabId;
-  final TextEditingController composerController;
-  final FocusNode composerFocus;
-  final List<CodexInputAttachment> attachments;
-  final List<CodexDraftItem> draftItems;
-  final List<native.CodexSavedPrompt> savedPrompts;
-  final String workspacePath;
-  final String workspaceId;
-  final WorkspaceFileService workspaceFiles;
-  final void Function(int index, CodexQueuedMessage message) onEditQueued;
-  final ValueChanged<CodexDraftItem> onDraftItemSelected;
-  final void Function(CodexChatState state, CodexComposerCommand command)
-  onCommand;
-  final VoidCallback onSend;
-  final Future<void> Function() onAddAttachment;
-  final Future<void> Function() onPaste;
-  final Future<void> Function(
+class const _CodexControllerFooter({
+  required final String tabId,
+  required final TextEditingController composerController,
+  required final FocusNode composerFocus,
+  required final List<CodexInputAttachment> attachments,
+  required final List<CodexDraftItem> draftItems,
+  required final List<native.CodexSavedPrompt> savedPrompts,
+  required final String workspacePath,
+  required final String workspaceId,
+  required final WorkspaceFileService workspaceFiles,
+  required final void Function(int index, CodexQueuedMessage message)
+  onEditQueued,
+  required final ValueChanged<CodexDraftItem> onDraftItemSelected,
+  required final void Function(
+    CodexChatState state,
+    CodexComposerCommand command,
+  )
+  onCommand,
+  required final VoidCallback onSend,
+  required final Future<void> Function() onAddAttachment,
+  required final Future<void> Function() onPaste,
+  required final Future<void> Function(
     Iterable<String> paths, {
     CodexInputAttachmentOrigin origin,
     String? tokenText,
     int? tokenStart,
   })
-  onDropAttachments;
-  final ValueChanged<CodexInputAttachment> onRemoveAttachment;
-  final Future<void> Function(String path, {required bool isImage})
-  onOpenAttachment;
-  final ValueChanged<CodexDraftItem> onRemoveDraftItem;
-  final Future<void> Function(
+  onDropAttachments,
+  required final ValueChanged<CodexInputAttachment> onRemoveAttachment,
+  required final Future<void> Function(String path, {required bool isImage})
+  onOpenAttachment,
+  required final ValueChanged<CodexDraftItem> onRemoveDraftItem,
+  required final Future<void> Function(
     CodexPendingRequest request,
     Map<String, List<String>> answers,
   )
-  onSubmitQuestions;
-  final VoidCallback onPlanInteraction;
-  final Future<void> Function() onImplementPlan;
-  final Future<void> Function() onDeclinePlan;
-  final Future<void> Function(String value) onRefinePlan;
-
+  onSubmitQuestions,
+  required final VoidCallback onPlanInteraction,
+  required final Future<void> Function() onImplementPlan,
+  required final Future<void> Function() onDeclinePlan,
+  required final Future<void> Function(String value) onRefinePlan,
+}) extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final view = ref.watch(
@@ -150,8 +115,8 @@ class _CodexControllerFooter extends ConsumerWidget {
         (view.pendingQuestions.isNotEmpty && !view.hasBlockingQuestion);
     final goal = state.supportsGoals ? state.snapshot.goal : null;
     return Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: .min,
+      crossAxisAlignment: .stretch,
       children: <Widget>[
         if (state.error != null)
           _CodexInlineError(message: state.error!, onRetry: controller.retry),
@@ -175,7 +140,7 @@ class _CodexControllerFooter extends ConsumerWidget {
           _CodexPlanProgressDock(progress: view.planProgress!),
         if (state.recovery != null)
           Flexible(
-            fit: FlexFit.loose,
+            fit: .loose,
             child: _CodexRecoveryQuestionDock(
               key: ValueKey<(String, String?)>((tabId, controller.threadId)),
               message: state.recovery!.message,
@@ -184,7 +149,7 @@ class _CodexControllerFooter extends ConsumerWidget {
           ),
         if (showQuestionDock)
           Flexible(
-            fit: FlexFit.loose,
+            fit: .loose,
             child: view.pendingQuestions.isNotEmpty
                 ? _CodexPendingQuestionQueue(
                     key: ValueKey<(String, String?)>((
@@ -239,7 +204,7 @@ class _CodexControllerFooter extends ConsumerWidget {
                 maxWidth: AleraTokens.codexConversationMaxWidth,
               ),
               child: Stack(
-                clipBehavior: Clip.none,
+                clipBehavior: .none,
                 children: <Widget>[
                   Padding(
                     padding: EdgeInsets.only(
@@ -300,15 +265,11 @@ class _CodexControllerFooter extends ConsumerWidget {
                         },
                         onPauseResume: goal.status.canPause
                             ? () => unawaited(
-                                controller.updateGoalStatus(
-                                  CodexThreadGoalStatus.paused,
-                                ),
+                                controller.updateGoalStatus(.paused),
                               )
                             : goal.status.canResume
                             ? () => unawaited(
-                                controller.updateGoalStatus(
-                                  CodexThreadGoalStatus.active,
-                                ),
+                                controller.updateGoalStatus(.active),
                               )
                             : null,
                         onClear: () => unawaited(controller.clearGoal()),

@@ -2,9 +2,10 @@ import 'dart:convert';
 
 import 'package:shared_preferences/shared_preferences.dart';
 
-class LocalWorkspaceAgentExpansionRepository {
-  LocalWorkspaceAgentExpansionRepository({SharedPreferencesAsync? preferences})
-    : _preferences = preferences ?? SharedPreferencesAsync();
+class LocalWorkspaceAgentExpansionRepository({
+  SharedPreferencesAsync? preferences,
+}) {
+  this : _preferences = preferences ?? SharedPreferencesAsync();
 
   static const String _keyPrefix = 'alera.mobile.workspaceAgentExpansion.';
 

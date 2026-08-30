@@ -86,7 +86,7 @@ void main() {
 
     test('clamps restored bounds into the nearest visible display', () {
       final clamped = clampWindowBoundsToVisibleDisplays(
-        const Rect.fromLTWH(2500, 100, 2000, 1200),
+        const .fromLTWH(2500, 100, 2000, 1200),
         const <Rect>[
           Rect.fromLTWH(0, 0, 1440, 900),
           Rect.fromLTWH(1440, 0, 1280, 800),
@@ -98,7 +98,7 @@ void main() {
 
     test('clamps to the nearest display when there is no intersection', () {
       final clamped = clampWindowBoundsToVisibleDisplays(
-        const Rect.fromLTWH(5000, 5000, 500, 400),
+        const .fromLTWH(5000, 5000, 500, 400),
         const <Rect>[
           Rect.fromLTWH(0, 0, 1000, 800),
           Rect.fromLTWH(1200, 0, 1000, 800),
@@ -108,7 +108,7 @@ void main() {
       expect(clamped, const Rect.fromLTWH(1700, 400, 500, 400));
       expect(
         clampWindowBoundsToVisibleDisplays(
-          const Rect.fromLTWH(1, 2, 3, 4),
+          const .fromLTWH(1, 2, 3, 4),
           const <Rect>[Rect.fromLTWH(0, 0, -1, 10)],
         ),
         const Rect.fromLTWH(1, 2, 3, 4),
@@ -116,7 +116,7 @@ void main() {
       expect(clampWindowBoundsToVisibleDisplays(null, const <Rect>[]), isNull);
       expect(
         clampWindowBoundsToVisibleDisplays(
-          const Rect.fromLTWH(0, 0, double.nan, 10),
+          const .fromLTWH(0, 0, .nan, 10),
           const <Rect>[],
         ),
         isNull,
@@ -187,7 +187,7 @@ void main() {
       final coordinator = AppWindowLifecycleCoordinator(
         repository: repository,
         window: window,
-        saveDebounce: Duration.zero,
+        saveDebounce: .zero,
       );
       await coordinator.start();
 
@@ -216,7 +216,7 @@ void main() {
       final coordinator = AppWindowLifecycleCoordinator(
         repository: repository,
         window: window,
-        saveDebounce: Duration.zero,
+        saveDebounce: .zero,
       );
       await coordinator.start();
 
@@ -249,7 +249,7 @@ void main() {
       final coordinator = AppWindowLifecycleCoordinator(
         repository: repository,
         window: window,
-        saveDebounce: Duration.zero,
+        saveDebounce: .zero,
       );
       await coordinator.start();
 
@@ -276,7 +276,7 @@ void main() {
             },
             exitProcess: exitCodes.add,
           ),
-          saveDebounce: Duration.zero,
+          saveDebounce: .zero,
         );
         await coordinator.start();
 
@@ -293,10 +293,8 @@ void main() {
   });
 }
 
-class _FakeAppWindowStateRepository implements AppWindowStateRepository {
-  _FakeAppWindowStateRepository(this.state);
-
-  AppWindowState? state;
+class _FakeAppWindowStateRepository(var AppWindowState? state)
+    implements AppWindowStateRepository {
   final List<AppWindowState> saved = <AppWindowState>[];
 
   @override
@@ -314,11 +312,8 @@ class _FakeAppWindowStateRepository implements AppWindowStateRepository {
   }
 }
 
-class _FakeDisplayProvider implements AppWindowDisplayProvider {
-  const _FakeDisplayProvider(this.bounds);
-
-  final List<Rect> bounds;
-
+class const _FakeDisplayProvider(final List<Rect> bounds)
+    implements AppWindowDisplayProvider {
   @override
   Future<List<Rect>> visibleDisplayBounds() async => bounds;
 }
@@ -326,7 +321,7 @@ class _FakeDisplayProvider implements AppWindowDisplayProvider {
 class _FakeAppWindowController implements AppWindowController {
   final List<AppWindowEventListener> listeners = <AppWindowEventListener>[];
   final List<bool> preventCloseValues = <bool>[];
-  Rect bounds = const Rect.fromLTWH(0, 0, 1280, 720);
+  Rect bounds = const .fromLTWH(0, 0, 1280, 720);
   bool maximized = false;
   bool fullScreen = false;
   bool minimized = false;
@@ -425,7 +420,7 @@ Future<void> _waitFor(bool Function() condition) async {
     if (condition()) {
       return;
     }
-    await Future<void>.delayed(Duration.zero);
+    await Future.pause(.zero);
   }
   fail('condition was not met');
 }

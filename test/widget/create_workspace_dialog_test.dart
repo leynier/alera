@@ -462,7 +462,7 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(newBranchField);
     await tester.pump();
-    await tester.testTextInput.receiveAction(TextInputAction.done);
+    await tester.testTextInput.receiveAction(.done);
     await tester.pumpAndSettle();
 
     expect(results.single, isNotNull);
@@ -494,7 +494,7 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(nameField);
     await tester.pump();
-    await tester.testTextInput.receiveAction(TextInputAction.done);
+    await tester.testTextInput.receiveAction(.done);
     await tester.pumpAndSettle();
 
     expect(results.single, isNotNull);
@@ -568,12 +568,12 @@ Future<void> _pumpDialogLauncher(
                                 branch: newBranchName,
                                 sourceBranch: sourceBranch,
                                 path: project.repoPath,
-                                createdAt: DateTime.utc(2026, 6, 27),
-                                updatedAt: DateTime.utc(2026, 6, 27),
-                                kind: WorkspaceKind.linked,
-                                status: WorkspaceStatus.active,
+                                createdAt: .utc(2026, 6, 27),
+                                updatedAt: .utc(2026, 6, 27),
+                                kind: .linked,
+                                status: .active,
                               ),
-                              setupReport: WorktreeSetupReport.empty,
+                              setupReport: .empty,
                             );
                           },
                     ),

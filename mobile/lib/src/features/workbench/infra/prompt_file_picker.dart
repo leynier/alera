@@ -2,17 +2,11 @@ import 'dart:async';
 
 import 'package:file_selector/file_selector.dart';
 
-class PromptFile {
-  const PromptFile({
-    required this.name,
-    required this.sizeBytes,
-    required this.openRead,
-  });
-
-  final String name;
-  final int sizeBytes;
-  final Stream<List<int>> Function() openRead;
-}
+class const PromptFile({
+  required final String name,
+  required final int sizeBytes,
+  required final Stream<List<int>> Function() openRead,
+});
 
 /// Seam over the platform file picker, mirroring [PromptImagePicker] so widget
 /// tests never reach the real plugin.
@@ -20,9 +14,7 @@ abstract interface class PromptFilePicker {
   Future<PromptFile?> pickFile();
 }
 
-class FileSelectorPromptFilePicker implements PromptFilePicker {
-  const FileSelectorPromptFilePicker();
-
+class const FileSelectorPromptFilePicker() implements PromptFilePicker {
   @override
   Future<PromptFile?> pickFile() async {
     final file = await openFile();

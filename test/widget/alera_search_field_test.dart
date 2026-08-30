@@ -1,6 +1,5 @@
 import 'package:alera/src/design_system/forms/alera_search_field.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
@@ -81,12 +80,12 @@ void main() {
       await tester.pumpAndSettle();
       expect(focusNode.hasFocus, isTrue);
 
-      await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+      await tester.sendKeyEvent(.escape);
       await tester.pumpAndSettle();
       expect(controller.text, isEmpty);
       expect(focusNode.hasFocus, isTrue);
 
-      await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+      await tester.sendKeyEvent(.escape);
       await tester.pumpAndSettle();
       expect(focusNode.hasFocus, isFalse);
     },

@@ -10,7 +10,7 @@ Widget aleraDropdownEntryPreview() => Material(
   child: const Padding(
     padding: EdgeInsets.all(AleraTokens.space8),
     child: Column(
-      mainAxisSize: MainAxisSize.min,
+      mainAxisSize: .min,
       children: <Widget>[
         AleraDropdownEntry<String>(value: 'flat', label: 'Flat List'),
         AleraDropdownEntry<String>(

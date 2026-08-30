@@ -8,22 +8,14 @@ import 'package:alera/src/features/settings/presentation/rows/settings_rows.dart
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-class SettingsFontAutocompleteRow extends StatefulWidget {
-  const SettingsFontAutocompleteRow({
-    super.key,
-    required this.title,
-    required this.description,
-    required this.value,
-    required this.suggestions,
-    required this.onChanged,
-  });
-
-  final String title;
-  final String description;
-  final String value;
-  final List<String> suggestions;
-  final ValueChanged<String> onChanged;
-
+class const SettingsFontAutocompleteRow({
+  super.key,
+  required final String title,
+  required final String description,
+  required final String value,
+  required final List<String> suggestions,
+  required final ValueChanged<String> onChanged,
+}) extends StatefulWidget {
   @override
   State<SettingsFontAutocompleteRow> createState() =>
       _SettingsFontAutocompleteRowState();
@@ -166,7 +158,7 @@ class _SettingsFontAutocompleteRowState
       child: Focus(
         onKeyEvent: _handleKey,
         child: Column(
-          mainAxisSize: MainAxisSize.min,
+          mainAxisSize: .min,
           children: <Widget>[
             AleraTextField(
               key: const ValueKey<String>('terminal-font-family-field'),
@@ -183,7 +175,7 @@ class _SettingsFontAutocompleteRowState
               onEditingComplete: () => _commitValue(_controller.text),
               hintText: 'SF Mono',
               suffix: Row(
-                mainAxisSize: MainAxisSize.min,
+                mainAxisSize: .min,
                 children: <Widget>[
                   if (_controller.text.isNotEmpty)
                     AleraIconButton(

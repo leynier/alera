@@ -21,13 +21,11 @@ void main() {
         ..createSync(recursive: true);
       final notices = Directory(p.join(repository.path, 'notices', 'licenses'))
         ..createSync(recursive: true);
-      File(
-        p.join(repository.path, 'notices', 'NOTICE.md'),
-      ).writeAsStringSync('Test notices.\n');
+      File(p.join(repository.path, 'notices', 'NOTICE.md'))
+          .writeAsStringSync('Test notices.\n');
       for (final license in <String>['Apache-2.0.txt', 'BSD-3-Clause.txt']) {
-        File(
-          p.join(notices.path, license),
-        ).writeAsStringSync('Test license.\n');
+        File(p.join(notices.path, license))
+            .writeAsStringSync('Test license.\n');
       }
 
       final source = utf8.encode('pinned source');
@@ -76,9 +74,9 @@ void main() {
       final tampered = utf8.encode('tampered payload');
       payload.writeAsBytesSync(tampered);
       final generatedManifest = File(p.join(output.path, 'manifest.json'));
-      final generated =
-          jsonDecode(generatedManifest.readAsStringSync())
-              as Map<String, Object?>;
+      final generated = jsonDecode(
+        generatedManifest.readAsStringSync(),
+      ) as Map<String, Object?>;
       final generatedAsset =
           (generated['assets']! as List<Object?>).single
               as Map<String, Object?>;

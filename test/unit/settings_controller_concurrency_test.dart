@@ -1,4 +1,5 @@
 import 'dart:async';
+
 import 'package:alera/src/app/dependencies.dart';
 import 'package:alera/src/features/settings/application/settings_controller.dart';
 import 'package:alera/src/features/settings/application/settings_repository.dart';

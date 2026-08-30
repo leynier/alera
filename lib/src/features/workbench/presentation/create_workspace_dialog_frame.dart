@@ -1,14 +1,9 @@
 part of 'create_workspace_dialog.dart';
 
-class _EmptyProjectsDialog extends StatelessWidget {
-  const _EmptyProjectsDialog({
-    required this.onAddProject,
-    required this.onCancel,
-  });
-
-  final VoidCallback? onAddProject;
-  final VoidCallback onCancel;
-
+class const _EmptyProjectsDialog({
+  required final VoidCallback? onAddProject,
+  required final VoidCallback onCancel,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return AleraDialog(
@@ -16,13 +11,12 @@ class _EmptyProjectsDialog extends StatelessWidget {
       child: Padding(
         padding: const EdgeInsets.all(AleraTokens.space24),
         child: Column(
-          mainAxisSize: MainAxisSize.min,
+          mainAxisSize: .min,
           children: [
             AleraEmptyState(
               icon: AleraIcons.folderOff,
               title: 'No Git projects yet',
-              message:
-                  'Linked workspaces require a Git project. Add one to get started.',
+              message: 'Linked workspaces require a Git project. Add one to get started.',
               action: onAddProject != null
                   ? FilledButton.icon(
                       onPressed: onAddProject,
@@ -40,31 +34,18 @@ class _EmptyProjectsDialog extends StatelessWidget {
   }
 }
 
-class _CreateWorkspaceDialogFrame extends StatelessWidget {
-  const _CreateWorkspaceDialogFrame({
-    required this.isSelectionStep,
-    required this.creating,
-    required this.creationError,
-    required this.step,
-    required this.createAnother,
-    required this.onCreateAnotherChanged,
-    required this.onCancel,
-    required this.onBack,
-    required this.onContinue,
-    required this.onCreate,
-  });
-
-  final bool isSelectionStep;
-  final bool creating;
-  final String? creationError;
-  final Widget step;
-  final bool createAnother;
-  final ValueChanged<bool> onCreateAnotherChanged;
-  final VoidCallback onCancel;
-  final VoidCallback onBack;
-  final VoidCallback? onContinue;
-  final VoidCallback? onCreate;
-
+class const _CreateWorkspaceDialogFrame({
+  required final bool isSelectionStep,
+  required final bool creating,
+  required final String? creationError,
+  required final Widget step,
+  required final bool createAnother,
+  required final ValueChanged<bool> onCreateAnotherChanged,
+  required final VoidCallback onCancel,
+  required final VoidCallback onBack,
+  required final VoidCallback? onContinue,
+  required final VoidCallback? onCreate,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return AleraDialog(
@@ -73,8 +54,8 @@ class _CreateWorkspaceDialogFrame extends StatelessWidget {
       child: Padding(
         padding: const EdgeInsets.all(AleraTokens.space20),
         child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: .min,
+          crossAxisAlignment: .start,
           children: <Widget>[
             _CreateWorkspaceDialogHeader(
               isSelectionStep: isSelectionStep,
@@ -95,7 +76,7 @@ class _CreateWorkspaceDialogFrame extends StatelessWidget {
                     child: SlideTransition(
                       position: Tween<Offset>(
                         begin: const Offset(0.05, 0.0),
-                        end: Offset.zero,
+                        end: .zero,
                       ).animate(animation),
                       child: child,
                     ),
@@ -135,17 +116,11 @@ class _CreateWorkspaceDialogFrame extends StatelessWidget {
   }
 }
 
-class _CreateWorkspaceDialogHeader extends StatelessWidget {
-  const _CreateWorkspaceDialogHeader({
-    required this.isSelectionStep,
-    required this.creating,
-    required this.onBack,
-  });
-
-  final bool isSelectionStep;
-  final bool creating;
-  final VoidCallback onBack;
-
+class const _CreateWorkspaceDialogHeader({
+  required final bool isSelectionStep,
+  required final bool creating,
+  required final VoidCallback onBack,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -168,11 +143,9 @@ class _CreateWorkspaceDialogHeader extends StatelessWidget {
             isSelectionStep
                 ? 'New Workspace - Selection'
                 : 'New Workspace - Settings',
-            overflow: TextOverflow.ellipsis,
+            overflow: .ellipsis,
             maxLines: 1,
-            style: theme.textTheme.titleMedium?.copyWith(
-              fontWeight: FontWeight.bold,
-            ),
+            style: theme.textTheme.titleMedium?.copyWith(fontWeight: .bold),
           ),
         ),
         const SizedBox(width: AleraTokens.space12),
@@ -194,16 +167,13 @@ class _CreateWorkspaceDialogHeader extends StatelessWidget {
   }
 }
 
-class _CreateWorkspaceError extends StatelessWidget {
-  const _CreateWorkspaceError({required this.message});
-
-  final String message;
-
+class const _CreateWorkspaceError({required final String message})
+    extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Container(
-      width: double.infinity,
+      width: .infinity,
       padding: const EdgeInsets.all(AleraTokens.space12),
       decoration: BoxDecoration(
         color: AleraTokens.error.withValues(alpha: 0.1),
@@ -211,7 +181,7 @@ class _CreateWorkspaceError extends StatelessWidget {
         border: Border.all(color: AleraTokens.error.withValues(alpha: 0.3)),
       ),
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: .start,
         children: [
           const Icon(AleraIcons.error, color: AleraTokens.error, size: 16),
           const SizedBox(width: AleraTokens.space8),
@@ -229,27 +199,18 @@ class _CreateWorkspaceError extends StatelessWidget {
   }
 }
 
-class _CreateWorkspaceDialogActions extends StatelessWidget {
-  const _CreateWorkspaceDialogActions({
-    required this.isSelectionStep,
-    required this.creating,
-    required this.onCancel,
-    required this.onBack,
-    required this.onContinue,
-    required this.onCreate,
-  });
-
-  final bool isSelectionStep;
-  final bool creating;
-  final VoidCallback onCancel;
-  final VoidCallback onBack;
-  final VoidCallback? onContinue;
-  final VoidCallback? onCreate;
-
+class const _CreateWorkspaceDialogActions({
+  required final bool isSelectionStep,
+  required final bool creating,
+  required final VoidCallback onCancel,
+  required final VoidCallback onBack,
+  required final VoidCallback? onContinue,
+  required final VoidCallback? onCreate,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Row(
-      mainAxisAlignment: MainAxisAlignment.end,
+      mainAxisAlignment: .end,
       children: <Widget>[
         TextButton(
           onPressed: isSelectionStep ? onCancel : (creating ? null : onBack),

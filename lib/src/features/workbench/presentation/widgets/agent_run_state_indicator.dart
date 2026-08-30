@@ -11,17 +11,12 @@ import 'package:flutter/material.dart';
 /// A null [status] renders the idle dot rather than leaving the caller to pick
 /// a different widget. Swapping widget types in a slot destroys the element,
 /// which restarts the spinner from zero every time an agent starts or stops.
-class AgentRunStateIndicator extends StatelessWidget {
-  const AgentRunStateIndicator({
-    super.key,
-    required this.status,
-    this.size = 13,
-    this.idleDotActive = false,
-  });
-
-  final AgentStatusEntry? status;
-  final double size;
-
+class const AgentRunStateIndicator({
+  super.key,
+  required final AgentStatusEntry? status,
+  final double size = 13,
+  this.idleDotActive = false,
+}) extends StatelessWidget {
   /// Whether the idle dot shown for a null [status] reads as active.
   final bool idleDotActive;
 

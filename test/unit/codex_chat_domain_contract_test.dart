@@ -22,7 +22,7 @@ void main() {
       displayName: 'read me.md',
       sizeBytes: 10,
       detail: 'high',
-      origin: CodexInputAttachmentOrigin.mention,
+      origin: .mention,
       tokenText: '@docs/read me.md',
       tokenStart: 4,
       annotationContext: 'Selected page text',
@@ -62,7 +62,7 @@ void main() {
 
     const item = CodexDraftItem(
       id: 'skill',
-      kind: CodexDraftItemKind.skill,
+      kind: .skill,
       name: 'Review',
       path: '/skills/review',
       tokenText: r'$Review',
@@ -97,12 +97,7 @@ void main() {
         CodexInputAttachment(path: 'a.txt', isImage: false),
       ],
       draftItems: const <CodexDraftItem>[
-        CodexDraftItem(
-          id: 'app',
-          kind: CodexDraftItemKind.app,
-          name: 'GitHub',
-          path: 'github',
-        ),
+        CodexDraftItem(id: 'app', kind: .app, name: 'GitHub', path: 'github'),
       ],
     );
     expect(draft.isEmpty, isFalse);

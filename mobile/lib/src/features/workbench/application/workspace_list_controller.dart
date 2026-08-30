@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:alera_mobile/src/features/runtime/domain/workspace_section_summary.dart';
 import 'package:alera_mobile/src/features/runtime/domain/project_summary.dart';
 import 'package:alera_mobile/src/features/runtime/domain/workspace_creation_result.dart';
 import 'package:alera_mobile/src/features/runtime/domain/workspace_summary.dart';
@@ -9,10 +10,12 @@ import 'package:alera_mobile/src/features/terminal/application/terminal_provider
 import 'package:alera_mobile/src/features/workbench/application/deferred_workspace_setup_launcher.dart';
 import 'package:alera_mobile/src/features/workbench/application/workbench_providers.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
+import 'package:logging/logging.dart';
 
 part 'workspace_list_controller.g.dart';
 
 const Set<String> _refreshEvents = <String>{
+  'workspaceSectionsChanged',
   'workspacesChanged',
   'workspaceRelationsChanged',
   'workspaceTabsChanged',
@@ -23,39 +26,26 @@ const Set<String> _refreshEvents = <String>{
   'agentPresenceChanged',
 };
 
-class WorkspaceListData {
-  const WorkspaceListData({
-    required this.workspaces,
-    required this.projects,
-    required this.supportsMutations,
-    this.supportsPromptWorkspaceCreation = true,
-    this.supportsPromptImageUpload = false,
-    this.supportsPromptFileUpload = false,
-    this.supportsWorkspaceFiles = false,
-    required this.tags,
-    required this.activity,
-    required this.confirmWorkspaceRemoval,
-    required this.agentPresence,
-    this.defaultAgentProfileId,
-    this.terminalTabCountByWorkspaceId = const <String, int>{},
-  });
-
-  final List<WorkspaceSummary> workspaces;
-  final List<ProjectSummary> projects;
-
+class const WorkspaceListData({
+  final List<WorkspaceSectionSummary> sections = const [],
+  final bool supportsSections = false,
+  required final List<WorkspaceSummary> workspaces,
+  required final List<ProjectSummary> projects,
+  required this.supportsMutations,
+  final bool supportsPromptWorkspaceCreation = true,
+  final bool supportsPromptImageUpload = false,
+  final bool supportsPromptFileUpload = false,
+  final bool supportsWorkspaceFiles = false,
+  required final List<WorkspaceTagSummary> tags,
+  required final Map<String, DateTime> activity,
+  required final bool confirmWorkspaceRemoval,
+  required final List<AgentPresenceSummary> agentPresence,
+  final String? defaultAgentProfileId,
+  final Map<String, int> terminalTabCountByWorkspaceId = const <String, int>{},
+}) {
   /// False against runtimes that predate the mobile mutation allowlist; the
   /// UI hides mutating actions in that case.
   final bool supportsMutations;
-  final bool supportsPromptWorkspaceCreation;
-  final bool supportsPromptImageUpload;
-  final bool supportsPromptFileUpload;
-  final bool supportsWorkspaceFiles;
-  final List<WorkspaceTagSummary> tags;
-  final Map<String, DateTime> activity;
-  final bool confirmWorkspaceRemoval;
-  final List<AgentPresenceSummary> agentPresence;
-  final String? defaultAgentProfileId;
-  final Map<String, int> terminalTabCountByWorkspaceId;
 
   WorkspaceSummary? workspaceById(String id) {
     for (final workspace in workspaces) {
@@ -87,6 +77,10 @@ class WorkspaceListController extends _$WorkspaceListController {
     }
     final snapshot = await client.workspaceSidebarSnapshot();
     return WorkspaceListData(
+      sections: snapshot.sections,
+      supportsSections:
+          client is MobileWorkspaceSectionClient &&
+          (client as MobileWorkspaceSectionClient).supportsWorkspaceSections,
       workspaces: snapshot.workspaces,
       projects: snapshot.projects,
       supportsMutations: client.supportsWorkspaceMutations,
@@ -107,6 +101,35 @@ class WorkspaceListController extends _$WorkspaceListController {
       defaultAgentProfileId: snapshot.defaultAgentProfileId,
       terminalTabCountByWorkspaceId: snapshot.terminalTabCountByWorkspaceId,
     );
+  }
+
+  Future<void> setSection(String workspaceId, String? sectionId) async {
+    try {
+      final client = await ref.read(workspaceClientProvider(hostId).future);
+      await (client as MobileWorkspaceSectionClient).setWorkspaceSection(
+        workspaceId,
+        sectionId,
+      );
+      _invalidateIfMounted();
+    } catch (error, stack) {
+      Logger('WorkspaceListController')
+          .warning('Could not set workspace section', error, stack);
+      rethrow;
+    }
+  }
+
+  Future<void> removeSection(String sectionId) async {
+    try {
+      final client = await ref.read(workspaceClientProvider(hostId).future);
+      await (client as MobileWorkspaceSectionClient).removeWorkspaceSection(
+        sectionId,
+      );
+      _invalidateIfMounted();
+    } catch (error, stack) {
+      Logger('WorkspaceListController')
+          .warning('Could not delete workspace section', error, stack);
+      rethrow;
+    }
   }
 
   Future<void> setPinned(String workspaceId, bool isPinned) async {

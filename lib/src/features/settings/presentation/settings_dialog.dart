@@ -42,16 +42,11 @@ const double _kDialogMaxWidth = 1800;
 const double _kDialogMinHeight = 560;
 const double _kDialogMaxHeight = 1280;
 
-class SettingsDialog extends ConsumerStatefulWidget {
-  const SettingsDialog({
-    super.key,
-    this.initialSectionId = 'application',
-    this.initialProjectId,
-  });
-
-  final String initialSectionId;
-  final String? initialProjectId;
-
+class const SettingsDialog({
+  super.key,
+  final String initialSectionId = 'application',
+  final String? initialProjectId,
+}) extends ConsumerStatefulWidget {
   @override
   ConsumerState<SettingsDialog> createState() => _SettingsDialogState();
 }
@@ -288,8 +283,7 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
       SettingsSectionData(
         id: 'aiAssist',
         title: 'AI Assist',
-        description:
-            'Local agent assistance for commits, pull requests, diffs, workspace identity, and speech.',
+        description: 'Local agent assistance for commits, pull requests, diffs, workspace identity, and speech.',
         icon: AleraIcons.ai,
         entries: aiAssistSearchEntries,
         groups: aiAssistGroups,
@@ -322,7 +316,7 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
         icon: AleraIcons.text,
         entries: textActionsSearchEntries,
         groups: textActionsGroups,
-        navGroup: SettingsNavGroup.resources,
+        navGroup: .resources,
         builder: (_) => TextActionsSettingsPane(
           settings: settings.textActions,
           aiAssistSettings: settings.aiAssist,
@@ -383,7 +377,7 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
         description: 'Per-project workspace setup.',
         icon: AleraIcons.folderSpecial,
         entries: projectSearchEntries,
-        navGroup: SettingsNavGroup.resources,
+        navGroup: .resources,
         builder: (_) =>
             ProjectSettingsPane(initialProjectId: widget.initialProjectId),
       ),
@@ -394,7 +388,7 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
         icon: AleraIcons.mobileDevice,
         entries: mobileDeviceSearchEntries,
         groups: mobileDeviceGroups,
-        navGroup: SettingsNavGroup.resources,
+        navGroup: .resources,
         builder: (_) => MobileDevicesSettingsPane(
           groupKeys: _paneKeys('mobileDevices', mobileDeviceGroups),
         ),
@@ -405,7 +399,7 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
         description: 'SSH runtime targets.',
         icon: AleraIcons.host,
         entries: remoteHostSearchEntries,
-        navGroup: SettingsNavGroup.resources,
+        navGroup: .resources,
         builder: (_) => const RemoteHostSettingsPane(),
       ),
       SettingsSectionData(
@@ -414,7 +408,7 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
         description: 'Launch configurations orchestration can dispatch to.',
         icon: AleraIcons.agent,
         entries: agentProfileSearchEntries,
-        navGroup: SettingsNavGroup.resources,
+        navGroup: .resources,
         builder: (_) => const AgentProfilesSettingsPane(),
       ),
     ];
@@ -434,7 +428,7 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
       maxWidth: dialogWidth,
       maxHeight: dialogHeight,
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
+        crossAxisAlignment: .stretch,
         children: <Widget>[
           SettingsSidebar(
             queryController: _searchController,

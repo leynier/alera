@@ -26,7 +26,7 @@ void main() {
 
     final comment = BrowserAnnotationComment(
       id: 'comment',
-      kind: BrowserAnnotationKind.element,
+      kind: .element,
       anchor: anchor,
       text: 'Old text',
     );
@@ -43,11 +43,11 @@ void main() {
         title: 'Example docs',
         viewportWidth: 1280,
         viewportHeight: 720,
-        capturedAt: DateTime.utc(2026, 8, 12),
+        capturedAt: .utc(2026, 8, 12),
         comments: const <BrowserAnnotationComment>[
           BrowserAnnotationComment(
             id: 'element-comment',
-            kind: BrowserAnnotationKind.element,
+            kind: .element,
             anchor: BrowserAnnotationAnchor(
               x: 0.125,
               y: 0.25,
@@ -61,7 +61,7 @@ void main() {
           ),
           BrowserAnnotationComment(
             id: 'region-comment',
-            kind: BrowserAnnotationKind.region,
+            kind: .region,
             anchor: BrowserAnnotationAnchor(
               x: 0.1,
               y: 0.2,
@@ -94,11 +94,11 @@ void main() {
         title: '',
         viewportWidth: 1,
         viewportHeight: 1,
-        capturedAt: DateTime.utc(2026, 8, 12),
+        capturedAt: .utc(2026, 8, 12),
         comments: const <BrowserAnnotationComment>[
           BrowserAnnotationComment(
             id: 'comment',
-            kind: BrowserAnnotationKind.region,
+            kind: .region,
             anchor: BrowserAnnotationAnchor(x: 0, y: 0, width: 1, height: 1),
             text: 'Review this area.',
           ),
@@ -144,12 +144,12 @@ void main() {
           title: '',
           viewportWidth: 1,
           viewportHeight: 1,
-          capturedAt: DateTime.utc(2026, 8, 12),
+          capturedAt: .utc(2026, 8, 12),
           comments: <BrowserAnnotationComment>[
             for (var index = 0; index < anchors.length; index++)
               BrowserAnnotationComment(
                 id: '$index',
-                kind: BrowserAnnotationKind.element,
+                kind: .element,
                 anchor: anchors[index],
                 text: 'Comment $index',
               ),

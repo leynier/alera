@@ -15,9 +15,7 @@ import 'package:alera_mobile/src/features/runtime/application/host_connection_co
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-class AccountsScreen extends ConsumerWidget {
-  const AccountsScreen({super.key});
-
+class const AccountsScreen({super.key}) extends ConsumerWidget {
   Future<void> _addAccount(BuildContext context, WidgetRef ref) async {
     final hosts = await ref.read(pairedHostsControllerProvider.future);
     if (!context.mounted) {
@@ -93,9 +91,8 @@ class AccountsScreen extends ConsumerWidget {
   }
 
   void _showMessage(BuildContext context, String message) {
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text(message)));
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(message)));
   }
 
   Future<void> _removeAccount(
@@ -168,11 +165,10 @@ class AccountsScreen extends ConsumerWidget {
               if (sessions.isEmpty)
                 AleraEmptyState(
                   title: 'No accounts',
-                  message:
-                      'Sign in directly or add an account from a paired runtime.',
+                  message: 'Sign in directly or add an account from a paired runtime.',
                   icon: Icons.person_add_alt_1_outlined,
                   action: Column(
-                    mainAxisSize: MainAxisSize.min,
+                    mainAxisSize: .min,
                     children: <Widget>[
                       FilledButton.icon(
                         onPressed: () => _signInDirect(context, ref, 'google'),
@@ -312,11 +308,8 @@ class AccountsScreen extends ConsumerWidget {
   }
 }
 
-class _PushStateBanner extends StatelessWidget {
-  const _PushStateBanner({required this.state});
-
-  final PushCoordinationState? state;
-
+class const _PushStateBanner({required final PushCoordinationState? state})
+    extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final status = state?.status ?? PushCoordinationStatus.syncing;

@@ -14,9 +14,7 @@ abstract interface class TerminalClipboard {
   Future<String?> saveImageAsTempFile();
 }
 
-final class NativeTerminalClipboard implements TerminalClipboard {
-  const NativeTerminalClipboard();
-
+final class const NativeTerminalClipboard() implements TerminalClipboard {
   static const MethodChannel _linuxClipboardChannel = MethodChannel(
     'dev.leynier.alera/clipboard',
   );

@@ -1,10 +1,7 @@
 part of 'project_workbench_sidebar.dart';
 
-class _EmptyProjectsView extends StatelessWidget {
-  const _EmptyProjectsView({required this.onAddProject});
-
-  final VoidCallback onAddProject;
-
+class const _EmptyProjectsView({required final VoidCallback onAddProject})
+    extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return AleraEmptyState(
@@ -20,17 +17,11 @@ class _EmptyProjectsView extends StatelessWidget {
   }
 }
 
-class _SidebarFooter extends StatelessWidget {
-  const _SidebarFooter({
-    required this.onAddProject,
-    required this.onOpenSettings,
-    required this.onOpenAutomations,
-  });
-
-  final VoidCallback onAddProject;
-  final VoidCallback onOpenSettings;
-  final VoidCallback onOpenAutomations;
-
+class const _SidebarFooter({
+  required final VoidCallback onAddProject,
+  required final VoidCallback onOpenSettings,
+  required final VoidCallback onOpenAutomations,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
@@ -69,15 +60,10 @@ class _SidebarFooter extends StatelessWidget {
   }
 }
 
-class _CollapsedSidebarFooter extends StatelessWidget {
-  const _CollapsedSidebarFooter({
-    required this.onOpenSettings,
-    required this.onOpenAutomations,
-  });
-
-  final VoidCallback onOpenSettings;
-  final VoidCallback onOpenAutomations;
-
+class const _CollapsedSidebarFooter({
+  required final VoidCallback onOpenSettings,
+  required final VoidCallback onOpenAutomations,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
@@ -86,7 +72,7 @@ class _CollapsedSidebarFooter extends StatelessWidget {
         decoration: const BoxDecoration(color: AleraTokens.surface),
         child: Center(
           child: Column(
-            mainAxisSize: MainAxisSize.min,
+            mainAxisSize: .min,
             children: <Widget>[
               _FooterIconButton(
                 tooltip: 'Automations',
@@ -107,17 +93,11 @@ class _CollapsedSidebarFooter extends StatelessWidget {
   }
 }
 
-class _FooterIconButton extends StatelessWidget {
-  const _FooterIconButton({
-    required this.tooltip,
-    required this.onPressed,
-    required this.icon,
-  });
-
-  final String tooltip;
-  final VoidCallback onPressed;
-  final IconData icon;
-
+class const _FooterIconButton({
+  required final String tooltip,
+  required final VoidCallback onPressed,
+  required final IconData icon,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return AleraIconButton(

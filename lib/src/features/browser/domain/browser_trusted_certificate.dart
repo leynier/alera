@@ -1,17 +1,15 @@
-final class BrowserTrustedCertificate {
-  const BrowserTrustedCertificate({
-    required this.profileId,
-    required this.host,
-    required this.fingerprintSha256,
-    required this.createdAt,
-    required this.lastUsedAt,
-    this.subject,
-    this.issuer,
-    this.validFrom,
-    this.validTo,
-  });
-
-  factory BrowserTrustedCertificate.fromJson(Map<String, Object?> json) {
+final class const BrowserTrustedCertificate({
+  required final String profileId,
+  required final String host,
+  required final String fingerprintSha256,
+  required final DateTime createdAt,
+  required final DateTime lastUsedAt,
+  final String? subject,
+  final String? issuer,
+  final DateTime? validFrom,
+  final DateTime? validTo,
+}) {
+  factory fromJson(Map<String, Object?> json) {
     final profileId = json['profileId'];
     final host = json['host'];
     final fingerprint = json['fingerprintSha256'];
@@ -39,16 +37,6 @@ final class BrowserTrustedCertificate {
       lastUsedAt: lastUsedAt.toUtc(),
     );
   }
-
-  final String profileId;
-  final String host;
-  final String fingerprintSha256;
-  final String? subject;
-  final String? issuer;
-  final DateTime? validFrom;
-  final DateTime? validTo;
-  final DateTime createdAt;
-  final DateTime lastUsedAt;
 
   Map<String, Object?> toJson() => <String, Object?>{
     'profileId': profileId,

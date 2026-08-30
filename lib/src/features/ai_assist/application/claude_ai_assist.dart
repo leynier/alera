@@ -1,9 +1,9 @@
 part of 'ai_assist_registry.dart';
 
 final AiAssistAgentSpec claudeAiAssistAgentSpec = AiAssistAgentSpec(
-  agent: AiAssistAgent.claude,
+  agent: .claude,
   binary: 'claude',
-  promptDelivery: AiPromptDelivery.stdin,
+  promptDelivery: .stdin,
   modelsCommand: null,
   parseModels: parseLineModels,
   models: const <AiAssistModel>[
@@ -22,10 +22,10 @@ final AiAssistAgentSpec claudeAiAssistAgentSpec = AiAssistAgentSpec(
     ),
   ],
   defaultModelId: 'sonnet',
-  nativeStructuredOutput: AiNativeStructuredOutput.claudeJsonSchema,
+  nativeStructuredOutput: .claudeJsonSchema,
   supportsRepositoryRead: true,
   readOnlyGuarantee: true,
-  diffOnlyAccess: AiAssistDiffOnlyAccess.toolFree,
+  diffOnlyAccess: .toolFree,
   diffOnlyArgs: const <String>[
     '--safe-mode',
     '--disable-slash-commands',

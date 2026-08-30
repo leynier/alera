@@ -102,7 +102,7 @@ mixin _MobileCodexControllerLifecycle on _$MobileCodexController {
     if (_deferredThreadEvents.isEmpty || _deferredThreadEventTimer != null) {
       return;
     }
-    _deferredThreadEventTimer = Timer(Duration.zero, _drainDeferredThreadEvent);
+    _deferredThreadEventTimer = Timer(.zero, _drainDeferredThreadEvent);
   }
 
   void _drainDeferredThreadEvent() {
@@ -148,17 +148,14 @@ mixin _MobileCodexControllerLifecycle on _$MobileCodexController {
         : delta is Map && delta.isNotEmpty && snapshot is Map
         ? _reconcileMobileSameThreadSnapshot(
             current,
-            MobileCodexState.fromSnapshot(snapshot, deriveTimeline: false),
+            .fromSnapshot(snapshot, deriveTimeline: false),
             delta,
           )
         : delta is Map
         ? current.applySnapshotDelta(delta)
         : snapshot is Map
         ? sameThread && !forceSnapshot
-              ? _mergeMobileSameThreadSnapshot(
-                  current,
-                  MobileCodexState.fromSnapshot(snapshot),
-                )
+              ? _mergeMobileSameThreadSnapshot(current, .fromSnapshot(snapshot))
               : MobileCodexState.fromSnapshot(snapshot)
         : null;
     var configured = _applyMobileConfiguration(

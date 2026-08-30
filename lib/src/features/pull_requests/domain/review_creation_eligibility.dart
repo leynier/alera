@@ -17,22 +17,16 @@ enum ReviewCreationBlockedReason {
 /// [canCreate] is false, [blockedReason] explains why; [existingReview] is set
 /// when the branch already has an open review.
 class ReviewCreationEligibility {
-  const ReviewCreationEligibility({
-    required this.canCreate,
-    this.blockedReason,
-    this.existingReview,
-  });
+  const new({required this.canCreate, this.blockedReason, this.existingReview});
 
-  const ReviewCreationEligibility.allowed()
+  const new allowed()
     : canCreate = true,
       blockedReason = null,
       existingReview = null;
 
-  const ReviewCreationEligibility.blocked(
-    ReviewCreationBlockedReason reason, {
-    this.existingReview,
-  }) : canCreate = false,
-       blockedReason = reason;
+  const new blocked(ReviewCreationBlockedReason reason, {this.existingReview})
+    : canCreate = false,
+      blockedReason = reason;
 
   final bool canCreate;
   final ReviewCreationBlockedReason? blockedReason;

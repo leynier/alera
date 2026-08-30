@@ -32,9 +32,8 @@ void main() {
     );
     final container = ProviderContainer(
       overrides: [
-        mobileCodexClientProvider(
-          'host-exact-identity',
-        ).overrideWith((ref) async => client),
+        mobileCodexClientProvider('host-exact-identity')
+            .overrideWith((ref) async => client),
       ],
     );
     addTearDown(() {
@@ -71,7 +70,7 @@ void main() {
         },
       }),
     );
-    await Future<void>.delayed(Duration.zero);
+    await Future.pause(.zero);
 
     expect(
       container

@@ -9,8 +9,8 @@ WorkspaceTabRecord _tab({
     id: id,
     workspaceId: workspaceId,
     title: title,
-    createdAt: DateTime.utc(2026),
-    updatedAt: DateTime.utc(2026),
+    createdAt: .utc(2026),
+    updatedAt: .utc(2026),
   );
 }
 
@@ -21,10 +21,10 @@ Workspace _workspace({String id = 'ws-1', String path = '/tmp/alera'}) {
     name: 'Main',
     branch: 'main',
     path: path,
-    createdAt: DateTime.utc(2026),
-    updatedAt: DateTime.utc(2026),
-    kind: WorkspaceKind.main,
-    status: WorkspaceStatus.active,
+    createdAt: .utc(2026),
+    updatedAt: .utc(2026),
+    kind: .main,
+    status: .active,
   );
 }
 
@@ -175,7 +175,7 @@ class _FakeTerminalPtySession implements TerminalPtySession {
     if (_events.isClosed) {
       return;
     }
-    _events.add(TerminalPtyOutputEvent(Uint8List.fromList(data)));
+    _events.add(TerminalPtyOutputEvent(.fromList(data)));
   }
 
   void emitError(Object error) {
@@ -204,12 +204,12 @@ class _FakeTerminalPtySession implements TerminalPtySession {
   }
 }
 
-class _ImmediateNotifySessionHandle extends TerminalSessionHandle {
-  _ImmediateNotifySessionHandle({required this.tabId, this.refreshCompleter});
-
+class _ImmediateNotifySessionHandle({
+  required this.tabId,
+  final Completer<void>? refreshCompleter,
+}) extends TerminalSessionHandle {
   @override
   final String tabId;
-  final Completer<void>? refreshCompleter;
 
   int ensureStartedCallCount = 0;
   int refreshRenderingCallCount = 0;
@@ -275,9 +275,8 @@ class _ImmediateNotifySessionHandle extends TerminalSessionHandle {
   void requestFocus() {}
 }
 
-class _ShortcutCaptureSessionHandle extends TerminalSessionHandle {
-  _ShortcutCaptureSessionHandle({required this.tabId});
-
+class _ShortcutCaptureSessionHandle({required this.tabId})
+    extends TerminalSessionHandle {
   @override
   final String tabId;
 
@@ -346,11 +345,8 @@ class _FakeWorkbenchController extends WorkbenchController {
   }
 }
 
-class _FakeSettingsController extends SettingsController {
-  _FakeSettingsController(this.settings);
-
-  AleraSettings settings;
-
+class _FakeSettingsController(var AleraSettings settings)
+    extends SettingsController {
   @override
   AleraSettings build() => settings;
 
@@ -363,13 +359,11 @@ class _FakeSettingsController extends SettingsController {
   }
 }
 
-class _ErrorSessionHandle extends TerminalSessionHandle {
-  _ErrorSessionHandle({required this.tabId, required this.message});
-
+class _ErrorSessionHandle({required this.tabId, required final String message})
+    extends TerminalSessionHandle {
   @override
   final String tabId;
 
-  final String message;
   int restartCallCount = 0;
 
   @override
@@ -417,9 +411,8 @@ class _ErrorSessionHandle extends TerminalSessionHandle {
   void requestFocus() {}
 }
 
-class _StartingSessionHandle extends TerminalSessionHandle {
-  _StartingSessionHandle({required this.tabId});
-
+class _StartingSessionHandle({required this.tabId})
+    extends TerminalSessionHandle {
   @override
   final String tabId;
 
@@ -466,10 +459,8 @@ class _StartingSessionHandle extends TerminalSessionHandle {
   void requestFocus() {}
 }
 
-class _FakeExternalUriLauncher implements ExternalUriLauncher {
-  _FakeExternalUriLauncher({this.error});
-
-  final Object? error;
+class _FakeExternalUriLauncher({final Object? error})
+    implements ExternalUriLauncher {
   final List<Uri> openedUris = <Uri>[];
 
   @override

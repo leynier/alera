@@ -13,19 +13,20 @@ import 'ai_dictation_model.dart';
 
 export 'ai_dictation_model.dart';
 
-class AiDictationModelStore {
-  AiDictationModelStore({
-    http.Client Function()? clientFactory,
-    Future<Directory> Function()? supportDirectory,
-    List<AiDictationModel>? modelCatalog,
-    bool? installCoreMlEncoder,
-    AiDictationCoreMlStore? coreMlStore,
-  }) : _clientFactory = clientFactory ?? http.Client.new,
-       _supportDirectory =
-           supportDirectory ?? (() => getApplicationSupportDirectory()),
-       _modelCatalog = modelCatalog ?? models,
-       _installCoreMlEncoder = installCoreMlEncoder ?? Platform.isMacOS,
-       _coreMlStore = coreMlStore ?? const AiDictationCoreMlStore();
+class AiDictationModelStore({
+  http.Client Function()? clientFactory,
+  Future<Directory> Function()? supportDirectory,
+  List<AiDictationModel>? modelCatalog,
+  bool? installCoreMlEncoder,
+  AiDictationCoreMlStore? coreMlStore,
+}) {
+  this
+    : _clientFactory = clientFactory ?? http.Client.new,
+      _supportDirectory =
+          supportDirectory ?? (() => getApplicationSupportDirectory()),
+      _modelCatalog = modelCatalog ?? models,
+      _installCoreMlEncoder = installCoreMlEncoder ?? Platform.isMacOS,
+      _coreMlStore = coreMlStore ?? const AiDictationCoreMlStore();
 
   static const legacyModelId = 'whisper-cpp-base';
   static const modelId = 'whisper-base';
@@ -44,13 +45,11 @@ class AiDictationModelStore {
       fileName: 'ggml-tiny.bin',
       sha256:
           'be07e048e1e599ad46341c8d2a135645097a538221678b7acdd1b1919c6e1b21',
-      uri:
-          'https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-tiny.bin?download=true',
+      uri: 'https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-tiny.bin?download=true',
       sizeBytes: 77691713,
       coreMlEncoder: AiDictationCoreMlEncoder(
         directoryName: 'ggml-tiny-encoder.mlmodelc',
-        archiveUri:
-            'https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-tiny-encoder.mlmodelc.zip?download=true',
+        archiveUri: 'https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-tiny-encoder.mlmodelc.zip?download=true',
         archiveSha256:
             'c88cbd2648e1f5415092bcf5256add463a0f19943e6938f46e8d4ffdebd47739',
         archiveSizeBytes: 15037446,
@@ -62,13 +61,11 @@ class AiDictationModelStore {
       description: 'Balanced speed and accuracy. Recommended for most devices.',
       fileName: modelFileName,
       sha256: modelSha256,
-      uri:
-          'https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base.bin?download=true',
+      uri: 'https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base.bin?download=true',
       sizeBytes: 147951465,
       coreMlEncoder: AiDictationCoreMlEncoder(
         directoryName: 'ggml-base-encoder.mlmodelc',
-        archiveUri:
-            'https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base-encoder.mlmodelc.zip?download=true',
+        archiveUri: 'https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base-encoder.mlmodelc.zip?download=true',
         archiveSha256:
             '7e6ab77041942572f239b5b602f8aaa1c3ed29d73e3d8f20abea03a773541089',
         archiveSizeBytes: 37922638,
@@ -81,13 +78,11 @@ class AiDictationModelStore {
       fileName: 'ggml-small.bin',
       sha256:
           '1be3a9b2063867b937e64e2ec7483364a79917e157fa98c5d94b5c1fffea987b',
-      uri:
-          'https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-small.bin?download=true',
+      uri: 'https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-small.bin?download=true',
       sizeBytes: 487601967,
       coreMlEncoder: AiDictationCoreMlEncoder(
         directoryName: 'ggml-small-encoder.mlmodelc',
-        archiveUri:
-            'https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-small-encoder.mlmodelc.zip?download=true',
+        archiveUri: 'https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-small-encoder.mlmodelc.zip?download=true',
         archiveSha256:
             'de43fb9fed471e95c19e60ae67575c2bf09e8fb607016da171b06ddad313988b',
         archiveSizeBytes: 163083239,
@@ -100,13 +95,11 @@ class AiDictationModelStore {
       fileName: 'ggml-large-v3-turbo-q5_0.bin',
       sha256:
           '394221709cd5ad1f40c46e6031ca61bce88931e6e088c188294c6d5a55ffa7e2',
-      uri:
-          'https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-large-v3-turbo-q5_0.bin?download=true',
+      uri: 'https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-large-v3-turbo-q5_0.bin?download=true',
       sizeBytes: 574041195,
       coreMlEncoder: AiDictationCoreMlEncoder(
         directoryName: 'ggml-large-v3-turbo-encoder.mlmodelc',
-        archiveUri:
-            'https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-large-v3-turbo-encoder.mlmodelc.zip?download=true',
+        archiveUri: 'https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-large-v3-turbo-encoder.mlmodelc.zip?download=true',
         archiveSha256:
             '84bedfe895bd7b5de6e8e89a0803dfc5addf8c0c5bc4c937451716bf7cf7988a',
         archiveSizeBytes: 1173393014,
@@ -378,10 +371,6 @@ void _validateContentRange(
 Future<String> _sha256File(String path) async =>
     (await sha256.bind(File(path).openRead()).first).toString();
 
-class _Sha256Computation {
-  const _Sha256Computation(this.path);
-
-  final String path;
-
+class const _Sha256Computation(final String path) {
   Future<String> call() => _sha256File(path);
 }

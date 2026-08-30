@@ -11,7 +11,7 @@ void main() {
       MediaQuery(
         data: const MediaQueryData(devicePixelRatio: 1),
         child: Directionality(
-          textDirection: TextDirection.ltr,
+          textDirection: .ltr,
           child: Center(
             child: SizedBox(
               width: 320,
@@ -42,7 +42,7 @@ void main() {
       MediaQuery(
         data: const MediaQueryData(devicePixelRatio: 1),
         child: Directionality(
-          textDirection: TextDirection.ltr,
+          textDirection: .ltr,
           child: Center(
             child: ValueListenableBuilder<Size>(
               valueListenable: size,
@@ -79,7 +79,7 @@ void main() {
       MediaQuery(
         data: const MediaQueryData(devicePixelRatio: 1),
         child: Directionality(
-          textDirection: TextDirection.ltr,
+          textDirection: .ltr,
           child: Center(
             child: SizedBox(
               width: 200,

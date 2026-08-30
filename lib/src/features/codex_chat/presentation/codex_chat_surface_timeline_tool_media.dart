@@ -1,10 +1,7 @@
 part of 'codex_chat_surface.dart';
 
-class _CodexToolMediaSummary extends StatelessWidget {
-  const _CodexToolMediaSummary({required this.value});
-
-  final _CodexToolMediaValue value;
-
+class const _CodexToolMediaSummary({required final _CodexToolMediaValue value})
+    extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Row(
     children: <Widget>[
@@ -24,13 +21,11 @@ class _CodexToolMediaSummary extends StatelessWidget {
   );
 }
 
-class _CodexToolMediaValue {
-  const _CodexToolMediaValue(this.kind, this.mimeType, this.byteLength);
-
-  final String kind;
-  final String mimeType;
-  final int? byteLength;
-}
+class const _CodexToolMediaValue(
+  final String kind,
+  final String mimeType,
+  final int? byteLength,
+);
 
 String _codexToolByteSize(int bytes) {
   if (bytes < 1024) return '$bytes B';

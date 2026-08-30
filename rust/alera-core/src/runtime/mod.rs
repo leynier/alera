@@ -60,6 +60,8 @@ mod orchestration_policy_store_tests;
 mod orchestration_profile_attempt_tests;
 mod orchestration_run_snapshot;
 mod orchestration_run_store;
+#[cfg(test)]
+mod orchestration_schema_migration_tests;
 mod orchestration_stall_store;
 #[cfg(test)]
 mod orchestration_stall_store_tests;
@@ -85,6 +87,9 @@ mod workbench_shared_state_store_tests;
 mod workspace_pin_store;
 #[cfg(test)]
 mod workspace_pin_store_tests;
+mod workspace_section_store;
+#[cfg(test)]
+mod workspace_section_store_tests;
 mod worktree_setup_models;
 
 pub use agent_canvas_models::*;
@@ -124,3 +129,5 @@ pub use store_error::*;
 pub use text_actions_validation::{validate_text_actions_settings, AI_ASSIST_AGENTS};
 pub use workbench_shared_state_models::*;
 pub use worktree_setup_models::*;
+
+pub use workspace_section_store::WorkspaceSection;

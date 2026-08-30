@@ -9,14 +9,14 @@ extension _ClaudeManagedAgentHook on ManagedAgentHookInstallService {
     required String scriptPath,
   }) {
     return _AgentHookDescriptor(
-      agentType: AgentType.claude,
+      agentType: .claude,
       configPath: p.join(_homeDirectory, '.claude', 'settings.json'),
       configLabel: 'Claude settings.json',
       scriptFileName: scriptFileName,
       scriptPath: scriptPath,
       eventEnvVar: 'ALERA_AGENT_HOOK_EVENT',
-      configShape: _AgentHookConfigShape.hooks,
-      definitionShape: _ManagedHookDefinitionShape.nestedCommand,
+      configShape: .hooks,
+      definitionShape: .nestedCommand,
       events: const <_ManagedHookEvent>[
         _ManagedHookEvent('UserPromptSubmit'),
         _ManagedHookEvent('Stop'),

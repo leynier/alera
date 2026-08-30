@@ -787,4 +787,3 @@ class _WorkbenchLayoutCopyWithImpl<$R, $Out>
     Then<$Out2, $R2> t,
   ) => _WorkbenchLayoutCopyWithImpl<$R2, $Out2>($value, $cast, t);
 }
-

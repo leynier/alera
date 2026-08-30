@@ -15,14 +15,12 @@ extension TerminalToolbarCornerLayout on TerminalToolbarCorner {
   bool get isRight => !isLeft;
 }
 
-class TerminalToolbarAnchor {
-  const TerminalToolbarAnchor({this.top, this.left, this.right, this.bottom});
-
-  final double? top;
-  final double? left;
-  final double? right;
-  final double? bottom;
-
+class const TerminalToolbarAnchor({
+  final double? top,
+  final double? left,
+  final double? right,
+  final double? bottom,
+}) {
   @override
   bool operator ==(Object other) {
     return other is TerminalToolbarAnchor &&
@@ -106,17 +104,11 @@ TerminalToolbarCorner nearestTerminalToolbarCorner({
       : TerminalToolbarCorner.bottomRight;
 }
 
-class TerminalSearchOverlayLayout {
-  const TerminalSearchOverlayLayout({
-    required this.left,
-    required this.right,
-    required this.alignLeft,
-  });
-
-  final double left;
-  final double right;
-  final bool alignLeft;
-}
+class const TerminalSearchOverlayLayout({
+  required final double left,
+  required final double right,
+  required final bool alignLeft,
+});
 
 TerminalSearchOverlayLayout terminalSearchOverlayLayout({
   required TerminalToolbarCorner toolbarCorner,

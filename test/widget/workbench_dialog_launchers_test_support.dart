@@ -31,7 +31,7 @@ Future<void> pumpFlowHarness(
         ),
         gitBackendProvider.overrideWithValue(FakeGitBackend()),
         settingsControllerProvider.overrideWith(
-          () => DialogLaunchersSettingsController(AleraSettings.defaults),
+          () => DialogLaunchersSettingsController(.defaults),
         ),
       ],
       child: MaterialApp(
@@ -93,17 +93,14 @@ Workspace buildWorkspace({
     path: '/repo/$projectId/$id',
     createdAt: now,
     updatedAt: now,
-    kind: WorkspaceKind.linked,
-    status: WorkspaceStatus.active,
+    kind: .linked,
+    status: .active,
     sourceBranch: 'main',
   );
 }
 
-class DialogLaunchersTestController extends WorkbenchController {
-  DialogLaunchersTestController(this._seed);
-
-  final WorkbenchState _seed;
-
+class DialogLaunchersTestController(final WorkbenchState _seed)
+    extends WorkbenchController {
   String? addedLocalPath;
   String? addedLocalName;
   Exception? addLocalError;
@@ -112,7 +109,7 @@ class DialogLaunchersTestController extends WorkbenchController {
   List<String> sourceBranches = const <String>['main'];
   Exception? createWorkspaceError;
   String? parentLinkError;
-  WorktreeSetupReport setupReport = WorktreeSetupReport.empty;
+  WorktreeSetupReport setupReport = .empty;
   ({
     Project project,
     String sourceBranch,
@@ -193,11 +190,8 @@ class DialogLaunchersTestController extends WorkbenchController {
   }
 }
 
-class DialogLaunchersSettingsController extends SettingsController {
-  DialogLaunchersSettingsController(this._seed);
-
-  final AleraSettings _seed;
-
+class DialogLaunchersSettingsController(final AleraSettings _seed)
+    extends SettingsController {
   @override
   AleraSettings build() => _seed;
 }

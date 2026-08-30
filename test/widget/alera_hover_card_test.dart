@@ -1,6 +1,5 @@
 import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/design_system/surfaces/alera_hover_card.dart';
-import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -36,9 +35,9 @@ Widget _wrap({
 }
 
 Future<TestGesture> _mouse(WidgetTester tester) async {
-  final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+  final mouse = await tester.createGesture(kind: .mouse);
   addTearDown(mouse.removePointer);
-  await mouse.addPointer(location: Offset.zero);
+  await mouse.addPointer(location: .zero);
   await tester.pump();
   return mouse;
 }

@@ -147,11 +147,7 @@ final class AgentHookLifecycleGuard {
   }
 }
 
-final class _AgyCompletedTurn {
-  const _AgyCompletedTurn(this.transcriptPath);
-
-  final String? transcriptPath;
-}
+final class const _AgyCompletedTurn(final String? transcriptPath);
 
 final class _AmpTerminalLifecycle {
   final LinkedHashSet<String> completedThreads = LinkedHashSet<String>();

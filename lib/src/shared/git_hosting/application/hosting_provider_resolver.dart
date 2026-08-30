@@ -5,35 +5,24 @@ import 'package:alera/src/shared/infra/git/git_remote.dart';
 
 /// Typed outcome of resolving which hosting provider a repository belongs to.
 /// Never a bare null: callers switch over the concrete cases.
-sealed class HostingProviderResolution {
-  const HostingProviderResolution();
-}
+sealed class const HostingProviderResolution();
 
 /// The provider and repository coordinates were resolved. [fromOverride] is
 /// true when a project-level provider override forced the interpretation.
-class HostingProviderResolved extends HostingProviderResolution {
-  const HostingProviderResolved({
-    required this.identity,
-    required this.fromOverride,
-  });
-
-  final GitRemoteIdentity identity;
-  final bool fromOverride;
-}
+class const HostingProviderResolved({
+  required final GitRemoteIdentity identity,
+  required final bool fromOverride,
+}) extends HostingProviderResolution;
 
 /// A usable remote URL exists but could not be interpreted. When
 /// [attemptedOverride] is set, the failure is against a forced provider.
-class HostingProviderUndetectable extends HostingProviderResolution {
-  const HostingProviderUndetectable({this.remoteUrl, this.attemptedOverride});
-
-  final String? remoteUrl;
-  final GitHostingProvider? attemptedOverride;
-}
+class const HostingProviderUndetectable({
+  final String? remoteUrl,
+  final GitHostingProvider? attemptedOverride,
+}) extends HostingProviderResolution;
 
 /// The repository has no remote with a URL to resolve against.
-class HostingProviderNoRemote extends HostingProviderResolution {
-  const HostingProviderNoRemote();
-}
+class const HostingProviderNoRemote() extends HostingProviderResolution;
 
 /// Resolves the effective hosting provider from the repository's [remotes] and
 /// an optional project-level [override]. Precedence: the override forces the

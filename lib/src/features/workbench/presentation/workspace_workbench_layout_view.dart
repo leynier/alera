@@ -1,62 +1,34 @@
 part of 'workspace_workbench_view.dart';
 
-class _WorkbenchLayoutView extends StatelessWidget {
-  const _WorkbenchLayoutView({
-    required this.workspace,
-    required this.sourceControlScope,
-    required this.tabs,
-    required this.layout,
-    required this.node,
-    required this.nodePath,
-    required this.terminalRuntime,
-    required this.mobileDriverPresence,
-    required this.agentStatuses,
-    required this.completionAcknowledgements,
-    required this.onCreateTab,
-    required this.onCreateBrowserTab,
-    required this.onCreateCodexTab,
-    required this.onOpenEditorTab,
-    required this.onOpenMarkdownViewerTab,
-    required this.onSelectTab,
-    required this.onCloseTab,
-    required this.onCloseTabs,
-    required this.onRenameTab,
-    required this.onOpenEditor,
-    required this.onOpenMermanPreview,
-    required this.onMoveTab,
-    required this.onSplitGroup,
-    required this.onMergeGroup,
-    required this.onActivateGroup,
-    required this.onUpdateSplitRatio,
-  });
-
-  final Workspace workspace;
-  final WorkspaceSourceControlScope? sourceControlScope;
-  final List<WorkspaceTabRecord> tabs;
-  final WorkbenchLayout layout;
-  final WorkbenchLayoutNode node;
-  final List<int> nodePath;
-  final TerminalRuntime terminalRuntime;
-  final WorkbenchMobileDriverPresence? mobileDriverPresence;
-  final Map<String, AgentStatusEntry> agentStatuses;
-  final WorkbenchTabCompletionAcknowledgements completionAcknowledgements;
-  final CreateTerminalTabCallback onCreateTab;
-  final CreateBrowserTabCallback? onCreateBrowserTab;
-  final CreateCodexTabCallback? onCreateCodexTab;
-  final OpenFileTabCallback onOpenEditorTab;
-  final OpenFileTabCallback onOpenMarkdownViewerTab;
-  final SelectWorkspaceTabCallback onSelectTab;
-  final ValueChanged<String> onCloseTab;
-  final ValueChanged<List<String>> onCloseTabs;
-  final RenameWorkspaceTabCallback onRenameTab;
-  final OpenWorkspaceFileCallback onOpenEditor;
-  final OpenWorkspaceFileCallback onOpenMermanPreview;
-  final MoveWorkspaceTabCallback onMoveTab;
-  final SplitWorkbenchGroupCallback onSplitGroup;
-  final MergeWorkbenchGroupCallback onMergeGroup;
-  final ActivateWorkbenchGroupCallback onActivateGroup;
-  final UpdateWorkbenchSplitRatioCallback onUpdateSplitRatio;
-
+class const _WorkbenchLayoutView({
+  required final Workspace workspace,
+  required final WorkspaceSourceControlScope? sourceControlScope,
+  required final List<WorkspaceTabRecord> tabs,
+  required final WorkbenchLayout layout,
+  required final WorkbenchLayoutNode node,
+  required final List<int> nodePath,
+  required final TerminalRuntime terminalRuntime,
+  required final WorkbenchMobileDriverPresence? mobileDriverPresence,
+  required final Map<String, AgentStatusEntry> agentStatuses,
+  required final WorkbenchTabCompletionAcknowledgements
+  completionAcknowledgements,
+  required final CreateTerminalTabCallback onCreateTab,
+  required final CreateBrowserTabCallback? onCreateBrowserTab,
+  required final CreateCodexTabCallback? onCreateCodexTab,
+  required final OpenFileTabCallback onOpenEditorTab,
+  required final OpenFileTabCallback onOpenMarkdownViewerTab,
+  required final SelectWorkspaceTabCallback onSelectTab,
+  required final ValueChanged<String> onCloseTab,
+  required final ValueChanged<List<String>> onCloseTabs,
+  required final RenameWorkspaceTabCallback onRenameTab,
+  required final OpenWorkspaceFileCallback onOpenEditor,
+  required final OpenWorkspaceFileCallback onOpenMermanPreview,
+  required final MoveWorkspaceTabCallback onMoveTab,
+  required final SplitWorkbenchGroupCallback onSplitGroup,
+  required final MergeWorkbenchGroupCallback onMergeGroup,
+  required final ActivateWorkbenchGroupCallback onActivateGroup,
+  required final UpdateWorkbenchSplitRatioCallback onUpdateSplitRatio,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final groupId = node.groupId;
@@ -119,63 +91,35 @@ class _WorkbenchLayoutView extends StatelessWidget {
   }
 }
 
-class _WorkbenchSplitView extends StatelessWidget {
-  const _WorkbenchSplitView({
-    required this.workspace,
-    required this.sourceControlScope,
-    required this.tabs,
-    required this.layout,
-    required this.node,
-    required this.nodePath,
-    required this.terminalRuntime,
-    required this.mobileDriverPresence,
-    required this.agentStatuses,
-    required this.completionAcknowledgements,
-    required this.onCreateTab,
-    required this.onCreateBrowserTab,
-    required this.onCreateCodexTab,
-    required this.onOpenEditorTab,
-    required this.onOpenMarkdownViewerTab,
-    required this.onSelectTab,
-    required this.onCloseTab,
-    required this.onCloseTabs,
-    required this.onRenameTab,
-    required this.onOpenEditor,
-    required this.onOpenMermanPreview,
-    required this.onMoveTab,
-    required this.onSplitGroup,
-    required this.onMergeGroup,
-    required this.onActivateGroup,
-    required this.onUpdateSplitRatio,
-  });
-
-  final Workspace workspace;
-  final WorkspaceSourceControlScope? sourceControlScope;
-  final List<WorkspaceTabRecord> tabs;
-  final WorkbenchLayout layout;
-  final WorkbenchLayoutNode node;
-  final List<int> nodePath;
-  final TerminalRuntime terminalRuntime;
-  final WorkbenchMobileDriverPresence? mobileDriverPresence;
-  final Map<String, AgentStatusEntry> agentStatuses;
-  final WorkbenchTabCompletionAcknowledgements completionAcknowledgements;
-  final CreateTerminalTabCallback onCreateTab;
-  final CreateBrowserTabCallback? onCreateBrowserTab;
-  final CreateCodexTabCallback? onCreateCodexTab;
-  final OpenFileTabCallback onOpenEditorTab;
-  final OpenFileTabCallback onOpenMarkdownViewerTab;
-  final SelectWorkspaceTabCallback onSelectTab;
-  final ValueChanged<String> onCloseTab;
-  final ValueChanged<List<String>> onCloseTabs;
-  final RenameWorkspaceTabCallback onRenameTab;
-  final OpenWorkspaceFileCallback onOpenEditor;
-  final OpenWorkspaceFileCallback onOpenMermanPreview;
-  final MoveWorkspaceTabCallback onMoveTab;
-  final SplitWorkbenchGroupCallback onSplitGroup;
-  final MergeWorkbenchGroupCallback onMergeGroup;
-  final ActivateWorkbenchGroupCallback onActivateGroup;
-  final UpdateWorkbenchSplitRatioCallback onUpdateSplitRatio;
-
+class const _WorkbenchSplitView({
+  required final Workspace workspace,
+  required final WorkspaceSourceControlScope? sourceControlScope,
+  required final List<WorkspaceTabRecord> tabs,
+  required final WorkbenchLayout layout,
+  required final WorkbenchLayoutNode node,
+  required final List<int> nodePath,
+  required final TerminalRuntime terminalRuntime,
+  required final WorkbenchMobileDriverPresence? mobileDriverPresence,
+  required final Map<String, AgentStatusEntry> agentStatuses,
+  required final WorkbenchTabCompletionAcknowledgements
+  completionAcknowledgements,
+  required final CreateTerminalTabCallback onCreateTab,
+  required final CreateBrowserTabCallback? onCreateBrowserTab,
+  required final CreateCodexTabCallback? onCreateCodexTab,
+  required final OpenFileTabCallback onOpenEditorTab,
+  required final OpenFileTabCallback onOpenMarkdownViewerTab,
+  required final SelectWorkspaceTabCallback onSelectTab,
+  required final ValueChanged<String> onCloseTab,
+  required final ValueChanged<List<String>> onCloseTabs,
+  required final RenameWorkspaceTabCallback onRenameTab,
+  required final OpenWorkspaceFileCallback onOpenEditor,
+  required final OpenWorkspaceFileCallback onOpenMermanPreview,
+  required final MoveWorkspaceTabCallback onMoveTab,
+  required final SplitWorkbenchGroupCallback onSplitGroup,
+  required final MergeWorkbenchGroupCallback onMergeGroup,
+  required final ActivateWorkbenchGroupCallback onActivateGroup,
+  required final UpdateWorkbenchSplitRatioCallback onUpdateSplitRatio,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final axis = node.axis!;

@@ -3,24 +3,15 @@ import 'package:alera/src/features/ai_dictation/application/ai_dictation_target_
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-class AiDictationTarget extends StatefulWidget {
-  const AiDictationTarget({
-    super.key,
-    required this.controller,
-    required this.focusNode,
-    required this.builder,
-    this.initialPrompt,
-    this.workspaceId,
-    this.tabId,
-  });
-
-  final TextEditingController controller;
-  final FocusNode focusNode;
-  final String? initialPrompt;
-  final String? workspaceId;
-  final String? tabId;
-  final Widget Function(BuildContext context, String targetId) builder;
-
+class const AiDictationTarget({
+  super.key,
+  required final TextEditingController controller,
+  required final FocusNode focusNode,
+  required final Widget Function(BuildContext context, String targetId) builder,
+  final String? initialPrompt,
+  final String? workspaceId,
+  final String? tabId,
+}) extends StatefulWidget {
   @override
   State<AiDictationTarget> createState() => _AiDictationTargetState();
 }

@@ -9,7 +9,6 @@ import 'package:alera/src/features/pull_requests/domain/forge_auth_status.dart';
 import 'package:alera/src/features/pull_requests/domain/hosted_review.dart';
 import 'package:alera/src/features/pull_requests/domain/linked_review.dart';
 import 'package:alera/src/features/pull_requests/domain/workspace_pull_request_scope.dart';
-import 'package:alera/src/shared/git_hosting/domain/git_hosting_provider.dart';
 import 'package:alera/src/shared/infra/git/git_providers.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -19,10 +18,10 @@ import 'fake_git_backend.dart';
 
 HostedReview _review(int number, {String headBranch = 'feature'}) =>
     HostedReview(
-      provider: GitHostingProvider.github,
+      provider: .github,
       number: number,
       title: 'feat: $number',
-      state: HostedReviewState.open,
+      state: .open,
       url: 'https://github.com/leynier/alera/pull/$number',
       headBranch: headBranch,
     );
@@ -205,7 +204,7 @@ void main() {
 
       final result = await controller.createReview(
         const CreateReviewInput(
-          provider: GitHostingProvider.github,
+          provider: .github,
           title: 'feat: broken',
           baseBranch: 'main',
           headBranch: 'feature',

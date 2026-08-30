@@ -387,7 +387,7 @@ class _FakeWorkspaceFileService extends WorkspaceFileService {
       displayContent: currentDisplayContent,
       contentToken: '$relativePath-saved',
       modifiedMillis: 1,
-      size: BigInt.from(currentDisplayContent.length),
+      size: .from(currentDisplayContent.length),
     );
   }
 }
@@ -402,22 +402,14 @@ native.WorkspaceEditorTextFile _editorFile({
     displayContent: displayContent,
     contentToken: contentToken,
     modifiedMillis: 0,
-    size: BigInt.from(rawContent.length),
+    size: .from(rawContent.length),
   );
 }
 
-class _EditorWrite {
-  const _EditorWrite({
-    required this.relativePath,
-    required this.currentDisplayContent,
-    required this.originalRawContent,
-    required this.originalDisplayContent,
-    required this.tabSize,
-  });
-
-  final String relativePath;
-  final String currentDisplayContent;
-  final String? originalRawContent;
-  final String? originalDisplayContent;
-  final int tabSize;
-}
+class const _EditorWrite({
+  required final String relativePath,
+  required final String currentDisplayContent,
+  required final String? originalRawContent,
+  required final String? originalDisplayContent,
+  required final int tabSize,
+});

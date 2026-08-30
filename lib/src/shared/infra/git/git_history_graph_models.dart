@@ -11,11 +11,9 @@ enum GitHistoryGraphColorId {
   lane5,
 }
 
-const GitHistoryGraphColorId gitHistoryRefColor = GitHistoryGraphColorId.ref;
-const GitHistoryGraphColorId gitHistoryRemoteRefColor =
-    GitHistoryGraphColorId.remoteRef;
-const GitHistoryGraphColorId gitHistoryBaseRefColor =
-    GitHistoryGraphColorId.baseRef;
+const GitHistoryGraphColorId gitHistoryRefColor = .ref;
+const GitHistoryGraphColorId gitHistoryRemoteRefColor = .remoteRef;
+const GitHistoryGraphColorId gitHistoryBaseRefColor = .baseRef;
 const List<GitHistoryGraphColorId> gitHistoryLaneColors =
     <GitHistoryGraphColorId>[
       GitHistoryGraphColorId.lane1,

@@ -108,7 +108,7 @@ void main() {
     // (kPrecisePointerHitSlop = 1px) instead of kTouchSlop.
     final gesture = await tester.startGesture(
       tester.getCenter(find.text('Drag Paths')),
-      kind: PointerDeviceKind.mouse,
+      kind: .mouse,
     );
     await gesture.moveBy(const Offset(2, 0));
     await tester.pump();
@@ -227,10 +227,8 @@ Future<void> _dragSourceToTerminal(
   await tester.pump();
 }
 
-class _CapturingTerminalSessionHandle extends TerminalSessionHandle {
-  _CapturingTerminalSessionHandle({this.error, this.workspacePath});
-
-  final String? error;
+class _CapturingTerminalSessionHandle({final String? error, this.workspacePath})
+    extends TerminalSessionHandle {
   final List<String> pasted = <String>[];
   int focusRequests = 0;
   final ValueNotifier<String> _title = ValueNotifier<String>('Terminal');

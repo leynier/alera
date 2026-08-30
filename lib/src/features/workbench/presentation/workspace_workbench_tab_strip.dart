@@ -1,46 +1,26 @@
 part of 'workspace_workbench_view.dart';
 
-class _WorkspaceTabStrip extends StatefulWidget {
-  const _WorkspaceTabStrip({
-    required this.workspace,
-    required this.groupId,
-    required this.tabs,
-    required this.activeTabId,
-    required this.canCloseSplit,
-    required this.terminalRuntime,
-    required this.agentStatuses,
-    required this.completionAcknowledgements,
-    required this.onSelectTab,
-    required this.onCloseTab,
-    required this.onCloseTabs,
-    required this.onRenameTab,
-    required this.onCreateTab,
-    required this.onCreateBrowserTab,
-    required this.onCreateCodexTab,
-    required this.onSplitGroup,
-    required this.onMergeGroup,
-    required this.onMoveTab,
-  });
-
-  final Workspace workspace;
-  final String groupId;
-  final List<WorkspaceTabRecord> tabs;
-  final String? activeTabId;
-  final bool canCloseSplit;
-  final TerminalRuntime terminalRuntime;
-  final Map<String, AgentStatusEntry> agentStatuses;
-  final WorkbenchTabCompletionAcknowledgements completionAcknowledgements;
-  final ValueChanged<String> onSelectTab;
-  final ValueChanged<String> onCloseTab;
-  final ValueChanged<List<String>> onCloseTabs;
-  final RenameWorkspaceTabCallback onRenameTab;
-  final VoidCallback onCreateTab;
-  final VoidCallback? onCreateBrowserTab;
-  final VoidCallback? onCreateCodexTab;
-  final ValueChanged<WorkbenchDropZone> onSplitGroup;
-  final VoidCallback onMergeGroup;
-  final MoveWorkspaceTabCallback onMoveTab;
-
+class const _WorkspaceTabStrip({
+  required final Workspace workspace,
+  required final String groupId,
+  required final List<WorkspaceTabRecord> tabs,
+  required final String? activeTabId,
+  required final bool canCloseSplit,
+  required final TerminalRuntime terminalRuntime,
+  required final Map<String, AgentStatusEntry> agentStatuses,
+  required final WorkbenchTabCompletionAcknowledgements
+  completionAcknowledgements,
+  required final ValueChanged<String> onSelectTab,
+  required final ValueChanged<String> onCloseTab,
+  required final ValueChanged<List<String>> onCloseTabs,
+  required final RenameWorkspaceTabCallback onRenameTab,
+  required final VoidCallback onCreateTab,
+  required final VoidCallback? onCreateBrowserTab,
+  required final VoidCallback? onCreateCodexTab,
+  required final ValueChanged<WorkbenchDropZone> onSplitGroup,
+  required final VoidCallback onMergeGroup,
+  required final MoveWorkspaceTabCallback onMoveTab,
+}) extends StatefulWidget {
   @override
   State<_WorkspaceTabStrip> createState() => _WorkspaceTabStripState();
 }
@@ -153,7 +133,7 @@ class _WorkspaceTabStripState extends State<_WorkspaceTabStrip> {
       widget.onMoveTab(
         tabId: data.tabId,
         targetGroupId: widget.groupId,
-        zone: WorkbenchDropZone.center,
+        zone: .center,
         index: index,
       ),
     );
@@ -183,13 +163,13 @@ class _WorkspaceTabStripState extends State<_WorkspaceTabStrip> {
               Expanded(
                 child: SingleChildScrollView(
                   controller: _scrollController,
-                  scrollDirection: Axis.horizontal,
+                  scrollDirection: .horizontal,
                   padding: const EdgeInsets.symmetric(
                     horizontal: AleraTokens.space8,
                     vertical: AleraTokens.space6,
                   ),
                   child: Row(
-                    mainAxisSize: MainAxisSize.min,
+                    mainAxisSize: .min,
                     children: <Widget>[
                       for (final (index, tab) in widget.tabs.indexed)
                         _TabStripChipDropTarget(
@@ -255,60 +235,54 @@ class _WorkspaceTabStripState extends State<_WorkspaceTabStrip> {
   }
 }
 
-class _PaneMenuButton extends StatelessWidget {
-  const _PaneMenuButton({
-    required this.canCloseSplit,
-    required this.onSplitGroup,
-    required this.onMergeGroup,
-  });
-
-  final bool canCloseSplit;
-  final ValueChanged<WorkbenchDropZone> onSplitGroup;
-  final VoidCallback onMergeGroup;
-
+class const _PaneMenuButton({
+  required final bool canCloseSplit,
+  required final ValueChanged<WorkbenchDropZone> onSplitGroup,
+  required final VoidCallback onMergeGroup,
+}) extends StatelessWidget {
   Future<void> _openMenu(BuildContext context) async {
     final button = context.findRenderObject()! as RenderBox;
     final overlay =
         Navigator.of(context).overlay!.context.findRenderObject()! as RenderBox;
     final topLeft = button.localToGlobal(
-      button.size.bottomLeft(Offset.zero),
+      button.size.bottomLeft(.zero),
       ancestor: overlay,
     );
     final bottomRight = button.localToGlobal(
-      button.size.bottomRight(Offset.zero),
+      button.size.bottomRight(.zero),
       ancestor: overlay,
     );
     final selected = await showMenu<_PaneMenuAction>(
       context: context,
-      position: RelativeRect.fromRect(
-        Rect.fromPoints(topLeft, bottomRight),
+      position: .fromRect(
+        .fromPoints(topLeft, bottomRight),
         Offset.zero & overlay.size,
       ),
       items: <PopupMenuEntry<_PaneMenuAction>>[
         const AleraDropdownEntry<_PaneMenuAction>(
-          value: _PaneMenuAction.splitRight,
+          value: .splitRight,
           label: 'Split Right',
-          leading: _SplitDirectionGlyph(zone: WorkbenchDropZone.right),
+          leading: _SplitDirectionGlyph(zone: .right),
         ),
         const AleraDropdownEntry<_PaneMenuAction>(
-          value: _PaneMenuAction.splitDown,
+          value: .splitDown,
           label: 'Split Down',
-          leading: _SplitDirectionGlyph(zone: WorkbenchDropZone.down),
+          leading: _SplitDirectionGlyph(zone: .down),
         ),
         const AleraDropdownEntry<_PaneMenuAction>(
-          value: _PaneMenuAction.splitLeft,
+          value: .splitLeft,
           label: 'Split Left',
-          leading: _SplitDirectionGlyph(zone: WorkbenchDropZone.left),
+          leading: _SplitDirectionGlyph(zone: .left),
         ),
         const AleraDropdownEntry<_PaneMenuAction>(
-          value: _PaneMenuAction.splitUp,
+          value: .splitUp,
           label: 'Split Up',
-          leading: _SplitDirectionGlyph(zone: WorkbenchDropZone.up),
+          leading: _SplitDirectionGlyph(zone: .up),
         ),
         if (canCloseSplit) const PopupMenuDivider(height: AleraTokens.space8),
         if (canCloseSplit)
           const AleraDropdownEntry<_PaneMenuAction>(
-            value: _PaneMenuAction.closeSplit,
+            value: .closeSplit,
             label: 'Close Split',
           ),
       ],
@@ -320,13 +294,13 @@ class _PaneMenuButton extends StatelessWidget {
 
     switch (selected) {
       case _PaneMenuAction.splitRight:
-        onSplitGroup(WorkbenchDropZone.right);
+        onSplitGroup(.right);
       case _PaneMenuAction.splitDown:
-        onSplitGroup(WorkbenchDropZone.down);
+        onSplitGroup(.down);
       case _PaneMenuAction.splitLeft:
-        onSplitGroup(WorkbenchDropZone.left);
+        onSplitGroup(.left);
       case _PaneMenuAction.splitUp:
-        onSplitGroup(WorkbenchDropZone.up);
+        onSplitGroup(.up);
       case _PaneMenuAction.closeSplit:
         onMergeGroup();
     }
@@ -343,31 +317,25 @@ class _PaneMenuButton extends StatelessWidget {
   }
 }
 
-class _SplitDirectionGlyph extends StatelessWidget {
-  const _SplitDirectionGlyph({required this.zone});
-
-  final WorkbenchDropZone zone;
-
+class const _SplitDirectionGlyph({required final WorkbenchDropZone zone})
+    extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return CustomPaint(
-      size: const Size.square(14),
+      size: const .square(14),
       painter: _SplitDirectionPainter(zone: zone),
     );
   }
 }
 
-class _SplitDirectionPainter extends CustomPainter {
-  const _SplitDirectionPainter({required this.zone});
-
-  final WorkbenchDropZone zone;
-
+class const _SplitDirectionPainter({required final WorkbenchDropZone zone})
+    extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final outerRect = Rect.fromLTWH(0.5, 0.5, size.width - 1, size.height - 1);
     final outerRRect = RRect.fromRectAndRadius(
       outerRect,
-      const Radius.circular(AleraTokens.radiusSm),
+      const .circular(AleraTokens.radiusSm),
     );
 
     final fillRect = splitDirectionFillRectForTesting(zone, size);

@@ -70,12 +70,11 @@ void main() {
   });
 }
 
-class _FakeAleraCliRegistrationService extends AleraCliRegistrationService {
-  _FakeAleraCliRegistrationService({this.statusError, this.installError})
-    : super(processRunner: _NoopProcessRunner());
-
-  final Object? statusError;
-  final Object? installError;
+class _FakeAleraCliRegistrationService({
+  final Object? statusError,
+  final Object? installError,
+}) extends AleraCliRegistrationService {
+  this : super(processRunner: _NoopProcessRunner());
 
   @override
   Future<AleraCliRegistrationStatus> status() async {
@@ -125,7 +124,7 @@ const _notRegisteredStatus = AleraCliRegistrationStatus(
   pathDirectory: '/Users/test/.local/bin',
   pathConfigured: false,
   launcherPath: '/Applications/Alera.app/alera',
-  installMethod: AleraCliRegistrationInstallMethod.wrapper,
-  state: AleraCliRegistrationState.notInstalled,
+  installMethod: .wrapper,
+  state: .notInstalled,
   detail: 'Register the Alera command to use it from terminals and agents.',
 );

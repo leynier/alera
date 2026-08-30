@@ -1,7 +1,6 @@
 import 'package:alera/src/design_system/forms/alera_composer.dart';
 import 'package:alera/src/design_system/forms/alera_text_actions_scope.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
@@ -30,15 +29,15 @@ void main() {
     );
 
     await tester.enterText(find.byType(TextField), 'Prompt');
-    await tester.sendKeyDownEvent(LogicalKeyboardKey.shiftLeft);
-    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
-    await tester.sendKeyUpEvent(LogicalKeyboardKey.shiftLeft);
+    await tester.sendKeyDownEvent(.shiftLeft);
+    await tester.sendKeyEvent(.enter);
+    await tester.sendKeyUpEvent(.shiftLeft);
     await tester.pump();
 
     expect(controller.text, 'Prompt\n');
     expect(sends, 0);
 
-    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+    await tester.sendKeyEvent(.enter);
     await tester.pump();
 
     expect(sends, 1);

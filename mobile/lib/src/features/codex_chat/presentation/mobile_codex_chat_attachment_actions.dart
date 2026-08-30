@@ -32,7 +32,7 @@ extension _MobileCodexAttachmentActions on _MobileCodexChatScreenState {
           baseOffset: adjustedOffset(value.selection.baseOffset),
           extentOffset: adjustedOffset(value.selection.extentOffset),
         ),
-        composing: TextRange.empty,
+        composing: .empty,
       );
     });
   }
@@ -51,7 +51,7 @@ extension _MobileCodexAttachmentActions on _MobileCodexChatScreenState {
   Future<void> _pickImage(MobileCodexController controller) async {
     final messenger = mounted ? ScaffoldMessenger.maybeOf(context) : null;
     try {
-      final image = await ImagePicker().pickImage(source: ImageSource.gallery);
+      final image = await ImagePicker().pickImage(source: .gallery);
       if (image == null) return;
       final path = await controller.uploadImage(
         format: promptImageFormatForFileName(image.name),
@@ -84,7 +84,7 @@ extension _MobileCodexAttachmentActions on _MobileCodexChatScreenState {
       showDragHandle: true,
       builder: (context) => SafeArea(
         child: Column(
-          mainAxisSize: MainAxisSize.min,
+          mainAxisSize: .min,
           children: <Widget>[
             if (controller.supportsImageUpload)
               ListTile(

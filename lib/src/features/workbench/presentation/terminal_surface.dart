@@ -15,7 +15,6 @@ import 'package:alera/src/features/workbench/presentation/terminal_runtime.dart'
 import 'package:alera/src/features/workbench/presentation/terminal_search_controller.dart';
 import 'package:alera/src/features/workbench/presentation/terminal_search_overlay.dart';
 import 'package:alera/src/features/workbench/presentation/terminal_surface_toolbar.dart';
-import 'package:alera/src/features/workbench/domain/workbench_view_prefs.dart';
 import 'package:alera/src/features/settings/domain/alera_settings.dart';
 import 'package:desktop_drop/desktop_drop.dart';
 import 'package:flutter/material.dart';
@@ -24,16 +23,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 part 'terminal_surface_states.dart';
 
-class TerminalSurface extends ConsumerStatefulWidget {
-  const TerminalSurface({
-    super.key,
-    required this.session,
-    this.autofocus = false,
-  });
-
-  final TerminalSessionHandle session;
-  final bool autofocus;
-
+class const TerminalSurface({
+  super.key,
+  required final TerminalSessionHandle session,
+  final bool autofocus = false,
+}) extends ConsumerStatefulWidget {
   @override
   ConsumerState<TerminalSurface> createState() => _TerminalSurfaceState();
 }
@@ -133,7 +127,7 @@ class _TerminalSurfaceState extends ConsumerState<TerminalSurface> {
     }
     final keyboard = ref.read(settingsControllerProvider).keyboard;
     final resolver = KeybindingResolver(settings: keyboard);
-    final modifiers = KeyModifierState.fromKeyboard(HardwareKeyboard.instance);
+    final modifiers = KeyModifierState.fromKeyboard(.instance);
     final resolved = resolver.resolveAction(event, modifiers);
     if (resolved == null) {
       return KeyEventResult.ignored;
@@ -174,7 +168,7 @@ class _TerminalSurfaceState extends ConsumerState<TerminalSurface> {
           )
         : TerminalToolbarCorner.topRight;
     return AnimatedBuilder(
-      animation: Listenable.merge(<Listenable>[
+      animation: .merge(<Listenable>[
         widget.session,
         widget.session.composerController,
       ]),
@@ -391,7 +385,7 @@ class _TerminalSurfaceState extends ConsumerState<TerminalSurface> {
           .select(terminalSessionId);
     }
     final controller = ref.read(workbenchControllerProvider.notifier);
-    controller.setContextPanelTab(WorkbenchContextPanelTab.agentCanvas);
+    controller.setContextPanelTab(.agentCanvas);
     if (!ref.read(workbenchControllerProvider).viewPrefs.rightSidebarVisible) {
       controller.toggleRightSidebarVisible();
     }

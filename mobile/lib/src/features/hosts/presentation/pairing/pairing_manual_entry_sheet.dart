@@ -12,9 +12,7 @@ Future<String?> showPairingManualEntrySheet(BuildContext context) {
   );
 }
 
-class _PairingManualEntrySheet extends StatefulWidget {
-  const _PairingManualEntrySheet();
-
+class const _PairingManualEntrySheet() extends StatefulWidget {
   @override
   State<_PairingManualEntrySheet> createState() =>
       _PairingManualEntrySheetState();
@@ -53,8 +51,8 @@ class _PairingManualEntrySheetState extends State<_PairingManualEntrySheet> {
         bottom: MediaQuery.viewInsetsOf(context).bottom + AleraTokens.spaceLg,
       ),
       child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
+        mainAxisSize: .min,
+        crossAxisAlignment: .stretch,
         children: <Widget>[
           Text(
             'Paste Pairing Offer',

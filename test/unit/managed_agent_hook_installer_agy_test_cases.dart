@@ -42,7 +42,7 @@ void _registerAgyHookInstallerTests(
       },
     });
 
-    final status = service.install(AgentType.agy);
+    final status = service.install(.agy);
     final config = _readJson(configPath);
     final bundle = agyBundle(home);
 
@@ -116,7 +116,7 @@ void _registerAgyHookInstallerTests(
       },
     });
 
-    service.install(AgentType.agy);
+    service.install(.agy);
 
     // Both installers write this bundle; two handlers would post every event
     // twice.
@@ -130,14 +130,14 @@ void _registerAgyHookInstallerTests(
   test('reports a disabled AGY bundle as partial', () {
     final home = readHome();
     final service = readService();
-    service.install(AgentType.agy);
+    service.install(.agy);
     final configPath = agyConfigPath(home);
     final config = _readJson(configPath);
     final bundle = agyBundle(home)..['enabled'] = false;
     config['alera-status'] = bundle;
     _writeJson(configPath, config);
 
-    final status = service.status(AgentType.agy);
+    final status = service.status(.agy);
 
     expect(status.state, ManagedAgentHookInstallState.partial);
     expect(status.managedHooksPresent, isTrue);
@@ -155,7 +155,7 @@ void _registerAgyHookInstallerTests(
       },
     });
 
-    final status = service.install(AgentType.agy);
+    final status = service.install(.agy);
     final bundle = agyBundle(home);
 
     expect(status.state, ManagedAgentHookInstallState.installed);
@@ -167,11 +167,11 @@ void _registerAgyHookInstallerTests(
     final home = readHome();
     final windowsService = ManagedAgentHookInstallService(
       homeDirectory: home.path,
-      platform: ManagedAgentHookPlatform.windows,
+      platform: .windows,
       environment: <String, String>{'USERPROFILE': home.path},
     );
 
-    final status = windowsService.install(AgentType.agy);
+    final status = windowsService.install(.agy);
     final bundle = agyBundle(home);
 
     expect(status.state, ManagedAgentHookInstallState.installed);
@@ -181,15 +181,13 @@ void _registerAgyHookInstallerTests(
     expect(stopCommand.startsWith('"'), isTrue);
     expect(stopCommand.endsWith('"'), isTrue);
     expect(
-      File(
-        p.join(home.path, '.alera', 'agent-hooks', 'alera-agy-stop.cmd'),
-      ).readAsStringSync(),
+      File(p.join(home.path, '.alera', 'agent-hooks', 'alera-agy-stop.cmd'))
+          .readAsStringSync(),
       contains('ALERA_AGY_EVENT=Stop'),
     );
     expect(
-      File(
-        p.join(home.path, '.alera', 'agent-hooks', 'alera-agy-hook.cmd'),
-      ).readAsStringSync(),
+      File(p.join(home.path, '.alera', 'agent-hooks', 'alera-agy-hook.cmd'))
+          .readAsStringSync(),
       allOf(
         contains('/hook/agy'),
         contains(
@@ -202,7 +200,7 @@ void _registerAgyHookInstallerTests(
   test('removes only Alera-managed AGY bundle entries', () {
     final home = readHome();
     final service = readService();
-    service.install(AgentType.agy);
+    service.install(.agy);
     final configPath = agyConfigPath(home);
     final config = _readJson(configPath);
     final bundle = agyBundle(home);
@@ -213,7 +211,7 @@ void _registerAgyHookInstallerTests(
     config['alera-status'] = bundle;
     _writeJson(configPath, config);
 
-    final status = service.remove(AgentType.agy);
+    final status = service.remove(.agy);
     final next = _readJson(configPath);
     final nextBundle = Map<String, Object?>.from(next['alera-status'] as Map);
 
@@ -225,9 +223,9 @@ void _registerAgyHookInstallerTests(
   test('removes empty AGY bundles after deleting managed commands', () {
     final home = readHome();
     final service = readService();
-    service.install(AgentType.agy);
+    service.install(.agy);
 
-    final status = service.remove(AgentType.agy);
+    final status = service.remove(.agy);
     final config = _readJson(agyConfigPath(home));
 
     expect(status.state, ManagedAgentHookInstallState.notInstalled);
@@ -237,13 +235,13 @@ void _registerAgyHookInstallerTests(
   test('drops an AGY bundle left holding only the enabled flag', () {
     final home = readHome();
     final service = readService();
-    service.install(AgentType.agy);
+    service.install(.agy);
     final configPath = agyConfigPath(home);
     final config = _readJson(configPath);
     config['alera-status'] = agyBundle(home)..['enabled'] = false;
     _writeJson(configPath, config);
 
-    service.remove(AgentType.agy);
+    service.remove(.agy);
 
     expect(_readJson(configPath).containsKey('alera-status'), isFalse);
   });

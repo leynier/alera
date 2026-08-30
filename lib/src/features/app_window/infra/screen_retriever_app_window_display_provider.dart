@@ -3,10 +3,9 @@ import 'dart:ui';
 import 'package:alera/src/features/app_window/application/app_window_controller.dart';
 import 'package:screen_retriever/screen_retriever.dart';
 
-class ScreenRetrieverAppWindowDisplayProvider
+class ScreenRetrieverAppWindowDisplayProvider({ScreenRetriever? retriever})
     implements AppWindowDisplayProvider {
-  ScreenRetrieverAppWindowDisplayProvider({ScreenRetriever? retriever})
-    : _retriever = retriever ?? screenRetriever;
+  this : _retriever = retriever ?? screenRetriever;
 
   final ScreenRetriever _retriever;
 

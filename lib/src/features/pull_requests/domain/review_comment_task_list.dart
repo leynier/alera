@@ -1,13 +1,10 @@
 /// One task-list marker found in a review comment body.
-class ReviewCommentTaskListItem {
-  const ReviewCommentTaskListItem({
-    required this.markerOffset,
-    required this.checked,
-  });
-
+class const ReviewCommentTaskListItem({
+  required this.markerOffset,
+  required final bool checked,
+}) {
   /// The offset of the state character inside the square brackets.
   final int markerOffset;
-  final bool checked;
 }
 
 final _reviewCommentTaskLine = RegExp(

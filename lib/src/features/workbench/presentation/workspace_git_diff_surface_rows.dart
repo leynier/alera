@@ -1,20 +1,12 @@
 part of 'workspace_git_diff_surface.dart';
 
-class _DiffFileList extends StatelessWidget {
-  const _DiffFileList({
-    required this.result,
-    required this.sourcePath,
-    this.sourceLabel,
-    this.commitOid,
-    this.parentOid,
-  });
-
-  final GitDiffResult result;
-  final String sourcePath;
-  final String? sourceLabel;
-  final String? commitOid;
-  final String? parentOid;
-
+class const _DiffFileList({
+  required final GitDiffResult result,
+  required final String sourcePath,
+  final String? sourceLabel,
+  final String? commitOid,
+  final String? parentOid,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final rows = _DiffRows.fromResult(
@@ -32,12 +24,8 @@ class _DiffFileList extends StatelessWidget {
   }
 }
 
-class _DiffRows {
-  const _DiffRows(this.items);
-
-  final List<_DiffRow> items;
-
-  factory _DiffRows.fromResult(
+class const _DiffRows(final List<_DiffRow> items) {
+  factory fromResult(
     GitDiffResult result, {
     required String sourcePath,
     String? sourceLabel,
@@ -80,18 +68,12 @@ class _DiffRows {
   }
 }
 
-abstract class _DiffRow {
-  const _DiffRow();
-
+abstract class const _DiffRow() {
   Widget build(BuildContext context);
 }
 
-class _FileHeaderRow extends _DiffRow {
-  const _FileHeaderRow(this.file, {this.sourceLabel});
-
-  final GitDiffFile file;
-  final String? sourceLabel;
-
+class const _FileHeaderRow(final GitDiffFile file, {final String? sourceLabel})
+    extends _DiffRow {
   @override
   Widget build(BuildContext context) {
     return DecoratedBox(
@@ -106,17 +88,13 @@ class _FileHeaderRow extends _DiffRow {
         ),
         child: Row(
           children: <Widget>[
-            AleraFileIcon(
-              pathOrName: file.path,
-              kind: AleraFileIconKind.file,
-              size: 16,
-            ),
+            AleraFileIcon(pathOrName: file.path, kind: .file, size: 16),
             const SizedBox(width: AleraTokens.space8),
             Expanded(
               child: Text(
                 '${sourceLabel ?? file.sourceLabel ?? file.area.label} · ${file.path}',
                 maxLines: 1,
-                overflow: TextOverflow.ellipsis,
+                overflow: .ellipsis,
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
                   color: AleraTokens.foreground,
                   fontFamily: 'JetBrains Mono',
@@ -131,28 +109,17 @@ class _FileHeaderRow extends _DiffRow {
   }
 }
 
-class _BannerRow extends _DiffRow {
-  const _BannerRow(this.message);
-
-  final String message;
-
+class const _BannerRow(final String message) extends _DiffRow {
   @override
   Widget build(BuildContext context) => _DiffBanner(message: message);
 }
 
-class _ImageDiffRow extends _DiffRow {
-  const _ImageDiffRow({
-    required this.file,
-    required this.sourcePath,
-    this.commitOid,
-    this.parentOid,
-  });
-
-  final GitDiffFile file;
-  final String sourcePath;
-  final String? commitOid;
-  final String? parentOid;
-
+class const _ImageDiffRow({
+  required final GitDiffFile file,
+  required final String sourcePath,
+  final String? commitOid,
+  final String? parentOid,
+}) extends _DiffRow {
   @override
   Widget build(BuildContext context) => WorkspaceGitDiffImageRow(
     file: file,
@@ -162,20 +129,13 @@ class _ImageDiffRow extends _DiffRow {
   );
 }
 
-class _DiffLineRow extends _DiffRow {
-  const _DiffLineRow(this.text);
-
-  final GitDiffLine text;
-
+class const _DiffLineRow(final GitDiffLine text) extends _DiffRow {
   @override
   Widget build(BuildContext context) => _DiffLine(line: text);
 }
 
-class _DiffStats extends StatelessWidget {
-  const _DiffStats({required this.file});
-
-  final GitDiffFile file;
-
+class const _DiffStats({required final GitDiffFile file})
+    extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final visibleAdded = file.added != null && file.added! > 0
@@ -186,7 +146,7 @@ class _DiffStats extends StatelessWidget {
         : null;
     final style = Theme.of(context).textTheme.labelSmall;
     return Row(
-      mainAxisSize: MainAxisSize.min,
+      mainAxisSize: .min,
       children: <Widget>[
         if (visibleAdded case final added?)
           Text('+$added', style: style?.copyWith(color: AleraTokens.success)),
@@ -199,11 +159,8 @@ class _DiffStats extends StatelessWidget {
   }
 }
 
-class _DiffLine extends StatelessWidget {
-  const _DiffLine({required this.line});
-
-  final GitDiffLine line;
-
+class const _DiffLine({required final GitDiffLine line})
+    extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final (color, background) = switch (line.kind) {
@@ -231,7 +188,7 @@ class _DiffLine extends StatelessWidget {
         child: Text(
           line.text,
           maxLines: 1,
-          overflow: TextOverflow.visible,
+          overflow: .visible,
           softWrap: false,
           style: AleraTokens.monoStyle.copyWith(fontSize: 12, color: color),
         ),
@@ -240,38 +197,30 @@ class _DiffLine extends StatelessWidget {
   }
 }
 
-class _DiffBanner extends StatelessWidget {
-  const _DiffBanner({required this.message});
-
-  final String message;
-
+class const _DiffBanner({required final String message})
+    extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.all(AleraTokens.space12),
       child: Text(
         message,
-        style: Theme.of(
-          context,
-        ).textTheme.bodySmall?.copyWith(color: AleraTokens.foregroundMuted),
+        style: Theme.of(context).textTheme.bodySmall
+            ?.copyWith(color: AleraTokens.foregroundMuted),
       ),
     );
   }
 }
 
-class _DiffMessage extends StatelessWidget {
-  const _DiffMessage({required this.message});
-
-  final String message;
-
+class const _DiffMessage({required final String message})
+    extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Center(
       child: Text(
         message,
-        style: Theme.of(
-          context,
-        ).textTheme.bodySmall?.copyWith(color: AleraTokens.foregroundMuted),
+        style: Theme.of(context).textTheme.bodySmall
+            ?.copyWith(color: AleraTokens.foregroundMuted),
       ),
     );
   }

@@ -16,8 +16,10 @@ void main() {
       isA<TerminalOsc52Write>(),
     );
     expect(
-      (parseTerminalOsc52Request(const <String>['c', '']) as TerminalOsc52Write)
-          .text,
+      (parseTerminalOsc52Request(const <String>[
+        'c',
+        '',
+      ]) as TerminalOsc52Write).text,
       isEmpty,
     );
   });

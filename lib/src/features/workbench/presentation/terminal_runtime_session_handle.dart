@@ -1,23 +1,23 @@
 part of 'terminal_runtime.dart';
 
-class _XtermTerminalSessionHandle extends TerminalSessionHandle
+class _XtermTerminalSessionHandle(
+  var Workspace _workspace,
+  this._tab,
+  final TerminalPtySessionFactory _ptySessionFactory,
+  var TerminalSettings _settings,
+  final ExternalUriLauncher _externalUriLauncher,
+  final List<GhosttyTerminalShellLaunch> Function() _shellLaunchesBuilder,
+  final TerminalLaunchEnvironmentBuilder? _agentHookEnvironmentBuilder,
+  final TerminalShellStartupPreparer? _shellStartupPreparer,
+  final TerminalProcessCreated? _terminalProcessCreated,
+  final TerminalClipboard _clipboard,
+  final void Function(String message, {bool error})? _interactionNotice,
+  final VoidCallback _osc52Blocked,
+  final void Function(TerminalRuntimeExitEvent event) _onExit,
+  this._onVisibilityChanged,
+) extends TerminalSessionHandle
     with _TerminalSearchSessionSupport, _TerminalSessionCapabilitiesSupport {
-  _XtermTerminalSessionHandle(
-    this._workspace,
-    this._tab,
-    this._ptySessionFactory,
-    this._settings,
-    this._externalUriLauncher,
-    this._shellLaunchesBuilder,
-    this._agentHookEnvironmentBuilder,
-    this._shellStartupPreparer,
-    this._terminalProcessCreated,
-    this._clipboard,
-    this._interactionNotice,
-    this._osc52Blocked,
-    this._onExit,
-    this._onVisibilityChanged,
-  ) {
+  this {
     _terminal = _createTerminal();
     _attachTerminal(_terminal);
     _terminalController.addListener(_handleSelectionChanged);
@@ -26,24 +26,13 @@ class _XtermTerminalSessionHandle extends TerminalSessionHandle
         .listen(_handleTerminalOutput);
   }
 
-  Workspace _workspace;
   @override
   WorkspaceTabRecord _tab;
-  final TerminalPtySessionFactory _ptySessionFactory;
-  final ExternalUriLauncher _externalUriLauncher;
-  final List<GhosttyTerminalShellLaunch> Function() _shellLaunchesBuilder;
-  final TerminalLaunchEnvironmentBuilder? _agentHookEnvironmentBuilder;
-  final TerminalShellStartupPreparer? _shellStartupPreparer;
-  final TerminalProcessCreated? _terminalProcessCreated;
-  final TerminalClipboard _clipboard;
-  final void Function(String message, {bool error})? _interactionNotice;
-  final VoidCallback _osc52Blocked;
-  final void Function(TerminalRuntimeExitEvent event) _onExit;
 
   /// Lets the runtime re-run the memory budget when a terminal stops being
   /// visible, which is the only moment a new eviction candidate appears.
   final void Function(_XtermTerminalSessionHandle handle) _onVisibilityChanged;
-  TerminalSettings _settings;
+
   @override
   late xterm.Terminal _terminal;
   @override
@@ -51,7 +40,7 @@ class _XtermTerminalSessionHandle extends TerminalSessionHandle
       GlobalKey<xterm.TerminalViewState>();
   @override
   final xterm.TerminalController _terminalController = xterm.TerminalController(
-    pointerInputs: const xterm.PointerInputs.all(),
+    pointerInputs: const .all(),
   );
 
   /// Survives TerminalSurface dispose/rebuild so scroll position is preserved
@@ -251,7 +240,7 @@ class _XtermTerminalSessionHandle extends TerminalSessionHandle
         fontFamily: _resolveTerminalFontFamily(_settings.fontFamily),
         fontFamilyFallback: _terminalFontFallback,
       ),
-      padding: EdgeInsets.fromLTRB(
+      padding: .fromLTRB(
         _settings.paddingX,
         _settings.paddingY,
         _settings.paddingX,

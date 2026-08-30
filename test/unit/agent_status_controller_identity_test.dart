@@ -11,14 +11,14 @@ void main() {
 
       harness.controller.applyHookEvent(
         _event(
-          agentType: AgentType.grok,
+          agentType: .grok,
           hookEventName: 'UserPromptSubmit',
           payload: <String, Object?>{'prompt': 'search the repo'},
         ),
       );
       harness.controller.applyHookEvent(
         _event(
-          agentType: AgentType.claude,
+          agentType: .claude,
           hookEventName: 'PreToolUse',
           payload: <String, Object?>{
             'tool_name': 'Grep',
@@ -40,14 +40,14 @@ void main() {
 
       harness.controller.applyHookEvent(
         _event(
-          agentType: AgentType.codex,
+          agentType: .codex,
           hookEventName: 'UserPromptSubmit',
           payload: <String, Object?>{'prompt': 'implement feature'},
         ),
       );
       harness.controller.applyHookEvent(
         _event(
-          agentType: AgentType.claude,
+          agentType: .claude,
           hookEventName: 'PreToolUse',
           payload: <String, Object?>{
             'tool_name': 'Bash',
@@ -70,14 +70,14 @@ void main() {
 
       harness.controller.applyHookEvent(
         _event(
-          agentType: AgentType.codex,
+          agentType: .codex,
           hookEventName: 'UserPromptSubmit',
           payload: <String, Object?>{'prompt': 'ship release'},
         ),
       );
       harness.controller.applyHookEvent(
         _event(
-          agentType: AgentType.copilot,
+          agentType: .copilot,
           hookEventName: 'Notification',
           payload: <String, Object?>{
             'notificationType': 'elicitation_dialog',
@@ -99,7 +99,7 @@ void main() {
 
       harness.controller.applyHookEvent(
         _event(
-          agentType: AgentType.codex,
+          agentType: .codex,
           hookEventName: 'UserPromptSubmit',
           payload: <String, Object?>{'prompt': 'parent task'},
         ),
@@ -108,7 +108,7 @@ void main() {
 
       harness.controller.applyHookEvent(
         _event(
-          agentType: AgentType.claude,
+          agentType: .claude,
           hookEventName: 'Stop',
           payload: <String, Object?>{
             'last_assistant_message': 'Nested child finished.',
@@ -136,7 +136,7 @@ void main() {
 
       harness.controller.applyHookEvent(
         _event(
-          agentType: AgentType.codex,
+          agentType: .codex,
           hookEventName: 'UserPromptSubmit',
           payload: <String, Object?>{'prompt': 'parent task'},
         ),
@@ -165,7 +165,7 @@ void main() {
 
       harness.controller.applyHookEvent(
         _event(
-          agentType: AgentType.claude,
+          agentType: .claude,
           hookEventName: 'PreToolUse',
           payload: <String, Object?>{
             'tool_name': 'Grep',
@@ -175,7 +175,7 @@ void main() {
       );
       harness.controller.applyHookEvent(
         _event(
-          agentType: AgentType.grok,
+          agentType: .grok,
           hookEventName: 'UserPromptSubmit',
           payload: <String, Object?>{'prompt': 'search the repo'},
         ),
@@ -193,7 +193,7 @@ void main() {
 
       harness.controller.applyHookEvent(
         _event(
-          agentType: AgentType.claude,
+          agentType: .claude,
           hookEventName: 'PreToolUse',
           payload: <String, Object?>{
             'tool_name': 'Read',
@@ -203,7 +203,7 @@ void main() {
       );
       harness.controller.applyHookEvent(
         _event(
-          agentType: AgentType.cursor,
+          agentType: .cursor,
           hookEventName: 'beforeSubmitPrompt',
           payload: <String, Object?>{'prompt': 'fix the test'},
         ),
@@ -221,21 +221,21 @@ void main() {
 
       harness.controller.applyHookEvent(
         _event(
-          agentType: AgentType.codex,
+          agentType: .codex,
           hookEventName: 'UserPromptSubmit',
           payload: <String, Object?>{'prompt': 'parent task'},
         ),
       );
       harness.controller.applyHookEvent(
         _event(
-          agentType: AgentType.codex,
+          agentType: .codex,
           hookEventName: 'Stop',
           payload: <String, Object?>{'last_assistant_message': 'Done.'},
         ),
       );
       harness.controller.applyHookEvent(
         _event(
-          agentType: AgentType.claude,
+          agentType: .claude,
           hookEventName: 'PreToolUse',
           payload: <String, Object?>{
             'tool_name': 'Edit',
@@ -262,14 +262,14 @@ void main() {
 
       harness.controller.applyHookEvent(
         _event(
-          agentType: AgentType.codex,
+          agentType: .codex,
           hookEventName: 'UserPromptSubmit',
           payload: <String, Object?>{'prompt': 'parent task'},
         ),
       );
       harness.controller.applyHookEvent(
         _event(
-          agentType: AgentType.claude,
+          agentType: .claude,
           hookEventName: 'PreToolUse',
           payload: <String, Object?>{
             'tool_name': 'Bash',
@@ -287,8 +287,8 @@ void main() {
   });
 }
 
-class _Harness {
-  _Harness({List<DateTime>? times})
+class _Harness({List<DateTime>? times}) {
+  this
     : _times =
           times ??
           <DateTime>[

@@ -83,7 +83,7 @@ void main() {
   group('managed agent risk', () {
     test('scores every reduced-protection setting', () {
       expect(
-        managedAgentRiskScore(AgentType.codex, const <String, Object?>{
+        managedAgentRiskScore(.codex, const <String, Object?>{
           'bypassApprovalsAndSandbox': true,
           'sandbox': 'danger-full-access',
           'approvalPolicy': 'never',
@@ -91,25 +91,25 @@ void main() {
         170,
       );
       expect(
-        managedAgentRiskScore(AgentType.claude, const <String, Object?>{
+        managedAgentRiskScore(.claude, const <String, Object?>{
           'permissionMode': 'bypassPermissions',
         }),
         100,
       );
       expect(
-        managedAgentRiskScore(AgentType.claude, const <String, Object?>{
+        managedAgentRiskScore(.claude, const <String, Object?>{
           'permissionMode': 'dontAsk',
         }),
         40,
       );
       expect(
-        managedAgentRiskScore(AgentType.claude, const <String, Object?>{
+        managedAgentRiskScore(.claude, const <String, Object?>{
           'allowSkipPermissions': true,
         }),
         30,
       );
       expect(
-        managedAgentRiskScore(AgentType.copilot, const <String, Object?>{
+        managedAgentRiskScore(.copilot, const <String, Object?>{
           'allowAll': true,
           'mode': 'autopilot',
           'noAskUser': true,
@@ -117,7 +117,7 @@ void main() {
         140,
       );
       expect(
-        managedAgentRiskScore(AgentType.cursor, const <String, Object?>{
+        managedAgentRiskScore(.cursor, const <String, Object?>{
           'permissionMode': 'force',
           'sandbox': 'disabled',
           'trustWorkspace': true,
@@ -125,44 +125,44 @@ void main() {
         140,
       );
       expect(
-        managedAgentRiskScore(AgentType.agy, const <String, Object?>{
+        managedAgentRiskScore(.agy, const <String, Object?>{
           'skipPermissions': true,
         }),
         100,
       );
       expect(
-        managedAgentRiskScore(AgentType.opencode, const <String, Object?>{
+        managedAgentRiskScore(.opencode, const <String, Object?>{
           'autoApprove': true,
         }),
         60,
       );
       expect(
-        managedAgentRiskScore(AgentType.pi, const <String, Object?>{
+        managedAgentRiskScore(.pi, const <String, Object?>{
           'projectTrust': 'approve',
         }),
         30,
       );
-      expect(managedAgentRiskScore(AgentType.amp, const {}), 0);
+      expect(managedAgentRiskScore(.amp, const {}), 0);
       expect(
-        managedAgentRiskScore(AgentType.grok, const <String, Object?>{
+        managedAgentRiskScore(.grok, const <String, Object?>{
           'permissionMode': 'bypassPermissions',
         }),
         100,
       );
       expect(
-        managedAgentRiskScore(AgentType.grok, const <String, Object?>{
+        managedAgentRiskScore(.grok, const <String, Object?>{
           'permissionMode': 'dontAsk',
         }),
         40,
       );
-      expect(managedAgentRiskScore(AgentType.grok, const {}), 0);
-      expect(managedAgentRiskScore(AgentType.fx, const {}), 0);
-      expect(managedAgentRiskScore(AgentType.codex, const {}), 0);
+      expect(managedAgentRiskScore(.grok, const {}), 0);
+      expect(managedAgentRiskScore(.fx, const {}), 0);
+      expect(managedAgentRiskScore(.codex, const {}), 0);
     });
 
     test('names every active risk marker', () {
       expect(
-        managedAgentRiskMarkers(AgentType.codex, const <String, Object?>{
+        managedAgentRiskMarkers(.codex, const <String, Object?>{
           'bypassApprovalsAndSandbox': true,
           'sandbox': 'danger-full-access',
           'approvalPolicy': 'never',
@@ -170,25 +170,25 @@ void main() {
         <String>{'bypassApprovalsAndSandbox', 'dangerFullAccess', 'neverAsk'},
       );
       expect(
-        managedAgentRiskMarkers(AgentType.claude, const <String, Object?>{
+        managedAgentRiskMarkers(.claude, const <String, Object?>{
           'permissionMode': 'bypassPermissions',
         }),
         <String>{'bypassPermissions'},
       );
       expect(
-        managedAgentRiskMarkers(AgentType.claude, const <String, Object?>{
+        managedAgentRiskMarkers(.claude, const <String, Object?>{
           'permissionMode': 'dontAsk',
         }),
         <String>{'dontAsk'},
       );
       expect(
-        managedAgentRiskMarkers(AgentType.claude, const <String, Object?>{
+        managedAgentRiskMarkers(.claude, const <String, Object?>{
           'allowSkipPermissions': true,
         }),
         <String>{'allowSkipPermissions'},
       );
       expect(
-        managedAgentRiskMarkers(AgentType.copilot, const <String, Object?>{
+        managedAgentRiskMarkers(.copilot, const <String, Object?>{
           'allowAll': true,
           'mode': 'autopilot',
           'noAskUser': true,
@@ -196,7 +196,7 @@ void main() {
         <String>{'allowAll', 'autopilot', 'noAskUser'},
       );
       expect(
-        managedAgentRiskMarkers(AgentType.cursor, const <String, Object?>{
+        managedAgentRiskMarkers(.cursor, const <String, Object?>{
           'permissionMode': 'force',
           'sandbox': 'disabled',
           'trustWorkspace': true,
@@ -204,50 +204,50 @@ void main() {
         <String>{'force', 'sandboxDisabled', 'trustWorkspace'},
       );
       expect(
-        managedAgentRiskMarkers(AgentType.agy, const <String, Object?>{
+        managedAgentRiskMarkers(.agy, const <String, Object?>{
           'skipPermissions': true,
         }),
         <String>{'skipPermissions'},
       );
       expect(
-        managedAgentRiskMarkers(AgentType.opencode, const <String, Object?>{
+        managedAgentRiskMarkers(.opencode, const <String, Object?>{
           'autoApprove': true,
         }),
         <String>{'autoApprove'},
       );
       expect(
-        managedAgentRiskMarkers(AgentType.pi, const <String, Object?>{
+        managedAgentRiskMarkers(.pi, const <String, Object?>{
           'projectTrust': 'approve',
         }),
         <String>{'projectTrust'},
       );
-      expect(managedAgentRiskMarkers(AgentType.amp, const {}), isEmpty);
+      expect(managedAgentRiskMarkers(.amp, const {}), isEmpty);
       expect(
-        managedAgentRiskMarkers(AgentType.grok, const <String, Object?>{
+        managedAgentRiskMarkers(.grok, const <String, Object?>{
           'permissionMode': 'bypassPermissions',
         }),
         <String>{'bypassPermissions'},
       );
       expect(
-        managedAgentRiskMarkers(AgentType.grok, const <String, Object?>{
+        managedAgentRiskMarkers(.grok, const <String, Object?>{
           'permissionMode': 'dontAsk',
         }),
         <String>{'dontAsk'},
       );
-      expect(managedAgentRiskMarkers(AgentType.grok, const {}), isEmpty);
-      expect(managedAgentRiskMarkers(AgentType.fx, const {}), isEmpty);
-      expect(managedAgentRiskMarkers(AgentType.codex, const {}), isEmpty);
+      expect(managedAgentRiskMarkers(.grok, const {}), isEmpty);
+      expect(managedAgentRiskMarkers(.fx, const {}), isEmpty);
+      expect(managedAgentRiskMarkers(.codex, const {}), isEmpty);
     });
 
     test('provides an adapter-specific warning', () {
       expect(
-        managedAgentRiskWarning(AgentType.codex, const {
+        managedAgentRiskWarning(.codex, const {
           'bypassApprovalsAndSandbox': true,
         }),
         contains('bypass Codex'),
       );
       expect(
-        managedAgentRiskWarning(AgentType.codex, const {}),
+        managedAgentRiskWarning(.codex, const {}),
         contains('reduces Codex'),
       );
       expect(
@@ -257,12 +257,9 @@ void main() {
               adapter: managedAgentRiskWarning(adapter, const {}),
         },
         <AgentType, String>{
-          AgentType.claude:
-              'This profile lets Claude continue with reduced permission prompts.',
-          AgentType.copilot:
-              'This profile lets Copilot take broader actions with less supervision.',
-          AgentType.cursor:
-              'This profile reduces Cursor review, sandbox, or trust protections.',
+          AgentType.claude: 'This profile lets Claude continue with reduced permission prompts.',
+          AgentType.copilot: 'This profile lets Copilot take broader actions with less supervision.',
+          AgentType.cursor: 'This profile reduces Cursor review, sandbox, or trust protections.',
           AgentType.agy:
               'This profile lets Antigravity skip permission checks.',
           AgentType.opencode:
@@ -271,8 +268,7 @@ void main() {
               'This profile lets OpenCode approve actions automatically.',
           AgentType.pi: 'This profile pre-approves project trust for Pi.',
           AgentType.amp: '',
-          AgentType.grok:
-              'This profile lets Grok Build continue with reduced permission prompts.',
+          AgentType.grok: 'This profile lets Grok Build continue with reduced permission prompts.',
           AgentType.fx: '',
         },
       );
@@ -282,7 +278,7 @@ void main() {
   group('managed agent command preview', () {
     test('renders Codex approval and bypass modes', () {
       expect(
-        managedAgentCommandPreview(AgentType.codex, const <String, Object?>{
+        managedAgentCommandPreview(.codex, const <String, Object?>{
           'model': 'gpt model',
           'effort': 'high',
           'sandbox': 'danger-full-access',
@@ -293,13 +289,13 @@ void main() {
         '--sandbox danger-full-access --ask-for-approval never --search',
       );
       expect(
-        managedAgentCommandPreview(AgentType.codex, const <String, Object?>{
+        managedAgentCommandPreview(.codex, const <String, Object?>{
           'bypassApprovalsAndSandbox': true,
         }),
         'codex --dangerously-bypass-approvals-and-sandbox',
       );
       expect(
-        managedAgentCommandPreview(AgentType.codex, const <String, Object?>{
+        managedAgentCommandPreview(.codex, const <String, Object?>{
           'effort': 'medium',
           'planModeEffort': 'xhigh',
         }),
@@ -310,7 +306,7 @@ void main() {
 
     test('renders Claude and Copilot options', () {
       expect(
-        managedAgentCommandPreview(AgentType.claude, const <String, Object?>{
+        managedAgentCommandPreview(.claude, const <String, Object?>{
           'model': 'sonnet',
           'effort': 'high',
           'agent': "reviewer's agent",
@@ -320,7 +316,7 @@ void main() {
         "'reviewer'\"'\"'s agent' --permission-mode acceptEdits",
       );
       expect(
-        managedAgentCommandPreview(AgentType.claude, const <String, Object?>{
+        managedAgentCommandPreview(.claude, const <String, Object?>{
           'permissionMode': 'plan',
           'allowSkipPermissions': true,
         }),
@@ -328,7 +324,7 @@ void main() {
         '--allow-dangerously-skip-permissions',
       );
       expect(
-        managedAgentCommandPreview(AgentType.copilot, const <String, Object?>{
+        managedAgentCommandPreview(.copilot, const <String, Object?>{
           'model': 'gpt-5',
           'effort': 'xhigh',
           'agent': 'review',
@@ -347,7 +343,7 @@ void main() {
 
     test('routes Claude through a CCS profile when one is configured', () {
       expect(
-        managedAgentCommandPreview(AgentType.claude, const <String, Object?>{
+        managedAgentCommandPreview(.claude, const <String, Object?>{
           'ccsProfile': 'work',
           'model': 'opus',
           'permissionMode': 'acceptEdits',
@@ -355,7 +351,7 @@ void main() {
         'ccs work --model opus --permission-mode acceptEdits',
       );
       expect(
-        managedAgentCommandPreview(AgentType.claude, const <String, Object?>{
+        managedAgentCommandPreview(.claude, const <String, Object?>{
           'ccsProfile': '   ',
           'model': 'opus',
         }),
@@ -384,7 +380,7 @@ void main() {
 
     test('renders every Cursor permission branch', () {
       expect(
-        managedAgentCommandPreview(AgentType.cursor, const <String, Object?>{
+        managedAgentCommandPreview(.cursor, const <String, Object?>{
           'model': 'composer',
           'mode': 'plan',
           'permissionMode': 'autoReview',
@@ -395,13 +391,13 @@ void main() {
         '--sandbox enabled --trust',
       );
       expect(
-        managedAgentCommandPreview(AgentType.cursor, const <String, Object?>{
+        managedAgentCommandPreview(.cursor, const <String, Object?>{
           'permissionMode': 'force',
         }),
         'cursor-agent --force',
       );
       expect(
-        managedAgentCommandPreview(AgentType.cursor, const <String, Object?>{
+        managedAgentCommandPreview(.cursor, const <String, Object?>{
           'permissionMode': 'manual',
         }),
         'cursor-agent',
@@ -410,7 +406,7 @@ void main() {
 
     test('renders Agy, OpenCode, Pi, Amp, Grok, and fx options', () {
       expect(
-        managedAgentCommandPreview(AgentType.agy, const <String, Object?>{
+        managedAgentCommandPreview(.agy, const <String, Object?>{
           'model': 'gemini',
           'effort': 'medium',
           'agent': 'builder',
@@ -422,7 +418,7 @@ void main() {
         '--mode accept-edits --dangerously-skip-permissions --sandbox',
       );
       expect(
-        managedAgentCommandPreview(AgentType.opencode, const <String, Object?>{
+        managedAgentCommandPreview(.opencode, const <String, Object?>{
           'model': 'gpt',
           'agent': 'build',
           'autoApprove': true,
@@ -430,7 +426,7 @@ void main() {
         'opencode --model gpt --agent build --auto',
       );
       expect(
-        managedAgentCommandPreview(AgentType.opencode2, const <String, Object?>{
+        managedAgentCommandPreview(.opencode2, const <String, Object?>{
           'model': 'gpt',
           'agent': 'build',
           'autoApprove': true,
@@ -439,7 +435,7 @@ void main() {
         'opencode2 --auto',
       );
       expect(
-        managedAgentCommandPreview(AgentType.pi, const <String, Object?>{
+        managedAgentCommandPreview(.pi, const <String, Object?>{
           'model': 'pi-model',
           'thinking': 'xhigh',
           'projectTrust': 'approve',
@@ -447,26 +443,26 @@ void main() {
         'pi --model pi-model --thinking xhigh --approve',
       );
       expect(
-        managedAgentCommandPreview(AgentType.pi, const <String, Object?>{
+        managedAgentCommandPreview(.pi, const <String, Object?>{
           'projectTrust': 'ignore',
         }),
         'pi --no-approve',
       );
       expect(
-        managedAgentCommandPreview(AgentType.pi, const <String, Object?>{
+        managedAgentCommandPreview(.pi, const <String, Object?>{
           'projectTrust': 'ask',
         }),
         'pi',
       );
       expect(
-        managedAgentCommandPreview(AgentType.amp, const <String, Object?>{
+        managedAgentCommandPreview(.amp, const <String, Object?>{
           'mode': 'ultra',
           'fast': true,
         }),
         'amp --mode ultra --fast',
       );
       expect(
-        managedAgentCommandPreview(AgentType.grok, const <String, Object?>{
+        managedAgentCommandPreview(.grok, const <String, Object?>{
           'model': 'grok-4.6',
           'effort': 'high',
           'agent': 'grok-build',
@@ -477,12 +473,12 @@ void main() {
         'grok --model grok-4.6 --effort high --agent grok-build '
         '--permission-mode acceptEdits --sandbox workspace --disable-web-search',
       );
-      expect(managedAgentCommandPreview(AgentType.grok, const {}), 'grok');
+      expect(managedAgentCommandPreview(.grok, const {}), 'grok');
     });
 
     test('ignores blank or incorrectly typed optional values', () {
       expect(
-        managedAgentCommandPreview(AgentType.copilot, const <String, Object?>{
+        managedAgentCommandPreview(.copilot, const <String, Object?>{
           'model': '   ',
           'effort': 4,
           'allowAll': false,
@@ -490,7 +486,7 @@ void main() {
         }),
         'copilot',
       );
-      expect(managedAgentCommandPreview(AgentType.codex, const {}), 'codex');
+      expect(managedAgentCommandPreview(.codex, const {}), 'codex');
     });
   });
 }

@@ -11,7 +11,7 @@ BrowserPageState reduceBrowserPageEvent(
   return switch (event) {
     BrowserNavigationStarted value => state.copyWith(
       url: value.url,
-      loadPhase: BrowserLoadPhase.started,
+      loadPhase: .started,
       loadProgress: 0,
       security: browserSecurityForUrl(value.url, committed: false),
       clearError: true,
@@ -19,14 +19,14 @@ BrowserPageState reduceBrowserPageEvent(
     ),
     BrowserNavigationCommitted value => state.copyWith(
       url: value.url,
-      loadPhase: BrowserLoadPhase.committed,
+      loadPhase: .committed,
       security: browserSecurityForUrl(value.url, committed: true),
       updatedAt: value.occurredAt,
     ),
     BrowserNavigationFinished value => state.copyWith(
       url: value.url,
       title: value.title,
-      loadPhase: BrowserLoadPhase.finished,
+      loadPhase: .finished,
       clearLoadProgress: true,
       clearError: true,
       canGoBack: value.canGoBack,
@@ -45,14 +45,14 @@ BrowserPageState reduceBrowserPageEvent(
     BrowserProgressChanged() => state,
     BrowserLoadFailed value => state.copyWith(
       url: value.url,
-      loadPhase: BrowserLoadPhase.failed,
+      loadPhase: .failed,
       clearLoadProgress: true,
       error: value.failure,
       security:
           (value.failure.code == BrowserErrorCode.certificateRejected ||
               _isCertificateFailure(value.failure.message))
           ? BrowserSecurityState(
-              level: BrowserSecurityLevel.certificateFailure,
+              level: .certificateFailure,
               origin: value.url == null ? null : browserOrigin(value.url!),
             )
           : state.security,
@@ -115,5 +115,5 @@ List<BrowserDownload> _replaceDownload(
   if (existing == null) {
     values.add(replacement);
   }
-  return List<BrowserDownload>.unmodifiable(values);
+  return List<BrowserDownload>.unmodifiableOf(values);
 }

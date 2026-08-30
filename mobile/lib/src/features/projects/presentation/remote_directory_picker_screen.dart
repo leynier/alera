@@ -3,16 +3,11 @@ import 'package:alera_mobile/src/features/projects/application/projects_controll
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-class RemoteDirectoryPickerScreen extends ConsumerWidget {
-  const RemoteDirectoryPickerScreen({
-    super.key,
-    required this.hostId,
-    required this.actionLabel,
-  });
-
-  final String hostId;
-  final String actionLabel;
-
+class const RemoteDirectoryPickerScreen({
+  super.key,
+  required final String hostId,
+  required final String actionLabel,
+}) extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(hostDirectoryBrowserControllerProvider(hostId));
@@ -21,7 +16,7 @@ class RemoteDirectoryPickerScreen extends ConsumerWidget {
       body: SafeArea(
         child: switch (state) {
           AsyncData(value: final data) => Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
+            crossAxisAlignment: .stretch,
             children: <Widget>[
               _PathHeader(
                 path: data.listing?.path,
@@ -32,17 +27,15 @@ class RemoteDirectoryPickerScreen extends ConsumerWidget {
                         if (parent == null) {
                           ref
                               .read(
-                                hostDirectoryBrowserControllerProvider(
-                                  hostId,
-                                ).notifier,
+                                hostDirectoryBrowserControllerProvider(hostId)
+                                    .notifier,
                               )
                               .showRoots();
                         } else {
                           ref
                               .read(
-                                hostDirectoryBrowserControllerProvider(
-                                  hostId,
-                                ).notifier,
+                                hostDirectoryBrowserControllerProvider(hostId)
+                                    .notifier,
                               )
                               .open(parent);
                         }
@@ -85,16 +78,12 @@ class RemoteDirectoryPickerScreen extends ConsumerWidget {
                                   ? Icons.drive_file_move_outline
                                   : Icons.folder_outlined,
                             ),
-                            title: Text(
-                              entry.name,
-                              overflow: TextOverflow.ellipsis,
-                            ),
+                            title: Text(entry.name, overflow: .ellipsis),
                             trailing: const Icon(Icons.chevron_right),
                             onTap: () => ref
                                 .read(
-                                  hostDirectoryBrowserControllerProvider(
-                                    hostId,
-                                  ).notifier,
+                                  hostDirectoryBrowserControllerProvider(hostId)
+                                      .notifier,
                                 )
                                 .open(entry.path),
                           );
@@ -117,9 +106,9 @@ class RemoteDirectoryPickerScreen extends ConsumerWidget {
             child: Padding(
               padding: AleraTokens.contentPadding,
               child: Column(
-                mainAxisSize: MainAxisSize.min,
+                mainAxisSize: .min,
                 children: <Widget>[
-                  Text(error.toString(), textAlign: TextAlign.center),
+                  Text(error.toString(), textAlign: .center),
                   const SizedBox(height: AleraTokens.spaceLg),
                   FilledButton(
                     onPressed: () => ref.invalidate(
@@ -138,12 +127,10 @@ class RemoteDirectoryPickerScreen extends ConsumerWidget {
   }
 }
 
-class _PathHeader extends StatelessWidget {
-  const _PathHeader({required this.path, required this.onUp});
-
-  final String? path;
-  final VoidCallback? onUp;
-
+class const _PathHeader({
+  required final String? path,
+  required final VoidCallback? onUp,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return DecoratedBox(
@@ -164,7 +151,7 @@ class _PathHeader extends StatelessWidget {
               child: Text(
                 path ?? 'Host Locations',
                 maxLines: 2,
-                overflow: TextOverflow.ellipsis,
+                overflow: .ellipsis,
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
                   fontFamily: AleraTokens.monoFontFamily,
                   color: AleraTokens.foregroundMuted,

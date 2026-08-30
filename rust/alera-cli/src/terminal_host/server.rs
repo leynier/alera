@@ -197,6 +197,9 @@ mod terminal_session_requests;
 mod terminal_spawn;
 mod terminal_startup_commands;
 mod workspace_pinning;
+mod workspace_section_requests;
+#[cfg(test)]
+mod workspace_section_requests_tests;
 mod workspace_sidebar_requests;
 
 pub use server_command::ServerCommand;

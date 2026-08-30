@@ -5,14 +5,12 @@
 /// password, a `y/n` confirmation - has somewhere to be typed. That is the
 /// whole reason this exists: `ProcessRunner.run` gives no TTY, so a prompt
 /// there hangs with nothing to answer it.
-class CommandTerminalRequest {
-  const CommandTerminalRequest({
-    required this.title,
-    required this.command,
-    this.workingDirectory,
-    this.description,
-  });
-
+class const CommandTerminalRequest({
+  required this.title,
+  required this.command,
+  this.workingDirectory,
+  this.description,
+}) {
   /// Dialog title, in title case like the rest of the visible copy.
   final String title;
 

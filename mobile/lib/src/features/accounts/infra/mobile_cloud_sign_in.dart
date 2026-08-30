@@ -8,12 +8,10 @@ import 'package:alera_mobile/src/features/accounts/domain/cloud_account_session.
 import 'package:cryptography/cryptography.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-class MobileCloudSignIn {
-  const MobileCloudSignIn({required this.api, required this.installationId});
-
-  final AleraMobileAuthApi api;
-  final String installationId;
-
+class const MobileCloudSignIn({
+  required final AleraMobileAuthApi api,
+  required final String installationId,
+}) {
   Future<CloudAccountSession> signIn(String provider) async {
     final listener = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
     final redirectUri = Uri(
@@ -36,7 +34,7 @@ class MobileCloudSignIn {
       );
       if (!await launchUrl(
         transaction.authorizationUrl,
-        mode: LaunchMode.externalApplication,
+        mode: .externalApplication,
       )) {
         throw StateError('Could not open the identity provider.');
       }

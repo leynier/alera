@@ -1,10 +1,8 @@
 part of 'alera_shell_page_test.dart';
 
-class _ShellTestAgentStatusController extends AgentStatusController {
-  _ShellTestAgentStatusController(this._entries);
-
-  final Map<String, AgentStatusEntry> _entries;
-
+class _ShellTestAgentStatusController(
+  final Map<String, AgentStatusEntry> _entries,
+) extends AgentStatusController {
   @override
   Map<String, AgentStatusEntry> build() => _entries;
 
@@ -14,22 +12,14 @@ class _ShellTestAgentStatusController extends AgentStatusController {
   }
 }
 
-class _ShellTestWorkbenchController extends WorkbenchController {
-  _ShellTestWorkbenchController(
-    this._bootstrapState, {
-    this.renameProjectFailure,
-    this.renameWorkspaceFailure,
-    this.deleteWorkspaceFailure,
-    this.removeProjectFailure,
-    this.closeWorkspaceTabFailure,
-  });
-
-  final WorkbenchState _bootstrapState;
-  final Object? renameProjectFailure;
-  final Object? renameWorkspaceFailure;
-  final Object? deleteWorkspaceFailure;
-  final Object? removeProjectFailure;
-  final Object? closeWorkspaceTabFailure;
+class _ShellTestWorkbenchController(
+  final WorkbenchState _bootstrapState, {
+  final Object? renameProjectFailure,
+  final Object? renameWorkspaceFailure,
+  final Object? deleteWorkspaceFailure,
+  final Object? removeProjectFailure,
+  final Object? closeWorkspaceTabFailure,
+}) extends WorkbenchController {
   final List<WorkspaceTag> workspaceTags = <WorkspaceTag>[];
   final List<WorkspaceRelation> workspaceRelations = <WorkspaceRelation>[];
   final List<({String workspaceId, Set<String> tagIds})> tagUpdates =

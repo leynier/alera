@@ -22,10 +22,7 @@ extension _BrowserRuntimeDriverDispatch on BrowserRuntimeDriver {
       pageId: pageId,
       generation: generation.toInt(),
       method: method,
-      deadline: DateTime.fromMillisecondsSinceEpoch(
-        deadlineAt.toInt(),
-        isUtc: true,
-      ),
+      deadline: .fromMillisecondsSinceEpoch(deadlineAt.toInt(), isUtc: true),
     );
     _activeCalls[correlationId] = call;
     Map<String, Object?> outcome;
@@ -70,14 +67,16 @@ extension _BrowserRuntimeDriverDispatch on BrowserRuntimeDriver {
   ) async {
     try {
       browserRuntimeSuccessMap(
-        await _client
-            .runtimeRequest('browser.driver.complete', <String, Object?>{
-              'driverInstanceId': driverInstanceId,
-              'correlationId': call.correlationId,
-              'pageId': call.pageId,
-              'generation': call.generation,
-              'outcome': outcome,
-            }),
+        await _client.runtimeRequest(
+          'browser.driver.complete',
+          <String, Object?>{
+            'driverInstanceId': driverInstanceId,
+            'correlationId': call.correlationId,
+            'pageId': call.pageId,
+            'generation': call.generation,
+            'outcome': outcome,
+          },
+        ),
         'Browser driver completion',
       );
     } on Object {
@@ -96,7 +95,7 @@ extension _BrowserRuntimeDriverDispatch on BrowserRuntimeDriver {
         handle.state.engineAvailability !=
             BrowserEngineAvailability.available) {
       throw BrowserFailure(
-        code: BrowserErrorCode.pageNotFound,
+        code: .pageNotFound,
         message: 'Browser page ${call.pageId} is not available.',
         recoverable: true,
       );
@@ -229,7 +228,7 @@ extension _BrowserRuntimeDriverDispatch on BrowserRuntimeDriver {
         return _success();
       default:
         throw BrowserFailure(
-          code: BrowserErrorCode.unsupportedCapability,
+          code: .unsupportedCapability,
           message: 'Unsupported browser driver method: $method.',
         );
     }
@@ -288,7 +287,7 @@ extension _BrowserRuntimeDriverDispatch on BrowserRuntimeDriver {
     }
     if (call.cancelled) {
       throw const BrowserFailure(
-        code: BrowserErrorCode.timeout,
+        code: .timeout,
         message: 'The browser wait was cancelled.',
         recoverable: true,
       );
@@ -304,7 +303,7 @@ extension _BrowserRuntimeDriverDispatch on BrowserRuntimeDriver {
         _generations[call.pageId] != call.generation ||
         _locallyInvalidatedDocuments.containsKey(call.pageId)) {
       throw BrowserFailure(
-        code: BrowserErrorCode.staleAutomationReference,
+        code: .staleAutomationReference,
         message: 'The browser page changed before the request could run.',
         recoverable: true,
       );
@@ -395,17 +394,17 @@ Map<String, Object?> _browserFailureOutcome(Object error) {
   final failure = switch (error) {
     BrowserFailure value => value,
     TimeoutException value => BrowserFailure(
-      code: BrowserErrorCode.timeout,
+      code: .timeout,
       message: value.message ?? 'The browser operation timed out.',
       recoverable: true,
     ),
     FormatException value => BrowserFailure(
-      code: BrowserErrorCode.invalidPayload,
+      code: .invalidPayload,
       message: value.message,
       recoverable: true,
     ),
     _ => BrowserFailure(
-      code: BrowserErrorCode.unknown,
+      code: .unknown,
       message: error.toString(),
       recoverable: true,
     ),

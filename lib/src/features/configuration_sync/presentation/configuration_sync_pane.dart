@@ -3,8 +3,7 @@ import 'package:alera/src/features/configuration_sync/application/configuration_
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-class ConfigurationSyncPane extends ConsumerWidget {
-  const ConfigurationSyncPane({super.key});
+class const ConfigurationSyncPane({super.key}) extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return ref

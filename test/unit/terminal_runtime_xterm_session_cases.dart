@@ -88,7 +88,7 @@ void _registerXtermRuntimeSessionTests() {
             },
           ),
         );
-        await Future<void>.delayed(Duration.zero);
+        await Future.pause(.zero);
 
         expect(identical(updatedSession, session), isTrue);
         expect(session.displayTitle, 'Pinned title');
@@ -117,7 +117,7 @@ void _registerXtermRuntimeSessionTests() {
     try {
       visibility = acquireTerminalVisibilityForTesting(session);
       final start = session.ensureStarted();
-      await Future<void>.delayed(Duration.zero);
+      await Future.pause(.zero);
 
       handleTerminalResizeForTesting(session, 100, 30, 8, 16);
       handleTerminalResizeForTesting(session, 120, 40, 8, 16);
@@ -193,7 +193,7 @@ void _registerXtermRuntimeSessionTests() {
         await thirdSession.ensureStarted();
 
         runtime.closeTab('tab-1');
-        await Future<void>.delayed(Duration.zero);
+        await Future.pause(.zero);
         expect(first.disposed, isTrue);
         expect(first.terminated, isTrue);
         expect(second.disposed, isFalse);
@@ -201,14 +201,14 @@ void _registerXtermRuntimeSessionTests() {
         expect(cleanedTerminalSessionIds, <String>['tab-1']);
 
         runtime.closeWorkspace('workspace-1');
-        await Future<void>.delayed(Duration.zero);
+        await Future.pause(.zero);
         expect(second.disposed, isTrue);
         expect(second.terminated, isTrue);
         expect(third.disposed, isFalse);
         expect(cleanedTerminalSessionIds, <String>['tab-1', 'tab-2']);
 
         runtime.dispose();
-        await Future<void>.delayed(Duration.zero);
+        await Future.pause(.zero);
         expect(third.disposed, isTrue);
         expect(third.terminated, isFalse);
         expect(cleanedTerminalSessionIds, <String>['tab-1', 'tab-2']);
@@ -242,11 +242,11 @@ void _registerXtermRuntimeSessionTests() {
 
         firstVisibility.dispose();
         firstVisibility = null;
-        await Future<void>.delayed(Duration.zero);
+        await Future.pause(.zero);
         expect(fakeSession.outputPausedCalls, isEmpty);
 
         fakeSession.emitOutput(utf8.encode('still-visible\r\n'));
-        await Future<void>.delayed(Duration.zero);
+        await Future.pause(.zero);
         flushTerminalOutputForTesting(session);
         expect(
           terminalBufferTextForTesting(session),
@@ -255,7 +255,7 @@ void _registerXtermRuntimeSessionTests() {
 
         secondVisibility.dispose();
         secondVisibility = null;
-        await Future<void>.delayed(Duration.zero);
+        await Future.pause(.zero);
         expect(fakeSession.outputPausedCalls, <bool>[true]);
       } finally {
         firstVisibility?.dispose();
@@ -285,7 +285,7 @@ void _registerXtermRuntimeSessionTests() {
       queueTerminalOutputForTesting(session, 'queued-before-hide\r\n');
 
       runtime.setAppForeground(false);
-      await Future<void>.delayed(Duration.zero);
+      await Future.pause(.zero);
       expect(session.isVisible, isTrue, reason: 'the pane remains mounted');
       expect(fakeSession.outputPausedCalls.last, isTrue);
 
@@ -297,7 +297,7 @@ void _registerXtermRuntimeSessionTests() {
       expect(pendingTerminalOutputCharsForTesting(session), greaterThan(0));
 
       runtime.setAppForeground(true);
-      await Future<void>.delayed(Duration.zero);
+      await Future.pause(.zero);
       expect(fakeSession.outputPausedCalls.last, isFalse);
       flushTerminalOutputForTesting(session);
       expect(
@@ -332,7 +332,7 @@ void _registerXtermRuntimeSessionTests() {
       fakeSession.emitOutput(
         utf8.encode('\x1b[?1h\x1b[?25l\x1b[?1004h\x1b=\x1b[?1049h\x1b[?1000h'),
       );
-      await Future<void>.delayed(Duration.zero);
+      await Future.pause(.zero);
       flushTerminalOutputForTesting(session);
       expect(terminalMouseModeForTesting(session), isNot(xterm.MouseMode.none));
       expect(terminalCursorKeysModeForTesting(session), isTrue);
@@ -342,10 +342,10 @@ void _registerXtermRuntimeSessionTests() {
       expect(terminalIsUsingAltBufferForTesting(session), isTrue);
       visibility.dispose();
       visibility = null;
-      await Future<void>.delayed(Duration.zero);
+      await Future.pause(.zero);
 
       fakeSession.emitExit(12);
-      await Future<void>.delayed(Duration.zero);
+      await Future.pause(.zero);
 
       expect(session.isRunning, isFalse);
       expect(exits, hasLength(1));
@@ -420,7 +420,7 @@ void _registerXtermRuntimeSessionTests() {
       final session = runtime.sessionFor(workspace: _workspace(), tab: _tab());
       try {
         final startFuture = session.ensureStarted();
-        await Future<void>.delayed(const Duration(milliseconds: 300));
+        await Future.pause(const Duration(milliseconds: 300));
         await startFuture;
 
         expect(session.errorMessage, isNull);
@@ -664,11 +664,11 @@ void _registerXtermRuntimeSessionTests() {
         expect(exits, isEmpty);
 
         first.emitExit(9);
-        await Future<void>.delayed(Duration.zero);
+        await Future.pause(.zero);
         expect(exits, isEmpty);
 
         second.emitExit(5);
-        await Future<void>.delayed(Duration.zero);
+        await Future.pause(.zero);
 
         expect(exits, hasLength(1));
         expect(exits.single.exitCode, 5);

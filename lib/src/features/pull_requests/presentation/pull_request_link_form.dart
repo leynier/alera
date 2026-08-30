@@ -6,22 +6,14 @@ import 'package:alera/src/features/pull_requests/presentation/pull_request_field
 import 'package:flutter/material.dart';
 
 /// Link-mode field with an optional active pull-request suggestion.
-class PullRequestLinkForm extends StatefulWidget {
-  const PullRequestLinkForm({
-    super.key,
-    required this.controller,
-    required this.busy,
-    required this.suggestedReview,
-    required this.onChanged,
-    required this.onSubmitted,
-  });
-
-  final TextEditingController controller;
-  final bool busy;
-  final HostedReview? suggestedReview;
-  final VoidCallback onChanged;
-  final VoidCallback onSubmitted;
-
+class const PullRequestLinkForm({
+  super.key,
+  required final TextEditingController controller,
+  required final bool busy,
+  required final HostedReview? suggestedReview,
+  required final VoidCallback onChanged,
+  required final VoidCallback onSubmitted,
+}) extends StatefulWidget {
   @override
   State<PullRequestLinkForm> createState() => _PullRequestLinkFormState();
 }
@@ -40,7 +32,7 @@ class _PullRequestLinkFormState extends State<PullRequestLinkForm> {
     final theme = Theme.of(context);
     final suggestion = widget.suggestedReview;
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: .start,
       children: <Widget>[
         Text(
           'Pull Request',
@@ -83,10 +75,10 @@ class _PullRequestLinkFormState extends State<PullRequestLinkForm> {
             color: AleraTokens.surfaceVariant,
             borderRadius: BorderRadius.circular(AleraTokens.radiusMd),
             child: InkWell(
-              borderRadius: BorderRadius.circular(AleraTokens.radiusMd),
+              borderRadius: .circular(AleraTokens.radiusMd),
               onTap: widget.busy ? null : () => _select(suggestion),
               child: Container(
-                width: double.infinity,
+                width: .infinity,
                 padding: const EdgeInsets.all(AleraTokens.space12),
                 decoration: BoxDecoration(
                   border: Border.all(color: AleraTokens.borderSubtle),
@@ -104,7 +96,7 @@ class _PullRequestLinkFormState extends State<PullRequestLinkForm> {
                       child: Text(
                         '#${suggestion.number} · ${suggestion.title}',
                         maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
+                        overflow: .ellipsis,
                         style: theme.textTheme.bodySmall?.copyWith(
                           color: AleraTokens.foreground,
                         ),

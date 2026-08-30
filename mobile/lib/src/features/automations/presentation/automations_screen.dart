@@ -14,11 +14,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:share_plus/share_plus.dart';
 
-class AutomationsScreen extends ConsumerStatefulWidget {
-  const AutomationsScreen({super.key, required this.host});
-
-  final PairedHostProfile host;
-
+class const AutomationsScreen({
+  super.key,
+  required final PairedHostProfile host,
+}) extends ConsumerStatefulWidget {
   @override
   ConsumerState<AutomationsScreen> createState() => _AutomationsScreenState();
 }
@@ -186,9 +185,8 @@ class _AutomationsScreenState extends ConsumerState<AutomationsScreen> {
                               const SizedBox(height: AleraTokens.spaceSm),
                           itemBuilder: (context, index) => MobileAutomationCard(
                             clientFuture: ref.watch(
-                              hostConnectionControllerProvider(
-                                widget.host.id,
-                              ).future,
+                              hostConnectionControllerProvider(widget.host.id)
+                                  .future,
                             ),
                             automation: visible[index],
                             onChanged: _refresh,
@@ -451,9 +449,7 @@ Map<String, Object?>? _nested(Map<String, Object?> map, String? key) {
 String? _firstKey(Map<String, Object?> map) =>
     map.isEmpty ? null : map.keys.first;
 
-class _EmptyState extends StatelessWidget {
-  const _EmptyState();
-
+class const _EmptyState() extends StatelessWidget {
   @override
   Widget build(BuildContext context) => const Center(
     child: Padding(
@@ -463,11 +459,7 @@ class _EmptyState extends StatelessWidget {
   );
 }
 
-class _ErrorState extends StatelessWidget {
-  const _ErrorState({required this.error});
-
-  final Object error;
-
+class const _ErrorState({required final Object error}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Center(
     child: Padding(
@@ -476,7 +468,7 @@ class _ErrorState extends StatelessWidget {
         error is UnsupportedError
             ? 'Update the runtime to manage automations from mobile.'
             : error.toString(),
-        textAlign: TextAlign.center,
+        textAlign: .center,
       ),
     ),
   );

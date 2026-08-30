@@ -3,12 +3,9 @@ import 'dart:async';
 import 'package:alera/src/features/mobile_emulator/domain/mobile_emulator_models.dart';
 import 'package:alera/src/features/mobile_emulator/infra/mobile_emulator_service.dart';
 
-class MobileEmulatorLeaseCoordinator {
-  MobileEmulatorLeaseCoordinator(this._service);
-
+class MobileEmulatorLeaseCoordinator(final MobileEmulatorService _service) {
   static const Duration releaseGrace = Duration(milliseconds: 1500);
 
-  final MobileEmulatorService _service;
   final Map<String, _MobileEmulatorLease> _leases =
       <String, _MobileEmulatorLease>{};
 
@@ -133,10 +130,7 @@ class MobileEmulatorLeaseCoordinator {
   }
 }
 
-class _MobileEmulatorLease {
-  _MobileEmulatorLease(this.target);
-
-  final MobileEmulatorTarget target;
+class _MobileEmulatorLease(final MobileEmulatorTarget target) {
   int references = 0;
   Timer? releaseTimer;
   MobileEmulatorSession? session;

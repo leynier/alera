@@ -35,7 +35,7 @@ void _registerSettingsDialogQuotaTests() {
     await tester.ensureVisible(kimiField);
     await tester.pump();
     await tester.enterText(kimiField, 'CUSTOM_KIMI_KEY');
-    await tester.testTextInput.receiveAction(TextInputAction.done);
+    await tester.testTextInput.receiveAction(.done);
     await tester.pump(const Duration(milliseconds: 50));
 
     expect(

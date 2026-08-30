@@ -15,15 +15,9 @@ void main() {
 
     test('resolves hosts, localhost, and configured searches', () {
       const google = BrowserNavigationPolicy();
-      const duck = BrowserNavigationPolicy(
-        searchEngine: BrowserSearchEngine.duckDuckGo,
-      );
-      const bing = BrowserNavigationPolicy(
-        searchEngine: BrowserSearchEngine.bing,
-      );
-      const kagi = BrowserNavigationPolicy(
-        searchEngine: BrowserSearchEngine.kagi,
-      );
+      const duck = BrowserNavigationPolicy(searchEngine: .duckDuckGo);
+      const bing = BrowserNavigationPolicy(searchEngine: .bing);
+      const kagi = BrowserNavigationPolicy(searchEngine: .kagi);
 
       expect(
         google.resolve('example.com/docs').url.toString(),
@@ -161,7 +155,7 @@ void main() {
       );
 
       expect(
-        policy.decisionFor(BrowserPermissionType.displayCapture),
+        policy.decisionFor(.displayCapture),
         BrowserPermissionDecision.deny,
       );
     });

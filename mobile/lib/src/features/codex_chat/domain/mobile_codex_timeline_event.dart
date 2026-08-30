@@ -1,19 +1,17 @@
 part of 'mobile_codex_state.dart';
 
-class _MobileCodexTimelineEvent {
-  const _MobileCodexTimelineEvent({
-    required this.message,
-    required this.rawMethod,
-    required this.method,
-    required this.params,
-    required this.legacy,
-    required this.item,
-    required this.turnId,
-    required this.itemId,
-    required this.itemType,
-  });
-
-  factory _MobileCodexTimelineEvent.fromMessage(Map<String, Object?> message) {
+class const _MobileCodexTimelineEvent({
+  required final Map<String, Object?> message,
+  required final String rawMethod,
+  required final String method,
+  required final Map<String, Object?> params,
+  required final Map<String, Object?> legacy,
+  required final Map<String, Object?> item,
+  required final String turnId,
+  required final String itemId,
+  required final String itemType,
+}) {
+  factory fromMessage(Map<String, Object?> message) {
     final rawMethod = message['method']?.toString() ?? '';
     final method = switch (rawMethod) {
       'codex/event/item_started' => 'item/started',
@@ -49,16 +47,6 @@ class _MobileCodexTimelineEvent {
       itemType: (item['type'] ?? params['type'] ?? '').toString().toLowerCase(),
     );
   }
-
-  final Map<String, Object?> message;
-  final String rawMethod;
-  final String method;
-  final Map<String, Object?> params;
-  final Map<String, Object?> legacy;
-  final Map<String, Object?> item;
-  final String turnId;
-  final String itemId;
-  final String itemType;
 
   String get lowerMethod => method.toLowerCase();
 }

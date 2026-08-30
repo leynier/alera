@@ -141,8 +141,8 @@ extension _ClaudeRuntimeHooks on ClaudeRuntimeHomeService {
     final config = _readJsonObject(settingsPath);
     if (config == null) {
       return ManagedAgentHookInstallStatus(
-        agentType: AgentType.claude,
-        state: ManagedAgentHookInstallState.error,
+        agentType: .claude,
+        state: .error,
         configPath: settingsPath,
         managedHooksPresent: false,
         detail: 'Could not parse Claude settings.json.',
@@ -169,23 +169,23 @@ extension _ClaudeRuntimeHooks on ClaudeRuntimeHomeService {
 
     if (presentCount == 0) {
       return ManagedAgentHookInstallStatus(
-        agentType: AgentType.claude,
-        state: ManagedAgentHookInstallState.notInstalled,
+        agentType: .claude,
+        state: .notInstalled,
         configPath: settingsPath,
         managedHooksPresent: false,
       );
     }
     if (missing.isEmpty) {
       return ManagedAgentHookInstallStatus(
-        agentType: AgentType.claude,
-        state: ManagedAgentHookInstallState.installed,
+        agentType: .claude,
+        state: .installed,
         configPath: settingsPath,
         managedHooksPresent: true,
       );
     }
     return ManagedAgentHookInstallStatus(
-      agentType: AgentType.claude,
-      state: ManagedAgentHookInstallState.partial,
+      agentType: .claude,
+      state: .partial,
       configPath: settingsPath,
       managedHooksPresent: true,
       detail: 'Managed hook missing for events: ${missing.join(', ')}.',

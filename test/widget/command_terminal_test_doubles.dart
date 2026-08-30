@@ -9,13 +9,13 @@ import 'package:flutter/widgets.dart';
 /// Session handle standing in for a live PTY. [isRunning] is what decides
 /// whether closing the command dialog asks for confirmation, so tests set it
 /// directly.
-class FakeCommandTerminalSession extends TerminalSessionHandle {
-  FakeCommandTerminalSession({this.tabId = 'command-tab', this.running = true});
-
+class FakeCommandTerminalSession({
+  this.tabId = 'command-tab',
+  var bool running = true,
+}) extends TerminalSessionHandle {
   @override
   final String tabId;
 
-  bool running;
   int ensureStartedCallCount = 0;
 
   @override
@@ -66,10 +66,8 @@ class FakeCommandTerminalSession extends TerminalSessionHandle {
 /// Records what a command dialog asked the runtime for, so a test can assert
 /// the working directory and the command that would reach the shell without
 /// spawning anything.
-class FakeCommandTerminalRuntime implements TerminalRuntime {
-  FakeCommandTerminalRuntime({this.running = true});
-
-  final bool running;
+class FakeCommandTerminalRuntime({final bool running = true})
+    implements TerminalRuntime {
   final List<Workspace> workspaces = <Workspace>[];
   final List<WorkspaceTabRecord> tabs = <WorkspaceTabRecord>[];
   final List<String> closedTabIds = <String>[];

@@ -1,3 +1,6 @@
+import 'package:alera/src/features/workbench/domain/workspace_section.dart';
+import 'package:alera/src/features/workbench/application/workspace_section_repository.dart';
+
 import 'dart:async';
 import 'dart:io';
 
@@ -50,6 +53,7 @@ part 'workbench_controller_workspace_creation.dart';
 part 'workbench_controller_tabs.dart';
 part 'workbench_controller_view_prefs.dart';
 part 'workbench_controller_sync.dart';
+part 'workbench_controller_sections.dart';
 
 @Riverpod(keepAlive: true)
 class WorkbenchController extends _$WorkbenchController
@@ -66,12 +70,14 @@ class WorkbenchController extends _$WorkbenchController
         _WorkbenchControllerWorkspaceCreation,
         _WorkbenchControllerTabs,
         _WorkbenchControllerViewPrefs,
-        _WorkbenchControllerSync {
+        _WorkbenchControllerSync,
+        _WorkbenchControllerSections {
   @override
   WorkbenchState build() {
     _disposed = false;
     ref.onDispose(() {
       _disposed = true;
+      unawaited(_sectionsSub?.cancel());
       unawaited(_projectsSub?.cancel());
       unawaited(_viewPrefsSub?.cancel());
       for (final subscription in _workspaceSubs.values) {
@@ -102,6 +108,7 @@ class WorkbenchController extends _$WorkbenchController
           // Fall back to defaults if loading fails; never block bootstrap.
         }
       }
+      _startSections();
       _projectsSub = _projectsService.projectRepository.watchAll().listen(
         _onProjectsChanged,
         // A dead watcher is never re-created, so a stream that errors or

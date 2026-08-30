@@ -77,7 +77,7 @@ class AgentStatusController extends _$AgentStatusController
         final identity = resolveAgentStatusIdentity(
           previous: previous,
           incomingAgentType: event.agentType,
-          normalizedState: AgentStatusState.done,
+          normalizedState: .done,
           receivedAt: receivedAt,
           staleThreshold: agentStatusIdentityStaleThreshold,
         );
@@ -149,7 +149,7 @@ class AgentStatusController extends _$AgentStatusController
     final next = <String, AgentStatusEntry>{...state};
     for (final entry in current) {
       next[entry.terminalSessionId] = entry.copyWith(
-        state: AgentStatusState.done,
+        state: .done,
         updatedAt: receivedAt,
         stateStartedAt: receivedAt,
         lastAssistantMessage: 'Terminal exited with code $exitCode.',

@@ -6,7 +6,7 @@ final ThemeData aleraDarkTheme = buildAleraDarkTheme();
 ThemeData buildAleraDarkTheme() {
   final base = ThemeData.dark(useMaterial3: true);
   final colorScheme = const ColorScheme.dark().copyWith(
-    brightness: Brightness.dark,
+    brightness: .dark,
     primary: AleraTokens.accent,
     onPrimary: AleraTokens.onAccent,
     // Neutralize the remaining Material baseline roles (purple/teal) so widgets
@@ -36,77 +36,77 @@ ThemeData buildAleraDarkTheme() {
         headlineLarge: const TextStyle(
           fontFamily: 'Inter',
           fontSize: 28,
-          fontWeight: FontWeight.w600,
+          fontWeight: .w600,
           color: AleraTokens.foreground,
           letterSpacing: -0.5,
         ),
         headlineMedium: const TextStyle(
           fontFamily: 'Inter',
           fontSize: 22,
-          fontWeight: FontWeight.w600,
+          fontWeight: .w600,
           color: AleraTokens.foreground,
           letterSpacing: -0.3,
         ),
         headlineSmall: const TextStyle(
           fontFamily: 'Inter',
           fontSize: 18,
-          fontWeight: FontWeight.w600,
+          fontWeight: .w600,
           color: AleraTokens.foreground,
           letterSpacing: -0.2,
         ),
         titleLarge: const TextStyle(
           fontFamily: 'Inter',
           fontSize: 16,
-          fontWeight: FontWeight.w600,
+          fontWeight: .w600,
           color: AleraTokens.foreground,
         ),
         titleMedium: const TextStyle(
           fontFamily: 'Inter',
           fontSize: 14,
-          fontWeight: FontWeight.w500,
+          fontWeight: .w500,
           color: AleraTokens.foreground,
         ),
         titleSmall: const TextStyle(
           fontFamily: 'Inter',
           fontSize: 13,
-          fontWeight: FontWeight.w500,
+          fontWeight: .w500,
           color: AleraTokens.foreground,
         ),
         bodyLarge: const TextStyle(
           fontFamily: 'Inter',
           fontSize: 14,
-          fontWeight: FontWeight.w400,
+          fontWeight: .w400,
           color: AleraTokens.foreground,
         ),
         bodyMedium: const TextStyle(
           fontFamily: 'Inter',
           fontSize: 13,
-          fontWeight: FontWeight.w400,
+          fontWeight: .w400,
           color: AleraTokens.foreground,
         ),
         bodySmall: const TextStyle(
           fontFamily: 'Inter',
           fontSize: 12,
-          fontWeight: FontWeight.w400,
+          fontWeight: .w400,
           color: AleraTokens.foregroundMuted,
         ),
         labelLarge: const TextStyle(
           fontFamily: 'Inter',
           fontSize: 13,
-          fontWeight: FontWeight.w500,
+          fontWeight: .w500,
           color: AleraTokens.foreground,
         ),
         labelMedium: const TextStyle(
           fontFamily: 'Inter',
           fontSize: 11,
-          fontWeight: FontWeight.w500,
+          fontWeight: .w500,
           color: AleraTokens.foregroundMuted,
           letterSpacing: 0.5,
         ),
         labelSmall: const TextStyle(
           fontFamily: 'Inter',
           fontSize: 10,
-          fontWeight: FontWeight.w500,
+          fontWeight: .w500,
           color: AleraTokens.foregroundMuted,
           letterSpacing: 0.6,
         ),
@@ -149,15 +149,15 @@ ThemeData buildAleraDarkTheme() {
       fillColor: AleraTokens.surfaceVariant,
       contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(AleraTokens.radiusMd),
+        borderRadius: .circular(AleraTokens.radiusMd),
         borderSide: const BorderSide(color: AleraTokens.border),
       ),
       enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(AleraTokens.radiusMd),
+        borderRadius: .circular(AleraTokens.radiusMd),
         borderSide: const BorderSide(color: AleraTokens.border),
       ),
       focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(AleraTokens.radiusMd),
+        borderRadius: .circular(AleraTokens.radiusMd),
         borderSide: const BorderSide(color: AleraTokens.accent),
       ),
       hintStyle: const TextStyle(color: AleraTokens.foregroundMuted),
@@ -204,7 +204,7 @@ ThemeData buildAleraDarkTheme() {
     scrollbarTheme: ScrollbarThemeData(
       thumbColor: WidgetStateProperty.all(AleraTokens.border),
       thickness: WidgetStateProperty.all(4),
-      radius: const Radius.circular(2),
+      radius: const .circular(2),
     ),
     tooltipTheme: TooltipThemeData(
       decoration: BoxDecoration(
@@ -220,7 +220,7 @@ ThemeData buildAleraDarkTheme() {
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(AleraTokens.radiusMd),
       ),
-      behavior: SnackBarBehavior.floating,
+      behavior: .floating,
     ),
     dialogTheme: DialogThemeData(
       backgroundColor: AleraTokens.surface,

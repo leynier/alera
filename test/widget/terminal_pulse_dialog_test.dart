@@ -138,7 +138,7 @@ void main() {
     );
 
     await tester.enterText(delayField, '0.126');
-    await tester.testTextInput.receiveAction(TextInputAction.done);
+    await tester.testTextInput.receiveAction(.done);
     await tester.pump();
     expect(tester.widget<TextField>(delayField).controller?.text, '0.126');
     await tester.tap(find.text('Save Changes'));
@@ -190,8 +190,9 @@ void main() {
   });
 }
 
-class _PulseTerminalSessionHandle extends TerminalSessionHandle {
-  _PulseTerminalSessionHandle({TerminalPulseState? initialState})
+class _PulseTerminalSessionHandle({TerminalPulseState? initialState})
+    extends TerminalSessionHandle {
+  this
     : _pulse = ValueNotifier<TerminalPulseState>(
         initialState ??
             const TerminalPulseState(

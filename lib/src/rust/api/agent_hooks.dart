@@ -4,6 +4,7 @@
 // ignore_for_file: invalid_use_of_internal_member, unused_import, unnecessary_import
 
 import '../frb_generated.dart';
+
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
 // These functions are ignored because they are not marked as `pub`: `batch_loop`, `coalesce_pending`, `flush_events`, `globals`, `handle_agy`, `handle_amp`, `handle_claude`, `handle_codex`, `handle_copilot`, `handle_cursor`, `handle_grok`, `handle_hook_request`, `handle_opencode2`, `handle_opencode`, `handle_pi`, `is_session_close_event`, `normalized_enabled_agents`, `optional_string`, `parse_hook_event`, `payload_value`, `required_string`, `runtime`, `valid_token`

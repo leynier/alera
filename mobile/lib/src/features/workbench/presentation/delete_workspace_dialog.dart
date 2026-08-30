@@ -3,11 +3,7 @@ import 'package:alera_mobile/src/design_system/layout/alera_dialog.dart';
 import 'package:alera_mobile/src/features/runtime/domain/workspace_summary.dart';
 import 'package:flutter/material.dart';
 
-class DeleteWorkspaceDecision {
-  const DeleteWorkspaceDecision({required this.deleteBranch});
-
-  final bool deleteBranch;
-}
+class const DeleteWorkspaceDecision({required final bool deleteBranch});
 
 /// Destructive confirmation for removing a managed workspace. [cascadeCount]
 /// is the subtree size from `workspaceCascade.preview` (1 = no descendants).
@@ -25,15 +21,10 @@ Future<DeleteWorkspaceDecision?> showDeleteWorkspaceDialog(
   );
 }
 
-class _DeleteWorkspaceDialog extends StatelessWidget {
-  const _DeleteWorkspaceDialog({
-    required this.workspace,
-    required this.cascadeCount,
-  });
-
-  final WorkspaceSummary workspace;
-  final int cascadeCount;
-
+class const _DeleteWorkspaceDialog({
+  required final WorkspaceSummary workspace,
+  required final int cascadeCount,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -44,8 +35,8 @@ class _DeleteWorkspaceDialog extends StatelessWidget {
       child: Padding(
         padding: const EdgeInsets.all(AleraTokens.space20),
         child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: .min,
+          crossAxisAlignment: .start,
           children: <Widget>[
             Text('Delete Workspace', style: theme.textTheme.titleMedium),
             const SizedBox(height: AleraTokens.space12),

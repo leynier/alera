@@ -11,8 +11,8 @@ void main() {
   testWidgets('keeps each agent icon in place when the runs reorder', (
     tester,
   ) async {
-    final cursor = _run(AgentType.cursor, tabId: 'tab-cursor');
-    final claude = _run(AgentType.claude, tabId: 'tab-claude');
+    final cursor = _run(.cursor, tabId: 'tab-cursor');
+    final claude = _run(.claude, tabId: 'tab-claude');
 
     await _pumpSummary(tester, <WorkspaceAgentRun>[claude, cursor]);
     final initial = _iconAgentTypes(tester);
@@ -27,9 +27,9 @@ void main() {
 
   testWidgets('shows one icon per agent type in the group', (tester) async {
     await _pumpSummary(tester, <WorkspaceAgentRun>[
-      _run(AgentType.cursor, tabId: 'tab-1'),
-      _run(AgentType.cursor, tabId: 'tab-2'),
-      _run(AgentType.claude, tabId: 'tab-3'),
+      _run(.cursor, tabId: 'tab-1'),
+      _run(.cursor, tabId: 'tab-2'),
+      _run(.claude, tabId: 'tab-3'),
     ]);
 
     expect(_iconAgentTypes(tester), <AgentType>[
@@ -79,7 +79,7 @@ WorkspaceAgentRun _run(AgentType agentType, {required String tabId}) {
       workspaceId: 'workspace-1',
       tabId: tabId,
       agentType: agentType,
-      state: AgentStatusState.working,
+      state: .working,
       prompt: 'Run tests',
       updatedAt: now,
       stateStartedAt: now,

@@ -1,18 +1,19 @@
 part of 'workspace_git_diff_surface_test.dart';
 
-class _BlockingReadingDiffService extends ReadingDiffService {
-  _BlockingReadingDiffService(
-    FakeGitBackend backend, {
-    this.completeOnCancel = true,
-  }) : super(
-         gitBackend: backend,
-         runner: const _FailingReadingDiffRunner(),
-         cache: const _EmptyReadingDiffCache(),
-       );
+class _BlockingReadingDiffService(
+  FakeGitBackend backend, {
+  final bool completeOnCancel = true,
+}) extends ReadingDiffService {
+  this
+    : super(
+        gitBackend: backend,
+        runner: const _FailingReadingDiffRunner(),
+        cache: const _EmptyReadingDiffCache(),
+      );
 
   final List<ReadingDiffRequest> started = <ReadingDiffRequest>[];
   final List<ReadingDiffRequest> canceled = <ReadingDiffRequest>[];
-  final bool completeOnCancel;
+
   Completer<ReadingDiffResult>? _pending;
 
   @override
@@ -45,8 +46,9 @@ class _BlockingReadingDiffService extends ReadingDiffService {
   }
 }
 
-class _BlockingPreparationReadingDiffService extends ReadingDiffService {
-  _BlockingPreparationReadingDiffService(FakeGitBackend backend)
+class _BlockingPreparationReadingDiffService(FakeGitBackend backend)
+    extends ReadingDiffService {
+  this
     : super(
         gitBackend: backend,
         runner: const _FailingReadingDiffRunner(),
@@ -74,9 +76,7 @@ class _BlockingPreparationReadingDiffService extends ReadingDiffService {
   }
 }
 
-class _FailingReadingDiffRunner implements AgentTaskRunner {
-  const _FailingReadingDiffRunner();
-
+class const _FailingReadingDiffRunner() implements AgentTaskRunner {
   @override
   void cancel(String runId) {}
 
@@ -88,8 +88,9 @@ class _FailingReadingDiffRunner implements AgentTaskRunner {
   }
 }
 
-class _PreparedReadingDiffService extends ReadingDiffService {
-  _PreparedReadingDiffService(FakeGitBackend backend)
+class _PreparedReadingDiffService(FakeGitBackend backend)
+    extends ReadingDiffService {
+  this
     : super(
         gitBackend: backend,
         runner: const _FailingReadingDiffRunner(),
@@ -102,8 +103,9 @@ class _PreparedReadingDiffService extends ReadingDiffService {
   }
 }
 
-class _CachedReadingDiffService extends ReadingDiffService {
-  _CachedReadingDiffService(FakeGitBackend backend)
+class _CachedReadingDiffService(FakeGitBackend backend)
+    extends ReadingDiffService {
+  this
     : super(
         gitBackend: backend,
         runner: const _FailingReadingDiffRunner(),
@@ -127,8 +129,9 @@ class _CachedReadingDiffService extends ReadingDiffService {
   }) async => result;
 }
 
-class _RegenerationFailureReadingDiffService extends ReadingDiffService {
-  _RegenerationFailureReadingDiffService(FakeGitBackend backend)
+class _RegenerationFailureReadingDiffService(FakeGitBackend backend)
+    extends ReadingDiffService {
+  this
     : super(
         gitBackend: backend,
         runner: const _FailingReadingDiffRunner(),
@@ -170,7 +173,7 @@ ReadingDiffPreparation _preparation(
   String addedLine = 'snapshot-value',
 }) => ReadingDiffPreparation(
   request: request,
-  rawDiff: Uint8List.fromList(
+  rawDiff: .fromList(
     'diff --git a/lib/main.dart b/lib/main.dart\n'
             '--- a/lib/main.dart\n'
             '+++ b/lib/main.dart\n'
@@ -180,29 +183,29 @@ ReadingDiffPreparation _preparation(
         .codeUnits,
   ),
   compiler: rust.ReadingDiffPreparation(
-    rawBytes: BigInt.one,
+    rawBytes: .one,
     schemaVersion: 1,
     rubricVersion: 'rubric-v1',
     planSchema: '{"type":"object"}',
     chunks: <rust.ReadingDiffChunk>[
       rust.ReadingDiffChunk(
         index: 0,
-        rawDiff: Uint8List.fromList(<int>[1]),
+        rawDiff: .fromList(<int>[1]),
         numberedDiff: '1|diff --git a/a b/a',
         continuationPreamble: Uint8List(0),
       ),
     ],
   ),
-  agent: AiAssistAgent.codex,
+  agent: .codex,
   model: 'gpt-5.5',
   effort: 'low',
-  accessPolicy: AgentTaskAccessPolicy.diffOnly,
+  accessPolicy: .diffOnly,
   cacheKey: cacheKey,
   cachedResult: cachedResult,
 );
 
 ReadingDiffResult _readingDiffResult() => ReadingDiffResult(
-  diff: Uint8List.fromList(
+  diff: .fromList(
     'diff --git a/lib/main.dart b/lib/main.dart\n'
             '--- a/lib/main.dart\n'
             '+++ b/lib/main.dart\n'
@@ -217,9 +220,7 @@ ReadingDiffResult _readingDiffResult() => ReadingDiffResult(
   agentLabel: 'Codex',
 );
 
-class _EmptyReadingDiffCache implements ReadingDiffCache {
-  const _EmptyReadingDiffCache();
-
+class const _EmptyReadingDiffCache() implements ReadingDiffCache {
   @override
   Future<ReadingDiffResult?> read(String key) async => null;
 

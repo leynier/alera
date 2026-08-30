@@ -57,9 +57,9 @@ void main() {
   test('leaves the catalog untouched when native delete fails', () async {
     final profile = _profile(
       source: BrowserProfileSource(
-        family: BrowserImportSourceFamily.chrome,
+        family: .chrome,
         profileName: 'Profile 1',
-        importedAt: DateTime.utc(2026, 1, 1),
+        importedAt: .utc(2026, 1, 1),
       ),
     );
     service.profiles.add(profile);
@@ -125,9 +125,9 @@ void main() {
 
   test('partial imports fail and compensate both stores', () async {
     engine.importResult = const BrowserCookieImportResult(
-      source: BrowserImportSourceFamily.chrome,
+      source: .chrome,
       profileId: 'ignored',
-      outcome: BrowserCookieImportOutcome.partiallyImported,
+      outcome: .partiallyImported,
       importedCount: 2,
       skippedCount: 1,
     );
@@ -135,7 +135,7 @@ void main() {
     await expectLater(
       coordinator.importCookies(
         name: 'Imported',
-        source: BrowserImportSourceFamily.chrome,
+        source: .chrome,
         sourceProfileName: 'Profile 1',
       ),
       throwsA(anything),
@@ -158,7 +158,7 @@ void main() {
       await expectLater(
         coordinator.importCookies(
           name: 'Imported',
-          source: BrowserImportSourceFamily.chrome,
+          source: .chrome,
           sourceProfileName: 'Profile 1',
         ),
         throwsStateError,
@@ -175,10 +175,7 @@ void main() {
 
   test('native import requires a selected source profile', () async {
     await expectLater(
-      coordinator.importCookies(
-        name: 'Imported',
-        source: BrowserImportSourceFamily.chrome,
-      ),
+      coordinator.importCookies(name: 'Imported', source: .chrome),
       throwsA(
         isA<BrowserFailure>().having(
           (failure) => failure.code,
@@ -203,7 +200,7 @@ void main() {
       await expectLater(
         coordinator.importCookies(
           name: 'Imported',
-          source: BrowserImportSourceFamily.manual,
+          source: .manual,
           manualJson: oversized,
         ),
         throwsA(
@@ -223,7 +220,7 @@ void main() {
   test('selected source profile is imported and saved as metadata', () async {
     final imported = await coordinator.importCookies(
       name: 'Imported',
-      source: BrowserImportSourceFamily.chrome,
+      source: .chrome,
       sourceProfileName: 'Profile 1',
     );
 
@@ -278,9 +275,9 @@ final class _FakeProfileService implements BrowserProfileService {
     final profile = BrowserProfile(
       id: id ?? 'profile',
       label: name,
-      kind: BrowserProfileKind.isolated,
+      kind: .isolated,
       persistent: persistent,
-      createdAt: DateTime.utc(2026),
+      createdAt: .utc(2026),
       source: source,
     );
     upserts.add(profile);
@@ -315,8 +312,8 @@ BrowserProfile _profile({BrowserProfileSource? source}) {
   return BrowserProfile(
     id: 'work',
     label: 'Work',
-    kind: BrowserProfileKind.imported,
-    createdAt: DateTime.utc(2026),
+    kind: .imported,
+    createdAt: .utc(2026),
     source: source,
   );
 }

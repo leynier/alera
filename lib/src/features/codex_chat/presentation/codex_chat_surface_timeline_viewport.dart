@@ -1,11 +1,9 @@
 part of 'codex_chat_surface.dart';
 
-class _CodexViewportAnchor {
-  const _CodexViewportAnchor({required this.entryKey, required this.top});
-
-  final String entryKey;
-  final double top;
-}
+class const _CodexViewportAnchor({
+  required final String entryKey,
+  required final double top,
+});
 
 extension _CodexTimelineViewport on _CodexTimelineState {
   void _scheduleScrollToBottom({bool animate = false}) {
@@ -60,14 +58,14 @@ extension _CodexTimelineViewport on _CodexTimelineState {
     final viewport =
         _timelineViewportKey.currentContext?.findRenderObject() as RenderBox?;
     if (viewport == null || !viewport.hasSize) return null;
-    final viewportTop = viewport.localToGlobal(Offset.zero).dy;
+    final viewportTop = viewport.localToGlobal(.zero).dy;
     final viewportBottom = viewportTop + viewport.size.height;
     _CodexViewportAnchor? result;
     for (final entry in _entryWidgets.entries) {
       final context = entry.value.anchorKey.currentContext;
       final box = context?.findRenderObject() as RenderBox?;
       if (box == null || !box.attached || !box.hasSize) continue;
-      final top = box.localToGlobal(Offset.zero).dy;
+      final top = box.localToGlobal(.zero).dy;
       if (top >= viewportBottom || top + box.size.height <= viewportTop) {
         continue;
       }
@@ -89,7 +87,7 @@ extension _CodexTimelineViewport on _CodexTimelineState {
         record?.anchorKey.currentContext?.findRenderObject() as RenderBox?;
     _pinnedEntryKey = null;
     if (box == null || !box.attached || !box.hasSize) return;
-    final correction = box.localToGlobal(Offset.zero).dy - anchor.top;
+    final correction = box.localToGlobal(.zero).dy - anchor.top;
     if (correction.abs() < 0.5) return;
     final position = widget.timeline.position;
     widget.timeline.jumpTo(

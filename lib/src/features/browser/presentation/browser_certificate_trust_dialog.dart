@@ -8,18 +8,12 @@ import 'package:flutter/material.dart';
 
 enum BrowserCertificateTrustChoice { cancel, session, permanent }
 
-class BrowserCertificateTrustDialog extends StatelessWidget {
-  const BrowserCertificateTrustDialog({
-    super.key,
-    required this.request,
-    required this.profileLabel,
-    required this.canPersist,
-  });
-
-  final BrowserTlsRequest request;
-  final String profileLabel;
-  final bool canPersist;
-
+class const BrowserCertificateTrustDialog({
+  super.key,
+  required final BrowserTlsRequest request,
+  required final String profileLabel,
+  required final bool canPersist,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -28,8 +22,8 @@ class BrowserCertificateTrustDialog extends StatelessWidget {
       child: Padding(
         padding: const EdgeInsets.all(AleraTokens.space20),
         child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
+          mainAxisSize: .min,
+          crossAxisAlignment: .stretch,
           children: <Widget>[
             Row(
               children: <Widget>[
@@ -93,16 +87,14 @@ class BrowserCertificateTrustDialog extends StatelessWidget {
                 Expanded(
                   child: OutlinedButton(
                     autofocus: true,
-                    onPressed: () =>
-                        _finish(context, BrowserCertificateTrustChoice.cancel),
+                    onPressed: () => _finish(context, .cancel),
                     child: const Text('Cancel'),
                   ),
                 ),
                 const SizedBox(width: AleraTokens.space8),
                 Expanded(
                   child: OutlinedButton(
-                    onPressed: () =>
-                        _finish(context, BrowserCertificateTrustChoice.session),
+                    onPressed: () => _finish(context, .session),
                     child: const Text('Trust For This Session'),
                   ),
                 ),
@@ -110,10 +102,7 @@ class BrowserCertificateTrustDialog extends StatelessWidget {
                   const SizedBox(width: AleraTokens.space8),
                   Expanded(
                     child: FilledButton(
-                      onPressed: () => _finish(
-                        context,
-                        BrowserCertificateTrustChoice.permanent,
-                      ),
+                      onPressed: () => _finish(context, .permanent),
                       child: const Text('Always Trust'),
                     ),
                   ),
@@ -131,19 +120,17 @@ class BrowserCertificateTrustDialog extends StatelessWidget {
   }
 }
 
-class _CertificateDetail extends StatelessWidget {
-  const _CertificateDetail({required this.label, required this.value});
-
-  final String label;
-  final String value;
-
+class const _CertificateDetail({
+  required final String label,
+  required final String value,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Padding(
       padding: const EdgeInsets.only(bottom: AleraTokens.space6),
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: .start,
         children: <Widget>[
           SizedBox(
             width: AleraTokens.space48 * 2,

@@ -6,11 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 KeyDownEvent _down(LogicalKeyboardKey key) {
-  return KeyDownEvent(
-    physicalKey: PhysicalKeyboardKey.keyT,
-    logicalKey: key,
-    timeStamp: Duration.zero,
-  );
+  return KeyDownEvent(physicalKey: .keyT, logicalKey: key, timeStamp: .zero);
 }
 
 void main() {
@@ -34,7 +30,7 @@ void main() {
     test('no two actions share a default chord on any platform', () {
       for (final platform in KeyboardPlatform.values) {
         final resolver = KeybindingResolver(
-          settings: KeyboardShortcutSettings.defaults,
+          settings: .defaults,
           platform: platform,
         );
         final seen = <KeyChord, KeyboardActionId>{};
@@ -58,71 +54,53 @@ void main() {
   group('effectiveChords', () {
     test('falls back to the platform default', () {
       final resolver = KeybindingResolver(
-        settings: KeyboardShortcutSettings.defaults,
-        platform: KeyboardPlatform.macos,
+        settings: .defaults,
+        platform: .macos,
       );
       expect(
-        resolver
-            .effectiveChords(KeyboardActionId.newTerminalTab)
-            .single
-            .toCanonicalString(),
+        resolver.effectiveChords(.newTerminalTab).single.toCanonicalString(),
         'Mod+T',
       );
     });
 
     test('uses the user override when present', () {
       final settings = KeyboardShortcutSettings.defaults.copyWithOverride(
-        KeyboardActionId.newTerminalTab,
+        .newTerminalTab,
         <String>['Mod+Shift+T'],
       );
-      final resolver = KeybindingResolver(
-        settings: settings,
-        platform: KeyboardPlatform.linux,
-      );
+      final resolver = KeybindingResolver(settings: settings, platform: .linux);
       expect(
-        resolver
-            .effectiveChords(KeyboardActionId.newTerminalTab)
-            .single
-            .toCanonicalString(),
+        resolver.effectiveChords(.newTerminalTab).single.toCanonicalString(),
         'Mod+Shift+T',
       );
     });
 
     test('returns empty for a disabled action', () {
       final settings = KeyboardShortcutSettings.defaults.copyWithOverride(
-        KeyboardActionId.newTerminalTab,
+        .newTerminalTab,
         const <String>[],
       );
-      final resolver = KeybindingResolver(
-        settings: settings,
-        platform: KeyboardPlatform.linux,
-      );
-      expect(
-        resolver.effectiveChords(KeyboardActionId.newTerminalTab),
-        isEmpty,
-      );
+      final resolver = KeybindingResolver(settings: settings, platform: .linux);
+      expect(resolver.effectiveChords(.newTerminalTab), isEmpty);
     });
 
     test('uses platform-correct worktree navigation defaults', () {
       final macResolver = KeybindingResolver(
-        settings: KeyboardShortcutSettings.defaults,
-        platform: KeyboardPlatform.macos,
+        settings: .defaults,
+        platform: .macos,
       );
       final desktopResolver = KeybindingResolver(
-        settings: KeyboardShortcutSettings.defaults,
-        platform: KeyboardPlatform.windows,
+        settings: .defaults,
+        platform: .windows,
       );
 
       expect(
-        macResolver
-            .effectiveChords(KeyboardActionId.navigateBack)
-            .single
-            .toCanonicalString(),
+        macResolver.effectiveChords(.navigateBack).single.toCanonicalString(),
         'Mod+BracketLeft',
       );
       expect(
         desktopResolver
-            .effectiveChords(KeyboardActionId.navigateForward)
+            .effectiveChords(.navigateForward)
             .single
             .toCanonicalString(),
         'Alt+ArrowRight',
@@ -146,20 +124,17 @@ void main() {
     'quick open and command palette have distinct terminal-safe defaults',
     () {
       final resolver = KeybindingResolver(
-        settings: KeyboardShortcutSettings.defaults,
-        platform: KeyboardPlatform.macos,
+        settings: .defaults,
+        platform: .macos,
       );
 
       expect(
-        resolver
-            .effectiveChords(KeyboardActionId.openQuickOpen)
-            .single
-            .toCanonicalString(),
+        resolver.effectiveChords(.openQuickOpen).single.toCanonicalString(),
         'Mod+P',
       );
       expect(
         resolver
-            .effectiveChords(KeyboardActionId.openCommandPalette)
+            .effectiveChords(.openCommandPalette)
             .single
             .toCanonicalString(),
         'Mod+Shift+P',
@@ -180,11 +155,11 @@ void main() {
   group('resolveAction', () {
     test('matches the right action on macOS', () {
       final resolver = KeybindingResolver(
-        settings: KeyboardShortcutSettings.defaults,
-        platform: KeyboardPlatform.macos,
+        settings: .defaults,
+        platform: .macos,
       );
       final resolved = resolver.resolveAction(
-        _down(LogicalKeyboardKey.keyT),
+        _down(.keyT),
         const KeyModifierState(meta: true),
       );
       expect(resolved?.id, KeyboardActionId.newTerminalTab);
@@ -192,11 +167,11 @@ void main() {
 
     test('does not match when a modifier is missing', () {
       final resolver = KeybindingResolver(
-        settings: KeyboardShortcutSettings.defaults,
-        platform: KeyboardPlatform.macos,
+        settings: .defaults,
+        platform: .macos,
       );
       final resolved = resolver.resolveAction(
-        _down(LogicalKeyboardKey.keyT),
+        _down(.keyT),
         const KeyModifierState(),
       );
       expect(resolved, isNull);
@@ -204,15 +179,12 @@ void main() {
 
     test('ignores a disabled binding', () {
       final settings = KeyboardShortcutSettings.defaults.copyWithOverride(
-        KeyboardActionId.newTerminalTab,
+        .newTerminalTab,
         const <String>[],
       );
-      final resolver = KeybindingResolver(
-        settings: settings,
-        platform: KeyboardPlatform.macos,
-      );
+      final resolver = KeybindingResolver(settings: settings, platform: .macos);
       final resolved = resolver.resolveAction(
-        _down(LogicalKeyboardKey.keyT),
+        _down(.keyT),
         const KeyModifierState(meta: true),
       );
       expect(resolved, isNull);
@@ -222,43 +194,34 @@ void main() {
   group('findConflict', () {
     test('detects a chord already used by another action', () {
       final resolver = KeybindingResolver(
-        settings: KeyboardShortcutSettings.defaults,
-        platform: KeyboardPlatform.macos,
+        settings: .defaults,
+        platform: .macos,
       );
       // Mod+T belongs to newTerminalTab; assigning it to closeTab conflicts.
       final chord = (KeyChord.parse('Mod+T') as KeyChordParseSuccess).chord;
       expect(
-        resolver.findConflict(chord, excluding: KeyboardActionId.closeTab),
+        resolver.findConflict(chord, excluding: .closeTab),
         KeyboardActionId.newTerminalTab,
       );
     });
 
     test('excludes the action being edited', () {
       final resolver = KeybindingResolver(
-        settings: KeyboardShortcutSettings.defaults,
-        platform: KeyboardPlatform.macos,
+        settings: .defaults,
+        platform: .macos,
       );
       final chord = (KeyChord.parse('Mod+T') as KeyChordParseSuccess).chord;
-      expect(
-        resolver.findConflict(
-          chord,
-          excluding: KeyboardActionId.newTerminalTab,
-        ),
-        isNull,
-      );
+      expect(resolver.findConflict(chord, excluding: .newTerminalTab), isNull);
     });
 
     test('returns null for a free chord', () {
       final resolver = KeybindingResolver(
-        settings: KeyboardShortcutSettings.defaults,
-        platform: KeyboardPlatform.macos,
+        settings: .defaults,
+        platform: .macos,
       );
       final chord =
           (KeyChord.parse('Mod+Shift+J') as KeyChordParseSuccess).chord;
-      expect(
-        resolver.findConflict(chord, excluding: KeyboardActionId.closeTab),
-        isNull,
-      );
+      expect(resolver.findConflict(chord, excluding: .closeTab), isNull);
     });
   });
 }

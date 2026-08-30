@@ -371,7 +371,7 @@ extension _WorkspaceExplorerActions on _WorkspaceExplorerState {
         AleraToast.show(
           context,
           message: 'Could not use folder as source control root',
-          tone: AleraToastTone.error,
+          tone: .error,
         );
       }
     }
@@ -425,11 +425,7 @@ extension _WorkspaceExplorerActions on _WorkspaceExplorerState {
     if (!mounted) {
       return;
     }
-    AleraToast.show(
-      context,
-      message: _errorMessage(error),
-      tone: AleraToastTone.error,
-    );
+    AleraToast.show(context, message: _errorMessage(error), tone: .error);
   }
 
   String _errorMessage(Object error) {

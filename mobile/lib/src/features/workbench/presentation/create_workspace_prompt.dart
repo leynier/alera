@@ -177,7 +177,7 @@ extension _CreateWorkspacePromptForm on _CreateWorkspaceScreenState {
         const SizedBox(height: AleraTokens.spaceMd),
         CheckboxListTile(
           contentPadding: EdgeInsets.zero,
-          controlAffinity: ListTileControlAffinity.leading,
+          controlAffinity: .leading,
           value: _createAnother,
           onChanged:
               promptState.loading || created != null || _uploadingAttachment

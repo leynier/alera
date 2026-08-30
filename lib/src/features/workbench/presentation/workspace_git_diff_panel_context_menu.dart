@@ -24,21 +24,16 @@ Future<void> _showGitChangeContextMenu(
 }) async {
   final selected = await showMenu<_GitChangeContextAction>(
     context: context,
-    position: RelativeRect.fromLTRB(
-      position.dx,
-      position.dy,
-      position.dx,
-      position.dy,
-    ),
+    position: .fromLTRB(position.dx, position.dy, position.dx, position.dy),
     items: <PopupMenuEntry<_GitChangeContextAction>>[
       if (canOpenFile)
         const AleraDropdownEntry<_GitChangeContextAction>(
-          value: _GitChangeContextAction.openFile,
+          value: .openFile,
           label: 'Open File',
           leading: Icon(AleraIcons.file, size: 16),
         ),
       const AleraDropdownEntry<_GitChangeContextAction>(
-        value: _GitChangeContextAction.revealInExplorer,
+        value: .revealInExplorer,
         label: 'Reveal in Explorer',
         leading: Icon(AleraIcons.copyFiles, size: 16),
       ),
@@ -46,21 +41,21 @@ Future<void> _showGitChangeContextMenu(
         const PopupMenuDivider(height: AleraTokens.space8),
       if (canUnstage)
         AleraDropdownEntry<_GitChangeContextAction>(
-          value: _GitChangeContextAction.unstage,
+          value: .unstage,
           label: 'Unstage',
           leading: const Icon(AleraIcons.gitUnstage, size: 16),
           enabled: !busy,
         ),
       if (canStage)
         AleraDropdownEntry<_GitChangeContextAction>(
-          value: _GitChangeContextAction.stage,
+          value: .stage,
           label: 'Stage',
           leading: const Icon(AleraIcons.gitStage, size: 16),
           enabled: !busy,
         ),
       if (canDiscard)
         AleraDropdownEntry<_GitChangeContextAction>(
-          value: _GitChangeContextAction.discard,
+          value: .discard,
           label: 'Discard',
           leading: const Icon(AleraIcons.gitDiscard, size: 16),
           enabled: !busy,

@@ -1,17 +1,16 @@
 part of 'terminal_runtime.dart';
 
-typedef _ReadNative =
-    ffi.IntPtr Function(
-      ffi.Int32 fd,
-      ffi.Pointer<ffi.Uint8> buf,
-      ffi.UintPtr nbyte,
-    );
+typedef _ReadNative = ffi.IntPtr Function(
+  ffi.Int32 fd,
+  ffi.Pointer<ffi.Uint8> buf,
+  ffi.UintPtr nbyte,
+);
 typedef _ReadDart = int Function(int fd, ffi.Pointer<ffi.Uint8> buf, int nbyte);
 
 typedef _ErrnoLocationNative = ffi.Pointer<ffi.Int32> Function();
 typedef _ErrnoLocationDart = ffi.Pointer<ffi.Int32> Function();
 
-final ffi.DynamicLibrary _libc = ffi.DynamicLibrary.process();
+final ffi.DynamicLibrary _libc = .process();
 final _ReadDart _posixRead = _libc.lookupFunction<_ReadNative, _ReadDart>(
   'read',
 );
@@ -99,7 +98,7 @@ bool _writePtyBytes({
   required StreamController<TerminalPtySessionEvent> events,
 }) {
   try {
-    return write(Uint8List.fromList(bytes)) > 0;
+    return write(.fromList(bytes)) > 0;
   } catch (error) {
     events.add(TerminalPtyErrorEvent(error));
     return false;

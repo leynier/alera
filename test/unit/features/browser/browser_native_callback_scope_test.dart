@@ -74,6 +74,6 @@ void main() {
       isTrue,
     );
     expect(canOpenBrowserUrlExternally(Uri.parse('about:blank')), isFalse);
-    expect(canOpenBrowserUrlExternally(Uri.file('/tmp/file.html')), isFalse);
+    expect(canOpenBrowserUrlExternally(.file('/tmp/file.html')), isFalse);
   });
 }

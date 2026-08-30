@@ -2,15 +2,10 @@
 ///
 /// A restore is drained over several frames, so the surface needs to know how
 /// far along it is to show something better than history scrolling past.
-class TerminalRestoreProgress {
-  const TerminalRestoreProgress({
-    required this.writtenChars,
-    required this.totalChars,
-  });
-
-  final int writtenChars;
-  final int totalChars;
-
+class const TerminalRestoreProgress({
+  required final int writtenChars,
+  required final int totalChars,
+}) {
   double get fraction {
     if (totalChars <= 0) {
       return 1;

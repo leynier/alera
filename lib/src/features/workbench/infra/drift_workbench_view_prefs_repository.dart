@@ -5,12 +5,8 @@ import 'package:alera/src/features/workbench/domain/workbench_view_prefs.dart';
 import 'package:alera/src/shared/infra/storage/drift_database.dart';
 import 'package:drift/drift.dart' show Value;
 
-class DriftWorkbenchViewPrefsRepository
+class DriftWorkbenchViewPrefsRepository(final AleraDatabase _db)
     implements WorkbenchViewPrefsRepository {
-  DriftWorkbenchViewPrefsRepository(this._db);
-
-  final AleraDatabase _db;
-
   static const int _rowId = 1;
 
   @override

@@ -20,7 +20,7 @@ void main() {
 
       controller.setState(
         _state(
-          status: AleraUpdateStatus.available,
+          status: .available,
           latest: _latest('1.2.3'),
           message: 'Update 1.2.3 is ready to install.',
         ),
@@ -30,11 +30,11 @@ void main() {
 
       // The recurring check keeps rediscovering the same release, and a toast
       // every fifteen minutes for one the user already saw is noise.
-      controller.setState(_state(status: AleraUpdateStatus.checking));
+      controller.setState(_state(status: .checking));
       await tester.pump();
       controller.setState(
         _state(
-          status: AleraUpdateStatus.available,
+          status: .available,
           latest: _latest('1.2.3'),
           message: 'Update 1.2.3 is ready to install.',
         ),
@@ -44,7 +44,7 @@ void main() {
 
       controller.setState(
         _state(
-          status: AleraUpdateStatus.manualDownloadRequired,
+          status: .manualDownloadRequired,
           latest: _latest('1.3.0'),
           message: 'Update 1.3.0 is available for manual download.',
         ),
@@ -63,19 +63,13 @@ void main() {
       await _pump(tester, controller);
 
       controller.setState(
-        _state(
-          status: AleraUpdateStatus.notAvailable,
-          message: 'Alera is up to date.',
-        ),
+        _state(status: .notAvailable, message: 'Alera is up to date.'),
       );
       await tester.pump();
       expect(find.text('Alera is up to date.'), findsNothing);
 
       controller.setState(
-        _state(
-          status: AleraUpdateStatus.error,
-          message: 'Update check failed: boom',
-        ),
+        _state(status: .error, message: 'Update check failed: boom'),
       );
       await tester.pump();
       expect(find.text('Update check failed: boom'), findsNothing);
@@ -128,7 +122,7 @@ AleraUpdateState _state({
     config: AleraUpdateConfig(
       archiveUrl: Uri.parse('https://example.com/app-archive.json'),
       releasePageUrl: Uri.parse('https://example.com/releases'),
-      channel: AleraUpdateChannel.stable,
+      channel: .stable,
       autoInstallEnabled: true,
       signedRelease: true,
     ),
@@ -150,11 +144,8 @@ AleraUpdateInfo _latest(String version) {
   );
 }
 
-class _FakeUpdateController extends AleraUpdateController {
-  _FakeUpdateController(this._seed);
-
-  final AleraUpdateState _seed;
-
+class _FakeUpdateController(final AleraUpdateState _seed)
+    extends AleraUpdateController {
   @override
   AleraUpdateState build() => _seed;
 

@@ -1,17 +1,15 @@
 part of 'codex_chat_models.dart';
 
 @immutable
-class CodexTimelineEvent {
-  const CodexTimelineEvent({
-    required this.method,
-    required this.raw,
-    required this.deduplicationKey,
-    this.text = '',
-    this.title,
-    this.kind = 'event',
-  });
-
-  factory CodexTimelineEvent.fromJson(Object? value) {
+class const CodexTimelineEvent({
+  required final String method,
+  required final Map<String, Object?> raw,
+  required final String deduplicationKey,
+  final String text = '',
+  final String? title,
+  final String kind = 'event',
+}) {
+  factory fromJson(Object? value) {
     final raw = _map(value);
     final params = _map(raw['params']);
     final item = _map(params['item']);
@@ -37,13 +35,6 @@ class CodexTimelineEvent {
       kind: _legacyKind(method, item),
     );
   }
-
-  final String method;
-  final Map<String, Object?> raw;
-  final String deduplicationKey;
-  final String text;
-  final String? title;
-  final String kind;
 
   bool get isAssistant =>
       kind == 'assistant' || method.contains('agentMessage');

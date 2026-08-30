@@ -1,17 +1,11 @@
 import 'package:alera_mobile/src/core/json_payload_fields.dart';
 
-class AgentProfileSummary {
-  const AgentProfileSummary({
-    required this.id,
-    required this.name,
-    required this.agentType,
-  });
-
-  final String id;
-  final String name;
-  final String agentType;
-
-  factory AgentProfileSummary.fromJson(Map<String, Object?> json) {
+class const AgentProfileSummary({
+  required final String id,
+  required final String name,
+  required final String agentType,
+}) {
+  factory fromJson(Map<String, Object?> json) {
     return AgentProfileSummary(
       id: json.requiredString('id'),
       name: json.requiredString('name'),
@@ -20,22 +14,12 @@ class AgentProfileSummary {
   }
 }
 
-class GeneratedWorkspaceIdentity {
-  const GeneratedWorkspaceIdentity({
-    required this.workspaceName,
-    required this.branchName,
-  });
+class const GeneratedWorkspaceIdentity({
+  required final String workspaceName,
+  required final String branchName,
+});
 
-  final String workspaceName;
-  final String branchName;
-}
-
-class AgentProfileLaunchResult {
-  const AgentProfileLaunchResult({
-    required this.tabId,
-    required this.agentType,
-  });
-
-  final String tabId;
-  final String agentType;
-}
+class const AgentProfileLaunchResult({
+  required final String tabId,
+  required final String agentType,
+});

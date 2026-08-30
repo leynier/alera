@@ -1,11 +1,9 @@
 part of 'mobile_codex_chat_screen.dart';
 
-class _MobileInteractionDock extends StatelessWidget {
-  const _MobileInteractionDock({required this.state, required this.controller});
-
-  final MobileCodexState state;
-  final MobileCodexController controller;
-
+class const _MobileInteractionDock({
+  required final MobileCodexState state,
+  required final MobileCodexController controller,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final request = state.pendingRequests.firstOrNull;
@@ -48,12 +46,10 @@ class _MobileInteractionDock extends StatelessWidget {
   }
 }
 
-class _MobileApprovalCard extends StatelessWidget {
-  const _MobileApprovalCard({required this.request, required this.controller});
-
-  final MobileCodexPendingRequest request;
-  final MobileCodexController controller;
-
+class const _MobileApprovalCard({
+  required final MobileCodexPendingRequest request,
+  required final MobileCodexController controller,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) => _MobileRequestCard(
     title: 'Codex Needs Approval',
@@ -100,18 +96,12 @@ class _MobileApprovalCard extends StatelessWidget {
   );
 }
 
-class _MobileQuestionCard extends StatefulWidget {
-  const _MobileQuestionCard({
-    super.key,
-    required this.request,
-    required this.state,
-    required this.controller,
-  });
-
-  final MobileCodexPendingRequest request;
-  final MobileCodexState state;
-  final MobileCodexController controller;
-
+class const _MobileQuestionCard({
+  super.key,
+  required final MobileCodexPendingRequest request,
+  required final MobileCodexState state,
+  required final MobileCodexController controller,
+}) extends StatefulWidget {
   @override
   State<_MobileQuestionCard> createState() => _MobileQuestionCardState();
 }
@@ -149,7 +139,7 @@ class _MobileQuestionCardState extends State<_MobileQuestionCard> {
         vertical: AleraTokens.space8,
       ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
+        crossAxisAlignment: .stretch,
         children: <Widget>[
           Row(
             children: <Widget>[
@@ -162,7 +152,7 @@ class _MobileQuestionCardState extends State<_MobileQuestionCard> {
               if (questions.length > 1) ...<Widget>[
                 IconButton(
                   tooltip: 'Previous Question',
-                  visualDensity: VisualDensity.compact,
+                  visualDensity: .compact,
                   onPressed: _submitting || _index == 0
                       ? null
                       : () {
@@ -174,7 +164,7 @@ class _MobileQuestionCardState extends State<_MobileQuestionCard> {
                 Text('${_index + 1} of ${questions.length}'),
                 IconButton(
                   tooltip: 'Next Question',
-                  visualDensity: VisualDensity.compact,
+                  visualDensity: .compact,
                   onPressed: _submitting || _index == questions.length - 1
                       ? null
                       : () {
@@ -186,7 +176,7 @@ class _MobileQuestionCardState extends State<_MobileQuestionCard> {
               ],
               IconButton(
                 tooltip: 'Skip Questions',
-                visualDensity: VisualDensity.compact,
+                visualDensity: .compact,
                 onPressed: _submitting ? null : _skip,
                 icon: const Icon(Icons.close, size: AleraTokens.space16),
               ),
@@ -341,29 +331,20 @@ class _MobileQuestionCardState extends State<_MobileQuestionCard> {
   }
 }
 
-class _MobileChoiceRow extends StatelessWidget {
-  const _MobileChoiceRow({
-    required this.leading,
-    required this.title,
-    required this.onTap,
-    this.description,
-    this.trailing,
-    this.selected = false,
-  });
-
-  final String leading;
-  final String title;
-  final String? description;
-  final IconData? trailing;
-  final bool selected;
-  final VoidCallback? onTap;
-
+class const _MobileChoiceRow({
+  required final String leading,
+  required final String title,
+  required final VoidCallback? onTap,
+  final String? description,
+  final IconData? trailing,
+  final bool selected = false,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Material(
     color: selected ? AleraTokens.surfaceVariant : Colors.transparent,
     borderRadius: BorderRadius.circular(AleraTokens.radiusMd),
     child: InkWell(
-      borderRadius: BorderRadius.circular(AleraTokens.radiusMd),
+      borderRadius: .circular(AleraTokens.radiusMd),
       onTap: onTap,
       child: Padding(
         padding: const EdgeInsets.symmetric(
@@ -371,14 +352,14 @@ class _MobileChoiceRow extends StatelessWidget {
           vertical: AleraTokens.space6,
         ),
         child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment: .start,
           children: <Widget>[
             Container(
               width: AleraTokens.space32,
               height: AleraTokens.space32,
               alignment: Alignment.center,
               decoration: BoxDecoration(
-                shape: BoxShape.circle,
+                shape: .circle,
                 border: Border.all(color: AleraTokens.border),
               ),
               child: Text(leading),
@@ -386,16 +367,15 @@ class _MobileChoiceRow extends StatelessWidget {
             const SizedBox(width: AleraTokens.space8),
             Expanded(
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+                crossAxisAlignment: .start,
                 children: <Widget>[
                   Text(title, style: Theme.of(context).textTheme.labelLarge),
                   if (description?.trim().isNotEmpty == true) ...<Widget>[
                     const SizedBox(height: AleraTokens.space2),
                     Text(
                       description!,
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: AleraTokens.foregroundMuted,
-                      ),
+                      style: Theme.of(context).textTheme.bodySmall
+                          ?.copyWith(color: AleraTokens.foregroundMuted),
                     ),
                   ],
                 ],
@@ -414,33 +394,22 @@ class _MobileChoiceRow extends StatelessWidget {
   );
 }
 
-class _MobileInlineAnswer extends StatelessWidget {
-  const _MobileInlineAnswer({
-    required this.controller,
-    required this.active,
-    required this.hintText,
-    required this.submitLabel,
-    required this.obscureText,
-    required this.onActivate,
-    required this.onSubmit,
-    required this.onSkip,
-  });
-
-  final TextEditingController controller;
-  final bool active;
-  final String hintText;
-  final String submitLabel;
-  final bool obscureText;
-  final VoidCallback? onActivate;
-  final VoidCallback? onSubmit;
-  final VoidCallback? onSkip;
-
+class const _MobileInlineAnswer({
+  required final TextEditingController controller,
+  required final bool active,
+  required final String hintText,
+  required final String submitLabel,
+  required final bool obscureText,
+  required final VoidCallback? onActivate,
+  required final VoidCallback? onSubmit,
+  required final VoidCallback? onSkip,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Material(
     color: active ? AleraTokens.surfaceVariant : Colors.transparent,
     borderRadius: BorderRadius.circular(AleraTokens.radiusMd),
     child: InkWell(
-      borderRadius: BorderRadius.circular(AleraTokens.radiusMd),
+      borderRadius: .circular(AleraTokens.radiusMd),
       onTap: onActivate,
       child: Padding(
         padding: const EdgeInsets.symmetric(
@@ -448,7 +417,7 @@ class _MobileInlineAnswer extends StatelessWidget {
           vertical: AleraTokens.space4,
         ),
         child: Row(
-          crossAxisAlignment: CrossAxisAlignment.end,
+          crossAxisAlignment: .end,
           children: <Widget>[
             const Icon(Icons.edit_outlined, size: AleraTokens.space16),
             const SizedBox(width: AleraTokens.space8),
@@ -464,17 +433,14 @@ class _MobileInlineAnswer extends StatelessWidget {
                         obscureText: obscureText,
                         minLines: 1,
                         maxLines: obscureText ? 1 : 5,
-                        decoration: InputDecoration.collapsed(
-                          hintText: hintText,
-                        ),
+                        decoration: .collapsed(hintText: hintText),
                         onSubmitted: (_) => onSubmit?.call(),
                       ),
                     )
                   : Text(
                       hintText,
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: AleraTokens.foregroundMuted,
-                      ),
+                      style: Theme.of(context).textTheme.bodyMedium
+                          ?.copyWith(color: AleraTokens.foregroundMuted),
                     ),
             ),
             const SizedBox(width: AleraTokens.space8),

@@ -17,9 +17,7 @@ const String kMobileLogBaseName = 'alera-mobile';
 /// The app had no logging at all: every failure was either turned into a
 /// SnackBar or dropped, so a problem reported after the fact left nothing to
 /// look at. A rotated file on the device is what makes review possible.
-abstract final class MobileLogger {
-  MobileLogger._();
-
+abstract final class MobileLogger._() {
   static bool _configured = false;
   static RotatingLogSink? _sink;
   static io.Directory? _directory;

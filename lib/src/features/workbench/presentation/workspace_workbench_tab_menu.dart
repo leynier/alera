@@ -22,45 +22,45 @@ extension _WorkspaceTabMenu on _WorkspaceTabChip {
           ];
     final selected = await showMenu<_TabMenuAction>(
       context: context,
-      position: RelativeRect.fromRect(
-        Rect.fromPoints(globalPosition, globalPosition),
+      position: .fromRect(
+        .fromPoints(globalPosition, globalPosition),
         Offset.zero & overlay.size,
       ),
       items: <PopupMenuEntry<_TabMenuAction>>[
         const AleraDropdownEntry<_TabMenuAction>(
-          value: _TabMenuAction.splitUp,
+          value: .splitUp,
           label: 'Split Up',
-          leading: _SplitDirectionGlyph(zone: WorkbenchDropZone.up),
+          leading: _SplitDirectionGlyph(zone: .up),
         ),
         const AleraDropdownEntry<_TabMenuAction>(
-          value: _TabMenuAction.splitDown,
+          value: .splitDown,
           label: 'Split Down',
-          leading: _SplitDirectionGlyph(zone: WorkbenchDropZone.down),
+          leading: _SplitDirectionGlyph(zone: .down),
         ),
         const AleraDropdownEntry<_TabMenuAction>(
-          value: _TabMenuAction.splitLeft,
+          value: .splitLeft,
           label: 'Split Left',
-          leading: _SplitDirectionGlyph(zone: WorkbenchDropZone.left),
+          leading: _SplitDirectionGlyph(zone: .left),
         ),
         const AleraDropdownEntry<_TabMenuAction>(
-          value: _TabMenuAction.splitRight,
+          value: .splitRight,
           label: 'Split Right',
-          leading: _SplitDirectionGlyph(zone: WorkbenchDropZone.right),
+          leading: _SplitDirectionGlyph(zone: .right),
         ),
         const PopupMenuDivider(height: AleraTokens.space8),
         if (tab.isPreview && _KeepPreviewTabScope.maybeOf(context) != null)
           const AleraDropdownEntry<_TabMenuAction>(
-            value: _TabMenuAction.keepOpen,
+            value: .keepOpen,
             label: 'Keep Open',
             leading: Icon(AleraIcons.pin, size: 16),
           ),
         const AleraDropdownEntry<_TabMenuAction>(
-          value: _TabMenuAction.close,
+          value: .close,
           label: 'Close',
           leading: Icon(AleraIcons.close, size: 16),
         ),
         AleraDropdownEntry<_TabMenuAction>(
-          value: _TabMenuAction.closeOthers,
+          value: .closeOthers,
           label: 'Close Others',
           leading: Icon(
             AleraIcons.tabUnselected,
@@ -72,7 +72,7 @@ extension _WorkspaceTabMenu on _WorkspaceTabChip {
           enabled: closeOthers.isNotEmpty,
         ),
         AleraDropdownEntry<_TabMenuAction>(
-          value: _TabMenuAction.closeRight,
+          value: .closeRight,
           label: 'Close Tabs to the Right',
           leading: Icon(
             AleraIcons.tab,
@@ -87,7 +87,7 @@ extension _WorkspaceTabMenu on _WorkspaceTabChip {
                 tab.kind == WorkspaceTabKind.codex) &&
             ref.read(agentTitleAvailableProvider).value == true)
           AleraDropdownEntry<_TabMenuAction>(
-            value: _TabMenuAction.generateTitle,
+            value: .generateTitle,
             label: tab.payload['agentTitleStatus'] == 'generating'
                 ? 'Generating title...'
                 : tab.payload['agentTitleSource'] == 'generated'
@@ -100,7 +100,7 @@ extension _WorkspaceTabMenu on _WorkspaceTabChip {
             WorkspaceTabKind.codex) ...<PopupMenuEntry<_TabMenuAction>>[
           const PopupMenuDivider(height: AleraTokens.space8),
           const AleraDropdownEntry<_TabMenuAction>(
-            value: _TabMenuAction.changeTitle,
+            value: .changeTitle,
             label: 'Change Title',
             leading: Icon(AleraIcons.edit, size: 16),
           ),
@@ -112,13 +112,13 @@ extension _WorkspaceTabMenu on _WorkspaceTabChip {
     }
     switch (selected) {
       case _TabMenuAction.splitUp:
-        onSplit(WorkbenchDropZone.up);
+        onSplit(.up);
       case _TabMenuAction.splitDown:
-        onSplit(WorkbenchDropZone.down);
+        onSplit(.down);
       case _TabMenuAction.splitLeft:
-        onSplit(WorkbenchDropZone.left);
+        onSplit(.left);
       case _TabMenuAction.splitRight:
-        onSplit(WorkbenchDropZone.right);
+        onSplit(.right);
       case _TabMenuAction.keepOpen:
         _KeepPreviewTabScope.maybeOf(context)?.call(tab.id);
       case _TabMenuAction.close:
@@ -133,7 +133,7 @@ extension _WorkspaceTabMenu on _WorkspaceTabChip {
         } on Object catch (error) {
           AleraToast.publish(
             message: 'Could not generate title: $error',
-            tone: AleraToastTone.error,
+            tone: .error,
           );
         }
       case _TabMenuAction.changeTitle:

@@ -1,14 +1,10 @@
 part of 'welcome_dashboard.dart';
 
-class _Header extends StatelessWidget {
-  const _Header({required this.theme});
-
-  final ThemeData theme;
-
+class const _Header({required final ThemeData theme}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: .start,
       children: [
         Row(
           children: [
@@ -23,20 +19,20 @@ class _Header extends StatelessWidget {
                 'assets/logo/alera-logo-white.png',
                 width: 32,
                 height: 32,
-                filterQuality: FilterQuality.medium,
+                filterQuality: .medium,
               ),
             ),
             const SizedBox(width: AleraTokens.space16),
             Expanded(
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+                crossAxisAlignment: .start,
                 children: [
                   Text(
                     'Welcome to Alera',
-                    overflow: TextOverflow.ellipsis,
+                    overflow: .ellipsis,
                     style: theme.textTheme.headlineMedium?.copyWith(
                       color: AleraTokens.foreground,
-                      fontWeight: FontWeight.bold,
+                      fontWeight: .bold,
                     ),
                   ),
                   const SizedBox(height: AleraTokens.space4),
@@ -59,11 +55,8 @@ class _Header extends StatelessWidget {
   }
 }
 
-class _LeftColumn extends ConsumerWidget {
-  const _LeftColumn({required this.state});
-
-  final WorkbenchState state;
-
+class const _LeftColumn({required final WorkbenchState state})
+    extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final hasGitProjects = state.projects.any(
@@ -71,7 +64,7 @@ class _LeftColumn extends ConsumerWidget {
     );
 
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+      crossAxisAlignment: .stretch,
       children: [
         _SectionTitle(title: 'Quick Start'),
         const SizedBox(height: AleraTokens.space12),
@@ -107,13 +100,11 @@ class _LeftColumn extends ConsumerWidget {
   }
 }
 
-class _RightColumn extends StatelessWidget {
-  const _RightColumn();
-
+class const _RightColumn() extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return const Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+      crossAxisAlignment: .stretch,
       children: [
         _SectionTitle(title: 'Keyboard Shortcuts'),
         SizedBox(height: AleraTokens.space12),

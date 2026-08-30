@@ -1,21 +1,15 @@
 import 'dart:convert';
 
 import 'package:alera_mobile/src/core/logging/log_redaction.dart';
-import 'package:alera_mobile/src/features/ai_dictation/domain/speech_capabilities.dart';
 import 'package:alera_mobile/src/features/ai_dictation/domain/speech_provider_profile.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 const _credentialKey = 'alera.mobile.aiDictation.openAiCompatible.v1';
 
-class MobileAiDictationCredentialStatus {
-  const MobileAiDictationCredentialStatus({
-    required this.configured,
-    required this.matchesBaseUrl,
-  });
-
-  final bool configured;
-  final bool matchesBaseUrl;
-}
+class const MobileAiDictationCredentialStatus({
+  required final bool configured,
+  required final bool matchesBaseUrl,
+});
 
 abstract interface class MobileAiDictationSecureStore {
   Future<String?> read(String key);
@@ -23,10 +17,9 @@ abstract interface class MobileAiDictationSecureStore {
   Future<void> delete(String key);
 }
 
-class FlutterMobileAiDictationSecureStore
+class FlutterMobileAiDictationSecureStore([FlutterSecureStorage? storage])
     implements MobileAiDictationSecureStore {
-  FlutterMobileAiDictationSecureStore([FlutterSecureStorage? storage])
-    : _storage = storage ?? const FlutterSecureStorage();
+  this : _storage = storage ?? const FlutterSecureStorage();
 
   final FlutterSecureStorage _storage;
 
@@ -41,9 +34,8 @@ class FlutterMobileAiDictationSecureStore
   Future<void> delete(String key) => _storage.delete(key: key);
 }
 
-class MobileAiDictationCredentialStore {
-  MobileAiDictationCredentialStore({MobileAiDictationSecureStore? store})
-    : _store = store ?? FlutterMobileAiDictationSecureStore();
+class MobileAiDictationCredentialStore({MobileAiDictationSecureStore? store}) {
+  this : _store = store ?? FlutterMobileAiDictationSecureStore();
 
   final MobileAiDictationSecureStore _store;
 
@@ -108,14 +100,12 @@ class MobileAiDictationCredentialStore {
   SpeechProviderProfile _profile(String baseUrl) => SpeechProviderProfile(
     id: 'mobile-direct',
     label: 'OpenAI-Compatible API',
-    type: SpeechBackend.openAiCompatible,
+    type: .openAiCompatible,
     baseUrl: baseUrl,
   );
 }
 
-class _Credential {
-  const _Credential({required this.token, required this.origin});
-
-  final String token;
-  final String origin;
-}
+class const _Credential({
+  required final String token,
+  required final String origin,
+});

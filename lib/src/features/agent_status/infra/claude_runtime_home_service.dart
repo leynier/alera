@@ -1,7 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:alera/src/features/agent_status/domain/agent_status.dart';
 import 'package:alera/src/features/agent_status/infra/agent_hook_endpoint_file.dart';
 import 'package:alera/src/features/agent_status/infra/managed_agent_hook_installer.dart';
 import 'package:alera/src/shared/infra/files/posix_file_mode.dart';
@@ -17,8 +16,10 @@ part 'claude_runtime_hooks.dart';
 
 typedef ClaudeApplicationSupportDirectoryResolver =
     Future<Directory> Function();
-typedef ClaudeResourceLinkCreator =
-    void Function({required String sourcePath, required String targetPath});
+typedef ClaudeResourceLinkCreator = void Function({
+  required String sourcePath,
+  required String targetPath,
+});
 
 abstract interface class ClaudeKeychainCredentialsStore {
   Future<String?> readLegacyCredentials();
@@ -31,42 +32,37 @@ abstract interface class ClaudeKeychainCredentialsStore {
   Future<void> deleteScopedCredentials(String configDir);
 }
 
-final class ClaudeRuntimeHomePreparation {
-  const ClaudeRuntimeHomePreparation({
-    required this.runtimeHomePath,
-    required this.environment,
-    required this.hookStatus,
-  });
+final class const ClaudeRuntimeHomePreparation({
+  required final String runtimeHomePath,
+  required final Map<String, String> environment,
+  required final ManagedAgentHookInstallStatus hookStatus,
+});
 
-  final String runtimeHomePath;
-  final Map<String, String> environment;
-  final ManagedAgentHookInstallStatus hookStatus;
-}
-
-final class ClaudeRuntimeHomeService {
-  ClaudeRuntimeHomeService({
-    String? homeDirectory,
-    ClaudeApplicationSupportDirectoryResolver? applicationSupportDirectory,
-    ManagedAgentHookPlatform? platform,
-    Map<String, String>? environment,
-    @visibleForTesting bool syncMacOSKeychainCredentials = true,
-    @visibleForTesting ClaudeKeychainCredentialsStore? keychainCredentialsStore,
-    @visibleForTesting ClaudeResourceLinkCreator? resourceLinkCreator,
-  }) : _environment = environment ?? Platform.environment,
-       _homeDirectory = homeDirectory ?? _resolveHome(environment),
-       _applicationSupportDirectory =
-           applicationSupportDirectory ?? getApplicationSupportDirectory,
-       _platform =
-           platform ??
-           (Platform.isWindows
-               ? ManagedAgentHookPlatform.windows
-               : ManagedAgentHookPlatform.posix),
-       _keychainCredentialsStore =
-           keychainCredentialsStore ??
-           (syncMacOSKeychainCredentials && Platform.isMacOS
-               ? const _MacOSClaudeKeychainCredentialsStore()
-               : null),
-       _resourceLinkCreator = resourceLinkCreator ?? _createResourceLink;
+final class ClaudeRuntimeHomeService({
+  String? homeDirectory,
+  ClaudeApplicationSupportDirectoryResolver? applicationSupportDirectory,
+  ManagedAgentHookPlatform? platform,
+  Map<String, String>? environment,
+  @visibleForTesting bool syncMacOSKeychainCredentials = true,
+  @visibleForTesting ClaudeKeychainCredentialsStore? keychainCredentialsStore,
+  @visibleForTesting ClaudeResourceLinkCreator? resourceLinkCreator,
+}) {
+  this
+    : _environment = environment ?? Platform.environment,
+      _homeDirectory = homeDirectory ?? _resolveHome(environment),
+      _applicationSupportDirectory =
+          applicationSupportDirectory ?? getApplicationSupportDirectory,
+      _platform =
+          platform ??
+          (Platform.isWindows
+              ? ManagedAgentHookPlatform.windows
+              : ManagedAgentHookPlatform.posix),
+      _keychainCredentialsStore =
+          keychainCredentialsStore ??
+          (syncMacOSKeychainCredentials && Platform.isMacOS
+              ? const _MacOSClaudeKeychainCredentialsStore()
+              : null),
+      _resourceLinkCreator = resourceLinkCreator ?? _createResourceLink;
 
   final Map<String, String> _environment;
   final String _homeDirectory;
@@ -114,8 +110,8 @@ final class ClaudeRuntimeHomeService {
       return runtimeStatus;
     }
     return ManagedAgentHookInstallStatus(
-      agentType: AgentType.claude,
-      state: ManagedAgentHookInstallState.partial,
+      agentType: .claude,
+      state: .partial,
       configPath: runtimeStatus.configPath,
       managedHooksPresent: runtimeStatus.managedHooksPresent,
       detail:
@@ -137,8 +133,8 @@ final class ClaudeRuntimeHomeService {
     final sourceConfig = _readJsonObject(sourceSettingsPath);
     if (sourceConfig == null) {
       return ManagedAgentHookInstallStatus(
-        agentType: AgentType.claude,
-        state: ManagedAgentHookInstallState.error,
+        agentType: .claude,
+        state: .error,
         configPath: sourceSettingsPath,
         managedHooksPresent: false,
         detail: 'Could not parse Claude settings.json.',
@@ -153,8 +149,8 @@ final class ClaudeRuntimeHomeService {
     );
     if (!runtimeOk) {
       return ManagedAgentHookInstallStatus(
-        agentType: AgentType.claude,
-        state: ManagedAgentHookInstallState.error,
+        agentType: .claude,
+        state: .error,
         configPath: descriptor.settingsPath,
         managedHooksPresent: false,
         detail: 'Could not write Claude runtime settings.json.',
@@ -188,8 +184,8 @@ final class ClaudeRuntimeHomeService {
     );
     if (!runtimeOk) {
       return ManagedAgentHookInstallStatus(
-        agentType: AgentType.claude,
-        state: ManagedAgentHookInstallState.error,
+        agentType: .claude,
+        state: .error,
         configPath: descriptor.settingsPath,
         managedHooksPresent: false,
         detail: 'Could not parse Claude runtime settings.json.',
@@ -219,10 +215,8 @@ void _createResourceLink({
 // Native macOS keychain adapter. Service behavior is covered through
 // ClaudeKeychainCredentialsStore fakes; exercising this class would mutate the
 // developer keychain and depend on the local `security` binary.
-final class _MacOSClaudeKeychainCredentialsStore
+final class const _MacOSClaudeKeychainCredentialsStore()
     implements ClaudeKeychainCredentialsStore {
-  const _MacOSClaudeKeychainCredentialsStore();
-
   static const String _legacyService = 'Claude Code-credentials';
   static const ProcessRunner _processRunner = RustProcessRunner();
 
@@ -318,34 +312,18 @@ final class _MacOSClaudeKeychainCredentialsStore
 }
 // coverage:ignore-end
 
-class _ClaudeRuntimeHookDescriptor {
-  const _ClaudeRuntimeHookDescriptor({
-    required this.settingsPath,
-    required this.scriptPath,
-    required this.managedScriptFileNames,
-  });
+class const _ClaudeRuntimeHookDescriptor({
+  required final String settingsPath,
+  required final String scriptPath,
+  required final Set<String> managedScriptFileNames,
+});
 
-  final String settingsPath;
-  final String scriptPath;
-  final Set<String> managedScriptFileNames;
-}
+class const _ClaudeHookEvent(final String eventName, {final String? matcher});
 
-class _ClaudeHookEvent {
-  const _ClaudeHookEvent(this.eventName, {this.matcher});
-
-  final String eventName;
-  final String? matcher;
-}
-
-class _CopiedResourceMarker {
-  const _CopiedResourceMarker({
-    required this.sourcePath,
-    required this.sourceFingerprint,
-  });
-
-  final String sourcePath;
-  final String? sourceFingerprint;
-}
+class const _CopiedResourceMarker({
+  required final String sourcePath,
+  required final String? sourceFingerprint,
+});
 
 const List<_ClaudeHookEvent> _claudeEvents = <_ClaudeHookEvent>[
   _ClaudeHookEvent('UserPromptSubmit'),

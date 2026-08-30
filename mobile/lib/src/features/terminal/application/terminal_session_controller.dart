@@ -180,10 +180,7 @@ class TerminalSessionController extends _$TerminalSessionController {
         final driver = asJsonMap(event.payload['driver']);
         if (driver['kind'] == 'desktop') {
           _desktopReclaimed = true;
-          state = AsyncError(
-            const DesktopReclaimedTerminal(),
-            StackTrace.current,
-          );
+          state = AsyncError(const DesktopReclaimedTerminal(), .current);
         }
       },
       onError: (Object error, StackTrace stackTrace) {
@@ -205,7 +202,7 @@ class TerminalSessionController extends _$TerminalSessionController {
           return;
         }
         if (!_recovering && identical(_client, client)) {
-          state = AsyncError(const RuntimeConnectionLost(), StackTrace.current);
+          state = AsyncError(const RuntimeConnectionLost(), .current);
         }
       },
     );
@@ -340,7 +337,7 @@ class TerminalSessionController extends _$TerminalSessionController {
     if (!client.supportsTerminalRestart) {
       state = AsyncError(
         UnsupportedError('The host does not support terminal restart.'),
-        StackTrace.current,
+        .current,
       );
       return;
     }

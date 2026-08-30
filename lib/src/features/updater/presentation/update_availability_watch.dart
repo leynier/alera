@@ -11,11 +11,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 /// would change state no surface ever reports. Each version is announced once:
 /// a toast every fifteen minutes for a release the user already declined would
 /// be noise, and the Application settings pane keeps showing the status.
-class UpdateAvailabilityWatch extends ConsumerStatefulWidget {
-  const UpdateAvailabilityWatch({super.key, required this.child});
-
-  final Widget child;
-
+class const UpdateAvailabilityWatch({super.key, required final Widget child})
+    extends ConsumerStatefulWidget {
   @override
   ConsumerState<UpdateAvailabilityWatch> createState() =>
       _UpdateAvailabilityWatchState();
@@ -50,7 +47,7 @@ class _UpdateAvailabilityWatchState
     if (message == null || message.isEmpty) {
       return;
     }
-    AleraToast.show(context, message: message, tone: AleraToastTone.info);
+    AleraToast.show(context, message: message, tone: .info);
   }
 }
 

@@ -1,20 +1,12 @@
 part of 'project_workbench_sidebar.dart';
 
-class _CollapsedSidebar extends StatelessWidget {
-  const _CollapsedSidebar({
-    required this.state,
-    required this.controller,
-    required this.onAddProject,
-    required this.onOpenSettings,
-    required this.onOpenAutomations,
-  });
-
-  final WorkbenchState state;
-  final WorkbenchController controller;
-  final VoidCallback onAddProject;
-  final VoidCallback onOpenSettings;
-  final VoidCallback onOpenAutomations;
-
+class const _CollapsedSidebar({
+  required final WorkbenchState state,
+  required final WorkbenchController controller,
+  required final VoidCallback onAddProject,
+  required final VoidCallback onOpenSettings,
+  required final VoidCallback onOpenAutomations,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final workspaceCounts = <String, int>{

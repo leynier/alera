@@ -15,10 +15,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 part 'welcome_dashboard_columns.dart';
 part 'welcome_dashboard_cards.dart';
 
-class WelcomeDashboard extends ConsumerWidget {
-  // coverage:ignore-line
-  const WelcomeDashboard({super.key});
-
+// coverage:ignore-line
+class const WelcomeDashboard({super.key}) extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(workbenchControllerProvider);
@@ -48,20 +46,14 @@ class WelcomeDashboard extends ConsumerWidget {
                   ];
 
                   return Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    crossAxisAlignment: .stretch,
                     children: [
                       _Header(theme: theme),
                       const SizedBox(height: AleraTokens.space32),
                       if (isWide)
-                        Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: content,
-                        )
+                        Row(crossAxisAlignment: .start, children: content)
                       else
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: content,
-                        ),
+                        Column(crossAxisAlignment: .stretch, children: content),
                     ],
                   );
                 },

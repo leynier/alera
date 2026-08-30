@@ -17,23 +17,14 @@ part 'normalizers/agent_hook_tool_preview.dart';
 part 'normalizers/agent_hook_transcript_reader.dart';
 part 'normalizers/agent_hook_status_helpers.dart';
 
-class NormalizedAgentStatus {
-  const NormalizedAgentStatus({
-    required this.state,
-    required this.prompt,
-    this.toolName,
-    this.toolInput,
-    this.lastAssistantMessage,
-    this.interrupted,
-  });
-
-  final AgentStatusState state;
-  final String prompt;
-  final String? toolName;
-  final String? toolInput;
-  final String? lastAssistantMessage;
-  final bool? interrupted;
-}
+class const NormalizedAgentStatus({
+  required final AgentStatusState state,
+  required final String prompt,
+  final String? toolName,
+  final String? toolInput,
+  final String? lastAssistantMessage,
+  final bool? interrupted,
+});
 
 NormalizedAgentStatus? normalizeAgentHookEvent(
   AgentHookEvent event, {

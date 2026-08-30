@@ -15,8 +15,8 @@ Widget aleraHoverCardPreview() => AleraHoverCard(
       border: Border.all(color: AleraTokens.border),
     ),
     child: const Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: .min,
+      crossAxisAlignment: .start,
       children: <Widget>[
         Text('Weekly quota'),
         SizedBox(height: AleraTokens.space8),

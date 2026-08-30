@@ -58,7 +58,7 @@ AgentHookEvent _ampEvent(String eventName, {String? threadId}) {
     terminalSessionId: 'session-1',
     workspaceId: 'workspace-1',
     tabId: 'tab-1',
-    agentType: AgentType.amp,
+    agentType: .amp,
     hookEventName: eventName,
     payload: <String, Object?>{'threadId': ?threadId},
   );

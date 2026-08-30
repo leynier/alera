@@ -86,6 +86,7 @@ async fn already_bound_threads_can_be_focused_during_an_active_turn() {
             tag_ids: Vec::new(),
             tag_names: Vec::new(),
             parent_workspace_id: None,
+            section_id: None,
             child_count: 0,
         })
         .await

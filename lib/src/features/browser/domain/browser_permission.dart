@@ -40,17 +40,15 @@ BrowserPermissionType browserPermissionTypeFromWire(String value) {
   };
 }
 
-final class BrowserPermissionRequest {
-  const BrowserPermissionRequest({
-    required this.requestId,
-    required this.pageId,
-    required this.origin,
-    required this.permission,
-    required this.requestedAt,
-    this.userGesture = false,
-  });
-
-  factory BrowserPermissionRequest.fromJson(Map<String, Object?> json) {
+final class const BrowserPermissionRequest({
+  required final String requestId,
+  required final String pageId,
+  required final String origin,
+  required final BrowserPermissionType permission,
+  required final DateTime requestedAt,
+  final bool userGesture = false,
+}) {
+  factory fromJson(Map<String, Object?> json) {
     final requestedAt = DateTime.tryParse(json['requestedAt'] as String? ?? '');
     if (json['requestId'] is! String ||
         json['pageId'] is! String ||
@@ -71,13 +69,6 @@ final class BrowserPermissionRequest {
     );
   }
 
-  final String requestId;
-  final String pageId;
-  final String origin;
-  final BrowserPermissionType permission;
-  final DateTime requestedAt;
-  final bool userGesture;
-
   Map<String, Object?> toJson() => <String, Object?>{
     'requestId': requestId,
     'pageId': pageId,
@@ -88,13 +79,10 @@ final class BrowserPermissionRequest {
   };
 }
 
-final class BrowserPermissionPolicy {
-  const BrowserPermissionPolicy({
-    this.decisions = const <BrowserPermissionType, BrowserPermissionDecision>{},
-  });
-
-  final Map<BrowserPermissionType, BrowserPermissionDecision> decisions;
-
+final class const BrowserPermissionPolicy({
+  final Map<BrowserPermissionType, BrowserPermissionDecision> decisions =
+      const <BrowserPermissionType, BrowserPermissionDecision>{},
+}) {
   BrowserPermissionDecision decisionFor(BrowserPermissionType permission) {
     if (permission == BrowserPermissionType.displayCapture) {
       return BrowserPermissionDecision.deny;

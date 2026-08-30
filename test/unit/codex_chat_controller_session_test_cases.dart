@@ -141,7 +141,7 @@ void registerCodexChatControllerSessionTests() {
       );
       addTearDown(listener.close);
       while (container.read(provider).loading) {
-        await Future<void>.delayed(Duration.zero);
+        await Future.pause(.zero);
       }
 
       client.emit(
@@ -153,7 +153,7 @@ void registerCodexChatControllerSessionTests() {
           },
         }),
       );
-      await Future<void>.delayed(Duration.zero);
+      await Future.pause(.zero);
       status.complete(<String, Object?>{
         'runtimeCapabilities': <String>[
           aleraRuntimeHostCodexSessionsCapability,
@@ -192,7 +192,7 @@ void registerCodexChatControllerSessionTests() {
     while (!client.requests.any(
       (request) => request.type == 'codex.thread.open',
     )) {
-      await Future<void>.delayed(Duration.zero);
+      await Future.pause(.zero);
     }
 
     client.emit(
@@ -227,7 +227,7 @@ void registerCodexChatControllerSessionTests() {
         },
       }),
     );
-    await Future<void>.delayed(Duration.zero);
+    await Future.pause(.zero);
     open.complete(<String, Object?>{
       'threadId': 'thread-old',
       'snapshot': <String, Object?>{

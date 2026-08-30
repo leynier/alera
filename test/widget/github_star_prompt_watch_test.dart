@@ -16,8 +16,8 @@ void main() {
     id: 'project-1',
     name: 'Alera',
     repoPath: '/tmp/alera',
-    createdAt: DateTime.utc(2020, 1, 1),
-    updatedAt: DateTime.utc(2020, 1, 1),
+    createdAt: .utc(2020, 1, 1),
+    updatedAt: .utc(2020, 1, 1),
   );
   final youngProject = Project(
     id: 'project-2',
@@ -34,7 +34,7 @@ void main() {
       await _pump(
         tester,
         projects: <Project>[oldProject],
-        starState: GitHubStarState.notStarred,
+        starState: .notStarred,
       );
 
       expect(find.text('Support Alera'), findsOneWidget);
@@ -55,7 +55,7 @@ void main() {
       await _pump(
         tester,
         projects: <Project>[oldProject],
-        starState: GitHubStarState.notStarred,
+        starState: .notStarred,
         settings: AleraSettings.defaults.copyWith(
           general: const GeneralSettings(starClicked: true),
         ),
@@ -65,15 +65,11 @@ void main() {
       await _pump(
         tester,
         projects: <Project>[youngProject],
-        starState: GitHubStarState.notStarred,
+        starState: .notStarred,
       );
       expect(find.text('Support Alera'), findsNothing);
 
-      await _pump(
-        tester,
-        projects: <Project>[oldProject],
-        starState: GitHubStarState.starred,
-      );
+      await _pump(tester, projects: <Project>[oldProject], starState: .starred);
       expect(find.text('Support Alera'), findsNothing);
     });
 
@@ -82,7 +78,7 @@ void main() {
       final container = await _pump(
         tester,
         projects: <Project>[oldProject],
-        starState: GitHubStarState.notStarred,
+        starState: .notStarred,
         repository: repository,
       );
 
@@ -103,8 +99,8 @@ void main() {
       final repository = _FakeSettingsRepository();
       final launcher = _FakeExternalUriLauncher();
       final starController = _FakeGitHubStarController(
-        GitHubStarState.notStarred,
-        nextStarState: GitHubStarState.starred,
+        .notStarred,
+        nextStarState: .starred,
       );
       final container = await _pump(
         tester,
@@ -131,7 +127,7 @@ void main() {
     ) async {
       final repository = _FakeSettingsRepository();
       final launcher = _FakeExternalUriLauncher();
-      final starController = _FakeGitHubStarController(GitHubStarState.hidden);
+      final starController = _FakeGitHubStarController(.hidden);
       final container = await _pump(
         tester,
         projects: <Project>[oldProject],
@@ -156,8 +152,8 @@ void main() {
     ) async {
       final launcher = _FakeExternalUriLauncher();
       final starController = _FakeGitHubStarController(
-        GitHubStarState.notStarred,
-        nextStarState: GitHubStarState.error,
+        .notStarred,
+        nextStarState: .error,
       );
       await _pump(
         tester,
@@ -215,9 +211,9 @@ Future<ProviderContainer> _pump(
   return container;
 }
 
-class _FakeSettingsRepository implements SettingsRepository {
-  _FakeSettingsRepository([AleraSettings? initialSettings])
-    : _settings = initialSettings ?? AleraSettings.defaults;
+class _FakeSettingsRepository([AleraSettings? initialSettings])
+    implements SettingsRepository {
+  this : _settings = initialSettings ?? AleraSettings.defaults;
 
   AleraSettings _settings;
 
@@ -230,11 +226,10 @@ class _FakeSettingsRepository implements SettingsRepository {
   }
 }
 
-class _FakeGitHubStarController extends GitHubStarController {
-  _FakeGitHubStarController(this.initialState, {this.nextStarState});
-
-  final GitHubStarState initialState;
-  final GitHubStarState? nextStarState;
+class _FakeGitHubStarController(
+  final GitHubStarState initialState, {
+  final GitHubStarState? nextStarState,
+}) extends GitHubStarController {
   int starCalls = 0;
 
   @override

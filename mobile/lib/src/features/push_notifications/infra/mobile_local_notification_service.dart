@@ -4,8 +4,9 @@ import 'package:alera_mobile/src/features/push_notifications/domain/push_navigat
 import 'package:alera_mobile/src/features/push_notifications/infra/push_messaging_service.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
-typedef PushNotificationSelectionHandler =
-    void Function(PushNavigationIntent intent);
+typedef PushNotificationSelectionHandler = void Function(
+  PushNavigationIntent intent,
+);
 
 abstract interface class MobileLocalNotificationService {
   Future<void> initialize({
@@ -15,25 +16,24 @@ abstract interface class MobileLocalNotificationService {
   Future<void> show(PushMessage message);
 }
 
-class FlutterMobileLocalNotificationService
-    implements MobileLocalNotificationService {
-  FlutterMobileLocalNotificationService({
-    FlutterLocalNotificationsPlugin? plugin,
-  }) : _plugin = plugin ?? FlutterLocalNotificationsPlugin();
+class FlutterMobileLocalNotificationService({
+  FlutterLocalNotificationsPlugin? plugin,
+}) implements MobileLocalNotificationService {
+  this : _plugin = plugin ?? FlutterLocalNotificationsPlugin();
 
   static const AndroidNotificationChannel attentionChannel =
       AndroidNotificationChannel(
         'alera_attention',
         'Agent attention',
         description: 'Agent waits, blocks, and decision gates.',
-        importance: Importance.high,
+        importance: .high,
       );
   static const AndroidNotificationChannel activityChannel =
       AndroidNotificationChannel(
         'alera_activity',
         'Agent activity',
         description: 'Agent completion and terminal activity.',
-        importance: Importance.defaultImportance,
+        importance: .defaultImportance,
       );
 
   final FlutterLocalNotificationsPlugin _plugin;
@@ -87,7 +87,7 @@ class FlutterMobileLocalNotificationService
       final decoded = jsonDecode(payload);
       if (decoded is Map) {
         onSelected(
-          PushNavigationIntent.fromData(
+          .fromData(
             decoded.map((key, value) => MapEntry(key.toString(), value)),
           ),
         );
@@ -133,10 +133,8 @@ class FlutterMobileLocalNotificationService
   }
 }
 
-class DisabledMobileLocalNotificationService
+class const DisabledMobileLocalNotificationService()
     implements MobileLocalNotificationService {
-  const DisabledMobileLocalNotificationService();
-
   @override
   Future<void> initialize({
     required PushNotificationSelectionHandler onSelected,

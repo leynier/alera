@@ -1,30 +1,19 @@
 part of 'alera_shell_page_test.dart';
 
-class _ShellSettingsController extends SettingsController {
-  _ShellSettingsController(this._seed);
-
-  final AleraSettings _seed;
-
+class _ShellSettingsController(final AleraSettings _seed)
+    extends SettingsController {
   @override
   AleraSettings build() => _seed;
 }
 
-class _ShellPumpHarness {
-  const _ShellPumpHarness({
-    required this.controller,
-    required this.runtime,
-    required this.agentStatus,
-  });
+class const _ShellPumpHarness({
+  required final _ShellTestWorkbenchController controller,
+  required final _FakeTerminalRuntime runtime,
+  required final _ShellTestAgentStatusController agentStatus,
+});
 
-  final _ShellTestWorkbenchController controller;
-  final _FakeTerminalRuntime runtime;
-  final _ShellTestAgentStatusController agentStatus;
-}
-
-class _FakeManagedWorkspaceRuntime
+class const _FakeManagedWorkspaceRuntime()
     implements ManagedWorkspaceRuntime, WorkspaceStorageRuntime {
-  const _FakeManagedWorkspaceRuntime();
-
   @override
   Future<WorkspaceCreationResult> createLinkedWorkspace({
     required Project project,
@@ -50,8 +39,8 @@ class _FakeManagedWorkspaceRuntime
     path: '/host-owned/workspaces/$workspaceId',
     sizeBytes: 4096,
     entryCount: 3,
-    measuredAt: DateTime.utc(2026, 8, 22, 12),
-    lastActivityAt: DateTime.utc(2026, 8, 22, 11),
+    measuredAt: .utc(2026, 8, 22, 12),
+    lastActivityAt: .utc(2026, 8, 22, 11),
     safeToClean: true,
     blockers: const <String>[],
   );
@@ -154,11 +143,10 @@ class _FakeTerminalRuntime implements TerminalRuntime {
   }
 }
 
-class _FakeTerminalSessionHandle extends TerminalSessionHandle {
-  _FakeTerminalSessionHandle({required this.workspace, required this.tab});
-
-  final Workspace workspace;
-  final WorkspaceTabRecord tab;
+class _FakeTerminalSessionHandle({
+  required final Workspace workspace,
+  required final WorkspaceTabRecord tab,
+}) extends TerminalSessionHandle {
   bool _started = false;
 
   @override

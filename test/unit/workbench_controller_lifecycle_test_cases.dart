@@ -35,7 +35,7 @@ void _registerWorkbenchControllerLifecycleTests() {
     const report = WorktreeSetupReport(
       steps: <WorktreeSetupStepReport>[
         WorktreeSetupStepReport(
-          kind: WorktreeSetupStepKind.command,
+          kind: .command,
           label: 'make bootstrap',
           succeeded: false,
           message: 'failed',
@@ -329,17 +329,18 @@ void _registerWorkbenchControllerLifecycleTests() {
       id: 'spawn-tab',
       workspaceId: workspace.id,
       title: 'Worker',
-      createdAt: DateTime.utc(2026, 5, 22, 2),
-      updatedAt: DateTime.utc(2026, 5, 22, 2),
+      createdAt: .utc(2026, 5, 22, 2),
+      updatedAt: .utc(2026, 5, 22, 2),
       payload: const <String, Object?>{
         workspaceTabTerminalSessionIdPayloadKey: 'spawn-session',
         workspaceTabInitialCommandPayloadKey: 'claude',
         workspaceTabSpawnOnCreatePayloadKey: true,
       },
     );
-    final session =
-        _harness.terminalRuntime.sessionFor(workspace: workspace, tab: tab)
-            as _FakeTerminalSessionHandle;
+    final session = _harness.terminalRuntime.sessionFor(
+      workspace: workspace,
+      tab: tab,
+    ) as _FakeTerminalSessionHandle;
 
     await _harness.workbenchRepository.upsertWorkspaceTab(tab);
     await _flushUntil(

@@ -11,8 +11,8 @@ void _registerWorkspaceTabGitPreviewTests() {
     final tab = await service.openOrCreateGitDiffTab(
       workspaceId: 'workspace-1',
       relativePath: 'lib/main.dart',
-      area: GitChangeArea.unstaged,
-      scope: WorkspaceGitDiffScope.file,
+      area: .unstaged,
+      scope: .file,
       preview: true,
     );
 
@@ -38,8 +38,8 @@ void _registerWorkspaceTabGitPreviewTests() {
     final second = await service.openOrCreateGitDiffTab(
       workspaceId: 'workspace-1',
       relativePath: 'lib/b.dart',
-      area: GitChangeArea.unstaged,
-      scope: WorkspaceGitDiffScope.file,
+      area: .unstaged,
+      scope: .file,
       preview: true,
       replacePreviewTabId: first.id,
     );
@@ -62,8 +62,8 @@ void _registerWorkspaceTabGitPreviewTests() {
     final first = await service.openOrCreateGitDiffTab(
       workspaceId: 'workspace-1',
       relativePath: 'lib/a.dart',
-      area: GitChangeArea.unstaged,
-      scope: WorkspaceGitDiffScope.file,
+      area: .unstaged,
+      scope: .file,
       preview: true,
     );
     final second = await service.openOrCreateEditorTab(
@@ -90,15 +90,15 @@ void _registerWorkspaceTabGitPreviewTests() {
     final first = await service.openOrCreateGitDiffTab(
       workspaceId: 'workspace-1',
       relativePath: 'lib/a.dart',
-      area: GitChangeArea.unstaged,
-      scope: WorkspaceGitDiffScope.file,
+      area: .unstaged,
+      scope: .file,
       preview: true,
     );
     final second = await service.openOrCreateGitDiffTab(
       workspaceId: 'workspace-1',
       relativePath: 'lib/b.dart',
-      area: GitChangeArea.staged,
-      scope: WorkspaceGitDiffScope.file,
+      area: .staged,
+      scope: .file,
       preview: true,
       replacePreviewTabId: first.id,
     );
@@ -120,15 +120,15 @@ void _registerWorkspaceTabGitPreviewTests() {
     final preview = await service.openOrCreateGitDiffTab(
       workspaceId: 'workspace-1',
       relativePath: 'lib/a.dart',
-      area: GitChangeArea.unstaged,
-      scope: WorkspaceGitDiffScope.file,
+      area: .unstaged,
+      scope: .file,
       preview: true,
     );
     final pinned = await service.openOrCreateGitDiffTab(
       workspaceId: 'workspace-1',
       relativePath: 'lib/a.dart',
-      area: GitChangeArea.unstaged,
-      scope: WorkspaceGitDiffScope.file,
+      area: .unstaged,
+      scope: .file,
     );
 
     expect(pinned.id, preview.id);
@@ -153,7 +153,7 @@ void _registerWorkspaceTabGitPreviewTests() {
       );
       final allChanges = await service.openOrCreateGitDiffTab(
         workspaceId: 'workspace-1',
-        scope: WorkspaceGitDiffScope.all,
+        scope: .all,
         replacePreviewTabId: preview.id,
       );
 
@@ -177,14 +177,14 @@ void _registerWorkspaceTabGitPreviewTests() {
     final first = await service.openOrCreateGitDiffTab(
       workspaceId: 'workspace-1',
       relativePath: 'lib/a.dart',
-      area: GitChangeArea.unstaged,
-      scope: WorkspaceGitDiffScope.file,
+      area: .unstaged,
+      scope: .file,
       preview: true,
     );
     final second = await service.openOrCreateGitCommitDiffTab(
       workspaceId: 'workspace-1',
       relativePath: 'lib/b.dart',
-      scope: WorkspaceGitDiffScope.file,
+      scope: .file,
       commitOid: 'abc123456789',
       compareRef: 'abc1234',
       preview: true,

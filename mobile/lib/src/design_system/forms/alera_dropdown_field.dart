@@ -5,45 +5,27 @@ import 'package:alera_mobile/src/design_system/menus/alera_dropdown_entry.dart';
 import 'package:flutter/material.dart';
 
 /// One selectable option of an [AleraDropdownField].
-class AleraDropdownFieldEntry<T> {
-  const AleraDropdownFieldEntry({
-    required this.value,
-    required this.label,
-    this.leading,
-    this.enabled = true,
-  });
-
-  final T value;
-  final String label;
-  final Widget? leading;
-  final bool enabled;
-}
+class const AleraDropdownFieldEntry<T>({
+  required final T value,
+  required final String label,
+  final Widget? leading,
+  final bool enabled = true,
+});
 
 /// Tokenized select field: a text-field-like trigger that opens an Alera
 /// popover menu of [AleraDropdownFieldEntry] options and reports the picked
 /// value through [onChanged].
-class AleraDropdownField<T> extends StatelessWidget {
-  const AleraDropdownField({
-    super.key,
-    required this.value,
-    required this.entries,
-    required this.onChanged,
-    this.hintText,
-    this.labelText,
-    this.enabled = true,
-    this.filterable = false,
-    this.filterHintText = 'Search',
-  });
-
-  final T? value;
-  final List<AleraDropdownFieldEntry<T>> entries;
-  final ValueChanged<T> onChanged;
-  final String? hintText;
-  final String? labelText;
-  final bool enabled;
-  final bool filterable;
-  final String filterHintText;
-
+class const AleraDropdownField<T>({
+  super.key,
+  required final T? value,
+  required final List<AleraDropdownFieldEntry<T>> entries,
+  required final ValueChanged<T> onChanged,
+  final String? hintText,
+  final String? labelText,
+  final bool enabled = true,
+  final bool filterable = false,
+  final String filterHintText = 'Search',
+}) extends StatelessWidget {
   static const double _height = 34;
 
   Future<void> _openMenu(BuildContext context) async {
@@ -69,7 +51,7 @@ class AleraDropdownField<T> extends StatelessWidget {
     final box = context.findRenderObject()! as RenderBox;
     final overlay =
         Overlay.of(context).context.findRenderObject()! as RenderBox;
-    final origin = box.localToGlobal(Offset.zero, ancestor: overlay);
+    final origin = box.localToGlobal(.zero, ancestor: overlay);
     final position = RelativeRect.fromLTRB(
       origin.dx,
       origin.dy + box.size.height + AleraTokens.space4,
@@ -153,7 +135,7 @@ class AleraDropdownField<T> extends StatelessWidget {
       label: current?.label ?? hintText,
       child: InkWell(
         onTap: enabled ? () => _openMenu(context) : null,
-        borderRadius: BorderRadius.circular(AleraTokens.radiusMd),
+        borderRadius: .circular(AleraTokens.radiusMd),
         child: Container(
           height: _height,
           padding: const EdgeInsets.symmetric(horizontal: AleraTokens.space12),
@@ -172,7 +154,7 @@ class AleraDropdownField<T> extends StatelessWidget {
                 child: Text(
                   current?.label ?? hintText ?? '',
                   maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+                  overflow: .ellipsis,
                   style: theme.textTheme.bodyMedium?.copyWith(
                     color: labelColor,
                   ),
@@ -196,8 +178,8 @@ class AleraDropdownField<T> extends StatelessWidget {
       return field;
     }
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: .start,
+      mainAxisSize: .min,
       children: <Widget>[
         Text(
           label,
@@ -212,19 +194,12 @@ class AleraDropdownField<T> extends StatelessWidget {
   }
 }
 
-class _AleraDropdownSearchDialog<T> extends StatefulWidget {
-  const _AleraDropdownSearchDialog({
-    required this.title,
-    required this.hintText,
-    required this.entries,
-    required this.selectedValue,
-  });
-
-  final String? title;
-  final String hintText;
-  final List<AleraDropdownFieldEntry<T>> entries;
-  final T? selectedValue;
-
+class const _AleraDropdownSearchDialog<T>({
+  required final String? title,
+  required final String hintText,
+  required final List<AleraDropdownFieldEntry<T>> entries,
+  required final T? selectedValue,
+}) extends StatefulWidget {
   @override
   State<_AleraDropdownSearchDialog<T>> createState() =>
       _AleraDropdownSearchDialogState<T>();
@@ -256,8 +231,8 @@ class _AleraDropdownSearchDialogState<T>
         child: Padding(
           padding: const EdgeInsets.all(AleraTokens.space16),
           child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
+            mainAxisSize: .min,
+            crossAxisAlignment: .stretch,
             children: <Widget>[
               Text(
                 widget.title ?? 'Select',
@@ -284,10 +259,7 @@ class _AleraDropdownSearchDialogState<T>
                             enabled: entry.enabled,
                             selected: entry.value == widget.selectedValue,
                             leading: entry.leading,
-                            title: Text(
-                              entry.label,
-                              overflow: TextOverflow.ellipsis,
-                            ),
+                            title: Text(entry.label, overflow: .ellipsis),
                             onTap: entry.enabled
                                 ? () => Navigator.of(context).pop(index)
                                 : null,

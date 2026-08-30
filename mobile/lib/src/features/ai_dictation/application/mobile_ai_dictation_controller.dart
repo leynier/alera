@@ -188,7 +188,7 @@ class MobileAiDictationController extends _$MobileAiDictationController {
       }
     }
     final session = await AudioSession.instance;
-    await session.configure(AudioSessionConfiguration.speech());
+    await session.configure(.speech());
     if (!_isCurrentGeneration(generation)) return;
     _installAudioSessionListeners(session);
     final available = await _speech.initialize(
@@ -202,9 +202,7 @@ class MobileAiDictationController extends _$MobileAiDictationController {
     await _listenSystemRecognition(settings, generation);
     if (!_isCurrentGeneration(generation)) return;
     _beginElapsedTimer(generation);
-    state = const MobileAiDictationState(
-      stage: MobileAiDictationStage.recording,
-    );
+    state = const MobileAiDictationState(stage: .recording);
   }
 
   Future<void> _listenSystemRecognition(
@@ -221,7 +219,7 @@ class MobileAiDictationController extends _$MobileAiDictationController {
       },
       listenOptions: SpeechListenOptions(
         localeId: settings.language,
-        listenMode: ListenMode.dictation,
+        listenMode: .dictation,
         partialResults: true,
         cancelOnError: true,
         onDevice: settings.engine == MobileAiDictationEngine.systemOnDevice,
@@ -238,7 +236,7 @@ class MobileAiDictationController extends _$MobileAiDictationController {
       throw StateError('Microphone permission is required for AI Dictation.');
     }
     final session = await AudioSession.instance;
-    await session.configure(AudioSessionConfiguration.speech());
+    await session.configure(.speech());
     if (!_isCurrentGeneration(generation)) return;
     _installAudioSessionListeners(session);
     final directory = await getTemporaryDirectory();
@@ -249,7 +247,7 @@ class MobileAiDictationController extends _$MobileAiDictationController {
     if (!_isCurrentGeneration(generation)) return;
     await recorder.start(
       const RecordConfig(
-        encoder: AudioEncoder.wav,
+        encoder: .wav,
         sampleRate: 16000,
         numChannels: 1,
         autoGain: true,
@@ -280,7 +278,7 @@ class MobileAiDictationController extends _$MobileAiDictationController {
       });
     });
     state = const MobileAiDictationState(
-      stage: MobileAiDictationStage.recording,
+      stage: .recording,
       audioReviewAvailable: true,
     ).copyWith(segmentCount: _audioPaths.length);
   }
@@ -331,7 +329,7 @@ class MobileAiDictationController extends _$MobileAiDictationController {
     if (_audioPaths.isEmpty) {
       _systemStopRequested = true;
       await _speech.stop();
-      await Future<void>.delayed(const Duration(milliseconds: 150));
+      await Future.pause(const Duration(milliseconds: 150));
       if (!_isCurrentGeneration(generation)) return;
       if (_systemText.trim().isEmpty) {
         state = const MobileAiDictationState(
@@ -353,9 +351,8 @@ class MobileAiDictationController extends _$MobileAiDictationController {
     }
     final filesExist =
         _audioPaths.isNotEmpty &&
-        (await Future.wait(
-          _audioPaths.map((value) => File(value).exists()),
-        )).every((value) => value);
+        (await Future.wait(_audioPaths.map((value) => File(value).exists())))
+            .every((value) => value);
     if (!_isCurrentGeneration(generation)) return;
     if (!filesExist) {
       await _reset(deleteRecording: true);
@@ -367,10 +364,10 @@ class MobileAiDictationController extends _$MobileAiDictationController {
     if (!_isCurrentGeneration(generation)) return;
     final duration = playerDuration ?? state.elapsed;
     state = state.copyWith(
-      stage: MobileAiDictationStage.recorded,
+      stage: .recorded,
       duration: duration,
       elapsed: duration,
-      playbackPosition: Duration.zero,
+      playbackPosition: .zero,
       amplitude: 0,
       audioReviewAvailable: true,
       segmentCount: _audioPaths.length,
@@ -385,11 +382,11 @@ class MobileAiDictationController extends _$MobileAiDictationController {
     if (state.stage == MobileAiDictationStage.playing) {
       await player.pause();
       if (!_isCurrentGeneration(generation)) return;
-      state = state.copyWith(stage: MobileAiDictationStage.recorded);
+      state = state.copyWith(stage: .recorded);
       return;
     }
     if (state.stage != MobileAiDictationStage.recorded) return;
-    state = state.copyWith(stage: MobileAiDictationStage.playing);
+    state = state.copyWith(stage: .playing);
     await player.play();
   }
 

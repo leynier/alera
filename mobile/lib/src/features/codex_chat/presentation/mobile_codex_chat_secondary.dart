@@ -1,17 +1,15 @@
 part of 'mobile_codex_chat_screen.dart';
 
-class _MobileQueueBar extends StatelessWidget {
-  const _MobileQueueBar({required this.messages, required this.controller});
-
-  final List<Map<String, Object?>> messages;
-  final MobileCodexController controller;
-
+class const _MobileQueueBar({
+  required final List<Map<String, Object?>> messages,
+  required final MobileCodexController controller,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Container(
     color: AleraTokens.surface,
     padding: const EdgeInsets.all(AleraTokens.space8),
     child: SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
+      scrollDirection: .horizontal,
       child: Row(
         children: <Widget>[
           const Text('Queued Messages'),
@@ -23,7 +21,7 @@ class _MobileQueueBar extends StatelessWidget {
                     ? message['text'].toString()
                     : 'Attachment',
                 maxLines: 1,
-                overflow: TextOverflow.ellipsis,
+                overflow: .ellipsis,
               ),
               onPressed: () => unawaited(_edit(context, index, message)),
               onDeleted: () => controller.removeQueuedMessage(index),
@@ -63,15 +61,10 @@ class _MobileQueueBar extends StatelessWidget {
   }
 }
 
-class _MobileQueuedMessageEditor extends StatefulWidget {
-  const _MobileQueuedMessageEditor({
-    required this.initialValue,
-    required this.initialCatalogSelections,
-  });
-
-  final String initialValue;
-  final List<Map<String, Object?>> initialCatalogSelections;
-
+class const _MobileQueuedMessageEditor({
+  required final String initialValue,
+  required final List<Map<String, Object?>> initialCatalogSelections,
+}) extends StatefulWidget {
   @override
   State<_MobileQueuedMessageEditor> createState() =>
       _MobileQueuedMessageEditorState();
@@ -88,7 +81,7 @@ class _MobileQueuedMessageEditorState
     super.initState();
     _lastValue = TextEditingValue(
       text: widget.initialValue,
-      selection: TextSelection.collapsed(offset: widget.initialValue.length),
+      selection: .collapsed(offset: widget.initialValue.length),
     );
     _input = TextEditingController.fromValue(_lastValue);
     _catalogSelections = <Map<String, Object?>>[
@@ -144,30 +137,23 @@ class _MobileQueuedMessageEditorState
   );
 }
 
-class _MobileQueuedMessageEdit {
-  const _MobileQueuedMessageEdit({
-    required this.text,
-    required this.catalogSelections,
-  });
+class const _MobileQueuedMessageEdit({
+  required final String text,
+  required final List<Map<String, Object?>> catalogSelections,
+});
 
-  final String text;
-  final List<Map<String, Object?>> catalogSelections;
-}
-
-class _MobileError extends StatelessWidget {
-  const _MobileError({required this.message, required this.onRetry});
-
-  final String message;
-  final VoidCallback onRetry;
-
+class const _MobileError({
+  required final String message,
+  required final VoidCallback onRetry,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Center(
     child: Padding(
       padding: AleraTokens.contentPadding,
       child: Column(
-        mainAxisSize: MainAxisSize.min,
+        mainAxisSize: .min,
         children: <Widget>[
-          Text(message, textAlign: TextAlign.center),
+          Text(message, textAlign: .center),
           const SizedBox(height: AleraTokens.space12),
           FilledButton(onPressed: onRetry, child: const Text('Retry')),
         ],
@@ -176,33 +162,23 @@ class _MobileError extends StatelessWidget {
   );
 }
 
-class _MobileSendButton extends StatelessWidget {
-  const _MobileSendButton({
-    required this.busy,
-    required this.disabled,
-    required this.hasText,
-    required this.canSteer,
-    required this.onSend,
-    required this.onSteer,
-    required this.onStop,
-  });
-
-  final bool busy;
-  final bool disabled;
-  final bool hasText;
-  final bool canSteer;
-  final Future<void> Function() onSend;
-  final Future<void> Function() onSteer;
-  final Future<void> Function() onStop;
-
+class const _MobileSendButton({
+  required final bool busy,
+  required final bool disabled,
+  required final bool hasText,
+  required final bool canSteer,
+  required final Future<void> Function() onSend,
+  required final Future<void> Function() onSteer,
+  required final Future<void> Function() onStop,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final steering = busy && canSteer;
     return IconButton.filled(
       tooltip: busy ? (steering ? 'Steer' : 'Stop') : 'Send',
-      visualDensity: VisualDensity.compact,
+      visualDensity: .compact,
       style: IconButton.styleFrom(
-        minimumSize: const Size.square(AleraTokens.space32),
+        minimumSize: const .square(AleraTokens.space32),
         backgroundColor: busy || hasText
             ? AleraTokens.foreground
             : AleraTokens.foregroundMuted,
@@ -220,19 +196,12 @@ class _MobileSendButton extends StatelessWidget {
   }
 }
 
-class _MobileRequestCard extends StatelessWidget {
-  const _MobileRequestCard({
-    required this.title,
-    this.body,
-    this.bodyWidget,
-    required this.actions,
-  });
-
-  final String title;
-  final String? body;
-  final Widget? bodyWidget;
-  final List<Widget> actions;
-
+class const _MobileRequestCard({
+  required final String title,
+  final String? body,
+  final Widget? bodyWidget,
+  required final List<Widget> actions,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Container(
     decoration: BoxDecoration(
@@ -241,7 +210,7 @@ class _MobileRequestCard extends StatelessWidget {
     ),
     padding: const EdgeInsets.all(AleraTokens.space12),
     child: Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+      crossAxisAlignment: .stretch,
       children: <Widget>[
         Text(title, style: Theme.of(context).textTheme.titleSmall),
         if (body != null) ...<Widget>[

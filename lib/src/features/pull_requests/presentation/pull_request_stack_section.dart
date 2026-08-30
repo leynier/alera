@@ -7,38 +7,22 @@ import 'package:alera/src/features/pull_requests/domain/hosted_review.dart';
 import 'package:alera/src/features/pull_requests/domain/hosted_review_stack.dart';
 import 'package:flutter/material.dart';
 
-class PullRequestStackSection extends StatelessWidget {
-  const PullRequestStackSection({
-    super.key,
-    required this.stack,
-    required this.currentReviewNumber,
-    required this.canManage,
-    required this.enabled,
-    required this.managing,
-    required this.canCreateFromWorkspaces,
-    required this.creatingFromWorkspaces,
-    required this.localWorkspaceBranches,
-    required this.onOpenUrl,
-    required this.onOpenWorkspaceBranch,
-    required this.onManage,
-    required this.onCreateFromWorkspaces,
-    this.errorMessage,
-  });
-
-  final HostedReviewStack? stack;
-  final int currentReviewNumber;
-  final bool canManage;
-  final bool enabled;
-  final bool managing;
-  final bool canCreateFromWorkspaces;
-  final bool creatingFromWorkspaces;
-  final Set<String> localWorkspaceBranches;
-  final String? errorMessage;
-  final Future<void> Function(String url) onOpenUrl;
-  final Future<void> Function(String branch)? onOpenWorkspaceBranch;
-  final VoidCallback onManage;
-  final VoidCallback onCreateFromWorkspaces;
-
+class const PullRequestStackSection({
+  super.key,
+  required final HostedReviewStack? stack,
+  required final int currentReviewNumber,
+  required final bool canManage,
+  required final bool enabled,
+  required final bool managing,
+  required final bool canCreateFromWorkspaces,
+  required final bool creatingFromWorkspaces,
+  required final Set<String> localWorkspaceBranches,
+  required final Future<void> Function(String url) onOpenUrl,
+  required final Future<void> Function(String branch)? onOpenWorkspaceBranch,
+  required final VoidCallback onManage,
+  required final VoidCallback onCreateFromWorkspaces,
+  final String? errorMessage,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -51,7 +35,7 @@ class PullRequestStackSection extends StatelessWidget {
       ),
       padding: const EdgeInsets.all(AleraTokens.space12),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
+        crossAxisAlignment: .stretch,
         children: <Widget>[
           Row(
             children: <Widget>[
@@ -177,21 +161,13 @@ class PullRequestStackSection extends StatelessWidget {
   }
 }
 
-class _StackEntryRow extends StatelessWidget {
-  const _StackEntryRow({
-    required this.entry,
-    required this.current,
-    required this.hasLocalWorkspace,
-    required this.onOpenUrl,
-    required this.onOpenWorkspaceBranch,
-  });
-
-  final HostedReviewStackEntry entry;
-  final bool current;
-  final bool hasLocalWorkspace;
-  final Future<void> Function(String url) onOpenUrl;
-  final Future<void> Function(String branch)? onOpenWorkspaceBranch;
-
+class const _StackEntryRow({
+  required final HostedReviewStackEntry entry,
+  required final bool current,
+  required final bool hasLocalWorkspace,
+  required final Future<void> Function(String url) onOpenUrl,
+  required final Future<void> Function(String branch)? onOpenWorkspaceBranch,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -204,7 +180,7 @@ class _StackEntryRow extends StatelessWidget {
       color: current ? AleraTokens.accentSubtle : Colors.transparent,
       borderRadius: BorderRadius.circular(AleraTokens.radiusSm),
       child: InkWell(
-        borderRadius: BorderRadius.circular(AleraTokens.radiusSm),
+        borderRadius: .circular(AleraTokens.radiusSm),
         onTap: review.url.isEmpty
             ? null
             : () => unawaited(onOpenUrl(review.url)),
@@ -214,7 +190,7 @@ class _StackEntryRow extends StatelessWidget {
             vertical: AleraTokens.space6,
           ),
           child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            crossAxisAlignment: .start,
             children: <Widget>[
               Padding(
                 padding: const EdgeInsets.only(top: AleraTokens.space2),
@@ -227,12 +203,12 @@ class _StackEntryRow extends StatelessWidget {
               const SizedBox(width: AleraTokens.space8),
               Expanded(
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                  crossAxisAlignment: .start,
                   children: <Widget>[
                     Text(
                       '#${review.number} ${review.title}',
                       maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
+                      overflow: .ellipsis,
                       style: theme.textTheme.bodySmall?.copyWith(
                         color: AleraTokens.foreground,
                         fontWeight: current ? FontWeight.w600 : null,
@@ -243,7 +219,7 @@ class _StackEntryRow extends StatelessWidget {
                       Text(
                         details,
                         maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
+                        overflow: .ellipsis,
                         style: theme.textTheme.labelSmall?.copyWith(
                           color: AleraTokens.foregroundMuted,
                         ),

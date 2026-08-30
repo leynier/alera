@@ -20,17 +20,11 @@ void main() {
     });
 
     test('derives stable pin keys per provider and claude account', () {
-      expect(
-        AgentQuotaHostSettings.quotaPinKey(AgentQuotaProviderId.codex),
-        'codex',
-      );
-      expect(
-        AgentQuotaHostSettings.quotaPinKey(AgentQuotaProviderId.claude),
-        'claude:default',
-      );
+      expect(AgentQuotaHostSettings.quotaPinKey(.codex), 'codex');
+      expect(AgentQuotaHostSettings.quotaPinKey(.claude), 'claude:default');
       expect(
         AgentQuotaHostSettings.quotaPinKey(
-          AgentQuotaProviderId.claude,
+          .claude,
           claudeAccountId: 'leynierdev',
         ),
         'claude:leynierdev',
@@ -42,16 +36,13 @@ void main() {
         'unpinnedQuotaKeys': <String>['codex', 'claude:leynierdev'],
       });
 
-      expect(host.isQuotaPinned(AgentQuotaProviderId.codex), isFalse);
+      expect(host.isQuotaPinned(.codex), isFalse);
       expect(
-        host.isQuotaPinned(
-          AgentQuotaProviderId.claude,
-          claudeAccountId: 'leynierdev',
-        ),
+        host.isQuotaPinned(.claude, claudeAccountId: 'leynierdev'),
         isFalse,
       );
-      expect(host.isQuotaPinned(AgentQuotaProviderId.claude), isTrue);
-      expect(host.isQuotaPinned(AgentQuotaProviderId.kimi), isTrue);
+      expect(host.isQuotaPinned(.claude), isTrue);
+      expect(host.isQuotaPinned(.kimi), isTrue);
     });
 
     test('parses host-specific quota configuration', () {

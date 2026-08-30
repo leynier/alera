@@ -5,26 +5,16 @@ import 'package:alera/src/design_system/layout/alera_dialog.dart';
 import 'package:alera/src/features/browser/domain/browser_permission.dart';
 import 'package:flutter/material.dart';
 
-final class BrowserPermissionPromptResult {
-  const BrowserPermissionPromptResult({
-    required this.decision,
-    required this.rememberForProfile,
-  });
+final class const BrowserPermissionPromptResult({
+  required final BrowserPermissionDecision decision,
+  required final bool rememberForProfile,
+});
 
-  final BrowserPermissionDecision decision;
-  final bool rememberForProfile;
-}
-
-class BrowserPermissionDialog extends StatefulWidget {
-  const BrowserPermissionDialog({
-    super.key,
-    required this.request,
-    required this.profileLabel,
-  });
-
-  final BrowserPermissionRequest request;
-  final String profileLabel;
-
+class const BrowserPermissionDialog({
+  super.key,
+  required final BrowserPermissionRequest request,
+  required final String profileLabel,
+}) extends StatefulWidget {
   @override
   State<BrowserPermissionDialog> createState() =>
       _BrowserPermissionDialogState();
@@ -45,8 +35,8 @@ class _BrowserPermissionDialogState extends State<BrowserPermissionDialog> {
       child: Padding(
         padding: const EdgeInsets.all(AleraTokens.space20),
         child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: .min,
+          crossAxisAlignment: .start,
           children: <Widget>[
             Row(
               children: <Widget>[
@@ -87,7 +77,7 @@ class _BrowserPermissionDialogState extends State<BrowserPermissionDialog> {
               children: <Widget>[
                 Expanded(
                   child: OutlinedButton(
-                    onPressed: () => _finish(BrowserPermissionDecision.deny),
+                    onPressed: () => _finish(.deny),
                     child: const Text('Deny'),
                   ),
                 ),
@@ -95,7 +85,7 @@ class _BrowserPermissionDialogState extends State<BrowserPermissionDialog> {
                   const SizedBox(width: AleraTokens.space8),
                   Expanded(
                     child: FilledButton(
-                      onPressed: () => _finish(BrowserPermissionDecision.allow),
+                      onPressed: () => _finish(.allow),
                       child: const Text('Allow'),
                     ),
                   ),

@@ -4,26 +4,17 @@ enum MobileAgentAttentionClass { needsYou, done, working, idle }
 
 const Duration mobileAgentActivityStaleness = Duration(minutes: 30);
 
-class MobileWorkspaceAttention {
-  const MobileWorkspaceAttention({required this.attentionClass, this.at});
-
-  static const idle = MobileWorkspaceAttention(
-    attentionClass: MobileAgentAttentionClass.idle,
-  );
-
-  final MobileAgentAttentionClass attentionClass;
-  final DateTime? at;
+class const MobileWorkspaceAttention({
+  required final MobileAgentAttentionClass attentionClass,
+  final DateTime? at,
+}) {
+  static const idle = MobileWorkspaceAttention(attentionClass: .idle);
 }
 
-class MobileAgentActivityRank {
-  const MobileAgentActivityRank({
-    required this.attentionClass,
-    required this.activityAt,
-  });
-
-  final MobileAgentAttentionClass attentionClass;
-  final DateTime activityAt;
-}
+class const MobileAgentActivityRank({
+  required final MobileAgentAttentionClass attentionClass,
+  required final DateTime activityAt,
+});
 
 MobileWorkspaceAttention mobileWorkspaceAttention({
   required String workspaceId,

@@ -31,12 +31,10 @@ void main() {
     final editableFinder = find.byType(EditableText);
     final editable = tester.state<EditableTextState>(editableFinder);
     final nativeItems = editable.contextMenuButtonItems;
-    final toolbar =
-        AleraTextActionsScope.buildContextMenu(
-              tester.element(editableFinder),
-              editable,
-            )
-            as AleraTextSelectionToolbar;
+    final toolbar = AleraTextActionsScope.buildContextMenu(
+      tester.element(editableFinder),
+      editable,
+    ) as AleraTextSelectionToolbar;
     final items = toolbar.buttonItems;
 
     expect(
@@ -89,13 +87,11 @@ void main() {
       );
       final finder = find.byType(EditableText);
       final editable = tester.state<EditableTextState>(finder);
-      final toolbar =
-          AleraTextActionsScope.buildContextMenu(
-                tester.element(finder),
-                editable,
-                textActionsEnabled: textActionsEnabled,
-              )
-              as AleraTextSelectionToolbar;
+      final toolbar = AleraTextActionsScope.buildContextMenu(
+        tester.element(finder),
+        editable,
+        textActionsEnabled: textActionsEnabled,
+      ) as AleraTextSelectionToolbar;
       return toolbar.buttonItems;
     }
 
@@ -105,15 +101,10 @@ void main() {
     expect(hasTextActions(await menuItems(scopeEnabled: false)), isFalse);
     expect(hasTextActions(await menuItems(readOnly: true)), isFalse);
     expect(hasTextActions(await menuItems(obscureText: true)), isFalse);
-    expect(
-      hasTextActions(await menuItems(keyboardType: TextInputType.number)),
-      isFalse,
-    );
+    expect(hasTextActions(await menuItems(keyboardType: .number)), isFalse);
     expect(hasTextActions(await menuItems(textActionsEnabled: false)), isFalse);
     expect(
-      hasTextActions(
-        await menuItems(selection: const TextSelection.collapsed(offset: 2)),
-      ),
+      hasTextActions(await menuItems(selection: const .collapsed(offset: 2))),
       isFalse,
     );
   });
@@ -143,9 +134,10 @@ void main() {
     final editableFinder = find.byType(EditableText);
     final editable = tester.state<EditableTextState>(editableFinder);
     final field = tester.widget<TextField>(find.byType(TextField));
-    final toolbar =
-        field.contextMenuBuilder!(tester.element(editableFinder), editable)
-            as AleraTextSelectionToolbar;
+    final toolbar = field.contextMenuBuilder!(
+      tester.element(editableFinder),
+      editable,
+    ) as AleraTextSelectionToolbar;
     final paste = toolbar.buttonItems.firstWhere(
       (item) => item.type == ContextMenuButtonType.paste,
     );
@@ -182,9 +174,10 @@ void main() {
     final editableFinder = find.byType(EditableText);
     final editable = tester.state<EditableTextState>(editableFinder);
     final field = tester.widget<TextField>(find.byType(TextField));
-    final toolbar =
-        field.contextMenuBuilder!(tester.element(editableFinder), editable)
-            as AleraTextSelectionToolbar;
+    final toolbar = field.contextMenuBuilder!(
+      tester.element(editableFinder),
+      editable,
+    ) as AleraTextSelectionToolbar;
 
     expect(
       toolbar.buttonItems.any((item) => item.label == 'Text Actions'),
@@ -221,17 +214,11 @@ void main() {
       const TextSelection(baseOffset: 7, extentOffset: 16),
     );
 
-    Actions.invoke(
-      editingContext,
-      const UndoTextIntent(SelectionChangedCause.keyboard),
-    );
+    Actions.invoke(editingContext, const UndoTextIntent(.keyboard));
     await tester.pump();
     expect(controller.text, 'Before old after');
 
-    Actions.invoke(
-      editingContext,
-      const RedoTextIntent(SelectionChangedCause.keyboard),
-    );
+    Actions.invoke(editingContext, const RedoTextIntent(.keyboard));
     await tester.pump();
     expect(controller.text, 'Before new words after');
   });

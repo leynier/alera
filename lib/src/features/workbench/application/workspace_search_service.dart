@@ -1,8 +1,6 @@
 import 'package:alera/src/rust/api/workspace_search.dart' as native;
 
-class WorkspaceSearchService {
-  const WorkspaceSearchService();
-
+class const WorkspaceSearchService() {
   Future<native.WorkspaceSearchResult> search({
     required native.WorkspaceSearchOptions options,
     required String requestId,

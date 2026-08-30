@@ -1,8 +1,8 @@
 import 'dart:async';
 
 /// One deadline and cancellation scope across discovery, HTTP and WebSocket setup.
-class ConnectionAttempt {
-  ConnectionAttempt({Duration timeout = const Duration(seconds: 30)}) {
+class ConnectionAttempt({Duration timeout = const Duration(seconds: 30)}) {
+  this {
     _timer = Timer(timeout, cancel);
   }
 

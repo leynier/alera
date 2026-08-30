@@ -73,10 +73,7 @@ void main() {
 
   setUp(() {
     client = _RecordingRuntimeHostClient();
-    forwarder = AgentStatusHostForwarder(
-      client: client,
-      debounce: Duration.zero,
-    );
+    forwarder = AgentStatusHostForwarder(client: client, debounce: .zero);
   });
 
   tearDown(() async {
@@ -85,7 +82,7 @@ void main() {
   });
 
   Future<void> pumpDebounce() async {
-    await Future<void>.delayed(const Duration(milliseconds: 5));
+    await Future.pause(const Duration(milliseconds: 5));
   }
 
   List<Map<String, Object?>> sentEntries() {
@@ -97,7 +94,7 @@ void main() {
 
   test('forwards state transitions with session identity', () async {
     forwarder.onStatusChanged(const <String, AgentStatusEntry>{}, {
-      's1': _entry('s1', state: AgentStatusState.waiting),
+      's1': _entry('s1', state: .waiting),
     });
     await pumpDebounce();
 
@@ -112,10 +109,7 @@ void main() {
 
   test('skips entries whose state and agent type are unchanged', () async {
     final before = {'s1': _entry('s1'), 's2': _entry('s2')};
-    final after = {
-      's1': _entry('s1'),
-      's2': _entry('s2', state: AgentStatusState.waiting),
-    };
+    final after = {'s1': _entry('s1'), 's2': _entry('s2', state: .waiting)};
     forwarder.onStatusChanged(before, after);
     await pumpDebounce();
 
@@ -126,7 +120,7 @@ void main() {
 
   test('replays current presence snapshot after host reconnect', () async {
     forwarder.onStatusChanged(const <String, AgentStatusEntry>{}, {
-      's1': _entry('s1', state: AgentStatusState.waiting),
+      's1': _entry('s1', state: .waiting),
     });
     await pumpDebounce();
     expect(client.requests, hasLength(1));
@@ -161,9 +155,9 @@ void main() {
     });
     forwarder.onStatusChanged(
       {'s1': _entry('s1')},
-      {'s1': _entry('s1', state: AgentStatusState.waiting)},
+      {'s1': _entry('s1', state: .waiting)},
     );
-    await Future<void>.delayed(const Duration(milliseconds: 60));
+    await Future.pause(const Duration(milliseconds: 60));
 
     final entries = sentEntries();
     // The later transition supersedes the earlier one for the same session.
@@ -174,7 +168,7 @@ void main() {
   test('retries transport errors without losing presence', () async {
     client.error = StateError('host gone');
     forwarder.onStatusChanged(const <String, AgentStatusEntry>{}, {
-      's1': _entry('s1', state: AgentStatusState.waiting),
+      's1': _entry('s1', state: .waiting),
     });
     await pumpDebounce();
     expect(client.attempts, greaterThan(0));
@@ -194,7 +188,7 @@ void main() {
       'The running terminal host does not support orchestration. Restart Alera to replace the terminal host before using orchestration.',
     );
     forwarder.onStatusChanged(const <String, AgentStatusEntry>{}, {
-      's1': _entry('s1', state: AgentStatusState.waiting),
+      's1': _entry('s1', state: .waiting),
     });
     await pumpDebounce();
 
@@ -221,12 +215,12 @@ void main() {
     ]);
 
     forwarder.onStatusChanged(const <String, AgentStatusEntry>{}, {
-      's1': _entry('s1', state: AgentStatusState.waiting),
+      's1': _entry('s1', state: .waiting),
     });
     await pumpDebounce();
     forwarder.onStatusChanged(
-      {'s1': _entry('s1', state: AgentStatusState.waiting)},
-      {'s1': _entry('s1', state: AgentStatusState.working)},
+      {'s1': _entry('s1', state: .waiting)},
+      {'s1': _entry('s1', state: .working)},
     );
     await pumpDebounce();
 

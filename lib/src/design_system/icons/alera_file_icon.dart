@@ -6,22 +6,14 @@ import 'package:vscode_material_icon_theme/vscode_material_icon_theme.dart';
 
 enum AleraFileIconKind { file, folder, symlink, generic }
 
-class AleraFileIcon extends StatelessWidget {
-  const AleraFileIcon({
-    super.key,
-    required this.pathOrName,
-    required this.kind,
-    this.isExpanded = false,
-    this.size = 16,
-    this.fallbackColor = AleraTokens.foregroundMuted,
-  });
-
-  final String pathOrName;
-  final AleraFileIconKind kind;
-  final bool isExpanded;
-  final double size;
-  final Color fallbackColor;
-
+class const AleraFileIcon({
+  super.key,
+  required final String pathOrName,
+  required final AleraFileIconKind kind,
+  final bool isExpanded = false,
+  final double size = 16,
+  final Color fallbackColor = AleraTokens.foregroundMuted,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox.square(
@@ -54,7 +46,7 @@ class AleraFileIcon extends StatelessWidget {
       loader,
       width: size,
       height: size,
-      fit: BoxFit.contain,
+      fit: .contain,
       excludeFromSemantics: true,
       placeholderBuilder: (_) =>
           Icon(fallback, size: size, color: fallbackColor),

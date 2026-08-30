@@ -180,20 +180,20 @@ void registerCodexChatControllerInputTests() {
             draftItems: const <CodexDraftItem>[
               CodexDraftItem(
                 id: 'skill-review',
-                kind: CodexDraftItemKind.skill,
+                kind: .skill,
                 name: 'review',
                 path: '/skills/review',
               ),
               CodexDraftItem(
                 id: 'app-filesystem',
-                kind: CodexDraftItemKind.app,
+                kind: .app,
                 name: 'filesystem',
                 path: 'app://connector-filesystem',
                 tokenText: r'$filesystem',
               ),
               CodexDraftItem(
                 id: 'mention-docs/my notes.md',
-                kind: CodexDraftItemKind.mention,
+                kind: .mention,
                 name: 'my notes.md',
                 path: 'docs/my notes.md',
                 tokenText: '"docs/my notes.md"',
@@ -204,7 +204,7 @@ void registerCodexChatControllerInputTests() {
               CodexInputAttachment(
                 path: '/tmp/mentioned-image.png',
                 isImage: true,
-                origin: CodexInputAttachmentOrigin.mention,
+                origin: .mention,
               ),
               CodexInputAttachment(
                 path: '/tmp/browser-annotation.png',
@@ -296,12 +296,9 @@ void registerCodexChatControllerInputTests() {
           'docs/my notes.md',
         ]),
       );
-      final annotationPresentation =
-          presentedAttachments.firstWhere(
-                (value) =>
-                    (value as Map)['path'] == '/tmp/browser-annotation.png',
-              )
-              as Map;
+      final annotationPresentation = presentedAttachments.firstWhere(
+        (value) => (value as Map)['path'] == '/tmp/browser-annotation.png',
+      ) as Map;
       expect(annotationPresentation['annotationUrl'], 'https://example.com');
       expect(annotationPresentation['annotationTitle'], 'Example');
       expect(annotationPresentation['annotationCount'], 1);

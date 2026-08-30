@@ -9,19 +9,12 @@ const String aleraAgentHookTokenHeader = 'X-Alera-Agent-Hook-Token';
 
 enum AgentHookEndpointFileKind { posix, windows }
 
-class AgentHookEndpoint {
-  const AgentHookEndpoint({
-    required this.filePath,
-    required this.port,
-    required this.token,
-    required this.version,
-  });
-
-  final String filePath;
-  final int port;
-  final String token;
-  final String version;
-
+class const AgentHookEndpoint({
+  required final String filePath,
+  required final int port,
+  required final String token,
+  required final String version,
+}) {
   Map<String, String> launchEnvironment({
     required String terminalSessionId,
     required String workspaceId,
@@ -101,7 +94,7 @@ Future<void> writeAgentHookEndpointFile({
       token: token,
       version: version,
     ),
-    mode: FileMode.writeOnly,
+    mode: .writeOnly,
   );
   if (!Platform.isWindows) {
     setPosixFileMode(tmpPath, posixPrivateFileMode);

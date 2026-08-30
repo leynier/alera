@@ -38,9 +38,9 @@ void main() {
 
     test('round-trips through json', () {
       const prefs = WorkbenchViewPrefs(
-        groupBy: WorkbenchGroupBy.none,
-        projectSort: WorkbenchSortBy.recent,
-        workspaceSort: WorkbenchSortBy.recent,
+        groupBy: .none,
+        projectSort: .recent,
+        workspaceSort: .recent,
         selectedProjectIds: <String>{'p1', 'p2'},
         collapsedProjectIds: <String>{'p3'},
         expandedWorkspaceIds: <String>{'w1'},
@@ -54,8 +54,8 @@ void main() {
         rightSidebarVisible: false,
         rightSidebarWidth: 360,
         sidebarWidth: 360,
-        activeContextPanelTab: WorkbenchContextPanelTab.explorer,
-        explorerMode: WorkspaceExplorerMode.showAll,
+        activeContextPanelTab: .explorer,
+        explorerMode: .showAll,
       );
       final restored = WorkbenchViewPrefs.fromJson(
         Map<String, Object?>.from(prefs.toMap()),
@@ -124,7 +124,7 @@ void main() {
 
     test('round-trips the git diff group mode', () {
       final prefs = WorkbenchViewPrefs.defaults.copyWith(
-        gitDiffGroupMode: GitDiffGroupMode.unified,
+        gitDiffGroupMode: .unified,
       );
       final restored = WorkbenchViewPrefs.fromJson(
         Map<String, Object?>.from(prefs.toMap()),
@@ -134,7 +134,7 @@ void main() {
 
     test('round-trips the workspace kind filter', () {
       final prefs = WorkbenchViewPrefs.defaults.copyWith(
-        workspaceKindFilter: WorkspaceKindFilter.nonDefaultOnly,
+        workspaceKindFilter: .nonDefaultOnly,
       );
       final restored = WorkbenchViewPrefs.fromJson(
         Map<String, Object?>.from(prefs.toMap()),
@@ -174,7 +174,7 @@ void main() {
     test('copyWith updates individual fields', () {
       const prefs = WorkbenchViewPrefs.defaults;
       final updated = prefs.copyWith(
-        groupBy: WorkbenchGroupBy.none,
+        groupBy: .none,
         selectedProjectIds: <String>{'x'},
       );
       expect(updated.groupBy, WorkbenchGroupBy.none);

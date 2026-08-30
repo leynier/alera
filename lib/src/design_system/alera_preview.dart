@@ -10,9 +10,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 /// callbacks).
 PreviewThemeData aleraPreviewTheme() => const _AleraPreviewTheme();
 
-final class _AleraPreviewTheme extends PreviewThemeData {
-  const _AleraPreviewTheme();
-
+final class const _AleraPreviewTheme() extends PreviewThemeData {
   @override
   Widget apply(BuildContext context, Widget child) =>
       Theme(data: buildAleraDarkTheme(), child: child);
@@ -45,10 +43,11 @@ Widget aleraPreviewSurface(Widget child) => ProviderScope(
 /// ```
 ///
 /// Run the previewer with `flutter widget-preview start` from the repo root.
-final class AleraPreview extends Preview {
-  const AleraPreview({super.name, super.group, super.size})
+final class const AleraPreview({super.name, super.group, super.size})
+    extends Preview {
+  this
     : super(
-        brightness: Brightness.dark,
+        brightness: .dark,
         theme: aleraPreviewTheme,
         wrapper: aleraPreviewSurface,
       );

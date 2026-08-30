@@ -35,26 +35,16 @@ part 'workspace_editor_loading.dart';
 part 'workspace_editor_save.dart';
 part 'workspace_editor_text_actions.dart';
 
-class WorkspaceEditorSurface extends ConsumerStatefulWidget {
-  const WorkspaceEditorSurface({
-    super.key,
-    required this.workspace,
-    this.sourceControlScope,
-    required this.tab,
-    required this.autofocus,
-    this.onOpenMermanPreview,
-    required this.onOpenMarkdownViewerTab,
-    this.onKeepPreview,
-  });
-
-  final Workspace workspace;
-  final WorkspaceSourceControlScope? sourceControlScope;
-  final WorkspaceTabRecord tab;
-  final bool autofocus;
-  final ValueChanged<String>? onOpenMermanPreview;
-  final ValueChanged<String> onOpenMarkdownViewerTab;
-  final VoidCallback? onKeepPreview;
-
+class const WorkspaceEditorSurface({
+  super.key,
+  required final Workspace workspace,
+  final WorkspaceSourceControlScope? sourceControlScope,
+  required final WorkspaceTabRecord tab,
+  required final bool autofocus,
+  final ValueChanged<String>? onOpenMermanPreview,
+  required final ValueChanged<String> onOpenMarkdownViewerTab,
+  final VoidCallback? onKeepPreview,
+}) extends ConsumerStatefulWidget {
   @override
   ConsumerState<WorkspaceEditorSurface> createState() =>
       _WorkspaceEditorSurfaceState();
@@ -229,7 +219,7 @@ class _WorkspaceEditorSurfaceState
     return DecoratedBox(
       decoration: const BoxDecoration(color: AleraTokens.bg),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
+        crossAxisAlignment: .stretch,
         children: <Widget>[
           _EditorFileBar(
             path: workspaceEditorDisplayPath(
@@ -301,7 +291,7 @@ class _WorkspaceEditorSurfaceState
               workspace: widget.workspace,
               relativePath: filePath,
               area: entries.single.area,
-              scope: WorkspaceGitDiffScope.file,
+              scope: .file,
               gitDiffRoot: diffTarget.gitDiffRoot,
               preview: true,
             );
@@ -317,7 +307,7 @@ class _WorkspaceEditorSurfaceState
             .openGitDiffTab(
               workspace: widget.workspace,
               relativePath: filePath,
-              scope: WorkspaceGitDiffScope.fileAll,
+              scope: .fileAll,
               gitDiffRoot: diffTarget.gitDiffRoot,
               preview: true,
             );
@@ -329,13 +319,13 @@ class _WorkspaceEditorSurfaceState
             workspace: widget.workspace,
             relativePath: filePath,
             area: choice.area,
-            scope: WorkspaceGitDiffScope.file,
+            scope: .file,
             gitDiffRoot: diffTarget.gitDiffRoot,
             preview: true,
           );
     } catch (_) {
       if (mounted) {
-        _showToast('Could not open Git diff', tone: AleraToastTone.error);
+        _showToast('Could not open Git diff', tone: .error);
       }
     }
   }
@@ -345,7 +335,7 @@ class _WorkspaceEditorSurfaceState
         Navigator.of(context).overlay!.context.findRenderObject()! as RenderBox;
     return showMenu<_DiffOpenChoice>(
       context: context,
-      position: RelativeRect.fromLTRB(
+      position: .fromLTRB(
         overlay.size.width - 280,
         AleraTokens.sidebarHeaderHeight,
         AleraTokens.space16,
@@ -457,12 +447,10 @@ class _WorkspaceEditorSurfaceState
   }
 }
 
-class _DiffOpenChoice {
-  const _DiffOpenChoice({this.area, this.allForFile = false});
-
-  final GitChangeArea? area;
-  final bool allForFile;
-}
+class const _DiffOpenChoice({
+  final GitChangeArea? area,
+  final bool allForFile = false,
+});
 
 typedef WorkspaceEditorDiffTarget = ({
   String gitPath,

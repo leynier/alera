@@ -120,8 +120,7 @@ class CodexChatController extends _$CodexChatController {
     final expectedThreadId = _threadId;
     if (expectedThreadId == null) {
       state = state.copyWith(
-        error:
-            'The Codex conversation changed before recovery. Review the current conversation and try again.',
+        error: 'The Codex conversation changed before recovery. Review the current conversation and try again.',
       );
       return;
     }
@@ -136,7 +135,7 @@ class CodexChatController extends _$CodexChatController {
       _threadGeneration += 1;
       state = _applyConfiguration(
         state.copyWith(
-          snapshot: CodexChatSnapshot.fromJson(response['snapshot']),
+          snapshot: .fromJson(response['snapshot']),
           historyNextCursor: null,
           recovery: null,
           error: null,
@@ -161,8 +160,8 @@ class CodexChatController extends _$CodexChatController {
     if (trimmed.isEmpty && attachments.isEmpty && draftItems.isEmpty) return;
     final message = CodexQueuedMessage(
       text: trimmed,
-      attachments: List<CodexInputAttachment>.unmodifiable(attachments),
-      draftItems: List<CodexDraftItem>.unmodifiable(draftItems),
+      attachments: List<CodexInputAttachment>.unmodifiableOf(attachments),
+      draftItems: List<CodexDraftItem>.unmodifiableOf(draftItems),
       id: _newClientMessageId(),
     );
     if (state.loading ||
@@ -431,8 +430,8 @@ class CodexChatController extends _$CodexChatController {
     next[index] = CodexQueuedMessage(
       id: next[index].id,
       text: text.trim(),
-      attachments: List<CodexInputAttachment>.unmodifiable(attachments),
-      draftItems: List<CodexDraftItem>.unmodifiable(draftItems),
+      attachments: List<CodexInputAttachment>.unmodifiableOf(attachments),
+      draftItems: List<CodexDraftItem>.unmodifiableOf(draftItems),
     );
     if (next[index].text.isEmpty &&
         next[index].attachments.isEmpty &&

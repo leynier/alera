@@ -320,4 +320,4 @@ final class AgentCanvasRuntimeSyncProvider
 }
 
 String _$agentCanvasRuntimeSyncHash() =>
-    r'fa101827e5b7eae40cab6ceaf81adca0e2ac589f';
+    r'a9715e25e6a4ccdc84b9e55e8467dcce063ca16f';

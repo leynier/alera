@@ -21,16 +21,12 @@ import 'package:media_kit_video/media_kit_video.dart';
 
 final Logger _log = Logger('MobileEmulatorSurface');
 
-class MobileEmulatorSurface extends ConsumerStatefulWidget {
-  const MobileEmulatorSurface({
-    super.key,
-    required this.workspace,
-    required this.tab,
-    required this.autofocus,
-  });
-  final Workspace workspace;
-  final WorkspaceTabRecord tab;
-  final bool autofocus;
+class const MobileEmulatorSurface({
+  super.key,
+  required final Workspace workspace,
+  required final WorkspaceTabRecord tab,
+  required final bool autofocus,
+}) extends ConsumerStatefulWidget {
   @override
   ConsumerState<MobileEmulatorSurface> createState() =>
       _MobileEmulatorSurfaceState();
@@ -434,7 +430,7 @@ class _MobileEmulatorSurfaceState extends ConsumerState<MobileEmulatorSurface>
                 autofocus: widget.autofocus,
                 onKeyEvent: _handleKeyEvent,
                 child: Listener(
-                  behavior: HitTestBehavior.opaque,
+                  behavior: .opaque,
                   onPointerDown: (event) {
                     _pointerController.down(
                       event,
@@ -450,7 +446,7 @@ class _MobileEmulatorSurfaceState extends ConsumerState<MobileEmulatorSurface>
                       _pointerController.end(event, size),
                   child: Video(
                     controller: _videoController!,
-                    fit: BoxFit.contain,
+                    fit: .contain,
                     controls: NoVideoControls,
                   ),
                 ),

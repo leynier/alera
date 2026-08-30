@@ -5,44 +5,28 @@ import 'package:alera/src/design_system/forms/alera_text_actions_scope.dart';
 import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/design_system/menus/alera_dropdown_entry.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 
-class AleraComposer extends StatefulWidget {
-  const AleraComposer({
-    super.key,
-    required this.controller,
-    required this.focusNode,
-    required this.onSend,
-    required this.onClose,
-    required this.textActions,
-    required this.onTextActionSelected,
-    this.onPaste,
-    this.attachmentBar,
-    this.footer,
-    this.trailingAction,
-    this.hasAttachments = false,
-    this.enabled = true,
-    this.hintText = 'Write a prompt for this terminal',
-  });
-
-  final TextEditingController controller;
-  final FocusNode focusNode;
-  final VoidCallback onSend;
-  final VoidCallback onClose;
-  final List<AleraTextActionMenuItem> textActions;
-  final ValueChanged<String> onTextActionSelected;
-
+class const AleraComposer({
+  super.key,
+  required final TextEditingController controller,
+  required final FocusNode focusNode,
+  required final VoidCallback onSend,
+  required final VoidCallback onClose,
+  required final List<AleraTextActionMenuItem> textActions,
+  required final ValueChanged<String> onTextActionSelected,
+  this.onPaste,
+  final Widget? attachmentBar,
+  final Widget? footer,
+  final Widget? trailingAction,
+  final bool hasAttachments = false,
+  final bool enabled = true,
+  final String hintText = 'Write a prompt for this terminal',
+}) extends StatefulWidget {
   /// Handles a paste before the default text action runs.
   ///
   /// Return `true` when the callback consumed the clipboard. Returning
   /// `false` preserves Flutter's normal text-paste behavior.
   final Future<bool> Function()? onPaste;
-  final Widget? attachmentBar;
-  final Widget? footer;
-  final Widget? trailingAction;
-  final bool hasAttachments;
-  final bool enabled;
-  final String hintText;
 
   @override
   State<AleraComposer> createState() => _AleraComposerState();
@@ -101,8 +85,8 @@ class _AleraComposerState extends State<AleraComposer> {
     final end = selection.end < 0 ? value.text.length : selection.end;
     widget.controller.value = value.copyWith(
       text: value.text.replaceRange(start, end, '\n'),
-      selection: TextSelection.collapsed(offset: start + 1),
-      composing: TextRange.empty,
+      selection: .collapsed(offset: start + 1),
+      composing: .empty,
     );
   }
 
@@ -113,7 +97,7 @@ class _AleraComposerState extends State<AleraComposer> {
       enabled: widget.enabled,
       minLines: 2,
       maxLines: 6,
-      textInputAction: TextInputAction.newline,
+      textInputAction: .newline,
       style: Theme.of(context).textTheme.bodyMedium,
       contextMenuBuilder: (context, editableTextState) {
         return AleraTextActionsScope.buildContextMenu(
@@ -133,10 +117,10 @@ class _AleraComposerState extends State<AleraComposer> {
           AleraTokens.space12,
           AleraTokens.space8,
         ),
-        border: InputBorder.none,
-        enabledBorder: InputBorder.none,
-        focusedBorder: InputBorder.none,
-        disabledBorder: InputBorder.none,
+        border: .none,
+        enabledBorder: .none,
+        focusedBorder: .none,
+        disabledBorder: .none,
       ),
     );
     final onPaste = widget.onPaste;
@@ -163,16 +147,14 @@ class _AleraComposerState extends State<AleraComposer> {
           border: Border.all(color: AleraTokens.border),
         ),
         child: Column(
-          mainAxisSize: MainAxisSize.min,
+          mainAxisSize: .min,
           children: <Widget>[
             ?widget.attachmentBar,
             CallbackShortcuts(
               bindings: <ShortcutActivator, VoidCallback>{
-                const SingleActivator(LogicalKeyboardKey.enter): _send,
-                const SingleActivator(LogicalKeyboardKey.enter, shift: true):
-                    _insertLineBreak,
-                const SingleActivator(LogicalKeyboardKey.escape):
-                    widget.onClose,
+                const SingleActivator(.enter): _send,
+                const SingleActivator(.enter, shift: true): _insertLineBreak,
+                const SingleActivator(.escape): widget.onClose,
               },
               child: _buildTextField(context),
             ),
@@ -192,7 +174,7 @@ class _AleraComposerState extends State<AleraComposer> {
                       child: Align(
                         alignment: Alignment.centerLeft,
                         child: Row(
-                          mainAxisSize: MainAxisSize.min,
+                          mainAxisSize: .min,
                           children: <Widget>[
                             _TextActionsMenu(
                               actions: widget.textActions,
@@ -231,17 +213,11 @@ class _AleraComposerState extends State<AleraComposer> {
   }
 }
 
-class _TextActionsMenu extends StatelessWidget {
-  const _TextActionsMenu({
-    required this.actions,
-    required this.enabled,
-    required this.onSelected,
-  });
-
-  final List<AleraTextActionMenuItem> actions;
-  final bool enabled;
-  final ValueChanged<String> onSelected;
-
+class const _TextActionsMenu({
+  required final List<AleraTextActionMenuItem> actions,
+  required final bool enabled,
+  required final ValueChanged<String> onSelected,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final tooltip = actions.isEmpty
@@ -265,12 +241,11 @@ class _TextActionsMenu extends StatelessWidget {
           PopupMenuItem<String>(
             enabled: false,
             height: AleraTokens.space32,
-            padding: const EdgeInsets.symmetric(horizontal: AleraTokens.space8),
+            padding: const .symmetric(horizontal: AleraTokens.space8),
             child: Text(
               'Select Text Action',
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: AleraTokens.foregroundFaint,
-              ),
+              style: Theme.of(context).textTheme.bodySmall
+                  ?.copyWith(color: AleraTokens.foregroundFaint),
             ),
           ),
           for (final action in actions)
@@ -284,7 +259,7 @@ class _TextActionsMenu extends StatelessWidget {
               vertical: AleraTokens.space4,
             ),
             child: Row(
-              mainAxisSize: MainAxisSize.min,
+              mainAxisSize: .min,
               children: <Widget>[
                 Icon(
                   AleraIcons.ai,

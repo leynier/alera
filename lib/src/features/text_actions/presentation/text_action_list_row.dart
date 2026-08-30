@@ -4,24 +4,15 @@ import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/features/text_actions/domain/text_actions_settings.dart';
 import 'package:flutter/material.dart';
 
-class TextActionListRow extends StatelessWidget {
-  const TextActionListRow({
-    super.key,
-    required this.action,
-    required this.selected,
-    required this.onTap,
-    required this.onDuplicate,
-    required this.onEnabledChanged,
-    required this.dragHandle,
-  });
-
-  final TextAction action;
-  final bool selected;
-  final VoidCallback onTap;
-  final VoidCallback onDuplicate;
-  final ValueChanged<bool> onEnabledChanged;
-  final Widget dragHandle;
-
+class const TextActionListRow({
+  super.key,
+  required final TextAction action,
+  required final bool selected,
+  required final VoidCallback onTap,
+  required final VoidCallback onDuplicate,
+  required final ValueChanged<bool> onEnabledChanged,
+  required final Widget dragHandle,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -42,15 +33,15 @@ class TextActionListRow extends StatelessWidget {
               const SizedBox(width: AleraTokens.space4),
               Expanded(
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                  crossAxisAlignment: .start,
                   children: <Widget>[
                     Text(
                       action.name,
                       maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+                      overflow: .ellipsis,
                       style: theme.textTheme.bodyMedium?.copyWith(
                         color: AleraTokens.foreground,
-                        fontWeight: FontWeight.w600,
+                        fontWeight: .w600,
                       ),
                     ),
                     if (!action.enabled)

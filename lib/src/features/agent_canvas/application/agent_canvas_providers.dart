@@ -4,7 +4,6 @@ import 'package:alera/src/features/agent_canvas/domain/agent_canvas.dart';
 import 'package:alera/src/features/agent_canvas/infra/runtime_agent_canvas_repository.dart';
 import 'package:alera/src/features/workbench/application/retired_workspace_invalidation.dart';
 import 'package:alera/src/features/workbench/application/workbench_controller.dart';
-import 'package:alera/src/features/workbench/domain/workbench_view_prefs.dart';
 import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_protocol.dart';
 import 'package:alera/src/shared/infra/runtime/runtime_host_providers.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
@@ -55,7 +54,7 @@ AgentCanvasRuntimeSync agentCanvasRuntimeSync(Ref ref) {
       if (activeWorkspace?.id != workspaceId) {
         return;
       }
-      controller.setContextPanelTab(WorkbenchContextPanelTab.agentCanvas);
+      controller.setContextPanelTab(.agentCanvas);
       if (!ref
           .read(workbenchControllerProvider)
           .viewPrefs
@@ -69,11 +68,10 @@ AgentCanvasRuntimeSync agentCanvasRuntimeSync(Ref ref) {
   return sync;
 }
 
-class AgentCanvasRuntimeSync {
-  AgentCanvasRuntimeSync(this._client, {required this.onDecisionRequest});
-
-  final RuntimeHostClient _client;
-  final void Function(String workspaceId) onDecisionRequest;
+class AgentCanvasRuntimeSync(
+  final RuntimeHostClient _client, {
+  required final void Function(String workspaceId) onDecisionRequest,
+}) {
   StreamSubscription<RuntimeHostEvent>? _subscription;
 
   void start() {

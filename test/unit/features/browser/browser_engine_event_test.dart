@@ -8,15 +8,12 @@ void main() {
   test('engine event variants retain their callback payloads', () {
     final occurredAt = DateTime.utc(2026, 7, 27);
     final url = Uri.parse('https://example.com');
-    final security = BrowserSecurityState(
-      level: BrowserSecurityLevel.secure,
-      origin: url.origin,
-    );
+    final security = BrowserSecurityState(level: .secure, origin: url.origin);
     final permission = BrowserPermissionRequest(
       requestId: 'permission-1',
       pageId: 'page-1',
       origin: url.origin,
-      permission: BrowserPermissionType.geolocation,
+      permission: .geolocation,
       requestedAt: occurredAt,
     );
 
@@ -47,7 +44,7 @@ void main() {
     final consoleMessage = BrowserConsoleMessage(
       pageId: 'page-1',
       occurredAt: occurredAt,
-      level: BrowserConsoleLevel.warning,
+      level: .warning,
       message: 'A warning',
     );
     final downloadChanged = BrowserDownloadChanged(
@@ -57,7 +54,7 @@ void main() {
         id: 'download-1',
         pageId: 'page-1',
         fileName: 'file.txt',
-        status: BrowserDownloadStatus.pending,
+        status: .pending,
         receivedBytes: 0,
         startedAt: occurredAt,
       ),

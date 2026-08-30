@@ -126,10 +126,9 @@ void main() {
   });
 }
 
-final class _FakeRuntimeHostClient implements RuntimeHostClient {
-  _FakeRuntimeHostClient(this.handler);
-
-  final Future<Object?> Function(String, Map<String, Object?>) handler;
+final class _FakeRuntimeHostClient(
+  final Future<Object?> Function(String, Map<String, Object?>) handler,
+) implements RuntimeHostClient {
   final List<String> requests = <String>[];
 
   @override

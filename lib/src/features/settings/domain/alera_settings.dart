@@ -45,14 +45,12 @@ String? normalizeTerminalHexColor(Object? value) {
 }
 
 @MappableClass()
-class TerminalColorOverrides with TerminalColorOverridesMappable {
-  const TerminalColorOverrides({
-    this.foreground,
-    this.background,
-    this.cursor,
-    this.selection,
-  });
-
+class const TerminalColorOverrides({
+  this.foreground,
+  this.background,
+  this.cursor,
+  this.selection,
+}) with TerminalColorOverridesMappable {
   final String? foreground;
   final String? background;
   final String? cursor;
@@ -64,40 +62,38 @@ class TerminalColorOverrides with TerminalColorOverridesMappable {
       cursor == null &&
       selection == null;
 
-  factory TerminalColorOverrides.fromJson(Map<String, Object?> json) =>
+  factory fromJson(Map<String, Object?> json) =>
       TerminalColorOverridesMapper.fromMap(Map<String, dynamic>.from(json));
 }
 
 @MappableClass(hook: _LegacyKeepRuntimeOpenHook())
-class TerminalSettings with TerminalSettingsMappable {
-  const TerminalSettings({
-    required this.fontFamily,
-    required this.fontSize,
-    this.fontWeight = 400,
-    required this.lineHeight,
-    this.paddingX = AleraTokens.space12,
-    this.paddingY = AleraTokens.space12,
-    required this.cursorShape,
-    this.cursorBlink = false,
-    this.cursorOpacity = 1,
-    this.themeName = TerminalThemeNames.aleraDark,
-    this.backgroundOpacity = 1,
-    this.wordSeparators,
-    this.colorOverrides = const TerminalColorOverrides(),
-    required this.scrollbackLines,
-    this.tuiScrollSensitivity = 1,
-    this.clipboardOnSelect = false,
-    this.allowOsc52Clipboard = false,
-    this.showComposerByDefault = false,
-    this.toolbarCorner = TerminalToolbarCorner.topRight,
-    this.hostEmptyShutdownDelaySeconds = 30,
-    this.hostDetachedSessionShutdownDelaySeconds = 60 * 60,
-    this.hostScrollbackBytes = 10 * 1000 * 1000,
-    this.bufferBudgetMegabytes = 256,
-    this.keepRuntimeOpenOnAppQuit = false,
-    this.loginShell,
-  });
-
+class const TerminalSettings({
+  required this.fontFamily,
+  required this.fontSize,
+  this.fontWeight = 400,
+  required this.lineHeight,
+  this.paddingX = AleraTokens.space12,
+  this.paddingY = AleraTokens.space12,
+  required this.cursorShape,
+  this.cursorBlink = false,
+  this.cursorOpacity = 1,
+  this.themeName = TerminalThemeNames.aleraDark,
+  this.backgroundOpacity = 1,
+  this.wordSeparators,
+  this.colorOverrides = const TerminalColorOverrides(),
+  required this.scrollbackLines,
+  this.tuiScrollSensitivity = 1,
+  this.clipboardOnSelect = false,
+  this.allowOsc52Clipboard = false,
+  this.showComposerByDefault = false,
+  this.toolbarCorner = TerminalToolbarCorner.topRight,
+  this.hostEmptyShutdownDelaySeconds = 30,
+  this.hostDetachedSessionShutdownDelaySeconds = 60 * 60,
+  this.hostScrollbackBytes = 10 * 1000 * 1000,
+  this.bufferBudgetMegabytes = 256,
+  this.keepRuntimeOpenOnAppQuit = false,
+  this.loginShell,
+}) with TerminalSettingsMappable {
   final String fontFamily;
   final double fontSize;
   final int fontWeight;
@@ -153,7 +149,7 @@ class TerminalSettings with TerminalSettingsMappable {
     lineHeight: 1.3,
     paddingX: AleraTokens.space12,
     paddingY: AleraTokens.space12,
-    cursorShape: TerminalCursorShape.block,
+    cursorShape: .block,
     cursorBlink: false,
     cursorOpacity: 1,
     themeName: TerminalThemeNames.aleraDark,
@@ -163,14 +159,14 @@ class TerminalSettings with TerminalSettingsMappable {
     clipboardOnSelect: false,
     allowOsc52Clipboard: false,
     showComposerByDefault: false,
-    toolbarCorner: TerminalToolbarCorner.topRight,
+    toolbarCorner: .topRight,
     hostEmptyShutdownDelaySeconds: 30,
     hostDetachedSessionShutdownDelaySeconds: 60 * 60,
     hostScrollbackBytes: 10 * 1000 * 1000,
     keepRuntimeOpenOnAppQuit: false,
   );
 
-  factory TerminalSettings.fromJson(Map<String, Object?> json) =>
+  factory fromJson(Map<String, Object?> json) =>
       TerminalSettingsMapper.fromMap(Map<String, dynamic>.from(json));
 }
 
@@ -180,9 +176,7 @@ class TerminalSettings with TerminalSettingsMappable {
 /// Blobs that never stored either flag used the old implicit default (leave
 /// the runtime open on quit), so they migrate to `keepRuntimeOpenOnAppQuit:
 /// true`. Fresh installs use [TerminalSettings.defaults] without decoding.
-class _LegacyKeepRuntimeOpenHook extends MappingHook {
-  const _LegacyKeepRuntimeOpenHook();
-
+class const _LegacyKeepRuntimeOpenHook() extends MappingHook {
   @override
   Object? beforeDecode(Object? value) {
     if (value is! Map) {
@@ -207,21 +201,19 @@ class _LegacyKeepRuntimeOpenHook extends MappingHook {
 }
 
 @MappableClass()
-class AgentStatusHookSettings with AgentStatusHookSettingsMappable {
-  const AgentStatusHookSettings({
-    this.codex = false,
-    this.claude = false,
-    this.copilot = false,
-    this.cursor = false,
-    this.agy = false,
-    this.opencode = false,
-    this.opencode2 = false,
-    this.pi = false,
-    this.amp = false,
-    this.grok = false,
-    this.fx = false,
-  });
-
+class const AgentStatusHookSettings({
+  this.codex = false,
+  this.claude = false,
+  this.copilot = false,
+  this.cursor = false,
+  this.agy = false,
+  this.opencode = false,
+  this.opencode2 = false,
+  this.pi = false,
+  this.amp = false,
+  this.grok = false,
+  this.fx = false,
+}) with AgentStatusHookSettingsMappable {
   final bool codex;
   final bool claude;
   final bool copilot;
@@ -249,19 +241,17 @@ class AgentStatusHookSettings with AgentStatusHookSettingsMappable {
 
   static const AgentStatusHookSettings defaults = AgentStatusHookSettings();
 
-  factory AgentStatusHookSettings.fromJson(Map<String, Object?> json) =>
+  factory fromJson(Map<String, Object?> json) =>
       AgentStatusHookSettingsMapper.fromMap(Map<String, dynamic>.from(json));
 }
 
 @MappableClass()
-class EditorSettings with EditorSettingsMappable {
-  const EditorSettings({
-    this.tabSize = 4,
-    this.themeName = EditorSyntaxThemeNames.alera,
-    this.autosaveEnabled = false,
-    this.autosaveDelaySeconds = defaultAutosaveDelaySeconds,
-  });
-
+class const EditorSettings({
+  this.tabSize = 4,
+  this.themeName = EditorSyntaxThemeNames.alera,
+  this.autosaveEnabled = false,
+  this.autosaveDelaySeconds = defaultAutosaveDelaySeconds,
+}) with EditorSettingsMappable {
   static const int minAutosaveDelaySeconds = 1;
   static const int maxAutosaveDelaySeconds = 60;
   static const int defaultAutosaveDelaySeconds = 1;
@@ -288,23 +278,21 @@ class EditorSettings with EditorSettingsMappable {
 
   static const EditorSettings defaults = EditorSettings();
 
-  factory EditorSettings.fromJson(Map<String, Object?> json) =>
+  factory fromJson(Map<String, Object?> json) =>
       EditorSettingsMapper.fromMap(Map<String, dynamic>.from(json));
 }
 
 @MappableClass()
-class GeneralSettings with GeneralSettingsMappable {
-  const GeneralSettings({
-    this.workspaceDirectory,
-    this.starClicked = false,
-    this.confirmProjectRemoval = true,
-    this.confirmWorkspaceRemoval = true,
-    this.keepAliveEnabled = false,
-    this.showTrayIcon = true,
-    this.showDockBadge = true,
-    this.showTrayBadge = true,
-  });
-
+class const GeneralSettings({
+  this.workspaceDirectory,
+  this.starClicked = false,
+  this.confirmProjectRemoval = true,
+  this.confirmWorkspaceRemoval = true,
+  this.keepAliveEnabled = false,
+  this.showTrayIcon = true,
+  this.showDockBadge = true,
+  this.showTrayBadge = true,
+}) with GeneralSettingsMappable {
   /// User-configured root directory where new linked workspaces are created.
   /// `null` falls back to the platform default (`~/.alera/workspaces`).
   final String? workspaceDirectory;
@@ -331,21 +319,19 @@ class GeneralSettings with GeneralSettingsMappable {
   final bool showTrayBadge;
   static const GeneralSettings defaults = GeneralSettings();
 
-  factory GeneralSettings.fromJson(Map<String, Object?> json) =>
+  factory fromJson(Map<String, Object?> json) =>
       GeneralSettingsMapper.fromMap(Map<String, dynamic>.from(json));
 }
 
 @MappableClass()
-class AgentSettings with AgentSettingsMappable {
-  const AgentSettings({
-    this.agentStatusHooks = AgentStatusHookSettings.defaults,
-    this.agentStatusNotificationsEnabled = false,
-    this.agentStatusFinishedNotificationsEnabled = false,
-    this.keepComputerAwakeWhileAgentsWork = false,
-    this.defaultAgentProfileId,
-    this.quotas = AgentQuotaSettings.defaults,
-  });
-
+class const AgentSettings({
+  this.agentStatusHooks = AgentStatusHookSettings.defaults,
+  this.agentStatusNotificationsEnabled = false,
+  this.agentStatusFinishedNotificationsEnabled = false,
+  this.keepComputerAwakeWhileAgentsWork = false,
+  this.defaultAgentProfileId,
+  this.quotas = AgentQuotaSettings.defaults,
+}) with AgentSettingsMappable {
   /// Install managed agent hooks for terminal status. Each agent is
   /// default-off because enabling it writes into that agent's user config area.
   final AgentStatusHookSettings agentStatusHooks;
@@ -370,16 +356,14 @@ class AgentSettings with AgentSettingsMappable {
 
   static const AgentSettings defaults = AgentSettings();
 
-  factory AgentSettings.fromJson(Map<String, Object?> json) =>
+  factory fromJson(Map<String, Object?> json) =>
       AgentSettingsMapper.fromMap(Map<String, dynamic>.from(json));
 }
 
 /// Lifts the agent-related keys that historically lived under `general` into
 /// the `agents` sub-map so settings blobs written before the `AgentSettings`
 /// extraction keep decoding with their values intact.
-class _LegacyAgentSettingsHook extends MappingHook {
-  const _LegacyAgentSettingsHook();
-
+class const _LegacyAgentSettingsHook() extends MappingHook {
   static const List<String> _legacyKeys = <String>[
     'agentStatusHooks',
     'agentStatusNotificationsEnabled',
@@ -418,12 +402,10 @@ class _LegacyAgentSettingsHook extends MappingHook {
 enum DiagnosticsLogLevel { error, warning, info, debug }
 
 @MappableClass()
-class DiagnosticsSettings with DiagnosticsSettingsMappable {
-  const DiagnosticsSettings({
-    this.logLevel = DiagnosticsLogLevel.info,
-    this.crashReportingEnabled = false,
-  });
-
+class const DiagnosticsSettings({
+  this.logLevel = DiagnosticsLogLevel.info,
+  this.crashReportingEnabled = false,
+}) with DiagnosticsSettingsMappable {
   /// Detail written to the app and runtime log files.
   final DiagnosticsLogLevel logLevel;
 
@@ -433,25 +415,23 @@ class DiagnosticsSettings with DiagnosticsSettingsMappable {
 
   static const DiagnosticsSettings defaults = DiagnosticsSettings();
 
-  factory DiagnosticsSettings.fromJson(Map<String, Object?> json) =>
+  factory fromJson(Map<String, Object?> json) =>
       DiagnosticsSettingsMapper.fromMap(Map<String, dynamic>.from(json));
 }
 
 @MappableClass(hook: _LegacyAgentSettingsHook())
-class AleraSettings with AleraSettingsMappable {
-  const AleraSettings({
-    required this.general,
-    this.agents = AgentSettings.defaults,
-    this.aiAssist = AiAssistSettings.defaults,
-    this.aiDictation = AiDictationSettings.defaults,
-    this.textActions = TextActionsSettings.defaults,
-    this.editor = EditorSettings.defaults,
-    this.diagnostics = DiagnosticsSettings.defaults,
-    this.codexChat = CodexChatSettings.defaults,
-    required this.terminal,
-    required this.keyboard,
-  });
-
+class const AleraSettings({
+  required this.general,
+  this.agents = AgentSettings.defaults,
+  this.aiAssist = AiAssistSettings.defaults,
+  this.aiDictation = AiDictationSettings.defaults,
+  this.textActions = TextActionsSettings.defaults,
+  this.editor = EditorSettings.defaults,
+  this.diagnostics = DiagnosticsSettings.defaults,
+  this.codexChat = CodexChatSettings.defaults,
+  required this.terminal,
+  required this.keyboard,
+}) with AleraSettingsMappable {
   final GeneralSettings general;
   final AgentSettings agents;
   // Wire and persisted key stays `aiTextGeneration` so older hosts and settings keep working.
@@ -466,17 +446,17 @@ class AleraSettings with AleraSettingsMappable {
   final KeyboardShortcutSettings keyboard;
 
   static const AleraSettings defaults = AleraSettings(
-    general: GeneralSettings.defaults,
-    agents: AgentSettings.defaults,
-    aiAssist: AiAssistSettings.defaults,
-    aiDictation: AiDictationSettings.defaults,
-    editor: EditorSettings.defaults,
-    diagnostics: DiagnosticsSettings.defaults,
-    codexChat: CodexChatSettings.defaults,
-    terminal: TerminalSettings.defaults,
-    keyboard: KeyboardShortcutSettings.defaults,
+    general: .defaults,
+    agents: .defaults,
+    aiAssist: .defaults,
+    aiDictation: .defaults,
+    editor: .defaults,
+    diagnostics: .defaults,
+    codexChat: .defaults,
+    terminal: .defaults,
+    keyboard: .defaults,
   );
 
-  factory AleraSettings.fromJson(Map<String, Object?> json) =>
+  factory fromJson(Map<String, Object?> json) =>
       AleraSettingsMapper.fromMap(Map<String, dynamic>.from(json));
 }

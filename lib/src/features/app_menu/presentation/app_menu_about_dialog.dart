@@ -10,16 +10,11 @@ import 'package:flutter/services.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
 /// About dialog: app logo, copyable version line, and an update check action.
-class AppMenuAboutDialog extends StatelessWidget {
-  const AppMenuAboutDialog({
-    super.key,
-    required this.info,
-    required this.onCheckForUpdates,
-  });
-
-  final PackageInfo info;
-  final VoidCallback onCheckForUpdates;
-
+class const AppMenuAboutDialog({
+  super.key,
+  required final PackageInfo info,
+  required final VoidCallback onCheckForUpdates,
+}) extends StatelessWidget {
   String get _versionLabel => '${info.version} (${info.buildNumber})';
 
   Future<void> _copyVersion(BuildContext context) async {
@@ -42,8 +37,8 @@ class AppMenuAboutDialog extends StatelessWidget {
           AleraTokens.space16,
         ),
         child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
+          mainAxisSize: .min,
+          crossAxisAlignment: .stretch,
           children: <Widget>[
             AleraDialogHeader(
               title: 'About $kAleraAppName',
@@ -63,7 +58,7 @@ class AppMenuAboutDialog extends StatelessWidget {
             ),
             const SizedBox(height: AleraTokens.space4),
             Row(
-              mainAxisAlignment: MainAxisAlignment.center,
+              mainAxisAlignment: .center,
               children: <Widget>[
                 Text(
                   'Version $_versionLabel',
@@ -83,7 +78,7 @@ class AppMenuAboutDialog extends StatelessWidget {
             ),
             const SizedBox(height: AleraTokens.space20),
             OverflowBar(
-              alignment: MainAxisAlignment.end,
+              alignment: .end,
               spacing: AleraTokens.space8,
               overflowSpacing: AleraTokens.space8,
               children: <Widget>[

@@ -34,32 +34,19 @@ const double _actionColumnWidth = _actionIconSize + AleraTokens.space6;
 
 /// Presentational resource panel. Data and callbacks arrive as parameters so it
 /// stays previewable and testable without a runtime host.
-class ResourceStatusPanel extends StatelessWidget {
-  const ResourceStatusPanel({
-    super.key,
-    required this.snapshot,
-    required this.tree,
-    required this.sortColumn,
-    required this.onSortColumnChanged,
-    required this.onOpenSession,
-    required this.onKillSession,
-    required this.onKillOrphans,
-    this.collapsedProjectIds = const <String>{},
-    this.onToggleProject,
-    this.hostUnreachable = false,
-  });
-
-  final ResourceSnapshot snapshot;
-  final ResourceTree tree;
-  final ResourceSortColumn sortColumn;
-  final ValueChanged<ResourceSortColumn> onSortColumnChanged;
-  final ValueChanged<ResourceSessionRow> onOpenSession;
-  final ValueChanged<ResourceSessionRow> onKillSession;
-  final VoidCallback onKillOrphans;
-  final Set<String> collapsedProjectIds;
-  final ValueChanged<String>? onToggleProject;
-  final bool hostUnreachable;
-
+class const ResourceStatusPanel({
+  super.key,
+  required final ResourceSnapshot snapshot,
+  required final ResourceTree tree,
+  required final ResourceSortColumn sortColumn,
+  required final ValueChanged<ResourceSortColumn> onSortColumnChanged,
+  required final ValueChanged<ResourceSessionRow> onOpenSession,
+  required final ValueChanged<ResourceSessionRow> onKillSession,
+  required final VoidCallback onKillOrphans,
+  final Set<String> collapsedProjectIds = const <String>{},
+  final ValueChanged<String>? onToggleProject,
+  final bool hostUnreachable = false,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -73,8 +60,8 @@ class ResourceStatusPanel extends StatelessWidget {
       child: Material(
         color: Colors.transparent,
         child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
+          mainAxisSize: .min,
+          crossAxisAlignment: .stretch,
           children: <Widget>[
             const _PanelHeader(),
             if (hostUnreachable) const _HostUnreachableNotice(),
@@ -96,11 +83,8 @@ class ResourceStatusPanel extends StatelessWidget {
   }
 }
 
-class _PanelBody extends StatelessWidget {
-  const _PanelBody({required this.panel});
-
-  final ResourceStatusPanel panel;
-
+class const _PanelBody({required final ResourceStatusPanel panel})
+    extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final snapshot = panel.snapshot;
@@ -120,8 +104,8 @@ class _PanelBody extends StatelessWidget {
     return SingleChildScrollView(
       padding: const EdgeInsets.only(bottom: AleraTokens.space8),
       child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
+        mainAxisSize: .min,
+        crossAxisAlignment: .stretch,
         children: <Widget>[
           for (final project in panel.tree.projects)
             _ProjectSection(

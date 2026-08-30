@@ -1,7 +1,18 @@
 part of 'terminal_runtime.dart';
 
-class XtermTerminalRuntime implements TerminalRuntime {
-  factory XtermTerminalRuntime({
+class XtermTerminalRuntime._(
+  final TerminalPtySessionFactory _ptySessionFactory,
+  var TerminalSettings _settings,
+  final ExternalUriLauncher _externalUriLauncher,
+  final List<GhosttyTerminalShellLaunch> Function() _shellLaunchesBuilder,
+  final TerminalLaunchEnvironmentBuilder? _agentHookEnvironmentBuilder,
+  final TerminalShellStartupPreparer? _shellStartupPreparer,
+  final TerminalSessionCleanup? _terminalSessionCleanup,
+  final TerminalProcessCreated? _terminalProcessCreated,
+  final TerminalClipboard _terminalClipboard,
+  final void Function(String message, {bool error})? _interactionNotice,
+) implements TerminalRuntime {
+  factory({
     TerminalPtySessionFactory? ptySessionFactory,
     TerminalSettings? initialSettings,
     ExternalUriLauncher? externalUriLauncher,
@@ -27,29 +38,6 @@ class XtermTerminalRuntime implements TerminalRuntime {
     );
   }
 
-  XtermTerminalRuntime._(
-    this._ptySessionFactory,
-    this._settings,
-    this._externalUriLauncher,
-    this._shellLaunchesBuilder,
-    this._agentHookEnvironmentBuilder,
-    this._shellStartupPreparer,
-    this._terminalSessionCleanup,
-    this._terminalProcessCreated,
-    this._terminalClipboard,
-    this._interactionNotice,
-  );
-
-  final TerminalPtySessionFactory _ptySessionFactory;
-  final ExternalUriLauncher _externalUriLauncher;
-  final List<GhosttyTerminalShellLaunch> Function() _shellLaunchesBuilder;
-  final TerminalLaunchEnvironmentBuilder? _agentHookEnvironmentBuilder;
-  final TerminalShellStartupPreparer? _shellStartupPreparer;
-  final TerminalSessionCleanup? _terminalSessionCleanup;
-  final TerminalProcessCreated? _terminalProcessCreated;
-  final TerminalClipboard _terminalClipboard;
-  final void Function(String message, {bool error})? _interactionNotice;
-  TerminalSettings _settings;
   String? _activeWorkspaceId;
   bool _appForeground = true;
   final StreamController<TerminalRuntimeExitEvent> _exitController =

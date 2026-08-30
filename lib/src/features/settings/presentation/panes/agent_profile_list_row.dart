@@ -8,26 +8,16 @@ import 'package:flutter/material.dart';
 
 const double _kSidebarIconSize = 16;
 
-class AgentProfileListRow extends StatelessWidget {
-  const AgentProfileListRow({
-    super.key,
-    required this.profile,
-    required this.selected,
-    required this.onTap,
-    required this.dragHandle,
-    this.isDefault = false,
-    this.onSetDefault,
-    this.onClone,
-  });
-
-  final AgentProfile profile;
-  final bool selected;
-  final VoidCallback onTap;
-  final Widget dragHandle;
-  final bool isDefault;
-  final VoidCallback? onSetDefault;
-  final VoidCallback? onClone;
-
+class const AgentProfileListRow({
+  super.key,
+  required final AgentProfile profile,
+  required final bool selected,
+  required final VoidCallback onTap,
+  required final Widget dragHandle,
+  final bool isDefault = false,
+  final VoidCallback? onSetDefault,
+  final VoidCallback? onClone,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -68,22 +58,22 @@ class AgentProfileListRow extends StatelessWidget {
               const SizedBox(width: AleraTokens.space8),
               Expanded(
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                  crossAxisAlignment: .start,
                   children: <Widget>[
                     Text(
                       profile.name,
                       maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+                      overflow: .ellipsis,
                       style: theme.textTheme.bodyMedium?.copyWith(
                         color: AleraTokens.foreground,
-                        fontWeight: FontWeight.w600,
+                        fontWeight: .w600,
                       ),
                     ),
                     const SizedBox(height: AleraTokens.space4),
                     Text(
                       subtitle,
                       maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+                      overflow: .ellipsis,
                       style: theme.textTheme.bodySmall?.copyWith(
                         color: AleraTokens.foregroundMuted,
                       ),

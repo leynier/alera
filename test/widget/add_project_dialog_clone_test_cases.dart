@@ -86,7 +86,7 @@ void _registerAddProjectDialogCloneTests() {
     );
     await tester.tap(find.widgetWithText(TextField, 'Git URL'));
     await tester.pump();
-    await tester.testTextInput.receiveAction(TextInputAction.done);
+    await tester.testTextInput.receiveAction(.done);
     await tester.pumpAndSettle();
 
     expect(result, isA<CloneProjectResult>());
@@ -117,7 +117,7 @@ void _registerAddProjectDialogCloneTests() {
     );
     await tester.tap(find.widgetWithText(TextField, 'Destination Folder'));
     await tester.pump();
-    await tester.testTextInput.receiveAction(TextInputAction.done);
+    await tester.testTextInput.receiveAction(.done);
     await tester.pumpAndSettle();
 
     expect(result, isA<CloneProjectResult>());
@@ -203,7 +203,7 @@ void _registerAddProjectDialogCloneTests() {
         find.widgetWithText(TextField, 'Display Name (Optional)'),
       );
       await tester.pump();
-      await tester.testTextInput.receiveAction(TextInputAction.done);
+      await tester.testTextInput.receiveAction(.done);
       await tester.pumpAndSettle();
 
       expect(result, isA<AddLocalProjectResult>());

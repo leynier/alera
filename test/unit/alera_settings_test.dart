@@ -108,7 +108,7 @@ void main() {
       expect(ai.agent, AiAssistAgent.codex);
       expect(ai.timeoutSeconds, 120);
       expect(ai.customCommand, isEmpty);
-      expect(ai.modelFor(AiAssistAgent.codex), isNull);
+      expect(ai.modelFor(.codex), isNull);
       expect(
         AiAssistAgent.values
             .where((agent) => agent != AiAssistAgent.custom)

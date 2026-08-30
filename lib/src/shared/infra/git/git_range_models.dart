@@ -1,64 +1,35 @@
 part of 'git_diff_models.dart';
 
-class GitHostedReviewRange {
-  const GitHostedReviewRange({
-    required this.baseOid,
-    required this.headOid,
-    required this.retentionId,
-  });
-
-  final String baseOid;
-  final String headOid;
-  final String retentionId;
-}
+class const GitHostedReviewRange({
+  required final String baseOid,
+  required final String headOid,
+  required final String retentionId,
+});
 
 /// One commit on the range from merge-base(base, HEAD) to HEAD.
-class GitRangeCommit {
-  const GitRangeCommit({
-    required this.oid,
-    required this.subject,
-    required this.message,
-  });
-
-  final String oid;
-  final String subject;
-  final String message;
-}
+class const GitRangeCommit({
+  required final String oid,
+  required final String subject,
+  required final String message,
+});
 
 /// One file changed between merge-base(base, HEAD) and HEAD.
-class GitRangeFile {
-  const GitRangeFile({
-    required this.path,
-    required this.status,
-    this.added,
-    this.removed,
-  });
-
-  final String path;
-  final GitChangeStatus status;
-  final int? added;
-  final int? removed;
-}
+class const GitRangeFile({
+  required final String path,
+  required final GitChangeStatus status,
+  final int? added,
+  final int? removed,
+});
 
 /// Tree-to-tree range summary for AI prompts and hosted pull-request diffs.
-class GitRangeContext {
-  const GitRangeContext({
-    required this.baseRef,
-    required this.commits,
-    required this.files,
-    required this.patch,
-    this.headOid,
-    this.headBranch,
-    this.mergeBase,
-  });
-
-  final String baseRef;
-  final String? headOid;
-  final String? headBranch;
-  final String? mergeBase;
-  final List<GitRangeCommit> commits;
-  final List<GitRangeFile> files;
-  final String patch;
-
+class const GitRangeContext({
+  required final String baseRef,
+  required final List<GitRangeCommit> commits,
+  required final List<GitRangeFile> files,
+  required final String patch,
+  final String? headOid,
+  final String? headBranch,
+  final String? mergeBase,
+}) {
   bool get isEmpty => commits.isEmpty && files.isEmpty && patch.trim().isEmpty;
 }

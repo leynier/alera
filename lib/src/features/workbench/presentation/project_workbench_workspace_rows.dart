@@ -1,71 +1,39 @@
 part of 'project_workbench_sidebar.dart';
 
-class _WorkspaceRow extends StatefulWidget {
-  const _WorkspaceRow({
-    required this.project,
-    required this.workspace,
-    required this.agentRuns,
-    required this.agentRunGroups,
-    required this.status,
-    required this.hasTerminalTabs,
-    required this.isActive,
-    required this.activeTabId,
-    required this.showProject,
-    required this.expanded,
-    required this.isPinnedCopy,
-    required this.onTap,
-    required this.onOpenFolder,
-    required this.onCopyPath,
-    required this.onOpenInBrowser,
-    required this.onOpenProjectSettings,
-    required this.onSleep,
-    required this.onToggleExpanded,
-    required this.fileManagerLabel,
-    required this.onRename,
-    required this.onSetPinned,
-    required this.onManageTags,
-    required this.onSetParent,
-    required this.onSelectTerminal,
-    required this.onCloseTerminal,
-    this.visibleChildCount = 0,
-    this.childrenCollapsed = false,
-    this.onToggleChildren,
-    this.onClearParent,
-    this.onDelete,
-  });
-
-  final Project project;
-  final Workspace workspace;
-  final List<WorkspaceAgentRun> agentRuns;
-  final List<WorkspaceAgentRunGroup> agentRunGroups;
-  final AgentStatusEntry? status;
-  final bool hasTerminalTabs;
-  final bool isActive;
-  final String? activeTabId;
-
-  final bool showProject;
-  final bool expanded;
-  final bool isPinnedCopy;
-  final int visibleChildCount;
-  final bool childrenCollapsed;
-  final VoidCallback? onToggleChildren;
-  final VoidCallback onTap;
-  final VoidCallback onOpenFolder;
-  final VoidCallback onCopyPath;
-  final VoidCallback onOpenInBrowser;
-  final VoidCallback onOpenProjectSettings;
-  final VoidCallback onSleep;
-  final VoidCallback onToggleExpanded;
-  final String fileManagerLabel;
-  final VoidCallback onRename;
-  final VoidCallback onSetPinned;
-  final VoidCallback onManageTags;
-  final VoidCallback onSetParent;
-  final _TerminalTabCallback onSelectTerminal;
-  final _TerminalTabCallback onCloseTerminal;
-  final VoidCallback? onClearParent;
-  final VoidCallback? onDelete;
-
+class const _WorkspaceRow({
+  required final Project project,
+  required final Workspace workspace,
+  required final List<WorkspaceAgentRun> agentRuns,
+  required final List<WorkspaceAgentRunGroup> agentRunGroups,
+  required final AgentStatusEntry? status,
+  required final bool hasTerminalTabs,
+  required final bool isActive,
+  required final String? activeTabId,
+  required final bool showProject,
+  required final bool expanded,
+  required final bool isPinnedCopy,
+  required final VoidCallback onTap,
+  required final VoidCallback onOpenFolder,
+  required final VoidCallback onCopyPath,
+  required final VoidCallback onOpenInBrowser,
+  required final VoidCallback onOpenProjectSettings,
+  required final VoidCallback onSleep,
+  required final VoidCallback onToggleExpanded,
+  required final String fileManagerLabel,
+  required final VoidCallback onRename,
+  required final VoidCallback onSetPinned,
+  required final VoidCallback onManageTags,
+  required final VoidCallback onSetParent,
+  required final _TerminalTabCallback onSelectTerminal,
+  required final _TerminalTabCallback onCloseTerminal,
+  final int visibleChildCount = 0,
+  final bool childrenCollapsed = false,
+  final VoidCallback? onToggleChildren,
+  final VoidCallback? onSetSection,
+  final VoidCallback? onClearSection,
+  final VoidCallback? onClearParent,
+  final VoidCallback? onDelete,
+}) extends StatefulWidget {
   @override
   State<_WorkspaceRow> createState() => _WorkspaceRowState();
 }
@@ -76,51 +44,6 @@ class _WorkspaceRowState extends State<_WorkspaceRow> {
   static const double _statusSlotSize = 14;
 
   bool _hovered = false;
-
-  Future<void> _showContextMenu(
-    BuildContext context,
-    Offset globalPosition,
-  ) async {
-    final overlay =
-        Navigator.of(context).overlay!.context.findRenderObject()! as RenderBox;
-    final selected = await showMenu<String>(
-      context: context,
-      position: RelativeRect.fromRect(
-        Rect.fromPoints(globalPosition, globalPosition),
-        Offset.zero & overlay.size,
-      ),
-      items: workspaceContextMenuEntries(
-        fileManagerLabel: widget.fileManagerLabel,
-        hasClearParent: widget.onClearParent != null,
-        canRemove: widget.onDelete != null,
-        isPinned: widget.workspace.isPinned,
-      ),
-    );
-
-    if (selected == _openProjectSettingsAction) {
-      widget.onOpenProjectSettings();
-    } else if (selected == _renameAction) {
-      widget.onRename();
-    } else if (selected == _togglePinAction) {
-      widget.onSetPinned();
-    } else if (selected == _manageTagsAction) {
-      widget.onManageTags();
-    } else if (selected == _setParentAction) {
-      widget.onSetParent();
-    } else if (selected == _clearParentAction) {
-      widget.onClearParent?.call();
-    } else if (selected == _openFolderAction) {
-      widget.onOpenFolder();
-    } else if (selected == _copyPathAction) {
-      widget.onCopyPath();
-    } else if (selected == _openInBrowserAction) {
-      widget.onOpenInBrowser();
-    } else if (selected == _sleepAction) {
-      widget.onSleep();
-    } else if (selected == _removeAction) {
-      widget.onDelete?.call();
-    }
-  }
 
   String _buildBranchLabel() {
     final branch = widget.workspace.branch;
@@ -183,18 +106,18 @@ class _WorkspaceRowState extends State<_WorkspaceRow> {
               ),
               onTap: widget.onTap,
               mouseCursor: SystemMouseCursors.click,
-              borderRadius: BorderRadius.circular(AleraTokens.radiusLg),
+              borderRadius: .circular(AleraTokens.radiusLg),
               child: Padding(
                 padding: const EdgeInsets.symmetric(
                   horizontal: AleraTokens.space12,
                   vertical: AleraTokens.space6,
                 ),
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: .stretch,
+                  mainAxisSize: .min,
                   children: <Widget>[
                     Row(
-                      crossAxisAlignment: CrossAxisAlignment.center,
+                      crossAxisAlignment: .center,
                       children: <Widget>[
                         SizedBox.square(
                           dimension: _statusSlotSize,
@@ -218,17 +141,17 @@ class _WorkspaceRowState extends State<_WorkspaceRow> {
                           child: Align(
                             alignment: Alignment.centerLeft,
                             child: Row(
-                              mainAxisSize: MainAxisSize.min,
+                              mainAxisSize: .min,
                               children: <Widget>[
                                 Flexible(
                                   child: Text(
                                     widget.workspace.name,
                                     maxLines: 1,
                                     softWrap: false,
-                                    overflow: TextOverflow.ellipsis,
+                                    overflow: .ellipsis,
                                     style: theme.textTheme.bodyMedium?.copyWith(
                                       color: AleraTokens.foreground,
-                                      fontWeight: FontWeight.w600,
+                                      fontWeight: .w600,
                                     ),
                                   ),
                                 ),
@@ -285,7 +208,7 @@ class _WorkspaceRowState extends State<_WorkspaceRow> {
                                   Tooltip(
                                     message: tags.join(', '),
                                     child: Row(
-                                      mainAxisSize: MainAxisSize.min,
+                                      mainAxisSize: .min,
                                       children: <Widget>[
                                         const Icon(
                                           AleraIcons.tag,
@@ -302,7 +225,7 @@ class _WorkspaceRowState extends State<_WorkspaceRow> {
                                               ?.copyWith(
                                                 color:
                                                     AleraTokens.foregroundMuted,
-                                                fontWeight: FontWeight.w600,
+                                                fontWeight: .w600,
                                               ),
                                         ),
                                       ],
@@ -389,25 +312,15 @@ String _agentTrayTooltip({
 }
 
 /// Right-side icon tray for expandable controls: agents and children.
-class _WorkspaceIconTray extends StatelessWidget {
-  const _WorkspaceIconTray({
-    required this.visibleChildCount,
-    required this.childrenCollapsed,
-    required this.onToggleChildren,
-    required this.agentGroups,
-    required this.agentsExpanded,
-    required this.onToggleAgents,
-    required this.agentTooltip,
-  });
-
-  final int visibleChildCount;
-  final bool childrenCollapsed;
-  final VoidCallback? onToggleChildren;
-  final List<WorkspaceAgentRunGroup> agentGroups;
-  final bool agentsExpanded;
-  final VoidCallback? onToggleAgents;
-  final String? agentTooltip;
-
+class const _WorkspaceIconTray({
+  required final int visibleChildCount,
+  required final bool childrenCollapsed,
+  required final VoidCallback? onToggleChildren,
+  required final List<WorkspaceAgentRunGroup> agentGroups,
+  required final bool agentsExpanded,
+  required final VoidCallback? onToggleAgents,
+  required final String? agentTooltip,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -434,7 +347,7 @@ class _WorkspaceIconTray extends StatelessWidget {
               : 'Hide Child Workspaces',
           onTap: onToggleChildren,
           child: Row(
-            mainAxisSize: MainAxisSize.min,
+            mainAxisSize: .min,
             children: <Widget>[
               const Icon(
                 AleraIcons.workspaceChildren,
@@ -446,7 +359,7 @@ class _WorkspaceIconTray extends StatelessWidget {
                 '$visibleChildCount',
                 style: theme.textTheme.labelSmall?.copyWith(
                   color: AleraTokens.foregroundMuted,
-                  fontWeight: FontWeight.w600,
+                  fontWeight: .w600,
                 ),
               ),
               const SizedBox(width: AleraTokens.space2),
@@ -468,7 +381,7 @@ class _WorkspaceIconTray extends StatelessWidget {
     }
 
     return Row(
-      mainAxisSize: MainAxisSize.min,
+      mainAxisSize: .min,
       children: <Widget>[
         for (final (index, item) in items.indexed) ...<Widget>[
           if (index > 0) const SizedBox(width: AleraTokens.space6),
@@ -479,18 +392,12 @@ class _WorkspaceIconTray extends StatelessWidget {
   }
 }
 
-class _TrayIconItem extends StatelessWidget {
-  const _TrayIconItem({
-    super.key,
-    required this.tooltip,
-    required this.child,
-    this.onTap,
-  });
-
-  final String tooltip;
-  final Widget child;
-  final VoidCallback? onTap;
-
+class const _TrayIconItem({
+  super.key,
+  required final String tooltip,
+  required final Widget child,
+  final VoidCallback? onTap,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final content = Padding(
@@ -507,48 +414,9 @@ class _TrayIconItem extends StatelessWidget {
           : InkWell(
               onTap: onTap,
               mouseCursor: SystemMouseCursors.click,
-              borderRadius: BorderRadius.circular(AleraTokens.radiusSm),
+              borderRadius: .circular(AleraTokens.radiusSm),
               child: content,
             ),
-    );
-  }
-}
-
-class _WorkspaceAgentRunList extends StatelessWidget {
-  const _WorkspaceAgentRunList({
-    required this.workspace,
-    required this.runs,
-    required this.workspaceIsActive,
-    required this.activeTabId,
-    required this.onSelectTerminal,
-    required this.onCloseTerminal,
-  });
-
-  final Workspace workspace;
-  final List<WorkspaceAgentRun> runs;
-  final bool workspaceIsActive;
-  final String? activeTabId;
-  final _TerminalTabCallback onSelectTerminal;
-  final _TerminalTabCallback onCloseTerminal;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      mainAxisSize: MainAxisSize.min,
-      children: <Widget>[
-        // Keyed by tab so each row keeps its identity and state across the
-        // status updates that refresh this list.
-        for (final run in runs)
-          _AgentRunRow(
-            key: ValueKey<String>(run.tab.id),
-            tab: run.tab,
-            status: run.status,
-            isActive: workspaceIsActive && activeTabId == run.tab.id,
-            onTap: () => onSelectTerminal(workspace, run.tab.id),
-            onClose: () => onCloseTerminal(workspace, run.tab.id),
-          ),
-      ],
     );
   }
 }

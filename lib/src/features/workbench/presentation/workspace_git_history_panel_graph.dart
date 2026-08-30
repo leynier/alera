@@ -1,10 +1,7 @@
 part of 'workspace_git_diff_panel.dart';
 
-class _GitHistoryGraph extends StatelessWidget {
-  const _GitHistoryGraph({required this.viewModel});
-
-  final GitHistoryItemViewModel viewModel;
-
+class const _GitHistoryGraph({required final GitHistoryItemViewModel viewModel})
+    extends StatelessWidget {
   static double widthFor(GitHistoryItemViewModel viewModel) {
     return 11.0 *
         ([
@@ -25,15 +22,12 @@ class _GitHistoryGraph extends StatelessWidget {
   }
 }
 
-class _GitHistoryGraphPainter extends CustomPainter {
-  const _GitHistoryGraphPainter(this.viewModel);
-
+class const _GitHistoryGraphPainter(final GitHistoryItemViewModel viewModel)
+    extends CustomPainter {
   static const double laneHeight = 24;
   static const double laneWidth = 11;
   static const double nodeY = laneHeight / 2;
   static const double circleRadius = 3.5;
-
-  final GitHistoryItemViewModel viewModel;
 
   @override
   void paint(Canvas canvas, Size size) {

@@ -1,6 +1,5 @@
 import 'package:alera/src/features/pull_requests/domain/create_review_input.dart';
 import 'package:alera/src/features/pull_requests/domain/create_review_result.dart';
-import 'package:alera/src/shared/git_hosting/domain/git_hosting_provider.dart';
 import 'package:alera/src/shared/git_hosting/domain/git_remote_identity.dart';
 import 'package:alera/src/features/pull_requests/domain/hosted_review.dart';
 import 'package:alera/src/features/pull_requests/domain/review_check.dart';
@@ -14,7 +13,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'fake_recording_process_runner.dart';
 
 const _identity = GitRemoteIdentity(
-  provider: GitHostingProvider.azureDevops,
+  provider: .azureDevops,
   host: 'dev.azure.com',
   owner: 'myorg',
   repo: 'myrepo',
@@ -84,7 +83,7 @@ void main() {
       final provider = AzureDevOpsForgeProvider(runner);
       await provider.getReviewForBranch(
         identity: const GitRemoteIdentity(
-          provider: GitHostingProvider.azureDevops,
+          provider: .azureDevops,
           host: 'myorg.visualstudio.com',
           owner: 'myorg',
           repo: 'myrepo',
@@ -128,8 +127,8 @@ void main() {
   group('AzureDevOpsForgeProvider.getCheckDetails', () {
     const check = ReviewCheck(
       name: 'Build',
-      status: ReviewCheckStatus.inProgress,
-      conclusion: ReviewCheckConclusion.pending,
+      status: .inProgress,
+      conclusion: .pending,
     );
 
     test('maps policy evaluation metadata and build url', () async {
@@ -269,7 +268,7 @@ void main() {
 
       final result = await provider.updateReview(
         identity: const GitRemoteIdentity(
-          provider: GitHostingProvider.azureDevops,
+          provider: .azureDevops,
           host: 'dev.azure.com',
           owner: 'myorg',
           repo: 'myrepo',
@@ -384,7 +383,7 @@ void main() {
           identity: _identity,
           repoPath: '/repo',
           number: 42,
-          method: ReviewMergeMethod.rebase,
+          method: .rebase,
         ),
         throwsA(isA<Exception>()),
       );
@@ -439,7 +438,7 @@ void main() {
         identity: _identity,
         repoPath: '/repo',
         input: const CreateReviewInput(
-          provider: GitHostingProvider.azureDevops,
+          provider: .azureDevops,
           title: 'feat: y',
           baseBranch: 'main',
           headBranch: 'feat',

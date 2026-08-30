@@ -24,11 +24,10 @@ Future<void> showKeyboardCommandPalette(
   }
 }
 
-class KeyboardCommandPaletteDialog extends ConsumerStatefulWidget {
-  const KeyboardCommandPaletteDialog({super.key, required this.onExecute});
-
-  final ValueChanged<KeyboardActionId> onExecute;
-
+class const KeyboardCommandPaletteDialog({
+  super.key,
+  required final ValueChanged<KeyboardActionId> onExecute,
+}) extends ConsumerStatefulWidget {
   @override
   ConsumerState<KeyboardCommandPaletteDialog> createState() =>
       _KeyboardCommandPaletteDialogState();
@@ -124,7 +123,7 @@ class _KeyboardCommandPaletteDialogState
           child: Padding(
             padding: const EdgeInsets.all(AleraTokens.space20),
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
+              crossAxisAlignment: .stretch,
               children: <Widget>[
                 Text('Command Palette', style: theme.textTheme.titleMedium),
                 const SizedBox(height: AleraTokens.space16),
@@ -165,7 +164,7 @@ class _KeyboardCommandPaletteDialogState
           style: theme.textTheme.bodyMedium?.copyWith(
             color: AleraTokens.foregroundMuted,
           ),
-          textAlign: TextAlign.center,
+          textAlign: .center,
         ),
       );
     }
@@ -207,7 +206,7 @@ class _KeyboardCommandPaletteDialogState
                   const SizedBox(width: AleraTokens.space12),
                   Expanded(
                     child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                      crossAxisAlignment: .start,
                       children: <Widget>[
                         Text(
                           definition.label,
@@ -217,7 +216,7 @@ class _KeyboardCommandPaletteDialogState
                         Text(
                           definition.description,
                           maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
+                          overflow: .ellipsis,
                           style: theme.textTheme.bodySmall?.copyWith(
                             color: AleraTokens.foregroundMuted,
                           ),
