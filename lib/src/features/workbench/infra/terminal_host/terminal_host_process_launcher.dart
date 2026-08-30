@@ -58,7 +58,7 @@ final class DefaultTerminalHostProcessLauncher._(
         if (config.crashReporting) '--crash-reporting',
       ],
       workingDirectory: command.workingDirectory,
-      mode: .detached,
+      mode: ProcessStartMode.detached,
       environment: await _terminalHostEnvironment(),
     );
   }

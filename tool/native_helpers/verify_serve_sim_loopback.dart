@@ -17,7 +17,7 @@ Future<void> main(List<String> args) async {
     try {
       await _waitForHealthyLoopback(helper, port, output);
       await _verifyListenerAddress(helper.pid, port);
-      await _expectConnectionRefused(.loopbackIPv4, port);
+      await _expectConnectionRefused(InternetAddress.loopbackIPv4, port);
 
       final lanAddresses = options.lanAddress == null
           ? await _discoverLanAddresses()
