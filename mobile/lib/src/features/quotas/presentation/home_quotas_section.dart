@@ -1,13 +1,16 @@
 import 'package:alera_mobile/src/app/theme/alera_tokens.dart';
 import 'package:alera_mobile/src/design_system/layout/alera_section_header.dart';
+import 'package:alera_mobile/src/design_system/feedback/alera_empty_state.dart';
 import 'package:alera_mobile/src/features/hosts/domain/paired_host_profile.dart';
 import 'package:alera_mobile/src/features/quotas/application/agent_quota_controller.dart';
+import 'package:alera_mobile/src/features/quotas/application/quota_host_visibility_controller.dart';
 import 'package:alera_mobile/src/features/quotas/domain/quota_settings.dart';
 import 'package:alera_mobile/src/features/quotas/domain/quota_snapshot.dart';
 import 'package:alera_mobile/src/features/quotas/presentation/agent_quota_provider_icon.dart';
 import 'package:alera_mobile/src/features/quotas/presentation/agent_quotas_screen.dart';
 import 'package:alera_mobile/src/features/quotas/presentation/quota_display_labels.dart';
 import 'package:alera_mobile/src/features/quotas/presentation/quota_ordering.dart';
+import 'package:alera_mobile/src/features/quotas/presentation/quota_hosts_settings_screen.dart';
 import 'package:alera_mobile/src/features/quotas/presentation/quota_status_pill.dart';
 import 'package:alera_mobile/src/features/settings/application/host_settings_controller.dart';
 import 'package:flutter/material.dart';
@@ -21,10 +24,16 @@ class HomeQuotasSection extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final visibility = ref.watch(quotaHostVisibilityControllerProvider);
+    final hidden = visibility.value;
+    // Wait for the local selection before subscribing to any host's quotas.
+    final visibleHosts = hidden == null
+        ? const <PairedHostProfile>[]
+        : hosts.where((host) => !hidden.contains(host.runtimeId)).toList();
     final groupByHost = hosts.length > 1;
     final children = <Widget>[];
 
-    for (final host in hosts) {
+    for (final host in visibleHosts) {
       final async = ref.watch(agentQuotaControllerProvider(host.id));
       final settings = ref
           .watch(hostSettingsControllerProvider(host.id))
@@ -41,7 +50,7 @@ class HomeQuotasSection extends ConsumerWidget {
       children.addAll(hostChildren);
     }
 
-    if (children.isEmpty) {
+    if (hosts.isEmpty) {
       return const SizedBox.shrink();
     }
 
@@ -49,15 +58,37 @@ class HomeQuotasSection extends ConsumerWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: <Widget>[
         const SizedBox(height: AleraTokens.spaceLg),
-        const AleraSectionHeader(
+        AleraSectionHeader(
           label: 'Quotas',
-          padding: EdgeInsets.only(
+          trailing: TextButton(
+            onPressed: () => Navigator.of(context).push<void>(
+              MaterialPageRoute<void>(
+                builder: (_) => const QuotaHostsSettingsScreen(),
+              ),
+            ),
+            child: const Text('Choose Hosts'),
+          ),
+          padding: const EdgeInsets.only(
             left: AleraTokens.space4,
             right: AleraTokens.space8,
             top: AleraTokens.space8,
             bottom: AleraTokens.space4,
           ),
         ),
+        if (visibility.hasError)
+          AleraEmptyState(
+            message: 'Could not load quota hosts.',
+            action: TextButton(
+              onPressed: () =>
+                  ref.invalidate(quotaHostVisibilityControllerProvider),
+              child: const Text('Retry'),
+            ),
+          )
+        else if (hidden != null && visibleHosts.isEmpty)
+          const AleraEmptyState(
+            message:
+                'No hosts selected. Choose hosts to show their quotas here.',
+          ),
         ...children,
       ],
     );
