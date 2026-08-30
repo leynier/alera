@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:alera/src/app/app.dart';
 import 'package:alera/src/app/providers.dart';
+import 'package:alera/src/features/agent_quota/domain/agent_quota.dart';
 import 'package:alera/src/features/projects/application/project_service.dart';
 import 'package:alera/src/features/projects/application/projects_service.dart';
 import 'package:alera/src/features/projects/infra/drift_project_config_repository.dart';
@@ -89,6 +90,10 @@ void main() {
             projectConfigRepository,
           ),
           settingsRepositoryProvider.overrideWithValue(settingsRepository),
+          // Quota discovery can start installed CLIs and their login flows.
+          agentQuotaStateProvider.overrideWith(
+            (_) async => AgentQuotaState.empty('local'),
+          ),
           managedWorkspaceRuntimeProvider.overrideWithValue(null),
           gitBackendProvider.overrideWithValue(gitBackend),
           terminalRuntimeProvider.overrideWith((ref) => terminalRuntime),
