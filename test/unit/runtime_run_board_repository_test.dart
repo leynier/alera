@@ -66,6 +66,39 @@ void main() {
     expect(client.calls, isEmpty);
   });
 
+  test(
+    'populated board preserves run ownership and pagination cursor',
+    () async {
+      const cursor = {'created_at': '2026-08-29', 'id': 'run', 'revision': 7};
+      client.response = {
+        ..._snapshot,
+        'items': [
+          {..._run, 'project_id': 'project', 'project_name': 'Alera'},
+        ],
+        'next_cursor': cursor,
+      };
+      final snapshot = await repository.readBoard();
+      expect(snapshot.revision, 7);
+      expect(snapshot.counts.attention, 3);
+      expect(snapshot.counts.active, 4);
+      expect(snapshot.counts.history, 8);
+      final run = snapshot.items.single;
+      expect(run.id, 'run');
+      expect(run.objective, 'Objective');
+      expect(run.workspaceId, 'owner');
+      expect(run.projectId, 'project');
+      expect(run.projectName, 'Alera');
+      expect(run.bucket, RunBoardBucket.attention);
+      expect(run.policyStatus, 'draft');
+      expect(run.taskCount, 1);
+      expect(snapshot.nextCursor!.createdAt, '2026-08-29');
+      expect(snapshot.nextCursor!.id, 'run');
+      expect(snapshot.nextCursor!.revision, 7);
+      expect(snapshot.nextCursor!.toJson(), cursor);
+      expect(() => snapshot.items.clear(), throwsUnsupportedError);
+    },
+  );
+
   test('malformed payload is not mistaken for an empty board', () async {
     client.response = {'items': []};
     await expectLater(repository.readBoard(), throwsA(isA<TypeError>()));

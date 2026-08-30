@@ -46,6 +46,51 @@ void _registerTerminalHostClientRunBoardTests() {
       },
     );
   }
+
+  for (final binaryFrames in [false, true]) {
+    test(
+      'forwards board revisions over socket frames: $binaryFrames',
+      () async {
+        final directory = await Directory.systemTemp.createTemp(
+          'alera-run-board-events-',
+        );
+        addTearDown(() => directory.delete(recursive: true));
+        final server = await _TerminalHostTestServer.start(
+          negotiateBinaryFrames: true,
+        );
+        addTearDown(server.dispose);
+        await _writeControlFile(
+          tempDir: directory,
+          port: server.port,
+          token: 'test-token',
+          includeRunBoardCapability: true,
+          includeBinaryFramesCapability: binaryFrames,
+        );
+        final client = SocketTerminalHostClient(
+          launcher: _NoopTerminalHostLauncher(),
+          applicationSupportDirectory: () async => directory,
+        );
+        addTearDown(client.dispose);
+        expect(
+          await client.supportsRuntimeCapability(
+            aleraRuntimeHostRunBoardCapability,
+          ),
+          isTrue,
+        );
+        expect(server.usingBinaryFrames, binaryFrames);
+        final changed = client.runtimeEvents.firstWhere(
+          (event) => event.name == 'orchestrationBoardChanged',
+        );
+        server.send({
+          'event': 'orchestrationBoardChanged',
+          'payload': {'revision': 42},
+        });
+        final event = await changed.timeout(const Duration(seconds: 5));
+        expect(event.name, 'orchestrationBoardChanged');
+        expect(event.payload, {'revision': 42});
+      },
+    );
+  }
 }
 
 Future<void> _writeControlFile({
