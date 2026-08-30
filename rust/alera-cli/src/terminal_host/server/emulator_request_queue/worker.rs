@@ -1,6 +1,8 @@
 use super::*;
 use crate::terminal_host::server::emulator_requests::run_emulator_request;
-use crate::terminal_host::server::runtime_mutations::run_runtime_mutation;
+use crate::terminal_host::server::runtime_mutations::{
+    run_runtime_mutation, RuntimeMutationFinished, RuntimeMutationOutcome,
+};
 
 impl ServerActor {
     pub(super) fn spawn_emulator_request(&self, request: QueuedEmulatorRequest) {
@@ -31,10 +33,63 @@ impl ServerActor {
                     mutation,
                     codex_cleanup,
                 } => {
-                    let outcome =
-                        run_runtime_mutation(manager, runtime_store, mutation, codex_cleanup).await;
+                    // Only owner removal needs this actor round trip. The
+                    // queue keeps replacement sessions behind the barrier.
+                    let prepared = match &mutation {
+                        RuntimeMutationRequest::RemoveManagedWorkspace { .. }
+                        | RuntimeMutationRequest::RemoveWorkspace { .. }
+                        | RuntimeMutationRequest::RemoveProject { .. }
+                        | RuntimeMutationRequest::RemoveProjectWorkspaces { .. } => {
+                            let (completion, receiver) = tokio::sync::oneshot::channel();
+                            let _ = inbox.send(ServerCommand::PrepareRuntimeMutation {
+                                request: mutation.clone(),
+                                completion,
+                            });
+                            receiver.await.unwrap_or_else(|_| {
+                                Err(HostError::state("Runtime stopped before workspace cleanup"))
+                            })
+                        }
+                        _ => Ok(crate::terminal_host::session::workspace_shutdown::WorkspaceShutdown::default()),
+                    };
+                    let mut stopped_workspace_tab_ids = Vec::new();
+                    let mut pending_workspace_shutdown = None;
+                    let prepared = match prepared {
+                        Ok(mut shutdown) => {
+                            stopped_workspace_tab_ids =
+                                std::mem::take(&mut shutdown.closed_tab_ids);
+                            let result = shutdown.wait().await;
+                            if result.is_err() {
+                                if let RuntimeMutationRequest::RemoveManagedWorkspace { request } =
+                                    &mutation
+                                {
+                                    pending_workspace_shutdown =
+                                        Some(Box::new((request.id.clone(), shutdown)));
+                                }
+                            }
+                            result
+                        }
+                        Err(error) => Err(error),
+                    };
+                    let mut outcome = match prepared {
+                        Ok(()) => {
+                            run_runtime_mutation(manager, runtime_store, mutation, codex_cleanup)
+                                .await
+                        }
+                        Err(error) => RuntimeMutationOutcome {
+                            result: Err(error),
+                            pending_codex_cleanup: Vec::new(),
+                            ended_pointer_tab_ids: Vec::new(),
+                            closed_session_tab_ids: Vec::new(),
+                            committed_tab_ids: Vec::new(),
+                            effect_on_error: None,
+                            stopped_workspace_tab_ids: Vec::new(),
+                            pending_workspace_shutdown: None,
+                        },
+                    };
+                    outcome.stopped_workspace_tab_ids = stopped_workspace_tab_ids;
+                    outcome.pending_workspace_shutdown = pending_workspace_shutdown;
                     let _ = inbox.send(ServerCommand::RuntimeMutationFinished(
-                        crate::terminal_host::server::runtime_mutations::RuntimeMutationFinished {
+                        RuntimeMutationFinished {
                             client_id: request.client_id,
                             request_id: request.request_id,
                             outcome,

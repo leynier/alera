@@ -55,6 +55,7 @@ async fn rejects_main_workspace_during_removal_validation() {
             id: "main-workspace".to_string(),
             delete_branch: None,
             active_workspace_id: None,
+            close_sessions: false,
         },
     )
     .await
@@ -353,6 +354,7 @@ impl RemovalFixture {
                 id: self.workspace_id.clone(),
                 delete_branch,
                 active_workspace_id: None,
+                close_sessions: false,
             },
         )
         .await

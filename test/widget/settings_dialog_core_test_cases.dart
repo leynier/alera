@@ -510,16 +510,11 @@ void _registerSettingsDialogCoreTests() {
 
     await tester.ensureVisible(find.byType(Switch).at(1));
     await tester.pump();
-    await tester.tap(find.byType(Switch).at(1));
-    await tester.pump(const Duration(milliseconds: 50));
-
-    expect(
-      container
-          .read(settingsControllerProvider)
-          .general
-          .confirmWorkspaceRemoval,
-      isFalse,
+    final workspaceConfirmation = tester.widget<Switch>(
+      find.byType(Switch).at(1),
     );
+    expect(workspaceConfirmation.value, isTrue);
+    expect(workspaceConfirmation.onChanged, isNull);
 
     await tester.enterText(find.byType(TextField).first, 'destructive');
     await tester.pump();

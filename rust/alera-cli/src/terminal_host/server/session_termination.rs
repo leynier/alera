@@ -5,13 +5,102 @@ use tokio::sync::Mutex;
 
 use crate::terminal_host::emulator::EmulatorManager;
 use crate::terminal_host::protocol::{error_response, event, ok_response};
+use crate::terminal_host::session::workspace_shutdown::WorkspaceShutdown;
 
 use super::runtime_mutations::{
-    RuntimeMutationEffect, RuntimeMutationFinished, RuntimeMutationOutcome,
+    RuntimeMutationEffect, RuntimeMutationFinished, RuntimeMutationOutcome, RuntimeMutationRequest,
 };
 use super::ServerActor;
 
 impl ServerActor {
+    pub(super) async fn prepare_runtime_mutation(
+        &mut self,
+        request: &RuntimeMutationRequest,
+    ) -> crate::terminal_host::host_error::HostResult<WorkspaceShutdown> {
+        use crate::terminal_host::host_error::HostError;
+
+        if let RuntimeMutationRequest::RemoveManagedWorkspace { request } = request {
+            return self.prepare_managed_workspace_removal(request).await;
+        }
+        // Check when the queued operation starts, not when it was enqueued:
+        // an earlier removal may have just failed and retained a shutdown.
+        for workspace_id in self.emulator_requests.pending_workspace_shutdowns.keys() {
+            let removes_owner = match request {
+                RuntimeMutationRequest::RemoveWorkspace {
+                    workspace_id: target,
+                    ..
+                } => target == workspace_id,
+                RuntimeMutationRequest::RemoveProject { project_id }
+                | RuntimeMutationRequest::RemoveProjectWorkspaces { project_id } => {
+                    let workspace = self
+                        .runtime_store
+                        .find_workspace(workspace_id)
+                        .await
+                        .map_err(|error| HostError::state(error.to_string()))?;
+                    workspace.is_none_or(|workspace| workspace.project_id == *project_id)
+                }
+                _ => false,
+            };
+            if removes_owner {
+                return Err(HostError::state("Workspace has unfinished process shutdown. Retry confirmed workspace cleanup before removing its records or project."));
+            }
+        }
+        Ok(WorkspaceShutdown::default())
+    }
+
+    pub(super) async fn prepare_managed_workspace_removal(
+        &mut self,
+        request: &crate::managed_workspace::ManagedWorkspaceRemoveRequest,
+    ) -> crate::terminal_host::host_error::HostResult<WorkspaceShutdown> {
+        use crate::terminal_host::host_error::HostError;
+
+        // Revalidate after queueing and before terminating anything. A rejected
+        // path or automation owner must leave the user's running work intact.
+        crate::managed_workspace::validate_managed_workspace_removal(&self.runtime_store, request)
+            .await
+            .map_err(|error| HostError::state(error.to_string()))?;
+        if request.close_sessions {
+            let mut shutdown = WorkspaceShutdown::capture(
+                self.sessions
+                    .values()
+                    .filter(|session| session.workspace_id == request.id),
+            )
+            .await?;
+            if let Some(pending) = self
+                .emulator_requests
+                .pending_workspace_shutdowns
+                .remove(&request.id)
+            {
+                shutdown.merge(pending);
+            }
+            self.terminate_terminal_sessions_for_workspace(&request.id)
+                .await;
+            for page in self.browser.pages() {
+                if page.workspace_id == request.id {
+                    shutdown.closed_tab_ids.push(page.tab_id.clone());
+                    self.handle_browser_tab_removed(&page.tab_id);
+                }
+            }
+            return Ok(shutdown);
+        } else if self
+            .emulator_requests
+            .pending_workspace_shutdowns
+            .contains_key(&request.id)
+        {
+            return Err(HostError::state(
+                "Workspace has unfinished process shutdown. Confirm session cleanup to retry.",
+            ));
+        } else if self
+            .sessions
+            .values()
+            .any(|session| session.workspace_id == request.id && session.running())
+            || self.browser.has_pages_for_workspace(&request.id)
+        {
+            return Err(HostError::state("Workspace has live sessions"));
+        }
+        Ok(WorkspaceShutdown::default())
+    }
+
     pub(super) async fn handle_runtime_mutation_finished(
         &mut self,
         finished: RuntimeMutationFinished,
@@ -28,7 +117,33 @@ impl ServerActor {
             mut closed_session_tab_ids,
             committed_tab_ids,
             effect_on_error,
+            stopped_workspace_tab_ids,
+            pending_workspace_shutdown,
         } = outcome;
+        if let Some(pending) = pending_workspace_shutdown {
+            let (workspace_id, shutdown) = *pending;
+            // Sessions are already gone. Keep their process ownership for the
+            // next attempt instead of letting an empty recapture permit deletion.
+            self.emulator_requests
+                .pending_workspace_shutdowns
+                .insert(workspace_id, shutdown);
+        }
+        // Teardown is irreversible even if a later Git operation fails. Retire
+        // only those tabs whose resources were closed, and notify every client
+        // so scrollback, browser pages and transcript watches are released.
+        let mut stopped_tab_cleanup_error = None;
+        for tab_id in &stopped_workspace_tab_ids {
+            if let Err(error) = self.runtime_store.remove_workspace_tab(tab_id).await {
+                stopped_tab_cleanup_error =
+                    Some(crate::terminal_host::host_error::HostError::state(format!(
+                        "Failed to retire stopped workspace tab: {error}"
+                    )));
+            }
+            self.remove_codex_presence(tab_id);
+        }
+        if !stopped_workspace_tab_ids.is_empty() {
+            self.broadcast_workspace_tabs_changed(None);
+        }
         let mut pending_tab_ids = pending_codex_cleanup
             .iter()
             .map(|entry| entry.tab_id.clone())
@@ -89,7 +204,7 @@ impl ServerActor {
                 self.apply_runtime_mutation_effect(completion.effect).await;
                 self.reconcile_codex_presence().await;
                 self.schedule_codex_presence_changed();
-                if let Err(error) = cleanup_result {
+                if let Some(error) = stopped_tab_cleanup_error.or_else(|| cleanup_result.err()) {
                     self.client_write(client_id, error_response(request_id, &error));
                 } else {
                     self.client_write(client_id, ok_response(request_id, completion.response));
