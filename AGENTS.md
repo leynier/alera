@@ -146,6 +146,7 @@ When planning is needed, use a spec-driven development flow. Do not jump straigh
 
 - Alera targets macOS, Windows, and Linux.
 - macOS `AppDelegate.applicationDidFinishLaunching` MUST NOT call `super`: `FlutterAppDelegate` does not implement that optional Objective-C callback. AppKit catches the resulting exception and leaves the app running without its native speech and desktop-presence channels. Validate startup, tray installation, Dock badge updates, and hide-on-close with `flutter test integration_test/desktop_presence_macos_test.dart -d macos`.
+- macOS `applicationShouldTerminateAfterLastWindowClosed` MUST return false: AppKit can request termination when the last window is hidden, even when `windowShouldClose` prevented its closure. The Dart lifecycle decides whether to hide or exit; an explicit close without a tray or Quit still reaches `NSApp.terminate` through `window_manager.destroy`.
 - Use `Platform` checks or framework abstractions for platform-specific behavior; do not assume POSIX paths or commands.
 - Use `path` package utilities for filesystem paths.
 - Keep terminal, process, workspace, updater, and release code explicit about platform support.

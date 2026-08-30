@@ -13,4 +13,14 @@ void main() {
       isNot(matches(r'super\s*\.\s*applicationDidFinishLaunching\s*\(')),
     );
   });
+
+  test('macOS leaves process exit to the explicit close and quit flow', () {
+    final source = File('macos/Runner/AppDelegate.swift').readAsStringSync();
+    expect(
+      source,
+      matches(
+        r'applicationShouldTerminateAfterLastWindowClosed[^}]+return false',
+      ),
+    );
+  });
 }

@@ -40,9 +40,9 @@ class AppDelegate: FlutterAppDelegate {
   }
 
   override func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
-    // Hide-on-close uses NSWindow.orderOut, so the window still exists.
-    // Destroying it (Quit) is what should terminate the process.
-    return true
+    // AppKit can request termination when the last window is hidden too.
+    // The Dart close/quit flow calls NSApp.terminate explicitly when needed.
+    return false
   }
 
   override func applicationSupportsSecureRestorableState(_ app: NSApplication) -> Bool {
