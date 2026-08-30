@@ -54,6 +54,7 @@ class MobileRuntimeClient
     implements
         MobileTerminalClient,
         MobileWorkspaceClient,
+        MobileAgentTitleClient,
         MobileCodexClient,
         MobileCodexWorkspaceClient {
   MobileRuntimeClient._(

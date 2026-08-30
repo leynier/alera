@@ -37,6 +37,7 @@ impl ServerActor {
         if !settings.is_enabled(&event.agent_type) && !pending_prompt {
             return;
         }
+        self.observe_hook_title(&event).await;
         let now = chrono::Utc::now();
         if hook_event_resets_session(&event) {
             if self

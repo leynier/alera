@@ -1076,6 +1076,12 @@ impl RuntimeStore {
             RuntimeStoreError::Message(format!("Workspace tab not found: {tab_id}"))
         })?;
         tab.title = title.to_string();
+        if !tab.payload.is_object() {
+            tab.payload = serde_json::json!({});
+        }
+        tab.payload["agentTitleSource"] = serde_json::json!("manual");
+        tab.payload["agentTitleRevision"] = serde_json::json!(uuid::Uuid::new_v4().to_string());
+        tab.payload["agentTitleStatus"] = serde_json::json!("idle");
         tab.updated_at = Utc::now();
         if !tab.payload.is_object() {
             tab.payload = serde_json::json!({});

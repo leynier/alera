@@ -38,7 +38,8 @@ function assistantText(message) {
 }
 
 export default function (pi) {
-  pi.on('before_agent_start', (event) => post('before_agent_start', { prompt: event?.prompt ?? '' }))
+  pi.on('session_start', (_event, ctx) => post('session_start', { sessionId: ctx?.sessionManager?.getSessionId?.() }))
+  pi.on('before_agent_start', (event, ctx) => post('before_agent_start', { prompt: event?.prompt ?? '', sessionId: ctx?.sessionManager?.getSessionId?.() }))
   pi.on('agent_start', () => post('agent_start'))
   pi.on('tool_execution_start', (event) => post('tool_execution_start', { tool_name: event?.toolName, tool_input: event?.args }))
   pi.on('tool_call', (event) => post('tool_call', { tool_name: event?.toolName, tool_input: event?.input }))
@@ -48,5 +49,5 @@ export default function (pi) {
     if (text) return post('message_end', { role: 'assistant', text })
   })
   pi.on('agent_end', () => post('agent_end'))
-  pi.on('session_shutdown', () => post('session_shutdown'))
+  pi.on('session_shutdown', (_event, ctx) => post('session_shutdown', { sessionId: ctx?.sessionManager?.getSessionId?.() }))
 }

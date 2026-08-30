@@ -11,6 +11,7 @@ import 'package:alera/src/features/settings/application/settings_repository.dart
 import 'package:alera/src/features/settings/domain/alera_settings.dart';
 import 'package:alera/src/features/settings/infra/runtime_settings_repository.dart';
 import 'package:alera/src/features/workbench/application/workbench_repository.dart';
+import 'package:alera/src/features/workbench/application/workspace_tab_service.dart';
 import 'package:alera/src/features/workbench/application/workspace_graph_repository.dart';
 import 'package:alera/src/features/workbench/domain/workbench_layout.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
@@ -23,8 +24,10 @@ import 'package:alera/src/shared/infra/runtime/runtime_state_migration.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 part 'runtime_managed_workspace_client_test_cases.dart';
+part 'runtime_tab_title_test_cases.dart';
 
 void main() {
+  _registerRuntimeTabTitleTests();
   _registerRuntimeManagedWorkspaceClientTests();
 
   test(
@@ -592,7 +595,10 @@ final class _MemoryWorkbenchRepository implements WorkbenchRepository {
   }
 
   @override
-  Future<WorkspaceTabRecord> upsertWorkspaceTab(WorkspaceTabRecord tab) async {
+  Future<WorkspaceTabRecord> upsertWorkspaceTab(
+    WorkspaceTabRecord tab, {
+    bool manualRename = false,
+  }) async {
     tabs[tab.id] = tab;
     return tab;
   }

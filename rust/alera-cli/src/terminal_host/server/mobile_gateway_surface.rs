@@ -6,6 +6,7 @@
 
 use crate::terminal_host::agent_profile_capabilities::RUNTIME_HOST_AGENT_PROFILE_LAUNCH_IDEMPOTENCY_CAPABILITY;
 use crate::terminal_host::ai_assist_capabilities::{
+    RUNTIME_HOST_AI_ASSIST_AGENT_TITLE_CAPABILITY,
     RUNTIME_HOST_AI_ASSIST_SPEECH_MESSAGE_CAPABILITY,
     RUNTIME_HOST_AI_ASSIST_WORKSPACE_IDENTITY_CAPABILITY,
 };
@@ -64,6 +65,7 @@ pub(super) const MOBILE_HELLO_CAPABILITIES: &[&str] = &[
     RUNTIME_HOST_AGENT_STATUS_CAPABILITY,
     RUNTIME_HOST_AGENT_PROFILES_CAPABILITY,
     RUNTIME_HOST_AI_ASSIST_WORKSPACE_IDENTITY_CAPABILITY,
+    RUNTIME_HOST_AI_ASSIST_AGENT_TITLE_CAPABILITY,
     RUNTIME_HOST_AI_ASSIST_SPEECH_MESSAGE_CAPABILITY,
     RUNTIME_HOST_AGENT_PROFILE_PROMPT_LAUNCH_CAPABILITY,
     RUNTIME_HOST_AGENT_PROFILE_LAUNCH_IDEMPOTENCY_CAPABILITY,
@@ -119,6 +121,7 @@ pub(super) fn mobile_request_allowed(request_type: &str) -> bool {
             | "agentProfile.list"
             | "agentProfile.launch"
             | "agentProfile.launchIdempotent"
+            | "aiText.agentTitle.generate"
             | "aiText.workspaceIdentity.generate"
             | "aiText.speechMessage.generate"
             | "aiText.cancel"

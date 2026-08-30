@@ -180,6 +180,7 @@ final class RuntimeStateMigration {
   Map<String, Object?> _runtimeAiAssistSettings(AiAssistSettings settings) {
     return <String, Object?>{
       'enabled': settings.enabled,
+      'autoGenerateAgentTitles': settings.autoGenerateAgentTitles,
       'agent': settings.agent.key,
       'selectedModelByAgent': <String, String>{
         for (final entry in settings.selectedModelByAgent.entries)

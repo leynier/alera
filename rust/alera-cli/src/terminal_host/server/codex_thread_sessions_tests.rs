@@ -9,7 +9,7 @@ use chrono::Utc;
 use crate::terminal_host::server::actor_test_harness::test_actor;
 
 #[test]
-fn resumed_threads_replace_stale_manual_tab_metadata() {
+fn resumed_threads_preserve_manual_tab_titles() {
     let now = Utc::now();
     let mut tab = WorkspaceTabRecord {
         id: "tab-1".to_string(),
@@ -26,12 +26,12 @@ fn resumed_threads_replace_stale_manual_tab_metadata() {
 
     sync_resumed_thread_title(&mut tab);
 
-    assert_eq!(tab.title, "Resumed conversation");
-    assert!(tab.payload.get("manualTitle").is_none());
+    assert_eq!(tab.title, "Previous name");
+    assert_eq!(tab.payload["manualTitle"], true);
 }
 
 #[test]
-fn new_threads_clear_stale_manual_tab_metadata() {
+fn new_threads_preserve_manual_tab_titles() {
     let now = Utc::now();
     let mut tab = WorkspaceTabRecord {
         id: "tab-1".to_string(),
@@ -45,8 +45,8 @@ fn new_threads_clear_stale_manual_tab_metadata() {
 
     reset_new_thread_title(&mut tab);
 
-    assert_eq!(tab.title, "Codex Chat");
-    assert!(tab.payload.get("manualTitle").is_none());
+    assert_eq!(tab.title, "Previous name");
+    assert_eq!(tab.payload["manualTitle"], true);
 }
 
 #[tokio::test]
@@ -132,4 +132,27 @@ fn tab(id: &str, now: chrono::DateTime<Utc>) -> WorkspaceTabRecord {
         updated_at: now,
         payload: json!({}),
     }
+}
+
+#[test]
+fn agent_title_state_stays_private_in_codex_session_responses() {
+    let mut value = tab("tab", Utc::now());
+    super::super::super::agent_title_state::initialize(&mut value, "Private initial prompt");
+    let response = session_response(&value, false, None, None);
+    assert!(response["tab"]["payload"]
+        .get("agentTitleStateV1")
+        .is_none());
+    assert!(value.payload.get("agentTitleStateV1").is_some());
+}
+
+#[test]
+fn new_codex_thread_keeps_generated_title_until_a_valid_replacement() {
+    let mut value = tab("tab", Utc::now());
+    value.title = "Previous Generated Title".into();
+    value.payload["manualTitle"] = json!(true);
+    value.payload["agentTitleSource"] = json!("generated");
+    reset_new_thread_title(&mut value);
+    assert_eq!(value.title, "Previous Generated Title");
+    assert_eq!(snapshot(&value)["title"], "Previous Generated Title");
+    assert!(!super::super::super::agent_title_state::is_manual(&value));
 }

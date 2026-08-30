@@ -177,11 +177,29 @@ class _TabChip extends StatelessWidget {
             : null,
         label: ConstrainedBox(
           constraints: BoxConstraints(maxWidth: _tabTitleMaxWidth(tab.kind)),
-          child: Text(
-            tab.displayTitle,
-            maxLines: 1,
-            softWrap: false,
-            overflow: TextOverflow.ellipsis,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Flexible(
+                child: Text(
+                  tab.displayTitle,
+                  maxLines: 1,
+                  softWrap: false,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              if (tab.payload['agentTitleStatus'] == 'generating') ...[
+                const SizedBox(width: AleraTokens.space4),
+                const Tooltip(
+                  message: 'Generating title...',
+                  child: Icon(
+                    Icons.hourglass_top,
+                    size: AleraTokens.iconSm,
+                    color: AleraTokens.foregroundMuted,
+                  ),
+                ),
+              ],
+            ],
           ),
         ),
         selected: selected,
