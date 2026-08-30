@@ -20,6 +20,15 @@ impl ServerActor {
             return Ok(true);
         }
         match request_type {
+            "mobile.status.get"
+                if payload.get("includeNetworkStatus").and_then(Value::as_bool) != Some(false) =>
+            {
+                self.require_auth(client_id)?;
+                self.require_request_allowed(client_id, request_type)?;
+                self.start_mobile_network_snapshot(client_id, request_id)
+                    .await?;
+                Ok(true)
+            }
             "aiDictation.transcribe" => {
                 self.require_authenticated_local_request(client_id, request_type)?;
                 self.start_ai_dictation(client_id, request_id, payload)

@@ -240,7 +240,9 @@ void handlePrivateOscForTesting(
   String code,
   List<String> args,
 ) {
-  (session as _XtermTerminalSessionHandle)._handlePrivateOsc(code, args);
+  (session as _XtermTerminalSessionHandle)._terminal.write(
+    '\x1b]$code;${args.join(';')}\x07',
+  );
 }
 
 @visibleForTesting

@@ -22,6 +22,10 @@ pub struct FragmentReassembler {
 
 impl FragmentReassembler {
     pub fn accept(&mut self, payload: &[u8]) -> Result<Option<Vec<u8>>> {
+        if payload.len() > MAX_RELAY_ENVELOPE_BYTES {
+            self.reset();
+            bail!("relay envelope is too large");
+        }
         if !payload.starts_with(FRAGMENT_MAGIC) {
             if self.total.is_some() {
                 self.reset();

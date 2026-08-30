@@ -15,6 +15,14 @@ use super::{
 /// Messages processed serially by the single server actor. Every state mutation
 /// happens here, which keeps session/client transitions deterministic.
 pub enum ServerCommand {
+    RelayActivity {
+        generation: u64,
+        at: chrono::DateTime<chrono::Utc>,
+    },
+    RelayStatus {
+        generation: u64,
+        payload: Value,
+    },
     ClientConnected {
         id: u64,
         handle: ClientHandle,
@@ -29,8 +37,19 @@ pub enum ServerCommand {
         id: u64,
         line: String,
     },
+    RelayClientLine {
+        id: u64,
+        line: String,
+        accepted: tokio::sync::oneshot::Sender<()>,
+        expires_at: i64,
+    },
     ClientDisconnected {
         id: u64,
+    },
+    MobileStatusFinished {
+        client_id: u64,
+        request_id: i64,
+        payload: Value,
     },
     Pty {
         session_id: String,

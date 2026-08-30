@@ -15,7 +15,7 @@
 	url = https://github.com/stablyai/orca
 [submodule "third_party/xterm"]
 	path = third_party/xterm
-	url = https://github.com/leynier/xterm.dart.git
+	url = https://github.com/leynier/xterm2.git
 	branch = next
 [submodule "third_party/dart_terminal"]
 	path = third_party/dart_terminal

@@ -27,6 +27,41 @@ void main() {
       expect(status.activePairings.first.endpoint, 'ws://127.0.0.1:6768');
     });
 
+    test('status preserves relay health as an independent snapshot', () async {
+      final client = _FakeRuntimeHostClient();
+      final relay = <String, Object?>{
+        'state': 'backoff',
+        'transport': 'relay',
+        'lastError': 'transport_unavailable',
+        'nextRetryAt': '2026-08-30T04:30:05Z',
+        'connectedAt': null,
+        'lastActivityAt': '2026-08-30T04:29:59Z',
+      };
+      client.responses['mobile.status.get'] = _statusPayload()
+        ..['relayStatus'] = relay;
+
+      final status = await RuntimeMobileAccessRepository(client).status();
+
+      expect(status.relayStatus, relay);
+      relay['state'] = 'connected';
+      relay['lastError'] = null;
+      expect(status.relayStatus['state'], 'backoff');
+      expect(status.relayStatus['lastError'], 'transport_unavailable');
+    });
+
+    test('status tolerates missing or malformed relay health', () async {
+      final client = _FakeRuntimeHostClient();
+      final repository = RuntimeMobileAccessRepository(client);
+      client.responses['mobile.status.get'] = _statusPayload();
+      expect((await repository.status()).relayStatus, isEmpty);
+
+      for (final value in <Object?>[null, 'connected', <Object?>[]]) {
+        client.responses['mobile.status.get'] = _statusPayload()
+          ..['relayStatus'] = value;
+        expect((await repository.status()).relayStatus, isEmpty);
+      }
+    });
+
     test(
       'status tolerates payloads without endpoint mode or tailscale',
       () async {
@@ -108,6 +143,7 @@ void main() {
         'mobileSettingsChanged',
         'mobilePairingsChanged',
         'mobileDevicesChanged',
+        'mobileRelayChanged',
         'mobileGatewayChanged',
         'projectsChanged',
       ]) {
@@ -115,7 +151,7 @@ void main() {
       }
       await Future<void>.delayed(const Duration(milliseconds: 250));
 
-      // The four mobile events collapse into a single refetch; the non-mobile
+      // The five mobile events collapse into a single refetch; the non-mobile
       // event must not trigger one at all.
       expect(received, hasLength(2));
       expect(

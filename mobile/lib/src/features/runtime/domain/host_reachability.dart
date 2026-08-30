@@ -13,6 +13,12 @@ class RuntimeConnectionLost implements Exception {
   String toString() => 'Lost the connection to the host';
 }
 
+class RuntimeConnectionReplaced implements Exception {
+  const RuntimeConnectionReplaced();
+  @override
+  String toString() => 'A newer connection replaced this relay connection.';
+}
+
 /// Recoverable transport failure while talking to a paired runtime host.
 ///
 /// VPN down, host asleep, wrong network, or a closed socket are connection

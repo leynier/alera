@@ -29,7 +29,7 @@ import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
 import 'package:ghostty_vte_flutter/ghostty_vte_flutter.dart';
 import 'package:portable_pty/portable_pty.dart';
-import 'package:xterm/xterm.dart' as xterm;
+import 'package:xterm2/xterm.dart' as xterm;
 
 part 'terminal_runtime_posix_adapter.dart';
 part 'terminal_runtime_ghostty_adapter.dart';
