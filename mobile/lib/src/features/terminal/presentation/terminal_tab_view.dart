@@ -25,7 +25,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:alera_mobile/src/features/terminal/domain/terminal_output_batcher.dart';
 import 'package:logging/logging.dart';
-import 'package:xterm/xterm.dart';
+import 'package:xterm2/xterm.dart';
 
 part 'terminal_attachment_actions.dart';
 part 'terminal_tab_state_widgets.dart';
@@ -300,6 +300,7 @@ class _TerminalSurfaceState extends State<_TerminalSurface> {
   void dispose() {
     unawaited(_outputSub?.cancel());
     _batcher?.dispose();
+    _terminal.dispose();
     _restoreProgress.dispose();
     _controller.dispose();
     _scrollController.dispose();
@@ -332,9 +333,13 @@ class _TerminalSurfaceState extends State<_TerminalSurface> {
   /// Builds a fresh emulator rather than writing clear sequences into the old
   /// one, so alt-buffer, mouse reporting, and cursor modes reset too.
   void _replaceEmulator({required bool notify}) {
+    final previous = _batcher == null ? null : _terminal;
     _batcher?.dispose();
+    _controller.clearSelection();
     final next = Terminal(
       maxLines: mobileTerminalScrollbackLines,
+      preserveOrphanCombiningMarks: true,
+      allowITerm2ClipboardCapture: false,
       onOutput: (data) => widget.onInput(data),
       onResize: (width, height, _, _) => _handleViewportResize(width, height),
       // This emulator is filled from restored history, and the program that
@@ -351,6 +356,7 @@ class _TerminalSurfaceState extends State<_TerminalSurface> {
       write: next.write,
       onRestoreProgress: _handleRestoreProgress,
     );
+    previous?.dispose();
     if (notify) {
       setState(() => _terminal = next);
     } else {
@@ -453,6 +459,8 @@ class _TerminalSurfaceState extends State<_TerminalSurface> {
                   : TerminalView(
                       _terminal,
                       key: ValueKey<int>(_viewGeneration),
+                      shortcuts: clipboardTerminalShortcuts,
+                      shiftOverridesMouseReporting: true,
                       controller: _controller,
                       scrollController: _scrollController,
                       focusNode: _focusNode,

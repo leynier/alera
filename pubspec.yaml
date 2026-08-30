@@ -21,7 +21,7 @@ dependencies:
   ghostty_vte_flutter: ^0.1.5
   ffi: ^2.2.0
   portable_pty: ^0.0.5
-  xterm: ^4.0.0
+  xterm2: ^5.3.0
   desktop_updater: ^2.7.0
   http: ^1.6.0
   record: ^7.1.1
@@ -91,7 +91,7 @@ dependency_overrides:
   ghostty_vte_flutter:
     path: third_party/dart_terminal/pkgs/vte/ghostty_vte_flutter
   # Keeps local terminal fixes pinned while upstream PRs are reviewed.
-  xterm:
+  xterm2:
     path: third_party/xterm
 
 flutter_launcher_icons:

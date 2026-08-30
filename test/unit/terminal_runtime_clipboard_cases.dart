@@ -30,6 +30,16 @@ void _registerXtermRuntimeClipboardTests() {
     await Future<void>.delayed(Duration.zero);
 
     expect(clipboard.writes, <String>['from tui']);
+    handlePrivateOscForTesting(session, '52', ['', payload]);
+    handlePrivateOscForTesting(session, '52', ['c', '?']);
+    handlePrivateOscForTesting(session, '52', ['c', '====']);
+    handlePrivateOscForTesting(session, '52', ['c', 'A' * (128 * 1024 + 4)]);
+    writeTerminalOutputForTesting(
+      session,
+      '\x1b]1337;CopyToClipboard=c\x07secret\x1b]1337;EndCopy\x07',
+    );
+    await Future<void>.delayed(Duration.zero);
+    expect(clipboard.writes, <String>['from tui']);
   });
 
   test('pastes clipboard text before probing for an image', () async {

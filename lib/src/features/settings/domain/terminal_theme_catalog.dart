@@ -1,6 +1,6 @@
 import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:flutter/material.dart';
-import 'package:xterm/xterm.dart' as xterm;
+import 'package:xterm2/xterm.dart' as xterm;
 part 'terminal_theme_base_palette.dart';
 part 'terminal_theme_extended_palette.dart';
 

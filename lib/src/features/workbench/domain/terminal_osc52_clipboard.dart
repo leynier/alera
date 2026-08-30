@@ -43,3 +43,8 @@ TerminalOsc52Request parseTerminalOsc52Request(List<String> args) {
     utf8.decode(base64.decode(normalized), allowMalformed: true),
   );
 }
+
+String? decodeTerminalOsc52Payload(String selector, String payload) {
+  final request = parseTerminalOsc52Request([selector, payload]);
+  return request is TerminalOsc52Write ? request.text : null;
+}

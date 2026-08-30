@@ -1,10 +1,13 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:xterm/xterm.dart';
+import 'package:xterm2/xterm.dart';
 
 void main() {
   test('xterm preserves Shift+Enter as CSI-u input', () {
     final output = <String>[];
-    final terminal = Terminal(onOutput: output.add);
+    final terminal = Terminal(
+      reflowWithHiddenCursor: false,
+      onOutput: output.add,
+    );
 
     terminal.keyInput(TerminalKey.enter, shift: true);
 
@@ -12,7 +15,11 @@ void main() {
   });
 
   test('xterm handles resize while scrollback and margins are active', () {
-    final terminal = Terminal(maxLines: 120, reflowEnabled: false);
+    final terminal = Terminal(
+      reflowWithHiddenCursor: false,
+      maxLines: 120,
+      reflowEnabled: false,
+    );
 
     terminal.resize(10, 5);
     for (var i = 0; i < 100; i++) {
@@ -30,7 +37,7 @@ void main() {
   });
 
   test('xterm reflows narrow wide-character prompts without RangeError', () {
-    final terminal = Terminal();
+    final terminal = Terminal(reflowWithHiddenCursor: false);
 
     terminal
       ..resize(1, 4)
@@ -40,7 +47,7 @@ void main() {
   });
 
   test('xterm keeps reflowed scrollback aligned after a circular trim', () {
-    final terminal = Terminal(maxLines: 100);
+    final terminal = Terminal(reflowWithHiddenCursor: false, maxLines: 100);
 
     terminal.resize(10, 3);
     for (var i = 0; i < 20; i++) {
@@ -69,7 +76,7 @@ void main() {
   test(
     'xterm handles line feeds at the bottom of a scroll region after resize',
     () {
-      final terminal = Terminal(maxLines: 10000);
+      final terminal = Terminal(reflowWithHiddenCursor: false, maxLines: 10000);
 
       terminal
         ..resize(56, 27)
@@ -85,7 +92,10 @@ void main() {
   );
 
   test('xterm does not restore stale alt-buffer cells after resize', () {
-    final terminal = Terminal(reflowEnabled: false);
+    final terminal = Terminal(
+      reflowWithHiddenCursor: false,
+      reflowEnabled: false,
+    );
 
     terminal
       ..resize(12, 4)
@@ -101,7 +111,7 @@ void main() {
   test(
     'xterm does not reveal stale main-buffer rows after Claude-like resize',
     () {
-      final terminal = Terminal();
+      final terminal = Terminal(reflowWithHiddenCursor: false);
 
       terminal
         ..resize(20, 6)
@@ -131,7 +141,7 @@ void main() {
   test(
     'xterm clears hidden main-buffer cells with reflow enabled after resize',
     () {
-      final terminal = Terminal();
+      final terminal = Terminal(reflowWithHiddenCursor: false);
 
       terminal
         ..resize(18, 4)
@@ -151,7 +161,7 @@ void main() {
   test(
     'xterm discards incremental resize scrollback for cursor-hidden apps',
     () {
-      final terminal = Terminal();
+      final terminal = Terminal(reflowWithHiddenCursor: false);
 
       terminal
         ..resize(24, 8)
@@ -185,7 +195,7 @@ void main() {
   );
 
   test('xterm repairs a stale row before writing past its capacity', () {
-    final terminal = Terminal()..resize(680, 24);
+    final terminal = Terminal(reflowWithHiddenCursor: false)..resize(680, 24);
     terminal.mainBuffer.lines[0] = BufferLine(80);
 
     terminal.write('\x1b[1;171Hx');

@@ -1,0 +1,313 @@
+{
+  "verifiedAt": "2026-08-30T03:28:52.123Z",
+  "backupDirectory": "/home/leynier/.codex/artifacts/alera-terminal-forks-20260829-6e04",
+  "repositories": [
+    {
+      "repository": "leynier/xterm.dart",
+      "defaultBranch": "next",
+      "onlyBranch": "next",
+      "next": "8e130dd687b0ff036443a5aff318e74275163eee",
+      "deleteBranchOnMerge": true,
+      "archived": false,
+      "tagsPreserved": 0,
+      "releasesPreserved": 0,
+      "previousBranches": [
+        {
+          "name": "cursor/terminal-buffer-perf-5902",
+          "sha": "14ebe14844b5f35cff20c582f09fd97dd6bedc28"
+        },
+        {
+          "name": "fix/mobile-cursor-restore-buffer-boundary",
+          "sha": "169de2f4112e989f688192357575fc0297e7cf89"
+        },
+        {
+          "name": "fix/reflow-circular-trim",
+          "sha": "4fbb7809ed5fdb894d3fa229d4d0eeb70030a0d2"
+        },
+        {
+          "name": "fix/shift-enter-csi-u",
+          "sha": "eb4e231aa895a8ed1249fc101322614b4e69266d"
+        },
+        {
+          "name": "fix/terminal-erase-range",
+          "sha": "07e28f28706bbcc10a383b6a3aefc73d8cfb68ba"
+        },
+        {
+          "name": "fix/terminal-host-connection-closed",
+          "sha": "83ff280b98430c90ce511dd1af5669722ce15f6d"
+        },
+        {
+          "name": "fix/trim-start-memory-retention",
+          "sha": "ebfab96c67fd1168ff3aa98025e73e6e5dadbfdd"
+        },
+        {
+          "name": "fix/tui-mouse-clipboard-interaction",
+          "sha": "ae511db1ced0d3bcc389a88e84500617253d34f8"
+        },
+        {
+          "name": "master",
+          "sha": "d35ba2cc72d0b89b0fd19af69d57df2c02f26a16"
+        }
+      ]
+    },
+    {
+      "repository": "leynier/dart_terminal",
+      "defaultBranch": "next",
+      "onlyBranch": "next",
+      "next": "e7028139cd90a0676c0323b2ec5f4312d14c4932",
+      "deleteBranchOnMerge": true,
+      "archived": false,
+      "tagsPreserved": 20,
+      "releasesPreserved": 2,
+      "previousBranches": [
+        {
+          "name": "chore/vte-prebuilts-from-fork",
+          "sha": "b6db3a3cf2d4540960085e93d811c1835639a01c"
+        },
+        {
+          "name": "docs/clarify-fork-distribution",
+          "sha": "2960bc7743030cac6def08f82f1261b43fbc1b92"
+        },
+        {
+          "name": "feat/ghostty-2dd79f3",
+          "sha": "132cb6575fb56b247c1c43ede2d0e5681ff48b3a"
+        },
+        {
+          "name": "feat/vte-unicode-and-selection",
+          "sha": "3c2eaab5d6ba7928f2f1539052ff9b3daee298a8"
+        },
+        {
+          "name": "fix/isolate-ghostty-source-patches",
+          "sha": "e00378552ba2fbd9f142f7d7e50682545e6fcf85"
+        },
+        {
+          "name": "fix/patch-crlf-on-windows",
+          "sha": "f1b18bdf05a501d2d6737880230515334cc0a386"
+        },
+        {
+          "name": "fix/repeated-ghostty-build-crash",
+          "sha": "dca082113f7e7a04d465431440a765e71468d3ee"
+        },
+        {
+          "name": "fix/vte-flutter-enum-sentinel",
+          "sha": "15d652c6622a383890ca07dda5c9ffe18d69fa6d"
+        },
+        {
+          "name": "fix/windows-dll-lookup",
+          "sha": "49732c2c2496a90b92f0c8e20e4745b6dac785da"
+        },
+        {
+          "name": "fix/zig-cache-dir-on-windows",
+          "sha": "e74c87c45b56233b7aa185dcbaeb9e62ae4c6b99"
+        },
+        {
+          "name": "master",
+          "sha": "cea5f7289c1c9509b2290299b2d9bb2b8192a932"
+        }
+      ]
+    },
+    {
+      "repository": "leynier/xterm2",
+      "defaultBranch": "next",
+      "onlyBranch": "next",
+      "next": "52fec4dae89c9b8af6e7071096673fe4a5af4ba1",
+      "deleteBranchOnMerge": true,
+      "archived": false,
+      "tagsPreserved": 0,
+      "releasesPreserved": 0,
+      "previousBranches": [
+        {
+          "name": "master",
+          "sha": "2a339558ba103e38a304a4eda7c984b45c47e186"
+        }
+      ]
+    }
+  ],
+  "conservation": [
+    {
+      "repo": "xterm",
+      "branch": "cursor/terminal-buffer-perf-5902",
+      "sha": "14ebe14844b5f35cff20c582f09fd97dd6bedc28",
+      "ancestor": true
+    },
+    {
+      "repo": "xterm",
+      "branch": "fix/mobile-cursor-restore-buffer-boundary",
+      "sha": "169de2f4112e989f688192357575fc0297e7cf89",
+      "ancestor": true
+    },
+    {
+      "repo": "xterm",
+      "branch": "fix/reflow-circular-trim",
+      "sha": "4fbb7809ed5fdb894d3fa229d4d0eeb70030a0d2",
+      "ancestor": true
+    },
+    {
+      "repo": "xterm",
+      "branch": "fix/shift-enter-csi-u",
+      "sha": "eb4e231aa895a8ed1249fc101322614b4e69266d",
+      "ancestor": true
+    },
+    {
+      "repo": "xterm",
+      "branch": "fix/terminal-erase-range",
+      "sha": "07e28f28706bbcc10a383b6a3aefc73d8cfb68ba",
+      "ancestor": true
+    },
+    {
+      "repo": "xterm",
+      "branch": "fix/terminal-host-connection-closed",
+      "sha": "83ff280b98430c90ce511dd1af5669722ce15f6d",
+      "ancestor": true
+    },
+    {
+      "repo": "xterm",
+      "branch": "fix/trim-start-memory-retention",
+      "sha": "ebfab96c67fd1168ff3aa98025e73e6e5dadbfdd",
+      "ancestor": true
+    },
+    {
+      "repo": "xterm",
+      "branch": "fix/tui-mouse-clipboard-interaction",
+      "sha": "ae511db1ced0d3bcc389a88e84500617253d34f8",
+      "ancestor": true
+    },
+    {
+      "repo": "xterm",
+      "branch": "master",
+      "sha": "d35ba2cc72d0b89b0fd19af69d57df2c02f26a16",
+      "ancestor": true
+    },
+    {
+      "repo": "xterm",
+      "branch": "next",
+      "sha": "83ff280b98430c90ce511dd1af5669722ce15f6d",
+      "ancestor": true
+    },
+    {
+      "repo": "dart-terminal",
+      "branch": "chore/vte-prebuilts-from-fork",
+      "sha": "b6db3a3cf2d4540960085e93d811c1835639a01c",
+      "ancestor": false,
+      "squash": "3d8ca353440cb40897f54fb7d12d24c8f0ac9e37",
+      "squashAncestor": true,
+      "branchPatch": "7ee7b6f19edc60b19289aee866a682ba3bb6bd1b",
+      "squashPatch": "7ee7b6f19edc60b19289aee866a682ba3bb6bd1b",
+      "patchEquivalent": true,
+      "binaryBlobs": []
+    },
+    {
+      "repo": "dart-terminal",
+      "branch": "docs/clarify-fork-distribution",
+      "sha": "2960bc7743030cac6def08f82f1261b43fbc1b92",
+      "ancestor": true
+    },
+    {
+      "repo": "dart-terminal",
+      "branch": "feat/ghostty-2dd79f3",
+      "sha": "132cb6575fb56b247c1c43ede2d0e5681ff48b3a",
+      "ancestor": false,
+      "squash": "da96e2ad5167c3abd9fcd3b08ef92e5769fcb4a1",
+      "squashAncestor": true,
+      "branchPatch": "254fff09a7ce25f2ff6975eb563a1dffeec42658",
+      "squashPatch": "254fff09a7ce25f2ff6975eb563a1dffeec42658",
+      "patchEquivalent": true,
+      "binaryBlobs": [
+        {
+          "path": "pkgs/vte/ghostty_vte/lib/ghostty_vte_bindings_generated.dart",
+          "branchBlob": "aac5c81b1fbb1faed5485930df321e79b810b626",
+          "squashBlob": "aac5c81b1fbb1faed5485930df321e79b810b626"
+        },
+        {
+          "path": "pkgs/vte/ghostty_vte_flutter/assets/ghostty-vt.wasm",
+          "branchBlob": "0602476c272b8eb52402c85f16c577dd5db451cc",
+          "squashBlob": "0602476c272b8eb52402c85f16c577dd5db451cc"
+        }
+      ]
+    },
+    {
+      "repo": "dart-terminal",
+      "branch": "feat/vte-unicode-and-selection",
+      "sha": "3c2eaab5d6ba7928f2f1539052ff9b3daee298a8",
+      "ancestor": false,
+      "squash": "2ebef07be16d6d850eefebf072e42af76d416e90",
+      "squashAncestor": true,
+      "branchPatch": "bac0eb5f36743e89631f182d2395ed1bfbeab9e2",
+      "squashPatch": "bac0eb5f36743e89631f182d2395ed1bfbeab9e2",
+      "patchEquivalent": true,
+      "binaryBlobs": []
+    },
+    {
+      "repo": "dart-terminal",
+      "branch": "fix/isolate-ghostty-source-patches",
+      "sha": "e00378552ba2fbd9f142f7d7e50682545e6fcf85",
+      "ancestor": true
+    },
+    {
+      "repo": "dart-terminal",
+      "branch": "fix/patch-crlf-on-windows",
+      "sha": "f1b18bdf05a501d2d6737880230515334cc0a386",
+      "ancestor": false,
+      "squash": "038f33bf93e201dd75c8ae2f32c04b1cf116741c",
+      "squashAncestor": true,
+      "branchPatch": "364cc2b78a1124f58faf5a4faa1a0e299e0e6905",
+      "squashPatch": "364cc2b78a1124f58faf5a4faa1a0e299e0e6905",
+      "patchEquivalent": true,
+      "binaryBlobs": []
+    },
+    {
+      "repo": "dart-terminal",
+      "branch": "fix/repeated-ghostty-build-crash",
+      "sha": "dca082113f7e7a04d465431440a765e71468d3ee",
+      "ancestor": true
+    },
+    {
+      "repo": "dart-terminal",
+      "branch": "fix/vte-flutter-enum-sentinel",
+      "sha": "15d652c6622a383890ca07dda5c9ffe18d69fa6d",
+      "ancestor": false,
+      "squash": "b2eb256a8101de574f338728dcc9a901513df9c4",
+      "squashAncestor": true,
+      "branchPatch": "da738a6e49a1fcab2d0ac9f605538cab2bb55fe0",
+      "squashPatch": "da738a6e49a1fcab2d0ac9f605538cab2bb55fe0",
+      "patchEquivalent": true,
+      "binaryBlobs": []
+    },
+    {
+      "repo": "dart-terminal",
+      "branch": "fix/windows-dll-lookup",
+      "sha": "49732c2c2496a90b92f0c8e20e4745b6dac785da",
+      "ancestor": false,
+      "squash": "83d8b3ef61a0b1f27a421f731d183c4bf5841bb7",
+      "squashAncestor": true,
+      "branchPatch": "3d934f1de8ca7159e309492ed442e89761e4fad7",
+      "squashPatch": "3d934f1de8ca7159e309492ed442e89761e4fad7",
+      "patchEquivalent": true,
+      "binaryBlobs": []
+    },
+    {
+      "repo": "dart-terminal",
+      "branch": "fix/zig-cache-dir-on-windows",
+      "sha": "e74c87c45b56233b7aa185dcbaeb9e62ae4c6b99",
+      "ancestor": false,
+      "squash": "a88fb634841e2e51330621d9f616111b35f92ca8",
+      "squashAncestor": true,
+      "branchPatch": "804bbca055529db7fe47f614d515b0a5c1995130",
+      "squashPatch": "804bbca055529db7fe47f614d515b0a5c1995130",
+      "patchEquivalent": true,
+      "binaryBlobs": []
+    },
+    {
+      "repo": "dart-terminal",
+      "branch": "master",
+      "sha": "cea5f7289c1c9509b2290299b2d9bb2b8192a932",
+      "ancestor": true
+    },
+    {
+      "repo": "dart-terminal",
+      "branch": "next",
+      "sha": "afaa4195335dbd7442c84b5e74db455def5d8118",
+      "ancestor": true
+    }
+  ]
+}
