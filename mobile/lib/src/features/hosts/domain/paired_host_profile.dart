@@ -17,6 +17,8 @@ class PairedHostProfile {
     this.alias,
     this.isRemote = false,
     this.accountId,
+    this.discoveryStale = false,
+    this.discoveredAt,
   });
 
   final String id;
@@ -33,6 +35,25 @@ class PairedHostProfile {
   final String? alias;
   final bool isRemote;
   final String? accountId;
+  final bool discoveryStale;
+  final DateTime? discoveredAt;
+
+  PairedHostProfile withDiscovery({required bool stale, DateTime? at}) =>
+      PairedHostProfile(
+        id: id,
+        displayName: displayName,
+        endpoint: endpoint,
+        runtimeId: runtimeId,
+        deviceId: deviceId,
+        pairedAt: pairedAt,
+        serverPublicKeyB64: serverPublicKeyB64,
+        endpointNetwork: endpointNetwork,
+        alias: alias,
+        isRemote: isRemote,
+        accountId: accountId,
+        discoveryStale: stale,
+        discoveredAt: at ?? discoveredAt,
+      );
 
   String get effectiveName => alias ?? displayName;
 
@@ -49,6 +70,8 @@ class PairedHostProfile {
       alias: alias,
       isRemote: isRemote,
       accountId: accountId,
+      discoveryStale: discoveryStale,
+      discoveredAt: discoveredAt,
     );
   }
 
@@ -65,6 +88,8 @@ class PairedHostProfile {
       alias: alias,
       isRemote: isRemote,
       accountId: cloudAccountId,
+      discoveryStale: discoveryStale,
+      discoveredAt: discoveredAt,
     );
   }
 

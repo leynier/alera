@@ -24,6 +24,15 @@ impl ServerActor {
                 self.start_orchestration_board_read(client_id, request_id, request_type, payload)?;
                 Ok(true)
             }
+            "mobile.status.get"
+                if payload.get("includeNetworkStatus").and_then(Value::as_bool) != Some(false) =>
+            {
+                self.require_auth(client_id)?;
+                self.require_request_allowed(client_id, request_type)?;
+                self.start_mobile_network_snapshot(client_id, request_id)
+                    .await?;
+                Ok(true)
+            }
             "aiDictation.transcribe" => {
                 self.require_authenticated_local_request(client_id, request_type)?;
                 self.start_ai_dictation(client_id, request_id, payload)

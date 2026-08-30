@@ -14,7 +14,15 @@ bun run check
 bun test
 ```
 
-Relay checks use the WebSocket Hibernation API. Each Object accepts one runtime connection and at most eight mobile connections, forwards only between opposite roles, enforces a 1 MiB frame bound, and keeps only verified claims in WebSocket attachments. It does not use Durable Object storage, alarms, timers, outbound sockets, or payload logging. The runtime and mobile endpoints provide the E2E encryption layer; the Worker and Object never decrypt protocol content. Only the exact value `RELAY_ENABLED=true` exposes the relay route; every other value preserves the ordinary backend proxy behavior.
+Relay checks use the WebSocket Hibernation API. Each Object accepts one runtime connection and at most eight mobile connections, forwards only between opposite roles, enforces a 1 MiB frame bound, and keeps only verified claims in WebSocket attachments. It does not use Durable Object storage, alarms, recurring timers, outbound WebSockets, or payload logging. Negotiated authorization renewal uses bounded HTTP JWKS validation and serialized WebSocket attachments. The runtime and mobile endpoints provide the E2E encryption layer; the Worker and Object never decrypt protocol content. Only the exact value `RELAY_ENABLED=true` exposes the relay route; every other value preserves the ordinary backend proxy behavior.
+
+## Renewal Rollout And Rollback
+
+Deploy the compatible edge first, then the runtime, then mobile. Both the `alera-relay-control-v1` subprotocol and `relayAuthorizationRenewalV1` runtime capability are required for seamless mobile renewal. Older peers retain reconnect-on-expiry behavior. Do not change strict protocol versions or the 120-second grant lifetime.
+
+Set Worker variable `RELAY_RENEWAL_ENABLED=false` to stop negotiating and accepting renewal without disabling Remote Access. Runtime environment `ALERA_RELAY_RENEWAL_ENABLED=false` disables its offer; mobile builds support `--dart-define=ALERA_RELAY_RENEWAL_ENABLED=false`. Existing negotiated sockets can reconnect once when the edge switch changes. The separate `RELAY_ENABLED` switch controls the entire relay route and is not the renewal rollback switch.
+
+From this directory, `bun run test:integration` runs Dart + Rust + workerd for 20 seconds, `bun run test:adversarial` exercises stalled peers, and `bun run test:soak` runs eight clients for one hour. These commands use local fixture keys and an ephemeral HTTP authority, never real accounts. Cargo and Flutter must be installed; `FLUTTER_BIN` can select Flutter. See [relay design and validation](../docs/remote-access-relay.md).
 
 ## Production Secrets
 

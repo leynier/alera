@@ -136,6 +136,8 @@ mod managed_workspace_cleanup_tests;
 mod managed_workspace_requests;
 mod mobile_gateway_surface;
 mod mobile_hello_requests;
+#[cfg(test)]
+mod mobile_relay_presence_tests;
 mod mobile_terminal_requests;
 #[cfg(test)]
 mod mobile_terminal_viewport_tests;
@@ -436,6 +438,10 @@ impl ServerActor {
 
     async fn handle(&mut self, command: ServerCommand) {
         match command {
+            command @ (ServerCommand::RelayActivity { .. }
+            | ServerCommand::RelayStatus { .. }
+            | ServerCommand::RelayClientConnected { .. }
+            | ServerCommand::RelayClientLine { .. }) => self.handle_relay_command(command).await,
             ServerCommand::ClientConnected { id, handle, kind } => {
                 self.clients.insert(
                     id,
@@ -454,30 +460,18 @@ impl ServerActor {
                     },
                 );
             }
-            ServerCommand::RelayClientConnected {
-                id,
-                handle,
-                client_id,
-            } => {
-                self.clients.insert(
-                    id,
-                    ClientState {
-                        handle,
-                        authenticated: false,
-                        binary_frames: false,
-                        supports_mobile_emulator_tab_kind: false,
-                        supports_codex_tab_kind: false,
-                        kind: ClientKind::Mobile,
-                        local_role: client_delivery::LocalClientRole::Cli,
-                        mobile_device_id: None,
-                        mobile_device_name: Some("Remote Mobile".to_string()),
-                        cloud_device_id: Some(client_id.clone()),
-                        relay_client_id: Some(client_id),
-                    },
-                );
-            }
             ServerCommand::ClientLine { id, line } => self.handle_line(id, line).await,
-            ServerCommand::ClientDisconnected { id } => self.dispose_client(id).await,
+            ServerCommand::ClientDisconnected { id } => {
+                self.account_push.relay_presence.remove(&id);
+                self.dispose_client(id).await;
+            }
+            ServerCommand::MobileStatusFinished {
+                client_id,
+                request_id,
+                payload,
+            } => {
+                self.finish_mobile_network_snapshot(client_id, request_id, payload);
+            }
             ServerCommand::EmulatorPointerTimeout {
                 tab_id,
                 client_id,

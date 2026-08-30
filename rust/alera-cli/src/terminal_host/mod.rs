@@ -5,6 +5,7 @@ pub(crate) mod ai_dictation_capabilities;
 pub(crate) mod alera_account;
 pub mod buffer;
 pub mod client;
+mod client_budget;
 pub mod control_file;
 pub mod demand_driven_ticker;
 pub mod diagnostics;

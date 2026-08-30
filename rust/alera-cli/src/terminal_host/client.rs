@@ -1,14 +1,9 @@
-use std::sync::{
-    atomic::{AtomicU64, Ordering},
-    Arc,
-};
+use std::sync::Arc;
 
 use serde_json::Value;
 use tokio::io::{AsyncBufReadExt as _, AsyncWriteExt as _, BufReader};
 use tokio::net::TcpStream;
-use tokio::sync::mpsc::{
-    error::TryRecvError, Receiver, Sender, UnboundedReceiver, UnboundedSender,
-};
+use tokio::sync::mpsc::{error::TryRecvError, Receiver, UnboundedReceiver, UnboundedSender};
 
 use crate::terminal_host::frame_codec::{encode_json_frame, encode_output_frame};
 use crate::terminal_host::protocol::BINARY_FRAMES_ENABLED_EVENT;
@@ -23,6 +18,10 @@ use crate::terminal_host::server::ServerCommand;
 /// the client was still reading lines.
 #[derive(Debug, Clone)]
 pub enum ClientFrame {
+    Budgeted {
+        reservation: Arc<super::client_budget::FrameReservation>,
+        frame: Box<ClientFrame>,
+    },
     Json(Value),
     Output {
         session_id: String,
@@ -80,7 +79,9 @@ impl ClientFrame {
             ClientFrame::UpgradeToBinary
             | ClientFrame::RestartRuntimeAfterWrite { .. }
             | ClientFrame::ShutdownRuntimeAfterWrite { .. } => None,
-            ClientFrame::OrderedControl { .. } | ClientFrame::SequencedTerminal { .. } => {
+            ClientFrame::OrderedControl { .. }
+            | ClientFrame::SequencedTerminal { .. }
+            | ClientFrame::Budgeted { .. } => {
                 unreachable!("payload strips internal ordering envelopes")
             }
         }
@@ -91,7 +92,8 @@ impl ClientFrame {
         loop {
             frame = match frame {
                 ClientFrame::OrderedControl { frame, .. }
-                | ClientFrame::SequencedTerminal { frame, .. } => frame,
+                | ClientFrame::SequencedTerminal { frame, .. }
+                | ClientFrame::Budgeted { frame, .. } => frame,
                 _ => return frame,
             };
         }
@@ -115,69 +117,9 @@ impl ClientFrame {
     }
 }
 
-/// The server's view of a connected client. Control traffic stays independent
-/// from bounded terminal output so a terminal burst cannot drop RPC responses.
-#[derive(Clone)]
-pub struct ClientHandle {
-    control_out: UnboundedSender<ClientFrame>,
-    terminal_out: Sender<ClientFrame>,
-    terminal_sequence: Arc<AtomicU64>,
-}
-
-impl ClientHandle {
-    pub fn new(
-        control_out: UnboundedSender<ClientFrame>,
-        terminal_out: Sender<ClientFrame>,
-    ) -> Self {
-        Self {
-            control_out,
-            terminal_out,
-            terminal_sequence: Arc::new(AtomicU64::new(0)),
-        }
-    }
-
-    pub fn send_control(
-        &self,
-        frame: ClientFrame,
-    ) -> Result<(), tokio::sync::mpsc::error::SendError<ClientFrame>> {
-        let terminal_watermark = self.terminal_sequence.load(Ordering::SeqCst);
-        self.control_out.send(ClientFrame::OrderedControl {
-            terminal_watermark,
-            frame: Box::new(frame),
-        })
-    }
-
-    pub fn try_send_terminal(
-        &self,
-        frame: ClientFrame,
-    ) -> Result<(), tokio::sync::mpsc::error::TrySendError<ClientFrame>> {
-        let sequence = self.terminal_sequence.fetch_add(1, Ordering::SeqCst) + 1;
-        self.terminal_out.try_send(ClientFrame::SequencedTerminal {
-            sequence,
-            frame: Box::new(frame),
-        })
-    }
-}
-
-#[cfg(test)]
-impl ClientHandle {
-    pub fn test_channels() -> (Self, UnboundedReceiver<ClientFrame>) {
-        let (control_out, control_out_rx) = tokio::sync::mpsc::unbounded_channel();
-        let (terminal_out, _terminal_out_rx) =
-            tokio::sync::mpsc::channel(CLIENT_TERMINAL_OUT_QUEUE_CAPACITY);
-        (Self::new(control_out, terminal_out), control_out_rx)
-    }
-
-    /// Keeps the terminal lane receiver alive, so a test can read what was
-    /// delivered and can fill the queue to reproduce backpressure. The plain
-    /// [`Self::test_channels`] drops it, which makes every send read as closed.
-    pub fn test_terminal_channels() -> (Self, tokio::sync::mpsc::Receiver<ClientFrame>) {
-        let (control_out, _control_out_rx) = tokio::sync::mpsc::unbounded_channel();
-        let (terminal_out, terminal_out_rx) =
-            tokio::sync::mpsc::channel(CLIENT_TERMINAL_OUT_QUEUE_CAPACITY);
-        (Self::new(control_out, terminal_out), terminal_out_rx)
-    }
-}
+#[path = "client_handle.rs"]
+mod handle;
+pub use handle::ClientHandle;
 
 #[derive(Default)]
 pub(crate) struct ClientFrameOrdering {

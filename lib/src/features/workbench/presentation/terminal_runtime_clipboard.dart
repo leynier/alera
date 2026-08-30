@@ -1,30 +1,19 @@
 part of 'terminal_runtime.dart';
 
-void _handleTerminalPrivateOsc(
-  _XtermTerminalSessionHandle handle,
-  String code,
-  List<String> args,
-) {
-  if (code == '52') {
-    final request = parseTerminalOsc52Request(args);
-    if (request is! TerminalOsc52Write) {
-      return;
-    }
-    if (!handle._settings.allowOsc52Clipboard) {
-      handle._osc52Blocked();
-      return;
-    }
-    unawaited(
-      handle._clipboard.writeText(request.text).catchError((Object error) {
-        handle._notifyInteraction(
-          'Could not copy terminal selection.',
-          error: true,
-        );
-      }),
-    );
+void _storeTerminalClipboard(_XtermTerminalSessionHandle handle, String text) {
+  if (handle._disposed) return;
+  if (!handle._settings.allowOsc52Clipboard) {
+    handle._osc52Blocked();
     return;
   }
-  handle._osc8LinkTracker.handlePrivateOsc(code, args);
+  unawaited(
+    handle._clipboard.writeText(text).catchError((Object error) {
+      handle._notifyInteraction(
+        'Could not copy terminal selection.',
+        error: true,
+      );
+    }),
+  );
 }
 
 void _pasteTerminalText(_XtermTerminalSessionHandle handle, String text) {
@@ -105,6 +94,13 @@ void _publishTerminalInteraction(
 
 xterm.Terminal _createSessionTerminal(_XtermTerminalSessionHandle handle) {
   return xterm.Terminal(
+    reflowWithHiddenCursor: false,
+    preserveOrphanCombiningMarks: true,
+    allowITerm2ClipboardCapture: false,
+    allowKittyClipboard: false,
+    // An unset callback lets TerminalView install its system clipboard reader.
+    onClipboardQuery: (_) => null,
+    clipboardDecoder: decodeTerminalOsc52Payload,
     maxLines: handle._settings.scrollbackLines,
     platform: _xtermTargetPlatform,
     wordSeparators: _wordSeparatorsFromSettings(
@@ -120,12 +116,13 @@ void _attachSessionTerminal(
   terminal.onTitleChange = handle._handleTitleChanged;
   terminal.onOutput = handle._handleTerminalInput;
   terminal.onResize = handle._handleTerminalResize;
-  terminal.onPrivateOSC = handle._handlePrivateOsc;
+  terminal.onClipboardStore = (_, text) =>
+      _storeTerminalClipboard(handle, text);
 }
 
 void _detachSessionTerminal(xterm.Terminal terminal) {
   terminal.onTitleChange = null;
   terminal.onOutput = null;
   terminal.onResize = null;
-  terminal.onPrivateOSC = null;
+  terminal.onClipboardStore = null;
 }

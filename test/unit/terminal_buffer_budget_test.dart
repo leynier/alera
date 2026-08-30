@@ -1,6 +1,6 @@
 import 'package:alera/src/features/workbench/presentation/terminal_buffer_budget.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:xterm/xterm.dart' as xterm;
+import 'package:xterm2/xterm.dart' as xterm;
 
 const int _mb = 1024 * 1024;
 

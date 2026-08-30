@@ -1,3 +1,6 @@
+#[path = "support/relay_authorization_cases.rs"]
+mod relay_authorization_cases;
+
 use std::{
     sync::{
         atomic::{AtomicUsize, Ordering},
@@ -220,19 +223,7 @@ async fn account_enrollment_and_push_contract() -> anyhow::Result<()> {
     )
     .await?;
     assert_eq!(mobile_grant["clientKind"].as_str(), Some("mobile"));
-    let grant_parts = mobile_grant["grant"]
-        .as_str()
-        .ok_or_else(|| anyhow::anyhow!("missing relay grant"))?
-        .split('.')
-        .map(|part| URL_SAFE_NO_PAD.decode(part))
-        .collect::<Result<Vec<_>, _>>()?;
-    let grant_claims: Value = serde_json::from_slice(&grant_parts[1])?;
-    assert_eq!(grant_claims["aud"].as_str(), Some("alera-relay"));
-    assert_eq!(grant_claims["role"].as_str(), Some("mobile"));
-    assert_eq!(
-        grant_claims["runtimeId"].as_str(),
-        Some(runtime_one.as_str())
-    );
+    relay_authorization_cases::assert_grant_scope(&mobile_grant, &runtime_one)?;
     call(
         &app,
         TestRequest {
@@ -298,6 +289,15 @@ async fn account_enrollment_and_push_contract() -> anyhow::Result<()> {
     .await?;
     assert_eq!(duplicate["duplicate"].as_bool(), Some(true));
     assert_eq!(sent.load(Ordering::SeqCst), 1);
+    relay_authorization_cases::rejects_rotation_conflicts_and_revoked_renewals(
+        &app,
+        &pool,
+        account_id,
+        &device_id,
+        mobile_token,
+        &runtime_one,
+    )
+    .await?;
 
     sqlx::query("DELETE FROM accounts WHERE id = $1")
         .bind(account_id)

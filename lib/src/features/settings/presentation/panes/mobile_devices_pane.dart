@@ -99,7 +99,29 @@ class _MobileDevicesSettingsPaneState
               const SizedBox(height: AleraTokens.space16),
               KeyedSubtree(
                 key: widget.groupKeys['devices'],
-                child: _devicesGroup(status),
+                child: Column(
+                  children: <Widget>[
+                    _devicesGroup(status),
+                    if (status.connectedRelayDevices.isNotEmpty) ...<Widget>[
+                      const SizedBox(height: AleraTokens.space16),
+                      AleraSettingsGroup(
+                        title: 'Connected Remote Devices',
+                        description:
+                            'Connected through your Alera account. Disable Remote Access to disconnect these devices.',
+                        children: <Widget>[
+                          for (final device in status.connectedRelayDevices)
+                            MobileDeviceListRow(
+                              device: device,
+                              onRename: null,
+                              onRevoke: null,
+                              onDelete: null,
+                              remote: true,
+                            ),
+                        ],
+                      ),
+                    ],
+                  ],
+                ),
               ),
               if (_error != null) ...<Widget>[
                 const SizedBox(height: AleraTokens.space12),
