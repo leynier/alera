@@ -8,7 +8,9 @@ on:
       - pubspec.yaml
       - pubspec.lock
       - mobile/**
+      - packages/alera_configuration/**
       - third_party/xterm
+      - .gitmodules
       - rust/**
       - rust_builder/**
       - .github/actions/setup-flutter-workspace/**
