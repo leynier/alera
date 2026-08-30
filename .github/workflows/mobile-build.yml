@@ -84,3 +84,12 @@ jobs:
         if: matrix.platform == 'ios'
         working-directory: mobile
         run: flutter build ios --simulator --debug --no-codesign --verbose
+
+      - name: Record resolved iOS dependencies
+        if: matrix.platform == 'ios'
+        uses: actions/upload-artifact@v7
+        with:
+          name: ios-dependency-lock
+          path: mobile/ios/Podfile.lock
+          if-no-files-found: error
+          retention-days: 7
