@@ -126,7 +126,8 @@ class ApplicationSettingsPane extends ConsumerWidget {
                     'Leave the app-launched sidecar running after a clean quit. Persistent CLI runtimes are never stopped by quitting, and unexpected exits always leave the host up.',
                 value: terminal.keepRuntimeOpenOnAppQuit,
                 onChanged: (value) => controller.updateTerminal(
-                  terminal.copyWith(keepRuntimeOpenOnAppQuit: value),
+                  (terminal) =>
+                      terminal.copyWith(keepRuntimeOpenOnAppQuit: value),
                 ),
               ),
               SettingsIntegerRow(
@@ -139,7 +140,8 @@ class ApplicationSettingsPane extends ConsumerWidget {
                 step: 5,
                 suffix: 's',
                 onChanged: (value) => controller.updateTerminal(
-                  terminal.copyWith(hostEmptyShutdownDelaySeconds: value),
+                  (terminal) =>
+                      terminal.copyWith(hostEmptyShutdownDelaySeconds: value),
                 ),
               ),
               SettingsIntegerRow(
@@ -152,7 +154,7 @@ class ApplicationSettingsPane extends ConsumerWidget {
                 step: 60,
                 suffix: 's',
                 onChanged: (value) => controller.updateTerminal(
-                  terminal.copyWith(
+                  (terminal) => terminal.copyWith(
                     hostDetachedSessionShutdownDelaySeconds: value,
                   ),
                 ),

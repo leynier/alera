@@ -11,8 +11,8 @@ import TrustDocument from '../components/TrustDocument.astro';
   <TrustDocument
     eyebrow="Trust Document"
     title="Privacy Policy"
-    summary="Alera is local-first. Cloud services are used only for account identity, mobile push delivery, abuse prevention, and the public website."
-    updated="July 27, 2026"
+    summary="Alera is local-first. Optional cloud features provide account identity, configuration synchronization, mobile push delivery, abuse prevention, and the public website."
+    updated="August 29, 2026"
   >
     <h2>Who Operates Alera</h2>
     <p>Alera is an open-source project maintained by <a href="https://leynier.dev">Leynier Gutiérrez González</a>. Questions and privacy requests can be sent to <a href="mailto:privacy@alera.build">privacy@alera.build</a>.</p>
@@ -20,6 +20,7 @@ import TrustDocument from '../components/TrustDocument.astro';
     <h2>Information We Process</h2>
     <ul>
       <li><strong>Account Identity:</strong> Your email address, the identity provider you use, the provider account identifier, linked-provider status, and account timestamps.</li>
+      <li><strong>Configuration Sync:</strong> When you explicitly upload configuration, we store the selected portable preferences, agent profiles, custom commands and prompts, together with revision, device and timestamp information. Review user-authored text for embedded secrets before uploading. The service can read this content; configuration sync is not end-to-end encrypted. Credential stores, pairing secrets and device consent records are excluded from synchronization.</li>
       <li><strong>Devices And Runtimes:</strong> Random identifiers, names you assign, platform, enrollment status, notification preferences, and last-seen timestamps.</li>
       <li><strong>Push Delivery:</strong> Firebase Cloud Messaging registration tokens, notification category, delivery result, quota counters, and error timestamps.</li>
       <li><strong>Notification Content:</strong> When enabled, a notification can include an agent status plus project and workspace names. Alera does not place prompts, terminal input, terminal output, source code, or repository contents in the push payload.</li>
@@ -34,12 +35,14 @@ import TrustDocument from '../components/TrustDocument.astro';
     <p>Alera uses Google and GitHub for sign-in, Cloudflare for the public API edge, Google Cloud Run and Cloud Key Management Service for the account and push service, Firebase Cloud Messaging for notification delivery, Neon for the primary account database, and Vercel for the public website and its aggregate analytics. These providers process data under their own terms and may process operational data in locations where they run their networks.</p>
 
     <h2>Storage And Retention</h2>
+    <p>Configuration synchronization retains up to 100 revisions, each limited to 512 KiB, until replaced by newer revisions or removed when you delete your account. Local backups and applied preferences remain on your devices. Synchronization is manual: signing in does not upload your configuration, and applying a downloaded version does not publish it.</p>
     <p>The primary account database is configured in a United States region. Account, device, and subscription records remain until you remove them or delete your account. Expired sessions and operational delivery records become eligible for scheduled cleanup after service activity. Because the service can scale to zero, removal can occur after its next start rather than at an exact deadline. A keyed account identifier fingerprint may be retained for up to 90 days after deletion to support security investigations without retaining your email or provider id. A non-reversible FCM token hash may remain for up to 30 days after Firebase reports that token unregistered so the invalid token is not immediately added again. Provider security logs may follow the provider's own retention schedule.</p>
 
     <h2>Sharing And Sale</h2>
     <p>We share data only with the processors needed to provide and protect the service, when you direct us to do so, or when legally required. We do not sell personal information or use account data for advertising.</p>
 
     <h2>Your Choices</h2>
+    <p>You choose when to review, download or upload configuration and which values to keep when changes conflict. Configuration is shared only within your selected Alera account. Deleting that account also removes its saved configuration and revision history.</p>
     <p>You can disable each runtime's push subscription, remove a mobile device, sign out a runtime, or delete your account. Push is optional and Alera's local workspace and terminal features continue to work without an Alera account.</p>
 
     <h2>Account Deletion</h2>

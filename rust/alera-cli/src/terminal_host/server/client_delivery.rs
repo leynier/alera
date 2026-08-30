@@ -219,6 +219,7 @@ impl ServerActor {
             self.immediate_checkpoint(&session_id).await;
         }
         self.clients.remove(&client_id);
+        self.configuration_transfers.disconnect(client_id);
         if release_emulator {
             self.queue_emulator_client_release(client_id, !self.has_authenticated_clients());
         }
@@ -315,6 +316,7 @@ mod tests {
             managed_workspace_jobs: 0,
             emulator_requests: Default::default(),
             agent_quota_cache: None,
+            configuration_transfers: Default::default(),
             account_push,
             clients: HashMap::from([(
                 1,

@@ -1,4 +1,5 @@
 import 'package:alera_mobile/src/app/theme/alera_tokens.dart';
+import 'package:alera_mobile/src/features/configuration_sync/presentation/configuration_sync_screen.dart';
 import 'package:alera_mobile/src/design_system/icons/alera_icons.dart';
 import 'package:alera_mobile/src/features/accounts/presentation/accounts_screen.dart';
 import 'package:alera_mobile/src/features/diagnostics/presentation/diagnostics_screen.dart';
@@ -20,6 +21,18 @@ class AppSettingsScreen extends StatelessWidget {
         child: ListView(
           padding: AleraTokens.pagePadding,
           children: <Widget>[
+            Card(
+              child: ListTile(
+                leading: const Icon(Icons.sync),
+                title: const Text('Configuration Sync'),
+                subtitle: const Text('Review, download and upload preferences'),
+                onTap: () => Navigator.of(context).push<void>(
+                  MaterialPageRoute<void>(
+                    builder: (_) => const ConfigurationSyncScreen(),
+                  ),
+                ),
+              ),
+            ),
             Text('Account', style: Theme.of(context).textTheme.titleMedium),
             const SizedBox(height: AleraTokens.spaceSm),
             Card(

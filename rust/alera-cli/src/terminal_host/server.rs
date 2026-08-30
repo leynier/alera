@@ -111,6 +111,10 @@ mod codex_user_messages;
 mod codex_workspace_inputs;
 mod computer_request_payloads;
 mod computer_requests;
+mod configuration_requests;
+mod configuration_transfers;
+mod mobile_gateway_replacement;
+use mobile_gateway_replacement::MobileGatewayReplacement;
 mod coordinator_requests;
 mod coordinator_stall_policy;
 mod declared_catalog_requests;
@@ -237,6 +241,7 @@ struct ServerActor {
     managed_workspace_jobs: usize,
     emulator_requests: emulator_request_queue::EmulatorRequestQueue,
     agent_quota_cache: Option<(Instant, u64, Value)>,
+    configuration_transfers: configuration_transfers::ConfigurationTransfers,
     account_push: account_push_state::AccountPushState,
     clients: HashMap<u64, ClientState>,
     mobile_prompt_file_uploads: HashMap<u64, HashSet<String>>,
@@ -261,15 +266,6 @@ struct ServerActor {
     mobile_gateway: Option<JoinHandle<()>>,
     shutdown_gen: u64,
     disposed: bool,
-}
-
-enum MobileGatewayReplacement {
-    Keep,
-    Disabled,
-    Bound {
-        listener: TcpListener,
-        bind_address: String,
-    },
 }
 
 impl ServerActor {
@@ -1220,6 +1216,7 @@ mod tests {
             managed_workspace_jobs: 0,
             emulator_requests: Default::default(),
             agent_quota_cache: None,
+            configuration_transfers: Default::default(),
             account_push: account_push_for_test(&dir, &runtime_store).await,
             clients: HashMap::from([(1, ClientState::local(handle, true))]),
             mobile_prompt_file_uploads: HashMap::new(),
@@ -1298,6 +1295,7 @@ mod tests {
             managed_workspace_jobs: 0,
             emulator_requests: Default::default(),
             agent_quota_cache: None,
+            configuration_transfers: Default::default(),
             account_push: account_push_for_test(&dir, &runtime_store).await,
             clients: HashMap::new(),
             mobile_prompt_file_uploads: HashMap::new(),
@@ -1394,6 +1392,7 @@ mod tests {
             managed_workspace_jobs: 0,
             emulator_requests: Default::default(),
             agent_quota_cache: None,
+            configuration_transfers: Default::default(),
             account_push: account_push_for_test(&dir, &runtime_store).await,
             clients: HashMap::new(),
             mobile_prompt_file_uploads: HashMap::new(),
@@ -1485,6 +1484,7 @@ mod tests {
             managed_workspace_jobs: 0,
             emulator_requests: Default::default(),
             agent_quota_cache: None,
+            configuration_transfers: Default::default(),
             account_push: account_push_for_test(&dir, &runtime_store).await,
             clients: HashMap::new(),
             mobile_prompt_file_uploads: HashMap::new(),
@@ -1598,6 +1598,7 @@ mod tests {
             managed_workspace_jobs: 0,
             emulator_requests: Default::default(),
             agent_quota_cache: None,
+            configuration_transfers: Default::default(),
             account_push: account_push_for_test(&dir, &runtime_store).await,
             clients: HashMap::new(),
             mobile_prompt_file_uploads: HashMap::new(),
@@ -1684,6 +1685,7 @@ mod tests {
             managed_workspace_jobs: 0,
             emulator_requests: Default::default(),
             agent_quota_cache: None,
+            configuration_transfers: Default::default(),
             account_push: account_push_for_test(&dir, &runtime_store).await,
             clients: HashMap::from([(1, ClientState::local(handle, false))]),
             mobile_prompt_file_uploads: HashMap::new(),
@@ -1757,6 +1759,7 @@ mod tests {
             managed_workspace_jobs: 0,
             emulator_requests: Default::default(),
             agent_quota_cache: None,
+            configuration_transfers: Default::default(),
             account_push: account_push_for_test(&dir, &runtime_store).await,
             clients: HashMap::from([
                 (1, ClientState::local(first_app_handle, true)),

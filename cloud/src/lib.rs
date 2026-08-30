@@ -3,6 +3,7 @@ pub mod api;
 pub mod api_models;
 pub mod auth;
 pub mod config;
+pub mod configuration;
 pub mod error;
 pub mod fcm;
 pub mod google_credentials;

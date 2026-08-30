@@ -18,7 +18,9 @@ void main() {
               aiAssistSettings: settings.aiAssist,
               onChanged: (next) {
                 setState(() {
-                  settings = settings.copyWith(textActions: next);
+                  settings = settings.copyWith(
+                    textActions: next(settings.textActions),
+                  );
                 });
               },
             ),
@@ -97,7 +99,7 @@ void main() {
             builder: (context, setState) => TextActionsSettingsPane(
               settings: actions,
               aiAssistSettings: AleraSettings.defaults.aiAssist,
-              onChanged: (next) => setState(() => actions = next),
+              onChanged: (next) => setState(() => actions = next(actions)),
             ),
           ),
         ),

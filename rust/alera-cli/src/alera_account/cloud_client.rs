@@ -344,7 +344,7 @@ impl CloudAccountClient {
         .await
     }
 
-    async fn json<T: DeserializeOwned>(
+    pub(super) async fn json<T: DeserializeOwned>(
         &self,
         method: Method,
         path: &str,

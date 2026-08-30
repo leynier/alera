@@ -104,7 +104,11 @@ abstract interface class AleraMobileAuthApi {
 }
 
 class HttpAleraCloudApi
-    implements AleraCloudApi, AleraRelayCloudApi, AleraMobileAuthApi {
+    implements
+        AleraCloudApi,
+        AleraRelayCloudApi,
+        AleraMobileAuthApi,
+        AleraConfigurationCloudApi {
   HttpAleraCloudApi({required this.configuration, http.Client? client})
     : _client = client ?? http.Client();
 
@@ -112,6 +116,26 @@ class HttpAleraCloudApi
   final http.Client _client;
 
   void close() => _client.close();
+
+  @override
+  Future<Map<String, Object?>> configurationRequest(
+    CloudAccountSession session,
+    String action,
+    Map<String, Object?> payload,
+  ) {
+    final path = switch (action) {
+      'head' || 'publish' => 'v1/configuration',
+      'history' => 'v1/configuration/history',
+      'revision' => 'v1/configuration/revisions/${payload['revision'] as int}',
+      _ => throw ArgumentError('Unsupported configuration action'),
+    };
+    return _sendJson(
+      action == 'publish' ? 'POST' : 'GET',
+      path,
+      accessToken: session.accessToken,
+      body: action == 'publish' ? payload : null,
+    );
+  }
 
   @override
   Future<CloudEnrollmentResult> redeemEnrollment({
@@ -394,4 +418,12 @@ DateTime _expiration(Map<String, Object?> json) {
     throw const FormatException('Missing accessTokenExpiresAt');
   }
   return DateTime.now().toUtc().add(Duration(seconds: seconds));
+}
+
+abstract interface class AleraConfigurationCloudApi {
+  Future<Map<String, Object?>> configurationRequest(
+    CloudAccountSession session,
+    String action,
+    Map<String, Object?> payload,
+  );
 }

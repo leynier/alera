@@ -6,6 +6,9 @@ use std::{
     time::Duration,
 };
 
+#[path = "contracts/configuration_contract.rs"]
+mod configuration_contract;
+
 use alera_cloud::{
     api_models::{ProviderKind, ProviderKind::Github},
     config::{FcmConfig, LimitsConfig, OAuthProviderConfig, SigningConfig},

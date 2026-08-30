@@ -25,7 +25,8 @@ class TextActionsSettingsPane extends StatefulWidget {
 
   final TextActionsSettings settings;
   final AiAssistSettings aiAssistSettings;
-  final ValueChanged<TextActionsSettings> onChanged;
+  final ValueChanged<TextActionsSettings Function(TextActionsSettings)>
+  onChanged;
   final Map<String, GlobalKey> groupKeys;
 
   @override
@@ -250,10 +251,12 @@ class _TextActionsSettingsPaneState extends State<TextActionsSettingsPane> {
       setState(() => _error = error);
       return;
     }
-    final next = _creatingNew
-        ? TextActionsMutations.append(widget.settings, action)
-        : TextActionsMutations.update(widget.settings, action);
-    widget.onChanged(next);
+    final creatingNew = _creatingNew;
+    widget.onChanged(
+      (settings) => creatingNew
+          ? TextActionsMutations.append(settings, action)
+          : TextActionsMutations.update(settings, action),
+    );
     setState(() {
       _creatingNew = false;
       _selectedId = action.id;
@@ -263,21 +266,32 @@ class _TextActionsSettingsPaneState extends State<TextActionsSettingsPane> {
   }
 
   void _setEnabled(TextAction action, bool enabled) {
-    widget.onChanged(
-      TextActionsMutations.update(
-        widget.settings,
-        action.copyWith(enabled: enabled),
-      ),
-    );
+    widget.onChanged((settings) {
+      final current = settings.actions
+          .where((a) => a.id == action.id)
+          .firstOrNull;
+      return current == null
+          ? settings
+          : TextActionsMutations.update(
+              settings,
+              current.copyWith(enabled: enabled),
+            );
+    });
   }
 
   void _reorder(int oldIndex, int newIndex) {
+    final reordered = TextActionsMutations.reorder(
+      widget.settings,
+      oldIndex,
+      newIndex >= oldIndex ? newIndex + 1 : newIndex,
+    );
+    final id = widget.settings.actions[oldIndex].id;
+    final index = reordered.actions.indexWhere((action) => action.id == id);
+    final beforeId = index + 1 < reordered.actions.length
+        ? reordered.actions[index + 1].id
+        : null;
     widget.onChanged(
-      TextActionsMutations.reorder(
-        widget.settings,
-        oldIndex,
-        newIndex >= oldIndex ? newIndex + 1 : newIndex,
-      ),
+      (settings) => TextActionsMutations.moveBefore(settings, id, beforeId),
     );
   }
 
@@ -289,10 +303,16 @@ class _TextActionsSettingsPaneState extends State<TextActionsSettingsPane> {
     final duplicate = sourceIndex < 0 || sourceIndex + 1 >= next.actions.length
         ? null
         : next.actions[sourceIndex + 1];
-    widget.onChanged(next);
     if (duplicate == null) {
       return;
     }
+    widget.onChanged(
+      (settings) => TextActionsMutations.duplicate(
+        settings,
+        action,
+        cloneId: duplicate.id,
+      ),
+    );
     setState(() {
       _creatingNew = false;
       _selectedId = duplicate.id;
@@ -316,7 +336,9 @@ class _TextActionsSettingsPaneState extends State<TextActionsSettingsPane> {
     final remaining = widget.settings.actions
         .where((candidate) => candidate.id != action.id)
         .toList(growable: false);
-    widget.onChanged(TextActionsMutations.delete(widget.settings, action.id));
+    widget.onChanged(
+      (settings) => TextActionsMutations.delete(settings, action.id),
+    );
     setState(() {
       _selectedId = remaining.firstOrNull?.id;
       _creatingNew = false;

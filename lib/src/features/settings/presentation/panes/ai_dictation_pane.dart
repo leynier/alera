@@ -26,7 +26,8 @@ class AiDictationSettingsPane extends ConsumerWidget {
   });
 
   final AiDictationSettings settings;
-  final ValueChanged<AiDictationSettings> onChanged;
+  final ValueChanged<AiDictationSettings Function(AiDictationSettings)>
+  onChanged;
   final Map<String, GlobalKey> groupKeys;
 
   @override
@@ -62,8 +63,9 @@ class AiDictationSettingsPane extends ConsumerWidget {
                   description:
                       'Show microphone controls in supported composers.',
                   value: settings.enabled,
-                  onChanged: (value) =>
-                      onChanged(settings.copyWith(enabled: value)),
+                  onChanged: (value) => onChanged(
+                    (settings) => settings.copyWith(enabled: value),
+                  ),
                 ),
                 AleraSettingRow(
                   title: 'Transcription Engine',
@@ -82,7 +84,8 @@ class AiDictationSettingsPane extends ConsumerWidget {
                             >(value: engine, label: _engineLabel(engine)),
                         ],
                     onChanged: (value) => onChanged(
-                      settings.copyWith(transcriptionEngine: value),
+                      (settings) =>
+                          settings.copyWith(transcriptionEngine: value),
                     ),
                   ),
                 ),
@@ -93,7 +96,9 @@ class AiDictationSettingsPane extends ConsumerWidget {
                   value: settings.language ?? '',
                   hintText: 'en-US',
                   onChanged: (value) => onChanged(
-                    settings.copyWith(language: value.isEmpty ? null : value),
+                    (settings) => settings.copyWith(
+                      language: value.isEmpty ? null : value,
+                    ),
                   ),
                 ),
                 if (selectedEngine ==
@@ -107,7 +112,7 @@ class AiDictationSettingsPane extends ConsumerWidget {
                         settings.systemRecognitionConsentVersion ==
                         _systemRecognitionConsentVersion,
                     onChanged: (value) => onChanged(
-                      settings.copyWith(
+                      (settings) => settings.copyWith(
                         systemRecognitionConsentVersion: value
                             ? _systemRecognitionConsentVersion
                             : null,
@@ -146,8 +151,9 @@ class AiDictationSettingsPane extends ConsumerWidget {
                         transfers.activeModelId != model.id,
                     onDownload: () => transferController.download(model.id),
                     onCancel: () => transferController.cancel(model.id),
-                    onSelect: () =>
-                        onChanged(settings.copyWith(localModelId: model.id)),
+                    onSelect: () => onChanged(
+                      (settings) => settings.copyWith(localModelId: model.id),
+                    ),
                     onRemove: () => transferController.remove(
                       model.id,
                       selectedModelId: settings.localModelId,
@@ -185,8 +191,9 @@ class AiDictationSettingsPane extends ConsumerWidget {
                             label: 'Summarize',
                           ),
                         ],
-                    onChanged: (value) =>
-                        onChanged(settings.copyWith(rewriteMode: value)),
+                    onChanged: (value) => onChanged(
+                      (settings) => settings.copyWith(rewriteMode: value),
+                    ),
                   ),
                 ),
               ],

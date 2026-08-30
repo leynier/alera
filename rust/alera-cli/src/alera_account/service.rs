@@ -2,7 +2,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use alera_core::runtime::{LocalAleraAccount, RuntimeStore};
-use anyhow::{anyhow, Result};
+use anyhow::{anyhow, Context as _, Result};
 use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine as _};
 use chrono::{Duration, Utc};
 use tokio::sync::Mutex;
@@ -36,6 +36,51 @@ pub(crate) struct AleraAccountService {
 }
 
 impl AleraAccountService {
+    pub(crate) async fn configuration_request(
+        &self,
+        account_id: &str,
+        action: &str,
+        payload: serde_json::Value,
+    ) -> Result<serde_json::Value> {
+        let account = self
+            .local_account()
+            .await?
+            .context("Sign in to Alera first.")?;
+        anyhow::ensure!(
+            account.account_id == account_id,
+            "The selected Alera account changed."
+        );
+        let token = self.access_token().await?;
+        anyhow::ensure!(
+            self.local_account()
+                .await?
+                .is_some_and(|a| a.account_id == account_id),
+            "The selected Alera account changed."
+        );
+        let (method, path, body) = match action {
+            "head" => (reqwest::Method::GET, "/v1/configuration".to_string(), None),
+            "history" => (
+                reqwest::Method::GET,
+                "/v1/configuration/history".to_string(),
+                None,
+            ),
+            "revision" => (
+                reqwest::Method::GET,
+                format!(
+                    "/v1/configuration/revisions/{}",
+                    payload["revision"].as_u64().context("Invalid revision.")?
+                ),
+                None,
+            ),
+            "publish" => (
+                reqwest::Method::POST,
+                "/v1/configuration".to_string(),
+                Some(payload),
+            ),
+            _ => anyhow::bail!("Unsupported configuration operation."),
+        };
+        self.cloud.json(method, &path, Some(&token), body).await
+    }
     pub(crate) async fn new(runtime_dir: PathBuf, store: RuntimeStore) -> Result<Self> {
         let runtime_id = runtime_id(&store).await?;
         let base_url =

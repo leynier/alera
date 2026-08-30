@@ -188,6 +188,10 @@ impl ServerActor {
         payload: &Value,
     ) -> HostResult<Value> {
         match request_type {
+            request if request.starts_with("configuration.") => {
+                self.handle_configuration_request(client_id, request, payload)
+                    .await
+            }
             request_type if request_type.starts_with("codex.") => {
                 self.handle_codex_request(client_id, request_type, payload)
                     .await

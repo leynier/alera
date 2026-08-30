@@ -19,7 +19,7 @@ class TerminalSettingsPane extends StatelessWidget {
 
   final TerminalSettings settings;
   final List<String> fontSuggestions;
-  final ValueChanged<TerminalSettings> onChanged;
+  final ValueChanged<TerminalSettings Function(TerminalSettings)> onChanged;
 
   /// Re-probes the login shell so a tool installed mid-session resolves without
   /// restarting the runtime. When null the row is omitted.
@@ -43,8 +43,9 @@ class TerminalSettingsPane extends StatelessWidget {
                 description: 'Typeface used in new terminal sessions.',
                 value: settings.fontFamily,
                 suggestions: fontSuggestions,
-                onChanged: (value) =>
-                    onChanged(settings.copyWith(fontFamily: value)),
+                onChanged: (value) => onChanged(
+                  (settings) => settings.copyWith(fontFamily: value),
+                ),
               ),
               SettingsNumberRow(
                 title: 'Font Size',
@@ -55,7 +56,7 @@ class TerminalSettingsPane extends StatelessWidget {
                 step: 1,
                 suffix: 'px',
                 onChanged: (value) =>
-                    onChanged(settings.copyWith(fontSize: value)),
+                    onChanged((settings) => settings.copyWith(fontSize: value)),
               ),
               SettingsIntegerRow(
                 title: 'Font Weight',
@@ -64,8 +65,9 @@ class TerminalSettingsPane extends StatelessWidget {
                 min: 100,
                 max: 900,
                 step: 100,
-                onChanged: (value) =>
-                    onChanged(settings.copyWith(fontWeight: value)),
+                onChanged: (value) => onChanged(
+                  (settings) => settings.copyWith(fontWeight: value),
+                ),
               ),
               SettingsNumberRow(
                 title: 'Line Height',
@@ -74,8 +76,9 @@ class TerminalSettingsPane extends StatelessWidget {
                 min: 0.8,
                 max: 2.4,
                 step: 0.1,
-                onChanged: (value) =>
-                    onChanged(settings.copyWith(lineHeight: value)),
+                onChanged: (value) => onChanged(
+                  (settings) => settings.copyWith(lineHeight: value),
+                ),
               ),
             ],
           ),
@@ -89,15 +92,17 @@ class TerminalSettingsPane extends StatelessWidget {
             children: <Widget>[
               CursorShapeRow(
                 value: settings.cursorShape,
-                onChanged: (value) =>
-                    onChanged(settings.copyWith(cursorShape: value)),
+                onChanged: (value) => onChanged(
+                  (settings) => settings.copyWith(cursorShape: value),
+                ),
               ),
               SettingsSwitchRow(
                 title: 'Blinking Cursor',
                 description: 'Blink the cursor while the terminal has focus.',
                 value: settings.cursorBlink,
-                onChanged: (value) =>
-                    onChanged(settings.copyWith(cursorBlink: value)),
+                onChanged: (value) => onChanged(
+                  (settings) => settings.copyWith(cursorBlink: value),
+                ),
               ),
               SettingsNumberRow(
                 title: 'Cursor Opacity',
@@ -106,8 +111,9 @@ class TerminalSettingsPane extends StatelessWidget {
                 min: 0,
                 max: 1,
                 step: 0.05,
-                onChanged: (value) =>
-                    onChanged(settings.copyWith(cursorOpacity: value)),
+                onChanged: (value) => onChanged(
+                  (settings) => settings.copyWith(cursorOpacity: value),
+                ),
               ),
             ],
           ),
@@ -121,8 +127,9 @@ class TerminalSettingsPane extends StatelessWidget {
             children: <Widget>[
               ThemePickerSetting(
                 value: settings.themeName,
-                onChanged: (value) =>
-                    onChanged(settings.copyWith(themeName: value)),
+                onChanged: (value) => onChanged(
+                  (settings) => settings.copyWith(themeName: value),
+                ),
               ),
               SettingsNumberRow(
                 title: 'Background Opacity',
@@ -131,8 +138,9 @@ class TerminalSettingsPane extends StatelessWidget {
                 min: 0,
                 max: 1,
                 step: 0.05,
-                onChanged: (value) =>
-                    onChanged(settings.copyWith(backgroundOpacity: value)),
+                onChanged: (value) => onChanged(
+                  (settings) => settings.copyWith(backgroundOpacity: value),
+                ),
               ),
               SettingsNumberRow(
                 title: 'Horizontal Padding',
@@ -143,7 +151,7 @@ class TerminalSettingsPane extends StatelessWidget {
                 step: 1,
                 suffix: 'px',
                 onChanged: (value) =>
-                    onChanged(settings.copyWith(paddingX: value)),
+                    onChanged((settings) => settings.copyWith(paddingX: value)),
               ),
               SettingsNumberRow(
                 title: 'Vertical Padding',
@@ -154,12 +162,13 @@ class TerminalSettingsPane extends StatelessWidget {
                 step: 1,
                 suffix: 'px',
                 onChanged: (value) =>
-                    onChanged(settings.copyWith(paddingY: value)),
+                    onChanged((settings) => settings.copyWith(paddingY: value)),
               ),
               ToolbarCornerRow(
                 value: settings.toolbarCorner,
-                onChanged: (value) =>
-                    onChanged(settings.copyWith(toolbarCorner: value)),
+                onChanged: (value) => onChanged(
+                  (settings) => settings.copyWith(toolbarCorner: value),
+                ),
               ),
               HexColorSettingRow(
                 title: 'Foreground Color',
@@ -167,8 +176,10 @@ class TerminalSettingsPane extends StatelessWidget {
                 value: overrides.foreground,
                 fallback: '#f5f5f5',
                 onChanged: (value) => onChanged(
-                  settings.copyWith(
-                    colorOverrides: overrides.copyWith(foreground: value),
+                  (settings) => settings.copyWith(
+                    colorOverrides: settings.colorOverrides.copyWith(
+                      foreground: value,
+                    ),
                   ),
                 ),
               ),
@@ -178,8 +189,10 @@ class TerminalSettingsPane extends StatelessWidget {
                 value: overrides.background,
                 fallback: '#101010',
                 onChanged: (value) => onChanged(
-                  settings.copyWith(
-                    colorOverrides: overrides.copyWith(background: value),
+                  (settings) => settings.copyWith(
+                    colorOverrides: settings.colorOverrides.copyWith(
+                      background: value,
+                    ),
                   ),
                 ),
               ),
@@ -189,8 +202,10 @@ class TerminalSettingsPane extends StatelessWidget {
                 value: overrides.cursor,
                 fallback: '#e0e0e0',
                 onChanged: (value) => onChanged(
-                  settings.copyWith(
-                    colorOverrides: overrides.copyWith(cursor: value),
+                  (settings) => settings.copyWith(
+                    colorOverrides: settings.colorOverrides.copyWith(
+                      cursor: value,
+                    ),
                   ),
                 ),
               ),
@@ -200,8 +215,10 @@ class TerminalSettingsPane extends StatelessWidget {
                 value: overrides.selection,
                 fallback: '#3e4451',
                 onChanged: (value) => onChanged(
-                  settings.copyWith(
-                    colorOverrides: overrides.copyWith(selection: value),
+                  (settings) => settings.copyWith(
+                    colorOverrides: settings.colorOverrides.copyWith(
+                      selection: value,
+                    ),
                   ),
                 ),
               ),
@@ -223,32 +240,36 @@ class TerminalSettingsPane extends StatelessWidget {
                 min: 1,
                 max: 10,
                 step: 1,
-                onChanged: (value) =>
-                    onChanged(settings.copyWith(tuiScrollSensitivity: value)),
+                onChanged: (value) => onChanged(
+                  (settings) => settings.copyWith(tuiScrollSensitivity: value),
+                ),
               ),
               SettingsSwitchRow(
                 title: 'Copy On Select',
                 description:
                     'Copy local terminal selections to the system clipboard.',
                 value: settings.clipboardOnSelect,
-                onChanged: (value) =>
-                    onChanged(settings.copyWith(clipboardOnSelect: value)),
+                onChanged: (value) => onChanged(
+                  (settings) => settings.copyWith(clipboardOnSelect: value),
+                ),
               ),
               SettingsSwitchRow(
                 title: 'Allow OSC 52 Clipboard Writes',
                 description:
                     'Let terminal applications replace the system clipboard.',
                 value: settings.allowOsc52Clipboard,
-                onChanged: (value) =>
-                    onChanged(settings.copyWith(allowOsc52Clipboard: value)),
+                onChanged: (value) => onChanged(
+                  (settings) => settings.copyWith(allowOsc52Clipboard: value),
+                ),
               ),
               SettingsSwitchRow(
                 title: 'Show Terminal Composer By Default',
                 description:
                     'Open the prompt composer when a new terminal session starts.',
                 value: settings.showComposerByDefault,
-                onChanged: (value) =>
-                    onChanged(settings.copyWith(showComposerByDefault: value)),
+                onChanged: (value) => onChanged(
+                  (settings) => settings.copyWith(showComposerByDefault: value),
+                ),
               ),
             ],
           ),
@@ -266,8 +287,9 @@ class TerminalSettingsPane extends StatelessWidget {
                 description:
                     'Start shells as login shells so profile files such as ~/.zprofile and ~/.profile are loaded.',
                 value: settings.resolvedLoginShell,
-                onChanged: (value) =>
-                    onChanged(settings.copyWith(loginShell: value)),
+                onChanged: (value) => onChanged(
+                  (settings) => settings.copyWith(loginShell: value),
+                ),
               ),
               if (onReloadShellEnvironment != null)
                 SettingsButtonRow(
@@ -284,8 +306,9 @@ class TerminalSettingsPane extends StatelessWidget {
                 min: 100,
                 max: 200000,
                 step: 100,
-                onChanged: (value) =>
-                    onChanged(settings.copyWith(scrollbackLines: value)),
+                onChanged: (value) => onChanged(
+                  (settings) => settings.copyWith(scrollbackLines: value),
+                ),
               ),
               SettingsIntegerRow(
                 title: 'Host Scrollback Size',
@@ -297,7 +320,9 @@ class TerminalSettingsPane extends StatelessWidget {
                 step: 1,
                 suffix: 'MB',
                 onChanged: (value) => onChanged(
-                  settings.copyWith(hostScrollbackBytes: value * 1000 * 1000),
+                  (settings) => settings.copyWith(
+                    hostScrollbackBytes: value * 1000 * 1000,
+                  ),
                 ),
               ),
               SettingsIntegerRow(
@@ -313,8 +338,9 @@ class TerminalSettingsPane extends StatelessWidget {
                 max: 4096,
                 step: 64,
                 suffix: 'MB',
-                onChanged: (value) =>
-                    onChanged(settings.copyWith(bufferBudgetMegabytes: value)),
+                onChanged: (value) => onChanged(
+                  (settings) => settings.copyWith(bufferBudgetMegabytes: value),
+                ),
               ),
               SettingsTextRow(
                 title: 'Word Separators',
@@ -324,7 +350,7 @@ class TerminalSettingsPane extends StatelessWidget {
                 trimValue: false,
                 hintText: " ()[]{},\"'`",
                 onChanged: (value) => onChanged(
-                  settings.copyWith(
+                  (settings) => settings.copyWith(
                     wordSeparators: value.isEmpty ? null : value,
                   ),
                 ),

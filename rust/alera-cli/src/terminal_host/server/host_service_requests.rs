@@ -289,87 +289,14 @@ impl ServerActor {
     }
 }
 
-const AI_ASSIST_AGENTS: [&str; 12] = [
-    "codex",
-    "claude",
-    "copilot",
-    "cursor",
-    "agy",
-    "opencode",
-    "opencode2",
-    "pi",
-    "amp",
-    "grok",
-    "fx",
-    "custom",
-];
-
 fn validate_ai_assist_settings(settings: &RuntimeAiAssistSettings) -> HostResult<()> {
-    if !AI_ASSIST_AGENTS.contains(&settings.agent.trim()) {
-        return Err(HostError::format("AI Assist agent is unsupported."));
-    }
-    if settings
-        .prompt_settings_by_operation
-        .values()
-        .filter_map(|prompt| prompt.agent.as_deref())
-        .any(|agent| !AI_ASSIST_AGENTS.contains(&agent.trim()))
-    {
-        return Err(HostError::format("AI Assist prompt agent is unsupported."));
-    }
-    let uses_custom_agent = settings.agent.trim() == "custom"
-        || settings
-            .prompt_settings_by_operation
-            .values()
-            .any(|prompt| {
-                prompt
-                    .agent
-                    .as_deref()
-                    .is_some_and(|agent| agent.trim() == "custom")
-            });
-    if uses_custom_agent && settings.custom_command.trim().is_empty() {
-        return Err(HostError::format(
-            "AI Assist custom command is required for the custom agent.",
-        ));
-    }
-    if !(10..=600).contains(&settings.timeout_seconds) {
-        return Err(HostError::format(
-            "AI Assist timeout must be between 10 and 600 seconds.",
-        ));
-    }
-    Ok(())
+    alera_core::runtime::validate_ai_assist_settings(settings)
+        .map_err(|error| HostError::format(error.to_string()))
 }
 
 fn validate_text_actions_settings(settings: &RuntimeTextActionsSettings) -> HostResult<()> {
-    let mut ids = std::collections::HashSet::new();
-    let mut names = std::collections::HashSet::new();
-    for action in &settings.actions {
-        if action.id.trim().is_empty()
-            || action.name.trim().is_empty()
-            || action.prompt.trim().is_empty()
-        {
-            return Err(HostError::format(
-                "textActions actions require an id, name, and prompt.",
-            ));
-        }
-        if !ids.insert(action.id.trim()) {
-            return Err(HostError::format("textActions action ids must be unique."));
-        }
-        if !names.insert(action.name.trim().to_ascii_lowercase()) {
-            return Err(HostError::format(
-                "textActions action names must be unique.",
-            ));
-        }
-        if action
-            .agent_override
-            .as_deref()
-            .is_some_and(|agent| !AI_ASSIST_AGENTS.contains(&agent.trim()))
-        {
-            return Err(HostError::format(
-                "textActions contains an unsupported agent.",
-            ));
-        }
-    }
-    Ok(())
+    alera_core::runtime::validate_text_actions_settings(settings)
+        .map_err(|error| HostError::format(error.to_string()))
 }
 
 pub(super) fn validate_agent_quota_settings(

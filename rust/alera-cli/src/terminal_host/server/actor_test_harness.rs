@@ -104,6 +104,7 @@ pub(super) async fn test_actor(
         managed_workspace_jobs: 0,
         emulator_requests: Default::default(),
         agent_quota_cache: None,
+        configuration_transfers: Default::default(),
         account_push,
         clients,
         mobile_prompt_file_uploads: HashMap::new(),

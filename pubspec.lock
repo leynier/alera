@@ -24,6 +24,13 @@ packages:
       relative: true
     source: path
     version: "0.1.0"
+  alera_configuration:
+    dependency: "direct main"
+    description:
+      path: "packages/alera_configuration"
+      relative: true
+    source: path
+    version: "0.1.0"
   alera_native:
     dependency: "direct main"
     description:
