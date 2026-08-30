@@ -31,6 +31,8 @@ class WorkbenchGroupByMapper extends EnumMapper<WorkbenchGroupBy> {
         return WorkbenchGroupBy.none;
       case r'project':
         return WorkbenchGroupBy.project;
+      case r'section':
+        return WorkbenchGroupBy.section;
       default:
         throw MapperException.unknownEnumValue(value);
     }
@@ -43,6 +45,8 @@ class WorkbenchGroupByMapper extends EnumMapper<WorkbenchGroupBy> {
         return r'none';
       case WorkbenchGroupBy.project:
         return r'project';
+      case WorkbenchGroupBy.section:
+        return r'section';
     }
   }
 }
@@ -412,8 +416,8 @@ class WorkbenchViewPrefsMapper extends ClassMapperBase<WorkbenchViewPrefs> {
   static WorkbenchViewPrefsMapper ensureInitialized() {
     if (_instance == null) {
       MapperContainer.globals.use(_instance = WorkbenchViewPrefsMapper._());
-      WorkbenchGroupByMapper.ensureInitialized();
       WorkbenchSortByMapper.ensureInitialized();
+      WorkbenchGroupByMapper.ensureInitialized();
       WorkbenchContextPanelTabMapper.ensureInitialized();
       WorkspaceExplorerModeMapper.ensureInitialized();
       GitDiffViewModeMapper.ensureInitialized();
@@ -427,6 +431,27 @@ class WorkbenchViewPrefsMapper extends ClassMapperBase<WorkbenchViewPrefs> {
   @override
   final String id = 'WorkbenchViewPrefs';
 
+  static WorkbenchSortBy _$sectionSort(WorkbenchViewPrefs v) => v.sectionSort;
+  static const Field<WorkbenchViewPrefs, WorkbenchSortBy> _f$sectionSort =
+      Field('sectionSort', _$sectionSort, opt: true, def: WorkbenchSortBy.name);
+  static Set<String> _$collapsedSectionIds(WorkbenchViewPrefs v) =>
+      v.collapsedSectionIds;
+  static const Field<WorkbenchViewPrefs, Set<String>> _f$collapsedSectionIds =
+      Field(
+        'collapsedSectionIds',
+        _$collapsedSectionIds,
+        opt: true,
+        def: const <String>{},
+      );
+  static bool _$othersSectionCollapsed(WorkbenchViewPrefs v) =>
+      v.othersSectionCollapsed;
+  static const Field<WorkbenchViewPrefs, bool> _f$othersSectionCollapsed =
+      Field(
+        'othersSectionCollapsed',
+        _$othersSectionCollapsed,
+        opt: true,
+        def: false,
+      );
   static WorkbenchGroupBy _$groupBy(WorkbenchViewPrefs v) => v.groupBy;
   static const Field<WorkbenchViewPrefs, WorkbenchGroupBy> _f$groupBy = Field(
     'groupBy',
@@ -594,6 +619,9 @@ class WorkbenchViewPrefsMapper extends ClassMapperBase<WorkbenchViewPrefs> {
 
   @override
   final MappableFields<WorkbenchViewPrefs> fields = const {
+    #sectionSort: _f$sectionSort,
+    #collapsedSectionIds: _f$collapsedSectionIds,
+    #othersSectionCollapsed: _f$othersSectionCollapsed,
     #groupBy: _f$groupBy,
     #projectSort: _f$projectSort,
     #workspaceSort: _f$workspaceSort,
@@ -620,6 +648,9 @@ class WorkbenchViewPrefsMapper extends ClassMapperBase<WorkbenchViewPrefs> {
 
   static WorkbenchViewPrefs _instantiate(DecodingData data) {
     return WorkbenchViewPrefs(
+      sectionSort: data.dec(_f$sectionSort),
+      collapsedSectionIds: data.dec(_f$collapsedSectionIds),
+      othersSectionCollapsed: data.dec(_f$othersSectionCollapsed),
       groupBy: data.dec(_f$groupBy),
       projectSort: data.dec(_f$projectSort),
       workspaceSort: data.dec(_f$workspaceSort),
@@ -721,6 +752,9 @@ abstract class WorkbenchViewPrefsCopyWith<
   MapCopyWith<$R, String, String, ObjectCopyWith<$R, String, String>>
   get sourceControlRootByWorkspaceId;
   $R call({
+    WorkbenchSortBy? sectionSort,
+    Set<String>? collapsedSectionIds,
+    bool? othersSectionCollapsed,
     WorkbenchGroupBy? groupBy,
     WorkbenchSortBy? projectSort,
     WorkbenchSortBy? workspaceSort,
@@ -766,6 +800,9 @@ class _WorkbenchViewPrefsCopyWithImpl<$R, $Out>
   );
   @override
   $R call({
+    WorkbenchSortBy? sectionSort,
+    Set<String>? collapsedSectionIds,
+    bool? othersSectionCollapsed,
     WorkbenchGroupBy? groupBy,
     WorkbenchSortBy? projectSort,
     WorkbenchSortBy? workspaceSort,
@@ -790,6 +827,11 @@ class _WorkbenchViewPrefsCopyWithImpl<$R, $Out>
     bool? showActiveWorkspacesOnly,
   }) => $apply(
     FieldCopyWithData({
+      if (sectionSort != null) #sectionSort: sectionSort,
+      if (collapsedSectionIds != null)
+        #collapsedSectionIds: collapsedSectionIds,
+      if (othersSectionCollapsed != null)
+        #othersSectionCollapsed: othersSectionCollapsed,
       if (groupBy != null) #groupBy: groupBy,
       if (projectSort != null) #projectSort: projectSort,
       if (workspaceSort != null) #workspaceSort: workspaceSort,
@@ -828,6 +870,15 @@ class _WorkbenchViewPrefsCopyWithImpl<$R, $Out>
   );
   @override
   WorkbenchViewPrefs $make(CopyWithData data) => WorkbenchViewPrefs(
+    sectionSort: data.get(#sectionSort, or: $value.sectionSort),
+    collapsedSectionIds: data.get(
+      #collapsedSectionIds,
+      or: $value.collapsedSectionIds,
+    ),
+    othersSectionCollapsed: data.get(
+      #othersSectionCollapsed,
+      or: $value.othersSectionCollapsed,
+    ),
     groupBy: data.get(#groupBy, or: $value.groupBy),
     projectSort: data.get(#projectSort, or: $value.projectSort),
     workspaceSort: data.get(#workspaceSort, or: $value.workspaceSort),

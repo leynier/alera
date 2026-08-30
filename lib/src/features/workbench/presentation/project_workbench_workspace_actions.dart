@@ -22,6 +22,8 @@ const String _removeAction = 'remove';
 /// action for the main (non-deletable) workspace.
 List<PopupMenuEntry<String>> workspaceContextMenuEntries({
   required String fileManagerLabel,
+  bool supportsSections = false,
+  bool hasSection = false,
   required bool hasClearParent,
   required bool canRemove,
   required bool isPinned,
@@ -52,6 +54,16 @@ List<PopupMenuEntry<String>> workspaceContextMenuEntries({
         value: _clearParentAction,
         leading: Icon(AleraIcons.close, size: 16),
         label: 'Clear Parent Workspace',
+      ),
+    if (supportsSections)
+      const AleraDropdownEntry<String>(
+        value: 'set-section',
+        label: 'Set Section',
+      ),
+    if (supportsSections && hasSection)
+      const AleraDropdownEntry<String>(
+        value: 'clear-section',
+        label: 'Clear Section',
       ),
     const PopupMenuDivider(height: AleraTokens.space8),
     const AleraDropdownEntry<String>(

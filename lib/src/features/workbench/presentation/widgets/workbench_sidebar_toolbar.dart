@@ -36,6 +36,8 @@ class const WorkbenchSidebarToolbar({super.key, required this.onAddWorkspace})
 
     final title = prefs.groupBy == WorkbenchGroupBy.project
         ? 'Projects'
+        : prefs.groupBy == WorkbenchGroupBy.section
+        ? 'Sections'
         : 'Workspaces';
     return Container(
       padding: const EdgeInsets.symmetric(

@@ -45,14 +45,21 @@ class const _SidebarBody({
       itemBuilder: (context, index) {
         return KeyedSubtree(
           key: ValueKey<String>(rows[index].key),
-          child: _buildRow(rows, index),
+          child: _buildRow(context, rows, index),
         );
       },
     );
   }
 
-  Widget _buildRow(List<WorkbenchSidebarRow> rows, int index) {
+  Widget _buildRow(
+    BuildContext context,
+    List<WorkbenchSidebarRow> rows,
+    int index,
+  ) {
     final row = rows[index];
+    if (row is WorkbenchSectionHeaderRow) {
+      return _WorkspaceSectionHeader(row: row, controller: controller);
+    }
     if (row is WorkbenchPinnedHeaderRow) {
       return _SidebarSectionTile(
         leadingIcon: AleraIcons.pin,
@@ -131,6 +138,17 @@ class const _SidebarBody({
           onSetPinned: () =>
               onSetWorkspacePinned(row.workspace, !row.workspace.isPinned),
           onManageTags: () => onManageWorkspaceTags(row.workspace),
+          onSetSection: state.supportsSections
+              ? () => showWorkspaceSectionDialog(
+                  context,
+                  controller,
+                  row.workspace,
+                )
+              : null,
+          onClearSection:
+              state.supportsSections && row.workspace.sectionId != null
+              ? () => _clearSection(context, controller, row.workspace)
+              : null,
           onSetParent: () => onSetWorkspaceParent(row.workspace),
           onClearParent: row.workspace.hasParentWorkspace
               ? () => onClearWorkspaceParent(row.workspace)

@@ -7,6 +7,8 @@ const String aleraCliWindowsExecutableName = 'alera.exe';
 const String aleraRuntimeHostCommand = 'runtime-host';
 const String aleraTerminalHostCommand = 'terminal-host';
 const String aleraRuntimeHostCapability = 'runtimeStore';
+const String aleraRuntimeHostWorkspaceSectionsCapability =
+    'workspaceSectionsV1';
 const String aleraRuntimeHostBootstrapCapability = 'sshTargetBootstrap';
 const String aleraRuntimeHostManagedWorkspaceCapability =
     'managedWorkspaceLifecycle';

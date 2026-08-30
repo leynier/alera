@@ -1096,43 +1096,6 @@ Future<void> _waitForQueuedLauncherStarts(
   expect(launcher.starts, greaterThanOrEqualTo(expected));
 }
 
-Future<void> _writeControlFile({
-  required Directory tempDir,
-  String fileName = 'host.json',
-  required int port,
-  required String token,
-  int protocolVersion = aleraTerminalHostProtocolVersion,
-  bool includeRuntimeCapability = true,
-  bool includeBootstrapCapability = true,
-  bool includeManagedWorkspaceCapability = true,
-  bool includeOrchestrationCapability = true,
-  bool includeBinaryFramesCapability = false,
-}) async {
-  final runtimeDir = Directory(p.join(tempDir.path, 'terminal_host'));
-  await runtimeDir.create(recursive: true);
-  final payload = <String, Object?>{
-    'protocolVersion': protocolVersion,
-    'port': port,
-    'token': token,
-  };
-  final capabilities = <String>[
-    if (includeRuntimeCapability) ...<String>[
-      aleraRuntimeHostCapability,
-      if (includeBootstrapCapability) aleraRuntimeHostBootstrapCapability,
-      if (includeManagedWorkspaceCapability)
-        aleraRuntimeHostManagedWorkspaceCapability,
-      if (includeOrchestrationCapability)
-        aleraRuntimeHostOrchestrationCapability,
-      if (includeBinaryFramesCapability) aleraRuntimeHostBinaryFramesCapability,
-    ],
-  ];
-  if (capabilities.isNotEmpty) {
-    payload['runtimeCapabilities'] = capabilities;
-  }
-  await File(p.join(runtimeDir.path, fileName))
-      .writeAsString(jsonEncode(payload));
-}
-
 final class const _QueuedTerminalHostLaunch({
   required final _TerminalHostTestServer server,
   final Future<void>? beforePublish,

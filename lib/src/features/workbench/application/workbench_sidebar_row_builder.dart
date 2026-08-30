@@ -48,7 +48,7 @@ class _WorkbenchSidebarRowBuilder(
   bool _isWorkspaceVisible(Project project, Workspace workspace) {
     return _workspaceVisible(
       prefs,
-      query,
+      _sectionNameMatches(state, workspace, query) ? '' : query,
       project,
       workspace,
       state.tabsFor(workspace.id),
@@ -153,6 +153,8 @@ class _WorkbenchSidebarRowBuilder(
     required bool hasPinnedSection,
   }) {
     switch (prefs.groupBy) {
+      case WorkbenchGroupBy.section:
+        _appendSectionGroups(rows, visibleProjects);
       case WorkbenchGroupBy.project:
         _appendProjectGroups(rows, visibleProjects);
       case WorkbenchGroupBy.none:

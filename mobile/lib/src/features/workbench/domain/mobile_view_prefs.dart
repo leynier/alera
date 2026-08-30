@@ -1,6 +1,6 @@
 import 'package:alera_mobile/src/core/json_payload_fields.dart';
 
-enum MobileWorkspaceGroupBy { none, project }
+enum MobileWorkspaceGroupBy { none, project, section }
 
 enum MobileWorkbenchSortBy { name, recent, activity }
 
@@ -9,6 +9,9 @@ enum MobileWorkspaceKindFilter { all, defaultOnly, nonDefaultOnly }
 /// Runtime-shared sidebar state mirroring the desktop `WorkbenchViewPrefs`
 /// fields that also apply on a small screen.
 class const MobileViewPrefs({
+  final MobileWorkbenchSortBy sectionSort = MobileWorkbenchSortBy.name,
+  final Set<String> collapsedSectionIds = const <String>{},
+  final bool othersSectionCollapsed = false,
   final MobileWorkspaceGroupBy groupBy = MobileWorkspaceGroupBy.project,
   final bool pinnedSectionCollapsed = false,
   final bool allSectionCollapsed = false,
@@ -30,6 +33,9 @@ class const MobileViewPrefs({
     bool? pinnedSectionCollapsed,
     bool? allSectionCollapsed,
     bool? showPinnedWorkspacesBelow,
+    MobileWorkbenchSortBy? sectionSort,
+    Set<String>? collapsedSectionIds,
+    bool? othersSectionCollapsed,
     MobileWorkbenchSortBy? projectSort,
     MobileWorkbenchSortBy? workspaceSort,
     MobileWorkspaceKindFilter? workspaceKindFilter,
@@ -48,6 +54,10 @@ class const MobileViewPrefs({
       allSectionCollapsed: allSectionCollapsed ?? this.allSectionCollapsed,
       showPinnedWorkspacesBelow:
           showPinnedWorkspacesBelow ?? this.showPinnedWorkspacesBelow,
+      sectionSort: sectionSort ?? this.sectionSort,
+      collapsedSectionIds: collapsedSectionIds ?? this.collapsedSectionIds,
+      othersSectionCollapsed:
+          othersSectionCollapsed ?? this.othersSectionCollapsed,
       projectSort: projectSort ?? this.projectSort,
       workspaceSort: workspaceSort ?? this.workspaceSort,
       workspaceKindFilter: workspaceKindFilter ?? this.workspaceKindFilter,
@@ -66,9 +76,17 @@ class const MobileViewPrefs({
   factory fromJson(Map<String, Object?> json) {
     return MobileViewPrefs(
       groupBy:
-          json.optionalString('groupBy') == MobileWorkspaceGroupBy.none.name
-          ? MobileWorkspaceGroupBy.none
-          : MobileWorkspaceGroupBy.project,
+          MobileWorkspaceGroupBy.values
+              .where((value) => value.name == json['groupBy'])
+              .firstOrNull ??
+          MobileWorkspaceGroupBy.project,
+      sectionSort:
+          MobileWorkbenchSortBy.values
+              .where((value) => value.name == json['sectionSort'])
+              .firstOrNull ??
+          MobileWorkbenchSortBy.name,
+      collapsedSectionIds: json.stringList('collapsedSectionIds').toSet(),
+      othersSectionCollapsed: json['othersSectionCollapsed'] == true,
       pinnedSectionCollapsed: json['pinnedSectionCollapsed'] == true,
       allSectionCollapsed: json['allSectionCollapsed'] == true,
       showPinnedWorkspacesBelow:
@@ -105,6 +123,9 @@ class const MobileViewPrefs({
       'pinnedSectionCollapsed': pinnedSectionCollapsed,
       'allSectionCollapsed': allSectionCollapsed,
       'showPinnedWorkspacesBelow': showPinnedWorkspacesBelow,
+      'sectionSort': sectionSort.name,
+      'collapsedSectionIds': collapsedSectionIds.toList(),
+      'othersSectionCollapsed': othersSectionCollapsed,
       'projectSort': projectSort.name,
       'workspaceSort': workspaceSort.name,
       'workspaceKindFilter': workspaceKindFilter.name,

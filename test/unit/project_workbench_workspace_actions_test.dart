@@ -3,6 +3,45 @@ import 'package:alera/src/features/workbench/presentation/project_workbench_side
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
+  test(
+    'section actions follow Parent and Clear Section requires membership',
+    () {
+      final labels =
+          workspaceContextMenuEntries(
+                fileManagerLabel: 'Files',
+                hasClearParent: true,
+                canRemove: true,
+                isPinned: true,
+                supportsSections: true,
+                hasSection: true,
+              )
+              .whereType<AleraDropdownEntry<String>>()
+              .map((entry) => entry.label)
+              .toList();
+      expect(
+        labels.sublist(
+          labels.indexOf('Set Parent Workspace'),
+          labels.indexOf('Clear Section') + 1,
+        ),
+        [
+          'Set Parent Workspace',
+          'Clear Parent Workspace',
+          'Set Section',
+          'Clear Section',
+        ],
+      );
+      final unassigned = workspaceContextMenuEntries(
+        fileManagerLabel: 'Files',
+        hasClearParent: false,
+        canRemove: true,
+        isPinned: false,
+        supportsSections: true,
+      ).whereType<AleraDropdownEntry<String>>().map((entry) => entry.label);
+      expect(unassigned, contains('Set Section'));
+      expect(unassigned, isNot(contains('Clear Section')));
+    },
+  );
+
   test('workspace context menu places project settings with open actions', () {
     final entries = workspaceContextMenuEntries(
       fileManagerLabel: 'Files',

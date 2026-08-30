@@ -1,3 +1,5 @@
+import 'package:alera_mobile/src/features/runtime/domain/workspace_section_summary.dart';
+
 import 'dart:async';
 import 'dart:typed_data';
 
@@ -263,4 +265,12 @@ abstract interface class MobileWorkspaceClient {
     String workspaceId,
     List<String> tagIds,
   );
+}
+
+abstract interface class MobileWorkspaceSectionClient {
+  bool get supportsWorkspaceSections;
+  Future<List<WorkspaceSectionSummary>> listWorkspaceSections();
+  Future<void> createWorkspaceSection(String name, String workspaceId);
+  Future<void> setWorkspaceSection(String workspaceId, String? sectionId);
+  Future<void> removeWorkspaceSection(String sectionId);
 }

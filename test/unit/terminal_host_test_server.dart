@@ -324,3 +324,43 @@ final class _FakeTerminalHostLauncher({
     );
   }
 }
+
+Future<void> _writeControlFile({
+  required Directory tempDir,
+  String fileName = 'host.json',
+  required int port,
+  required String token,
+  int protocolVersion = aleraTerminalHostProtocolVersion,
+  bool includeRuntimeCapability = true,
+  bool includeBootstrapCapability = true,
+  bool includeManagedWorkspaceCapability = true,
+  bool includeOrchestrationCapability = true,
+  bool includeBinaryFramesCapability = false,
+  bool includeWorkspaceSectionsCapability = false,
+}) async {
+  final runtimeDir = Directory(p.join(tempDir.path, 'terminal_host'));
+  await runtimeDir.create(recursive: true);
+  final payload = <String, Object?>{
+    'protocolVersion': protocolVersion,
+    'port': port,
+    'token': token,
+  };
+  final capabilities = <String>[
+    if (includeRuntimeCapability) ...<String>[
+      aleraRuntimeHostCapability,
+      if (includeBootstrapCapability) aleraRuntimeHostBootstrapCapability,
+      if (includeManagedWorkspaceCapability)
+        aleraRuntimeHostManagedWorkspaceCapability,
+      if (includeOrchestrationCapability)
+        aleraRuntimeHostOrchestrationCapability,
+      if (includeBinaryFramesCapability) aleraRuntimeHostBinaryFramesCapability,
+      if (includeWorkspaceSectionsCapability)
+        aleraRuntimeHostWorkspaceSectionsCapability,
+    ],
+  ];
+  if (capabilities.isNotEmpty) {
+    payload['runtimeCapabilities'] = capabilities;
+  }
+  await File(p.join(runtimeDir.path, fileName))
+      .writeAsString(jsonEncode(payload));
+}

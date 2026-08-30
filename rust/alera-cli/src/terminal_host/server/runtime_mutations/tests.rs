@@ -66,6 +66,7 @@ async fn removing_tab_releases_its_hosted_review_refs() {
             tag_ids: Vec::new(),
             tag_names: Vec::new(),
             parent_workspace_id: None,
+            section_id: None,
             child_count: 0,
         })
         .await
@@ -188,6 +189,7 @@ async fn surviving_codex_tab_is_repaired_after_competing_event_persistence() {
                 tag_ids: Vec::new(),
                 tag_names: Vec::new(),
                 parent_workspace_id: None,
+                section_id: None,
                 child_count: 0,
             })
             .await

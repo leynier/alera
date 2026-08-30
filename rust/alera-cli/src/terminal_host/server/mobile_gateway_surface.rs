@@ -32,7 +32,7 @@ use crate::terminal_host::protocol::{
     RUNTIME_HOST_MOBILE_SIDEBAR_PARITY_CAPABILITY, RUNTIME_HOST_MOBILE_TAB_RENAME_CAPABILITY,
     RUNTIME_HOST_MOBILE_TERMINAL_TITLES_CAPABILITY, RUNTIME_HOST_RESTART_CAPABILITY,
     RUNTIME_HOST_TERMINAL_DEFERRED_INPUT_CAPABILITY, RUNTIME_HOST_TERMINAL_DRIVER_CAPABILITY,
-    RUNTIME_HOST_TERMINAL_RESTART_CAPABILITY,
+    RUNTIME_HOST_TERMINAL_RESTART_CAPABILITY, RUNTIME_HOST_WORKSPACE_SECTIONS_CAPABILITY,
 };
 
 /// What `mobile.hello` tells a phone this host can do.
@@ -51,6 +51,7 @@ pub(super) const MOBILE_HELLO_CAPABILITIES: &[&str] = &[
     RUNTIME_HOST_MOBILE_CLOUD_ENROLLMENT_CAPABILITY,
     RUNTIME_HOST_MOBILE_MUTATIONS_CAPABILITY,
     RUNTIME_HOST_MOBILE_PROJECT_MANAGEMENT_CAPABILITY,
+    RUNTIME_HOST_WORKSPACE_SECTIONS_CAPABILITY,
     RUNTIME_HOST_MOBILE_SIDEBAR_PARITY_CAPABILITY,
     RUNTIME_HOST_MOBILE_TAB_RENAME_CAPABILITY,
     RUNTIME_HOST_MOBILE_TERMINAL_TITLES_CAPABILITY,
@@ -178,6 +179,10 @@ pub(super) fn mobile_request_allowed(request_type: &str) -> bool {
             | "agentSkill.install"
             | "linkedReview.find"
             | "layout.find"
+            | "workspaceSection.list"
+            | "workspaceSection.create"
+            | "workspaceSection.setForWorkspace"
+            | "workspaceSection.remove"
             | "workspaceTag.list"
             | "workspaceTag.create"
             | "workspaceTag.remove"

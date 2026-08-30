@@ -1,3 +1,4 @@
+import 'package:alera_mobile/src/features/workbench/presentation/section_picker_sheet.dart';
 import 'package:alera_mobile/src/app/theme/alera_tokens.dart';
 import 'package:alera_mobile/src/design_system/chips/alera_chip.dart';
 import 'package:alera_mobile/src/design_system/icons/alera_icons.dart';
@@ -19,6 +20,8 @@ enum _WorkspaceAction {
   tags,
   configureParent,
   unlinkParent,
+  setSection,
+  clearSection,
   openRepository,
   copyPath,
   sleep,
@@ -95,6 +98,18 @@ Future<void> showWorkspaceActionsSheet(
                           Navigator.of(context)
                               .pop(_WorkspaceAction.unlinkParent),
                     ),
+                  if (data.supportsSections)
+                    ListTile(
+                      title: const Text('Set Section'),
+                      onTap: () =>
+                          Navigator.pop(context, _WorkspaceAction.setSection),
+                    ),
+                  if (data.supportsSections && workspace.sectionId != null)
+                    ListTile(
+                      title: const Text('Clear Section'),
+                      onTap: () =>
+                          Navigator.pop(context, _WorkspaceAction.clearSection),
+                    ),
                   ListTile(
                     leading: const Icon(AleraIcons.external, size: 20),
                     title: const Text('Open in Browser'),
@@ -166,6 +181,14 @@ Future<void> showWorkspaceActionsSheet(
         }
       case _WorkspaceAction.unlinkParent:
         await controller.unlinkParent(workspace);
+      case _WorkspaceAction.setSection:
+        await showSectionPickerSheet(
+          context,
+          hostId: hostId,
+          workspace: workspace,
+        );
+      case _WorkspaceAction.clearSection:
+        await controller.setSection(workspace.id, null);
       case _WorkspaceAction.tags:
         await showWorkspaceTagsSheet(
           context,
