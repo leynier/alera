@@ -1,6 +1,9 @@
 use std::collections::HashMap;
 
-use alera_core::runtime::{LaunchWorkflowTask, WorkflowWorkspacePhase};
+use alera_core::runtime::{
+    LaunchWorkflowTask, OrchestrationDispatchStatus, OrchestrationTaskStatus,
+    WorkflowWorkspacePhase,
+};
 use sha2::{Digest, Sha256};
 
 use super::*;
@@ -192,6 +195,86 @@ async fn workflow_launch_restart_before_spawn_retains_attention_and_requires_fre
         .claim_workflow_launch(&record.id)
         .await
         .is_err());
+    let retry = fixture
+        .request(Some("fix"), Some(&input.workspace_id))
+        .await
+        .unwrap();
+    assert_eq!(retry.identity.attempt, 2);
+}
+
+#[tokio::test]
+async fn workflow_launch_restart_settles_an_escalated_active_attempt() {
+    let fixture = Fixture::new("").await;
+    let (input, prepared) = prepared(&fixture).await;
+    let PreparedLaunch::Fresh {
+        record,
+        token,
+        locks,
+    } = prepared
+    else {
+        panic!("fresh launch required")
+    };
+    fixture
+        .store
+        .claim_workflow_launch(&record.id)
+        .await
+        .unwrap();
+    fixture
+        .store
+        .mark_workflow_launch_started(&record.id)
+        .await
+        .unwrap();
+    fixture
+        .store
+        .accept_orchestration_dispatch(
+            &record.dispatch_id,
+            &record.terminal_handle,
+            &hex::encode(Sha256::digest(token.as_bytes())),
+        )
+        .await
+        .unwrap();
+    drop(locks);
+    fixture
+        .store
+        .workflow_launch_attention(&record.id, "Needs human review")
+        .await
+        .unwrap();
+
+    let dir = tempfile::tempdir().unwrap();
+    let mut actor = test_actor(&dir, HashMap::new(), HashMap::new()).await;
+    actor.runtime_store = fixture.store.clone();
+    actor.runtime_dir = fixture.runtime.clone();
+    actor.reconcile_workflow_launches().await;
+
+    assert_eq!(
+        fixture
+            .store
+            .workflow_workspace(&input.workspace_id)
+            .await
+            .unwrap()
+            .phase,
+        WorkflowWorkspacePhase::Attention
+    );
+    assert_eq!(
+        fixture
+            .store
+            .orchestration_dispatch_by_id(&record.dispatch_id)
+            .await
+            .unwrap()
+            .unwrap()
+            .status,
+        OrchestrationDispatchStatus::StartupFailed
+    );
+    assert_eq!(
+        fixture
+            .store
+            .orchestration_task_by_id(&input.task_id)
+            .await
+            .unwrap()
+            .unwrap()
+            .status,
+        OrchestrationTaskStatus::Pending
+    );
     let retry = fixture
         .request(Some("fix"), Some(&input.workspace_id))
         .await

@@ -86,9 +86,19 @@ impl RuntimeStore {
         &self,
         after: i64,
     ) -> Result<Vec<(i64, WorkflowLaunchRecord)>> {
-        sqlx::query("SELECT * FROM workflowLaunches WHERE sequence > ? AND status <> 'attention' ORDER BY sequence LIMIT 25")
-            .bind(after).fetch_all(self.pool()).await?.iter()
-            .map(|row| Ok((row.try_get("sequence")?, decode(row)?))).collect()
+        sqlx::query(
+            "SELECT l.* FROM workflowLaunches l
+            LEFT JOIN orchestrationDispatchContexts d ON d.id = l.dispatch_id
+            WHERE l.sequence > ? AND (l.status <> 'attention'
+              OR d.status IN ('pending','awaiting_acceptance','dispatched','stalled'))
+            ORDER BY l.sequence LIMIT 25",
+        )
+        .bind(after)
+        .fetch_all(self.pool())
+        .await?
+        .iter()
+        .map(|row| Ok((row.try_get("sequence")?, decode(row)?)))
+        .collect()
     }
 
     pub async fn validate_workflow_launch(

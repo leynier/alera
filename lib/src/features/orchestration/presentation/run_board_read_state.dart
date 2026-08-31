@@ -104,6 +104,7 @@ String runBoardStatusLabel(String status) => switch (status) {
   'blocked' => 'Blocked',
   'failed' => 'Failed',
   'stalled' => 'Stalled',
+  'attention' => 'Attention',
   'cancelled' => 'Cancelled',
   'canceled' => 'Cancelled',
   'approved' => 'Approved',

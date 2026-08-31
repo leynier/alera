@@ -73,7 +73,12 @@ async fn workflow_integration_store_defers_dependencies_until_git_and_evidence_c
         })
         .await
         .unwrap();
-    assert_eq!(inspection.workflow.unwrap().state, "integrated");
+    let workflow = inspection.workflow.unwrap();
+    assert_eq!(workflow.state, "integrated");
+    assert_eq!(
+        workflow.integrated_sha,
+        Some(receipt.integrated_sha.clone())
+    );
     assert!(inspection
         .history
         .iter()

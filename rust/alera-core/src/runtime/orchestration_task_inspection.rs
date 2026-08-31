@@ -3,6 +3,8 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use sqlx::Row;
 
+use crate::git::WorkflowIntegrationReceipt;
+
 use super::orchestration_board_store::BOARD_REVISION_SQL;
 use super::RuntimeStore;
 
@@ -289,13 +291,8 @@ async fn inspect_workflow_task(
     let receipt: Option<String> = row.try_get("receipt")?;
     let integrated_sha = receipt
         .as_deref()
-        .and_then(|raw| serde_json::from_str::<Value>(raw).ok())
-        .and_then(|value| {
-            value
-                .get("integratedSha")
-                .and_then(Value::as_str)
-                .map(str::to_owned)
-        });
+        .and_then(|raw| serde_json::from_str::<WorkflowIntegrationReceipt>(raw).ok())
+        .map(|receipt| receipt.integrated_sha);
     let conflict_paths = row
         .try_get::<Option<String>, _>("conflict_paths")?
         .and_then(|raw| serde_json::from_str::<Vec<String>>(&raw).ok())
