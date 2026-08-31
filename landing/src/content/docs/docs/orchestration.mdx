@@ -17,13 +17,15 @@ Mutations pass through the authenticated host actor. Authority comes from the ru
 
 ## Agent profiles
 
-Profiles live in **Settings → Agent Profiles**. Each one has a name, an adapter from the built-in registry (`codex`, `claude`, `copilot`, `cursor`, `agy`, `opencode`, `opencode2`, `pi`, `amp`, `grok`, `fx`, and related defaults), a launch configuration, a description used as a routing signal, and an optional quota group.
+Profiles can be managed from **Settings → Agent Profiles** or the top-level `alera agent-profile` CLI. Each one has a name, an adapter from the built-in registry (`codex`, `claude`, `copilot`, `cursor`, `agy`, `opencode`, `opencode2`, `pi`, `amp`, `grok`, `fx`, and related defaults), a launch configuration, a description used as a routing signal, and an optional quota group.
 
 ```bash
 alera orchestration agent-profiles --json
+alera agent-profile --json list
+alera agent-profile create --name "Codex Sol" --agent-type codex --launch-mode command --command "codex --search"
 ```
 
-Only you create or edit profiles. A coordinator picks from that closed catalog; it never invents a launch command.
+The administrative CLI also supports show, patch-style update, removal impact, confirmed removal, and complete-catalog reorder. Managed profiles accept configuration as inline JSON, a file, or standard input, and reduced-protection settings require an explicit confirmation flag. A coordinator only reads the closed catalog you approved; it never invents a launch command.
 
 ## A minimal loop
 

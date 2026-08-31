@@ -3,6 +3,7 @@ use crate::terminal_host::protocol::{
     DEFAULT_DETACHED_SESSION_SHUTDOWN_DELAY_SECONDS, DEFAULT_EMPTY_SHUTDOWN_DELAY_SECONDS,
     DEFAULT_SCROLLBACK_BYTES, TERMINAL_HOST_COMMAND,
 };
+mod agent_profile;
 mod automation;
 mod browser;
 mod canvas;
@@ -11,6 +12,7 @@ mod emulator;
 mod mobile;
 mod workspace;
 
+pub use agent_profile::*;
 pub use automation::*;
 pub use browser::*;
 pub use canvas::*;
@@ -84,6 +86,10 @@ pub enum Command {
 
     /// Manage runtime-local automations and their runs.
     Automation(AutomationCommand),
+
+    /// Create, inspect, update, remove, and reorder agent profiles.
+    #[command(name = "agent-profile")]
+    AgentProfile(AgentProfileCommand),
 
     /// Inter-agent orchestration: messaging, task DAG, dispatch, gates, coordinator.
     Orchestration(OrchestrationCommand),

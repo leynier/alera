@@ -3,6 +3,10 @@
 pub(crate) const RUNTIME_HOST_AGENT_PROFILE_REMOVAL_CAPABILITY: &str =
     "orchestrationAgentProfileRemovalV1";
 
+/// Advertised once updates and removals use optimistic concurrency tokens.
+pub(crate) const RUNTIME_HOST_AGENT_PROFILE_REVISIONS_CAPABILITY: &str =
+    "orchestrationAgentProfileRevisionsV1";
+
 /// Advertised once agent-profile launch receipts are durable and scoped to the
 /// authenticated caller and workspace.
 pub(crate) const RUNTIME_HOST_AGENT_PROFILE_LAUNCH_IDEMPOTENCY_CAPABILITY: &str =

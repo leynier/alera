@@ -41,7 +41,26 @@ An agent profile is a user-declared launch configuration a run can dispatch to. 
 alera orchestration agent-profiles --json
 ```
 
-The CLI surface is read-only by design. A coordinator discovers what it may dispatch to and what each option is good for, but only the user creates or edits profiles, through Settings -> Agent Profiles. The orchestrator therefore picks from a closed list the user approved instead of inventing launch commands.
+The coordinator-facing `orchestration agent-profiles` surface is read-only by design. A coordinator discovers what it may dispatch to and what each option is good for, while the user manages the approved catalog through Settings -> Agent Profiles or the top-level administrative CLI:
+
+```bash
+alera agent-profile --json list
+alera agent-profile create --name "Codex Sol" --agent-type codex --launch-mode command --command "codex --search"
+alera agent-profile create --name "Managed Codex" --agent-type codex --launch-mode managed --managed-config-file profile.json
+alera agent-profile update --profile-name "Codex Sol" --description "Backend implementation"
+alera agent-profile removal-impact --profile-name "Codex Sol"
+alera agent-profile remove --profile-name "Codex Sol" --confirm
+```
+
+`show`, `update`, `removal-impact`, and `remove` accept either `--profile-id` or the case-insensitive unique `--profile-name`. Updates patch only the supplied fields, fetch the current revision by default, and accept `--expected-revision` when a script must pin the version it observed. Managed configuration may be supplied inline with `--managed-config`, from a file, or from standard input. A new setting that reduces agent protections requires `--confirm-reduced-protections`, and removal always performs the impact check before asking the host to delete.
+
+Reordering replaces the complete catalog order and therefore requires every stable profile id exactly once:
+
+```bash
+alera agent-profile reorder --id <second-profile-id> --id <first-profile-id>
+```
+
+The orchestrator still picks from a closed list the user approved instead of inventing launch commands.
 
 The adapter type is required because the registry is more than a command: it decides how the host detects readiness, injects the dispatch preamble, and forces submission. The host rejects a profile whose adapter is not in `AGENT_ADAPTERS`.
 

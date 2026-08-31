@@ -2,7 +2,7 @@ use serde_json::{json, Value};
 
 use crate::terminal_host::agent_profile_capabilities::{
     RUNTIME_HOST_AGENT_PROFILE_LAUNCH_IDEMPOTENCY_CAPABILITY,
-    RUNTIME_HOST_AGENT_PROFILE_REMOVAL_CAPABILITY,
+    RUNTIME_HOST_AGENT_PROFILE_REMOVAL_CAPABILITY, RUNTIME_HOST_AGENT_PROFILE_REVISIONS_CAPABILITY,
 };
 use crate::terminal_host::ai_assist_capabilities::{
     RUNTIME_HOST_AI_ASSIST_AGENT_TITLE_CAPABILITY,
@@ -44,9 +44,6 @@ use crate::terminal_host::protocol::{
 use crate::terminal_host::runtime_build_info;
 
 use super::ServerActor;
-
-const RUNTIME_HOST_AGENT_PROFILE_REVISIONS_CAPABILITY: &str =
-    "orchestrationAgentProfileRevisionsV1";
 
 impl ServerActor {
     /// Payload of `status.get`: versions, advertised capabilities and live
