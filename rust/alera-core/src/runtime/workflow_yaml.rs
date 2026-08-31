@@ -18,7 +18,8 @@ pub fn parse_workflow_yaml(source: &str) -> Result<Value> {
     if source.is_empty() || source.len() > WORKFLOW_DOCUMENT_MAX_BYTES || source.contains('\0') {
         bail!("workflow YAML is empty, too large or contains NUL");
     }
-    let mut parser = Parser::new_from_str(source);
+    let source = super::workflow_json_escapes::normalize_json_surrogate_pairs(source);
+    let mut parser = Parser::new_from_str(&source);
     let mut stack = Vec::new();
     let mut root = None;
     let mut documents = 0;

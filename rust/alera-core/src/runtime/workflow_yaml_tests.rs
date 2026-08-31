@@ -27,6 +27,72 @@ fn workflow_yaml_preserves_portable_scalars_and_multiline_instructions() {
 }
 
 #[test]
+fn workflow_yaml_accepts_json_surrogate_pairs_without_changing_literal_escapes() {
+    let source = r#"{"emoji":"\ud83d\ude80", "\uD801\uDC37":"\"\ud83d\ude80\"", "literal":"\\ud83d\\ude80"}"#;
+    assert_eq!(
+        parse_workflow_yaml(source).unwrap(),
+        json!({
+            "emoji":"🚀", "𐐷":"\"🚀\"", "literal":r"\ud83d\ude80"
+        })
+    );
+    assert_eq!(
+        parse_workflow_yaml("literal: '\\ud83d\\ude80'").unwrap(),
+        json!({"literal":r"\ud83d\ude80"})
+    );
+    assert_eq!(
+        parse_workflow_yaml("literal: |\n  \\ud83d\\ude80\n").unwrap(),
+        json!({"literal":"\\ud83d\\ude80\n"})
+    );
+}
+
+#[test]
+fn workflow_yaml_json_normalization_preserves_duplicate_and_escape_rejection() {
+    for source in [
+        r#"{"a":"\ud83d"}"#,
+        r#"{"a":"\ude80"}"#,
+        r#"{"a":"\ude80\ud83d"}"#,
+        r#"{"a":"\ud83d\u0041"}"#,
+        r#"{"a":"\ud83d\ud83d"}"#,
+        r#"{"a":"\ud83d\ude80", "a":2}"#,
+        r#"{"🚀":1, "\ud83d\ude80":2}"#,
+        r#"{"<<":"\ud83d\ude80"}"#,
+        r#"{"a":"\ud83d\ude80"} {"b":2}"#,
+    ] {
+        assert!(parse_workflow_yaml(source).is_err(), "{source}");
+    }
+}
+
+#[test]
+fn workflow_yaml_json_normalization_preserves_original_resource_limits() {
+    let many = format!(
+        r#"{{"emoji":"\ud83d\ude80","a":[{}]}}"#,
+        vec!["0"; 8192].join(",")
+    );
+    assert!(parse_workflow_yaml(&many)
+        .unwrap_err()
+        .to_string()
+        .contains("node"));
+    let deep = format!(
+        r#"{{"emoji":"\ud83d\ude80","a":{}0{}}}"#,
+        "[".repeat(32),
+        "]".repeat(32)
+    );
+    assert!(parse_workflow_yaml(&deep)
+        .unwrap_err()
+        .to_string()
+        .contains("nesting"));
+    let large = format!(
+        r#"{{"a":"{}"}}"#,
+        r"\ud83d\ude80".repeat(WORKFLOW_DOCUMENT_MAX_BYTES / 12)
+    );
+    assert!(large.len() > WORKFLOW_DOCUMENT_MAX_BYTES);
+    assert!(parse_workflow_yaml(&large)
+        .unwrap_err()
+        .to_string()
+        .contains("too large"));
+}
+
+#[test]
 fn workflow_yaml_rejects_aliases_tags_merges_and_multiple_documents() {
     for source in [
         "a: &a [1]\nb: *a",

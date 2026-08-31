@@ -100,6 +100,7 @@ mod workflow_catalog;
 mod workflow_catalog_store;
 #[cfg(test)]
 mod workflow_catalog_tests;
+mod workflow_json_escapes;
 mod workflow_project_files;
 #[cfg(test)]
 mod workflow_project_files_tests;

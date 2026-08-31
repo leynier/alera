@@ -31,6 +31,23 @@ fn workflow_builtins_compile_with_portable_contracts_and_human_feature_gates() {
 }
 
 #[test]
+fn workflow_recipe_imports_json_exported_with_surrogate_pair_escapes() {
+    let mut recipe = builtin_workflow_recipes()[0].clone();
+    recipe.description = "Deliver 🚀 with Unicode 𐐷".into();
+    recipe.coordinator_instructions.push_str(" Preserve 🚀.");
+    let document = serde_json::to_string(&recipe)
+        .unwrap()
+        .replace('🚀', r"\ud83d\ude80")
+        .replace('𐐷', r"\ud801\udc37");
+    let imported = WorkflowRecipeV1::from_yaml(&document).unwrap();
+    assert_eq!(imported, recipe);
+    assert_eq!(
+        WorkflowRecipeV1::from_yaml(&imported.portable_document().unwrap()).unwrap(),
+        recipe
+    );
+}
+
+#[test]
 fn workflow_recipe_compilation_rejects_unknown_fields_and_executable_extensions() {
     for path in [
         vec!["hooks"],
