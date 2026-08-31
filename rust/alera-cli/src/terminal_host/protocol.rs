@@ -95,6 +95,7 @@ pub const RUNTIME_HOST_ORCHESTRATION_BOARD_CAPABILITY: &str = "orchestrationRunB
 pub const RUNTIME_HOST_WORKFLOW_CATALOG_CAPABILITY: &str = "workflowRecipeCatalogV1";
 pub const RUNTIME_HOST_WORKFLOW_PLANS_CAPABILITY: &str = "workflowReviewedPlansV1";
 pub const RUNTIME_HOST_WORKFLOW_WORKSPACES_CAPABILITY: &str = "workflowManagedWorktreesV1";
+pub const RUNTIME_HOST_WORKFLOW_INTEGRATIONS_CAPABILITY: &str = "workflowLocalIntegrationV1";
 // Advertised once terminal.write supports host-sequenced bracketed paste and
 // deferred Enter. Older hosts ignore those fields, so CLI callers must require
 // this capability before relying on --enter or --submit.

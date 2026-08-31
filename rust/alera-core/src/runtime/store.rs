@@ -62,9 +62,7 @@ impl RuntimeStore {
             board_notification_revision: Default::default(),
         };
         store.migrate().await?;
-        store.migrate_workflow_catalog().await?;
-        store.migrate_workflow_plans().await?;
-        store.migrate_workflow_workspaces().await?;
+        store.migrate_workflows().await?;
         store.migrate_orchestration_board().await?;
         harden_sqlite_files(&path)?;
         Ok(store)

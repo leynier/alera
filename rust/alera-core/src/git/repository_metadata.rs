@@ -1,5 +1,15 @@
 use super::{head_branch_name, open_repo, GitError};
 
+pub fn branch_exists(repo_path: &str, branch: &str) -> Result<bool, GitError> {
+    let repo = open_repo(repo_path)?;
+    let result = match repo.find_branch(branch, git2::BranchType::Local) {
+        Ok(_) => Ok(true),
+        Err(error) if error.code() == git2::ErrorCode::NotFound => Ok(false),
+        Err(error) => Err(GitError::from_git2(error)),
+    };
+    result
+}
+
 pub fn current_branch(path: &str) -> Result<String, GitError> {
     Ok(head_branch_name(&open_repo(path)?))
 }

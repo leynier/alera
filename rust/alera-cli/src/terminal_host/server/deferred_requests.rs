@@ -23,7 +23,11 @@ impl ServerActor {
             return Ok(true);
         }
         match request_type {
-            "workflows.prepareWorkspace" | "workflows.workspaces" => {
+            "workflows.prepareWorkspace"
+            | "workflows.workspaces"
+            | "workflows.integrateResult"
+            | "workflows.integrations"
+            | "workflows.integration" => {
                 self.start_workflow_workspace_request(
                     client_id,
                     request_id,

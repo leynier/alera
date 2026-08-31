@@ -8,6 +8,7 @@ use super::*;
 
 mod durable_receipt_regressions;
 mod fixture;
+mod integration_regressions;
 mod receipt_and_report_regressions;
 mod regressions;
 mod review_regressions;

@@ -3,10 +3,37 @@ use serde_json::json;
 use crate::cli::RuntimeDirArgs;
 use crate::cli_workflow_workspaces::{WorkflowWorkspacesAction, WorkflowWorkspacesArgs};
 use crate::orchestration_commands::request_value_with_capability;
-use crate::terminal_host::protocol::RUNTIME_HOST_WORKFLOW_WORKSPACES_CAPABILITY;
+use crate::terminal_host::protocol::{
+    RUNTIME_HOST_WORKFLOW_INTEGRATIONS_CAPABILITY, RUNTIME_HOST_WORKFLOW_WORKSPACES_CAPABILITY,
+};
 
 pub(crate) async fn run(runtime: &RuntimeDirArgs, args: WorkflowWorkspacesArgs) -> i32 {
+    let capability = if matches!(
+        &args.action,
+        WorkflowWorkspacesAction::Integrate { .. }
+            | WorkflowWorkspacesAction::Integrations { .. }
+            | WorkflowWorkspacesAction::Integration { .. }
+    ) {
+        RUNTIME_HOST_WORKFLOW_INTEGRATIONS_CAPABILITY
+    } else {
+        RUNTIME_HOST_WORKFLOW_WORKSPACES_CAPABILITY
+    };
     let (verb, payload) = match args.action {
+        WorkflowWorkspacesAction::Integrate {
+            run,
+            revision,
+            request_id,
+            task,
+            workspace_id,
+        } => (
+            "workflows.integrateResult",
+            json!({"runId":run,"revision":revision,"requestId":request_id,"taskId":task,"workspaceId":workspace_id}),
+        ),
+        WorkflowWorkspacesAction::Integrations { run, after_row } => (
+            "workflows.integrations",
+            json!({"runId":run,"afterRow":after_row}),
+        ),
+        WorkflowWorkspacesAction::Integration { id } => ("workflows.integration", json!({"id":id})),
         WorkflowWorkspacesAction::Prepare {
             run,
             revision,
@@ -28,15 +55,7 @@ pub(crate) async fn run(runtime: &RuntimeDirArgs, args: WorkflowWorkspacesArgs) 
             json!({"runId":run,"beforeRow":before_row,"limit":limit}),
         ),
     };
-    match request_value_with_capability(
-        runtime,
-        RUNTIME_HOST_WORKFLOW_WORKSPACES_CAPABILITY,
-        verb,
-        payload,
-        Some(30_000),
-    )
-    .await
-    {
+    match request_value_with_capability(runtime, capability, verb, payload, Some(30_000)).await {
         Ok(value) => {
             println!(
                 "{}",

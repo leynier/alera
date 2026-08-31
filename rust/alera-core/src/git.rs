@@ -7,12 +7,19 @@ use crate::git_cli::git_in_dir;
 pub mod hosted_review;
 mod repository_metadata;
 #[cfg(feature = "runtime")]
+mod workflow_integration;
+#[cfg(feature = "runtime")]
 mod workflow_worktree;
 mod worktree_creation;
-pub use repository_metadata::{current_branch, is_worktree_clean, repository_remote_url};
+pub use repository_metadata::{
+    branch_exists, current_branch, is_worktree_clean, repository_remote_url,
+};
+#[cfg(feature = "runtime")]
+pub use workflow_integration::*;
 #[cfg(feature = "runtime")]
 pub use workflow_worktree::{
     ensure_workflow_worktree, is_registered_workflow_worktree, verify_workflow_worktree,
+    verify_workflow_worktree_tip,
 };
 pub use worktree_creation::create_worktree;
 
@@ -93,16 +100,6 @@ pub fn list_branches(path: &str) -> Result<Vec<String>, GitError> {
     names.sort();
     names.dedup();
     Ok(names)
-}
-
-pub fn branch_exists(repo_path: &str, branch: &str) -> Result<bool, GitError> {
-    let repo = open_repo(repo_path)?;
-    let result = match repo.find_branch(branch, BranchType::Local) {
-        Ok(_) => Ok(true),
-        Err(error) if error.code() == ErrorCode::NotFound => Ok(false),
-        Err(error) => Err(GitError::from_git2(error)),
-    };
-    result
 }
 
 pub fn is_valid_branch_name(name: &str) -> Result<bool, GitError> {

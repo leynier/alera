@@ -1,6 +1,9 @@
 use std::sync::{Arc, OnceLock};
 
-use alera_core::runtime::{PrepareWorkflowWorkspace, WorkflowWorkspaceQuery};
+use alera_core::runtime::{
+    IntegrateWorkflowResult, PrepareWorkflowWorkspace, WorkflowIntegrationQuery,
+    WorkflowWorkspaceQuery,
+};
 use serde_json::Value;
 use tokio::sync::Semaphore;
 
@@ -15,6 +18,9 @@ mod tests;
 enum Request {
     Prepare(PrepareWorkflowWorkspace),
     List(WorkflowWorkspaceQuery),
+    Integrate(IntegrateWorkflowResult),
+    Integrations(WorkflowIntegrationQuery),
+    Integration(String),
 }
 
 impl ServerActor {
@@ -27,9 +33,12 @@ impl ServerActor {
         let runtime = tokio::runtime::Handle::current();
         tokio::spawn(async move {
             let result = tokio::task::spawn_blocking(move || {
-                runtime.block_on(crate::managed_workspace::workflow::recovery::reconcile(
-                    &store, &directory,
-                ))
+                runtime.block_on(async {
+                    crate::managed_workspace::workflow::integration::reconcile(&store, &directory)
+                        .await?;
+                    crate::managed_workspace::workflow::recovery::reconcile(&store, &directory)
+                        .await
+                })
             })
             .await;
             if !matches!(&result, Ok(Ok(()))) {
@@ -79,14 +88,37 @@ impl ServerActor {
                 serde_json::from_value(payload.clone())
                     .map_err(|_| HostError::format("invalid workflow workspace query"))?,
             ),
+            "workflows.integrateResult" => Request::Integrate(
+                serde_json::from_value(payload.clone())
+                    .map_err(|_| HostError::format("invalid workflow integration request"))?,
+            ),
+            "workflows.integrations" => Request::Integrations(
+                serde_json::from_value(payload.clone())
+                    .map_err(|_| HostError::format("invalid workflow integration query"))?,
+            ),
+            "workflows.integration" => {
+                if payload.as_object().is_none_or(|map| map.len() != 1) {
+                    return Err(HostError::format("integration lookup requires only its id"));
+                }
+                Request::Integration(
+                    payload
+                        .get("id")
+                        .and_then(Value::as_str)
+                        .filter(|id| !id.is_empty())
+                        .ok_or_else(|| HostError::format("integration id is required"))?
+                        .to_owned(),
+                )
+            }
             _ => return Err(HostError::format("unknown workflow workspace request")),
         };
         static PREPARATIONS: OnceLock<Arc<Semaphore>> = OnceLock::new();
         static READS: OnceLock<Arc<Semaphore>> = OnceLock::new();
+        static INTEGRATIONS: OnceLock<Arc<Semaphore>> = OnceLock::new();
         // Long project setup commands must not occupy the inspection lane.
         let queue = match &request {
             Request::Prepare(_) => &PREPARATIONS,
-            Request::List(_) => &READS,
+            Request::List(_) | Request::Integrations(_) | Request::Integration(_) => &READS,
+            Request::Integrate(_) => &INTEGRATIONS,
         };
         let permit = queue
             .get_or_init(|| Arc::new(Semaphore::new(8)))
@@ -99,7 +131,7 @@ impl ServerActor {
         let runtime_dir = self.runtime_dir.clone();
         let inbox = self.inbox.clone();
         let runtime = tokio::runtime::Handle::current();
-        let mutated = matches!(request, Request::Prepare(_));
+        let mutated = matches!(request, Request::Prepare(_) | Request::Integrate(_));
         tokio::spawn(async move {
             let _permit = permit;
             // Disconnect/timeouts only lose the response. The operation retains
@@ -118,6 +150,23 @@ impl ServerActor {
                         .map_err(anyhow::Error::from),
                         Request::List(query) => {
                             serde_json::to_value(store.workflow_workspaces(&query).await?)
+                                .map_err(anyhow::Error::from)
+                        }
+                        Request::Integrate(request) => serde_json::to_value(
+                            crate::managed_workspace::workflow::integration::integrate(
+                                &store,
+                                &runtime_dir,
+                                request,
+                            )
+                            .await?,
+                        )
+                        .map_err(anyhow::Error::from),
+                        Request::Integrations(query) => serde_json::to_value(
+                            store.workflow_integration_summaries(&query).await?,
+                        )
+                        .map_err(anyhow::Error::from),
+                        Request::Integration(id) => {
+                            serde_json::to_value(store.workflow_integration(&id).await?)
                                 .map_err(anyhow::Error::from)
                         }
                     }
