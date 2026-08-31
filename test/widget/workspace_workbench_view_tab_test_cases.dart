@@ -46,6 +46,19 @@ void _registerWorkspaceWorkbenchViewTabTests() {
           find.text(label),
           mode == 'unsupported' ? findsNothing : findsOneWidget,
         );
+        if (mode != 'unsupported') {
+          final entry = tester.widget<AleraDropdownEntry<Object?>>(
+            find.ancestor(
+              of: find.text(label),
+              matching: find.byWidgetPredicate(
+                (widget) => widget is AleraDropdownEntry,
+              ),
+            ),
+          );
+          expect(entry.leading, isA<Icon>());
+          expect((entry.leading! as Icon).size, 16);
+          expect((entry.leading! as Icon).icon, AleraIcons.ai);
+        }
         if (mode == 'generating') {
           expect(find.byTooltip('Generating title...'), findsOneWidget);
           final entry = tester.widget<AleraDropdownEntry<Object?>>(

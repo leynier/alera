@@ -175,6 +175,13 @@ class const AgentsSettingsPane({
             description: 'How Alera reacts while agents are running.',
             children: <Widget>[
               SettingsSwitchRow(
+                title: 'Show Tab Titles in Sidebar',
+                description: 'Use each agent tab title under a workspace instead of the latest activity.',
+                value: agents.showTabTitlesInSidebar,
+                onChanged: (value) =>
+                    controller.setShowTabTitlesInSidebar(value),
+              ),
+              SettingsSwitchRow(
                 title: 'Agent Status Notifications',
                 description: 'Show native notifications when an agent needs attention. Bursts are grouped into one notification.',
                 value: agents.agentStatusNotificationsEnabled,

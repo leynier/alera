@@ -31,6 +31,7 @@ void main() {
           ),
           agentStatusNotificationsEnabled: true,
           keepComputerAwakeWhileAgentsWork: true,
+          showTabTitlesInSidebar: true,
           defaultAgentProfileId: 'prof_1',
         ),
         editor: EditorSettings(
@@ -113,6 +114,7 @@ void main() {
       expect(restored.agents.agentStatusHooks.fx, isTrue);
       expect(restored.agents.agentStatusNotificationsEnabled, isTrue);
       expect(restored.agents.keepComputerAwakeWhileAgentsWork, isTrue);
+      expect(restored.agents.showTabTitlesInSidebar, isTrue);
       expect(restored.agents.defaultAgentProfileId, 'prof_1');
       expect(restored.editor.tabSize, 2);
       expect(restored.editor.themeName, EditorSyntaxThemeNames.nord);

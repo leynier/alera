@@ -238,6 +238,7 @@ void main() {
         await controller.setAgentStatusHookEnabled(.fx, true);
         await controller.setAgentStatusNotificationsEnabled(true);
         await controller.setKeepComputerAwakeWhileAgentsWork(true);
+        await controller.setShowTabTitlesInSidebar(true);
         await controller.setKeepAliveEnabled(true);
         await controller.setShowTrayIcon(false);
         await controller.setShowDockBadge(false);
@@ -272,6 +273,7 @@ void main() {
         expect(restored.agents.agentStatusHooks.fx, isTrue);
         expect(restored.agents.agentStatusNotificationsEnabled, isTrue);
         expect(restored.agents.keepComputerAwakeWhileAgentsWork, isTrue);
+        expect(restored.agents.showTabTitlesInSidebar, isTrue);
         expect(restored.general.keepAliveEnabled, isTrue);
         expect(restored.general.showTrayIcon, isFalse);
         expect(restored.general.showDockBadge, isFalse);

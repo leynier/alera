@@ -64,6 +64,7 @@ void main() {
       expect(agents.agentStatusHooks.anyEnabled, isFalse);
       expect(agents.agentStatusNotificationsEnabled, isFalse);
       expect(agents.keepComputerAwakeWhileAgentsWork, isFalse);
+      expect(agents.showTabTitlesInSidebar, isFalse);
       expect(agents.defaultAgentProfileId, isNull);
     });
 
@@ -147,6 +148,7 @@ void main() {
         },
         'agentStatusNotificationsEnabled': true,
         'keepComputerAwakeWhileAgentsWork': true,
+        'showTabTitlesInSidebar': true,
         'defaultAgentProfileId': 'prof_1',
       });
 
@@ -166,6 +168,7 @@ void main() {
       expect(agents.agentStatusHooks.amp, isTrue);
       expect(agents.agentStatusNotificationsEnabled, isTrue);
       expect(agents.keepComputerAwakeWhileAgentsWork, isTrue);
+      expect(agents.showTabTitlesInSidebar, isTrue);
       expect(agents.defaultAgentProfileId, 'prof_1');
 
       final hooks = AgentStatusHookSettings.fromJson(<String, Object?>{

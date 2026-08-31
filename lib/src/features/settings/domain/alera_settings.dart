@@ -329,6 +329,7 @@ class const AgentSettings({
   this.agentStatusNotificationsEnabled = false,
   this.agentStatusFinishedNotificationsEnabled = false,
   this.keepComputerAwakeWhileAgentsWork = false,
+  this.showTabTitlesInSidebar = false,
   this.defaultAgentProfileId,
   this.quotas = AgentQuotaSettings.defaults,
 }) with AgentSettingsMappable {
@@ -347,6 +348,9 @@ class const AgentSettings({
 
   /// Keep the local computer awake while local hook-reported agents are working.
   final bool keepComputerAwakeWhileAgentsWork;
+
+  /// Use each agent tab title in the workspace sidebar instead of latest activity.
+  final bool showTabTitlesInSidebar;
 
   /// Runtime profile selected for flows that need an initial agent choice.
   final String? defaultAgentProfileId;

@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:alera/src/features/ai_assist/application/agent_title_providers.dart';
+import 'package:alera/src/features/ai_assist/application/agent_title_service.dart';
 import 'package:alera/src/design_system/feedback/alera_toast.dart';
 
 import 'dart:math' as math;

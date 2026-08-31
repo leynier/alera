@@ -6,8 +6,10 @@ import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_p
 import 'package:alera/src/app/providers.dart';
 import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/design_system/icons/alera_icons.dart';
+import 'package:alera/src/design_system/menus/alera_dropdown_entry.dart';
 import 'package:alera/src/design_system/feedback/alera_status_dot.dart';
 import 'package:alera/src/design_system/feedback/alera_toast.dart';
+import 'package:alera/src/features/ai_assist/application/agent_title_providers.dart';
 import 'package:alera/src/features/agent_profiles/application/agent_profile_providers.dart';
 import 'package:alera/src/features/agent_profiles/domain/agent_profile.dart';
 import 'package:alera/src/features/agent_status/domain/agent_status.dart';
@@ -68,6 +70,7 @@ Future<_ShellPumpHarness> _pumpShell(
   AleraSettings? settings,
   Map<String, AgentStatusEntry> agentStatuses =
       const <String, AgentStatusEntry>{},
+  bool agentTitlesAvailable = false,
 }) async {
   final shellController = controller ?? _ShellTestWorkbenchController(state);
   final runtime = terminalRuntime ?? _FakeTerminalRuntime();
@@ -102,6 +105,9 @@ Future<_ShellPumpHarness> _pumpShell(
           ),
         terminalHostWarmupCoordinatorProvider.overrideWith((ref) {}),
         settingsControllerProvider.overrideWith(() => settingsController),
+        agentTitleAvailableProvider.overrideWith(
+          (ref) async => agentTitlesAvailable,
+        ),
         if (workspaceFolderOpener != null)
           workspaceFolderOpenerProvider.overrideWith(
             (ref) => workspaceFolderOpener,

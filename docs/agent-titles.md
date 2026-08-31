@@ -4,7 +4,9 @@ AI Assist names new agent conversations automatically in terminal tabs and Codex
 
 The initial title uses the first user prompt. Profile launches capture that prompt before adding profile or project instructions. Hooks supply prompts for agents launched directly in a terminal. When the prompt is unavailable, a short deferred job uses recent terminal output. Codex Chat uses its structured messages instead of a PTY. Internal generation runs in a separate temporary directory without the originating terminal's hook identity.
 
-Use **Generate Title** or **Regenerate Title** in the tab menu on desktop or mobile. Regeneration combines the retained initial prompt with recent context and applies a valid result directly. Context is limited to 16 KiB; terminal control sequences and adjacent duplicate redraw lines are removed. Empty context or an invalid result leaves the old name intact. A title is at most 80 characters; the generation prompt requests 3 to 7 words in the task's language.
+Use **Generate Title** or **Regenerate Title** in the tab menu on desktop or mobile. The same generate action is also available from the agent-run rows under a workspace in the desktop sidebar. Regeneration combines the retained initial prompt with recent context and applies a valid result directly. Context is limited to 16 KiB; terminal control sequences and adjacent duplicate redraw lines are removed. Empty context or an invalid result leaves the old name intact. A title is at most 80 characters; the generation prompt requests 3 to 7 words in the task's language.
+
+**Show Tab Titles in Sidebar** (Settings > Agents > Behavior, portable through Configuration Sync) replaces the latest activity text in those sidebar rows with each tab's persisted title. Turn it off to keep the current tool or assistant snippet.
 
 Manual names take precedence over automatic generation, including when a new conversation starts in the same tab. An explicit regeneration may replace a manual name, but a rename made while that job runs wins. Closing the tab or switching conversations invalidates pending results. Multiple clients cannot start simultaneous jobs for the same tab.
 

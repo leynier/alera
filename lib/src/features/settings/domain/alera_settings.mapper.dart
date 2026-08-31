@@ -1651,6 +1651,14 @@ class AgentSettingsMapper extends ClassMapperBase<AgentSettings> {
         opt: true,
         def: false,
       );
+  static bool _$showTabTitlesInSidebar(AgentSettings v) =>
+      v.showTabTitlesInSidebar;
+  static const Field<AgentSettings, bool> _f$showTabTitlesInSidebar = Field(
+    'showTabTitlesInSidebar',
+    _$showTabTitlesInSidebar,
+    opt: true,
+    def: false,
+  );
   static String? _$defaultAgentProfileId(AgentSettings v) =>
       v.defaultAgentProfileId;
   static const Field<AgentSettings, String> _f$defaultAgentProfileId = Field(
@@ -1673,6 +1681,7 @@ class AgentSettingsMapper extends ClassMapperBase<AgentSettings> {
     #agentStatusFinishedNotificationsEnabled:
         _f$agentStatusFinishedNotificationsEnabled,
     #keepComputerAwakeWhileAgentsWork: _f$keepComputerAwakeWhileAgentsWork,
+    #showTabTitlesInSidebar: _f$showTabTitlesInSidebar,
     #defaultAgentProfileId: _f$defaultAgentProfileId,
     #quotas: _f$quotas,
   };
@@ -1689,6 +1698,7 @@ class AgentSettingsMapper extends ClassMapperBase<AgentSettings> {
       keepComputerAwakeWhileAgentsWork: data.dec(
         _f$keepComputerAwakeWhileAgentsWork,
       ),
+      showTabTitlesInSidebar: data.dec(_f$showTabTitlesInSidebar),
       defaultAgentProfileId: data.dec(_f$defaultAgentProfileId),
       quotas: data.dec(_f$quotas),
     );
@@ -1769,6 +1779,7 @@ abstract class AgentSettingsCopyWith<$R, $In extends AgentSettings, $Out>
     bool? agentStatusNotificationsEnabled,
     bool? agentStatusFinishedNotificationsEnabled,
     bool? keepComputerAwakeWhileAgentsWork,
+    bool? showTabTitlesInSidebar,
     String? defaultAgentProfileId,
     AgentQuotaSettings? quotas,
   });
@@ -1800,6 +1811,7 @@ class _AgentSettingsCopyWithImpl<$R, $Out>
     bool? agentStatusNotificationsEnabled,
     bool? agentStatusFinishedNotificationsEnabled,
     bool? keepComputerAwakeWhileAgentsWork,
+    bool? showTabTitlesInSidebar,
     Object? defaultAgentProfileId = $none,
     AgentQuotaSettings? quotas,
   }) => $apply(
@@ -1812,6 +1824,8 @@ class _AgentSettingsCopyWithImpl<$R, $Out>
             agentStatusFinishedNotificationsEnabled,
       if (keepComputerAwakeWhileAgentsWork != null)
         #keepComputerAwakeWhileAgentsWork: keepComputerAwakeWhileAgentsWork,
+      if (showTabTitlesInSidebar != null)
+        #showTabTitlesInSidebar: showTabTitlesInSidebar,
       if (defaultAgentProfileId != $none)
         #defaultAgentProfileId: defaultAgentProfileId,
       if (quotas != null) #quotas: quotas,
@@ -1831,6 +1845,10 @@ class _AgentSettingsCopyWithImpl<$R, $Out>
     keepComputerAwakeWhileAgentsWork: data.get(
       #keepComputerAwakeWhileAgentsWork,
       or: $value.keepComputerAwakeWhileAgentsWork,
+    ),
+    showTabTitlesInSidebar: data.get(
+      #showTabTitlesInSidebar,
+      or: $value.showTabTitlesInSidebar,
     ),
     defaultAgentProfileId: data.get(
       #defaultAgentProfileId,

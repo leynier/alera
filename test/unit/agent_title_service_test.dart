@@ -55,6 +55,29 @@ void main() {
     },
   );
 
+  test('action labels follow generation status and source', () {
+    expect(agentTitleActionLabel(const <String, Object?>{}), 'Generate Title');
+    expect(
+      agentTitleActionLabel(const <String, Object?>{
+        'agentTitleSource': 'generated',
+      }),
+      'Regenerate Title',
+    );
+    expect(
+      agentTitleActionLabel(const <String, Object?>{
+        'agentTitleSource': 'generated',
+        'agentTitleStatus': 'generating',
+      }),
+      'Generating title...',
+    );
+    expect(
+      isAgentTitleGenerating(const <String, Object?>{
+        'agentTitleStatus': 'generating',
+      }),
+      isTrue,
+    );
+  });
+
   test('old hosts do not advertise generation actions', () async {
     final client = _Client();
     final service = AgentTitleService(client);

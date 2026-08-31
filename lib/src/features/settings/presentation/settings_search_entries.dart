@@ -242,6 +242,17 @@ agentsSearchEntries = buildSettingsSearchEntryCatalog(const {
     ),
   },
   'behavior': {
+    'Show Tab Titles in Sidebar': SettingsSearchEntryDetails(
+      description: 'Use each agent tab title under a workspace instead of the latest activity.',
+      keywords: <String>[
+        'tab',
+        'title',
+        'sidebar',
+        'workspace',
+        'agent',
+        'regenerate',
+      ],
+    ),
     'Agent Status Notifications': SettingsSearchEntryDetails(
       description: 'Show native notifications when agents need attention.',
       keywords: <String>[

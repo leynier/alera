@@ -550,6 +550,7 @@ void _registerSettingsDialogCoreTests() {
     ]) {
       expect(find.text(label), findsOneWidget);
     }
+    expect(find.text('Show Tab Titles in Sidebar'), findsOneWidget);
     expect(find.text('Agent Status Notifications'), findsOneWidget);
     expect(
       find.text('Keep Computer Awake While Agents Are Working'),
@@ -577,19 +578,23 @@ void _registerSettingsDialogCoreTests() {
       await tester.tap(find.byType(Switch).at(entry.switchIndex));
       await tester.pump(const Duration(milliseconds: 50));
     }
-    await tester.ensureVisible(find.text('Agent Status Notifications'));
+    await tester.ensureVisible(find.text('Show Tab Titles in Sidebar'));
     await tester.pump();
     await tester.tap(find.byType(Switch).at(11));
     await tester.pump(const Duration(milliseconds: 50));
-    await tester.ensureVisible(find.text('Agent Finished Notifications'));
+    await tester.ensureVisible(find.text('Agent Status Notifications'));
     await tester.pump();
     await tester.tap(find.byType(Switch).at(12));
+    await tester.pump(const Duration(milliseconds: 50));
+    await tester.ensureVisible(find.text('Agent Finished Notifications'));
+    await tester.pump();
+    await tester.tap(find.byType(Switch).at(13));
     await tester.pump(const Duration(milliseconds: 50));
     await tester.ensureVisible(
       find.text('Keep Computer Awake While Agents Are Working'),
     );
     await tester.pump();
-    await tester.tap(find.byType(Switch).at(13));
+    await tester.tap(find.byType(Switch).at(14));
     await tester.pump(const Duration(milliseconds: 50));
 
     final hooks = container
@@ -611,6 +616,7 @@ void _registerSettingsDialogCoreTests() {
     ], everyElement(isTrue));
     final behavior = container.read(settingsControllerProvider).agents;
     expect(<bool>[
+      behavior.showTabTitlesInSidebar,
       behavior.agentStatusNotificationsEnabled,
       behavior.agentStatusFinishedNotificationsEnabled,
       behavior.keepComputerAwakeWhileAgentsWork,

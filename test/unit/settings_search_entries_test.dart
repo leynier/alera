@@ -31,7 +31,7 @@ void main() {
 
     expect(
       _catalogFingerprint(catalogs),
-      '9899fa14f7e0490fac5b50efff87c4d9e3bd889fbdb89013ef7ffb8b71058811',
+      '03b7dccd26a070b27f20be5ccd85ab946ec9af945891530e47792c9b6650cd79',
     );
   });
 
@@ -87,6 +87,13 @@ void main() {
         entries: agentsSearchEntries,
         query: 'xai',
         expected: <(String, String?)>[('Grok Build Hooks', 'hooks')],
+      ),
+      (
+        entries: agentsSearchEntries,
+        query: 'sidebar',
+        expected: <(String, String?)>[
+          ('Show Tab Titles in Sidebar', 'behavior'),
+        ],
       ),
       (
         entries: browserSearchEntries,
@@ -149,6 +156,16 @@ void main() {
     expect(entry.matches('canvas'), isTrue);
     expect(entry.matches('decision'), isTrue);
     expect(entry.groupId, 'cliSkill');
+  });
+
+  test('sidebar tab titles are searchable in the agents behavior group', () {
+    final entry = agentsSearchEntries.singleWhere(
+      (candidate) => candidate.title == 'Show Tab Titles in Sidebar',
+    );
+
+    expect(entry.matches('sidebar'), isTrue);
+    expect(entry.matches('regenerate'), isTrue);
+    expect(entry.groupId, 'behavior');
   });
 
   test('Grok Build hooks are searchable in the hooks group', () {
