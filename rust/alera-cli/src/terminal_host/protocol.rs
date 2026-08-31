@@ -93,6 +93,7 @@ pub const RUNTIME_HOST_AGENT_PROFILE_PROMPT_LAUNCH_CAPABILITY: &str = "agentProf
 pub const RUNTIME_HOST_RUN_POLICY_CAPABILITY: &str = "orchestrationRunPolicyV1";
 pub const RUNTIME_HOST_ORCHESTRATION_BOARD_CAPABILITY: &str = "orchestrationRunBoardV1";
 pub const RUNTIME_HOST_WORKFLOW_CATALOG_CAPABILITY: &str = "workflowRecipeCatalogV1";
+pub const RUNTIME_HOST_WORKFLOW_PLANS_CAPABILITY: &str = "workflowReviewedPlansV1";
 // Advertised once terminal.write supports host-sequenced bracketed paste and
 // deferred Enter. Older hosts ignore those fields, so CLI callers must require
 // this capability before relying on --enter or --submit.

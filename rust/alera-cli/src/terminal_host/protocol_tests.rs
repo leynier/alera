@@ -108,6 +108,10 @@ fn bytes_round_trip() {
 
 #[test]
 fn workflow_catalog_capability_does_not_change_the_strict_protocol() {
+    assert_eq!(
+        RUNTIME_HOST_WORKFLOW_PLANS_CAPABILITY,
+        "workflowReviewedPlansV1"
+    );
     assert_eq!(PROTOCOL_VERSION, 4);
     assert_eq!(
         RUNTIME_HOST_WORKFLOW_CATALOG_CAPABILITY,

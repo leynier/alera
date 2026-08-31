@@ -4,4 +4,6 @@ pub mod git_cli;
 pub mod reading_diff;
 #[cfg(feature = "runtime")]
 pub mod runtime;
+#[cfg(feature = "workflow-approval")]
+pub mod workflow_approval;
 pub mod workspace_files;

@@ -9,6 +9,13 @@ async fn legacy_orchestration_schema_migrates_without_losing_records() {
         .await
         .unwrap();
     for table in [
+        "workflowStageGates",
+        "workflowApprovalChallenges",
+        "workflowTaskEvidence",
+        "workflowDecisions",
+        "workflowPlanTasks",
+        "workflowPlanRevisions",
+        "workflowRuns",
         "orchestrationAuditEvents",
         "orchestrationDecisionGates",
         "orchestrationDispatchContexts",

@@ -130,6 +130,7 @@ dependencies = [
  "chrono",
  "chrono-tz",
  "git2",
+ "hmac 0.12.1",
  "ignore",
  "jsonschema",
  "libc",
@@ -143,7 +144,9 @@ dependencies = [
  "tokio",
  "url",
  "uuid",
+ "windows 0.62.2",
  "yaml-rust2",
+ "zeroize",
 ]
 
 [[package]]

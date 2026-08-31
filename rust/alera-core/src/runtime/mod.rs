@@ -95,12 +95,23 @@ mod workbench_shared_state_models;
 mod workbench_shared_state_store;
 #[cfg(test)]
 mod workbench_shared_state_store_tests;
+mod workflow_approval_store;
 mod workflow_builtins;
 mod workflow_catalog;
 mod workflow_catalog_store;
 #[cfg(test)]
 mod workflow_catalog_tests;
+mod workflow_gate_evidence;
+#[cfg(test)]
+mod workflow_gate_tests;
 mod workflow_json_escapes;
+mod workflow_plan;
+mod workflow_plan_compilation;
+mod workflow_plan_materialization;
+mod workflow_plan_schema;
+mod workflow_plan_store;
+#[cfg(test)]
+mod workflow_plan_tests;
 mod workflow_project_files;
 #[cfg(test)]
 mod workflow_project_files_tests;
@@ -108,6 +119,7 @@ mod workflow_recipe;
 mod workflow_recipe_compilation;
 #[cfg(test)]
 mod workflow_recipe_tests;
+mod workflow_source_identity;
 mod workflow_yaml;
 #[cfg(test)]
 mod workflow_yaml_tests;
@@ -157,8 +169,10 @@ pub use store::*;
 pub use store_error::*;
 pub use text_actions_validation::{validate_text_actions_settings, AI_ASSIST_AGENTS};
 pub use workbench_shared_state_models::*;
+pub use workflow_approval_store::WorkflowDecisionReceipt;
 pub use workflow_builtins::builtin_workflow_recipes;
 pub use workflow_catalog::{WorkflowCatalog, WorkflowCatalogEntry, WorkflowCatalogRecipe};
+pub use workflow_plan::*;
 pub use workflow_recipe::*;
 pub use workflow_yaml::{parse_workflow_yaml, WORKFLOW_DOCUMENT_MAX_BYTES};
 pub use worktree_setup_models::*;

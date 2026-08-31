@@ -117,6 +117,11 @@ jobs:
         if: runner.os == 'Windows'
         uses: ./.github/actions/tune-windows-build
 
+      - name: Verify desktop workflow credential protection
+        run: >-
+          cargo test --manifest-path rust/Cargo.toml --locked
+          -p alera-core --features workflow-approval --lib workflow_approval::
+
       # Cargokit contains fully linked alera_native and code_forge outputs, so
       # restoring it remains faster than compiler caching alone. Only the
       # warm-cache workflow saves, so pull requests never write a private copy.

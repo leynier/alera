@@ -16,7 +16,8 @@ impl RuntimeStore {
             "UPDATE orchestrationCoordinatorRuns \
              SET execution_policy = ?, execution_policy_status = 'draft', \
                  execution_policy_updated_at = datetime('now') \
-             WHERE id = ? AND status NOT IN ('completed','failed','stopped')",
+             WHERE id = ? AND status NOT IN ('completed','failed','stopped') \
+             AND NOT EXISTS(SELECT 1 FROM workflowRuns WHERE run_id = orchestrationCoordinatorRuns.id)",
         )
         .bind(policy_json)
         .bind(run_id)
@@ -43,7 +44,8 @@ impl RuntimeStore {
         let result = sqlx::query(
             "UPDATE orchestrationCoordinatorRuns \
              SET execution_policy_status = ?, execution_policy_updated_at = datetime('now') \
-             WHERE id = ? AND execution_policy_status = 'draft'",
+             WHERE id = ? AND execution_policy_status = 'draft' \
+             AND NOT EXISTS(SELECT 1 FROM workflowRuns WHERE run_id = orchestrationCoordinatorRuns.id)",
         )
         .bind(next.as_str())
         .bind(run_id)

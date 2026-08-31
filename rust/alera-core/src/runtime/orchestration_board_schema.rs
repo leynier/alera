@@ -6,8 +6,12 @@ use super::RuntimeStore;
 // changes cannot invalidate a cursor, and reconnects do not reset the sequence.
 impl RuntimeStore {
     pub(super) async fn migrate_orchestration_board(&self) -> Result<()> {
+        let mut tx = self.pool().begin().await?;
+        sqlx::query("DROP VIEW IF EXISTS orchestrationBoardRuns")
+            .execute(&mut *tx)
+            .await?;
         for statement in BOARD_SCHEMA {
-            sqlx::query(*statement).execute(self.pool()).await?;
+            sqlx::query(*statement).execute(&mut *tx).await?;
         }
         for table in [
             "orchestrationCoordinatorRuns",
@@ -24,10 +28,11 @@ impl RuntimeStore {
                      AFTER {operation} ON {table} BEGIN
                      UPDATE orchestrationBoardRevision SET revision = revision + 1 WHERE id = 1; END"
                 )))
-                .execute(self.pool())
+                .execute(&mut *tx)
                 .await?;
             }
         }
+        tx.commit().await?;
         Ok(())
     }
 }
@@ -52,11 +57,23 @@ const BOARD_SCHEMA: &[&str] = &[
              SUM(status = 'stalled') AS stalled_count,
              SUM(status = 'blocked') AS blocked_count
          FROM orchestrationTasks GROUP BY run_id
-     ), gates AS (
-         SELECT t.run_id, COUNT(*) AS pending_gate_count
+     ), pending_gates AS (
+         SELECT t.run_id
          FROM orchestrationDecisionGates g
          JOIN orchestrationTasks t ON t.id = g.task_id
-         WHERE g.status = 'pending' GROUP BY t.run_id
+         WHERE g.status = 'pending'
+         UNION ALL
+         SELECT g.run_id FROM workflowStageGates g
+         JOIN workflowRuns w ON w.run_id = g.run_id AND w.revision = g.revision
+         WHERE g.status = 'pending' AND w.status = 'approved'
+           AND EXISTS(SELECT 1 FROM workflowPlanTasks p JOIN orchestrationTasks t ON t.id = p.task_id
+               WHERE p.run_id = g.run_id AND p.revision = g.revision AND t.stage_id = g.stage_id)
+           AND NOT EXISTS(SELECT 1 FROM workflowPlanTasks p JOIN orchestrationTasks t ON t.id = p.task_id
+               LEFT JOIN workflowTaskEvidence e ON e.task_id = p.task_id
+               WHERE p.run_id = g.run_id AND p.revision = g.revision AND t.stage_id = g.stage_id
+                 AND (t.status <> 'completed' OR e.task_id IS NULL))
+     ), gates AS (
+         SELECT run_id, COUNT(*) AS pending_gate_count FROM pending_gates GROUP BY run_id
      )
      SELECT r.id, substr(r.spec, 1, 256) AS objective, r.status,
          r.workspace_id, substr(w.name, 1, 256) AS workspace_name,

@@ -12,6 +12,7 @@ final class _TerminalHostConnection {
     required this.supportsTerminalPulse,
     required this.supportsRemoteAiDictation,
     required this.supportsRunBoard,
+    required this.supportsWorkflowPlans,
     required this.supportsWorkspaceSections,
   }) : _reader = null {
     _socketSub = _socket!.cast<List<int>>().listen(
@@ -37,6 +38,7 @@ final class _TerminalHostConnection {
     required this.supportsTerminalPulse,
     required this.supportsRemoteAiDictation,
     required this.supportsRunBoard,
+    required this.supportsWorkflowPlans,
     required this.supportsWorkspaceSections,
   }) : _reader = reader,
        _socket = null {
@@ -60,6 +62,7 @@ final class _TerminalHostConnection {
   final bool supportsTerminalPulse;
   final bool supportsRemoteAiDictation;
   final bool supportsRunBoard;
+  final bool supportsWorkflowPlans;
   final bool supportsWorkspaceSections;
 
   /// One reader for the whole connection. It starts newline-delimited so the
@@ -158,6 +161,7 @@ final class const _TerminalHostControl({
   final bool supportsTerminalPulse = false,
   final bool supportsRemoteAiDictation = false,
   final bool supportsRunBoard = false,
+  final bool supportsWorkflowPlans = false,
   final bool supportsWorkspaceSections = false,
 });
 

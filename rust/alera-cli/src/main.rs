@@ -14,6 +14,7 @@ mod cli_orchestration_terminal;
 mod cli_orchestration_timeouts;
 #[cfg(test)]
 mod cli_tests;
+mod cli_workflow_plans;
 mod cli_workflow_recipes;
 mod computer_commands;
 mod computer_output;
@@ -45,6 +46,7 @@ mod tab_record_factory;
 mod tailscale;
 mod terminal_alias_commands;
 mod terminal_host;
+mod workflow_plan_commands;
 mod workflow_recipe_commands;
 mod workspace_pinning;
 mod workspace_registration;

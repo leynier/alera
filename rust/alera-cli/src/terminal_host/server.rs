@@ -202,6 +202,9 @@ mod terminal_startup_commands;
 mod workflow_catalog_requests;
 #[cfg(test)]
 mod workflow_catalog_tests;
+mod workflow_plan_requests;
+#[cfg(test)]
+mod workflow_plan_tests;
 mod workspace_pinning;
 mod workspace_section_requests;
 #[cfg(test)]
@@ -640,6 +643,7 @@ impl ServerActor {
             } => {
                 self.broadcast_workflow_catalog_changed(&source, catalog_revision);
             }
+            ServerCommand::WorkflowPlanChanged => self.broadcast_orchestration_board_change().await,
             ServerCommand::PrepareRuntimeMutation {
                 request,
                 completion,

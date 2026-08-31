@@ -17,6 +17,7 @@ import 'api/keep_alive.dart';
 import 'api/merman_viewer.dart';
 import 'api/process.dart';
 import 'api/reading_diff.dart';
+import 'api/workflow_approval.dart';
 import 'api/workspace_files.dart';
 import 'api/workspace_search.dart';
 

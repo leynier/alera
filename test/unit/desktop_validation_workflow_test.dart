@@ -102,6 +102,24 @@ void main() {
   });
 
   test(
+    'desktop builds execute credential protection tests on every platform',
+    () {
+      final credential = step(
+        'build',
+        'Verify desktop workflow credential protection',
+      );
+      expect(credential['if'], isNull);
+      expect(credential['continue-on-error'], isNull);
+      expect(
+        credential['run'],
+        contains('-p alera-core --features workflow-approval'),
+      );
+      expect(credential['run'], contains('--lib workflow_approval::'));
+      expect(credential['run'], contains('--locked'));
+    },
+  );
+
+  test(
     'native clipboard coverage opts in only on disposable runner desktops',
     () {
       final e2e = step('desktop_e2e_linux', 'Desktop E2E');
