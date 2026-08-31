@@ -1,4 +1,5 @@
 import 'package:alera/src/features/codex_chat/presentation/codex_queue_close_confirmation.dart';
+
 import 'dart:async';
 
 import 'package:alera/src/app/providers.dart';
@@ -42,9 +43,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 part 'alera_shell_page_body.dart';
 part 'alera_shell_page_body_content.dart';
 
-class AleraShellPage extends ConsumerWidget {
-  const AleraShellPage({super.key});
-
+class const AleraShellPage({super.key}) extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final dbAsync = ref.watch(aleraDatabaseProvider);
@@ -56,20 +55,14 @@ class AleraShellPage extends ConsumerWidget {
   }
 }
 
-class _ShellLoading extends StatelessWidget {
-  const _ShellLoading();
-
+class const _ShellLoading() extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return const Scaffold(body: Center(child: CircularProgressIndicator()));
   }
 }
 
-class _ShellError extends StatelessWidget {
-  const _ShellError({required this.error});
-
-  final String error;
-
+class const _ShellError({required final String error}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -78,7 +71,7 @@ class _ShellError extends StatelessWidget {
         child: Padding(
           padding: const EdgeInsets.all(AleraTokens.space24),
           child: Column(
-            mainAxisSize: MainAxisSize.min,
+            mainAxisSize: .min,
             children: <Widget>[
               const Icon(AleraIcons.error, color: AleraTokens.error, size: 32),
               const SizedBox(height: AleraTokens.space12),
@@ -89,7 +82,7 @@ class _ShellError extends StatelessWidget {
               const SizedBox(height: AleraTokens.space8),
               Text(
                 error,
-                textAlign: TextAlign.center,
+                textAlign: .center,
                 style: theme.textTheme.bodySmall?.copyWith(
                   color: AleraTokens.foregroundMuted,
                 ),
@@ -102,9 +95,7 @@ class _ShellError extends StatelessWidget {
   }
 }
 
-class _AleraShellPageBody extends ConsumerStatefulWidget {
-  const _AleraShellPageBody();
-
+class const _AleraShellPageBody() extends ConsumerStatefulWidget {
   @override
   ConsumerState<_AleraShellPageBody> createState() =>
       _AleraShellPageBodyState();

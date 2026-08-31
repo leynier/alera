@@ -122,7 +122,7 @@ void _registerWorkbenchControllerPreviewTabTests() {
     final splitTerminal = await _controller.splitWorkbenchGroupWithTerminal(
       workspace: workspace,
       groupId: originalGroupId,
-      zone: WorkbenchDropZone.right,
+      zone: .right,
     );
     await _flush();
     final newGroupId = _controller.state
@@ -207,8 +207,8 @@ void _registerWorkbenchControllerPreviewTabTests() {
       final git = await _controller.openGitDiffTab(
         workspace: workspace,
         relativePath: 'lib/b.dart',
-        area: GitChangeArea.unstaged,
-        scope: WorkspaceGitDiffScope.file,
+        area: .unstaged,
+        scope: .file,
         preview: true,
       );
       await _flush();
@@ -233,15 +233,15 @@ void _registerWorkbenchControllerPreviewTabTests() {
       final first = await _controller.openGitDiffTab(
         workspace: workspace,
         relativePath: 'lib/a.dart',
-        area: GitChangeArea.unstaged,
-        scope: WorkspaceGitDiffScope.file,
+        area: .unstaged,
+        scope: .file,
         preview: true,
       );
       final second = await _controller.openGitDiffTab(
         workspace: workspace,
         relativePath: 'lib/b.dart',
-        area: GitChangeArea.staged,
-        scope: WorkspaceGitDiffScope.file,
+        area: .staged,
+        scope: .file,
         preview: true,
       );
       await _flush();
@@ -270,7 +270,7 @@ void _registerWorkbenchControllerPreviewTabTests() {
     );
     final allChanges = await _controller.openGitDiffTab(
       workspace: workspace,
-      scope: WorkspaceGitDiffScope.all,
+      scope: .all,
     );
     await _flush();
 
@@ -290,15 +290,15 @@ void _registerWorkbenchControllerPreviewTabTests() {
     final preview = await _controller.openGitDiffTab(
       workspace: workspace,
       relativePath: 'lib/a.dart',
-      area: GitChangeArea.unstaged,
-      scope: WorkspaceGitDiffScope.file,
+      area: .unstaged,
+      scope: .file,
       preview: true,
     );
     final pinned = await _controller.openGitDiffTab(
       workspace: workspace,
       relativePath: 'lib/a.dart',
-      area: GitChangeArea.unstaged,
-      scope: WorkspaceGitDiffScope.file,
+      area: .unstaged,
+      scope: .file,
     );
     await _flush();
 

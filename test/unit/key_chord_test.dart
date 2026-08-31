@@ -93,16 +93,16 @@ void main() {
 
     KeyDownEvent down(LogicalKeyboardKey key) {
       return KeyDownEvent(
-        physicalKey: PhysicalKeyboardKey.keyP,
+        physicalKey: .keyP,
         logicalKey: key,
-        timeStamp: Duration.zero,
+        timeStamp: .zero,
       );
     }
 
     test('Mod resolves to Meta on macOS', () {
       expect(
         modP.matches(
-          down(LogicalKeyboardKey.keyP),
+          down(.keyP),
           const KeyModifierState(meta: true),
           isMacOS: true,
         ),
@@ -111,7 +111,7 @@ void main() {
       // Control should not satisfy Mod on macOS.
       expect(
         modP.matches(
-          down(LogicalKeyboardKey.keyP),
+          down(.keyP),
           const KeyModifierState(control: true),
           isMacOS: true,
         ),
@@ -122,7 +122,7 @@ void main() {
     test('Mod resolves to Control off macOS', () {
       expect(
         modP.matches(
-          down(LogicalKeyboardKey.keyP),
+          down(.keyP),
           const KeyModifierState(control: true),
           isMacOS: false,
         ),
@@ -134,7 +134,7 @@ void main() {
       // Extra Shift must not match a plain Mod+P.
       expect(
         modP.matches(
-          down(LogicalKeyboardKey.keyP),
+          down(.keyP),
           const KeyModifierState(meta: true, shift: true),
           isMacOS: true,
         ),
@@ -144,9 +144,9 @@ void main() {
 
     test('ignores key-up events', () {
       final up = KeyUpEvent(
-        physicalKey: PhysicalKeyboardKey.keyP,
-        logicalKey: LogicalKeyboardKey.keyP,
-        timeStamp: Duration.zero,
+        physicalKey: .keyP,
+        logicalKey: .keyP,
+        timeStamp: .zero,
       );
       expect(
         modP.matches(up, const KeyModifierState(meta: true), isMacOS: true),
@@ -158,15 +158,15 @@ void main() {
   group('KeyChord.fromKeyEvent', () {
     KeyDownEvent down(LogicalKeyboardKey key) {
       return KeyDownEvent(
-        physicalKey: PhysicalKeyboardKey.keyT,
+        physicalKey: .keyT,
         logicalKey: key,
-        timeStamp: Duration.zero,
+        timeStamp: .zero,
       );
     }
 
     test('collapses platform modifier into Mod', () {
       final macResult = KeyChord.fromKeyEvent(
-        down(LogicalKeyboardKey.keyT),
+        down(.keyT),
         const KeyModifierState(meta: true),
         isMacOS: true,
       );
@@ -176,7 +176,7 @@ void main() {
       );
 
       final linuxResult = KeyChord.fromKeyEvent(
-        down(LogicalKeyboardKey.keyT),
+        down(.keyT),
         const KeyModifierState(control: true),
         isMacOS: false,
       );
@@ -188,9 +188,9 @@ void main() {
 
     test('rejects a lone modifier press', () {
       final event = KeyDownEvent(
-        physicalKey: PhysicalKeyboardKey.metaLeft,
-        logicalKey: LogicalKeyboardKey.metaLeft,
-        timeStamp: Duration.zero,
+        physicalKey: .metaLeft,
+        logicalKey: .metaLeft,
+        timeStamp: .zero,
       );
       expect(
         KeyChord.fromKeyEvent(event, const KeyModifierState(), isMacOS: true),
@@ -201,7 +201,7 @@ void main() {
     test('rejects an unmodified letter', () {
       expect(
         KeyChord.fromKeyEvent(
-          down(LogicalKeyboardKey.keyT),
+          down(.keyT),
           const KeyModifierState(),
           isMacOS: true,
         ),
@@ -218,10 +218,7 @@ void main() {
     });
 
     test('toString and fallback display labels stay readable', () {
-      final chord = KeyChord(
-        trigger: LogicalKeyboardKey.audioVolumeUp,
-        control: true,
-      );
+      final chord = KeyChord(trigger: .audioVolumeUp, control: true);
 
       expect(chord.toString(), 'KeyChord(Ctrl+Audio Volume Up)');
       expect(chord.format(isMacOS: false), 'Ctrl+Audio Volume Up');

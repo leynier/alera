@@ -1,47 +1,28 @@
 part of 'create_workspace_dialog.dart';
 
-class _CreateWorkspaceSettingsStep extends StatelessWidget {
-  const _CreateWorkspaceSettingsStep({
-    required this.project,
-    required this.sourceBranch,
-    required this.reuseExistingBranch,
-    required this.newBranchController,
-    required this.newBranchError,
-    required this.branchValidationError,
-    required this.isValidatingBranch,
-    required this.onNewBranchChanged,
-    required this.nameController,
-    required this.nameTouched,
-    required this.onNameChanged,
-    required this.parentCandidates,
-    required this.selectedParentWorkspaceId,
-    required this.onParentWorkspaceChanged,
-    required this.creating,
-    required this.onSubmit,
-  });
-
-  final Project? project;
-  final String sourceBranch;
-  final bool reuseExistingBranch;
-  final TextEditingController newBranchController;
-  final String? newBranchError;
-  final String? branchValidationError;
-  final bool isValidatingBranch;
-  final ValueChanged<String> onNewBranchChanged;
-  final TextEditingController nameController;
-  final bool nameTouched;
-  final ValueChanged<String> onNameChanged;
-  final List<WorkspaceParentCandidate> parentCandidates;
-  final String? selectedParentWorkspaceId;
-  final ValueChanged<String?> onParentWorkspaceChanged;
-  final bool creating;
-  final VoidCallback onSubmit;
-
+class const _CreateWorkspaceSettingsStep({
+  required final Project? project,
+  required final String sourceBranch,
+  required final bool reuseExistingBranch,
+  required final TextEditingController newBranchController,
+  required final String? newBranchError,
+  required final String? branchValidationError,
+  required final bool isValidatingBranch,
+  required final ValueChanged<String> onNewBranchChanged,
+  required final TextEditingController nameController,
+  required final bool nameTouched,
+  required final ValueChanged<String> onNameChanged,
+  required final List<WorkspaceParentCandidate> parentCandidates,
+  required final String? selectedParentWorkspaceId,
+  required final ValueChanged<String?> onParentWorkspaceChanged,
+  required final bool creating,
+  required final VoidCallback onSubmit,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: .min,
+      crossAxisAlignment: .start,
       children: <Widget>[
         _WorkspaceSelectionSummary(
           projectName: project?.name ?? '',
@@ -119,22 +100,16 @@ class _CreateWorkspaceSettingsStep extends StatelessWidget {
   }
 }
 
-class _WorkspaceSelectionSummary extends StatelessWidget {
-  const _WorkspaceSelectionSummary({
-    required this.projectName,
-    required this.sourceBranch,
-    required this.reuseExistingBranch,
-  });
-
-  final String projectName;
-  final String sourceBranch;
-  final bool reuseExistingBranch;
-
+class const _WorkspaceSelectionSummary({
+  required final String projectName,
+  required final String sourceBranch,
+  required final bool reuseExistingBranch,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Container(
-      width: double.infinity,
+      width: .infinity,
       padding: const EdgeInsets.symmetric(
         horizontal: AleraTokens.space12,
         vertical: AleraTokens.space8,
@@ -165,7 +140,7 @@ class _WorkspaceSelectionSummary extends StatelessWidget {
                 projectName,
                 style: theme.textTheme.bodySmall?.copyWith(
                   color: AleraTokens.foreground,
-                  fontWeight: FontWeight.w500,
+                  fontWeight: .w500,
                 ),
               ),
             ],
@@ -185,7 +160,7 @@ class _WorkspaceSelectionSummary extends StatelessWidget {
                 sourceBranch,
                 style: theme.textTheme.bodySmall?.copyWith(
                   color: AleraTokens.foreground,
-                  fontWeight: FontWeight.w500,
+                  fontWeight: .w500,
                 ),
               ),
             ],
@@ -196,25 +171,17 @@ class _WorkspaceSelectionSummary extends StatelessWidget {
   }
 }
 
-class _WorkspaceNameField extends StatelessWidget {
-  const _WorkspaceNameField({
-    required this.controller,
-    required this.enabled,
-    required this.showSync,
-    required this.onChanged,
-    required this.onSubmitted,
-  });
-
-  final TextEditingController controller;
-  final bool enabled;
-  final bool showSync;
-  final ValueChanged<String> onChanged;
-  final VoidCallback onSubmitted;
-
+class const _WorkspaceNameField({
+  required final TextEditingController controller,
+  required final bool enabled,
+  required final bool showSync,
+  required final ValueChanged<String> onChanged,
+  required final VoidCallback onSubmitted,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Row(
-      crossAxisAlignment: CrossAxisAlignment.center,
+      crossAxisAlignment: .center,
       children: [
         Expanded(
           child: AleraTextField(
@@ -237,9 +204,7 @@ class _WorkspaceNameField extends StatelessWidget {
   }
 }
 
-class _WorkspaceNameSyncBadge extends StatelessWidget {
-  const _WorkspaceNameSyncBadge();
-
+class const _WorkspaceNameSyncBadge() extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -254,7 +219,7 @@ class _WorkspaceNameSyncBadge extends StatelessWidget {
         border: Border.all(color: AleraTokens.accent.withValues(alpha: 0.2)),
       ),
       child: Row(
-        mainAxisSize: MainAxisSize.min,
+        mainAxisSize: .min,
         children: [
           Icon(
             AleraIcons.link,
@@ -266,7 +231,7 @@ class _WorkspaceNameSyncBadge extends StatelessWidget {
             'Sync',
             style: theme.textTheme.labelSmall?.copyWith(
               color: AleraTokens.accent,
-              fontWeight: FontWeight.w500,
+              fontWeight: .w500,
             ),
           ),
         ],
@@ -275,28 +240,19 @@ class _WorkspaceNameSyncBadge extends StatelessWidget {
   }
 }
 
-class _WorkspaceCreationPreview extends StatelessWidget {
-  const _WorkspaceCreationPreview({
-    required this.project,
-    required this.sourceBranch,
-    required this.newBranchName,
-    required this.workspaceName,
-    required this.reuseExistingBranch,
-    required this.parentLabel,
-  });
-
-  final Project? project;
-  final String sourceBranch;
-  final String newBranchName;
-  final String workspaceName;
-  final bool reuseExistingBranch;
-  final String? parentLabel;
-
+class const _WorkspaceCreationPreview({
+  required final Project? project,
+  required final String sourceBranch,
+  required final String newBranchName,
+  required final String workspaceName,
+  required final bool reuseExistingBranch,
+  required final String? parentLabel,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: .start,
       children: [
         Text(
           'Preview',
@@ -306,7 +262,7 @@ class _WorkspaceCreationPreview extends StatelessWidget {
         ),
         const SizedBox(height: AleraTokens.space6),
         Container(
-          width: double.infinity,
+          width: .infinity,
           padding: const EdgeInsets.all(AleraTokens.space12),
           decoration: BoxDecoration(
             color: AleraTokens.surface,
@@ -314,7 +270,7 @@ class _WorkspaceCreationPreview extends StatelessWidget {
             border: Border.all(color: AleraTokens.borderSubtle),
           ),
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            crossAxisAlignment: .start,
             children: [
               _PreviewRow(
                 icon: AleraIcons.folder,
@@ -355,17 +311,11 @@ class _WorkspaceCreationPreview extends StatelessWidget {
   }
 }
 
-class _PreviewRow extends StatelessWidget {
-  const _PreviewRow({
-    required this.icon,
-    required this.text,
-    this.useMonoStyle = true,
-  });
-
-  final IconData icon;
-  final String text;
-  final bool useMonoStyle;
-
+class const _PreviewRow({
+  required final IconData icon,
+  required final String text,
+  final bool useMonoStyle = true,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -380,7 +330,7 @@ class _PreviewRow extends StatelessWidget {
         Expanded(
           child: Text(
             text,
-            overflow: TextOverflow.ellipsis,
+            overflow: .ellipsis,
             style: useMonoStyle
                 ? AleraTokens.monoStyle.copyWith(
                     color: AleraTokens.foregroundMuted,

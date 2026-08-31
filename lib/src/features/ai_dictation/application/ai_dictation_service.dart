@@ -19,11 +19,7 @@ import 'package:record/record.dart';
 
 enum AiDictationStage { idle, recording, transcribing, improving }
 
-class AiDictationRecordingPlan {
-  const AiDictationRecordingPlan(this.settings);
-
-  final AiDictationSettings settings;
-
+class const AiDictationRecordingPlan(final AiDictationSettings settings) {
   void validateBeforeTranscription(AiDictationSettings currentSettings) {
     final remote =
         settings.transcriptionEngine ==
@@ -32,31 +28,28 @@ class AiDictationRecordingPlan {
             AiDictationTranscriptionEngine.openAiCompatible;
     if (remote && currentSettings.remoteConsentVersion != 1) {
       throw const AiDictationException(
-        AiDictationErrorKind.permissionDenied,
+        .permissionDenied,
         'Remote audio processing was disabled before transcription.',
       );
     }
   }
 }
 
-class AiDictationService extends ChangeNotifier {
-  AiDictationService({
-    required AiDictationSettings Function() settings,
-    required AiDictationTargetRegistry targets,
-    required AiDictationProvider provider,
-    required AiDictationProvider remoteProvider,
-    required AiDictationModelStore modelStore,
-    required AiDictationSpeechProcessor speechProcessor,
-    SystemAiDictationRecognizer? systemRecognizer,
-    AudioRecorder? recorder,
-  }) : _settings = settings,
-       _targets = targets,
-       _provider = provider,
-       _remoteProvider = remoteProvider,
-       _modelStore = modelStore,
-       _speechProcessor = speechProcessor,
-       _systemRecognizer = systemRecognizer ?? SystemAiDictationRecognizer(),
-       _recorder = recorder;
+class AiDictationService({
+  required AiDictationSettings Function() settings,
+  required this._targets,
+  required AiDictationProvider provider,
+  required this._remoteProvider,
+  required this._modelStore,
+  required this._speechProcessor,
+  SystemAiDictationRecognizer? systemRecognizer,
+  AudioRecorder? recorder,
+}) extends ChangeNotifier {
+  this
+    : _settings = settings,
+      _provider = provider,
+      _systemRecognizer = systemRecognizer ?? SystemAiDictationRecognizer(),
+      _recorder = recorder;
 
   final AiDictationSettings Function() _settings;
   final AiDictationTargetRegistry _targets;
@@ -74,7 +67,7 @@ class AiDictationService extends ChangeNotifier {
   AiDictationProvider? _activeProvider;
   AiDictationRecordingPlan? _recordingPlan;
   String? _lastWarning;
-  AiDictationStage _stage = AiDictationStage.idle;
+  AiDictationStage _stage = .idle;
   Future<AiDictationResult?>? _systemFinalization;
 
   bool get isRecording => _stage == AiDictationStage.recording;
@@ -96,14 +89,14 @@ class AiDictationService extends ChangeNotifier {
     final settings = _settings();
     if (!settings.enabled) {
       throw const AiDictationException(
-        AiDictationErrorKind.disabled,
+        .disabled,
         'Enable AI Dictation in Settings before recording.',
       );
     }
     final target = _targets.targetFor(targetId);
     if (target == null) {
       throw const AiDictationException(
-        AiDictationErrorKind.targetUnavailable,
+        .targetUnavailable,
         'The dictation text field is no longer available.',
       );
     }
@@ -121,14 +114,14 @@ class AiDictationService extends ChangeNotifier {
         !await _modelStore.isInstalled(settings.localModelId)) {
       _activeTargetId = null;
       throw const AiDictationException(
-        AiDictationErrorKind.modelUnavailable,
+        .modelUnavailable,
         'Download the selected Whisper model in Settings before recording.',
       );
     }
     if (_usesRemoteAudio(settings) && settings.remoteConsentVersion != 1) {
       _activeTargetId = null;
       throw const AiDictationException(
-        AiDictationErrorKind.permissionDenied,
+        .permissionDenied,
         'Allow remote audio processing in AI Dictation settings first.',
       );
     }
@@ -136,7 +129,7 @@ class AiDictationService extends ChangeNotifier {
     if (!await recorder.hasPermission()) {
       _activeTargetId = null;
       throw const AiDictationException(
-        AiDictationErrorKind.permissionDenied,
+        .permissionDenied,
         'Microphone permission is required for AI Dictation.',
       );
     }
@@ -146,11 +139,7 @@ class AiDictationService extends ChangeNotifier {
       'alera-dictation-${DateTime.now().microsecondsSinceEpoch}.wav',
     );
     await recorder.start(
-      const RecordConfig(
-        encoder: AudioEncoder.wav,
-        sampleRate: 16000,
-        numChannels: 1,
-      ),
+      const RecordConfig(encoder: .wav, sampleRate: 16000, numChannels: 1),
       path: path,
     );
     _recordingPlan = AiDictationRecordingPlan(settings);
@@ -170,7 +159,7 @@ class AiDictationService extends ChangeNotifier {
         )) {
       _activeTargetId = null;
       throw const AiDictationException(
-        AiDictationErrorKind.transcription,
+        .transcription,
         'On-device speech recognition is unavailable for this locale.',
       );
     }
@@ -179,7 +168,7 @@ class AiDictationService extends ChangeNotifier {
         settings.systemRecognitionConsentVersion != 1) {
       _activeTargetId = null;
       throw const AiDictationException(
-        AiDictationErrorKind.permissionDenied,
+        .permissionDenied,
         'Allow online speech recognition in AI Dictation settings first.',
       );
     }
@@ -198,7 +187,7 @@ class AiDictationService extends ChangeNotifier {
     } on Object catch (error) {
       _activeTargetId = null;
       throw AiDictationException(
-        AiDictationErrorKind.transcription,
+        .transcription,
         'System speech recognition could not start: $error',
         cause: error,
       );
@@ -215,7 +204,7 @@ class AiDictationService extends ChangeNotifier {
       if (targetId == null || text.trim().isEmpty) {
         _resetSession();
         throw const AiDictationException(
-          AiDictationErrorKind.audio,
+          .audio,
           'The system recognizer did not produce a transcription.',
         );
       }
@@ -232,7 +221,7 @@ class AiDictationService extends ChangeNotifier {
     if (path == null || targetId == null) {
       _resetSession();
       throw const AiDictationException(
-        AiDictationErrorKind.audio,
+        .audio,
         'The microphone did not produce an audio recording.',
       );
     }
@@ -275,7 +264,7 @@ class AiDictationService extends ChangeNotifier {
           timeout: Duration(seconds: settings.timeoutSeconds),
         ),
       );
-      return _finishTranscript(targetId, result);
+      return await _finishTranscript(targetId, result);
     } finally {
       final audioFile = File(path);
       if (await audioFile.exists()) await audioFile.delete();
@@ -294,7 +283,7 @@ class AiDictationService extends ChangeNotifier {
         text: text,
         providerId: 'system-speech-recognition',
         elapsed: DateTime.now().difference(started),
-        duration: Duration.zero,
+        duration: .zero,
       ),
     );
     _systemFinalization = future;
@@ -311,7 +300,7 @@ class AiDictationService extends ChangeNotifier {
       final target = _targets.targetFor(targetId);
       if (target == null) {
         throw const AiDictationException(
-          AiDictationErrorKind.targetUnavailable,
+          .targetUnavailable,
           'The text field was closed before dictation finished.',
         );
       }
@@ -336,7 +325,7 @@ class AiDictationService extends ChangeNotifier {
       }
       if (!_targets.insert(targetId, text)) {
         throw const AiDictationException(
-          AiDictationErrorKind.targetUnavailable,
+          .targetUnavailable,
           'The text field was closed before dictation finished.',
         );
       }

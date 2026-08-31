@@ -141,7 +141,7 @@ void main() {
 
       await assertion.start('status-change');
       await assertion.stop('settings-change');
-      await Future<void>.delayed(const Duration(milliseconds: 10));
+      await Future.pause(const Duration(milliseconds: 10));
 
       expect(first.killCalls, 1);
       expect(runner.calls, hasLength(1));
@@ -160,7 +160,7 @@ void main() {
       await assertion.start('status-change');
       await assertion.stop('settings-change');
       first.completeExit(143);
-      await Future<void>.delayed(const Duration(milliseconds: 10));
+      await Future.pause(const Duration(milliseconds: 10));
 
       expect(first.killCalls, 1);
       expect(runner.calls, hasLength(1));
@@ -178,7 +178,7 @@ void main() {
         final assertion = MacosSystemSleepAssertion(
           processRunner: runner,
           platform: 'macos',
-          retryDelay: Duration.zero,
+          retryDelay: .zero,
         );
 
         await assertion.start('status-change');
@@ -350,12 +350,12 @@ Future<void> _waitForStartCalls(
     if (runner.calls.length >= count) {
       return;
     }
-    await Future<void>.delayed(const Duration(milliseconds: 5));
+    await Future.pause(const Duration(milliseconds: 5));
   }
 }
 
-class _FakeStartedProcess {
-  _FakeStartedProcess() {
+class _FakeStartedProcess() {
+  this {
     startedProcess = StartedProcess(
       stdinWrite: (_) {},
       stdout: const Stream<List<int>>.empty(),
@@ -386,14 +386,9 @@ class _FakeStartedProcess {
 
   void completeExitError(Object error) {
     if (!_exitCode.isCompleted) {
-      _exitCode.completeError(error, StackTrace.current);
+      _exitCode.completeError(error, .current);
     }
   }
 }
 
-class _StartCall {
-  const _StartCall(this.executable, this.arguments);
-
-  final String executable;
-  final List<String> arguments;
-}
+class const _StartCall(final String executable, final List<String> arguments);

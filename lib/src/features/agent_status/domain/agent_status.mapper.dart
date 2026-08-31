@@ -406,4 +406,3 @@ class _AgentStatusEntryCopyWithImpl<$R, $Out>
     Then<$Out2, $R2> t,
   ) => _AgentStatusEntryCopyWithImpl<$R2, $Out2>($value, $cast, t);
 }
-

@@ -7,10 +7,10 @@ void main() {
     test('serializes the keys and provider string the host expects', () {
       final review = LinkedReview.linked(
         workspaceId: 'w1',
-        provider: GitHostingProvider.azureDevops,
+        provider: .azureDevops,
         number: 42,
         url: 'https://dev.azure.com/o/p/_git/r/pullrequest/42',
-        linkedAt: DateTime.utc(2026, 7, 9),
+        linkedAt: .utc(2026, 7, 9),
       );
       final map = review.toMap();
       expect(map['workspaceId'], 'w1');
@@ -26,10 +26,10 @@ void main() {
     test('round-trips a linked review through fromJson', () {
       final review = LinkedReview.linked(
         workspaceId: 'w1',
-        provider: GitHostingProvider.github,
+        provider: .github,
         number: 7,
         url: 'https://github.com/o/r/pull/7',
-        linkedAt: DateTime.utc(2026, 1, 2, 3, 4, 5),
+        linkedAt: .utc(2026, 1, 2, 3, 4, 5),
       );
       final restored = LinkedReview.fromJson(review.toMap());
       expect(restored.hasReview, isTrue);
@@ -42,10 +42,10 @@ void main() {
     test('serializes the GitLab provider wire value', () {
       final review = LinkedReview.linked(
         workspaceId: 'w1',
-        provider: GitHostingProvider.gitlab,
+        provider: .gitlab,
         number: 19,
         url: 'https://gitlab.com/o/r/-/merge_requests/19',
-        linkedAt: DateTime.utc(2026, 7, 28),
+        linkedAt: .utc(2026, 7, 28),
       );
       expect(review.toMap()['provider'], 'gitlab');
       expect(
@@ -57,7 +57,7 @@ void main() {
     test('an exact dismissal round-trips and reports no linked review', () {
       final dismissal = LinkedReview.dismissal(
         workspaceId: 'w1',
-        provider: GitHostingProvider.github,
+        provider: .github,
         number: 7,
         url: 'https://github.com/o/r/pull/7',
       );

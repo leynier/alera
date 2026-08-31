@@ -9,22 +9,19 @@ import 'package:alera/src/features/browser/domain/browser_popup.dart';
 import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
 import 'package:flutter/foundation.dart';
 
-typedef BrowserWorkspaceTabCreator =
-    Future<WorkspaceTabRecord> Function({
-      required String pageId,
-      required String workspaceId,
-      required String profileId,
-      required String initialUrl,
-    });
+typedef BrowserWorkspaceTabCreator = Future<WorkspaceTabRecord> Function({
+  required String pageId,
+  required String workspaceId,
+  required String profileId,
+  required String initialUrl,
+});
 
-final class BrowserPopupCoordinator {
-  BrowserPopupCoordinator({
-    required BrowserSessionRegistry registry,
-    required BrowserWorkspaceTabCreator createWorkspaceTab,
-    DateTime Function()? now,
-  }) : _registry = registry,
-       _createWorkspaceTab = createWorkspaceTab,
-       _now = now ?? _defaultNow {
+final class BrowserPopupCoordinator({
+  required this._registry,
+  required this._createWorkspaceTab,
+  DateTime Function()? now,
+}) {
+  this : _now = now ?? _defaultNow {
     _registrySubscription = _registry.events.listen(_onRegistryEvent);
   }
 

@@ -37,18 +37,16 @@ enum MobileNetbirdEndpoint {
   String get wireName => name;
 }
 
-class MobileGatewaySettings {
-  const MobileGatewaySettings({
-    required this.enabled,
-    required this.bindHost,
-    required this.port,
-    this.remoteAccessEnabled = false,
-    this.endpointMode = MobileEndpointMode.loopback,
-    this.netbirdEndpoint = MobileNetbirdEndpoint.ip,
-    this.serverPublicKeyB64,
-  });
-
-  factory MobileGatewaySettings.fromJson(Map<String, Object?> json) {
+class const MobileGatewaySettings({
+  required final bool enabled,
+  required final String bindHost,
+  required final int port,
+  final bool remoteAccessEnabled = false,
+  final MobileEndpointMode endpointMode = MobileEndpointMode.loopback,
+  final MobileNetbirdEndpoint netbirdEndpoint = MobileNetbirdEndpoint.ip,
+  final String? serverPublicKeyB64,
+}) {
+  factory fromJson(Map<String, Object?> json) {
     final enabled = json['enabled'];
     final bindHost = json['bindHost'];
     final port = json['port'];
@@ -70,25 +68,15 @@ class MobileGatewaySettings {
           : null,
     );
   }
-
-  final bool enabled;
-  final bool remoteAccessEnabled;
-  final String bindHost;
-  final int port;
-  final MobileEndpointMode endpointMode;
-  final MobileNetbirdEndpoint netbirdEndpoint;
-  final String? serverPublicKeyB64;
 }
 
-class MobileTailscaleStatus {
-  const MobileTailscaleStatus({
-    required this.detected,
-    required this.running,
-    this.tailnetIp,
-    this.error,
-  });
-
-  factory MobileTailscaleStatus.fromJson(Map<String, Object?> json) {
+class const MobileTailscaleStatus({
+  required final bool detected,
+  required final bool running,
+  final String? tailnetIp,
+  final String? error,
+}) {
+  factory fromJson(Map<String, Object?> json) {
     final tailnetIp = json['tailnetIp'];
     final error = json['error'];
     return MobileTailscaleStatus(
@@ -100,27 +88,20 @@ class MobileTailscaleStatus {
       error: error is String && error.trim().isNotEmpty ? error : null,
     );
   }
-
-  final bool detected;
-  final bool running;
-  final String? tailnetIp;
-  final String? error;
 }
 
-class MobileNetbirdStatus {
-  const MobileNetbirdStatus({
-    required this.detected,
-    required this.connected,
-    this.netbirdIp,
-    this.profileName,
-    this.managementUrl,
-    this.managementKind,
-    this.dnsHostname,
-    this.interfaceName,
-    this.error,
-  });
-
-  factory MobileNetbirdStatus.fromJson(Map<String, Object?> json) {
+class const MobileNetbirdStatus({
+  required final bool detected,
+  required final bool connected,
+  final String? netbirdIp,
+  final String? profileName,
+  final String? managementUrl,
+  final String? managementKind,
+  final String? dnsHostname,
+  final String? interfaceName,
+  final String? error,
+}) {
+  factory fromJson(Map<String, Object?> json) {
     String? optionalString(String key) {
       final value = json[key];
       return value is String && value.trim().isNotEmpty ? value : null;
@@ -138,32 +119,20 @@ class MobileNetbirdStatus {
       error: optionalString('error'),
     );
   }
-
-  final bool detected;
-  final bool connected;
-  final String? netbirdIp;
-  final String? profileName;
-  final String? managementUrl;
-  final String? managementKind;
-  final String? dnsHostname;
-  final String? interfaceName;
-  final String? error;
 }
 
-class MobileAccessStatus {
-  const MobileAccessStatus({
-    required this.protocolVersion,
-    required this.settings,
-    required this.devices,
-    required this.activePairings,
-    this.connectedRelayDevices = const <MobileDevice>[],
-    this.relayStatus = const <String, Object?>{},
-    this.runtimeHostActive,
-    this.tailscale,
-    this.netbird,
-  });
-
-  factory MobileAccessStatus.fromJson(Map<String, Object?> json) {
+class const MobileAccessStatus({
+  required final int protocolVersion,
+  required final MobileGatewaySettings settings,
+  required final List<MobileDevice> devices,
+  required final List<MobilePairingOffer> activePairings,
+  final List<MobileDevice> connectedRelayDevices = const <MobileDevice>[],
+  final Map<String, Object?> relayStatus = const <String, Object?>{},
+  final bool? runtimeHostActive,
+  final MobileTailscaleStatus? tailscale,
+  final MobileNetbirdStatus? netbird,
+}) {
+  factory fromJson(Map<String, Object?> json) {
     final settings = json['settings'];
     if (settings is! Map) {
       throw const FormatException('Mobile status payload is malformed.');
@@ -177,9 +146,7 @@ class MobileAccessStatus {
           ? Map<String, Object?>.from(json['relayStatus'] as Map)
           : const {},
       protocolVersion: version is num ? version.toInt() : 0,
-      settings: MobileGatewaySettings.fromJson(
-        Map<String, Object?>.from(settings),
-      ),
+      settings: .fromJson(Map<String, Object?>.from(settings)),
       devices: <MobileDevice>[
         for (final device in (json['devices'] as List? ?? const <Object?>[]))
           if (device is Map)
@@ -206,14 +173,4 @@ class MobileAccessStatus {
           : null,
     );
   }
-
-  final int protocolVersion;
-  final MobileGatewaySettings settings;
-  final List<MobileDevice> devices;
-  final List<MobileDevice> connectedRelayDevices;
-  final Map<String, Object?> relayStatus;
-  final List<MobilePairingOffer> activePairings;
-  final bool? runtimeHostActive;
-  final MobileTailscaleStatus? tailscale;
-  final MobileNetbirdStatus? netbird;
 }

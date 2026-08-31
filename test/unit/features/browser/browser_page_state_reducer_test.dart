@@ -24,7 +24,7 @@ void main() {
       state,
       BrowserNavigationStarted(
         pageId: state.pageId,
-        occurredAt: DateTime.utc(2026, 1, 2),
+        occurredAt: .utc(2026, 1, 2),
         url: url,
       ),
     );
@@ -36,7 +36,7 @@ void main() {
       started,
       BrowserNavigationCommitted(
         pageId: state.pageId,
-        occurredAt: DateTime.utc(2026, 1, 3),
+        occurredAt: .utc(2026, 1, 3),
         url: url,
       ),
     );
@@ -48,7 +48,7 @@ void main() {
       committed,
       BrowserNavigationFinished(
         pageId: state.pageId,
-        occurredAt: DateTime.utc(2026, 1, 4),
+        occurredAt: .utc(2026, 1, 4),
         url: url,
         title: 'Example',
       ),
@@ -82,7 +82,7 @@ void main() {
       secure,
       BrowserNavigationStarted(
         pageId: secure.pageId,
-        occurredAt: DateTime.utc(2026, 1, 2),
+        occurredAt: .utc(2026, 1, 2),
         url: Uri.parse('https://other.example'),
       ),
     );
@@ -100,10 +100,10 @@ void main() {
         state,
         BrowserLoadFailed(
           pageId: state.pageId,
-          occurredAt: DateTime.utc(2026, 1, 2),
+          occurredAt: .utc(2026, 1, 2),
           url: Uri.parse('https://example.com'),
           failure: const BrowserFailure(
-            code: BrowserErrorCode.certificateRejected,
+            code: .certificateRejected,
             message: 'The TLS certificate was rejected.',
           ),
         ),
@@ -120,7 +120,7 @@ void main() {
     final finished = _finished('https://example.com');
     final lateProgress = BrowserProgressChanged(
       pageId: finished.pageId,
-      occurredAt: DateTime.utc(2026, 1, 4),
+      occurredAt: .utc(2026, 1, 4),
       progress: 1,
     );
 
@@ -133,11 +133,8 @@ void main() {
       finished,
       BrowserLoadFailed(
         pageId: finished.pageId,
-        occurredAt: DateTime.utc(2026, 1, 5),
-        failure: const BrowserFailure(
-          code: BrowserErrorCode.unknown,
-          message: 'Load failed.',
-        ),
+        occurredAt: .utc(2026, 1, 5),
+        failure: const BrowserFailure(code: .unknown, message: 'Load failed.'),
       ),
     );
     expect(
@@ -158,7 +155,7 @@ void main() {
           id: 'download-1',
           pageId: state.pageId,
           fileName: 'report.pdf',
-          status: BrowserDownloadStatus.pending,
+          status: .pending,
           receivedBytes: 0,
           totalBytes: 24,
           savePath: '/tmp/report.pdf',
@@ -171,14 +168,14 @@ void main() {
       requested,
       BrowserDownloadChanged(
         pageId: state.pageId,
-        occurredAt: DateTime.utc(2026, 1, 3),
+        occurredAt: .utc(2026, 1, 3),
         download: BrowserDownload(
           id: 'download-1',
           pageId: state.pageId,
           fileName: 'download-1',
-          status: BrowserDownloadStatus.downloading,
+          status: .downloading,
           receivedBytes: 12,
-          startedAt: DateTime.utc(2026, 1, 3),
+          startedAt: .utc(2026, 1, 3),
         ),
       ),
     );
@@ -196,7 +193,7 @@ BrowserPageState _finished(String rawUrl) {
     state,
     BrowserNavigationCommitted(
       pageId: state.pageId,
-      occurredAt: DateTime.utc(2026, 1, 2),
+      occurredAt: .utc(2026, 1, 2),
       url: Uri.parse(rawUrl),
     ),
   );
@@ -204,7 +201,7 @@ BrowserPageState _finished(String rawUrl) {
     committed,
     BrowserNavigationFinished(
       pageId: state.pageId,
-      occurredAt: DateTime.utc(2026, 1, 3),
+      occurredAt: .utc(2026, 1, 3),
       url: Uri.parse(rawUrl),
       title: 'Example',
     ),
@@ -218,7 +215,7 @@ BrowserPageState _state() {
       workspaceId: 'workspace-1',
       profileId: 'default',
       initialUrl: Uri.parse('about:blank'),
-      createdAt: DateTime.utc(2026),
+      createdAt: .utc(2026),
     ),
   );
 }

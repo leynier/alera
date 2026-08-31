@@ -141,25 +141,25 @@ abstract final class AleraTokens {
   static const TextStyle monoStyle = TextStyle(
     fontFamily: 'JetBrains Mono',
     fontSize: 12,
-    fontWeight: FontWeight.w400,
+    fontWeight: .w400,
     color: foregroundMuted,
   );
   static const TextStyle monoCompactStyle = TextStyle(
     fontFamily: 'JetBrains Mono',
     fontSize: 11,
-    fontWeight: FontWeight.w400,
+    fontWeight: .w400,
     color: foregroundMuted,
   );
   static const TextStyle labelFaintStyle = TextStyle(
     fontFamily: 'Inter',
     fontSize: 12,
-    fontWeight: FontWeight.w400,
+    fontWeight: .w400,
     color: foregroundFaint,
   );
   static const TextStyle labelMicroFaintStyle = TextStyle(
     fontFamily: 'Inter',
     fontSize: 11,
-    fontWeight: FontWeight.w400,
+    fontWeight: .w400,
     color: foregroundFaint,
   );
 }

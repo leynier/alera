@@ -13,26 +13,20 @@ import 'package:flutter/material.dart';
 /// - With [onRemove]: a removable pill with a hover state and a close button
 ///   (e.g. a project added to a visibility filter). Mutually exclusive with
 ///   [onTap].
-class AleraChip extends StatefulWidget {
-  const AleraChip({
-    super.key,
-    required this.label,
-    this.onRemove,
-    this.onTap,
-    this.leading,
-    this.trailing,
-    this.tooltip,
-  }) : assert(
-         onRemove == null || onTap == null,
-         'AleraChip cannot be both removable and tappable',
-       );
-
-  final String label;
-  final VoidCallback? onRemove;
-  final VoidCallback? onTap;
-  final IconData? leading;
-  final IconData? trailing;
-  final String? tooltip;
+class const AleraChip({
+  super.key,
+  required final String label,
+  final VoidCallback? onRemove,
+  final VoidCallback? onTap,
+  final IconData? leading,
+  final IconData? trailing,
+  final String? tooltip,
+}) extends StatefulWidget {
+  this
+    : assert(
+        onRemove == null || onTap == null,
+        'AleraChip cannot be both removable and tappable',
+      );
 
   @override
   State<AleraChip> createState() => _AleraChipState();
@@ -57,10 +51,10 @@ class _AleraChipState extends State<AleraChip> {
     final label = Text(
       widget.label,
       maxLines: 1,
-      overflow: TextOverflow.ellipsis,
+      overflow: .ellipsis,
       style: theme.textTheme.labelSmall?.copyWith(
         color: AleraTokens.foregroundMuted,
-        fontWeight: FontWeight.w500,
+        fontWeight: .w500,
       ),
     );
     final hasIcons = widget.leading != null || widget.trailing != null;
@@ -76,7 +70,7 @@ class _AleraChipState extends State<AleraChip> {
       child: !hasIcons
           ? label
           : Row(
-              mainAxisSize: MainAxisSize.min,
+              mainAxisSize: .min,
               children: <Widget>[
                 if (widget.leading != null) ...<Widget>[
                   Icon(
@@ -106,7 +100,7 @@ class _AleraChipState extends State<AleraChip> {
       onExit: (_) => setState(() => _hovered = false),
       cursor: SystemMouseCursors.click,
       child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
+        behavior: .opaque,
         onTap: widget.onTap,
         child: _buildStatic(
           theme,
@@ -139,20 +133,20 @@ class _AleraChipState extends State<AleraChip> {
           border: Border.all(color: AleraTokens.borderSubtle),
         ),
         child: Row(
-          mainAxisSize: MainAxisSize.min,
+          mainAxisSize: .min,
           children: <Widget>[
             Text(
               widget.label,
               style: theme.textTheme.labelSmall?.copyWith(
                 color: AleraTokens.foreground,
-                fontWeight: FontWeight.w500,
+                fontWeight: .w500,
               ),
             ),
             const SizedBox(width: AleraTokens.space4),
             InkWell(
               onTap: widget.onRemove,
               mouseCursor: SystemMouseCursors.click,
-              borderRadius: BorderRadius.circular(AleraTokens.radiusPill),
+              borderRadius: .circular(AleraTokens.radiusPill),
               child: const Padding(
                 padding: EdgeInsets.all(AleraTokens.space2),
                 child: Icon(

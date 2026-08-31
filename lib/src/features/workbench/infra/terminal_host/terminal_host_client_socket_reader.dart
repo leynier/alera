@@ -9,9 +9,10 @@ part of 'terminal_host_client.dart';
 /// Spawning is allowed to fail. Losing terminals over an isolate problem would
 /// be far worse than losing the offload, so the caller falls back to reading
 /// the socket here instead.
-final class _TerminalHostSocketReader {
-  _TerminalHostSocketReader._(this._commands, this._fromIsolate);
-
+final class _TerminalHostSocketReader._(
+  var SendPort? _commands,
+  final ReceivePort _fromIsolate,
+) {
   static Future<_TerminalHostSocketReader?> connect({
     required String host,
     required int port,
@@ -45,8 +46,6 @@ final class _TerminalHostSocketReader {
     return reader;
   }
 
-  SendPort? _commands;
-  final ReceivePort _fromIsolate;
   final StreamController<Object?> _lines =
       StreamController<Object?>.broadcast();
   final StreamController<TerminalHostOutputTextEvent> _output =
@@ -134,6 +133,7 @@ Future<_TerminalHostConnection> _openHostConnection(
       supportsDeferredInput: control.supportsDeferredInput,
       supportsTerminalPulse: control.supportsTerminalPulse,
       supportsRemoteAiDictation: control.supportsRemoteAiDictation,
+      supportsWorkspaceSections: control.supportsWorkspaceSections,
     );
   }
   final socket = await Socket.connect(
@@ -149,5 +149,6 @@ Future<_TerminalHostConnection> _openHostConnection(
     supportsDeferredInput: control.supportsDeferredInput,
     supportsTerminalPulse: control.supportsTerminalPulse,
     supportsRemoteAiDictation: control.supportsRemoteAiDictation,
+    supportsWorkspaceSections: control.supportsWorkspaceSections,
   );
 }

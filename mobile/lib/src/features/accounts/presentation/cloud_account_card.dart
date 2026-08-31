@@ -10,32 +10,25 @@ import 'package:flutter/material.dart';
 
 enum CloudAccountAction { refresh, remove }
 
-class CloudAccountCard extends StatelessWidget {
-  const CloudAccountCard({
-    super.key,
-    required this.session,
-    required this.hosts,
-    required this.onPreferencesChanged,
-    required this.onAction,
-  });
-
-  final CloudAccountSession session;
-  final List<PairedHostProfile> hosts;
-  final Future<void> Function(
+class const CloudAccountCard({
+  super.key,
+  required final CloudAccountSession session,
+  required final List<PairedHostProfile> hosts,
+  required final Future<void> Function(
     String runtimeId,
     RuntimePushPreferences preferences,
   )
-  onPreferencesChanged;
-  final ValueChanged<CloudAccountAction> onAction;
-
+  onPreferencesChanged,
+  required final ValueChanged<CloudAccountAction> onAction,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final entries = session.subscriptions.entries.toList(growable: false);
     final active = entries.any((entry) => entry.value.hasEnabledCategory);
     return Card(
-      clipBehavior: Clip.antiAlias,
+      clipBehavior: .antiAlias,
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
+        crossAxisAlignment: .stretch,
         children: <Widget>[
           Padding(
             padding: const EdgeInsets.fromLTRB(
@@ -50,13 +43,13 @@ class CloudAccountCard extends StatelessWidget {
                 const SizedBox(width: AleraTokens.space12),
                 Expanded(
                   child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                    crossAxisAlignment: .start,
                     children: <Widget>[
                       Text(
                         session.account.email,
                         style: Theme.of(context).textTheme.titleMedium,
                         maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
+                        overflow: .ellipsis,
                       ),
                       const SizedBox(height: AleraTokens.space4),
                       Wrap(
@@ -75,11 +68,11 @@ class CloudAccountCard extends StatelessWidget {
                   itemBuilder: (_) =>
                       const <PopupMenuEntry<CloudAccountAction>>[
                         PopupMenuItem<CloudAccountAction>(
-                          value: CloudAccountAction.refresh,
+                          value: .refresh,
                           child: Text('Refresh Account'),
                         ),
                         PopupMenuItem<CloudAccountAction>(
-                          value: CloudAccountAction.remove,
+                          value: .remove,
                           child: Text('Remove From This Phone'),
                         ),
                       ],
@@ -116,21 +109,15 @@ class CloudAccountCard extends StatelessWidget {
   }
 }
 
-class _RuntimeRail extends StatelessWidget {
-  const _RuntimeRail({
-    required this.entries,
-    required this.hosts,
-    required this.onPreferencesChanged,
-  });
-
-  final List<MapEntry<String, RuntimePushPreferences>> entries;
-  final List<PairedHostProfile> hosts;
-  final Future<void> Function(
+class const _RuntimeRail({
+  required final List<MapEntry<String, RuntimePushPreferences>> entries,
+  required final List<PairedHostProfile> hosts,
+  required final Future<void> Function(
     String runtimeId,
     RuntimePushPreferences preferences,
   )
-  onPreferencesChanged;
-
+  onPreferencesChanged,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
@@ -142,7 +129,7 @@ class _RuntimeRail extends StatelessWidget {
       ),
       child: IntrinsicHeight(
         child: Row(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
+          crossAxisAlignment: .stretch,
           children: <Widget>[
             SizedBox(
               width: AleraTokens.space16,
@@ -200,19 +187,12 @@ class _RuntimeRail extends StatelessWidget {
   }
 }
 
-class _RuntimeNotificationRow extends StatelessWidget {
-  const _RuntimeNotificationRow({
-    required this.runtimeId,
-    required this.host,
-    required this.preferences,
-    required this.onChanged,
-  });
-
-  final String runtimeId;
-  final PairedHostProfile? host;
-  final RuntimePushPreferences preferences;
-  final ValueChanged<RuntimePushPreferences> onChanged;
-
+class const _RuntimeNotificationRow({
+  required final String runtimeId,
+  required final PairedHostProfile? host,
+  required final RuntimePushPreferences preferences,
+  required final ValueChanged<RuntimePushPreferences> onChanged,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return DecoratedBox(
@@ -224,26 +204,26 @@ class _RuntimeNotificationRow extends StatelessWidget {
       child: Padding(
         padding: const EdgeInsets.all(AleraTokens.space12),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment: .start,
           children: <Widget>[
             Row(
               children: <Widget>[
                 Expanded(
                   child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                    crossAxisAlignment: .start,
                     children: <Widget>[
                       Text(
                         host?.effectiveName ?? 'Unpaired runtime',
                         style: Theme.of(context).textTheme.titleSmall,
                         maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
+                        overflow: .ellipsis,
                       ),
                       const SizedBox(height: AleraTokens.space2),
                       Text(
                         runtimeId,
                         style: AleraTokens.monoStyle,
                         maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
+                        overflow: .ellipsis,
                       ),
                     ],
                   ),

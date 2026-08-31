@@ -1,16 +1,10 @@
 part of 'agent_quota_settings_group.dart';
 
-class _QuotaPinButton extends StatelessWidget {
-  const _QuotaPinButton({
-    required this.pinned,
-    required this.enabled,
-    required this.onChanged,
-  });
-
-  final bool pinned;
-  final bool enabled;
-  final ValueChanged<bool> onChanged;
-
+class const _QuotaPinButton({
+  required final bool pinned,
+  required final bool enabled,
+  required final ValueChanged<bool> onChanged,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return AleraIconButton(
@@ -27,28 +21,22 @@ class _QuotaPinButton extends StatelessWidget {
   }
 }
 
-class _ProviderOrderControl extends StatelessWidget {
-  const _ProviderOrderControl({
-    required this.providers,
-    required this.onChanged,
-  });
-
-  final List<AgentQuotaProviderId> providers;
-  final ValueChanged<List<AgentQuotaProviderId>> onChanged;
-
+class const _ProviderOrderControl({
+  required final List<AgentQuotaProviderId> providers,
+  required final ValueChanged<List<AgentQuotaProviderId>> onChanged,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (providers.isEmpty) {
       return Text(
         'No quota providers enabled',
-        textAlign: TextAlign.right,
-        style: Theme.of(
-          context,
-        ).textTheme.bodySmall?.copyWith(color: AleraTokens.foregroundFaint),
+        textAlign: .right,
+        style: Theme.of(context).textTheme.bodySmall
+            ?.copyWith(color: AleraTokens.foregroundFaint),
       );
     }
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+      crossAxisAlignment: .stretch,
       children: <Widget>[
         for (final (index, provider) in providers.indexed)
           Padding(
@@ -64,7 +52,7 @@ class _ProviderOrderControl extends StatelessWidget {
                 Expanded(
                   child: Text(
                     provider.label,
-                    overflow: TextOverflow.ellipsis,
+                    overflow: .ellipsis,
                     style: Theme.of(context).textTheme.bodyMedium,
                   ),
                 ),
@@ -103,31 +91,23 @@ List<AgentQuotaProviderId> _moveProvider(
   return updated;
 }
 
-class _ClaudeProfilesControl extends StatelessWidget {
-  const _ClaudeProfilesControl({
-    required this.profiles,
-    required this.isPinned,
-    required this.onPinnedChanged,
-    required this.onChanged,
-  });
-
-  final List<ClaudeQuotaProfileSettings> profiles;
-  final bool Function(String profile) isPinned;
-  final void Function(String profile, bool pinned) onPinnedChanged;
-  final ValueChanged<List<ClaudeQuotaProfileSettings>> onChanged;
-
+class const _ClaudeProfilesControl({
+  required final List<ClaudeQuotaProfileSettings> profiles,
+  required final bool Function(String profile) isPinned,
+  required final void Function(String profile, bool pinned) onPinnedChanged,
+  required final ValueChanged<List<ClaudeQuotaProfileSettings>> onChanged,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+      crossAxisAlignment: .stretch,
       children: <Widget>[
         if (profiles.isEmpty)
           Text(
             'No CCS profiles configured',
-            textAlign: TextAlign.right,
-            style: Theme.of(
-              context,
-            ).textTheme.bodySmall?.copyWith(color: AleraTokens.foregroundFaint),
+            textAlign: .right,
+            style: Theme.of(context).textTheme.bodySmall
+                ?.copyWith(color: AleraTokens.foregroundFaint),
           ),
         for (final (index, profile) in profiles.indexed) ...<Widget>[
           if (index > 0) const SizedBox(height: AleraTokens.space8),
@@ -135,16 +115,16 @@ class _ClaudeProfilesControl extends StatelessWidget {
             children: <Widget>[
               Expanded(
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                  crossAxisAlignment: .start,
                   children: <Widget>[
                     Text(
                       profile.alias,
-                      overflow: TextOverflow.ellipsis,
+                      overflow: .ellipsis,
                       style: Theme.of(context).textTheme.bodyMedium,
                     ),
                     Text(
                       profile.profile,
-                      overflow: TextOverflow.ellipsis,
+                      overflow: .ellipsis,
                       style: AleraTokens.monoStyle.copyWith(
                         color: AleraTokens.foregroundMuted,
                       ),
@@ -153,10 +133,9 @@ class _ClaudeProfilesControl extends StatelessWidget {
                       profile.showInUsage
                           ? 'Usage: ${profile.usageLabel}'
                           : 'Not shown in Usage',
-                      overflow: TextOverflow.ellipsis,
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: AleraTokens.foregroundFaint,
-                      ),
+                      overflow: .ellipsis,
+                      style: Theme.of(context).textTheme.bodySmall
+                          ?.copyWith(color: AleraTokens.foregroundFaint),
                     ),
                   ],
                 ),
@@ -260,12 +239,10 @@ Future<ClaudeQuotaProfileSettings?> _showClaudeProfileDialog(
   );
 }
 
-class _ClaudeProfileDialog extends StatefulWidget {
-  const _ClaudeProfileDialog({required this.initial, required this.profiles});
-
-  final ClaudeQuotaProfileSettings? initial;
-  final List<ClaudeQuotaProfileSettings> profiles;
-
+class const _ClaudeProfileDialog({
+  required final ClaudeQuotaProfileSettings? initial,
+  required final List<ClaudeQuotaProfileSettings> profiles,
+}) extends StatefulWidget {
   @override
   State<_ClaudeProfileDialog> createState() => _ClaudeProfileDialogState();
 }
@@ -330,8 +307,8 @@ class _ClaudeProfileDialogState extends State<_ClaudeProfileDialog> {
       child: Padding(
         padding: const EdgeInsets.all(AleraTokens.space24),
         child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
+          mainAxisSize: .min,
+          crossAxisAlignment: .stretch,
           children: <Widget>[
             Text(
               widget.initial == null ? 'Add CCS Profile' : 'Edit CCS Profile',
@@ -368,14 +345,13 @@ class _ClaudeProfileDialogState extends State<_ClaudeProfileDialog> {
               const SizedBox(height: AleraTokens.space8),
               Text(
                 error,
-                style: Theme.of(
-                  context,
-                ).textTheme.bodySmall?.copyWith(color: AleraTokens.error),
+                style: Theme.of(context).textTheme.bodySmall
+                    ?.copyWith(color: AleraTokens.error),
               ),
             ],
             const SizedBox(height: AleraTokens.space20),
             Row(
-              mainAxisAlignment: MainAxisAlignment.end,
+              mainAxisAlignment: .end,
               children: <Widget>[
                 TextButton(
                   onPressed: () => Navigator.of(context).pop(),

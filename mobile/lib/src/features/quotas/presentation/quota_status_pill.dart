@@ -1,11 +1,8 @@
 import 'package:alera_mobile/src/app/theme/alera_tokens.dart';
 import 'package:flutter/material.dart';
 
-class QuotaStatusPill extends StatelessWidget {
-  const QuotaStatusPill({super.key, required this.status});
-
-  final String status;
-
+class const QuotaStatusPill({super.key, required final String status})
+    extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final color = switch (status) {

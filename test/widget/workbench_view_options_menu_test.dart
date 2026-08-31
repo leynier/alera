@@ -7,13 +7,29 @@ import 'package:alera/src/features/workbench/application/workbench_state.dart';
 import 'package:alera/src/features/workbench/application/workspace_graph_repository.dart';
 import 'package:alera/src/features/workbench/domain/workbench_view_prefs.dart';
 import 'package:alera/src/features/workbench/presentation/widgets/workbench_view_options_menu.dart';
-import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   group('WorkbenchViewOptionsButton', () {
+    testWidgets(
+      'Section grouping exposes independent sort controls when supported',
+      (tester) async {
+        final controller = _ViewOptionsTestController(
+          const WorkbenchState(supportsSections: true),
+        );
+        await _pumpButton(tester, controller);
+        await tester.tap(_viewOptionsButton());
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Section'));
+        await tester.pumpAndSettle();
+        expect(controller.state.viewPrefs.groupBy, WorkbenchGroupBy.section);
+        expect(find.text('Sort Sections By'), findsOneWidget);
+        expect(find.text('Then Workspaces By'), findsOneWidget);
+      },
+    );
+
     testWidgets('opens the dialog and updates grouping, sorting, and filters', (
       tester,
     ) async {
@@ -83,7 +99,7 @@ void main() {
       final field = _projectSearchField();
       await tester.enterText(field, 'or');
       await tester.pumpAndSettle();
-      await tester.testTextInput.receiveAction(TextInputAction.done);
+      await tester.testTextInput.receiveAction(.done);
       await tester.pumpAndSettle();
 
       expect(controller.state.viewPrefs.selectedProjectIds, <String>{
@@ -237,9 +253,9 @@ void main() {
 
       expect(decorationOf().color, Colors.transparent);
 
-      final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+      final mouse = await tester.createGesture(kind: .mouse);
       addTearDown(mouse.removePointer);
-      await mouse.addPointer(location: Offset.zero);
+      await mouse.addPointer(location: .zero);
       await tester.pump();
 
       await mouse.moveTo(tester.getCenter(find.text('Orca').last));
@@ -303,11 +319,8 @@ Project _project(String id, String name) {
   );
 }
 
-class _ViewOptionsTestController extends WorkbenchController {
-  _ViewOptionsTestController(this._seed);
-
-  final WorkbenchState _seed;
-
+class _ViewOptionsTestController(final WorkbenchState _seed)
+    extends WorkbenchController {
   @override
   WorkbenchState build() => _seed;
 

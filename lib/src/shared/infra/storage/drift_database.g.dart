@@ -4140,12 +4140,10 @@ class $$WorkbenchViewPrefsTableTableTableManager
                 $db: db,
                 $table: table,
               ),
-          updateCompanionCallback:
-              ({
-                Value<int> id = const Value.absent(),
-                Value<String> dataJson = const Value.absent(),
-              }) =>
-                  WorkbenchViewPrefsTableCompanion(id: id, dataJson: dataJson),
+          updateCompanionCallback: ({
+            Value<int> id = const Value.absent(),
+            Value<String> dataJson = const Value.absent(),
+          }) => WorkbenchViewPrefsTableCompanion(id: id, dataJson: dataJson),
           createCompanionCallback:
               ({
                 Value<int> id = const Value.absent(),
@@ -4282,17 +4280,14 @@ class $$AppSettingsTableTableTableManager
               $$AppSettingsTableTableOrderingComposer($db: db, $table: table),
           createComputedFieldComposer: () =>
               $$AppSettingsTableTableAnnotationComposer($db: db, $table: table),
-          updateCompanionCallback:
-              ({
-                Value<int> id = const Value.absent(),
-                Value<String> dataJson = const Value.absent(),
-              }) => AppSettingsTableCompanion(id: id, dataJson: dataJson),
-          createCompanionCallback:
-              ({
-                Value<int> id = const Value.absent(),
-                required String dataJson,
-              }) =>
-                  AppSettingsTableCompanion.insert(id: id, dataJson: dataJson),
+          updateCompanionCallback: ({
+            Value<int> id = const Value.absent(),
+            Value<String> dataJson = const Value.absent(),
+          }) => AppSettingsTableCompanion(id: id, dataJson: dataJson),
+          createCompanionCallback: ({
+            Value<int> id = const Value.absent(),
+            required String dataJson,
+          }) => AppSettingsTableCompanion.insert(id: id, dataJson: dataJson),
           withReferenceMapper: (p0) => p0
               .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
               .toList(),

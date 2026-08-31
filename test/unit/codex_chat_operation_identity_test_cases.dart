@@ -81,69 +81,66 @@ void registerCodexOperationIdentityTests() {
     );
   }
 
-  test(
-    'history edit rejects a switched conversation with matching turn identities',
-    () async {
-      final client = _FakeCodexRuntimeClient(
-        requestHandler: (type, payload) {
-          if (type == 'codex.thread.open') {
-            return Future.value({
-              'threadId': 'original',
-              'chatFeatures': ['codexSharedQueueV1', 'codexHistoryEditV1'],
-              'historyRevision': 0,
-              'snapshot': {'timelineCells': <Object?>[]},
-            });
-          }
-          return null;
-        },
-      );
-      final container = ProviderContainer(
-        overrides: [
-          codexChatRuntimeClientProvider.overrideWithValue(client),
-          settingsControllerProvider.overrideWith(_TestSettingsController.new),
-        ],
-      );
-      addTearDown(() {
-        container.dispose();
-        client.dispose();
-      });
-      final provider = codexChatControllerProvider('tab');
-      final listener = container.listen(provider, (_, _) {});
-      addTearDown(listener.close);
-      await _settle();
-      final controller = container.read(provider.notifier);
-      final captured = controller.threadId;
-      final cell = CodexTimelineCell.fromJson({
-        'id': 'user',
-        'kind': 'userMessage',
-        'turnId': 'turn',
-        'itemId': 'user',
-        'markdownText': 'Original',
-      });
-      client.emit(
-        const RuntimeHostEvent('codexThreadChanged', {
-          'tabId': 'tab',
-          'threadId': 'fork',
-          'historyRevision': 0,
-          'snapshot': {'timelineCells': <Object?>[]},
-        }),
-      );
-      await Future<void>.delayed(const Duration(milliseconds: 30));
-      expect(controller.threadId, 'fork');
-      expect(
-        await controller.editUserMessage(
-          cell,
-          'Correction',
-          expectedThreadId: captured,
-          expectedHistoryRevision: 0,
-        ),
-        isFalse,
-      );
-      expect(
-        client.requests.where((r) => r.type == 'codex.thread.edit'),
-        isEmpty,
-      );
-      expect(container.read(provider).error, contains('conversation changed'));
-    },
-  );
+  test('history edit rejects a switched conversation with matching turn identities', () async {
+    final client = _FakeCodexRuntimeClient(
+      requestHandler: (type, payload) {
+        if (type == 'codex.thread.open') {
+          return Future.value({
+            'threadId': 'original',
+            'chatFeatures': ['codexSharedQueueV1', 'codexHistoryEditV1'],
+            'historyRevision': 0,
+            'snapshot': {'timelineCells': <Object?>[]},
+          });
+        }
+        return null;
+      },
+    );
+    final container = ProviderContainer(
+      overrides: [
+        codexChatRuntimeClientProvider.overrideWithValue(client),
+        settingsControllerProvider.overrideWith(_TestSettingsController.new),
+      ],
+    );
+    addTearDown(() {
+      container.dispose();
+      client.dispose();
+    });
+    final provider = codexChatControllerProvider('tab');
+    final listener = container.listen(provider, (_, _) {});
+    addTearDown(listener.close);
+    await _settle();
+    final controller = container.read(provider.notifier);
+    final captured = controller.threadId;
+    final cell = CodexTimelineCell.fromJson({
+      'id': 'user',
+      'kind': 'userMessage',
+      'turnId': 'turn',
+      'itemId': 'user',
+      'markdownText': 'Original',
+    });
+    client.emit(
+      const RuntimeHostEvent('codexThreadChanged', {
+        'tabId': 'tab',
+        'threadId': 'fork',
+        'historyRevision': 0,
+        'snapshot': {'timelineCells': <Object?>[]},
+      }),
+    );
+    await Future<void>.delayed(const Duration(milliseconds: 30));
+    expect(controller.threadId, 'fork');
+    expect(
+      await controller.editUserMessage(
+        cell,
+        'Correction',
+        expectedThreadId: captured,
+        expectedHistoryRevision: 0,
+      ),
+      isFalse,
+    );
+    expect(
+      client.requests.where((r) => r.type == 'codex.thread.edit'),
+      isEmpty,
+    );
+    expect(container.read(provider).error, contains('conversation changed'));
+  });
 }

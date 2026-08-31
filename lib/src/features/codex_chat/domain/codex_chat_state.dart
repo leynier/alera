@@ -1,10 +1,11 @@
 part of 'codex_chat_models.dart';
 
 @immutable
-class CodexThreadRecovery {
-  const CodexThreadRecovery({required this.kind, required this.message});
-
-  factory CodexThreadRecovery.fromJson(Object? value) {
+class const CodexThreadRecovery({
+  required final String kind,
+  required final String message,
+}) {
+  factory fromJson(Object? value) {
     final json = value is Map ? Map<String, Object?>.from(value) : null;
     if (json == null || json['kind'] is! String) {
       return const CodexThreadRecovery(
@@ -19,45 +20,37 @@ class CodexThreadRecovery {
           'The saved Codex context is no longer available.',
     );
   }
-
-  final String kind;
-  final String message;
 }
 
 @immutable
-class CodexChatState {
-  const CodexChatState({
-    this.loading = true,
-    this.sending = false,
-    this.interrupting = false,
-    this.supportsSessions = false,
-    this.supportsAutoReview = false,
-    this.supportsGoals = false,
-    this.snapshot = const CodexChatSnapshot(),
-    this.activeCwd,
-    this.historyNextCursor,
-    this.models = const <CodexModelOption>[],
-    this.collaborationModes = const <Map<String, Object?>>[],
-    this.skills = const <Map<String, Object?>>[],
-    this.apps = const <Map<String, Object?>>[],
-    this.selectedModel,
-    this.reasoningEffort = 'medium',
-    this.speedMode = 'normal',
-    this.permissionMode = 'on-request',
-    this.planMode = false,
-    this.collaborationMode,
-    this.chatFeatures = const <String>{},
-    this.queueState = const <String, Object?>{},
-    this.historyRevision = 0,
-    this.queuedMessages = const <CodexQueuedMessage>[],
-    this.recovery,
-    this.error,
-  });
-
-  final bool loading;
-  final Set<String> chatFeatures;
-  final Map<String, Object?> queueState;
-  final int historyRevision;
+class const CodexChatState({
+  final bool loading = true,
+  final bool sending = false,
+  final bool interrupting = false,
+  final bool supportsSessions = false,
+  final bool supportsAutoReview = false,
+  final bool supportsGoals = false,
+  final CodexChatSnapshot snapshot = const CodexChatSnapshot(),
+  final String? activeCwd,
+  final String? historyNextCursor,
+  final List<CodexModelOption> models = const <CodexModelOption>[],
+  final List<Map<String, Object?>> collaborationModes =
+      const <Map<String, Object?>>[],
+  final List<Map<String, Object?>> skills = const <Map<String, Object?>>[],
+  final List<Map<String, Object?>> apps = const <Map<String, Object?>>[],
+  final String? selectedModel,
+  final String reasoningEffort = 'medium',
+  final String speedMode = 'normal',
+  final String permissionMode = 'on-request',
+  final bool planMode = false,
+  final String? collaborationMode,
+  final Set<String> chatFeatures = const <String>{},
+  final Map<String, Object?> queueState = const <String, Object?>{},
+  final int historyRevision = 0,
+  final List<CodexQueuedMessage> queuedMessages = const <CodexQueuedMessage>[],
+  final CodexThreadRecovery? recovery,
+  final String? error,
+}) {
   bool get supportsSharedQueue => chatFeatures.contains('codexSharedQueueV1');
   bool get sharedQueueUnavailable =>
       !supportsSharedQueue && queueState.containsKey('revision');
@@ -70,27 +63,6 @@ class CodexChatState {
       (queueState['historyRevision'] as int? ?? 0) > historyRevision;
   bool get historyLocked =>
       historyOutdated || queueState['historyLocked'] == true;
-  final bool sending;
-  final bool interrupting;
-  final bool supportsSessions;
-  final bool supportsAutoReview;
-  final bool supportsGoals;
-  final CodexChatSnapshot snapshot;
-  final String? activeCwd;
-  final String? historyNextCursor;
-  final List<CodexModelOption> models;
-  final List<Map<String, Object?>> collaborationModes;
-  final List<Map<String, Object?>> skills;
-  final List<Map<String, Object?>> apps;
-  final String? selectedModel;
-  final String reasoningEffort;
-  final String speedMode;
-  final String permissionMode;
-  final bool planMode;
-  final String? collaborationMode;
-  final List<CodexQueuedMessage> queuedMessages;
-  final CodexThreadRecovery? recovery;
-  final String? error;
 
   bool get busy => sending || snapshot.isBusy;
 

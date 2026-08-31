@@ -81,7 +81,7 @@ void registerCodexChatControllerRequestTests() {
           <String, Object?>{},
         ),
       );
-      await Future<void>.delayed(Duration.zero);
+      await Future.pause(.zero);
 
       expect(await host.supportsSessions(), isTrue);
       expect(statusAttempts, 2);
@@ -173,60 +173,57 @@ void registerCodexChatControllerRequestTests() {
     expect(turn.payload, contains('sandboxPolicy'));
   });
 
-  test(
-    'maps approval modes to current app-server fields without weakening legacy values',
-    () async {
-      final client = _FakeCodexRuntimeClient();
-      addTearDown(client.dispose);
-      final host = CodexChatHostClient(client);
+  test('maps approval modes to current app-server fields without weakening legacy values', () async {
+    final client = _FakeCodexRuntimeClient();
+    addTearDown(client.dispose);
+    final host = CodexChatHostClient(client);
 
-      for (final mode in <String>[
-        'untrusted',
-        'on-request',
-        'auto-review',
-        'never',
-      ]) {
-        await host.startTurn(
-          'tab-1',
-          const <Map<String, Object?>>[
-            <String, Object?>{'type': 'text', 'text': 'Inspect'},
-          ],
-          expectedThreadId: null,
-          userMessage: const <String, Object?>{'text': 'Inspect'},
-          reasoningEffort: 'medium',
-          speedMode: 'standard',
-          permissionMode: mode,
-          planMode: false,
-        );
-      }
+    for (final mode in <String>[
+      'untrusted',
+      'on-request',
+      'auto-review',
+      'never',
+    ]) {
+      await host.startTurn(
+        'tab-1',
+        const <Map<String, Object?>>[
+          <String, Object?>{'type': 'text', 'text': 'Inspect'},
+        ],
+        expectedThreadId: null,
+        userMessage: const <String, Object?>{'text': 'Inspect'},
+        reasoningEffort: 'medium',
+        speedMode: 'standard',
+        permissionMode: mode,
+        planMode: false,
+      );
+    }
 
-      final turns = client.requests
-          .where((request) => request.type == 'codex.turn.start')
-          .toList(growable: false);
-      expect(turns[0].payload['approvalPolicy'], 'untrusted');
-      expect(turns[0].payload['approvalsReviewer'], 'user');
-      expect(turns[0].payload['sandboxPolicy'], <String, Object?>{
-        'type': 'workspaceWrite',
-        'writableRoots': const <String>[],
-        'networkAccess': false,
+    final turns = client.requests
+        .where((request) => request.type == 'codex.turn.start')
+        .toList(growable: false);
+    expect(turns[0].payload['approvalPolicy'], 'untrusted');
+    expect(turns[0].payload['approvalsReviewer'], 'user');
+    expect(turns[0].payload['sandboxPolicy'], <String, Object?>{
+      'type': 'workspaceWrite',
+      'writableRoots': const <String>[],
+      'networkAccess': false,
+    });
+    expect(turns[1].payload['approvalPolicy'], 'on-request');
+    expect(turns[1].payload['approvalsReviewer'], 'user');
+    expect(turns[2].payload['approvalPolicy'], 'on-request');
+    expect(turns[2].payload['approvalsReviewer'], 'auto_review');
+    expect(turns[3].payload['approvalPolicy'], 'never');
+    expect(turns[3].payload['approvalsReviewer'], 'user');
+    expect(turns[3].payload['sandboxPolicy'], <String, Object?>{
+      'type': 'dangerFullAccess',
+    });
+    for (final turn in turns) {
+      expect(turn.payload['collaborationMode'], <String, Object?>{
+        'mode': 'default',
+        'settings': <String, Object?>{'reasoning_effort': 'medium'},
       });
-      expect(turns[1].payload['approvalPolicy'], 'on-request');
-      expect(turns[1].payload['approvalsReviewer'], 'user');
-      expect(turns[2].payload['approvalPolicy'], 'on-request');
-      expect(turns[2].payload['approvalsReviewer'], 'auto_review');
-      expect(turns[3].payload['approvalPolicy'], 'never');
-      expect(turns[3].payload['approvalsReviewer'], 'user');
-      expect(turns[3].payload['sandboxPolicy'], <String, Object?>{
-        'type': 'dangerFullAccess',
-      });
-      for (final turn in turns) {
-        expect(turn.payload['collaborationMode'], <String, Object?>{
-          'mode': 'default',
-          'settings': <String, Object?>{'reasoning_effort': 'medium'},
-        });
-      }
-    },
-  );
+    }
+  });
 
   test('preserves legacy permission modes for an older sidecar', () async {
     final client = _FakeCodexRuntimeClient(

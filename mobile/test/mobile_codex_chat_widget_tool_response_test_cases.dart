@@ -378,9 +378,7 @@ void _registerMobileCodexToolResponseTests() {
   });
 }
 
-class _MobileCountingToolIterable extends Iterable<String> {
-  _MobileCountingToolIterable(this.length);
-
+class _MobileCountingToolIterable(this.length) extends Iterable<String> {
   @override
   final int length;
   int moveNextCalls = 0;
@@ -389,10 +387,8 @@ class _MobileCountingToolIterable extends Iterable<String> {
   Iterator<String> get iterator => _MobileCountingToolIterator(this);
 }
 
-class _MobileCountingToolIterator implements Iterator<String> {
-  _MobileCountingToolIterator(this.source);
-
-  final _MobileCountingToolIterable source;
+class _MobileCountingToolIterator(final _MobileCountingToolIterable source)
+    implements Iterator<String> {
   var _index = -1;
 
   @override

@@ -7,20 +7,13 @@ import 'package:alera/src/features/workbench/domain/terminal_composer_attachment
 import 'package:alera/src/features/workbench/presentation/terminal_composer_image_preview.dart';
 import 'package:flutter/material.dart';
 
-class TerminalComposerAttachmentBar extends StatelessWidget {
-  const TerminalComposerAttachmentBar({
-    super.key,
-    required this.attachments,
-    required this.onRemove,
-    required this.onOpenFile,
-    this.enabled = true,
-  });
-
-  final List<TerminalComposerAttachment> attachments;
-  final ValueChanged<String> onRemove;
-  final ValueChanged<String> onOpenFile;
-  final bool enabled;
-
+class const TerminalComposerAttachmentBar({
+  super.key,
+  required final List<TerminalComposerAttachment> attachments,
+  required final ValueChanged<String> onRemove,
+  required final ValueChanged<String> onOpenFile,
+  final bool enabled = true,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (attachments.isEmpty) {
@@ -38,7 +31,7 @@ class TerminalComposerAttachmentBar extends StatelessWidget {
       child: SizedBox(
         height: AleraTokens.space32,
         child: ListView.separated(
-          scrollDirection: Axis.horizontal,
+          scrollDirection: .horizontal,
           itemCount: sortedAttachments.length,
           separatorBuilder: (_, _) => const SizedBox(width: AleraTokens.space4),
           itemBuilder: (context, index) {
@@ -59,19 +52,12 @@ class TerminalComposerAttachmentBar extends StatelessWidget {
       kind == TerminalComposerAttachmentKind.image ? 0 : 1;
 }
 
-class _TerminalComposerAttachmentChip extends StatelessWidget {
-  const _TerminalComposerAttachmentChip({
-    required this.attachment,
-    required this.onRemove,
-    required this.onOpenFile,
-    required this.enabled,
-  });
-
-  final TerminalComposerAttachment attachment;
-  final VoidCallback onRemove;
-  final VoidCallback onOpenFile;
-  final bool enabled;
-
+class const _TerminalComposerAttachmentChip({
+  required final TerminalComposerAttachment attachment,
+  required final VoidCallback onRemove,
+  required final VoidCallback onOpenFile,
+  required final bool enabled,
+}) extends StatelessWidget {
   void _open(BuildContext context) {
     if (attachment.kind == TerminalComposerAttachmentKind.image) {
       showTerminalComposerImagePreview(context, attachment.path);
@@ -86,9 +72,9 @@ class _TerminalComposerAttachmentChip extends StatelessWidget {
       key: ValueKey<String>('terminal-composer-attachment-${attachment.id}'),
       color: AleraTokens.surface,
       borderRadius: BorderRadius.circular(AleraTokens.radiusMd),
-      clipBehavior: Clip.antiAlias,
+      clipBehavior: .antiAlias,
       child: Row(
-        mainAxisSize: MainAxisSize.min,
+        mainAxisSize: .min,
         children: <Widget>[
           Tooltip(
             message: attachment.kind == TerminalComposerAttachmentKind.image
@@ -106,7 +92,7 @@ class _TerminalComposerAttachmentChip extends StatelessWidget {
                 mouseCursor: SystemMouseCursors.click,
                 onTap: () => _open(context),
                 child: Row(
-                  mainAxisSize: MainAxisSize.min,
+                  mainAxisSize: .min,
                   children: <Widget>[
                     if (attachment.kind == TerminalComposerAttachmentKind.image)
                       SizedBox(
@@ -114,7 +100,7 @@ class _TerminalComposerAttachmentChip extends StatelessWidget {
                         height: AleraTokens.space32,
                         child: Image.file(
                           File(attachment.path),
-                          fit: BoxFit.cover,
+                          fit: .cover,
                           cacheWidth: (AleraTokens.space32 * 2).round(),
                           errorBuilder: (_, _, _) => const Icon(
                             AleraIcons.imageError,
@@ -144,7 +130,7 @@ class _TerminalComposerAttachmentChip extends StatelessWidget {
                         child: Text(
                           attachment.displayName,
                           maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
+                          overflow: .ellipsis,
                           style: Theme.of(context).textTheme.labelMedium
                               ?.copyWith(color: AleraTokens.foregroundMuted),
                         ),

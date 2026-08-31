@@ -17,16 +17,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 part 'agent_quota_settings_controls.dart';
 
-class AgentQuotaSettingsPane extends ConsumerWidget {
-  const AgentQuotaSettingsPane({
-    super.key,
-    required this.settings,
-    this.groupKeys = const <String, GlobalKey>{},
-  });
-
-  final AgentQuotaSettings settings;
-  final Map<String, GlobalKey> groupKeys;
-
+class const AgentQuotaSettingsPane({
+  super.key,
+  required final AgentQuotaSettings settings,
+  final Map<String, GlobalKey> groupKeys = const <String, GlobalKey>{},
+}) extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final hostId = ref.watch(
@@ -42,24 +37,22 @@ class AgentQuotaSettingsPane extends ConsumerWidget {
     final controller = ref.read(settingsControllerProvider.notifier);
 
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+      crossAxisAlignment: .stretch,
       children: <Widget>[
         KeyedSubtree(
           key: groupKeys['providers'],
           child: AleraSettingsGroup(
             title: 'Provider Quotas',
-            description:
-                'Choose which usage sources appear for the active workspace host.',
+            description: 'Choose which usage sources appear for the active workspace host.',
             children: <Widget>[
               AleraSettingRow(
                 title: 'Active Quota Host',
-                description:
-                    'Run quota commands locally or through the installed Alera runtime for this workspace.',
+                description: 'Run quota commands locally or through the installed Alera runtime for this workspace.',
                 child: Align(
                   alignment: Alignment.centerRight,
                   child: Text(
                     hostId == 'local' ? 'Local' : hostId,
-                    overflow: TextOverflow.ellipsis,
+                    overflow: .ellipsis,
                     style: AleraTokens.monoStyle,
                   ),
                 ),
@@ -97,8 +90,7 @@ class AgentQuotaSettingsPane extends ConsumerWidget {
                   ),
               AleraSettingRow(
                 title: 'Quota Display Order',
-                description:
-                    'Set the left-to-right order of enabled providers in the status bar.',
+                description: 'Set the left-to-right order of enabled providers in the status bar.',
                 controlWidth: 420,
                 child: _ProviderOrderControl(
                   providers: hostSettings.enabledProviders,
@@ -120,12 +112,11 @@ class AgentQuotaSettingsPane extends ConsumerWidget {
           key: groupKeys['claude'],
           child: AleraSettingsGroup(
             title: 'Claude',
-            description:
-                'Configure the default Claude account and every CCS profile together.',
+            description: 'Configure the default Claude account and every CCS profile together.',
             children: <Widget>[
               SettingsSwitchRow(
                 title: 'Claude Code Quotas',
-                description: _providerDescription(AgentQuotaProviderId.claude),
+                description: _providerDescription(.claude),
                 value: hostSettings.enabledProviders.contains(
                   AgentQuotaProviderId.claude,
                 ),
@@ -133,7 +124,7 @@ class AgentQuotaSettingsPane extends ConsumerWidget {
                   unawaited(
                     controller.setAgentQuotaProviderEnabled(
                       hostId: hostId,
-                      provider: AgentQuotaProviderId.claude,
+                      provider: .claude,
                       value: value,
                     ),
                   );
@@ -141,13 +132,10 @@ class AgentQuotaSettingsPane extends ConsumerWidget {
               ),
               SettingsSwitchRow(
                 title: 'Claude Default Quotas',
-                description:
-                    'Query the default Claude account separately from configured CCS profiles.',
+                description: 'Query the default Claude account separately from configured CCS profiles.',
                 value: hostSettings.claudeDefaultEnabled,
                 secondary: _QuotaPinButton(
-                  pinned: hostSettings.isQuotaPinned(
-                    AgentQuotaProviderId.claude,
-                  ),
+                  pinned: hostSettings.isQuotaPinned(.claude),
                   enabled:
                       hostSettings.claudeDefaultEnabled &&
                       hostSettings.enabledProviders.contains(
@@ -157,9 +145,7 @@ class AgentQuotaSettingsPane extends ConsumerWidget {
                     unawaited(
                       controller.setAgentQuotaPinned(
                         hostId: hostId,
-                        pinKey: AgentQuotaHostSettings.quotaPinKey(
-                          AgentQuotaProviderId.claude,
-                        ),
+                        pinKey: AgentQuotaHostSettings.quotaPinKey(.claude),
                         pinned: pinned,
                       ),
                     );
@@ -176,8 +162,7 @@ class AgentQuotaSettingsPane extends ConsumerWidget {
               ),
               SettingsSwitchRow(
                 title: 'Claude Default in Usage',
-                description:
-                    'Include the default Claude account in Usage independently of quota polling.',
+                description: 'Include the default Claude account in Usage independently of quota polling.',
                 value: hostSettings.claudeDefaultShowInUsage,
                 onChanged: (value) {
                   unawaited(
@@ -196,7 +181,7 @@ class AgentQuotaSettingsPane extends ConsumerWidget {
                 child: _ClaudeProfilesControl(
                   profiles: hostSettings.claudeProfiles,
                   isPinned: (profile) => hostSettings.isQuotaPinned(
-                    AgentQuotaProviderId.claude,
+                    .claude,
                     claudeAccountId: profile,
                   ),
                   onPinnedChanged: (profile, pinned) {
@@ -204,7 +189,7 @@ class AgentQuotaSettingsPane extends ConsumerWidget {
                       controller.setAgentQuotaPinned(
                         hostId: hostId,
                         pinKey: AgentQuotaHostSettings.quotaPinKey(
-                          AgentQuotaProviderId.claude,
+                          .claude,
                           claudeAccountId: profile,
                         ),
                         pinned: pinned,
@@ -229,14 +214,12 @@ class AgentQuotaSettingsPane extends ConsumerWidget {
           key: groupKeys['credentials'],
           child: AleraSettingsGroup(
             title: 'Credential Environment',
-            description:
-                'Configure environment variable names for the active workspace host.',
+            description: 'Configure environment variable names for the active workspace host.',
             children: <Widget>[
               SettingsTextRow(
                 key: const ValueKey<String>('kimi-api-key-variable'),
                 title: 'Kimi API Key Variable',
-                description:
-                    'Environment variable read on the active host. The secret value is never stored by Alera.',
+                description: 'Environment variable read on the active host. The secret value is never stored by Alera.',
                 value: hostSettings.environment.kimiApiKey,
                 hintText: 'KIMI_API_KEY',
                 onChanged: (value) => _saveEnvironment(
@@ -247,8 +230,7 @@ class AgentQuotaSettingsPane extends ConsumerWidget {
               ),
               SettingsTextRow(
                 title: 'Z.ai API Key Variable',
-                description:
-                    'Environment variable read on the active host. The secret value is never stored by Alera.',
+                description: 'Environment variable read on the active host. The secret value is never stored by Alera.',
                 value: hostSettings.environment.zaiApiKey,
                 hintText: 'ZAI_API_KEY',
                 onChanged: (value) => _saveEnvironment(
@@ -259,8 +241,7 @@ class AgentQuotaSettingsPane extends ConsumerWidget {
               ),
               SettingsTextRow(
                 title: 'Z.ai Base URL Variable',
-                description:
-                    'Optional environment variable for the coding plan API base URL.',
+                description: 'Optional environment variable for the coding plan API base URL.',
                 value: hostSettings.environment.zaiBaseUrl,
                 hintText: 'ZAI_BASE_URL',
                 onChanged: (value) => _saveEnvironment(
@@ -271,8 +252,7 @@ class AgentQuotaSettingsPane extends ConsumerWidget {
               ),
               SettingsTextRow(
                 title: 'MiniMax API Key Variable',
-                description:
-                    'Environment variable read on the active host. The secret value is never stored by Alera.',
+                description: 'Environment variable read on the active host. The secret value is never stored by Alera.',
                 value: hostSettings.environment.minimaxApiKey,
                 hintText: 'MINIMAX_API_KEY',
                 onChanged: (value) => _saveEnvironment(
@@ -283,8 +263,7 @@ class AgentQuotaSettingsPane extends ConsumerWidget {
               ),
               SettingsTextRow(
                 title: 'MiniMax API Host Variable',
-                description:
-                    'Optional environment variable selecting the global or china token plan endpoint.',
+                description: 'Optional environment variable selecting the global or china token plan endpoint.',
                 value: hostSettings.environment.minimaxApiHost,
                 hintText: 'MINIMAX_API_HOST',
                 onChanged: (value) => _saveEnvironment(
@@ -295,8 +274,7 @@ class AgentQuotaSettingsPane extends ConsumerWidget {
               ),
               AleraSettingRow(
                 title: 'Credential Availability',
-                description:
-                    'Check whether each configured variable exists without reading its secret value.',
+                description: 'Check whether each configured variable exists without reading its secret value.',
                 controlWidth: 420,
                 child: _EnvironmentPresence(
                   names: <String>[
@@ -351,32 +329,23 @@ String _providerDescription(AgentQuotaProviderId provider) {
       'Read Cursor plan usage from the local Cursor CLI session.',
     AgentQuotaProviderId.antigravity =>
       'Read Antigravity usage through the official agy CLI.',
-    AgentQuotaProviderId.minimax =>
-      'Read MiniMax Token Plan usage with an API key from the host environment.',
+    AgentQuotaProviderId.minimax => 'Read MiniMax Token Plan usage with an API key from the host environment.',
     AgentQuotaProviderId.zai =>
       'Read Z.ai limits with an API key from the host environment.',
-    AgentQuotaProviderId.opencode =>
-      'Estimate OpenCode Go quota and local OpenCode Zen spend from the host database.',
+    AgentQuotaProviderId.opencode => 'Estimate OpenCode Go quota and local OpenCode Zen spend from the host database.',
   };
 }
 
-class _EnvironmentPresence extends StatelessWidget {
-  const _EnvironmentPresence({
-    required this.names,
-    required this.presence,
-    required this.loading,
-    required this.onRefresh,
-  });
-
-  final List<String> names;
-  final Map<String, bool> presence;
-  final bool loading;
-  final VoidCallback onRefresh;
-
+class const _EnvironmentPresence({
+  required final List<String> names,
+  required final Map<String, bool> presence,
+  required final bool loading,
+  required final VoidCallback onRefresh,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+      crossAxisAlignment: .stretch,
       children: <Widget>[
         for (final name in names)
           Padding(
@@ -394,7 +363,7 @@ class _EnvironmentPresence extends StatelessWidget {
                 Expanded(
                   child: Text(
                     name,
-                    overflow: TextOverflow.ellipsis,
+                    overflow: .ellipsis,
                     style: AleraTokens.monoStyle,
                   ),
                 ),

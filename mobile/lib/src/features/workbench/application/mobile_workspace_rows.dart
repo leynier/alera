@@ -1,3 +1,4 @@
+import 'package:alera_mobile/src/features/runtime/domain/workspace_section_summary.dart';
 import 'package:alera_mobile/src/features/runtime/domain/project_summary.dart';
 import 'package:alera_mobile/src/features/runtime/domain/workspace_summary.dart';
 import 'package:alera_mobile/src/features/runtime/domain/workspace_sidebar_snapshot.dart';
@@ -5,64 +6,46 @@ import 'package:alera_mobile/src/features/workbench/application/mobile_agent_act
 import 'package:alera_mobile/src/features/workbench/application/workspace_listing_tree.dart';
 import 'package:alera_mobile/src/features/workbench/domain/mobile_view_prefs.dart';
 
+part 'mobile_section_listing.dart';
+
 /// Flattened list model for the mobile workspace list, mirroring the desktop
 /// sidebar sections: an optional pinned section on top, then either project
 /// groups or one flat tree.
-sealed class MobileWorkspaceRow {
-  const MobileWorkspaceRow();
-}
+sealed class const MobileWorkspaceRow();
 
-class MobilePinnedHeaderRow extends MobileWorkspaceRow {
-  const MobilePinnedHeaderRow({required this.count, required this.collapsed});
+class const MobilePinnedHeaderRow({
+  required final int count,
+  required final bool collapsed,
+}) extends MobileWorkspaceRow;
 
-  final int count;
-  final bool collapsed;
-}
+class const MobileProjectHeaderRow({
+  required final String projectId,
+  required final String projectName,
+  required final int count,
+  required final bool collapsed,
+}) extends MobileWorkspaceRow;
 
-class MobileProjectHeaderRow extends MobileWorkspaceRow {
-  const MobileProjectHeaderRow({
-    required this.projectId,
-    required this.projectName,
-    required this.count,
-    required this.collapsed,
-  });
+class const MobileAllHeaderRow({
+  required final int count,
+  required final bool collapsed,
+}) extends MobileWorkspaceRow;
 
-  final String projectId;
-  final String projectName;
-  final int count;
-  final bool collapsed;
-}
-
-class MobileAllHeaderRow extends MobileWorkspaceRow {
-  const MobileAllHeaderRow({required this.count, required this.collapsed});
-
-  final int count;
-  final bool collapsed;
-}
-
-class MobileWorkspaceEntryRow extends MobileWorkspaceRow {
-  const MobileWorkspaceEntryRow({
-    required this.entry,
-    this.isPinnedCopy = false,
-  });
-
-  final WorkspaceTreeEntry entry;
-
+class const MobileWorkspaceEntryRow({
+  required final WorkspaceTreeEntry entry,
+  this.isPinnedCopy = false,
+}) extends MobileWorkspaceRow {
   /// True for the flat copy rendered inside the pinned section.
   final bool isPinnedCopy;
 }
 
-class _PreparedWorkspaceListing {
-  const _PreparedWorkspaceListing({
-    required this.orderedWorkspaces,
-    required this.directActivityByWorkspaceId,
-  });
-
-  final List<WorkspaceSummary> orderedWorkspaces;
-  final Map<String, MobileAgentActivityRank?> directActivityByWorkspaceId;
-}
+class const _PreparedWorkspaceListing({
+  required final List<WorkspaceSummary> orderedWorkspaces,
+  required final Map<String, MobileAgentActivityRank?>
+  directActivityByWorkspaceId,
+});
 
 List<MobileWorkspaceRow> buildMobileWorkspaceRows({
+  List<WorkspaceSectionSummary> sections = const [],
   required List<WorkspaceSummary> workspaces,
   required List<ProjectSummary> projects,
   required MobileViewPrefs prefs,
@@ -76,6 +59,7 @@ List<MobileWorkspaceRow> buildMobileWorkspaceRows({
     for (final project in projects) project.id: project,
   };
   final listing = _prepareWorkspaceListing(
+    sections: sections,
     workspaces: workspaces,
     projectById: projectById,
     prefs: prefs,
@@ -99,6 +83,14 @@ List<MobileWorkspaceRow> buildMobileWorkspaceRows({
             .where((workspace) => !workspace.isPinned)
             .toList(growable: false);
   switch (prefs.groupBy) {
+    case MobileWorkspaceGroupBy.section:
+      _appendCustomSections(
+        rows: rows,
+        workspaces: workspacesBelow,
+        sections: sections,
+        prefs: prefs,
+        directActivityByWorkspaceId: listing.directActivityByWorkspaceId,
+      );
     case MobileWorkspaceGroupBy.project:
       _appendProjectSections(
         rows: rows,
@@ -121,6 +113,7 @@ List<MobileWorkspaceRow> buildMobileWorkspaceRows({
 }
 
 _PreparedWorkspaceListing _prepareWorkspaceListing({
+  required List<WorkspaceSectionSummary> sections,
   required List<WorkspaceSummary> workspaces,
   required Map<String, ProjectSummary> projectById,
   required MobileViewPrefs prefs,
@@ -151,7 +144,13 @@ _PreparedWorkspaceListing _prepareWorkspaceListing({
           _matchesSearch(
             workspace,
             projectById[workspace.projectId],
-            normalizedQuery,
+            sections.any(
+                  (section) =>
+                      section.id == workspace.sectionId &&
+                      section.name.toLowerCase().contains(normalizedQuery),
+                )
+                ? ''
+                : normalizedQuery,
           ))
         workspace,
   ];
@@ -353,7 +352,7 @@ int _compareWorkspaces(
     return left.isMain ? -1 : 1;
   }
   if (prefs.workspaceSort == MobileWorkbenchSortBy.recent &&
-      prefs.groupBy == MobileWorkspaceGroupBy.project &&
+      prefs.groupBy != MobileWorkspaceGroupBy.none &&
       left.isMain != right.isMain) {
     return left.isMain ? -1 : 1;
   }

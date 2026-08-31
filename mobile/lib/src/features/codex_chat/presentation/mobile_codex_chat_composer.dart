@@ -1,76 +1,40 @@
 part of 'mobile_codex_chat_screen.dart';
 
-class _MobileComposer extends StatefulWidget {
-  const _MobileComposer({
-    required this.controller,
-    required this.focusNode,
-    required this.chatController,
-    required this.workspaceId,
-    required this.hostId,
-    required this.tabId,
-    required this.state,
-    required this.attachments,
-    required this.busy,
-    required this.interrupting,
-    required this.blockedMessage,
-    required this.onAttach,
-    required this.onAddAttachment,
-    required this.onCatalogSelection,
-    required this.onRemoveAttachment,
-    required this.onSend,
-    required this.onSteer,
-    required this.onStop,
-    required this.canAttach,
-    required this.onModel,
-    required this.onReasoning,
-    required this.onSpeed,
-    required this.onPermission,
-    required this.onPlan,
-    required this.onCollaboration,
-    required this.onCompact,
-    required this.onReview,
-    required this.onRename,
-    required this.onResume,
-    required this.onNew,
-    required this.onClear,
-    required this.supportsSessions,
-    required this.supportsTurnPolicy,
-  });
-
-  final TextEditingController controller;
-  final FocusNode focusNode;
-  final MobileCodexController chatController;
-  final String workspaceId;
-  final String hostId;
-  final String tabId;
-  final MobileCodexState state;
-  final List<Map<String, Object?>> attachments;
-  final bool busy;
-  final bool interrupting;
-  final String? blockedMessage;
-  final Future<void> Function() onAttach;
-  final ValueChanged<Map<String, Object?>> onAddAttachment;
-  final ValueChanged<Map<String, Object?>> onCatalogSelection;
-  final ValueChanged<Map<String, Object?>> onRemoveAttachment;
-  final Future<void> Function() onSend;
-  final Future<void> Function() onSteer;
-  final Future<void> Function() onStop;
-  final bool canAttach;
-  final ValueChanged<String?> onModel;
-  final ValueChanged<String> onReasoning;
-  final ValueChanged<String> onSpeed;
-  final ValueChanged<String> onPermission;
-  final ValueChanged<bool> onPlan;
-  final ValueChanged<String?> onCollaboration;
-  final Future<void> Function() onCompact;
-  final Future<void> Function() onReview;
-  final VoidCallback onRename;
-  final Future<void> Function() onResume;
-  final Future<void> Function() onNew;
-  final Future<void> Function() onClear;
-  final bool supportsSessions;
-  final bool supportsTurnPolicy;
-
+class const _MobileComposer({
+  required final TextEditingController controller,
+  required final FocusNode focusNode,
+  required final MobileCodexController chatController,
+  required final String workspaceId,
+  required final String hostId,
+  required final String tabId,
+  required final MobileCodexState state,
+  required final List<Map<String, Object?>> attachments,
+  required final bool busy,
+  required final bool interrupting,
+  required final String? blockedMessage,
+  required final Future<void> Function() onAttach,
+  required final ValueChanged<Map<String, Object?>> onAddAttachment,
+  required final ValueChanged<Map<String, Object?>> onCatalogSelection,
+  required final ValueChanged<Map<String, Object?>> onRemoveAttachment,
+  required final Future<void> Function() onSend,
+  required final Future<void> Function() onSteer,
+  required final Future<void> Function() onStop,
+  required final bool canAttach,
+  required final ValueChanged<String?> onModel,
+  required final ValueChanged<String> onReasoning,
+  required final ValueChanged<String> onSpeed,
+  required final ValueChanged<String> onPermission,
+  required final ValueChanged<bool> onPlan,
+  required final ValueChanged<String?> onCollaboration,
+  required final Future<void> Function() onCompact,
+  required final Future<void> Function() onReview,
+  required final VoidCallback onRename,
+  required final Future<void> Function() onResume,
+  required final Future<void> Function() onNew,
+  required final Future<void> Function() onClear,
+  required final bool supportsSessions,
+  required final bool supportsTurnPolicy,
+}) extends StatefulWidget {
   @override
   State<_MobileComposer> createState() => _MobileComposerState();
 }
@@ -135,7 +99,7 @@ class _MobileComposerState extends State<_MobileComposer> {
           AleraTokens.space8,
         ),
         child: Column(
-          mainAxisSize: MainAxisSize.min,
+          mainAxisSize: .min,
           children: <Widget>[
             _MobileComposerCatalog(
               key: _catalog,
@@ -158,7 +122,7 @@ class _MobileComposerState extends State<_MobileComposer> {
                 ),
                 border: Border.all(color: AleraTokens.border),
               ),
-              clipBehavior: Clip.antiAlias,
+              clipBehavior: .antiAlias,
               child: Column(
                 children: <Widget>[
                   if (widget.attachments.isNotEmpty)
@@ -168,12 +132,9 @@ class _MobileComposerState extends State<_MobileComposer> {
                     ),
                   CallbackShortcuts(
                     bindings: <ShortcutActivator, VoidCallback>{
-                      const SingleActivator(LogicalKeyboardKey.enter):
-                          _submitOrAccept,
-                      const SingleActivator(
-                        LogicalKeyboardKey.enter,
-                        shift: true,
-                      ): _insertLineBreak,
+                      const SingleActivator(.enter): _submitOrAccept,
+                      const SingleActivator(.enter, shift: true):
+                          _insertLineBreak,
                     },
                     child: Focus(
                       canRequestFocus: false,
@@ -184,9 +145,9 @@ class _MobileComposerState extends State<_MobileComposer> {
                         enabled: !inputDisabled,
                         minLines: 2,
                         maxLines: AleraTokens.composeBarMaxLines,
-                        textInputAction: TextInputAction.newline,
+                        textInputAction: .newline,
                         decoration: InputDecoration(
-                          border: InputBorder.none,
+                          border: .none,
                           contentPadding: const EdgeInsets.fromLTRB(
                             AleraTokens.space16,
                             AleraTokens.space12,
@@ -195,8 +156,7 @@ class _MobileComposerState extends State<_MobileComposer> {
                           ),
                           hintText: widget.state.mcpInitializing
                               ? 'Starting MCP Servers...'
-                              : widget.blockedMessage ??
-                                    'Ask Codex anything, @ for files, \$ for skills and apps, / for commands',
+                              : widget.blockedMessage ?? 'Ask Codex anything, @ for files, \$ for skills and apps, / for commands',
                         ),
                       ),
                     ),
@@ -248,8 +208,8 @@ class _MobileComposerState extends State<_MobileComposer> {
         : value.selection.end;
     widget.controller.value = value.copyWith(
       text: value.text.replaceRange(start, end, '\n'),
-      selection: TextSelection.collapsed(offset: start + 1),
-      composing: TextRange.empty,
+      selection: .collapsed(offset: start + 1),
+      composing: .empty,
     );
   }
 
@@ -299,27 +259,19 @@ class _MobileComposerState extends State<_MobileComposer> {
     _settingHistoryText = true;
     widget.controller.value = TextEditingValue(
       text: text,
-      selection: TextSelection.collapsed(offset: text.length),
+      selection: .collapsed(offset: text.length),
     );
     _settingHistoryText = false;
   }
 }
 
-class _MobilePermissionButton extends StatelessWidget {
-  const _MobilePermissionButton({
-    required this.value,
-    required this.enabled,
-    required this.supportsAutoReview,
-    required this.onSelected,
-    this.compact = false,
-  });
-
-  final String value;
-  final bool enabled;
-  final bool supportsAutoReview;
-  final ValueChanged<String> onSelected;
-  final bool compact;
-
+class const _MobilePermissionButton({
+  required final String value,
+  required final bool enabled,
+  required final bool supportsAutoReview,
+  required final ValueChanged<String> onSelected,
+  final bool compact = false,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final full = value == 'never';
@@ -355,7 +307,7 @@ class _MobilePermissionButton extends StatelessWidget {
     showDragHandle: true,
     builder: (sheetContext) => SafeArea(
       child: Column(
-        mainAxisSize: MainAxisSize.min,
+        mainAxisSize: .min,
         children: <Widget>[
           const ListTile(title: Text('How Should Codex Actions Be Approved?')),
           _permissionTile(
@@ -430,11 +382,8 @@ Future<bool> _confirmFullAccess(BuildContext context) async =>
     ) ??
     false;
 
-class _MobileContextButton extends StatelessWidget {
-  const _MobileContextButton({required this.state});
-
-  final MobileCodexState state;
-
+class const _MobileContextButton({required final MobileCodexState state})
+    extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final used = state.contextUsed;
@@ -444,7 +393,7 @@ class _MobileContextButton extends StatelessWidget {
         : 0.0;
     return IconButton(
       tooltip: 'Context Window',
-      visualDensity: VisualDensity.compact,
+      visualDensity: .compact,
       onPressed: () => showModalBottomSheet<void>(
         context: context,
         showDragHandle: true,

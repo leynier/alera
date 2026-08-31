@@ -6,20 +6,13 @@ import 'package:flutter/material.dart';
 ///
 /// Replaces the raw Material [Checkbox] so check controls share the Alera
 /// accent, radius, and hover treatment.
-class AleraCheckbox extends StatelessWidget {
-  const AleraCheckbox({
-    super.key,
-    required this.value,
-    required this.onChanged,
-    this.label,
-    this.enabled = true,
-  });
-
-  final bool value;
-  final ValueChanged<bool> onChanged;
-  final String? label;
-  final bool enabled;
-
+class const AleraCheckbox({
+  super.key,
+  required final bool value,
+  required final ValueChanged<bool> onChanged,
+  final String? label,
+  final bool enabled = true,
+}) extends StatelessWidget {
   static const double _boxSize = 18;
 
   @override
@@ -48,7 +41,7 @@ class AleraCheckbox extends StatelessWidget {
       label: label,
       child: InkWell(
         onTap: enabled ? () => onChanged(!value) : null,
-        borderRadius: BorderRadius.circular(AleraTokens.radiusSm),
+        borderRadius: .circular(AleraTokens.radiusSm),
         mouseCursor: enabled
             ? SystemMouseCursors.click
             : SystemMouseCursors.basic,
@@ -57,7 +50,7 @@ class AleraCheckbox extends StatelessWidget {
           child: label == null
               ? box
               : Row(
-                  mainAxisSize: MainAxisSize.min,
+                  mainAxisSize: .min,
                   children: <Widget>[
                     box,
                     const SizedBox(width: AleraTokens.space8),

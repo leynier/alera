@@ -13,7 +13,7 @@ void main() {
 
     test('round-trips overrides and policy through json', () {
       const settings = KeyboardShortcutSettings(
-        terminalPolicy: TerminalShortcutPolicy.terminalFirst,
+        terminalPolicy: .terminalFirst,
         overrides: <KeyboardActionId, List<String>>{
           KeyboardActionId.newTerminalTab: <String>['Mod+Shift+T'],
           KeyboardActionId.closeTab: <String>[],
@@ -28,7 +28,7 @@ void main() {
       expect(restored.overrides[KeyboardActionId.newTerminalTab], <String>[
         'Mod+Shift+T',
       ]);
-      expect(restored.isDisabled(KeyboardActionId.closeTab), isTrue);
+      expect(restored.isDisabled(.closeTab), isTrue);
     });
 
     test('fromJson rejects unknown actions and invalid policy values', () {
@@ -50,8 +50,8 @@ void main() {
           KeyboardActionId.closeTab: <String>['Mod+Q'],
         },
       );
-      final next = settings.copyWithOverride(KeyboardActionId.closeTab, null);
-      expect(next.hasOverride(KeyboardActionId.closeTab), isFalse);
+      final next = settings.copyWithOverride(.closeTab, null);
+      expect(next.hasOverride(.closeTab), isFalse);
     });
   });
 }

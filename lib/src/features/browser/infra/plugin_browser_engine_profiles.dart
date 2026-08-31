@@ -1,11 +1,12 @@
 part of 'plugin_browser_engine.dart';
 
-final class _PluginBrowserProfiles {
-  _PluginBrowserProfiles({
-    required AleraBrowserClient client,
-    required DateTime Function() now,
-  }) : _client = client, // ignore: prefer_initializing_formals
-       _now = now; // ignore: prefer_initializing_formals
+final class _PluginBrowserProfiles({
+  required AleraBrowserClient client,
+  required DateTime Function() now,
+}) {
+  this
+    : _client = client, // ignore: prefer_initializing_formals
+      _now = now; // ignore: prefer_initializing_formals
 
   final AleraBrowserClient _client;
   final DateTime Function() _now;
@@ -79,7 +80,7 @@ final class _PluginBrowserProfiles {
             source: _importSourceFromPlugin(value.source),
             supported: value.supported,
             available: value.available,
-            profileNames: List<String>.unmodifiable(value.profileNames),
+            profileNames: List<String>.unmodifiableOf(value.profileNames),
             detailCode: value.detailCode,
           ),
       ];
@@ -99,7 +100,7 @@ final class _PluginBrowserProfiles {
       if (pluginSource != AleraBrowserCookieImportSource.manualJson &&
           (sourceProfileName == null || sourceProfileName.trim().isEmpty)) {
         throw const BrowserFailure(
-          code: BrowserErrorCode.invalidPayload,
+          code: .invalidPayload,
           message: 'A source browser profile is required.',
           recoverable: true,
         );
@@ -134,7 +135,7 @@ final class _PluginBrowserProfiles {
     final token = _importGestures.remove(gesture.id);
     if (token == null) {
       throw const BrowserFailure(
-        code: BrowserErrorCode.permissionDenied,
+        code: .permissionDenied,
         message: 'Cookie import requires a fresh user gesture.',
       );
     }

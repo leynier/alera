@@ -232,7 +232,7 @@ extension _NativeBrowserPlatformEvents on NativeAleraBrowserPlatform {
         pageId: pageId,
         occurredAt: _timestamp,
         downloadId: downloadId,
-        state: AleraBrowserDownloadState.requested,
+        state: .requested,
         receivedBytes: 0,
         totalBytes: totalBytes,
         suggestedFileName: event['suggestedFileName'] as String?,

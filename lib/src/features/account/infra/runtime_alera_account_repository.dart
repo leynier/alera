@@ -8,13 +8,12 @@ const Set<String> _accountChangeEvents = <String>{
   'runtimeSettingsChanged',
 };
 
-final class RuntimeAleraAccountRepository {
-  RuntimeAleraAccountRepository(
-    this._client, {
-    RuntimeChangeCoalescer? coalescer,
-  }) : _coalescer = coalescer ?? RuntimeChangeCoalescer();
+final class RuntimeAleraAccountRepository(
+  final RuntimeHostClient _client, {
+  RuntimeChangeCoalescer? coalescer,
+}) {
+  this : _coalescer = coalescer ?? RuntimeChangeCoalescer();
 
-  final RuntimeHostClient _client;
   final RuntimeChangeCoalescer _coalescer;
 
   Future<AleraAccountStatus> status() async {

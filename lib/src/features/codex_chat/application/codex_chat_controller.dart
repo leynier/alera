@@ -1,6 +1,9 @@
 import 'dart:async';
+
 import 'codex_composer_draft_store.dart';
+
 import 'dart:convert';
+
 import 'package:alera/src/features/codex_chat/domain/codex_queue_message.dart';
 
 import 'package:alera/src/features/codex_chat/domain/codex_file_reference.dart';
@@ -117,8 +120,7 @@ class CodexChatController extends _$CodexChatController {
     final expectedThreadId = _threadId;
     if (expectedThreadId == null) {
       state = state.copyWith(
-        error:
-            'The Codex conversation changed before recovery. Review the current conversation and try again.',
+        error: 'The Codex conversation changed before recovery. Review the current conversation and try again.',
       );
       return;
     }
@@ -180,8 +182,8 @@ class CodexChatController extends _$CodexChatController {
     }
     final message = CodexQueuedMessage(
       text: trimmed,
-      attachments: List<CodexInputAttachment>.unmodifiable(attachments),
-      draftItems: List<CodexDraftItem>.unmodifiable(draftItems),
+      attachments: List<CodexInputAttachment>.unmodifiableOf(attachments),
+      draftItems: List<CodexDraftItem>.unmodifiableOf(draftItems),
       id: _newClientMessageId(),
     );
     if (state.loading) {
@@ -460,8 +462,8 @@ class CodexChatController extends _$CodexChatController {
     next[index] = CodexQueuedMessage(
       id: next[index].id,
       text: text.trim(),
-      attachments: List<CodexInputAttachment>.unmodifiable(attachments),
-      draftItems: List<CodexDraftItem>.unmodifiable(draftItems),
+      attachments: List<CodexInputAttachment>.unmodifiableOf(attachments),
+      draftItems: List<CodexDraftItem>.unmodifiableOf(draftItems),
     );
     if (next[index].text.isEmpty &&
         next[index].attachments.isEmpty &&

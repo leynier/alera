@@ -18,14 +18,15 @@ import 'native_browser_surface.dart';
 
 part 'native_browser_platform_events.dart';
 
-final class NativeAleraBrowserPlatform implements AleraBrowserPlatform {
-  NativeAleraBrowserPlatform({
-    required this.callbacks,
-    AleraBrowserNativeChannel channel = const AleraBrowserNativeChannel(),
-    DateTime Function()? now,
-  }) : _channel = channel,
-       _now = now ?? DateTime.now,
-       _dataStore = AleraNativeBrowserDataStore(channel) {
+final class NativeAleraBrowserPlatform({
+  required final AleraBrowserCallbacks callbacks,
+  AleraBrowserNativeChannel channel = const AleraBrowserNativeChannel(),
+  DateTime Function()? now,
+}) implements AleraBrowserPlatform {
+  this
+    : _channel = channel,
+      _now = now ?? DateTime.now,
+      _dataStore = AleraNativeBrowserDataStore(channel) {
     _automation = AleraNativeBrowserAutomation(
       evaluate: evaluateJavaScript,
       generation: (pageId) => _page(pageId).generation,
@@ -38,7 +39,6 @@ final class NativeAleraBrowserPlatform implements AleraBrowserPlatform {
     );
   }
 
-  final AleraBrowserCallbacks callbacks;
   final AleraBrowserNativeChannel _channel;
   final DateTime Function() _now;
   final AleraNativeBrowserDataStore _dataStore;
@@ -410,10 +410,7 @@ final class NativeAleraBrowserPlatform implements AleraBrowserPlatform {
   }
 }
 
-final class _NativePage {
-  _NativePage(this.model);
-
-  AleraBrowserPage model;
+final class _NativePage(var AleraBrowserPage model) {
   int generation = 0;
   bool wasAttached = false;
 }

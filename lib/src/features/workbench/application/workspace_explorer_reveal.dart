@@ -6,17 +6,11 @@ part 'workspace_explorer_reveal.g.dart';
 ///
 /// Source Control queues this, switches to the Explorer tab, and Explorer
 /// consumes it after the tree is ready. The request is not persisted.
-class WorkspaceExplorerRevealRequest {
-  const WorkspaceExplorerRevealRequest({
-    required this.workspaceId,
-    required this.relativePath,
-    required this.generation,
-  });
-
-  final String workspaceId;
-  final String relativePath;
-  final int generation;
-}
+class const WorkspaceExplorerRevealRequest({
+  required final String workspaceId,
+  required final String relativePath,
+  required final int generation,
+});
 
 @Riverpod(keepAlive: true)
 class WorkspaceExplorerRevealController

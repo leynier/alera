@@ -12,9 +12,7 @@ import 'package:alera/src/shared/infra/process/process_runner.dart';
 /// child it starts would get a console window of its own and flash on screen.
 /// Failures are translated back into [ProcessException] so call sites keep
 /// seeing what `Process.run` used to throw.
-class RustProcessRunner implements ProcessRunner {
-  const RustProcessRunner();
-
+class const RustProcessRunner() implements ProcessRunner {
   @override
   Future<ProcessRunOutput> run(
     String executable,
@@ -63,11 +61,7 @@ class RustProcessRunner implements ProcessRunner {
 
 /// Demultiplexes the single event stream the bridge exposes back into the
 /// stdout, stderr and exit-code surfaces [StartedProcess] is made of.
-class _ProcessSession {
-  _ProcessSession(this._executable, this._arguments);
-
-  final String _executable;
-  final List<String> _arguments;
+class _ProcessSession(final String _executable, final List<String> _arguments) {
   final StreamController<List<int>> _stdout = StreamController<List<int>>();
   final StreamController<List<int>> _stderr = StreamController<List<int>>();
   final Completer<int> _exitCode = Completer<int>();

@@ -1,29 +1,17 @@
 part of 'mobile_codex_chat_screen.dart';
 
-class _MobileTimelineRow extends StatelessWidget {
-  const _MobileTimelineRow({
-    required this.row,
-    required this.onOpenPlan,
-    required this.activityExpanded,
-    required this.onToggleActivity,
-    required this.turnExpanded,
-    required this.onToggleTurn,
-    required this.showTurnActivity,
-    required this.planPreviewInitiallyOverflowing,
-    required this.onPlanPreviewOverflowChanged,
-  });
-
-  final MobileCodexPresentationRow row;
-  final ValueChanged<MobileCodexTimelineCell> onOpenPlan;
-  final bool activityExpanded;
-  final VoidCallback onToggleActivity;
-  final bool turnExpanded;
-  final VoidCallback onToggleTurn;
-  final bool showTurnActivity;
-  final bool planPreviewInitiallyOverflowing;
-  final void Function(String planId, bool overflowing)
-  onPlanPreviewOverflowChanged;
-
+class const _MobileTimelineRow({
+  required final MobileCodexPresentationRow row,
+  required final ValueChanged<MobileCodexTimelineCell> onOpenPlan,
+  required final bool activityExpanded,
+  required final VoidCallback onToggleActivity,
+  required final bool turnExpanded,
+  required final VoidCallback onToggleTurn,
+  required final bool showTurnActivity,
+  required final bool planPreviewInitiallyOverflowing,
+  required final void Function(String planId, bool overflowing)
+  onPlanPreviewOverflowChanged,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (!showTurnActivity) return const SizedBox.shrink();
@@ -53,28 +41,17 @@ class _MobileTimelineRow extends StatelessWidget {
   }
 }
 
-class _MobileTimelineCell extends StatefulWidget {
-  const _MobileTimelineCell({
-    required this.cell,
-    required this.onOpenPlan,
-    required this.planPreviewInitiallyOverflowing,
-    required this.onPlanPreviewOverflowChanged,
-    required this.turnExpanded,
-    required this.onToggleTurn,
-    required this.turnActivityCount,
-    this.isPreviousPlan = false,
-  });
-
-  final MobileCodexTimelineCell cell;
-  final bool isPreviousPlan;
-  final ValueChanged<MobileCodexTimelineCell> onOpenPlan;
-  final bool planPreviewInitiallyOverflowing;
-  final void Function(String planId, bool overflowing)
-  onPlanPreviewOverflowChanged;
-  final bool turnExpanded;
-  final VoidCallback onToggleTurn;
-  final int turnActivityCount;
-
+class const _MobileTimelineCell({
+  required final MobileCodexTimelineCell cell,
+  required final ValueChanged<MobileCodexTimelineCell> onOpenPlan,
+  required final bool planPreviewInitiallyOverflowing,
+  required final void Function(String planId, bool overflowing)
+  onPlanPreviewOverflowChanged,
+  required final bool turnExpanded,
+  required final VoidCallback onToggleTurn,
+  required final int turnActivityCount,
+  final bool isPreviousPlan = false,
+}) extends StatefulWidget {
   @override
   State<_MobileTimelineCell> createState() => _MobileTimelineCellState();
 }
@@ -134,14 +111,14 @@ class _MobileTimelineCellState extends State<_MobileTimelineCell> {
         color: AleraTokens.surface,
         borderRadius: BorderRadius.circular(AleraTokens.radiusMd),
         child: InkWell(
-          borderRadius: BorderRadius.circular(AleraTokens.radiusMd),
+          borderRadius: .circular(AleraTokens.radiusMd),
           onTap: collapseable
               ? () => setState(() => _collapsed = !_collapsed)
               : null,
           child: Padding(
             padding: const EdgeInsets.all(AleraTokens.space12),
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
+              crossAxisAlignment: .stretch,
               children: <Widget>[
                 Row(
                   children: <Widget>[
@@ -210,7 +187,7 @@ class _MobileTimelineCellState extends State<_MobileTimelineCell> {
           child: Padding(
             padding: const EdgeInsets.only(bottom: AleraTokens.space12),
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
+              crossAxisAlignment: .end,
               children: <Widget>[
                 _MobileMessageAttachments(cell: cell),
                 if (raw.trim().isNotEmpty)
@@ -227,7 +204,7 @@ class _MobileTimelineCellState extends State<_MobileTimelineCell> {
                     padding: const EdgeInsets.only(top: AleraTokens.space4),
                     child: Row(
                       key: const ValueKey<String>('mobile-codex-sent-as-goal'),
-                      mainAxisSize: MainAxisSize.min,
+                      mainAxisSize: .min,
                       children: <Widget>[
                         const Icon(
                           Icons.track_changes_outlined,
@@ -254,7 +231,7 @@ class _MobileTimelineCellState extends State<_MobileTimelineCell> {
     return Padding(
       padding: const EdgeInsets.only(bottom: AleraTokens.space12),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
+        crossAxisAlignment: .stretch,
         children: <Widget>[
           body,
           if (cell.isStreaming)
@@ -272,11 +249,9 @@ class _MobileTimelineCellState extends State<_MobileTimelineCell> {
   }
 }
 
-class _MobileContextCompactionCell extends StatelessWidget {
-  const _MobileContextCompactionCell({required this.cell});
-
-  final MobileCodexTimelineCell cell;
-
+class const _MobileContextCompactionCell({
+  required final MobileCodexTimelineCell cell,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final active = cell.isStreaming || cell.status == 'inProgress';
@@ -288,9 +263,8 @@ class _MobileContextCompactionCell extends StatelessWidget {
     final color = cell.status == 'failed'
         ? AleraTokens.error
         : AleraTokens.foregroundMuted;
-    final style = Theme.of(
-      context,
-    ).textTheme.labelMedium?.copyWith(color: color);
+    final style = Theme.of(context).textTheme.labelMedium
+        ?.copyWith(color: color);
     return Padding(
       key: ValueKey<String>('mobile-context-compaction-${cell.id}'),
       padding: const EdgeInsets.only(bottom: AleraTokens.space8),
@@ -312,24 +286,18 @@ class _MobileContextCompactionCell extends StatelessWidget {
   }
 }
 
-class _MobileMessageActions extends StatelessWidget {
-  const _MobileMessageActions({
-    required this.cell,
-    required this.raw,
-    required this.onToggleRaw,
-  });
-
-  final MobileCodexTimelineCell cell;
-  final bool raw;
-  final VoidCallback onToggleRaw;
-
+class const _MobileMessageActions({
+  required final MobileCodexTimelineCell cell,
+  required final bool raw,
+  required final VoidCallback onToggleRaw,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Row(
-    mainAxisSize: MainAxisSize.min,
+    mainAxisSize: .min,
     children: <Widget>[
       IconButton(
         tooltip: 'Copy Message',
-        visualDensity: VisualDensity.compact,
+        visualDensity: .compact,
         onPressed: () => unawaited(
           Clipboard.setData(
             ClipboardData(text: cell.markdownText ?? cell.displayText),
@@ -339,7 +307,7 @@ class _MobileMessageActions extends StatelessWidget {
       ),
       IconButton(
         tooltip: raw ? 'Show Markdown' : 'Show Source',
-        visualDensity: VisualDensity.compact,
+        visualDensity: .compact,
         onPressed: onToggleRaw,
         icon: const Icon(Icons.code, size: AleraTokens.space16),
       ),
@@ -347,19 +315,16 @@ class _MobileMessageActions extends StatelessWidget {
       if (cell.createdAt != null)
         Text(
           _mobileTimestamp(cell.createdAt!),
-          style: Theme.of(
-            context,
-          ).textTheme.labelSmall?.copyWith(color: AleraTokens.foregroundFaint),
+          style: Theme.of(context).textTheme.labelSmall
+              ?.copyWith(color: AleraTokens.foregroundFaint),
         ),
     ],
   );
 }
 
-class _MobileMessageAttachments extends StatelessWidget {
-  const _MobileMessageAttachments({required this.cell});
-
-  final MobileCodexTimelineCell cell;
-
+class const _MobileMessageAttachments({
+  required final MobileCodexTimelineCell cell,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final raw = cell.metadata['attachments'];
@@ -369,7 +334,7 @@ class _MobileMessageAttachments extends StatelessWidget {
       child: Wrap(
         spacing: AleraTokens.space6,
         runSpacing: AleraTokens.space6,
-        alignment: WrapAlignment.end,
+        alignment: .end,
         children: <Widget>[
           for (final value in raw)
             if (value is Map)

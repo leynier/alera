@@ -1,33 +1,20 @@
 import 'dart:io';
 
-class CoverageRecord {
-  const CoverageRecord({
-    required this.file,
-    required this.found,
-    required this.hit,
-  });
-
-  final String file;
-  final int found;
-  final int hit;
-
+class const CoverageRecord({
+  required final String file,
+  required final int found,
+  required final int hit,
+}) {
   int get missed => found - hit;
   double get percent => found == 0 ? 100 : hit * 100 / found;
 }
 
-class CoverageArgs {
-  const CoverageArgs({
-    required this.inputs,
-    required this.minLines,
-    required this.worst,
-    required this.expectInputs,
-  });
-
-  final List<String> inputs;
-  final double minLines;
-  final int worst;
-  final int? expectInputs;
-
+class const CoverageArgs({
+  required final List<String> inputs,
+  required final double minLines,
+  required final int worst,
+  required final int? expectInputs,
+}) {
   static CoverageArgs parse(List<String> args) {
     final inputs = <String>[];
     var minLines = 0.0;

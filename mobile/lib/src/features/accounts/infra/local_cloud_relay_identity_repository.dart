@@ -1,15 +1,15 @@
 import 'dart:convert';
 import 'dart:math';
 import 'dart:typed_data';
+
 import 'package:logging/logging.dart';
 
 import 'package:alera_mobile/src/features/accounts/application/cloud_relay_identity_repository.dart';
 import 'package:alera_mobile/src/features/accounts/infra/local_cloud_account_repository.dart';
 
-class LocalCloudRelayIdentityRepository
+class LocalCloudRelayIdentityRepository({SecureValueStore? store})
     implements VersionedCloudRelayIdentityRepository {
-  LocalCloudRelayIdentityRepository({SecureValueStore? store})
-    : _store = store ?? FlutterSecureValueStore();
+  this : _store = store ?? FlutterSecureValueStore();
 
   final SecureValueStore _store;
 
@@ -46,7 +46,7 @@ class LocalCloudRelayIdentityRepository
       try {
         final decoded = base64Url.decode(base64Url.normalize(existing));
         if (decoded.length == 32) {
-          return _save(accountId, CloudRelayIdentity(existing.trim(), 1));
+          return await _save(accountId, CloudRelayIdentity(existing.trim(), 1));
         }
       } on FormatException {
         Logger(

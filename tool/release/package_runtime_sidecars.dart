@@ -108,9 +108,8 @@ void packageRuntimeSidecars({
       final asset = File(p.join(outputDirectory.path, assetName));
       asset.writeAsBytesSync(compressed, flush: true);
       final digest = sha256.convert(compressed);
-      File(
-        '${asset.path}.sha256',
-      ).writeAsStringSync('$digest  $assetName\n', flush: true);
+      File('${asset.path}.sha256')
+          .writeAsStringSync('$digest  $assetName\n', flush: true);
       stdout.writeln('Wrote ${asset.path}');
     }
   }
@@ -191,20 +190,14 @@ void _validateInputLayout(Directory input) {
   }
 }
 
-final class _Options {
-  const _Options({
-    required this.version,
-    required this.input,
-    required this.output,
-  });
-
+final class const _Options({
+  required final String version,
+  required final String input,
+  required final String output,
+}) {
   static const usage =
       'Usage: dart tool/release/package_runtime_sidecars.dart '
       '--version <version> --input <directory> --output <directory>';
-
-  final String version;
-  final String input;
-  final String output;
 
   static _Options parse(List<String> args) {
     final values = <String, String>{};

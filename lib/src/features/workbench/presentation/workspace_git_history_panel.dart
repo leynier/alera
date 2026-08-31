@@ -2,69 +2,44 @@ part of 'workspace_git_diff_panel.dart';
 
 enum _GitHistoryPanelStatus { idle, loading, ready, error }
 
-class _GitHistoryPanelLoadState {
-  const _GitHistoryPanelLoadState._({
-    required this.status,
-    this.result,
-    this.error,
-    this.loading = false,
-  });
+class const _GitHistoryPanelLoadState._({
+  required final _GitHistoryPanelStatus status,
+  final GitHistoryResult? result,
+  final String? error,
+  final bool loading = false,
+}) {
+  const new idle() : this._(status: .idle);
 
-  const _GitHistoryPanelLoadState.idle()
-    : this._(status: _GitHistoryPanelStatus.idle);
+  const new loading() : this._(status: .loading, loading: true);
 
-  const _GitHistoryPanelLoadState.loading()
-    : this._(status: _GitHistoryPanelStatus.loading, loading: true);
+  const new ready({required GitHistoryResult result, bool loading = false})
+    : this._(status: .ready, result: result, loading: loading);
 
-  const _GitHistoryPanelLoadState.ready({
-    required GitHistoryResult result,
-    bool loading = false,
-  }) : this._(
-         status: _GitHistoryPanelStatus.ready,
-         result: result,
-         loading: loading,
-       );
-
-  const _GitHistoryPanelLoadState.error({
+  const new error({
     required String error,
     GitHistoryResult? result,
     bool loading = false,
-  }) : this._(
-         status: _GitHistoryPanelStatus.error,
-         result: result,
-         error: error,
-         loading: loading,
-       );
-
-  final _GitHistoryPanelStatus status;
-  final GitHistoryResult? result;
-  final String? error;
-  final bool loading;
+  }) : this._(status: .error, result: result, error: error, loading: loading);
 }
 
-class _GitHistoryPanel extends StatefulWidget {
-  const _GitHistoryPanel({
-    required this.state,
-    required this.collapsed,
-    required this.onToggle,
-    required this.onRefresh,
-    required this.onLoadCommitFiles,
-    required this.onOpenCommit,
-    required this.onOpenCommitFile,
-    required this.onCopyCommitText,
-  });
-
-  final _GitHistoryPanelLoadState state;
-  final bool collapsed;
-  final VoidCallback onToggle;
-  final Future<void> Function() onRefresh;
-  final Future<List<GitCommitChangeEntry>> Function(GitHistoryItem item)
-  onLoadCommitFiles;
-  final Future<void> Function(GitHistoryItem item) onOpenCommit;
-  final Future<void> Function(GitHistoryItem item, GitCommitChangeEntry entry)
-  onOpenCommitFile;
-  final Future<void> Function(String text, String label) onCopyCommitText;
-
+class const _GitHistoryPanel({
+  required final _GitHistoryPanelLoadState state,
+  required final bool collapsed,
+  required final VoidCallback onToggle,
+  required final Future<void> Function() onRefresh,
+  required final Future<List<GitCommitChangeEntry>> Function(
+    GitHistoryItem item,
+  )
+  onLoadCommitFiles,
+  required final Future<void> Function(GitHistoryItem item) onOpenCommit,
+  required final Future<void> Function(
+    GitHistoryItem item,
+    GitCommitChangeEntry entry,
+  )
+  onOpenCommitFile,
+  required final Future<void> Function(String text, String label)
+  onCopyCommitText,
+}) extends StatefulWidget {
   @override
   State<_GitHistoryPanel> createState() => _GitHistoryPanelState();
 }
@@ -100,7 +75,7 @@ class _GitHistoryPanelState extends State<_GitHistoryPanel> {
     return DecoratedBox(
       decoration: const BoxDecoration(color: AleraTokens.surfaceVariant),
       child: Column(
-        mainAxisSize: MainAxisSize.min,
+        mainAxisSize: .min,
         children: <Widget>[
           if (widget.collapsed)
             const Divider(height: 1, color: AleraTokens.borderSubtle)
@@ -117,9 +92,7 @@ class _GitHistoryPanelState extends State<_GitHistoryPanel> {
                 onTap: widget.onToggle,
                 hoverColor: AleraTokens.surfaceVariant,
                 borderRadius: 0,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: AleraTokens.space8,
-                ),
+                padding: const .symmetric(horizontal: AleraTokens.space8),
                 child: Row(
                   children: <Widget>[
                     Expanded(
@@ -173,7 +146,7 @@ class _GitHistoryPanelState extends State<_GitHistoryPanel> {
                 viewModel.kind == GitHistoryItemViewModelKind.outgoingChanges;
             final expanded = _expandedCommitIds.contains(item.id);
             return Column(
-              mainAxisSize: MainAxisSize.min,
+              mainAxisSize: .min,
               children: <Widget>[
                 _GitHistoryCommitRow(
                   viewModel: viewModel,
@@ -263,25 +236,25 @@ class _GitHistoryPanelState extends State<_GitHistoryPanel> {
     if (renderBox == null || overlay is! RenderBox) {
       return;
     }
-    final topLeft = renderBox.localToGlobal(Offset.zero, ancestor: overlay);
+    final topLeft = renderBox.localToGlobal(.zero, ancestor: overlay);
     final bottomRight = renderBox.localToGlobal(
-      renderBox.size.bottomRight(Offset.zero),
+      renderBox.size.bottomRight(.zero),
       ancestor: overlay,
     );
     final action = await showMenu<_CommitAction>(
       context: context,
-      position: RelativeRect.fromRect(
-        Rect.fromPoints(topLeft, bottomRight),
+      position: .fromRect(
+        .fromPoints(topLeft, bottomRight),
         Offset.zero & overlay.size,
       ),
       items: const <PopupMenuEntry<_CommitAction>>[
         AleraDropdownEntry<_CommitAction>(
-          value: _CommitAction.copyHash,
+          value: .copyHash,
           label: 'Copy Commit Hash',
           leading: Icon(AleraIcons.gitBranch, size: 16),
         ),
         AleraDropdownEntry<_CommitAction>(
-          value: _CommitAction.copyMessage,
+          value: .copyMessage,
           label: 'Copy Commit Message',
           leading: Icon(AleraIcons.copy, size: 16),
         ),
@@ -302,19 +275,12 @@ class _GitHistoryPanelState extends State<_GitHistoryPanel> {
   }
 }
 
-class _HistoryHeaderLabel extends StatelessWidget {
-  const _HistoryHeaderLabel({
-    required this.collapsed,
-    required this.count,
-    required this.hasMore,
-    required this.showCount,
-  });
-
-  final bool collapsed;
-  final int count;
-  final bool hasMore;
-  final bool showCount;
-
+class const _HistoryHeaderLabel({
+  required final bool collapsed,
+  required final int count,
+  required final bool hasMore,
+  required final bool showCount,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -331,7 +297,7 @@ class _HistoryHeaderLabel extends StatelessWidget {
           style: theme.textTheme.labelSmall?.copyWith(
             color: AleraTokens.foregroundMuted,
             letterSpacing: 0.6,
-            fontWeight: FontWeight.w700,
+            fontWeight: .w700,
           ),
         ),
         if (showCount) ...<Widget>[
@@ -348,12 +314,10 @@ class _HistoryHeaderLabel extends StatelessWidget {
   }
 }
 
-class _RefreshCommitsButton extends StatefulWidget {
-  const _RefreshCommitsButton({required this.loading, required this.onPressed});
-
-  final bool loading;
-  final VoidCallback onPressed;
-
+class const _RefreshCommitsButton({
+  required final bool loading,
+  required final VoidCallback onPressed,
+}) extends StatefulWidget {
   @override
   State<_RefreshCommitsButton> createState() => _RefreshCommitsButtonState();
 }
@@ -404,7 +368,7 @@ class _RefreshCommitsButtonState extends State<_RefreshCommitsButton>
           color: AleraTokens.foregroundMuted,
         ),
       ),
-      visualDensity: VisualDensity.compact,
+      visualDensity: .compact,
       padding: EdgeInsets.zero,
       constraints: const BoxConstraints(minWidth: 30, minHeight: 30),
       style: IconButton.styleFrom(
@@ -412,7 +376,7 @@ class _RefreshCommitsButtonState extends State<_RefreshCommitsButton>
         side: const BorderSide(color: AleraTokens.borderSubtle),
         minimumSize: const Size(30, 30),
         maximumSize: const Size(30, 30),
-        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        tapTargetSize: .shrinkWrap,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(AleraTokens.radiusMd),
         ),
@@ -423,11 +387,8 @@ class _RefreshCommitsButtonState extends State<_RefreshCommitsButton>
 
 enum _CommitAction { copyHash, copyMessage }
 
-class _HistoryResizeHandle extends StatefulWidget {
-  const _HistoryResizeHandle({required this.onResize});
-
-  final ValueChanged<double> onResize;
-
+class const _HistoryResizeHandle({required final ValueChanged<double> onResize})
+    extends StatefulWidget {
   @override
   State<_HistoryResizeHandle> createState() => _HistoryResizeHandleState();
 }
@@ -446,7 +407,7 @@ class _HistoryResizeHandleState extends State<_HistoryResizeHandle> {
       onEnter: (_) => setState(() => _hovered = true),
       onExit: (_) => setState(() => _hovered = false),
       child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
+        behavior: .opaque,
         onVerticalDragStart: (_) => setState(() => _dragging = true),
         onVerticalDragUpdate: (details) => widget.onResize(details.delta.dy),
         onVerticalDragEnd: (_) => _stopDragging(),
@@ -454,7 +415,7 @@ class _HistoryResizeHandleState extends State<_HistoryResizeHandle> {
         child: SizedBox(
           height: AleraTokens.space6,
           child: Stack(
-            fit: StackFit.expand,
+            fit: .expand,
             children: <Widget>[
               const ColoredBox(color: AleraTokens.surface),
               Positioned(

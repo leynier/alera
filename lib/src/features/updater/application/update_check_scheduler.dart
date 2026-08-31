@@ -11,20 +11,17 @@ const Duration aleraUpdateCheckInterval = Duration(minutes: 15);
 /// the result, and on Linux every wake still costs a composited frame. Coming
 /// back checks immediately rather than waiting out the remainder of an interval
 /// the user could not see.
-class AleraUpdateCheckScheduler {
-  AleraUpdateCheckScheduler({
-    required this.check,
-    required this.foreground,
-    this.interval = aleraUpdateCheckInterval,
-  }) {
+class AleraUpdateCheckScheduler({
+  required final Future<void> Function() check,
+  required final AppForeground foreground,
+  this.interval = aleraUpdateCheckInterval,
+}) {
+  this {
     _foregroundChanges = foreground.changes.listen(_applyForeground);
     if (foreground.isForeground) {
       _start();
     }
   }
-
-  final Future<void> Function() check;
-  final AppForeground foreground;
 
   /// Overridable so tests drive the cadence without real waits.
   final Duration interval;

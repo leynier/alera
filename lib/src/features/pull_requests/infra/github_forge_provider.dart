@@ -29,13 +29,9 @@ part 'github_review_comments.dart';
 /// relies on the user being logged in via `gh auth login`. Follows the
 /// `GitHubStarService` pattern: constructor-injected [ProcessRunner], typed
 /// errors instead of leaked stderr.
-class GitHubForgeProvider
+class const GitHubForgeProvider(final ProcessRunner _processRunner)
     with _GitHubReviewActions, _GitHubReviewComments, _GitHubStackActions
     implements ForgeProvider, ForgeStackProvider {
-  const GitHubForgeProvider(this._processRunner);
-
-  final ProcessRunner _processRunner;
-
   static const List<String> _reviewJsonFields = <String>[
     'number',
     'title',
@@ -312,7 +308,7 @@ class GitHubForgeProvider
       ], workingDirectory: repoPath);
     } catch (_) {
       return const CreateReviewFailure(
-        code: CreateReviewErrorCode.cliMissing,
+        code: .cliMissing,
         message: 'The gh CLI was not found on PATH.',
       );
     }
@@ -335,7 +331,7 @@ class GitHubForgeProvider
     if (url != null && number != null) {
       return CreateReviewSuccess(
         HostedReview(
-          provider: GitHostingProvider.github,
+          provider: .github,
           number: number,
           title: input.title,
           state: input.draft ? HostedReviewState.draft : HostedReviewState.open,
@@ -346,7 +342,7 @@ class GitHubForgeProvider
       );
     }
     return const CreateReviewFailure(
-      code: CreateReviewErrorCode.unknown,
+      code: .unknown,
       message: 'The pull request was created but could not be read back.',
     );
   }
@@ -372,7 +368,7 @@ class GitHubForgeProvider
       ], workingDirectory: repoPath);
     } catch (_) {
       return const UpdateReviewFailure(
-        code: UpdateReviewErrorCode.cliMissing,
+        code: .cliMissing,
         message: 'The gh CLI was not found on PATH.',
       );
     }
@@ -386,7 +382,7 @@ class GitHubForgeProvider
     );
     if (review == null) {
       return const UpdateReviewFailure(
-        code: UpdateReviewErrorCode.unknown,
+        code: .unknown,
         message: 'The pull request was updated but could not be read back.',
       );
     }

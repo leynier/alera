@@ -57,4 +57,3 @@ extension GitHostingProviderMapperExtension on GitHostingProvider {
     return MapperContainer.globals.toValue<GitHostingProvider>(this) as String;
   }
 }
-

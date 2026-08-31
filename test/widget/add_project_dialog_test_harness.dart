@@ -29,11 +29,9 @@ Future<void> _pumpDialogLauncher(
   );
 }
 
-class _FakeFileSelectorPlatform extends FileSelectorPlatform
+class _FakeFileSelectorPlatform(final List<Object?> responses)
+    extends FileSelectorPlatform
     with MockPlatformInterfaceMixin {
-  _FakeFileSelectorPlatform(this.responses);
-
-  final List<Object?> responses;
   final List<_DirectoryRequest> requests = <_DirectoryRequest>[];
 
   @override
@@ -56,14 +54,8 @@ class _FakeFileSelectorPlatform extends FileSelectorPlatform
   }
 }
 
-class _DirectoryRequest {
-  const _DirectoryRequest({
-    required this.initialDirectory,
-    required this.confirmButtonText,
-    required this.canCreateDirectories,
-  });
-
-  final String? initialDirectory;
-  final String? confirmButtonText;
-  final bool? canCreateDirectories;
-}
+class const _DirectoryRequest({
+  required final String? initialDirectory,
+  required final String? confirmButtonText,
+  required final bool? canCreateDirectories,
+});

@@ -216,4 +216,3 @@ extension KeyboardActionIdMapperExtension on KeyboardActionId {
     return MapperContainer.globals.toValue<KeyboardActionId>(this) as String;
   }
 }
-

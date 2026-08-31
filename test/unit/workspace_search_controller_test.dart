@@ -320,14 +320,10 @@ void main() {
   );
 }
 
-class _FakeWorkspaceSearchService extends WorkspaceSearchService {
-  _FakeWorkspaceSearchService({
-    native.WorkspaceSearchResult result = _searchResult,
-  }) : this._(result);
+class _FakeWorkspaceSearchService._(final native.WorkspaceSearchResult _result)
+    extends WorkspaceSearchService {
+  new({native.WorkspaceSearchResult result = _searchResult}) : this._(result);
 
-  _FakeWorkspaceSearchService._(this._result);
-
-  final native.WorkspaceSearchResult _result;
   int replaceCalls = 0;
 
   @override

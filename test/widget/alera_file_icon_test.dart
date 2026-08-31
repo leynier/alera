@@ -9,10 +9,7 @@ void main() {
   testWidgets('renders vscode material icons for files', (tester) async {
     await _pumpIcon(
       tester,
-      const AleraFileIcon(
-        pathOrName: 'docs/README.md',
-        kind: AleraFileIconKind.file,
-      ),
+      const AleraFileIcon(pathOrName: 'docs/README.md', kind: .file),
     );
 
     final picture = tester.widget<SvgPicture>(find.byType(SvgPicture));
@@ -22,11 +19,7 @@ void main() {
   testWidgets('renders vscode material icons for folders', (tester) async {
     await _pumpIcon(
       tester,
-      const AleraFileIcon(
-        pathOrName: 'src',
-        kind: AleraFileIconKind.folder,
-        isExpanded: true,
-      ),
+      const AleraFileIcon(pathOrName: 'src', kind: .folder, isExpanded: true),
     );
 
     final picture = tester.widget<SvgPicture>(find.byType(SvgPicture));
@@ -39,10 +32,10 @@ void main() {
     await _pumpIcon(
       tester,
       const Row(
-        textDirection: TextDirection.ltr,
+        textDirection: .ltr,
         children: <Widget>[
-          AleraFileIcon(pathOrName: 'linked', kind: AleraFileIconKind.symlink),
-          AleraFileIcon(pathOrName: '', kind: AleraFileIconKind.generic),
+          AleraFileIcon(pathOrName: 'linked', kind: .symlink),
+          AleraFileIcon(pathOrName: '', kind: .generic),
         ],
       ),
     );
@@ -54,7 +47,5 @@ void main() {
 }
 
 Future<void> _pumpIcon(WidgetTester tester, Widget child) {
-  return tester.pumpWidget(
-    Directionality(textDirection: TextDirection.ltr, child: child),
-  );
+  return tester.pumpWidget(Directionality(textDirection: .ltr, child: child));
 }

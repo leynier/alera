@@ -5,18 +5,12 @@ import 'package:alera/src/features/settings/domain/alera_settings.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
-class AgentQuotaProviderIcon extends StatelessWidget {
-  const AgentQuotaProviderIcon({
-    super.key,
-    required this.provider,
-    this.size = 14,
-    this.showTooltip = true,
-  });
-
-  final AgentQuotaProviderId provider;
-  final double size;
-  final bool showTooltip;
-
+class const AgentQuotaProviderIcon({
+  super.key,
+  required final AgentQuotaProviderId provider,
+  final double size = 14,
+  final bool showTooltip = true,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final agentType = switch (provider) {

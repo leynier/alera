@@ -11,24 +11,14 @@ import 'package:alera/src/features/workbench/domain/workspace.dart';
 import 'package:alera/src/features/workbench/domain/workspace_parent_selection_order.dart';
 import 'package:flutter/material.dart';
 
-class WorkspaceTagSelection {
-  const WorkspaceTagSelection({required this.tagIds});
+class const WorkspaceTagSelection({required final Set<String> tagIds});
 
-  final Set<String> tagIds;
-}
+class const WorkspaceParentSelection({final String? parentWorkspaceId});
 
-class WorkspaceParentSelection {
-  const WorkspaceParentSelection({this.parentWorkspaceId});
-
-  final String? parentWorkspaceId;
-}
-
-class WorkspaceParentOption {
-  const WorkspaceParentOption({required this.project, required this.workspace});
-
-  final Project project;
-  final Workspace workspace;
-
+class const WorkspaceParentOption({
+  required final Project project,
+  required final Workspace workspace,
+}) {
   String get label {
     final branch = workspace.branch;
     final suffix = branch == null || branch.isEmpty ? '' : ' - $branch';
@@ -70,19 +60,12 @@ Future<WorkspaceParentSelection?> showWorkspaceParentDialog({
   );
 }
 
-class _WorkspaceTagsDialog extends StatefulWidget {
-  const _WorkspaceTagsDialog({
-    required this.workspace,
-    required this.tags,
-    required this.onCreateTag,
-    required this.onDeleteTag,
-  });
-
-  final Workspace workspace;
-  final List<WorkspaceTag> tags;
-  final Future<WorkspaceTag> Function(String name) onCreateTag;
-  final Future<void> Function(String tagId) onDeleteTag;
-
+class const _WorkspaceTagsDialog({
+  required final Workspace workspace,
+  required final List<WorkspaceTag> tags,
+  required final Future<WorkspaceTag> Function(String name) onCreateTag,
+  required final Future<void> Function(String tagId) onDeleteTag,
+}) extends StatefulWidget {
   @override
   State<_WorkspaceTagsDialog> createState() => _WorkspaceTagsDialogState();
 }
@@ -118,8 +101,8 @@ class _WorkspaceTagsDialogState extends State<_WorkspaceTagsDialog> {
       child: Padding(
         padding: const EdgeInsets.all(AleraTokens.space20),
         child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
+          mainAxisSize: .min,
+          crossAxisAlignment: .stretch,
           children: <Widget>[
             Row(
               children: <Widget>[
@@ -129,7 +112,7 @@ class _WorkspaceTagsDialogState extends State<_WorkspaceTagsDialog> {
                   child: Text(
                     'Manage Tags',
                     style: theme.textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
+                      fontWeight: .bold,
                     ),
                   ),
                 ),
@@ -158,7 +141,7 @@ class _WorkspaceTagsDialogState extends State<_WorkspaceTagsDialog> {
                     return CheckboxListTile(
                       value: selected,
                       dense: true,
-                      controlAffinity: ListTileControlAffinity.leading,
+                      controlAffinity: .leading,
                       contentPadding: EdgeInsets.zero,
                       title: Text('#${tag.name}'),
                       secondary: AleraIconButton(
@@ -183,7 +166,7 @@ class _WorkspaceTagsDialogState extends State<_WorkspaceTagsDialog> {
               ),
             const SizedBox(height: AleraTokens.space12),
             Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
+              crossAxisAlignment: .start,
               children: <Widget>[
                 Expanded(
                   child: AleraTextField(
@@ -206,7 +189,7 @@ class _WorkspaceTagsDialogState extends State<_WorkspaceTagsDialog> {
             ),
             const SizedBox(height: AleraTokens.space20),
             Row(
-              mainAxisAlignment: MainAxisAlignment.end,
+              mainAxisAlignment: .end,
               children: <Widget>[
                 TextButton(
                   onPressed: _busy ? null : () => Navigator.pop(context),
@@ -312,17 +295,11 @@ class _WorkspaceTagsDialogState extends State<_WorkspaceTagsDialog> {
   }
 }
 
-class _WorkspaceParentDialog extends StatefulWidget {
-  const _WorkspaceParentDialog({
-    required this.workspace,
-    required this.options,
-    required this.relations,
-  });
-
-  final Workspace workspace;
-  final List<WorkspaceParentOption> options;
-  final List<WorkspaceRelation> relations;
-
+class const _WorkspaceParentDialog({
+  required final Workspace workspace,
+  required final List<WorkspaceParentOption> options,
+  required final List<WorkspaceRelation> relations,
+}) extends StatefulWidget {
   @override
   State<_WorkspaceParentDialog> createState() => _WorkspaceParentDialogState();
 }
@@ -374,8 +351,8 @@ class _WorkspaceParentDialogState extends State<_WorkspaceParentDialog> {
       child: Padding(
         padding: const EdgeInsets.all(AleraTokens.space20),
         child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
+          mainAxisSize: .min,
+          crossAxisAlignment: .stretch,
           children: <Widget>[
             Row(
               children: <Widget>[
@@ -385,7 +362,7 @@ class _WorkspaceParentDialogState extends State<_WorkspaceParentDialog> {
                   child: Text(
                     'Set Parent Workspace',
                     style: theme.textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
+                      fontWeight: .bold,
                     ),
                   ),
                 ),
@@ -418,7 +395,7 @@ class _WorkspaceParentDialogState extends State<_WorkspaceParentDialog> {
             ),
             const SizedBox(height: AleraTokens.space20),
             Row(
-              mainAxisAlignment: MainAxisAlignment.end,
+              mainAxisAlignment: .end,
               children: <Widget>[
                 TextButton(
                   onPressed: () => Navigator.pop(context),

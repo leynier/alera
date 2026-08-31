@@ -14,8 +14,8 @@ void main() {
     () async {
       final skillService = _FakeSkillService(succeeds: true);
       final reconciler = _FakeHookReconciler(<ManagedAgentHookInstallStatus>[
-        _status(AgentType.codex, ManagedAgentHookInstallState.installed),
-        _status(AgentType.agy, ManagedAgentHookInstallState.notInstalled),
+        _status(.codex, .installed),
+        _status(.agy, .notInstalled),
       ]);
       final service = AleraOrchestrationSetupService(
         skillService: skillService,
@@ -23,10 +23,7 @@ void main() {
       );
       const hooks = AgentStatusHookSettings(codex: true);
 
-      final result = await service.installOrUpdate(
-        hooks: hooks,
-        runner: AleraCliSkillRunner.bunx,
-      );
+      final result = await service.installOrUpdate(hooks: hooks, runner: .bunx);
 
       expect(skillService.skill, AleraAgentSkill.orchestration);
       expect(skillService.runner, AleraCliSkillRunner.bunx);
@@ -61,15 +58,12 @@ void main() {
     () async {
       final service = AleraOrchestrationSetupService(
         skillService: _FakeSkillService(succeeds: true),
-        hookReconciliationService:
-            _FakeHookReconciler(<ManagedAgentHookInstallStatus>[
-              _status(
-                AgentType.codex,
-                ManagedAgentHookInstallState.error,
-                detail: 'conflict',
-              ),
-              _status(AgentType.claude, ManagedAgentHookInstallState.installed),
-            ]),
+        hookReconciliationService: _FakeHookReconciler(
+          <ManagedAgentHookInstallStatus>[
+            _status(.codex, .error, detail: 'conflict'),
+            _status(.claude, .installed),
+          ],
+        ),
       );
 
       final result = await service.installOrUpdate(
@@ -111,14 +105,14 @@ ManagedAgentHookInstallStatus _status(
   );
 }
 
-class _FakeSkillService extends AleraCliSkillService {
-  _FakeSkillService({required this.succeeds})
+class _FakeSkillService({required final bool succeeds})
+    extends AleraCliSkillService {
+  this
     : super(
         processRunner: _NoopProcessRunner(),
         commandEnvironmentResolver: const _EmptyEnvironmentResolver(),
       );
 
-  final bool succeeds;
   AleraAgentSkill? skill;
   AleraCliSkillRunner? runner;
 
@@ -146,10 +140,8 @@ class _FakeSkillService extends AleraCliSkillService {
   }
 }
 
-class _FakeHookReconciler implements AgentHookReconciler {
-  _FakeHookReconciler(this.statuses);
-
-  final List<ManagedAgentHookInstallStatus> statuses;
+class _FakeHookReconciler(final List<ManagedAgentHookInstallStatus> statuses)
+    implements AgentHookReconciler {
   AgentStatusHookSettings? settings;
 
   @override
@@ -184,9 +176,7 @@ class _NoopProcessRunner implements ProcessRunner {
   }
 }
 
-class _EmptyEnvironmentResolver implements CommandEnvironmentResolver {
-  const _EmptyEnvironmentResolver();
-
+class const _EmptyEnvironmentResolver() implements CommandEnvironmentResolver {
   @override
   Future<Map<String, String>> environment() async => const <String, String>{};
 

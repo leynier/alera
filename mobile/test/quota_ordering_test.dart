@@ -32,7 +32,7 @@ void main() {
         accountId: 'default',
         displayName: 'Default',
         status: 'ok',
-        updatedAt: DateTime.utc(2026),
+        updatedAt: .utc(2026),
         error: null,
         windows: const <QuotaMeter>[
           QuotaMeter(
@@ -93,7 +93,7 @@ QuotaSnapshot _snapshot({
     accountId: accountId,
     displayName: name,
     status: 'ok',
-    updatedAt: DateTime.utc(2026),
+    updatedAt: .utc(2026),
     error: null,
     windows: const <QuotaMeter>[],
     buckets: const <QuotaMeter>[],

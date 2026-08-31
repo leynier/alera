@@ -13,15 +13,12 @@ void _registerQueueCloseRecoveryTests() {
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
-            terminalClientProvider(
-              'host-1',
-            ).overrideWith((ref) async => terminal),
-            workspaceClientProvider(
-              'host-1',
-            ).overrideWith((ref) async => terminal),
-            mobileCodexClientProvider(
-              'host-1',
-            ).overrideWith((ref) async => codex),
+            terminalClientProvider('host-1')
+                .overrideWith((ref) async => terminal),
+            workspaceClientProvider('host-1')
+                .overrideWith((ref) async => terminal),
+            mobileCodexClientProvider('host-1')
+                .overrideWith((ref) async => codex),
           ],
           child: const MaterialApp(
             home: WorkspaceTabsScreen(

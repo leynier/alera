@@ -8,24 +8,18 @@ import 'package:path/path.dart' as p;
 import 'native_helper_derivation.dart';
 import 'native_helper_manifest.dart';
 
-typedef NativeHelperPinnedSourceResolver =
-    Future<File> Function(
-      String id,
-      Uri sourceUrl,
-      String sourceSha256,
-      Directory cache,
-      bool offline,
-    );
+typedef NativeHelperPinnedSourceResolver = Future<File> Function(
+  String id,
+  Uri sourceUrl,
+  String sourceSha256,
+  Directory cache,
+  bool offline,
+);
 
-final class NativeHelperSwiftBuilder {
-  NativeHelperSwiftBuilder({
-    required this.repositoryRoot,
-    required this.sourceResolver,
-  });
-
-  final Directory repositoryRoot;
-  final NativeHelperPinnedSourceResolver sourceResolver;
-
+final class NativeHelperSwiftBuilder({
+  required final Directory repositoryRoot,
+  required final NativeHelperPinnedSourceResolver sourceResolver,
+}) {
   Future<Uint8List> build({
     required NativeHelperAsset asset,
     required NativeHelperDerivation derivation,
@@ -176,7 +170,7 @@ final class NativeHelperSwiftBuilder {
         '-verify_arch',
         ...derivation.architectures,
       ]);
-      return payload.readAsBytes();
+      return await payload.readAsBytes();
     } finally {
       if (work.existsSync()) {
         await work.delete(recursive: true);

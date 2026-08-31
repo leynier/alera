@@ -1,31 +1,19 @@
-final class BrowserPopupRequest {
-  const BrowserPopupRequest({
-    required this.requestId,
-    required this.openerPageId,
-    required this.transientPageId,
-    required this.userInitiated,
-    required this.trusted,
-    required this.requiresOpener,
-    required this.requestedAt,
-    this.url,
-    this.windowName,
-  });
-
-  final String requestId;
-  final String openerPageId;
-  final String transientPageId;
-  final Uri? url;
-  final String? windowName;
-  final bool userInitiated;
-  final bool trusted;
-  final bool requiresOpener;
-  final DateTime requestedAt;
-}
+final class const BrowserPopupRequest({
+  required final String requestId,
+  required final String openerPageId,
+  required final String transientPageId,
+  required final bool userInitiated,
+  required final bool trusted,
+  required final bool requiresOpener,
+  required final DateTime requestedAt,
+  final Uri? url,
+  final String? windowName,
+});
 
 final class BrowserPopupDecision {
-  const BrowserPopupDecision.deny() : targetPageId = null;
+  const new deny() : targetPageId = null;
 
-  const BrowserPopupDecision.openInPage(this.targetPageId);
+  const new openInPage(this.targetPageId);
 
   final String? targetPageId;
 

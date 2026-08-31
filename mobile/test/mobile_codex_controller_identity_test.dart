@@ -28,9 +28,8 @@ void main() {
       );
       final container = ProviderContainer(
         overrides: [
-          mobileCodexClientProvider(
-            'host-progress-identity',
-          ).overrideWith((ref) async => client),
+          mobileCodexClientProvider('host-progress-identity')
+              .overrideWith((ref) async => client),
         ],
       );
       addTearDown(() {
@@ -79,7 +78,7 @@ void main() {
           },
         }),
       );
-      await Future<void>.delayed(Duration.zero);
+      await Future.pause(.zero);
 
       final progress = container
           .read(provider)
@@ -114,9 +113,8 @@ void main() {
     );
     final container = ProviderContainer(
       overrides: [
-        mobileCodexClientProvider(
-          'host-repeated-user-message',
-        ).overrideWith((ref) async => client),
+        mobileCodexClientProvider('host-repeated-user-message')
+            .overrideWith((ref) async => client),
       ],
     );
     addTearDown(() {
@@ -171,7 +169,7 @@ void main() {
         },
       }),
     );
-    await Future<void>.delayed(Duration.zero);
+    await Future.pause(.zero);
 
     final userIds = container
         .read(provider)
@@ -202,9 +200,8 @@ void main() {
     );
     final container = ProviderContainer(
       overrides: [
-        mobileCodexClientProvider(
-          'host-repeated-agent',
-        ).overrideWith((ref) async => client),
+        mobileCodexClientProvider('host-repeated-agent')
+            .overrideWith((ref) async => client),
       ],
     );
     addTearDown(() {
@@ -253,7 +250,7 @@ void main() {
         },
       }),
     );
-    await Future<void>.delayed(Duration.zero);
+    await Future.pause(.zero);
 
     final agentIds = container
         .read(provider)
@@ -329,9 +326,8 @@ void main() {
     );
     final container = ProviderContainer(
       overrides: [
-        mobileCodexClientProvider(
-          'host-ambiguous-prefix',
-        ).overrideWith((ref) async => client),
+        mobileCodexClientProvider('host-ambiguous-prefix')
+            .overrideWith((ref) async => client),
       ],
     );
     addTearDown(() {
@@ -368,7 +364,7 @@ void main() {
         },
       }),
     );
-    await Future<void>.delayed(Duration.zero);
+    await Future.pause(.zero);
 
     expect(
       container.read(provider).value!.timelineCells.map((cell) => cell.id),
@@ -402,9 +398,8 @@ Future<List<MobileCodexTimelineCell>> _mobilePhaseReconciliation({
   );
   final container = ProviderContainer(
     overrides: [
-      mobileCodexClientProvider(
-        'host-phase-$kind-$modernPhase',
-      ).overrideWith((ref) async => client),
+      mobileCodexClientProvider('host-phase-$kind-$modernPhase')
+          .overrideWith((ref) async => client),
     ],
   );
   final provider = mobileCodexControllerProvider(
@@ -432,7 +427,7 @@ Future<List<MobileCodexTimelineCell>> _mobilePhaseReconciliation({
         },
       }),
     );
-    await Future<void>.delayed(Duration.zero);
+    await Future.pause(.zero);
     return container.read(provider).value!.timelineCells;
   } finally {
     listener.close();

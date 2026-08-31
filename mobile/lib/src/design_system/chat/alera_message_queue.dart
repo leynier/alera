@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import '../../app/theme/alera_tokens.dart';
 import '../icons/alera_icons.dart';
 
@@ -180,9 +181,8 @@ class _AleraMessageQueueState extends State<AleraMessageQueue> {
             padding: const EdgeInsets.only(bottom: AleraTokens.space4),
             child: Text(
               row.error!,
-              style: Theme.of(
-                context,
-              ).textTheme.bodySmall?.copyWith(color: AleraTokens.error),
+              style: Theme.of(context).textTheme.bodySmall
+                  ?.copyWith(color: AleraTokens.error),
             ),
           ),
       ],

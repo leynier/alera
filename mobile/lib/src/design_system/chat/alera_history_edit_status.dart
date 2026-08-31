@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import '../../app/theme/alera_tokens.dart';
 
 class AleraHistoryEditStatus extends StatelessWidget {
@@ -20,10 +21,8 @@ class AleraHistoryEditStatus extends StatelessWidget {
       'rollingBack' => 'Replacing the conversation history.',
       'rolledBack' ||
       'resending' => 'Sending the corrected message. The queue remains paused.',
-      'resendFailed' =>
-        'History was replaced, but the correction was not accepted. Retry keeps the corrected history.',
-      'uncertain' =>
-        'The operation result is uncertain. Check delivery before retrying; it will not be resent automatically.',
+      'resendFailed' => 'History was replaced, but the correction was not accepted. Retry keeps the corrected history.',
+      'uncertain' => 'The operation result is uncertain. Check delivery before retrying; it will not be resent automatically.',
       _ => 'The message could not be edited.',
     };
     return Padding(
@@ -36,9 +35,8 @@ class AleraHistoryEditStatus extends StatelessWidget {
           if (error != null)
             Text(
               error!,
-              style: Theme.of(
-                context,
-              ).textTheme.bodySmall?.copyWith(color: AleraTokens.error),
+              style: Theme.of(context).textTheme.bodySmall
+                  ?.copyWith(color: AleraTokens.error),
             ),
           if (onRetry != null &&
               (phase == 'rolledBack' ||

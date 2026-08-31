@@ -1,10 +1,7 @@
 part of 'workspace_git_diff_panel.dart';
 
-class _AmendCommitDialog extends StatefulWidget {
-  const _AmendCommitDialog({required this.initialMessage});
-
-  final String initialMessage;
-
+class const _AmendCommitDialog({required final String initialMessage})
+    extends StatefulWidget {
   @override
   State<_AmendCommitDialog> createState() => _AmendCommitDialogState();
 }
@@ -42,8 +39,8 @@ class _AmendCommitDialogState extends State<_AmendCommitDialog> {
       child: Padding(
         padding: const EdgeInsets.all(AleraTokens.space20),
         child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
+          mainAxisSize: .min,
+          crossAxisAlignment: .stretch,
           children: <Widget>[
             Text('Amend Commit', style: theme.textTheme.titleMedium),
             const SizedBox(height: AleraTokens.space16),
@@ -81,7 +78,7 @@ class _AmendCommitDialogState extends State<_AmendCommitDialog> {
             ),
             const SizedBox(height: AleraTokens.space20),
             Row(
-              mainAxisAlignment: MainAxisAlignment.end,
+              mainAxisAlignment: .end,
               children: <Widget>[
                 TextButton(
                   onPressed: () => Navigator.of(context).pop(),

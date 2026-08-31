@@ -1,4 +1,6 @@
 import 'package:alera/src/features/codex_chat/presentation/codex_queue_close_confirmation.dart';
+import 'package:alera/src/features/workbench/presentation/workspace_section_dialog.dart';
+
 import 'dart:async';
 
 import 'package:alera/src/app/providers.dart';
@@ -43,8 +45,11 @@ import 'package:flutter/services.dart';
 
 part 'project_workbench_collapsed_sidebar.dart';
 part 'project_workbench_sidebar_body.dart';
+part 'project_workbench_section_header.dart';
 part 'project_workbench_workspace_actions.dart';
 part 'project_workbench_workspace_rows.dart';
+part 'project_workbench_workspace_agent_list.dart';
+part 'project_workbench_workspace_context_menu.dart';
 part 'project_workbench_agent_rows.dart';
 part 'project_workbench_sidebar_footer.dart';
 part 'project_workbench_sidebar_shell.dart';

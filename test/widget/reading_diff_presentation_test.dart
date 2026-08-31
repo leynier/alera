@@ -1,7 +1,5 @@
 import 'dart:typed_data';
 
-import 'package:alera/src/features/ai_assist/application/ai_assist_agent_runner.dart';
-import 'package:alera/src/features/ai_assist/domain/ai_assist_settings.dart';
 import 'package:alera/src/features/reading_diff/application/reading_diff_generation_progress.dart';
 import 'package:alera/src/features/reading_diff/domain/reading_diff_models.dart';
 import 'package:alera/src/features/reading_diff/presentation/reading_diff_confirmation_dialog.dart';
@@ -46,7 +44,7 @@ void main() {
           height: 500,
           child: ReadingDiffView(
             result: ReadingDiffResult(
-              diff: Uint8List.fromList('+new\n-old\n'.codeUnits),
+              diff: .fromList('+new\n-old\n'.codeUnits),
               summary: 'Keep the behavioral change.',
               changedLines: 4,
               retainedChangedLines: 2,
@@ -83,7 +81,7 @@ void main() {
     expect(find.textContaining('does not identify bugs'), findsOneWidget);
     expect(find.text('+new'), findsNothing);
 
-    await tester.runAsync(() => Future<void>.delayed(Duration.zero));
+    await tester.runAsync(() => Future.pause(.zero));
     await tester.tap(find.text('Condensed Diff'));
     await tester.pumpAndSettle();
 
@@ -98,7 +96,7 @@ void main() {
       const MaterialApp(
         home: ReadingDiffGenerationProgressView(
           progress: ReadingDiffGenerationProgress(
-            stage: ReadingDiffGenerationStage.generating,
+            stage: .generating,
             completedChunks: 1,
             totalChunks: 3,
             currentChunk: 2,
@@ -149,29 +147,29 @@ void main() {
 ReadingDiffPreparation _preparation() {
   final request = ReadingDiffRequest(
     workspacePath: '/repo',
-    settings: AiAssistSettings.defaults,
+    settings: .defaults,
   );
   return ReadingDiffPreparation(
     request: request,
-    rawDiff: Uint8List.fromList(<int>[1]),
+    rawDiff: .fromList(<int>[1]),
     compiler: rust.ReadingDiffPreparation(
-      rawBytes: BigInt.from(1024),
+      rawBytes: .from(1024),
       schemaVersion: 1,
       rubricVersion: 'rubric-v1',
       planSchema: '{}',
       chunks: <rust.ReadingDiffChunk>[
         rust.ReadingDiffChunk(
           index: 0,
-          rawDiff: Uint8List.fromList(<int>[1]),
+          rawDiff: .fromList(<int>[1]),
           numberedDiff: '1|diff --git a/a b/a',
           continuationPreamble: Uint8List(0),
         ),
       ],
     ),
-    agent: AiAssistAgent.agy,
+    agent: .agy,
     model: 'agent-model',
     effort: 'medium',
-    accessPolicy: AgentTaskAccessPolicy.diffOnly,
+    accessPolicy: .diffOnly,
     cacheKey: 'key',
   );
 }

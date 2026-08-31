@@ -3,11 +3,9 @@ import 'browser_models.dart';
 import 'native_browser_channel.dart';
 import 'native_browser_serialization.dart';
 
-final class AleraNativeBrowserDataStore {
-  const AleraNativeBrowserDataStore(this._channel);
-
-  final AleraBrowserNativeChannel _channel;
-
+final class const AleraNativeBrowserDataStore(
+  final AleraBrowserNativeChannel _channel,
+) {
   Future<List<AleraBrowserCookie>> getCookies(String profileId, Uri url) async {
     final values = await _channel.invokeList('cookies.get', <String, Object?>{
       'profileId': profileId,
@@ -65,15 +63,17 @@ final class AleraNativeBrowserDataStore {
     final source = request is AleraBrowserNativeCookieImportRequest
         ? request.source
         : AleraBrowserCookieImportSource.manualJson;
-    final value = await _channel
-        .invokeMap('cookieImport.run', <String, Object?>{
-          'profileId': request.profileId,
-          'source': source.id,
-          if (request is AleraBrowserNativeCookieImportRequest)
-            'sourceProfileName': request.sourceProfileName,
-          if (request is AleraBrowserManualCookieImportRequest)
-            'json': request.json,
-        });
+    final value = await _channel.invokeMap(
+      'cookieImport.run',
+      <String, Object?>{
+        'profileId': request.profileId,
+        'source': source.id,
+        if (request is AleraBrowserNativeCookieImportRequest)
+          'sourceProfileName': request.sourceProfileName,
+        if (request is AleraBrowserManualCookieImportRequest)
+          'json': request.json,
+      },
+    );
     return AleraBrowserCookieImportResult(
       source: source,
       profileId: request.profileId,

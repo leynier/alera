@@ -43,7 +43,7 @@ void _registerWorkbenchControllerTabFocusTests() {
       final splitTab = await _controller.splitWorkbenchGroupWithTerminal(
         workspace: workspace,
         groupId: firstGroupId,
-        zone: WorkbenchDropZone.right,
+        zone: .right,
       );
       await _flush();
 

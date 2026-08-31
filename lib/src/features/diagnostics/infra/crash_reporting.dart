@@ -178,14 +178,8 @@ String? _knownValue(Object? value) {
   return text == null || text.isEmpty || text == 'unknown' ? null : text;
 }
 
-final class _RuntimeVersionContext {
-  const _RuntimeVersionContext({
-    required this.version,
-    required this.build,
-    required this.protocol,
-  });
-
-  final String version;
-  final String? build;
-  final int? protocol;
-}
+final class const _RuntimeVersionContext({
+  required final String version,
+  required final String? build,
+  required final int? protocol,
+});

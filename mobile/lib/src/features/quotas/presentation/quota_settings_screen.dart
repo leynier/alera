@@ -7,11 +7,10 @@ import 'package:alera_mobile/src/features/settings/application/host_settings_con
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-class QuotaSettingsScreen extends ConsumerWidget {
-  const QuotaSettingsScreen({super.key, required this.host});
-
-  final PairedHostProfile host;
-
+class const QuotaSettingsScreen({
+  super.key,
+  required final PairedHostProfile host,
+}) extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final hostSettings = ref.watch(hostSettingsControllerProvider(host.id));
@@ -35,17 +34,11 @@ class QuotaSettingsScreen extends ConsumerWidget {
   }
 }
 
-class _QuotaSettingsBody extends ConsumerWidget {
-  const _QuotaSettingsBody({
-    required this.hostId,
-    required this.settings,
-    required this.environmentPresence,
-  });
-
-  final String hostId;
-  final QuotaSettings settings;
-  final Map<String, bool> environmentPresence;
-
+class const _QuotaSettingsBody({
+  required final String hostId,
+  required final QuotaSettings settings,
+  required final Map<String, bool> environmentPresence,
+}) extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final controller = ref.read(
@@ -85,7 +78,7 @@ class _QuotaSettingsBody extends ConsumerWidget {
                   title: Text(quotaProviderLabels[provider] ?? provider),
                   subtitle: const Text('Display order'),
                   trailing: Row(
-                    mainAxisSize: MainAxisSize.min,
+                    mainAxisSize: .min,
                     children: <Widget>[
                       IconButton(
                         tooltip: 'Move Earlier',
@@ -284,25 +277,22 @@ class _QuotaSettingsBody extends ConsumerWidget {
   }
 }
 
-class _SectionTitle extends StatelessWidget {
-  const _SectionTitle({required this.title, required this.description});
-
-  final String title;
-  final String description;
-
+class const _SectionTitle({
+  required final String title,
+  required final String description,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.only(bottom: AleraTokens.spaceSm),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: .start,
         children: <Widget>[
           Text(title, style: Theme.of(context).textTheme.titleMedium),
           Text(
             description,
-            style: Theme.of(
-              context,
-            ).textTheme.bodySmall?.copyWith(color: AleraTokens.foregroundMuted),
+            style: Theme.of(context).textTheme.bodySmall
+                ?.copyWith(color: AleraTokens.foregroundMuted),
           ),
         ],
       ),
@@ -310,19 +300,12 @@ class _SectionTitle extends StatelessWidget {
   }
 }
 
-class _EnvironmentTile extends StatelessWidget {
-  const _EnvironmentTile({
-    required this.label,
-    required this.value,
-    required this.available,
-    required this.onChanged,
-  });
-
-  final String label;
-  final String value;
-  final bool? available;
-  final ValueChanged<String> onChanged;
-
+class const _EnvironmentTile({
+  required final String label,
+  required final String value,
+  required final bool? available,
+  required final ValueChanged<String> onChanged,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListTile(

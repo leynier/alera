@@ -107,8 +107,7 @@ extension MobileCodexControllerOptions on MobileCodexController {
     if (expectedThreadId == null) {
       _update(
         (current) => current.copyWith(
-          error:
-              'The Codex conversation changed before recovery. Review the current conversation and try again.',
+          error: 'The Codex conversation changed before recovery. Review the current conversation and try again.',
         ),
       );
       return;

@@ -3,26 +3,18 @@ part of 'resource_status_panel.dart';
 // The tree itself: project, workspace, session and the shared metric row they
 // all render through, plus Alera's own processes and the orphan footer.
 
-class _ProjectSection extends StatelessWidget {
-  const _ProjectSection({
-    required this.project,
-    required this.collapsed,
-    required this.onToggle,
-    required this.onOpenSession,
-    required this.onKillSession,
-  });
-
-  final ResourceProjectGroup project;
-  final bool collapsed;
-  final ValueChanged<String>? onToggle;
-  final ValueChanged<ResourceSessionRow> onOpenSession;
-  final ValueChanged<ResourceSessionRow> onKillSession;
-
+class const _ProjectSection({
+  required final ResourceProjectGroup project,
+  required final bool collapsed,
+  required final ValueChanged<String>? onToggle,
+  required final ValueChanged<ResourceSessionRow> onOpenSession,
+  required final ValueChanged<ResourceSessionRow> onKillSession,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: .min,
+      crossAxisAlignment: .stretch,
       children: <Widget>[
         _MetricRow(
           indent: 0,
@@ -49,22 +41,16 @@ class _ProjectSection extends StatelessWidget {
   }
 }
 
-class _WorkspaceSection extends StatelessWidget {
-  const _WorkspaceSection({
-    required this.workspace,
-    required this.onOpenSession,
-    required this.onKillSession,
-  });
-
-  final ResourceWorkspaceRow workspace;
-  final ValueChanged<ResourceSessionRow> onOpenSession;
-  final ValueChanged<ResourceSessionRow> onKillSession;
-
+class const _WorkspaceSection({
+  required final ResourceWorkspaceRow workspace,
+  required final ValueChanged<ResourceSessionRow> onOpenSession,
+  required final ValueChanged<ResourceSessionRow> onKillSession,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: .min,
+      crossAxisAlignment: .stretch,
       children: <Widget>[
         _MetricRow(
           indent: 1,
@@ -84,17 +70,15 @@ class _WorkspaceSection extends StatelessWidget {
   }
 }
 
-class _OrphanSection extends StatelessWidget {
-  const _OrphanSection({required this.sessions, required this.onKillSession});
-
-  final List<ResourceSessionRow> sessions;
-  final ValueChanged<ResourceSessionRow> onKillSession;
-
+class const _OrphanSection({
+  required final List<ResourceSessionRow> sessions,
+  required final ValueChanged<ResourceSessionRow> onKillSession,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: .min,
+      crossAxisAlignment: .stretch,
       children: <Widget>[
         _MetricRow(
           indent: 0,
@@ -114,17 +98,11 @@ class _OrphanSection extends StatelessWidget {
   }
 }
 
-class _SessionRow extends StatelessWidget {
-  const _SessionRow({
-    required this.session,
-    required this.onOpen,
-    required this.onKill,
-  });
-
-  final ResourceSessionRow session;
-  final VoidCallback? onOpen;
-  final VoidCallback onKill;
-
+class const _SessionRow({
+  required final ResourceSessionRow session,
+  required final VoidCallback? onOpen,
+  required final VoidCallback onKill,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return _MetricRow(
@@ -150,32 +128,20 @@ class _SessionRow extends StatelessWidget {
 
 /// One row of the tree. Every level shares this so the metric columns keep the
 /// same x position no matter how deep the row sits.
-class _MetricRow extends StatelessWidget {
-  const _MetricRow({
-    required this.indent,
-    required this.label,
-    required this.cpuMachinePercent,
-    required this.memoryBytes,
-    this.leading,
-    this.trailing,
-    this.suffix,
-    this.onTap,
-    this.bold = false,
-    this.sparkline = const <int>[],
-  });
-
-  final int indent;
-  final String label;
-
+class const _MetricRow({
+  required final int indent,
+  required final String label,
+  required this.cpuMachinePercent,
+  required final int? memoryBytes,
+  final Widget? leading,
+  final Widget? trailing,
+  final String? suffix,
+  final VoidCallback? onTap,
+  final bool bold = false,
+  final List<int> sparkline = const <int>[],
+}) extends StatelessWidget {
   /// Percent of the machine's total CPU capacity, never per core.
   final double? cpuMachinePercent;
-  final int? memoryBytes;
-  final Widget? leading;
-  final Widget? trailing;
-  final String? suffix;
-  final VoidCallback? onTap;
-  final bool bold;
-  final List<int> sparkline;
 
   @override
   Widget build(BuildContext context) {
@@ -199,7 +165,7 @@ class _MetricRow extends StatelessWidget {
                 Flexible(
                   child: Text(
                     label,
-                    overflow: TextOverflow.ellipsis,
+                    overflow: .ellipsis,
                     style: theme.textTheme.bodySmall?.copyWith(
                       color: AleraTokens.foreground,
                       fontWeight: bold ? FontWeight.w600 : FontWeight.w400,
@@ -244,18 +210,14 @@ class _MetricRow extends StatelessWidget {
   }
 }
 
-class _MetricCell extends StatelessWidget {
-  const _MetricCell({required this.value});
-
-  final String value;
-
+class const _MetricCell({required final String value}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
       width: _metricColumnWidth,
       child: Text(
         value,
-        textAlign: TextAlign.right,
+        textAlign: .right,
         style: AleraTokens.monoStyle.copyWith(fontSize: 10),
       ),
     );
@@ -264,11 +226,8 @@ class _MetricCell extends StatelessWidget {
 
 /// Alera's own processes, kept apart from the workspace tree so the app and the
 /// sidecar never look like somebody's terminal.
-class _AleraSection extends StatelessWidget {
-  const _AleraSection({required this.snapshot});
-
-  final ResourceSnapshot snapshot;
-
+class const _AleraSection({required final ResourceSnapshot snapshot})
+    extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final app = snapshot.appProcess;
@@ -280,8 +239,8 @@ class _AleraSection extends StatelessWidget {
     // tree, so they normalize here rather than inheriting it.
     final cores = snapshot.host.cpuCoreCount;
     return Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: .min,
+      crossAxisAlignment: .stretch,
       children: <Widget>[
         const Divider(height: 1, color: AleraTokens.borderSubtle),
         _MetricRow(
@@ -315,12 +274,10 @@ class _AleraSection extends StatelessWidget {
   }
 }
 
-class _OrphanFooter extends StatelessWidget {
-  const _OrphanFooter({required this.count, required this.onKillOrphans});
-
-  final int count;
-  final VoidCallback onKillOrphans;
-
+class const _OrphanFooter({
+  required final int count,
+  required final VoidCallback onKillOrphans,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -336,9 +293,8 @@ class _OrphanFooter extends StatelessWidget {
           Expanded(
             child: Text(
               '$count orphan terminal${count == 1 ? '' : 's'}',
-              style: Theme.of(
-                context,
-              ).textTheme.bodySmall?.copyWith(color: AleraTokens.warning),
+              style: Theme.of(context).textTheme.bodySmall
+                  ?.copyWith(color: AleraTokens.warning),
             ),
           ),
           TextButton(onPressed: onKillOrphans, child: const Text('Kill All')),

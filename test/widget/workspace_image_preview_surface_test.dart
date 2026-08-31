@@ -234,8 +234,8 @@ Workspace _workspace() {
     path: '/repo/alera',
     createdAt: now,
     updatedAt: now,
-    kind: WorkspaceKind.main,
-    status: WorkspaceStatus.active,
+    kind: .main,
+    status: .active,
   );
 }
 
@@ -245,18 +245,15 @@ WorkspaceTabRecord _tab(String id, String filePath) {
     id: id,
     workspaceId: 'workspace-1',
     title: filePath,
-    kind: WorkspaceTabKind.editor,
+    kind: .editor,
     payload: <String, Object?>{workspaceTabFilePathPayloadKey: filePath},
     createdAt: now,
     updatedAt: now,
   );
 }
 
-class _ResolvedWorkspaceFileService extends WorkspaceFileService {
-  const _ResolvedWorkspaceFileService(this.file);
-
-  final ResolvedWorkspaceFile file;
-
+class const _ResolvedWorkspaceFileService(final ResolvedWorkspaceFile file)
+    extends WorkspaceFileService {
   @override
   Future<ResolvedWorkspaceFile> resolveWorkspaceFilePath({
     required String workspacePath,
@@ -279,11 +276,8 @@ class _ImmediateErrorWorkspaceFileService extends WorkspaceFileService {
   }
 }
 
-class _StaleLoadWorkspaceFileService extends WorkspaceFileService {
-  _StaleLoadWorkspaceFileService(this.oldLoadGate);
-
-  final Completer<void> oldLoadGate;
-
+class _StaleLoadWorkspaceFileService(final Completer<void> oldLoadGate)
+    extends WorkspaceFileService {
   @override
   Future<ResolvedWorkspaceFile> resolveWorkspaceFilePath({
     required String workspacePath,

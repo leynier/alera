@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import '../../app/theme/alera_tokens.dart';
 
 class AleraMessageEditor extends StatefulWidget {

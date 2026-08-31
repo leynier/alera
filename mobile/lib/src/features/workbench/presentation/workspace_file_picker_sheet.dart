@@ -14,22 +14,17 @@ final Logger _logger = Logger('WorkspaceFilePickerSheet');
 /// The session lifecycle arrives as callbacks rather than a client, so the
 /// caller decides whether it goes through a Codex controller or straight to the
 /// runtime client.
-class WorkspaceFilePickerSheet extends StatefulWidget {
-  const WorkspaceFilePickerSheet({
-    super.key,
-    required this.start,
-    required this.search,
-    required this.stop,
-  });
-
-  final Future<MobileWorkspaceQuickOpenSession> Function() start;
-  final Future<List<MobileWorkspaceQuickOpenMatch>> Function(
+class const WorkspaceFilePickerSheet({
+  super.key,
+  required final Future<MobileWorkspaceQuickOpenSession> Function() start,
+  required final Future<List<MobileWorkspaceQuickOpenMatch>> Function(
     MobileWorkspaceQuickOpenSession session,
     String query,
   )
-  search;
-  final Future<void> Function(MobileWorkspaceQuickOpenSession session) stop;
-
+  search,
+  required final Future<void> Function(MobileWorkspaceQuickOpenSession session)
+  stop,
+}) extends StatefulWidget {
   @override
   State<WorkspaceFilePickerSheet> createState() =>
       _WorkspaceFilePickerSheetState();
@@ -170,11 +165,11 @@ class _WorkspaceFilePickerSheetState extends State<WorkspaceFilePickerSheet> {
                   child: Padding(
                     padding: AleraTokens.contentPadding,
                     child: Column(
-                      mainAxisSize: MainAxisSize.min,
+                      mainAxisSize: .min,
                       children: <Widget>[
                         const Text(
                           'Workspace files could not be loaded.',
-                          textAlign: TextAlign.center,
+                          textAlign: .center,
                         ),
                         const SizedBox(height: AleraTokens.space12),
                         FilledButton(

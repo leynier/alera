@@ -6,20 +6,21 @@ import 'package:xterm2/xterm.dart' as xterm;
 
 typedef TerminalSearchLineScroller = void Function(int lineIndex);
 
-final class TerminalSearchController extends ChangeNotifier {
-  factory TerminalSearchController({
+final class TerminalSearchController._(
+  var xterm.Terminal _terminal,
+  final TerminalSearchLineScroller _scrollToLine,
+) extends ChangeNotifier {
+  factory({
     required xterm.Terminal terminal,
     required TerminalSearchLineScroller scrollToLine,
   }) {
     return TerminalSearchController._(terminal, scrollToLine);
   }
 
-  TerminalSearchController._(this._terminal, this._scrollToLine) {
+  this {
     _terminal.addListener(_handleTerminalChanged);
   }
 
-  xterm.Terminal _terminal;
-  final TerminalSearchLineScroller _scrollToLine;
   xterm.Buffer? _indexedBuffer;
   int _indexedHeight = -1;
   int _indexedWidth = -1;
@@ -252,7 +253,7 @@ final class TerminalSearchController extends ChangeNotifier {
       final lineOrder = a.lineIndex.compareTo(b.lineIndex);
       return lineOrder == 0 ? a.start.compareTo(b.start) : lineOrder;
     });
-    _matches = List<TerminalSearchMatch>.unmodifiable(next);
+    _matches = List<TerminalSearchMatch>.unmodifiableOf(next);
 
     if (_matches.isEmpty) {
       _selectedIndex = -1;
@@ -297,12 +298,10 @@ final class TerminalSearchController extends ChangeNotifier {
   }
 }
 
-final class _LineMatch {
-  const _LineMatch({required this.start, required this.end});
-
-  final int start;
-  final int end;
-}
+final class const _LineMatch({
+  required final int start,
+  required final int end,
+});
 
 extension on int? {
   bool caseInRange(int start, int end) {

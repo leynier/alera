@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+
 import 'package:alera_mobile/src/features/accounts/domain/cloud_account_session.dart';
 import 'package:alera_mobile/src/features/runtime/infra/mobile_runtime_client.dart';
 import 'package:alera_mobile/src/features/runtime/infra/relay_crypto.dart';
@@ -18,9 +19,7 @@ void main() {
         }
         http.close(force: true);
       });
-      final identity = await RelayIdentityKeyPair.fromPrivate(
-        List.filled(32, 7),
-      );
+      final identity = await RelayIdentityKeyPair.fromPrivate(.filled(32, 7));
       Future<CloudRelayGrant> grant(int client) async {
         final request = await http.getUrl(
           Uri.parse('$origin/fixture/grant?role=mobile&client=phone-$client'),
@@ -76,7 +75,7 @@ void main() {
           }),
         );
         sequence++;
-        await Future<void>.delayed(const Duration(milliseconds: 250));
+        await Future.pause(const Duration(milliseconds: 250));
       }
       connectionTimes.sort();
       roundTrips.sort();

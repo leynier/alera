@@ -14,14 +14,12 @@ enum BrowserImportSourceFamily {
   manual,
 }
 
-final class BrowserProfileSource {
-  const BrowserProfileSource({
-    required this.family,
-    required this.importedAt,
-    this.profileName,
-  });
-
-  factory BrowserProfileSource.fromJson(Map<String, Object?> json) {
+final class const BrowserProfileSource({
+  required final BrowserImportSourceFamily family,
+  required final DateTime importedAt,
+  final String? profileName,
+}) {
+  factory fromJson(Map<String, Object?> json) {
     final importedAt = DateTime.tryParse(json['importedAt'] as String? ?? '');
     if (importedAt == null) {
       throw const FormatException('Browser profile source date is invalid.');
@@ -36,10 +34,6 @@ final class BrowserProfileSource {
     );
   }
 
-  final BrowserImportSourceFamily family;
-  final String? profileName;
-  final DateTime importedAt;
-
   Map<String, Object?> toJson() => <String, Object?>{
     'family': family.name,
     if (profileName != null) 'profileName': profileName,
@@ -47,18 +41,16 @@ final class BrowserProfileSource {
   };
 }
 
-final class BrowserProfile {
-  const BrowserProfile({
-    required this.id,
-    required this.label,
-    required this.kind,
-    required this.createdAt,
-    this.persistent = true,
-    this.updatedAt,
-    this.source,
-  });
-
-  factory BrowserProfile.fromJson(Map<String, Object?> json) {
+final class const BrowserProfile({
+  required final String id,
+  required final String label,
+  required final BrowserProfileKind kind,
+  required final DateTime createdAt,
+  final bool persistent = true,
+  final DateTime? updatedAt,
+  final BrowserProfileSource? source,
+}) {
+  factory fromJson(Map<String, Object?> json) {
     final id = _nonEmptyBrowserProfileString(json['id']);
     final label = _nonEmptyBrowserProfileString(json['label']);
     final createdAt = DateTime.tryParse(json['createdAt'] as String? ?? '');
@@ -83,14 +75,6 @@ final class BrowserProfile {
           : null,
     );
   }
-
-  final String id;
-  final String label;
-  final BrowserProfileKind kind;
-  final DateTime createdAt;
-  final bool persistent;
-  final DateTime? updatedAt;
-  final BrowserProfileSource? source;
 
   bool get isDefault => id == defaultBrowserProfileId;
 

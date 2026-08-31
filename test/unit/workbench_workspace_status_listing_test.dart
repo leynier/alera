@@ -2,12 +2,11 @@ import 'package:alera/src/features/agent_status/domain/agent_status.dart';
 import 'package:alera/src/features/projects/domain/project.dart';
 import 'package:alera/src/features/workbench/application/workbench_listing.dart';
 import 'package:alera/src/features/workbench/application/workbench_state.dart';
-import 'package:alera/src/features/workbench/domain/workbench_view_prefs.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
 import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-final DateTime _t0 = DateTime.utc(2026, 5, 1);
+final DateTime _t0 = .utc(2026, 5, 1);
 
 void main() {
   test(
@@ -28,8 +27,8 @@ void main() {
         path: '/repo/p-alera/w-alera-main',
         createdAt: _t0,
         updatedAt: _t0,
-        kind: WorkspaceKind.main,
-        status: WorkspaceStatus.active,
+        kind: .main,
+        status: .active,
       );
       final first = _tab('t-1', workspace.id);
       final second = _tab('t-2', workspace.id);
@@ -41,15 +40,15 @@ void main() {
         tabsByWorkspace: <String, List<WorkspaceTabRecord>>{
           workspace.id: <WorkspaceTabRecord>[first, second],
         },
-        viewPrefs: WorkbenchViewPrefs.defaults,
+        viewPrefs: .defaults,
         bootstrapped: true,
       );
 
       final rows = buildSidebarRows(
         state,
         agentStatuses: <String, AgentStatusEntry>{
-          first.terminalSessionId: _status(first, AgentStatusState.done),
-          second.terminalSessionId: _status(second, AgentStatusState.working),
+          first.terminalSessionId: _status(first, .done),
+          second.terminalSessionId: _status(second, .working),
         },
       );
       final main = rows.whereType<WorkbenchWorkspaceRow>().single;
@@ -65,7 +64,7 @@ WorkspaceTabRecord _tab(String id, String workspaceId) {
   return WorkspaceTabRecord(
     id: id,
     workspaceId: workspaceId,
-    kind: WorkspaceTabKind.terminal,
+    kind: .terminal,
     title: id,
     createdAt: _t0,
     updatedAt: _t0,
@@ -77,7 +76,7 @@ AgentStatusEntry _status(WorkspaceTabRecord tab, AgentStatusState state) {
     terminalSessionId: tab.terminalSessionId,
     workspaceId: tab.workspaceId,
     tabId: tab.id,
-    agentType: AgentType.codex,
+    agentType: .codex,
     state: state,
     prompt: state.name,
     updatedAt: _t0,

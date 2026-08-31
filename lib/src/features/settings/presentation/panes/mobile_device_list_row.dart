@@ -5,22 +5,14 @@ import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/features/mobile_devices/domain/mobile_device.dart';
 import 'package:flutter/material.dart';
 
-class MobileDeviceListRow extends StatelessWidget {
-  const MobileDeviceListRow({
-    super.key,
-    required this.device,
-    required this.onRename,
-    required this.onRevoke,
-    required this.onDelete,
-    this.remote = false,
-  });
-
-  final MobileDevice device;
-  final VoidCallback? onRename;
-  final VoidCallback? onRevoke;
-  final VoidCallback? onDelete;
-  final bool remote;
-
+class const MobileDeviceListRow({
+  super.key,
+  required final MobileDevice device,
+  required final VoidCallback? onRename,
+  required final VoidCallback? onRevoke,
+  required final VoidCallback? onDelete,
+  final bool remote = false,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -46,7 +38,7 @@ class MobileDeviceListRow extends StatelessWidget {
           const SizedBox(width: AleraTokens.space8),
           Expanded(
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+              crossAxisAlignment: .start,
               children: <Widget>[
                 Row(
                   children: <Widget>[
@@ -54,12 +46,12 @@ class MobileDeviceListRow extends StatelessWidget {
                       child: Text(
                         device.displayName,
                         maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
+                        overflow: .ellipsis,
                         style: theme.textTheme.bodyMedium?.copyWith(
                           color: device.isRevoked
                               ? AleraTokens.foregroundMuted
                               : AleraTokens.foreground,
-                          fontWeight: FontWeight.w600,
+                          fontWeight: .w600,
                         ),
                       ),
                     ),
@@ -77,7 +69,7 @@ class MobileDeviceListRow extends StatelessWidget {
                 Text(
                   detail,
                   maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+                  overflow: .ellipsis,
                   style: theme.textTheme.bodySmall?.copyWith(
                     color: AleraTokens.foregroundMuted,
                   ),

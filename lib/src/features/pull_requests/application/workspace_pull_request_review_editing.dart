@@ -14,14 +14,14 @@ mixin _WorkspacePullRequestReviewEditing on _$WorkspacePullRequestController {
         : controller._registry.forProvider(identity.provider);
     if (identity == null || forge == null) {
       return const CreateReviewFailure(
-        code: CreateReviewErrorCode.blocked,
+        code: .blocked,
         message: 'No hosting provider is configured.',
       );
     }
     controller._pollTimer?.cancel();
     state = AsyncData(
       (state.value ?? const WorkspacePullRequestState()).copyWith(
-        action: PullRequestAction.create,
+        action: .create,
         clearError: true,
       ),
     );
@@ -29,7 +29,7 @@ mixin _WorkspacePullRequestReviewEditing on _$WorkspacePullRequestController {
       await controller._gitBackend.push(controller.scope.repoPath);
     } on GitException catch (error) {
       final result = CreateReviewFailure(
-        code: CreateReviewErrorCode.pushFailed,
+        code: .pushFailed,
         message: 'Could not push the branch: ${error.context}',
       );
       controller._applyActionOutcome(failureMessage: result.message);
@@ -46,14 +46,14 @@ mixin _WorkspacePullRequestReviewEditing on _$WorkspacePullRequestController {
       );
     } on ForgeException catch (error) {
       final failure = CreateReviewFailure(
-        code: CreateReviewErrorCode.unknown,
+        code: .unknown,
         message: error.message,
       );
       controller._applyActionOutcome(failureMessage: failure.message);
       return failure;
     } catch (error) {
       final failure = CreateReviewFailure(
-        code: CreateReviewErrorCode.unknown,
+        code: .unknown,
         message: error.toString(),
       );
       controller._applyActionOutcome(failureMessage: failure.message);
@@ -61,7 +61,7 @@ mixin _WorkspacePullRequestReviewEditing on _$WorkspacePullRequestController {
     }
     if (result is CreateReviewSuccess) {
       await controller._linkedReviews.save(
-        LinkedReview.linked(
+        .linked(
           workspaceId: controller.scope.workspaceId,
           provider: identity.provider,
           number: result.review.number,
@@ -109,20 +109,20 @@ mixin _WorkspacePullRequestReviewEditing on _$WorkspacePullRequestController {
         : controller._registry.forProvider(identity.provider);
     if (identity == null || review == null || forge == null) {
       return const UpdateReviewFailure(
-        code: UpdateReviewErrorCode.blocked,
+        code: .blocked,
         message: 'No linked pull request to update.',
       );
     }
     if (input.isEmpty) {
       return const UpdateReviewFailure(
-        code: UpdateReviewErrorCode.blocked,
+        code: .blocked,
         message: 'Nothing to update.',
       );
     }
     controller._pollTimer?.cancel();
     state = AsyncData(
       (state.value ?? const WorkspacePullRequestState()).copyWith(
-        action: PullRequestAction.update,
+        action: .update,
         clearError: true,
       ),
     );
@@ -137,14 +137,14 @@ mixin _WorkspacePullRequestReviewEditing on _$WorkspacePullRequestController {
       );
     } on ForgeException catch (error) {
       final failure = UpdateReviewFailure(
-        code: UpdateReviewErrorCode.unknown,
+        code: .unknown,
         message: error.message,
       );
       controller._applyActionOutcome(failureMessage: failure.message);
       return failure;
     } catch (error) {
       final failure = UpdateReviewFailure(
-        code: UpdateReviewErrorCode.unknown,
+        code: .unknown,
         message: error.toString(),
       );
       controller._applyActionOutcome(failureMessage: failure.message);

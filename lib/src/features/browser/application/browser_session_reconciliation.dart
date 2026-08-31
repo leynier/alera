@@ -82,10 +82,9 @@ extension BrowserSessionRegistryReconciliation on BrowserSessionRegistry {
   }
 }
 
-final class BrowserPersistentSessionReconciler {
-  BrowserPersistentSessionReconciler(this._registry);
-
-  final BrowserSessionRegistry _registry;
+final class BrowserPersistentSessionReconciler(
+  final BrowserSessionRegistry _registry,
+) {
   Future<void> _tail = Future<void>.value();
   var _generation = 0;
   var _disposed = false;
@@ -94,7 +93,7 @@ final class BrowserPersistentSessionReconciler {
     if (_disposed) {
       return;
     }
-    final snapshot = List<WorkspaceTabRecord>.unmodifiable(tabs);
+    final snapshot = List<WorkspaceTabRecord>.unmodifiableOf(tabs);
     final generation = ++_generation;
     _tail = _tail.catchError((Object _) {}).then((_) async {
       if (!_isCurrent(generation)) {

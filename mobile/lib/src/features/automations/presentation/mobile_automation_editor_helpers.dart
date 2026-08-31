@@ -15,7 +15,7 @@ Widget _buildMobileAutomationEditor(
     child: SafeArea(
       child: SingleChildScrollView(
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
+          crossAxisAlignment: .stretch,
           children: <Widget>[
             Text(
               state.widget.initial == null
@@ -43,12 +43,10 @@ Widget _buildMobileAutomationEditor(
             ),
             state._field(state._tagIds, 'Tag Ids (Comma-separated)'),
             state._field(state._prompt, 'Prompt Template', maxLines: 4),
-            state._dropdown(
-              'Schedule',
-              state._scheduleKind,
-              const <String>['recurring', 'oneTime'],
-              (value) => state._refresh(() => state._scheduleKind = value!),
-            ),
+            state._dropdown('Schedule', state._scheduleKind, const <String>[
+              'recurring',
+              'oneTime',
+            ], (value) => state._refresh(() => state._scheduleKind = value!)),
             if (state._scheduleKind == 'recurring')
               state._field(state._cron, 'Five-field Cron'),
             if (state._scheduleKind == 'oneTime')
@@ -76,12 +74,11 @@ Widget _buildMobileAutomationEditor(
                   const <MobileAutomationChoice>[],
               onChanged: () => state._refresh(() {}),
             ),
-            state._dropdown(
-              'Target',
-              state._targetKind,
-              const <String>['existingTab', 'freshTab', 'managedWorkspace'],
-              (value) => state._refresh(() => state._targetKind = value!),
-            ),
+            state._dropdown('Target', state._targetKind, const <String>[
+              'existingTab',
+              'freshTab',
+              'managedWorkspace',
+            ], (value) => state._refresh(() => state._targetKind = value!)),
             if (state._targetKind != 'existingTab')
               _choiceField(
                 state._profile,
@@ -115,30 +112,26 @@ Widget _buildMobileAutomationEditor(
               maxLines: 2,
             ),
             state._field(state._precheckTimeout, 'Precheck Timeout (Seconds)'),
-            state._dropdown(
-              'Setup',
-              state._setup,
-              const <String>['wait', 'parallel', 'skip'],
-              (value) => state._refresh(() => state._setup = value!),
-            ),
-            state._dropdown(
-              'Overlap',
-              state._overlap,
-              const <String>['skip', 'queue', 'runLatestOnce', 'forceParallel'],
-              (value) => state._refresh(() => state._overlap = value!),
-            ),
-            state._dropdown(
-              'Misfire',
-              state._misfire,
-              const <String>['skip', 'runLatestOnce', 'queue'],
-              (value) => state._refresh(() => state._misfire = value!),
-            ),
-            state._dropdown(
-              'Cleanup',
-              state._cleanup,
-              const <String>['preserve', 'onSuccess'],
-              (value) => state._refresh(() => state._cleanup = value!),
-            ),
+            state._dropdown('Setup', state._setup, const <String>[
+              'wait',
+              'parallel',
+              'skip',
+            ], (value) => state._refresh(() => state._setup = value!)),
+            state._dropdown('Overlap', state._overlap, const <String>[
+              'skip',
+              'queue',
+              'runLatestOnce',
+              'forceParallel',
+            ], (value) => state._refresh(() => state._overlap = value!)),
+            state._dropdown('Misfire', state._misfire, const <String>[
+              'skip',
+              'runLatestOnce',
+              'queue',
+            ], (value) => state._refresh(() => state._misfire = value!)),
+            state._dropdown('Cleanup', state._cleanup, const <String>[
+              'preserve',
+              'onSuccess',
+            ], (value) => state._refresh(() => state._cleanup = value!)),
             state._field(state._queueCap, 'Queue Cap (Maximum 10)'),
             state._field(
               state._inactivityTimeout,
@@ -177,26 +170,17 @@ Widget _buildMobileAutomationEditor(
   );
 }
 
-class MobileAutomationChoice {
-  const MobileAutomationChoice({required this.id, required this.label});
+class const MobileAutomationChoice({
+  required final String id,
+  required final String label,
+});
 
-  final String id;
-  final String label;
-}
-
-class MobileAutomationEditorOptions {
-  const MobileAutomationEditorOptions({
-    required this.projects,
-    required this.workspaces,
-    required this.profiles,
-    required this.tabs,
-  });
-
-  final List<ProjectSummary> projects;
-  final List<WorkspaceSummary> workspaces;
-  final List<AgentProfileSummary> profiles;
-  final List<WorkspaceTabSummary> tabs;
-
+class const MobileAutomationEditorOptions({
+  required final List<ProjectSummary> projects,
+  required final List<WorkspaceSummary> workspaces,
+  required final List<AgentProfileSummary> profiles,
+  required final List<WorkspaceTabSummary> tabs,
+}) {
   List<MobileAutomationChoice> tabsFor(String workspaceId) => tabs
       .where((tab) => tab.workspaceId == workspaceId)
       .map(

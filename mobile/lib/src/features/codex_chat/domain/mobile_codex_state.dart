@@ -13,26 +13,24 @@ part 'mobile_codex_thread_models.dart';
 part 'mobile_codex_goal.dart';
 
 @immutable
-class MobileCodexTimelineCell {
-  const MobileCodexTimelineCell({
-    required this.id,
-    required this.kind,
-    required this.status,
-    this.itemId,
-    this.turnId,
-    this.createdAt,
-    this.updatedAt,
-    this.title,
-    this.subtitle,
-    this.markdownText,
-    this.renderedMarkdownText,
-    this.detailsText,
-    this.isStreaming = false,
-    this.isCollapsed = false,
-    this.metadata = const <String, Object?>{},
-  });
-
-  factory MobileCodexTimelineCell.fromJson(Object? value) {
+class const MobileCodexTimelineCell({
+  required final String id,
+  required final String kind,
+  required final String status,
+  final String? itemId,
+  final String? turnId,
+  final DateTime? createdAt,
+  final DateTime? updatedAt,
+  final String? title,
+  final String? subtitle,
+  final String? markdownText,
+  final String? renderedMarkdownText,
+  final String? detailsText,
+  final bool isStreaming = false,
+  final bool isCollapsed = false,
+  final Map<String, Object?> metadata = const <String, Object?>{},
+}) {
+  factory fromJson(Object? value) {
     final json = _map(value);
     return MobileCodexTimelineCell(
       id: _first(<Object?>[json['id'], 'cell']),
@@ -52,22 +50,6 @@ class MobileCodexTimelineCell {
       metadata: _map(json['metadata']),
     );
   }
-
-  final String id;
-  final String kind;
-  final String status;
-  final String? itemId;
-  final String? turnId;
-  final DateTime? createdAt;
-  final DateTime? updatedAt;
-  final String? title;
-  final String? subtitle;
-  final String? markdownText;
-  final String? renderedMarkdownText;
-  final String? detailsText;
-  final bool isStreaming;
-  final bool isCollapsed;
-  final Map<String, Object?> metadata;
 
   MobileCodexTimelineCell copyWith({
     String? id,
@@ -116,43 +98,46 @@ class MobileCodexTimelineCell {
       kind == 'toolCall' || kind == 'command' || kind == 'diff';
 }
 
-class MobileCodexState {
-  const MobileCodexState({
-    this.events = const <Map<String, Object?>>[],
-    this.timelineCells = const <MobileCodexTimelineCell>[],
-    this.paginatedHistoryCellIds = const <String>{},
-    this.pendingRequests = const <MobileCodexPendingRequest>[],
-    this.activeTurnId,
-    this.hasCompletedTurns,
-    this.models = const <MobileCodexModelOption>[],
-    this.collaborationModes = const <Map<String, Object?>>[],
-    this.skills = const <Map<String, Object?>>[],
-    this.apps = const <Map<String, Object?>>[],
-    this.selectedModel,
-    this.reasoningEffort = 'medium',
-    this.speedMode = 'normal',
-    this.permissionMode = 'untrusted',
-    this.planMode = false,
-    this.collaborationMode,
-    this.chatFeatures = const <String>{},
-    this.queueState = const <String, Object?>{},
-    this.historyRevision = 0,
-    this.queuedMessages = const <Map<String, Object?>>[],
-    this.contextUsed,
-    this.contextLimit,
-    this.promptHistory = const <String>[],
-    this.mcpInitializing = false,
-    this.title,
-    this.activeCwd,
-    this.historyNextCursor,
-    this.error,
-    this.sending = false,
-    this.interrupting = false,
-    this.presentationRows = const <MobileCodexPresentationRow>[],
-    this.recovery,
-    this.goal,
-  });
-
+class const MobileCodexState({
+  final List<Map<String, Object?>> events = const <Map<String, Object?>>[],
+  final List<MobileCodexTimelineCell> timelineCells =
+      const <MobileCodexTimelineCell>[],
+  final Set<String> paginatedHistoryCellIds = const <String>{},
+  final List<MobileCodexPendingRequest> pendingRequests =
+      const <MobileCodexPendingRequest>[],
+  final String? activeTurnId,
+  final bool? hasCompletedTurns,
+  final List<MobileCodexModelOption> models = const <MobileCodexModelOption>[],
+  final List<Map<String, Object?>> collaborationModes =
+      const <Map<String, Object?>>[],
+  final List<Map<String, Object?>> skills = const <Map<String, Object?>>[],
+  final List<Map<String, Object?>> apps = const <Map<String, Object?>>[],
+  final String? selectedModel,
+  final String reasoningEffort = 'medium',
+  final String speedMode = 'normal',
+  final String permissionMode = 'untrusted',
+  final bool planMode = false,
+  final String? collaborationMode,
+  final Set<String> chatFeatures = const <String>{},
+  final Map<String, Object?> queueState = const <String, Object?>{},
+  final int historyRevision = 0,
+  final List<Map<String, Object?>> queuedMessages =
+      const <Map<String, Object?>>[],
+  final int? contextUsed,
+  final int? contextLimit,
+  final List<String> promptHistory = const <String>[],
+  final bool mcpInitializing = false,
+  final String? title,
+  final String? activeCwd,
+  final String? historyNextCursor,
+  final String? error,
+  final bool sending = false,
+  final bool interrupting = false,
+  final List<MobileCodexPresentationRow> presentationRows =
+      const <MobileCodexPresentationRow>[],
+  final MobileCodexThreadRecovery? recovery,
+  final MobileCodexGoal? goal,
+}) {
   factory MobileCodexState.fromSnapshot(
     Object? value, {
     bool deriveTimeline = true,
@@ -291,34 +276,6 @@ class MobileCodexState {
     );
   }
 
-  final List<Map<String, Object?>> events;
-  final List<MobileCodexTimelineCell> timelineCells;
-  final Set<String> paginatedHistoryCellIds;
-  final List<MobileCodexPendingRequest> pendingRequests;
-  final String? activeTurnId;
-  final bool? hasCompletedTurns;
-  final List<MobileCodexModelOption> models;
-  final List<Map<String, Object?>> collaborationModes;
-  final List<Map<String, Object?>> skills;
-  final List<Map<String, Object?>> apps;
-  final String? selectedModel;
-  final String reasoningEffort;
-  final String speedMode;
-  final String permissionMode;
-  final bool planMode;
-  final String? collaborationMode;
-  final List<Map<String, Object?>> queuedMessages;
-  final int? contextUsed;
-  final int? contextLimit;
-  final List<String> promptHistory;
-  final bool mcpInitializing;
-  final String? title;
-  final String? activeCwd;
-  final String? historyNextCursor;
-  final String? error;
-  final Set<String> chatFeatures;
-  final Map<String, Object?> queueState;
-  final int historyRevision;
   bool get supportsSharedQueue => chatFeatures.contains('codexSharedQueueV1');
   bool get supportsFork => chatFeatures.contains('codexForkV1');
   bool get supportsHistoryEdit =>
@@ -329,11 +286,6 @@ class MobileCodexState {
       (queueState['historyRevision'] as int? ?? 0) > historyRevision;
   bool get historyLocked =>
       historyOutdated || queueState['historyLocked'] == true;
-  final bool sending;
-  final bool interrupting;
-  final List<MobileCodexPresentationRow> presentationRows;
-  final MobileCodexThreadRecovery? recovery;
-  final MobileCodexGoal? goal;
 
   bool get busy => sending || interrupting || activeTurnId != null;
 
@@ -481,7 +433,7 @@ const Object _keepRecovery = Object();
 const Object _keepCollaborationMode = Object();
 
 List<String> mobileCodexPromptHistory(List<MobileCodexTimelineCell> cells) =>
-    List<String>.unmodifiable(<String>[
+    List<String>.unmodifiableOf(<String>[
       for (final cell in cells)
         if (cell.kind == 'userMessage' &&
             cell.metadata['isSteering'] != true &&

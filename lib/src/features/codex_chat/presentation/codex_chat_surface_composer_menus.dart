@@ -1,34 +1,24 @@
 part of 'codex_chat_surface.dart';
 
-const EdgeInsets _codexTitledMenuPadding = EdgeInsets.fromLTRB(
+const EdgeInsets _codexTitledMenuPadding = .fromLTRB(
   AleraTokens.space12,
   AleraTokens.space4,
   AleraTokens.space12,
   AleraTokens.space12,
 );
 
-class _CodexComposerControls extends StatelessWidget {
-  const _CodexComposerControls({
-    required this.state,
-    required this.onPermissionChanged,
-    required this.onPlanChanged,
-    required this.onAddAttachment,
-    required this.onPaste,
-    required this.onDraftItemSelected,
-    required this.onCommand,
-  });
-
-  final CodexChatState state;
-  final ValueChanged<String> onPermissionChanged;
-  final ValueChanged<bool> onPlanChanged;
-  final Future<void> Function() onAddAttachment;
-  final Future<void> Function() onPaste;
-  final ValueChanged<CodexDraftItem> onDraftItemSelected;
-  final ValueChanged<CodexComposerCommand> onCommand;
-
+class const _CodexComposerControls({
+  required final CodexChatState state,
+  required final ValueChanged<String> onPermissionChanged,
+  required final ValueChanged<bool> onPlanChanged,
+  required final Future<void> Function() onAddAttachment,
+  required final Future<void> Function() onPaste,
+  required final ValueChanged<CodexDraftItem> onDraftItemSelected,
+  required final ValueChanged<CodexComposerCommand> onCommand,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Row(
-    mainAxisSize: MainAxisSize.min,
+    mainAxisSize: .min,
     children: <Widget>[
       PopupMenuButton<String>(
         tooltip: 'Add Photos And Files',
@@ -126,7 +116,7 @@ class _CodexComposerControls extends StatelessWidget {
             borderRadius: BorderRadius.circular(AleraTokens.radiusLg),
             side: const BorderSide(color: AleraTokens.border),
           ),
-          clipBehavior: Clip.hardEdge,
+          clipBehavior: .hardEdge,
           initialValue:
               state.permissionMode == 'on-request' ||
                   state.permissionMode == 'auto-review' &&
@@ -160,8 +150,7 @@ class _CodexComposerControls extends StatelessWidget {
             _CodexPermissionEntry(
               value: 'never',
               label: 'Full Access',
-              description:
-                  'Unrestricted access to the internet and any file on your computer.',
+              description: 'Unrestricted access to the internet and any file on your computer.',
               icon: AleraIcons.warning,
               selected: state.permissionMode == 'never',
               warning: true,
@@ -185,7 +174,7 @@ class _CodexComposerControls extends StatelessWidget {
         key: const ValueKey<String>('codex-plan-mode'),
         onTap: () => onPlanChanged(!state.planMode),
         mouseCursor: SystemMouseCursors.click,
-        borderRadius: BorderRadius.circular(AleraTokens.radiusLg),
+        borderRadius: .circular(AleraTokens.radiusLg),
         child: Padding(
           padding: const EdgeInsets.fromLTRB(
             AleraTokens.space2,
@@ -194,7 +183,7 @@ class _CodexComposerControls extends StatelessWidget {
             AleraTokens.space4,
           ),
           child: Row(
-            mainAxisSize: MainAxisSize.min,
+            mainAxisSize: .min,
             children: <Widget>[
               Icon(
                 state.planMode ? AleraIcons.planActive : AleraIcons.plan,
@@ -241,15 +230,15 @@ class _CodexComposerControls extends StatelessWidget {
       case 'app':
         await _pickCatalog(context, skill: false);
       case 'review':
-        onCommand(CodexComposerCommand.review);
+        onCommand(.review);
       case 'compact':
-        onCommand(CodexComposerCommand.compact);
+        onCommand(.compact);
       case 'resume':
-        onCommand(CodexComposerCommand.resume);
+        onCommand(.resume);
       case 'new':
-        onCommand(CodexComposerCommand.newChat);
+        onCommand(.newChat);
       case 'clear':
-        onCommand(CodexComposerCommand.clear);
+        onCommand(.clear);
     }
   }
 
@@ -270,12 +259,7 @@ class _CodexComposerControls extends StatelessWidget {
       final path = selected['path']?.toString().trim() ?? '';
       if (path.isEmpty) return;
       onDraftItemSelected(
-        CodexDraftItem(
-          id: 'skill-$path',
-          kind: CodexDraftItemKind.skill,
-          name: name,
-          path: path,
-        ),
+        CodexDraftItem(id: 'skill-$path', kind: .skill, name: name, path: path),
       );
       return;
     }
@@ -284,7 +268,7 @@ class _CodexComposerControls extends StatelessWidget {
     onDraftItemSelected(
       CodexDraftItem(
         id: 'app-$connector',
-        kind: CodexDraftItemKind.app,
+        kind: .app,
         name: name,
         path: connector,
         tokenText: '\$$name',
@@ -310,19 +294,12 @@ Future<void> _applyCodexPermissionSelection(
   if (confirmed == true) onSelected(value);
 }
 
-class _CodexComposerChip extends StatelessWidget {
-  const _CodexComposerChip({
-    required this.label,
-    this.secondaryLabel,
-    this.leadingIcon,
-    this.highlight = false,
-  });
-
-  final String label;
-  final String? secondaryLabel;
-  final IconData? leadingIcon;
-  final bool highlight;
-
+class const _CodexComposerChip({
+  required final String label,
+  final String? secondaryLabel,
+  final IconData? leadingIcon,
+  final bool highlight = false,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Padding(
     padding: const EdgeInsets.symmetric(
@@ -330,7 +307,7 @@ class _CodexComposerChip extends StatelessWidget {
       vertical: AleraTokens.space4,
     ),
     child: Row(
-      mainAxisSize: MainAxisSize.min,
+      mainAxisSize: .min,
       children: <Widget>[
         if (leadingIcon case final IconData icon) ...<Widget>[
           Icon(icon, size: AleraTokens.iconXs, color: AleraTokens.foreground),
@@ -345,14 +322,13 @@ class _CodexComposerChip extends StatelessWidget {
                     when secondary.isNotEmpty)
                   TextSpan(
                     text: ' $secondary',
-                    style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                      color: AleraTokens.foregroundMuted,
-                    ),
+                    style: Theme.of(context).textTheme.labelMedium
+                        ?.copyWith(color: AleraTokens.foregroundMuted),
                   ),
               ],
             ),
             maxLines: 1,
-            overflow: TextOverflow.ellipsis,
+            overflow: .ellipsis,
           ),
         ),
         const SizedBox(width: AleraTokens.space4),
@@ -376,11 +352,11 @@ class _CodexComposerChip extends StatelessWidget {
 }
 
 class _CodexMenuHeader extends PopupMenuItem<String> {
-  _CodexMenuHeader(String label)
+  new(String label)
     : super(
         enabled: false,
         height: AleraTokens.space24,
-        padding: const EdgeInsets.symmetric(horizontal: AleraTokens.space8),
+        padding: const .symmetric(horizontal: AleraTokens.space8),
         child: Text(label, style: AleraTokens.labelFaintStyle),
       );
 }

@@ -16,31 +16,21 @@ enum PushEventKind {
   }
 }
 
-class PushNavigationIntent {
-  const PushNavigationIntent({
-    required this.runtimeId,
-    required this.eventKind,
-    this.accountId,
-    this.workspaceId,
-    this.tabId,
-    this.automationId,
-    this.runId,
-  });
-
-  final String? accountId;
-  final String runtimeId;
-  final String? workspaceId;
-  final String? tabId;
-  final PushEventKind eventKind;
-  final String? automationId;
-  final String? runId;
-
+class const PushNavigationIntent({
+  required final String runtimeId,
+  required final PushEventKind eventKind,
+  final String? accountId,
+  final String? workspaceId,
+  final String? tabId,
+  final String? automationId,
+  final String? runId,
+}) {
   bool get shouldOpenTerminal =>
       eventKind != PushEventKind.terminalExit &&
       eventKind != PushEventKind.automation &&
       tabId != null;
 
-  factory PushNavigationIntent.fromData(Map<String, Object?> data) {
+  factory fromData(Map<String, Object?> data) {
     final runtimeId = _nonEmpty(data['runtimeId']);
     if (runtimeId == null) {
       throw const FormatException('Push payload is missing runtime ID');

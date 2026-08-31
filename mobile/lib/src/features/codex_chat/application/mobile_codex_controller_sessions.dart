@@ -11,14 +11,16 @@ extension MobileCodexControllerSessions on MobileCodexController {
   }) async {
     final client = _client;
     if (client == null) return const MobileCodexThreadPage();
-    final response = await client
-        .codexRequest('codex.thread.list', <String, Object?>{
-          'scope': workspaceId == null ? 'all' : 'workspace',
-          'workspaceId': ?workspaceId,
-          'searchTerm': ?searchTerm,
-          'cursor': ?cursor,
-          'limit': 20,
-        });
+    final response = await client.codexRequest(
+      'codex.thread.list',
+      <String, Object?>{
+        'scope': workspaceId == null ? 'all' : 'workspace',
+        'workspaceId': ?workspaceId,
+        'searchTerm': ?searchTerm,
+        'cursor': ?cursor,
+        'limit': 20,
+      },
+    );
     return MobileCodexThreadPage.fromJson(response);
   }
 
@@ -410,7 +412,7 @@ MobileCodexState _reconcileMobileSameThreadSnapshot(
   final boundedLiveCells = liveCells.length <= retainedLiveCellLimit
       ? liveCells
       : liveCells.sublist(liveCells.length - retainedLiveCellLimit);
-  final retainedCells = List<MobileCodexTimelineCell>.unmodifiable(
+  final retainedCells = List<MobileCodexTimelineCell>.unmodifiableOf(
     <MobileCodexTimelineCell>[...historyCells, ...boundedLiveCells],
   );
   final paginatedHistoryCellIds =

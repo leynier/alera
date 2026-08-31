@@ -2,17 +2,11 @@ import 'package:alera/src/features/agent_status/domain/agent_status.dart';
 
 const agentStatusIdentityStaleThreshold = Duration(minutes: 30);
 
-class AgentStatusIdentityResolution {
-  const AgentStatusIdentityResolution({
-    required this.effectiveAgentType,
-    required this.inheritedFromActiveTerminal,
-    required this.shouldIgnoreEvent,
-  });
-
-  final AgentType effectiveAgentType;
-  final bool inheritedFromActiveTerminal;
-  final bool shouldIgnoreEvent;
-}
+class const AgentStatusIdentityResolution({
+  required final AgentType effectiveAgentType,
+  required final bool inheritedFromActiveTerminal,
+  required final bool shouldIgnoreEvent,
+});
 
 AgentStatusIdentityResolution resolveAgentStatusIdentity({
   required AgentStatusEntry? previous,

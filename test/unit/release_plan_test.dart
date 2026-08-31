@@ -88,7 +88,7 @@ void main() {
       ].map(parseReleaseTag).whereType<ReleaseTag>();
       final desktopPlan = planProductRelease(
         product: desktop,
-        channel: ReleaseChannel.stable,
+        channel: .stable,
         tags: tags,
         stableChanges: [desktopFeature, mobileFix],
         channelChanges: [desktopFeature, mobileFix],
@@ -98,7 +98,7 @@ void main() {
       );
       final mobilePlan = planProductRelease(
         product: mobile,
-        channel: ReleaseChannel.stable,
+        channel: .stable,
         tags: tags,
         stableChanges: [desktopFeature, mobileFix],
         channelChanges: [desktopFeature, mobileFix],
@@ -120,7 +120,7 @@ void main() {
       ].map(parseReleaseTag).whereType<ReleaseTag>();
       final plan = planProductRelease(
         product: desktop,
-        channel: ReleaseChannel.rc,
+        channel: .rc,
         tags: tags,
         stableChanges: [desktopFeature],
         channelChanges: [desktopFeature],
@@ -136,7 +136,7 @@ void main() {
     test('identical RC is a no-op and dry run suppresses release', () {
       final noOp = planProductRelease(
         product: desktop,
-        channel: ReleaseChannel.rc,
+        channel: .rc,
         tags: const [],
         stableChanges: [desktopFeature],
         channelChanges: const [],
@@ -150,7 +150,7 @@ void main() {
 
       final dryRun = planProductRelease(
         product: desktop,
-        channel: ReleaseChannel.stable,
+        channel: .stable,
         tags: const [],
         stableChanges: [desktopFeature],
         channelChanges: [desktopFeature],
@@ -167,7 +167,7 @@ void main() {
     test('starts the first release candidate at rc zero', () {
       final plan = planProductRelease(
         product: mobile,
-        channel: ReleaseChannel.rc,
+        channel: .rc,
         tags: [parseReleaseTag('v0.4.0-mobile')!],
         stableChanges: [mobileFix],
         channelChanges: [mobileFix],

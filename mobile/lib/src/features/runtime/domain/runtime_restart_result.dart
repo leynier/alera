@@ -1,15 +1,13 @@
 import 'package:alera_mobile/src/core/json_payload_fields.dart';
 
-final class RuntimeRestartResult {
-  const RuntimeRestartResult({
-    required this.forced,
-    required this.activeSessions,
-    required this.activeJobs,
-    required this.activeAgents,
-    required this.activePushSubscriptions,
-  });
-
-  factory RuntimeRestartResult.fromJson(Map<String, Object?> json) {
+final class const RuntimeRestartResult({
+  required final bool forced,
+  required final int activeSessions,
+  required final int activeJobs,
+  required final int activeAgents,
+  required final int activePushSubscriptions,
+}) {
+  factory fromJson(Map<String, Object?> json) {
     return RuntimeRestartResult(
       forced: json['forced'] == true,
       activeSessions: json.requiredInt('activeSessions'),
@@ -18,22 +16,14 @@ final class RuntimeRestartResult {
       activePushSubscriptions: json.requiredInt('activePushSubscriptions'),
     );
   }
-
-  final bool forced;
-  final int activeSessions;
-  final int activeJobs;
-  final int activeAgents;
-  final int activePushSubscriptions;
 }
 
-final class RuntimeRestartBusyException implements Exception {
-  const RuntimeRestartBusyException({
-    required this.activeAgents,
-    required this.activeSessions,
-    required this.activeJobs,
-    required this.activePushSubscriptions,
-  });
-
+final class const RuntimeRestartBusyException({
+  required final int activeAgents,
+  required final int activeSessions,
+  required final int activeJobs,
+  required final int activePushSubscriptions,
+}) implements Exception {
   static final RegExp _pattern = RegExp(
     r'Runtime host has (\d+) active agent\(s\), '
     r'(\d+) active terminal session\(s\), '
@@ -53,11 +43,6 @@ final class RuntimeRestartBusyException implements Exception {
       activePushSubscriptions: int.parse(match.group(4)!),
     );
   }
-
-  final int activeAgents;
-  final int activeSessions;
-  final int activeJobs;
-  final int activePushSubscriptions;
 
   String get confirmationMessage {
     final parts = <String>[

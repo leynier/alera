@@ -8,11 +8,10 @@ import 'package:alera/src/shared/infra/runtime/runtime_host_providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-class AutomationProfilePolicySection extends ConsumerStatefulWidget {
-  const AutomationProfilePolicySection({required this.profileId, super.key});
-
-  final String profileId;
-
+class const AutomationProfilePolicySection({
+  required final String profileId,
+  super.key,
+}) extends ConsumerStatefulWidget {
   @override
   ConsumerState<AutomationProfilePolicySection> createState() =>
       _AutomationProfilePolicySectionState();
@@ -105,13 +104,11 @@ class _AutomationProfilePolicySectionState
     }
     return AleraSettingsGroup(
       title: 'Automation Permissions',
-      description:
-          'Choose whether this profile may administer active definitions and whether it may execute them.',
+      description: 'Choose whether this profile may administer active definitions and whether it may execute them.',
       children: <Widget>[
         SettingsSwitchRow(
           title: 'May Activate Or Edit Active Automations',
-          description:
-              'Allow a managed agent using this profile to activate or edit an active definition.',
+          description: 'Allow a managed agent using this profile to activate or edit an active definition.',
           value: _mayActivateOrEditActive,
           onChanged: (value) {
             setState(() => _mayActivateOrEditActive = value);
@@ -120,8 +117,7 @@ class _AutomationProfilePolicySectionState
         ),
         SettingsSwitchRow(
           title: 'May Execute Automations',
-          description:
-              'Opt this profile into scheduled and manual automation execution.',
+          description: 'Opt this profile into scheduled and manual automation execution.',
           value: _mayExecute,
           onChanged: (value) {
             setState(() => _mayExecute = value);
@@ -133,11 +129,10 @@ class _AutomationProfilePolicySectionState
   }
 }
 
-class AutomationProjectPolicySection extends ConsumerStatefulWidget {
-  const AutomationProjectPolicySection({required this.projectId, super.key});
-
-  final String projectId;
-
+class const AutomationProjectPolicySection({
+  required final String projectId,
+  super.key,
+}) extends ConsumerStatefulWidget {
   @override
   ConsumerState<AutomationProjectPolicySection> createState() =>
       _AutomationProjectPolicySectionState();
@@ -232,8 +227,7 @@ class _AutomationProjectPolicySectionState
     }
     return AleraSettingsGroup(
       title: 'Automation Policy',
-      description:
-          'Repository declaration is read from alera.toml. Local approval can only restrict execution.',
+      description: 'Repository declaration is read from alera.toml. Local approval can only restrict execution.',
       children: <Widget>[
         SettingsSwitchRow(
           title: 'Repository Declares Automations',
@@ -245,8 +239,7 @@ class _AutomationProjectPolicySectionState
         ),
         SettingsSwitchRow(
           title: 'Require Local Approval',
-          description:
-              'Require an explicit human approval in addition to the repository declaration.',
+          description: 'Require an explicit human approval in addition to the repository declaration.',
           value: _restrictive,
           onChanged: (value) {
             setState(() => _restrictive = value);
@@ -255,8 +248,7 @@ class _AutomationProjectPolicySectionState
         ),
         SettingsSwitchRow(
           title: 'Local Approval Granted',
-          description:
-              'Grant the local approval required by a restrictive project policy.',
+          description: 'Grant the local approval required by a restrictive project policy.',
           value: _localApproved,
           onChanged: (value) {
             setState(() => _localApproved = value);

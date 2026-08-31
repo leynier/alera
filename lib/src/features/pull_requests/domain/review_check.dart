@@ -21,20 +21,18 @@ enum ReviewCheckConclusion {
 
 /// A single CI/status check attached to a hosted review, in neutral form.
 @MappableClass()
-class ReviewCheck with ReviewCheckMappable {
-  const ReviewCheck({
-    required this.name,
-    required this.status,
-    required this.conclusion,
-    this.url,
-  });
-
+class const ReviewCheck({
+  required this.name,
+  required this.status,
+  required this.conclusion,
+  this.url,
+}) with ReviewCheckMappable {
   final String name;
   final ReviewCheckStatus status;
   final ReviewCheckConclusion conclusion;
   final String? url;
 
-  factory ReviewCheck.fromJson(Map<String, Object?> json) =>
+  factory fromJson(Map<String, Object?> json) =>
       ReviewCheckMapper.fromMap(Map<String, dynamic>.from(json));
 }
 

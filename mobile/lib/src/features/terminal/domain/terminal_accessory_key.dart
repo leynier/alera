@@ -12,47 +12,33 @@ enum TerminalAccessoryAction { paste }
 /// delivery path. A single class with a nullable action would leave `bytes`
 /// meaningless for action keys, and the failure mode of getting that convention
 /// wrong is writing garbage into a live terminal.
-sealed class TerminalAccessoryKey {
-  const TerminalAccessoryKey({
-    required this.id,
-    required this.label,
-    required this.accessibilityLabel,
-  });
-
-  final String id;
-  final String label;
-  final String accessibilityLabel;
-}
+sealed class const TerminalAccessoryKey({
+  required final String id,
+  required final String label,
+  required final String accessibilityLabel,
+});
 
 /// A key whose [bytes] are the exact sequence written to the PTY.
-final class TerminalAccessoryBytesKey extends TerminalAccessoryKey {
-  const TerminalAccessoryBytesKey({
-    required super.id,
-    required super.label,
-    required super.accessibilityLabel,
-    required this.bytes,
-    this.repeatable = false,
-  });
-
-  final List<int> bytes;
-
+final class const TerminalAccessoryBytesKey({
+  required super.id,
+  required super.label,
+  required super.accessibilityLabel,
+  required final List<int> bytes,
+  this.repeatable = false,
+}) extends TerminalAccessoryKey {
   /// Long-press auto-repeat, for arrows and deletion keys.
   final bool repeatable;
 }
 
 /// A key that runs an action instead of writing bytes, so it can take an async
 /// path such as reading the clipboard and delivering it with bracketed paste.
-final class TerminalAccessoryActionKey extends TerminalAccessoryKey {
-  const TerminalAccessoryActionKey({
-    required super.id,
-    required super.label,
-    required super.accessibilityLabel,
-    required this.action,
-    required this.icon,
-  });
-
-  final TerminalAccessoryAction action;
-
+final class const TerminalAccessoryActionKey({
+  required super.id,
+  required super.label,
+  required super.accessibilityLabel,
+  required final TerminalAccessoryAction action,
+  required this.icon,
+}) extends TerminalAccessoryKey {
   /// Action keys render a glyph; there is no literal key cap to spell.
   final IconData icon;
 }
@@ -86,7 +72,7 @@ const List<TerminalAccessoryKey> builtInTerminalAccessoryKeys =
         id: 'paste',
         label: 'Paste',
         accessibilityLabel: 'Paste Clipboard',
-        action: TerminalAccessoryAction.paste,
+        action: .paste,
         icon: AleraIcons.paste,
       ),
       TerminalAccessoryBytesKey(

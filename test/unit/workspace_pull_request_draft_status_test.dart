@@ -2,7 +2,6 @@ import 'package:alera/src/features/pull_requests/application/forge_provider.dart
 import 'package:alera/src/features/pull_requests/application/forge_provider_registry.dart';
 import 'package:alera/src/features/pull_requests/application/pull_request_providers.dart';
 import 'package:alera/src/features/pull_requests/application/workspace_pull_request_controller.dart';
-import 'package:alera/src/shared/git_hosting/domain/git_hosting_provider.dart';
 import 'package:alera/src/features/pull_requests/domain/hosted_review.dart';
 import 'package:alera/src/features/pull_requests/domain/workspace_pull_request_scope.dart';
 import 'package:alera/src/shared/infra/git/git_providers.dart';
@@ -20,7 +19,7 @@ const _scope = WorkspacePullRequestScope(
 
 HostedReview _review({HostedReviewState state = HostedReviewState.open}) {
   return HostedReview(
-    provider: GitHostingProvider.github,
+    provider: .github,
     number: 123,
     title: 'feat: draft status',
     state: state,
@@ -54,8 +53,7 @@ ProviderContainer _container(FakeForgeProvider forge) {
 
 void main() {
   test('marks a draft pull request ready for review', () async {
-    final forge = FakeForgeProvider()
-      ..branchReview = _review(state: HostedReviewState.draft);
+    final forge = FakeForgeProvider()..branchReview = _review(state: .draft);
     final container = _container(forge);
     addTearDown(container.dispose);
 

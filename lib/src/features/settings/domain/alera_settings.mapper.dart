@@ -3353,4 +3353,3 @@ class _CodexChatSettingsCopyWithImpl<$R, $Out>
     Then<$Out2, $R2> t,
   ) => _CodexChatSettingsCopyWithImpl<$R2, $Out2>($value, $cast, t);
 }
-

@@ -70,11 +70,7 @@ void main() {
   });
 }
 
-class _Host extends StatelessWidget {
-  const _Host({required this.child});
-
-  final Widget child;
-
+class const _Host({required final Widget child}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ProviderScope(

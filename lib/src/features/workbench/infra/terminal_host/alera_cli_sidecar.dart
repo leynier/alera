@@ -4,34 +4,29 @@ import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_p
 import 'package:alera/src/shared/infra/files/posix_file_mode.dart';
 import 'package:path/path.dart' as p;
 
-final class AleraCliCommand {
-  const AleraCliCommand({
-    required this.executable,
-    this.prefixArguments = const <String>[],
-    this.workingDirectory,
-  });
-
-  final String executable;
-  final List<String> prefixArguments;
-  final String? workingDirectory;
-}
+final class const AleraCliCommand({
+  required final String executable,
+  final List<String> prefixArguments = const <String>[],
+  final String? workingDirectory,
+});
 
 abstract interface class AleraCliResolver {
   Future<AleraCliCommand> resolve({required String runtimeDir});
 }
 
-final class DefaultAleraCliResolver implements AleraCliResolver {
-  DefaultAleraCliResolver({
-    Map<String, String>? environment,
-    String? operatingSystem,
-    String? resolvedExecutable,
-    String? currentDirectoryPath,
-  }) : _options = _DefaultAleraCliResolverOptions(
-         environment: environment,
-         operatingSystem: operatingSystem,
-         resolvedExecutable: resolvedExecutable,
-         currentDirectoryPath: currentDirectoryPath,
-       );
+final class DefaultAleraCliResolver({
+  Map<String, String>? environment,
+  String? operatingSystem,
+  String? resolvedExecutable,
+  String? currentDirectoryPath,
+}) implements AleraCliResolver {
+  this
+    : _options = _DefaultAleraCliResolverOptions(
+        environment: environment,
+        operatingSystem: operatingSystem,
+        resolvedExecutable: resolvedExecutable,
+        currentDirectoryPath: currentDirectoryPath,
+      );
 
   final _DefaultAleraCliResolverOptions _options;
 
@@ -219,16 +214,9 @@ String? _nonBlank(String? value) {
   return trimmed;
 }
 
-final class _DefaultAleraCliResolverOptions {
-  const _DefaultAleraCliResolverOptions({
-    required this.environment,
-    required this.operatingSystem,
-    required this.resolvedExecutable,
-    required this.currentDirectoryPath,
-  });
-
-  final Map<String, String>? environment;
-  final String? operatingSystem;
-  final String? resolvedExecutable;
-  final String? currentDirectoryPath;
-}
+final class const _DefaultAleraCliResolverOptions({
+  required final Map<String, String>? environment,
+  required final String? operatingSystem,
+  required final String? resolvedExecutable,
+  required final String? currentDirectoryPath,
+});

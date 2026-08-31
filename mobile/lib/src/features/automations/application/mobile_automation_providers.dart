@@ -24,7 +24,6 @@ Future<List<MobileAutomation>> mobileAutomationCatalog(
   if (!client.supportsAutomations) {
     throw UnsupportedError('This host does not support automations');
   }
-  return MobileRuntimeAutomationRepository(
-    client,
-  ).list(includeTrashed: includeTrashed);
+  return MobileRuntimeAutomationRepository(client)
+      .list(includeTrashed: includeTrashed);
 }

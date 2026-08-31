@@ -49,7 +49,7 @@ Future<Map<String, Object?>> _captureRun(
       '--profile',
       '--dart-define=ALERA_PERF_TRACE=true',
     ],
-    mode: ProcessStartMode.normal,
+    mode: .normal,
     environment: <String, String>{
       ...Platform.environment,
       'ALERA_FLAVOR': 'dev',
@@ -80,7 +80,7 @@ Future<Map<String, Object?>> _captureRun(
     process.stdin.writeln('q');
     await process.stdin.flush();
   } on TimeoutException {
-    process.kill(ProcessSignal.sigterm);
+    process.kill(.sigterm);
     throw StateError('Timed out waiting for Alera first-frame metrics.');
   }
 
@@ -243,21 +243,13 @@ Map<String, Object?>? _performanceRecord(String line) {
   }
 }
 
-class _PerformanceOptions {
-  const _PerformanceOptions({
-    required this.flutterExecutable,
-    required this.outputDirectory,
-    required this.runs,
-    required this.budgetPath,
-    required this.enforceBudget,
-  });
-
-  final String flutterExecutable;
-  final String outputDirectory;
-  final int runs;
-  final String? budgetPath;
-  final bool enforceBudget;
-
+class const _PerformanceOptions({
+  required final String flutterExecutable,
+  required final String outputDirectory,
+  required final int runs,
+  required final String? budgetPath,
+  required final bool enforceBudget,
+}) {
   static _PerformanceOptions parse(List<String> arguments) {
     var flutterExecutable = 'flutter';
     var outputDirectory = '.dart_tool/performance';

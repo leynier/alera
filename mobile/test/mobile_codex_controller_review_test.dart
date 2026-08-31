@@ -18,9 +18,8 @@ void main() {
       );
       final container = ProviderContainer(
         overrides: [
-          mobileCodexClientProvider(
-            'host-review',
-          ).overrideWith((ref) async => codex),
+          mobileCodexClientProvider('host-review')
+              .overrideWith((ref) async => codex),
         ],
       );
       addTearDown(() {

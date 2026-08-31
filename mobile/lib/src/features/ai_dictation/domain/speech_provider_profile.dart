@@ -1,24 +1,14 @@
 import 'speech_capabilities.dart';
 
-class SpeechProviderProfile {
-  const SpeechProviderProfile({
-    required this.id,
-    required this.label,
-    required this.type,
-    required this.baseUrl,
-    this.defaultModel,
-    this.configuredModels = const <String>[],
-    this.timeoutSeconds = 60,
-  });
-
-  final String id;
-  final String label;
-  final SpeechBackend type;
-  final String baseUrl;
-  final String? defaultModel;
-  final List<String> configuredModels;
-  final int timeoutSeconds;
-
+class const SpeechProviderProfile({
+  required final String id,
+  required final String label,
+  required final SpeechBackend type,
+  required final String baseUrl,
+  final String? defaultModel,
+  final List<String> configuredModels = const <String>[],
+  final int timeoutSeconds = 60,
+}) {
   Uri transcriptionUri({bool sendsToken = false}) {
     final uri = Uri.parse(baseUrl.trim());
     if (!uri.hasAuthority || (uri.scheme != 'http' && uri.scheme != 'https')) {

@@ -5,7 +5,7 @@ void _registerAgyAgentHookEventNormalizerTests() {
     expect(
       normalizeAgentHookEvent(
         _event(
-          agentType: AgentType.agy,
+          agentType: .agy,
           hookEventName: 'Stop',
           payload: const <String, Object?>{'fullyIdle': false},
         ),
@@ -15,7 +15,7 @@ void _registerAgyAgentHookEventNormalizerTests() {
     expect(
       normalizeAgentHookEvent(
         _event(
-          agentType: AgentType.agy,
+          agentType: .agy,
           hookEventName: 'Stop',
           payload: const <String, Object?>{'fully_idle': false},
         ),
@@ -25,7 +25,7 @@ void _registerAgyAgentHookEventNormalizerTests() {
     expect(
       normalizeAgentHookEvent(
         _event(
-          agentType: AgentType.agy,
+          agentType: .agy,
           hookEventName: 'Stop',
           payload: const <String, Object?>{'fullyIdle': true},
         ),
@@ -35,7 +35,7 @@ void _registerAgyAgentHookEventNormalizerTests() {
     expect(
       normalizeAgentHookEvent(
         _event(
-          agentType: AgentType.agy,
+          agentType: .agy,
           hookEventName: 'Stop',
           payload: const <String, Object?>{},
         ),

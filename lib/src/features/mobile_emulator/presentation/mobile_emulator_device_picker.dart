@@ -18,9 +18,8 @@ Future<MobileEmulatorDevice?> showMobileEmulatorDevicePicker(
   );
 }
 
-class MobileEmulatorDevicePicker extends ConsumerStatefulWidget {
-  const MobileEmulatorDevicePicker({super.key});
-
+class const MobileEmulatorDevicePicker({super.key})
+    extends ConsumerStatefulWidget {
   @override
   ConsumerState<MobileEmulatorDevicePicker> createState() =>
       _MobileEmulatorDevicePickerState();
@@ -28,7 +27,7 @@ class MobileEmulatorDevicePicker extends ConsumerStatefulWidget {
 
 class _MobileEmulatorDevicePickerState
     extends ConsumerState<MobileEmulatorDevicePicker> {
-  MobileEmulatorPlatform _platform = MobileEmulatorPlatform.android;
+  MobileEmulatorPlatform _platform = .android;
   late Future<_PickerData> _data;
 
   @override
@@ -70,7 +69,7 @@ class _MobileEmulatorDevicePickerState
       child: Padding(
         padding: const EdgeInsets.all(AleraTokens.space20),
         child: Column(
-          mainAxisSize: MainAxisSize.min,
+          mainAxisSize: .min,
           children: <Widget>[
             AleraDialogHeader(
               title: 'Open Mobile Emulator',
@@ -94,7 +93,7 @@ class _MobileEmulatorDevicePickerState
                   }
                   final data = snapshot.data!;
                   return Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    crossAxisAlignment: .stretch,
                     children: <Widget>[
                       AleraSegmentedButton<MobileEmulatorPlatform>(
                         segments: <ButtonSegment<MobileEmulatorPlatform>>[
@@ -162,24 +161,17 @@ class _MobileEmulatorDevicePickerState
   }
 }
 
-class _PickerData {
-  const _PickerData({required this.capabilities, required this.devices});
+class const _PickerData({
+  required final Map<MobileEmulatorPlatform, MobileEmulatorCapability>
+  capabilities,
+  required final List<MobileEmulatorDevice> devices,
+});
 
-  final Map<MobileEmulatorPlatform, MobileEmulatorCapability> capabilities;
-  final List<MobileEmulatorDevice> devices;
-}
-
-class _PickerMessage extends StatelessWidget {
-  const _PickerMessage({
-    required this.message,
-    required this.detail,
-    required this.onRetry,
-  });
-
-  final String message;
-  final String detail;
-  final VoidCallback onRetry;
-
+class const _PickerMessage({
+  required final String message,
+  required final String detail,
+  required final VoidCallback onRetry,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return AleraEmptyState(

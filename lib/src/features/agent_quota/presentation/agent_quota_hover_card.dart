@@ -1,19 +1,14 @@
-part of 'agent_quota_status_bar.dart';
+part of 'agent_quota_status_bar_content.dart';
 
 const double _quotaHoverCardWidth = 360;
 const double _quotaHoverCardMaxHeight = 480;
 
-class _AgentQuotaHoverCard extends StatelessWidget {
-  const _AgentQuotaHoverCard({
-    required this.snapshots,
-    this.profileLabels = const <String, String>{},
-    this.hostId = 'local',
-  });
-
-  final List<AgentQuotaSnapshot> snapshots;
-  final Map<String, String> profileLabels;
-  final String hostId;
-
+class const _AgentQuotaHoverCard({
+  required final List<AgentQuotaSnapshot> snapshots,
+  final Map<String, String> profileLabels = const <String, String>{},
+  final String hostId = 'local',
+  final AgentQuotaInlineActions actions = const AgentQuotaInlineActions(),
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -35,17 +30,16 @@ class _AgentQuotaHoverCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(AleraTokens.radiusLg),
         child: SingleChildScrollView(
           child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
+            mainAxisSize: .min,
+            crossAxisAlignment: .stretch,
             children: <Widget>[
               if (snapshots.isEmpty)
                 Padding(
                   padding: const EdgeInsets.all(AleraTokens.space12),
                   child: Text(
                     _normalizeQuotaText('Quota data unavailable'),
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: AleraTokens.foregroundMuted,
-                    ),
+                    style: Theme.of(context).textTheme.bodySmall
+                        ?.copyWith(color: AleraTokens.foregroundMuted),
                   ),
                 ),
               for (final (index, snapshot) in snapshots.indexed) ...<Widget>[
@@ -55,6 +49,7 @@ class _AgentQuotaHoverCard extends StatelessWidget {
                   snapshot: snapshot,
                   profileLabel: profileLabels[snapshot.key],
                   hostId: hostId,
+                  actions: actions,
                 ),
               ],
             ],
@@ -65,17 +60,12 @@ class _AgentQuotaHoverCard extends StatelessWidget {
   }
 }
 
-class _AgentQuotaHoverSection extends StatelessWidget {
-  const _AgentQuotaHoverSection({
-    required this.snapshot,
-    required this.profileLabel,
-    required this.hostId,
-  });
-
-  final AgentQuotaSnapshot snapshot;
-  final String? profileLabel;
-  final String hostId;
-
+class const _AgentQuotaHoverSection({
+  required final AgentQuotaSnapshot snapshot,
+  required final String? profileLabel,
+  required final String hostId,
+  final AgentQuotaInlineActions actions = const AgentQuotaInlineActions(),
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final entries = _quotaHoverEntries(snapshot);
@@ -83,8 +73,8 @@ class _AgentQuotaHoverSection extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.all(AleraTokens.space12),
       child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
+        mainAxisSize: .min,
+        crossAxisAlignment: .stretch,
         children: <Widget>[
           Row(
             children: <Widget>[
@@ -96,13 +86,13 @@ class _AgentQuotaHoverSection extends StatelessWidget {
               const SizedBox(width: AleraTokens.space8),
               Expanded(
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                  crossAxisAlignment: .start,
                   children: <Widget>[
                     Text(
                       snapshot.provider.label,
                       style: Theme.of(context).textTheme.labelLarge?.copyWith(
                         color: AleraTokens.foreground,
-                        fontWeight: FontWeight.w600,
+                        fontWeight: .w600,
                       ),
                     ),
                     if (profileLabel != null)
@@ -133,10 +123,10 @@ class _AgentQuotaHoverSection extends StatelessWidget {
             ],
           if (snapshot.provider == AgentQuotaProviderId.codex &&
               snapshot.rateLimitResetCredits != null)
-            _CodexResetCreditsPanel(hostId: hostId, snapshot: snapshot),
+            actions.buildCodexReset(hostId: hostId, snapshot: snapshot),
           if (_shouldOfferClaudeTui(snapshot)) ...<Widget>[
             const SizedBox(height: AleraTokens.space12),
-            _ClaudeTryWithTuiButton(hostId: hostId, snapshot: snapshot),
+            actions.buildClaudeTui(hostId: hostId, snapshot: snapshot),
           ],
         ],
       ),
@@ -149,83 +139,10 @@ bool _shouldOfferClaudeTui(AgentQuotaSnapshot snapshot) {
       snapshot.status != AgentQuotaStatus.ok;
 }
 
-class _ClaudeTryWithTuiButton extends ConsumerStatefulWidget {
-  const _ClaudeTryWithTuiButton({required this.hostId, required this.snapshot});
-
-  final String hostId;
-  final AgentQuotaSnapshot snapshot;
-
-  @override
-  ConsumerState<_ClaudeTryWithTuiButton> createState() =>
-      _ClaudeTryWithTuiButtonState();
-}
-
-class _ClaudeTryWithTuiButtonState
-    extends ConsumerState<_ClaudeTryWithTuiButton> {
-  var _loading = false;
-
-  Future<void> _run() async {
-    if (_loading) {
-      return;
-    }
-    setState(() => _loading = true);
-    // The hover card can be disposed while the TUI request is in flight. Keep
-    // its longer-lived scope so the cached result still triggers a refresh.
-    final container = ProviderScope.containerOf(context, listen: false);
-    try {
-      final hostId = widget.hostId;
-      final targets = ref.read(sshTargetsProvider).value ?? const <SshTarget>[];
-      final target = hostId == 'local'
-          ? null
-          : targets.where((candidate) => candidate.id == hostId).firstOrNull;
-      await ref
-          .read(agentQuotaServiceProvider)
-          .fetchClaudeTui(
-            hostId: hostId,
-            target: target,
-            accountId: widget.snapshot.accountId,
-            displayName: widget.snapshot.displayName,
-          );
-    } on Object {
-      // Status bar refresh / next poll shows the updated error snapshot.
-    } finally {
-      container.invalidate(agentQuotaStateProvider);
-      if (mounted) {
-        setState(() => _loading = false);
-      }
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Align(
-      alignment: Alignment.centerRight,
-      child: TextButton(
-        onPressed: _loading ? null : _run,
-        style: TextButton.styleFrom(
-          foregroundColor: AleraTokens.accent,
-          padding: EdgeInsets.zero,
-          minimumSize: Size.zero,
-          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-        ),
-        child: Text(
-          _loading ? 'Trying with TUI...' : 'Try With TUI',
-          style: Theme.of(context).textTheme.labelMedium?.copyWith(
-            color: _loading ? AleraTokens.foregroundFaint : AleraTokens.accent,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _QuotaHoverReading extends StatelessWidget {
-  const _QuotaHoverReading({required this.entry, required this.status});
-
-  final _QuotaHoverEntry entry;
-  final AgentQuotaStatus status;
-
+class const _QuotaHoverReading({
+  required final _QuotaHoverEntry entry,
+  required final AgentQuotaStatus status,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final color = _quotaColor(status, entry.remainingPercent);
@@ -234,17 +151,17 @@ class _QuotaHoverReading extends StatelessWidget {
         _resetText(entry.resetsAt, entry.resetDescription) ??
         'Reset time unavailable';
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+      crossAxisAlignment: .stretch,
       children: <Widget>[
         Row(
           children: <Widget>[
             Expanded(
               child: Text(
                 label,
-                overflow: TextOverflow.ellipsis,
+                overflow: .ellipsis,
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
                   color: AleraTokens.foregroundMuted,
-                  fontWeight: FontWeight.w500,
+                  fontWeight: .w500,
                 ),
               ),
             ),
@@ -254,7 +171,7 @@ class _QuotaHoverReading extends StatelessWidget {
               style: AleraTokens.monoStyle.copyWith(
                 fontSize: 11,
                 color: color,
-                fontWeight: FontWeight.w600,
+                fontWeight: .w600,
               ),
             ),
           ],
@@ -283,41 +200,28 @@ class _QuotaHoverReading extends StatelessWidget {
   }
 }
 
-class _QuotaHoverEmptyState extends StatelessWidget {
-  const _QuotaHoverEmptyState({required this.snapshot});
-
-  final AgentQuotaSnapshot snapshot;
-
+class const _QuotaHoverEmptyState({required final AgentQuotaSnapshot snapshot})
+    extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Text(
       snapshot.error == null
           ? 'Quota data unavailable'
           : _normalizeQuotaText(snapshot.error!),
-      style: Theme.of(
-        context,
-      ).textTheme.bodySmall?.copyWith(color: AleraTokens.foregroundMuted),
+      style: Theme.of(context).textTheme.bodySmall
+          ?.copyWith(color: AleraTokens.foregroundMuted),
     );
   }
 }
 
-class _QuotaHoverEntry {
-  const _QuotaHoverEntry({
-    required this.provider,
-    required this.label,
-    required this.remainingPercent,
-    required this.resetsAt,
-    required this.resetDescription,
-    this.valueText,
-  });
-
-  final AgentQuotaProviderId provider;
-  final String label;
-  final double remainingPercent;
-  final DateTime? resetsAt;
-  final String? resetDescription;
-  final String? valueText;
-}
+class const _QuotaHoverEntry({
+  required final AgentQuotaProviderId provider,
+  required final String label,
+  required final double remainingPercent,
+  required final DateTime? resetsAt,
+  required final String? resetDescription,
+  final String? valueText,
+});
 
 List<_QuotaHoverEntry> _quotaHoverEntries(AgentQuotaSnapshot snapshot) {
   return <_QuotaHoverEntry>[

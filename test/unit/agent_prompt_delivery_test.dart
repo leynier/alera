@@ -27,61 +27,52 @@ void main() {
     });
 
     test('describes every delivery path in the user\'s terms', () {
+      expect(agentPromptDeliveryDescription(.codex), contains('after --'));
       expect(
-        agentPromptDeliveryDescription(AgentType.codex),
-        contains('after --'),
-      );
-      expect(
-        agentPromptDeliveryDescription(AgentType.pi),
+        agentPromptDeliveryDescription(.pi),
         contains('does not accept an option terminator'),
       );
+      expect(agentPromptDeliveryDescription(.opencode), contains('--prompt'));
+      expect(agentPromptDeliveryDescription(.amp), contains('standard input'));
       expect(
-        agentPromptDeliveryDescription(AgentType.opencode),
-        contains('--prompt'),
-      );
-      expect(
-        agentPromptDeliveryDescription(AgentType.amp),
-        contains('standard input'),
-      );
-      expect(
-        agentPromptDeliveryDescription(AgentType.fx),
+        agentPromptDeliveryDescription(.fx),
         contains('report that its interactive interface is ready'),
       );
     });
 
     test('previews the launch line in the shape each agent accepts', () {
       expect(
-        agentPromptDeliveryPreview(AgentType.codex, '  codex --search  '),
+        agentPromptDeliveryPreview(.codex, '  codex --search  '),
         "codex --search -- 'Dispatched Prompt'",
       );
       expect(
-        agentPromptDeliveryPreview(AgentType.claude, 'claude --model opus'),
+        agentPromptDeliveryPreview(.claude, 'claude --model opus'),
         "claude --model opus -- 'Dispatched Prompt'",
       );
       expect(
-        agentPromptDeliveryPreview(AgentType.grok, 'grok --effort high'),
+        agentPromptDeliveryPreview(.grok, 'grok --effort high'),
         "grok --effort high -- 'Dispatched Prompt'",
       );
       expect(
-        agentPromptDeliveryPreview(AgentType.copilot, 'copilot'),
+        agentPromptDeliveryPreview(.copilot, 'copilot'),
         "copilot '--interactive=Dispatched Prompt'",
       );
       expect(
-        agentPromptDeliveryPreview(AgentType.opencode, 'opencode'),
+        agentPromptDeliveryPreview(.opencode, 'opencode'),
         "opencode '--prompt=Dispatched Prompt'",
       );
       expect(
-        agentPromptDeliveryPreview(AgentType.agy, 'agy'),
+        agentPromptDeliveryPreview(.agy, 'agy'),
         "agy '--prompt-interactive=Dispatched Prompt'",
       );
       expect(
-        agentPromptDeliveryPreview(AgentType.pi, 'pi --thinking high'),
+        agentPromptDeliveryPreview(.pi, 'pi --thinking high'),
         "pi --thinking high 'Dispatched Prompt'",
       );
-      expect(agentPromptDeliveryPreview(AgentType.codex, '   '), '');
+      expect(agentPromptDeliveryPreview(.codex, '   '), '');
       // Amp's prompt never reaches the command line.
-      expect(agentPromptDeliveryPreview(AgentType.amp, 'amp'), '');
-      expect(agentPromptDeliveryPreview(AgentType.fx, 'fx'), '');
+      expect(agentPromptDeliveryPreview(.amp, 'amp'), '');
+      expect(agentPromptDeliveryPreview(.fx, 'fx'), '');
     });
   });
 }

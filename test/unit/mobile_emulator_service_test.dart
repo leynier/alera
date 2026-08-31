@@ -25,9 +25,7 @@ void main() {
       });
       final service = MobileEmulatorService(client);
 
-      final devices = await service.devices(
-        platform: MobileEmulatorPlatform.android,
-      );
+      final devices = await service.devices(platform: .android);
 
       expect(devices, hasLength(1));
       expect(devices.single.id, 'pixel-9');
@@ -166,7 +164,7 @@ void main() {
 
   test('workspace emulator payload rejects unknown schemas', () {
     const payload = WorkspaceMobileEmulatorPayload(
-      platform: MobileEmulatorPlatform.ios,
+      platform: .ios,
       deviceId: 'simulator-1',
     );
 
@@ -247,7 +245,7 @@ void main() {
           <String, Object?>{},
         ),
       );
-      await Future<void>.delayed(Duration.zero);
+      await Future.pause(.zero);
       await service.devices();
 
       expect(client.statusRequests, 2);
@@ -283,16 +281,12 @@ void main() {
   );
 }
 
-class _FakeRuntimeHostClient implements RuntimeHostClient {
-  _FakeRuntimeHostClient(
-    this.response, {
-    this.supportsEmulator = true,
-    this.events = const Stream<RuntimeHostEvent>.empty(),
-  });
-
-  final Object? response;
-  final bool supportsEmulator;
-  final Stream<RuntimeHostEvent> events;
+class _FakeRuntimeHostClient(
+  final Object? response, {
+  final bool supportsEmulator = true,
+  final Stream<RuntimeHostEvent> events =
+      const Stream<RuntimeHostEvent>.empty(),
+}) implements RuntimeHostClient {
   String? lastType;
   Map<String, Object?>? lastPayload;
   Duration? lastTimeout;

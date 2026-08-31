@@ -17,29 +17,30 @@ typedef PackageInfoLoader = Future<PackageInfo> Function();
 typedef AleraUrlLauncher = Future<bool> Function(Uri uri);
 typedef LinuxInstallerKindLoader = Future<String?> Function();
 
-class DesktopAleraUpdateService implements AleraUpdateService {
-  DesktopAleraUpdateService({
-    AleraUpdateConfig? config,
-    PackageInfoLoader? loadPackageInfo,
-    AleraUrlLauncher? launchUrl,
-    String? platform,
-    LinuxInstallerKindLoader? loadLinuxInstallerKind,
-    AleraDesktopUpdaterBackend? backend,
-    ProcessRunner? processRunner,
-    String? resolvedExecutable,
-    int? processId,
-    AleraAppExit? exitApp,
-    PackageManagerInstall? packageInstall,
-    PackageManagerUpdateLauncher? packageManagerLauncher,
-    AleraAppRestarter? appRestarter,
-    InstallDirectoryWritabilityProbe? probeInstallDirectory,
-  }) : config = config ?? AleraUpdateConfig.fromEnvironment(),
-       _loadPackageInfo = loadPackageInfo ?? PackageInfo.fromPlatform,
-       _launchUrl = launchUrl ?? _launchExternalUrl,
-       _platform = platform ?? Platform.operatingSystem,
-       _loadLinuxInstallerKind =
-           loadLinuxInstallerKind ?? loadDesktopLinuxInstallerKind,
-       _backend = backend ?? DesktopUpdaterBackend() {
+class DesktopAleraUpdateService({
+  AleraUpdateConfig? config,
+  PackageInfoLoader? loadPackageInfo,
+  AleraUrlLauncher? launchUrl,
+  String? platform,
+  LinuxInstallerKindLoader? loadLinuxInstallerKind,
+  AleraDesktopUpdaterBackend? backend,
+  ProcessRunner? processRunner,
+  String? resolvedExecutable,
+  int? processId,
+  AleraAppExit? exitApp,
+  PackageManagerInstall? packageInstall,
+  PackageManagerUpdateLauncher? packageManagerLauncher,
+  AleraAppRestarter? appRestarter,
+  InstallDirectoryWritabilityProbe? probeInstallDirectory,
+}) implements AleraUpdateService {
+  this
+    : config = config ?? AleraUpdateConfig.fromEnvironment(),
+      _loadPackageInfo = loadPackageInfo ?? PackageInfo.fromPlatform,
+      _launchUrl = launchUrl ?? _launchExternalUrl,
+      _platform = platform ?? Platform.operatingSystem,
+      _loadLinuxInstallerKind =
+          loadLinuxInstallerKind ?? loadDesktopLinuxInstallerKind,
+      _backend = backend ?? DesktopUpdaterBackend() {
     final runner = processRunner ?? const RustProcessRunner();
     final executable = resolvedExecutable ?? Platform.resolvedExecutable;
     _probeInstallDirectory =

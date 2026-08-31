@@ -1,26 +1,16 @@
 part of 'codex_chat_surface.dart';
 
-class _CodexSecondaryRow extends StatelessWidget {
-  const _CodexSecondaryRow({
-    super.key,
-    required this.projection,
-    required this.groupExpanded,
-    required this.expandedToolActions,
-    required this.onToggleGroup,
-    required this.onToggleAction,
-    required this.workspacePath,
-    required this.onOpenAttachment,
-  });
-
-  final _CodexSecondaryRowProjection projection;
-  final bool groupExpanded;
-  final Set<String> expandedToolActions;
-  final ValueChanged<String> onToggleGroup;
-  final ValueChanged<String> onToggleAction;
-  final String workspacePath;
-  final Future<void> Function(String path, {required bool isImage})
-  onOpenAttachment;
-
+class const _CodexSecondaryRow({
+  super.key,
+  required final _CodexSecondaryRowProjection projection,
+  required final bool groupExpanded,
+  required final Set<String> expandedToolActions,
+  required final ValueChanged<String> onToggleGroup,
+  required final ValueChanged<String> onToggleAction,
+  required final String workspacePath,
+  required final Future<void> Function(String path, {required bool isImage})
+  onOpenAttachment,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final Widget child;

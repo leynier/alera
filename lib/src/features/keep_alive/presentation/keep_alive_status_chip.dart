@@ -3,18 +3,12 @@ import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/features/keep_alive/domain/keep_alive_snapshot.dart';
 import 'package:flutter/material.dart';
 
-class KeepAliveStatusChip extends StatelessWidget {
-  const KeepAliveStatusChip({
-    super.key,
-    required this.snapshot,
-    required this.enabled,
-    required this.onPressed,
-  });
-
-  final KeepAliveSnapshot snapshot;
-  final bool enabled;
-  final VoidCallback onPressed;
-
+class const KeepAliveStatusChip({
+  super.key,
+  required final KeepAliveSnapshot snapshot,
+  required final bool enabled,
+  required final VoidCallback onPressed,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final color = _chipColor(snapshot, enabled: enabled);
@@ -40,7 +34,7 @@ class KeepAliveStatusChip extends StatelessWidget {
                 ),
               ),
               child: Row(
-                mainAxisSize: MainAxisSize.min,
+                mainAxisSize: .min,
                 children: <Widget>[
                   Icon(AleraIcons.keepAlive, size: 13, color: color),
                   const SizedBox(width: AleraTokens.space6),

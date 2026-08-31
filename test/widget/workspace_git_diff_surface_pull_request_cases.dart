@@ -9,8 +9,8 @@ void _registerWorkspaceGitDiffSurfacePullRequestTests() {
         files: <GitDiffFile>[
           GitDiffFile(
             path: 'lib/main.dart',
-            area: GitChangeArea.staged,
-            status: GitChangeStatus.modified,
+            area: .staged,
+            status: .modified,
             lines: <GitDiffLine>[GitDiffLine.addition('+new')],
             sourceLabel: 'Commit',
           ),
@@ -21,10 +21,10 @@ void _registerWorkspaceGitDiffSurfacePullRequestTests() {
       tester,
       backend: backend,
       tab: _diffTab(
-        source: WorkspaceGitDiffSource.pullRequest,
+        source: .pullRequest,
         filePath: null,
         title: 'Pull request #385',
-        scope: WorkspaceGitDiffScope.all,
+        scope: .all,
         area: null,
         commitOid: 'head123',
         parentOid: 'base123',

@@ -123,89 +123,81 @@ void _registerWorkbenchControllerCreateWorkspaceTests() {
     },
   );
 
-  test(
-    'prompt creation opens the agent first and Setup second without a blank terminal',
-    () async {
-      await _harness.dispose();
-      _harness = _WorkbenchHarness(
-        const _ManagedWorkspaceRuntimeWithDeferredSetup(_setupCommand),
-      );
-      _controller = _harness._controller;
-      await _controller.bootstrap();
-      await _flushUntil(
-        () => _controller.state.workspacesFor(_harness.project.id).isNotEmpty,
-      );
+  test('prompt creation opens the agent first and Setup second without a blank terminal', () async {
+    await _harness.dispose();
+    _harness = _WorkbenchHarness(
+      const _ManagedWorkspaceRuntimeWithDeferredSetup(_setupCommand),
+    );
+    _controller = _harness._controller;
+    await _controller.bootstrap();
+    await _flushUntil(
+      () => _controller.state.workspacesFor(_harness.project.id).isNotEmpty,
+    );
 
-      final result = await _controller.createWorkspaceForPrompt(
-        project: _harness.project,
-        sourceBranch: 'main',
-        newBranchName: 'feature/prompt-terminal-order',
-        name: 'Prompt Terminal Order',
-      );
+    final result = await _controller.createWorkspaceForPrompt(
+      project: _harness.project,
+      sourceBranch: 'main',
+      newBranchName: 'feature/prompt-terminal-order',
+      name: 'Prompt Terminal Order',
+    );
 
-      expect(_controller.state.tabsFor(result.workspace.id), isEmpty);
-      final now = DateTime.utc(2026, 5, 22, 4);
-      await _harness.workbenchRepository.upsertWorkspaceTab(
-        WorkspaceTabRecord(
-          id: 'agent-tab',
-          workspaceId: result.workspace.id,
-          title: 'Codex',
-          createdAt: now,
-          updatedAt: now,
-          payload: const <String, Object?>{
-            workspaceTabTerminalSessionIdPayloadKey: 'agent-tab',
-          },
-        ),
-      );
+    expect(_controller.state.tabsFor(result.workspace.id), isEmpty);
+    final now = DateTime.utc(2026, 5, 22, 4);
+    await _harness.workbenchRepository.upsertWorkspaceTab(
+      WorkspaceTabRecord(
+        id: 'agent-tab',
+        workspaceId: result.workspace.id,
+        title: 'Codex',
+        createdAt: now,
+        updatedAt: now,
+        payload: const <String, Object?>{
+          workspaceTabTerminalSessionIdPayloadKey: 'agent-tab',
+        },
+      ),
+    );
 
-      await _controller.completePromptWorkspaceCreation(
-        creation: result,
-        agentTabId: 'agent-tab',
-      );
+    await _controller.completePromptWorkspaceCreation(
+      creation: result,
+      agentTabId: 'agent-tab',
+    );
 
-      final tabs = _controller.state.tabsFor(result.workspace.id);
-      expect(tabs.map((tab) => tab.title), <String>['Codex', 'Setup']);
-      expect(tabs.where((tab) => tab.title.startsWith('Terminal ')), isEmpty);
-      expect(tabs.last.initialCommand, _setupCommand);
-      expect(tabs.last.initialCommandOnce, isTrue);
-      expect(tabs.last.autoCloseOnSuccess, isTrue);
-      expect(_controller.state.activeWorkspaceTab?.id, 'agent-tab');
-    },
-  );
+    final tabs = _controller.state.tabsFor(result.workspace.id);
+    expect(tabs.map((tab) => tab.title), <String>['Codex', 'Setup']);
+    expect(tabs.where((tab) => tab.title.startsWith('Terminal ')), isEmpty);
+    expect(tabs.last.initialCommand, _setupCommand);
+    expect(tabs.last.initialCommandOnce, isTrue);
+    expect(tabs.last.autoCloseOnSuccess, isTrue);
+    expect(_controller.state.activeWorkspaceTab?.id, 'agent-tab');
+  });
 
-  test(
-    'createWorkspace leaves the workspace with one terminal when nothing is deferred',
-    () async {
-      await _harness.dispose();
-      _harness = _WorkbenchHarness(
-        const _ManagedWorkspaceRuntimeWithDeferredSetup(null),
-      );
-      _controller = _harness._controller;
-      await _controller.bootstrap();
-      await _flushUntil(
-        () => _controller.state.workspacesFor(_harness.project.id).isNotEmpty,
-      );
+  test('createWorkspace leaves the workspace with one terminal when nothing is deferred', () async {
+    await _harness.dispose();
+    _harness = _WorkbenchHarness(
+      const _ManagedWorkspaceRuntimeWithDeferredSetup(null),
+    );
+    _controller = _harness._controller;
+    await _controller.bootstrap();
+    await _flushUntil(
+      () => _controller.state.workspacesFor(_harness.project.id).isNotEmpty,
+    );
 
-      final result = await _controller.createWorkspace(
-        project: _harness.project,
-        sourceBranch: 'main',
-        newBranchName: 'feature/no-setup',
-      );
+    final result = await _controller.createWorkspace(
+      project: _harness.project,
+      sourceBranch: 'main',
+      newBranchName: 'feature/no-setup',
+    );
 
-      expect(
-        _controller.state.tabsFor(result.workspace.id).map((tab) => tab.title),
-        <String>['Terminal 1'],
-      );
-    },
-  );
+    expect(
+      _controller.state.tabsFor(result.workspace.id).map((tab) => tab.title),
+      <String>['Terminal 1'],
+    );
+  });
 }
 
 const String _setupCommand = '/bin/sh "/run/alera/worktree-setup-ws.sh"';
 
-class _ManagedWorkspaceRuntimeWithoutWatcher
+class const _ManagedWorkspaceRuntimeWithoutWatcher()
     implements ManagedWorkspaceRuntime {
-  const _ManagedWorkspaceRuntimeWithoutWatcher();
-
   @override
   Future<WorkspaceCreationResult> createLinkedWorkspace({
     required Project project,
@@ -224,12 +216,12 @@ class _ManagedWorkspaceRuntimeWithoutWatcher
         path: p.join(project.repoPath, 'delayed-workspace'),
         createdAt: now,
         updatedAt: now,
-        kind: WorkspaceKind.linked,
-        status: WorkspaceStatus.active,
+        kind: .linked,
+        status: .active,
         sourceBranch: reuseExistingBranch ? null : sourceBranch,
         reusesExistingBranch: reuseExistingBranch,
       ),
-      setupReport: WorktreeSetupReport.empty,
+      setupReport: .empty,
     );
   }
 
@@ -243,12 +235,9 @@ class _ManagedWorkspaceRuntimeWithoutWatcher
 
 /// Stands in for a host that prepared the worktree setup instead of running it.
 /// A null command is what a host without deferral support reports.
-class _ManagedWorkspaceRuntimeWithDeferredSetup
-    implements ManagedWorkspaceRuntime {
-  const _ManagedWorkspaceRuntimeWithDeferredSetup(this.deferredSetupCommand);
-
-  final String? deferredSetupCommand;
-
+class const _ManagedWorkspaceRuntimeWithDeferredSetup(
+  final String? deferredSetupCommand,
+) implements ManagedWorkspaceRuntime {
   @override
   Future<WorkspaceCreationResult> createLinkedWorkspace({
     required Project project,
@@ -267,12 +256,12 @@ class _ManagedWorkspaceRuntimeWithDeferredSetup
         path: p.join(project.repoPath, 'deferred-workspace'),
         createdAt: now,
         updatedAt: now,
-        kind: WorkspaceKind.linked,
-        status: WorkspaceStatus.active,
+        kind: .linked,
+        status: .active,
         sourceBranch: reuseExistingBranch ? null : sourceBranch,
         reusesExistingBranch: reuseExistingBranch,
       ),
-      setupReport: WorktreeSetupReport.empty,
+      setupReport: .empty,
       deferredSetupCommand: deferredSetupCommand,
     );
   }

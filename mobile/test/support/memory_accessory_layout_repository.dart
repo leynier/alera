@@ -3,9 +3,9 @@ import 'package:alera_mobile/src/features/terminal/domain/terminal_accessory_lay
 
 /// In-memory stand-in for the SharedPreferences-backed repository, so widget
 /// tests get a resolved layout instead of whatever the platform channel does.
-class MemoryAccessoryLayoutRepository implements AccessoryLayoutRepository {
-  MemoryAccessoryLayoutRepository([TerminalAccessoryLayout? initial])
-    : _layout = initial ?? TerminalAccessoryLayout.defaults();
+class MemoryAccessoryLayoutRepository([TerminalAccessoryLayout? initial])
+    implements AccessoryLayoutRepository {
+  this : _layout = initial ?? TerminalAccessoryLayout.defaults();
 
   TerminalAccessoryLayout _layout;
   int saveCount = 0;

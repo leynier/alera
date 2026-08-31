@@ -3,7 +3,7 @@ part of '../managed_agent_hook_installer.dart';
 extension _PiManagedAgentHook on ManagedAgentHookInstallService {
   _ManagedHookArtifact _piArtifact() {
     return _ManagedHookArtifact(
-      agentType: AgentType.pi,
+      agentType: .pi,
       label: 'Pi status extension',
       path: p.join(_piAgentDir(), 'extensions', 'alera-agent-status.ts'),
       content: _piExtensionSource(),

@@ -6,12 +6,10 @@ import 'package:path/path.dart' as p;
 
 void main() {
   test('packages Linux releases as packages plus one tarball', () {
-    final workflow = File(
-      '.github/workflows/release-cut.yml',
-    ).readAsStringSync();
-    final packageScript = File(
-      'tool/release/package_linux.sh',
-    ).readAsStringSync();
+    final workflow = File('.github/workflows/release-cut.yml')
+        .readAsStringSync();
+    final packageScript = File('tool/release/package_linux.sh')
+        .readAsStringSync();
 
     expect(workflow, contains('- name: Package Linux release'));
     expect(workflow, isNot(contains('- name: Package RC Linux release')));
@@ -49,20 +47,16 @@ void main() {
     expect(packageScript, contains('Requires: vulkan-loader'));
   });
 
-  test(
-    'packages Linux RC metadata with dependency-safe versions',
-    () async {
-      final temp = await Directory.systemTemp.createTemp(
-        'alera-linux-package-',
-      );
-      addTearDown(() => temp.deleteSync(recursive: true));
-      final bundle = Directory(p.join(temp.path, 'bundle'))..createSync();
-      File(p.join(bundle.path, 'alera')).writeAsStringSync('binary');
-      final output = Directory(p.join(temp.path, 'output'))..createSync();
-      final fakeBin = Directory(p.join(temp.path, 'bin'))..createSync();
-      final capturedSpec = File(p.join(temp.path, 'alera.spec'));
-      final fakeRpmbuild = File(p.join(fakeBin.path, 'rpmbuild'))
-        ..writeAsStringSync('''
+  test('packages Linux RC metadata with dependency-safe versions', () async {
+    final temp = await Directory.systemTemp.createTemp('alera-linux-package-');
+    addTearDown(() => temp.deleteSync(recursive: true));
+    final bundle = Directory(p.join(temp.path, 'bundle'))..createSync();
+    File(p.join(bundle.path, 'alera')).writeAsStringSync('binary');
+    final output = Directory(p.join(temp.path, 'output'))..createSync();
+    final fakeBin = Directory(p.join(temp.path, 'bin'))..createSync();
+    final capturedSpec = File(p.join(temp.path, 'alera.spec'));
+    final fakeRpmbuild = File(p.join(fakeBin.path, 'rpmbuild'))
+      ..writeAsStringSync('''
 #!/bin/sh
 set -eu
 for argument do
@@ -73,50 +67,45 @@ mkdir -p "\$topdir/RPMS/x86_64"
 cp "\$spec" "\$ALERA_CAPTURE_SPEC"
 printf 'rpm fixture\\n' >"\$topdir/RPMS/x86_64/alera-test.rpm"
 ''');
-      final chmod = await Process.run('chmod', <String>[
-        '+x',
-        fakeRpmbuild.path,
-      ]);
-      expect(chmod.exitCode, 0);
+    final chmod = await Process.run('chmod', <String>['+x', fakeRpmbuild.path]);
+    expect(chmod.exitCode, 0);
 
-      final package = await Process.run(
-        'bash',
-        <String>[
-          'tool/release/package_linux.sh',
-          bundle.path,
-          output.path,
-          '1.2.3-rc.0',
-          '1.2.3',
-          '99',
-        ],
-        workingDirectory: Directory.current.path,
-        environment: <String, String>{
-          'PATH': '${fakeBin.path}:${Platform.environment['PATH']}',
-          'ALERA_CAPTURE_SPEC': capturedSpec.path,
-        },
-      );
+    final package = await Process.run(
+      'bash',
+      <String>[
+        'tool/release/package_linux.sh',
+        bundle.path,
+        output.path,
+        '1.2.3-rc.0',
+        '1.2.3',
+        '99',
+      ],
+      workingDirectory: Directory.current.path,
+      environment: <String, String>{
+        'PATH': '${fakeBin.path}:${Platform.environment['PATH']}',
+        'ALERA_CAPTURE_SPEC': capturedSpec.path,
+      },
+    );
 
-      expect(
-        package.exitCode,
-        0,
-        reason: 'stdout:\n${package.stdout}\nstderr:\n${package.stderr}',
-      );
-      final deb = p.join(output.path, 'alera-1.2.3-rc.0-linux.deb');
-      final control = await Process.run('dpkg-deb', <String>['--field', deb]);
-      expect(control.exitCode, 0);
-      expect(control.stdout, contains('Version: 1.2.3~rc.0-99'));
-      expect(control.stdout, contains('libmpv2'));
-      final spec = capturedSpec.readAsStringSync();
-      expect(spec, contains('Version: 1.2.3'));
-      expect(spec, contains('Release: 0.rc.0.99%{?dist}'));
-      expect(spec, contains('Requires: mpv-libs'));
-      expect(
-        File(p.join(output.path, 'alera-1.2.3-rc.0-linux.rpm')).lengthSync(),
-        greaterThan(0),
-      );
-    },
-    skip: !Platform.isLinux,
-  );
+    expect(
+      package.exitCode,
+      0,
+      reason: 'stdout:\n${package.stdout}\nstderr:\n${package.stderr}',
+    );
+    final deb = p.join(output.path, 'alera-1.2.3-rc.0-linux.deb');
+    final control = await Process.run('dpkg-deb', <String>['--field', deb]);
+    expect(control.exitCode, 0);
+    expect(control.stdout, contains('Version: 1.2.3~rc.0-99'));
+    expect(control.stdout, contains('libmpv2'));
+    final spec = capturedSpec.readAsStringSync();
+    expect(spec, contains('Version: 1.2.3'));
+    expect(spec, contains('Release: 0.rc.0.99%{?dist}'));
+    expect(spec, contains('Requires: mpv-libs'));
+    expect(
+      File(p.join(output.path, 'alera-1.2.3-rc.0-linux.rpm')).lengthSync(),
+      greaterThan(0),
+    );
+  }, skip: !Platform.isLinux);
 
   group('build_linux_repositories.sh', () {
     test('publishes the public key that signs the repositories', () async {
@@ -221,27 +210,16 @@ printf 'rpm fixture\\n' >"\$topdir/RPMS/x86_64/alera-test.rpm"
 /// `apt-ftparchive` and `createrepo_c` are stubbed on `PATH` because the script
 /// only needs them to produce files it then signs, and neither is installed on
 /// a developer machine by default.
-class _LinuxRepositoryFixture {
-  _LinuxRepositoryFixture._({
-    required this.root,
-    required this.publicDir,
-    required this.releaseAssets,
-    required this.tempRoot,
-    required this.gpgHome,
-    required this.fingerprint,
-    required this.privateKeyBase64,
-    required this.fakeBin,
-  });
-
-  final Directory root;
-  final Directory publicDir;
-  final Directory releaseAssets;
-  final Directory tempRoot;
-  final Directory gpgHome;
-  final String fingerprint;
-  final String privateKeyBase64;
-  final Directory fakeBin;
-
+class _LinuxRepositoryFixture._({
+  required final Directory root,
+  required final Directory publicDir,
+  required final Directory releaseAssets,
+  required final Directory tempRoot,
+  required final Directory gpgHome,
+  required final String fingerprint,
+  required final String privateKeyBase64,
+  required final Directory fakeBin,
+}) {
   static Future<_LinuxRepositoryFixture> create() async {
     final root = await Directory.systemTemp.createTemp('alera-linux-repo-');
     final gpgHome = Directory(p.join(root.path, 'gpg'))..createSync();
@@ -284,12 +262,10 @@ class _LinuxRepositoryFixture {
     final publicDir = Directory(p.join(root.path, 'public'))..createSync();
     final releaseAssets = Directory(p.join(root.path, 'release-assets'))
       ..createSync();
-    File(
-      p.join(releaseAssets.path, 'alera-1.0.0-linux.deb'),
-    ).writeAsStringSync('deb');
-    File(
-      p.join(releaseAssets.path, 'alera-1.0.0-linux.rpm'),
-    ).writeAsStringSync('rpm');
+    File(p.join(releaseAssets.path, 'alera-1.0.0-linux.deb'))
+        .writeAsStringSync('deb');
+    File(p.join(releaseAssets.path, 'alera-1.0.0-linux.rpm'))
+        .writeAsStringSync('rpm');
 
     final fakeBin = Directory(p.join(root.path, 'bin'))..createSync();
     _writeExecutable(p.join(fakeBin.path, 'apt-ftparchive'), '''

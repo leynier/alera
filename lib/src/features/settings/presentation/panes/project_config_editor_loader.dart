@@ -4,51 +4,32 @@ import 'package:alera/src/shared/git_hosting/domain/git_hosting_provider.dart';
 import 'package:alera/src/features/settings/presentation/panes/project_config_editor.dart';
 import 'package:flutter/material.dart';
 
-class ProjectConfigEditorLoader extends StatelessWidget {
-  const ProjectConfigEditorLoader({
-    super.key,
-    required this.project,
-    required this.overrideConfig,
-    required this.repoConfigFuture,
-    required this.saveError,
-    required this.saving,
-    required this.seedEditor,
-    required this.updateCopyRule,
-    required this.removeCopyRule,
-    required this.addCopyRule,
-    required this.updateSetupCommand,
-    required this.removeSetupCommand,
-    required this.addSetupCommand,
-    required this.onPromptAppendChanged,
-    required this.saveOverride,
-    required this.useRepoFile,
-    required this.onGitHostingProviderChanged,
-  });
-
-  final Project project;
-  final ProjectConfig? overrideConfig;
-  final Future<ProjectConfig?> repoConfigFuture;
-  final String? saveError;
-  final bool saving;
-  final ({
+class const ProjectConfigEditorLoader({
+  super.key,
+  required final Project project,
+  required final ProjectConfig? overrideConfig,
+  required final Future<ProjectConfig?> repoConfigFuture,
+  required final String? saveError,
+  required final bool saving,
+  required final ({
     List<EditableCopyRule> copyRules,
     List<String> setupCommands,
     String promptAppend,
     GitHostingProvider? gitHostingProvider,
   })
   Function({required Project project, required ProjectConfig config})
-  seedEditor;
-  final ValueChanged<GitHostingProvider?> onGitHostingProviderChanged;
-  final void Function(int index, EditableCopyRule rule) updateCopyRule;
-  final ValueChanged<int> removeCopyRule;
-  final VoidCallback addCopyRule;
-  final void Function(int index, String command) updateSetupCommand;
-  final ValueChanged<int> removeSetupCommand;
-  final VoidCallback addSetupCommand;
-  final ValueChanged<String> onPromptAppendChanged;
-  final Future<void> Function(Project project) saveOverride;
-  final Future<void> Function()? useRepoFile;
-
+  seedEditor,
+  required final void Function(int index, EditableCopyRule rule) updateCopyRule,
+  required final ValueChanged<int> removeCopyRule,
+  required final VoidCallback addCopyRule,
+  required final void Function(int index, String command) updateSetupCommand,
+  required final ValueChanged<int> removeSetupCommand,
+  required final VoidCallback addSetupCommand,
+  required final ValueChanged<String> onPromptAppendChanged,
+  required final Future<void> Function(Project project) saveOverride,
+  required final Future<void> Function()? useRepoFile,
+  required final ValueChanged<GitHostingProvider?> onGitHostingProviderChanged,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final override = overrideConfig;
@@ -84,10 +65,7 @@ class ProjectConfigEditorLoader extends StatelessWidget {
           return const Center(child: CircularProgressIndicator());
         }
         if (snapshot.hasError) {
-          final editorState = seedEditor(
-            project: project,
-            config: ProjectConfig.empty,
-          );
+          final editorState = seedEditor(project: project, config: .empty);
           return ProjectConfigEditor(
             project: project,
             sourceLabel: 'Repo file error',

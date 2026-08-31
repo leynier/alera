@@ -1,24 +1,14 @@
 part of 'create_workspace_dialog.dart';
 
-class _ProjectPicker extends StatelessWidget {
-  const _ProjectPicker({
-    required this.projects,
-    required this.selectedProject,
-    required this.query,
-    required this.controller,
-    required this.onQueryChanged,
-    required this.onSelectProject,
-    required this.getProjectActiveBranch,
-  });
-
-  final List<Project> projects;
-  final Project? selectedProject;
-  final String query;
-  final TextEditingController controller;
-  final ValueChanged<String> onQueryChanged;
-  final ValueChanged<Project> onSelectProject;
-  final String? Function(Project project) getProjectActiveBranch;
-
+class const _ProjectPicker({
+  required final List<Project> projects,
+  required final Project? selectedProject,
+  required final String query,
+  required final TextEditingController controller,
+  required final ValueChanged<String> onQueryChanged,
+  required final ValueChanged<Project> onSelectProject,
+  required final String? Function(Project project) getProjectActiveBranch,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -32,7 +22,7 @@ class _ProjectPicker extends StatelessWidget {
     ];
 
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: .start,
       children: <Widget>[
         Text(
           'Project',
@@ -79,29 +69,17 @@ class _ProjectPicker extends StatelessWidget {
   }
 }
 
-class _SourceBranchPicker extends StatelessWidget {
-  const _SourceBranchPicker({
-    required this.label,
-    required this.searchHint,
-    required this.emptyMessage,
-    required this.branches,
-    required this.selectedBranch,
-    required this.query,
-    required this.controller,
-    required this.onQueryChanged,
-    required this.onSelectBranch,
-  });
-
-  final String label;
-  final String searchHint;
-  final String emptyMessage;
-  final List<String> branches;
-  final String? selectedBranch;
-  final String query;
-  final TextEditingController controller;
-  final ValueChanged<String> onQueryChanged;
-  final ValueChanged<String> onSelectBranch;
-
+class const _SourceBranchPicker({
+  required final String label,
+  required final String searchHint,
+  required final String emptyMessage,
+  required final List<String> branches,
+  required final String? selectedBranch,
+  required final String query,
+  required final TextEditingController controller,
+  required final ValueChanged<String> onQueryChanged,
+  required final ValueChanged<String> onSelectBranch,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -114,7 +92,7 @@ class _SourceBranchPicker extends StatelessWidget {
     ];
 
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: .start,
       children: <Widget>[
         Text(
           label,
@@ -163,27 +141,19 @@ class _SourceBranchPicker extends StatelessWidget {
   }
 }
 
-class _PickerPanel extends StatelessWidget {
-  const _PickerPanel({
-    required this.maxHeight,
-    required this.isEmpty,
-    required this.emptyMessage,
-    required this.itemCount,
-    required this.itemBuilder,
-  });
-
-  final double maxHeight;
-  final bool isEmpty;
-  final String emptyMessage;
-  final int itemCount;
-  final NullableIndexedWidgetBuilder itemBuilder;
-
+class const _PickerPanel({
+  required final double maxHeight,
+  required final bool isEmpty,
+  required final String emptyMessage,
+  required final int itemCount,
+  required final NullableIndexedWidgetBuilder itemBuilder,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final radius = BorderRadius.circular(AleraTokens.radiusMd);
     return Container(
       constraints: BoxConstraints(maxHeight: maxHeight),
-      clipBehavior: Clip.antiAlias,
+      clipBehavior: .antiAlias,
       decoration: BoxDecoration(
         color: AleraTokens.surfaceVariant,
         borderRadius: radius,
@@ -201,9 +171,7 @@ class _PickerPanel extends StatelessWidget {
   }
 }
 
-class _LoadingBranches extends StatelessWidget {
-  const _LoadingBranches();
-
+class const _LoadingBranches() extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -214,7 +182,7 @@ class _LoadingBranches extends StatelessWidget {
           height: 72,
           alignment: Alignment.center,
           child: Row(
-            mainAxisSize: MainAxisSize.min,
+            mainAxisSize: .min,
             children: <Widget>[
               const SizedBox(
                 width: 14,

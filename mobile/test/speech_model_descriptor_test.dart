@@ -10,8 +10,8 @@ void main() {
       id: 'zipformer-en',
       label: 'Streaming English',
       description: 'A streaming test model.',
-      runtime: SpeechModelRuntime.sherpaOnnx,
-      mode: SpeechRecognitionMode.streaming,
+      runtime: .sherpaOnnx,
+      mode: .streaming,
       artifacts: <SpeechModelArtifact>[
         SpeechModelArtifact(
           id: 'encoder',
@@ -34,7 +34,7 @@ void main() {
         SpeechExecutionProvider.auto,
         SpeechExecutionProvider.cpu,
       },
-      preferredProvider: SpeechExecutionProvider.auto,
+      preferredProvider: .auto,
     );
 
     final decoded = SpeechModelDescriptor.fromJson(descriptor.toJson());
@@ -52,8 +52,8 @@ void main() {
         id: 'unsafe',
         label: 'Unsafe',
         description: 'Invalid descriptor.',
-        runtime: SpeechModelRuntime.sherpaOnnx,
-        mode: SpeechRecognitionMode.streaming,
+        runtime: .sherpaOnnx,
+        mode: .streaming,
         artifacts: <SpeechModelArtifact>[
           SpeechModelArtifact(
             id: 'encoder',
@@ -72,7 +72,7 @@ void main() {
     const profile = SpeechProviderProfile(
       id: 'office',
       label: 'Office STT',
-      type: SpeechBackend.openAiCompatible,
+      type: .openAiCompatible,
       baseUrl: 'https://speech.example.test/v1/',
     );
 
@@ -103,7 +103,7 @@ void main() {
     });
 
     expect(capabilities.platform, 'macos');
-    expect(capabilities.supports(SpeechBackend.whisper), isTrue);
+    expect(capabilities.supports(.whisper), isTrue);
     expect(capabilities.backends.single.models.single.installed, isTrue);
   });
 

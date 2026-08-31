@@ -1,9 +1,11 @@
 import 'dart:async';
+
 import 'package:alera_mobile/src/features/codex_chat/application/mobile_codex_controller.dart';
 import 'package:alera_mobile/src/features/codex_chat/domain/mobile_codex_state.dart';
 import 'package:alera_mobile/src/features/runtime/domain/runtime_client_surfaces.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+
 import 'support/fake_mobile_codex_client.dart';
 
 void main() {
@@ -21,9 +23,8 @@ void main() {
           );
           final container = ProviderContainer(
             overrides: [
-              mobileCodexClientProvider(
-                'legacy-transition',
-              ).overrideWith((ref) async => client),
+              mobileCodexClientProvider('legacy-transition')
+                  .overrideWith((ref) async => client),
             ],
           );
           addTearDown(() {

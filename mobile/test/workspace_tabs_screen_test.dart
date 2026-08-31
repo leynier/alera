@@ -15,6 +15,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:alera_mobile/src/features/runtime/domain/runtime_client_surfaces.dart';
+
 import 'support/fake_terminal_client.dart';
 import 'support/fake_mobile_codex_client.dart';
 
@@ -36,15 +37,12 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
-          terminalClientProvider(
-            'host-1',
-          ).overrideWith((ref) async => terminalClient),
-          workspaceClientProvider(
-            'host-1',
-          ).overrideWith((ref) async => terminalClient),
-          mobileCodexClientProvider(
-            'host-1',
-          ).overrideWith((ref) async => codexClient),
+          terminalClientProvider('host-1')
+              .overrideWith((ref) async => terminalClient),
+          workspaceClientProvider('host-1')
+              .overrideWith((ref) async => terminalClient),
+          mobileCodexClientProvider('host-1')
+              .overrideWith((ref) async => codexClient),
         ],
         child: const MaterialApp(
           home: WorkspaceTabsScreen(
@@ -70,7 +68,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('New Terminal'), findsOneWidget);
     expect(find.text('New Codex Chat'), findsOneWidget);
-    await tester.tapAt(Offset.zero);
+    await tester.tapAt(.zero);
     await tester.pumpAndSettle();
 
     await tester.longPressAt(
@@ -96,15 +94,12 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
-          terminalClientProvider(
-            'host-1',
-          ).overrideWith((ref) async => terminalClient),
-          workspaceClientProvider(
-            'host-1',
-          ).overrideWith((ref) async => terminalClient),
-          mobileCodexClientProvider(
-            'host-1',
-          ).overrideWith((ref) async => codexClient),
+          terminalClientProvider('host-1')
+              .overrideWith((ref) async => terminalClient),
+          workspaceClientProvider('host-1')
+              .overrideWith((ref) async => terminalClient),
+          mobileCodexClientProvider('host-1')
+              .overrideWith((ref) async => codexClient),
         ],
         child: const MaterialApp(
           home: WorkspaceTabsScreen(
@@ -146,15 +141,12 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
-          terminalClientProvider(
-            'host-1',
-          ).overrideWith((ref) async => terminalClient),
-          workspaceClientProvider(
-            'host-1',
-          ).overrideWith((ref) async => terminalClient),
-          mobileCodexClientProvider(
-            'host-1',
-          ).overrideWith((ref) async => codexClient),
+          terminalClientProvider('host-1')
+              .overrideWith((ref) async => terminalClient),
+          workspaceClientProvider('host-1')
+              .overrideWith((ref) async => terminalClient),
+          mobileCodexClientProvider('host-1')
+              .overrideWith((ref) async => codexClient),
         ],
         child: const MaterialApp(
           home: WorkspaceTabsScreen(
@@ -186,15 +178,12 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
-          terminalClientProvider(
-            'host-1',
-          ).overrideWith((ref) async => terminalClient),
-          workspaceClientProvider(
-            'host-1',
-          ).overrideWith((ref) async => terminalClient),
-          mobileCodexClientProvider(
-            'host-1',
-          ).overrideWith((ref) async => codexClient),
+          terminalClientProvider('host-1')
+              .overrideWith((ref) async => terminalClient),
+          workspaceClientProvider('host-1')
+              .overrideWith((ref) async => terminalClient),
+          mobileCodexClientProvider('host-1')
+              .overrideWith((ref) async => codexClient),
         ],
         child: const MaterialApp(
           home: WorkspaceTabsScreen(
@@ -329,9 +318,8 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byType(TerminalTabView), findsOneWidget);
 
-    ProviderScope.containerOf(
-      tester.element(find.byType(WorkspaceTabsScreen)),
-    ).invalidate(terminalClientProvider('host-1'));
+    ProviderScope.containerOf(tester.element(find.byType(WorkspaceTabsScreen)))
+        .invalidate(terminalClientProvider('host-1'));
     await tester.pump();
 
     expect(find.byType(TerminalTabView), findsOneWidget);

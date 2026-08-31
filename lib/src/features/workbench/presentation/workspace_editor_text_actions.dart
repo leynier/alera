@@ -39,7 +39,7 @@ extension _WorkspaceEditorTextActions on _WorkspaceEditorSurfaceState {
   Offset _editorCenterGlobalPosition(BuildContext context) {
     final renderObject = context.findRenderObject();
     if (renderObject is RenderBox) {
-      return renderObject.localToGlobal(renderObject.size.center(Offset.zero));
+      return renderObject.localToGlobal(renderObject.size.center(.zero));
     }
     return Offset.zero;
   }
@@ -77,9 +77,8 @@ extension _WorkspaceEditorTextActions on _WorkspaceEditorSurfaceState {
       focusColor: AleraTokens.surfaceElevated,
       hoverColor: AleraTokens.surfaceElevated,
       splashColor: Colors.transparent,
-      textStyle: Theme.of(
-        context,
-      ).textTheme.bodyMedium!.copyWith(color: AleraTokens.foreground),
+      textStyle: Theme.of(context).textTheme.bodyMedium!
+          .copyWith(color: AleraTokens.foreground),
       itemHeight: AleraTokens.space32 + AleraTokens.space4,
     );
   }

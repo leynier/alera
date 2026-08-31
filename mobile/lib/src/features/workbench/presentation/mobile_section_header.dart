@@ -2,22 +2,15 @@ import 'package:alera_mobile/src/app/theme/alera_tokens.dart';
 import 'package:alera_mobile/src/design_system/icons/alera_icons.dart';
 import 'package:flutter/material.dart';
 
-class MobileSectionHeader extends StatelessWidget {
-  const MobileSectionHeader({
-    super.key,
-    required this.label,
-    required this.count,
-    required this.collapsed,
-    required this.onToggle,
-    this.icon,
-  });
-
-  final String label;
-  final int count;
-  final bool collapsed;
-  final VoidCallback onToggle;
-  final IconData? icon;
-
+class const MobileSectionHeader({
+  super.key,
+  required final String label,
+  required final int count,
+  required final bool collapsed,
+  required final VoidCallback onToggle,
+  final IconData? icon,
+  final VoidCallback? onLongPress,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -29,7 +22,8 @@ class MobileSectionHeader extends StatelessWidget {
       ),
       child: InkWell(
         onTap: onToggle,
-        borderRadius: BorderRadius.circular(AleraTokens.radiusLg),
+        onLongPress: onLongPress,
+        borderRadius: .circular(AleraTokens.radiusLg),
         child: ConstrainedBox(
           constraints: const BoxConstraints(
             minHeight: AleraTokens.minTapTarget,
@@ -54,10 +48,10 @@ class MobileSectionHeader extends StatelessWidget {
                   child: Text(
                     label,
                     maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
+                    overflow: .ellipsis,
                     style: theme.textTheme.labelLarge?.copyWith(
                       color: AleraTokens.foreground,
-                      fontWeight: FontWeight.w600,
+                      fontWeight: .w600,
                     ),
                   ),
                 ),
@@ -66,7 +60,7 @@ class MobileSectionHeader extends StatelessWidget {
                   count.toString(),
                   style: theme.textTheme.labelSmall?.copyWith(
                     color: AleraTokens.foregroundFaint,
-                    fontWeight: FontWeight.w500,
+                    fontWeight: .w500,
                   ),
                 ),
                 const SizedBox(width: AleraTokens.space4),

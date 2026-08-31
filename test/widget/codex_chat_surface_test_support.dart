@@ -41,8 +41,8 @@ Workspace _workspace() {
     path: '/repo/workspace',
     createdAt: now,
     updatedAt: now,
-    kind: WorkspaceKind.main,
-    status: WorkspaceStatus.active,
+    kind: .main,
+    status: .active,
   );
 }
 
@@ -54,7 +54,7 @@ WorkspaceTabRecord _tab({
   return WorkspaceTabRecord(
     id: id,
     workspaceId: workspaceId,
-    kind: WorkspaceTabKind.codex,
+    kind: .codex,
     title: 'Codex',
     createdAt: now,
     updatedAt: now,
@@ -196,8 +196,7 @@ final class _SurfaceRuntimeClient implements RuntimeHostClient {
                   'status': 'completed',
                   'createdAt': '2026-08-02T12:00:00Z',
                   'updatedAt': '2026-08-02T12:00:00Z',
-                  'markdownText':
-                      'Answer from Codex\n\n![Malformed](data:not-valid)\n\n```dart\nvoid main() {}\n```',
+                  'markdownText': 'Answer from Codex\n\n![Malformed](data:not-valid)\n\n```dart\nvoid main() {}\n```',
                 },
                 <String, Object?>{
                   'id': 'reasoning',
@@ -359,16 +358,13 @@ final class _SurfaceSettings extends SettingsController {
   AleraSettings build() => AleraSettings.defaults;
 }
 
-final class _RecordingWorkspaceFileService extends WorkspaceFileService {
-  _RecordingWorkspaceFileService({
-    this.quickOpenMatches = const <native.WorkspaceQuickOpenMatch>[],
-    this.quickOpenSearch,
-    this.savedPrompts = const <native.CodexSavedPrompt>[],
-  });
-
-  final List<native.WorkspaceQuickOpenMatch> quickOpenMatches;
-  final Completer<List<native.WorkspaceQuickOpenMatch>>? quickOpenSearch;
-  final List<native.CodexSavedPrompt> savedPrompts;
+final class _RecordingWorkspaceFileService({
+  final List<native.WorkspaceQuickOpenMatch> quickOpenMatches =
+      const <native.WorkspaceQuickOpenMatch>[],
+  final Completer<List<native.WorkspaceQuickOpenMatch>>? quickOpenSearch,
+  final List<native.CodexSavedPrompt> savedPrompts =
+      const <native.CodexSavedPrompt>[],
+}) extends WorkspaceFileService {
   String? startedWorkspacePath;
   final List<String> savedPromptWorkspacePaths = <String>[];
 

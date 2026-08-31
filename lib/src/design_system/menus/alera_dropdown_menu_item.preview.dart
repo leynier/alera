@@ -17,7 +17,7 @@ Widget aleraDropdownMenuItemPreview() => Material(
   child: const Padding(
     padding: EdgeInsets.all(AleraTokens.space12),
     child: Column(
-      mainAxisSize: MainAxisSize.min,
+      mainAxisSize: .min,
       children: <Widget>[
         AleraDropdownMenuItem(label: 'Copy', onTap: _noop),
         AleraDropdownMenuItem(label: 'Select All', onTap: _noop),

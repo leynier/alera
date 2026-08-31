@@ -7,19 +7,12 @@ import 'dart:io';
 /// shard still compiles every test file. With roughly 1.4s per file the cost is
 /// compilation, not assertion execution, so the split has to happen on the file
 /// list before `flutter test` is invoked.
-class ShardArgs {
-  const ShardArgs({
-    required this.total,
-    required this.index,
-    required this.roots,
-    required this.skips,
-  });
-
-  final int total;
-  final int index;
-  final List<String> roots;
-  final List<String> skips;
-
+class const ShardArgs({
+  required final int total,
+  required final int index,
+  required final List<String> roots,
+  required final List<String> skips,
+}) {
   static ShardArgs parse(List<String> args) {
     int? total;
     int? index;

@@ -96,7 +96,7 @@ extension _CodexDraftActions on _CodexChatSurfaceState {
         content: TextField(
           controller: input,
           autofocus: true,
-          textInputAction: TextInputAction.done,
+          textInputAction: .done,
           onSubmitted: (value) => Navigator.of(context).pop(value),
         ),
         actions: <Widget>[
@@ -224,8 +224,8 @@ extension _CodexDraftActions on _CodexChatSurfaceState {
     }
     try {
       final opened = await launchUrl(
-        Uri.file(resolvedFilePath),
-        mode: LaunchMode.externalApplication,
+        .file(resolvedFilePath),
+        mode: .externalApplication,
       );
       if (!opened) _showMarkdownLinkError();
     } catch (_) {
@@ -298,8 +298,7 @@ extension _CodexDraftActions on _CodexChatSurfaceState {
                 revision: revision,
               )
               ? null
-              : ref.read(provider).error ??
-                    'The queue changed. Your edit is preserved; reopen the message to use the latest revision.',
+              : ref.read(provider).error ?? 'The queue changed. Your edit is preserved; reopen the message to use the latest revision.',
         ),
       ),
     );

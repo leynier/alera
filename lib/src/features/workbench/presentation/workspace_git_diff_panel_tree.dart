@@ -1,54 +1,32 @@
 part of 'workspace_git_diff_panel.dart';
 
-class _GitDiffTree extends StatefulWidget {
-  const _GitDiffTree({
-    required this.workspacePath,
-    required this.area,
-    required this.rows,
-    required this.busy,
-    required this.collapsedTreeNodes,
-    required this.expandedSubmodules,
-    required this.onToggleTreeNode,
-    required this.onToggleSubmodule,
-    required this.onOpenGitDiff,
-    this.onOpenFile,
-    required this.onRevealInExplorer,
-    required this.onStage,
-    required this.onUnstage,
-    required this.onDiscard,
-    required this.onStageArea,
-    required this.onUnstageArea,
-    required this.onDiscardArea,
-    this.showAreaMarker = false,
-    this.unified = false,
-    this.onStagePath,
-    this.onUnstagePath,
-    this.onDiscardPath,
-  });
-
-  final String workspacePath;
-  final GitChangeArea area;
-  final List<GitChangeTreeRow> rows;
-  final bool busy;
-  final Set<String> collapsedTreeNodes;
-  final Set<String> expandedSubmodules;
-  final ValueChanged<String> onToggleTreeNode;
-  final ValueChanged<GitChangeEntry> onToggleSubmodule;
-  final OpenGitDiffTabCallback onOpenGitDiff;
-  final ValueChanged<String>? onOpenFile;
-  final ValueChanged<String> onRevealInExplorer;
-  final ValueChanged<GitChangeEntry> onStage;
-  final ValueChanged<GitChangeEntry> onUnstage;
-  final ValueChanged<GitChangeEntry> onDiscard;
-  final void Function(GitChangeArea area, String? filePath) onStageArea;
-  final void Function(GitChangeArea area, String? filePath) onUnstageArea;
-  final void Function(GitChangeArea area, String? filePath) onDiscardArea;
-  final bool showAreaMarker;
-  final bool unified;
-  final ValueChanged<String?>? onStagePath;
-  final ValueChanged<String?>? onUnstagePath;
-  final ValueChanged<String?>? onDiscardPath;
-
+class const _GitDiffTree({
+  required final String workspacePath,
+  required final GitChangeArea area,
+  required final List<GitChangeTreeRow> rows,
+  required final bool busy,
+  required final Set<String> collapsedTreeNodes,
+  required final Set<String> expandedSubmodules,
+  required final ValueChanged<String> onToggleTreeNode,
+  required final ValueChanged<GitChangeEntry> onToggleSubmodule,
+  required final OpenGitDiffTabCallback onOpenGitDiff,
+  final ValueChanged<String>? onOpenFile,
+  required final ValueChanged<String> onRevealInExplorer,
+  required final ValueChanged<GitChangeEntry> onStage,
+  required final ValueChanged<GitChangeEntry> onUnstage,
+  required final ValueChanged<GitChangeEntry> onDiscard,
+  required final void Function(GitChangeArea area, String? filePath)
+  onStageArea,
+  required final void Function(GitChangeArea area, String? filePath)
+  onUnstageArea,
+  required final void Function(GitChangeArea area, String? filePath)
+  onDiscardArea,
+  final bool showAreaMarker = false,
+  final bool unified = false,
+  final ValueChanged<String?>? onStagePath,
+  final ValueChanged<String?>? onUnstagePath,
+  final ValueChanged<String?>? onDiscardPath,
+}) extends StatefulWidget {
   @override
   State<_GitDiffTree> createState() => _GitDiffTreeState();
 }
@@ -59,7 +37,7 @@ class _GitDiffTreeState extends State<_GitDiffTree> {
     final rows = widget.rows.isEmpty ? _fallbackRows() : widget.rows;
     final directoryCapabilities = _directoryCapabilities(rows);
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+      crossAxisAlignment: .stretch,
       children: <Widget>[
         for (final row in _visibleRows(rows))
           ..._buildRows(row, directoryCapabilities),
@@ -142,7 +120,7 @@ class _GitDiffTreeState extends State<_GitDiffTree> {
                   widget.onOpenGitDiff(
                     relativePath: entry.path,
                     area: entry.area,
-                    scope: WorkspaceGitDiffScope.file,
+                    scope: .file,
                     preview: true,
                   ),
                 ),
@@ -222,37 +200,21 @@ class _GitDirectoryCapabilities {
   }
 }
 
-class _GitDiffDirectoryRow extends StatelessWidget {
-  const _GitDiffDirectoryRow({
-    required this.row,
-    required this.absolutePath,
-    required this.busy,
-    required this.collapsed,
-    required this.canStage,
-    required this.canUnstage,
-    required this.canDiscard,
-    required this.onTap,
-    this.onOpenFile,
-    required this.onRevealInExplorer,
-    required this.onStage,
-    required this.onUnstage,
-    required this.onDiscard,
-  });
-
-  final GitChangeTreeRow row;
-  final String absolutePath;
-  final bool busy;
-  final bool collapsed;
-  final bool canStage;
-  final bool canUnstage;
-  final bool canDiscard;
-  final VoidCallback onTap;
-  final VoidCallback? onOpenFile;
-  final VoidCallback onRevealInExplorer;
-  final VoidCallback onStage;
-  final VoidCallback onUnstage;
-  final VoidCallback onDiscard;
-
+class const _GitDiffDirectoryRow({
+  required final GitChangeTreeRow row,
+  required final String absolutePath,
+  required final bool busy,
+  required final bool collapsed,
+  required final bool canStage,
+  required final bool canUnstage,
+  required final bool canDiscard,
+  required final VoidCallback onTap,
+  final VoidCallback? onOpenFile,
+  required final VoidCallback onRevealInExplorer,
+  required final VoidCallback onStage,
+  required final VoidCallback onUnstage,
+  required final VoidCallback onDiscard,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return _GitDiffBaseRow(
@@ -279,7 +241,7 @@ class _GitDiffDirectoryRow extends StatelessWidget {
                 children: <Widget>[
                   AleraFileIcon(
                     pathOrName: row.name,
-                    kind: AleraFileIconKind.folder,
+                    kind: .folder,
                     isExpanded: !collapsed,
                     size: 15,
                   ),
@@ -288,10 +250,9 @@ class _GitDiffDirectoryRow extends StatelessWidget {
                     child: Text(
                       row.name,
                       maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: AleraTokens.foregroundMuted,
-                      ),
+                      overflow: .ellipsis,
+                      style: Theme.of(context).textTheme.bodySmall
+                          ?.copyWith(color: AleraTokens.foregroundMuted),
                     ),
                   ),
                 ],
@@ -300,9 +261,8 @@ class _GitDiffDirectoryRow extends StatelessWidget {
           ),
           Text(
             '${row.fileCount}',
-            style: Theme.of(context).textTheme.labelSmall?.copyWith(
-              color: AleraTokens.foregroundFaint,
-            ),
+            style: Theme.of(context).textTheme.labelSmall
+                ?.copyWith(color: AleraTokens.foregroundFaint),
           ),
           const SizedBox(width: AleraTokens.space6),
           _AreaActions(
@@ -337,39 +297,22 @@ class _GitDiffDirectoryRow extends StatelessWidget {
   }
 }
 
-class _GitDiffFileRow extends StatelessWidget {
-  const _GitDiffFileRow({
-    required this.entry,
-    required this.absolutePath,
-    required this.depth,
-    required this.onTap,
-    required this.busy,
-    this.onOpenFile,
-    required this.onRevealInExplorer,
-    required this.onStage,
-    required this.onUnstage,
-    required this.onDiscard,
-    this.showRelativePath = false,
-    this.showAreaMarker = false,
-    this.submoduleExpanded = false,
-    this.onToggleSubmodule,
-  });
-
-  final GitChangeEntry entry;
-  final String absolutePath;
-  final int depth;
-  final VoidCallback onTap;
-  final bool busy;
-  final VoidCallback? onOpenFile;
-  final VoidCallback onRevealInExplorer;
-  final ValueChanged<GitChangeEntry> onStage;
-  final ValueChanged<GitChangeEntry> onUnstage;
-  final ValueChanged<GitChangeEntry> onDiscard;
-  final bool showRelativePath;
-  final bool showAreaMarker;
-  final bool submoduleExpanded;
-  final VoidCallback? onToggleSubmodule;
-
+class const _GitDiffFileRow({
+  required final GitChangeEntry entry,
+  required final String absolutePath,
+  required final int depth,
+  required final VoidCallback onTap,
+  required final bool busy,
+  final VoidCallback? onOpenFile,
+  required final VoidCallback onRevealInExplorer,
+  required final ValueChanged<GitChangeEntry> onStage,
+  required final ValueChanged<GitChangeEntry> onUnstage,
+  required final ValueChanged<GitChangeEntry> onDiscard,
+  final bool showRelativePath = false,
+  final bool showAreaMarker = false,
+  final bool submoduleExpanded = false,
+  final VoidCallback? onToggleSubmodule,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return _GitDiffBaseRow(
@@ -383,7 +326,7 @@ class _GitDiffFileRow extends StatelessWidget {
         children: <Widget>[
           if (entry.isExpandableSubmodule)
             GestureDetector(
-              behavior: HitTestBehavior.opaque,
+              behavior: .opaque,
               onTap: onToggleSubmodule,
               child: Padding(
                 padding: const EdgeInsets.only(right: AleraTokens.space2),
@@ -405,11 +348,7 @@ class _GitDiffFileRow extends StatelessWidget {
               isDirectory: entry.submodule != null,
               child: Row(
                 children: <Widget>[
-                  AleraFileIcon(
-                    pathOrName: entry.path,
-                    kind: AleraFileIconKind.file,
-                    size: 15,
-                  ),
+                  AleraFileIcon(pathOrName: entry.path, kind: .file, size: 15),
                   const SizedBox(width: AleraTokens.space6),
                   Expanded(
                     child: Text(
@@ -417,10 +356,9 @@ class _GitDiffFileRow extends StatelessWidget {
                           ? entry.path
                           : entry.path.split('/').last,
                       maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: AleraTokens.foregroundMuted,
-                      ),
+                      overflow: .ellipsis,
+                      style: Theme.of(context).textTheme.bodySmall
+                          ?.copyWith(color: AleraTokens.foregroundMuted),
                     ),
                   ),
                 ],
@@ -432,9 +370,8 @@ class _GitDiffFileRow extends StatelessWidget {
               message: 'Manage inside submodule',
               child: Text(
                 'Inside',
-                style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                  color: AleraTokens.foregroundFaint,
-                ),
+                style: Theme.of(context).textTheme.labelSmall
+                    ?.copyWith(color: AleraTokens.foregroundFaint),
               ),
             ),
           if (entry.isSubmoduleWorktreeOnly)

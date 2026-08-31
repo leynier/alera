@@ -11,8 +11,8 @@ WidgetBuilder aleraDialogPreview() =>
       child: Padding(
         padding: const EdgeInsets.all(AleraTokens.space20),
         child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
+          mainAxisSize: .min,
+          crossAxisAlignment: .stretch,
           children: <Widget>[
             AleraDialogHeader(title: 'Create Workspace', onClose: () {}),
             const SizedBox(height: AleraTokens.space16),

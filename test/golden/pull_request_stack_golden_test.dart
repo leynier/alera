@@ -10,7 +10,7 @@ void main() {
     goldenTest(
       'renders workspace stack creation',
       fileName: 'pull_request_stack_workspace_dialog',
-      constraints: const BoxConstraints.tightFor(width: 840, height: 900),
+      constraints: const .tightFor(width: 840, height: 900),
       builder: () => GoldenTestScenario(
         name: 'Create Stack From Workspaces',
         child: const SizedBox(

@@ -68,15 +68,15 @@ ThemeData _buildAleraGoldenTheme() {
       fillColor: AleraTokens.surfaceVariant,
       contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(AleraTokens.radiusMd),
+        borderRadius: .circular(AleraTokens.radiusMd),
         borderSide: const BorderSide(color: AleraTokens.border),
       ),
       enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(AleraTokens.radiusMd),
+        borderRadius: .circular(AleraTokens.radiusMd),
         borderSide: const BorderSide(color: AleraTokens.border),
       ),
       focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(AleraTokens.radiusMd),
+        borderRadius: .circular(AleraTokens.radiusMd),
         borderSide: const BorderSide(color: AleraTokens.accent),
       ),
       hintStyle: const TextStyle(color: AleraTokens.foregroundMuted),
@@ -159,64 +159,59 @@ TextTheme _buildGoldenTextTheme() {
     headlineMedium: TextStyle(
       fontFamily: family,
       fontSize: 22,
-      fontWeight: FontWeight.w600,
+      fontWeight: .w600,
       color: AleraTokens.foreground,
     ),
     titleLarge: TextStyle(
       fontFamily: family,
       fontSize: 16,
-      fontWeight: FontWeight.w600,
+      fontWeight: .w600,
       color: AleraTokens.foreground,
     ),
     titleMedium: TextStyle(
       fontFamily: family,
       fontSize: 14,
-      fontWeight: FontWeight.w500,
+      fontWeight: .w500,
       color: AleraTokens.foreground,
     ),
     titleSmall: TextStyle(
       fontFamily: family,
       fontSize: 13,
-      fontWeight: FontWeight.w500,
+      fontWeight: .w500,
       color: AleraTokens.foreground,
     ),
     bodyMedium: TextStyle(
       fontFamily: family,
       fontSize: 13,
-      fontWeight: FontWeight.w400,
+      fontWeight: .w400,
       color: AleraTokens.foreground,
     ),
     bodySmall: TextStyle(
       fontFamily: family,
       fontSize: 12,
-      fontWeight: FontWeight.w400,
+      fontWeight: .w400,
       color: AleraTokens.foregroundMuted,
     ),
     labelMedium: TextStyle(
       fontFamily: family,
       fontSize: 11,
-      fontWeight: FontWeight.w500,
+      fontWeight: .w500,
       color: AleraTokens.foregroundMuted,
     ),
     labelSmall: TextStyle(
       fontFamily: family,
       fontSize: 10,
-      fontWeight: FontWeight.w500,
+      fontWeight: .w500,
       color: AleraTokens.foregroundMuted,
     ),
   );
 }
 
-class AleraGoldenScenarioSurface extends StatelessWidget {
-  const AleraGoldenScenarioSurface({
-    super.key,
-    required this.child,
-    this.padding = const EdgeInsets.all(AleraTokens.space16),
-  });
-
-  final Widget child;
-  final EdgeInsetsGeometry padding;
-
+class const AleraGoldenScenarioSurface({
+  super.key,
+  required final Widget child,
+  final EdgeInsetsGeometry padding = const EdgeInsets.all(AleraTokens.space16),
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return DecoratedBox(

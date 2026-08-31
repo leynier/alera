@@ -28,8 +28,8 @@ void main() {
         id: 'project-1',
         name: 'Project',
         repoPath: repoDir.path,
-        createdAt: DateTime.utc(2026),
-        updatedAt: DateTime.utc(2026),
+        createdAt: .utc(2026),
+        updatedAt: .utc(2026),
       );
       workspace = Workspace(
         id: 'workspace-1',
@@ -37,10 +37,10 @@ void main() {
         name: 'Feature',
         branch: 'feature/setup',
         path: workspaceDir.path,
-        createdAt: DateTime.utc(2026),
-        updatedAt: DateTime.utc(2026),
-        kind: WorkspaceKind.linked,
-        status: WorkspaceStatus.active,
+        createdAt: .utc(2026),
+        updatedAt: .utc(2026),
+        kind: .linked,
+        status: .active,
       );
       processRunner = _FakeProcessRunner();
     });
@@ -50,12 +50,11 @@ void main() {
     test('copies files and runs setup commands in order', () async {
       await File(p.join(repoDir.path, '.env')).writeAsString('TOKEN=1\n');
       await Directory(p.join(repoDir.path, '.config')).create();
-      await File(
-        p.join(repoDir.path, '.config', 'tool.json'),
-      ).writeAsString('{}');
+      await File(p.join(repoDir.path, '.config', 'tool.json'))
+          .writeAsString('{}');
       final service = WorktreeSetupService(
         processRunner: processRunner,
-        operatingSystem: WorktreeSetupOperatingSystem.posix,
+        operatingSystem: .posix,
       );
 
       final report = await service.run(
@@ -78,9 +77,8 @@ void main() {
         'TOKEN=1\n',
       );
       expect(
-        await File(
-          p.join(workspaceDir.path, '.copied-config', 'tool.json'),
-        ).readAsString(),
+        await File(p.join(workspaceDir.path, '.copied-config', 'tool.json'))
+            .readAsString(),
         '{}',
       );
       expect(processRunner.calls.map((call) => call.arguments.last), <String>[
@@ -112,39 +110,35 @@ void main() {
       expect(processRunner.calls, isEmpty);
     });
 
-    test(
-      'rejects destination symlink ancestors',
-      () async {
-        await File(p.join(repoDir.path, '.env')).writeAsString('TOKEN=1\n');
-        final outsideDir = Directory(p.join(tempDir.path, 'outside'))
-          ..createSync();
-        await Link(p.join(workspaceDir.path, 'linked')).create(outsideDir.path);
-        final service = WorktreeSetupService(processRunner: processRunner);
+    test('rejects destination symlink ancestors', () async {
+      await File(p.join(repoDir.path, '.env')).writeAsString('TOKEN=1\n');
+      final outsideDir = Directory(p.join(tempDir.path, 'outside'))
+        ..createSync();
+      await Link(p.join(workspaceDir.path, 'linked')).create(outsideDir.path);
+      final service = WorktreeSetupService(processRunner: processRunner);
 
-        final report = await service.run(
-          project: project,
-          workspace: workspace,
-          config: const ProjectConfig(
-            worktree: WorktreeSetupConfig(
-              copy: <WorktreeCopyRule>[
-                WorktreeCopyRule(from: '.env', to: 'linked/.env'),
-              ],
-            ),
+      final report = await service.run(
+        project: project,
+        workspace: workspace,
+        config: const ProjectConfig(
+          worktree: WorktreeSetupConfig(
+            copy: <WorktreeCopyRule>[
+              WorktreeCopyRule(from: '.env', to: 'linked/.env'),
+            ],
           ),
-        );
+        ),
+      );
 
-        expect(report.hasFailures, isTrue);
-        expect(report.steps.single.message, contains('symlink'));
-        expect(File(p.join(outsideDir.path, '.env')).existsSync(), isFalse);
-      },
-      skip: Platform.isWindows ? 'Windows symlink privileges vary.' : false,
-    );
+      expect(report.hasFailures, isTrue);
+      expect(report.steps.single.message, contains('symlink'));
+      expect(File(p.join(outsideDir.path, '.env')).existsSync(), isFalse);
+    }, skip: Platform.isWindows ? 'Windows symlink privileges vary.' : false);
 
     test('stops command execution after the first failure', () async {
       processRunner.exitCodeByCommand['make fail'] = 2;
       final service = WorktreeSetupService(
         processRunner: processRunner,
-        operatingSystem: WorktreeSetupOperatingSystem.posix,
+        operatingSystem: .posix,
       );
 
       final report = await service.run(
@@ -171,7 +165,7 @@ void main() {
         commandEnvironmentResolver: _FakeCommandEnvironmentResolver(
           environment,
         ),
-        operatingSystem: WorktreeSetupOperatingSystem.posix,
+        operatingSystem: .posix,
       );
 
       final report = await service.run(
@@ -189,7 +183,7 @@ void main() {
     test('closes setup command stdin immediately', () async {
       final service = WorktreeSetupService(
         processRunner: processRunner,
-        operatingSystem: WorktreeSetupOperatingSystem.posix,
+        operatingSystem: .posix,
       );
 
       final report = await service.run(
@@ -212,7 +206,7 @@ void main() {
       processRunner.stderrByCommand['make loud'] = stderr;
       final service = WorktreeSetupService(
         processRunner: processRunner,
-        operatingSystem: WorktreeSetupOperatingSystem.posix,
+        operatingSystem: .posix,
       );
 
       final report = await service.run(
@@ -236,14 +230,14 @@ void main() {
     test('builds platform shell invocations', () {
       final posix = shellInvocationFor(
         command: 'echo hi',
-        operatingSystem: WorktreeSetupOperatingSystem.posix,
+        operatingSystem: .posix,
       );
       expect(posix.executable, '/bin/sh');
       expect(posix.arguments, <String>['-c', 'echo hi']);
 
       final windows = shellInvocationFor(
         command: 'echo hi',
-        operatingSystem: WorktreeSetupOperatingSystem.windows,
+        operatingSystem: .windows,
       );
       expect(windows.executable, 'cmd.exe');
       expect(windows.arguments, <String>['/d', '/s', '/c', 'echo hi']);
@@ -316,11 +310,9 @@ class _FakeProcessRunner implements ProcessRunner {
   }
 }
 
-class _FakeCommandEnvironmentResolver implements CommandEnvironmentResolver {
-  const _FakeCommandEnvironmentResolver(this._environment);
-
-  final Map<String, String> _environment;
-
+class const _FakeCommandEnvironmentResolver(
+  final Map<String, String> _environment,
+) implements CommandEnvironmentResolver {
   @override
   Future<Map<String, String>> environment() async => _environment;
 
@@ -340,16 +332,9 @@ Stream<List<int>> _streamText(String value) {
   ]);
 }
 
-class _ProcessCall {
-  const _ProcessCall({
-    required this.executable,
-    required this.arguments,
-    required this.workingDirectory,
-    required this.environment,
-  });
-
-  final String executable;
-  final List<String> arguments;
-  final String? workingDirectory;
-  final Map<String, String>? environment;
-}
+class const _ProcessCall({
+  required final String executable,
+  required final List<String> arguments,
+  required final String? workingDirectory,
+  required final Map<String, String>? environment,
+});

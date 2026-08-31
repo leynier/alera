@@ -16,21 +16,14 @@ enum AiDictationModelTransferStatus {
   failed,
 }
 
-class AiDictationModelTransfer {
-  const AiDictationModelTransfer({
-    this.status = AiDictationModelTransferStatus.idle,
-    this.installed = false,
-    this.receivedBytes = 0,
-    this.totalBytes = 0,
-    this.message,
-  });
-
-  final AiDictationModelTransferStatus status;
-  final bool installed;
-  final int receivedBytes;
-  final int totalBytes;
-  final String? message;
-
+class const AiDictationModelTransfer({
+  final AiDictationModelTransferStatus status =
+      AiDictationModelTransferStatus.idle,
+  final bool installed = false,
+  final int receivedBytes = 0,
+  final int totalBytes = 0,
+  final String? message,
+}) {
   double get progress =>
       totalBytes <= 0 ? 0 : (receivedBytes / totalBytes).clamp(0, 1).toDouble();
 
@@ -50,17 +43,11 @@ class AiDictationModelTransfer {
   );
 }
 
-class AiDictationModelTransfersState {
-  const AiDictationModelTransfersState({
-    required this.models,
-    this.initialized = false,
-    this.activeModelId,
-  });
-
-  final Map<String, AiDictationModelTransfer> models;
-  final bool initialized;
-  final String? activeModelId;
-
+class const AiDictationModelTransfersState({
+  required final Map<String, AiDictationModelTransfer> models,
+  final bool initialized = false,
+  final String? activeModelId,
+}) {
   AiDictationModelTransfer forModel(String id) =>
       models[AiDictationModelStore.modelForId(id)] ??
       const AiDictationModelTransfer();
@@ -148,10 +135,7 @@ class AiDictationModelTransfers extends _$AiDictationModelTransfers {
           normalized,
           state
               .forModel(normalized)
-              .copyWith(
-                status: AiDictationModelTransferStatus.queued,
-                clearMessage: true,
-              ),
+              .copyWith(status: .queued, clearMessage: true),
         );
       }
       return;
@@ -171,7 +155,7 @@ class AiDictationModelTransfers extends _$AiDictationModelTransfers {
       state
           .forModel(normalized)
           .copyWith(
-            status: AiDictationModelTransferStatus.downloading,
+            status: .downloading,
             installed: false,
             receivedBytes: partial,
             totalBytes: totalBytes,
@@ -203,7 +187,7 @@ class AiDictationModelTransfers extends _$AiDictationModelTransfers {
         state
             .forModel(normalized)
             .copyWith(
-              status: AiDictationModelTransferStatus.idle,
+              status: .idle,
               installed: true,
               receivedBytes: totalBytes,
               clearMessage: true,
@@ -216,11 +200,7 @@ class AiDictationModelTransfers extends _$AiDictationModelTransfers {
         normalized,
         state
             .forModel(normalized)
-            .copyWith(
-              status: AiDictationModelTransferStatus.idle,
-              receivedBytes: 0,
-              clearMessage: true,
-            ),
+            .copyWith(status: .idle, receivedBytes: 0, clearMessage: true),
         clearActiveModel: true,
       );
     } on Object catch (error, stackTrace) {
@@ -262,11 +242,7 @@ class AiDictationModelTransfers extends _$AiDictationModelTransfers {
         normalized,
         state
             .forModel(normalized)
-            .copyWith(
-              status: AiDictationModelTransferStatus.idle,
-              receivedBytes: 0,
-              clearMessage: true,
-            ),
+            .copyWith(status: .idle, receivedBytes: 0, clearMessage: true),
       );
       return;
     }

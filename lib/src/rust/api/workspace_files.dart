@@ -4,6 +4,7 @@
 // ignore_for_file: invalid_use_of_internal_member, unused_import, unnecessary_import
 
 import '../frb_generated.dart';
+
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
 // These functions are ignored because they are not marked as `pub`: `content_token`, `copy_recursively`, `ensure_inside_existing_parent`, `ensure_not_descendant`, `entry_for_path`, `from_io`, `has_visible_child`, `ignored_aware_children`, `is_protected_child_path`, `is_protected_relative_path`, `join_relative`, `modified_millis`, `new`, `read_dir_children`, `reject_protected`, `relative_components`, `relative_string`, `resolve_existing_no_follow`, `resolve_existing`, `resolve_new_child`, `sanitize_name`, `shared_workspace_file_error`, `unique_copy_destination`, `workspace_root`

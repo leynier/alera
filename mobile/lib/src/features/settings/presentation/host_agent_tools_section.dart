@@ -3,16 +3,13 @@ import 'package:alera_mobile/src/features/settings/application/host_tools_contro
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-class HostAgentToolsSection extends ConsumerWidget {
-  const HostAgentToolsSection({super.key, required this.hostId});
-
-  final String hostId;
-
+class const HostAgentToolsSection({super.key, required final String hostId})
+    extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final cli = ref.watch(cliRegistrationControllerProvider(hostId));
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+      crossAxisAlignment: .stretch,
       children: <Widget>[
         Text('Host Tools', style: Theme.of(context).textTheme.titleMedium),
         const SizedBox(height: AleraTokens.spaceSm),
@@ -20,7 +17,7 @@ class HostAgentToolsSection extends ConsumerWidget {
           child: Padding(
             padding: AleraTokens.contentPadding,
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
+              crossAxisAlignment: .stretch,
               children: <Widget>[
                 Row(
                   children: <Widget>[
@@ -28,7 +25,7 @@ class HostAgentToolsSection extends ConsumerWidget {
                     const SizedBox(width: AleraTokens.spaceMd),
                     Expanded(
                       child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                        crossAxisAlignment: .start,
                         children: <Widget>[
                           const Text('Alera CLI Command'),
                           Text(
@@ -47,9 +44,8 @@ class HostAgentToolsSection extends ConsumerWidget {
                           ? null
                           : ref
                                 .read(
-                                  cliRegistrationControllerProvider(
-                                    hostId,
-                                  ).notifier,
+                                  cliRegistrationControllerProvider(hostId)
+                                      .notifier,
                                 )
                                 .install,
                       child: Text(
@@ -79,24 +75,18 @@ class HostAgentToolsSection extends ConsumerWidget {
   }
 }
 
-class _SkillInstaller extends ConsumerWidget {
-  const _SkillInstaller({
-    required this.hostId,
-    required this.skill,
-    required this.title,
-  });
-
-  final String hostId;
-  final String skill;
-  final String title;
-
+class const _SkillInstaller({
+  required final String hostId,
+  required final String skill,
+  required final String title,
+}) extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final install = ref.watch(skillInstallControllerProvider(hostId, skill));
     final runner = ref.watch(skillRunnerSelectionProvider(hostId, skill));
     final busy = install.phase == 'installing';
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+      crossAxisAlignment: .stretch,
       children: <Widget>[
         Text(title),
         const SizedBox(height: AleraTokens.spaceSm),

@@ -33,16 +33,13 @@ void _registerWorkspaceWorkbenchViewPaneTests() {
   testWidgets('shows the browser start surface for browser tabs', (
     tester,
   ) async {
-    final tab = _tab('tab-1', title: 'Browser', kind: WorkspaceTabKind.browser);
+    final tab = _tab('tab-1', title: 'Browser', kind: .browser);
 
     await _pumpWorkbenchView(
       tester,
       tabs: <WorkspaceTabRecord>[tab],
       terminalRuntime: terminalRuntime,
-      layout: WorkbenchLayout.single(
-        workspaceId: _workspaceId,
-        tabIds: <String>[tab.id],
-      ),
+      layout: .single(workspaceId: _workspaceId, tabIds: <String>[tab.id]),
       createdTabs: createdTabs,
       selectedTabs: selectedTabs,
       closedTabs: closedTabs,
@@ -62,17 +59,13 @@ void _registerWorkspaceWorkbenchViewPaneTests() {
     tester,
   ) async {
     final terminalTab = _tab('tab-1', title: 'Terminal 1');
-    final editorTab = _tab(
-      'tab-2',
-      title: 'Browser',
-      kind: WorkspaceTabKind.browser,
-    );
+    final editorTab = _tab('tab-2', title: 'Browser', kind: .browser);
 
     await _pumpWorkbenchView(
       tester,
       tabs: <WorkspaceTabRecord>[terminalTab, editorTab],
       terminalRuntime: terminalRuntime,
-      layout: WorkbenchLayout.single(
+      layout: .single(
         workspaceId: _workspaceId,
         groupId: 'group-a',
         tabIds: <String>[editorTab.id, terminalTab.id],
@@ -106,7 +99,7 @@ void _registerWorkspaceWorkbenchViewPaneTests() {
     WorkbenchLayout layoutWithActive(String activeTabId) {
       return WorkbenchLayout(
         workspaceId: _workspaceId,
-        root: WorkbenchLayoutNode.leaf('group-a'),
+        root: .leaf('group-a'),
         groups: <String, WorkbenchPaneGroup>{
           'group-a': WorkbenchPaneGroup(
             id: 'group-a',
@@ -158,11 +151,10 @@ void _registerWorkspaceWorkbenchViewPaneTests() {
       'tab-1': false,
       'tab-2': true,
     });
-    expect(
-      terminalRuntime.requestedTabIds,
-      <String>['tab-1', 'tab-2'],
-      reason: 'a handle is created only when a tab is actually rendered',
-    );
+    expect(terminalRuntime.requestedTabIds, <String>[
+      'tab-1',
+      'tab-2',
+    ], reason: 'a handle is created only when a tab is actually rendered');
   });
 
   testWidgets('dragging the split handle updates the split ratio', (
@@ -180,7 +172,7 @@ void _registerWorkspaceWorkbenchViewPaneTests() {
       layout: _splitLayout(
         firstTabId: tabs[0].id,
         secondTabId: tabs[1].id,
-        axis: WorkbenchSplitAxis.vertical,
+        axis: .vertical,
       ),
       createdTabs: createdTabs,
       selectedTabs: selectedTabs,
@@ -228,7 +220,7 @@ void _registerWorkspaceWorkbenchViewPaneTests() {
     );
 
     final handlePoint = tester.getCenter(find.byType(WorkspaceWorkbenchView));
-    final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+    final mouse = await tester.createGesture(kind: .mouse);
     addTearDown(mouse.removePointer);
     await mouse.addPointer(location: handlePoint);
     await tester.pump();
@@ -288,9 +280,7 @@ void _registerWorkspaceWorkbenchViewPaneTests() {
 
     expect(
       movedTabs,
-      contains(
-        const _MovedTabAction('tab-2', 'group-a', WorkbenchDropZone.left),
-      ),
+      contains(const _MovedTabAction('tab-2', 'group-a', .left)),
     );
   });
 
@@ -322,7 +312,7 @@ void _registerWorkspaceWorkbenchViewPaneTests() {
     await tester.pumpAndSettle();
 
     expect(splitGroups, <_SplitGroupAction>[
-      const _SplitGroupAction('group-a', WorkbenchDropZone.right),
+      const _SplitGroupAction('group-a', .right),
     ]);
 
     await tester.tap(find.byTooltip('Pane actions').first);
@@ -363,9 +353,9 @@ void _registerWorkspaceWorkbenchViewPaneTests() {
     }
 
     expect(splitGroups, <_SplitGroupAction>[
-      const _SplitGroupAction('group-a', WorkbenchDropZone.down),
-      const _SplitGroupAction('group-a', WorkbenchDropZone.left),
-      const _SplitGroupAction('group-a', WorkbenchDropZone.up),
+      const _SplitGroupAction('group-a', .down),
+      const _SplitGroupAction('group-a', .left),
+      const _SplitGroupAction('group-a', .up),
     ]);
   });
 
@@ -437,16 +427,12 @@ void _registerWorkspaceWorkbenchViewPaneTests() {
   });
 
   testWidgets('Codex tabs use the Codex identity icon', (tester) async {
-    final codexTab = _tab(
-      'codex-tab',
-      title: 'Generated title',
-      kind: WorkspaceTabKind.codex,
-    );
+    final codexTab = _tab('codex-tab', title: 'Generated title', kind: .codex);
     await _pumpWorkbenchView(
       tester,
       tabs: <WorkspaceTabRecord>[codexTab],
       terminalRuntime: terminalRuntime,
-      layout: WorkbenchLayout.single(
+      layout: .single(
         workspaceId: _workspaceId,
         groupId: 'group-a',
         tabIds: <String>[codexTab.id],

@@ -39,7 +39,7 @@ void main() {
       ),
       accessToken: 'access',
       refreshToken: 'refresh',
-      accessTokenExpiresAt: DateTime.utc(2026, 8),
+      accessTokenExpiresAt: .utc(2026, 8),
       subscriptions: const <String, RuntimePushPreferences>{
         'runtime-1': RuntimePushPreferences(),
         'runtime-2': RuntimePushPreferences(

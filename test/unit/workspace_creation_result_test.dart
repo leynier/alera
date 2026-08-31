@@ -9,7 +9,7 @@ void main() {
     const success = WorktreeSetupReport(
       steps: <WorktreeSetupStepReport>[
         WorktreeSetupStepReport(
-          kind: WorktreeSetupStepKind.copy,
+          kind: .copy,
           label: 'Copy config',
           succeeded: true,
         ),
@@ -21,7 +21,7 @@ void main() {
     const oneFailure = WorktreeSetupReport(
       steps: <WorktreeSetupStepReport>[
         WorktreeSetupStepReport(
-          kind: WorktreeSetupStepKind.command,
+          kind: .command,
           label: 'Install',
           succeeded: false,
         ),
@@ -33,12 +33,12 @@ void main() {
     const twoFailures = WorktreeSetupReport(
       steps: <WorktreeSetupStepReport>[
         WorktreeSetupStepReport(
-          kind: WorktreeSetupStepKind.command,
+          kind: .command,
           label: 'Install',
           succeeded: false,
         ),
         WorktreeSetupStepReport(
-          kind: WorktreeSetupStepKind.config,
+          kind: .config,
           label: 'Configure',
           succeeded: false,
         ),

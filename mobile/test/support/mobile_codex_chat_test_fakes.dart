@@ -146,9 +146,4 @@ final class _FakeMobileCodexClient implements MobileCodexClient {
   void dispose() => _events.close();
 }
 
-final class _Call {
-  const _Call(this.type, this.payload);
-
-  final String type;
-  final Map<String, Object?> payload;
-}
+final class const _Call(final String type, final Map<String, Object?> payload);

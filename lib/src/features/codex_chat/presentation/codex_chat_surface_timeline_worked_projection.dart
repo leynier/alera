@@ -14,7 +14,7 @@ _CodexWorkedAction _createCodexWorkedAction(CodexTimelineCell cell) {
     final changeCount = _codexChangeCount(cell, changes);
     return _CodexWorkedAction(
       cell: cell,
-      kind: _CodexWorkedActionKind.edit,
+      kind: .edit,
       label: _codexEditLabel(cell, changes, changeCount: changeCount),
       hasDetails: _codexWorkedActionHasDetails(cell),
       itemCount: math.max(1, changeCount),
@@ -24,7 +24,7 @@ _CodexWorkedAction _createCodexWorkedAction(CodexTimelineCell cell) {
   if (itemType == 'enteredreviewmode' || itemType == 'exitedreviewmode') {
     return _CodexWorkedAction(
       cell: cell,
-      kind: _CodexWorkedActionKind.review,
+      kind: .review,
       label: itemType == 'enteredreviewmode'
           ? 'Entered review mode'
           : 'Exited review mode',
@@ -35,7 +35,7 @@ _CodexWorkedAction _createCodexWorkedAction(CodexTimelineCell cell) {
     final query = cell.metadata['query']?.toString().trim() ?? '';
     return _CodexWorkedAction(
       cell: cell,
-      kind: _CodexWorkedActionKind.webSearch,
+      kind: .webSearch,
       label: query.isEmpty ? 'Searched the web' : 'Searched the web for $query',
       hasDetails: _codexWorkedActionHasDetails(cell),
     );
@@ -46,7 +46,7 @@ _CodexWorkedAction _createCodexWorkedAction(CodexTimelineCell cell) {
         .firstWhere((value) => value.isNotEmpty, orElse: () => '');
     return _CodexWorkedAction(
       cell: cell,
-      kind: _CodexWorkedActionKind.viewImage,
+      kind: .viewImage,
       label: path.isEmpty ? 'Viewed image' : 'Viewed image · $path',
       hasDetails: _codexWorkedActionHasDetails(cell),
     );
@@ -58,7 +58,7 @@ _CodexWorkedAction _createCodexWorkedAction(CodexTimelineCell cell) {
     ]);
     return _CodexWorkedAction(
       cell: cell,
-      kind: _CodexWorkedActionKind.tool,
+      kind: .tool,
       label: 'Used $tool',
       hasDetails: _codexWorkedActionHasDetails(cell),
     );

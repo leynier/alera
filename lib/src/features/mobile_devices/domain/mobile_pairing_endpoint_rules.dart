@@ -78,17 +78,11 @@ bool _isLoopbackIpLiteral(String value) {
   }
 }
 
-class MobilePairingEndpointParts {
-  const MobilePairingEndpointParts({
-    required this.scheme,
-    required this.host,
-    required this.port,
-  });
-
-  final String scheme;
-  final String host;
-  final int port;
-}
+class const MobilePairingEndpointParts({
+  required final String scheme,
+  required final String host,
+  required final int port,
+});
 
 /// Extracts scheme, host, and the explicit authority port. Returns null when
 /// the value is not a ws:// or wss:// URL with a parsable authority. The port

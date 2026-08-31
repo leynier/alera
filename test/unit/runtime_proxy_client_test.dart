@@ -188,11 +188,7 @@ void main() {
       runtime,
     );
 
-    await service.fetch(
-      hostId: 'local',
-      target: null,
-      settings: AgentQuotaHostSettings.defaults,
-    );
+    await service.fetch(hostId: 'local', target: null, settings: .defaults);
 
     expect(runtime.requests, <String>['agentQuota.snapshot']);
     expect(runtime.payloads.single['forceRefresh'], isFalse);
@@ -252,7 +248,7 @@ void main() {
     await service.fetch(
       hostId: 'local',
       target: null,
-      settings: AgentQuotaHostSettings.defaults,
+      settings: .defaults,
       forceRefresh: true,
     );
 
@@ -340,7 +336,7 @@ void main() {
     await service.fetch(
       hostId: 'local',
       target: null,
-      settings: AgentQuotaHostSettings.defaults,
+      settings: .defaults,
       forceRefresh: true,
     );
 
@@ -350,10 +346,8 @@ void main() {
   });
 }
 
-class _FakeEnvironmentResolver implements CommandEnvironmentResolver {
-  _FakeEnvironmentResolver(this.values);
-
-  final Map<String, String> values;
+class _FakeEnvironmentResolver(final Map<String, String> values)
+    implements CommandEnvironmentResolver {
   final List<List<String>> requests = <List<String>>[];
 
   @override
@@ -369,12 +363,10 @@ class _FakeEnvironmentResolver implements CommandEnvironmentResolver {
   }
 }
 
-class _RecordingRuntimeHostClient implements RuntimeHostClient {
-  _RecordingRuntimeHostClient({
-    this.responses = const <String, Map<String, Object?>>{},
-  });
-
-  final Map<String, Map<String, Object?>> responses;
+class _RecordingRuntimeHostClient({
+  final Map<String, Map<String, Object?>> responses =
+      const <String, Map<String, Object?>>{},
+}) implements RuntimeHostClient {
   final List<String> requests = <String>[];
   final List<Map<String, Object?>> payloads = <Map<String, Object?>>[];
   final List<Duration?> timeouts = <Duration?>[];
@@ -403,17 +395,15 @@ SshTarget _target({required String runtimePlatform}) {
     host: 'example.test',
     port: 22,
     username: 'leynier',
-    authKind: SshAuthKind.key,
+    authKind: .key,
     createdAt: now,
     updatedAt: now,
     runtimePlatform: runtimePlatform,
-    bootstrapStatus: SshBootstrapStatus.installed,
+    bootstrapStatus: .installed,
   );
 }
 
-class _Resolver implements AleraCliResolver {
-  const _Resolver();
-
+class const _Resolver() implements AleraCliResolver {
   @override
   Future<AleraCliCommand> resolve({required String runtimeDir}) async {
     return const AleraCliCommand(

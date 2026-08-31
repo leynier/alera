@@ -15,8 +15,8 @@ CodexTimelineCell _cell({
   turnId: turnId,
   kind: kind,
   status: status,
-  createdAt: DateTime.utc(2026),
-  updatedAt: DateTime.utc(2026),
+  createdAt: .utc(2026),
+  updatedAt: .utc(2026),
   isStreaming: streaming,
 );
 
@@ -237,6 +237,29 @@ void main() {
     );
     expect(cells.last.kind, CodexTimelineKind.subAgent);
     expect(cells.last.isStreaming, isFalse);
+  });
+
+  test('subagent updates without item ids retain their turn identity', () {
+    var cells = <CodexTimelineCell>[];
+    for (final method in [
+      'item/subagent/progress',
+      'item/subagent/completed',
+    ]) {
+      cells = CodexTimelineReducer.reduce(
+        cells,
+        _event(method, <String, Object?>{
+          'turnId': 'turn-without-item',
+          'summary': method.endsWith('completed') ? ' done' : 'working',
+        }),
+        now: now,
+      );
+    }
+    expect(cells.single.id, 'subAgent-turn-without-item');
+    expect(cells.single.itemId, isNull);
+    expect(cells.single.kind, CodexTimelineKind.subAgent);
+    expect(cells.single.markdownText, 'working done');
+    expect(cells.single.status, CodexTimelineStatus.completed);
+    expect(cells.single.isStreaming, isFalse);
   });
 
   test('reducer maps item status, fallback kinds, errors and reviews', () {

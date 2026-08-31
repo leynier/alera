@@ -10,28 +10,17 @@ const double _kStepperGroupHeight = 36;
 /// Numeric input paired with a stacked increment/decrement stepper. Commits on
 /// submit/blur, clamps to [min]/[max], and formats based on [step] precision
 /// unless [decimalPlaces] is provided.
-class AleraNumberField extends StatefulWidget {
-  const AleraNumberField({
-    super.key,
-    required this.value,
-    required this.min,
-    required this.max,
-    required this.step,
-    required this.onChanged,
-    this.controller,
-    this.decimalPlaces,
-    this.suffix,
-  });
-
-  final double value;
-  final double min;
-  final double max;
-  final double step;
-  final TextEditingController? controller;
-  final int? decimalPlaces;
-  final String? suffix;
-  final ValueChanged<double> onChanged;
-
+class const AleraNumberField({
+  super.key,
+  required final double value,
+  required final double min,
+  required final double max,
+  required final double step,
+  required final ValueChanged<double> onChanged,
+  final TextEditingController? controller,
+  final int? decimalPlaces,
+  final String? suffix,
+}) extends StatefulWidget {
   @override
   State<AleraNumberField> createState() => _AleraNumberFieldState();
 }
@@ -113,7 +102,7 @@ class _AleraNumberFieldState extends State<AleraNumberField> {
         Expanded(
           child: TextField(
             controller: _controller,
-            keyboardType: TextInputType.number,
+            keyboardType: .number,
             contextMenuBuilder: (context, editableTextState) {
               return AleraTextActionsScope.buildContextMenu(
                 context,
@@ -131,19 +120,19 @@ class _AleraNumberFieldState extends State<AleraNumberField> {
           width: _kStepperWidth,
           height: _kStepperGroupHeight,
           child: Column(
-            mainAxisSize: MainAxisSize.min,
+            mainAxisSize: .min,
             children: <Widget>[
               Expanded(
                 child: _StepperButton(
                   icon: AleraIcons.chevronUp,
-                  position: _StepperPosition.top,
+                  position: .top,
                   onPressed: () => _step(widget.step),
                 ),
               ),
               Expanded(
                 child: _StepperButton(
                   icon: AleraIcons.chevronDown,
-                  position: _StepperPosition.bottom,
+                  position: .bottom,
                   onPressed: () => _step(-widget.step),
                 ),
               ),
@@ -157,27 +146,21 @@ class _AleraNumberFieldState extends State<AleraNumberField> {
 
 enum _StepperPosition { top, bottom }
 
-class _StepperButton extends StatelessWidget {
-  const _StepperButton({
-    required this.icon,
-    required this.position,
-    required this.onPressed,
-  });
-
-  final IconData icon;
-  final _StepperPosition position;
-  final VoidCallback onPressed;
-
+class const _StepperButton({
+  required final IconData icon,
+  required final _StepperPosition position,
+  required final VoidCallback onPressed,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final radius = position == _StepperPosition.top
         ? const BorderRadius.only(
-            topLeft: Radius.circular(AleraTokens.radiusSm),
-            topRight: Radius.circular(AleraTokens.radiusSm),
+            topLeft: .circular(AleraTokens.radiusSm),
+            topRight: .circular(AleraTokens.radiusSm),
           )
         : const BorderRadius.only(
-            bottomLeft: Radius.circular(AleraTokens.radiusSm),
-            bottomRight: Radius.circular(AleraTokens.radiusSm),
+            bottomLeft: .circular(AleraTokens.radiusSm),
+            bottomRight: .circular(AleraTokens.radiusSm),
           );
     final border = position == _StepperPosition.top
         ? const Border(

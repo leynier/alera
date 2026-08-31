@@ -6,12 +6,11 @@ import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_p
 // requests, and response overhead. Keep ordinary runtime requests short.
 const _codexHistoryOperationTimeout = Duration(minutes: 7);
 
-class CodexChatHostClient {
-  CodexChatHostClient(this._client) {
+class CodexChatHostClient(final RuntimeHostClient _client) {
+  this {
     _runtimeEvents = _client.runtimeEvents.listen(_handleRuntimeEvent);
   }
 
-  final RuntimeHostClient _client;
   late final StreamSubscription<RuntimeHostEvent> _runtimeEvents;
   Future<Set<String>>? _runtimeCapabilities;
 
@@ -30,9 +29,8 @@ class CodexChatHostClient {
   Future<Set<String>> refreshChatFeatures() async {
     // A failed status request must not look like a runtime downgrade.
     final status = await request('status.get');
-    final capabilities = asTerminalHostStringList(
-      status['runtimeCapabilities'],
-    ).toSet();
+    final capabilities = asTerminalHostStringList(status['runtimeCapabilities'])
+        .toSet();
     _runtimeCapabilities = Future.value(capabilities);
     return capabilities.intersection(const {
       'codexForkV1',
@@ -233,9 +231,8 @@ class CodexChatHostClient {
   }) async {
     final effectiveCollaborationMode =
         collaborationMode ?? (planMode ? 'plan' : 'default');
-    final supportsTurnPolicy = (await _capabilities(
-      retryAfterFailure: true,
-    )).contains(aleraRuntimeHostCodexTurnPolicyCapability);
+    final supportsTurnPolicy = (await _capabilities(retryAfterFailure: true))
+        .contains(aleraRuntimeHostCodexTurnPolicyCapability);
     final wirePermissionMode =
         !supportsTurnPolicy && permissionMode == 'auto-review'
         ? 'on-request'

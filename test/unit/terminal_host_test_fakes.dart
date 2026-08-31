@@ -6,17 +6,16 @@ import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_c
 import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_protocol.dart';
 import 'package:ghostty_vte_flutter/ghostty_vte_flutter.dart';
 
-final class FakeTerminalHostClient
-    implements TerminalHostClient, TerminalPulseHostClient {
-  FakeTerminalHostClient({
-    required TerminalHostAttachment attachment,
-    List<TerminalHostAttachment>? attachments,
-    this.attachCompleter,
-    this.pulseEnabled = false,
-  }) : _attachments = attachments ?? <TerminalHostAttachment>[attachment];
+final class FakeTerminalHostClient({
+  required TerminalHostAttachment attachment,
+  List<TerminalHostAttachment>? attachments,
+  final Completer<void>? attachCompleter,
+  final bool pulseEnabled = false,
+}) implements TerminalHostClient, TerminalPulseHostClient {
+  this : _attachments = attachments ?? <TerminalHostAttachment>[attachment];
 
   final List<TerminalHostAttachment> _attachments;
-  final Completer<void>? attachCompleter;
+
   final StreamController<TerminalHostEvent> _events =
       StreamController<TerminalHostEvent>.broadcast();
   final List<
@@ -60,7 +59,7 @@ final class FakeTerminalHostClient
       <TerminalPulseConfiguration>[];
   String? attachedWorkingDirectory;
   Object? writeError;
-  final bool pulseEnabled;
+
   Completer<void>? reattachCompleter;
   TerminalPulseState pulseState = const TerminalPulseState(
     configuration: TerminalPulseConfiguration(),

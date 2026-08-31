@@ -1,6 +1,6 @@
 part of 'project_workbench_sidebar.dart';
 
-enum _WorkbenchSidebarMutation {
+enum _WorkbenchSidebarMutation(final String successMessage) {
   renameProject('Project renamed'),
   renameWorkspace('Workspace renamed'),
   pinWorkspace('Workspace pinned'),
@@ -9,11 +9,7 @@ enum _WorkbenchSidebarMutation {
   updateWorkspaceTags('Workspace tags updated'),
   updateWorkspaceParent('Workspace parent updated'),
   clearWorkspaceParent('Workspace parent cleared'),
-  removeProject('Project removed');
-
-  const _WorkbenchSidebarMutation(this.successMessage);
-
-  final String successMessage;
+  removeProject('Project removed'),
 }
 
 enum _WorkbenchSidebarMutationResult { applied, notApplied }
@@ -68,7 +64,7 @@ mixin _ProjectWorkbenchSidebarActions
       return;
     }
     await _runWorkbenchSidebarMutation(
-      mutation: _WorkbenchSidebarMutation.renameProject,
+      mutation: .renameProject,
       execute: () async {
         await ref
             .read(workbenchControllerProvider.notifier)
@@ -90,7 +86,7 @@ mixin _ProjectWorkbenchSidebarActions
       return;
     }
     await _runWorkbenchSidebarMutation(
-      mutation: _WorkbenchSidebarMutation.renameWorkspace,
+      mutation: .renameWorkspace,
       execute: () async {
         await ref
             .read(workbenchControllerProvider.notifier)
@@ -153,7 +149,7 @@ mixin _ProjectWorkbenchSidebarActions
         AleraToast.show(
           context,
           message: 'Could not inspect workspace storage: $error',
-          tone: AleraToastTone.error,
+          tone: .error,
         );
         return;
       }
@@ -182,7 +178,7 @@ mixin _ProjectWorkbenchSidebarActions
       return;
     }
     await _runWorkbenchSidebarMutation(
-      mutation: _WorkbenchSidebarMutation.removeWorkspace,
+      mutation: .removeWorkspace,
       execute: () async {
         await ref
             .read(workbenchControllerProvider.notifier)
@@ -209,7 +205,7 @@ mixin _ProjectWorkbenchSidebarActions
   Future<void> _manageWorkspaceTags(Workspace workspace) {
     final controller = ref.read(workbenchControllerProvider.notifier);
     return _runWorkbenchSidebarMutation(
-      mutation: _WorkbenchSidebarMutation.updateWorkspaceTags,
+      mutation: .updateWorkspaceTags,
       execute: () async {
         final tags = await controller.listWorkspaceTags();
         if (!mounted) {
@@ -237,7 +233,7 @@ mixin _ProjectWorkbenchSidebarActions
   Future<void> _setWorkspaceParent(Workspace workspace) {
     final controller = ref.read(workbenchControllerProvider.notifier);
     return _runWorkbenchSidebarMutation(
-      mutation: _WorkbenchSidebarMutation.updateWorkspaceParent,
+      mutation: .updateWorkspaceParent,
       execute: () async {
         final relations = await controller.listWorkspaceRelations();
         if (!mounted) {
@@ -263,7 +259,7 @@ mixin _ProjectWorkbenchSidebarActions
 
   Future<void> _clearWorkspaceParent(Workspace workspace) {
     return _runWorkbenchSidebarMutation(
-      mutation: _WorkbenchSidebarMutation.clearWorkspaceParent,
+      mutation: .clearWorkspaceParent,
       execute: () async {
         await ref
             .read(workbenchControllerProvider.notifier)
@@ -312,7 +308,7 @@ mixin _ProjectWorkbenchSidebarActions
       runtime.closeWorkspace(workspace.id);
     }
     await _runWorkbenchSidebarMutation(
-      mutation: _WorkbenchSidebarMutation.removeProject,
+      mutation: .removeProject,
       execute: () async {
         await ref
             .read(workbenchControllerProvider.notifier)
@@ -339,17 +335,13 @@ mixin _ProjectWorkbenchSidebarActions
       AleraToast.show(
         context,
         message: mutation.successMessage,
-        tone: AleraToastTone.success,
+        tone: .success,
       );
     } catch (error) {
       if (!mounted) {
         return;
       }
-      AleraToast.show(
-        context,
-        message: error.toString(),
-        tone: AleraToastTone.error,
-      );
+      AleraToast.show(context, message: error.toString(), tone: .error);
     }
   }
 
@@ -411,11 +403,7 @@ mixin _ProjectWorkbenchSidebarActions
       if (!mounted) {
         return;
       }
-      AleraToast.show(
-        context,
-        message: error.toString(),
-        tone: AleraToastTone.error,
-      );
+      AleraToast.show(context, message: error.toString(), tone: .error);
     }
   }
 }

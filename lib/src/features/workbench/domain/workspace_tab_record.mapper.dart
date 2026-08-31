@@ -287,4 +287,3 @@ class _WorkspaceTabRecordCopyWithImpl<$R, $Out>
     Then<$Out2, $R2> t,
   ) => _WorkspaceTabRecordCopyWithImpl<$R2, $Out2>($value, $cast, t);
 }
-

@@ -1,0 +1,151 @@
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    cooldown:
+      default-days: 7
+    commit-message:
+      prefix: chore
+      include: scope
+    groups:
+      monthly-batch:
+        applies-to: version-updates
+        patterns: ["*"]
+
+  - package-ecosystem: pub
+    directories:
+      - /
+      - /mobile
+      - /mobile/rust_builder
+      - /packages/alera_browser
+      - /packages/alera_configuration
+      - /rust_builder
+      - /tool/release/runtime_packager
+    schedule:
+      interval: monthly
+    cooldown:
+      default-days: 7
+    commit-message:
+      prefix: chore
+      include: scope
+    groups:
+      monthly-batch:
+        applies-to: version-updates
+        group-by: dependency-name
+        patterns: ["*"]
+
+  - package-ecosystem: cargo
+    directories:
+      - /cloud
+      - /rust
+    schedule:
+      interval: monthly
+    cooldown:
+      default-days: 7
+    commit-message:
+      prefix: chore
+      include: scope
+    groups:
+      monthly-batch:
+        applies-to: version-updates
+        group-by: dependency-name
+        patterns: ["*"]
+
+  - package-ecosystem: bun
+    directories:
+      - /edge
+      - /landing
+    schedule:
+      interval: monthly
+    cooldown:
+      default-days: 7
+    commit-message:
+      prefix: chore
+      include: scope
+    groups:
+      monthly-batch:
+        applies-to: version-updates
+        group-by: dependency-name
+        patterns: ["*"]
+
+  - package-ecosystem: gradle
+    directories:
+      - /mobile/android
+      - /mobile/rust_builder/android
+      - /rust_builder/android
+    schedule:
+      interval: monthly
+    cooldown:
+      default-days: 7
+    commit-message:
+      prefix: chore
+      include: scope
+    groups:
+      monthly-batch:
+        applies-to: version-updates
+        group-by: dependency-name
+        patterns: ["*"]
+
+  - package-ecosystem: opentofu
+    directories:
+      - /infra/bootstrap/github
+      - /infra/production
+    schedule:
+      interval: monthly
+    cooldown:
+      default-days: 7
+    commit-message:
+      prefix: chore
+      include: scope
+    groups:
+      monthly-batch:
+        applies-to: version-updates
+        group-by: dependency-name
+        patterns: ["*"]
+
+  - package-ecosystem: docker
+    directory: /cloud
+    schedule:
+      interval: monthly
+    cooldown:
+      default-days: 7
+    commit-message:
+      prefix: chore
+      include: scope
+    groups:
+      monthly-batch:
+        applies-to: version-updates
+        patterns: ["*"]
+
+  - package-ecosystem: docker-compose
+    directory: /cloud
+    schedule:
+      interval: monthly
+    cooldown:
+      default-days: 7
+    commit-message:
+      prefix: chore
+      include: scope
+    groups:
+      monthly-batch:
+        applies-to: version-updates
+        patterns: ["*"]
+
+  - package-ecosystem: rust-toolchain
+    directories:
+      - /cloud
+      - /rust
+    schedule:
+      interval: monthly
+    cooldown:
+      default-days: 7
+    commit-message:
+      prefix: chore
+      include: scope
+    groups:
+      monthly-batch:
+        applies-to: version-updates
+        group-by: dependency-name
+        patterns: ["*"]

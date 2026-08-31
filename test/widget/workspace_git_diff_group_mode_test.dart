@@ -23,18 +23,18 @@ void main() {
         entries: <GitChangeEntry>[
           GitChangeEntry(
             path: 'lib/new.dart',
-            area: GitChangeArea.untracked,
-            status: GitChangeStatus.untracked,
+            area: .untracked,
+            status: .untracked,
           ),
           GitChangeEntry(
             path: 'lib/dirty.dart',
-            area: GitChangeArea.unstaged,
-            status: GitChangeStatus.modified,
+            area: .unstaged,
+            status: .modified,
           ),
           GitChangeEntry(
             path: 'lib/staged.dart',
-            area: GitChangeArea.staged,
-            status: GitChangeStatus.modified,
+            area: .staged,
+            status: .modified,
           ),
         ],
       );
@@ -60,32 +60,28 @@ void main() {
           entries: <GitChangeEntry>[
             GitChangeEntry(
               path: 'lib/new.dart',
-              area: GitChangeArea.untracked,
-              status: GitChangeStatus.untracked,
+              area: .untracked,
+              status: .untracked,
             ),
             GitChangeEntry(
               path: 'lib/dirty.dart',
-              area: GitChangeArea.unstaged,
-              status: GitChangeStatus.modified,
+              area: .unstaged,
+              status: .modified,
             ),
             GitChangeEntry(
               path: 'lib/staged.dart',
-              area: GitChangeArea.staged,
-              status: GitChangeStatus.modified,
+              area: .staged,
+              status: .modified,
             ),
             GitChangeEntry(
               path: 'lib/dirty.dart',
-              area: GitChangeArea.staged,
-              status: GitChangeStatus.modified,
+              area: .staged,
+              status: .modified,
             ),
           ],
         );
 
-      await _pumpPanel(
-        tester,
-        backend: backend,
-        groupMode: GitDiffGroupMode.unified,
-      );
+      await _pumpPanel(tester, backend: backend, groupMode: .unified);
       await tester.pumpAndSettle();
 
       expect(find.text('Changes'), findsOneWidget);
@@ -115,7 +111,7 @@ Future<void> _pumpPanel(
           FakeSourceControlWatcher(),
         ),
         settingsControllerProvider.overrideWith(
-          () => _PanelSettingsController(AleraSettings.defaults),
+          () => _PanelSettingsController(.defaults),
         ),
       ],
       child: MaterialApp(
@@ -130,31 +126,29 @@ Future<void> _pumpPanel(
                 workspacePath: workspace.path,
                 path: workspace.path,
               ),
-              viewMode: GitDiffViewMode.flat,
+              viewMode: .flat,
               onViewModeChanged: (_) {},
               groupMode: groupMode,
               onGroupModeChanged: (_) {},
-              onOpenGitDiff:
-                  ({
-                    area,
-                    relativePath,
-                    gitDiffRoot,
-                    required scope,
-                    bool preview = false,
-                  }) async {},
-              onOpenGitCommitDiff:
-                  ({
-                    relativePath,
-                    oldPath,
-                    required scope,
-                    gitDiffRoot,
-                    required commitOid,
-                    parentOid,
-                    required compareRef,
-                    subject,
-                    message,
-                    bool preview = false,
-                  }) async {},
+              onOpenGitDiff: ({
+                area,
+                relativePath,
+                gitDiffRoot,
+                required scope,
+                bool preview = false,
+              }) async {},
+              onOpenGitCommitDiff: ({
+                relativePath,
+                oldPath,
+                required scope,
+                gitDiffRoot,
+                required commitOid,
+                parentOid,
+                required compareRef,
+                subject,
+                message,
+                bool preview = false,
+              }) async {},
             ),
           ),
         ),
@@ -163,11 +157,8 @@ Future<void> _pumpPanel(
   );
 }
 
-class _PanelSettingsController extends SettingsController {
-  _PanelSettingsController(this._settings);
-
-  final AleraSettings _settings;
-
+class _PanelSettingsController(final AleraSettings _settings)
+    extends SettingsController {
   @override
   AleraSettings build() => _settings;
 }
@@ -181,7 +172,7 @@ Workspace _workspace() {
     path: '/tmp/project',
     createdAt: now,
     updatedAt: now,
-    kind: WorkspaceKind.main,
-    status: WorkspaceStatus.active,
+    kind: .main,
+    status: .active,
   );
 }

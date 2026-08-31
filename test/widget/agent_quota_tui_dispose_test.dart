@@ -7,7 +7,6 @@ import 'package:alera/src/features/agent_quota/presentation/agent_quota_status_b
 import 'package:alera/src/features/remote_hosts/application/ssh_target_providers.dart';
 import 'package:alera/src/features/remote_hosts/domain/ssh_target.dart';
 import 'package:alera/src/features/settings/domain/alera_settings.dart';
-import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -36,11 +35,11 @@ void main() {
     await container.read(agentQuotaStateProvider.future);
 
     final snapshot = AgentQuotaSnapshot(
-      provider: AgentQuotaProviderId.claude,
+      provider: .claude,
       accountId: 'dev',
       displayName: 'Development',
-      status: AgentQuotaStatus.unavailable,
-      updatedAt: DateTime.utc(2026),
+      status: .unavailable,
+      updatedAt: .utc(2026),
       error: 'OAuth unavailable',
       windows: const <AgentQuotaWindow>[],
       buckets: const <AgentQuotaBucket>[],
@@ -70,9 +69,9 @@ void main() {
       ),
     );
 
-    final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+    final mouse = await tester.createGesture(kind: .mouse);
     addTearDown(mouse.removePointer);
-    await mouse.addPointer(location: Offset.zero);
+    await mouse.addPointer(location: .zero);
     await mouse.moveTo(tester.getCenter(find.text('ccdev')));
     await tester.pump(const Duration(milliseconds: 400));
     await tester.tap(find.text('Try With TUI'));

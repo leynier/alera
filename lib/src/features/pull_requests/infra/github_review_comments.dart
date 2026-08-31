@@ -84,19 +84,19 @@ query($thread: ID!, $commentsAfter: String) {
       for (final entry in conversation)
         _mapRestComment(
           entry,
-          kind: ReviewCommentKind.conversation,
+          kind: .conversation,
           idPrefix: 'issue',
-          source: ReviewCommentSource.conversation,
+          source: .conversation,
         ),
       ...threads,
       for (final entry in reviews)
         if ((entry['body'] as String? ?? '').trim().isNotEmpty)
           _mapRestComment(
             entry,
-            kind: ReviewCommentKind.conversation,
+            kind: .conversation,
             idPrefix: 'review',
             createdAtField: 'submitted_at',
-            source: ReviewCommentSource.reviewSummary,
+            source: .reviewSummary,
           ),
     ]..sort((a, b) => a.createdAt.compareTo(b.createdAt));
     return comments;
@@ -353,7 +353,7 @@ query($thread: ID!, $commentsAfter: String) {
         createdAt:
             DateTime.tryParse(node['createdAt'] as String? ?? '') ??
             DateTime.fromMillisecondsSinceEpoch(0, isUtc: true),
-        kind: ReviewCommentKind.review,
+        kind: .review,
         url: node['url'] as String?,
         path: node['path'] as String?,
         line: line,
@@ -361,7 +361,7 @@ query($thread: ID!, $commentsAfter: String) {
         locator: databaseId == null
             ? null
             : ReviewCommentLocator(
-                source: ReviewCommentSource.reviewThread,
+                source: .reviewThread,
                 commentId: '$databaseId',
                 parentId: threadId,
               ),

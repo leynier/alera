@@ -1,12 +1,11 @@
 import 'package:alera/src/design_system/alera_preview.dart';
-import 'package:alera/src/features/keep_alive/domain/keep_alive_snapshot.dart';
 import 'package:alera/src/features/keep_alive/presentation/keep_alive_status_chip.dart';
 import 'package:flutter/material.dart';
 
 @AleraPreview(name: 'Keep Alive Off', group: 'Status Bar')
 Widget keepAliveStatusChipOffPreview() => Material(
   child: KeepAliveStatusChip(
-    snapshot: const KeepAliveSnapshot.inactive(),
+    snapshot: const .inactive(),
     enabled: false,
     onPressed: () {},
   ),
@@ -15,7 +14,7 @@ Widget keepAliveStatusChipOffPreview() => Material(
 @AleraPreview(name: 'Keep Alive On', group: 'Status Bar')
 Widget keepAliveStatusChipOnPreview() => Material(
   child: KeepAliveStatusChip(
-    snapshot: const KeepAliveSnapshot.active(),
+    snapshot: const .active(),
     enabled: true,
     onPressed: () {},
   ),
@@ -24,7 +23,7 @@ Widget keepAliveStatusChipOnPreview() => Material(
 @AleraPreview(name: 'Keep Alive Error', group: 'Status Bar')
 Widget keepAliveStatusChipErrorPreview() => Material(
   child: KeepAliveStatusChip(
-    snapshot: const KeepAliveSnapshot.inactive(error: 'not supported'),
+    snapshot: const .inactive(error: 'not supported'),
     enabled: false,
     onPressed: () {},
   ),

@@ -1,54 +1,32 @@
 part of 'workspace_git_diff_panel.dart';
 
-class _GitDiffGroups extends StatelessWidget {
-  const _GitDiffGroups({
-    required this.groups,
-    required this.workspacePath,
-    required this.viewMode,
-    required this.busy,
-    required this.collapsedSections,
-    required this.collapsedTreeNodes,
-    required this.expandedSubmodules,
-    required this.onToggleSection,
-    required this.onToggleTreeNode,
-    required this.onToggleSubmodule,
-    required this.onOpenGitDiff,
-    this.onOpenFile,
-    required this.onRevealInExplorer,
-    required this.onStage,
-    required this.onUnstage,
-    required this.onDiscard,
-    required this.onStageArea,
-    required this.onUnstageArea,
-    required this.onDiscardArea,
-    required this.onStagePath,
-    required this.onUnstagePath,
-    required this.onDiscardPath,
-  });
-
-  final List<GitChangeGroup> groups;
-  final String workspacePath;
-  final GitDiffViewMode viewMode;
-  final bool busy;
-  final Set<String> collapsedSections;
-  final Set<String> collapsedTreeNodes;
-  final Set<String> expandedSubmodules;
-  final ValueChanged<String> onToggleSection;
-  final ValueChanged<String> onToggleTreeNode;
-  final ValueChanged<GitChangeEntry> onToggleSubmodule;
-  final OpenGitDiffTabCallback onOpenGitDiff;
-  final ValueChanged<String>? onOpenFile;
-  final ValueChanged<String> onRevealInExplorer;
-  final ValueChanged<GitChangeEntry> onStage;
-  final ValueChanged<GitChangeEntry> onUnstage;
-  final ValueChanged<GitChangeEntry> onDiscard;
-  final void Function(GitChangeArea area, String? filePath) onStageArea;
-  final void Function(GitChangeArea area, String? filePath) onUnstageArea;
-  final void Function(GitChangeArea area, String? filePath) onDiscardArea;
-  final ValueChanged<String?> onStagePath;
-  final ValueChanged<String?> onUnstagePath;
-  final ValueChanged<String?> onDiscardPath;
-
+class const _GitDiffGroups({
+  required final List<GitChangeGroup> groups,
+  required final String workspacePath,
+  required final GitDiffViewMode viewMode,
+  required final bool busy,
+  required final Set<String> collapsedSections,
+  required final Set<String> collapsedTreeNodes,
+  required final Set<String> expandedSubmodules,
+  required final ValueChanged<String> onToggleSection,
+  required final ValueChanged<String> onToggleTreeNode,
+  required final ValueChanged<GitChangeEntry> onToggleSubmodule,
+  required final OpenGitDiffTabCallback onOpenGitDiff,
+  final ValueChanged<String>? onOpenFile,
+  required final ValueChanged<String> onRevealInExplorer,
+  required final ValueChanged<GitChangeEntry> onStage,
+  required final ValueChanged<GitChangeEntry> onUnstage,
+  required final ValueChanged<GitChangeEntry> onDiscard,
+  required final void Function(GitChangeArea area, String? filePath)
+  onStageArea,
+  required final void Function(GitChangeArea area, String? filePath)
+  onUnstageArea,
+  required final void Function(GitChangeArea area, String? filePath)
+  onDiscardArea,
+  required final ValueChanged<String?> onStagePath,
+  required final ValueChanged<String?> onUnstagePath,
+  required final ValueChanged<String?> onDiscardPath,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListView(
@@ -84,55 +62,33 @@ class _GitDiffGroups extends StatelessWidget {
   }
 }
 
-class _GitDiffGroup extends StatelessWidget {
-  const _GitDiffGroup({
-    required this.group,
-    required this.workspacePath,
-    required this.viewMode,
-    required this.busy,
-    required this.collapsed,
-    required this.collapsedTreeNodes,
-    required this.expandedSubmodules,
-    required this.onToggleSection,
-    required this.onToggleTreeNode,
-    required this.onToggleSubmodule,
-    required this.onOpenGitDiff,
-    this.onOpenFile,
-    required this.onRevealInExplorer,
-    required this.onStage,
-    required this.onUnstage,
-    required this.onDiscard,
-    required this.onStageArea,
-    required this.onUnstageArea,
-    required this.onDiscardArea,
-    required this.onStagePath,
-    required this.onUnstagePath,
-    required this.onDiscardPath,
-  });
-
-  final GitChangeGroup group;
-  final String workspacePath;
-  final GitDiffViewMode viewMode;
-  final bool busy;
-  final bool collapsed;
-  final Set<String> collapsedTreeNodes;
-  final Set<String> expandedSubmodules;
-  final ValueChanged<String> onToggleSection;
-  final ValueChanged<String> onToggleTreeNode;
-  final ValueChanged<GitChangeEntry> onToggleSubmodule;
-  final OpenGitDiffTabCallback onOpenGitDiff;
-  final ValueChanged<String>? onOpenFile;
-  final ValueChanged<String> onRevealInExplorer;
-  final ValueChanged<GitChangeEntry> onStage;
-  final ValueChanged<GitChangeEntry> onUnstage;
-  final ValueChanged<GitChangeEntry> onDiscard;
-  final void Function(GitChangeArea area, String? filePath) onStageArea;
-  final void Function(GitChangeArea area, String? filePath) onUnstageArea;
-  final void Function(GitChangeArea area, String? filePath) onDiscardArea;
-  final ValueChanged<String?> onStagePath;
-  final ValueChanged<String?> onUnstagePath;
-  final ValueChanged<String?> onDiscardPath;
-
+class const _GitDiffGroup({
+  required final GitChangeGroup group,
+  required final String workspacePath,
+  required final GitDiffViewMode viewMode,
+  required final bool busy,
+  required final bool collapsed,
+  required final Set<String> collapsedTreeNodes,
+  required final Set<String> expandedSubmodules,
+  required final ValueChanged<String> onToggleSection,
+  required final ValueChanged<String> onToggleTreeNode,
+  required final ValueChanged<GitChangeEntry> onToggleSubmodule,
+  required final OpenGitDiffTabCallback onOpenGitDiff,
+  final ValueChanged<String>? onOpenFile,
+  required final ValueChanged<String> onRevealInExplorer,
+  required final ValueChanged<GitChangeEntry> onStage,
+  required final ValueChanged<GitChangeEntry> onUnstage,
+  required final ValueChanged<GitChangeEntry> onDiscard,
+  required final void Function(GitChangeArea area, String? filePath)
+  onStageArea,
+  required final void Function(GitChangeArea area, String? filePath)
+  onUnstageArea,
+  required final void Function(GitChangeArea area, String? filePath)
+  onDiscardArea,
+  required final ValueChanged<String?> onStagePath,
+  required final ValueChanged<String?> onUnstagePath,
+  required final ValueChanged<String?> onDiscardPath,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (group.entries.isEmpty) {
@@ -141,7 +97,7 @@ class _GitDiffGroup extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.only(bottom: AleraTokens.space8),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
+        crossAxisAlignment: .stretch,
         children: <Widget>[
           _GitDiffGroupHeader(
             group: group,
@@ -194,7 +150,7 @@ class _GitDiffGroup extends StatelessWidget {
                           onOpenGitDiff(
                             relativePath: entry.path,
                             area: entry.area,
-                            scope: WorkspaceGitDiffScope.file,
+                            scope: .file,
                             preview: true,
                           ),
                         ),
@@ -247,31 +203,18 @@ String _sectionKeyForGroup(GitChangeGroup group) {
   return group.unified ? 'section:unified' : 'section:${group.area.key}';
 }
 
-class _GitDiffGroupHeader extends StatelessWidget {
-  const _GitDiffGroupHeader({
-    required this.group,
-    required this.collapsed,
-    required this.busy,
-    required this.onToggleCollapsed,
-    required this.onStage,
-    required this.onUnstage,
-    required this.onDiscard,
-    required this.canStage,
-    required this.canUnstage,
-    required this.canDiscard,
-  });
-
-  final GitChangeGroup group;
-  final bool collapsed;
-  final bool busy;
-  final VoidCallback onToggleCollapsed;
-  final VoidCallback onStage;
-  final VoidCallback onUnstage;
-  final VoidCallback onDiscard;
-  final bool canStage;
-  final bool canUnstage;
-  final bool canDiscard;
-
+class const _GitDiffGroupHeader({
+  required final GitChangeGroup group,
+  required final bool collapsed,
+  required final bool busy,
+  required final VoidCallback onToggleCollapsed,
+  required final VoidCallback onStage,
+  required final VoidCallback onUnstage,
+  required final VoidCallback onDiscard,
+  required final bool canStage,
+  required final bool canUnstage,
+  required final bool canDiscard,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return _GitDiffBaseRow(
@@ -288,16 +231,14 @@ class _GitDiffGroupHeader extends StatelessWidget {
           Expanded(
             child: Text(
               group.label,
-              style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                color: AleraTokens.foregroundMuted,
-              ),
+              style: Theme.of(context).textTheme.labelSmall
+                  ?.copyWith(color: AleraTokens.foregroundMuted),
             ),
           ),
           Text(
             '${group.entries.length}',
-            style: Theme.of(context).textTheme.labelSmall?.copyWith(
-              color: AleraTokens.foregroundFaint,
-            ),
+            style: Theme.of(context).textTheme.labelSmall
+                ?.copyWith(color: AleraTokens.foregroundFaint),
           ),
           const SizedBox(width: AleraTokens.space6),
           _AreaActions(
@@ -315,11 +256,8 @@ class _GitDiffGroupHeader extends StatelessWidget {
   }
 }
 
-class _GitDiffMessage extends StatelessWidget {
-  const _GitDiffMessage({required this.message});
-
-  final String message;
-
+class const _GitDiffMessage({required final String message})
+    extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Center(
@@ -327,10 +265,9 @@ class _GitDiffMessage extends StatelessWidget {
         padding: const EdgeInsets.all(AleraTokens.space16),
         child: Text(
           message,
-          textAlign: TextAlign.center,
-          style: Theme.of(
-            context,
-          ).textTheme.bodySmall?.copyWith(color: AleraTokens.foregroundMuted),
+          textAlign: .center,
+          style: Theme.of(context).textTheme.bodySmall
+              ?.copyWith(color: AleraTokens.foregroundMuted),
         ),
       ),
     );

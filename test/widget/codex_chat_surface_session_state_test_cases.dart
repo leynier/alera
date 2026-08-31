@@ -14,7 +14,7 @@ void registerCodexChatSurfaceSessionStateTests() {
       const CodexComposerDraft(
         value: TextEditingValue(
           text: 'Second draft',
-          selection: TextSelection.collapsed(offset: 12),
+          selection: .collapsed(offset: 12),
         ),
         attachments: <CodexInputAttachment>[
           CodexInputAttachment(
@@ -318,6 +318,6 @@ Future<void> _selectSlashCommand(
 ) async {
   await tester.enterText(composer, command);
   await tester.pump(const Duration(milliseconds: 250));
-  await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+  await tester.sendKeyEvent(.enter);
   await tester.pumpAndSettle();
 }

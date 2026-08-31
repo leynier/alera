@@ -27,9 +27,7 @@ Future<void> showAutomationsDialog(BuildContext context) {
   );
 }
 
-class AutomationsDialog extends ConsumerStatefulWidget {
-  const AutomationsDialog({super.key});
-
+class const AutomationsDialog({super.key}) extends ConsumerStatefulWidget {
   @override
   ConsumerState<AutomationsDialog> createState() => _AutomationsDialogState();
 }
@@ -61,7 +59,7 @@ class _AutomationsDialogState extends ConsumerState<AutomationsDialog> {
         child: SizedBox(
           height: AleraTokens.automationDialogHeight,
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
+            crossAxisAlignment: .stretch,
             children: <Widget>[
               AutomationDialogHeader(
                 onClose: () => Navigator.of(context).pop(),
@@ -116,15 +114,14 @@ class _AutomationsDialogState extends ConsumerState<AutomationsDialog> {
           ? AleraEmptyState(
               icon: AleraIcons.checks,
               title: 'No automations',
-              message:
-                  'Create a schedule to run approved work in a runtime-owned target.',
+              message: 'Create a schedule to run approved work in a runtime-owned target.',
               action: FilledButton(
                 onPressed: () => unawaited(_createAutomation()),
                 child: const Text('New Automation'),
               ),
             )
           : AleraPanel(
-              clipBehavior: Clip.antiAlias,
+              clipBehavior: .antiAlias,
               children: <Widget>[
                 Padding(
                   padding: const EdgeInsets.all(AleraTokens.space8),
@@ -143,53 +140,33 @@ class _AutomationsDialogState extends ConsumerState<AutomationsDialog> {
                         spacing: AleraTokens.space8,
                         runSpacing: AleraTokens.space8,
                         children: <Widget>[
-                          _filter(
-                            'State',
-                            _stateFilter,
-                            <String?>[
-                              null,
-                              'draft',
-                              'active',
-                              'paused',
-                              'blocked',
-                              'archived',
-                              'trashed',
-                            ],
-                            (value) => setState(() => _stateFilter = value),
-                          ),
-                          _filter(
-                            'Project',
-                            _projectFilter,
-                            <String?>[
-                              null,
-                              ...items
-                                  .map((item) => item.projectId)
-                                  .whereType<String>()
-                                  .toSet(),
-                            ],
-                            (value) => setState(() => _projectFilter = value),
-                          ),
-                          _filter(
-                            'Profile',
-                            _profileFilter,
-                            <String?>[
-                              null,
-                              ...items
-                                  .map(_profileId)
-                                  .whereType<String>()
-                                  .toSet(),
-                            ],
-                            (value) => setState(() => _profileFilter = value),
-                          ),
-                          _filter(
-                            'Tag',
-                            _tagFilter,
-                            <String?>[
-                              null,
-                              ...items.expand((item) => item.tagIds).toSet(),
-                            ],
-                            (value) => setState(() => _tagFilter = value),
-                          ),
+                          _filter('State', _stateFilter, <String?>[
+                            null,
+                            'draft',
+                            'active',
+                            'paused',
+                            'blocked',
+                            'archived',
+                            'trashed',
+                          ], (value) => setState(() => _stateFilter = value)),
+                          _filter('Project', _projectFilter, <String?>[
+                            null,
+                            ...items
+                                .map((item) => item.projectId)
+                                .whereType<String>()
+                                .toSet(),
+                          ], (value) => setState(() => _projectFilter = value)),
+                          _filter('Profile', _profileFilter, <String?>[
+                            null,
+                            ...items
+                                .map(_profileId)
+                                .whereType<String>()
+                                .toSet(),
+                          ], (value) => setState(() => _profileFilter = value)),
+                          _filter('Tag', _tagFilter, <String?>[
+                            null,
+                            ...items.expand((item) => item.tagIds).toSet(),
+                          ], (value) => setState(() => _tagFilter = value)),
                           FilterChip(
                             label: const Text('Trash'),
                             selected: _includeTrashed,
@@ -213,8 +190,7 @@ class _AutomationsDialogState extends ConsumerState<AutomationsDialog> {
           ? const AleraEmptyState(
               icon: AleraIcons.checks,
               title: 'Select an automation',
-              message:
-                  'Choose an automation to inspect its schedule, target, and runs.',
+              message: 'Choose an automation to inspect its schedule, target, and runs.',
             )
           : AutomationDetailPane(
               future: _detailFuture ??= ref

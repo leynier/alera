@@ -20,10 +20,10 @@ void main() {
     final record = WorkspaceTabRecord(
       id: 'tab-1',
       workspaceId: 'workspace-1',
-      kind: WorkspaceTabKind.markdownViewer,
+      kind: .markdownViewer,
       title: 'Docs',
-      createdAt: DateTime.utc(2026, 5, 25),
-      updatedAt: DateTime.utc(2026, 5, 25, 1),
+      createdAt: .utc(2026, 5, 25),
+      updatedAt: .utc(2026, 5, 25, 1),
       payload: const <String, Object?>{
         workspaceTabManualTitlePayloadKey: true,
         'url': 'https://example.com',
@@ -166,7 +166,7 @@ void main() {
       final blank = WorkspaceTabRecord(
         id: 'browser-1',
         workspaceId: 'workspace-1',
-        kind: WorkspaceTabKind.browser,
+        kind: .browser,
         title: 'New Tab',
         createdAt: now,
         updatedAt: now,
@@ -174,7 +174,7 @@ void main() {
       final restored = WorkspaceTabRecord(
         id: 'browser-2',
         workspaceId: 'workspace-1',
-        kind: WorkspaceTabKind.browser,
+        kind: .browser,
         title: 'Alera',
         createdAt: now,
         updatedAt: now,
@@ -199,7 +199,7 @@ void main() {
     final preview = WorkspaceTabRecord(
       id: 'tab-1',
       workspaceId: 'workspace-1',
-      kind: WorkspaceTabKind.editor,
+      kind: .editor,
       title: 'main.dart',
       createdAt: now,
       updatedAt: now,
@@ -214,7 +214,7 @@ void main() {
     final merman = WorkspaceTabRecord(
       id: 'tab-2',
       workspaceId: 'workspace-1',
-      kind: WorkspaceTabKind.editor,
+      kind: .editor,
       title: 'diagram.mmd preview',
       createdAt: now,
       updatedAt: now,
@@ -235,7 +235,7 @@ void main() {
     final permanent = WorkspaceTabRecord(
       id: 'tab-4',
       workspaceId: 'workspace-1',
-      kind: WorkspaceTabKind.editor,
+      kind: .editor,
       title: 'main.dart',
       createdAt: now,
       updatedAt: now,

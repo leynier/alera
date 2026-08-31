@@ -1,21 +1,13 @@
 import 'package:alera/src/features/updater/domain/alera_update.dart';
 import 'package:alera/src/features/updater/domain/package_install_method.dart';
 
-class AleraUpdateCheckResult {
-  const AleraUpdateCheckResult({
-    this.latest,
-    this.autoInstallAllowed = false,
-    this.message,
-    this.currentVersion,
-    this.currentBuildNumber,
-  });
-
-  final AleraUpdateInfo? latest;
-  final bool autoInstallAllowed;
-  final String? message;
-  final String? currentVersion;
-  final String? currentBuildNumber;
-}
+class const AleraUpdateCheckResult({
+  final AleraUpdateInfo? latest,
+  final bool autoInstallAllowed = false,
+  final String? message,
+  final String? currentVersion,
+  final String? currentBuildNumber,
+});
 
 abstract class AleraUpdateService {
   AleraUpdateConfig get config;

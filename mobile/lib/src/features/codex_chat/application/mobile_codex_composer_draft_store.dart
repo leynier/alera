@@ -1,4 +1,5 @@
 import '../domain/mobile_codex_submission_attempts.dart';
+
 import 'package:alera_mobile/src/features/codex_chat/domain/mobile_codex_composer_draft.dart';
 import 'package:alera_mobile/src/features/codex_chat/domain/mobile_codex_catalog_selection.dart';
 import 'package:flutter/services.dart';
@@ -138,7 +139,7 @@ class MobileCodexComposerDraftStore {
       MobileCodexComposerDraft(
         value: TextEditingValue(
           text: mergedText,
-          selection: TextSelection.collapsed(offset: mergedText.length),
+          selection: .collapsed(offset: mergedText.length),
         ),
         attachments: <Map<String, Object?>>[
           ...current.attachments,

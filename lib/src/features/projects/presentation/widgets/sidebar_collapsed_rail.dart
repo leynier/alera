@@ -4,22 +4,14 @@ import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/features/projects/domain/project.dart';
 import 'package:flutter/material.dart';
 
-class SidebarCollapsedRail extends StatelessWidget {
-  const SidebarCollapsedRail({
-    super.key,
-    required this.projects,
-    required this.activeProjectId,
-    required this.workspaceCountByProject,
-    required this.onSelectProject,
-    required this.onAddProject,
-  });
-
-  final List<Project> projects;
-  final String? activeProjectId;
-  final Map<String, int> workspaceCountByProject;
-  final ValueChanged<Project> onSelectProject;
-  final VoidCallback onAddProject;
-
+class const SidebarCollapsedRail({
+  super.key,
+  required final List<Project> projects,
+  required final String? activeProjectId,
+  required final Map<String, int> workspaceCountByProject,
+  required final ValueChanged<Project> onSelectProject,
+  required final VoidCallback onAddProject,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
@@ -58,19 +50,12 @@ class SidebarCollapsedRail extends StatelessWidget {
   }
 }
 
-class _RailProjectAvatar extends StatefulWidget {
-  const _RailProjectAvatar({
-    required this.project,
-    required this.active,
-    required this.workspaceCount,
-    required this.onTap,
-  });
-
-  final Project project;
-  final bool active;
-  final int workspaceCount;
-  final VoidCallback onTap;
-
+class const _RailProjectAvatar({
+  required final Project project,
+  required final bool active,
+  required final int workspaceCount,
+  required final VoidCallback onTap,
+}) extends StatefulWidget {
   @override
   State<_RailProjectAvatar> createState() => _RailProjectAvatarState();
 }
@@ -95,7 +80,7 @@ class _RailProjectAvatarState extends State<_RailProjectAvatar> {
             onEnter: (_) => setState(() => _hovered = true),
             onExit: (_) => setState(() => _hovered = false),
             child: InkWell(
-              borderRadius: BorderRadius.circular(AleraTokens.radiusMd),
+              borderRadius: .circular(AleraTokens.radiusMd),
               mouseCursor: SystemMouseCursors.click,
               onTap: widget.onTap,
               child: AnimatedContainer(
@@ -120,7 +105,7 @@ class _RailProjectAvatarState extends State<_RailProjectAvatar> {
                       color: emphasized
                           ? AleraTokens.foreground
                           : AleraTokens.foregroundMuted,
-                      fontWeight: FontWeight.w600,
+                      fontWeight: .w600,
                     ),
                   ),
                 ),

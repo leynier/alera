@@ -50,38 +50,23 @@ void main() {
       const size = Size(300, 240);
 
       expect(
-        resolveWorkbenchDropOverlayRect(
-          zone: WorkbenchDropZone.left,
-          paneSize: size,
-        ),
+        resolveWorkbenchDropOverlayRect(zone: .left, paneSize: size),
         const Rect.fromLTWH(0, 0, 150, 240),
       );
       expect(
-        resolveWorkbenchDropOverlayRect(
-          zone: WorkbenchDropZone.right,
-          paneSize: size,
-        ),
+        resolveWorkbenchDropOverlayRect(zone: .right, paneSize: size),
         const Rect.fromLTWH(150, 0, 150, 240),
       );
       expect(
-        resolveWorkbenchDropOverlayRect(
-          zone: WorkbenchDropZone.up,
-          paneSize: size,
-        ),
+        resolveWorkbenchDropOverlayRect(zone: .up, paneSize: size),
         const Rect.fromLTWH(0, 0, 300, 120),
       );
       expect(
-        resolveWorkbenchDropOverlayRect(
-          zone: WorkbenchDropZone.down,
-          paneSize: size,
-        ),
+        resolveWorkbenchDropOverlayRect(zone: .down, paneSize: size),
         const Rect.fromLTWH(0, 120, 300, 120),
       );
       expect(
-        resolveWorkbenchDropOverlayRect(
-          zone: WorkbenchDropZone.center,
-          paneSize: size,
-        ),
+        resolveWorkbenchDropOverlayRect(zone: .center, paneSize: size),
         const Rect.fromLTWH(96, 72, 108, 96),
       );
     });
@@ -92,7 +77,7 @@ void main() {
           sourceGroupId: 'group-a',
           targetGroupId: 'group-a',
           targetTabCount: 1,
-          zone: WorkbenchDropZone.left,
+          zone: .left,
         ),
         isFalse,
       );
@@ -101,7 +86,7 @@ void main() {
           sourceGroupId: 'group-a',
           targetGroupId: 'group-a',
           targetTabCount: 3,
-          zone: WorkbenchDropZone.center,
+          zone: .center,
         ),
         isFalse,
       );
@@ -110,7 +95,7 @@ void main() {
           sourceGroupId: 'group-a',
           targetGroupId: 'group-a',
           targetTabCount: 3,
-          zone: WorkbenchDropZone.right,
+          zone: .right,
         ),
         isTrue,
       );
@@ -119,7 +104,7 @@ void main() {
           sourceGroupId: 'group-a',
           targetGroupId: 'group-b',
           targetTabCount: 1,
-          zone: WorkbenchDropZone.center,
+          zone: .center,
         ),
         isTrue,
       );

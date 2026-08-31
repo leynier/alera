@@ -6,11 +6,10 @@ import 'package:alera/src/features/automations/presentation/automation_detail_wi
 import 'package:alera/src/features/automations/presentation/automation_run_row.dart';
 import 'package:flutter/material.dart';
 
-class AutomationOverviewTab extends StatelessWidget {
-  const AutomationOverviewTab({required this.detail, super.key});
-
-  final AutomationDetail detail;
-
+class const AutomationOverviewTab({
+  required final AutomationDetail detail,
+  super.key,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final active = detail.runs.where(
@@ -20,7 +19,7 @@ class AutomationOverviewTab extends StatelessWidget {
     return SingleChildScrollView(
       padding: const EdgeInsets.only(top: AleraTokens.space12),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
+        crossAxisAlignment: .stretch,
         children: <Widget>[
           AutomationInfoPanel(automation: detail.automation),
           const SizedBox(height: AleraTokens.space12),
@@ -76,20 +75,13 @@ class AutomationOverviewTab extends StatelessWidget {
   }
 }
 
-class AutomationRunsTab extends StatelessWidget {
-  const AutomationRunsTab({
-    required this.runs,
-    this.onCancel,
-    this.onResumeWaiting,
-    this.onExtendWaiting,
-    super.key,
-  });
-
-  final List<AutomationRunRecord> runs;
-  final ValueChanged<AutomationRunRecord>? onCancel;
-  final ValueChanged<AutomationRunRecord>? onResumeWaiting;
-  final ValueChanged<AutomationRunRecord>? onExtendWaiting;
-
+class const AutomationRunsTab({
+  required final List<AutomationRunRecord> runs,
+  final ValueChanged<AutomationRunRecord>? onCancel,
+  final ValueChanged<AutomationRunRecord>? onResumeWaiting,
+  final ValueChanged<AutomationRunRecord>? onExtendWaiting,
+  super.key,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListView(
@@ -117,11 +109,8 @@ class AutomationRunsTab extends StatelessWidget {
   }
 }
 
-class AutomationAuditTab extends StatelessWidget {
-  const AutomationAuditTab({required this.events, super.key});
-
-  final List<JsonMap> events;
-
+class const AutomationAuditTab({required final List<JsonMap> events, super.key})
+    extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListView(

@@ -1,15 +1,13 @@
-class MobileDevice {
-  const MobileDevice({
-    required this.id,
-    required this.displayName,
-    required this.permission,
-    required this.pairedAt,
-    this.publicKeyB64,
-    this.lastSeenAt,
-    this.revokedAt,
-  });
-
-  factory MobileDevice.fromJson(Map<String, Object?> json) {
+class const MobileDevice({
+  required final String id,
+  required final String displayName,
+  required final String permission,
+  required final DateTime pairedAt,
+  final String? publicKeyB64,
+  final DateTime? lastSeenAt,
+  final DateTime? revokedAt,
+}) {
+  factory fromJson(Map<String, Object?> json) {
     return MobileDevice(
       id: _requiredString(json, 'id'),
       displayName: _requiredString(json, 'displayName'),
@@ -20,14 +18,6 @@ class MobileDevice {
       revokedAt: _optionalDateTime(json['revokedAt']),
     );
   }
-
-  final String id;
-  final String displayName;
-  final String? publicKeyB64;
-  final String permission;
-  final DateTime pairedAt;
-  final DateTime? lastSeenAt;
-  final DateTime? revokedAt;
 
   bool get isRevoked => revokedAt != null;
 }

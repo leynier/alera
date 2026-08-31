@@ -3,20 +3,13 @@ import 'package:alera/src/features/agent_status/domain/agent_status.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
-class AgentIdentityIcon extends StatelessWidget {
-  const AgentIdentityIcon({
-    super.key,
-    required this.agentType,
-    this.size = 14,
-    this.color = AleraTokens.foregroundMuted,
-    this.showTooltip = true,
-  });
-
-  final AgentType agentType;
-  final double size;
-  final Color color;
-  final bool showTooltip;
-
+class const AgentIdentityIcon({
+  super.key,
+  required final AgentType agentType,
+  final double size = 14,
+  final Color color = AleraTokens.foregroundMuted,
+  final bool showTooltip = true,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final label = agentDisplayName(agentType);
@@ -28,14 +21,14 @@ class AgentIdentityIcon extends StatelessWidget {
               asset.path,
               width: size,
               height: size,
-              filterQuality: FilterQuality.medium,
+              filterQuality: .medium,
             )
           : SvgPicture.asset(
               asset.path,
               width: size,
               height: size,
               colorFilter: asset.tintable
-                  ? ColorFilter.mode(color, BlendMode.srcIn)
+                  ? ColorFilter.mode(color, .srcIn)
                   : null,
             ),
     );
@@ -43,17 +36,11 @@ class AgentIdentityIcon extends StatelessWidget {
   }
 }
 
-class _AgentIconAsset {
-  const _AgentIconAsset({
-    required this.path,
-    this.tintable = true,
-    this.raster = false,
-  });
-
-  final String path;
-  final bool tintable;
-  final bool raster;
-}
+class const _AgentIconAsset({
+  required final String path,
+  final bool tintable = true,
+  final bool raster = false,
+});
 
 String agentDisplayName(AgentType agentType) {
   return switch (agentType) {

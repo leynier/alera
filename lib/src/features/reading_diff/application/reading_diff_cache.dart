@@ -1,7 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
 import 'dart:isolate';
-import 'dart:typed_data';
 
 import 'package:alera/src/features/reading_diff/domain/reading_diff_models.dart';
 import 'package:path/path.dart' as p;
@@ -33,17 +32,13 @@ extension ReadingDiffCachePersistence on ReadingDiffCache {
   }
 }
 
-class FileReadingDiffCache implements ReadingDiffCache {
-  const FileReadingDiffCache({
-    this.directoryProvider = getApplicationSupportDirectory,
-    this.maxEntries = 20,
-    this.maxBytes = 64 * 1024 * 1024,
-  }) : assert(maxEntries > 0),
-       assert(maxBytes > 0);
-
-  final Future<Directory> Function() directoryProvider;
-  final int maxEntries;
-  final int maxBytes;
+class const FileReadingDiffCache({
+  final Future<Directory> Function() directoryProvider =
+      getApplicationSupportDirectory,
+  final int maxEntries = 20,
+  final int maxBytes = 64 * 1024 * 1024,
+}) implements ReadingDiffCache {
+  this : assert(maxEntries > 0), assert(maxBytes > 0);
 
   @override
   Future<ReadingDiffResult?> read(String key) async {
@@ -53,7 +48,7 @@ class FileReadingDiffCache implements ReadingDiffCache {
         return null;
       }
       final encoded = await file.readAsString();
-      return Isolate.run(() => _decodeReadingDiffResult(encoded));
+      return await Isolate.run(() => _decodeReadingDiffResult(encoded));
     } catch (_) {
       return null;
     }
@@ -132,17 +127,11 @@ class FileReadingDiffCache implements ReadingDiffCache {
   }
 }
 
-class _ReadingDiffCacheEntry {
-  const _ReadingDiffCacheEntry({
-    required this.file,
-    required this.bytes,
-    required this.modifiedAt,
-  });
-
-  final File file;
-  final int bytes;
-  final DateTime modifiedAt;
-}
+class const _ReadingDiffCacheEntry({
+  required final File file,
+  required final int bytes,
+  required final DateTime modifiedAt,
+});
 
 ReadingDiffResult? _decodeReadingDiffResult(String encoded) {
   final value = jsonDecode(encoded);
@@ -162,7 +151,7 @@ ReadingDiffResult? _decodeReadingDiffResult(String encoded) {
     _ => const <ReadingDiffChunkSummary>[],
   };
   return ReadingDiffResult(
-    diff: Uint8List.fromList(base64Decode(value['diff'] as String)),
+    diff: .fromList(base64Decode(value['diff'] as String)),
     summary: value['summary'] as String,
     changedLines: value['changedLines'] as int,
     retainedChangedLines: value['retainedChangedLines'] as int,

@@ -2,7 +2,6 @@ import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/features/settings/application/settings_controller.dart';
 import 'package:alera/src/features/settings/domain/alera_settings.dart';
 import 'package:alera/src/features/workbench/application/source_control_watcher.dart';
-import 'package:alera/src/features/workbench/domain/workbench_view_prefs.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
 import 'package:alera/src/features/workbench/domain/workspace_source_control_scope.dart';
 import 'package:alera/src/features/workbench/presentation/workspace_git_diff_panel.dart';
@@ -28,18 +27,18 @@ void main() {
         entries: <GitChangeEntry>[
           GitChangeEntry(
             path: 'lib/new.dart',
-            area: GitChangeArea.untracked,
-            status: GitChangeStatus.untracked,
+            area: .untracked,
+            status: .untracked,
           ),
           GitChangeEntry(
             path: 'lib/dirty.dart',
-            area: GitChangeArea.unstaged,
-            status: GitChangeStatus.modified,
+            area: .unstaged,
+            status: .modified,
           ),
           GitChangeEntry(
             path: 'lib/staged.dart',
-            area: GitChangeArea.staged,
-            status: GitChangeStatus.modified,
+            area: .staged,
+            status: .modified,
           ),
         ],
       )
@@ -120,31 +119,29 @@ Future<void> _pumpPanel(WidgetTester tester, FakeGitBackend backend) {
                 workspacePath: workspace.path,
                 path: workspace.path,
               ),
-              viewMode: GitDiffViewMode.flat,
+              viewMode: .flat,
               onViewModeChanged: (_) {},
-              groupMode: GitDiffGroupMode.byArea,
+              groupMode: .byArea,
               onGroupModeChanged: (_) {},
-              onOpenGitDiff:
-                  ({
-                    area,
-                    relativePath,
-                    gitDiffRoot,
-                    required scope,
-                    bool preview = false,
-                  }) async {},
-              onOpenGitCommitDiff:
-                  ({
-                    relativePath,
-                    oldPath,
-                    required scope,
-                    gitDiffRoot,
-                    required commitOid,
-                    parentOid,
-                    required compareRef,
-                    subject,
-                    message,
-                    bool preview = false,
-                  }) async {},
+              onOpenGitDiff: ({
+                area,
+                relativePath,
+                gitDiffRoot,
+                required scope,
+                bool preview = false,
+              }) async {},
+              onOpenGitCommitDiff: ({
+                relativePath,
+                oldPath,
+                required scope,
+                gitDiffRoot,
+                required commitOid,
+                parentOid,
+                required compareRef,
+                subject,
+                message,
+                bool preview = false,
+              }) async {},
             ),
           ),
         ),
@@ -167,7 +164,7 @@ Workspace _workspace() {
     path: '/tmp/project',
     createdAt: now,
     updatedAt: now,
-    kind: WorkspaceKind.main,
-    status: WorkspaceStatus.active,
+    kind: .main,
+    status: .active,
   );
 }

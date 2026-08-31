@@ -1,27 +1,18 @@
-part of 'agent_quota_status_bar.dart';
+part of 'agent_quota_status_bar_content.dart';
 
 const double _quotaOverviewPanelWidth = 380;
 const double _quotaOverviewPanelMaxHeight = 480;
 
-class _QuotaOverviewButton extends StatelessWidget {
-  const _QuotaOverviewButton({
-    required this.snapshots,
-    required this.settings,
-    required this.hostId,
-    required this.error,
-    required this.onTogglePinned,
-    required this.profileLabelFor,
-    this.onOpenUsage,
-  });
-
-  final List<AgentQuotaSnapshot> snapshots;
-  final AgentQuotaHostSettings settings;
-  final String hostId;
-  final String? error;
-  final AgentQuotaPinToggle onTogglePinned;
-  final String? Function(AgentQuotaSnapshot snapshot) profileLabelFor;
-  final VoidCallback? onOpenUsage;
-
+class const _QuotaOverviewButton({
+  required final List<AgentQuotaSnapshot> snapshots,
+  required final AgentQuotaHostSettings settings,
+  required final String hostId,
+  final AgentQuotaInlineActions actions = const AgentQuotaInlineActions(),
+  required final String? error,
+  required final AgentQuotaPinToggle onTogglePinned,
+  required final String? Function(AgentQuotaSnapshot snapshot) profileLabelFor,
+  final VoidCallback? onOpenUsage,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MouseRegion(
@@ -32,6 +23,7 @@ class _QuotaOverviewButton extends StatelessWidget {
           snapshots: snapshots,
           settings: settings,
           hostId: hostId,
+          actions: actions,
           emptyMessage: error ?? 'No quota data',
           onTogglePinned: onTogglePinned,
           onOpenUsage: onOpenUsage,
@@ -54,25 +46,16 @@ class _QuotaOverviewButton extends StatelessWidget {
   }
 }
 
-class _AgentQuotaOverviewPanel extends StatelessWidget {
-  const _AgentQuotaOverviewPanel({
-    required this.snapshots,
-    required this.settings,
-    required this.hostId,
-    required this.onTogglePinned,
-    this.profileLabels = const <String, String>{},
-    this.emptyMessage = 'No quota data',
-    this.onOpenUsage,
-  });
-
-  final List<AgentQuotaSnapshot> snapshots;
-  final AgentQuotaHostSettings settings;
-  final String hostId;
-  final AgentQuotaPinToggle onTogglePinned;
-  final Map<String, String> profileLabels;
-  final String emptyMessage;
-  final VoidCallback? onOpenUsage;
-
+class const _AgentQuotaOverviewPanel({
+  required final List<AgentQuotaSnapshot> snapshots,
+  required final AgentQuotaHostSettings settings,
+  required final String hostId,
+  final AgentQuotaInlineActions actions = const AgentQuotaInlineActions(),
+  required final AgentQuotaPinToggle onTogglePinned,
+  final Map<String, String> profileLabels = const <String, String>{},
+  final String emptyMessage = 'No quota data',
+  final VoidCallback? onOpenUsage,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -98,23 +81,23 @@ class _AgentQuotaOverviewPanel extends StatelessWidget {
           child: Padding(
             padding: const EdgeInsets.symmetric(vertical: AleraTokens.space4),
             child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
+              mainAxisSize: .min,
+              crossAxisAlignment: .stretch,
               children: <Widget>[
                 if (snapshots.isEmpty)
                   Padding(
                     padding: const EdgeInsets.all(AleraTokens.space12),
                     child: Text(
                       _normalizeQuotaText(emptyMessage),
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: AleraTokens.foregroundMuted,
-                      ),
+                      style: Theme.of(context).textTheme.bodySmall
+                          ?.copyWith(color: AleraTokens.foregroundMuted),
                     ),
                   ),
                 for (final snapshot in snapshots)
                   _QuotaOverviewRow(
                     snapshot: snapshot,
                     hostId: hostId,
+                    actions: actions,
                     profileLabel: profileLabels[snapshot.key],
                     pinned: !settings.unpinnedQuotaKeys.contains(
                       snapshot.pinKey,
@@ -141,21 +124,14 @@ class _AgentQuotaOverviewPanel extends StatelessWidget {
   }
 }
 
-class _QuotaOverviewRow extends StatelessWidget {
-  const _QuotaOverviewRow({
-    required this.snapshot,
-    required this.hostId,
-    required this.profileLabel,
-    required this.pinned,
-    required this.onTogglePinned,
-  });
-
-  final AgentQuotaSnapshot snapshot;
-  final String hostId;
-  final String? profileLabel;
-  final bool pinned;
-  final AgentQuotaPinToggle onTogglePinned;
-
+class const _QuotaOverviewRow({
+  required final AgentQuotaSnapshot snapshot,
+  required final String hostId,
+  final AgentQuotaInlineActions actions = const AgentQuotaInlineActions(),
+  required final String? profileLabel,
+  required final bool pinned,
+  required final AgentQuotaPinToggle onTogglePinned,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final readings = _quotaReadings(snapshot);
@@ -168,7 +144,7 @@ class _QuotaOverviewRow extends StatelessWidget {
         vertical: AleraTokens.space2,
       ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
+        crossAxisAlignment: .stretch,
         children: <Widget>[
           Row(
             children: <Widget>[
@@ -184,10 +160,10 @@ class _QuotaOverviewRow extends StatelessWidget {
                   waitDuration: AleraTokens.durationMid,
                   child: Text(
                     name,
-                    overflow: TextOverflow.ellipsis,
+                    overflow: .ellipsis,
                     style: AleraTokens.monoStyle.copyWith(
                       fontSize: 10,
-                      fontWeight: FontWeight.w600,
+                      fontWeight: .w600,
                       color: _quotaOverviewNameColor(snapshot.status),
                     ),
                   ),
@@ -235,7 +211,7 @@ class _QuotaOverviewRow extends StatelessWidget {
           ),
           if (snapshot.provider == AgentQuotaProviderId.codex &&
               snapshot.rateLimitResetCredits != null)
-            _CodexResetCreditsPanel(
+            actions.buildCodexReset(
               hostId: hostId,
               snapshot: snapshot,
               compact: true,

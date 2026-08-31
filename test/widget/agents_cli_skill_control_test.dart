@@ -1,9 +1,6 @@
-import 'dart:ui' show PointerDeviceKind;
-
 import 'package:alera/src/app/providers.dart';
 import 'package:alera/src/app/theme/alera_dark_theme.dart';
 import 'package:alera/src/features/agent_status/application/agent_hook_reconciliation_service.dart';
-import 'package:alera/src/features/agent_status/domain/agent_status.dart';
 import 'package:alera/src/features/agent_status/infra/managed_agent_hook_installer.dart';
 import 'package:alera/src/features/settings/domain/alera_settings.dart';
 import 'package:alera/src/features/settings/infra/alera_cli_skill_service.dart';
@@ -64,10 +61,7 @@ void main() {
     );
     expect(runtime.lastTab, isNull);
 
-    final mouse = await tester.createGesture(
-      kind: PointerDeviceKind.mouse,
-      pointer: 1,
-    );
+    final mouse = await tester.createGesture(kind: .mouse, pointer: 1);
     addTearDown(mouse.removePointer);
     await mouse.addPointer(
       location: tester.getCenter(
@@ -217,10 +211,7 @@ void main() {
 
     expect(
       runtime.lastTab?.initialCommand,
-      aleraCliSkillInstallCommand(
-        runner: AleraCliSkillRunner.auto,
-        skill: AleraAgentSkill.agentCanvas,
-      ),
+      aleraCliSkillInstallCommand(runner: .auto, skill: .agentCanvas),
     );
   });
 
@@ -342,8 +333,8 @@ void main() {
   });
 }
 
-class _FakeAleraCliSkillService extends AleraCliSkillService {
-  _FakeAleraCliSkillService()
+class _FakeAleraCliSkillService() extends AleraCliSkillService {
+  this
     : super(
         processRunner: _NoopProcessRunner(),
         commandEnvironmentResolver: const _FakeCommandEnvironmentResolver(),
@@ -385,8 +376,8 @@ class _FakeHookReconciler implements AgentHookReconciler {
     this.settings = settings;
     return <ManagedAgentHookInstallStatus>[
       const ManagedAgentHookInstallStatus(
-        agentType: AgentType.codex,
-        state: ManagedAgentHookInstallState.installed,
+        agentType: .codex,
+        state: .installed,
         configPath: '/tmp/codex',
         managedHooksPresent: true,
       ),
@@ -417,9 +408,8 @@ class _NoopProcessRunner implements ProcessRunner {
   }
 }
 
-class _FakeCommandEnvironmentResolver implements CommandEnvironmentResolver {
-  const _FakeCommandEnvironmentResolver();
-
+class const _FakeCommandEnvironmentResolver()
+    implements CommandEnvironmentResolver {
   @override
   Future<Map<String, String>> environment() async => const <String, String>{};
 

@@ -36,15 +36,13 @@ Future<void> main(List<String> args) async {
   }
 }
 
-final class _Options {
-  _Options({
-    required this.platform,
-    required this.bundlePath,
-    required this.helperManifestPath,
-    required this.videoManifestPath,
-  });
-
-  factory _Options.parse(List<String> args) {
+final class _Options({
+  required final String platform,
+  required final String bundlePath,
+  required final String helperManifestPath,
+  required final String videoManifestPath,
+}) {
+  factory parse(List<String> args) {
     final values = <String, String>{};
     for (var index = 0; index < args.length; index += 2) {
       if (index + 1 >= args.length || !args[index].startsWith('--')) {
@@ -71,9 +69,4 @@ final class _Options {
           p.join('tool', 'native_helpers', 'video_runtime_assets.json'),
     );
   }
-
-  final String platform;
-  final String bundlePath;
-  final String helperManifestPath;
-  final String videoManifestPath;
 }

@@ -1,13 +1,8 @@
 /// A selected project/workspace pair kept by the workbench for this session.
-class WorktreeNavigationTarget {
-  const WorktreeNavigationTarget({
-    required this.projectId,
-    required this.workspaceId,
-  });
-
-  final String projectId;
-  final String workspaceId;
-
+class const WorktreeNavigationTarget({
+  required final String projectId,
+  required final String workspaceId,
+}) {
   @override
   bool operator ==(Object other) {
     return other is WorktreeNavigationTarget &&

@@ -1,6 +1,7 @@
 import '../../../design_system/chat/alera_history_edit_status.dart';
 import '../../../design_system/chat/alera_message_queue.dart';
 import '../../../design_system/chat/alera_message_editor.dart';
+
 import 'dart:async';
 import 'dart:collection';
 import 'dart:convert';
@@ -109,18 +110,12 @@ part 'codex_chat_surface_timeline_questions.dart';
 part 'codex_chat_surface_prompt_controls.dart';
 part 'codex_chat_surface_timeline_requests.dart';
 
-class CodexChatSurface extends ConsumerStatefulWidget {
-  const CodexChatSurface({
-    super.key,
-    required this.workspace,
-    required this.tab,
-    this.autofocus = false,
-  });
-
-  final Workspace workspace;
-  final WorkspaceTabRecord tab;
-  final bool autofocus;
-
+class const CodexChatSurface({
+  super.key,
+  required final Workspace workspace,
+  required final WorkspaceTabRecord tab,
+  final bool autofocus = false,
+}) extends ConsumerStatefulWidget {
   @override
   ConsumerState<CodexChatSurface> createState() => _CodexChatSurfaceState();
 }
@@ -230,8 +225,8 @@ class _CodexChatSurfaceState extends ConsumerState<CodexChatSurface> {
       tabId,
       CodexComposerDraft(
         value: _composer.value,
-        attachments: List<CodexInputAttachment>.unmodifiable(_attachments),
-        draftItems: List<CodexDraftItem>.unmodifiable(_draftItems),
+        attachments: List<CodexInputAttachment>.unmodifiableOf(_attachments),
+        draftItems: List<CodexDraftItem>.unmodifiableOf(_draftItems),
       ),
     );
   }
@@ -256,7 +251,7 @@ class _CodexChatSurfaceState extends ConsumerState<CodexChatSurface> {
           decoration: const BoxDecoration(color: AleraTokens.bg),
           child: LayoutBuilder(
             builder: (context, constraints) => Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
+              crossAxisAlignment: .stretch,
               children: <Widget>[
                 Expanded(
                   child: _CodexControllerTimeline(
@@ -354,7 +349,7 @@ class _CodexChatSurfaceState extends ConsumerState<CodexChatSurface> {
       final next = _composer.text.replaceRange(start, end, text);
       _composer.value = TextEditingValue(
         text: next,
-        selection: TextSelection.collapsed(offset: start + text.length),
+        selection: .collapsed(offset: start + text.length),
       );
     } catch (_) {
       // Clipboard failures leave the current draft untouched.
@@ -378,7 +373,7 @@ class _CodexChatSurfaceState extends ConsumerState<CodexChatSurface> {
     final updated = _composer.text.replaceRange(range.start, range.end, '');
     _composer.value = TextEditingValue(
       text: updated,
-      selection: TextSelection.collapsed(offset: updated.length),
+      selection: .collapsed(offset: updated.length),
     );
   }
 
@@ -399,8 +394,8 @@ class _CodexChatSurfaceState extends ConsumerState<CodexChatSurface> {
       storedItem = item.copyWith(tokenStart: start + prefix.length);
       _composer.value = _composer.value.copyWith(
         text: current.replaceRange(start, end, token),
-        selection: TextSelection.collapsed(offset: start + token.length),
-        composing: TextRange.empty,
+        selection: .collapsed(offset: start + token.length),
+        composing: .empty,
       );
     }
     _setSurfaceState(() => _draftItems.add(storedItem));
@@ -422,7 +417,7 @@ class _CodexChatSurfaceState extends ConsumerState<CodexChatSurface> {
         final updated = _composer.text.replaceRange(range.start, range.end, '');
         _composer.value = TextEditingValue(
           text: updated,
-          selection: TextSelection.collapsed(offset: updated.length),
+          selection: .collapsed(offset: updated.length),
         );
       }
     }

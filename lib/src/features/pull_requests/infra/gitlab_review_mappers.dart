@@ -1,7 +1,6 @@
 import 'package:alera/src/features/pull_requests/domain/hosted_review.dart';
 import 'package:alera/src/features/pull_requests/domain/review_check.dart';
 import 'package:alera/src/features/pull_requests/domain/review_check_details.dart';
-import 'package:alera/src/shared/git_hosting/domain/git_hosting_provider.dart';
 
 HostedReview mapGitLabReview(Map<String, Object?> json) {
   final state = (json['state'] as String? ?? 'opened').toLowerCase();
@@ -10,7 +9,7 @@ HostedReview mapGitLabReview(Map<String, Object?> json) {
   final author = json['author'];
   final diffRefs = json['diff_refs'];
   return HostedReview(
-    provider: GitHostingProvider.gitlab,
+    provider: .gitlab,
     number: (json['iid'] as num?)?.toInt() ?? 0,
     title: json['title'] as String? ?? '',
     state: switch (state) {

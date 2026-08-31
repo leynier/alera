@@ -1,26 +1,15 @@
 part of 'workspace_tabs_screen.dart';
 
-class _TabStrip extends StatelessWidget {
-  const _TabStrip({
-    required this.tabs,
-    required this.selectedTabId,
-    required this.creating,
-    required this.presenceByTabId,
-    required this.onSelect,
-    required this.onClose,
-    required this.onActions,
-    required this.onNewTab,
-  });
-
-  final List<WorkspaceTabSummary> tabs;
-  final String? selectedTabId;
-  final bool creating;
-  final Map<String, AgentPresenceSummary> presenceByTabId;
-  final ValueChanged<WorkspaceTabSummary> onSelect;
-  final ValueChanged<WorkspaceTabSummary> onClose;
-  final ValueChanged<WorkspaceTabSummary> onActions;
-  final ValueChanged<_NewTabAction> onNewTab;
-
+class const _TabStrip({
+  required final List<WorkspaceTabSummary> tabs,
+  required final String? selectedTabId,
+  required final bool creating,
+  required final Map<String, AgentPresenceSummary> presenceByTabId,
+  required final ValueChanged<WorkspaceTabSummary> onSelect,
+  required final ValueChanged<WorkspaceTabSummary> onClose,
+  required final ValueChanged<WorkspaceTabSummary> onActions,
+  required final ValueChanged<_NewTabAction> onNewTab,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
@@ -29,7 +18,7 @@ class _TabStrip extends StatelessWidget {
         children: <Widget>[
           Expanded(
             child: ListView(
-              scrollDirection: Axis.horizontal,
+              scrollDirection: .horizontal,
               padding: const EdgeInsets.only(
                 left: AleraTokens.spaceSm,
                 top: AleraTokens.spaceXs,
@@ -67,22 +56,20 @@ class _TabStrip extends StatelessWidget {
 /// The single "+" for every kind of new tab. The menu is anchored under the
 /// button rather than shown as a bottom sheet: the button lives at the top of
 /// the screen, and a sheet would move the action half a screen away from it.
-class _NewTabButton extends StatelessWidget {
-  const _NewTabButton({required this.creating, required this.onSelected});
-
-  final bool creating;
-  final ValueChanged<_NewTabAction> onSelected;
-
+class const _NewTabButton({
+  required final bool creating,
+  required final ValueChanged<_NewTabAction> onSelected,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return PopupMenuButton<_NewTabAction>(
       tooltip: 'New Tab',
       enabled: !creating,
-      position: PopupMenuPosition.under,
+      position: .under,
       onSelected: onSelected,
       itemBuilder: (context) => <PopupMenuEntry<_NewTabAction>>[
         const PopupMenuItem<_NewTabAction>(
-          value: _NewTabAction.terminal,
+          value: .terminal,
           height: AleraTokens.minTapTarget,
           child: _NewTabMenuRow(
             leading: Icon(Icons.terminal, size: AleraTokens.space20),
@@ -90,7 +77,7 @@ class _NewTabButton extends StatelessWidget {
           ),
         ),
         const PopupMenuItem<_NewTabAction>(
-          value: _NewTabAction.codex,
+          value: .codex,
           height: AleraTokens.minTapTarget,
           child: _NewTabMenuRow(
             leading: AgentIdentityIcon(
@@ -120,12 +107,10 @@ class _NewTabButton extends StatelessWidget {
   }
 }
 
-class _NewTabMenuRow extends StatelessWidget {
-  const _NewTabMenuRow({required this.leading, required this.label});
-
-  final Widget leading;
-  final String label;
-
+class const _NewTabMenuRow({
+  required final Widget leading,
+  required final String label,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Row(
@@ -138,23 +123,14 @@ class _NewTabMenuRow extends StatelessWidget {
   }
 }
 
-class _TabChip extends StatelessWidget {
-  const _TabChip({
-    required this.tab,
-    required this.selected,
-    required this.presence,
-    required this.onSelect,
-    required this.onClose,
-    required this.onActions,
-  });
-
-  final WorkspaceTabSummary tab;
-  final bool selected;
-  final AgentPresenceSummary? presence;
-  final ValueChanged<WorkspaceTabSummary> onSelect;
-  final ValueChanged<WorkspaceTabSummary> onClose;
-  final ValueChanged<WorkspaceTabSummary> onActions;
-
+class const _TabChip({
+  required final WorkspaceTabSummary tab,
+  required final bool selected,
+  required final AgentPresenceSummary? presence,
+  required final ValueChanged<WorkspaceTabSummary> onSelect,
+  required final ValueChanged<WorkspaceTabSummary> onClose,
+  required final ValueChanged<WorkspaceTabSummary> onActions,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final interactive = tab.isTerminal || tab.isCodex;
@@ -178,14 +154,14 @@ class _TabChip extends StatelessWidget {
         label: ConstrainedBox(
           constraints: BoxConstraints(maxWidth: _tabTitleMaxWidth(tab.kind)),
           child: Row(
-            mainAxisSize: MainAxisSize.min,
+            mainAxisSize: .min,
             children: [
               Flexible(
                 child: Text(
                   tab.displayTitle,
                   maxLines: 1,
                   softWrap: false,
-                  overflow: TextOverflow.ellipsis,
+                  overflow: .ellipsis,
                 ),
               ),
               if (tab.payload['agentTitleStatus'] == 'generating') ...[
@@ -226,24 +202,18 @@ double _tabTitleMaxWidth(String kind) {
   };
 }
 
-class _EmptyTabs extends StatelessWidget {
-  const _EmptyTabs({
-    required this.creating,
-    required this.onNewTab,
-    this.targetUnavailable = false,
-  });
-
-  final bool creating;
-  final VoidCallback onNewTab;
-  final bool targetUnavailable;
-
+class const _EmptyTabs({
+  required final bool creating,
+  required final VoidCallback onNewTab,
+  final bool targetUnavailable = false,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Center(
       child: Padding(
         padding: AleraTokens.contentPadding,
         child: Column(
-          mainAxisSize: MainAxisSize.min,
+          mainAxisSize: .min,
           children: <Widget>[
             Icon(
               Icons.terminal,

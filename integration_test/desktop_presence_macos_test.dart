@@ -56,7 +56,7 @@ void main() {
       await window.close();
       final deadline = DateTime.now().add(const Duration(seconds: 5));
       while (await window.isVisible() && DateTime.now().isBefore(deadline)) {
-        await Future<void>.delayed(const Duration(milliseconds: 20));
+        await Future.pause(const Duration(milliseconds: 20));
       }
       await lifecycle.waitForPendingHide();
       expect(await window.isVisible(), isFalse);

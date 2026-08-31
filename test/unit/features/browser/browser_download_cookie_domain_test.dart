@@ -120,46 +120,24 @@ void main() {
           status: status,
           receivedBytes: received,
           totalBytes: total,
-          startedAt: DateTime.utc(2026),
+          startedAt: .utc(2026),
         );
       }
 
+      expect(download(status: .pending, received: 1).progress, isNull);
       expect(
-        download(status: BrowserDownloadStatus.pending, received: 1).progress,
+        download(status: .pending, received: 1, total: 0).progress,
         isNull,
       );
       expect(
-        download(
-          status: BrowserDownloadStatus.pending,
-          received: 1,
-          total: 0,
-        ).progress,
-        isNull,
-      );
-      expect(
-        download(
-          status: BrowserDownloadStatus.downloading,
-          received: -2,
-          total: 10,
-        ).progress,
+        download(status: .downloading, received: -2, total: 10).progress,
         0,
       );
       expect(
-        download(
-          status: BrowserDownloadStatus.downloading,
-          received: 5,
-          total: 10,
-        ).progress,
+        download(status: .downloading, received: 5, total: 10).progress,
         0.5,
       );
-      expect(
-        download(
-          status: BrowserDownloadStatus.completed,
-          received: 20,
-          total: 10,
-        ).progress,
-        1,
-      );
+      expect(download(status: .completed, received: 20, total: 10).progress, 1);
       for (final status in BrowserDownloadStatus.values) {
         expect(
           download(status: status, received: 0).isTerminal,

@@ -29,7 +29,15 @@ This document defines contributor and agent governance only. It does not change 
 - This repository does NOT use a `build_runner` watcher. Agents MUST NOT run `build_runner watch` or keep any background code-generation process alive.
 - When a planned batch of edits touches Riverpod, Drift, or `dart_mappable` generated surfaces, agents MUST finish the planned edits first and then regenerate code once for the whole batch with `dart run build_runner build`. Do not regenerate after every individual edit.
 - The one-shot generation MUST run before `dart format`, `flutter analyze`, and tests, so formatting, static analysis, and test runs always see the final generated code.
+- After generation, run `dart tool/ci/normalize_generated_eof.dart` from the root (or `dart ../tool/ci/normalize_generated_eof.dart .` from mobile) before formatting. This canonicalizes the extra trailing newline emitted by dart_mappable without editing generated bodies.
 - Agents MUST verify the regenerated files are included alongside the source changes that produced them.
+
+## Dart Language
+
+- Own packages use Dart 3.13.2 with Flutter 3.47.2. Follow the source conventions and generator exceptions in `docs/dart-3.13-modernization.md`; do not modernize vendored sources or manually rewrite generated bindings.
+- Prefer primary or concise constructors when their argument names, annotations, defaults, initialization order and constant behavior remain unchanged. Keep explicit mapped fields when moving them would reorder serialized keys.
+- Use `Future.pause` for callback-free waits and typed `List.unmodifiableOf` / `Map.unmodifiableOf` for compatible inputs. Preserve event-loop scheduling, copying and immutability.
+- Keep CPU-heavy work behind the existing asynchronous isolate and native boundaries. Synchronous isolate APIs are not a replacement for background UI work.
 
 ## Native Rust Layer
 

@@ -9,9 +9,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 /// Configuration for the terminal quick-key bar: drag to reorder, toggle
 /// visibility, add or delete custom key combos, reset to defaults. Changes
 /// apply live to every open terminal.
-class TerminalKeysSettingsScreen extends ConsumerWidget {
-  const TerminalKeysSettingsScreen({super.key});
-
+class const TerminalKeysSettingsScreen({super.key}) extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final layout = ref.watch(terminalAccessoryLayoutControllerProvider);
@@ -64,12 +62,10 @@ class TerminalKeysSettingsScreen extends ConsumerWidget {
   }
 }
 
-class _KeyList extends StatelessWidget {
-  const _KeyList({required this.layout, required this.controller});
-
-  final TerminalAccessoryLayout layout;
-  final TerminalAccessoryLayoutController controller;
-
+class const _KeyList({
+  required final TerminalAccessoryLayout layout,
+  required final TerminalAccessoryLayoutController controller,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final keys = layout.orderedKeys();
@@ -77,7 +73,7 @@ class _KeyList extends StatelessWidget {
       for (final custom in layout.customKeys) custom.id,
     };
     return ReorderableListView.builder(
-      padding: const EdgeInsets.only(bottom: AleraTokens.spaceXxl),
+      padding: const .only(bottom: AleraTokens.spaceXxl),
       itemCount: keys.length,
       onReorderItem: controller.moveKey,
       itemBuilder: (context, index) {

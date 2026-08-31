@@ -194,11 +194,7 @@ Future<_StubServer> _servePending(Completer<void> requestReceived) async {
   return _StubServer(server);
 }
 
-class _StubServer {
-  _StubServer(this._server);
-
-  final HttpServer _server;
-
+class _StubServer(final HttpServer _server) {
   Uri get url =>
       Uri.parse('http://${_server.address.address}:${_server.port}/releases');
 

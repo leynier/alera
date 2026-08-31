@@ -1,10 +1,6 @@
 part of 'codex_chat_surface.dart';
 
-class _CodexCatalogAppIcon extends StatelessWidget {
-  const _CodexCatalogAppIcon({this.url});
-
-  final String? url;
-
+class const _CodexCatalogAppIcon({final String? url}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final value = url;
@@ -29,7 +25,7 @@ class _CodexCatalogAppIcon extends StatelessWidget {
             )
           : Image.network(
               value,
-              fit: BoxFit.contain,
+              fit: .contain,
               excludeFromSemantics: true,
               errorBuilder: (_, _, _) => fallback,
             ),
@@ -37,17 +33,11 @@ class _CodexCatalogAppIcon extends StatelessWidget {
   }
 }
 
-class _CodexCatalogPickerDialog extends StatefulWidget {
-  const _CodexCatalogPickerDialog({
-    required this.title,
-    required this.items,
-    required this.searchHint,
-  });
-
-  final String title;
-  final List<Map<String, Object?>> items;
-  final String searchHint;
-
+class const _CodexCatalogPickerDialog({
+  required final String title,
+  required final List<Map<String, Object?>> items,
+  required final String searchHint,
+}) extends StatefulWidget {
   @override
   State<_CodexCatalogPickerDialog> createState() =>
       _CodexCatalogPickerDialogState();
@@ -73,8 +63,8 @@ class _CodexCatalogPickerDialogState extends State<_CodexCatalogPickerDialog> {
           maxHeight: AleraTokens.dialogMaxHeight,
         ),
         child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
+          mainAxisSize: .min,
+          crossAxisAlignment: .stretch,
           children: <Widget>[
             Padding(
               padding: const EdgeInsets.fromLTRB(

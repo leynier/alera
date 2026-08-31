@@ -287,7 +287,7 @@ void main() {
 Future<void> _settle([
   Duration duration = const Duration(milliseconds: 60),
 ]) async {
-  await Future<void>.delayed(duration);
+  await Future.pause(duration);
 }
 
 final class _FakeRuntimeHostClient implements RuntimeHostClient {

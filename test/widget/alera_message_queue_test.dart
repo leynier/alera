@@ -1,4 +1,5 @@
 import 'dart:async';
+
 import 'package:alera/src/design_system/chat/alera_message_queue.dart';
 import 'package:alera/src/design_system/chat/alera_message_editor.dart';
 import 'package:flutter/material.dart';

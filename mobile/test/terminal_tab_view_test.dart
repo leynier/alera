@@ -103,10 +103,7 @@ void main() {
     await _pumpTab(tester, client);
     final before = _terminalOf(tester);
 
-    client.emitOutput(
-      'session-tab-1',
-      Uint8List.fromList(utf8.encode('hello')),
-    );
+    client.emitOutput('session-tab-1', .fromList(utf8.encode('hello')));
     await tester.pumpAndSettle();
 
     expect(_terminalOf(tester), same(before));
@@ -227,9 +224,8 @@ void main() {
     final client = FakeTerminalClient()
       ..tabs = <WorkspaceTabSummary>[fakeTab(id: 'tab-1', title: 'Terminal 1')]
       ..attachmentSnapshot = utf8.encode(
-        <String>[
-          for (var line = 0; line < 8000; line++) 'line-$line',
-        ].join('\r\n'),
+        <String>[for (var line = 0; line < 8000; line++) 'line-$line']
+            .join('\r\n'),
       )
       ..attachmentSnapshotCols = 200
       ..attachmentSnapshotRows = 50;
@@ -333,7 +329,7 @@ void main() {
     // answered with a snapshot. Appending it would duplicate the scrollback.
     client.emitOutput(
       'session-tab-1',
-      Uint8List.fromList(utf8.encode('restored')),
+      .fromList(utf8.encode('restored')),
       replacesScrollback: true,
     );
     await tester.pumpAndSettle();

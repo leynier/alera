@@ -2,6 +2,10 @@
 
 This guide defines the default testing layers for Alera and the commands that should be used before shipping features, UI changes, and refactors.
 
+Native text rendering is covered by `flutter test integration_test/typography_rendering_test.dart -d <linux|macos|windows>`. Set `ALERA_VISUAL_REVIEW_DIR` to an absolute output directory to save PNG captures at 1x, 1.5x, and 2x text scales. `Desktop Builds` uploads these as `typography-<platform>` artifacts; review them alongside the goldens because the goldens obscure text and cannot validate native glyph rendering.
+
+`terminal_input_native_test.dart` verifies terminal selection, copy/paste shortcuts, Unicode clipboard round-tripping and terminal key sequences through the native Flutter runner. It requires `ALERA_NATIVE_TEST_CLIPBOARD=1` because it owns and clears the clipboard. Run it only on disposable CI desktops or a separate Xvfb display, never against a user's desktop session. `Desktop Builds` supplies this opt-in on its native runners.
+
 ## Test Layers
 
 - Unit tests cover pure domain logic, controllers, repositories, command construction, parsers, and platform branches with the smallest possible setup.
@@ -12,10 +16,12 @@ This guide defines the default testing layers for Alera and the commands that sh
 
 ## Local Commands
 
+After a batch that changes generated inputs or generators, run `dart run build_runner build`, `dart tool/ci/normalize_generated_eof.dart`, then the fast checks. From `mobile/`, use `dart ../tool/ci/normalize_generated_eof.dart .` after its own one-shot generation. Never run a build-runner watcher. The PR generation job repeats this sequence and rejects any difference from the committed result.
+
 Run the fast checks first:
 
 ```bash
-dart format --set-exit-if-changed lib test integration_test tool
+dart format --set-exit-if-changed lib test integration_test tool packages
 dart run tool/quality/check_max_lines.dart
 flutter analyze
 flutter test --exclude-tags golden
@@ -45,10 +51,19 @@ flutter test --update-goldens test/golden
 Run desktop E2E locally on the current platform:
 
 ```bash
-flutter test integration_test -d macos
+flutter test integration_test/alera_smoke_flow_test.dart -d macos
+flutter test integration_test/rust_process_runner_test.dart -d macos
 ```
 
-Use `-d linux` or `-d windows` on those platforms. The checked-in E2E flow must use temporary directories, temporary databases, fake process runners, and fake terminal runtimes unless the test explicitly needs a native boundary.
+Use `-d linux` or `-d windows` on those platforms. Invoke each integration file separately because the desktop launcher cannot reliably restart multiple suites in one invocation. The checked-in E2E flow must use temporary directories, temporary databases, fake process runners, and fake terminal runtimes unless the test explicitly needs a native boundary.
+
+Shared packages under `packages/alera_browser` and `packages/alera_configuration` each run dependency resolution from their lockfile, formatting, analysis and tests. Resolve both native plugin manifests independently without modifying Cargokit. The standalone runtime packager uses `dart pub get` from `tool/release/runtime_packager`; `dart tool/ci/verify_runtime_packager.dart` verifies all six archive variants with temporary inputs and a Dart-only dependency graph.
+
+## Mobile Build Checks
+
+`Mobile Builds` validates changes to Flutter, mobile, and shared native dependencies on pull requests. It builds an Android release APK with the debug signing fallback, verifies its bundled native dependencies, and builds both an unsigned iOS device release and a debug simulator app on macOS. These checks use no distribution credentials and publish no applications. Desktop release compilation remains in the existing `Desktop Builds` workflow.
+
+Run the Android equivalent from `mobile/` with `flutter build apk --release`, then run `bash tool/release/verify_android_native_dependencies.sh mobile/build/app/outputs/flutter-apk` from the repository root. On macOS, run `flutter build ios --release --no-codesign` and `flutter build ios --simulator --debug --no-codesign` from `mobile/`. Keep APKs signed with the debug fallback off release channels; they cannot update release-signed installations.
 
 ## Performance Checks
 

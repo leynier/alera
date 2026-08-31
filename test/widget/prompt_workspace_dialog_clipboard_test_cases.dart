@@ -43,10 +43,10 @@ void _registerPromptWorkspaceClipboardTests() {
                   projectId: project.id,
                   name: name,
                   branch: newBranchName,
-                  kind: WorkspaceKind.linked,
+                  kind: .linked,
                   now: now,
                 ),
-                setupReport: WorktreeSetupReport.empty,
+                setupReport: .empty,
               ),
           launchAgent:
               ({
@@ -72,10 +72,7 @@ void _registerPromptWorkspaceClipboardTests() {
     await tester.enterText(promptField, 'Review this ');
     final focusContext = tester.binding.focusManager.primaryFocus?.context;
     expect(focusContext, isNotNull);
-    Actions.invoke(
-      focusContext!,
-      const PasteTextIntent(SelectionChangedCause.keyboard),
-    );
+    Actions.invoke(focusContext!, const PasteTextIntent(.keyboard));
     await tester.pump();
     await tester.pump();
 
@@ -122,10 +119,7 @@ void _registerPromptWorkspaceClipboardTests() {
     );
     final focusContext = tester.binding.focusManager.primaryFocus?.context;
     expect(focusContext, isNotNull);
-    Actions.invoke(
-      focusContext!,
-      const PasteTextIntent(SelectionChangedCause.keyboard),
-    );
+    Actions.invoke(focusContext!, const PasteTextIntent(.keyboard));
     await tester.pump();
     await tester.pumpAndSettle();
 
@@ -133,10 +127,8 @@ void _registerPromptWorkspaceClipboardTests() {
   });
 }
 
-final class _FakePromptWorkspaceClipboard implements PromptWorkspaceClipboard {
-  _FakePromptWorkspaceClipboard({this.imagePath});
-
-  final String? imagePath;
+final class _FakePromptWorkspaceClipboard({final String? imagePath})
+    implements PromptWorkspaceClipboard {
   int imageReads = 0;
 
   @override

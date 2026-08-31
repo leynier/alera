@@ -4,8 +4,8 @@ import 'package:alera/src/features/app_window/domain/app_foreground.dart';
 import 'package:flutter/widgets.dart';
 
 /// [AppForeground] backed by the Flutter app lifecycle.
-class LifecycleAppForeground implements AppForeground {
-  LifecycleAppForeground() {
+class LifecycleAppForeground() implements AppForeground {
+  this {
     try {
       _listener = AppLifecycleListener(onStateChange: _apply);
     } catch (_) {

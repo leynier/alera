@@ -5,74 +5,68 @@ part of 'workbench_controller_test.dart';
 /// the session. These cases pin the centralized cleanup in the controller so
 /// no close path can forget it again.
 void _registerWorkbenchControllerTerminalCleanupTests() {
-  test(
-    'deleting a selected workspace frees terminal, browser, editor, and tab state',
-    () async {
-      await _controller.bootstrap();
-      await _selectMainWorkspace(_controller, _harness);
-      final workspace = (await _controller.createWorkspace(
-        project: _harness.project,
-        sourceBranch: 'main',
-        newBranchName: 'feature/cleanup',
-      )).workspace;
-      await _flush();
-      final terminal = _controller.state.activeWorkspaceTab!;
-      _harness.terminalRuntime.sessionFor(workspace: workspace, tab: terminal);
-      _harness.container.read(agentHookReceiverProvider);
-      final browser = await _controller.createBrowserTab(workspace);
-      await _harness.container
-          .read(browserSessionRegistryProvider)
-          .sessionFor(browser);
-      expect(_harness.browserEngine.pages, isNotEmpty);
-      final editor = await _controller.openEditorTab(
-        workspace: workspace,
-        relativePath: 'readme.md',
-      );
-      final registry = _harness.container.read(editorSessionRegistryProvider);
-      registry.documentFor(editor.id)
-        ..acceptLoaded(
-          native_files.WorkspaceEditorTextFile(
-            rawContent: 'original',
-            displayContent: 'original',
-            contentToken: 'token',
-            modifiedMillis: 0,
-            size: BigInt.zero,
-          ),
-        )
-        ..updateCurrentText('unsaved');
+  test('deleting a selected workspace frees terminal, browser, editor, and tab state', () async {
+    await _controller.bootstrap();
+    await _selectMainWorkspace(_controller, _harness);
+    final workspace = (await _controller.createWorkspace(
+      project: _harness.project,
+      sourceBranch: 'main',
+      newBranchName: 'feature/cleanup',
+    )).workspace;
+    await _flush();
+    final terminal = _controller.state.activeWorkspaceTab!;
+    _harness.terminalRuntime.sessionFor(workspace: workspace, tab: terminal);
+    _harness.container.read(agentHookReceiverProvider);
+    final browser = await _controller.createBrowserTab(workspace);
+    await _harness.container
+        .read(browserSessionRegistryProvider)
+        .sessionFor(browser);
+    expect(_harness.browserEngine.pages, isNotEmpty);
+    final editor = await _controller.openEditorTab(
+      workspace: workspace,
+      relativePath: 'readme.md',
+    );
+    final registry = _harness.container.read(editorSessionRegistryProvider);
+    registry.documentFor(editor.id)
+      ..acceptLoaded(
+        native_files.WorkspaceEditorTextFile(
+          rawContent: 'original',
+          displayContent: 'original',
+          contentToken: 'token',
+          modifiedMillis: 0,
+          size: .zero,
+        ),
+      )
+      ..updateCurrentText('unsaved');
 
-      await _controller.deleteWorkspace(
-        project: _harness.project,
-        workspace: workspace,
-        activeWorkspaceId: workspace.id,
-      );
-      await _flush();
+    await _controller.deleteWorkspace(
+      project: _harness.project,
+      workspace: workspace,
+      activeWorkspaceId: workspace.id,
+    );
+    await _flush();
 
-      expect(
-        _harness.terminalRuntime.closedWorkspaceIds,
-        contains(workspace.id),
-      );
-      expect(_harness.terminalRuntime.sessions, isEmpty);
-      expect(
-        _harness.hookReceiver.clearedSessionIds,
-        contains(terminal.terminalSessionId),
-      );
-      expect(registry.isDirty(editor.id), isFalse);
-      expect(_harness.browserEngine.pages, isEmpty);
-      expect(
-        _controller.state.tabsByWorkspace.containsKey(workspace.id),
-        isFalse,
-      );
-      expect(
-        _controller.state.layoutByWorkspace.containsKey(workspace.id),
-        isFalse,
-      );
-      expect(
-        _controller.state.activeTabIdByWorkspace.containsKey(workspace.id),
-        isFalse,
-      );
-    },
-  );
+    expect(_harness.terminalRuntime.closedWorkspaceIds, contains(workspace.id));
+    expect(_harness.terminalRuntime.sessions, isEmpty);
+    expect(
+      _harness.hookReceiver.clearedSessionIds,
+      contains(terminal.terminalSessionId),
+    );
+    expect(registry.isDirty(editor.id), isFalse);
+    expect(_harness.browserEngine.pages, isEmpty);
+    expect(
+      _controller.state.tabsByWorkspace.containsKey(workspace.id),
+      isFalse,
+    );
+    expect(
+      _controller.state.layoutByWorkspace.containsKey(workspace.id),
+      isFalse,
+    );
+    expect(
+      _controller.state.activeTabIdByWorkspace.containsKey(workspace.id),
+      isFalse,
+    );
+  });
 
   test('closing a tab disposes its live terminal handle', () async {
     await _controller.bootstrap();
@@ -104,7 +98,7 @@ void _registerWorkbenchControllerTerminalCleanupTests() {
           displayContent: 'original',
           contentToken: 'token-1',
           modifiedMillis: 0,
-          size: BigInt.zero,
+          size: .zero,
         ),
       )
       ..updateCurrentText('edited');

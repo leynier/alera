@@ -2,26 +2,18 @@
 /// codes and stderr into these instead of leaking raw strings upward, so a
 /// genuine "no review" / "no checks" (a null / empty list) is never confused
 /// with an error.
-sealed class ForgeException implements Exception {
-  const ForgeException(this.message);
-
-  final String message;
-
+sealed class const ForgeException(final String message) implements Exception {
   @override
   String toString() => '$runtimeType: $message';
 }
 
 /// The CLI is installed but not authenticated for the target host.
-class ForgeNotAuthenticated extends ForgeException {
-  const ForgeNotAuthenticated([super.message = 'Not authenticated']);
-}
+class const ForgeNotAuthenticated([super.message = 'Not authenticated'])
+    extends ForgeException;
 
 /// The CLI (or a required extension) is missing from PATH.
-class ForgeCliMissing extends ForgeException {
-  const ForgeCliMissing([super.message = 'CLI not found']);
-}
+class const ForgeCliMissing([super.message = 'CLI not found'])
+    extends ForgeException;
 
 /// The CLI ran but the request failed (transport, unexpected output, ...).
-class ForgeRequestFailed extends ForgeException {
-  const ForgeRequestFailed(super.message);
-}
+class const ForgeRequestFailed(super.message) extends ForgeException;

@@ -5,12 +5,10 @@ import 'package:alera/src/features/workbench/application/workspace_agent_status_
 /// order: attention-needing states surface first.
 enum WorkspaceAgentGroupKind { waiting, blocked, interrupted, working, done }
 
-class WorkspaceAgentRunGroup {
-  const WorkspaceAgentRunGroup({required this.kind, required this.runs});
-
-  final WorkspaceAgentGroupKind kind;
-  final List<WorkspaceAgentRun> runs;
-}
+class const WorkspaceAgentRunGroup({
+  required final WorkspaceAgentGroupKind kind,
+  required final List<WorkspaceAgentRun> runs,
+});
 
 /// Groups a workspace's agent runs by visual state for the compact summary
 /// pill. Interruption wins over the reported state, mirroring the per-row

@@ -29,7 +29,7 @@ extension CodexChatControllerLifecycle on CodexChatController {
               const {},
           historyRevision: open['historyRevision'] as int? ?? 0,
           loading: false,
-          snapshot: CodexChatSnapshot.fromJson(open['snapshot']),
+          snapshot: .fromJson(open['snapshot']),
           activeCwd: _string(open['cwd']),
           historyNextCursor: _string(open['historyNextCursor']),
           recovery: open['recovery'] == null

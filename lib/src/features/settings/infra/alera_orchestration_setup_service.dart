@@ -7,19 +7,13 @@ import 'package:logging/logging.dart';
 
 final Logger _log = Logger('AleraOrchestrationSetupService');
 
-class AleraOrchestrationSetupResult {
-  const AleraOrchestrationSetupResult({
-    required this.skillResult,
-    required this.hooksSelected,
-    this.hookStatuses = const <ManagedAgentHookInstallStatus>[],
-    this.hookError,
-  });
-
-  final AleraCliSkillInstallResult skillResult;
-  final bool hooksSelected;
-  final List<ManagedAgentHookInstallStatus> hookStatuses;
-  final Object? hookError;
-
+class const AleraOrchestrationSetupResult({
+  required final AleraCliSkillInstallResult skillResult,
+  required final bool hooksSelected,
+  final List<ManagedAgentHookInstallStatus> hookStatuses =
+      const <ManagedAgentHookInstallStatus>[],
+  final Object? hookError,
+}) {
   bool get succeeded => skillResult.succeeded;
 
   bool get needsAttention {
@@ -63,17 +57,12 @@ class AleraOrchestrationSetupResult {
 
 /// Outcome of the hook half of orchestration setup on its own, for when the
 /// skill install already happened elsewhere.
-class AleraOrchestrationHookSetupResult {
-  const AleraOrchestrationHookSetupResult({
-    required this.hooksSelected,
-    this.hookStatuses = const <ManagedAgentHookInstallStatus>[],
-    this.hookError,
-  });
-
-  final bool hooksSelected;
-  final List<ManagedAgentHookInstallStatus> hookStatuses;
-  final Object? hookError;
-
+class const AleraOrchestrationHookSetupResult({
+  required final bool hooksSelected,
+  final List<ManagedAgentHookInstallStatus> hookStatuses =
+      const <ManagedAgentHookInstallStatus>[],
+  final Object? hookError,
+}) {
   List<ManagedAgentHookInstallStatus> get _unhealthy => hookStatuses
       .where(
         (status) =>
@@ -102,22 +91,17 @@ class AleraOrchestrationHookSetupResult {
   }
 }
 
-class AleraOrchestrationSetupService {
-  const AleraOrchestrationSetupService({
-    required this.skillService,
-    required this.hookReconciliationService,
-  });
-
-  final AleraCliSkillService skillService;
-  final AgentHookReconciler hookReconciliationService;
-
+class const AleraOrchestrationSetupService({
+  required final AleraCliSkillService skillService,
+  required final AgentHookReconciler hookReconciliationService,
+}) {
   Future<AleraOrchestrationSetupResult> installOrUpdate({
     required AgentStatusHookSettings hooks,
     AleraCliSkillRunner runner = AleraCliSkillRunner.auto,
   }) async {
     final skillResult = await skillService.installOrUpdate(
       runner: runner,
-      skill: AleraAgentSkill.orchestration,
+      skill: .orchestration,
     );
     if (!skillResult.succeeded) {
       return AleraOrchestrationSetupResult(

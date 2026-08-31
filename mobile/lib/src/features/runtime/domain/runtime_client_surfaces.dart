@@ -1,3 +1,5 @@
+import 'package:alera_mobile/src/features/runtime/domain/workspace_section_summary.dart';
+
 import 'dart:async';
 import 'dart:typed_data';
 
@@ -63,25 +65,18 @@ const String mobilePromptFileUploadCapability = 'mobilePromptFileUploadV1';
 const String mobilePromptAttachmentReadCapability =
     'mobilePromptAttachmentReadV1';
 
-class MobileRuntimeEvent {
-  const MobileRuntimeEvent(this.name, this.payload);
+class const MobileRuntimeEvent(
+  final String name,
+  final Map<String, Object?> payload,
+);
 
-  final String name;
-  final Map<String, Object?> payload;
-}
-
-class MobileTerminalOutputEvent {
-  const MobileTerminalOutputEvent(
-    this.sessionId,
-    this.data, {
-    this.replacesScrollback = false,
-    this.snapshotCols,
-    this.snapshotRows,
-  });
-
-  final String sessionId;
-  final Uint8List data;
-
+class const MobileTerminalOutputEvent(
+  final String sessionId,
+  final Uint8List data, {
+  this.replacesScrollback = false,
+  this.snapshotCols,
+  final int? snapshotRows,
+}) {
   /// A `delta: false` resume answer: the host could no longer place this client
   /// in the output stream, so these bytes replace the emulator contents instead
   /// of being appended to them.
@@ -90,7 +85,6 @@ class MobileTerminalOutputEvent {
   /// The size the replacing snapshot was written at, when the host states one.
   /// Only meaningful alongside [replacesScrollback].
   final int? snapshotCols;
-  final int? snapshotRows;
 }
 
 const int defaultTerminalCols = 80;
@@ -271,4 +265,12 @@ abstract interface class MobileWorkspaceClient {
     String workspaceId,
     List<String> tagIds,
   );
+}
+
+abstract interface class MobileWorkspaceSectionClient {
+  bool get supportsWorkspaceSections;
+  Future<List<WorkspaceSectionSummary>> listWorkspaceSections();
+  Future<void> createWorkspaceSection(String name, String workspaceId);
+  Future<void> setWorkspaceSection(String workspaceId, String? sectionId);
+  Future<void> removeWorkspaceSection(String sectionId);
 }

@@ -11,55 +11,33 @@ import 'package:alera/src/features/projects/domain/project_config.dart';
 import 'package:alera/src/shared/git_hosting/domain/git_hosting_provider.dart';
 import 'package:flutter/material.dart';
 
-class ProjectConfigEditor extends StatelessWidget {
-  const ProjectConfigEditor({
-    super.key,
-    required this.project,
-    required this.sourceLabel,
-    required this.copyRules,
-    required this.setupCommands,
-    required this.promptAppend,
-    required this.onPromptAppendChanged,
-    required this.saveError,
-    required this.saving,
-    required this.updateCopyRule,
-    required this.removeCopyRule,
-    required this.addCopyRule,
-    required this.updateSetupCommand,
-    required this.removeSetupCommand,
-    required this.addSetupCommand,
-    required this.saveOverride,
-    required this.useRepoFile,
-    required this.gitHostingProvider,
-    required this.onGitHostingProviderChanged,
-    this.sourceError,
-  });
-
-  final Project project;
-  final String sourceLabel;
-  final String? sourceError;
-  final List<EditableCopyRule> copyRules;
-  final List<String> setupCommands;
-  final String promptAppend;
-  final ValueChanged<String> onPromptAppendChanged;
-  final GitHostingProvider? gitHostingProvider;
-  final ValueChanged<GitHostingProvider?> onGitHostingProviderChanged;
-  final String? saveError;
-  final bool saving;
-  final void Function(int index, EditableCopyRule rule) updateCopyRule;
-  final ValueChanged<int> removeCopyRule;
-  final VoidCallback addCopyRule;
-  final void Function(int index, String command) updateSetupCommand;
-  final ValueChanged<int> removeSetupCommand;
-  final VoidCallback addSetupCommand;
-  final Future<void> Function(Project project) saveOverride;
-  final Future<void> Function()? useRepoFile;
-
+class const ProjectConfigEditor({
+  super.key,
+  required final Project project,
+  required final String sourceLabel,
+  required final List<EditableCopyRule> copyRules,
+  required final List<String> setupCommands,
+  required final String promptAppend,
+  required final ValueChanged<String> onPromptAppendChanged,
+  required final String? saveError,
+  required final bool saving,
+  required final void Function(int index, EditableCopyRule rule) updateCopyRule,
+  required final ValueChanged<int> removeCopyRule,
+  required final VoidCallback addCopyRule,
+  required final void Function(int index, String command) updateSetupCommand,
+  required final ValueChanged<int> removeSetupCommand,
+  required final VoidCallback addSetupCommand,
+  required final Future<void> Function(Project project) saveOverride,
+  required final Future<void> Function()? useRepoFile,
+  required final GitHostingProvider? gitHostingProvider,
+  required final ValueChanged<GitHostingProvider?> onGitHostingProviderChanged,
+  final String? sourceError,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+      crossAxisAlignment: .stretch,
       children: <Widget>[
         AleraSettingsGroup(
           title: project.name,
@@ -113,8 +91,7 @@ class ProjectConfigEditor extends StatelessWidget {
           children: <Widget>[
             AleraSettingRow(
               title: 'Hosting Provider',
-              description:
-                  'Auto-detect uses public hosts. Select GitHub for GitHub Enterprise Server.',
+              description: 'Auto-detect uses public hosts. Select GitHub for GitHub Enterprise Server.',
               child: AleraDropdownField<GitHostingProvider?>(
                 value: gitHostingProvider,
                 onChanged: onGitHostingProviderChanged,
@@ -136,8 +113,7 @@ class ProjectConfigEditor extends StatelessWidget {
         const SizedBox(height: AleraTokens.space16),
         AleraSettingsGroup(
           title: 'Copy Rules',
-          description:
-              'Files copied from the main worktree. Gitignored matches from .worktreeinclude are copied too.',
+          description: 'Files copied from the main worktree. Gitignored matches from .worktreeinclude are copied too.',
           children: <Widget>[
             if (copyRules.isEmpty)
               const _ProjectConfigEmptyRow(message: 'No copy rules')
@@ -201,7 +177,7 @@ class ProjectConfigEditor extends StatelessWidget {
         ],
         const SizedBox(height: AleraTokens.space16),
         Wrap(
-          alignment: WrapAlignment.end,
+          alignment: .end,
           spacing: AleraTokens.space8,
           runSpacing: AleraTokens.space8,
           children: <Widget>[
@@ -229,24 +205,18 @@ class ProjectConfigEditor extends StatelessWidget {
   }
 }
 
-class _CopyRuleEditorRow extends StatelessWidget {
-  const _CopyRuleEditorRow({
-    super.key,
-    required this.rule,
-    required this.onChanged,
-    required this.onRemove,
-  });
-
-  final EditableCopyRule rule;
-  final ValueChanged<EditableCopyRule> onChanged;
-  final VoidCallback onRemove;
-
+class const _CopyRuleEditorRow({
+  super.key,
+  required final EditableCopyRule rule,
+  required final ValueChanged<EditableCopyRule> onChanged,
+  required final VoidCallback onRemove,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.all(AleraTokens.space16),
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
+        crossAxisAlignment: .center,
         children: <Widget>[
           Expanded(
             child: _ProjectConfigTextField(
@@ -287,18 +257,12 @@ class _CopyRuleEditorRow extends StatelessWidget {
   }
 }
 
-class _SetupCommandEditorRow extends StatelessWidget {
-  const _SetupCommandEditorRow({
-    super.key,
-    required this.command,
-    required this.onChanged,
-    required this.onRemove,
-  });
-
-  final String command;
-  final ValueChanged<String> onChanged;
-  final VoidCallback onRemove;
-
+class const _SetupCommandEditorRow({
+  super.key,
+  required final String command,
+  required final ValueChanged<String> onChanged,
+  required final VoidCallback onRemove,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
@@ -326,24 +290,15 @@ class _SetupCommandEditorRow extends StatelessWidget {
   }
 }
 
-class _ProjectConfigTextField extends StatefulWidget {
-  const _ProjectConfigTextField({
-    super.key,
-    required this.value,
-    required this.onChanged,
-    this.labelText,
-    this.hintText,
-    this.minLines,
-    this.maxLines = 1,
-  });
-
-  final String value;
-  final ValueChanged<String> onChanged;
-  final String? labelText;
-  final String? hintText;
-  final int? minLines;
-  final int? maxLines;
-
+class const _ProjectConfigTextField({
+  super.key,
+  required final String value,
+  required final ValueChanged<String> onChanged,
+  final String? labelText,
+  final String? hintText,
+  final int? minLines,
+  final int? maxLines = 1,
+}) extends StatefulWidget {
   @override
   State<_ProjectConfigTextField> createState() =>
       _ProjectConfigTextFieldState();
@@ -385,11 +340,8 @@ class _ProjectConfigTextFieldState extends State<_ProjectConfigTextField> {
   }
 }
 
-class _ProjectConfigSourceBadge extends StatelessWidget {
-  const _ProjectConfigSourceBadge({required this.label});
-
-  final String label;
-
+class const _ProjectConfigSourceBadge({required final String label})
+    extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -407,18 +359,15 @@ class _ProjectConfigSourceBadge extends StatelessWidget {
         label,
         style: theme.textTheme.labelSmall?.copyWith(
           color: AleraTokens.accent,
-          fontWeight: FontWeight.w600,
+          fontWeight: .w600,
         ),
       ),
     );
   }
 }
 
-class _ProjectConfigEmptyRow extends StatelessWidget {
-  const _ProjectConfigEmptyRow({required this.message});
-
-  final String message;
-
+class const _ProjectConfigEmptyRow({required final String message})
+    extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -434,17 +383,11 @@ class _ProjectConfigEmptyRow extends StatelessWidget {
   }
 }
 
-class EditableCopyRule {
-  const EditableCopyRule({
-    this.from = '',
-    this.to = '',
-    this.overwrite = false,
-  });
-
-  final String from;
-  final String to;
-  final bool overwrite;
-
+class const EditableCopyRule({
+  final String from = '',
+  final String to = '',
+  final bool overwrite = false,
+}) {
   EditableCopyRule copyWith({String? from, String? to, bool? overwrite}) {
     return EditableCopyRule(
       from: from ?? this.from,

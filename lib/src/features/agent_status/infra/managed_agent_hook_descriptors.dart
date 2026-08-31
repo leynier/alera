@@ -3,8 +3,8 @@ part of 'managed_agent_hook_installer.dart';
 extension _ManagedAgentHookDescriptors on ManagedAgentHookInstallService {
   ManagedAgentHookInstallStatus _codexRuntimeOnlyStatus() {
     return ManagedAgentHookInstallStatus(
-      agentType: AgentType.codex,
-      state: ManagedAgentHookInstallState.notInstalled,
+      agentType: .codex,
+      state: .notInstalled,
       configPath: p.join(_homeDirectory, '.codex', 'hooks.json'),
       managedHooksPresent: false,
       detail: 'Codex hooks are installed only in Alera-managed runtime homes.',
@@ -13,34 +13,31 @@ extension _ManagedAgentHookDescriptors on ManagedAgentHookInstallService {
 
   ManagedAgentHookInstallStatus _claudeRuntimeOnlyStatus() {
     return ManagedAgentHookInstallStatus(
-      agentType: AgentType.claude,
-      state: ManagedAgentHookInstallState.notInstalled,
+      agentType: .claude,
+      state: .notInstalled,
       configPath: p.join(_homeDirectory, '.claude', 'settings.json'),
       managedHooksPresent: false,
-      detail:
-          'Claude Code hooks are installed only in Alera-managed runtime homes.',
+      detail: 'Claude Code hooks are installed only in Alera-managed runtime homes.',
     );
   }
 
   ManagedAgentHookInstallStatus _cursorRuntimeOnlyStatus() {
     return ManagedAgentHookInstallStatus(
-      agentType: AgentType.cursor,
-      state: ManagedAgentHookInstallState.notInstalled,
+      agentType: .cursor,
+      state: .notInstalled,
       configPath: p.join(_homeDirectory, '.cursor', 'hooks.json'),
       managedHooksPresent: false,
-      detail:
-          'Cursor hooks are installed as a per-session plugin, never in this file.',
+      detail: 'Cursor hooks are installed as a per-session plugin, never in this file.',
     );
   }
 
   ManagedAgentHookInstallStatus _fxRuntimeOnlyStatus() {
     return ManagedAgentHookInstallStatus(
-      agentType: AgentType.fx,
-      state: ManagedAgentHookInstallState.notInstalled,
+      agentType: .fx,
+      state: .notInstalled,
       configPath: p.join(_homeDirectory, '.fx'),
       managedHooksPresent: false,
-      detail:
-          'fx reports status through its built-in local Herdr integration, so no user hooks are installed.',
+      detail: 'fx reports status through its built-in local Herdr integration, so no user hooks are installed.',
     );
   }
 
@@ -119,7 +116,7 @@ extension _ManagedAgentHookDescriptors on ManagedAgentHookInstallService {
     if (!file.existsSync()) {
       return ManagedAgentHookInstallStatus(
         agentType: artifact.agentType,
-        state: ManagedAgentHookInstallState.notInstalled,
+        state: .notInstalled,
         configPath: artifact.path,
         managedHooksPresent: false,
       );
@@ -133,7 +130,7 @@ extension _ManagedAgentHookDescriptors on ManagedAgentHookInstallService {
       // cover missing, managed, stale, and unmanaged artifact contents.
       return ManagedAgentHookInstallStatus(
         agentType: artifact.agentType,
-        state: ManagedAgentHookInstallState.error,
+        state: .error,
         configPath: artifact.path,
         managedHooksPresent: false,
         detail: 'Could not read ${artifact.label}.',
@@ -143,7 +140,7 @@ extension _ManagedAgentHookDescriptors on ManagedAgentHookInstallService {
     if (!content.contains(_managedArtifactMarker)) {
       return ManagedAgentHookInstallStatus(
         agentType: artifact.agentType,
-        state: ManagedAgentHookInstallState.error,
+        state: .error,
         configPath: artifact.path,
         managedHooksPresent: false,
         detail:
@@ -153,14 +150,14 @@ extension _ManagedAgentHookDescriptors on ManagedAgentHookInstallService {
     if (content == artifact.content) {
       return ManagedAgentHookInstallStatus(
         agentType: artifact.agentType,
-        state: ManagedAgentHookInstallState.installed,
+        state: .installed,
         configPath: artifact.path,
         managedHooksPresent: true,
       );
     }
     return ManagedAgentHookInstallStatus(
       agentType: artifact.agentType,
-      state: ManagedAgentHookInstallState.partial,
+      state: .partial,
       configPath: artifact.path,
       managedHooksPresent: true,
       detail: 'Managed ${artifact.label} needs to be updated.',
@@ -183,7 +180,7 @@ extension _ManagedAgentHookDescriptors on ManagedAgentHookInstallService {
       // cover the managed and unmanaged artifact paths.
       return ManagedAgentHookInstallStatus(
         agentType: artifact.agentType,
-        state: ManagedAgentHookInstallState.error,
+        state: .error,
         configPath: artifact.path,
         managedHooksPresent: false,
         detail: 'Could not read ${artifact.label}.',
@@ -193,7 +190,7 @@ extension _ManagedAgentHookDescriptors on ManagedAgentHookInstallService {
     if (!content.contains(_managedArtifactMarker)) {
       return ManagedAgentHookInstallStatus(
         agentType: artifact.agentType,
-        state: ManagedAgentHookInstallState.error,
+        state: .error,
         configPath: artifact.path,
         managedHooksPresent: false,
         detail:

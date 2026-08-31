@@ -1,17 +1,11 @@
 part of 'codex_chat_surface.dart';
 
-class _CodexCellView extends StatelessWidget {
-  const _CodexCellView({
-    required this.cell,
-    required this.workspacePath,
-    required this.onOpenAttachment,
-  });
-
-  final CodexTimelineCell cell;
-  final String workspacePath;
-  final Future<void> Function(String path, {required bool isImage})
-  onOpenAttachment;
-
+class const _CodexCellView({
+  required final CodexTimelineCell cell,
+  required final String workspacePath,
+  required final Future<void> Function(String path, {required bool isImage})
+  onOpenAttachment,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) => switch (cell.kind) {
     CodexTimelineKind.userMessage => _CodexUserMessage(
@@ -39,11 +33,8 @@ class _CodexCellView extends StatelessWidget {
   };
 }
 
-class _CodexRawEvent extends StatelessWidget {
-  const _CodexRawEvent({required this.event});
-
-  final CodexTimelineEvent event;
-
+class const _CodexRawEvent({required final CodexTimelineEvent event})
+    extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Padding(
     padding: const EdgeInsets.only(bottom: AleraTokens.space4),

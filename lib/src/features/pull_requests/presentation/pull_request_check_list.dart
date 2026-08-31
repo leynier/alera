@@ -9,18 +9,13 @@ import 'package:flutter/material.dart';
 /// Presentational list of review checks with expandable rows. Expanding a row
 /// lazily fetches that check's details through [onLoadDetails]. Pure: data and
 /// callbacks in via parameters, no Riverpod reads.
-class PullRequestCheckList extends StatefulWidget {
-  const PullRequestCheckList({
-    super.key,
-    required this.checks,
-    required this.onOpenUrl,
-    required this.onLoadDetails,
-  });
-
-  final List<ReviewCheck> checks;
-  final Future<void> Function(String url) onOpenUrl;
-  final Future<ReviewCheckDetails?> Function(ReviewCheck check) onLoadDetails;
-
+class const PullRequestCheckList({
+  super.key,
+  required final List<ReviewCheck> checks,
+  required final Future<void> Function(String url) onOpenUrl,
+  required final Future<ReviewCheckDetails?> Function(ReviewCheck check)
+  onLoadDetails,
+}) extends StatefulWidget {
   @override
   State<PullRequestCheckList> createState() => _PullRequestCheckListState();
 }
@@ -130,7 +125,7 @@ class _PullRequestCheckListState extends State<PullRequestCheckList> {
       );
     }
     return Column(
-      mainAxisSize: MainAxisSize.min,
+      mainAxisSize: .min,
       children: <Widget>[
         for (final group in _CheckGroup.values)
           if (grouped[group] case final checks?)
@@ -141,7 +136,7 @@ class _PullRequestCheckListState extends State<PullRequestCheckList> {
               children: <Widget>[
                 for (final check in checks)
                   Column(
-                    mainAxisSize: MainAxisSize.min,
+                    mainAxisSize: .min,
                     children: <Widget>[
                       _CheckRow(
                         check: check,
@@ -164,30 +159,23 @@ class _PullRequestCheckListState extends State<PullRequestCheckList> {
   }
 }
 
-class _CheckGroupSection extends StatelessWidget {
-  const _CheckGroupSection({
-    required this.label,
-    required this.expanded,
-    required this.onToggle,
-    required this.children,
-  });
-
-  final String label;
-  final bool expanded;
-  final VoidCallback onToggle;
-  final List<Widget> children;
-
+class const _CheckGroupSection({
+  required final String label,
+  required final bool expanded,
+  required final VoidCallback onToggle,
+  required final List<Widget> children,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: .min,
+      crossAxisAlignment: .stretch,
       children: <Widget>[
         InkWell(
           onTap: onToggle,
           mouseCursor: SystemMouseCursors.click,
-          borderRadius: BorderRadius.circular(AleraTokens.radiusSm),
+          borderRadius: .circular(AleraTokens.radiusSm),
           child: Padding(
             padding: const EdgeInsets.symmetric(vertical: AleraTokens.space4),
             child: Row(
@@ -202,7 +190,7 @@ class _CheckGroupSection extends StatelessWidget {
                   child: Text(
                     label,
                     maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
+                    overflow: .ellipsis,
                     style: theme.textTheme.labelMedium?.copyWith(
                       color: AleraTokens.foregroundMuted,
                     ),
@@ -215,26 +203,19 @@ class _CheckGroupSection extends StatelessWidget {
         if (expanded)
           Padding(
             padding: const EdgeInsets.only(left: AleraTokens.space8),
-            child: Column(mainAxisSize: MainAxisSize.min, children: children),
+            child: Column(mainAxisSize: .min, children: children),
           ),
       ],
     );
   }
 }
 
-class _CheckRow extends StatelessWidget {
-  const _CheckRow({
-    required this.check,
-    required this.expanded,
-    required this.onTap,
-    required this.onOpenUrl,
-  });
-
-  final ReviewCheck check;
-  final bool expanded;
-  final VoidCallback onTap;
-  final Future<void> Function(String url) onOpenUrl;
-
+class const _CheckRow({
+  required final ReviewCheck check,
+  required final bool expanded,
+  required final VoidCallback onTap,
+  required final Future<void> Function(String url) onOpenUrl,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -242,7 +223,7 @@ class _CheckRow extends StatelessWidget {
     return InkWell(
       onTap: onTap,
       mouseCursor: SystemMouseCursors.click,
-      borderRadius: BorderRadius.circular(AleraTokens.radiusSm),
+      borderRadius: .circular(AleraTokens.radiusSm),
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: AleraTokens.space4),
         child: Row(
@@ -256,7 +237,7 @@ class _CheckRow extends StatelessWidget {
               child: Text(
                 check.name,
                 maxLines: 1,
-                overflow: TextOverflow.ellipsis,
+                overflow: .ellipsis,
                 style: theme.textTheme.bodySmall,
               ),
             ),
@@ -279,11 +260,8 @@ class _CheckRow extends StatelessWidget {
   }
 }
 
-class _CheckDetailsView extends StatelessWidget {
-  const _CheckDetailsView({required this.state});
-
-  final _CheckDetailsState state;
-
+class const _CheckDetailsView({required final _CheckDetailsState state})
+    extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -336,7 +314,7 @@ class _CheckDetailsView extends StatelessWidget {
       );
     }
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: .start,
       children: <Widget>[
         for (final (label, value) in lines)
           Padding(
@@ -372,14 +350,11 @@ class _CheckDetailsView extends StatelessWidget {
 }
 
 class _CheckDetailsState {
-  const _CheckDetailsState.loading()
-    : loading = true,
-      details = null,
-      error = null;
+  const new loading() : loading = true, details = null, error = null;
 
-  const _CheckDetailsState.ready(this.details) : loading = false, error = null;
+  const new ready(this.details) : loading = false, error = null;
 
-  const _CheckDetailsState.error(this.error) : loading = false, details = null;
+  const new error(this.error) : loading = false, details = null;
 
   final bool loading;
   final ReviewCheckDetails? details;

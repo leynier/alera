@@ -7,9 +7,10 @@ import 'package:flutter_test/flutter_test.dart';
 
 /// A loopback gateway that records every request and answers each one with a
 /// payload chosen by [reply].
-class _FakeGateway {
-  _FakeGateway._(this._server, this.requests);
-
+class _FakeGateway._(
+  final HttpServer _server,
+  final List<Map<String, Object?>> requests,
+) {
   static Future<_FakeGateway> start({
     required Map<String, Object?> Function(Map<String, Object?> request) reply,
   }) async {
@@ -35,9 +36,8 @@ class _FakeGateway {
     return gateway;
   }
 
-  final HttpServer _server;
   bool _closing = false;
-  final List<Map<String, Object?>> requests;
+
   final List<WebSocket> _sockets = <WebSocket>[];
   StreamSubscription<HttpRequest>? _subscription;
 
@@ -86,7 +86,7 @@ Future<void> _waitUntil(
     if (DateTime.now().isAfter(deadline)) {
       fail('Condition was not met within $timeout.');
     }
-    await Future<void>.delayed(const Duration(milliseconds: 5));
+    await Future.pause(const Duration(milliseconds: 5));
   }
 }
 

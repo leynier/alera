@@ -5,12 +5,13 @@ import 'package:alera_mobile/src/features/hosts/domain/paired_host_profile.dart'
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-class LocalHostRepository implements HostRepository {
-  LocalHostRepository({
-    FlutterSecureStorage? secureStorage,
-    SharedPreferencesAsync? preferences,
-  }) : _secureStorage = secureStorage ?? const FlutterSecureStorage(),
-       _preferences = preferences ?? SharedPreferencesAsync();
+class LocalHostRepository({
+  FlutterSecureStorage? secureStorage,
+  SharedPreferencesAsync? preferences,
+}) implements HostRepository {
+  this
+    : _secureStorage = secureStorage ?? const FlutterSecureStorage(),
+      _preferences = preferences ?? SharedPreferencesAsync();
 
   static const String _hostsKey = 'alera.mobile.hosts';
   static const String _deviceTokenPrefix = 'alera.mobile.deviceToken.';

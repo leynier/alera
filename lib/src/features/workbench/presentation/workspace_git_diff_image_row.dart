@@ -14,23 +14,18 @@ typedef WorkspaceGitDiffImageSides = ({
 });
 
 /// Before/after preview for a binary diff entry whose path is an image.
-class WorkspaceGitDiffImageRow extends ConsumerStatefulWidget {
-  const WorkspaceGitDiffImageRow({
-    super.key,
-    required this.file,
-    required this.sourcePath,
-    this.commitOid,
-    this.parentOid,
-  });
-
-  final GitDiffFile file;
-
+class const WorkspaceGitDiffImageRow({
+  super.key,
+  required final GitDiffFile file,
+  required this.sourcePath,
+  this.commitOid,
+  final String? parentOid,
+}) extends ConsumerStatefulWidget {
   /// Absolute path of the source-control scope the diff was loaded from.
   final String sourcePath;
 
   /// Set when the diff came from a commit instead of the working tree.
   final String? commitOid;
-  final String? parentOid;
 
   @override
   ConsumerState<WorkspaceGitDiffImageRow> createState() =>
@@ -86,7 +81,7 @@ class _WorkspaceGitDiffImageRowState
           ? (widget.file.oldPath ?? widget.file.path)
           : widget.file.path;
       if (isWorkspaceIcoFilePath(sidePath)) {
-        return compute(decodeWorkspaceIcoToPngBytes, bytes);
+        return await compute(decodeWorkspaceIcoToPngBytes, bytes);
       }
       return bytes;
     } on GitException {
@@ -122,7 +117,7 @@ class _WorkspaceGitDiffImageRowState
             vertical: AleraTokens.space8,
           ),
           child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            crossAxisAlignment: .start,
             children: <Widget>[
               Expanded(
                 child: _WorkspaceGitDiffImageCell(
@@ -160,25 +155,19 @@ class _WorkspaceGitDiffImageRowState
   }
 }
 
-class _WorkspaceGitDiffImageCell extends StatelessWidget {
-  const _WorkspaceGitDiffImageCell({
-    required this.label,
-    required this.bytes,
-    required this.missingPlaceholder,
-  });
-
+class const _WorkspaceGitDiffImageCell({
+  required final String label,
+  required final Uint8List? bytes,
+  required final String missingPlaceholder,
+}) extends StatelessWidget {
   static const double height = 180;
-
-  final String label;
-  final Uint8List? bytes;
-  final String missingPlaceholder;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final bytes = this.bytes;
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: .start,
       children: <Widget>[
         Text(
           bytes == null ? label : '$label · ${_formatBytes(bytes.length)}',
@@ -189,13 +178,13 @@ class _WorkspaceGitDiffImageCell extends StatelessWidget {
         const SizedBox(height: AleraTokens.space4),
         Container(
           height: height,
-          width: double.infinity,
+          width: .infinity,
           decoration: BoxDecoration(
             color: AleraTokens.surfaceElevated,
             borderRadius: BorderRadius.circular(AleraTokens.radiusMd),
             border: Border.all(color: AleraTokens.borderSubtle),
           ),
-          clipBehavior: Clip.antiAlias,
+          clipBehavior: .antiAlias,
           child: bytes == null
               ? Center(
                   child: Text(
@@ -207,7 +196,7 @@ class _WorkspaceGitDiffImageCell extends StatelessWidget {
                 )
               : Image.memory(
                   bytes,
-                  fit: BoxFit.contain,
+                  fit: .contain,
                   gaplessPlayback: true,
                   errorBuilder: (context, error, stackTrace) => Center(
                     child: Text(

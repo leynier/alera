@@ -152,22 +152,13 @@ void main() {
     });
 
     test('labels each manager for the update copy', () {
-      expect(
-        packageManagerLabel(PackageInstallMethod.homebrewCask),
-        'Homebrew',
-      );
-      expect(packageManagerLabel(PackageInstallMethod.scoop), 'Scoop');
-      expect(
-        packageManagerLabel(PackageInstallMethod.chocolatey),
-        'Chocolatey',
-      );
-      expect(packageManagerLabel(PackageInstallMethod.unmanaged), isNull);
+      expect(packageManagerLabel(.homebrewCask), 'Homebrew');
+      expect(packageManagerLabel(.scoop), 'Scoop');
+      expect(packageManagerLabel(.chocolatey), 'Chocolatey');
+      expect(packageManagerLabel(.unmanaged), isNull);
       // The path proves the install is packaged but not by which manager, and
       // the update's installer kind is what resolves apt against dnf.
-      expect(
-        packageManagerLabel(PackageInstallMethod.linuxSystemPackage),
-        isNull,
-      );
+      expect(packageManagerLabel(.linuxSystemPackage), isNull);
     });
   });
 
@@ -176,24 +167,24 @@ void main() {
       expect(
         packageManagerUpgradeCommand(
           update: _update(),
-          channel: AleraUpdateChannel.stable,
-          installMethod: PackageInstallMethod.homebrewCask,
+          channel: .stable,
+          installMethod: .homebrewCask,
         ),
         'brew upgrade --cask alera',
       );
       expect(
         packageManagerUpgradeCommand(
           update: _update(platform: 'windows'),
-          channel: AleraUpdateChannel.stable,
-          installMethod: PackageInstallMethod.scoop,
+          channel: .stable,
+          installMethod: .scoop,
         ),
         'scoop update alera',
       );
       expect(
         packageManagerUpgradeCommand(
           update: _update(platform: 'windows'),
-          channel: AleraUpdateChannel.stable,
-          installMethod: PackageInstallMethod.chocolatey,
+          channel: .stable,
+          installMethod: .chocolatey,
         ),
         'choco upgrade alera -y',
       );
@@ -203,16 +194,16 @@ void main() {
       expect(
         packageManagerUpgradeCommand(
           update: _update(platform: 'linux', kind: 'deb'),
-          channel: AleraUpdateChannel.stable,
-          installMethod: PackageInstallMethod.linuxSystemPackage,
+          channel: .stable,
+          installMethod: .linuxSystemPackage,
         ),
         'sudo apt-get update && sudo apt-get install --only-upgrade alera',
       );
       expect(
         packageManagerUpgradeCommand(
           update: _update(platform: 'linux', kind: 'rpm'),
-          channel: AleraUpdateChannel.stable,
-          installMethod: PackageInstallMethod.linuxSystemPackage,
+          channel: .stable,
+          installMethod: .linuxSystemPackage,
         ),
         'sudo dnf upgrade alera',
       );
@@ -225,8 +216,8 @@ void main() {
         expect(
           packageManagerUpgradeCommand(
             update: _update(platform: 'linux', kind: kind),
-            channel: AleraUpdateChannel.stable,
-            installMethod: PackageInstallMethod.unmanaged,
+            channel: .stable,
+            installMethod: .unmanaged,
           ),
           isNull,
           reason: kind,
@@ -241,7 +232,7 @@ void main() {
         expect(
           packageManagerUpgradeCommand(
             update: _update(),
-            channel: AleraUpdateChannel.rc,
+            channel: .rc,
             installMethod: method,
           ),
           isNull,
@@ -300,17 +291,14 @@ void main() {
     });
 
     test('has nothing to run for an unmanaged installation', () {
-      expect(
-        packageManagerUpgradeScript(PackageManagerInstall.unmanaged),
-        isNull,
-      );
+      expect(packageManagerUpgradeScript(.unmanaged), isNull);
     });
 
     // Guards the switch rather than the detection: a method that reports it can
     // run an upgrade must have a script, or the launcher throws at runtime.
     test('covers every method that claims it can run an upgrade', () {
       const runnable = PackageManagerInstall(
-        method: PackageInstallMethod.unmanaged,
+        method: .unmanaged,
         managerExecutable: '/usr/bin/true',
         relaunchExecutable: '/usr/bin/true',
       );

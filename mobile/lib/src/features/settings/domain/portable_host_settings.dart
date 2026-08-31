@@ -29,16 +29,14 @@ const Map<String, String> agentHookLabels = <String, String>{
   'fx': 'fx',
 };
 
-class PortableHostSettings {
-  const PortableHostSettings({
-    required this.workspaceDirectory,
-    required this.confirmProjectRemoval,
-    required this.confirmWorkspaceRemoval,
-    required this.agentStatusHooks,
-    required this.agentQuotas,
-  });
-
-  factory PortableHostSettings.fromJson(Map<String, Object?> json) {
+class const PortableHostSettings({
+  required final String? workspaceDirectory,
+  required final bool confirmProjectRemoval,
+  required final bool confirmWorkspaceRemoval,
+  required final Map<String, bool> agentStatusHooks,
+  required final QuotaSettings agentQuotas,
+}) {
+  factory fromJson(Map<String, Object?> json) {
     final hooks = json.mapValue('agentStatusHooks');
     return PortableHostSettings(
       workspaceDirectory: json['workspaceDirectory'] as String?,
@@ -47,15 +45,9 @@ class PortableHostSettings {
       agentStatusHooks: <String, bool>{
         for (final agent in supportedAgentHooks) agent: hooks[agent] == true,
       },
-      agentQuotas: QuotaSettings.fromJson(json.mapValue('agentQuotas')),
+      agentQuotas: .fromJson(json.mapValue('agentQuotas')),
     );
   }
-
-  final String? workspaceDirectory;
-  final bool confirmProjectRemoval;
-  final bool confirmWorkspaceRemoval;
-  final Map<String, bool> agentStatusHooks;
-  final QuotaSettings agentQuotas;
 
   PortableHostSettings copyWith({
     String? workspaceDirectory,
@@ -79,16 +71,14 @@ class PortableHostSettings {
   }
 }
 
-class CliRegistrationStatus {
-  const CliRegistrationStatus({
-    required this.state,
-    required this.ready,
-    required this.pathConfigured,
-    required this.detail,
-    this.commandPath,
-  });
-
-  factory CliRegistrationStatus.fromJson(Map<String, Object?> json) {
+class const CliRegistrationStatus({
+  required final String state,
+  required final bool ready,
+  required final bool pathConfigured,
+  required final String detail,
+  final String? commandPath,
+}) {
+  factory fromJson(Map<String, Object?> json) {
     return CliRegistrationStatus(
       state: json['state'] as String? ?? 'unsupported',
       ready: json['ready'] == true,
@@ -97,24 +87,16 @@ class CliRegistrationStatus {
       commandPath: json['commandPath'] as String?,
     );
   }
-
-  final String state;
-  final bool ready;
-  final bool pathConfigured;
-  final String detail;
-  final String? commandPath;
 }
 
-class SkillInstallResult {
-  const SkillInstallResult({required this.succeeded, required this.summary});
-
-  factory SkillInstallResult.fromJson(Map<String, Object?> json) {
+class const SkillInstallResult({
+  required final bool succeeded,
+  required final String summary,
+}) {
+  factory fromJson(Map<String, Object?> json) {
     return SkillInstallResult(
       succeeded: json['succeeded'] == true,
       summary: json['summary'] as String? ?? 'Skill install failed.',
     );
   }
-
-  final bool succeeded;
-  final String summary;
 }

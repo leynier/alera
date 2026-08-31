@@ -1,18 +1,11 @@
 part of 'mobile_codex_chat_screen.dart';
 
-class _MobileComposerControls extends StatelessWidget {
-  const _MobileComposerControls({
-    required this.composer,
-    required this.disabled,
-    required this.sendDisabled,
-    required this.hasText,
-  });
-
-  final _MobileComposer composer;
-  final bool disabled;
-  final bool sendDisabled;
-  final bool hasText;
-
+class const _MobileComposerControls({
+  required final _MobileComposer composer,
+  required final bool disabled,
+  required final bool sendDisabled,
+  required final bool hasText,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) => LayoutBuilder(
     builder: (context, constraints) {
@@ -26,7 +19,7 @@ class _MobileComposerControls extends StatelessWidget {
         );
       }
       return Column(
-        mainAxisSize: MainAxisSize.min,
+        mainAxisSize: .min,
         children: <Widget>[
           Row(children: _leftControls(context, compact: true)),
           const SizedBox(height: AleraTokens.space2),

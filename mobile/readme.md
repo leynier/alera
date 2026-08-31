@@ -2,6 +2,8 @@
 
 Alera is the Android/iOS companion app for remote Alera work. It is a separate Flutter app so mobile plugins and platform manifests do not leak into the desktop app package.
 
+Build with Flutter 3.47.2 / Dart 3.13.2 using Dart language 3.13. The minimum iOS version is 15.0, as required by the new Flutter toolchain; iOS dependencies continue to use CocoaPods rather than Swift Package Manager. See the [Dart modernization conventions](../docs/dart-3.13-modernization.md) for source and generator guidance.
+
 ## Current Surface
 
 - Pair a host with a QR-first flow: scan the pairing QR from the desktop pairing dialog (torch toggle included), or paste the JSON payload from `alera mobile --json pairing create` through the manual entry sheet. A confirmation step shows the host identity, endpoint, and a live offer-expiry countdown, plus an optional device name before pairing. Failures surface as titled states (Invalid Offer, Offer Expired, Runtime Mismatch, Could Not Reach Runtime) with retry and manual-entry actions.

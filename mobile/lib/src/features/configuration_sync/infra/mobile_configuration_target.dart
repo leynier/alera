@@ -1,19 +1,16 @@
 import 'package:alera_configuration/alera_configuration.dart';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
 import 'mobile_configuration_codec.dart';
 import 'mobile_configuration_preferences.dart';
 
-class MobileConfigurationTarget implements ConfigurationLocalTarget {
-  MobileConfigurationTarget({
-    required this.accountId,
-    required this.onApplied,
-    required this.ensureAccount,
-    this.label = 'This Phone',
-  });
-  final String accountId;
-  final void Function() onApplied;
-  final Future<void> Function() ensureAccount;
+class MobileConfigurationTarget({
+  required final String accountId,
+  required final void Function() onApplied,
+  required final Future<void> Function() ensureAccount,
+  this.label = 'This Phone',
+}) implements ConfigurationLocalTarget {
   @override
   final String label;
   @override
@@ -57,23 +54,19 @@ class MobileConfigurationTarget implements ConfigurationLocalTarget {
       if (before.fingerprint != expectedFingerprint) {
         throw StateError('Phone configuration changed. Review it again.');
       }
-      final writes = await compute(
-        encodeMobileConfigurationApplication,
-        (
-          document: document,
-          before: before.document,
-          base: base,
-          pending: pending,
-          stateKey: _stateKey,
-          backupKey: 'alera.configuration.backup.$accountId',
-          dictationRaw: await MobileConfigurationPreferences.dictation(prefs),
-          // Host ids stay local and never enter the portable document.
-          hostPreferenceKeys: (await prefs.getKeys())
-              .where((key) => key.startsWith('alera.mobile.codex.preferences.'))
-              .toList(),
-        ),
-        debugLabel: 'configuration-application',
-      );
+      final writes = await compute(encodeMobileConfigurationApplication, (
+        document: document,
+        before: before.document,
+        base: base,
+        pending: pending,
+        stateKey: _stateKey,
+        backupKey: 'alera.configuration.backup.$accountId',
+        dictationRaw: await MobileConfigurationPreferences.dictation(prefs),
+        // Host ids stay local and never enter the portable document.
+        hostPreferenceKeys: (await prefs.getKeys())
+            .where((key) => key.startsWith('alera.mobile.codex.preferences.'))
+            .toList(),
+      ), debugLabel: 'configuration-application');
       await ensureAccount();
       await MobileConfigurationPreferences.apply(prefs, writes);
     });
@@ -87,15 +80,11 @@ class MobileConfigurationTarget implements ConfigurationLocalTarget {
   ) async {
     await ensureAccount();
     await MobileConfigurationPreferences.transaction((prefs) async {
-      final encoded = await compute(
-        encodeMobileConfigurationPublication,
-        (
-          state: await prefs.getString(_stateKey),
-          operationId: operationId,
-          revision: revision,
-        ),
-        debugLabel: 'configuration-publication',
-      );
+      final encoded = await compute(encodeMobileConfigurationPublication, (
+        state: await prefs.getString(_stateKey),
+        operationId: operationId,
+        revision: revision,
+      ), debugLabel: 'configuration-publication');
       await ensureAccount();
       await prefs.setString(_stateKey, encoded);
     });

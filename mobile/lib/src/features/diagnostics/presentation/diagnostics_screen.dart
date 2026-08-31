@@ -10,9 +10,7 @@ import 'package:share_plus/share_plus.dart';
 /// Logs stay on the phone and are shared explicitly by the user, rather than
 /// uploaded to the runtime: a phone reporting a problem is usually a phone that
 /// cannot reach its host.
-class DiagnosticsScreen extends StatefulWidget {
-  const DiagnosticsScreen({super.key});
-
+class const DiagnosticsScreen({super.key}) extends StatefulWidget {
   @override
   State<DiagnosticsScreen> createState() => _DiagnosticsScreenState();
 }

@@ -1,6 +1,8 @@
 import 'package:alera_mobile/src/features/codex_chat/infra/local_mobile_codex_preferences_repository.dart';
 import 'package:alera_mobile/src/features/codex_chat/domain/mobile_codex_preferences.dart';
+
 import 'dart:convert';
+
 import 'package:alera_configuration/alera_configuration.dart';
 import 'package:alera_mobile/src/features/configuration_sync/infra/mobile_configuration_preferences.dart';
 import 'package:alera_mobile/src/features/configuration_sync/infra/mobile_configuration_target.dart';
@@ -23,54 +25,48 @@ void main() {
     ensureAccount: () async {},
   );
 
-  test(
-    'near-limit snapshots keep stable fingerprints through apply and publication',
-    () async {
-      final prefs = SharedPreferencesAsync();
-      final phone = target('one');
-      final before = await phone.read();
-      final document = before.document.withBlocks({
-        'desktop': {'futurePrompt': 'x' * (480 * 1024)},
-      });
-      final base = ConfigurationRevision(revision: 1, document: document);
-      final pending = <String, Object?>{
-        'operationId': 'large-upload',
-        'document': document.json,
-      };
-      await phone.apply(
-        document: document,
-        expectedFingerprint: before.fingerprint,
-        base: base,
-        pending: pending,
-      );
-      final applied = await phone.read();
-      final state = jsonDecode(
-        (await prefs.getString('alera.configuration.state.one'))!,
-      );
-      expect(
-        applied.fingerprint,
-        configurationDigest({
-          'document': applied.document.json,
-          'state': state,
-        }),
-      );
-      expect(applied.pending, pending);
-      expect(applied.base!.document.json, document.json);
-      expect((await phone.read()).fingerprint, applied.fingerprint);
-      await phone.published(
-        'large-upload',
-        ConfigurationRevision(revision: 2, document: document),
-      );
-      final published = await phone.read();
-      expect(published.base!.revision, 2);
-      expect(published.pending, isNull);
-      expect(published.document.json, applied.document.json);
-      expect(
-        await prefs.getString(MobileConfigurationPreferences.journalKey),
-        isNull,
-      );
-    },
-  );
+  test('near-limit snapshots keep stable fingerprints through apply and publication', () async {
+    final prefs = SharedPreferencesAsync();
+    final phone = target('one');
+    final before = await phone.read();
+    final document = before.document.withBlocks({
+      'desktop': {'futurePrompt': 'x' * (480 * 1024)},
+    });
+    final base = ConfigurationRevision(revision: 1, document: document);
+    final pending = <String, Object?>{
+      'operationId': 'large-upload',
+      'document': document.json,
+    };
+    await phone.apply(
+      document: document,
+      expectedFingerprint: before.fingerprint,
+      base: base,
+      pending: pending,
+    );
+    final applied = await phone.read();
+    final state = jsonDecode(
+      (await prefs.getString('alera.configuration.state.one'))!,
+    );
+    expect(
+      applied.fingerprint,
+      configurationDigest({'document': applied.document.json, 'state': state}),
+    );
+    expect(applied.pending, pending);
+    expect(applied.base!.document.json, document.json);
+    expect((await phone.read()).fingerprint, applied.fingerprint);
+    await phone.published(
+      'large-upload',
+      ConfigurationRevision(revision: 2, document: document),
+    );
+    final published = await phone.read();
+    expect(published.base!.revision, 2);
+    expect(published.pending, isNull);
+    expect(published.document.json, applied.document.json);
+    expect(
+      await prefs.getString(MobileConfigurationPreferences.journalKey),
+      isNull,
+    );
+  });
 
   test(
     'phone import preserves consent, credentials and foreign blocks',
@@ -159,34 +155,31 @@ void main() {
     );
     await expectLater(phone.read(), throwsStateError);
   });
-  test(
-    'unsupported phone settings fail before writing instead of becoming defaults',
-    () async {
-      final phone = target('one');
-      final before = await phone.read();
-      final mobile = jsonMap(before.document.json['mobile']);
-      mobile['dictation'] = {
-        ...jsonMap(mobile['dictation']),
-        'engine': 'futureEngine',
-      };
-      await expectLater(
-        phone.apply(
-          document: before.document.withBlocks({'mobile': mobile}),
-          expectedFingerprint: before.fingerprint,
-          base: null,
-          pending: null,
-        ),
-        throwsFormatException,
-      );
-      expect((await phone.read()).fingerprint, before.fingerprint);
-      expect(
-        await SharedPreferencesAsync().getString(
-          MobileConfigurationPreferences.journalKey,
-        ),
-        isNull,
-      );
-    },
-  );
+  test('unsupported phone settings fail before writing instead of becoming defaults', () async {
+    final phone = target('one');
+    final before = await phone.read();
+    final mobile = jsonMap(before.document.json['mobile']);
+    mobile['dictation'] = {
+      ...jsonMap(mobile['dictation']),
+      'engine': 'futureEngine',
+    };
+    await expectLater(
+      phone.apply(
+        document: before.document.withBlocks({'mobile': mobile}),
+        expectedFingerprint: before.fingerprint,
+        base: null,
+        pending: null,
+      ),
+      throwsFormatException,
+    );
+    expect((await phone.read()).fingerprint, before.fingerprint);
+    expect(
+      await SharedPreferencesAsync().getString(
+        MobileConfigurationPreferences.journalKey,
+      ),
+      isNull,
+    );
+  });
   test(
     'ordinary phone edits preserve opaque sync fields and custom key metadata',
     () async {

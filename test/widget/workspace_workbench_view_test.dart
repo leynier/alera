@@ -48,11 +48,7 @@ void main() {
   test('Codex tabs display their conversation title', () {
     expect(
       workspaceTabTitleForTesting(
-        _tab(
-          'codex-title',
-          title: 'Generated thread title',
-          kind: WorkspaceTabKind.codex,
-        ),
+        _tab('codex-title', title: 'Generated thread title', kind: .codex),
       ),
       'Generated thread title',
     );

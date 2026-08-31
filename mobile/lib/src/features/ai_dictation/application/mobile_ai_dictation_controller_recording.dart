@@ -22,11 +22,8 @@ extension MobileAiDictationRecording on MobileAiDictationController {
         if (ref.mounted &&
             playerState.processingState == ProcessingState.completed &&
             state.stage == MobileAiDictationStage.playing) {
-          unawaited(player.seek(Duration.zero));
-          state = state.copyWith(
-            stage: MobileAiDictationStage.recorded,
-            playbackPosition: Duration.zero,
-          );
+          unawaited(player.seek(.zero));
+          state = state.copyWith(stage: .recorded, playbackPosition: .zero);
         }
       }),
     );
@@ -58,7 +55,7 @@ extension MobileAiDictationRecording on MobileAiDictationController {
     );
     await _recorder?.start(
       const RecordConfig(
-        encoder: AudioEncoder.wav,
+        encoder: .wav,
         sampleRate: 16000,
         numChannels: 1,
         autoGain: true,

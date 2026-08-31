@@ -189,7 +189,7 @@ void _registerAddProjectDialogLocalTests() {
       find.widgetWithText(TextField, 'Project Path'),
       '/projects/keyboard',
     );
-    await tester.testTextInput.receiveAction(TextInputAction.done);
+    await tester.testTextInput.receiveAction(.done);
     await tester.pumpAndSettle();
 
     expect(result, isA<AddLocalProjectResult>());

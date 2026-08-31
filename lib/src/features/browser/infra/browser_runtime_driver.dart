@@ -19,24 +19,24 @@ part 'browser_runtime_driver_dispatch.dart';
 part 'browser_runtime_driver_artifacts.dart';
 part 'browser_runtime_driver_load_state.dart';
 
-final class BrowserRuntimeDriver {
-  BrowserRuntimeDriver({
-    required RuntimeHostClient client,
-    required BrowserSessionRegistry registry,
-    required BrowserEngine engine,
-    required this.appInstanceId,
-    required this.driverInstanceId,
-    DateTime Function()? now,
-  }) : _client = client, // ignore: prefer_initializing_formals
-       _registry = registry, // ignore: prefer_initializing_formals
-       _engine = engine, // ignore: prefer_initializing_formals
-       _now = now ?? _defaultNow;
+final class BrowserRuntimeDriver({
+  required RuntimeHostClient client,
+  required BrowserSessionRegistry registry,
+  required BrowserEngine engine,
+  required final String appInstanceId,
+  required final String driverInstanceId,
+  DateTime Function()? now,
+}) {
+  this
+    : _client = client, // ignore: prefer_initializing_formals
+      _registry = registry, // ignore: prefer_initializing_formals
+      _engine = engine, // ignore: prefer_initializing_formals
+      _now = now ?? _defaultNow;
 
   final RuntimeHostClient _client;
   final BrowserSessionRegistry _registry;
   final BrowserEngine _engine;
-  final String appInstanceId;
-  final String driverInstanceId;
+
   final DateTime Function() _now;
   final Map<String, int> _generations = <String, int>{};
   final Map<String, int> _documentGenerations = <String, int>{};
@@ -226,8 +226,7 @@ final class BrowserRuntimeDriver {
       ..clear()
       ..addEntries(
         persistentSessions.map(
-          (handle) =>
-              MapEntry(handle.pageId, _ReportedPage.fromState(handle.state)),
+          (handle) => MapEntry(handle.pageId, .fromState(handle.state)),
         ),
       );
   }
@@ -254,19 +253,21 @@ final class BrowserRuntimeDriver {
       }
     }
     final response = browserRuntimeSuccessMap(
-      await _client
-          .runtimeRequest('browser.driver.pageChanged', <String, Object?>{
-            'driverInstanceId': driverInstanceId,
-            'pageId': state.pageId,
-            'generation': generation,
-            'profileId': state.profileId,
-            'url': state.url.toString(),
-            'title': _reportedBrowserTitle(state),
-            'documentChanged': documentChanged,
-            'documentGeneration': documentGeneration,
-            'navigationCompleted': navigationCompleted,
-            'navigationCorrelationId': ?navigationCorrelationId,
-          }),
+      await _client.runtimeRequest(
+        'browser.driver.pageChanged',
+        <String, Object?>{
+          'driverInstanceId': driverInstanceId,
+          'pageId': state.pageId,
+          'generation': generation,
+          'profileId': state.profileId,
+          'url': state.url.toString(),
+          'title': _reportedBrowserTitle(state),
+          'documentChanged': documentChanged,
+          'documentGeneration': documentGeneration,
+          'navigationCompleted': navigationCompleted,
+          'navigationCorrelationId': ?navigationCorrelationId,
+        },
+      ),
       'Browser driver page change',
     );
     final page = response['page'];
@@ -344,22 +345,16 @@ final class BrowserRuntimeDriver {
   }
 }
 
-final class _ReportedPage {
-  const _ReportedPage({
-    required this.profileId,
-    required this.url,
-    required this.title,
-  });
-
-  factory _ReportedPage.fromState(BrowserPageState state) => _ReportedPage(
+final class const _ReportedPage({
+  required final String profileId,
+  required final String url,
+  required final String? title,
+}) {
+  factory fromState(BrowserPageState state) => _ReportedPage(
     profileId: state.profileId,
     url: state.url.toString(),
     title: _reportedBrowserTitle(state),
   );
-
-  final String profileId;
-  final String url;
-  final String? title;
 
   @override
   bool operator ==(Object other) =>
@@ -380,20 +375,13 @@ String? _reportedBrowserTitle(BrowserPageState state) {
   return normalizeAleraBrowserTitle(state.title);
 }
 
-final class _ActiveBrowserCall {
-  _ActiveBrowserCall({
-    required this.correlationId,
-    required this.pageId,
-    required this.generation,
-    required this.method,
-    required this.deadline,
-  });
-
-  final String correlationId;
-  final String pageId;
-  int generation;
-  final String method;
-  final DateTime deadline;
+final class _ActiveBrowserCall({
+  required final String correlationId,
+  required final String pageId,
+  required var int generation,
+  required final String method,
+  required final DateTime deadline,
+}) {
   final Completer<void> _cancellation = Completer<void>();
 
   bool get isNavigationCommand => _isNavigationCommand(method);

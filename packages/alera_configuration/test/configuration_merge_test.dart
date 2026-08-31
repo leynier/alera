@@ -4,56 +4,51 @@ import 'package:test/test.dart';
 ConfigurationDocument doc(JsonMap desktop, {JsonMap? mobile}) =>
     ConfigurationDocument.empty().withBlocks({
       'desktop': desktop,
-      if (mobile != null) 'mobile': mobile,
+      'mobile': ?mobile,
     });
 void main() {
-  test(
-    'profiles use stable ids, expose ordering and reject duplicate names or missing defaults',
-    () {
-      ConfigurationDocument profiles(List<JsonMap> items) =>
-          ConfigurationDocument.empty().withBlocks({
-            'shared': {'agentProfiles': portableCatalog(items)},
-          });
-      const one = {'id': 'a', 'name': 'One', 'command': 'agent'};
-      const two = {'id': 'b', 'name': 'Two', 'command': 'agent'};
-      final merge = ConfigurationMerge(
-        base: profiles([one, two]),
-        local: profiles([
-          two,
-          {...one, 'command': 'agent --local'},
+  test('profiles use stable ids, expose ordering and reject duplicate names or missing defaults', () {
+    ConfigurationDocument profiles(List<JsonMap> items) =>
+        ConfigurationDocument.empty().withBlocks({
+          'shared': {'agentProfiles': portableCatalog(items)},
+        });
+    const one = {'id': 'a', 'name': 'One', 'command': 'agent'};
+    const two = {'id': 'b', 'name': 'Two', 'command': 'agent'};
+    final merge = ConfigurationMerge(
+      base: profiles([one, two]),
+      local: profiles([
+        two,
+        {...one, 'command': 'agent --local'},
+      ]),
+      remote: profiles([
+        {...one, 'name': 'Renamed'},
+        two,
+      ]),
+    );
+    final result = merge.resolve();
+    final items = catalogItems(jsonMap(result.json['shared'])['agentProfiles']);
+    expect(items.map((p) => p['id']), ['b', 'a']);
+    expect(items.last['name'], 'Renamed');
+    expect(items.last['command'], 'agent --local');
+    expect(
+      validateConfiguration(
+        profiles([
+          one,
+          {...two, 'name': 'one'},
         ]),
-        remote: profiles([
-          {...one, 'name': 'Renamed'},
-          two,
-        ]),
-      );
-      final result = merge.resolve();
-      final items = catalogItems(
-        jsonMap(result.json['shared'])['agentProfiles'],
-      );
-      expect(items.map((p) => p['id']), ['b', 'a']);
-      expect(items.last['name'], 'Renamed');
-      expect(items.last['command'], 'agent --local');
-      expect(
-        validateConfiguration(
-          profiles([
-            one,
-            {...two, 'name': 'one'},
-          ]),
-        ),
-        isNotEmpty,
-      );
-      final missing = result.withBlocks({
-        'desktop': {
-          'settings': {
-            'agents': {'defaultAgentProfileId': 'missing'},
-          },
+      ),
+      isNotEmpty,
+    );
+    final missing = result.withBlocks({
+      'desktop': {
+        'settings': {
+          'agents': {'defaultAgentProfileId': 'missing'},
         },
-      });
-      expect(validateConfiguration(missing), isNotEmpty);
-      expect(validateConfiguration(missing, ownedBlocks: {'mobile'}), isEmpty);
-    },
-  );
+      },
+    });
+    expect(validateConfiguration(missing), isNotEmpty);
+    expect(validateConfiguration(missing, ownedBlocks: {'mobile'}), isEmpty);
+  });
   test('independent edits survive and conflicts require a decision', () {
     final merge = ConfigurationMerge(
       base: doc({'font': 12, 'theme': 'dark'}),
@@ -68,7 +63,7 @@ void main() {
     );
     expect(conflict.hasUnresolved, isTrue);
     expect(conflict.resolve, throwsStateError);
-    conflict.chooseAll(ConfigurationChoice.remote);
+    conflict.chooseAll(.remote);
     expect(conflict.resolve().json['desktop'], {'font': 16});
   });
   test(
@@ -106,9 +101,9 @@ void main() {
         remote: remote,
       );
       expect(merge.hasUnresolved, isTrue);
-      merge.chooseAll(ConfigurationChoice.local);
+      merge.chooseAll(.local);
       expect(merge.resolve().json['desktop'], {'profiles': {}});
-      merge.chooseAll(ConfigurationChoice.remote);
+      merge.chooseAll(.remote);
       expect(merge.resolve().json['desktop'], {
         'profiles': {
           'id': {'name': 'New'},
@@ -184,11 +179,11 @@ void main() {
           },
         });
     final merge = ConfigurationMerge(
-      base: ConfigurationDocument.empty(),
+      base: .empty(),
       local: action('local'),
       remote: action('remote'),
     );
-    merge.chooseAll(ConfigurationChoice.remote);
+    merge.chooseAll(.remote);
     final localAddition = merge.differences.firstWhere(
       (d) => d.path.last == 'local',
     );

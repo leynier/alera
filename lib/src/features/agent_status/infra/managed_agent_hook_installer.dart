@@ -40,34 +40,27 @@ enum _ManagedHookDefinitionShape {
 
 const String _managedArtifactMarker = 'ALERA_AGENT_STATUS_MANAGED_FILE';
 
-class ManagedAgentHookInstallStatus {
-  const ManagedAgentHookInstallStatus({
-    required this.agentType,
-    required this.state,
-    required this.configPath,
-    required this.managedHooksPresent,
-    this.detail,
-  });
+class const ManagedAgentHookInstallStatus({
+  required final AgentType agentType,
+  required final ManagedAgentHookInstallState state,
+  required final String configPath,
+  required final bool managedHooksPresent,
+  final String? detail,
+});
 
-  final AgentType agentType;
-  final ManagedAgentHookInstallState state;
-  final String configPath;
-  final bool managedHooksPresent;
-  final String? detail;
-}
-
-class ManagedAgentHookInstallService {
-  ManagedAgentHookInstallService({
-    String? homeDirectory,
-    ManagedAgentHookPlatform? platform,
-    Map<String, String>? environment,
-  }) : _environment = environment ?? Platform.environment,
-       _homeDirectory = homeDirectory ?? _resolveHome(environment),
-       _platform =
-           platform ??
-           (Platform.isWindows
-               ? ManagedAgentHookPlatform.windows
-               : ManagedAgentHookPlatform.posix);
+class ManagedAgentHookInstallService({
+  String? homeDirectory,
+  ManagedAgentHookPlatform? platform,
+  Map<String, String>? environment,
+}) {
+  this
+    : _environment = environment ?? Platform.environment,
+      _homeDirectory = homeDirectory ?? _resolveHome(environment),
+      _platform =
+          platform ??
+          (Platform.isWindows
+              ? ManagedAgentHookPlatform.windows
+              : ManagedAgentHookPlatform.posix);
 
   final Map<String, String> _environment;
   final String _homeDirectory;
@@ -95,7 +88,7 @@ class ManagedAgentHookInstallService {
     if (config == null) {
       return ManagedAgentHookInstallStatus(
         agentType: agentType,
-        state: ManagedAgentHookInstallState.error,
+        state: .error,
         configPath: descriptor.configPath,
         managedHooksPresent: false,
         detail: 'Could not parse ${descriptor.configLabel}.',
@@ -122,7 +115,7 @@ class ManagedAgentHookInstallService {
         managedHooksPresent) {
       return ManagedAgentHookInstallStatus(
         agentType: agentType,
-        state: ManagedAgentHookInstallState.partial,
+        state: .partial,
         configPath: descriptor.configPath,
         managedHooksPresent: true,
         detail: 'Managed Copilot hook file is disabled.',
@@ -135,7 +128,7 @@ class ManagedAgentHookInstallService {
         managedHooksPresent) {
       return ManagedAgentHookInstallStatus(
         agentType: agentType,
-        state: ManagedAgentHookInstallState.partial,
+        state: .partial,
         configPath: descriptor.configPath,
         managedHooksPresent: true,
         detail: 'Managed Antigravity hook bundle is disabled.',
@@ -144,7 +137,7 @@ class ManagedAgentHookInstallService {
     if (presentCount == 0) {
       return ManagedAgentHookInstallStatus(
         agentType: agentType,
-        state: ManagedAgentHookInstallState.notInstalled,
+        state: .notInstalled,
         configPath: descriptor.configPath,
         managedHooksPresent: false,
       );
@@ -152,14 +145,14 @@ class ManagedAgentHookInstallService {
     if (missing.isEmpty) {
       return ManagedAgentHookInstallStatus(
         agentType: agentType,
-        state: ManagedAgentHookInstallState.installed,
+        state: .installed,
         configPath: descriptor.configPath,
         managedHooksPresent: true,
       );
     }
     return ManagedAgentHookInstallStatus(
       agentType: agentType,
-      state: ManagedAgentHookInstallState.partial,
+      state: .partial,
       configPath: descriptor.configPath,
       managedHooksPresent: managedHooksPresent,
       detail: 'Managed hook missing for events: ${missing.join(', ')}.',
@@ -193,7 +186,7 @@ class ManagedAgentHookInstallService {
     if (config == null) {
       return ManagedAgentHookInstallStatus(
         agentType: agentType,
-        state: ManagedAgentHookInstallState.error,
+        state: .error,
         configPath: descriptor.configPath,
         managedHooksPresent: false,
         detail: 'Could not parse ${descriptor.configLabel}.',
@@ -275,7 +268,7 @@ class ManagedAgentHookInstallService {
     if (config == null) {
       return ManagedAgentHookInstallStatus(
         agentType: agentType,
-        state: ManagedAgentHookInstallState.error,
+        state: .error,
         configPath: descriptor.configPath,
         managedHooksPresent: false,
         detail: 'Could not parse ${descriptor.configLabel}.',
@@ -341,58 +334,39 @@ class ManagedAgentHookInstallService {
   }
 }
 
-class _AgentHookDescriptor {
-  _AgentHookDescriptor({
-    required this.agentType,
-    required this.configPath,
-    required this.configLabel,
-    required this.scriptFileName,
-    required this.scriptPath,
-    required this.eventEnvVar,
-    required this.configShape,
-    required this.definitionShape,
-    required this.events,
-    this.bundleName = 'hooks',
-    List<String>? managedScriptFileNames,
-    this.windowsWrappers = const <String, String>{},
-  }) : managedScriptFileNames =
-           managedScriptFileNames ?? <String>[scriptFileName];
+class _AgentHookDescriptor({
+  required final AgentType agentType,
+  required final String configPath,
+  required final String configLabel,
+  required final String scriptFileName,
+  required final String scriptPath,
+  required final String eventEnvVar,
+  required final _AgentHookConfigShape configShape,
+  required final _ManagedHookDefinitionShape definitionShape,
+  required final List<_ManagedHookEvent> events,
+  final String bundleName = 'hooks',
+  List<String>? managedScriptFileNames,
+  final Map<String, String> windowsWrappers = const <String, String>{},
+}) {
+  this
+    : managedScriptFileNames =
+          managedScriptFileNames ?? <String>[scriptFileName];
 
-  final AgentType agentType;
-  final String configPath;
-  final String configLabel;
-  final String scriptFileName;
-  final String scriptPath;
-  final String eventEnvVar;
-  final _AgentHookConfigShape configShape;
-  final _ManagedHookDefinitionShape definitionShape;
-  final String bundleName;
   final List<String> managedScriptFileNames;
-  final Map<String, String> windowsWrappers;
-  final List<_ManagedHookEvent> events;
 }
 
-class _ManagedHookArtifact {
-  const _ManagedHookArtifact({
-    required this.agentType,
-    required this.label,
-    required this.path,
-    required this.content,
-  });
+class const _ManagedHookArtifact({
+  required final AgentType agentType,
+  required final String label,
+  required final String path,
+  required final String content,
+});
 
-  final AgentType agentType;
-  final String label;
-  final String path;
-  final String content;
-}
-
-class _ManagedHookEvent {
-  const _ManagedHookEvent(this.eventName, {this.matcher, this.definitionShape});
-
-  final String eventName;
-  final String? matcher;
-  final _ManagedHookDefinitionShape? definitionShape;
-}
+class const _ManagedHookEvent(
+  final String eventName, {
+  final String? matcher,
+  final _ManagedHookDefinitionShape? definitionShape,
+});
 
 String _shQuote(String value) {
   return "'${value.replaceAll("'", "'\\''")}'";

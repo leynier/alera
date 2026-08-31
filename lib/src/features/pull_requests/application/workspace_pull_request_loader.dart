@@ -22,17 +22,11 @@ import 'package:logging/logging.dart';
 /// Loads the forge and repository snapshot displayed by the pull-request panel.
 final Logger _log = Logger('WorkspacePullRequestLoader');
 
-class WorkspacePullRequestLoader {
-  const WorkspacePullRequestLoader(
-    this._gitBackend,
-    this._registry,
-    this._linkedReviews,
-  );
-
-  final GitBackend _gitBackend;
-  final ForgeProviderRegistry _registry;
-  final LinkedReviewRepository _linkedReviews;
-
+class const WorkspacePullRequestLoader(
+  final GitBackend _gitBackend,
+  final ForgeProviderRegistry _registry,
+  final LinkedReviewRepository _linkedReviews,
+) {
   Future<WorkspacePullRequestState> load(
     WorkspacePullRequestScope scope,
   ) async {
@@ -45,7 +39,7 @@ class WorkspacePullRequestLoader {
     if (forge == null) {
       return WorkspacePullRequestState(
         identity: identity,
-        unavailableReason: PullRequestUnavailableReason.unsupported,
+        unavailableReason: .unsupported,
       );
     }
     final stackProvider = forge is ForgeStackProvider
@@ -149,7 +143,7 @@ class WorkspacePullRequestLoader {
     } on ForgeNotAuthenticated {
       return WorkspacePullRequestState(
         identity: identity,
-        authStatus: ForgeAuthStatus.notAuthenticated,
+        authStatus: .notAuthenticated,
         currentBranch: branch,
         baseBranches: baseInfo.branches,
         suggestedBaseBranch: baseInfo.suggested,
@@ -157,7 +151,7 @@ class WorkspacePullRequestLoader {
     } on ForgeCliMissing {
       return WorkspacePullRequestState(
         identity: identity,
-        authStatus: ForgeAuthStatus.cliMissing,
+        authStatus: .cliMissing,
         currentBranch: branch,
         baseBranches: baseInfo.branches,
         suggestedBaseBranch: baseInfo.suggested,

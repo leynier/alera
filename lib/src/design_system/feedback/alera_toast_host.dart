@@ -6,9 +6,7 @@ import 'package:alera/src/design_system/feedback/alera_toast.dart';
 import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:flutter/material.dart';
 
-class AleraToastHost extends StatefulWidget {
-  const AleraToastHost({super.key});
-
+class const AleraToastHost({super.key}) extends StatefulWidget {
   @override
   State<AleraToastHost> createState() => _AleraToastHostState();
 }
@@ -115,8 +113,8 @@ class _AleraToastHostState extends State<AleraToastHost> {
             bottom: AleraTokens.space16,
           ),
           child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.end,
+            mainAxisSize: .min,
+            crossAxisAlignment: .end,
             children: <Widget>[
               for (var i = 0; i < _visible.length; i++) ...<Widget>[
                 _ToastCard(entry: _visible[i]),
@@ -131,18 +129,14 @@ class _AleraToastHostState extends State<AleraToastHost> {
   }
 }
 
-class _ToastCard extends StatelessWidget {
-  const _ToastCard({required this.entry});
-
-  final _ToastEntry entry;
-
+class const _ToastCard({required final _ToastEntry entry})
+    extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final icon = _iconForTone(entry.data.tone);
     final iconColor = _colorForTone(entry.data.tone);
-    final textStyle = Theme.of(
-      context,
-    ).textTheme.bodyMedium?.copyWith(color: AleraTokens.foreground);
+    final textStyle = Theme.of(context).textTheme.bodyMedium
+        ?.copyWith(color: AleraTokens.foreground);
 
     return AnimatedOpacity(
       opacity: entry.exiting ? 0 : 1,
@@ -172,8 +166,8 @@ class _ToastCard extends StatelessWidget {
                 vertical: AleraTokens.space8,
               ),
               child: Row(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: .min,
+                crossAxisAlignment: .start,
                 children: <Widget>[
                   Icon(icon, size: 16, color: iconColor),
                   const SizedBox(width: AleraTokens.space8),
@@ -216,17 +210,11 @@ class _ToastCard extends StatelessWidget {
   }
 }
 
-class _ToastEntry {
-  const _ToastEntry({
-    required this.id,
-    required this.data,
-    this.exiting = false,
-  });
-
-  final String id;
-  final AleraToastData data;
-  final bool exiting;
-
+class const _ToastEntry({
+  required final String id,
+  required final AleraToastData data,
+  final bool exiting = false,
+}) {
   _ToastEntry copyWith({bool? exiting}) {
     return _ToastEntry(id: id, data: data, exiting: exiting ?? this.exiting);
   }

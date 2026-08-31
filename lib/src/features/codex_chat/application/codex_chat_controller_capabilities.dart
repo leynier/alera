@@ -40,8 +40,7 @@ extension CodexChatControllerCapabilities on CodexChatController {
         _capabilityRefreshBlocked = false;
         if (state.sharedQueueUnavailable) {
           state = state.copyWith(
-            error:
-                'This runtime cannot manage the saved shared queue. Its messages remain stored and will not be sent locally. Reconnect to a compatible runtime or open a new chat.',
+            error: 'This runtime cannot manage the saved shared queue. Its messages remain stored and will not be sent locally. Reconnect to a compatible runtime or open a new chat.',
           );
         }
         await _refreshCapabilities();

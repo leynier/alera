@@ -39,7 +39,7 @@ void main() {
             AppWindowStateTableCompanion(
               id: const Value(1),
               dataJson: const Value('{not json'),
-              updatedAt: Value(DateTime.utc(2026)),
+              updatedAt: Value(.utc(2026)),
             ),
           );
 

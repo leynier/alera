@@ -9,11 +9,8 @@ bool _isCodexTopNotice(CodexTimelineCell cell) {
       noticeType == 'deprecationNotice';
 }
 
-class _CodexSystemNotice extends StatelessWidget {
-  const _CodexSystemNotice({required this.cell});
-
-  final CodexTimelineCell cell;
-
+class const _CodexSystemNotice({required final CodexTimelineCell cell})
+    extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final noticeType = cell.metadata['noticeType']?.toString();
@@ -47,27 +44,24 @@ class _CodexSystemNotice extends StatelessWidget {
         border: Border.all(color: tone.withValues(alpha: 0.32)),
       ),
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: .start,
         children: <Widget>[
           Icon(AleraIcons.warning, size: AleraTokens.iconMd, color: tone),
           const SizedBox(width: AleraTokens.space8),
           Expanded(
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+              crossAxisAlignment: .start,
               children: <Widget>[
                 Text(
                   cell.title ?? 'Codex Warning',
-                  style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                    color: tone,
-                    fontWeight: FontWeight.w600,
-                  ),
+                  style: Theme.of(context).textTheme.labelMedium
+                      ?.copyWith(color: tone, fontWeight: .w600),
                 ),
                 const SizedBox(height: AleraTokens.space2),
                 Text(
                   message,
-                  style: Theme.of(
-                    context,
-                  ).textTheme.bodySmall?.copyWith(color: tone),
+                  style: Theme.of(context).textTheme.bodySmall
+                      ?.copyWith(color: tone),
                 ),
               ],
             ),
@@ -78,11 +72,8 @@ class _CodexSystemNotice extends StatelessWidget {
   }
 }
 
-class _CodexMcpStatusCell extends StatelessWidget {
-  const _CodexMcpStatusCell({required this.cell});
-
-  final CodexTimelineCell cell;
-
+class const _CodexMcpStatusCell({required final CodexTimelineCell cell})
+    extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final status = cell.subtitle?.trim().isNotEmpty == true
@@ -103,30 +94,29 @@ class _CodexMcpStatusCell extends StatelessWidget {
         border: Border.all(color: AleraTokens.borderSubtle),
       ),
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: .start,
         children: <Widget>[
           Icon(AleraIcons.host, size: AleraTokens.iconMd, color: tone),
           const SizedBox(width: AleraTokens.space8),
           Expanded(
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+              crossAxisAlignment: .start,
               children: <Widget>[
                 Text(
                   cell.title ?? 'MCP Server',
                   maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+                  overflow: .ellipsis,
                   style: Theme.of(context).textTheme.labelMedium?.copyWith(
                     color: AleraTokens.foreground,
-                    fontWeight: FontWeight.w600,
+                    fontWeight: .w600,
                   ),
                 ),
                 if (details.isNotEmpty) ...<Widget>[
                   const SizedBox(height: AleraTokens.space2),
                   Text(
                     details,
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: AleraTokens.foregroundMuted,
-                    ),
+                    style: Theme.of(context).textTheme.bodySmall
+                        ?.copyWith(color: AleraTokens.foregroundMuted),
                   ),
                 ],
               ],
@@ -137,9 +127,8 @@ class _CodexMcpStatusCell extends StatelessWidget {
             _CodexShimmerText(
               key: const ValueKey<String>('codex-mcp-loading-indicator'),
               text: _codexStatusLabel(status),
-              style: Theme.of(
-                context,
-              ).textTheme.labelSmall?.copyWith(color: tone),
+              style: Theme.of(context).textTheme.labelSmall
+                  ?.copyWith(color: tone),
             )
           else ...<Widget>[
             Icon(
@@ -152,9 +141,8 @@ class _CodexMcpStatusCell extends StatelessWidget {
             const SizedBox(width: AleraTokens.space4),
             Text(
               _codexStatusLabel(status),
-              style: Theme.of(
-                context,
-              ).textTheme.labelSmall?.copyWith(color: tone),
+              style: Theme.of(context).textTheme.labelSmall
+                  ?.copyWith(color: tone),
             ),
           ],
         ],

@@ -1,9 +1,9 @@
 part of 'mobile_codex_chat_screen.dart';
 
-class _MobileQueueBar extends StatelessWidget {
-  const _MobileQueueBar({required this.messages, required this.controller});
-  final List<Map<String, Object?>> messages;
-  final MobileCodexController controller;
+class const _MobileQueueBar({
+  required final List<Map<String, Object?>> messages,
+  required final MobileCodexController controller,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final owner = context
@@ -82,12 +82,10 @@ class _MobileQueueBar extends StatelessWidget {
   }
 }
 
-class _MobileError extends StatelessWidget {
-  const _MobileError({required this.message, required this.onRetry});
-
-  final String message;
-  final VoidCallback onRetry;
-
+class const _MobileError({
+  required final String message,
+  required final VoidCallback onRetry,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Center(
     child: Padding(

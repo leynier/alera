@@ -47,7 +47,7 @@ void _registerMobileCodexReviewRegressionTests() {
     () async {
       final shared = await shareMobileCodexPlanText(
         '# Plan',
-        sharePositionOrigin: const Rect.fromLTWH(10, 20, 30, 40),
+        sharePositionOrigin: const .fromLTWH(10, 20, 30, 40),
         share: (_) => Future<ShareResult>.error(StateError('unavailable')),
       );
 
@@ -121,9 +121,9 @@ void _registerMobileCodexReviewRegressionTests() {
     final result = arrowHandler.onKeyEvent!(
       eventNode,
       const KeyDownEvent(
-        physicalKey: PhysicalKeyboardKey.arrowUp,
-        logicalKey: LogicalKeyboardKey.arrowUp,
-        timeStamp: Duration.zero,
+        physicalKey: .arrowUp,
+        logicalKey: .arrowUp,
+        timeStamp: .zero,
       ),
     );
 
@@ -155,13 +155,13 @@ void _registerMobileCodexReviewRegressionTests() {
     final controller = tester.widget<TextField>(composer).controller!;
 
     await tester.tap(composer);
-    await tester.sendKeyEvent(LogicalKeyboardKey.arrowUp);
+    await tester.sendKeyEvent(.arrowUp);
     await tester.pump();
     expect(controller.text, 'Second prompt');
 
     await tester.enterText(composer, 'Edited draft');
     await tester.enterText(composer, '');
-    await tester.sendKeyEvent(LogicalKeyboardKey.arrowUp);
+    await tester.sendKeyEvent(.arrowUp);
     await tester.pump();
     expect(controller.text, 'Second prompt');
   });
@@ -407,9 +407,8 @@ void _registerMobileCodexReviewRegressionTests() {
     );
     final container = ProviderContainer(
       overrides: [
-        mobileCodexClientProvider(
-          'host-queue-edit',
-        ).overrideWith((ref) async => client),
+        mobileCodexClientProvider('host-queue-edit')
+            .overrideWith((ref) async => client),
       ],
     );
     addTearDown(() {

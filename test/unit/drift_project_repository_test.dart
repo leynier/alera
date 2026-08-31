@@ -90,14 +90,11 @@ void main() {
         await _insertWorkspaceTab(db, otherTab);
         await _insertWorkbenchLayout(
           db,
-          WorkbenchLayout.single(
-            workspaceId: workspace.id,
-            tabIds: <String>[tab.id],
-          ),
+          .single(workspaceId: workspace.id, tabIds: <String>[tab.id]),
         );
         await _insertWorkbenchLayout(
           db,
-          WorkbenchLayout.single(
+          .single(
             workspaceId: otherWorkspace.id,
             tabIds: <String>[otherTab.id],
           ),
@@ -146,8 +143,8 @@ Workspace _workspace({
     path: '/repo/$projectId',
     createdAt: now,
     updatedAt: now,
-    kind: WorkspaceKind.main,
-    status: WorkspaceStatus.active,
+    kind: .main,
+    status: .active,
   );
 }
 

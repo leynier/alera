@@ -20,113 +20,110 @@ void registerCodexCapabilityReconnectTests() {
       );
   final provider = codexChatControllerProvider('reconnect');
 
-  test(
-    'reconnect migrates paused local entries once after a lost insertion acknowledgement',
-    () async {
-      var upgraded = false;
-      var loseAcknowledgement = true;
-      final accepted = <String, Map<String, Object?>>{};
-      final client = _FakeCodexRuntimeClient(
-        requestHandler: (type, payload) {
-          if (type == 'status.get') {
-            return Future.value({
-              'runtimeCapabilities': upgraded ? features : <String>[],
-            });
+  test('reconnect migrates paused local entries once after a lost insertion acknowledgement', () async {
+    var upgraded = false;
+    var loseAcknowledgement = true;
+    final accepted = <String, Map<String, Object?>>{};
+    final client = _FakeCodexRuntimeClient(
+      requestHandler: (type, payload) {
+        if (type == 'status.get') {
+          return Future.value({
+            'runtimeCapabilities': upgraded ? features : <String>[],
+          });
+        }
+        if (type == 'codex.thread.open') {
+          return Future.value({
+            'threadId': 'thread',
+            'snapshot': {
+              'activeTurnId': 'active',
+              'timelineCells': <Object?>[],
+            },
+          });
+        }
+        if (type == 'codex.queue.get' || type == 'codex.queue.pause') {
+          return Future.value(queue(accepted.values.toList()));
+        }
+        if (type == 'codex.queue.add') {
+          final id = payload['clientUserMessageId']! as String;
+          accepted.putIfAbsent(
+            id,
+            () => {'id': id, 'status': 'queued', 'payload': payload},
+          );
+          if (loseAcknowledgement) {
+            loseAcknowledgement = false;
+            return Future.error(StateError('Acknowledgement lost'));
           }
-          if (type == 'codex.thread.open') {
-            return Future.value({
-              'threadId': 'thread',
-              'snapshot': {
-                'activeTurnId': 'active',
-                'timelineCells': <Object?>[],
-              },
-            });
-          }
-          if (type == 'codex.queue.get' || type == 'codex.queue.pause') {
-            return Future.value(queue(accepted.values.toList()));
-          }
-          if (type == 'codex.queue.add') {
-            final id = payload['clientUserMessageId']! as String;
-            accepted.putIfAbsent(
-              id,
-              () => {'id': id, 'status': 'queued', 'payload': payload},
-            );
-            if (loseAcknowledgement) {
-              loseAcknowledgement = false;
-              return Future.error(StateError('Acknowledgement lost'));
-            }
-            return Future.value(queue(accepted.values.toList()));
-          }
-          return null;
-        },
-      );
-      final container = containerFor(client);
-      final listener = container.listen(provider, (_, _) {});
-      addTearDown(listener.close);
-      addTearDown(() {
-        container.dispose();
-        client.dispose();
-      });
-      container.read(provider);
-      await _settle();
-      final controller = container.read(provider.notifier);
-      await controller.queueAction('pause');
-      await controller.send(
-        'First',
-        attachments: const [
-          CodexInputAttachment(path: '/tmp/image.png', isImage: true),
-        ],
-      );
-      await controller.send('Second');
-      final ids = container
-          .read(provider)
-          .queuedMessages
-          .map((entry) => entry.id)
-          .toList();
-      upgraded = true;
-      client.emit(const RuntimeHostEvent(aleraRuntimeHostConnectedEvent, {}));
-      await _settle();
-      expect(
-        container.read(provider).queuedMessages.map((entry) => entry.id),
-        ids,
-      );
-      expect(
-        container.read(provider).error,
-        contains('Pending messages are preserved'),
-      );
-      expect(await controller.send('Do not send yet'), isFalse);
-      await controller.retry();
-      final state = container.read(provider);
-      expect(state.chatFeatures, features.toSet());
-      expect(state.queuedMessages.map((entry) => entry.text), [
-        'First',
-        'Second',
-      ]);
-      expect(state.queuePaused, isTrue);
-      final insertions = client.requests
-          .where((call) => call.type == 'codex.queue.add')
-          .toList();
-      expect(insertions.map((call) => call.payload['clientUserMessageId']), [
-        ids[0],
-        ids[0],
-        ids[1],
-      ]);
-      expect(
-        insertions.first.payload['input'],
-        contains(equals({'type': 'localImage', 'path': '/tmp/image.png'})),
-      );
-      expect(
-        client.requests.where((call) => call.type == 'codex.turn.start'),
-        isEmpty,
-      );
-      expect(
-        client.requests.indexWhere((call) => call.type == 'codex.queue.pause'),
-        lessThan(
-          client.requests.indexWhere((call) => call.type == 'codex.queue.add'),
-        ),
-      );
-    },
-  );
+          return Future.value(queue(accepted.values.toList()));
+        }
+        return null;
+      },
+    );
+    final container = containerFor(client);
+    final listener = container.listen(provider, (_, _) {});
+    addTearDown(listener.close);
+    addTearDown(() {
+      container.dispose();
+      client.dispose();
+    });
+    container.read(provider);
+    await _settle();
+    final controller = container.read(provider.notifier);
+    await controller.queueAction('pause');
+    await controller.send(
+      'First',
+      attachments: const [
+        CodexInputAttachment(path: '/tmp/image.png', isImage: true),
+      ],
+    );
+    await controller.send('Second');
+    final ids = container
+        .read(provider)
+        .queuedMessages
+        .map((entry) => entry.id)
+        .toList();
+    upgraded = true;
+    client.emit(const RuntimeHostEvent(aleraRuntimeHostConnectedEvent, {}));
+    await _settle();
+    expect(
+      container.read(provider).queuedMessages.map((entry) => entry.id),
+      ids,
+    );
+    expect(
+      container.read(provider).error,
+      contains('Pending messages are preserved'),
+    );
+    expect(await controller.send('Do not send yet'), isFalse);
+    await controller.retry();
+    final state = container.read(provider);
+    expect(state.chatFeatures, features.toSet());
+    expect(state.queuedMessages.map((entry) => entry.text), [
+      'First',
+      'Second',
+    ]);
+    expect(state.queuePaused, isTrue);
+    final insertions = client.requests
+        .where((call) => call.type == 'codex.queue.add')
+        .toList();
+    expect(insertions.map((call) => call.payload['clientUserMessageId']), [
+      ids[0],
+      ids[0],
+      ids[1],
+    ]);
+    expect(
+      insertions.first.payload['input'],
+      contains(equals({'type': 'localImage', 'path': '/tmp/image.png'})),
+    );
+    expect(
+      client.requests.where((call) => call.type == 'codex.turn.start'),
+      isEmpty,
+    );
+    expect(
+      client.requests.indexWhere((call) => call.type == 'codex.queue.pause'),
+      lessThan(
+        client.requests.indexWhere((call) => call.type == 'codex.queue.add'),
+      ),
+    );
+  });
 
   for (final upgrading in [true, false]) {
     test(

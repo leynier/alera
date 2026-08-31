@@ -44,91 +44,88 @@ void main() {
     expect(answer.isStreaming, isTrue);
   });
 
-  test(
-    'keeps commentary, reasoning, command output, diff, plan and subagent rows distinct',
-    () {
-      var cells = <CodexTimelineCell>[];
-      cells = CodexTimelineReducer.reduce(
-        cells,
-        _message('item/agentMessage/delta', <String, Object?>{
-          'turnId': 'turn-1',
-          'itemId': 'commentary-1',
-          'phase': 'commentary',
-          'delta': 'Inspecting files',
-        }),
-        now: now,
-      );
-      cells = CodexTimelineReducer.reduce(
-        cells,
-        _message('item/reasoning/textDelta', <String, Object?>{
-          'turnId': 'turn-1',
-          'itemId': 'reason-1',
-          'delta': 'Checking the plan',
-        }),
-        now: now,
-      );
-      cells = CodexTimelineReducer.reduce(
-        cells,
-        _message('item/started', <String, Object?>{
-          'turnId': 'turn-1',
-          'item': <String, Object?>{
-            'id': 'command-1',
-            'type': 'commandExecution',
-            'command': 'git status',
-          },
-        }),
-        now: now,
-      );
-      cells = CodexTimelineReducer.reduce(
-        cells,
-        _message('item/commandExecution/outputDelta', <String, Object?>{
-          'turnId': 'turn-1',
-          'itemId': 'command-1',
-          'delta': 'clean',
-        }),
-        now: now,
-      );
-      cells = CodexTimelineReducer.reduce(
-        cells,
-        _message('turn/diff/updated', <String, Object?>{
-          'turnId': 'turn-1',
-          'diff': 'diff --git a/file b/file',
-        }),
-        now: now,
-      );
-      cells = CodexTimelineReducer.reduce(
-        cells,
-        _message('item/started', <String, Object?>{
-          'turnId': 'turn-1',
-          'item': <String, Object?>{'id': 'plan-1', 'type': 'plan'},
-        }),
-        now: now,
-      );
-      cells = CodexTimelineReducer.reduce(
-        cells,
-        _message('item/started', <String, Object?>{
-          'turnId': 'turn-1',
-          'item': <String, Object?>{'id': 'agent-1', 'type': 'subAgent'},
-        }),
-        now: now,
-      );
-      expect(
-        cells.map((cell) => cell.kind),
-        containsAll(<CodexTimelineKind>[
-          CodexTimelineKind.progressText,
-          CodexTimelineKind.reasoning,
-          CodexTimelineKind.command,
-          CodexTimelineKind.diff,
-          CodexTimelineKind.plan,
-          CodexTimelineKind.subAgent,
-        ]),
-      );
-      expect(
-        cells.singleWhere((cell) => cell.itemId == 'command-1').detailsText,
-        'clean',
-      );
-    },
-  );
+  test('keeps commentary, reasoning, command output, diff, plan and subagent rows distinct', () {
+    var cells = <CodexTimelineCell>[];
+    cells = CodexTimelineReducer.reduce(
+      cells,
+      _message('item/agentMessage/delta', <String, Object?>{
+        'turnId': 'turn-1',
+        'itemId': 'commentary-1',
+        'phase': 'commentary',
+        'delta': 'Inspecting files',
+      }),
+      now: now,
+    );
+    cells = CodexTimelineReducer.reduce(
+      cells,
+      _message('item/reasoning/textDelta', <String, Object?>{
+        'turnId': 'turn-1',
+        'itemId': 'reason-1',
+        'delta': 'Checking the plan',
+      }),
+      now: now,
+    );
+    cells = CodexTimelineReducer.reduce(
+      cells,
+      _message('item/started', <String, Object?>{
+        'turnId': 'turn-1',
+        'item': <String, Object?>{
+          'id': 'command-1',
+          'type': 'commandExecution',
+          'command': 'git status',
+        },
+      }),
+      now: now,
+    );
+    cells = CodexTimelineReducer.reduce(
+      cells,
+      _message('item/commandExecution/outputDelta', <String, Object?>{
+        'turnId': 'turn-1',
+        'itemId': 'command-1',
+        'delta': 'clean',
+      }),
+      now: now,
+    );
+    cells = CodexTimelineReducer.reduce(
+      cells,
+      _message('turn/diff/updated', <String, Object?>{
+        'turnId': 'turn-1',
+        'diff': 'diff --git a/file b/file',
+      }),
+      now: now,
+    );
+    cells = CodexTimelineReducer.reduce(
+      cells,
+      _message('item/started', <String, Object?>{
+        'turnId': 'turn-1',
+        'item': <String, Object?>{'id': 'plan-1', 'type': 'plan'},
+      }),
+      now: now,
+    );
+    cells = CodexTimelineReducer.reduce(
+      cells,
+      _message('item/started', <String, Object?>{
+        'turnId': 'turn-1',
+        'item': <String, Object?>{'id': 'agent-1', 'type': 'subAgent'},
+      }),
+      now: now,
+    );
+    expect(
+      cells.map((cell) => cell.kind),
+      containsAll(<CodexTimelineKind>[
+        CodexTimelineKind.progressText,
+        CodexTimelineKind.reasoning,
+        CodexTimelineKind.command,
+        CodexTimelineKind.diff,
+        CodexTimelineKind.plan,
+        CodexTimelineKind.subAgent,
+      ]),
+    );
+    expect(
+      cells.singleWhere((cell) => cell.itemId == 'command-1').detailsText,
+      'clean',
+    );
+  });
 
   test('replaces full diff snapshots instead of appending them', () {
     final first = CodexTimelineReducer.reduce(

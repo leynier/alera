@@ -1,14 +1,15 @@
 part of 'mobile_codex_chat_screen.dart';
 
-class _MobileFooterState {
-  _MobileFooterState(this.state, {required this.supportsGoals})
+class _MobileFooterState(
+  final MobileCodexState state, {
+  required final bool supportsGoals,
+}) {
+  this
     : _progressSignature = _mobileProgressSignature(
         state.timelineCells,
         state.activeTurnId,
       );
 
-  final MobileCodexState state;
-  final bool supportsGoals;
   final String _progressSignature;
 
   @override

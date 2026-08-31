@@ -1,15 +1,13 @@
 part of 'codex_chat_surface.dart';
 
-class _CodexApprovalCard extends StatelessWidget {
-  const _CodexApprovalCard({required this.request, required this.onApproval});
-
-  final CodexPendingRequest request;
-  final Future<void> Function(
+class const _CodexApprovalCard({
+  required final CodexPendingRequest request,
+  required final Future<void> Function(
     CodexPendingRequest request, {
     required Object decision,
   })
-  onApproval;
-
+  onApproval,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) => _CodexRequestCard(
     title: 'Approval Required',

@@ -83,7 +83,7 @@ void main() {
       credentials: credentials,
       settings: AiDictationSettings.defaults.copyWith(
         enabled: true,
-        transcriptionEngine: AiDictationTranscriptionEngine.openAiCompatible,
+        transcriptionEngine: .openAiCompatible,
         remoteConsentVersion: 1,
       ),
     );
@@ -125,7 +125,7 @@ void main() {
       remoteSupported: false,
       settings: AiDictationSettings.defaults.copyWith(
         enabled: true,
-        transcriptionEngine: AiDictationTranscriptionEngine.openAiCompatible,
+        transcriptionEngine: .openAiCompatible,
         remoteConsentVersion: 1,
       ),
     );

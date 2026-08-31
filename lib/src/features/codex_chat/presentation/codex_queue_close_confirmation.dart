@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import '../../../design_system/layout/alera_confirm_dialog.dart';
 import '../application/codex_chat_controller.dart';
 
@@ -53,8 +54,7 @@ Future<CodexQueueCancellation?> prepareCodexQueueClose(
     context: context,
     builder: (_) => AleraConfirmDialog(
       title: 'Cancel Queued Messages?',
-      message:
-          'Closing this tab cancels its pending messages for every connected client.',
+      message: 'Closing this tab cancels its pending messages for every connected client.',
       confirmLabel: 'Cancel Messages And Close',
       destructive: true,
     ),

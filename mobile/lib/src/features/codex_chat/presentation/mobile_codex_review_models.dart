@@ -47,16 +47,9 @@ enum _MobileCodexReviewDelivery {
   };
 }
 
-final class _MobileCodexReviewSelection {
-  const _MobileCodexReviewSelection({
-    required this.target,
-    required this.delivery,
-    this.argument,
-    this.commitTitle,
-  });
-
-  final _MobileCodexReviewTarget target;
-  final _MobileCodexReviewDelivery delivery;
-  final String? argument;
-  final String? commitTitle;
-}
+final class const _MobileCodexReviewSelection({
+  required final _MobileCodexReviewTarget target,
+  required final _MobileCodexReviewDelivery delivery,
+  final String? argument,
+  final String? commitTitle,
+});

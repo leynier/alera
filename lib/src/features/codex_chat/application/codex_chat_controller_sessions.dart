@@ -214,10 +214,10 @@ CodexChatSnapshot _mergeHistory(
     live: mergedLive,
   );
   return CodexChatSnapshot(
-    events: List<CodexTimelineEvent>.unmodifiable(boundedEvents),
+    events: List<CodexTimelineEvent>.unmodifiableOf(boundedEvents),
     timelineCells: mergedCells,
     pendingRequests: current.pendingRequests,
-    promptHistory: List<String>.unmodifiable(<String>[
+    promptHistory: List<String>.unmodifiableOf(<String>[
       for (final cell in mergedCells)
         if (cell.kind == CodexTimelineKind.userMessage &&
             cell.metadata[CodexTimelineMetadata.isSteering] != true &&
@@ -327,7 +327,7 @@ CodexChatSnapshot _reconcileSameThreadSnapshot(
       ? boundedLive
       : segments.withLive(boundedLive);
   final mergedPromptHistory = segments == null
-      ? List<String>.unmodifiable(<String>[
+      ? List<String>.unmodifiableOf(<String>[
           for (final cell in boundedLive)
             if (cell.kind == CodexTimelineKind.userMessage &&
                 cell.metadata[CodexTimelineMetadata.isSteering] != true &&
@@ -353,7 +353,7 @@ CodexChatSnapshot _reconcileSameThreadSnapshot(
 
 List<CodexTimelineCell> _boundedCodexLive(List<CodexTimelineCell> cells) {
   const retainedLiveLimit = 480;
-  return List<CodexTimelineCell>.unmodifiable(
+  return List<CodexTimelineCell>.unmodifiableOf(
     cells.length <= retainedLiveLimit
         ? cells
         : cells.sublist(cells.length - retainedLiveLimit),

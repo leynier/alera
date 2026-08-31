@@ -5,16 +5,11 @@ import 'package:alera_mobile/src/features/runtime/domain/project_summary.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-class ProjectSetupScreen extends ConsumerStatefulWidget {
-  const ProjectSetupScreen({
-    super.key,
-    required this.hostId,
-    required this.project,
-  });
-
-  final String hostId;
-  final ProjectSummary project;
-
+class const ProjectSetupScreen({
+  super.key,
+  required final String hostId,
+  required final ProjectSummary project,
+}) extends ConsumerStatefulWidget {
   @override
   ConsumerState<ProjectSetupScreen> createState() => _ProjectSetupScreenState();
 }
@@ -89,9 +84,8 @@ class _ProjectSetupScreenState extends ConsumerState<ProjectSetupScreen> {
         _origin = 'uiOverride';
         _saving = false;
       });
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Project setup saved')));
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('Project setup saved')));
     } on Object catch (error) {
       if (!mounted) return;
       setState(() => _saving = false);
@@ -158,9 +152,8 @@ class _ProjectSetupScreenState extends ConsumerState<ProjectSetupScreen> {
   }
 
   void _showError(String message) {
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text(message)));
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(message)));
   }
 
   @override
@@ -237,9 +230,8 @@ class _ProjectSetupScreenState extends ConsumerState<ProjectSetupScreen> {
                         ),
                       ),
                       IconButton(
-                        onPressed: () => setState(
-                          () => _copyRules.add(_CopyRuleDraft.empty()),
-                        ),
+                        onPressed: () =>
+                            setState(() => _copyRules.add(.empty())),
                         icon: const Icon(Icons.add),
                         tooltip: 'Add Copy Rule',
                       ),
@@ -296,28 +288,22 @@ class _ProjectSetupScreenState extends ConsumerState<ProjectSetupScreen> {
   }
 }
 
-class _CopyRuleDraft {
-  _CopyRuleDraft({
-    required this.from,
-    required this.to,
-    required this.overwrite,
-  });
-
-  factory _CopyRuleDraft.empty() => _CopyRuleDraft(
+class _CopyRuleDraft({
+  required final TextEditingController from,
+  required final TextEditingController to,
+  required var bool overwrite,
+}) {
+  factory empty() => _CopyRuleDraft(
     from: TextEditingController(),
     to: TextEditingController(),
     overwrite: false,
   );
 
-  factory _CopyRuleDraft.fromRule(ProjectConfigCopyRule rule) => _CopyRuleDraft(
+  factory fromRule(ProjectConfigCopyRule rule) => _CopyRuleDraft(
     from: TextEditingController(text: rule.from),
     to: TextEditingController(text: rule.to),
     overwrite: rule.overwrite,
   );
-
-  final TextEditingController from;
-  final TextEditingController to;
-  bool overwrite;
 
   void dispose() {
     from.dispose();
@@ -325,18 +311,12 @@ class _CopyRuleDraft {
   }
 }
 
-class _CopyRuleEditor extends StatelessWidget {
-  const _CopyRuleEditor({
-    super.key,
-    required this.draft,
-    required this.onChanged,
-    required this.onRemove,
-  });
-
-  final _CopyRuleDraft draft;
-  final VoidCallback onChanged;
-  final VoidCallback onRemove;
-
+class const _CopyRuleEditor({
+  super.key,
+  required final _CopyRuleDraft draft,
+  required final VoidCallback onChanged,
+  required final VoidCallback onRemove,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Card(
@@ -378,11 +358,8 @@ class _CopyRuleEditor extends StatelessWidget {
   }
 }
 
-class _SourceBadge extends StatelessWidget {
-  const _SourceBadge({required this.origin});
-
-  final String origin;
-
+class const _SourceBadge({required final String origin})
+    extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final label = switch (origin) {

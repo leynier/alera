@@ -1,3 +1,4 @@
+import 'package:alera/src/features/workbench/domain/workspace_section.dart';
 import 'package:alera/src/features/agent_status/domain/agent_status.dart';
 import 'package:alera/src/features/projects/domain/project.dart';
 import 'package:alera/src/features/workbench/application/workbench_agent_activity_sort.dart';
@@ -11,6 +12,7 @@ import 'package:alera/src/features/workbench/domain/workspace.dart';
 import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
 
 part 'workbench_sidebar_rows.dart';
+part 'workbench_section_listing.dart';
 part 'workbench_sidebar_row_builder.dart';
 part 'workbench_listing_sort.dart';
 
@@ -48,6 +50,8 @@ WorkbenchSidebarCollapseTargets visibleSidebarCollapseTargets(
   final visibleProjects = state.projects
       .where((project) => _projectVisible(prefs, project))
       .toList(growable: false);
+  final sectionIds = <String>{};
+  var hasOthers = false;
   final projectIds = <String>{};
   final workspaceIds = <String>{};
   final parentWorkspaceIds = <String>{};
@@ -58,7 +62,7 @@ WorkbenchSidebarCollapseTargets visibleSidebarCollapseTargets(
         .where(
           (workspace) => _workspaceVisible(
             prefs,
-            query,
+            _sectionNameMatches(state, workspace, query) ? '' : query,
             project,
             workspace,
             state.tabsFor(workspace.id),
@@ -81,9 +85,8 @@ WorkbenchSidebarCollapseTargets visibleSidebarCollapseTargets(
   switch (prefs.groupBy) {
     case WorkbenchGroupBy.project:
       for (final project in visibleProjects) {
-        final workspaces = visibleWorkspacesFor(
-          project,
-        ).toList(growable: false);
+        final workspaces = visibleWorkspacesFor(project)
+            .toList(growable: false);
         if (filtersHideEmptyProjects && workspaces.isEmpty) {
           continue;
         }
@@ -92,6 +95,36 @@ WorkbenchSidebarCollapseTargets visibleSidebarCollapseTargets(
             !prefs.collapsedProjectIds.contains(project.id)) {
           workspaceIds.addAll(workspaces.map((workspace) => workspace.id));
           collectParentIds(workspaces);
+        }
+      }
+    case WorkbenchGroupBy.section:
+      final knownIds = state.sections.map((section) => section.id).toSet();
+      final members = <String?, List<Workspace>>{};
+      for (final project in visibleProjects) {
+        for (final workspace in visibleWorkspacesFor(project)) {
+          if (workspace.isPinned && !prefs.pinnedSectionCollapsed) {
+            workspaceIds.add(workspace.id);
+          }
+          if (!prefs.showPinnedWorkspacesBelow && workspace.isPinned) continue;
+          final id = knownIds.contains(workspace.sectionId)
+              ? workspace.sectionId
+              : null;
+          members.putIfAbsent(id, () => []).add(workspace);
+        }
+      }
+      for (final group in members.entries) {
+        final id = group.key;
+        if (id == null) {
+          hasOthers = true;
+        } else {
+          sectionIds.add(id);
+        }
+        final collapsed = id == null
+            ? prefs.othersSectionCollapsed
+            : prefs.collapsedSectionIds.contains(id);
+        if (includeCollapsedProjectDescendants || !collapsed) {
+          workspaceIds.addAll(group.value.map((workspace) => workspace.id));
+          collectParentIds(group.value);
         }
       }
     case WorkbenchGroupBy.none:
@@ -104,6 +137,8 @@ WorkbenchSidebarCollapseTargets visibleSidebarCollapseTargets(
   }
 
   return WorkbenchSidebarCollapseTargets(
+    sectionIds: sectionIds,
+    hasOthers: hasOthers,
     projectIds: projectIds,
     workspaceIds: workspaceIds,
     parentWorkspaceIds: parentWorkspaceIds,
@@ -173,7 +208,7 @@ int countVisibleWorkspaces(WorkbenchState state) {
     for (final workspace in state.workspacesFor(project.id)) {
       if (_workspaceVisible(
         prefs,
-        query,
+        _sectionNameMatches(state, workspace, query) ? '' : query,
         project,
         workspace,
         state.tabsFor(workspace.id),
