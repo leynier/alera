@@ -45,7 +45,7 @@ async fn workflow_worktrees_setup_head_change_keeps_command_diagnostics() {
     assert_eq!(attempt.phase, Phase::Attention);
     let report = attempt.setup_report.unwrap();
     let step = report.steps.last().unwrap();
-    assert_eq!(step.exit_code, Some(0));
+    assert_eq!(step.exit_code, Some(0), "{step:?}");
     assert!(step
         .stdout_tail
         .as_ref()

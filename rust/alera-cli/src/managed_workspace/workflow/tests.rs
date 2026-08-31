@@ -10,6 +10,7 @@ mod fixture;
 mod receipt_and_report_regressions;
 mod regressions;
 mod review_regressions;
+mod stale_registration_regressions;
 use fixture::Fixture;
 
 #[tokio::test]

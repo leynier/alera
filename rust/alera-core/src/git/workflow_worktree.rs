@@ -19,7 +19,13 @@ pub fn is_registered_workflow_worktree(
         Err(error) => return Err(error),
     };
     match repo.find_worktree(id) {
-        Ok(worktree) => Ok(canonical(worktree.path())? == canonical(Path::new(path))?),
+        Ok(worktree) => match worktree.path().canonicalize() {
+            Ok(registered) => Ok(registered == canonical(Path::new(path))?),
+            // Git can retain a registration after its checkout was moved or
+            // removed. It must not block operations on unrelated workspaces.
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(false),
+            Err(error) => Err(invalid(error.to_string())),
+        },
         Err(error) if error.code() == ErrorCode::NotFound => Ok(false),
         Err(error) => Err(GitError::from_git2(error)),
     }
