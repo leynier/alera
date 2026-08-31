@@ -92,6 +92,8 @@ async fn workflow_launch_uses_approved_profile_and_preserves_owner_execution_spl
     let approved = store.validate_workflow_launch(&request).await.unwrap();
     let mut changed = store.find_agent_profile("profile").await.unwrap().unwrap();
     let revision = changed.revision;
+    changed.name = "Changed Agent".into();
+    changed.quota_group = Some("changed".into());
     changed.command = "changed-command".into();
     changed.custom_prompt = "Changed instructions".into();
     store
@@ -128,6 +130,22 @@ async fn workflow_launch_uses_approved_profile_and_preserves_owner_execution_spl
         .unwrap();
     assert_eq!(task.workspace_id, "workspace");
     assert_eq!(dispatch.workspace_id, request.workspace_id);
+    assert_eq!(dispatch.agent_profile.as_deref(), Some("Agent"));
+    assert_eq!(dispatch.agent_quota_group.as_deref(), Some("workflow"));
+    let inspection = store
+        .orchestration_task_inspection(&OrchestrationTaskInspectionQuery {
+            run_id: request.run_id.clone(),
+            task_id: request.task_id.clone(),
+            cursor: None,
+            limit: None,
+        })
+        .await
+        .unwrap();
+    assert_eq!(inspection.profile.as_deref(), Some("Agent"));
+    assert!(inspection
+        .history
+        .iter()
+        .any(|entry| { entry.kind == "attempt" && entry.summary.as_deref() == Some("Agent") }));
     assert!(sqlx::query(
         "UPDATE orchestrationDispatchContexts SET workspace_id = 'workspace' WHERE id = ?"
     )
@@ -150,6 +168,120 @@ async fn workflow_launch_uses_approved_profile_and_preserves_owner_execution_spl
     let receipt = serde_json::to_string(&launch).unwrap();
     assert!(!receipt.contains(&approved.profile.custom_prompt));
     assert!(!receipt.contains("contextHash"));
+}
+
+#[tokio::test]
+async fn workflow_launch_projects_active_attempts_without_masking_a_ready_result() {
+    let (_dir, store, request) = prepared().await;
+    let frozen = store.validate_workflow_launch(&request).await.unwrap();
+    let (launch, _) = store
+        .reserve_workflow_launch(&request, &"a".repeat(64))
+        .await
+        .unwrap();
+    for expected in ["reserved", "starting", "started"] {
+        let inspection = store
+            .orchestration_task_inspection(&OrchestrationTaskInspectionQuery {
+                run_id: request.run_id.clone(),
+                task_id: request.task_id.clone(),
+                cursor: None,
+                limit: None,
+            })
+            .await
+            .unwrap();
+        let workflow = inspection.workflow.unwrap();
+        assert_eq!(workflow.state, expected);
+        assert_eq!(workflow.execution_workspace_id, request.workspace_id);
+        assert_eq!(
+            workflow.worktree.as_deref(),
+            Some(frozen.workspace.workspace.path.as_str())
+        );
+        assert_eq!(
+            workflow.branch.as_deref(),
+            frozen.workspace.workspace.branch.as_deref()
+        );
+        assert_eq!(workflow.base_sha.as_deref(), Some(launch.base_sha.as_str()));
+        match expected {
+            "reserved" => {
+                store.claim_workflow_launch(&launch.id).await.unwrap();
+            }
+            "starting" => {
+                store
+                    .mark_workflow_launch_started(&launch.id)
+                    .await
+                    .unwrap();
+            }
+            _ => {}
+        }
+    }
+    sqlx::query("UPDATE orchestrationTasks SET status = 'completed', result = ? WHERE id = ?")
+        .bind(r#"{"summary":"Done","completionKind":"success","artifacts":[],"validation":[]}"#)
+        .bind(&request.task_id)
+        .execute(store.pool())
+        .await
+        .unwrap();
+    let inspection = store
+        .orchestration_task_inspection(&OrchestrationTaskInspectionQuery {
+            run_id: request.run_id,
+            task_id: request.task_id,
+            cursor: None,
+            limit: None,
+        })
+        .await
+        .unwrap();
+    assert_eq!(inspection.workflow.unwrap().state, "result_ready");
+}
+
+#[tokio::test]
+async fn workflow_launch_recovery_page_excludes_terminal_history() {
+    let (_dir, store, request) = prepared().await;
+    let (launch, _) = store
+        .reserve_workflow_launch(&request, &"a".repeat(64))
+        .await
+        .unwrap();
+    let page = store.workflow_launch_recovery_page(0).await.unwrap();
+    assert_eq!(page.len(), 1);
+    let sequence = page[0].0;
+    assert!(store
+        .workflow_launch_recovery_page(sequence)
+        .await
+        .unwrap()
+        .is_empty());
+    store.claim_workflow_launch(&launch.id).await.unwrap();
+    assert_eq!(
+        store.workflow_launch_recovery_page(0).await.unwrap()[0]
+            .1
+            .status,
+        WorkflowLaunchStatus::Starting
+    );
+    store
+        .mark_workflow_launch_started(&launch.id)
+        .await
+        .unwrap();
+    assert_eq!(
+        store.workflow_launch_recovery_page(0).await.unwrap()[0]
+            .1
+            .status,
+        WorkflowLaunchStatus::Started
+    );
+    sqlx::query("UPDATE orchestrationDispatchContexts SET status = 'completed' WHERE id = ?")
+        .bind(&launch.dispatch_id)
+        .execute(store.pool())
+        .await
+        .unwrap();
+    assert!(store
+        .workflow_launch_recovery_page(0)
+        .await
+        .unwrap()
+        .is_empty());
+    store
+        .workflow_launch_attention(&launch.id, "Already settled")
+        .await
+        .unwrap();
+    assert!(store
+        .workflow_launch_recovery_page(0)
+        .await
+        .unwrap()
+        .is_empty());
 }
 
 #[tokio::test]

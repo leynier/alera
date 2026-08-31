@@ -286,7 +286,10 @@ async fn inspect_workflow_task(
     } else if task_state == "completed" && has_result {
         "result_ready"
     } else {
-        return Ok(None);
+        match launch_state.as_deref() {
+            Some(state @ ("reserved" | "starting" | "started")) => state,
+            _ => return Ok(None),
+        }
     };
     let receipt: Option<String> = row.try_get("receipt")?;
     let integrated_sha = receipt

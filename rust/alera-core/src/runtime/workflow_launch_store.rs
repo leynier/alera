@@ -89,8 +89,12 @@ impl RuntimeStore {
         sqlx::query(
             "SELECT l.* FROM workflowLaunches l
             LEFT JOIN orchestrationDispatchContexts d ON d.id = l.dispatch_id
-            WHERE l.sequence > ? AND (l.status <> 'attention'
-              OR d.status IN ('pending','awaiting_acceptance','dispatched','stalled'))
+            WHERE l.sequence > ? AND (
+              (l.status IN ('reserved','starting','started') AND (
+                d.id IS NULL OR d.status IN ('pending','awaiting_acceptance','dispatched','stalled')
+              )) OR (l.status = 'attention'
+                AND d.status IN ('pending','awaiting_acceptance','dispatched','stalled'))
+            )
             ORDER BY l.sequence LIMIT 25",
         )
         .bind(after)
@@ -150,9 +154,10 @@ impl RuntimeStore {
             .bind(&frozen.workspace.base_sha).bind(&frozen.profile.id).bind(frozen.profile.revision).execute(&mut *tx).await?;
         sqlx::query("UPDATE workflowWorkspaces SET dispatch_id = ?, updated_at = datetime('now') WHERE id = ? AND dispatch_id IS NULL")
             .bind(&dispatch).bind(&request.workspace_id).execute(&mut *tx).await?;
-        sqlx::query("INSERT INTO orchestrationDispatchContexts(id,task_id,assignee_handle,status,failure_count,dispatched_at,run_id,workspace_id,coordinator_handle,context_token_hash,completion_policy,terminal_policy,last_activity_at)
-            VALUES(?,?,?,'awaiting_acceptance',0,datetime('now'),?,?,'',?,'return-immediately','keep-open',datetime('now'))")
+        sqlx::query("INSERT INTO orchestrationDispatchContexts(id,task_id,assignee_handle,status,failure_count,dispatched_at,run_id,workspace_id,coordinator_handle,context_token_hash,completion_policy,terminal_policy,last_activity_at,agent_profile,agent_quota_group)
+            VALUES(?,?,?,'awaiting_acceptance',0,datetime('now'),?,?,'',?,'return-immediately','keep-open',datetime('now'),?,?)")
             .bind(&dispatch).bind(&request.task_id).bind(&terminal).bind(&request.run_id).bind(&request.workspace_id).bind(context_hash)
+            .bind(&frozen.profile.name).bind(&frozen.profile.quota_group)
             .execute(&mut *tx).await?;
         sqlx::query("UPDATE orchestrationTasks SET status = 'dispatched' WHERE id = ?")
             .bind(&request.task_id)

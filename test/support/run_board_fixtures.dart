@@ -105,6 +105,8 @@ RunSnapshot boardRunDetail({
 TaskInspection boardTask({
   int revision = 1,
   String taskId = 'task-2',
+  String status = 'completed',
+  String workflowState = 'result_ready',
   List<TaskHistoryEntry>? history,
   TaskHistoryCursor? nextCursor,
 }) => TaskInspection(
@@ -114,15 +116,15 @@ TaskInspection boardTask({
   title: 'Build the review surface',
   description:
       'Keep reviews accessible, durable and bound to the exact plan revision.',
-  status: 'completed',
+  status: status,
   workspaceId: 'ws-1',
   workspaceName: 'Workflow Delivery',
   workspacePath: '/projects/alera/workflow-delivery',
   branch: 'feature/review-surface',
   profile: 'Implementation',
   terminalHandle: 'session-1',
-  workflow: const TaskWorkflowInspection(
-    state: 'result_ready',
+  workflow: TaskWorkflowInspection(
+    state: workflowState,
     executionWorkspaceId: 'workflow-attempt-2',
     launchId: 'launch-2',
     worktree: '/projects/alera/workflow-attempt-2',

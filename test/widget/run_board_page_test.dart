@@ -185,6 +185,33 @@ void main() {
     expect(f.container.read(runBoardNavigationProvider).taskId, 'task-2');
   });
 
+  testWidgets('active workflow actions target the execution workspace', (
+    tester,
+  ) async {
+    final workbench = BoardTestWorkbench();
+    final f = await mount(tester, workbench: workbench);
+    f.repository.task = boardTask(
+      status: 'dispatched',
+      workflowState: 'started',
+    );
+    final navigation = f.container.read(runBoardNavigationProvider.notifier);
+    navigation.selectRun('run-1');
+    navigation.selectTask('task-2');
+    await tester.pumpAndSettle();
+    expect(find.text('Started'), findsWidgets);
+    await tester.tap(find.text('Open Terminal'));
+    await tester.pumpAndSettle();
+    expect(workbench.actions, [
+      'workspace:workflow-attempt-2',
+      'terminal:session-1',
+    ]);
+    navigation.open();
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Open Diff'));
+    await tester.pumpAndSettle();
+    expect(workbench.actions.last, 'diff:workflow-attempt-2');
+  });
+
   testWidgets('runtime events retain search focus and typing is debounced', (
     tester,
   ) async {

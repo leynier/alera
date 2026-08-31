@@ -43,7 +43,7 @@ pub(super) async fn fixture(
         managed_config: None,
         custom_prompt: "User instructions".into(),
         description: String::new(),
-        quota_group: None,
+        quota_group: Some("workflow".into()),
         revision: 0,
         created_at: Utc::now(),
         updated_at: Utc::now(),
