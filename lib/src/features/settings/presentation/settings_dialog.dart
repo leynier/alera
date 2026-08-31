@@ -168,6 +168,7 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
     ];
     const agentsGroups = <SettingsGroupSpec>[
       SettingsGroupSpec(id: 'cliSkill', title: 'CLI And Skills'),
+      SettingsGroupSpec(id: 'extraSkills', title: 'Extra Skills'),
       SettingsGroupSpec(id: 'hooks', title: 'Status Hooks'),
       SettingsGroupSpec(id: 'behavior', title: 'Behavior'),
     ];

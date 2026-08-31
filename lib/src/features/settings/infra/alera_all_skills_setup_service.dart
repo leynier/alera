@@ -55,7 +55,7 @@ class const AleraAllSkillsSetupService({
     AleraCliSkillRunner runner = AleraCliSkillRunner.auto,
   }) async {
     final outcomes = <AleraSkillSetupOutcome>[];
-    for (final skill in AleraAgentSkill.values) {
+    for (final skill in coreAleraAgentSkills) {
       try {
         outcomes.add(
           await _installSkill(skill: skill, hooks: hooks, runner: runner),

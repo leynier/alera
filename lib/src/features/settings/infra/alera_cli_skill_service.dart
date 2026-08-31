@@ -14,6 +14,7 @@ const String aleraOrchestrationSkillName = 'alera-orchestration';
 const String aleraComputerUseSkillName = 'alera-computer-use';
 const String aleraEmulatorSkillName = 'alera-emulator';
 const String aleraAgentCanvasSkillName = 'alera-agent-canvas';
+const String aleraAgentProfilesSkillName = 'alera-agent-profiles';
 
 enum AleraAgentSkill(final String name) {
   cli(aleraCliSkillName),
@@ -21,7 +22,20 @@ enum AleraAgentSkill(final String name) {
   computerUse(aleraComputerUseSkillName),
   emulator(aleraEmulatorSkillName),
   agentCanvas(aleraAgentCanvasSkillName),
+  agentProfiles(aleraAgentProfilesSkillName),
 }
+
+const List<AleraAgentSkill> coreAleraAgentSkills = <AleraAgentSkill>[
+  AleraAgentSkill.cli,
+  AleraAgentSkill.orchestration,
+  AleraAgentSkill.computerUse,
+  AleraAgentSkill.emulator,
+  AleraAgentSkill.agentCanvas,
+];
+
+const List<AleraAgentSkill> extraAleraAgentSkills = <AleraAgentSkill>[
+  AleraAgentSkill.agentProfiles,
+];
 
 enum AleraCliSkillRunner(final String label) {
   auto('Auto'),
@@ -56,7 +70,7 @@ String aleraAllSkillsInstallCommand({
   AleraCliSkillRunner runner = AleraCliSkillRunner.npx,
   String? operatingSystem,
 }) {
-  return AleraAgentSkill.values
+  return coreAleraAgentSkills
       .map(
         (skill) => aleraCliSkillInstallCommand(
           runner: runner,

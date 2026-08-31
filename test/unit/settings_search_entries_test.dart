@@ -31,7 +31,7 @@ void main() {
 
     expect(
       _catalogFingerprint(catalogs),
-      '03b7dccd26a070b27f20be5ccd85ab946ec9af945891530e47792c9b6650cd79',
+      '99cdaa6c91977c947d2b099c764031db9f8063bda46b9256f0106da1c7469ada',
     );
   });
 
@@ -156,6 +156,16 @@ void main() {
     expect(entry.matches('canvas'), isTrue);
     expect(entry.matches('decision'), isTrue);
     expect(entry.groupId, 'cliSkill');
+  });
+
+  test('Agent Profiles skill is searchable in the extra skills group', () {
+    final entry = agentsSearchEntries.singleWhere(
+      (candidate) => candidate.title == 'Agent Profiles Skill',
+    );
+
+    expect(entry.matches('quota'), isTrue);
+    expect(entry.matches('managed'), isTrue);
+    expect(entry.groupId, 'extraSkills');
   });
 
   test('sidebar tab titles are searchable in the agents behavior group', () {

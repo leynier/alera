@@ -532,6 +532,9 @@ void _registerSettingsDialogCoreTests() {
     await tester.tap(find.text('Agents').first);
     await tester.pump();
 
+    expect(find.text('Extra Skills'), findsWidgets);
+    expect(find.text('Agent Profiles Skill'), findsOneWidget);
+
     await tester.ensureVisible(find.text('Agent Status Notifications'));
     await tester.pump();
 

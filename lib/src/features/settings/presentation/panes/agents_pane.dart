@@ -4,6 +4,7 @@ import 'package:alera/src/design_system/forms/alera_setting_row.dart';
 import 'package:alera/src/design_system/layout/alera_settings_group.dart';
 import 'package:alera/src/features/settings/domain/alera_settings.dart';
 import 'package:alera/src/features/settings/presentation/panes/alera_agent_canvas_skill_control.dart';
+import 'package:alera/src/features/settings/presentation/panes/alera_agent_profiles_skill_control.dart';
 import 'package:alera/src/features/settings/presentation/panes/alera_all_skills_control.dart';
 import 'package:alera/src/features/settings/presentation/panes/alera_computer_use_skill_control.dart';
 import 'package:alera/src/features/settings/presentation/panes/alera_emulator_skill_control.dart';
@@ -13,8 +14,8 @@ import 'package:alera/src/features/settings/presentation/rows/settings_rows.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-/// Agent integration preferences: the Alera CLI skill, per-agent status
-/// hooks, and agent-driven behavior toggles.
+/// Agent integration preferences: core and extra Alera skills, per-agent
+/// status hooks, and agent-driven behavior toggles.
 class const AgentsSettingsPane({
   super.key,
   required final AgentSettings agents,
@@ -74,6 +75,23 @@ class const AgentsSettingsPane({
                 description: 'Install the skill for Android and iOS emulator automation.',
                 controlWidth: 360,
                 child: AleraEmulatorSkillControl(),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: AleraTokens.space16),
+        KeyedSubtree(
+          key: groupKeys['extraSkills'],
+          child: const AleraSettingsGroup(
+            title: 'Extra Skills',
+            description:
+                'Install optional skills for specialized Alera workflows.',
+            children: <Widget>[
+              AleraSettingRow(
+                title: 'Agent Profiles Skill',
+                description: 'Research models and design, manage, and validate quota-aware Agent Profiles.',
+                controlWidth: 360,
+                child: AleraAgentProfilesSkillControl(),
               ),
             ],
           ),
