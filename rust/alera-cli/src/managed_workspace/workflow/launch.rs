@@ -45,6 +45,9 @@ pub(crate) async fn prepare(
     if !core_git::is_worktree_clean(&integration.identity.workspace.path)? {
         bail!("integration workspace has uncommitted changes; inspect it before launching");
     }
+    if !core_git::is_worktree_clean(&source.identity.workspace.path)? {
+        bail!("workflow attempt has uncommitted changes; inspect it before launching");
+    }
     let token = format!("{}{}", Uuid::new_v4().simple(), Uuid::new_v4().simple());
     crate::terminal_host::diagnostics::redaction::register_secret(&token);
     let hash = hex::encode(Sha256::digest(token.as_bytes()));

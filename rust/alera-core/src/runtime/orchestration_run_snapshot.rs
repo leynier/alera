@@ -87,6 +87,9 @@ impl RuntimeStore {
                   WHEN i.state = 'conflict' THEN 'conflict'
                   WHEN i.state = 'attention' OR l.status = 'attention' OR x.phase = 'attention' THEN 'attention'
                   WHEN t.status = 'completed' AND t.result IS NOT NULL THEN 'result_ready'
+                  WHEN l.status IN ('reserved','starting','started') THEN l.status
+                  WHEN x.phase = 'ready' THEN 'ready'
+                  WHEN x.phase IN ('reserved','creating','created','setupRunning') THEN 'reserved'
                  END AS workflow_state
              FROM orchestrationTasks t
              LEFT JOIN workflowPlanTasks p ON p.task_id = t.id

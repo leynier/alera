@@ -3,6 +3,8 @@ use super::workflow_plan_tests::{decision, fixture, valid_profile};
 use super::*;
 use crate::workflow_approval::WorkflowDecision;
 
+mod run_board_projection_tests;
+
 async fn prepared() -> (tempfile::TempDir, RuntimeStore, LaunchWorkflowTask) {
     let (dir, store, proposal) = fixture(false).await;
     let plan = store
@@ -171,58 +173,6 @@ async fn workflow_launch_uses_approved_profile_and_preserves_owner_execution_spl
 }
 
 #[tokio::test]
-async fn workflow_prepared_attempts_project_the_execution_workspace_before_launch() {
-    let (_dir, store, request) = prepared().await;
-    let workspace = store
-        .workflow_workspace(&request.workspace_id)
-        .await
-        .unwrap();
-    let inspect = || async {
-        store
-            .orchestration_task_inspection(&OrchestrationTaskInspectionQuery {
-                run_id: request.run_id.clone(),
-                task_id: request.task_id.clone(),
-                cursor: None,
-                limit: None,
-            })
-            .await
-            .unwrap()
-            .workflow
-            .unwrap()
-    };
-
-    let ready = inspect().await;
-    assert_eq!(ready.state, "ready");
-    assert_eq!(ready.execution_workspace_id, request.workspace_id);
-    assert_eq!(
-        ready.worktree.as_deref(),
-        Some(workspace.identity.workspace.path.as_str())
-    );
-    assert_eq!(ready.branch, workspace.identity.workspace.branch);
-    assert_eq!(
-        ready.base_sha.as_deref(),
-        Some(workspace.identity.base_sha.as_str())
-    );
-    assert!(ready.error.is_none());
-
-    store
-        .transition_workflow_workspace(
-            &request.workspace_id,
-            request.revision,
-            WorkflowWorkspacePhase::Ready,
-            WorkflowWorkspacePhase::Attention,
-            None,
-            Some("Project setup failed"),
-        )
-        .await
-        .unwrap();
-    let attention = inspect().await;
-    assert_eq!(attention.state, "attention");
-    assert_eq!(attention.execution_workspace_id, request.workspace_id);
-    assert_eq!(attention.error.as_deref(), Some("Project setup failed"));
-}
-
-#[tokio::test]
 async fn workflow_terminal_tabs_require_reviewed_cleanup() {
     let (_dir, store, request) = prepared().await;
     let (launch, _) = store
@@ -275,67 +225,6 @@ async fn workflow_terminal_tabs_require_reviewed_cleanup() {
         .await
         .unwrap()
         .is_none());
-}
-
-#[tokio::test]
-async fn workflow_launch_projects_active_attempts_without_masking_a_ready_result() {
-    let (_dir, store, request) = prepared().await;
-    let frozen = store.validate_workflow_launch(&request).await.unwrap();
-    let (launch, _) = store
-        .reserve_workflow_launch(&request, &"a".repeat(64))
-        .await
-        .unwrap();
-    for expected in ["reserved", "starting", "started"] {
-        let inspection = store
-            .orchestration_task_inspection(&OrchestrationTaskInspectionQuery {
-                run_id: request.run_id.clone(),
-                task_id: request.task_id.clone(),
-                cursor: None,
-                limit: None,
-            })
-            .await
-            .unwrap();
-        let workflow = inspection.workflow.unwrap();
-        assert_eq!(workflow.state, expected);
-        assert_eq!(workflow.execution_workspace_id, request.workspace_id);
-        assert_eq!(
-            workflow.worktree.as_deref(),
-            Some(frozen.workspace.workspace.path.as_str())
-        );
-        assert_eq!(
-            workflow.branch.as_deref(),
-            frozen.workspace.workspace.branch.as_deref()
-        );
-        assert_eq!(workflow.base_sha.as_deref(), Some(launch.base_sha.as_str()));
-        match expected {
-            "reserved" => {
-                store.claim_workflow_launch(&launch.id).await.unwrap();
-            }
-            "starting" => {
-                store
-                    .mark_workflow_launch_started(&launch.id)
-                    .await
-                    .unwrap();
-            }
-            _ => {}
-        }
-    }
-    sqlx::query("UPDATE orchestrationTasks SET status = 'completed', result = ? WHERE id = ?")
-        .bind(r#"{"summary":"Done","completionKind":"success","artifacts":[],"validation":[]}"#)
-        .bind(&request.task_id)
-        .execute(store.pool())
-        .await
-        .unwrap();
-    let inspection = store
-        .orchestration_task_inspection(&OrchestrationTaskInspectionQuery {
-            run_id: request.run_id,
-            task_id: request.task_id,
-            cursor: None,
-            limit: None,
-        })
-        .await
-        .unwrap();
-    assert_eq!(inspection.workflow.unwrap().state, "result_ready");
 }
 
 #[tokio::test]

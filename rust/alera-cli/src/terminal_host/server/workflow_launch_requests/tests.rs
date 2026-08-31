@@ -322,7 +322,50 @@ async fn workflow_launch_native_preflight_preserves_dirty_and_busy_resources() {
             .await
             .is_err()
     );
-    assert_eq!(std::fs::read_to_string(sentinel).unwrap(), "keep me");
+    assert_eq!(std::fs::read_to_string(&sentinel).unwrap(), "keep me");
+    assert!(fixture
+        .store
+        .workflow_launch_for_request(&input)
+        .await
+        .unwrap()
+        .is_none());
+
+    std::fs::remove_file(&sentinel).unwrap();
+    let tracked = std::path::Path::new(&attempt.identity.workspace.path).join("shared.txt");
+    std::fs::write(&tracked, "preexisting tracked change").unwrap();
+    let error = launch::prepare(&fixture.store, &fixture.runtime, input.clone())
+        .await
+        .err()
+        .unwrap();
+    assert!(error
+        .to_string()
+        .contains("workflow attempt has uncommitted changes"));
+    assert_eq!(
+        std::fs::read_to_string(&tracked).unwrap(),
+        "preexisting tracked change"
+    );
+    assert!(fixture
+        .store
+        .workflow_launch_for_request(&input)
+        .await
+        .unwrap()
+        .is_none());
+
+    std::fs::write(&tracked, "initial").unwrap();
+    let untracked =
+        std::path::Path::new(&attempt.identity.workspace.path).join("preexisting-untracked.txt");
+    std::fs::write(&untracked, "preexisting untracked change").unwrap();
+    let error = launch::prepare(&fixture.store, &fixture.runtime, input.clone())
+        .await
+        .err()
+        .unwrap();
+    assert!(error
+        .to_string()
+        .contains("workflow attempt has uncommitted changes"));
+    assert_eq!(
+        std::fs::read_to_string(&untracked).unwrap(),
+        "preexisting untracked change"
+    );
     assert!(fixture
         .store
         .workflow_launch_for_request(&input)
