@@ -171,6 +171,7 @@ pub enum ServerCommand {
         source: WorkflowRecipeSource,
         catalog_revision: i64,
     },
+    WorkflowPlanChanged,
     PrepareRuntimeMutation {
         request: runtime_mutations::RuntimeMutationRequest,
         completion: tokio::sync::oneshot::Sender<

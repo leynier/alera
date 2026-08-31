@@ -28,6 +28,8 @@ mixin _RuntimeHostCapabilitySupport
       aleraRuntimeHostRemoteAiDictationCapability =>
         connection.supportsRemoteAiDictation,
       aleraRuntimeHostRunBoardCapability => connection.supportsRunBoard,
+      aleraRuntimeHostWorkflowPlansCapability =>
+        connection.supportsWorkflowPlans,
       aleraRuntimeHostWorkspaceSectionsCapability =>
         connection.supportsWorkspaceSections,
       _ => false,

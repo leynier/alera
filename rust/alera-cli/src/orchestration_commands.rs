@@ -29,6 +29,9 @@ pub async fn run_orchestration_command(command: OrchestrationCommand) -> i32 {
     let runtime = command.runtime;
     let json_output = command.output.json;
     match command.action {
+        OrchestrationAction::Plans(args) => {
+            crate::workflow_plan_commands::run_workflow_plans(&runtime, args).await
+        }
         OrchestrationAction::Recipes(args) => {
             crate::workflow_recipe_commands::run_workflow_recipes(&runtime, args, json_output).await
         }

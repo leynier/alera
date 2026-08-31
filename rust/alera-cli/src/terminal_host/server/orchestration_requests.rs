@@ -912,6 +912,10 @@ impl ServerActor {
 
     pub(super) async fn orchestration_dispatch(&mut self, payload: &Value) -> HostResult<Value> {
         let task_id = require_string(payload, "task")?;
+        self.runtime_store
+            .ensure_legacy_workflow_dispatch_allowed(&task_id)
+            .await
+            .map_err(state_error)?;
         let to = require_string(payload, "to")?;
         let from = require_string(payload, "from")?;
         let inject = payload

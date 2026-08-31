@@ -23,6 +23,8 @@ pub struct OrchestrationCommand {
 pub enum OrchestrationAction {
     /// Inspect, validate and edit portable workflow recipe catalogs.
     Recipes(crate::cli_workflow_recipes::WorkflowRecipesArgs),
+    /// Prepare and inspect workflow plans; human decisions are desktop-only.
+    Plans(crate::cli_workflow_plans::WorkflowPlansArgs),
     /// Create or select a worker terminal and dispatch once the agent is ready.
     #[command(name = "agent-spawn")]
     AgentSpawn(OrchestrationAgentSpawnArgs),

@@ -23,6 +23,13 @@ impl ServerActor {
             return Ok(true);
         }
         match request_type {
+            "workflows.preparePlan"
+            | "workflows.plan"
+            | "workflows.approvalChallenge"
+            | "workflows.decide" => {
+                self.start_workflow_plan_request(client_id, request_id, request_type, payload)?;
+                Ok(true)
+            }
             "workflows.catalog"
             | "workflows.recipe"
             | "workflows.validateRecipe"

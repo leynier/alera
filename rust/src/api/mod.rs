@@ -8,6 +8,7 @@ pub mod keep_alive;
 pub mod merman_viewer;
 pub mod process;
 pub mod reading_diff;
+pub mod workflow_approval;
 pub mod workspace_files;
 pub mod workspace_search;
 
