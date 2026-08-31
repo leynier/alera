@@ -307,12 +307,12 @@ fn update_rgba_digest(
             }
         }
         ColorType::GrayscaleAlpha => {
-            for pair in pixels.chunks_exact(2) {
+            for pair in pixels.as_chunks::<2>().0 {
                 digest.update([pair[0], pair[0], pair[0], pair[1]]);
             }
         }
         ColorType::Rgb => {
-            for rgb in pixels.chunks_exact(3) {
+            for rgb in pixels.as_chunks::<3>().0 {
                 digest.update([rgb[0], rgb[1], rgb[2], 255]);
             }
         }

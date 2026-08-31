@@ -24,7 +24,8 @@ pub struct IdentityKeyPair {
 
 impl IdentityKeyPair {
     pub fn generate() -> Self {
-        let secret = StaticSecret::random_from_rng(rand_core::OsRng);
+        let secret =
+            StaticSecret::random_from_rng(&mut rand::rand_core::UnwrapErr(rand::rngs::SysRng));
         Self::from_private(secret.to_bytes())
     }
 
@@ -208,7 +209,7 @@ impl RelaySession {
     }
 
     pub fn verify_peer_confirmation(&self, confirmation: &[u8]) -> Result<(), RelayCryptoError> {
-        let mut mac = <HmacSha256 as Mac>::new_from_slice(&self.confirmation_key)
+        let mut mac = <HmacSha256 as hmac::KeyInit>::new_from_slice(&self.confirmation_key)
             .expect("HMAC accepts every key length");
         update_confirmation_mac(
             &mut mac,
@@ -227,7 +228,7 @@ impl RelaySession {
             .map_err(|_| RelayCryptoError::InvalidEnvelope)?;
         let ciphertext = cipher
             .encrypt(
-                Nonce::from_slice(&nonce),
+                &Nonce::from(nonce),
                 Payload {
                     msg: plaintext,
                     aad: &aad,
@@ -268,7 +269,7 @@ impl RelaySession {
             .map_err(|_| RelayCryptoError::InvalidEnvelope)?;
         let plaintext = cipher
             .decrypt(
-                Nonce::from_slice(&expected_nonce),
+                &Nonce::from(expected_nonce),
                 Payload {
                     msg: &envelope[ENVELOPE_HEADER_BYTES..],
                     aad: &aad,
@@ -299,7 +300,8 @@ fn confirmation_for_key(
     transcript_hash: &[u8; KEY_BYTES],
     role: &[u8],
 ) -> [u8; KEY_BYTES] {
-    let mut mac = <HmacSha256 as Mac>::new_from_slice(key).expect("HMAC accepts every key length");
+    let mut mac =
+        <HmacSha256 as hmac::KeyInit>::new_from_slice(key).expect("HMAC accepts every key length");
     update_confirmation_mac(&mut mac, transcript_hash, role);
     mac.finalize().into_bytes().into()
 }
@@ -367,8 +369,12 @@ mod tests {
     }
 
     fn handshake_nonce() -> [u8; 16] {
-        let high = u128::from(rand_core::RngCore::next_u64(&mut rand_core::OsRng));
-        let low = u128::from(rand_core::RngCore::next_u64(&mut rand_core::OsRng));
+        let high = u128::from(rand::Rng::next_u64(&mut rand::rand_core::UnwrapErr(
+            rand::rngs::SysRng,
+        )));
+        let low = u128::from(rand::Rng::next_u64(&mut rand::rand_core::UnwrapErr(
+            rand::rngs::SysRng,
+        )));
         ((high << 64) | low).to_be_bytes()
     }
 

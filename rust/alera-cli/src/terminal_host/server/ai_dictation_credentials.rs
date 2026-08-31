@@ -1,3 +1,4 @@
+use crate::native_credential_entry as keyring;
 use std::path::{Path, PathBuf};
 
 use alera_core::runtime::{
@@ -119,7 +120,7 @@ impl AiDictationCredentialStore {
     }
 
     fn keyring_entry(&self) -> keyring::Result<keyring::Entry> {
-        keyring::Entry::new(KEYRING_SERVICE, &self.runtime_id)
+        crate::native_credential_entry::native_credential_entry(KEYRING_SERVICE, &self.runtime_id)
     }
 
     fn fallback_path(&self) -> PathBuf {

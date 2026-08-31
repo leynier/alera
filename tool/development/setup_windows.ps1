@@ -12,7 +12,7 @@ $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path
 $requiredFlutterVersion = [version]'3.47.2'
 $minimumDartVersion = [version]'3.13.2'
 $requiredZigVersion = [version]'0.16.0'
-$requiredRustToolchain = '1.96'
+$requiredRustToolchain = '1.98.0'
 $requiredVulkanSdkVersion = '1.4.350.0'
 
 function Write-Step([string]$Message) {

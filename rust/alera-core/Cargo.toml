@@ -11,31 +11,32 @@ async-process = ["dep:tokio"]
 runtime = ["async-process", "dep:anyhow", "dep:chrono", "dep:chrono-tz", "dep:sqlx", "dep:thiserror", "dep:url"]
 
 [dependencies]
-anyhow = { version = "1", optional = true }
-cap-fs-ext = "4.0.2"
-cap-std = "4.0.2"
-chrono = { version = "0.4", default-features = false, features = ["clock", "serde", "std"], optional = true }
-chrono-tz = { version = "0.10", optional = true }
-git2 = { version = "0.21", default-features = false }
-ignore = "0.4"
+anyhow = { version = "1.0.104", optional = true }
+cap-fs-ext = "4.0.3"
+cap-std = "4.0.3"
+chrono = { version = "0.4.45", default-features = false, features = ["clock", "serde", "std"], optional = true }
+chrono-tz = { version = "0.10.4", optional = true }
+git2 = { version = "0.21.0", default-features = false }
+hex = "0.4.3"
+ignore = "0.4.33"
 same-file = "1.0.6"
-serde = { version = "1", features = ["derive"] }
-serde_json = "1"
-sha2 = "0.10"
-sqlx = { version = "0.9", default-features = false, features = [
+serde = { version = "1.0.229", features = ["derive"] }
+serde_json = "1.0.151"
+sha2 = "0.11.0"
+sqlx = { version = "0.9.0", default-features = false, features = [
     "sqlite",
     "runtime-tokio",
     "tls-rustls-aws-lc-rs",
     "chrono",
 ], optional = true }
-thiserror = { version = "2", optional = true }
-tokio = { version = "1", features = ["process"], optional = true }
-url = { version = "2.5", optional = true }
-uuid = { version = "1", features = ["v4", "serde"] }
+thiserror = { version = "2.0.20", optional = true }
+tokio = { version = "1.53.1", features = ["process"], optional = true }
+url = { version = "2.5.8", optional = true }
+uuid = { version = "1.26.0", features = ["v4", "serde"] }
 
 [target.'cfg(unix)'.dependencies]
-libc = "0.2"
+libc = "0.2.189"
 
 [dev-dependencies]
-tempfile = "3"
-tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
+tempfile = "3.27.0"
+tokio = { version = "1.53.1", features = ["macros", "rt-multi-thread"] }

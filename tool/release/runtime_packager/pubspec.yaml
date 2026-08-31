@@ -4,6 +4,6 @@ environment:
   sdk: ^3.13.2
 
 dependencies:
-  archive: ^4.0.9
+  archive: ^4.2.0
   crypto: ^3.0.7
   path: ^1.9.1

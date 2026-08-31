@@ -206,7 +206,7 @@ mod tests {
     use axum::{routing::get, Json, Router};
     use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine};
     use jsonwebtoken::{encode, Algorithm, EncodingKey, Header};
-    use rand::rngs::OsRng;
+    use rsa::rand_core::OsRng;
     use rsa::{pkcs1::EncodeRsaPrivateKey, traits::PublicKeyParts, RsaPrivateKey};
     use serde_json::json;
     use tokio::net::TcpListener;

@@ -25,6 +25,7 @@ mod managed_workspace;
 #[cfg(test)]
 mod managed_workspace_removal_tests;
 mod mobile_access;
+mod native_credential_entry;
 mod netbird;
 mod orchestration_command_summaries;
 mod orchestration_commands;

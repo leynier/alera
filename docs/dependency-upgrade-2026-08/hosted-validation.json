@@ -1,0 +1,60 @@
+{
+  "implementationCommit": "3168ac2d2e4f6ce1f6ada20b759fdb7956909096",
+  "sourceTreeSha256": "9b4faa4b998f07f4d37a32dd338e7af43e3a0add920632ab0947fa9536b21205",
+  "sourceTreeHashMethod": "SHA-256 of git ls-tree -r --full-tree <commit>, excluding the temporary workflow and docs/dependency-upgrade-2026-08/, with a final newline.",
+  "jobs": [
+    {
+      "check": "macos-native-clipboard",
+      "url": "https://github.com/leynier/alera/actions/runs/33348376076/job/99356793819",
+      "commit": "d1d9455c7872464b824da7dbc4d709d906797f71",
+      "jobConclusion": "success",
+      "runConclusion": "failure",
+      "startedAt": "2026-08-31T01:42:04Z",
+      "completedAt": "2026-08-31T01:56:58Z",
+      "tests": {
+        "passed": 1,
+        "failed": 0,
+        "ignored": 0
+      },
+      "logSha256": "2a12a38ede17111e73f45758395dd32f55d1b313065a05a06c242b9ebd76627b",
+      "localLog": ".dart_tool/dependency-upgrade/ci-first-artifacts/dependency-upgrade-clipboard-macos/clipboard.log"
+    },
+    {
+      "check": "windows-native-clipboard",
+      "url": "https://github.com/leynier/alera/actions/runs/33348757871/job/99357853136",
+      "commit": "6e2ff3103e4fa0cb2f4f9ea98f6b5e1b0c01cc71",
+      "jobConclusion": "success",
+      "runConclusion": "success",
+      "startedAt": "2026-08-31T01:49:45Z",
+      "completedAt": "2026-08-31T02:18:55Z",
+      "tests": {
+        "passed": 1,
+        "failed": 0,
+        "ignored": 0
+      },
+      "logSha256": "8ae4a6f58e8a8030a5272b7ef4182d777002a5d787dda21268198eeec0a84808",
+      "localLog": ".dart_tool/dependency-upgrade/ci-windows-clipboard-final/clipboard.log"
+    },
+    {
+      "check": "windows-terminal-host-conformance",
+      "url": "https://github.com/leynier/alera/actions/runs/33348819819/job/99358022864",
+      "commit": "ebb95d95afc9e0c00c3e72576359a94d6fe4dc74",
+      "jobConclusion": "success",
+      "runConclusion": "success",
+      "startedAt": "2026-08-31T01:50:54Z",
+      "completedAt": "2026-08-31T02:04:31Z",
+      "tests": {
+        "passed": 18,
+        "failed": 0,
+        "ignored": 0
+      },
+      "logSha256": "5aa87672d00e5387bdcec5832dcc79de5dcbfbeda750fdb27334d2384516b5f1",
+      "localLog": ".dart_tool/dependency-upgrade/ci-windows-host-final/windows-host.log"
+    }
+  ],
+  "cleanup": {
+    "workflowPath": ".github/workflows/dependency-upgrade-validation.yml",
+    "workflowId": 346239218,
+    "required": "Remove the workflow from the delivery branch and disable it after all jobs complete; retain historical run evidence."
+  }
+}

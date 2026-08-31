@@ -1,4 +1,4 @@
-use rand_core::{OsRng, RngCore};
+use rand::{rand_core::UnwrapErr, rngs::SysRng, Rng};
 use std::time::Duration;
 
 pub(super) const CONTROL_PROTOCOL: &str = "alera-relay-control-v1";
@@ -31,7 +31,8 @@ impl RelayRetryBackoff {
         let delay = RETRY_DELAYS[self.index];
         self.index = (self.index + 1).min(RETRY_DELAYS.len() - 1);
         Duration::from_millis(
-            delay.as_millis() as u64 / 2 + OsRng.next_u64() % (delay.as_millis() as u64 / 2 + 1),
+            delay.as_millis() as u64 / 2
+                + UnwrapErr(SysRng).next_u64() % (delay.as_millis() as u64 / 2 + 1),
         )
     }
 
