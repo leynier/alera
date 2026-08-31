@@ -25,7 +25,7 @@ alera agent-profile --json list
 alera agent-profile create --name "Codex Sol" --agent-type codex --launch-mode command --command "codex --search"
 ```
 
-The administrative CLI also supports show, patch-style update, removal impact, confirmed removal, and complete-catalog reorder. Managed profiles accept configuration as inline JSON, a file, or standard input, and reduced-protection settings require an explicit confirmation flag. A coordinator only reads the closed catalog you approved; it never invents a launch command.
+The administrative CLI also supports show, patch-style update, removal impact, confirmed removal, and complete-catalog reorder. Managed profiles accept configuration as inline JSON, a file, or standard input. Changing the adapter of an existing Managed profile requires an explicit new configuration, and reduced-protection settings require an explicit confirmation flag. A coordinator only reads the closed catalog you approved; it never invents a launch command.
 
 ## A minimal loop
 

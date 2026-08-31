@@ -260,7 +260,7 @@ alera agent-profile create --name "Codex Sol" --agent-type codex --launch-mode c
 alera agent-profile create --name "Managed Codex" --agent-type codex --launch-mode managed --managed-config-file profile.json
 ```
 
-Updates patch only the supplied fields. Use `--expected-revision` when a script must pin the revision it previously observed. Settings that newly reduce protections require `--confirm-reduced-protections`.
+Updates patch only the supplied fields. Use `--expected-revision` when a script must pin the revision it previously observed. Changing `--agent-type` on an existing Managed profile requires a new configuration through `--managed-config`, `--managed-config-file`, or `--managed-config-stdin`. Settings that newly reduce protections require `--confirm-reduced-protections`.
 
 Preview removal impact before explicitly confirming deletion:
 

@@ -1,4 +1,5 @@
 use chrono::Utc;
+use std::io::{self, Read};
 
 use super::*;
 use crate::cli::{AgentProfileRevisionSelectorArgs, AgentProfileSelectorArgs};
@@ -49,6 +50,32 @@ fn update_args() -> AgentProfileUpdateArgs {
     }
 }
 
+fn create_args() -> AgentProfileCreateArgs {
+    AgentProfileCreateArgs {
+        name: "Codex".to_string(),
+        agent_type: "codex".to_string(),
+        launch_mode: AgentProfileLaunchModeArg::Command,
+        command: Some("codex".to_string()),
+        managed: ManagedConfigInputArgs {
+            managed_config: None,
+            managed_config_file: None,
+            managed_config_stdin: false,
+        },
+        custom_prompt: None,
+        description: None,
+        quota_group: None,
+        confirm_reduced_protections: false,
+    }
+}
+
+struct PanicRead;
+
+impl Read for PanicRead {
+    fn read(&mut self, _buffer: &mut [u8]) -> io::Result<usize> {
+        panic!("stdin must not be read before launch input validation");
+    }
+}
+
 #[test]
 fn update_preserves_unspecified_fields_and_clears_explicit_fields() {
     let existing = profile();
@@ -75,6 +102,45 @@ fn changing_to_command_mode_requires_an_explicit_command() {
     let error = draft_for_update(&existing, &args, None).unwrap_err();
 
     assert!(error.to_string().contains("--command is required"));
+}
+
+#[test]
+fn create_validates_launch_inputs_before_reading_managed_config_stdin() {
+    let mut args = create_args();
+    args.managed.managed_config_stdin = true;
+
+    let error = managed_config_for_create(&args, &mut PanicRead).unwrap_err();
+
+    assert!(error.to_string().contains("--launch-mode managed"));
+}
+
+#[test]
+fn update_validates_launch_inputs_before_reading_managed_config_stdin() {
+    let existing = profile();
+    let mut args = update_args();
+    args.launch_mode = Some(AgentProfileLaunchModeArg::Command);
+    args.command = Some("codex".to_string());
+    args.managed.managed_config_stdin = true;
+
+    let error = managed_config_for_update(&existing, &args, &mut PanicRead).unwrap_err();
+
+    assert!(error.to_string().contains("--launch-mode managed"));
+}
+
+#[test]
+fn changing_managed_agent_type_requires_explicit_managed_config() {
+    let existing = profile();
+    let mut args = update_args();
+    args.agent_type = Some("claude".to_string());
+
+    let error = draft_for_update(&existing, &args, None).unwrap_err();
+
+    assert!(error
+        .to_string()
+        .contains("requires explicit managed configuration"));
+    let draft = draft_for_update(&existing, &args, Some(json!({"model": "opus"}))).unwrap();
+    assert_eq!(draft.agent_type, "claude");
+    assert_eq!(draft.managed_config, Some(json!({"model": "opus"})));
 }
 
 #[test]

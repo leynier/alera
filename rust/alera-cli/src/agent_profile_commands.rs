@@ -7,7 +7,7 @@ use serde_json::{json, Value};
 
 use crate::agent_profile_input::{
     draft_for_create, draft_for_update, ensure_expected_revision, ensure_risk_confirmation,
-    parse_revision_overrides, read_managed_config,
+    managed_config_for_create, managed_config_for_update, parse_revision_overrides,
 };
 use crate::cli::{
     AgentProfileAction, AgentProfileCommand, AgentProfileReorderArgs, AgentProfileSelectorArgs,
@@ -54,7 +54,7 @@ async fn run_command(command: AgentProfileCommand) -> Result<()> {
             }
         }
         AgentProfileAction::Create(args) => {
-            let managed_config = read_managed_config(&args.managed, &mut std::io::stdin().lock())?;
+            let managed_config = managed_config_for_create(&args, &mut std::io::stdin().lock())?;
             let draft = draft_for_create(&args, managed_config)?;
             ensure_risk_confirmation(None, &draft, args.confirm_reduced_protections)?;
             if draft.launch_mode == AgentProfileLaunchMode::Managed {
@@ -74,7 +74,8 @@ async fn run_command(command: AgentProfileCommand) -> Result<()> {
             let existing = select_profile(&profiles, &args.target.selector)?;
             let expected_revision =
                 ensure_expected_revision(existing, args.target.expected_revision)?;
-            let managed_config = read_managed_config(&args.managed, &mut std::io::stdin().lock())?;
+            let managed_config =
+                managed_config_for_update(existing, &args, &mut std::io::stdin().lock())?;
             let draft = draft_for_update(existing, &args, managed_config)?;
             ensure_risk_confirmation(Some(existing), &draft, args.confirm_reduced_protections)?;
             let mut capabilities = vec![RUNTIME_HOST_AGENT_PROFILE_REVISIONS_CAPABILITY];

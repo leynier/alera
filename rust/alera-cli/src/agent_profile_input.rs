@@ -50,6 +50,35 @@ impl AgentProfileDraft {
     }
 }
 
+pub(crate) fn managed_config_for_create(
+    args: &AgentProfileCreateArgs,
+    stdin: &mut impl Read,
+) -> Result<Option<Value>> {
+    validate_launch_inputs(
+        launch_mode(args.launch_mode),
+        args.command.is_some(),
+        has_managed_config_input(&args.managed),
+    )?;
+    read_managed_config(&args.managed, stdin)
+}
+
+pub(crate) fn managed_config_for_update(
+    existing: &AgentProfile,
+    args: &AgentProfileUpdateArgs,
+    stdin: &mut impl Read,
+) -> Result<Option<Value>> {
+    let launch_mode = args
+        .launch_mode
+        .map(launch_mode)
+        .unwrap_or(existing.launch_mode);
+    validate_launch_inputs(
+        launch_mode,
+        args.command.is_some(),
+        has_managed_config_input(&args.managed),
+    )?;
+    read_managed_config(&args.managed, stdin)
+}
+
 pub(crate) fn draft_for_create(
     args: &AgentProfileCreateArgs,
     managed_config: Option<Value>,
@@ -82,6 +111,15 @@ pub(crate) fn draft_for_update(
         Some(value) => required_trimmed(value, "agent type")?,
         None => existing.agent_type.clone(),
     };
+    if launch_mode == AgentProfileLaunchMode::Managed
+        && existing.launch_mode == AgentProfileLaunchMode::Managed
+        && existing.agent_type != agent_type
+        && managed_config.is_none()
+    {
+        bail!(
+            "changing --agent-type on a managed profile requires explicit managed configuration (--managed-config, --managed-config-file, or --managed-config-stdin)"
+        );
+    }
     let reusable_existing = (existing.launch_mode == launch_mode
         && existing.agent_type == agent_type)
         .then_some(existing);
@@ -154,6 +192,26 @@ fn launch_values(
             Ok((String::new(), Some(config)))
         }
     }
+}
+
+fn validate_launch_inputs(
+    launch_mode: AgentProfileLaunchMode,
+    has_command: bool,
+    has_managed_config: bool,
+) -> Result<()> {
+    match launch_mode {
+        AgentProfileLaunchMode::Command if has_managed_config => {
+            bail!("managed configuration is only valid with --launch-mode managed");
+        }
+        AgentProfileLaunchMode::Managed if has_command => {
+            bail!("--command is only valid with --launch-mode command");
+        }
+        _ => Ok(()),
+    }
+}
+
+fn has_managed_config_input(args: &ManagedConfigInputArgs) -> bool {
+    args.managed_config.is_some() || args.managed_config_file.is_some() || args.managed_config_stdin
 }
 
 fn draft_from_profile(profile: &AgentProfile) -> AgentProfileDraft {

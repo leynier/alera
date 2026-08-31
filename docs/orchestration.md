@@ -52,7 +52,7 @@ alera agent-profile removal-impact --profile-name "Codex Sol"
 alera agent-profile remove --profile-name "Codex Sol" --confirm
 ```
 
-`show`, `update`, `removal-impact`, and `remove` accept either `--profile-id` or the case-insensitive unique `--profile-name`. Updates patch only the supplied fields, fetch the current revision by default, and accept `--expected-revision` when a script must pin the version it observed. Managed configuration may be supplied inline with `--managed-config`, from a file, or from standard input. A new setting that reduces agent protections requires `--confirm-reduced-protections`, and removal always performs the impact check before asking the host to delete.
+`show`, `update`, `removal-impact`, and `remove` accept either `--profile-id` or the case-insensitive unique `--profile-name`. Updates patch only the supplied fields, fetch the current revision by default, and accept `--expected-revision` when a script must pin the version it observed. Managed configuration may be supplied inline with `--managed-config`, from a file, or from standard input. Changing `--agent-type` on an existing Managed profile requires an explicit new managed configuration so adapter-specific settings are never discarded silently. A new setting that reduces agent protections requires `--confirm-reduced-protections`, and removal always performs the impact check before asking the host to delete.
 
 Reordering replaces the complete catalog order and therefore requires every stable profile id exactly once:
 
