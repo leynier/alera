@@ -5,7 +5,7 @@ use crate::ssh_bootstrap::SshTargetBootstrapProgress;
 use crate::terminal_host::client::ClientHandle;
 use crate::terminal_host::host_error::HostResult;
 use crate::terminal_host::session::PtyEvent;
-use alera_core::runtime::SshBootstrapStatus;
+use alera_core::runtime::{SshBootstrapStatus, WorkflowRecipeSource};
 
 use super::{
     account_requests, emulator_request_payloads, emulator_request_queue, push_delivery,
@@ -167,6 +167,10 @@ pub enum ServerCommand {
     },
     EmulatorMaintenanceFinished(emulator_request_queue::EmulatorMaintenanceCompletion),
     RuntimeMutationFinished(runtime_mutations::RuntimeMutationFinished),
+    WorkflowCatalogChanged {
+        source: WorkflowRecipeSource,
+        catalog_revision: i64,
+    },
     PrepareRuntimeMutation {
         request: runtime_mutations::RuntimeMutationRequest,
         completion: tokio::sync::oneshot::Sender<

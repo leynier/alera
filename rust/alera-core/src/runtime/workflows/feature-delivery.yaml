@@ -1,0 +1,98 @@
+version: 1
+id: feature-delivery
+revision: 1
+name: Feature Delivery
+description: Deliver a feature through human-reviewed foundation and product gates.
+coordinatorInstructions: >-
+  Propose a concrete task DAG covering every stage with explicit acceptance
+  criteria, interfaces, migration and compatibility risks, and validation.
+  No worker starts before plan approval. Foundation and Product gates require
+  human approval tied to the current evidence and integration commit.
+roles:
+  - {id: architect, name: Architect, contractId: foundation, contractRevision: 1}
+  - {id: implementer, name: Implementer, contractId: implementation, contractRevision: 1}
+  - {id: reviewer, name: Reviewer, contractId: product-verification, contractRevision: 1}
+contracts:
+  - version: 1
+    id: foundation
+    revision: 1
+    name: Feature Foundation
+    purpose: Establish an actionable specification and design for human review.
+    instructions: >-
+      Document scope, non-goals, data flow, interfaces, permissions, failure
+      recovery, compatibility and tests. Surface decisions requiring a human.
+      Write the foundation artifact. Do not approve the Foundation gate.
+    inputSchema:
+      type: object
+      properties: {objective: {type: string, minLength: 1}}
+      required: [objective]
+    resultSchema:
+      type: object
+      properties: {summary: {type: string, minLength: 1}}
+      required: [summary]
+    requiredArtifacts: [.alera/artifacts/foundation.md]
+    checklist:
+      - {id: design, description: Specification and design cover acceptance criteria and risks.}
+      - {id: validation-plan, description: Verification steps and compatibility checks are explicit.}
+  - version: 1
+    id: implementation
+    revision: 1
+    name: Feature Implementation
+    purpose: Implement an approved portion of the feature in its isolated workspace.
+    instructions: >-
+      Follow the approved foundation and assigned scope. Preserve unrelated
+      changes, add coverage and run applicable checks. For UI work use the
+      existing design system and verify keyboard, focus and compact layouts.
+    inputSchema:
+      type: object
+      properties: {objective: {type: string, minLength: 1}}
+      required: [objective]
+    resultSchema:
+      type: object
+      properties: {summary: {type: string, minLength: 1}}
+      required: [summary]
+    requiredArtifacts: []
+    checklist:
+      - {id: acceptance, description: Assigned acceptance criteria are implemented.}
+      - {id: checks, description: Applicable tests and static checks pass with evidence.}
+  - version: 1
+    id: product-verification
+    revision: 1
+    name: Product Verification
+    purpose: Verify the integrated feature and prepare evidence for human approval.
+    instructions: >-
+      Review the integrated feature against the approved foundation. Verify
+      end-to-end behavior, compatibility and recovery. For UI include visual,
+      keyboard and focus evidence. Report unresolved findings, do not hide
+      failed checks and never approve the Product gate.
+    inputSchema:
+      type: object
+      properties: {objective: {type: string, minLength: 1}}
+      required: [objective]
+    resultSchema:
+      type: object
+      properties: {summary: {type: string, minLength: 1}}
+      required: [summary]
+    requiredArtifacts: [.alera/artifacts/product-verification.md]
+    checklist:
+      - {id: acceptance, description: Integrated behavior meets the approved acceptance criteria.}
+      - {id: checks, description: Applicable end-to-end and compatibility checks pass.}
+      - {id: evidence, description: Current evidence and remaining risks are recorded for human review.}
+stages:
+  - id: foundation
+    name: Foundation
+    purpose: Prepare and review the feature specification and design.
+    roles: [architect]
+    dependsOn: []
+    gate: foundation
+  - id: implementation
+    name: Implementation
+    purpose: Implement the approved foundation in isolated tasks.
+    roles: [implementer]
+    dependsOn: [foundation]
+  - id: product
+    name: Product
+    purpose: Verify the integrated feature and present it for human approval.
+    roles: [reviewer]
+    dependsOn: [implementation]
+    gate: product

@@ -8,7 +8,7 @@ publish = false
 default = []
 # The async spawn helper, for crates that only need `child_process`.
 async-process = ["dep:tokio"]
-runtime = ["async-process", "dep:anyhow", "dep:chrono", "dep:chrono-tz", "dep:jsonschema", "dep:sqlx", "dep:thiserror", "dep:url"]
+runtime = ["async-process", "dep:anyhow", "dep:chrono", "dep:chrono-tz", "dep:jsonschema", "dep:sqlx", "dep:thiserror", "dep:url", "dep:yaml-rust2"]
 
 [dependencies]
 anyhow = { version = "1", optional = true }
@@ -33,6 +33,7 @@ thiserror = { version = "2", optional = true }
 tokio = { version = "1", features = ["process"], optional = true }
 url = { version = "2.5", optional = true }
 uuid = { version = "1", features = ["v4", "serde"] }
+yaml-rust2 = { version = "0.11", default-features = false, optional = true }
 
 [target.'cfg(unix)'.dependencies]
 libc = "0.2"
