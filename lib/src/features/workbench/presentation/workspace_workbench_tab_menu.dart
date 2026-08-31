@@ -83,15 +83,6 @@ extension _WorkspaceTabMenu on _WorkspaceTabChip {
           ),
           enabled: closeRight.isNotEmpty,
         ),
-        if ((tab.kind == WorkspaceTabKind.terminal ||
-                tab.kind == WorkspaceTabKind.codex) &&
-            ref.read(agentTitleAvailableProvider).value == true)
-          AleraDropdownEntry<_TabMenuAction>(
-            value: .generateTitle,
-            label: agentTitleActionLabel(tab.payload),
-            enabled: !isAgentTitleGenerating(tab.payload),
-            leading: const Icon(AleraIcons.ai, size: 16),
-          ),
         if (tab.kind !=
             WorkspaceTabKind.codex) ...<PopupMenuEntry<_TabMenuAction>>[
           const PopupMenuDivider(height: AleraTokens.space8),
@@ -101,6 +92,15 @@ extension _WorkspaceTabMenu on _WorkspaceTabChip {
             leading: Icon(AleraIcons.edit, size: 16),
           ),
         ],
+        if ((tab.kind == WorkspaceTabKind.terminal ||
+                tab.kind == WorkspaceTabKind.codex) &&
+            ref.read(agentTitleAvailableProvider).value == true)
+          AleraDropdownEntry<_TabMenuAction>(
+            value: .generateTitle,
+            label: agentTitleActionLabel(tab.payload),
+            enabled: !isAgentTitleGenerating(tab.payload),
+            leading: const Icon(AleraIcons.ai, size: 16),
+          ),
       ],
     );
     if (selected == null || !context.mounted) {

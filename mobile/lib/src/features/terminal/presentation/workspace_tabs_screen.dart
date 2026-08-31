@@ -197,6 +197,12 @@ class _WorkspaceTabsScreenState extends ConsumerState<WorkspaceTabsScreen> {
         child: Column(
           mainAxisSize: .min,
           children: <Widget>[
+            if (canRename)
+              ListTile(
+                leading: const Icon(Icons.edit_outlined),
+                title: const Text('Rename Tab'),
+                onTap: () => Navigator.of(context).pop('rename'),
+              ),
             if (canGenerateTitle && (tab.isTerminal || tab.isCodex))
               ListTile(
                 leading: const Icon(Icons.auto_awesome_outlined),
@@ -209,12 +215,6 @@ class _WorkspaceTabsScreenState extends ConsumerState<WorkspaceTabsScreen> {
                 ),
                 enabled: tab.payload['agentTitleStatus'] != 'generating',
                 onTap: () => Navigator.of(context).pop('generateTitle'),
-              ),
-            if (canRename)
-              ListTile(
-                leading: const Icon(Icons.edit_outlined),
-                title: const Text('Rename Tab'),
-                onTap: () => Navigator.of(context).pop('rename'),
               ),
             if (tab.isTerminal || tab.isCodex)
               ListTile(
