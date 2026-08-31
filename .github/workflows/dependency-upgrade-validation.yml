@@ -13,19 +13,15 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  clipboard:
-    name: native clipboard (${{ matrix.platform }})
-    runs-on: ${{ matrix.os }}
-    timeout-minutes: 90
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - platform: windows
-            os: windows-latest
+  windows_host:
+    name: windows full terminal-host conformance
+    runs-on: windows-latest
+    timeout-minutes: 60
     env:
-      ALERA_FLAVOR: dev
-      ALERA_NATIVE_TEST_CLIPBOARD: '1'
+      CARGO_TARGET_DIR: R:\c\cli
+      CMAKE_GENERATOR: Ninja
+      _CL_: /Z7 /FS
+      GGML_CCACHE: 'OFF'
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -36,35 +32,29 @@ jobs:
         uses: ./.github/actions/setup-flutter-workspace
         with:
           linux-toolchain: 'false'
+          native-assets: 'false'
+          preflight: 'false'
           rust: 'true'
 
       - name: Tune Windows build environment
-        if: runner.os == 'Windows'
         uses: ./.github/actions/tune-windows-build
 
-      - name: Verify locked resolution
-        shell: bash
+      - name: Verify full host conformance on the disposable account
+        shell: pwsh
         run: |
-          set -euo pipefail
-          flutter pub get --enforce-lockfile
-          git diff --exit-code -- pubspec.lock
-
-      - name: Verify native clipboard on the disposable desktop
-        shell: bash
-        env:
-          PLATFORM: ${{ matrix.platform }}
-        run: |
-          set -euo pipefail
-          mkdir -p validation-evidence
-          flutter test integration_test/terminal_input_native_test.dart \
-            -d "$PLATFORM" --no-pub --reporter expanded \
-            2>&1 | tee validation-evidence/clipboard.log
+          New-Item -ItemType Directory -Force validation-evidence | Out-Null
+          $ErrorActionPreference = 'Continue'
+          $PSNativeCommandUseErrorActionPreference = $false
+          cargo test --manifest-path rust/Cargo.toml -p alera-cli `
+            --test terminal_host_conformance --locked -- --test-threads=2 `
+            2>&1 | Tee-Object -FilePath validation-evidence/windows-host.log
+          exit $LASTEXITCODE
 
       - name: Upload test evidence
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: dependency-upgrade-clipboard-${{ matrix.platform }}
+          name: dependency-upgrade-windows-host
           path: validation-evidence/
           if-no-files-found: warn
           retention-days: 7
