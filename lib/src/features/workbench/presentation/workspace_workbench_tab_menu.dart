@@ -88,13 +88,9 @@ extension _WorkspaceTabMenu on _WorkspaceTabChip {
             ref.read(agentTitleAvailableProvider).value == true)
           AleraDropdownEntry<_TabMenuAction>(
             value: .generateTitle,
-            label: tab.payload['agentTitleStatus'] == 'generating'
-                ? 'Generating title...'
-                : tab.payload['agentTitleSource'] == 'generated'
-                ? 'Regenerate Title'
-                : 'Generate Title',
-            enabled: tab.payload['agentTitleStatus'] != 'generating',
-            leading: const Icon(AleraIcons.ai),
+            label: agentTitleActionLabel(tab.payload),
+            enabled: !isAgentTitleGenerating(tab.payload),
+            leading: const Icon(AleraIcons.ai, size: 16),
           ),
         if (tab.kind !=
             WorkspaceTabKind.codex) ...<PopupMenuEntry<_TabMenuAction>>[

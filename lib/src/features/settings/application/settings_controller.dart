@@ -257,6 +257,17 @@ class SettingsController extends _$SettingsController {
         );
       });
 
+  Future<void> setShowTabTitlesInSidebar(bool value) => _serialize(() async {
+    if (state.agents.showTabTitlesInSidebar == value) {
+      return;
+    }
+    await _save(
+      state.copyWith(
+        agents: state.agents.copyWith(showTabTitlesInSidebar: value),
+      ),
+    );
+  });
+
   Future<void> setDefaultAgentProfile(String? profileId) => _serialize(
     () async {
       final normalized = profileId?.trim();
