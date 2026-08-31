@@ -98,6 +98,9 @@ pub(crate) async fn run_workspace_setup(
     workspace_id: &str,
     copies_only: bool,
 ) -> Result<WorktreeSetupReport> {
+    if store.workflow_workspace_owned(workspace_id).await? {
+        anyhow::bail!("Workflow setup belongs to its attempt and cannot be replayed");
+    }
     let workspace = store
         .find_workspace(workspace_id)
         .await?
@@ -106,6 +109,8 @@ pub(crate) async fn run_workspace_setup(
         .find_project(&workspace.project_id)
         .await?
         .ok_or_else(|| anyhow!("Project not found: {}", workspace.project_id))?;
+    crate::managed_workspace::workflow::ownership::ensure_unowned(store, &workspace, &project)
+        .await?;
     let config = match effective_project_config(store, &project).await {
         Ok(config) => config,
         Err(error) => return Ok(config_error_report(&error.to_string())),

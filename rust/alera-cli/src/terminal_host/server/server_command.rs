@@ -172,6 +172,13 @@ pub enum ServerCommand {
         catalog_revision: i64,
     },
     WorkflowPlanChanged,
+    WorkflowWorkspaceRecoveryFinished,
+    WorkflowWorkspaceFinished {
+        client_id: u64,
+        request_id: i64,
+        result: HostResult<Value>,
+        mutated: bool,
+    },
     PrepareRuntimeMutation {
         request: runtime_mutations::RuntimeMutationRequest,
         completion: tokio::sync::oneshot::Sender<

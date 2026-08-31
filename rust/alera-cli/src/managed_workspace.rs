@@ -17,6 +17,7 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 use crate::worktree_setup::{prepare_deferred_worktree_setup, run_worktree_setup};
+pub(crate) mod workflow;
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -443,6 +444,9 @@ async fn managed_workspace_removal(
     store: &RuntimeStore,
     request: &ManagedWorkspaceRemoveRequest,
 ) -> Result<ManagedWorkspaceRemoval> {
+    if store.workflow_workspace_owned(&request.id).await? {
+        bail!("Workflow resources require reviewed cleanup from the Run Board");
+    }
     let workspace = store
         .find_workspace(&request.id)
         .await?
@@ -460,6 +464,7 @@ async fn managed_workspace_removal(
     let should_delete_branch = request
         .delete_branch
         .unwrap_or(!workspace.reuses_existing_branch);
+    workflow::ownership::ensure_unowned(store, &workspace, &project).await?;
     let branch_to_delete = if should_delete_branch {
         Some(
             workspace

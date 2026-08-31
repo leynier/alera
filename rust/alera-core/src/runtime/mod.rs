@@ -121,7 +121,15 @@ mod workflow_recipe_compilation;
 mod workflow_recipe_tests;
 #[cfg(test)]
 mod workflow_schema_tests;
+mod workflow_setup_report;
 mod workflow_source_identity;
+mod workflow_workspace;
+mod workflow_workspace_eligibility;
+mod workflow_workspace_schema;
+mod workflow_workspace_store;
+#[cfg(test)]
+mod workflow_workspace_tests;
+mod workflow_workspace_transitions;
 mod workflow_yaml;
 #[cfg(test)]
 mod workflow_yaml_tests;
@@ -176,6 +184,7 @@ pub use workflow_builtins::builtin_workflow_recipes;
 pub use workflow_catalog::{WorkflowCatalog, WorkflowCatalogEntry, WorkflowCatalogRecipe};
 pub use workflow_plan::*;
 pub use workflow_recipe::*;
+pub use workflow_workspace::*;
 pub use workflow_yaml::{parse_workflow_yaml, WORKFLOW_DOCUMENT_MAX_BYTES};
 pub use worktree_setup_models::*;
 
