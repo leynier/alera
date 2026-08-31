@@ -13,6 +13,8 @@ impl RuntimeStore {
         for statement in BOARD_SCHEMA {
             sqlx::query(*statement).execute(&mut *tx).await?;
         }
+        // Install these only after every referenced table exists; pooled SQLite
+        // connections must never cache a schema with dangling trigger bodies.
         for table in [
             "orchestrationCoordinatorRuns",
             "orchestrationTasks",
@@ -21,6 +23,11 @@ impl RuntimeStore {
             "orchestrationAuditEvents",
             "workspaces",
             "projects",
+            "workflowRuns",
+            "workflowPlanRevisions",
+            "workflowDecisions",
+            "workflowStageGates",
+            "workflowTaskEvidence",
         ] {
             for operation in ["INSERT", "UPDATE", "DELETE"] {
                 sqlx::query(sqlx::AssertSqlSafe(format!(

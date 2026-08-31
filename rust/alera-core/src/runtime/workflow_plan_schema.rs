@@ -8,20 +8,6 @@ impl RuntimeStore {
         for statement in SCHEMA {
             sqlx::query(*statement).execute(&mut *tx).await?;
         }
-        for table in [
-            "workflowRuns",
-            "workflowPlanRevisions",
-            "workflowDecisions",
-            "workflowStageGates",
-            "workflowTaskEvidence",
-        ] {
-            for operation in ["INSERT", "UPDATE", "DELETE"] {
-                sqlx::query(sqlx::AssertSqlSafe(format!(
-                    "CREATE TRIGGER IF NOT EXISTS board_{table}_{operation} AFTER {operation} ON {table}
-                     BEGIN UPDATE orchestrationBoardRevision SET revision = revision + 1 WHERE id = 1; END"
-                ))).execute(&mut *tx).await?;
-            }
-        }
         tx.commit().await?;
         Ok(())
     }
@@ -58,6 +44,17 @@ const SCHEMA: &[&str] = &[
         decision_digest TEXT, receipt TEXT
     )",
     "CREATE INDEX IF NOT EXISTS workflowChallengeExpiry ON workflowApprovalChallenges(expires_at)",
+    "CREATE TABLE IF NOT EXISTS workflowDecisions (
+        id TEXT PRIMARY KEY, run_id TEXT NOT NULL REFERENCES workflowRuns(run_id) ON DELETE CASCADE,
+        revision INTEGER NOT NULL, scope TEXT NOT NULL, decision TEXT NOT NULL,
+        reason TEXT NOT NULL, plan_digest TEXT NOT NULL, evidence_digest TEXT NOT NULL,
+        integration_sha TEXT NOT NULL, created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    )",
+    "CREATE TABLE IF NOT EXISTS workflowStageGates (
+        run_id TEXT NOT NULL REFERENCES workflowRuns(run_id) ON DELETE CASCADE,
+        revision INTEGER NOT NULL, stage_id TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'pending',
+        decision_id TEXT REFERENCES workflowDecisions(id), PRIMARY KEY(run_id, revision, stage_id)
+    )",
     "CREATE TRIGGER IF NOT EXISTS workflowEvidenceUpdateInvalidatesGates AFTER UPDATE ON workflowTaskEvidence
         WHEN OLD.result_digest IS NOT NEW.result_digest OR OLD.artifact_digest IS NOT NEW.artifact_digest
           OR OLD.integration_sha IS NOT NEW.integration_sha
@@ -70,17 +67,6 @@ const SCHEMA: &[&str] = &[
         WHEN OLD.status = 'completed' AND (OLD.result IS NOT NEW.result OR NEW.status <> 'completed')
         BEGIN UPDATE workflowStageGates SET status = 'pending', decision_id = NULL
           WHERE run_id = (SELECT run_id FROM workflowPlanTasks WHERE task_id = NEW.id); END",
-    "CREATE TABLE IF NOT EXISTS workflowDecisions (
-        id TEXT PRIMARY KEY, run_id TEXT NOT NULL REFERENCES workflowRuns(run_id) ON DELETE CASCADE,
-        revision INTEGER NOT NULL, scope TEXT NOT NULL, decision TEXT NOT NULL,
-        reason TEXT NOT NULL, plan_digest TEXT NOT NULL, evidence_digest TEXT NOT NULL,
-        integration_sha TEXT NOT NULL, created_at TEXT NOT NULL DEFAULT (datetime('now'))
-    )",
-    "CREATE TABLE IF NOT EXISTS workflowStageGates (
-        run_id TEXT NOT NULL REFERENCES workflowRuns(run_id) ON DELETE CASCADE,
-        revision INTEGER NOT NULL, stage_id TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'pending',
-        decision_id TEXT REFERENCES workflowDecisions(id), PRIMARY KEY(run_id, revision, stage_id)
-    )",
     // PR6 deliberately has no executable workflow path. The managed isolation
     // and integration layers replace this barrier only when both are available.
     "CREATE TRIGGER IF NOT EXISTS workflowDispatchBlocked BEFORE INSERT ON orchestrationDispatchContexts

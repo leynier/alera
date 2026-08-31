@@ -4,6 +4,21 @@ use super::RuntimeStore;
 async fn legacy_orchestration_schema_migrates_without_losing_records() {
     let dir = tempfile::tempdir().unwrap();
     let store = RuntimeStore::open(dir.path()).await.unwrap();
+    // The legacy fixture cannot retain triggers into the modern tables it drops.
+    for trigger in [
+        "workflowEvidenceUpdateInvalidatesGates",
+        "workflowEvidenceDeleteInvalidatesGates",
+        "workflowResultInvalidatesGates",
+        "workflowDispatchBlocked",
+        "workflowTaskDefinitionImmutable",
+        "workflowTaskMembershipRequired",
+        "workflowTaskJoinRequiresMembership",
+    ] {
+        sqlx::query(sqlx::AssertSqlSafe(format!("DROP TRIGGER {trigger}")))
+            .execute(store.pool())
+            .await
+            .unwrap();
+    }
     sqlx::query("DROP VIEW orchestrationBoardRuns")
         .execute(store.pool())
         .await

@@ -119,6 +119,8 @@ mod workflow_recipe;
 mod workflow_recipe_compilation;
 #[cfg(test)]
 mod workflow_recipe_tests;
+#[cfg(test)]
+mod workflow_schema_tests;
 mod workflow_source_identity;
 mod workflow_yaml;
 #[cfg(test)]
