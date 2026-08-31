@@ -8,6 +8,7 @@ use super::*;
 
 mod fixture;
 mod regressions;
+mod review_regressions;
 use fixture::Fixture;
 
 #[tokio::test]

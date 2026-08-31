@@ -7,6 +7,23 @@ use git2::{ErrorCode, Oid, Repository, WorktreeAddOptions};
 
 use super::{open_repo, GitError, GitErrorKind};
 
+pub fn is_registered_workflow_worktree(
+    repo_path: &str,
+    path: &str,
+    id: &str,
+) -> Result<bool, GitError> {
+    let repo = match open_repo(repo_path) {
+        Ok(repo) => repo,
+        Err(error) if error.kind == GitErrorKind::NotARepository => return Ok(false),
+        Err(error) => return Err(error),
+    };
+    match repo.find_worktree(id) {
+        Ok(worktree) => Ok(canonical(worktree.path())? == canonical(Path::new(path))?),
+        Err(error) if error.code() == ErrorCode::NotFound => Ok(false),
+        Err(error) => Err(GitError::from_git2(error)),
+    }
+}
+
 pub fn ensure_workflow_worktree(
     repo_path: &str,
     path: &str,

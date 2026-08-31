@@ -48,11 +48,11 @@ impl RuntimeStore {
         {
             bail!("invalid workflow workspace transition");
         }
-        let report = report.map(serde_json::to_string).transpose()?;
-        if report.as_ref().is_some_and(|value| value.len() > 262_144)
-            || error.is_some_and(|value| value.len() > 4096)
-        {
-            bail!("workflow setup report exceeds the byte limit");
+        let report = report
+            .map(super::workflow_setup_report::bounded_report)
+            .transpose()?;
+        if error.is_some_and(|value| value.len() > 4096) {
+            bail!("workflow setup error exceeds the byte limit");
         }
         let mut tx = self.pool().begin().await?;
         sqlx::query("UPDATE orchestrationBoardRevision SET revision = revision WHERE id = 1")

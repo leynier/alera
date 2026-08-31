@@ -464,6 +464,7 @@ async fn managed_workspace_removal(
     let should_delete_branch = request
         .delete_branch
         .unwrap_or(!workspace.reuses_existing_branch);
+    workflow::ownership::ensure_unowned(store, &workspace, &project).await?;
     let branch_to_delete = if should_delete_branch {
         Some(
             workspace

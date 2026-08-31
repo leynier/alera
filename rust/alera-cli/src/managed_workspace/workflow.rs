@@ -7,6 +7,8 @@ use alera_core::runtime::{
 };
 
 use super::*;
+mod destination;
+pub(crate) mod ownership;
 pub(crate) mod recovery;
 
 /// Runs on the host's bounded blocking job lane, including setup copy traversal.
@@ -40,8 +42,9 @@ pub(crate) async fn prepare(
         setup_script_directory: None,
     };
     // The full UUID avoids display-name collisions and is never caller-selected.
-    let path =
-        resolve_workspace_path(store, &project, &format!("workflow-{id}"), &path_request).await?;
+    let path = destination::canonical_destination(
+        &resolve_workspace_path(store, &project, &format!("workflow-{id}"), &path_request).await?,
+    )?;
     let now = Utc::now();
     let candidate = Workspace {
         id,

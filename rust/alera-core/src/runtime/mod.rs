@@ -121,6 +121,7 @@ mod workflow_recipe_compilation;
 mod workflow_recipe_tests;
 #[cfg(test)]
 mod workflow_schema_tests;
+mod workflow_setup_report;
 mod workflow_source_identity;
 mod workflow_workspace;
 mod workflow_workspace_eligibility;

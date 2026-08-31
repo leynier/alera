@@ -12,7 +12,7 @@ alera orchestration workspaces list --run <run-id> --limit 20
 
 The first command prepares integration from the exact approved source commit. It does not refresh a branch, fetch, pull, rebase or run setup. Uncommitted source changes are excluded and remain intact. Task attempts start from the current integration SHA, require integrated prerequisite results and prior human gates, and respect the frozen concurrency limit (four by default).
 
-Preparation uses the runtime's managed workspace directory and project layout. Branches are named `alera/workflows/<workspace-uuid>`; callers cannot select resource paths, branches or existing workspace identities. Task setup reuses the existing trusted project configuration, including explicit copy rules and `.worktreeinclude`. Those rules can intentionally copy ignored/local project files; a worktree is Git isolation, not an OS sandbox.
+Preparation uses the runtime's managed workspace directory and project layout, resolving symlinked ancestors before freezing the destination. Branches are named `alera/workflows/<workspace-uuid>`; callers cannot select resource paths, branches or existing workspace identities. Task setup reuses the existing trusted project configuration, including explicit copy rules and `.worktreeinclude`. Those rules can intentionally copy ignored/local project files; a worktree is Git isolation, not an OS sandbox.
 
 The additive `workflowManagedWorktreesV1` capability is required. The local-authenticated RPCs are `workflows.prepareWorkspace` and `workflows.workspaces`; they are not mobile operations. Strict protocol versions are unchanged. An older host must show Update Required, never fall back to a shared workspace.
 
@@ -22,13 +22,13 @@ A transaction reserves identities and request receipts before Git runs. Stable O
 
 Client disconnects and request timeouts do not cancel preparation. Retry the same request ID and contents; changing contents under that ID is rejected. Listing returns retained records in bounded pages, with `nextBeforeRow` for `--before-row`. Preparation holds the host alive and runs outside its actor.
 
-On startup, one paginated recovery sweep reconciles unfinished preparations. Setup start is persisted before any copy or command. If its outcome is unknown after interruption, the attempt becomes Attention and setup is not replayed. A failed setup keeps its report and worktree. Inspect retained processes and files before retrying:
+On startup, one paginated recovery sweep reconciles unfinished preparations. Setup start is persisted before any copy or command. If its outcome is unknown after interruption, the attempt becomes Attention and setup is not replayed. A failed setup keeps its report and worktree. Large reports retain bounded details and a summary of omitted steps, including their failure count; truncation does not change the setup outcome. Inspect retained processes and files before retrying:
 
 ```sh
 alera orchestration workspaces prepare --run <run-id> --revision <revision> --request-id <new-stable-id> --task <task-id> --retry-of <latest-attempt-workspace-id>
 ```
 
-Every retry receives a new branch and worktree. No automatic reset, rebase or cleanup is performed. Generic managed-workspace removal and setup replay reject workflow-owned resources. Cancellation and legacy orchestration resets preserve resource ownership records and Git data. Reviewed cleanup belongs to the later Run Board lifecycle surface.
+Every retry receives a new branch and worktree. No automatic reset, rebase or cleanup is performed. Generic managed-workspace removal and setup replay reject workflow-owned resources, including worktrees re-registered under another metadata ID. Cancellation and legacy orchestration resets preserve resource ownership records and Git data. Reviewed cleanup belongs to the later Run Board lifecycle surface.
 
 ## Validation boundary
 

@@ -193,6 +193,12 @@ impl Fixture {
     pub async fn integration(&self) -> WorkflowWorkspaceRecord {
         let record = self.request(None, None).await.unwrap();
         assert_eq!(record.phase, Phase::Ready, "{record:?}");
+        let live = core_git::list_worktrees(&record.identity.repo_path)
+            .unwrap()
+            .into_iter()
+            .find(|entry| Some(&entry.branch) == record.identity.workspace.branch.as_ref())
+            .unwrap();
+        assert_eq!(record.identity.workspace.path, live.path);
         record
     }
 

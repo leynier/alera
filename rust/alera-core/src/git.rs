@@ -9,7 +9,9 @@ mod repository_metadata;
 mod workflow_worktree;
 mod worktree_creation;
 pub use repository_metadata::{current_branch, is_worktree_clean, repository_remote_url};
-pub use workflow_worktree::{ensure_workflow_worktree, verify_workflow_worktree};
+pub use workflow_worktree::{
+    ensure_workflow_worktree, is_registered_workflow_worktree, verify_workflow_worktree,
+};
 pub use worktree_creation::create_worktree;
 
 #[derive(Clone, Debug, PartialEq, Eq)]

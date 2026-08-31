@@ -123,6 +123,18 @@ jobs:
           -p alera-core --features workflow-approval --lib workflow_approval::
 
       - name: Verify native workflow worktree recovery
+        if: runner.os != 'Windows'
+        run: >-
+          cargo test --manifest-path rust/Cargo.toml --locked
+          -p alera-cli workflow_worktrees -- --nocapture
+
+      - name: Verify Windows workflow worktree recovery
+        if: runner.os == 'Windows'
+        env:
+          CARGO_TARGET_DIR: R:\c\n
+          CMAKE_GENERATOR: Ninja
+          _CL_: /Z7 /FS
+          GGML_CCACHE: 'OFF'
         run: >-
           cargo test --manifest-path rust/Cargo.toml --locked
           -p alera-cli workflow_worktrees -- --nocapture

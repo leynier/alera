@@ -6,6 +6,16 @@ use super::workflow_workspace_eligibility::{approved_plan, eligible_task};
 use super::*;
 
 impl RuntimeStore {
+    pub async fn workflow_resource_ownership_page(
+        &self,
+        after: i64,
+    ) -> Result<Vec<(i64, WorkflowWorkspaceIdentity)>> {
+        sqlx::query("SELECT sequence, identity FROM workflowWorkspaces WHERE sequence > ? ORDER BY sequence LIMIT 32")
+            .bind(after).fetch_all(self.pool()).await?.iter()
+            .map(|row| Ok((row.try_get("sequence")?, serde_json::from_str(&row.try_get::<String, _>("identity")?)?)))
+            .collect()
+    }
+
     pub async fn workflow_integration_workspace(
         &self,
         run: &str,
