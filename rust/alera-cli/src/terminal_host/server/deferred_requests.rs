@@ -16,6 +16,12 @@ impl ServerActor {
         request_type: &str,
         payload: &Value,
     ) -> HostResult<bool> {
+        if self
+            .try_start_codex_history_scan(client_id, request_id, request_type, payload)
+            .await?
+        {
+            return Ok(true);
+        }
         if self.try_start_configuration_cloud(client_id, request_id, request_type, payload)? {
             return Ok(true);
         }

@@ -17,96 +17,6 @@ extension _MobileCodexScreenActions on _MobileCodexChatScreenState {
     availableHeight: availableHeight,
   );
 
-  Future<void> _resumeThread(
-    BuildContext context,
-    MobileCodexController controller,
-    MobileCodexState state,
-  ) async {
-    final selection = await showModalBottomSheet<_MobileResumeSelection>(
-      context: context,
-      isScrollControlled: true,
-      showDragHandle: true,
-      builder: (context) => _MobileCodexResumePicker(
-        workspaceId: widget.workspaceId,
-        loadPage: controller.loadThreads,
-      ),
-    );
-    if (selection == null || !mounted || !context.mounted) return;
-    final currentCwd = state.activeCwd;
-    final selectedCwd = selection.thread.isBound
-        ? _MobileResumeCwdChoice(currentCwd ?? selection.thread.cwd)
-        : await _chooseMobileResumeCwd(
-            context,
-            thread: selection.thread,
-            currentCwd: currentCwd,
-          );
-    if (selectedCwd == null || !mounted || !context.mounted) return;
-    late final Map<String, Object?> response;
-    try {
-      response = await controller.resumeThread(
-        selection.thread,
-        cwd: selectedCwd.cwd,
-      );
-    } catch (_) {
-      return;
-    }
-    if (!mounted || !context.mounted) return;
-    if (response['alreadyBound'] == true) {
-      final boundWorkspaceId = response['boundWorkspaceId']?.toString();
-      final boundTabId = response['boundTabId']?.toString();
-      if (boundWorkspaceId != null &&
-          boundTabId != null &&
-          boundWorkspaceId.isNotEmpty &&
-          boundTabId.isNotEmpty) {
-        widget.onFocusBoundTab?.call(boundWorkspaceId, boundTabId);
-      }
-    }
-  }
-
-  Future<_MobileResumeCwdChoice?> _chooseMobileResumeCwd(
-    BuildContext context, {
-    required MobileCodexThreadSummary thread,
-    required String? currentCwd,
-  }) async {
-    final savedCwd = thread.cwd?.trim();
-    final current = currentCwd?.trim();
-    if (savedCwd == null || savedCwd.isEmpty) {
-      return _MobileResumeCwdChoice(current);
-    }
-    final savedAvailable = thread.workspaceId?.isNotEmpty == true;
-    if (current == null || current.isEmpty) {
-      return _MobileResumeCwdChoice(savedAvailable ? savedCwd : null);
-    }
-    if (savedCwd == current) return _MobileResumeCwdChoice(current);
-    final selected = await showDialog<String>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Choose Working Folder'),
-        content: Text(
-          savedAvailable
-              ? 'Resume in the current Codex folder or switch only this chat to its saved folder.\n\nCurrent: $current\nSaved: $savedCwd'
-              : 'The saved folder is outside the workspaces available to Alera. This chat can still resume in the current Codex folder.\n\nCurrent: $current\nSaved: $savedCwd',
-        ),
-        actions: <Widget>[
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(current),
-            child: const Text('Use Current Folder'),
-          ),
-          if (savedAvailable)
-            FilledButton(
-              onPressed: () => Navigator.of(context).pop(savedCwd),
-              child: const Text('Use Saved Folder'),
-            ),
-        ],
-      ),
-    );
-    return selected == null ? null : _MobileResumeCwdChoice(selected);
-  }
-
   Future<void> _send(MobileCodexController controller) async {
     final queuedBehindSubmission = _hasPendingMobileSubmission(
       widget.hostId,
@@ -239,11 +149,18 @@ extension _MobileCodexScreenActions on _MobileCodexChatScreenState {
           );
           return;
         }
-        await controller.send(
+        final accepted = await controller.send(
           resolvedPrompt.text,
           attachments: attachments,
           catalogSelections: catalogSelections,
         );
+        if (!accepted) {
+          _restoreAbandonedMobileSubmission(
+            submissionHostId,
+            submissionTabId,
+            submittedDraft,
+          );
+        }
       },
     );
   }
@@ -445,18 +362,29 @@ extension _MobileCodexScreenActions on _MobileCodexChatScreenState {
             .read(mobileCodexControllerProvider(widget.hostId, widget.tabId))
             .value
             ?.activeTurnId;
-        if (activeTurnId == targetTurnId && activeTurnId != null) {
-          await controller.steer(
-            resolvedPrompt.text,
-            attachments: attachments,
-            catalogSelections: catalogSelections,
+        final accepted =
+            activeTurnId == targetTurnId &&
+            activeTurnId != null &&
+            await controller.steer(
+              resolvedPrompt.text,
+              attachments: attachments,
+              catalogSelections: catalogSelections,
+            );
+        if (!accepted) {
+          _restoreAbandonedMobileSubmission(
+            submissionHostId,
+            submissionTabId,
+            submittedDraft,
           );
-        } else {
-          await controller.send(
-            resolvedPrompt.text,
-            attachments: attachments,
-            catalogSelections: catalogSelections,
-          );
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text(
+                  'Steer was not accepted. Your message has been restored.',
+                ),
+              ),
+            );
+          }
         }
       },
     );
@@ -479,5 +407,3 @@ extension _MobileCodexScreenActions on _MobileCodexChatScreenState {
         caseSensitive: false,
       ).hasMatch(draftText.trim());
 }
-
-class const _MobileResumeCwdChoice(final String? cwd);

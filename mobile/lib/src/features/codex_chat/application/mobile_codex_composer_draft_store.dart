@@ -1,3 +1,5 @@
+import '../domain/mobile_codex_submission_attempts.dart';
+
 import 'package:alera_mobile/src/features/codex_chat/domain/mobile_codex_composer_draft.dart';
 import 'package:alera_mobile/src/features/codex_chat/domain/mobile_codex_catalog_selection.dart';
 import 'package:flutter/services.dart';
@@ -8,6 +10,42 @@ part 'mobile_codex_composer_draft_store.g.dart';
 typedef MobileCodexDraftKey = ({String hostId, String tabId});
 
 class MobileCodexComposerDraftStore {
+  final Map<MobileCodexDraftKey, Map<String?, MobileCodexSubmissionAttempts>>
+  _messageAttempts = {};
+
+  MobileCodexSubmissionAttempts messageAttemptsFor(
+    String hostId,
+    String tabId,
+    String? threadId,
+  ) {
+    final threads = _messageAttempts.putIfAbsent((
+      hostId: hostId,
+      tabId: tabId,
+    ), () => {});
+    final unbound = threadId == null ? null : threads.remove(null);
+    return threads.putIfAbsent(
+      threadId,
+      () => unbound ?? MobileCodexSubmissionAttempts(),
+    );
+  }
+
+  final Map<MobileCodexDraftKey, Map<String?, Map<String, String>>>
+  _submissionIds = {};
+
+  Map<String, String> submissionIdsFor(
+    String hostId,
+    String tabId,
+    String? threadId,
+  ) {
+    final threads = _submissionIds.putIfAbsent((
+      hostId: hostId,
+      tabId: tabId,
+    ), () => {});
+    // The first send can bind an empty chat before its acknowledgement arrives.
+    final unbound = threadId == null ? null : threads.remove(null);
+    return threads.putIfAbsent(threadId, () => unbound ?? {});
+  }
+
   final Map<MobileCodexDraftKey, MobileCodexComposerDraft> _drafts =
       <MobileCodexDraftKey, MobileCodexComposerDraft>{};
   final Set<MobileCodexDraftKey> _removed = <MobileCodexDraftKey>{};
@@ -122,6 +160,8 @@ class MobileCodexComposerDraftStore {
   void remove(String hostId, String tabId) {
     final key = (hostId: hostId, tabId: tabId);
     _drafts.remove(key);
+    _submissionIds.remove(key);
+    _messageAttempts.remove(key);
     _removed.add(key);
   }
 }

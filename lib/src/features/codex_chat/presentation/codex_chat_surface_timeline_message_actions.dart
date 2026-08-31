@@ -8,12 +8,14 @@ class const _CodexMessageActions({
   required final DateTime timestamp,
   required final VoidCallback onToggleRaw,
   final bool timestampFirst = false,
+  final CodexTimelineCell? cell,
 }) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final buttons = Row(
       mainAxisSize: .min,
       children: <Widget>[
+        if (cell != null) _CodexHistoryMessageActions(cell: cell!),
         AleraIconButton(
           tooltip: 'Copy Message',
           icon: AleraIcons.copy,

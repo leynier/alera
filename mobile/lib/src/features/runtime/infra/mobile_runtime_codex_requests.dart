@@ -1,5 +1,9 @@
 part of 'mobile_runtime_client.dart';
 
+// Covers app-server initialization, the 90-second scan, native fork/boundary
+// requests, and response overhead. Keep ordinary runtime requests short.
+const _codexHistoryOperationTimeout = Duration(minutes: 7);
+
 /// Codex requests are kept in a part file so the runtime client remains
 /// organized by protocol surface. The enclosing client implements
 /// [MobileCodexClient].
@@ -28,7 +32,13 @@ mixin MobileRuntimeCodexRequests {
         'This runtime host does not support Codex chat tabs.',
       );
     }
-    return requestMap(type, payload);
+    final timeout = switch (type) {
+      'codex.thread.fork' ||
+      'codex.thread.edit' ||
+      'codex.queue.reconcile' => _codexHistoryOperationTimeout,
+      _ => null,
+    };
+    return requestMap(type, payload, timeout);
   }
 
   Future<Map<String, Object?>> codexGoalRequest(

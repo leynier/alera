@@ -79,24 +79,27 @@ class const CodexInputAttachment({
 }) {
   bool get isBrowserAnnotation => annotationContext != null;
 
-  CodexInputAttachment copyWith({int? sizeBytes, bool? isDirectory}) =>
-      CodexInputAttachment(
-        id: id,
-        path: path,
-        isImage: isImage,
-        mimeType: mimeType,
-        displayName: displayName,
-        sizeBytes: sizeBytes ?? this.sizeBytes,
-        detail: detail,
-        isDirectory: isDirectory ?? this.isDirectory,
-        origin: origin,
-        tokenText: tokenText,
-        tokenStart: tokenStart,
-        annotationContext: annotationContext,
-        annotationUrl: annotationUrl,
-        annotationTitle: annotationTitle,
-        annotationCount: annotationCount,
-      );
+  CodexInputAttachment copyWith({
+    int? sizeBytes,
+    bool? isDirectory,
+    int? tokenStart,
+  }) => CodexInputAttachment(
+    id: id,
+    path: path,
+    isImage: isImage,
+    mimeType: mimeType,
+    displayName: displayName,
+    sizeBytes: sizeBytes ?? this.sizeBytes,
+    detail: detail,
+    isDirectory: isDirectory ?? this.isDirectory,
+    origin: origin,
+    tokenText: tokenText,
+    tokenStart: tokenStart ?? this.tokenStart,
+    annotationContext: annotationContext,
+    annotationUrl: annotationUrl,
+    annotationTitle: annotationTitle,
+    annotationCount: annotationCount,
+  );
 }
 
 enum CodexInputAttachmentOrigin { attachment, mention }
@@ -127,10 +130,13 @@ class const CodexDraftItem({
 @immutable
 class const CodexQueuedMessage({
   required final String text,
+  final Map<String, Object?> payload = const <String, Object?>{},
+  final String deliveryStatus = 'queued',
+  final String? deliveryError,
   final List<CodexInputAttachment> attachments = const <CodexInputAttachment>[],
   final List<CodexDraftItem> draftItems = const <CodexDraftItem>[],
   final String? id,
-});
+}) {}
 
 @immutable
 class const CodexQuestionOption({

@@ -21,6 +21,10 @@ class _MobileFooterState(
       identical(state.collaborationModes, other.state.collaborationModes) &&
       identical(state.pendingRequests, other.state.pendingRequests) &&
       identical(state.queuedMessages, other.state.queuedMessages) &&
+      identical(state.queueState, other.state.queueState) &&
+      identical(state.chatFeatures, other.state.chatFeatures) &&
+      state.historyRevision == other.state.historyRevision &&
+      state.hasCompletedTurns == other.state.hasCompletedTurns &&
       identical(state.promptHistory, other.state.promptHistory) &&
       state.title == other.state.title &&
       state.selectedModel == other.state.selectedModel &&
@@ -52,6 +56,7 @@ class _MobileFooterState(
     identityHashCode(state.pendingRequests),
     identityHashCode(state.queuedMessages),
     identityHashCode(state.promptHistory),
+    state.hasCompletedTurns,
     state.title,
     state.selectedModel,
     state.reasoningEffort,

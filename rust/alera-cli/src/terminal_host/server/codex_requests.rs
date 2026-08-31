@@ -1,7 +1,7 @@
 //! Host requests for Codex threads, turns, approvals, and catalogues.
 
 #[path = "codex_requests_catalogue.rs"]
-mod codex_requests_catalogue;
+pub(super) mod codex_requests_catalogue;
 #[path = "codex_thread_sessions.rs"]
 pub(super) mod codex_thread_sessions;
 #[path = "codex_turn_requests.rs"]
@@ -28,7 +28,43 @@ impl ServerActor {
     ) -> HostResult<Value> {
         self.require_auth(client_id)?;
         self.require_codex_client(client_id)?;
-        match request_type {
+        if matches!(
+            request_type,
+            "codex.turn.interrupt"
+                | "codex.thread.recover"
+                | "codex.thread.new"
+                | "codex.thread.clear"
+                | "codex.thread.resume"
+                | "codex.session.new"
+                | "codex.session.clear"
+                | "codex.session.resume"
+        ) {
+            self.guard_codex_history_mutation(payload, request_type == "codex.turn.interrupt")
+                .await?;
+        }
+        if matches!(
+            request_type,
+            "codex.turn.start" | "codex.turn.steer" | "codex.review.start" | "codex.thread.compact"
+        ) {
+            let tab = self
+                .codex_tab(&super::requests::require_string_key(payload, "tabId")?)
+                .await?;
+            let state = self.codex_delivery_state(&tab).await?;
+            if self.codex_history_scans.contains(&tab.id)
+                || state.history_locked()
+                || state.messages.iter().any(|entry| entry.status == "sending")
+            {
+                return Err(HostError::state(
+                    "A history or delivery operation is in progress.",
+                ));
+            }
+        }
+        if request_type.starts_with("codex.queue.") {
+            return self.handle_codex_queue_request(request_type, payload).await;
+        }
+        let result = match request_type {
+            "codex.thread.fork" => self.fork_codex_history(payload).await,
+            "codex.thread.edit" => self.edit_codex_history(payload).await,
             "codex.tab.create" => self.create_codex_tab(payload).await,
             "codex.tab.configure" => self.configure_codex_tab(payload).await,
             "codex.thread.open" => self.open_codex_thread(payload).await,
@@ -78,7 +114,34 @@ impl ServerActor {
             _ => Err(HostError::state(format!(
                 "Unknown Codex request: {request_type}"
             ))),
+        }?;
+        if matches!(
+            request_type,
+            "codex.thread.open"
+                | "codex.thread.snapshot"
+                | "codex.thread.resume"
+                | "codex.thread.new"
+                | "codex.thread.clear"
+                | "codex.session.resume"
+                | "codex.session.new"
+                | "codex.session.clear"
+                | "codex.thread.recover"
+        ) {
+            let mut result = result;
+            let tab = self
+                .codex_tab(&super::requests::require_string_key(payload, "tabId")?)
+                .await?;
+            result["chatFeatures"] =
+                json!(["codexForkV1", "codexHistoryEditV1", "codexSharedQueueV1"]);
+            result["queue"] = self.codex_delivery_state(&tab).await?.snapshot();
+            result["historyRevision"] = tab
+                .payload
+                .get("codexHistoryRevision")
+                .cloned()
+                .unwrap_or(json!(0));
+            return Ok(result);
         }
+        Ok(result)
     }
 
     pub(super) async fn codex_server_request(
@@ -126,13 +189,9 @@ impl ServerActor {
         if let Some(server) = self.codex.as_ref() {
             return Ok(server.clone());
         }
-        let server = CodexAppServer::start(self.inbox.clone(), cwd).await?;
-        self.codex = Some(server.clone());
-        self.broadcast_authenticated(crate::terminal_host::protocol::event(
-            "codexServerChanged",
-            json!({"status": "ready"}),
-        ));
-        Ok(server)
+        let startup = self.codex_server_startup(cwd);
+        let result = startup.clone().await;
+        self.adopt_codex_startup(&startup, result)
     }
 
     pub(super) async fn codex_tab(&self, tab_id: &str) -> HostResult<WorkspaceTabRecord> {
@@ -159,7 +218,7 @@ impl ServerActor {
         }
     }
 
-    fn require_codex_client(&self, client_id: u64) -> HostResult<()> {
+    pub(super) fn require_codex_client(&self, client_id: u64) -> HostResult<()> {
         if self
             .clients
             .get(&client_id)
@@ -224,7 +283,7 @@ fn copy_optional(payload: &Value, target: &mut Value, key: &str) {
     }
 }
 
-fn turn_params(payload: &Value, thread_id: &str, input: Value) -> Value {
+pub(super) fn turn_params(payload: &Value, thread_id: &str, input: Value) -> Value {
     let mut params = json!({
         "threadId": thread_id,
         "input": input,

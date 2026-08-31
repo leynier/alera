@@ -131,12 +131,13 @@ class const CodexChatSnapshot({
   final List<String> promptHistory = const <String>[],
   final bool mcpInitializing = false,
   final String? activeTurnId,
+  final bool? hasCompletedTurns,
   final int? contextUsed,
   final int? contextLimit,
   final String? title,
   final CodexThreadGoal? goal,
 }) {
-  factory fromJson(Object? value) {
+  factory CodexChatSnapshot.fromJson(Object? value) {
     final json = _map(value);
     final events = _codexTimelineEvents(json['events']);
     var cells = <CodexTimelineCell>[
@@ -158,6 +159,7 @@ class const CodexChatSnapshot({
       mcpInitializing: _codexHasInitializingMcp(cells),
       pendingRequests: _codexPendingRequests(json['pendingRequests']),
       activeTurnId: _string(json['activeTurnId']),
+      hasCompletedTurns: json['hasCompletedTurns'] as bool?,
       contextUsed: _int(json['contextUsed']),
       contextLimit: _int(json['contextLimit']),
       title: _string(json['title']),
@@ -190,6 +192,8 @@ class const CodexChatSnapshot({
         activeTurnId,
         _string,
       ),
+      hasCompletedTurns:
+          json['hasCompletedTurns'] as bool? ?? hasCompletedTurns,
       contextUsed: _codexDeltaValue(json, 'contextUsed', contextUsed, _int),
       contextLimit: _codexDeltaValue(json, 'contextLimit', contextLimit, _int),
       title: _codexDeltaValue(json, 'title', title, _string),

@@ -5,6 +5,37 @@ mixin _WorkbenchControllerNavigation
         _$WorkbenchController,
         _WorkbenchControllerInternals,
         _WorkbenchControllerProjects {
+  Future<void> openPersistedWorkspaceTab({
+    required String workspaceId,
+    required String tabId,
+  }) async {
+    final tab = await _repository.findWorkspaceTabById(tabId);
+    if (_disposed) return;
+    if (tab == null || tab.workspaceId != workspaceId) {
+      throw StateError(
+        'The created tab is no longer available in this workspace.',
+      );
+    }
+    final currentTabs = state.tabsFor(workspaceId);
+    final layout = _layoutForMutation(workspaceId, currentTabs);
+    final tabs = <WorkspaceTabRecord>[
+      for (final current in currentTabs) current.id == tabId ? tab : current,
+      if (!currentTabs.any((current) => current.id == tabId)) tab,
+    ];
+    _setTabsForWorkspace(workspaceId, tabs);
+    if (layout.groupIdForTab(tabId) == null) {
+      await _applyLayout(
+        layout
+            .addTabToGroup(groupId: layout.activeGroupId, tabId: tabId)
+            .sanitize(tabs),
+        persist: true,
+      );
+    }
+    if (!_disposed) {
+      await selectWorkspaceTab(workspaceId: workspaceId, tabId: tabId);
+    }
+  }
+
   Future<void> selectWorkspaceTab({
     required String workspaceId,
     required String tabId,

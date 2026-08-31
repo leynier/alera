@@ -1,7 +1,7 @@
 part of 'codex_chat_controller_test.dart';
 
 void registerCodexChatControllerSessionTests() {
-  test('queues prompts until the initial thread identity is loaded', () async {
+  test('waits for initial identity before accepting a prompt', () async {
     final open = Completer<Object?>();
     final client = _FakeCodexRuntimeClient(
       requestHandler: (type, payload) {
@@ -27,13 +27,15 @@ void registerCodexChatControllerSessionTests() {
     );
     addTearDown(listener.close);
 
-    await container.read(provider.notifier).send('Queued while opening');
+    final sending = container
+        .read(provider.notifier)
+        .send('Queued while opening');
 
     expect(
       client.requests.where((request) => request.type == 'codex.turn.start'),
       isEmpty,
     );
-    expect(container.read(provider).queuedMessages, hasLength(1));
+    expect(container.read(provider).queuedMessages, isEmpty);
 
     open.complete(<String, Object?>{
       'threadId': 'thread-existing',
@@ -43,6 +45,7 @@ void registerCodexChatControllerSessionTests() {
         'pendingRequests': const <Object?>[],
       },
     });
+    expect(await sending, isTrue);
     await _settle();
 
     final start = client.requests.singleWhere(
@@ -80,7 +83,9 @@ void registerCodexChatControllerSessionTests() {
       );
       addTearDown(listener.close);
 
-      await container.read(provider.notifier).send('Queued before recovery');
+      final sending = container
+          .read(provider.notifier)
+          .send('Queued before recovery');
       open.complete(<String, Object?>{
         'threadId': 'thread-missing-rollout',
         'historyNextCursor': 'old-thread-cursor',
@@ -94,6 +99,7 @@ void registerCodexChatControllerSessionTests() {
           'pendingRequests': const <Object?>[],
         },
       });
+      expect(await sending, isTrue);
       await _settle();
 
       expect(container.read(provider).queuedMessages, hasLength(1));

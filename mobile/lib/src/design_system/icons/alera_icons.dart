@@ -4,6 +4,8 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 /// Semantic icon registry for the mobile companion. Glyphs match the desktop
 /// `AleraIcons` set (Lucide) so workspace rows stay visually consistent.
 abstract final class const AleraIcons._() {
+  static const IconData queuedMessage = LucideIcons.listEnd;
+  static const IconData steer = LucideIcons.cornerDownRight;
   static const IconData close = LucideIcons.x;
   static const IconData more = LucideIcons.ellipsisVertical;
   static const IconData chevronUp = LucideIcons.chevronUp;

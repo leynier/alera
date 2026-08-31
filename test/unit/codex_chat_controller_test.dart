@@ -12,6 +12,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 part 'codex_chat_controller_test_support.dart';
+part 'codex_chat_shared_queue_test_cases.dart';
+part 'codex_chat_capability_reconnect_test_cases.dart';
+part 'codex_chat_stop_revision_test_cases.dart';
+part 'codex_chat_submission_recovery_test_cases.dart';
+part 'codex_chat_history_recovery_test_cases.dart';
+part 'codex_chat_opening_queue_test_cases.dart';
 part 'codex_chat_controller_catalogue_test_cases.dart';
 part 'codex_chat_controller_history_test_cases.dart';
 part 'codex_chat_controller_input_test_cases.dart';
@@ -24,7 +30,16 @@ part 'codex_chat_controller_transition_test_cases.dart';
 
 part 'codex_chat_controller_history_session_test_cases.dart';
 
+part 'codex_chat_operation_identity_test_cases.dart';
+
 void main() {
+  registerCodexOperationIdentityTests();
+  registerCodexSharedQueueTests();
+  registerCodexCapabilityReconnectTests();
+  registerCodexStopRevisionTests();
+  registerCodexSubmissionRecoveryTests();
+  registerCodexHistoryRecoveryTests();
+  registerCodexOpeningSubmissionTests();
   registerCodexChatControllerSessionTests();
   registerCodexChatControllerHistoryTests();
   registerCodexChatControllerCatalogueTests();

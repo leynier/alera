@@ -2,6 +2,10 @@ import 'dart:async';
 
 import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_protocol.dart';
 
+// Covers app-server initialization, the 90-second scan, native fork/boundary
+// requests, and response overhead. Keep ordinary runtime requests short.
+const _codexHistoryOperationTimeout = Duration(minutes: 7);
+
 class CodexChatHostClient(final RuntimeHostClient _client) {
   this {
     _runtimeEvents = _client.runtimeEvents.listen(_handleRuntimeEvent);
@@ -21,6 +25,22 @@ class CodexChatHostClient(final RuntimeHostClient _client) {
   void dispose() {
     unawaited(_runtimeEvents.cancel());
   }
+
+  Future<Set<String>> refreshChatFeatures() async {
+    // A failed status request must not look like a runtime downgrade.
+    final status = await request('status.get');
+    final capabilities = asTerminalHostStringList(status['runtimeCapabilities'])
+        .toSet();
+    _runtimeCapabilities = Future.value(capabilities);
+    return capabilities.intersection(const {
+      'codexForkV1',
+      'codexHistoryEditV1',
+      'codexSharedQueueV1',
+    });
+  }
+
+  Future<bool> supportsSharedQueue() async =>
+      (await _capabilities()).contains('codexSharedQueueV1');
 
   Future<bool> supportsSessions() async {
     final capabilities = await _capabilities();
@@ -65,7 +85,13 @@ class CodexChatHostClient(final RuntimeHostClient _client) {
     String type, [
     Map<String, Object?> payload = const <String, Object?>{},
   ]) async {
-    final value = await _client.runtimeRequest(type, payload);
+    final timeout = switch (type) {
+      'codex.thread.fork' ||
+      'codex.thread.edit' ||
+      'codex.queue.reconcile' => _codexHistoryOperationTimeout,
+      _ => null,
+    };
+    final value = await _client.runtimeRequest(type, payload, timeout);
     if (value is Map<String, Object?>) return value;
     if (value is Map) return Map<String, Object?>.from(value);
     throw const FormatException('Codex host response must be an object.');
@@ -199,6 +225,9 @@ class CodexChatHostClient(final RuntimeHostClient _client) {
     required bool planMode,
     String? collaborationMode,
     String? clientUserMessageId,
+    bool sharedQueue = false,
+    int? expectedHistoryRevision,
+    Map<String, Object?>? draft,
   }) async {
     final effectiveCollaborationMode =
         collaborationMode ?? (planMode ? 'plan' : 'default');
@@ -208,51 +237,56 @@ class CodexChatHostClient(final RuntimeHostClient _client) {
         !supportsTurnPolicy && permissionMode == 'auto-review'
         ? 'on-request'
         : permissionMode;
-    return request('codex.turn.start', <String, Object?>{
-      'tabId': tabId,
-      'expectedThreadId': expectedThreadId,
-      'input': input,
-      'userMessage': userMessage,
-      if (model != null && model.isNotEmpty) 'model': model,
-      'reasoning': <String, Object?>{'effort': reasoningEffort},
-      'effort': reasoningEffort,
-      'clientUserMessageId': ?clientUserMessageId,
-      'serviceTier': speedMode == 'fast' ? 'fast' : null,
-      'approvalPolicy': supportsTurnPolicy
-          ? switch (permissionMode) {
-              'never' => 'never',
-              'untrusted' => 'untrusted',
-              _ => 'on-request',
-            }
-          : wirePermissionMode,
-      if (supportsTurnPolicy)
-        'approvalsReviewer': permissionMode == 'auto-review'
-            ? 'auto_review'
-            : 'user',
-      if (supportsTurnPolicy)
-        'sandboxPolicy': permissionMode == 'never'
-            ? <String, Object?>{'type': 'dangerFullAccess'}
-            : <String, Object?>{
-                'type': 'workspaceWrite',
-                'writableRoots': const <String>[],
-                'networkAccess': false,
-              },
-      'collaborationMode': <String, Object?>{
-        'mode': effectiveCollaborationMode,
-        'settings': <String, Object?>{
-          if (model != null && model.isNotEmpty) 'model': model,
-          'reasoning_effort': reasoningEffort,
+    return request(
+      sharedQueue ? 'codex.queue.add' : 'codex.turn.start',
+      <String, Object?>{
+        'draft': ?draft,
+        'expectedHistoryRevision': ?expectedHistoryRevision,
+        'tabId': tabId,
+        'expectedThreadId': expectedThreadId,
+        'input': input,
+        'userMessage': userMessage,
+        if (model != null && model.isNotEmpty) 'model': model,
+        'reasoning': <String, Object?>{'effort': reasoningEffort},
+        'effort': reasoningEffort,
+        'clientUserMessageId': ?clientUserMessageId,
+        'serviceTier': speedMode == 'fast' ? 'fast' : null,
+        'approvalPolicy': supportsTurnPolicy
+            ? switch (permissionMode) {
+                'never' => 'never',
+                'untrusted' => 'untrusted',
+                _ => 'on-request',
+              }
+            : wirePermissionMode,
+        if (supportsTurnPolicy)
+          'approvalsReviewer': permissionMode == 'auto-review'
+              ? 'auto_review'
+              : 'user',
+        if (supportsTurnPolicy)
+          'sandboxPolicy': permissionMode == 'never'
+              ? <String, Object?>{'type': 'dangerFullAccess'}
+              : <String, Object?>{
+                  'type': 'workspaceWrite',
+                  'writableRoots': const <String>[],
+                  'networkAccess': false,
+                },
+        'collaborationMode': <String, Object?>{
+          'mode': effectiveCollaborationMode,
+          'settings': <String, Object?>{
+            if (model != null && model.isNotEmpty) 'model': model,
+            'reasoning_effort': reasoningEffort,
+          },
+        },
+        'configuration': <String, Object?>{
+          'selectedModel': model,
+          'reasoningEffort': reasoningEffort,
+          'speedMode': speedMode,
+          'permissionMode': wirePermissionMode,
+          'planMode': planMode,
+          'collaborationMode': effectiveCollaborationMode,
         },
       },
-      'configuration': <String, Object?>{
-        'selectedModel': model,
-        'reasoningEffort': reasoningEffort,
-        'speedMode': speedMode,
-        'permissionMode': wirePermissionMode,
-        'planMode': planMode,
-        'collaborationMode': effectiveCollaborationMode,
-      },
-    });
+    );
   }
 
   Future<Map<String, Object?>> interrupt(String tabId, String? turnId) {
@@ -268,14 +302,24 @@ class CodexChatHostClient(final RuntimeHostClient _client) {
     List<Map<String, Object?>> input, {
     required Map<String, Object?> userMessage,
     String? clientUserMessageId,
+    String? expectedThreadId,
+    int? expectedHistoryRevision,
+    bool sharedQueue = false,
+    Map<String, Object?>? draft,
   }) {
-    return request('codex.turn.steer', <String, Object?>{
-      'tabId': tabId,
-      'turnId': turnId,
-      'input': input,
-      'userMessage': userMessage,
-      'clientUserMessageId': ?clientUserMessageId,
-    });
+    return request(
+      sharedQueue ? 'codex.queue.add' : 'codex.turn.steer',
+      <String, Object?>{
+        'expectedThreadId': expectedThreadId,
+        'draft': ?draft,
+        'expectedHistoryRevision': ?expectedHistoryRevision,
+        'tabId': tabId,
+        'turnId': turnId,
+        'input': input,
+        'userMessage': userMessage,
+        'clientUserMessageId': ?clientUserMessageId,
+      },
+    );
   }
 
   Future<Map<String, Object?>> rename(String tabId, String name) {

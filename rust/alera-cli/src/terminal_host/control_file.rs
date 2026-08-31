@@ -115,6 +115,7 @@ pub fn write_control_file(
             RUNTIME_HOST_MOBILE_EMULATOR_CAPABILITY,
             RUNTIME_HOST_CODEX_CHAT_CAPABILITY,
             RUNTIME_HOST_CODEX_GOALS_CAPABILITY,
+            "codexForkV1", "codexHistoryEditV1", "codexSharedQueueV1",
             RUNTIME_HOST_AUTOMATIONS_CAPABILITY,
         ],
         "persistent": persistent,
@@ -228,6 +229,9 @@ mod tests {
                 RUNTIME_HOST_MOBILE_EMULATOR_CAPABILITY,
                 RUNTIME_HOST_CODEX_CHAT_CAPABILITY,
                 RUNTIME_HOST_CODEX_GOALS_CAPABILITY,
+                "codexForkV1",
+                "codexHistoryEditV1",
+                "codexSharedQueueV1",
                 RUNTIME_HOST_AUTOMATIONS_CAPABILITY,
             ])
         );

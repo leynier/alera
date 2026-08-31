@@ -61,38 +61,66 @@ WorkspaceTabRecord _tab({
   );
 }
 
-final class _SurfaceRuntimeClient({
-  final Map<String, Object?>? recovery,
-  final String approvalMethod = 'item/commandExecution/requestApproval',
-  final String? activeCwd,
-  final bool supportsSessions = false,
-  final bool supportsTurnPolicy = true,
-  final bool supportsGoals = false,
-  var Map<String, Object?>? goal,
-  final bool includeGoalInOpenSnapshot = true,
-  var int goalGetFailures = 0,
-  final String goalGetFailureMessage = 'temporary goal read failure',
-  var int goalSetFailures = 0,
-  final String goalSetFailureMessage = 'temporary goal set failure',
-  final Set<String> sessionCommandFailures = const <String>{},
-  final String? historyNextCursor,
-  final List<Object?> historyTimelineCells = const <Object?>[],
-  final Completer<void>? historyGate,
-  final Completer<void>? recoveryGate,
-  final List<Object?>? pendingRequests,
-  final Map<String, Object?>? threadListResponse,
-  final String? permissionMode,
-  final List<Object?>? timelineCells,
-  final String? activeTurnId,
-  final String modelDisplayName = 'Current Codex',
-  final Map<String, Object?> skills = const <String, Object?>{
-    'data': <Object?>[],
-  },
-  final List<Map<String, Object?>> collaborationModes =
-      const <Map<String, Object?>>[
-        <String, Object?>{'mode': 'plan'},
-      ],
-}) implements RuntimeHostClient {
+final class _SurfaceRuntimeClient implements RuntimeHostClient {
+  _SurfaceRuntimeClient({
+    this.requestHandler,
+    this.recovery,
+    this.approvalMethod = 'item/commandExecution/requestApproval',
+    this.activeCwd,
+    this.supportsSessions = false,
+    this.hasCompletedTurns,
+    this.supportsTurnPolicy = true,
+    this.supportsGoals = false,
+    this.goal,
+    this.includeGoalInOpenSnapshot = true,
+    this.goalGetFailures = 0,
+    this.goalGetFailureMessage = 'temporary goal read failure',
+    this.goalSetFailures = 0,
+    this.goalSetFailureMessage = 'temporary goal set failure',
+    this.sessionCommandFailures = const <String>{},
+    this.historyNextCursor,
+    this.historyTimelineCells = const <Object?>[],
+    this.historyGate,
+    this.recoveryGate,
+    this.pendingRequests,
+    this.threadListResponse,
+    this.permissionMode,
+    this.timelineCells,
+    this.activeTurnId,
+    this.modelDisplayName = 'Current Codex',
+    this.skills = const <String, Object?>{'data': <Object?>[]},
+    this.collaborationModes = const <Map<String, Object?>>[
+      <String, Object?>{'mode': 'plan'},
+    ],
+  });
+
+  final Future<Object?>? Function(String, Map<String, Object?>)? requestHandler;
+  final Map<String, Object?>? recovery;
+  final String approvalMethod;
+  final String? activeCwd;
+  final bool supportsSessions;
+  final bool? hasCompletedTurns;
+  final bool supportsTurnPolicy;
+  final bool supportsGoals;
+  Map<String, Object?>? goal;
+  final bool includeGoalInOpenSnapshot;
+  int goalGetFailures;
+  final String goalGetFailureMessage;
+  int goalSetFailures;
+  final String goalSetFailureMessage;
+  final Set<String> sessionCommandFailures;
+  final String? historyNextCursor;
+  final List<Object?> historyTimelineCells;
+  final Completer<void>? historyGate;
+  final Completer<void>? recoveryGate;
+  final List<Object?>? pendingRequests;
+  final Map<String, Object?>? threadListResponse;
+  final String? permissionMode;
+  final List<Object?>? timelineCells;
+  final String? activeTurnId;
+  final String modelDisplayName;
+  final Map<String, Object?> skills;
+  final List<Map<String, Object?>> collaborationModes;
   final List<String> requestTypes = <String>[];
   final List<({String type, Map<String, Object?> payload})> requests =
       <({String type, Map<String, Object?> payload})>[];
@@ -115,6 +143,8 @@ final class _SurfaceRuntimeClient({
   ]) async {
     requestTypes.add(type);
     requests.add((type: type, payload: Map.unmodifiable(payload)));
+    final handled = requestHandler?.call(type, payload);
+    if (handled != null) return handled;
     if (sessionCommandFailures.contains(type)) {
       throw StateError('$type failed');
     }
@@ -136,6 +166,7 @@ final class _SurfaceRuntimeClient({
             : 'thread-recovery',
         'cwd': activeCwd,
         'historyNextCursor': historyNextCursor,
+        if (hasCompletedTurns != null) 'chatFeatures': ['codexForkV1'],
         if (permissionMode != null)
           'configuration': <String, Object?>{
             'selectedModel': 'gpt-current',
@@ -196,6 +227,7 @@ final class _SurfaceRuntimeClient({
           'contextUsed': 1000,
           'contextLimit': 10000,
           'activeTurnId': activeTurnId,
+          'hasCompletedTurns': hasCompletedTurns,
           'pendingRequests':
               pendingRequests ??
               <Object?>[

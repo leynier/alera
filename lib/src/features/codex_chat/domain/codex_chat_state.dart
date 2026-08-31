@@ -44,10 +44,26 @@ class const CodexChatState({
   final String permissionMode = 'on-request',
   final bool planMode = false,
   final String? collaborationMode,
+  final Set<String> chatFeatures = const <String>{},
+  final Map<String, Object?> queueState = const <String, Object?>{},
+  final int historyRevision = 0,
   final List<CodexQueuedMessage> queuedMessages = const <CodexQueuedMessage>[],
   final CodexThreadRecovery? recovery,
   final String? error,
 }) {
+  bool get supportsSharedQueue => chatFeatures.contains('codexSharedQueueV1');
+  bool get sharedQueueUnavailable =>
+      !supportsSharedQueue && queueState.containsKey('revision');
+  bool get supportsFork => chatFeatures.contains('codexForkV1');
+  bool get supportsHistoryEdit =>
+      chatFeatures.contains('codexHistoryEditV1') &&
+      queueState['historyEditUnavailableReason'] == null;
+  bool get queuePaused => queueState['paused'] == true;
+  bool get historyOutdated =>
+      (queueState['historyRevision'] as int? ?? 0) > historyRevision;
+  bool get historyLocked =>
+      historyOutdated || queueState['historyLocked'] == true;
+
   bool get busy => sending || snapshot.isBusy;
 
   CodexModelOption? get selectedModelOption {
@@ -59,6 +75,9 @@ class const CodexChatState({
 
   CodexChatState copyWith({
     bool? loading,
+    Set<String>? chatFeatures,
+    Map<String, Object?>? queueState,
+    int? historyRevision,
     bool? sending,
     bool? interrupting,
     bool? supportsSessions,
@@ -82,6 +101,9 @@ class const CodexChatState({
     Object? error = _keepError,
   }) => CodexChatState(
     loading: loading ?? this.loading,
+    chatFeatures: chatFeatures ?? this.chatFeatures,
+    queueState: queueState ?? this.queueState,
+    historyRevision: historyRevision ?? this.historyRevision,
     sending: sending ?? this.sending,
     interrupting: interrupting ?? this.interrupting,
     supportsSessions: supportsSessions ?? this.supportsSessions,

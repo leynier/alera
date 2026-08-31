@@ -320,28 +320,40 @@ class _AleraShellPageBodyState extends ConsumerState<_AleraShellPageBody> {
     List<WorkspaceTabRecord> tabs,
     List<String> tabIds,
   ) async {
+    final cancellations = <CodexQueueCancellation>[];
+    for (final tab in tabs) {
+      if (tabIds.contains(tab.id) && tab.kind == WorkspaceTabKind.codex) {
+        final cancel = await prepareCodexQueueClose(context, ref, tab.id);
+        if (cancel == null) return false;
+        cancellations.add(cancel);
+      }
+    }
     final registry = ref.read(editorSessionRegistryProvider);
     final dirty = <String>[
       for (final tab in tabs)
         if (tabIds.contains(tab.id) && registry.isDirty(tab.id)) tab.title,
     ];
-    if (dirty.isEmpty) {
-      return true;
+    if (!mounted) return false;
+    if (dirty.isNotEmpty) {
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (context) => AleraConfirmDialog(
+          title: dirty.length == 1
+              ? 'Close Unsaved Editor?'
+              : 'Close Unsaved Editors?',
+          message: dirty.length == 1
+              ? '${dirty.first} has unsaved changes.'
+              : '${dirty.length} editor tabs have unsaved changes.',
+          confirmLabel: 'Close',
+          destructive: true,
+        ),
+      );
+      if (confirmed != true) return false;
     }
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AleraConfirmDialog(
-        title: dirty.length == 1
-            ? 'Close Unsaved Editor?'
-            : 'Close Unsaved Editors?',
-        message: dirty.length == 1
-            ? '${dirty.first} has unsaved changes.'
-            : '${dirty.length} editor tabs have unsaved changes.',
-        confirmLabel: 'Close',
-        destructive: true,
-      ),
-    );
-    return confirmed == true;
+    for (final cancel in cancellations) {
+      await cancel();
+    }
+    return true;
   }
 
   void _showError(String message) {

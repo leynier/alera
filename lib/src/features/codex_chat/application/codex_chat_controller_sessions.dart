@@ -37,7 +37,12 @@ extension CodexChatControllerSessions on CodexChatController {
       _threadGeneration += 1;
       state = _applyConfiguration(
         state.copyWith(
-          snapshot: .fromJson(response['snapshot']),
+          snapshot: CodexChatSnapshot.fromJson(response['snapshot']),
+          historyRevision: response['historyRevision'] as int? ?? 0,
+          queueState: const {},
+          queuedMessages: state.supportsSharedQueue
+              ? const []
+              : state.queuedMessages,
           activeCwd: _string(response['cwd']) ?? cwd ?? thread.cwd,
           historyNextCursor: _string(response['historyNextCursor']),
           recovery: response['recovery'] == null
@@ -47,6 +52,11 @@ extension CodexChatControllerSessions on CodexChatController {
         ),
         response['configuration'],
       );
+      if (response['queue'] is Map) {
+        _applyQueueSnapshot(
+          Map<String, Object?>.from(response['queue']! as Map),
+        );
+      }
       await _loadCatalogues();
       return response;
     } catch (error) {
@@ -96,7 +106,12 @@ extension CodexChatControllerSessions on CodexChatController {
       _threadGeneration += 1;
       state = _applyConfiguration(
         state.copyWith(
-          snapshot: .fromJson(response['snapshot']),
+          snapshot: CodexChatSnapshot.fromJson(response['snapshot']),
+          historyRevision: response['historyRevision'] as int? ?? 0,
+          queueState: const {},
+          queuedMessages: state.supportsSharedQueue
+              ? const []
+              : state.queuedMessages,
           activeCwd: _string(response['cwd']) ?? state.activeCwd,
           historyNextCursor: null,
           recovery: null,
@@ -106,6 +121,11 @@ extension CodexChatControllerSessions on CodexChatController {
         ),
         response['configuration'],
       );
+      if (response['queue'] is Map) {
+        _applyQueueSnapshot(
+          Map<String, Object?>.from(response['queue']! as Map),
+        );
+      }
       await _loadCatalogues();
       return true;
     } catch (error) {
@@ -119,12 +139,17 @@ extension CodexChatControllerSessions on CodexChatController {
   }
 
   void _beginSessionTransition() {
+    if (_reconnectRefresh != null || _capabilityRefreshBlocked) {
+      throw StateError('Finish reconnecting before changing conversations.');
+    }
     final firstTransition = _sessionTransitionCount == 0;
     _sessionTransitionCount += 1;
     if (firstTransition) {
-      _suspendedSessionQueue = state.queuedMessages;
       _sessionTransitionSucceeded = false;
-      state = state.copyWith(queuedMessages: const <CodexQueuedMessage>[]);
+      if (!state.supportsSharedQueue) {
+        _suspendedSessionQueue = state.queuedMessages;
+        state = state.copyWith(queuedMessages: const <CodexQueuedMessage>[]);
+      }
     }
   }
 
@@ -202,6 +227,7 @@ CodexChatSnapshot _mergeHistory(
     ]),
     mcpInitializing: current.mcpInitializing,
     activeTurnId: current.activeTurnId,
+    hasCompletedTurns: current.hasCompletedTurns ?? page.hasCompletedTurns,
     contextUsed: current.contextUsed,
     contextLimit: current.contextLimit,
     title: current.title ?? page.title,
@@ -247,6 +273,7 @@ CodexChatSnapshot _mergeSameThreadSnapshot(
     promptHistory: currentSegments.promptHistoryWithLive(live),
     mcpInitializing: incoming.mcpInitializing,
     activeTurnId: incoming.activeTurnId,
+    hasCompletedTurns: incoming.hasCompletedTurns ?? current.hasCompletedTurns,
     contextUsed: incoming.contextUsed,
     contextLimit: incoming.contextLimit,
     title: incoming.title,
@@ -310,6 +337,7 @@ CodexChatSnapshot _reconcileSameThreadSnapshot(
         ])
       : segments.promptHistoryWithLive(boundedLive);
   return CodexChatSnapshot(
+    hasCompletedTurns: incoming.hasCompletedTurns ?? updated.hasCompletedTurns,
     events: updated.events,
     timelineCells: mergedCells,
     pendingRequests: incoming.pendingRequests,

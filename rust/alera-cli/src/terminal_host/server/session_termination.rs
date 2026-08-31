@@ -218,6 +218,14 @@ impl ServerActor {
             }
         }
         self.complete_runtime_mutation();
+        for tab_id in self.codex_delivery_active.clone() {
+            if self.codex_tab(&tab_id).await.is_ok() {
+                self.schedule_codex_queue(&tab_id);
+            } else {
+                self.codex_delivery_active.remove(&tab_id);
+            }
+        }
+        self.schedule_shutdown_if_idle();
     }
 
     async fn apply_runtime_mutation_effect(&mut self, effect: RuntimeMutationEffect) {

@@ -242,16 +242,25 @@ extension _CodexDraftActions on _CodexChatSurfaceState {
     final text = _expandSavedPrompt(_composer.text);
     final attachments = List<CodexInputAttachment>.of(_attachments);
     final draftItems = List<CodexDraftItem>.of(_draftItems);
+    final submittedDraft = CodexComposerDraft(
+      value: _composer.value,
+      attachments: attachments,
+      draftItems: draftItems,
+    );
+    final submittedTabId = widget.tab.id;
     _composer.clear();
     _setDraftState(() {
       _attachments.clear();
       _draftItems.clear();
     });
-    await controller.send(
+    final accepted = await controller.send(
       text,
       attachments: attachments,
       draftItems: draftItems,
     );
+    if (!accepted) {
+      _draftStore.restoreSubmission(submittedTabId, submittedDraft);
+    }
     if (mounted) _composerFocus.requestFocus();
   }
 
@@ -272,32 +281,27 @@ extension _CodexDraftActions on _CodexChatSurfaceState {
 
   void _editQueued(
     CodexChatController controller,
-    int index,
     CodexQueuedMessage message,
+    int? revision,
   ) {
-    if (_composer.text.isNotEmpty ||
-        _attachments.isNotEmpty ||
-        _draftItems.isNotEmpty) {
-      AleraToast.show(
-        context,
-        message: 'Clear the current draft before editing a queued message.',
-      );
-      return;
-    }
-    controller.removeQueuedMessage(index);
-    _composer.value = TextEditingValue(
-      text: message.text,
-      selection: .collapsed(offset: message.text.length),
+    final provider = codexChatControllerProvider(widget.tab.id);
+    unawaited(
+      showDialog<void>(
+        context: context,
+        builder: (_) => AleraMessageEditor(
+          text: message.text,
+          attachmentCount: message.attachments.length,
+          onSave: (text) async =>
+              await controller.saveQueuedMessage(
+                message,
+                text,
+                revision: revision,
+              )
+              ? null
+              : ref.read(provider).error ?? 'The queue changed. Your edit is preserved; reopen the message to use the latest revision.',
+        ),
+      ),
     );
-    _setDraftState(() {
-      _attachments
-        ..clear()
-        ..addAll(message.attachments);
-      _draftItems
-        ..clear()
-        ..addAll(message.draftItems);
-    });
-    _composerFocus.requestFocus();
   }
 }
 

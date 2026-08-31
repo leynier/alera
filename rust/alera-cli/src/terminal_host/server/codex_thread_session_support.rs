@@ -209,7 +209,7 @@ pub(in crate::terminal_host::server::codex_requests) fn request_limit(payload: &
         .clamp(1, 100)
 }
 
-pub(in crate::terminal_host::server::codex_requests) fn thread_resume_params(
+pub(in crate::terminal_host::server) fn thread_resume_params(
     thread_id: &str,
     cwd: &str,
     history_limit: usize,
@@ -241,6 +241,7 @@ pub(in crate::terminal_host::server::codex_requests) fn copy_optional(
 pub(in crate::terminal_host::server::codex_requests) fn empty_snapshot() -> Value {
     json!({
         "schemaVersion": 2,
+        "hasCompletedTurns": false,
         "events": [],
         "timelineCells": [],
         "pendingRequests": [],

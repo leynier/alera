@@ -28,7 +28,7 @@ void registerCodexChatControllerQueueTests() {
       addTearDown(listener.close);
       final controller = container.read(provider.notifier);
 
-      await controller.send('Keep this prompt');
+      final sending = controller.send('Keep this prompt');
       client.emit(
         const RuntimeHostEvent('codexThreadChanged', <String, Object?>{
           'tabId': 'tab-recovery-queue',
@@ -42,7 +42,7 @@ void registerCodexChatControllerQueueTests() {
       );
       await _settle();
 
-      expect(container.read(provider).queuedMessages, hasLength(1));
+      expect(container.read(provider).queuedMessages, isEmpty);
       expect(
         client.requests.where((request) => request.type == 'codex.turn.start'),
         isEmpty,
@@ -56,6 +56,7 @@ void registerCodexChatControllerQueueTests() {
           'message': 'The rollout is missing.',
         },
       });
+      expect(await sending, isTrue);
       await _settle();
       expect(container.read(provider).queuedMessages, hasLength(1));
     },

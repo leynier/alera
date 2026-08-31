@@ -80,6 +80,9 @@ pub(super) const MOBILE_HELLO_CAPABILITIES: &[&str] = &[
     RUNTIME_HOST_MOBILE_CODEX_SESSIONS_CAPABILITY,
     RUNTIME_HOST_CODEX_CHAT_CAPABILITY,
     RUNTIME_HOST_CODEX_GOALS_CAPABILITY,
+    "codexForkV1",
+    "codexHistoryEditV1",
+    "codexSharedQueueV1",
     RUNTIME_HOST_CODEX_TURN_POLICY_CAPABILITY,
     RUNTIME_HOST_AUTOMATIONS_CAPABILITY,
     RUNTIME_HOST_AI_DICTATION_CAPABILITY,
@@ -200,6 +203,17 @@ pub(super) fn mobile_request_allowed(request_type: &str) -> bool {
             | "setOutputPaused"
             | "detach"
             | "terminate"
+            | "codex.thread.fork"
+            | "codex.thread.edit"
+            | "codex.queue.get"
+            | "codex.queue.add"
+            | "codex.queue.edit"
+            | "codex.queue.remove"
+            | "codex.queue.pause"
+            | "codex.queue.resume"
+            | "codex.queue.steer"
+            | "codex.queue.reconcile"
+            | "codex.queue.cancel"
             | "codex.thread.open"
             | "codex.thread.list"
             | "codex.threads.list"

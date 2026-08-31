@@ -50,7 +50,8 @@ pub(super) use codex_history_projection::{
     latest_turn_page, older_turn_page, CodexTurnHistoryPage,
 };
 pub(super) use codex_state_accessors::{
-    clear_review_transition, persist_snapshot, render_markdown, trim_cells,
+    clear_review_transition, is_turn_completion, persist_snapshot, render_markdown, snapshot,
+    trim_cells,
 };
 pub(super) use codex_state_snapshot::{merge_resume_snapshot, snapshot_delta};
 
@@ -69,21 +70,6 @@ pub(super) fn tab_thread_id(tab: &WorkspaceTabRecord) -> Option<String> {
         .and_then(Value::as_str)
         .filter(|value| !value.trim().is_empty())
         .map(str::to_string)
-}
-
-pub(super) fn snapshot(tab: &WorkspaceTabRecord) -> Value {
-    tab.payload
-        .get("codexSnapshot")
-        .filter(|value| value.is_object())
-        .cloned()
-        .unwrap_or_else(|| {
-            json!({
-                "schemaVersion": CODEX_SNAPSHOT_VERSION,
-                "events": [],
-                "timelineCells": [],
-                "pendingRequests": [],
-            })
-        })
 }
 
 pub(super) fn set_thread_and_snapshot(
@@ -410,11 +396,14 @@ pub(super) fn update_turn_and_pending(snapshot: &mut Value, message: &Value) {
         if let Some(turn_id) = turn_id_from_message(message) {
             object.insert("activeTurnId".to_string(), Value::String(turn_id));
         }
-    } else if matches!(
-        method,
-        "turn/completed" | "turn/failed" | "turn/aborted" | "turn/interrupted"
-    ) {
-        object.remove("activeTurnId");
+    } else if is_turn_completion(message) {
+        if turn_id_from_message(message)
+            .zip(object.get("activeTurnId").and_then(Value::as_str))
+            .is_none_or(|(completed, active)| completed == active)
+        {
+            object.remove("activeTurnId");
+        }
+        object.insert("hasCompletedTurns".to_string(), Value::Bool(true));
     }
     update_context_usage(object, message, method);
     if method == "serverRequest/resolved" {

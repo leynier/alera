@@ -157,6 +157,7 @@ pub(crate) fn snapshot_delta(previous: &Value, next: &Value, messages: &[Value])
     }
     for key in [
         "activeTurnId",
+        "hasCompletedTurns",
         "contextUsed",
         "contextLimit",
         "title",

@@ -431,10 +431,12 @@ void _registerMobileCodexReviewRegressionTests() {
         .send('Original queued text');
     await tester.pump();
 
-    await tester.tap(find.widgetWithText(InputChip, 'Original queued text'));
+    await tester.tap(find.byTooltip('Message Actions'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Edit Message'));
     await tester.pumpAndSettle();
     await tester.enterText(find.byType(TextField).last, 'Edited queued text');
-    await tester.tap(find.widgetWithText(FilledButton, 'Save'));
+    await tester.tap(find.widgetWithText(FilledButton, 'Save Message'));
     await tester.pumpAndSettle();
 
     expect(find.text('Edited queued text'), findsOneWidget);

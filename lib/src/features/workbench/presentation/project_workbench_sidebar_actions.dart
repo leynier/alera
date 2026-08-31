@@ -386,6 +386,15 @@ mixin _ProjectWorkbenchSidebarActions
 
   Future<void> _closeTerminal(Workspace workspace, String tabId) async {
     try {
+      final tab = ref
+          .read(workbenchControllerProvider)
+          .tabsFor(workspace.id)
+          .where((tab) => tab.id == tabId)
+          .firstOrNull;
+      if (tab?.kind == WorkspaceTabKind.codex &&
+          !await confirmCodexQueueClose(context, ref, tabId)) {
+        return;
+      }
       // The controller disposes the terminal handle alongside the tab record.
       await ref
           .read(workbenchControllerProvider.notifier)

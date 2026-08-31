@@ -22,7 +22,10 @@ use super::codex_thread_sessions::allowed_cwd;
 use super::{copy_optional, turn_params};
 
 impl ServerActor {
-    pub(super) async fn start_codex_turn(&mut self, payload: &Value) -> HostResult<Value> {
+    pub(in crate::terminal_host::server) async fn start_codex_turn(
+        &mut self,
+        payload: &Value,
+    ) -> HostResult<Value> {
         let (tab, thread_id, current_cwd) = self.materialize_codex_thread(payload).await?;
         let original_input = payload.get("input").cloned().unwrap_or_else(|| json!([]));
         let app_server_input = super::super::codex_workspace_inputs::normalize_legacy_codex_inputs(
@@ -170,6 +173,7 @@ impl ServerActor {
         let tab = self
             .codex_tab(&require_string_key(payload, "tabId")?)
             .await?;
+        ensure_expected_thread(payload, tab_thread_id(&tab).as_deref())?;
         let thread_id = tab_thread_id(&tab)
             .ok_or_else(|| HostError::state("The Codex thread has not been opened."))?;
         let turn_id = payload
@@ -190,10 +194,14 @@ impl ServerActor {
         result
     }
 
-    pub(super) async fn steer_codex_turn(&mut self, payload: &Value) -> HostResult<Value> {
+    pub(in crate::terminal_host::server) async fn steer_codex_turn(
+        &mut self,
+        payload: &Value,
+    ) -> HostResult<Value> {
         let tab = self
             .codex_tab(&require_string_key(payload, "tabId")?)
             .await?;
+        ensure_expected_thread(payload, tab_thread_id(&tab).as_deref())?;
         let thread_id = tab_thread_id(&tab)
             .ok_or_else(|| HostError::state("The Codex thread has not been opened."))?;
         let turn_id = require_string_key(payload, "turnId")?;
@@ -266,6 +274,7 @@ impl ServerActor {
                 "tabId": saved.id,
                 "workspaceId": saved.workspace_id,
                 "threadId": tab_thread_id(&saved),
+                "historyRevision": saved.payload.get("codexHistoryRevision").cloned().unwrap_or(json!(0)),
                 "snapshot": snapshot(&saved),
             }),
         ));
@@ -281,6 +290,7 @@ impl ServerActor {
         let tab = self
             .codex_tab(&require_string_key(payload, "tabId")?)
             .await?;
+        ensure_expected_thread(payload, tab_thread_id(&tab).as_deref())?;
         let thread_id = tab_thread_id(&tab)
             .ok_or_else(|| HostError::state("The Codex thread has not been opened."))?;
         let mut params = payload.clone();
@@ -348,6 +358,7 @@ impl ServerActor {
                         "tabId": saved.id,
                         "workspaceId": saved.workspace_id,
                         "threadId": tab_thread_id(&saved),
+                "historyRevision": saved.payload.get("codexHistoryRevision").cloned().unwrap_or(json!(0)),
                         "snapshot": snapshot(&saved),
                     }),
                 ));
@@ -390,6 +401,7 @@ impl ServerActor {
                 "tabId": saved.id,
                 "workspaceId": saved.workspace_id,
                 "threadId": tab_thread_id(&saved),
+                "historyRevision": saved.payload.get("codexHistoryRevision").cloned().unwrap_or(json!(0)),
                 "snapshot": snapshot(&saved),
             }),
         ));

@@ -120,6 +120,7 @@ impl ServerActor {
                 "tabId": saved.id,
                 "workspaceId": saved.workspace_id,
                 "threadId": tab_thread_id(&saved),
+                "historyRevision": saved.payload.get("codexHistoryRevision").cloned().unwrap_or(json!(0)),
                 "cwd": active_cwd(&saved),
                 "configuration": configuration(&saved),
                 "snapshot": snapshot(&saved),

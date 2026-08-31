@@ -132,6 +132,7 @@ class _CodexUserMessageState extends State<_CodexUserMessage> {
                     ),
                   const SizedBox(height: AleraTokens.space8),
                   _CodexMessageActions(
+                    cell: widget.cell,
                     visible: _hovered || !kIsWeb,
                     raw: _raw,
                     copyText: raw,
@@ -195,6 +196,7 @@ class _CodexAssistantMessageState extends State<_CodexAssistantMessage> {
             if (!widget.cell.isStreaming) ...<Widget>[
               const SizedBox(height: AleraTokens.space8),
               _CodexMessageActions(
+                cell: widget.cell,
                 visible: _hovered || !kIsWeb,
                 raw: _raw,
                 copyText: raw,

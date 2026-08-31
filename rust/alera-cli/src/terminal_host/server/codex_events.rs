@@ -7,8 +7,8 @@ use crate::terminal_host::protocol::event;
 
 use super::codex_nonblocking_questions::is_nonblocking_user_input_request;
 use super::codex_state::{
-    active_turn_id, append_message_with_normalized, is_codex_tab, snapshot, snapshot_delta,
-    tab_thread_id, thread_id_from_message,
+    active_turn_id, append_message_with_normalized, is_turn_completion, snapshot, snapshot_delta,
+    tab_thread_id, thread_id_from_message, turn_id_from_message,
 };
 use super::codex_tab_lifecycle::active_cwd;
 use super::ServerActor;
@@ -144,13 +144,31 @@ impl ServerActor {
                 return;
             }
         };
+        if discarded_message(&tab, &message) {
+            return;
+        }
         self.schedule_nonblocking_question_auto_resolution(&tab, &message);
         if is_streaming_codex_message(&message) {
             self.queue_codex_message(&tab.id, message).await;
             return;
         }
         self.handle_codex_force_flush(&tab.id).await;
+        let completed = is_turn_completion(&message);
+        let tab_id = tab.id.clone();
         self.persist_codex_messages(tab, vec![message]).await;
+        if completed {
+            if let Ok(tab) = self.codex_tab(&tab_id).await {
+                if let Ok(state) = self.codex_delivery_state(&tab).await {
+                    self.refresh_codex_delivery_activity(
+                        &state,
+                        super::codex_state::active_turn_id(&super::codex_state::snapshot(&tab))
+                            .is_some(),
+                    );
+                }
+            }
+            self.schedule_codex_queue(&tab_id);
+            self.schedule_shutdown_if_idle();
+        }
     }
 
     fn schedule_nonblocking_question_auto_resolution(
@@ -293,11 +311,32 @@ impl ServerActor {
         tab: alera_core::runtime::WorkspaceTabRecord,
         messages: Vec<Value>,
     ) {
+        let messages: Vec<_> = messages
+            .into_iter()
+            .filter(|message| !discarded_message(&tab, message))
+            .collect();
+        if messages.is_empty() {
+            return;
+        }
         let previous_snapshot = snapshot(&tab);
         let mut next = tab.clone();
         let mut title_changed = false;
         let mut normalized_messages = Vec::with_capacity(messages.len());
         for message in &messages {
+            if is_turn_completion(message) {
+                if let Some(id) =
+                    turn_id_from_message(message).or_else(|| active_turn_id(&snapshot(&next)))
+                {
+                    let mut ids = next.payload["codexCompletedTurnIds"]
+                        .as_array()
+                        .cloned()
+                        .unwrap_or_default();
+                    if !ids.contains(&json!(id)) {
+                        ids.push(json!(id));
+                    }
+                    next.payload["codexCompletedTurnIds"] = json!(ids);
+                }
+            }
             let (_, normalized_message) =
                 append_message_with_normalized(&mut next, message.clone());
             normalized_messages.push(normalized_message);
@@ -373,57 +412,13 @@ impl ServerActor {
                 "tabId": saved.id,
                 "workspaceId": saved.workspace_id,
                 "threadId": thread_id,
+                "historyRevision": saved.payload.get("codexHistoryRevision").cloned().unwrap_or(json!(0)),
                 "message": message,
                 "coalescedMessages": messages.len(),
                 "snapshot": snapshot(&saved),
                 "snapshotDelta": delta,
             }),
         ));
-    }
-
-    pub(super) async fn handle_codex_process_exited(&mut self, reason: String) {
-        let pending_ids = self
-            .codex_pending_messages
-            .keys()
-            .cloned()
-            .collect::<Vec<_>>();
-        for tab_id in pending_ids {
-            self.handle_codex_force_flush(&tab_id).await;
-        }
-        self.codex = None;
-        let workspaces = match self.runtime_store.list_all_workspaces().await {
-            Ok(workspaces) => workspaces,
-            Err(error) => {
-                self.broadcast_codex_server_error(format!(
-                    "{reason} Workspace state could not be reconciled: {error}"
-                ));
-                return;
-            }
-        };
-        for workspace in workspaces {
-            let tabs = match self.runtime_store.list_workspace_tabs(&workspace.id).await {
-                Ok(tabs) => tabs,
-                Err(_) => continue,
-            };
-            for tab in tabs.into_iter().filter(is_codex_tab) {
-                let mut failed = tab;
-                let next_snapshot = super::codex_state::mark_server_failure(&mut failed, &reason);
-                if let Ok(saved) = self.runtime_store.upsert_workspace_tab(failed).await {
-                    self.refresh_codex_presence(&saved);
-                    self.broadcast_authenticated(event(
-                        "codexThreadChanged",
-                        json!({
-                            "tabId": saved.id,
-                            "workspaceId": saved.workspace_id,
-                            "threadId": tab_thread_id(&saved),
-                            "snapshot": next_snapshot,
-                        }),
-                    ));
-                }
-            }
-        }
-        self.schedule_codex_presence_changed();
-        self.broadcast_codex_server_error(reason);
     }
 
     pub(super) fn handle_codex_malformed(&self, reason: String) {
@@ -441,3 +436,13 @@ impl ServerActor {
 #[cfg(test)]
 #[path = "codex_events_tests.rs"]
 mod tests;
+
+fn discarded_message(tab: &alera_core::runtime::WorkspaceTabRecord, message: &Value) -> bool {
+    let turn_id = turn_id_from_message(message);
+    turn_id.is_some_and(|id| {
+        tab.payload
+            .get("codexDiscardedTurnIds")
+            .and_then(Value::as_array)
+            .is_some_and(|ids| ids.iter().any(|value| value.as_str() == Some(id.as_str())))
+    })
+}

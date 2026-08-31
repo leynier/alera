@@ -1,3 +1,7 @@
+import '../../../design_system/chat/alera_history_edit_status.dart';
+import '../../../design_system/chat/alera_message_queue.dart';
+import '../../../design_system/chat/alera_message_editor.dart';
+
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
@@ -33,6 +37,8 @@ import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+part 'mobile_codex_chat_fork_edit_actions.dart';
+
 part 'mobile_codex_chat_composer.dart';
 part 'mobile_codex_chat_composer_attachments.dart';
 part 'mobile_codex_chat_composer_controls.dart';
@@ -66,6 +72,7 @@ part 'mobile_codex_resume_picker.dart';
 part 'mobile_codex_chat_footer.dart';
 part 'mobile_codex_chat_goal.dart';
 part 'mobile_codex_chat_screen_actions.dart';
+part 'mobile_codex_chat_resume_actions.dart';
 part 'mobile_codex_chat_history_actions.dart';
 part 'mobile_codex_chat_submission_actions.dart';
 part 'mobile_codex_chat_attachment_actions.dart';

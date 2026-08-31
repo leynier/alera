@@ -1,5 +1,10 @@
 import 'dart:async';
+
+import 'codex_composer_draft_store.dart';
+
 import 'dart:convert';
+
+import 'package:alera/src/features/codex_chat/domain/codex_queue_message.dart';
 
 import 'package:alera/src/features/codex_chat/domain/codex_file_reference.dart';
 import 'package:alera/src/features/codex_chat/domain/codex_chat_models.dart';
@@ -20,6 +25,9 @@ part 'codex_chat_controller_request_responses.dart';
 part 'codex_chat_controller_events.dart';
 part 'codex_chat_controller_lifecycle.dart';
 part 'codex_chat_controller_goals.dart';
+part 'codex_chat_controller_shared_queue.dart';
+part 'codex_chat_controller_delivery.dart';
+part 'codex_chat_controller_capabilities.dart';
 
 @Riverpod(keepAlive: false)
 RuntimeHostClient codexChatRuntimeClient(Ref ref) =>
@@ -45,30 +53,43 @@ class CodexChatController extends _$CodexChatController {
   String? _threadId;
   int _threadGeneration = 0;
   int _capabilityGeneration = 0;
+  Future<void>? _reconnectRefresh;
+  bool _capabilityRefreshBlocked = false;
+  bool _transferringLegacyQueue = false;
   int _catalogueGeneration = 0;
   bool _goalCapabilityAdvertised = false;
   bool _goalsAvailable = true;
   bool _recoveryPending = false;
   final List<RuntimeHostEvent> _deferredThreadEvents = <RuntimeHostEvent>[];
   bool _opening = false;
+  Completer<bool>? _openingResult;
   int _loadGeneration = 0;
+  bool _steering = false;
 
   bool get _sessionTransitionInProgress => _sessionTransitionCount > 0;
 
   String? get threadId => _threadId;
 
   bool get canSteer =>
+      _reconnectRefresh == null &&
+      !_capabilityRefreshBlocked &&
+      !state.sharedQueueUnavailable &&
+      !_steering &&
       !state.loading &&
       !state.interrupting &&
+      !state.historyLocked &&
       state.recovery == null &&
       !_sessionTransitionInProgress &&
       state.snapshot.activeTurnId != null;
 
   @override
   CodexChatState build(String tabId) {
+    _draftStore = ref.read(codexComposerDraftStoreProvider);
     _host = ref.watch(codexChatHostClientProvider);
     _events = _host.events.listen(_onRuntimeEvent);
     ref.onDispose(() {
+      final opening = _openingResult;
+      if (opening != null && !opening.isCompleted) opening.complete(false);
       _interruptSafetyTimer?.cancel();
       _events?.cancel();
     });
@@ -84,33 +105,12 @@ class CodexChatController extends _$CodexChatController {
     );
   }
 
-  Future<void> _refreshCapabilities() async {
-    final generation = ++_capabilityGeneration;
-    var supportsSessions = await _host.supportsSessions();
-    if (!supportsSessions) {
-      supportsSessions = await _host.supportsSessions();
-    }
-    final supportsAutoReview = await _host.supportsTurnPolicy();
-    final supportsGoals = await _host.supportsGoals();
-    if (!ref.mounted || generation != _capabilityGeneration) return;
-    _goalCapabilityAdvertised = supportsGoals;
-    final permissionMode =
-        !supportsAutoReview && state.permissionMode == 'auto-review'
-        ? 'on-request'
-        : state.permissionMode;
-    final permissionChanged = permissionMode != state.permissionMode;
-    state = state.copyWith(
-      supportsSessions: supportsSessions,
-      supportsAutoReview: supportsAutoReview,
-      supportsGoals: supportsGoals && _goalsAvailable,
-      permissionMode: permissionMode,
-    );
-    if (permissionChanged) {
-      _persistTabConfiguration();
-    }
-  }
-
   Future<void> retry() async {
+    if (_capabilityRefreshBlocked) {
+      await _refreshCapabilitiesAndGoal();
+      return;
+    }
+    _threadGeneration += 1;
     state = state.copyWith(loading: true, error: null);
     await _load();
   }
@@ -135,13 +135,29 @@ class CodexChatController extends _$CodexChatController {
       _threadGeneration += 1;
       state = _applyConfiguration(
         state.copyWith(
-          snapshot: .fromJson(response['snapshot']),
+          snapshot: CodexChatSnapshot.fromJson(response['snapshot']),
+          chatFeatures:
+              (response['chatFeatures'] as List?)
+                  ?.whereType<String>()
+                  .toSet() ??
+              state.chatFeatures,
+          historyRevision: response['historyRevision'] as int? ?? 0,
+          queueState: const {},
+          queuedMessages: state.supportsSharedQueue
+              ? const []
+              : state.queuedMessages,
+          activeCwd: _string(response['cwd']) ?? state.activeCwd,
           historyNextCursor: null,
           recovery: null,
           error: null,
         ),
         response['configuration'],
       );
+      if (response['queue'] is Map) {
+        _applyQueueSnapshot(
+          Map<String, Object?>.from(response['queue']! as Map),
+        );
+      }
       _drainQueuedMessageIfIdle();
     } catch (error) {
       if (!ref.mounted) return;
@@ -151,59 +167,74 @@ class CodexChatController extends _$CodexChatController {
     }
   }
 
-  Future<void> send(
+  late CodexComposerDraftStore _draftStore;
+  Map<String, String> get _pendingSubmissionIds =>
+      _draftStore.submissionIdsFor(tabId, _threadId);
+
+  Future<bool> send(
     String text, {
     List<CodexInputAttachment> attachments = const <CodexInputAttachment>[],
     List<CodexDraftItem> draftItems = const <CodexDraftItem>[],
   }) async {
     final trimmed = text.trim();
-    if (trimmed.isEmpty && attachments.isEmpty && draftItems.isEmpty) return;
+    if (trimmed.isEmpty && attachments.isEmpty && draftItems.isEmpty) {
+      return false;
+    }
     final message = CodexQueuedMessage(
       text: trimmed,
       attachments: List<CodexInputAttachment>.unmodifiableOf(attachments),
       draftItems: List<CodexDraftItem>.unmodifiableOf(draftItems),
       id: _newClientMessageId(),
     );
-    if (state.loading ||
-        state.recovery != null ||
-        state.busy ||
-        _sessionTransitionInProgress) {
+    if (state.loading) {
+      final opening = _openingResult;
+      if (opening == null ||
+          !await opening.future ||
+          !ref.mounted ||
+          state.loading) {
+        return false;
+      }
+    }
+    if (!await _awaitRuntimeCapabilities() || state.historyOutdated) {
+      return false;
+    }
+    if (!state.supportsSharedQueue &&
+        (state.loading ||
+            state.queuePaused ||
+            state.recovery != null ||
+            state.busy ||
+            _sessionTransitionInProgress)) {
       state = state.copyWith(
         queuedMessages: <CodexQueuedMessage>[...state.queuedMessages, message],
       );
-      return;
+      return true;
     }
-    await _sendNow(message);
-  }
-
-  Future<void> _sendNow(CodexQueuedMessage message) async {
-    state = state.copyWith(sending: true, error: null);
+    final attempts = _draftStore.messageAttemptsFor(tabId, _threadId);
+    final signature = jsonEncode(codexQueueDraft(message));
+    final id = attempts.claim(signature, message.id!);
+    var accepted = false;
     try {
-      await _host.startTurn(
-        tabId,
-        _buildInput(message, state),
-        expectedThreadId: _threadId,
-        userMessage: _userMessagePresentation(message),
-        model: state.selectedModel,
-        reasoningEffort: state.reasoningEffort,
-        speedMode: state.speedMode,
-        permissionMode: state.permissionMode,
-        planMode: state.planMode,
-        collaborationMode: state.collaborationMode,
-        clientUserMessageId: message.id,
+      accepted = await _sendNow(
+        CodexQueuedMessage(
+          id: id,
+          text: message.text,
+          attachments: message.attachments,
+          draftItems: message.draftItems,
+        ),
       );
-      if (ref.mounted) {
-        state = state.copyWith(sending: false);
-      }
-    } catch (error) {
-      if (ref.mounted) {
-        state = state.copyWith(sending: false, error: _safeError(error));
-      }
+      return accepted;
+    } finally {
+      if (!accepted) attempts.retainForRetry(signature, id);
     }
   }
 
   void _drainQueuedMessageIfIdle() {
     if (!ref.mounted ||
+        _reconnectRefresh != null ||
+        _capabilityRefreshBlocked ||
+        state.sharedQueueUnavailable ||
+        state.supportsSharedQueue ||
+        state.queuePaused ||
         state.loading ||
         state.recovery != null ||
         state.busy ||
@@ -219,7 +250,27 @@ class CodexChatController extends _$CodexChatController {
   }
 
   Future<void> stop() async {
-    if (state.snapshot.activeTurnId == null || state.interrupting) return;
+    final generation = _threadGeneration;
+    final threadId = _threadId;
+    final turnId = state.snapshot.activeTurnId;
+    final shared = state.supportsSharedQueue;
+    if (state.interrupting) return;
+    if (!shared) {
+      state = state.copyWith(queueState: {...state.queueState, 'paused': true});
+    }
+    if ((!shared || turnId == null) &&
+        !state.sharedQueueUnavailable &&
+        _reconnectRefresh == null &&
+        !_capabilityRefreshBlocked &&
+        !await queueAction('pause')) {
+      return;
+    }
+    if (!ref.mounted ||
+        generation != _threadGeneration ||
+        turnId == null ||
+        state.interrupting) {
+      return;
+    }
     state = state.copyWith(interrupting: true, error: null);
     _interruptSafetyTimer?.cancel();
     _interruptSafetyTimer = Timer(const Duration(seconds: 2), () {
@@ -227,43 +278,16 @@ class CodexChatController extends _$CodexChatController {
       state = state.copyWith(interrupting: false, sending: false);
     });
     try {
-      await _host.interrupt(tabId, state.snapshot.activeTurnId);
+      await _host.request('codex.turn.interrupt', {
+        'tabId': tabId,
+        'turnId': turnId,
+        'expectedThreadId': threadId,
+      });
     } catch (error) {
       _interruptSafetyTimer?.cancel();
       if (ref.mounted) {
         state = state.copyWith(interrupting: false, error: _safeError(error));
       }
-    }
-  }
-
-  Future<bool> steer(
-    String text, {
-    List<CodexInputAttachment> attachments = const <CodexInputAttachment>[],
-    List<CodexDraftItem> draftItems = const <CodexDraftItem>[],
-  }) async {
-    final turnId = state.snapshot.activeTurnId;
-    if (!canSteer ||
-        turnId == null ||
-        (text.trim().isEmpty && attachments.isEmpty && draftItems.isEmpty)) {
-      return false;
-    }
-    try {
-      final message = CodexQueuedMessage(
-        text: text.trim(),
-        attachments: attachments,
-        draftItems: draftItems,
-      );
-      await _host.steer(
-        tabId,
-        turnId,
-        _buildInput(message, state),
-        userMessage: _userMessagePresentation(message),
-        clientUserMessageId: _newClientMessageId(),
-      );
-      return true;
-    } catch (error) {
-      state = state.copyWith(error: _safeError(error));
-      return false;
     }
   }
 
@@ -414,6 +438,14 @@ class CodexChatController extends _$CodexChatController {
   }
 
   void removeQueuedMessage(int index) {
+    if (state.supportsSharedQueue) {
+      if (index >= 0 && index < state.queuedMessages.length) {
+        unawaited(
+          queueAction('remove', messageId: state.queuedMessages[index].id),
+        );
+      }
+      return;
+    }
     if (index < 0 || index >= state.queuedMessages.length) return;
     final next = <CodexQueuedMessage>[...state.queuedMessages]..removeAt(index);
     state = state.copyWith(queuedMessages: next);

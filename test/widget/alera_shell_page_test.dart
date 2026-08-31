@@ -1,5 +1,8 @@
 import 'dart:async';
 
+import 'package:alera/src/features/codex_chat/application/codex_chat_controller.dart';
+import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_protocol.dart';
+
 import 'package:alera/src/app/providers.dart';
 import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/design_system/icons/alera_icons.dart';
@@ -42,6 +45,8 @@ part 'alera_shell_page_test_harness.dart';
 part 'alera_shell_page_runtime_test_harness.dart';
 part 'alera_shell_page_workbench_test_cases.dart';
 part 'alera_shell_page_codex_sidebar_test_cases.dart';
+part 'alera_shell_page_codex_test_client.dart';
+part 'alera_shell_page_queue_close_test_cases.dart';
 part 'alera_shell_page_sidebar_actions_test_cases.dart';
 part 'alera_shell_page_sidebar_mutation_test_cases.dart';
 part 'alera_shell_page_sidebar_states_test_cases.dart';
@@ -56,6 +61,7 @@ Future<_ShellPumpHarness> _pumpShell(
   WidgetTester tester, {
   required WorkbenchState state,
   _FakeTerminalRuntime? terminalRuntime,
+  RuntimeHostClient? codexClient,
   WorkspaceFolderOpener? workspaceFolderOpener,
   _ShellTestWorkbenchController? controller,
   EditorSessionRegistry? editorSessionRegistry,
@@ -75,6 +81,9 @@ Future<_ShellPumpHarness> _pumpShell(
   await tester.pumpWidget(
     ProviderScope(
       overrides: [
+        codexChatRuntimeClientProvider.overrideWithValue(
+          codexClient ?? _ShellCodexClient(),
+        ),
         aleraDatabaseProvider.overrideWith((ref) async => db),
         workbenchControllerProvider.overrideWith(() => shellController),
         agentProfilesProvider.overrideWith(() => _ShellAgentProfiles()),
@@ -119,6 +128,7 @@ class _ShellAgentProfiles extends AgentProfiles {
 
 void main() {
   _registerAleraShellWorkbenchTests();
+  _registerAleraShellQueueCloseTests();
   _registerAleraShellCodexSidebarTests();
   _registerAleraShellSidebarActionTests();
   _registerAleraShellSidebarMutationTests();
