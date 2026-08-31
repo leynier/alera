@@ -107,16 +107,10 @@ void main() {
     );
     await container.read(workspaceListControllerProvider('host-1').future);
 
-    await notifier.setPinned('a', true);
-    expect(client.calls, contains('setPinned a true'));
-
     await notifier.setTreePinned('a', true);
+    expect(client.calls, contains('setPinned a true'));
     expect(client.calls, contains('setPinned child true'));
     expect(client.calls, contains('setPinned grandchild true'));
-    expect(
-      client.calls.where((call) => call == 'setPinned a true'),
-      hasLength(1),
-    );
 
     await notifier.linkParent(childWorkspaceId: 'a', parentWorkspaceId: 'b');
     expect(client.calls, contains('link b a'));

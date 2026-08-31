@@ -5,9 +5,8 @@ mixin _WorkbenchControllerProjects
         _$WorkbenchController,
         _WorkbenchControllerInternals,
         _WorkbenchControllerTabOpening {
-  Future<List<String>> listSourceBranches(Project project) {
-    return _workspaceService.listSourceBranches(project);
-  }
+  Future<List<String>> listSourceBranches(Project project) =>
+      _workspaceService.listSourceBranches(project);
 
   Future<Project> addLocalProject({required String path, String? name}) async {
     try {
@@ -42,9 +41,8 @@ mixin _WorkbenchControllerProjects
     }
   }
 
-  Future<Project> addProject({required String repoPath, String? name}) {
-    return addLocalProject(path: repoPath, name: name);
-  }
+  Future<Project> addProject({required String repoPath, String? name}) =>
+      addLocalProject(path: repoPath, name: name);
 
   Future<void> renameProject({
     required String projectId,
@@ -248,8 +246,8 @@ mixin _WorkbenchControllerProjects
     }
   }
 
-  /// Pins or unpins every descendant of [workspaceId], leaving the workspace
-  /// itself unchanged. No-ops descendants that already match [isPinned].
+  /// Pins or unpins [workspaceId] and every descendant of [workspaceId].
+  /// No-ops workspaces that already match [isPinned].
   Future<void> setWorkspaceTreePinned({
     required String workspaceId,
     required bool isPinned,
@@ -257,7 +255,10 @@ mixin _WorkbenchControllerProjects
     final workspaces = <Workspace>[
       for (final group in state.workspacesByProject.values) ...group,
     ];
-    for (final id in workspaceIdsDescendedFrom(workspaces, workspaceId)) {
+    for (final id in [
+      workspaceId,
+      ...workspaceIdsDescendedFrom(workspaces, workspaceId),
+    ]) {
       Workspace? current;
       for (final workspace in workspaces) {
         if (workspace.id == id) {

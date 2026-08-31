@@ -42,7 +42,7 @@ void _registerWorkbenchControllerPinningTests() {
     expect(_controller.state.error, isNull);
   });
 
-  test('pins every descendant without changing the parent pin', () async {
+  test('pins the workspace and every descendant', () async {
     await _controller.bootstrap();
     final parent = await _selectMainWorkspace(_controller, _harness);
     final child = await _harness.workbenchRepository.upsertWorkspace(
@@ -77,7 +77,7 @@ void _registerWorkbenchControllerPinningTests() {
           .workspacesFor(parent.projectId)
           .firstWhere((workspace) => workspace.id == parent.id)
           .isPinned,
-      isFalse,
+      isTrue,
     );
     expect(
       _controller.state

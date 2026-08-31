@@ -139,16 +139,19 @@ class WorkspaceListController extends _$WorkspaceListController {
     _invalidateIfMounted();
   }
 
-  /// Pins or unpins every descendant of [workspaceId], leaving the workspace
-  /// itself unchanged. Reloads once after the last mutation.
+  /// Pins or unpins [workspaceId] and every descendant of [workspaceId].
+  /// Reloads once after the last mutation.
   Future<void> setTreePinned(String workspaceId, bool isPinned) async {
     final data = state.value;
     if (data == null) {
       return;
     }
-    final descendantIds = workspaceDescendantIds(data.workspaces, workspaceId);
+    final targetIds = <String>[
+      workspaceId,
+      ...workspaceDescendantIds(data.workspaces, workspaceId),
+    ];
     final client = await ref.read(workspaceClientProvider(hostId).future);
-    for (final id in descendantIds) {
+    for (final id in targetIds) {
       final workspace = data.workspaceById(id);
       if (workspace == null || workspace.isPinned == isPinned) {
         continue;
