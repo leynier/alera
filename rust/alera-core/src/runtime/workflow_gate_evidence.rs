@@ -18,6 +18,16 @@ pub(super) async fn approval_state(
     revision: i64,
     scope: &str,
 ) -> Result<ApprovalState> {
+    let unsettled: bool = sqlx::query_scalar(
+        "SELECT EXISTS(SELECT 1 FROM workflowIntegrations
+        WHERE run_id = ? AND state IN ('pending','prepared','attention'))",
+    )
+    .bind(run_id)
+    .fetch_one(&mut **tx)
+    .await?;
+    if unsettled {
+        bail!("reconcile the pending integration before approving a workflow plan or gate");
+    }
     let row = sqlx::query("SELECT r.workspace_id, r.revision, r.status, r.integration_sha, p.snapshot, c.status AS coordinator_status
         FROM workflowRuns r JOIN workflowPlanRevisions p ON p.run_id = r.run_id AND p.revision = r.revision
         JOIN orchestrationCoordinatorRuns c ON c.id = r.run_id

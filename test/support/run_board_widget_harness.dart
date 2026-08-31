@@ -42,6 +42,17 @@ WorkbenchState boardWorkbenchState() {
         kind: WorkspaceKind.main,
         status: WorkspaceStatus.active,
       ),
+    Workspace(
+      id: 'workflow-attempt-2',
+      projectId: 'project-1',
+      name: 'Workflow Attempt 2',
+      path: '/projects/alera/workflow-attempt-2',
+      branch: 'alera/workflows/workflow-attempt-2',
+      createdAt: now,
+      updatedAt: now,
+      kind: WorkspaceKind.linked,
+      status: WorkspaceStatus.active,
+    ),
   ];
   return WorkbenchState(
     projects: projects,
@@ -49,10 +60,10 @@ WorkbenchState boardWorkbenchState() {
       for (final workspace in workspaces) workspace.projectId: [workspace],
     },
     tabsByWorkspace: {
-      'ws-1': [
+      'workflow-attempt-2': [
         WorkspaceTabRecord(
           id: 'session-1',
-          workspaceId: 'ws-1',
+          workspaceId: 'workflow-attempt-2',
           title: 'Implementation',
           createdAt: now,
           updatedAt: now,

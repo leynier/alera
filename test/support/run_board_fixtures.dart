@@ -80,6 +80,7 @@ RunSnapshot boardRunDetail({
           status: 'completed',
           workspaceId: 'ws-1',
           stageId: 'Foundation',
+          workflowState: 'integrated',
         ),
         RunTaskSummary(
           id: 'task-2',
@@ -88,6 +89,7 @@ RunSnapshot boardRunDetail({
           workspaceId: 'ws-1',
           stageId: 'Product',
           dependencies: ['task-1'],
+          workflowState: 'result_ready',
         ),
         RunTaskSummary(
           id: 'task-3',
@@ -119,6 +121,14 @@ TaskInspection boardTask({
   branch: 'feature/review-surface',
   profile: 'Implementation',
   terminalHandle: 'session-1',
+  workflow: const TaskWorkflowInspection(
+    state: 'result_ready',
+    executionWorkspaceId: 'workflow-attempt-2',
+    launchId: 'launch-2',
+    worktree: '/projects/alera/workflow-attempt-2',
+    branch: 'alera/workflows/workflow-attempt-2',
+    baseSha: '1234567890abcdef1234567890abcdef12345678',
+  ),
   dependencies: const ['task-1'],
   result: const TaskResultInspection(
     summary: 'Review surface implemented.',

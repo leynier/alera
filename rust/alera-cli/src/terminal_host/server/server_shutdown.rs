@@ -32,6 +32,11 @@ impl ServerActor {
             if let Some(mut session) = self.sessions.remove(&session_id) {
                 session.terminate(false, &store).await;
             }
+            self.settle_closed_workflow_terminal(
+                &session_id,
+                "The host shut down before task completion. Retry in a new attempt.",
+            )
+            .await;
         }
         control_file::delete_control_file(&self.control_file_path);
     }

@@ -104,7 +104,21 @@ mod workflow_catalog_tests;
 mod workflow_gate_evidence;
 #[cfg(test)]
 mod workflow_gate_tests;
+mod workflow_integration;
+mod workflow_integration_schema;
+mod workflow_integration_snapshot;
+mod workflow_integration_store;
+#[cfg(test)]
+mod workflow_integration_tests;
+mod workflow_integration_validation;
 mod workflow_json_escapes;
+mod workflow_launch;
+mod workflow_launch_schema;
+mod workflow_launch_store;
+#[cfg(test)]
+mod workflow_launch_tests;
+mod workflow_launch_transitions;
+mod workflow_launch_validation;
 mod workflow_plan;
 mod workflow_plan_compilation;
 mod workflow_plan_materialization;
@@ -119,6 +133,7 @@ mod workflow_recipe;
 mod workflow_recipe_compilation;
 #[cfg(test)]
 mod workflow_recipe_tests;
+mod workflow_schema;
 #[cfg(test)]
 mod workflow_schema_tests;
 mod workflow_setup_report;
@@ -183,6 +198,8 @@ pub use workbench_shared_state_models::*;
 pub use workflow_approval_store::WorkflowDecisionReceipt;
 pub use workflow_builtins::builtin_workflow_recipes;
 pub use workflow_catalog::{WorkflowCatalog, WorkflowCatalogEntry, WorkflowCatalogRecipe};
+pub use workflow_integration::*;
+pub use workflow_launch::*;
 pub use workflow_plan::*;
 pub use workflow_recipe::*;
 pub use workflow_workspace::*;

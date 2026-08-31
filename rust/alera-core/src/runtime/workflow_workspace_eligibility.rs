@@ -38,6 +38,17 @@ pub(super) async fn eligible_task(
     task_id: &str,
     plan: &WorkflowPlanSnapshot,
 ) -> Result<()> {
+    eligible_task_state(tx, run, revision, task_id, plan, &["pending", "ready"]).await
+}
+
+pub(super) async fn eligible_task_state(
+    tx: &mut Transaction<'_, Sqlite>,
+    run: &str,
+    revision: i64,
+    task_id: &str,
+    plan: &WorkflowPlanSnapshot,
+    allowed_states: &[&str],
+) -> Result<()> {
     let row = sqlx::query(
         "SELECT p.frozen_task, t.status FROM workflowPlanTasks p
         JOIN orchestrationTasks t ON t.id = p.task_id
@@ -51,10 +62,7 @@ pub(super) async fn eligible_task(
     .fetch_optional(&mut **tx)
     .await?
     .ok_or_else(|| anyhow!("task does not belong to this workflow plan"))?;
-    if !matches!(
-        row.try_get::<String, _>("status")?.as_str(),
-        "pending" | "ready"
-    ) {
+    if !allowed_states.contains(&row.try_get::<String, _>("status")?.as_str()) {
         bail!("workflow task is not awaiting execution");
     }
     let frozen: FrozenWorkflowTask =

@@ -127,7 +127,7 @@ async fn validate(
     identity: &WorkflowWorkspaceIdentity,
     revision: i64,
 ) -> Result<()> {
-    let (plan, sha) = approved_plan(tx, &identity.run_id, revision).await?;
+    let (plan, _) = approved_plan(tx, &identity.run_id, revision).await?;
     if identity.owner_workspace_id != plan.source_workspace.workspace_id
         || identity.repo_path != plan.source_workspace.project_repo_path
         || identity.workspace.project_id != plan.source_workspace.project_id
@@ -135,8 +135,8 @@ async fn validate(
         bail!("workflow resource belongs to another owner");
     }
     if let Some(task) = &identity.task_id {
-        if revision != identity.revision || sha != identity.base_sha {
-            bail!("workflow attempt revision or integration base changed");
+        if revision != identity.revision {
+            bail!("workflow attempt revision changed");
         }
         eligible_task(tx, &identity.run_id, revision, task, &plan).await?;
     } else if plan.source_sha != identity.base_sha {

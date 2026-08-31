@@ -101,23 +101,17 @@ void main() {
     }
   });
 
-  test(
-    'desktop builds execute credential protection tests on every platform',
-    () {
-      final credential = step(
-        'build',
-        'Verify desktop workflow credential protection',
-      );
-      expect(credential['if'], isNull);
-      expect(credential['continue-on-error'], isNull);
-      expect(
-        credential['run'],
-        contains('-p alera-core --features workflow-approval'),
-      );
-      expect(credential['run'], contains('--lib workflow_approval::'));
-      expect(credential['run'], contains('--locked'));
-    },
-  );
+  test('desktop builds execute workflow tests on every platform', () {
+    final workflows = step(
+      'build',
+      'Verify workflow contracts and native Git integration',
+    );
+    expect(workflows['if'], isNull);
+    expect(workflows['continue-on-error'], isNull);
+    expect(workflows['run'], contains('-p alera-core --features runtime'));
+    expect(workflows['run'], contains('--lib workflow_'));
+    expect(workflows['run'], contains('--locked'));
+  });
 
   test(
     'native clipboard coverage opts in only on disposable runner desktops',

@@ -2,7 +2,7 @@ use std::path::PathBuf;
 
 use super::*;
 
-pub(super) struct Fixture {
+pub(crate) struct Fixture {
     _dir: tempfile::TempDir,
     pub runtime: PathBuf,
     pub source: PathBuf,
@@ -12,6 +12,10 @@ pub(super) struct Fixture {
 
 impl Fixture {
     pub async fn new(setup: &str) -> Self {
+        Self::with_command(setup, "codex").await
+    }
+
+    pub async fn with_command(setup: &str, command: &str) -> Self {
         let dir = tempfile::tempdir().unwrap();
         let runtime = dir.path().join("runtime");
         let source = dir.path().join("source");
@@ -67,7 +71,7 @@ impl Fixture {
                     name: "Agent".into(),
                     sort_order: 0,
                     agent_type: "codex".into(),
-                    command: "codex".into(),
+                    command: command.into(),
                     launch_mode: AgentProfileLaunchMode::Command,
                     managed_config: None,
                     custom_prompt: String::new(),

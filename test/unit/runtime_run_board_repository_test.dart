@@ -110,6 +110,19 @@ void main() {
         },
       ],
       'next_cursor': {'occurred_at': 'now', 'id': 'event', 'revision': 7},
+      'workflow': {
+        'state': 'conflict',
+        'execution_workspace_id': 'attempt',
+        'integration_id': 'integration',
+        'launch_id': 'launch',
+        'worktree': '/project/attempt',
+        'branch': 'alera/workflows/attempt',
+        'base_sha': 'base',
+        'integrated_sha': null,
+        'conflict_paths': ['lib/feature.dart'],
+        'conflicts_truncated': false,
+        'error': null,
+      },
     };
     final task = await repository.readTask(
       'run',
@@ -135,6 +148,9 @@ void main() {
       'id': 'event',
       'revision': 7,
     });
+    expect(task.workflow!.state, 'conflict');
+    expect(task.workflow!.executionWorkspaceId, 'attempt');
+    expect(task.workflow!.conflictPaths, ['lib/feature.dart']);
     expect(() => task.history.clear(), throwsUnsupportedError);
     expect(() => task.dependencies.clear(), throwsUnsupportedError);
     expect(() => task.result.artifacts.clear(), throwsUnsupportedError);

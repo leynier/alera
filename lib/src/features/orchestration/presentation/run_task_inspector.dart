@@ -73,10 +73,16 @@ class RunTaskInspector extends StatelessWidget {
       Align(
         alignment: Alignment.centerLeft,
         child: AleraBadge(
-          label: runBoardStatusLabel(task.status),
-          foregroundColor: runBoardStatusColor(task.status),
+          label: runBoardStatusLabel(task.workflow?.state ?? task.status),
+          foregroundColor: runBoardStatusColor(
+            task.workflow?.state ?? task.status,
+          ),
         ),
       ),
+      if (task.workflow != null) ...[
+        const SizedBox(height: AleraTokens.space12),
+        _WorkflowOutcome(workflow: task.workflow!),
+      ],
       const SizedBox(height: AleraTokens.space12),
       SelectableText(task.taskId, style: AleraTokens.monoCompactStyle),
       const SizedBox(height: AleraTokens.space16),
@@ -107,13 +113,22 @@ class RunTaskInspector extends StatelessWidget {
       _field(
         context,
         'Worktree',
-        task.workspacePath ?? task.workspaceName ?? 'Unavailable',
+        task.workflow?.worktree ??
+            task.workspacePath ??
+            task.workspaceName ??
+            'Unavailable',
       ),
-      _field(context, 'Branch', task.branch ?? 'Not recorded'),
+      _field(
+        context,
+        'Branch',
+        task.workflow?.branch ?? task.branch ?? 'Not recorded',
+      ),
       _field(
         context,
         'Base SHA',
-        task.baseSha ?? 'Not recorded for this attempt',
+        task.workflow?.baseSha ??
+            task.baseSha ??
+            'Not recorded for this attempt',
       ),
       _field(
         context,
@@ -174,4 +189,70 @@ class RunTaskInspector extends StatelessWidget {
     padding: const EdgeInsets.symmetric(vertical: AleraTokens.space4),
     child: SelectableText(value, style: AleraTokens.monoStyle),
   );
+}
+
+class _WorkflowOutcome extends StatelessWidget {
+  const _WorkflowOutcome({required this.workflow});
+  final TaskWorkflowInspection workflow;
+
+  @override
+  Widget build(BuildContext context) {
+    final (description, color) = switch (workflow.state) {
+      'integrated' => (
+        'Recorded at ${workflow.integratedSha ?? 'the integration head'}. Human gates remain separate.',
+        AleraTokens.success,
+      ),
+      'conflict' => (
+        'The integration workspace was left untouched. Review the retained worktrees.',
+        AleraTokens.error,
+      ),
+      'attention' => (
+        'This attempt needs inspection before execution or integration can continue.',
+        AleraTokens.warning,
+      ),
+      _ => (
+        'The worker result passed its contract and is waiting for local integration.',
+        AleraTokens.foregroundMuted,
+      ),
+    };
+    return Container(
+      padding: const EdgeInsets.all(AleraTokens.space12),
+      decoration: BoxDecoration(
+        color: AleraTokens.surfaceVariant,
+        border: Border(
+          left: BorderSide(color: color, width: AleraTokens.space4),
+        ),
+        borderRadius: const BorderRadius.all(
+          Radius.circular(AleraTokens.radiusMd),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            runBoardStatusLabel(workflow.state),
+            style: Theme.of(context).textTheme.titleSmall,
+          ),
+          const SizedBox(height: AleraTokens.space4),
+          Text(description),
+          if (workflow.error != null) ...[
+            const SizedBox(height: AleraTokens.space8),
+            SelectableText(
+              workflow.error!,
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+          ],
+          if (workflow.conflictPaths.isNotEmpty) ...[
+            const SizedBox(height: AleraTokens.space8),
+            SelectableText(
+              workflow.conflictPaths.join('\n'),
+              style: AleraTokens.monoCompactStyle,
+            ),
+            if (workflow.conflictsTruncated)
+              const Text('Additional conflict paths are not shown.'),
+          ],
+        ],
+      ),
+    );
+  }
 }

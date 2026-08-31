@@ -41,6 +41,15 @@ void main() {
         error: false,
       ),
       (
+        name: 'run_board_inspector_scaled',
+        width: 520.0,
+        height: 900.0,
+        run: true,
+        task: true,
+        scale: 1.5,
+        error: false,
+      ),
+      (
         name: 'run_board_update_required',
         width: 980.0,
         height: 720.0,

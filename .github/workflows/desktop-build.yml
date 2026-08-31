@@ -117,18 +117,18 @@ jobs:
         if: runner.os == 'Windows'
         uses: ./.github/actions/tune-windows-build
 
-      - name: Verify desktop workflow credential protection
+      - name: Verify workflow contracts and native Git integration
         run: >-
           cargo test --manifest-path rust/Cargo.toml --locked
-          -p alera-core --features workflow-approval --lib workflow_approval::
+          -p alera-core --features runtime --lib workflow_
 
-      - name: Verify native workflow worktree recovery
+      - name: Verify native workflow launch and recovery
         if: runner.os != 'Windows'
         run: >-
           cargo test --manifest-path rust/Cargo.toml --locked
-          -p alera-cli workflow_worktrees -- --nocapture
+          -p alera-cli --bin alera workflow_ -- --nocapture
 
-      - name: Verify Windows workflow worktree recovery
+      - name: Verify Windows workflow launch and recovery
         if: runner.os == 'Windows'
         shell: pwsh
         env:

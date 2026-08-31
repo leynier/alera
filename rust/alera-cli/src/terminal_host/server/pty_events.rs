@@ -237,7 +237,10 @@ impl ServerActor {
             .await;
         let keep_failed_spawn =
             keep_failed_spawn && self.make_failed_owned_spawn_inert(&session_id).await;
-        let keep_terminal = keep_failed_setup || keep_failed_spawn;
+        let keep_terminal =
+            keep_failed_setup || keep_failed_spawn || self.is_workflow_terminal(&session_id).await;
+        self.settle_closed_workflow_terminal(&session_id, &reason)
+            .await;
         self.flush_all_output(&session_id);
         let broadcast = self.sessions.get_mut(&session_id).and_then(|session| {
             let payload = session.handle_exit(exit_code)?;

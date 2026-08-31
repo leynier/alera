@@ -18,6 +18,13 @@ impl ServerActor {
         let tab_id = require_string(payload, "tabId")?;
         let working_directory = require_string(payload, "workingDirectory")?;
 
+        if let Some(attachment) = self
+            .attach_workflow_terminal(client_id, &session_id, &workspace_id, &tab_id)
+            .await?
+        {
+            return Ok(attachment);
+        }
+
         // Attaching a user client to a tab created for an automation is the
         // durable takeover signal. It prevents a later successful completion
         // from deleting a tab the user has started using.
@@ -126,6 +133,8 @@ impl ServerActor {
         let workspace_id = require_string(payload, "workspaceId")?;
         let tab_id = require_string(payload, "tabId")?;
         let working_directory = require_string(payload, "workingDirectory")?;
+        self.require_workflow_spawn_permit(&session_id, &workspace_id, &tab_id, None)
+            .await?;
         let launch = TerminalHostLaunch::from_json(&Value::Object(
             require_object(payload.get("launch"), "launch")?.clone(),
         ))?;

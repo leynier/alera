@@ -90,6 +90,7 @@ class TaskInspection {
     this.dependenciesTruncated = false,
     this.history = const [],
     this.nextCursor,
+    this.workflow,
   });
 
   factory TaskInspection.fromJson(Map<String, Object?> json) => TaskInspection(
@@ -120,6 +121,9 @@ class TaskInspection {
     nextCursor: json['next_cursor'] == null
         ? null
         : TaskHistoryCursor.fromJson(boardJsonObject(json['next_cursor'])),
+    workflow: json['workflow'] == null
+        ? null
+        : TaskWorkflowInspection.fromJson(boardJsonObject(json['workflow'])),
   );
 
   final int revision;
@@ -142,4 +146,50 @@ class TaskInspection {
   final TaskResultInspection result;
   final List<TaskHistoryEntry> history;
   final TaskHistoryCursor? nextCursor;
+  final TaskWorkflowInspection? workflow;
+}
+
+class TaskWorkflowInspection {
+  const TaskWorkflowInspection({
+    required this.state,
+    required this.executionWorkspaceId,
+    this.integrationId,
+    this.launchId,
+    this.worktree,
+    this.branch,
+    this.baseSha,
+    this.integratedSha,
+    this.conflictPaths = const [],
+    this.conflictsTruncated = false,
+    this.error,
+  });
+
+  factory TaskWorkflowInspection.fromJson(Map<String, Object?> json) =>
+      TaskWorkflowInspection(
+        state: json['state'] as String,
+        executionWorkspaceId: json['execution_workspace_id'] as String,
+        integrationId: json['integration_id'] as String?,
+        launchId: json['launch_id'] as String?,
+        worktree: json['worktree'] as String?,
+        branch: json['branch'] as String?,
+        baseSha: json['base_sha'] as String?,
+        integratedSha: json['integrated_sha'] as String?,
+        conflictPaths: List<String>.unmodifiable(
+          (json['conflict_paths'] as List? ?? const []).cast<String>(),
+        ),
+        conflictsTruncated: json['conflicts_truncated'] as bool? ?? false,
+        error: json['error'] as String?,
+      );
+
+  final String state;
+  final String executionWorkspaceId;
+  final String? integrationId;
+  final String? launchId;
+  final String? worktree;
+  final String? branch;
+  final String? baseSha;
+  final String? integratedSha;
+  final List<String> conflictPaths;
+  final bool conflictsTruncated;
+  final String? error;
 }

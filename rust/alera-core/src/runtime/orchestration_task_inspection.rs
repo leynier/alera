@@ -46,6 +46,22 @@ pub struct OrchestrationTaskInspection {
     pub result: TaskResultInspection,
     pub history: Vec<TaskHistoryEntry>,
     pub next_cursor: Option<TaskHistoryCursor>,
+    pub workflow: Option<TaskWorkflowInspection>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct TaskWorkflowInspection {
+    pub state: String,
+    pub integration_id: Option<String>,
+    pub launch_id: Option<String>,
+    pub execution_workspace_id: String,
+    pub worktree: Option<String>,
+    pub branch: Option<String>,
+    pub base_sha: Option<String>,
+    pub integrated_sha: Option<String>,
+    pub conflict_paths: Vec<String>,
+    pub conflicts_truncated: bool,
+    pub error: Option<String>,
 }
 
 #[derive(Debug, Default, Serialize)]
@@ -122,6 +138,7 @@ impl RuntimeStore {
         .bind(&query.run_id)
         .fetch_optional(&mut *tx)
         .await?;
+        let workflow = inspect_workflow_task(&mut tx, &query.run_id, &query.task_id).await?;
         let deps: Option<String> = row.try_get("deps")?;
         let (dependencies, dependencies_truncated) = bounded_dependencies(deps.as_deref());
         let result: Option<String> = row.try_get("result")?;
@@ -141,6 +158,14 @@ impl RuntimeStore {
                 FROM orchestrationAuditEvents WHERE target_id = ? OR target_id IN (
                     SELECT id FROM orchestrationDispatchContexts WHERE task_id = ? AND run_id = ?
                 )
+                UNION ALL
+                SELECT id, updated_at AS occurred_at, 'workflowLaunch' AS kind,
+                    status, substr(error, 1, 2048) AS summary
+                FROM workflowLaunches WHERE task_id = ? AND run_id = ?
+                UNION ALL
+                SELECT id, updated_at AS occurred_at, 'workflowIntegration' AS kind,
+                    state AS status, substr(error, 1, 2048) AS summary
+                FROM workflowIntegrations WHERE task_id = ? AND run_id = ?
              )
              SELECT * FROM history
              WHERE (? IS NULL OR occurred_at < ? OR (occurred_at = ? AND id < ?))
@@ -149,6 +174,10 @@ impl RuntimeStore {
         .bind(&query.task_id)
         .bind(&query.run_id)
         .bind(&query.task_id)
+        .bind(&query.task_id)
+        .bind(&query.run_id)
+        .bind(&query.task_id)
+        .bind(&query.run_id)
         .bind(&query.task_id)
         .bind(&query.run_id)
         .bind(cursor_time)
@@ -209,10 +238,85 @@ impl RuntimeStore {
             result,
             history,
             next_cursor,
+            workflow,
         };
         tx.commit().await?;
         Ok(inspection)
     }
+}
+
+async fn inspect_workflow_task(
+    tx: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
+    run: &str,
+    task: &str,
+) -> Result<Option<TaskWorkflowInspection>> {
+    let Some(row) = sqlx::query("SELECT x.id AS workspace_id, w.path, w.branch,
+            json_extract(x.identity, '$.baseSha') AS base_sha,
+            l.id AS launch_id, l.status AS launch_status, l.error AS launch_error,
+            i.id AS integration_id, i.state AS integration_state, i.receipt,
+            i.conflict_paths, i.conflicts_truncated, i.error AS integration_error,
+            e.task_id AS evidence_id, t.status AS task_status, t.result IS NOT NULL AS has_result
+        FROM workflowPlanTasks p JOIN orchestrationTasks t ON t.id = p.task_id
+        JOIN workflowWorkspaces x ON x.sequence = (SELECT MAX(sequence) FROM workflowWorkspaces WHERE task_id = p.task_id)
+        LEFT JOIN workspaces w ON w.id = x.id
+        LEFT JOIN workflowLaunches l ON l.workspace_id = x.id
+        LEFT JOIN workflowIntegrations i ON i.sequence = (SELECT MAX(sequence) FROM workflowIntegrations WHERE task_id = p.task_id)
+        LEFT JOIN workflowTaskEvidence e ON e.task_id = p.task_id
+        WHERE p.run_id = ? AND p.task_id = ?")
+        .bind(run).bind(task).fetch_optional(&mut **tx).await? else { return Ok(None); };
+    let integration_state: Option<String> = row.try_get("integration_state")?;
+    let launch_state: Option<String> = row.try_get("launch_status")?;
+    let task_state: String = row.try_get("task_status")?;
+    let has_result: bool = row.try_get("has_result")?;
+    let state = if integration_state.as_deref() == Some("integrated")
+        && row.try_get::<Option<String>, _>("evidence_id")?.is_some()
+    {
+        "integrated"
+    } else if integration_state.as_deref() == Some("integrated") {
+        "attention"
+    } else if integration_state.as_deref() == Some("conflict") {
+        "conflict"
+    } else if integration_state.as_deref() == Some("attention")
+        || launch_state.as_deref() == Some("attention")
+        || task_state == "failed"
+    {
+        "attention"
+    } else if task_state == "completed" && has_result {
+        "result_ready"
+    } else {
+        return Ok(None);
+    };
+    let receipt: Option<String> = row.try_get("receipt")?;
+    let integrated_sha = receipt
+        .as_deref()
+        .and_then(|raw| serde_json::from_str::<Value>(raw).ok())
+        .and_then(|value| {
+            value
+                .get("integratedSha")
+                .and_then(Value::as_str)
+                .map(str::to_owned)
+        });
+    let conflict_paths = row
+        .try_get::<Option<String>, _>("conflict_paths")?
+        .and_then(|raw| serde_json::from_str::<Vec<String>>(&raw).ok())
+        .unwrap_or_default();
+    Ok(Some(TaskWorkflowInspection {
+        state: state.into(),
+        integration_id: row.try_get("integration_id")?,
+        launch_id: row.try_get("launch_id")?,
+        execution_workspace_id: row.try_get("workspace_id")?,
+        worktree: row.try_get("path")?,
+        branch: row.try_get("branch")?,
+        base_sha: row.try_get("base_sha")?,
+        integrated_sha,
+        conflict_paths,
+        conflicts_truncated: row
+            .try_get::<Option<bool>, _>("conflicts_truncated")?
+            .unwrap_or(false),
+        error: row
+            .try_get::<Option<String>, _>("integration_error")?
+            .or(row.try_get("launch_error")?),
+    }))
 }
 
 pub(super) fn bounded_dependencies(raw: Option<&str>) -> (Vec<String>, bool) {

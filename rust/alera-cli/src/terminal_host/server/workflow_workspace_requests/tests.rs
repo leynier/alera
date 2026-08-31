@@ -11,7 +11,15 @@ async fn workflow_worktrees_rpc_rejects_mobile_unauthenticated_and_unbounded_pay
     let dir = tempfile::tempdir().unwrap();
     let (handle, _rx) = ClientHandle::test_channels();
     let mut actor = test_actor(&dir, HashMap::new(), HashMap::new()).await;
-    for verb in ["workflows.prepareWorkspace", "workflows.workspaces"] {
+    for verb in [
+        "workflows.prepareWorkspace",
+        "workflows.launchTask",
+        "workflows.launches",
+        "workflows.workspaces",
+        "workflows.integrateResult",
+        "workflows.integrations",
+        "workflows.integration",
+    ] {
         assert!(actor
             .start_workflow_workspace_request(1, 1, verb, &json!({}))
             .is_err());
@@ -78,6 +86,12 @@ fn workflow_worktrees_capability_is_additive_and_cli_cannot_select_paths() {
         .contains(&json!(
             protocol::RUNTIME_HOST_WORKFLOW_WORKSPACES_CAPABILITY
         )));
+    assert!(value["runtimeCapabilities"]
+        .as_array()
+        .unwrap()
+        .contains(&json!(
+            protocol::RUNTIME_HOST_WORKFLOW_INTEGRATIONS_CAPABILITY
+        )));
     let args = [
         "alera",
         "orchestration",
@@ -92,6 +106,93 @@ fn workflow_worktrees_capability_is_additive_and_cli_cannot_select_paths() {
     ];
     crate::cli::Cli::try_parse_from(args).unwrap();
     for forbidden in ["--path", "--workspace-id", "--branch", "--approve"] {
+        assert!(
+            crate::cli::Cli::try_parse_from(args.into_iter().chain([forbidden, "foreign"]))
+                .is_err()
+        );
+    }
+}
+
+#[test]
+fn workflow_worktrees_integration_cli_cannot_select_git_contents_or_identity() {
+    use clap::Parser;
+    let args = [
+        "alera",
+        "orchestration",
+        "workspaces",
+        "integrate",
+        "--run",
+        "run",
+        "--revision",
+        "1",
+        "--request-id",
+        "request",
+        "--task",
+        "task",
+        "--workspace-id",
+        "attempt",
+    ];
+    crate::cli::Cli::try_parse_from(args).unwrap();
+    for forbidden in [
+        "--path",
+        "--source-sha",
+        "--expected-sha",
+        "--actor",
+        "--approve",
+    ] {
+        assert!(
+            crate::cli::Cli::try_parse_from(args.into_iter().chain([forbidden, "foreign"]))
+                .is_err()
+        );
+    }
+    crate::cli::Cli::try_parse_from([
+        "alera",
+        "orchestration",
+        "workspaces",
+        "integrations",
+        "--run",
+        "run",
+    ])
+    .unwrap();
+    crate::cli::Cli::try_parse_from([
+        "alera",
+        "orchestration",
+        "workspaces",
+        "integration",
+        "--id",
+        "receipt",
+    ])
+    .unwrap();
+}
+
+#[test]
+fn workflow_launch_cli_cannot_override_reviewed_profile_or_private_context() {
+    use clap::Parser;
+    let args = [
+        "alera",
+        "orchestration",
+        "workspaces",
+        "launch",
+        "--run",
+        "run",
+        "--revision",
+        "1",
+        "--request-id",
+        "request",
+        "--task",
+        "task",
+        "--workspace-id",
+        "attempt",
+    ];
+    crate::cli::Cli::try_parse_from(args).unwrap();
+    for forbidden in [
+        "--path",
+        "--actor",
+        "--approve",
+        "--profile",
+        "--command",
+        "--context-token",
+    ] {
         assert!(
             crate::cli::Cli::try_parse_from(args.into_iter().chain([forbidden, "foreign"]))
                 .is_err()

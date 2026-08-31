@@ -29,6 +29,8 @@ impl RuntimeStore {
             "workflowStageGates",
             "workflowTaskEvidence",
             "workflowWorkspaces",
+            "workflowIntegrations",
+            "workflowLaunches",
         ] {
             for operation in ["INSERT", "UPDATE", "DELETE"] {
                 sqlx::query(sqlx::AssertSqlSafe(format!(
@@ -103,6 +105,18 @@ const BOARD_SCHEMA: &[&str] = &[
                  OR COALESCE(t.stalled_count, 0) > 0
                  OR COALESCE(t.blocked_count, 0) > 0
                  OR COALESCE(g.pending_gate_count, 0) > 0
+                 OR EXISTS(SELECT 1 FROM workflowLaunches l JOIN workflowRuns wr ON wr.run_id = l.run_id
+                     WHERE l.run_id = r.id AND l.revision = wr.revision AND l.status = 'attention'
+                       AND NOT EXISTS(SELECT 1 FROM workflowTaskEvidence e WHERE e.task_id = l.task_id)
+                       AND NOT EXISTS(SELECT 1 FROM workflowLaunches newer
+                           WHERE newer.task_id = l.task_id AND newer.sequence > l.sequence))
+                 OR EXISTS(SELECT 1 FROM workflowIntegrations i JOIN workflowRuns wr ON wr.run_id = i.run_id
+                     WHERE i.run_id = r.id AND i.state IN ('conflict','attention')
+                       AND (i.state = 'attention' OR i.revision = wr.revision)
+                       AND NOT EXISTS(SELECT 1 FROM workflowTaskEvidence e WHERE e.task_id = i.task_id))
+                 OR EXISTS(SELECT 1 FROM workflowIntegrations i JOIN workflowRuns wr ON wr.run_id = i.run_id
+                     WHERE i.run_id = r.id AND i.state = 'integrated' AND i.revision = wr.revision
+                       AND NOT EXISTS(SELECT 1 FROM workflowTaskEvidence e WHERE e.task_id = i.task_id))
                  OR EXISTS(SELECT 1 FROM workflowWorkspaces x JOIN workflowRuns wr ON wr.run_id = x.run_id
                      WHERE x.run_id = r.id AND x.phase = 'attention'
                        AND (x.task_id IS NULL OR x.revision = wr.revision)

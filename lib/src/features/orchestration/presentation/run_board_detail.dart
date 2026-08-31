@@ -53,11 +53,12 @@ class RunBoardDetail extends StatelessWidget {
           );
         }
         final task = row as RunTaskSummary;
+        final state = task.workflowState ?? task.status;
         return AleraActivityRow(
           key: ValueKey(task.id),
           title: task.title,
-          subtitle: runBoardStatusLabel(task.status),
-          statusColor: runBoardStatusColor(task.status),
+          subtitle: runBoardStatusLabel(state),
+          statusColor: runBoardStatusColor(state),
           metadata: task.dependencies.isEmpty
               ? (task.dependenciesTruncated
                     ? 'Dependencies unavailable'

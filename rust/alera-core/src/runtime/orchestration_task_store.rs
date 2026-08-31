@@ -114,7 +114,8 @@ pub(super) async fn refresh_pending_dependents_after_task_status(
     let mut changed_ids = vec![changed_task_id.to_string()];
     while let Some(changed_id) = changed_ids.pop() {
         let pending =
-            sqlx::query("SELECT id, deps FROM orchestrationTasks WHERE status = 'pending'")
+            sqlx::query("SELECT id, deps FROM orchestrationTasks WHERE status = 'pending'
+                AND NOT EXISTS(SELECT 1 FROM workflowPlanTasks p WHERE p.task_id = orchestrationTasks.id)")
                 .fetch_all(&mut **tx)
                 .await?;
         for row in pending {

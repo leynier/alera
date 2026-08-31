@@ -6,7 +6,7 @@ Workflow plans extend the Rust orchestration runtime. They do not replace it or 
 
 The additive `workflowReviewedPlansV1` capability is independent of `orchestrationRunBoardV1` and `workflowRecipeCatalogV1`. Strict protocol versions are unchanged. A client must show Update Required when its host lacks the required capability; it must not fall back to legacy policy approval.
 
-This layer supports preparation and authenticated review. [Managed task worktrees](workflow-worktrees.md) can be prepared after approval; execution intentionally remains blocked until serial integration is implemented. Approval does not start a worker in the owner's shared workspace. The desktop launch and review screens are delivered in a later stack layer.
+This layer supports preparation and authenticated review. [Managed task worktrees](workflow-worktrees.md) can be prepared after approval and launched through the [isolated workflow execution API](workflow-integration.md). Approval does not start a worker in the owner's shared workspace. The desktop launch and review screens are delivered in a later stack layer.
 
 ## Preparing a plan
 
