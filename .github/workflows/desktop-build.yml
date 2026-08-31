@@ -130,14 +130,13 @@ jobs:
 
       - name: Verify Windows workflow worktree recovery
         if: runner.os == 'Windows'
+        shell: pwsh
         env:
           CARGO_TARGET_DIR: R:\c\n
           CMAKE_GENERATOR: Ninja
           _CL_: /Z7 /FS
           GGML_CCACHE: 'OFF'
-        run: >-
-          cargo test --manifest-path rust/Cargo.toml --locked
-          -p alera-cli workflow_worktrees -- --nocapture
+        run: ./tool/ci/test_windows_workflow_worktrees.ps1
 
       # Cargokit contains fully linked alera_native and code_forge outputs, so
       # restoring it remains faster than compiler caching alone. Only the
