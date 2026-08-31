@@ -2,156 +2,84 @@ part of 'mobile_codex_chat_screen.dart';
 
 class _MobileQueueBar extends StatelessWidget {
   const _MobileQueueBar({required this.messages, required this.controller});
-
   final List<Map<String, Object?>> messages;
   final MobileCodexController controller;
-
   @override
-  Widget build(BuildContext context) => Container(
-    color: AleraTokens.surface,
-    padding: const EdgeInsets.all(AleraTokens.space8),
-    child: SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: Row(
-        children: <Widget>[
-          const Text('Queued Messages'),
-          const SizedBox(width: AleraTokens.space4),
-          for (final (index, message) in messages.indexed) ...<Widget>[
-            InputChip(
-              label: Text(
-                message['text']?.toString().isNotEmpty == true
-                    ? message['text'].toString()
-                    : 'Attachment',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-              onPressed: () => unawaited(_edit(context, index, message)),
-              onDeleted: () => controller.removeQueuedMessage(index),
-            ),
-            const SizedBox(width: AleraTokens.space4),
-          ],
-        ],
-      ),
-    ),
-  );
-
-  Future<void> _edit(
-    BuildContext context,
-    int index,
-    Map<String, Object?> message,
-  ) async {
-    final selections = message['catalogSelections'] is List
-        ? <Map<String, Object?>>[
-            for (final value in message['catalogSelections']! as List)
-              if (value is Map) Map<String, Object?>.from(value),
-          ]
-        : const <Map<String, Object?>>[];
-    final value = await showDialog<_MobileQueuedMessageEdit>(
-      context: context,
-      builder: (context) => _MobileQueuedMessageEditor(
-        initialValue: message['text']?.toString() ?? '',
-        initialCatalogSelections: selections,
-      ),
-    );
-    if (value != null) {
-      controller.editQueuedMessage(
-        index,
-        value.text,
-        catalogSelections: value.catalogSelections,
-      );
-    }
-  }
-}
-
-class _MobileQueuedMessageEditor extends StatefulWidget {
-  const _MobileQueuedMessageEditor({
-    required this.initialValue,
-    required this.initialCatalogSelections,
-  });
-
-  final String initialValue;
-  final List<Map<String, Object?>> initialCatalogSelections;
-
-  @override
-  State<_MobileQueuedMessageEditor> createState() =>
-      _MobileQueuedMessageEditorState();
-}
-
-class _MobileQueuedMessageEditorState
-    extends State<_MobileQueuedMessageEditor> {
-  late final TextEditingController _input;
-  late TextEditingValue _lastValue;
-  late List<Map<String, Object?>> _catalogSelections;
-
-  @override
-  void initState() {
-    super.initState();
-    _lastValue = TextEditingValue(
-      text: widget.initialValue,
-      selection: TextSelection.collapsed(offset: widget.initialValue.length),
-    );
-    _input = TextEditingController.fromValue(_lastValue);
-    _catalogSelections = <Map<String, Object?>>[
-      ...widget.initialCatalogSelections,
-    ];
-    _input.addListener(_rebaseSelections);
-  }
-
-  @override
-  void dispose() {
-    _input.removeListener(_rebaseSelections);
-    _input.dispose();
-    super.dispose();
-  }
-
-  void _rebaseSelections() {
-    final next = _input.value;
-    _catalogSelections = mobileCodexRebaseCatalogSelections(
-      _lastValue,
-      next,
-      _catalogSelections,
-    );
-    _lastValue = next;
-  }
-
-  @override
-  Widget build(BuildContext context) => AlertDialog(
-    title: const Text('Edit Queued Message'),
-    content: TextField(
-      controller: _input,
-      autofocus: true,
-      minLines: 2,
-      maxLines: AleraTokens.composeBarMaxLines,
-    ),
-    actions: <Widget>[
-      TextButton(
-        onPressed: () => Navigator.of(context).pop(),
-        child: const Text('Cancel'),
-      ),
-      FilledButton(
-        onPressed: () => Navigator.of(context).pop(
-          _MobileQueuedMessageEdit(
-            text: _input.text,
-            catalogSelections: mobileCodexActiveCatalogSelections(
-              _input.text,
-              _catalogSelections,
-            ),
+  Widget build(BuildContext context) {
+    final owner = context
+        .findAncestorStateOfType<_MobileCodexChatScreenState>();
+    final state = owner?.ref
+        .read(
+          mobileCodexControllerProvider(
+            owner.widget.hostId,
+            owner.widget.tabId,
           ),
-        ),
-        child: const Text('Save'),
+        )
+        .value;
+    return AleraMessageQueue(
+      messages: [
+        for (final message in messages)
+          AleraQueuedMessageRow(
+            id: message['id'].toString(),
+            text: message['text']?.toString() ?? '',
+            attachmentCount: (message['attachments'] as List?)?.length ?? 0,
+            hasImage: (message['attachments'] as List? ?? const [])
+                .whereType<Map>()
+                .any((a) => a['type'] == 'localImage'),
+            status: message['status']?.toString() ?? 'queued',
+            error: message['error']?.toString(),
+          ),
+      ],
+      paused: state?.queuePaused ?? false,
+      canSteer:
+          state?.activeTurnId != null &&
+          state?.interrupting != true &&
+          state?.historyLocked != true,
+      onTogglePaused: () => unawaited(
+        controller.queueAction(state!.queuePaused ? 'resume' : 'pause'),
       ),
-    ],
-  );
-}
-
-class _MobileQueuedMessageEdit {
-  const _MobileQueuedMessageEdit({
-    required this.text,
-    required this.catalogSelections,
-  });
-
-  final String text;
-  final List<Map<String, Object?>> catalogSelections;
+      onReconcile: () => unawaited(controller.queueAction('reconcile')),
+      onRemove: (id) async {
+        await controller.removeQueuedMessageById(
+          id,
+          revision: state?.queueState['revision'] as int?,
+        );
+      },
+      onSteer: (id) async {
+        final message = messages
+            .where((entry) => entry['id'] == id)
+            .firstOrNull;
+        if (message != null) {
+          await controller.steerQueuedMessage(
+            message,
+            revision: state?.queueState['revision'] as int?,
+          );
+        }
+      },
+      onEdit: (id) async {
+        final message = messages
+            .where((entry) => entry['id'] == id)
+            .firstOrNull;
+        if (message == null) return;
+        final revision = state?.queueState['revision'] as int?;
+        await showDialog<void>(
+          context: context,
+          builder: (_) => AleraMessageEditor(
+            text: message['text']?.toString() ?? '',
+            attachmentCount: (message['attachments'] as List?)?.length ?? 0,
+            onSave: (text) async =>
+                await controller.saveQueuedMessage(
+                  message,
+                  text,
+                  revision: revision,
+                )
+                ? null
+                : 'The queue changed or the message could not be saved. Your edit has been preserved.',
+          ),
+        );
+      },
+    );
+  }
 }
 
 class _MobileError extends StatelessWidget {

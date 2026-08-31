@@ -343,6 +343,7 @@ class _MobileMessageActions extends StatelessWidget {
         onPressed: onToggleRaw,
         icon: const Icon(Icons.code, size: AleraTokens.space16),
       ),
+      _MobileHistoryMessageActions(cell: cell),
       if (cell.createdAt != null)
         Text(
           _mobileTimestamp(cell.createdAt!),

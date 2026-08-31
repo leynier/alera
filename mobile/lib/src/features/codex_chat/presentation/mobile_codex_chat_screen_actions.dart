@@ -239,11 +239,18 @@ extension _MobileCodexScreenActions on _MobileCodexChatScreenState {
           );
           return;
         }
-        await controller.send(
+        final accepted = await controller.send(
           resolvedPrompt.text,
           attachments: attachments,
           catalogSelections: catalogSelections,
         );
+        if (!accepted) {
+          _restoreAbandonedMobileSubmission(
+            submissionHostId,
+            submissionTabId,
+            submittedDraft,
+          );
+        }
       },
     );
   }
@@ -445,18 +452,29 @@ extension _MobileCodexScreenActions on _MobileCodexChatScreenState {
             .read(mobileCodexControllerProvider(widget.hostId, widget.tabId))
             .value
             ?.activeTurnId;
-        if (activeTurnId == targetTurnId && activeTurnId != null) {
-          await controller.steer(
-            resolvedPrompt.text,
-            attachments: attachments,
-            catalogSelections: catalogSelections,
+        final accepted =
+            activeTurnId == targetTurnId &&
+            activeTurnId != null &&
+            await controller.steer(
+              resolvedPrompt.text,
+              attachments: attachments,
+              catalogSelections: catalogSelections,
+            );
+        if (!accepted) {
+          _restoreAbandonedMobileSubmission(
+            submissionHostId,
+            submissionTabId,
+            submittedDraft,
           );
-        } else {
-          await controller.send(
-            resolvedPrompt.text,
-            attachments: attachments,
-            catalogSelections: catalogSelections,
-          );
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text(
+                  'Steer was not accepted. Your message has been restored.',
+                ),
+              ),
+            );
+          }
         }
       },
     );

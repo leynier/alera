@@ -33,6 +33,7 @@ mod browser_session_store_tests;
 mod browser_store;
 #[cfg(test)]
 mod browser_store_tests;
+mod codex_chat_store;
 mod configuration_native_settings;
 mod configuration_profiles;
 mod configuration_store;
@@ -98,6 +99,7 @@ pub use browser_models::*;
 pub use browser_privacy::{
     browser_url_allows_title_persistence, normalize_browser_title, BROWSER_TITLE_MAX_BYTES,
 };
+pub use codex_chat_store::*;
 pub use models::*;
 pub use orchestration_dispatch_store::ORCHESTRATION_CIRCUIT_BREAKER_THRESHOLD;
 pub use orchestration_message_store::{
@@ -115,3 +117,6 @@ pub use store_error::*;
 pub use text_actions_validation::{validate_text_actions_settings, AI_ASSIST_AGENTS};
 pub use workbench_shared_state_models::*;
 pub use worktree_setup_models::*;
+
+#[cfg(test)]
+mod codex_chat_store_tests;

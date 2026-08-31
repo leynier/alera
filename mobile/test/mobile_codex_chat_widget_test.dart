@@ -1,4 +1,6 @@
 import 'dart:async';
+
+import 'package:alera_mobile/src/design_system/chat/alera_message_queue.dart';
 import 'dart:convert';
 import 'dart:io';
 
@@ -44,7 +46,13 @@ part 'mobile_codex_chat_widget_review_transition_test_cases.dart';
 part 'mobile_codex_chat_widget_review_dialog_test_cases.dart';
 part 'mobile_codex_chat_widget_goal_test_cases.dart';
 
+part 'mobile_codex_chat_widget_fork_availability_test_cases.dart';
+
+part 'mobile_codex_chat_widget_queue_identity_test_cases.dart';
+
 void main() {
+  _registerMobileQueueIdentityTests();
+  _registerMobileForkAvailabilityTests();
   _registerMobileCodexFoundationTests();
   _registerMobileCodexCatalogTests();
   _registerMobileCodexModelMenuTests();

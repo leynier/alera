@@ -14,6 +14,8 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 /// File-type icons in the explorer keep using `vscode_material_icon_theme`
 /// (the VSCode standard for file trees); see `AleraFileIcon`.
 abstract final class AleraIcons {
+  static const IconData queuedMessage = LucideIcons.listEnd;
+  static const IconData steer = LucideIcons.cornerDownRight;
   const AleraIcons._();
 
   // Actions

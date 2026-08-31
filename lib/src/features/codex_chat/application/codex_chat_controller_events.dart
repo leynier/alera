@@ -13,6 +13,10 @@ const _deferredThreadContextKeys = <String>{
 
 extension CodexChatControllerEvents on CodexChatController {
   void _onRuntimeEvent(RuntimeHostEvent event) {
+    if (event.name == 'codexQueueChanged' && event.payload['tabId'] == tabId) {
+      _applyQueueSnapshot(event.payload);
+      return;
+    }
     if (event.name == aleraRuntimeHostConnectedEvent) {
       if (!state.loading) unawaited(_refreshCapabilitiesAndGoal());
       return;
@@ -41,11 +45,6 @@ extension CodexChatControllerEvents on CodexChatController {
       return;
     }
     _applyRuntimeThreadEvent(event);
-  }
-
-  Future<void> _refreshCapabilitiesAndGoal() async {
-    await _refreshCapabilities();
-    await _refreshGoal(retryUnavailable: true);
   }
 
   void _deferRuntimeThreadEvent(RuntimeHostEvent event) {
@@ -91,12 +90,29 @@ extension CodexChatControllerEvents on CodexChatController {
             : CodexThreadRecovery.fromJson(event.payload['recovery']),
       );
     }
+    final incomingRevision = event.payload['historyRevision'] as int?;
+    if ((!event.payload.containsKey('threadId') ||
+            _string(event.payload['threadId']) == _threadId) &&
+        incomingRevision != null &&
+        incomingRevision < state.historyRevision) {
+      return;
+    }
+    final replaceHistory =
+        event.payload['replaceHistory'] == true ||
+        (incomingRevision != null && incomingRevision > state.historyRevision);
+    if (replaceHistory) _threadGeneration += 1;
     final previousThreadId = _threadId;
     final eventHasThreadId = event.payload.containsKey('threadId');
     final eventThreadId = eventHasThreadId
         ? _string(event.payload['threadId'])
         : previousThreadId;
     final threadChanged = eventHasThreadId && eventThreadId != previousThreadId;
+    final resetQueue =
+        threadChanged &&
+        (state.supportsSharedQueue || previousThreadId != null);
+    final resetQueuedMessages =
+        resetQueue &&
+        (state.supportsSharedQueue || !_sessionTransitionInProgress);
     final previousCwd = state.activeCwd;
     final activeCwd = _string(event.payload['cwd']) ?? previousCwd;
     final catalogueContextChanged = threadChanged || activeCwd != previousCwd;
@@ -110,7 +126,7 @@ extension CodexChatControllerEvents on CodexChatController {
     final incoming = snapshot is Map
         ? CodexChatSnapshot.fromJson(snapshot)
         : null;
-    final next = eventThreadId != previousThreadId
+    final next = replaceHistory || eventThreadId != previousThreadId
         ? incoming
         : delta is Map && delta.isNotEmpty && incoming != null
         ? _reconcileSameThreadSnapshot(state.snapshot, incoming, delta)
@@ -123,23 +139,29 @@ extension CodexChatControllerEvents on CodexChatController {
       if (!ref.mounted) return;
       if (eventHasThreadId) {
         _threadId = eventThreadId;
-        if (threadChanged) _threadGeneration += 1;
+        if (resetQueue) _threadGeneration += 1;
       }
       state = configured.copyWith(
         activeCwd: activeCwd,
         historyNextCursor: historyNextCursor,
+        queueState: resetQueue ? const {} : configured.queueState,
+        queuedMessages: resetQueuedMessages
+            ? const []
+            : configured.queuedMessages,
       );
+      if (resetQueue) unawaited(refreshQueue());
       if (catalogueContextChanged) unawaited(_loadCatalogues());
       return;
     }
     if (!ref.mounted) return;
     if (eventHasThreadId) {
       _threadId = eventThreadId;
-      if (threadChanged) _threadGeneration += 1;
+      if (resetQueue) _threadGeneration += 1;
     }
     if (!next.isBusy) _interruptSafetyTimer?.cancel();
     state = configured.copyWith(
       snapshot: next,
+      historyRevision: incomingRevision ?? state.historyRevision,
       activeCwd: activeCwd,
       historyNextCursor: historyNextCursor,
       sending: next.isBusy ? state.sending : false,
@@ -147,6 +169,14 @@ extension CodexChatControllerEvents on CodexChatController {
       error: null,
     );
     if (catalogueContextChanged) unawaited(_loadCatalogues());
+    if (threadChanged) {
+      state = state.copyWith(
+        queueState: resetQueue ? const {} : state.queueState,
+        queuedMessages: resetQueuedMessages ? const [] : state.queuedMessages,
+        historyRevision: incomingRevision ?? 0,
+      );
+      unawaited(refreshQueue());
+    }
     _drainQueuedMessageIfIdle();
   }
 }

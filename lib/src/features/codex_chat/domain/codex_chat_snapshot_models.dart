@@ -130,6 +130,7 @@ class CodexChatSnapshot {
     this.promptHistory = const <String>[],
     this.mcpInitializing = false,
     this.activeTurnId,
+    this.hasCompletedTurns,
     this.contextUsed,
     this.contextLimit,
     this.title,
@@ -158,6 +159,7 @@ class CodexChatSnapshot {
       mcpInitializing: _codexHasInitializingMcp(cells),
       pendingRequests: _codexPendingRequests(json['pendingRequests']),
       activeTurnId: _string(json['activeTurnId']),
+      hasCompletedTurns: json['hasCompletedTurns'] as bool?,
       contextUsed: _int(json['contextUsed']),
       contextLimit: _int(json['contextLimit']),
       title: _string(json['title']),
@@ -190,6 +192,8 @@ class CodexChatSnapshot {
         activeTurnId,
         _string,
       ),
+      hasCompletedTurns:
+          json['hasCompletedTurns'] as bool? ?? hasCompletedTurns,
       contextUsed: _codexDeltaValue(json, 'contextUsed', contextUsed, _int),
       contextLimit: _codexDeltaValue(json, 'contextLimit', contextLimit, _int),
       title: _codexDeltaValue(json, 'title', title, _string),
@@ -203,6 +207,7 @@ class CodexChatSnapshot {
   final List<String> promptHistory;
   final bool mcpInitializing;
   final String? activeTurnId;
+  final bool? hasCompletedTurns;
   final int? contextUsed;
   final int? contextLimit;
   final String? title;

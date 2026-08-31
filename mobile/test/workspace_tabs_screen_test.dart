@@ -14,10 +14,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:alera_mobile/src/features/runtime/domain/runtime_client_surfaces.dart';
 import 'support/fake_terminal_client.dart';
 import 'support/fake_mobile_codex_client.dart';
 
+part 'workspace_tabs_queue_close_test_cases.dart';
+
 void main() {
+  _registerQueueCloseRecoveryTests();
   testWidgets('Shows Codex identity in the tab strip and create action', (
     tester,
   ) async {

@@ -107,24 +107,27 @@ class CodexInputAttachment {
 
   bool get isBrowserAnnotation => annotationContext != null;
 
-  CodexInputAttachment copyWith({int? sizeBytes, bool? isDirectory}) =>
-      CodexInputAttachment(
-        id: id,
-        path: path,
-        isImage: isImage,
-        mimeType: mimeType,
-        displayName: displayName,
-        sizeBytes: sizeBytes ?? this.sizeBytes,
-        detail: detail,
-        isDirectory: isDirectory ?? this.isDirectory,
-        origin: origin,
-        tokenText: tokenText,
-        tokenStart: tokenStart,
-        annotationContext: annotationContext,
-        annotationUrl: annotationUrl,
-        annotationTitle: annotationTitle,
-        annotationCount: annotationCount,
-      );
+  CodexInputAttachment copyWith({
+    int? sizeBytes,
+    bool? isDirectory,
+    int? tokenStart,
+  }) => CodexInputAttachment(
+    id: id,
+    path: path,
+    isImage: isImage,
+    mimeType: mimeType,
+    displayName: displayName,
+    sizeBytes: sizeBytes ?? this.sizeBytes,
+    detail: detail,
+    isDirectory: isDirectory ?? this.isDirectory,
+    origin: origin,
+    tokenText: tokenText,
+    tokenStart: tokenStart ?? this.tokenStart,
+    annotationContext: annotationContext,
+    annotationUrl: annotationUrl,
+    annotationTitle: annotationTitle,
+    annotationCount: annotationCount,
+  );
 }
 
 enum CodexInputAttachmentOrigin { attachment, mention }
@@ -166,6 +169,9 @@ class CodexDraftItem {
 class CodexQueuedMessage {
   const CodexQueuedMessage({
     required this.text,
+    this.payload = const <String, Object?>{},
+    this.deliveryStatus = 'queued',
+    this.deliveryError,
     this.attachments = const <CodexInputAttachment>[],
     this.draftItems = const <CodexDraftItem>[],
     this.id,
@@ -174,6 +180,9 @@ class CodexQueuedMessage {
   final String text;
   final List<CodexInputAttachment> attachments;
   final List<CodexDraftItem> draftItems;
+  final Map<String, Object?> payload;
+  final String deliveryStatus;
+  final String? deliveryError;
   final String? id;
 }
 

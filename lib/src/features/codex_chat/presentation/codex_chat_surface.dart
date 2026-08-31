@@ -1,3 +1,6 @@
+import '../../../design_system/chat/alera_history_edit_status.dart';
+import '../../../design_system/chat/alera_message_queue.dart';
+import '../../../design_system/chat/alera_message_editor.dart';
 import 'dart:async';
 import 'dart:collection';
 import 'dart:convert';
@@ -49,6 +52,8 @@ import 'package:uuid/uuid.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:alera/src/rust/api/workspace_files.dart' as native;
 import 'package:alera/src/shared/infra/git/git_providers.dart';
+
+part 'codex_chat_surface_history_actions.dart';
 
 part 'codex_chat_surface_composer.dart';
 part 'codex_chat_surface_composer_logic.dart';
@@ -199,15 +204,7 @@ class _CodexChatSurfaceState extends ConsumerState<CodexChatSurface> {
 
   void _onDraftStoreChanged() {
     if (!mounted || _restoringDraft) return;
-    final draft = _draftStore.read(widget.tab.id);
-    setState(() {
-      _attachments
-        ..clear()
-        ..addAll(draft.attachments);
-      _draftItems
-        ..clear()
-        ..addAll(draft.draftItems);
-    });
+    setState(() => _restoreDraft(widget.tab.id));
   }
 
   void _restoreDraft(String tabId) {
@@ -287,8 +284,8 @@ class _CodexChatSurfaceState extends ConsumerState<CodexChatSurface> {
                     workspacePath: activeWorkspacePath,
                     workspaceId: widget.workspace.id,
                     workspaceFiles: _workspaceFiles,
-                    onEditQueued: (index, message) =>
-                        _editQueued(controller, index, message),
+                    onEditQueued: (message, revision) =>
+                        _editQueued(controller, message, revision),
                     onDraftItemSelected: _addDraftItem,
                     onCommand: (state, command) => _runComposerCommand(
                       context,

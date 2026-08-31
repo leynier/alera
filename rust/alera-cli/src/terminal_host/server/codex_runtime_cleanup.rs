@@ -262,6 +262,23 @@ impl ServerActor {
                 if !owner_is_removed && !active_cwd_is_removed {
                     continue;
                 }
+                if self.codex_fork_blocks_removal(&tab).await? {
+                    return Err(HostError::state(
+                        "Wait for this conversation fork to finish before removing the workspace.",
+                    ));
+                }
+                if self
+                    .runtime_store
+                    .list_codex_chat_states()
+                    .await
+                    .map_err(super::codex_queue::store_error)?
+                    .iter()
+                    .any(|state| {
+                        state.tab_id == tab.id && (state.has_pending() || state.history_locked())
+                    })
+                {
+                    return Err(HostError::state("Cancel queued messages and finish history edits before removing this workspace."));
+                }
                 let replacement_cwd =
                     (!owner_is_removed && active_cwd_is_removed).then(|| workspace.path.clone());
                 let thread_id = tab_thread_id(&tab);
@@ -298,6 +315,26 @@ impl ServerActor {
         };
         if !is_codex_tab(&tab) {
             return Ok(None);
+        }
+        if self.codex_fork_blocks_removal(&tab).await? {
+            return Err(HostError::state(
+                "Wait for this conversation fork to finish before closing the tab.",
+            ));
+        }
+        let delivery = self.codex_delivery_state(&tab).await?;
+        if delivery.has_pending()
+            || delivery.history_locked()
+            || self
+                .runtime_store
+                .list_codex_chat_states()
+                .await
+                .map_err(super::codex_queue::store_error)?
+                .iter()
+                .any(|state| {
+                    state.tab_id == tab.id && (state.has_pending() || state.history_locked())
+                })
+        {
+            return Err(HostError::state("Cancel this conversation's queued messages before closing the tab. History edits must finish first."));
         }
         let thread_id = tab_thread_id(&tab);
         let turn_id = active_turn_id(&snapshot(&tab));

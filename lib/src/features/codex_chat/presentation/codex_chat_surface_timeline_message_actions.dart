@@ -9,8 +9,10 @@ class _CodexMessageActions extends StatelessWidget {
     required this.timestamp,
     required this.onToggleRaw,
     this.timestampFirst = false,
+    this.cell,
   });
 
+  final CodexTimelineCell? cell;
   final bool visible;
   final bool raw;
   final String copyText;
@@ -24,6 +26,7 @@ class _CodexMessageActions extends StatelessWidget {
     final buttons = Row(
       mainAxisSize: MainAxisSize.min,
       children: <Widget>[
+        if (cell != null) _CodexHistoryMessageActions(cell: cell!),
         AleraIconButton(
           tooltip: 'Copy Message',
           icon: AleraIcons.copy,

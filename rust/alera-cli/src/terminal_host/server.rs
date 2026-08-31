@@ -105,14 +105,30 @@ mod client_delivery;
 mod codex_app_server;
 mod codex_app_server_history;
 mod codex_app_server_session_state;
+mod codex_attachment_retention;
+mod codex_commands;
 mod codex_dictation;
+mod codex_edit_input;
+mod codex_edit_recovery;
 mod codex_event_routing;
 mod codex_events;
+mod codex_fork_install;
+mod codex_fork_jobs;
 mod codex_goal_requests;
+mod codex_history_actions;
+mod codex_history_edit;
+mod codex_history_scans;
 mod codex_nonblocking_questions;
 mod codex_presence;
+mod codex_process_exit;
+mod codex_queue;
+mod codex_queue_attachments;
+mod codex_queue_cancellation;
+mod codex_queue_delivery;
+mod codex_queue_startup;
 mod codex_requests;
 mod codex_runtime_cleanup;
+mod codex_server_startup;
 mod codex_state;
 mod codex_tab_lifecycle;
 mod codex_thread_identity;
@@ -272,7 +288,10 @@ struct ServerActor {
     browser: BrowserBroker,
     emulators: Option<Arc<Mutex<EmulatorManager>>>,
     codex: Option<codex_app_server::CodexAppServer>,
+    codex_starting: Option<codex_server_startup::CodexServerStartup>,
     codex_presence: HashMap<String, Value>,
+    codex_delivery_active: HashSet<String>,
+    codex_history_scans: HashSet<String>,
     codex_presence_scheduled: bool,
     codex_pending_messages: HashMap<String, Vec<Value>>,
     codex_flush_scheduled: HashSet<String>,
@@ -712,22 +731,19 @@ impl ServerActor {
             ServerCommand::BrowserRequestTimeout { correlation_id } => {
                 self.handle_browser_timeout(&correlation_id)
             }
-            ServerCommand::CodexMessage { message } => self.handle_codex_message(message).await,
-            ServerCommand::CodexProcessExited { reason } => {
-                self.handle_codex_process_exited(reason).await
-            }
-            ServerCommand::CodexMalformed { reason } => self.handle_codex_malformed(reason),
-            ServerCommand::CodexPresenceTick => self.handle_codex_presence_tick(),
-            ServerCommand::CodexFlush { tab_id } => self.handle_codex_flush(&tab_id).await,
-            ServerCommand::CodexAutoResolve {
-                tab_id,
-                thread_id,
-                request_id,
-                server_instance,
-            } => {
-                self.handle_codex_auto_resolve(&tab_id, &thread_id, request_id, server_instance)
-                    .await
-            }
+            command @ (ServerCommand::CodexForkCreated { .. }
+            | ServerCommand::CodexForkProjected { .. }
+            | ServerCommand::CodexQueueStartupFinished { .. }
+            | ServerCommand::CodexHistoryScanFinished { .. }
+            | ServerCommand::CodexQueueDelivered { .. }
+            | ServerCommand::CodexQueueAdvance { .. }
+            | ServerCommand::CodexEditFinished { .. }
+            | ServerCommand::CodexMessage { .. }
+            | ServerCommand::CodexProcessExited { .. }
+            | ServerCommand::CodexMalformed { .. }
+            | ServerCommand::CodexPresenceTick
+            | ServerCommand::CodexFlush { .. }
+            | ServerCommand::CodexAutoResolve { .. }) => self.handle_codex_command(command).await,
             ServerCommand::Account(command) => self.handle_account_command(command).await,
             ServerCommand::Push(command) => self.handle_push_command(command),
         }
@@ -1221,7 +1237,10 @@ mod tests {
             browser: BrowserBroker::default(),
             emulators: None,
             codex: None,
+            codex_starting: None,
             codex_presence: HashMap::new(),
+            codex_delivery_active: HashSet::new(),
+            codex_history_scans: HashSet::new(),
             codex_presence_scheduled: false,
             codex_pending_messages: HashMap::new(),
             codex_flush_scheduled: HashSet::new(),
@@ -1301,7 +1320,10 @@ mod tests {
             browser: BrowserBroker::default(),
             emulators: None,
             codex: None,
+            codex_starting: None,
             codex_presence: HashMap::new(),
+            codex_delivery_active: HashSet::new(),
+            codex_history_scans: HashSet::new(),
             codex_presence_scheduled: false,
             codex_pending_messages: HashMap::new(),
             codex_flush_scheduled: HashSet::new(),
@@ -1399,7 +1421,10 @@ mod tests {
             browser: BrowserBroker::default(),
             emulators: None,
             codex: None,
+            codex_starting: None,
             codex_presence: HashMap::new(),
+            codex_delivery_active: HashSet::new(),
+            codex_history_scans: HashSet::new(),
             codex_presence_scheduled: false,
             codex_pending_messages: HashMap::new(),
             codex_flush_scheduled: HashSet::new(),
@@ -1492,7 +1517,10 @@ mod tests {
             browser: BrowserBroker::default(),
             emulators: None,
             codex: None,
+            codex_starting: None,
             codex_presence: HashMap::new(),
+            codex_delivery_active: HashSet::new(),
+            codex_history_scans: HashSet::new(),
             codex_presence_scheduled: false,
             codex_pending_messages: HashMap::new(),
             codex_flush_scheduled: HashSet::new(),
@@ -1607,7 +1635,10 @@ mod tests {
             browser: BrowserBroker::default(),
             emulators: None,
             codex: None,
+            codex_starting: None,
             codex_presence: HashMap::new(),
+            codex_delivery_active: HashSet::new(),
+            codex_history_scans: HashSet::new(),
             codex_presence_scheduled: false,
             codex_pending_messages: HashMap::new(),
             codex_flush_scheduled: HashSet::new(),
@@ -1695,7 +1726,10 @@ mod tests {
             browser: BrowserBroker::default(),
             emulators: None,
             codex: None,
+            codex_starting: None,
             codex_presence: HashMap::new(),
+            codex_delivery_active: HashSet::new(),
+            codex_history_scans: HashSet::new(),
             codex_presence_scheduled: false,
             codex_pending_messages: HashMap::new(),
             codex_flush_scheduled: HashSet::new(),
@@ -1732,58 +1766,19 @@ mod tests {
     #[tokio::test]
     async fn last_app_client_disconnect_preserves_host_agent_presence() {
         let dir = tempfile::tempdir().unwrap();
-        let store = TerminalHostHistoryStore::open(dir.path()).await.unwrap();
-        let runtime_store = RuntimeStore::open(dir.path()).await.unwrap();
-        let (inbox, _rx) = mpsc::unbounded_channel();
         let (first_app_handle, _first_app_rx) = ClientHandle::test_channels();
         let (second_app_handle, _second_app_rx) = ClientHandle::test_channels();
         let (cli_handle, _cli_rx) = ClientHandle::test_channels();
-        let mut actor = ServerActor {
-            runtime_dir: dir.path().to_path_buf(),
-            control_file_path: dir.path().join("runtime-host.json"),
-            token: "token".to_string(),
-            config: TerminalHostConfig::default(),
-            store,
-            runtime_store: runtime_store.clone(),
-            automation_wake: Arc::new(Notify::new()),
-            automations_active: false,
-            sessions: HashMap::new(),
-            ssh_bootstrap_jobs: HashMap::new(),
-            project_clone_jobs: HashMap::new(),
-            agent_title_jobs: HashMap::new(),
-            managed_workspace_jobs: 0,
-            emulator_requests: Default::default(),
-            agent_quota_cache: None,
-            configuration_transfers: Default::default(),
-            account_push: account_push_for_test(&dir, &runtime_store).await,
-            clients: HashMap::from([
+        let mut actor = actor_test_harness::test_actor(
+            &dir,
+            HashMap::from([
                 (1, ClientState::local(first_app_handle, true)),
                 (2, ClientState::local(second_app_handle, true)),
                 (3, ClientState::local(cli_handle, false)),
             ]),
-            mobile_prompt_file_uploads: HashMap::new(),
-            pending_output_writes: HashMap::new(),
-            agent_presence: AgentPresenceRegistry::default(),
-            orchestration_waiters: MessageWaiterRegistry::default(),
-            orchestration_delivery_in_flight: HashSet::new(),
-            orchestration_delivery_backpressured: HashSet::new(),
-            orchestration_activity_last_recorded: HashMap::new(),
-            coordinators: HashMap::new(),
-            resources: ResourceMonitorState::default(),
-            terminal_pulses: Default::default(),
-            browser: BrowserBroker::default(),
-            emulators: None,
-            codex: None,
-            codex_presence: HashMap::new(),
-            codex_presence_scheduled: false,
-            codex_pending_messages: HashMap::new(),
-            codex_flush_scheduled: HashSet::new(),
-            inbox,
-            next_client_id: Arc::new(AtomicU64::new(4)),
-            mobile_gateway: None,
-            shutdown_gen: 0,
-            disposed: false,
-        };
+            HashMap::new(),
+        )
+        .await;
         actor
             .agent_presence
             .update("term-1", "claude".to_string(), AgentPresenceState::Done);
@@ -1797,3 +1792,9 @@ mod tests {
         assert!(actor.agent_presence.is_injection_ready("term-1"));
     }
 }
+
+#[cfg(test)]
+mod codex_queue_tests;
+
+#[cfg(test)]
+mod codex_history_tests;

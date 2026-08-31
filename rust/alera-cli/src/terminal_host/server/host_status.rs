@@ -85,6 +85,7 @@ impl ServerActor {
                 RUNTIME_HOST_CODEX_SESSIONS_CAPABILITY,
                 RUNTIME_HOST_CODEX_TURN_POLICY_CAPABILITY,
                 RUNTIME_HOST_CODEX_GOALS_CAPABILITY,
+                "codexForkV1", "codexHistoryEditV1", "codexSharedQueueV1",
                 RUNTIME_HOST_MOBILE_HOST_TOOLS_CAPABILITY,
                 RUNTIME_HOST_MOBILE_PROMPT_IMAGE_UPLOAD_CAPABILITY,
                 RUNTIME_HOST_ORCHESTRATION_CAPABILITY,

@@ -37,7 +37,7 @@ impl ServerActor {
             }
         };
         let previous_snapshot = snapshot(&next);
-        let next_snapshot = append_user_input(
+        let mut next_snapshot = append_user_input(
             &mut next,
             input,
             user_message,
@@ -45,6 +45,16 @@ impl ServerActor {
             client_user_message_id,
             is_steering,
         );
+        if next.payload["codexCompletedTurnIds"]
+            .as_array()
+            .is_some_and(|ids| ids.iter().any(|id| id.as_str() == Some(turn_id)))
+        {
+            next_snapshot["activeTurnId"] = previous_snapshot
+                .get("activeTurnId")
+                .cloned()
+                .unwrap_or(Value::Null);
+            persist_snapshot(&mut next, next_snapshot.clone());
+        }
         let saved = match self.runtime_store.upsert_workspace_tab(next).await {
             Ok(saved) => saved,
             Err(error) => {
@@ -65,6 +75,7 @@ impl ServerActor {
                 "tabId": saved.id,
                 "workspaceId": saved.workspace_id,
                 "threadId": tab_thread_id(&saved),
+                "historyRevision": saved.payload.get("codexHistoryRevision").cloned().unwrap_or(json!(0)),
                 "cwd": active_cwd(&saved),
                 "configuration": configuration(&saved),
                 "snapshot": snapshot(&saved),

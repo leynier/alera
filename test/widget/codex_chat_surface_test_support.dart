@@ -63,10 +63,12 @@ WorkspaceTabRecord _tab({
 
 final class _SurfaceRuntimeClient implements RuntimeHostClient {
   _SurfaceRuntimeClient({
+    this.requestHandler,
     this.recovery,
     this.approvalMethod = 'item/commandExecution/requestApproval',
     this.activeCwd,
     this.supportsSessions = false,
+    this.hasCompletedTurns,
     this.supportsTurnPolicy = true,
     this.supportsGoals = false,
     this.goal,
@@ -92,10 +94,12 @@ final class _SurfaceRuntimeClient implements RuntimeHostClient {
     ],
   });
 
+  final Future<Object?>? Function(String, Map<String, Object?>)? requestHandler;
   final Map<String, Object?>? recovery;
   final String approvalMethod;
   final String? activeCwd;
   final bool supportsSessions;
+  final bool? hasCompletedTurns;
   final bool supportsTurnPolicy;
   final bool supportsGoals;
   Map<String, Object?>? goal;
@@ -139,6 +143,8 @@ final class _SurfaceRuntimeClient implements RuntimeHostClient {
   ]) async {
     requestTypes.add(type);
     requests.add((type: type, payload: Map.unmodifiable(payload)));
+    final handled = requestHandler?.call(type, payload);
+    if (handled != null) return handled;
     if (sessionCommandFailures.contains(type)) {
       throw StateError('$type failed');
     }
@@ -160,6 +166,7 @@ final class _SurfaceRuntimeClient implements RuntimeHostClient {
             : 'thread-recovery',
         'cwd': activeCwd,
         'historyNextCursor': historyNextCursor,
+        if (hasCompletedTurns != null) 'chatFeatures': ['codexForkV1'],
         if (permissionMode != null)
           'configuration': <String, Object?>{
             'selectedModel': 'gpt-current',
@@ -221,6 +228,7 @@ final class _SurfaceRuntimeClient implements RuntimeHostClient {
           'contextUsed': 1000,
           'contextLimit': 10000,
           'activeTurnId': activeTurnId,
+          'hasCompletedTurns': hasCompletedTurns,
           'pendingRequests':
               pendingRequests ??
               <Object?>[

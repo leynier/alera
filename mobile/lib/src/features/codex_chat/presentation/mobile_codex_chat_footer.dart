@@ -11,56 +11,6 @@ Widget _buildMobileCodexFooter(
     state.timelineCells,
     activeTurnId: state.activeTurnId,
   );
-  Widget buildUpperContent() => Column(
-    mainAxisSize: MainAxisSize.min,
-    children: <Widget>[
-      if (state.error != null)
-        MaterialBanner(
-          content: Text(state.error!),
-          leading: const Icon(Icons.error_outline),
-          actions: <Widget>[
-            TextButton(
-              onPressed: () => owner.ref.invalidate(
-                mobileCodexControllerProvider(
-                  owner.widget.hostId,
-                  owner.widget.tabId,
-                ),
-              ),
-              child: const Text('Retry'),
-            ),
-            TextButton(
-              onPressed: controller.clearError,
-              child: const Text('Dismiss'),
-            ),
-          ],
-        ),
-      if (state.recovery != null)
-        MaterialBanner(
-          key: const ValueKey<String>('mobile-codex-thread-recovery'),
-          content: Text(
-            '${state.recovery!.message} Earlier messages remain visible, but they are not part of the new model context.',
-          ),
-          leading: const Icon(Icons.warning_amber_outlined),
-          actions: <Widget>[
-            TextButton(
-              onPressed: () => unawaited(controller.recoverThread()),
-              child: const Text('Continue In New Thread'),
-            ),
-          ],
-        ),
-      if (owner._showScrollToBottom)
-        IconButton.outlined(
-          tooltip: 'Scroll To Bottom',
-          onPressed: owner._scrollToBottom,
-          icon: const Icon(Icons.arrow_downward),
-        ),
-      if (progress != null) _MobilePlanProgressBadge(progress: progress),
-      if (state.recovery == null &&
-          (state.pendingRequests.isNotEmpty ||
-              state.planMode && state.shouldShowImplementPlan))
-        _MobileInteractionDock(state: state, controller: controller),
-    ],
-  );
   Widget buildQueue() =>
       _MobileQueueBar(messages: state.queuedMessages, controller: controller);
   Widget buildGoal() => Padding(
@@ -135,6 +85,68 @@ Widget _buildMobileCodexFooter(
     supportsSessions: controller.supportsSessions,
     supportsTurnPolicy: controller.supportsTurnPolicy,
   );
+  Widget buildUpperContent() => Column(
+    mainAxisSize: MainAxisSize.min,
+    children: <Widget>[
+      if (state.error != null)
+        MaterialBanner(
+          content: Text(state.error!),
+          leading: const Icon(Icons.error_outline),
+          actions: <Widget>[
+            TextButton(
+              onPressed: () => owner.ref.invalidate(
+                mobileCodexControllerProvider(
+                  owner.widget.hostId,
+                  owner.widget.tabId,
+                ),
+              ),
+              child: const Text('Retry'),
+            ),
+            TextButton(
+              onPressed: controller.clearError,
+              child: const Text('Dismiss'),
+            ),
+          ],
+        ),
+      if (state.recovery != null)
+        MaterialBanner(
+          key: const ValueKey<String>('mobile-codex-thread-recovery'),
+          content: Text(
+            '${state.recovery!.message} Earlier messages remain visible, but they are not part of the new model context.',
+          ),
+          leading: const Icon(Icons.warning_amber_outlined),
+          actions: <Widget>[
+            TextButton(
+              onPressed: () => unawaited(controller.recoverThread()),
+              child: const Text('Continue In New Thread'),
+            ),
+          ],
+        ),
+      if (owner._showScrollToBottom)
+        IconButton.outlined(
+          tooltip: 'Scroll To Bottom',
+          onPressed: owner._scrollToBottom,
+          icon: const Icon(Icons.arrow_downward),
+        ),
+      if (progress != null) _MobilePlanProgressBadge(progress: progress),
+      if (state.recovery == null &&
+          (state.pendingRequests.isNotEmpty ||
+              state.planMode && state.shouldShowImplementPlan))
+        _MobileInteractionDock(state: state, controller: controller),
+      if (state.queueState['editOperation'] case final Map operation)
+        AleraHistoryEditStatus(
+          phase: operation['phase'].toString(),
+          error:
+              (operation['payload'] as Map?)?['lastError']?.toString() ??
+              (operation['result'] as Map?)?['error']?.toString(),
+          onRetry: () => unawaited(
+            controller.retryHistoryEdit(operation['id'].toString()),
+          ),
+        ),
+      if (state.queuedMessages.isNotEmpty || state.queuePaused) buildQueue(),
+      if (controller.supportsGoals && state.goal != null) buildGoal(),
+    ],
+  );
   final compact = availableHeight < AleraTokens.codexChatFooterMaxHeight;
   if (compact) {
     return ConstrainedBox(
@@ -142,12 +154,7 @@ Widget _buildMobileCodexFooter(
       child: SingleChildScrollView(
         child: Column(
           mainAxisSize: MainAxisSize.min,
-          children: <Widget>[
-            buildUpperContent(),
-            if (state.queuedMessages.isNotEmpty) buildQueue(),
-            if (controller.supportsGoals && state.goal != null) buildGoal(),
-            buildComposer(),
-          ],
+          children: <Widget>[buildUpperContent(), buildComposer()],
         ),
       ),
     );
@@ -163,8 +170,6 @@ Widget _buildMobileCodexFooter(
           fit: FlexFit.loose,
           child: SingleChildScrollView(child: buildUpperContent()),
         ),
-        if (state.queuedMessages.isNotEmpty) buildQueue(),
-        if (controller.supportsGoals && state.goal != null) buildGoal(),
         buildComposer(),
       ],
     ),

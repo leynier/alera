@@ -1,6 +1,57 @@
 part of 'mobile_codex_chat_widget_test.dart';
 
 void _registerMobileCodexReviewRegression3Tests() {
+  testWidgets('queue and edit failure fit above the composer with a safe area', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(412, 820);
+    tester.view.devicePixelRatio = 1;
+    tester.view.viewPadding = const FakeViewPadding(bottom: 34);
+    addTearDown(tester.view.reset);
+    final client = FakeMobileCodexClient(
+      requestHandler: (type, payload) {
+        if (type != 'codex.thread.open') return null;
+        return Future.value({
+          'threadId': 'thread',
+          'chatFeatures': ['codexSharedQueueV1'],
+          'snapshot': {'timelineCells': <Object?>[]},
+          'queue': {
+            'threadId': 'thread',
+            'revision': 1,
+            'paused': true,
+            'editOperation': {
+              'id': 'edit',
+              'phase': 'failed',
+              'result': {
+                'error':
+                    'This version does not support editing paginated conversations.',
+              },
+            },
+            'messages': [
+              for (var i = 0; i < 3; i++)
+                {
+                  'id': 'queue-$i',
+                  'status': 'queued',
+                  'payload': {
+                    'draft': {
+                      'text':
+                          'A long queued message with an attachment and additional context',
+                    },
+                  },
+                },
+            ],
+          },
+        });
+      },
+    );
+    addTearDown(client.dispose);
+    await _pumpScreen(tester, client: client, hostId: 'safe-queue');
+    expect(tester.takeException(), isNull);
+    expect(find.byTooltip('Send'), findsOneWidget);
+    tester.view.viewInsets = const FakeViewPadding(bottom: 360);
+    await tester.pump();
+    expect(tester.takeException(), isNull);
+  });
   testWidgets('mobile preserves skill and app selections with the same name', (
     tester,
   ) async {
@@ -157,7 +208,16 @@ void _registerMobileCodexReviewRegression3Tests() {
       of: find.byTooltip('Codex Chat Actions'),
       matching: find.byType(PopupMenuButton<String>),
     );
-    expect(tester.widget<PopupMenuButton<String>>(menu).enabled, isFalse);
+    expect(tester.widget<PopupMenuButton<String>>(menu).enabled, isTrue);
+    await tester.tap(menu);
+    await tester.pumpAndSettle();
+    for (final action in ['Resume Thread', 'Start New Chat', 'Clear Chat']) {
+      final item = find.ancestor(
+        of: find.text(action),
+        matching: find.byType(PopupMenuItem<String>),
+      );
+      expect(tester.widget<PopupMenuItem<String>>(item).enabled, isFalse);
+    }
   });
 
   testWidgets('mobile surfaces failures in grouped activity', (tester) async {
@@ -244,7 +304,7 @@ void _registerMobileCodexReviewRegression3Tests() {
       }
       await tester.pump();
 
-      expect(find.text('Queued Messages'), findsOneWidget);
+      expect(find.text('12 Queued'), findsOneWidget);
       expect(find.text('attachment-0.md'), findsOneWidget);
       expect(tester.takeException(), isNull);
     },

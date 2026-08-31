@@ -251,4 +251,77 @@ void registerCodexChatControllerTransitionTests() {
       ]);
     },
   );
+  for (final resume in [false, true]) {
+    for (final withSnapshot in [false, true]) {
+      test(
+        'legacy transition retains submissions across its early event: $resume/$withSnapshot',
+        () async {
+          final gate = Completer<Map<String, Object?>>();
+          final type = resume ? 'codex.thread.resume' : 'codex.thread.new';
+          final client = _FakeCodexRuntimeClient(
+            requestHandler: (method, payload) =>
+                method == type ? gate.future : null,
+          );
+          final container = ProviderContainer(
+            overrides: [
+              codexChatRuntimeClientProvider.overrideWithValue(client),
+              settingsControllerProvider.overrideWith(
+                _TestSettingsController.new,
+              ),
+            ],
+          );
+          addTearDown(() {
+            client.dispose();
+            container.dispose();
+          });
+          final provider = codexChatControllerProvider('tab-legacy-transition');
+          final listener = container.listen(
+            provider,
+            (_, _) {},
+            fireImmediately: true,
+          );
+          addTearDown(listener.close);
+          await _settle();
+          final controller = container.read(provider.notifier);
+          final Future<Object?> transition = resume
+              ? controller.resumeThread(
+                  const CodexThreadSummary(id: 'thread-new', title: 'New'),
+                )
+              : controller.newThread();
+          await Future<void>.delayed(Duration.zero);
+          await controller.send('Keep this submission');
+          final snapshot = <String, Object?>{
+            'timelineCells': <Object?>[],
+            'pendingRequests': <Object?>[],
+          };
+          client.emit(
+            RuntimeHostEvent('codexThreadChanged', {
+              'tabId': 'tab-legacy-transition',
+              'threadId': 'thread-new',
+              if (withSnapshot) 'snapshot': snapshot,
+            }),
+          );
+          await Future<void>.delayed(Duration.zero);
+          expect(container.read(provider).queuedMessages, hasLength(1));
+          expect(
+            client.requests.where((call) => call.type == 'codex.turn.start'),
+            isEmpty,
+          );
+          gate.complete({'threadId': 'thread-new', 'snapshot': snapshot});
+          await transition;
+          await _settle();
+          final starts = client.requests
+              .where((call) => call.type == 'codex.turn.start')
+              .toList();
+          expect(starts, hasLength(1));
+          expect(starts.single.payload['expectedThreadId'], 'thread-new');
+          expect(
+            starts.single.payload['input'],
+            contains(equals({'type': 'text', 'text': 'Keep this submission'})),
+          );
+          expect(container.read(provider).queuedMessages, isEmpty);
+        },
+      );
+    }
+  }
 }

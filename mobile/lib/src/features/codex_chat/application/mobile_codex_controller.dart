@@ -1,6 +1,8 @@
 import 'dart:async';
+import 'mobile_codex_composer_draft_store.dart';
 import 'dart:collection';
 import 'dart:convert';
+import 'package:flutter/services.dart';
 
 import 'package:alera_mobile/src/features/codex_chat/domain/mobile_codex_catalog_selection.dart';
 import 'package:alera_mobile/src/features/codex_chat/domain/mobile_codex_file_reference.dart';
@@ -25,6 +27,8 @@ part 'mobile_codex_controller_sessions.dart';
 part 'mobile_codex_controller_catalogues.dart';
 part 'mobile_codex_controller_goals.dart';
 part 'mobile_codex_controller_capabilities.dart';
+part 'mobile_codex_controller_shared_queue.dart';
+part 'mobile_codex_controller_delivery.dart';
 
 @riverpod
 Future<MobileCodexClient> mobileCodexClient(Ref ref, String hostId) =>
@@ -72,7 +76,11 @@ class MobileCodexController extends _$MobileCodexController
   Future<void> _retryGoalAvailability() => _refreshGoalAvailability();
 
   @override
+  Future<void> _refreshSharedQueue() => refreshQueue();
+
+  @override
   Future<MobileCodexState> build(String hostId, String tabId) async {
+    _draftStore = ref.read(mobileCodexComposerDraftStoreProvider);
     _accountCatalogueBuildAwaitingPublication = true;
     _registerAccountCatalogueReplay();
     final client = await ref.watch(mobileCodexClientProvider(hostId).future);
@@ -94,12 +102,22 @@ class MobileCodexController extends _$MobileCodexController
     _threadId = _string(response['threadId']);
     _threadGeneration += 1;
     var next = MobileCodexState.fromSnapshot(response['snapshot']).copyWith(
+      chatFeatures:
+          (response['chatFeatures'] as List?)?.whereType<String>().toSet() ??
+          const {},
+      historyRevision: response['historyRevision'] as int? ?? 0,
       activeCwd: _string(response['cwd']),
       historyNextCursor: _string(response['historyNextCursor']),
       recovery: response['recovery'] == null
           ? null
           : MobileCodexThreadRecovery.fromJson(response['recovery']),
     );
+    if (next.supportsSharedQueue && response['queue'] is Map) {
+      next = _withSharedQueue(
+        next,
+        Map<String, Object?>.from(response['queue']! as Map),
+      );
+    }
     next = await _loadInitialGoal(client, next);
     next = _applyMobileConfiguration(next, storedConfiguration);
     final initialCatalogues = await _loadInitialCatalogues(client, next);
@@ -157,7 +175,12 @@ class MobileCodexController extends _$MobileCodexController
     return next;
   }
 
-  Future<void> send(
+  late MobileCodexComposerDraftStore _draftStore;
+  Map<String, String> get _pendingSubmissionIds =>
+      _draftStore.submissionIdsFor(hostId, tabId, _threadId);
+  bool _steering = false;
+
+  Future<bool> send(
     String text, {
     List<Map<String, Object?>> attachments = const <Map<String, Object?>>[],
     List<Map<String, Object?>> catalogSelections =
@@ -165,7 +188,7 @@ class MobileCodexController extends _$MobileCodexController
   }) async {
     final trimmed = text.trim();
     if (trimmed.isEmpty && attachments.isEmpty && catalogSelections.isEmpty) {
-      return;
+      return false;
     }
     final message = <String, Object?>{
       'id': _newClientMessageId(),
@@ -177,7 +200,11 @@ class MobileCodexController extends _$MobileCodexController
       ),
     };
     final current = state.value ?? const MobileCodexState();
-    if (current.busy || _sessionTransitionInProgress) {
+    if (state.isLoading || state.hasError || current.historyOutdated) {
+      return false;
+    }
+    if (!current.supportsSharedQueue &&
+        (current.busy || current.queuePaused || _sessionTransitionInProgress)) {
       state = AsyncData(
         current.copyWith(
           queuedMessages: <Map<String, Object?>>[
@@ -186,106 +213,28 @@ class MobileCodexController extends _$MobileCodexController
           ],
         ),
       );
-      return;
+      return true;
     }
-    await _sendNow(message);
+    final attempts = _draftStore.messageAttemptsFor(hostId, tabId, _threadId);
+    final signature = jsonEncode({...message}..remove('id'));
+    final id = attempts.claim(signature, message['id']! as String);
+    message['id'] = id;
+    var accepted = false;
+    try {
+      accepted = await _sendNow(message);
+      return accepted;
+    } finally {
+      if (!accepted) attempts.retainForRetry(signature, id);
+    }
   }
 
   @override
-  Future<void> _sendNow(Map<String, Object?> message) async {
-    final client = _client;
-    if (client == null) return;
-    final current = state.value ?? const MobileCodexState();
-    final supportsTurnPolicy = client.supportsCodexTurnPolicy;
-    final wirePermissionMode =
-        !supportsTurnPolicy && current.permissionMode == 'auto-review'
-        ? 'on-request'
-        : current.permissionMode;
-    state = AsyncData(current.copyWith(sending: true, error: null));
-    try {
-      await client.codexRequest('codex.turn.start', <String, Object?>{
-        'tabId': tabId,
-        'expectedThreadId': _threadId,
-        'clientUserMessageId':
-            message['id']?.toString() ?? _newClientMessageId(),
-        'input': _input(message, current),
-        'userMessage': _userMessagePresentation(
-          message,
-          cwd: current.activeCwd,
-        ),
-        'model': current.selectedModel,
-        'reasoning': <String, Object?>{'effort': current.reasoningEffort},
-        'effort': current.reasoningEffort,
-        'serviceTier': current.speedMode == 'fast' ? 'fast' : null,
-        'approvalPolicy': supportsTurnPolicy
-            ? switch (current.permissionMode) {
-                'never' => 'never',
-                'untrusted' => 'untrusted',
-                _ => 'on-request',
-              }
-            : wirePermissionMode,
-        if (supportsTurnPolicy)
-          'approvalsReviewer': current.permissionMode == 'auto-review'
-              ? 'auto_review'
-              : 'user',
-        if (supportsTurnPolicy)
-          'sandboxPolicy': current.permissionMode == 'never'
-              ? <String, Object?>{'type': 'dangerFullAccess'}
-              : <String, Object?>{
-                  'type': 'workspaceWrite',
-                  'writableRoots': const <String>[],
-                  'networkAccess': false,
-                },
-        'collaborationMode': <String, Object?>{
-          'mode':
-              current.collaborationMode ??
-              (current.planMode ? 'plan' : 'default'),
-          'settings': <String, Object?>{
-            'model': current.selectedModel,
-            'reasoning_effort': current.reasoningEffort,
-          },
-        },
-        'configuration': <String, Object?>{
-          ..._mobileConfigurationPayload(current),
-          'permissionMode': wirePermissionMode,
-        },
-      });
-      if (ref.mounted) {
-        state = AsyncData((state.value ?? current).copyWith(sending: false));
-      }
-    } catch (error, stackTrace) {
-      _setError(error, stackTrace);
-    }
-  }
+  Future<bool> _sendNow(Map<String, Object?> message) =>
+      _deliverMessage(message);
 
-  Future<void> stop() async {
-    final client = _client;
-    final current = state.value;
-    if (client == null ||
-        current == null ||
-        current.activeTurnId == null ||
-        current.interrupting) {
-      return;
-    }
-    _update((value) => value.copyWith(interrupting: true, error: null));
-    _interruptSafetyTimer?.cancel();
-    _interruptSafetyTimer = Timer(const Duration(seconds: 2), () {
-      if (ref.mounted) {
-        _update((value) => value.copyWith(interrupting: false, sending: false));
-      }
-    });
-    try {
-      await client.codexRequest('codex.turn.interrupt', <String, Object?>{
-        'tabId': tabId,
-        'turnId': current.activeTurnId,
-      });
-    } catch (error, stackTrace) {
-      _interruptSafetyTimer?.cancel();
-      _setError(error, stackTrace);
-    }
-  }
+  Future<void> stop() => _stopCapturedTurn();
 
-  Future<void> steer(
+  Future<bool> steer(
     String text, {
     List<Map<String, Object?>> attachments = const <Map<String, Object?>>[],
     List<Map<String, Object?>> catalogSelections =
@@ -293,12 +242,17 @@ class MobileCodexController extends _$MobileCodexController
   }) async {
     final client = _client;
     final current = state.value;
-    if (client == null ||
+    if (_steering ||
+        state.isLoading ||
+        state.hasError ||
+        client == null ||
         current?.activeTurnId == null ||
+        current?.interrupting == true ||
+        current?.historyLocked == true ||
         (text.trim().isEmpty &&
             attachments.isEmpty &&
             catalogSelections.isEmpty)) {
-      return;
+      return false;
     }
     final message = <String, Object?>{
       'text': text.trim(),
@@ -308,19 +262,47 @@ class MobileCodexController extends _$MobileCodexController
         catalogSelections,
       ),
     };
+    final generation = _threadGeneration;
+    final submissionIds = _pendingSubmissionIds;
+    final signature = jsonEncode([
+      'steer',
+      _threadId,
+      current!.activeTurnId,
+      message,
+    ]);
+    final id = submissionIds.putIfAbsent(signature, _newClientMessageId);
+    _steering = true;
     try {
-      await client.codexRequest('codex.turn.steer', <String, Object?>{
-        'tabId': tabId,
-        'turnId': current!.activeTurnId,
-        'clientUserMessageId': _newClientMessageId(),
-        'input': _input(message, current),
-        'userMessage': _userMessagePresentation(
-          message,
-          cwd: current.activeCwd,
-        ),
-      });
+      final response = await client.codexRequest(
+        current.supportsSharedQueue ? 'codex.queue.add' : 'codex.turn.steer',
+        <String, Object?>{
+          'expectedThreadId': _threadId,
+          'expectedHistoryRevision': current.historyRevision,
+          'draft': message,
+          'tabId': tabId,
+          'turnId': current.activeTurnId,
+          'clientUserMessageId': id,
+          'input': _input(message, current),
+          'userMessage': _userMessagePresentation(
+            message,
+            cwd: current.activeCwd,
+          ),
+        },
+      );
+      submissionIds.remove(signature);
+      if (ref.mounted &&
+          generation == _threadGeneration &&
+          current.supportsSharedQueue) {
+        _update((value) => _withSharedQueue(value, response));
+      }
+      return true;
     } catch (error, stackTrace) {
-      _setError(error, stackTrace);
+      if (ref.mounted && generation == _threadGeneration) {
+        _setError(error, stackTrace);
+      }
+      return false;
+    } finally {
+      _steering = false;
     }
   }
 

@@ -171,6 +171,13 @@ impl ServerActor {
         );
         result.insert("threadId".to_string(), Value::String(thread_id));
         result.insert(
+            "historyRevision".to_string(),
+            tab.payload
+                .get("codexHistoryRevision")
+                .cloned()
+                .unwrap_or(json!(0)),
+        );
+        result.insert(
             "cwd".to_string(),
             active_cwd(&tab).map_or(Value::Null, Value::String),
         );
@@ -249,9 +256,16 @@ impl ServerActor {
 
     async fn save_codex_session_tab(
         &mut self,
-        tab: WorkspaceTabRecord,
+        mut tab: WorkspaceTabRecord,
         history_next_cursor: Option<String>,
     ) -> HostResult<WorkspaceTabRecord> {
+        let state = self.codex_delivery_state(&tab).await?;
+        tab.payload["codexHistoryRevision"] = json!(state.history_revision);
+        tab.payload["codexDiscardedTurnIds"] = json!(state.discarded_turn_ids);
+        tab.payload
+            .as_object_mut()
+            .unwrap()
+            .remove("codexCompletedTurnIds");
         let saved = self
             .runtime_store
             .upsert_workspace_tab(tab)
@@ -281,6 +295,7 @@ impl ServerActor {
                 "tabId": saved.id,
                 "workspaceId": saved.workspace_id,
                 "threadId": tab_thread_id(&saved),
+                "historyRevision": saved.payload.get("codexHistoryRevision").cloned().unwrap_or(json!(0)),
                 "cwd": active_cwd(&saved),
                 "snapshot": snapshot(&saved),
                 "historyNextCursor": history_next_cursor,
@@ -289,7 +304,7 @@ impl ServerActor {
         Ok(saved)
     }
 
-    pub(super) async fn codex_workspaces(
+    pub(in crate::terminal_host::server) async fn codex_workspaces(
         &self,
         workspace_id: Option<&str>,
     ) -> HostResult<Vec<Workspace>> {

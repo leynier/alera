@@ -2,6 +2,48 @@ part of 'workbench_controller_test.dart';
 
 void _registerWorkbenchControllerNavigationTests() {
   test(
+    'opening a persisted fork selects it before and after a delayed tab event',
+    () async {
+      await _controller.bootstrap();
+      final workspace = await _selectMainWorkspace(_controller, _harness);
+      final original = await _controller.createCodexTab(workspace);
+      await _flush();
+      final fork = original.copyWith(id: 'fork-tab', title: 'Fork');
+      final tabs = [
+        ...await _harness.workbenchRepository.listWorkspaceTabs(workspace.id),
+        fork,
+      ];
+      _harness.workbenchRepository._tabsByWorkspace[workspace.id] = tabs;
+      expect(
+        _controller.state.tabsFor(workspace.id).any((tab) => tab.id == fork.id),
+        isFalse,
+      );
+      await _controller.openPersistedWorkspaceTab(
+        workspaceId: workspace.id,
+        tabId: fork.id,
+      );
+      expect(_controller.state.activeWorkspaceTab?.id, fork.id);
+      expect(_controller.state.layoutFor(workspace.id)?.activeTabId, fork.id);
+      _harness.workbenchRepository._tabControllers[workspace.id]?.add(tabs);
+      await _flush();
+      expect(_controller.state.activeWorkspaceTab?.id, fork.id);
+      expect(_controller.state.layoutFor(workspace.id)?.activeTabId, fork.id);
+      expect(
+        _controller.state
+            .tabsFor(workspace.id)
+            .where((tab) => tab.id == original.id),
+        hasLength(1),
+      );
+      expect(
+        _controller.state
+            .tabsFor(workspace.id)
+            .where((tab) => tab.id == fork.id),
+        hasLength(1),
+      );
+    },
+  );
+
+  test(
     'records worktree selection and replays back and forward safely',
     () async {
       await _controller.bootstrap();

@@ -123,6 +123,7 @@ class MobileCodexState {
     this.paginatedHistoryCellIds = const <String>{},
     this.pendingRequests = const <MobileCodexPendingRequest>[],
     this.activeTurnId,
+    this.hasCompletedTurns,
     this.models = const <MobileCodexModelOption>[],
     this.collaborationModes = const <Map<String, Object?>>[],
     this.skills = const <Map<String, Object?>>[],
@@ -133,6 +134,9 @@ class MobileCodexState {
     this.permissionMode = 'untrusted',
     this.planMode = false,
     this.collaborationMode,
+    this.chatFeatures = const <String>{},
+    this.queueState = const <String, Object?>{},
+    this.historyRevision = 0,
     this.queuedMessages = const <Map<String, Object?>>[],
     this.contextUsed,
     this.contextLimit,
@@ -175,6 +179,7 @@ class MobileCodexState {
             MobileCodexPendingRequest.fromJson(item),
       ],
       activeTurnId: activeTurnId,
+      hasCompletedTurns: json['hasCompletedTurns'] as bool?,
       title: _string(json['title']),
       activeCwd: _string(json['activeCwd']),
       historyNextCursor: _string(json['historyNextCursor']),
@@ -258,6 +263,7 @@ class MobileCodexState {
             ]
           : pendingRequests,
       activeTurnId: nextActiveTurnId,
+      hasCompletedTurns: json['hasCompletedTurns'] as bool?,
       contextUsed: json.containsKey('contextUsed')
           ? _int(json['contextUsed'])
           : contextUsed,
@@ -290,6 +296,7 @@ class MobileCodexState {
   final Set<String> paginatedHistoryCellIds;
   final List<MobileCodexPendingRequest> pendingRequests;
   final String? activeTurnId;
+  final bool? hasCompletedTurns;
   final List<MobileCodexModelOption> models;
   final List<Map<String, Object?>> collaborationModes;
   final List<Map<String, Object?>> skills;
@@ -309,6 +316,19 @@ class MobileCodexState {
   final String? activeCwd;
   final String? historyNextCursor;
   final String? error;
+  final Set<String> chatFeatures;
+  final Map<String, Object?> queueState;
+  final int historyRevision;
+  bool get supportsSharedQueue => chatFeatures.contains('codexSharedQueueV1');
+  bool get supportsFork => chatFeatures.contains('codexForkV1');
+  bool get supportsHistoryEdit =>
+      chatFeatures.contains('codexHistoryEditV1') &&
+      queueState['historyEditUnavailableReason'] == null;
+  bool get queuePaused => queueState['paused'] == true;
+  bool get historyOutdated =>
+      (queueState['historyRevision'] as int? ?? 0) > historyRevision;
+  bool get historyLocked =>
+      historyOutdated || queueState['historyLocked'] == true;
   final bool sending;
   final bool interrupting;
   final List<MobileCodexPresentationRow> presentationRows;
@@ -365,6 +385,7 @@ class MobileCodexState {
     Set<String>? paginatedHistoryCellIds,
     List<MobileCodexPendingRequest>? pendingRequests,
     Object? activeTurnId = _keep,
+    bool? hasCompletedTurns,
     List<MobileCodexModelOption>? models,
     List<Map<String, Object?>>? collaborationModes,
     List<Map<String, Object?>>? skills,
@@ -384,6 +405,9 @@ class MobileCodexState {
     Object? activeCwd = _keep,
     Object? historyNextCursor = _keep,
     Object? error = _keep,
+    Set<String>? chatFeatures,
+    Map<String, Object?>? queueState,
+    int? historyRevision,
     bool? sending,
     bool? interrupting,
     List<MobileCodexPresentationRow>? presentationRows,
@@ -398,6 +422,7 @@ class MobileCodexState {
     activeTurnId: identical(activeTurnId, _keep)
         ? this.activeTurnId
         : activeTurnId as String?,
+    hasCompletedTurns: hasCompletedTurns ?? this.hasCompletedTurns,
     models: models ?? this.models,
     collaborationModes: collaborationModes ?? this.collaborationModes,
     skills: skills ?? this.skills,
@@ -427,6 +452,9 @@ class MobileCodexState {
         ? this.historyNextCursor
         : historyNextCursor as String?,
     error: identical(error, _keep) ? this.error : error as String?,
+    chatFeatures: chatFeatures ?? this.chatFeatures,
+    queueState: queueState ?? this.queueState,
+    historyRevision: historyRevision ?? this.historyRevision,
     sending: sending ?? this.sending,
     interrupting: interrupting ?? this.interrupting,
     presentationRows:

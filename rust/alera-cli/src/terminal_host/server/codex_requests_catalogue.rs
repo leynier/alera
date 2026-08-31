@@ -132,7 +132,10 @@ impl ServerActor {
         self.codex_server_request("thread/items/list", params).await
     }
 
-    pub(super) async fn open_codex_thread(&mut self, payload: &Value) -> HostResult<Value> {
+    pub(in crate::terminal_host::server) async fn open_codex_thread(
+        &mut self,
+        payload: &Value,
+    ) -> HostResult<Value> {
         let tab_id = require_string_key(payload, "tabId")?;
         let mut tab = self.codex_tab(&tab_id).await?;
         let workspace = self
@@ -226,10 +229,30 @@ impl ServerActor {
             .or(existing_thread.as_deref())
             .ok_or_else(|| HostError::state("Codex app-server returned no thread id."))?
             .to_string();
-        let stored_snapshot = snapshot(&tab);
         let history_page = server
             .project_resumed_thread_history(&thread_id, &response, 20)
             .await?;
+        self.install_resumed_codex_thread(tab, cwd, &workspaces, &server, response, history_page)
+            .await
+    }
+
+    pub(in crate::terminal_host::server) async fn install_resumed_codex_thread(
+        &mut self,
+        mut tab: WorkspaceTabRecord,
+        cwd: String,
+        workspaces: &[Workspace],
+        server: &super::super::codex_app_server::CodexAppServer,
+        response: Value,
+        history_page: Option<super::super::codex_state::CodexTurnHistoryPage>,
+    ) -> HostResult<Value> {
+        let thread_id = response
+            .pointer("/thread/id")
+            .or_else(|| response.get("threadId"))
+            .and_then(Value::as_str)
+            .map(str::to_string)
+            .or_else(|| tab_thread_id(&tab))
+            .ok_or_else(|| HostError::state("Codex app-server returned no thread id."))?;
+        let stored_snapshot = snapshot(&tab);
         let history_next_cursor = history_page
             .as_ref()
             .and_then(|page| page.next_cursor.clone());
@@ -244,7 +267,7 @@ impl ServerActor {
             .pointer("/thread/cwd")
             .and_then(Value::as_str)
             .or_else(|| response.get("cwd").and_then(Value::as_str))
-            .and_then(|value| allowed_cwd(value, &workspaces))
+            .and_then(|value| allowed_cwd(value, workspaces))
             .unwrap_or(cwd);
         set_active_cwd(&mut tab, &response_cwd);
         set_thread_and_snapshot(&mut tab, &thread_id, next_snapshot);
@@ -290,6 +313,7 @@ impl ServerActor {
                 "tabId": saved.id,
                 "workspaceId": saved.workspace_id,
                 "threadId": tab_thread_id(&saved),
+                "historyRevision": saved.payload.get("codexHistoryRevision").cloned().unwrap_or(json!(0)),
                 "snapshot": snapshot(&saved),
                 "configuration": normalized,
             }),
@@ -391,7 +415,7 @@ fn ensure_recovery_matches(payload: &Value, tab: &WorkspaceTabRecord) -> HostRes
     ensure_thread_switch_allowed(tab)
 }
 
-fn resumable_codex_cwd(
+pub(in crate::terminal_host::server) fn resumable_codex_cwd(
     tab: &WorkspaceTabRecord,
     workspace: &Workspace,
     workspaces: &[Workspace],

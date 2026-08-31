@@ -100,7 +100,10 @@ pub async fn run_terminal_host_server(
         browser: BrowserBroker::default(),
         emulators,
         codex: None,
+        codex_starting: None,
         codex_presence: HashMap::new(),
+        codex_delivery_active: HashSet::new(),
+        codex_history_scans: HashSet::new(),
         codex_presence_scheduled: false,
         codex_pending_messages: HashMap::new(),
         codex_flush_scheduled: HashSet::new(),
@@ -146,6 +149,7 @@ pub async fn run_terminal_host_server(
             .list_active_automation_runs()
             .await?
             .is_empty();
+    actor.restore_codex_queues().await?;
     actor.schedule_shutdown_if_idle();
 
     // Lives with the loop rather than the actor: it describes the machine the

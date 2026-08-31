@@ -1,3 +1,4 @@
+import 'package:alera_mobile/src/features/terminal/application/terminal_providers.dart';
 import 'dart:async';
 import 'package:alera_mobile/src/features/runtime/domain/runtime_client_surfaces.dart';
 
@@ -7,6 +8,7 @@ import 'package:alera_mobile/src/features/runtime/domain/workspace_sidebar_snaps
 import 'package:alera_mobile/src/features/runtime/domain/workspace_summary.dart';
 import 'package:alera_mobile/src/features/runtime/domain/workspace_tab_summary.dart';
 import 'package:alera_mobile/src/features/codex_chat/presentation/mobile_codex_chat_screen.dart';
+import 'package:alera_mobile/src/features/codex_chat/application/mobile_codex_controller.dart';
 import 'package:alera_mobile/src/features/codex_chat/application/mobile_codex_composer_draft_store.dart';
 import 'package:alera_mobile/src/features/terminal/application/agent_presence_controller.dart';
 import 'package:alera_mobile/src/features/terminal/application/tabs_controller.dart';
@@ -22,6 +24,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:logging/logging.dart';
 
 part 'workspace_tab_strip.dart';
+part 'workspace_tabs_close.dart';
 
 /// Tabs of one workspace: a horizontally scrollable chip switcher with one
 /// tab visible at a time. Splits stay a desktop concept.
@@ -158,50 +161,6 @@ class _WorkspaceTabsScreenState extends ConsumerState<WorkspaceTabsScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Could not open the Codex chat: $error')),
         );
-      }
-    }
-  }
-
-  Future<void> _closeTab(WorkspaceTabSummary tab) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Close Tab'),
-        content: Text(tab.displayTitle),
-        actions: <Widget>[
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('Close'),
-          ),
-        ],
-      ),
-    );
-    if (confirmed != true || !mounted) {
-      return;
-    }
-    final tabsController = ref.read(
-      tabsControllerProvider(widget.hostId, widget.workspace.id).notifier,
-    );
-    final draftStore = ref.read(mobileCodexComposerDraftStoreProvider);
-    try {
-      final closed = await tabsController.closeTab(tab);
-      if (!closed) return;
-      draftStore.remove(widget.hostId, tab.id);
-      if (mounted && _selectedTabId == tab.id) {
-        setState(() {
-          _selectedTabId = null;
-        });
-      }
-    } on Object catch (error, stackTrace) {
-      _logger.warning('Could not close workspace tab.', error, stackTrace);
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Could not close tab: $error')));
       }
     }
   }

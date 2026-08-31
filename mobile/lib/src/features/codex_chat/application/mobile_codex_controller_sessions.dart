@@ -62,6 +62,11 @@ extension MobileCodexControllerSessions on MobileCodexController {
   }
 
   Future<void> loadHistory({String? cursor}) async {
+    if (state.isLoading ||
+        state.hasError ||
+        state.value?.historyOutdated == true) {
+      return;
+    }
     if (_historyLoading || cursor == null || cursor.trim().isEmpty) return;
     final client = _client;
     if (client == null) return;
@@ -87,7 +92,7 @@ extension MobileCodexControllerSessions on MobileCodexController {
         ),
       );
     } catch (error, stackTrace) {
-      if (!ref.mounted) return;
+      if (!ref.mounted || requestedGeneration != _threadGeneration) return;
       _setError(error, stackTrace);
     } finally {
       _historyLoading = false;
@@ -143,13 +148,15 @@ extension MobileCodexControllerSessions on MobileCodexController {
     final firstTransition = _sessionTransitionCount == 0;
     _sessionTransitionCount += 1;
     if (firstTransition) {
-      _suspendedSessionQueue =
-          state.value?.queuedMessages ?? const <Map<String, Object?>>[];
       _sessionTransitionSucceeded = false;
-      _update(
-        (current) =>
-            current.copyWith(queuedMessages: const <Map<String, Object?>>[]),
-      );
+      if (state.value?.supportsSharedQueue != true) {
+        _suspendedSessionQueue =
+            state.value?.queuedMessages ?? const <Map<String, Object?>>[];
+        _update(
+          (current) =>
+              current.copyWith(queuedMessages: const <Map<String, Object?>>[]),
+        );
+      }
     }
   }
 
@@ -178,7 +185,11 @@ extension MobileCodexControllerSessions on MobileCodexController {
     _suspendedSessionQueue = const <Map<String, Object?>>[];
     _sessionTransitionSucceeded = false;
     final current = state.value;
-    if (current == null || current.busy || current.queuedMessages.isEmpty) {
+    if (current == null ||
+        current.supportsSharedQueue ||
+        current.queuePaused ||
+        current.busy ||
+        current.queuedMessages.isEmpty) {
       return;
     }
     final message = current.queuedMessages.first;
@@ -245,7 +256,25 @@ MobileCodexState _replaceMobileSessionState(
             ? null
             : MobileCodexThreadRecovery.fromJson(response['recovery']),
       );
-  return _applyMobileConfiguration(replacement, response['configuration']);
+  final configured = _applyMobileConfiguration(
+    replacement.copyWith(
+      chatFeatures:
+          (response['chatFeatures'] as List?)?.whereType<String>().toSet() ??
+          current.chatFeatures,
+      historyRevision: response['historyRevision'] as int? ?? 0,
+      queueState: const {},
+      queuedMessages: current.supportsSharedQueue
+          ? const []
+          : current.queuedMessages,
+    ),
+    response['configuration'],
+  );
+  return response['queue'] is Map
+      ? _withSharedQueue(
+          configured,
+          Map<String, Object?>.from(response['queue']! as Map),
+        )
+      : configured;
 }
 
 MobileCodexState _mergeMobileHistory(
@@ -275,6 +304,7 @@ MobileCodexState _mergeMobileHistory(
     paginatedHistoryCellIds: paginatedHistoryCellIds,
     promptHistory: mobileCodexPromptHistory(mergedCells),
     activeTurnId: current.activeTurnId,
+    hasCompletedTurns: current.hasCompletedTurns ?? page.hasCompletedTurns,
     title: current.title ?? page.title,
   );
 }
@@ -324,6 +354,7 @@ MobileCodexState _mergeMobileSameThreadSnapshot(
     promptHistory: mobileCodexPromptHistory(mergedCells),
     pendingRequests: incoming.pendingRequests,
     activeTurnId: incoming.activeTurnId,
+    hasCompletedTurns: incoming.hasCompletedTurns ?? current.hasCompletedTurns,
     contextUsed: incoming.contextUsed,
     contextLimit: incoming.contextLimit,
     title: incoming.title,
@@ -393,6 +424,7 @@ MobileCodexState _reconcileMobileSameThreadSnapshot(
     promptHistory: mobileCodexPromptHistory(retainedCells),
     pendingRequests: incoming.pendingRequests,
     activeTurnId: activeTurnId,
+    hasCompletedTurns: incoming.hasCompletedTurns ?? updated.hasCompletedTurns,
     contextUsed: incoming.contextUsed,
     contextLimit: incoming.contextLimit,
     title: incoming.title,

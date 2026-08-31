@@ -331,60 +331,62 @@ void _registerMobileCodexSessionTests() {
     );
   });
 
-  testWidgets('mobile starts a turn when a pending steer target completes', (
-    tester,
-  ) async {
-    const prompts = <MobileCodexSavedPrompt>[
-      MobileCodexSavedPrompt(
-        name: 'audit',
-        description: 'Audit one target',
-        body: r'Inspect $1',
-        scope: 'repo',
-      ),
-    ];
-    final expansion = Completer<List<MobileCodexSavedPrompt>>();
-    var promptLoads = 0;
-    final client = FakeMobileCodexClient(
-      initialSnapshot: const <String, Object?>{
-        'activeTurnId': 'turn-active',
-        'timelineCells': <Object?>[],
-      },
-      workspaceFiles: const <String>['docs/notes.md'],
-      savedPromptsLoader: (_, _) {
-        promptLoads += 1;
-        return promptLoads == 1 ? Future.value(prompts) : expansion.future;
-      },
-    );
-    addTearDown(client.dispose);
-    await _pumpScreen(tester, client: client, hostId: 'host-steer-race');
+  testWidgets(
+    'mobile restores the draft when a pending steer target completes',
+    (tester) async {
+      const prompts = <MobileCodexSavedPrompt>[
+        MobileCodexSavedPrompt(
+          name: 'audit',
+          description: 'Audit one target',
+          body: r'Inspect $1',
+          scope: 'repo',
+        ),
+      ];
+      final expansion = Completer<List<MobileCodexSavedPrompt>>();
+      var promptLoads = 0;
+      final client = FakeMobileCodexClient(
+        initialSnapshot: const <String, Object?>{
+          'activeTurnId': 'turn-active',
+          'timelineCells': <Object?>[],
+        },
+        workspaceFiles: const <String>['docs/notes.md'],
+        savedPromptsLoader: (_, _) {
+          promptLoads += 1;
+          return promptLoads == 1 ? Future.value(prompts) : expansion.future;
+        },
+      );
+      addTearDown(client.dispose);
+      await _pumpScreen(tester, client: client, hostId: 'host-steer-race');
 
-    final composer = find.byType(TextField).last;
-    await tester.enterText(composer, '/audit current.dart');
-    await tester.tap(composer);
-    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
-    await tester.pump();
-    client.emit(
-      const MobileRuntimeEvent('codexThreadChanged', <String, Object?>{
-        'tabId': 'tab-host-steer-race',
-        'snapshot': <String, Object?>{'timelineCells': <Object?>[]},
-      }),
-    );
-    await tester.pump();
-    expansion.complete(prompts);
-    await tester.pumpAndSettle();
+      final composer = find.byType(TextField).last;
+      await tester.enterText(composer, '/audit current.dart');
+      await tester.tap(composer);
+      await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+      await tester.pump();
+      client.emit(
+        const MobileRuntimeEvent('codexThreadChanged', <String, Object?>{
+          'tabId': 'tab-host-steer-race',
+          'snapshot': <String, Object?>{'timelineCells': <Object?>[]},
+        }),
+      );
+      await tester.pump();
+      expansion.complete(prompts);
+      await tester.pumpAndSettle();
 
-    expect(
-      client.calls.where((call) => call.type == 'codex.turn.steer'),
-      isEmpty,
-    );
-    final turn = client.calls.lastWhere(
-      (call) => call.type == 'codex.turn.start',
-    );
-    expect((turn.payload['input'] as List).last, <String, Object?>{
-      'type': 'text',
-      'text': 'Inspect current.dart',
-    });
-  });
+      expect(
+        client.calls.where((call) => call.type == 'codex.turn.steer'),
+        isEmpty,
+      );
+      expect(
+        client.calls.where((call) => call.type == 'codex.turn.start'),
+        isEmpty,
+      );
+      expect(
+        tester.widget<TextField>(composer).controller!.text,
+        '/audit current.dart',
+      );
+    },
+  );
 
   testWidgets('mobile restores a submitted saved prompt when disposed', (
     tester,

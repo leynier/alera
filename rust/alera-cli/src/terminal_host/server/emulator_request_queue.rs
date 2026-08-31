@@ -292,6 +292,11 @@ impl ServerActor {
         self.emulator_requests
             .active_pointers
             .retain(|_, pointer| pointer.client_id != client_id);
+        if cancelled_runtime_mutations > 0 && !self.emulator_requests.has_runtime_mutations() {
+            for tab_id in &self.codex_delivery_active {
+                self.schedule_codex_queue(tab_id);
+            }
+        }
         if !self.emulator_requests.active {
             self.start_next_emulator_request();
         }

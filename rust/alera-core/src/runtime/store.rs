@@ -70,6 +70,9 @@ impl RuntimeStore {
         for statement in RUNTIME_SCHEMA {
             sqlx::query(*statement).execute(&self.pool).await?;
         }
+        for statement in super::codex_chat_store::CODEX_CHAT_SCHEMA {
+            sqlx::query(*statement).execute(&self.pool).await?;
+        }
         for statement in super::project_clone_job_store::PROJECT_CLONE_JOB_SCHEMA {
             sqlx::query(*statement).execute(&self.pool).await?;
         }

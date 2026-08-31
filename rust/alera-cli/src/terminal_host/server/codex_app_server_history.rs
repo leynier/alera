@@ -64,6 +64,8 @@ impl ThreadHistoryCache {
     ) -> Option<CodexTurnHistoryPage> {
         let limit = limit.max(1);
         let mut latest = latest_turn_page(response, limit)?;
+        latest.snapshot["hasCompletedTurns"] =
+            json!(next_page_cursor.is_some() || latest.snapshot["hasCompletedTurns"] == true);
         let mut cursor = latest.next_cursor.clone();
         latest.next_cursor = history_continuation_cursor(
             page_cursor,
@@ -143,7 +145,7 @@ impl ThreadHistoryCache {
         Some(latest)
     }
 
-    fn remove(&mut self, thread_id: &str) {
+    pub(super) fn remove(&mut self, thread_id: &str) {
         if let Some(entry) = self.entries.remove(thread_id) {
             self.total_bytes = self.total_bytes.saturating_sub(entry.bytes);
         }

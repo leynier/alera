@@ -1,4 +1,6 @@
 import 'dart:async';
+
+import 'package:alera/src/design_system/chat/alera_message_queue.dart';
 import 'dart:convert';
 import 'dart:io';
 
@@ -51,7 +53,15 @@ part 'codex_chat_surface_review_dialog_test_cases.dart';
 part 'codex_chat_surface_recovery_test_cases.dart';
 part 'codex_chat_surface_goal_test_cases.dart';
 
+part 'codex_chat_surface_fork_availability_test_cases.dart';
+part 'codex_chat_surface_rejected_draft_test_cases.dart';
+
+part 'codex_chat_surface_queue_identity_test_cases.dart';
+
 void main() {
+  _registerCodexQueueIdentityTests();
+  _registerCodexRejectedDraftTests();
+  _registerCodexForkAvailabilityTests();
   _registerCodexChatSurfaceRecoveryTests();
   _registerCodexChatSurfaceGoalTests();
   test('allows only standard external URI schemes', () {

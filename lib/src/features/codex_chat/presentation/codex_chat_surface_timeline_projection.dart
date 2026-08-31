@@ -109,6 +109,9 @@ class _CodexFooterViewState {
           state.recovery?.kind == other.state.recovery?.kind &&
           state.recovery?.message == other.state.recovery?.message &&
           identical(state.queuedMessages, other.state.queuedMessages) &&
+          identical(state.queueState, other.state.queueState) &&
+          identical(state.chatFeatures, other.state.chatFeatures) &&
+          state.historyRevision == other.state.historyRevision &&
           state.error == other.state.error &&
           state.snapshot.activeTurnId == other.state.snapshot.activeTurnId &&
           state.snapshot.contextUsed == other.state.snapshot.contextUsed &&

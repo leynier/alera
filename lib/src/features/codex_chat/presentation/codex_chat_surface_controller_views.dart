@@ -107,7 +107,7 @@ class _CodexControllerFooter extends ConsumerWidget {
   final String workspacePath;
   final String workspaceId;
   final WorkspaceFileService workspaceFiles;
-  final void Function(int index, CodexQueuedMessage message) onEditQueued;
+  final void Function(CodexQueuedMessage message, int? revision) onEditQueued;
   final ValueChanged<CodexDraftItem> onDraftItemSelected;
   final void Function(CodexChatState state, CodexComposerCommand command)
   onCommand;
@@ -153,23 +153,70 @@ class _CodexControllerFooter extends ConsumerWidget {
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: <Widget>[
+        if (state.queueState['editOperation'] case final Map operation)
+          AleraHistoryEditStatus(
+            phase: operation['phase'].toString(),
+            error:
+                (operation['payload'] as Map?)?['lastError']?.toString() ??
+                (operation['result'] as Map?)?['error']?.toString(),
+            onRetry: () => unawaited(
+              controller.retryHistoryEdit(operation['id'].toString()),
+            ),
+          ),
         if (state.error != null)
           _CodexInlineError(message: state.error!, onRetry: controller.retry),
-        if (state.queuedMessages.isNotEmpty)
-          _CodexQueueBar(
-            messages: state.queuedMessages,
-            canSteer: controller.canSteer,
-            onRemove: controller.removeQueuedMessage,
-            onEdit: onEditQueued,
-            onSteer: (index, message) async {
-              if (!controller.canSteer) return;
-              final sent = await controller.steer(
-                message.text,
-                attachments: message.attachments,
-                draftItems: message.draftItems,
-              );
-              if (sent) controller.removeQueuedMessage(index);
-            },
+        if (state.queuedMessages.isNotEmpty || state.queuePaused)
+          Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: AleraTokens.space12,
+            ),
+            child: AleraMessageQueue(
+              messages: [
+                for (final message in state.queuedMessages)
+                  AleraQueuedMessageRow(
+                    id: message.id ?? '',
+                    text: message.text,
+                    attachmentCount: message.attachments.length,
+                    hasImage: message.attachments.any((a) => a.isImage),
+                    status: message.deliveryStatus,
+                    error: message.deliveryError,
+                  ),
+              ],
+              canSteer: controller.canSteer,
+              paused: state.queuePaused,
+              onTogglePaused: () => unawaited(
+                controller.queueAction(state.queuePaused ? 'resume' : 'pause'),
+              ),
+              onReconcile: () => unawaited(controller.queueAction('reconcile')),
+              onRemove: (id) async {
+                await controller.removeQueuedMessageById(
+                  id,
+                  revision: state.queueState['revision'] as int?,
+                );
+              },
+              onEdit: (id) async {
+                final index = state.queuedMessages.indexWhere(
+                  (message) => message.id == id,
+                );
+                if (index >= 0) {
+                  onEditQueued(
+                    state.queuedMessages[index],
+                    state.queueState['revision'] as int?,
+                  );
+                }
+              },
+              onSteer: (id) async {
+                final message = state.queuedMessages
+                    .where((message) => message.id == id)
+                    .firstOrNull;
+                if (message != null) {
+                  await controller.steerQueuedMessage(
+                    message,
+                    revision: state.queueState['revision'] as int?,
+                  );
+                }
+              },
+            ),
           ),
         if (view.planProgress != null)
           _CodexPlanProgressDock(progress: view.planProgress!),

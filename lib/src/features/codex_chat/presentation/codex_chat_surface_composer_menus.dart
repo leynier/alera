@@ -66,6 +66,20 @@ class _CodexComposerControls extends StatelessWidget {
             label: 'Compact Context',
             selected: false,
           ),
+          PopupMenuItem<String>(
+            value: 'fork',
+            enabled:
+                state.supportsFork &&
+                !state.historyLocked &&
+                (state.snapshot.hasCompletedTurns ??
+                    (state.historyNextCursor != null ||
+                        state.snapshot.timelineCells.any(
+                          (cell) =>
+                              cell.turnId != null &&
+                              cell.turnId != state.snapshot.activeTurnId,
+                        ))),
+            child: const Text('Fork Chat'),
+          ),
           if (state.supportsSessions) ...const <PopupMenuEntry<String>>[
             PopupMenuDivider(),
             _CodexDropdownEntry<String>(
@@ -214,6 +228,10 @@ class _CodexComposerControls extends StatelessWidget {
 
   Future<void> _handleAddAction(BuildContext context, String value) async {
     switch (value) {
+      case 'fork':
+        await context
+            .findAncestorStateOfType<_CodexChatSurfaceState>()
+            ?._forkHistory();
       case 'file':
         await onAddAttachment();
       case 'paste':

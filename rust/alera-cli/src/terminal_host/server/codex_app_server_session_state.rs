@@ -34,6 +34,7 @@ impl CodexThreadHydration {
 #[derive(Default)]
 pub(super) struct CodexAppServerSessionState {
     hydrated_tabs: Mutex<HashMap<String, CodexThreadHydration>>,
+    loaded_tabs: Mutex<HashMap<String, (String, String)>>,
     catalogue_responses: Mutex<HashMap<String, Value>>,
     realtime_transcripts: Mutex<HashMap<String, oneshot::Sender<HostResult<String>>>>,
 }
@@ -166,6 +167,17 @@ impl CodexAppServer {
             .await
     }
 
+    pub(super) async fn has_loaded_thread(&self, tab_id: &str, thread_id: &str, cwd: &str) -> bool {
+        self.session_state
+            .loaded_tabs
+            .lock()
+            .await
+            .get(tab_id)
+            .is_some_and(|(loaded_thread, loaded_cwd)| {
+                loaded_thread == thread_id && loaded_cwd == cwd
+            })
+    }
+
     pub(super) async fn record_thread_hydration(
         &self,
         tab_id: &str,
@@ -174,6 +186,11 @@ impl CodexAppServer {
         tab_revision: DateTime<Utc>,
         history_next_cursor: Option<String>,
     ) {
+        self.session_state
+            .loaded_tabs
+            .lock()
+            .await
+            .insert(tab_id.to_string(), (thread_id.to_string(), cwd.to_string()));
         self.session_state.hydrated_tabs.lock().await.insert(
             tab_id.to_string(),
             CodexThreadHydration {
@@ -206,10 +223,12 @@ impl CodexAppServer {
 
     pub(super) async fn forget_thread_hydration(&self, tab_id: &str) {
         self.session_state.hydrated_tabs.lock().await.remove(tab_id);
+        self.session_state.loaded_tabs.lock().await.remove(tab_id);
     }
 
     pub(super) async fn clear_thread_hydrations(&self) {
         self.session_state.hydrated_tabs.lock().await.clear();
+        self.session_state.loaded_tabs.lock().await.clear();
     }
 
     pub(super) async fn cached_catalogue(&self, key: &str) -> Option<Value> {

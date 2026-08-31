@@ -135,6 +135,9 @@ fn turn_page(
         }
         break;
     }
+    page_snapshot["hasCompletedTurns"] = json!(raw_turns
+        .iter()
+        .any(super::super::codex_history_actions::turn_complete));
     Ok(CodexTurnHistoryPage {
         snapshot: page_snapshot,
         turns: page_turns.into_iter().map(public_history_turn).collect(),
@@ -322,6 +325,7 @@ fn page_candidate_projection(older_turn: &Value, newer_turns: &[Value]) -> Optio
 fn project_turns_with_start_marker(turns: &[Value]) -> Option<Value> {
     let mut snapshot = json!({
         "schemaVersion": 2,
+        "hasCompletedTurns": false,
         "events": [],
         "timelineCells": [{
             "id": HISTORY_START_MARKER,
@@ -366,6 +370,7 @@ fn cursor_before_items(turn: &Value, item_end: usize, has_older_turns: bool) -> 
 pub(super) fn project_turns(turns: &[Value]) -> Value {
     let mut snapshot = json!({
         "schemaVersion": 2,
+        "hasCompletedTurns": false,
         "events": [],
         "timelineCells": [],
         "pendingRequests": [],

@@ -87,6 +87,15 @@ pub(super) fn clear_thread_identity(tab: &mut WorkspaceTabRecord) {
     let payload = payload_object(tab);
     payload.remove("codexThreadId");
     payload.remove("codexActiveTurnId");
+    payload.remove("codexHistoryRevision");
+    payload.remove("codexDiscardedTurnIds");
+    payload.remove("codexCompletedTurnIds");
+    if let Some(snapshot) = payload
+        .get_mut("codexSnapshot")
+        .and_then(Value::as_object_mut)
+    {
+        snapshot.insert("hasCompletedTurns".to_string(), Value::Bool(false));
+    }
     payload.remove(THREAD_OWNED_BY_ALERA_KEY);
     tab.updated_at = Utc::now();
 }
@@ -154,6 +163,7 @@ pub(super) fn append_context_reset_notice(snapshot: &mut Value) {
         .as_object_mut()
         .expect("snapshot normalized to an object above");
     object.remove("activeTurnId");
+    object.insert("hasCompletedTurns".to_string(), Value::Bool(false));
     object
         .entry("events".to_string())
         .or_insert_with(|| Value::Array(Vec::new()));

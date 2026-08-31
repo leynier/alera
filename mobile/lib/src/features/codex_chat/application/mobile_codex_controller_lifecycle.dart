@@ -12,9 +12,10 @@ mixin _MobileCodexControllerLifecycle on _$MobileCodexController {
   set _threadId(String? value);
   int get _threadGeneration;
   set _threadGeneration(int value);
-  Future<void> _sendNow(Map<String, Object?> message);
+  Future<bool> _sendNow(Map<String, Object?> message);
   Future<void> _reloadCatalogue(String catalog);
   Future<void> _retryGoalAvailability();
+  Future<void> _refreshSharedQueue();
 
   MobileCodexState? get _currentState => state.value;
 
@@ -45,7 +46,9 @@ mixin _MobileCodexControllerLifecycle on _$MobileCodexController {
       }
       return;
     }
-    if (event.name != 'codexThreadChanged' || event.payload['tabId'] != tabId) {
+    if ((event.name != 'codexThreadChanged' &&
+            event.name != 'codexQueueChanged') ||
+        event.payload['tabId'] != tabId) {
       return;
     }
     final current = state.value;
@@ -134,16 +137,42 @@ mixin _MobileCodexControllerLifecycle on _$MobileCodexController {
     MobileRuntimeEvent event, {
     bool forceSnapshot = false,
   }) {
+    if (event.name == 'codexQueueChanged') {
+      if (_threadId != null &&
+          _threadId != _string(event.payload['threadId'])) {
+        return;
+      }
+      _threadId ??= _string(event.payload['threadId']);
+      _update((value) => _withSharedQueue(value, event.payload));
+      return;
+    }
+    final historyRevision = event.payload['historyRevision'] as int?;
+    if ((!event.payload.containsKey('threadId') ||
+            _string(event.payload['threadId']) == _threadId) &&
+        historyRevision != null &&
+        historyRevision < current.historyRevision) {
+      return;
+    }
+    final replaceHistory =
+        event.payload['replaceHistory'] == true ||
+        (historyRevision != null && historyRevision > current.historyRevision);
+    if (replaceHistory) _threadGeneration += 1;
     final previousThreadId = _threadId;
     final eventHasThreadId = event.payload.containsKey('threadId');
     final eventThreadId = eventHasThreadId
         ? _string(event.payload['threadId'])
         : previousThreadId;
     final threadChanged = eventHasThreadId && eventThreadId != previousThreadId;
+    final resetQueue =
+        threadChanged &&
+        (current.supportsSharedQueue || previousThreadId != null);
+    final resetQueuedMessages =
+        resetQueue &&
+        (current.supportsSharedQueue || !_sessionTransitionInProgress);
     final sameThread = eventThreadId == previousThreadId;
     final delta = event.payload['snapshotDelta'];
     final snapshot = event.payload['snapshot'];
-    final next = !sameThread && snapshot is Map
+    final next = (replaceHistory || !sameThread) && snapshot is Map
         ? MobileCodexState.fromSnapshot(snapshot)
         : delta is Map && delta.isNotEmpty && snapshot is Map
         ? _reconcileMobileSameThreadSnapshot(
@@ -175,7 +204,7 @@ mixin _MobileCodexControllerLifecycle on _$MobileCodexController {
     if (next == null) {
       if (eventHasThreadId) {
         _threadId = eventThreadId;
-        if (threadChanged) _threadGeneration += 1;
+        if (resetQueue) _threadGeneration += 1;
       }
       state = AsyncData(
         configured.copyWith(
@@ -183,13 +212,18 @@ mixin _MobileCodexControllerLifecycle on _$MobileCodexController {
           historyNextCursor: event.payload.containsKey('historyNextCursor')
               ? _string(event.payload['historyNextCursor'])
               : configured.historyNextCursor,
+          queueState: resetQueue ? const {} : configured.queueState,
+          queuedMessages: resetQueuedMessages
+              ? const []
+              : configured.queuedMessages,
         ),
       );
+      if (threadChanged) unawaited(_refreshSharedQueue());
       return;
     }
     if (eventHasThreadId) {
       _threadId = eventThreadId;
-      if (threadChanged) _threadGeneration += 1;
+      if (resetQueue) _threadGeneration += 1;
     }
     if (!next.busy) _interruptSafetyTimerValue?.cancel();
     state = AsyncData(
@@ -204,7 +238,13 @@ mixin _MobileCodexControllerLifecycle on _$MobileCodexController {
         permissionMode: configured.permissionMode,
         planMode: configured.planMode,
         collaborationMode: configured.collaborationMode,
-        queuedMessages: configured.queuedMessages,
+        chatFeatures: configured.chatFeatures,
+        queueState: resetQueue ? const {} : configured.queueState,
+        historyRevision:
+            historyRevision ?? (threadChanged ? 0 : configured.historyRevision),
+        queuedMessages: resetQueuedMessages
+            ? const []
+            : configured.queuedMessages,
         activeCwd: event.payload['cwd']?.toString() ?? configured.activeCwd,
         historyNextCursor: event.payload.containsKey('historyNextCursor')
             ? _string(event.payload['historyNextCursor'])
@@ -215,7 +255,11 @@ mixin _MobileCodexControllerLifecycle on _$MobileCodexController {
         error: null,
       ),
     );
-    if (!next.busy &&
+    if (threadChanged) unawaited(_refreshSharedQueue());
+    if (!resetQueue &&
+        !current.supportsSharedQueue &&
+        !current.queuePaused &&
+        !next.busy &&
         !_sessionTransitionInProgress &&
         current.queuedMessages.isNotEmpty) {
       final message = current.queuedMessages.first;
@@ -246,7 +290,14 @@ mixin _MobileCodexControllerLifecycle on _$MobileCodexController {
 
   void _update(MobileCodexState Function(MobileCodexState) update) {
     final current = state.value;
-    if (current != null) state = AsyncData(update(current));
+    if (current == null) return;
+    final wasLoading = state.isLoading;
+    final next = update(current);
+    state = AsyncData(next);
+    if (next.historyOutdated && !wasLoading) {
+      _threadGeneration += 1;
+      ref.invalidateSelf();
+    }
   }
 
   void _setError(Object error, StackTrace stackTrace) {

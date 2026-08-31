@@ -1,6 +1,6 @@
 part of 'mobile_codex_controller.dart';
 
-// ignore_for_file: invalid_use_of_protected_member
+// ignore_for_file: invalid_use_of_protected_member, invalid_use_of_visible_for_testing_member
 
 extension MobileCodexControllerOptions on MobileCodexController {
   void setModel(String? model) {
@@ -123,27 +123,11 @@ extension MobileCodexControllerOptions on MobileCodexController {
       _sessionTransitionSucceeded = true;
       _threadId = _string(response['threadId']);
       _threadGeneration += 1;
-      final recovered = MobileCodexState.fromSnapshot(response['snapshot']);
       _update(
-        (current) => _applyMobileConfiguration(
-          recovered.copyWith(
-            models: current.models,
-            collaborationModes: current.collaborationModes,
-            skills: current.skills,
-            apps: current.apps,
-            selectedModel: current.selectedModel,
-            reasoningEffort: current.reasoningEffort,
-            speedMode: current.speedMode,
-            permissionMode: current.permissionMode,
-            planMode: current.planMode,
-            collaborationMode: current.collaborationMode,
-            queuedMessages: current.queuedMessages,
-            activeCwd: _string(response['cwd']) ?? current.activeCwd,
-            historyNextCursor: null,
-            recovery: null,
-            error: null,
-          ),
-          response['configuration'],
+        (current) => _replaceMobileSessionState(
+          current,
+          response,
+          fallbackCwd: current.activeCwd,
         ),
       );
     } catch (error, stackTrace) {
@@ -153,12 +137,26 @@ extension MobileCodexControllerOptions on MobileCodexController {
     }
   }
 
-  void removeQueuedMessage(int index) => _update((current) {
-    if (index < 0 || index >= current.queuedMessages.length) return current;
-    final next = <Map<String, Object?>>[...current.queuedMessages]
-      ..removeAt(index);
-    return current.copyWith(queuedMessages: next);
-  });
+  void removeQueuedMessage(int index) {
+    final current = state.value;
+    if (current?.supportsSharedQueue == true) {
+      if (index >= 0 && index < current!.queuedMessages.length) {
+        unawaited(
+          queueAction(
+            'remove',
+            messageId: current.queuedMessages[index]['id']?.toString(),
+          ),
+        );
+      }
+      return;
+    }
+    _update((current) {
+      if (index < 0 || index >= current.queuedMessages.length) return current;
+      final next = <Map<String, Object?>>[...current.queuedMessages]
+        ..removeAt(index);
+      return current.copyWith(queuedMessages: next);
+    });
+  }
 
   void editQueuedMessage(
     int index,
