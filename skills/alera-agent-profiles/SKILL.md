@@ -13,7 +13,7 @@ Use the top-level `alera agent-profile ...` commands to administer profiles. `al
 
 ## Workflow
 
-1. Inspect the active runtime and existing catalog with `alera runtime status`, `alera agent-profile --json list`, and `alera agent-profile --json show`.
+1. Inspect the active runtime and existing catalog with `alera runtime status`, `alera agent-profile --json list`, and `alera agent-profile --json show --profile-name "<profile-name>"`.
 2. Discover the actual installed CLIs, versions, models, and supported flags. Prefer CLI model listings and `--help` over remembered slugs. Do not assume two versions of one provider accept the same interactive flags.
 3. If the user asks for a proposal or model selection, research current model capabilities before changing profiles. Compare coding quality, terminal and long-horizon behavior, speed, context, multimodality, reliability, and quota cost. Prefer primary model and CLI documentation for factual claims; use independent benchmarks only as comparative evidence with their harness and date stated.
 4. Convert the evidence into roles. Remove profiles dominated on both quality and cost unless they provide a distinct harness, quota pool, modality, or operational role.

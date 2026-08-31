@@ -42,7 +42,7 @@ These keys describe Alera's current adapter contract. Confirm the installed CLI 
 | `pi` | `model`, `thinking`, `projectTrust` |
 | `amp` | `mode`, `fast` |
 | `grok` | `model`, `effort`, `agent`, `permissionMode`, `sandbox`, `disableWebSearch` |
-| `fx` | No Managed options |
+| `fx` | `resumeLast`, `noAdditionalDirs`, `record` |
 
 Use `alera agent-profile create --help` and the profile command preview as the installed-runtime authority. Unknown keys fail closed.
 
