@@ -1,4 +1,4 @@
-FROM rust:1.96-bookworm AS build
+FROM rust:1.98.0-bookworm AS build
 WORKDIR /opt/alera-cloud
 COPY Cargo.toml Cargo.lock rust-toolchain.toml ./
 COPY src ./src

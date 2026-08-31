@@ -325,7 +325,7 @@ fn state_key(account: &str) -> String {
     format!("configuration.state.{account}")
 }
 fn digest(value: &Value) -> Result<String> {
-    Ok(format!("{:x}", Sha256::digest(serde_json::to_vec(value)?)))
+    Ok(hex::encode(Sha256::digest(serde_json::to_vec(value)?)))
 }
 fn catalog(previous: &Value, items: Vec<Value>, preserve_item_fields: bool) -> Value {
     let mut by_id = serde_json::Map::new();

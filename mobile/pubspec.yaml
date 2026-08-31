@@ -36,19 +36,19 @@ dependencies:
 
   cupertino_icons: ^1.0.9
   cryptography: ^2.9.0
-  firebase_core: ^4.12.1
-  firebase_messaging: ^16.4.3
+  firebase_core: ^4.14.0
+  firebase_messaging: ^16.6.0
   file_selector: ^1.1.0
-  flutter_local_notifications: ^21.0.0
-  flutter_riverpod: ^3.4.1
-  flutter_secure_storage: ^10.3.1
+  flutter_local_notifications: ^22.3.0
+  flutter_riverpod: ^3.4.2
+  flutter_secure_storage: ^11.0.0
   flutter_svg: ^2.3.0
-  gpt_markdown: ^1.1.8
+  gpt_markdown: ^1.2.1
   http: ^1.6.0
-  image_picker: ^1.2.1
-  lucide_icons_flutter: ^3.1.15
+  image_picker: ^1.2.3
+  lucide_icons_flutter: ^3.1.17
   mobile_scanner: ^7.4.0
-  riverpod_annotation: ^4.0.5
+  riverpod_annotation: ^4.0.6
   shared_preferences: ^2.5.5
   package_info_plus: ^10.2.1
   url_launcher: ^6.3.2
@@ -59,13 +59,13 @@ dependencies:
   path_provider: ^2.1.6
   record: ^7.1.1
   just_audio: ^0.10.6
-  audio_session: ^0.2.2
+  audio_session: ^0.2.4
   ffi: ^2.2.0
   crypto: ^3.0.7
   alera_mobile_native:
     path: rust_builder
   share_plus: ^13.3.0
-  sentry_flutter: ^9.25.0
+  sentry_flutter: ^9.28.0
   path: ^1.9.1
   speech_to_text: ^7.4.0
 
@@ -79,13 +79,13 @@ dev_dependencies:
   # activated in the `analysis_options.yaml` file located at the root of your
   # package. See that file for information about deactivating specific lint
   # rules and activating additional ones.
-  build_runner: ^2.15.1
+  build_runner: ^2.16.0
   flutter_lints: ^6.0.0
   flutter_launcher_icons: ^0.14.4
   flutter_native_splash: ^2.4.8
   plugin_platform_interface: ^2.1.8
-  riverpod_generator: ^4.0.7
-  riverpod_lint: ^3.1.7
+  riverpod_generator: ^4.0.8
+  riverpod_lint: ^3.1.8
   stream_channel: ^2.1.4
   url_launcher_platform_interface: ^2.3.2
 

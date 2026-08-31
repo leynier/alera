@@ -8,32 +8,32 @@ PODS:
   - CwlCatchExceptionSupport (2.2.1)
   - file_selector_ios (0.0.1):
     - Flutter
-  - Firebase/CoreOnly (12.15.0):
-    - FirebaseCore (~> 12.15.0)
-  - Firebase/Messaging (12.15.0):
+  - Firebase/CoreOnly (12.18.0):
+    - FirebaseCore (~> 12.18.0)
+  - Firebase/Messaging (12.18.0):
     - Firebase/CoreOnly
-    - FirebaseMessaging (~> 12.15.0)
-  - firebase_core (4.12.1):
-    - Firebase/CoreOnly (= 12.15.0)
+    - FirebaseMessaging (~> 12.18.0)
+  - firebase_core (4.14.0):
+    - Firebase/CoreOnly (= 12.18.0)
     - Flutter
-  - firebase_messaging (16.4.3):
-    - Firebase/Messaging (= 12.15.0)
+  - firebase_messaging (16.6.0):
+    - Firebase/Messaging (= 12.18.0)
     - firebase_core
     - Flutter
-  - FirebaseCore (12.15.0):
-    - FirebaseCoreInternal (~> 12.15.0)
+  - FirebaseCore (12.18.0):
+    - FirebaseCoreInternal (~> 12.18.0)
     - GoogleUtilities/Environment (~> 8.1)
     - GoogleUtilities/Logger (~> 8.1)
-  - FirebaseCoreInternal (12.15.0):
+  - FirebaseCoreInternal (12.18.0):
     - "GoogleUtilities/NSData+zlib (~> 8.1)"
-  - FirebaseInstallations (12.15.0):
-    - FirebaseCore (~> 12.15.0)
+  - FirebaseInstallations (12.18.0):
+    - FirebaseCore (~> 12.18.0)
     - GoogleUtilities/Environment (~> 8.1)
     - GoogleUtilities/UserDefaults (~> 8.1)
     - PromisesObjC (~> 2.4)
-  - FirebaseMessaging (12.15.0):
-    - FirebaseCore (~> 12.15.0)
-    - FirebaseInstallations (~> 12.15.0)
+  - FirebaseMessaging (12.18.0):
+    - FirebaseCore (~> 12.18.0)
+    - FirebaseInstallations (~> 12.18.0)
     - GoogleDataTransport (~> 10.1)
     - GoogleUtilities/AppDelegateSwizzler (~> 8.1)
     - GoogleUtilities/Environment (~> 8.1)
@@ -92,7 +92,7 @@ PODS:
   - record_ios (2.0.0):
     - Flutter
   - Sentry/HybridSDK (8.58.4)
-  - sentry_flutter (9.25.0):
+  - sentry_flutter (9.28.0):
     - Flutter
     - FlutterMacOS
     - Sentry/HybridSDK (= 8.58.4)
@@ -187,16 +187,16 @@ SPEC CHECKSUMS:
   CwlCatchException: 7acc161b299a6de7f0a46a6ed741eae2c8b4d75a
   CwlCatchExceptionSupport: 54ccab8d8c78907b57f99717fb19d4cc3bce02dc
   file_selector_ios: ec57ec07954363dd730b642e765e58f199bb621a
-  Firebase: a8539b633d474fbeb654c7043f9c1649e274045b
-  firebase_core: 1c1e250a77e2df9e80bb8bf0875c8b427044a697
-  firebase_messaging: 90cf2b62f5058120ab19f29ceff1503ba0f51ba7
-  FirebaseCore: 2e86a4ea1684d4381707069e4a6d89ac808e901e
-  FirebaseCoreInternal: 6ab6a02c94446c026d2cf35cf5383842ebaa4992
-  FirebaseInstallations: eb29ccbf64eaedf86fd5b2ccc7fabde567660b52
-  FirebaseMessaging: 40017d7bc8457ee295b0f41d480a80fdabc9994e
+  Firebase: 5523dd53ebe603451b4e1befcd99fa20a5c015cd
+  firebase_core: 22b31970001508f6e63945bedcb7b9de68819aa5
+  firebase_messaging: e0eae0e66bd04d3c1856ad08ad84ac75e0673a55
+  FirebaseCore: 96787d19ee32dc2242cc487b301bc616afeb398b
+  FirebaseCoreInternal: 93b2d5f9e184c6818a04433891c358b0720a6a38
+  FirebaseInstallations: 933b2747e8594084c9117b65e8358fce29d7ced7
+  FirebaseMessaging: 422bb80cbf8ff83e69e50bea4d4984fc4704f665
   Flutter: 71a624a5bc0c04062bf19101d501e466baf2fb47
   flutter_local_notifications: 643a3eda1ce1c0599413ca31672536d423dee214
-  flutter_secure_storage_darwin: acdb3f316ed05a3e68f856e0353b133eec373a23
+  flutter_secure_storage_darwin: 46e401699982ee74142909676535e0f6a7321e58
   GoogleDataTransport: a24e58982ab3ba2f64d79613e027fe7f57e88539
   GoogleUtilities: 4e0c2ad9fa0d0d18b5c4df8bf57b461cba35b0bb
   image_picker_ios: e0ece4aa2a75771a7de3fa735d26d90817041326
@@ -207,7 +207,7 @@ SPEC CHECKSUMS:
   PromisesObjC: 752c3227f599e3467650e47ea36f433eeb10c273
   record_ios: 390a30c7caaf8b5d0fb1cb1d2fd5064b48b4520c
   Sentry: 5321d74bdd28d6f6f8beaa1ca06f1fdc746bff49
-  sentry_flutter: d6279f3b5156b6535e2159e03437b571a24cc648
+  sentry_flutter: 771dee2d190e0952aa3873211c4a3a10f0c1ef04
   share_plus: 50da8cb520a8f0f65671c6c6a99b3617ed10a58a
   shared_preferences_foundation: 7036424c3d8ec98dfe75ff1667cb0cd531ec82bb
   speech_to_text: 3b313d98516d3d0406cea424782ec25470c59d19

@@ -1,5 +1,5 @@
 use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine};
-use rand::{rngs::OsRng, RngCore};
+use rand::{rand_core::UnwrapErr, rngs::SysRng, Rng};
 use sha2::{Digest, Sha256};
 
 use crate::error::ApiError;
@@ -91,7 +91,7 @@ pub(super) fn pkce_challenge(verifier: &str) -> String {
 
 pub(super) fn random_secret(prefix: &str) -> String {
     let mut bytes = [0_u8; 32];
-    OsRng.fill_bytes(&mut bytes);
+    UnwrapErr(SysRng).fill_bytes(&mut bytes);
     format!("{prefix}{}", URL_SAFE_NO_PAD.encode(bytes))
 }
 

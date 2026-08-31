@@ -23,7 +23,8 @@ val releaseSigningAvailable = keystorePropertiesFile.exists()
 
 android {
     namespace = "dev.leynier.alera_mobile"
-    compileSdk = flutter.compileSdkVersion
+    // Secure storage v11 needs API 37; device support and target behavior stay unchanged.
+    compileSdk = 37
     ndkVersion = flutter.ndkVersion
 
     if (releaseSigningAvailable) {
