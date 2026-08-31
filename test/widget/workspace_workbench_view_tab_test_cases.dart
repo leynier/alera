@@ -46,6 +46,12 @@ void _registerWorkspaceWorkbenchViewTabTests() {
           find.text(label),
           mode == 'unsupported' ? findsNothing : findsOneWidget,
         );
+        if (kind == WorkspaceTabKind.terminal && mode != 'unsupported') {
+          expect(
+            tester.getTopLeft(find.text('Change Title')).dy,
+            lessThan(tester.getTopLeft(find.text(label)).dy),
+          );
+        }
         if (mode != 'unsupported') {
           final entry = tester.widget<AleraDropdownEntry<Object?>>(
             find.ancestor(

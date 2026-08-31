@@ -76,6 +76,12 @@ void main() {
           find.text(label),
           mode == 'unsupported' ? findsNothing : findsOneWidget,
         );
+        if (kind == 'terminal' && mode != 'unsupported') {
+          expect(
+            tester.getTopLeft(find.text('Rename Tab')).dy,
+            lessThan(tester.getTopLeft(find.text(label)).dy),
+          );
+        }
         if (mode == 'busy') {
           expect(find.byTooltip('Generating title...'), findsOneWidget);
           expect(
