@@ -5,6 +5,32 @@ import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_p
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
+  test('seeds an uninitialized runtime from desktop-local preferences', () async {
+    final client = _FakeRuntimeHostClient()
+      ..responses['workbenchViewPrefs.get'] = <String, Object?>{
+        'revision': 0,
+        'desktopInitialized': false,
+        'prefs': <String, Object?>{'groupBy': 'project'},
+      }
+      ..responses['workbenchViewPrefs.update'] = <String, Object?>{'revision': 1};
+    final local = WorkbenchViewPrefs.defaults.copyWith(groupBy: WorkbenchGroupBy.none, sidebarWidth: 412);
+    final legacy = _MemoryViewPrefsRepository()..prefs = local;
+    final repository = RuntimeWorkbenchViewPrefsRepository(client: client, legacyRepository: legacy);
+    expect(await repository.load(), local);
+    expect(client.payloads['workbenchViewPrefs.update']?.single['prefs'], containsPair('groupBy', 'none'));
+    expect(legacy.prefs.sidebarWidth, 412);
+  });
+
+  test('retains local preferences when the runtime read fails', () async {
+    final client = _FakeRuntimeHostClient()
+      ..errors['workbenchViewPrefs.get'] = StateError('controlled runtime failure');
+    final local = WorkbenchViewPrefs.defaults.copyWith(groupBy: WorkbenchGroupBy.none, sidebarWidth: 412);
+    final legacy = _MemoryViewPrefsRepository()..prefs = local;
+    final repository = RuntimeWorkbenchViewPrefsRepository(client: client, legacyRepository: legacy);
+    expect(await repository.load(), local);
+    expect(client.payloads.containsKey('workbenchViewPrefs.update'), isFalse);
+  });
+
   test('loads and saves the shared active workspace filter', () async {
     final client = _FakeRuntimeHostClient()
       ..responses['workbenchViewPrefs.get'] = <String, Object?>{
@@ -51,6 +77,7 @@ final class _MemoryViewPrefsRepository implements WorkbenchViewPrefsRepository {
 
 final class _FakeRuntimeHostClient implements RuntimeHostClient {
   final responses = <String, Object?>{};
+  final errors = <String, Object>{};
   final payloads = <String, List<Map<String, Object?>>>{};
 
   @override
@@ -64,6 +91,9 @@ final class _FakeRuntimeHostClient implements RuntimeHostClient {
     Duration? timeout,
   ]) async {
     payloads.putIfAbsent(type, () => <Map<String, Object?>>[]).add(payload);
+    if (errors[type] case final error?) {
+      throw error;
+    }
     return responses[type];
   }
 }

@@ -44,17 +44,15 @@ impl AleraApp {
 
         let mut pinned_rows = Vec::new();
         let mut pinned_count = 0;
-        for project in &projects {
-            let mut pinned = self.visible_workspaces(project, filter, true, false);
-            self.sort_sidebar_workspaces(&mut pinned);
-            pinned_count += pinned.len();
-            pinned_rows.extend(self.render_sidebar_workspace_tree_rows(
-                pinned,
-                Some(&project.name),
-                Some(&project.kind),
-                true,
-                cx,
-            ));
+        for group in self.pinned_workspace_groups(&projects,filter) {
+            pinned_count += group.len();
+            let projects_by_workspace=group.iter().map(|(project,workspace)|(workspace.id.as_str(),*project)).collect::<BTreeMap<_,_>>();
+            let placements=self.workspace_tree_placements(group.iter().map(|(_,workspace)|*workspace).collect(),true);
+            for placement in placements {
+                let project=projects_by_workspace[placement.workspace.id.as_str()];
+                pinned_rows.push(self.render_sidebar_workspace_row(placement.workspace,Some(&project.name),Some(&project.kind),true,
+                    placement.depth as f32*12.0,placement.visible_child_count,placement.children_collapsed,cx));
+            }
         }
 
         let mut rows = Vec::new();
@@ -99,7 +97,7 @@ impl AleraApp {
                         collapsed,
                         cx,
                     ));
-                    if collapsed && filter.is_empty() {
+                    if collapsed {
                         continue;
                     }
                     rows.extend(self.render_sidebar_workspace_tree_rows(
@@ -133,13 +131,14 @@ impl AleraApp {
                         cx,
                     ));
                 }
-                if !show_all_header || !self.sidebar_all_collapsed || !filter.is_empty() {
+                if !show_all_header || !self.sidebar_all_collapsed {
                     let project_by_workspace_id = workspaces
                         .iter()
                         .map(|(project, workspace)| (workspace.id.as_str(), *project))
                         .collect::<BTreeMap<_, _>>();
                     let placements = self.workspace_tree_placements(
                         workspaces.iter().map(|(_, workspace)| *workspace).collect(),
+                        false,
                     );
                     for placement in placements {
                         let Some(project) =
@@ -172,7 +171,7 @@ impl AleraApp {
         pinned_copy: bool,
         cx: &mut Context<Self>,
     ) -> Vec<AnyElement> {
-        let placements = self.workspace_tree_placements(workspaces);
+        let placements = self.workspace_tree_placements(workspaces,pinned_copy);
         placements
             .into_iter()
             .map(|placement| {
@@ -202,7 +201,10 @@ impl AleraApp {
     fn workspace_tree_placements<'a>(
         &self,
         workspaces: Vec<&'a Workspace>,
+        pinned_copy: bool,
     ) -> Vec<SidebarWorkspacePlacement<'a>> {
+        let expanded=BTreeSet::new();
+        let collapsed_ids=if pinned_copy {&expanded} else {&self.sidebar_collapsed_parent_workspace_ids};
         let ids = workspaces
             .iter()
             .map(|workspace| workspace.id.as_str())
@@ -236,7 +238,7 @@ impl AleraApp {
                     workspace,
                     0,
                     &children,
-                    &self.sidebar_collapsed_parent_workspace_ids,
+                    collapsed_ids,
                     &mut placements,
                     &mut visited,
                 );
@@ -244,18 +246,11 @@ impl AleraApp {
         }
         // A stale relation cycle must not make a workspace disappear.
         for workspace in workspaces {
-            if is_hidden_by_collapsed_parent(
-                workspace.id.as_str(),
-                &parent_of,
-                &self.sidebar_collapsed_parent_workspace_ids,
-            ) {
-                continue;
-            }
             append_workspace_tree_row(
                 workspace,
                 0,
                 &children,
-                &self.sidebar_collapsed_parent_workspace_ids,
+                collapsed_ids,
                 &mut placements,
                 &mut visited,
             );
@@ -263,7 +258,7 @@ impl AleraApp {
         placements
     }
 
-    fn visible_workspaces<'a>(
+    pub(super) fn visible_workspaces<'a>(
         &self,
         project: &'a Project,
         filter: &str,
@@ -1624,6 +1619,9 @@ fn append_workspace_tree_row<'a>(
         children_collapsed: collapsed,
     });
     if collapsed {
+        for child in child_rows {
+            mark_hidden_workspace_subtree(child,children,visited);
+        }
         return;
     }
     for child in child_rows {
@@ -1638,23 +1636,11 @@ fn append_workspace_tree_row<'a>(
     }
 }
 
-fn is_hidden_by_collapsed_parent(
-    workspace_id: &str,
-    parent_of: &BTreeMap<&str, &str>,
-    collapsed_ids: &BTreeSet<String>,
-) -> bool {
-    let mut current = workspace_id;
-    let mut visited = BTreeSet::new();
-    while let Some(parent_id) = parent_of.get(current).copied() {
-        if !visited.insert(current) {
-            return false;
-        }
-        if collapsed_ids.contains(parent_id) {
-            return true;
-        }
-        current = parent_id;
+fn mark_hidden_workspace_subtree(workspace:&Workspace,children:&BTreeMap<&str,Vec<&Workspace>>,visited:&mut BTreeSet<String>) {
+    if !visited.insert(workspace.id.clone()) {return;}
+    if let Some(descendants)=children.get(workspace.id.as_str()) {
+        for child in descendants {mark_hidden_workspace_subtree(child,children,visited);}
     }
-    false
 }
 
 #[cfg(test)]

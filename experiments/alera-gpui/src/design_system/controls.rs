@@ -148,28 +148,11 @@ pub fn checkbox(value: bool, enabled: bool, label: Option<SharedString>) -> gpui
 }
 
 pub fn radio(selected: bool, enabled: bool) -> gpui::Div {
-    div()
-        .flex()
-        .items_center()
-        .justify_center()
-        .w(px(18.0))
-        .h(px(18.0))
-        .rounded_full()
-        .border_1()
-        .border_color(if selected && enabled {
-            theme::accent()
-        } else if enabled {
-            theme::border()
-        } else {
-            theme::text_faint()
-        })
-        .when(selected, |radio| {
-            radio.child(div().w(px(8.0)).h(px(8.0)).rounded_full().bg(if enabled {
-                theme::accent()
-            } else {
-                theme::text_faint()
-            }))
-        })
+    div().size(px(16.0)).flex_shrink_0().child(icon(
+        if selected {AleraIcon::CircleDot} else {AleraIcon::Circle},
+        16.0,
+        if selected && enabled {theme::accent()} else {theme::text_faint()},
+    ))
 }
 
 pub fn switch(enabled: bool, interactive: bool) -> gpui::Div {

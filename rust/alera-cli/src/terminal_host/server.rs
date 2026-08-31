@@ -243,7 +243,7 @@ struct ServerActor {
     automations_active: bool,
     sessions: HashMap<String, Session>,
     ssh_bootstrap_jobs: HashMap<String, SshBootstrapJobState>,
-    project_clone_jobs: HashMap<String, tokio::sync::oneshot::Sender<()>>,
+    project_clone_jobs: HashMap<String, Option<tokio::sync::oneshot::Sender<()>>>,
     managed_workspace_jobs: usize,
     emulator_requests: emulator_request_queue::EmulatorRequestQueue,
     agent_quota_cache: Option<(Instant, u64, Value)>,

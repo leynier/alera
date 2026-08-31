@@ -7,6 +7,15 @@ use super::*;
 impl AleraApp {
     pub fn new(bridge: RuntimeBridge, window: &mut Window, cx: &mut Context<Self>) -> Self {
         let (settings_store, settings_state) = SettingsStore::start();
+        Self::new_with_settings(bridge,settings_store,settings_state,crate::workbench_prefs_store::WorkbenchPrefsStore::default(),window,cx)
+    }
+
+    #[cfg(all(test,feature="gpui-tests"))]
+    pub(super) fn new_for_test(bridge: RuntimeBridge, window:&mut Window,cx:&mut Context<Self>) -> Self {
+        Self::new_with_settings(bridge,SettingsStore::in_memory(),SettingsState::default(),crate::workbench_prefs_store::WorkbenchPrefsStore::memory(None),window,cx)
+    }
+
+    fn new_with_settings(bridge:RuntimeBridge,settings_store:SettingsStore,settings_state:SettingsState,workbench_prefs_store:crate::workbench_prefs_store::WorkbenchPrefsStore,window:&mut Window,cx:&mut Context<Self>) -> Self {
         let keep_alive_status =
             alera_native::api::keep_alive::set_keep_alive(settings_state.keep_alive_enabled);
         crate::editor_theme::apply_editor_theme(cx, &settings_state.editor_theme);
@@ -85,6 +94,7 @@ impl AleraApp {
         });
         let workspace_branch_input =
             cx.new(|cx| InputState::new(window, cx).placeholder("e.g. feature/terminal-tabs"));
+        let workspace_manual_source_input = cx.new(|cx| InputState::new(window, cx).placeholder("e.g. main"));
         let workspace_name_input =
             cx.new(|cx| InputState::new(window, cx).placeholder("Workspace Name (Optional)"));
         let agent_profile_settings = AgentProfileSettingsState::new(window, cx);
@@ -366,7 +376,7 @@ impl AleraApp {
             );
         }
         let tab_rename_input = cx.new(|cx| InputState::new(window, cx).placeholder("Tab Name"));
-        let sidebar_action_input = cx.new(|cx| InputState::new(window, cx).placeholder("New Name"));
+        let sidebar_action_input = cx.new(|cx| InputState::new(window, cx));
         let sidebar_tag_input = cx.new(|cx| InputState::new(window, cx).placeholder("New Tag"));
         let sidebar_parent_filter_input =
             cx.new(|cx| InputState::new(window, cx).placeholder("Search workspaces"));
@@ -430,6 +440,9 @@ impl AleraApp {
             input.set_value("main", window, cx);
         });
         let mut subscriptions = vec![
+            cx.subscribe_in(&sidebar_action_input, window, |this, _, event: &InputEvent, window, cx| {
+                this.handle_sidebar_rename_input(event, window, cx);
+            }),
             cx.subscribe_in(&text_actions_name_input, window, |_, _, _: &InputEvent, _, cx| cx.notify()),
             cx.subscribe_in(&text_actions_prompt_input, window, |_, _, _: &InputEvent, _, cx| cx.notify()),
             cx.subscribe_in(&workspace_prompt_input, window, |_, _, _: &InputEvent, _, cx| cx.notify()),
@@ -694,6 +707,21 @@ impl AleraApp {
                 window,
                 |_, _, event: &InputEvent, _, cx| {
                     if matches!(event, InputEvent::Change) {
+                        cx.notify();
+                    }
+                },
+            ),
+            cx.subscribe_in(
+                &workspace_manual_source_input,
+                window,
+                |this, input, event: &InputEvent, _, cx| {
+                    if matches!(event, InputEvent::Change)
+                        && this.show_new_workspace_dialog
+                        && this.new_workspace_step == NewWorkspaceStep::ManualSelection
+                        && this.manual_workspace_source_required()
+                    {
+                        let value = input.read(cx).value().trim().to_string();
+                        this.selected_workspace_source_branch = (!value.is_empty()).then_some(value);
                         cx.notify();
                     }
                 },
@@ -1156,6 +1184,9 @@ impl AleraApp {
             sidebar_menu: None,
             sidebar_menu_position: gpui::point(px(70.0), px(116.0)),
             sidebar_dialog: None,
+            sidebar_dialog_previous_focus: None,
+            sidebar_rename_focus: cx.focus_handle(),
+            sidebar_rename_button_focus: std::array::from_fn(|_| cx.focus_handle().tab_stop(true)),
             sidebar_storage_impact: None,
             sidebar_action_input,
             sidebar_tag_input,
@@ -1173,6 +1204,8 @@ impl AleraApp {
             // preferences are loaded.
             context_sidebar_width: 280.0,
             workbench_view_prefs_raw: serde_json::json!({}),
+            workbench_prefs_store,
+            workbench_prefs_generation: std::cell::Cell::new(0),
             status_popover: StatusPopover::None,
             status_popover_pinned: false,
             status_popover_trigger_hovered: None,
@@ -1302,6 +1335,7 @@ impl AleraApp {
             workspace_dropdown_search_input,
             workspace_project_search_input,
             workspace_branch_search_input,
+            workspace_manual_source_input,
             workspace_branch_input,
             workspace_name_input,
             settings_search_input,
@@ -1326,6 +1360,7 @@ impl AleraApp {
             workspace_source_branches: Vec::new(),
             workspace_local_branches: Vec::new(),
             workspace_branches_loading: false,
+            workspace_branches_generation: 0,
             workspace_reuse_existing_branch: false,
             workspace_synced_name: None,
             workspace_prompt_dropdown: None,
@@ -1333,6 +1368,7 @@ impl AleraApp {
             workspace_agent_profiles: Vec::new(),
             workspace_selected_agent_profile_id: None,
             workspace_profiles_loading: false,
+            workspace_profiles_generation: 0,
             agent_profile_settings,
             create_another_workspace: false,
             show_new_workspace_dialog: false,

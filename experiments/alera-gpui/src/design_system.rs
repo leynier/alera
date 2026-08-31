@@ -163,6 +163,7 @@ impl AleraTextField {
 
 impl RenderOnce for AleraTextField {
     fn render(self, window: &mut Window, cx: &mut App) -> impl IntoElement {
+        let field_id = self.state.entity_id();
         let focused = !self.disabled && self.state.focus_handle(cx).is_focused(window);
         let has_text = !self.state.read(cx).value().is_empty();
         let floating_label = label_floats(focused, has_text);
@@ -238,8 +239,10 @@ impl RenderOnce for AleraTextField {
         }
 
         div()
+            .relative()
             .child(
                 div()
+                    .debug_selector(move || format!("field-outline-{field_id}"))
                     .relative()
                     .h(self.height)
                     .rounded(if self.dense { px(10.0) } else { px(6.0) })
@@ -248,29 +251,24 @@ impl RenderOnce for AleraTextField {
                     .bg(background)
                     .cursor(if self.disabled { CursorStyle::Arrow } else { CursorStyle::IBeam })
                     .child(input)
-                    .when_some(self.label, |field, label| {
-                        if floating_label {
-                            field.child(
-                            div()
-                                .absolute()
-                                .top(px(-6.0))
-                                .left(px(8.0))
-                                .px(px(4.0))
-                                .text_size(px(8.25))
-                                .line_height(px(12.0))
-                                .text_color(if focused { theme::accent() } else { theme::text_muted() })
-                                .child(div().absolute().left_0().right_0().top(px(6.0)).h(px(1.0)).bg(background))
-                                .child(label),
-                            )
-                        } else {
-                            field.child(div().absolute().top(px(1.0)).bottom(px(1.0))
+                    .when_some(self.label.clone().filter(|_| !floating_label), |field, label| {
+                        field.child(div().absolute().top(px(1.0)).bottom(px(1.0))
                                 .left(px(if has_prefix { 40.0 } else { 12.0 }))
                                 .right(px(if has_suffix { 42.0 } else { 12.0 }))
                                 .flex().items_center().bg(background)
                                 .text_size(px(11.0)).text_color(theme::text_muted()).child(label))
-                        }
                     }),
             )
+            // GPUI paints a border after its children. The label and its notch
+            // must be siblings after the outline, otherwise the stroke crosses text.
+            .when_some(self.label.filter(|_| floating_label), |field, label| {
+                field.child(div().absolute().top(px(-5.0)).left(px(9.0)).px(px(4.0))
+                    .text_size(px(8.25)).line_height(px(12.0))
+                    .text_color(if focused { theme::accent() } else { theme::text_muted() })
+                    .child(div().debug_selector(move || format!("field-label-notch-{field_id}"))
+                        .absolute().left_0().right_0().top(px(5.0)).h(px(1.0)).bg(background))
+                    .child(label))
+            })
             .when_some(self.error, |field, error| {
                 field.child(
                     div()

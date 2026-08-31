@@ -234,6 +234,7 @@ impl ServerActor {
                     .filter(|session| session.running())
                     .count();
                 let active_jobs = self.ssh_bootstrap_jobs.len()
+                    + self.project_clone_jobs.len()
                     + usize::from(self.managed_workspace_jobs > 0)
                     + self.coordinators.len()
                     + self.emulator_requests.outstanding()
@@ -274,6 +275,7 @@ impl ServerActor {
                     .filter(|session| session.running())
                     .count();
                 let active_jobs = self.ssh_bootstrap_jobs.len()
+                    + self.project_clone_jobs.len()
                     + usize::from(self.managed_workspace_jobs > 0)
                     + self.coordinators.len()
                     + self.emulator_requests.outstanding()

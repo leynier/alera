@@ -425,13 +425,6 @@ impl AleraApp {
                             this.error = None;
                         }
                         snapshot.projects.sort_by(|a, b| a.name.cmp(&b.name));
-                        let create_terminal_for_selection =
-                            this.pending_workspace_terminal_id.as_deref()
-                                == this.selected_workspace_id.as_deref()
-                                && !snapshot.tabs.iter().any(|tab| tab.kind == "terminal");
-                        if create_terminal_for_selection {
-                            this.pending_workspace_terminal_id = None;
-                        }
                         let workspace_scope_changed = this
                             .selected_workspace_id
                             .as_deref()
@@ -466,7 +459,6 @@ impl AleraApp {
                             this.release_closed_tab_state(&retired_tabs, cx);
                         }
                         this.prune_worktree_navigation_history();
-                        this.open_pending_workspace_setup(cx);
                         // The selected workspace can change while the
                         // snapshot request is in flight. Rehydrate the
                         // contextual surface from the new workspace path so
@@ -480,8 +472,22 @@ impl AleraApp {
                             this.refresh_local_activity(cx);
                         }
                         this.ensure_selected_terminal(cx);
-                        if create_terminal_for_selection {
-                            this.create_terminal_tab(cx);
+                        let has_terminal = this.snapshot.tabs.iter().any(|tab| tab.kind == "terminal"
+                            && tab.payload.get("autoCloseOnSuccess").and_then(serde_json::Value::as_bool) != Some(true));
+                        let initial_terminal = super::workspace_selection::initial_terminal_action(
+                            this.pending_workspace_terminal_id.as_deref(), this.selected_workspace_id.as_deref(),
+                            has_terminal, this.tab_mutation_busy,
+                        );
+                        match initial_terminal {
+                            super::workspace_selection::InitialTerminalAction::Create => {
+                                this.pending_workspace_terminal_id = None;
+                                this.create_terminal_tab(cx);
+                            }
+                            super::workspace_selection::InitialTerminalAction::Complete => this.pending_workspace_terminal_id = None,
+                            super::workspace_selection::InitialTerminalAction::Wait => {}
+                        }
+                        if super::workspace_selection::setup_can_start(initial_terminal,this.tab_mutation_busy) {
+                            this.open_pending_workspace_setup(cx);
                         }
                         if let Some(tab) = this
                             .selected_tab_id

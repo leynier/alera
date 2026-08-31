@@ -15,6 +15,12 @@ pub(super) struct SettingsStore {
 }
 
 impl SettingsStore {
+    #[cfg(all(test,feature="gpui-tests"))]
+    pub(super) fn in_memory() -> Self {
+        let (updates,_)=async_channel::unbounded();
+        Self{updates}
+    }
+
     pub fn start() -> (Self, SettingsState) {
         let path = settings_path();
         let initial = load_from_path(&path)

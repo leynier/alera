@@ -72,6 +72,8 @@ mod context_pull_request_composer;
 mod context_pull_request_review_actions;
 mod context_sidebar;
 mod context_source_control;
+#[cfg(all(test, feature = "gpui-tests"))]
+mod source_control_toolbar_tests;
 mod context_source_control_actions;
 mod context_source_control_ai;
 mod context_source_control_context_menu;
@@ -128,11 +130,19 @@ mod settings_store;
 mod shell;
 mod sidebar_actions;
 mod sidebar_dialog;
+mod sidebar_rename_dialog;
+#[cfg(all(test, feature = "gpui-tests"))]
+mod sidebar_rename_tests;
 mod sidebar_listing;
 mod sidebar_rows;
 mod sidebar_view_options;
 mod sidebar_view_options_components;
 mod sidebar_view_prefs;
+#[cfg(all(test,feature="gpui-tests"))]
+mod sidebar_view_prefs_request_tests;
+mod sidebar_pinned_projection;
+#[cfg(all(test,feature="gpui-tests"))]
+mod sidebar_projection_tests;
 mod sidebar_view_sort_menu;
 mod source_control_scope;
 mod source_history_graph;
@@ -175,6 +185,9 @@ mod workbench_layout;
 mod workspace_actions;
 mod workspace_selection;
 mod workspace_manual_dialog;
+mod workspace_manual_creation;
+#[cfg(all(test,feature="gpui-tests"))]
+mod workspace_request_tests;
 mod workspace_manual_rows;
 mod workspace_prompt_actions;
 mod workspace_prompt_layout;
@@ -390,6 +403,9 @@ pub struct AleraApp {
     sidebar_menu: Option<SidebarMenu>,
     sidebar_menu_position: Point<Pixels>,
     sidebar_dialog: Option<SidebarDialog>,
+    sidebar_dialog_previous_focus: Option<FocusHandle>,
+    sidebar_rename_focus: FocusHandle,
+    sidebar_rename_button_focus: [FocusHandle; 2],
     sidebar_storage_impact: Option<WorkspaceStorageImpact>,
     sidebar_action_input: Entity<InputState>,
     sidebar_tag_input: Entity<InputState>,
@@ -404,6 +420,8 @@ pub struct AleraApp {
     context_sidebar_collapsed: bool,
     context_sidebar_width: f32,
     workbench_view_prefs_raw: Value,
+    workbench_prefs_store: crate::workbench_prefs_store::WorkbenchPrefsStore,
+    workbench_prefs_generation: std::cell::Cell<u64>,
     status_popover: StatusPopover,
     status_popover_pinned: bool,
     status_popover_trigger_hovered: Option<StatusPopover>,
@@ -535,6 +553,7 @@ pub struct AleraApp {
     workspace_dropdown_search_input: Entity<InputState>,
     workspace_project_search_input: Entity<InputState>,
     workspace_branch_search_input: Entity<InputState>,
+    workspace_manual_source_input: Entity<InputState>,
     workspace_branch_input: Entity<InputState>,
     workspace_name_input: Entity<InputState>,
     settings_search_input: Entity<InputState>,
@@ -559,6 +578,7 @@ pub struct AleraApp {
     workspace_source_branches: Vec<String>,
     workspace_local_branches: Vec<String>,
     workspace_branches_loading: bool,
+    workspace_branches_generation: u64,
     workspace_reuse_existing_branch: bool,
     workspace_synced_name: Option<String>,
     workspace_prompt_dropdown: Option<WorkspacePromptDropdown>,
@@ -566,6 +586,7 @@ pub struct AleraApp {
     workspace_agent_profiles: Vec<AgentProfileOption>,
     workspace_selected_agent_profile_id: Option<String>,
     workspace_profiles_loading: bool,
+    workspace_profiles_generation: u64,
     agent_profile_settings: AgentProfileSettingsState,
     create_another_workspace: bool,
     show_new_workspace_dialog: bool,

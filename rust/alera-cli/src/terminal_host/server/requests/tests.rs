@@ -429,6 +429,25 @@ fn soft_shutdown_busy_message_includes_agents() {
 }
 
 #[tokio::test]
+async fn clone_jobs_block_soft_shutdown_and_restart() {
+    for request in ["host.shutdown", "host.restart"] {
+        let dir = tempfile::tempdir().unwrap();
+        let (handle, mut receiver) = crate::terminal_host::client::ClientHandle::test_channels();
+        let mut actor = crate::terminal_host::server::actor_test_harness::test_actor(
+            &dir,
+            std::collections::HashMap::from([(1, crate::terminal_host::server::actor_test_harness::local_client(handle))]),
+            std::collections::HashMap::new(),
+        ).await;
+        let (cancel, _cancelled) = tokio::sync::oneshot::channel();
+        actor.project_clone_jobs.insert("clone-in-progress".into(), Some(cancel));
+        actor.handle_line(1, json!({"id":1,"type":request,"payload":{}}).to_string()).await;
+        let response = receiver.recv().await.unwrap().as_json().unwrap();
+        assert_eq!(response["ok"], false, "{request} must wait for clone cleanup");
+        assert!(response["error"].as_str().unwrap().contains("1 active background job"));
+    }
+}
+
+#[tokio::test]
 async fn shutdown_response_precedes_disposal_marker() {
     let dir = tempfile::tempdir().unwrap();
     let (handle, mut receiver) = crate::terminal_host::client::ClientHandle::test_channels();
@@ -469,4 +488,21 @@ async fn shutdown_response_precedes_disposal_marker() {
             )
     ));
     assert!(inbox_receiver.try_recv().is_err());
+}
+
+#[tokio::test]
+async fn clone_cancellation_keeps_work_active_until_cleanup_finishes() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut actor = crate::terminal_host::server::actor_test_harness::test_actor(
+        &dir, std::collections::HashMap::new(), std::collections::HashMap::new(),
+    ).await;
+    let (cancel, receiver) = tokio::sync::oneshot::channel();
+    actor.project_clone_jobs.insert("cancelling-clone".into(), Some(cancel));
+    let response = actor.project_clone_cancel_request(&json!({"id":"cancelling-clone"})).await.unwrap();
+    assert_eq!(response["cancelling"],true);
+    receiver.await.unwrap();
+    assert!(matches!(actor.project_clone_jobs.get("cancelling-clone"),Some(None)));
+    assert!(actor.project_clone_cancel_request(&json!({"id":"cancelling-clone"})).await.is_ok());
+    actor.handle_project_clone_finished("cancelling-clone".into()).await;
+    assert!(actor.project_clone_jobs.is_empty());
 }

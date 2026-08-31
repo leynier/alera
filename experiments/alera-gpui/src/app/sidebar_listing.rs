@@ -76,9 +76,7 @@ impl AleraApp {
             SidebarSortBy::Name => main_rank(left)
                 .cmp(&main_rank(right))
                 .then_with(|| compare_names(&left.name, &right.name)),
-            SidebarSortBy::Recent => main_rank(left)
-                .cmp(&main_rank(right))
-                .then_with(|| right.updated_at.cmp(&left.updated_at))
+            SidebarSortBy::Recent => right.updated_at.cmp(&left.updated_at)
                 .then_with(|| compare_names(&left.name, &right.name)),
             SidebarSortBy::Activity => unreachable!("activity is handled by subtree ranks"),
         }

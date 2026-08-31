@@ -578,6 +578,9 @@ impl AleraApp {
         let Some(dialog) = self.sidebar_dialog.as_ref() else {
             return div().into_any_element();
         };
+        if matches!(dialog.kind, SidebarDialogKind::RenameProject | SidebarDialogKind::RenameWorkspace) {
+            return self.render_sidebar_rename_dialog(dialog.kind, cx);
+        }
         let target_workspace = self.snapshot.workspace(&dialog.target_id);
         let (title, message, confirm, destructive, show_input) = match dialog.kind {
             SidebarDialogKind::RenameProject => {
@@ -791,8 +794,8 @@ impl AleraApp {
                                     ButtonKind::Text,
                                     self.sidebar_action_busy,
                                 )
-                                .on_click(cx.listener(|this, _, _, cx| {
-                                    this.close_sidebar_dialog(cx);
+                                .on_click(cx.listener(|this, _, window, cx| {
+                                    this.close_sidebar_dialog(window, cx);
                                 })),
                             )
                             .child(
@@ -811,8 +814,8 @@ impl AleraApp {
                                     self.sidebar_action_busy,
                                     self.sidebar_action_busy,
                                 )
-                                .on_click(cx.listener(|this, _, _, cx| {
-                                    this.submit_sidebar_dialog(cx);
+                                .on_click(cx.listener(|this, _, window, cx| {
+                                    this.submit_sidebar_dialog(window, cx);
                                 })),
                             ),
                     ),

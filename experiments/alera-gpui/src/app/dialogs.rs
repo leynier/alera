@@ -14,7 +14,7 @@ impl AleraApp {
     pub(super) fn render_new_workspace_dialog(&self, window: &gpui::Window, cx: &mut Context<Self>) -> impl IntoElement {
         let dialog = match self.new_workspace_step {
             NewWorkspaceStep::Entry => self.render_workspace_entry(window, cx),
-            NewWorkspaceStep::ManualSelection => self.render_workspace_selection(cx),
+            NewWorkspaceStep::ManualSelection => self.render_workspace_selection(window, cx),
             NewWorkspaceStep::ManualSettings => self.render_workspace_settings(cx),
         };
         div()
@@ -241,7 +241,7 @@ impl AleraApp {
         div()
             .flex()
             .items_center()
-            .h(px(40.0))
+            .h(px(if step.is_some() {24.0} else {40.0}))
             .flex_shrink_0()
             .when(back, |header| {
                 header.child(
@@ -276,7 +276,7 @@ impl AleraApp {
             .when_some(step, |header, step| {
                 header.child(div().text_size(crate::theme::caption_size()).text_color(theme::text_faint()).child(step))
             })
-            .child(
+            .when(step.is_none(), |header| header.child(
                 div()
                     .id("close-workspace-dialog")
                     .focusable()
@@ -295,7 +295,7 @@ impl AleraApp {
                         this.close_new_workspace_dialog(cx);
                     }))
                     .child(icon(AleraIcon::Close, 24.0, theme::text_muted())),
-            )
+            ))
     }
 
     fn workspace_mode_button(

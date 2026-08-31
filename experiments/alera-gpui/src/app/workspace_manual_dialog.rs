@@ -12,205 +12,63 @@ use crate::design_system;
 use crate::icons::{icon, loading_indicator, AleraIcon};
 use crate::theme;
 
-impl AleraApp {
-    pub(super) fn render_workspace_selection(&self, cx: &mut Context<Self>) -> AnyElement {
-        let project_query = self
-            .workspace_project_search_input
-            .read(cx)
-            .value()
-            .trim()
-            .to_lowercase();
-        let projects = self.manual_workspace_project_rows(&project_query, cx);
-        let branch_query = self
-            .workspace_branch_search_input
-            .read(cx)
-            .value()
-            .trim()
-            .to_lowercase();
-        let branch_rows = self.manual_workspace_branch_rows(&branch_query, cx);
-        let branch_picker_label = if self.workspace_reuse_existing_branch {
-            "Existing Branch"
-        } else {
-            "Source Branch"
-        };
-        let empty_branch_message = if self.workspace_branches_loading {
-            "Loading Branches".to_owned()
-        } else if self.workspace_reuse_existing_branch {
-            format!("No Existing Branches Match \"{branch_query}\"")
-        } else {
-            format!("No Source Branches Match \"{branch_query}\"")
-        };
+fn picker_label(label: &'static str) -> gpui::Div {
+    div().mb(px(8.0)).text_size(px(11.0)).line_height(px(16.0)).font_weight(gpui::FontWeight::MEDIUM).text_color(theme::text_muted()).child(label)
+}
 
-        div()
-            .id("new-workspace-selection-dialog")
-            .role(Role::Dialog)
-            .aria_label("New Workspace - Selection")
-            .w(px(690.0))
-            .rounded_lg()
-            .border_1()
-            .border_color(theme::border())
-            .bg(theme::surface_raised())
-            .shadow_lg()
-            .px_4()
-            .py(px(27.0))
-            .child(self.workspace_dialog_header(
-                "New Workspace - Selection",
-                Some("Step 1 of 2"),
-                false,
-                cx,
-            ))
-            .child(form_label("Project").mt_5().mb_2())
-            .child(design_system::search_field(
-                &self.workspace_project_search_input,
-                false,
-            ))
-            .child(
-                div()
-                    .mt_2()
-                    .when(projects.is_empty(), |list| {
-                        list.child(
-                            div()
-                                .h(px(36.0))
-                                .flex()
-                                .items_center()
-                                .px_2()
-                                .text_size(crate::theme::body_size())
-                                .text_color(theme::text_muted())
-                                .child("No Matching Projects"),
-                        )
-                    })
-                    .children(projects),
-            )
-            .child(
-                div()
-                    .flex()
-                    .mt_4()
-                    .w(px(186.0))
-                    .h(px(32.0))
-                    .rounded_md()
-                    .border_1()
-                    .border_color(theme::border())
-                    .child(
-                        div()
-                            .id("workspace-new-branch-mode")
-                            .focusable()
-                            .tab_stop(true)
-                            .role(Role::RadioButton)
-                            .aria_label("New Branch")
-                            .aria_selected(!self.workspace_reuse_existing_branch)
-                            .aria_toggled(if self.workspace_reuse_existing_branch {
-                                Toggled::False
-                            } else {
-                                Toggled::True
-                            })
-                            .flex_1()
-                            .h_full()
-                            .flex()
-                            .items_center()
-                            .justify_center()
-                            .rounded_md()
-                            .cursor(CursorStyle::PointingHand)
-                            .when(!self.workspace_reuse_existing_branch, |button| {
-                                button.bg(theme::surface_selected())
-                            })
-                            .on_click(cx.listener(|this, _, window, cx| {
-                                this.set_workspace_reuse_existing_branch(false, window, cx);
-                            }))
-                            .child("New Branch"),
-                    )
-                    .child(
-                        div()
-                            .id("workspace-existing-branch-mode")
-                            .focusable()
-                            .tab_stop(true)
-                            .role(Role::RadioButton)
-                            .aria_label("Existing Branch")
-                            .aria_selected(self.workspace_reuse_existing_branch)
-                            .aria_toggled(if self.workspace_reuse_existing_branch {
-                                Toggled::True
-                            } else {
-                                Toggled::False
-                            })
-                            .flex_1()
-                            .h_full()
-                            .flex()
-                            .items_center()
-                            .justify_center()
-                            .rounded_md()
-                            .cursor(CursorStyle::PointingHand)
-                            .when(self.workspace_reuse_existing_branch, |button| {
-                                button.bg(theme::surface_selected())
-                            })
-                            .on_click(cx.listener(|this, _, window, cx| {
-                                this.set_workspace_reuse_existing_branch(true, window, cx);
-                            }))
-                            .child("Existing Branch"),
-                    ),
-            )
-            .child(form_label(branch_picker_label).mb_2())
-            .child(design_system::search_field(
-                &self.workspace_branch_search_input,
-                false,
-            ))
-            .child(
-                div()
-                    .id("source-branch-list")
-                    .mt_2()
-                    .max_h(px(180.0))
-                    .overflow_y_scroll()
-                    .rounded_md()
-                    .border_1()
-                    .border_color(theme::border_subtle())
-                    .when(branch_rows.is_empty(), |list| {
-                        list.child(
-                            div()
-                                .h(px(32.0))
-                                .flex()
-                                .items_center()
-                                .px_2()
-                                .gap_2()
-                                .text_size(crate::theme::body_size())
-                                .text_color(theme::text_muted())
-                                .when(self.workspace_branches_loading, |row| {
-                                    row.child(loading_indicator(14.0, theme::text_muted()))
-                                })
-                                .child(empty_branch_message),
-                        )
-                    })
-                    .children(branch_rows),
-            )
-            .when_some(self.error.clone(), |dialog, error| {
-                dialog.child(
-                    div()
-                        .mt_2()
-                        .text_size(crate::theme::body_size())
-                        .text_color(theme::danger())
-                        .child(error),
-                )
-            })
-            .child(
-                div()
-                    .flex()
-                    .justify_end()
-                    .gap_2()
-                    .mt_4()
-                    .child(
-                        secondary_button("cancel-workspace-selection", "Cancel").on_click(
-                            cx.listener(|this, _, _, cx| this.close_new_workspace_dialog(cx)),
-                        ),
-                    )
-                    .child(
-                        primary_button(
-                            "continue-workspace-settings",
-                            "Continue",
-                            self.workspace_branches_loading
-                                || self.selected_workspace_source_branch.is_none(),
-                        )
-                        .on_click(cx.listener(|this, _, window, cx| {
-                            this.continue_manual_workspace_settings(window, cx);
-                        })),
-                    ),
-            )
+fn picker_list(id: &'static str, height: f32) -> gpui::Stateful<gpui::Div> {
+    div().id(id).w_full().min_w_0().mt(px(8.0)).max_h(px(height)).overflow_y_scroll().rounded(px(6.0))
+        .border_1().border_color(theme::border_subtle()).bg(theme::surface_selected())
+}
+
+fn picker_empty(message: String) -> gpui::Div {
+    div().p(px(24.0)).text_size(px(12.0)).text_color(theme::text_muted()).child(message)
+}
+
+impl AleraApp {
+    pub(super) fn render_workspace_selection(&self, window: &gpui::Window, cx: &mut Context<Self>) -> AnyElement {
+        let project_query = self.workspace_project_search_input.read(cx).value().trim().to_lowercase();
+        let projects = self.manual_workspace_project_rows(&project_query, cx);
+        let branch_query = self.workspace_branch_search_input.read(cx).value().trim().to_lowercase();
+        let branch_rows = self.manual_workspace_branch_rows(&branch_query, cx);
+        let manual_source = self.manual_workspace_source_required();
+        let branch_label = if self.workspace_reuse_existing_branch { "Existing Branch" } else { "Source Branch" };
+        let empty_branch = format!("No {} branches match \"{branch_query}\"", if self.workspace_reuse_existing_branch { "existing" } else { "source" });
+        let body = div().w_full().min_w_0()
+            .child(picker_label("Project"))
+            .child(design_system::search_field(&self.workspace_project_search_input, false))
+            .child(picker_list("workspace-project-list", 200.0)
+                .when(projects.is_empty(), |list| list.child(picker_empty(format!("No projects match \"{project_query}\""))))
+                .children(projects))
+            .child(self.manual_workspace_branch_mode(cx))
+            .when(self.workspace_branches_loading, |body| body.child(div().mt(px(16.0)).h(px(72.0)).flex().items_center().justify_center().gap(px(8.0))
+                .child(loading_indicator(14.0, theme::text_muted())).child("Loading source branches")))
+            .when(manual_source, |body| body.child(div().mt(px(16.0))
+                .child(design_system::text_field(&self.workspace_manual_source_input).label(branch_label)))
+                .when(self.error.is_some(),|body|body.child(secondary_button("retry-workspace-branches","Retry")
+                    .on_click(cx.listener(|this,_,_,cx|{
+                        if let Some(project_id)=this.selected_workspace_project_id.clone() {this.load_workspace_branches(project_id,cx);}
+                    })))))
+            .when(!self.workspace_branches_loading && !manual_source, |body| body
+                .child(picker_label(branch_label).mt(px(16.0)))
+                .child(design_system::search_field(&self.workspace_branch_search_input, false))
+                .child(picker_list("source-branch-list", 240.0)
+                    .when(branch_rows.is_empty(), |list| list.child(picker_empty(empty_branch)))
+                    .children(branch_rows)))
+            .when_some(self.error.clone(), |body, error| body.child(div().mt(px(8.0)).text_size(px(12.0)).text_color(theme::danger()).child(error)));
+        div().id("new-workspace-selection-dialog").role(Role::Dialog).aria_label("New Workspace - Selection")
+            .w(px(680.0).min((window.viewport_size().width-px(64.0)).max(px(100.0))))
+            .max_h(px(740.0).min((window.viewport_size().height-px(64.0)).max(px(100.0))))
+            .flex().flex_col().rounded(px(12.0)).border_1().border_color(theme::border_subtle())
+            .bg(theme::surface()).shadow_lg().p(px(19.0))
+            .child(self.workspace_dialog_header("New Workspace - Selection", Some("Step 1 of 2"), false, cx))
+            .child(div().id("workspace-selection-scroll").mt(px(16.0)).min_h_0().overflow_y_scroll().child(body))
+            .child(div().flex().items_center().justify_end().flex_shrink_0().gap(px(8.0)).mt(px(16.0))
+                .child(secondary_button("cancel-workspace-selection", "Cancel")
+                    .on_click(cx.listener(|this, _, _, cx| this.close_new_workspace_dialog(cx))))
+                .child(primary_button("continue-workspace-settings", "Continue",
+                    self.workspace_branches_loading || self.selected_workspace_source_branch.is_none())
+                    .on_click(cx.listener(|this, _, window, cx| this.continue_manual_workspace_settings(window, cx)))))
             .into_any_element()
     }
 
@@ -309,7 +167,7 @@ impl AleraApp {
                 div().mt_4().child(
                     design_system::text_field(&self.workspace_branch_input)
                         .label(branch_input_label)
-                        .disabled(self.workspace_reuse_existing_branch),
+                        .disabled(self.workspace_reuse_existing_branch || self.workspace_creation_busy),
                 ),
             )
             .when(branch_exists, |dialog| {
@@ -330,7 +188,7 @@ impl AleraApp {
                     .child(
                         div().flex_1().child(
                             design_system::text_field(&self.workspace_name_input)
-                                .label("Workspace Name (Optional)"),
+                                .label("Workspace Name (Optional)").disabled(self.workspace_creation_busy),
                         ),
                     )
                     .when(!name.is_empty() && name == target_branch, |row| {
@@ -462,8 +320,8 @@ impl AleraApp {
                                 || self.workspace_creation_busy,
                             self.workspace_creation_busy,
                         )
-                        .on_click(cx.listener(|this, _, _, cx| {
-                            this.create_workspace(cx);
+                        .on_click(cx.listener(|this, _, window, cx| {
+                            this.create_workspace(window,cx);
                         })),
                     ),
             )

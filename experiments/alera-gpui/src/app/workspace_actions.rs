@@ -1,5 +1,3 @@
-use std::time::Duration;
-
 use gpui::{Context, Entity, Window};
 use gpui_component::input::InputState;
 use serde_json::{json, Value};
@@ -170,6 +168,7 @@ impl AleraApp {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
+        if self.workspace_creation_busy {return;}
         if !self
             .snapshot
             .projects
@@ -207,6 +206,10 @@ impl AleraApp {
         self.show_new_workspace_dialog = true;
         self.workspace_prompt_scroll_handle.set_offset(gpui::point(gpui::px(0.0), gpui::px(0.0)));
         self.workspace_prompt_input.update(cx, |input, cx| input.set_value("", window, cx));
+        self.reset_manual_workspace_source(window,cx);
+        for input in [&self.workspace_project_search_input,&self.workspace_branch_search_input,&self.workspace_branch_input,&self.workspace_name_input] {
+            input.update(cx,|input,cx|input.set_value("",window,cx));
+        }
         self.error = None;
         self.load_workspace_prompt_profiles(cx);
         if let Some(project_id) = self.selected_workspace_project_id.clone() {
@@ -219,7 +222,9 @@ impl AleraApp {
         cx.notify();
     }
 
-    fn load_workspace_branches(&mut self, project_id: String, cx: &mut Context<Self>) {
+    pub(super) fn load_workspace_branches(&mut self, project_id: String, cx: &mut Context<Self>) {
+        self.workspace_branches_generation=self.workspace_branches_generation.wrapping_add(1);
+        let generation=self.workspace_branches_generation;
         self.workspace_branches_loading = true;
         self.workspace_source_branches.clear();
         self.workspace_local_branches.clear();
@@ -232,7 +237,9 @@ impl AleraApp {
                 return;
             };
             this.update(cx, |this, cx| {
-                if this.selected_workspace_project_id.as_deref() != Some(project_id.as_str()) {
+                if !this.show_new_workspace_dialog
+                    || this.workspace_branches_generation!=generation
+                    || this.selected_workspace_project_id.as_deref() != Some(project_id.as_str()) {
                     return;
                 }
                 this.workspace_branches_loading = false;
@@ -258,6 +265,8 @@ impl AleraApp {
     }
 
     fn load_workspace_prompt_profiles(&mut self, cx: &mut Context<Self>) {
+        self.workspace_profiles_generation=self.workspace_profiles_generation.wrapping_add(1);
+        let generation=self.workspace_profiles_generation;
         self.workspace_profiles_loading = true;
         let bridge = self.bridge.clone();
         cx.spawn(async move |this, cx| {
@@ -266,6 +275,7 @@ impl AleraApp {
                 return;
             };
             this.update(cx, |this, cx| {
+                if !this.show_new_workspace_dialog || this.workspace_profiles_generation!=generation {return;}
                 this.workspace_profiles_loading = false;
                 match result.and_then(parse_agent_profile_options) {
                     Ok(profiles) => {
@@ -297,6 +307,7 @@ impl AleraApp {
         mode: NewWorkspaceMode,
         cx: &mut Context<Self>,
     ) {
+        if self.workspace_creation_busy {return;}
         self.new_workspace_mode = mode;
         self.workspace_prompt_scroll_handle.set_offset(gpui::point(gpui::px(0.0), gpui::px(0.0)));
         self.new_workspace_step = NewWorkspaceStep::Entry;
@@ -305,6 +316,7 @@ impl AleraApp {
     }
 
     pub(super) fn continue_manual_workspace(&mut self, cx: &mut Context<Self>) {
+        if self.workspace_creation_busy {return;}
         self.new_workspace_mode = NewWorkspaceMode::Manual;
         self.new_workspace_step = NewWorkspaceStep::ManualSelection;
         self.workspace_selected_parent_id = None;
@@ -317,6 +329,10 @@ impl AleraApp {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
+        if self.manual_workspace_source_required() {
+            let source = input_value(&self.workspace_manual_source_input,cx);
+            self.selected_workspace_source_branch = (!source.is_empty()).then_some(source);
+        }
         if self.selected_workspace_source_branch.is_none() {
             self.error = Some(if self.workspace_reuse_existing_branch {
                 "Existing Branch Is Required".into()
@@ -341,10 +357,13 @@ impl AleraApp {
         }
         self.new_workspace_step = NewWorkspaceStep::ManualSettings;
         self.error = None;
+        let input=if self.workspace_reuse_existing_branch {&self.workspace_name_input} else {&self.workspace_branch_input};
+        input.update(cx,|input,cx|input.focus(window,cx));
         cx.notify();
     }
 
     pub(super) fn back_new_workspace(&mut self, cx: &mut Context<Self>) {
+        if self.workspace_creation_busy {return;}
         self.new_workspace_step = match self.new_workspace_step {
             NewWorkspaceStep::ManualSettings => NewWorkspaceStep::ManualSelection,
             NewWorkspaceStep::ManualSelection => NewWorkspaceStep::Entry,
@@ -354,6 +373,7 @@ impl AleraApp {
     }
 
     pub(super) fn select_workspace_project(&mut self, project_id: String, cx: &mut Context<Self>) {
+        if self.workspace_creation_busy {return;}
         self.selected_workspace_project_id = Some(project_id.clone());
         self.selected_workspace_source_branch = None;
         self.workspace_selected_parent_id = self
@@ -404,6 +424,7 @@ impl AleraApp {
             return;
         }
         self.workspace_reuse_existing_branch = reuse;
+        self.reset_manual_workspace_source(window,cx);
         let candidates = if reuse {
             self.available_local_workspace_branches()
         } else {
@@ -444,6 +465,9 @@ impl AleraApp {
             self.workspace_synced_name = None;
         }
         self.error = None;
+        if self.manual_workspace_source_required() {
+            self.workspace_manual_source_input.update(cx,|input,cx|input.focus(window,cx));
+        }
         cx.notify();
     }
 
@@ -463,6 +487,7 @@ impl AleraApp {
     }
 
     pub(super) fn toggle_create_another_workspace(&mut self, cx: &mut Context<Self>) {
+        if self.workspace_creation_busy {return;}
         self.create_another_workspace = !self.create_another_workspace;
         cx.notify();
     }
@@ -472,120 +497,13 @@ impl AleraApp {
             return;
         }
         self.show_new_workspace_dialog = false;
+        self.workspace_branches_generation=self.workspace_branches_generation.wrapping_add(1);
+        self.workspace_profiles_generation=self.workspace_profiles_generation.wrapping_add(1);
+        self.workspace_branches_loading=false;
+        self.workspace_profiles_loading=false;
         cx.notify();
     }
 
-    pub(super) fn create_workspace(&mut self, cx: &mut Context<Self>) {
-        if self.workspace_creation_busy {
-            return;
-        }
-        let branch = if self.workspace_reuse_existing_branch {
-            self.selected_workspace_source_branch
-                .clone()
-                .unwrap_or_default()
-        } else {
-            input_value(&self.workspace_branch_input, cx)
-        };
-        if branch.is_empty() {
-            self.error = Some(if self.workspace_reuse_existing_branch {
-                "Existing Branch Is Required".into()
-            } else {
-                "New Branch Name Is Required".into()
-            });
-            cx.notify();
-            return;
-        }
-        if !self.workspace_reuse_existing_branch
-            && self
-                .workspace_source_branches
-                .iter()
-                .any(|item| item == &branch)
-        {
-            self.error = Some(format!("Branch \"{branch}\" Already Exists").into());
-            cx.notify();
-            return;
-        }
-        let project = self
-            .selected_workspace_project_id
-            .as_deref()
-            .and_then(|id| {
-                self.snapshot
-                    .projects
-                    .iter()
-                    .find(|project| project.id == id)
-            });
-        let Some(project) = project else {
-            self.error = Some("No Git Project Is Available".into());
-            cx.notify();
-            return;
-        };
-        let source_branch = self
-            .selected_workspace_source_branch
-            .clone()
-            .unwrap_or_else(|| "main".to_string());
-        let project_id = project.id.clone();
-        let workspace_name = optional_input_value(&self.workspace_name_input, cx);
-        let parent_workspace_id = self.workspace_selected_parent_id.clone();
-        let create_another = self.create_another_workspace;
-        let reuse_existing_branch = self.workspace_reuse_existing_branch;
-        let bridge = self.bridge.clone();
-        self.workspace_creation_busy = true;
-        self.error = None;
-        cx.notify();
-        cx.spawn(async move |this, cx| {
-            let mut request = json!({
-                "projectId": project_id,
-                "branch": branch,
-                "sourceBranch": source_branch,
-                "reuseExistingBranch": reuse_existing_branch,
-                "deferSetup": true,
-            });
-            if let (Some(object), Some(name)) = (request.as_object_mut(), workspace_name) {
-                object.insert("name".to_string(), Value::String(name));
-            }
-            if let (Some(object), Some(parent_workspace_id)) =
-                (request.as_object_mut(), parent_workspace_id)
-            {
-                object.insert(
-                    "parentWorkspaceId".to_string(),
-                    Value::String(parent_workspace_id),
-                );
-            }
-            let result = bridge
-                .request_with_timeout(
-                    "workspace.createManaged",
-                    request,
-                    Duration::from_secs(30 * 60),
-                )
-                .await;
-            let _ = this.update(cx, |this, cx| {
-                this.workspace_creation_busy = false;
-                match result {
-                    Ok(payload) => {
-                        let workspace_id = workspace_id_from_payload(&payload);
-                        if let Some(workspace_id) = workspace_id.clone() {
-                            this.queue_deferred_workspace_setup(
-                                workspace_id,
-                                deferred_setup_command_from_payload(&payload),
-                                None,
-                            );
-                        }
-                        this.show_new_workspace_dialog = create_another;
-                        this.new_workspace_step = NewWorkspaceStep::Entry;
-                        this.error = None;
-                        this.selected_workspace_id = workspace_id;
-                        this.selected_tab_id = None;
-                        this.refresh(cx);
-                    }
-                    Err(error) => {
-                        this.error = Some(error.into());
-                        cx.notify();
-                    }
-                }
-            });
-        })
-        .detach();
-    }
 }
 
 fn parse_agent_profile_options(value: Value) -> Result<Vec<AgentProfileOption>, String> {
@@ -613,20 +531,6 @@ fn parse_agent_profile_options(value: Value) -> Result<Vec<AgentProfileOption>, 
 
 fn input_value(input: &Entity<InputState>, cx: &Context<AleraApp>) -> String {
     input.read(cx).value().trim().to_string()
-}
-
-fn optional_input_value(input: &Entity<InputState>, cx: &Context<AleraApp>) -> Option<String> {
-    let value = input_value(input, cx);
-    (!value.is_empty()).then_some(value)
-}
-
-fn workspace_id_from_payload(payload: &Value) -> Option<String> {
-    payload
-        .get("workspace")
-        .and_then(Value::as_object)
-        .and_then(|workspace| workspace.get("id"))
-        .and_then(Value::as_str)
-        .map(str::to_string)
 }
 
 pub(super) fn deferred_setup_command_from_payload(payload: &Value) -> Option<String> {

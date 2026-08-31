@@ -1,25 +1,31 @@
-use gpui::{Context, SharedString};
+use gpui::Context;
 use serde_json::{json, Value};
-use sqlx::sqlite::{SqliteConnectOptions, SqlitePoolOptions};
-use sqlx::Row as _;
 
 use super::{AleraApp, SidebarGroupBy, SidebarSortBy, SidebarWorkspaceKind};
 
 impl AleraApp {
     pub(super) fn load_sidebar_view_prefs(&mut self, cx: &mut Context<Self>) {
+        let generation=self.next_view_prefs_generation();
         let bridge = self.bridge.clone();
+        let store=self.workbench_prefs_store.clone();
         cx.spawn(async move |this, cx| {
             let (result, local_prefs) = tokio::join!(
                 bridge.request("workbenchViewPrefs.get", json!({})),
-                load_local_workbench_prefs(),
+                store.load(),
             );
             let Some(this) = this.upgrade() else {
                 return;
             };
-            this.update(cx, |this, cx| match result {
-                Ok(record) => {
-                    let shared = record.get("prefs").unwrap_or(&record);
-                    let prefs = merge_local_and_shared_prefs(local_prefs, shared);
+            this.update(cx, |this, cx| {
+                if this.workbench_prefs_generation.get()!=generation {return;}
+                let (prefs,initialize_shared)=match result {
+                    Ok(record)=>resolve_loaded_view_prefs(local_prefs,&record),
+                    Err(error)=>{
+                        crate::app_log::warning("workbench_view_prefs",&format!("Could not load shared view preferences; using local preferences: {error}"));
+                        let Some(local)=local_prefs.filter(Value::is_object) else {return;};
+                        (local,false)
+                    }
+                };
                     this.workbench_view_prefs_raw = prefs.clone();
                     let prefs = &prefs;
                     this.sidebar_group_by = match string_field(prefs, "groupBy") {
@@ -76,20 +82,17 @@ impl AleraApp {
                     this.forge_create_draft =
                         string_field(prefs, "pullRequestCreateAction") == "draft";
                     this.refresh_local_activity(cx);
-                }
-                Err(error) => {
-                    this.error = Some(SharedString::from(format!(
-                        "Could Not Load View Options: {error}"
-                    )));
+                    if initialize_shared {this.persist_sidebar_view_prefs(cx);}
                     cx.notify();
-                }
             });
         })
         .detach();
     }
 
     pub(super) fn persist_sidebar_view_prefs(&self, cx: &mut Context<Self>) {
+        self.next_view_prefs_generation();
         let bridge = self.bridge.clone();
+        let store=self.workbench_prefs_store.clone();
         let mut prefs = self.workbench_view_prefs_raw.clone();
         if !prefs.is_object() {
             prefs = json!({});
@@ -203,11 +206,7 @@ impl AleraApp {
         );
         object.insert(
             "gitDiffViewMode".into(),
-            json!(if self.source_control_tree_mode {
-                "tree"
-            } else {
-                "list"
-            }),
+            json!(source_control_view_mode_key(self.source_control_tree_mode)),
         );
         object.insert(
             "gitDiffGroupMode".into(),
@@ -226,17 +225,27 @@ impl AleraApp {
             }),
         );
         cx.spawn(async move |_, _| {
-            let shared_prefs = prefs.clone();
-            let _ = tokio::join!(
-                save_local_workbench_prefs(&prefs),
-                bridge.request(
-                    "workbenchViewPrefs.update",
-                    json!({"expectedRevision": null, "prefs": shared_prefs}),
-                ),
-            );
+            // The remote change event must not race a stale local record.
+            let _=store.save(&prefs).await;
+            let _=bridge.request("workbenchViewPrefs.update",json!({"expectedRevision":null,"prefs":prefs})).await;
         })
         .detach();
     }
+
+    fn next_view_prefs_generation(&self)->u64 {
+        let generation=self.workbench_prefs_generation.get().wrapping_add(1);
+        self.workbench_prefs_generation.set(generation);
+        generation
+    }
+}
+
+fn resolve_loaded_view_prefs(local:Option<Value>,record:&Value)->(Value,bool) {
+    // A new runtime must be seeded from desktop-local preferences, not from
+    // its default (or mobile-only) record. Legacy unwrapped replies still merge.
+    if record.get("desktopInitialized").and_then(Value::as_bool)==Some(false) {
+        return (local.filter(Value::is_object).unwrap_or_else(||json!({})),true);
+    }
+    (merge_local_and_shared_prefs(local,record.get("prefs").unwrap_or(record)),false)
 }
 
 fn merge_local_and_shared_prefs(local: Option<Value>, shared: &Value) -> Value {
@@ -252,71 +261,6 @@ fn merge_local_and_shared_prefs(local: Option<Value>, shared: &Value) -> Value {
     Value::Object(merged.clone())
 }
 
-async fn load_local_workbench_prefs() -> Option<Value> {
-    let path = crate::local_database_path()?;
-    let (sender, receiver) = async_channel::bounded(1);
-    std::thread::spawn(move || {
-        let value = local_database_runtime()
-            .and_then(|runtime| runtime.block_on(load_local_workbench_prefs_from(path)));
-        let _ = sender.send_blocking(value);
-    });
-    receiver.recv().await.ok().flatten()
-}
-
-async fn load_local_workbench_prefs_from(path: std::path::PathBuf) -> Option<Value> {
-    let pool = open_local_database(path).await?;
-    let row = sqlx::query("SELECT data_json FROM workbench_view_prefs_table WHERE id = 1")
-        .fetch_optional(&pool)
-        .await
-        .ok()??;
-    serde_json::from_str(row.get::<&str, _>("data_json")).ok()
-}
-
-async fn save_local_workbench_prefs(prefs: &Value) -> Option<()> {
-    let path = crate::local_database_path()?;
-    let encoded = serde_json::to_string(prefs).ok()?;
-    let (sender, receiver) = async_channel::bounded(1);
-    std::thread::spawn(move || {
-        let value = local_database_runtime()
-            .and_then(|runtime| runtime.block_on(save_local_workbench_prefs_to(path, encoded)));
-        let _ = sender.send_blocking(value);
-    });
-    receiver.recv().await.ok().flatten()
-}
-
-async fn save_local_workbench_prefs_to(path: std::path::PathBuf, encoded: String) -> Option<()> {
-    let pool = open_local_database(path).await?;
-    sqlx::query(
-        "INSERT INTO workbench_view_prefs_table (id, data_json) VALUES (1, ?) \
-         ON CONFLICT(id) DO UPDATE SET data_json = excluded.data_json",
-    )
-    .bind(encoded)
-    .execute(&pool)
-    .await
-    .ok()?;
-    Some(())
-}
-
-async fn open_local_database(path: std::path::PathBuf) -> Option<sqlx::SqlitePool> {
-    if !path.is_file() {
-        return None;
-    }
-    let options = SqliteConnectOptions::new()
-        .filename(path)
-        .create_if_missing(false);
-    SqlitePoolOptions::new()
-        .max_connections(1)
-        .connect_with(options)
-        .await
-        .ok()
-}
-
-fn local_database_runtime() -> Option<tokio::runtime::Runtime> {
-    tokio::runtime::Builder::new_current_thread()
-        .enable_all()
-        .build()
-        .ok()
-}
 
 fn parse_sort(value: &str) -> SidebarSortBy {
     match value {
@@ -339,8 +283,10 @@ fn string_field<'a>(value: &'a Value, key: &str) -> &'a str {
 }
 
 fn source_control_tree_mode(prefs: &Value) -> bool {
-    string_field(prefs, "gitDiffViewMode") != "list"
+    !matches!(string_field(prefs,"gitDiffViewMode"),"flat"|"list")
 }
+
+fn source_control_view_mode_key(tree:bool)->&'static str {if tree{"tree"}else{"flat"}}
 
 fn string_set(value: Option<&Value>) -> std::collections::BTreeSet<String> {
     value
@@ -363,7 +309,7 @@ fn number_field(value: &Value, key: &str, fallback: f32) -> f32 {
 
 #[cfg(test)]
 mod tests {
-    use super::source_control_tree_mode;
+    use super::{source_control_tree_mode,source_control_view_mode_key};
     use serde_json::json;
 
     #[test]
@@ -375,5 +321,13 @@ mod tests {
         assert!(!source_control_tree_mode(
             &json!({"gitDiffViewMode": "list"})
         ));
+    }
+
+    #[test]
+    fn source_control_flat_mode_uses_flutter_wire_value() {
+        assert!(!source_control_tree_mode(&json!({"gitDiffViewMode":"flat"})));
+        assert_eq!(source_control_view_mode_key(false),"flat");
+        let fixture:serde_json::Value=serde_json::from_str(include_str!("../../tests/fixtures/workbench_view_prefs.json")).unwrap();
+        assert_eq!(fixture["gitDiffViewMode"],source_control_view_mode_key(false));
     }
 }

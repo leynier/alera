@@ -956,7 +956,7 @@ impl AleraApp {
             self.close_tab_rename_dialog(cx);
             true
         } else if self.sidebar_dialog.is_some() && !self.sidebar_action_busy {
-            self.close_sidebar_dialog(cx);
+            self.close_sidebar_dialog(window, cx);
             true
         } else if self.agent_canvas_confirmation.is_some() {
             self.cancel_canvas_confirmation(window, cx);

@@ -16,12 +16,15 @@ mod reading_diff_agent;
 mod reading_diff_service;
 pub use alera_desktop_core::model;
 pub use alera_desktop_core::runtime_bridge;
+#[cfg(all(test,feature="gpui-tests"))]
+mod runtime_bridge_test_support;
 mod terminal;
 mod terminal_palette;
 mod terminal_theme_catalog;
 mod theme;
 mod workspace_git;
 mod workspace_service;
+mod workbench_prefs_store;
 
 use std::{path::PathBuf, sync::Arc};
 

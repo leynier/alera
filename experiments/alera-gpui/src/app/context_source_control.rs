@@ -460,6 +460,7 @@ impl AleraApp {
             source_toolbar_tooltip(id, ai_busy)
         };
         let button = button
+            .debug_selector(move || id.into())
             .aria_label(tooltip)
             .when(!self.source_control_menu_open, |button| {
                 button.tooltip(move |_, cx| cx.new(|_| Tooltip::new(tooltip)).into())

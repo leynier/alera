@@ -346,6 +346,9 @@ impl AleraApp {
             _ => None,
         }
         .unwrap_or_default();
+        if self.sidebar_dialog.is_none() {
+            self.sidebar_dialog_previous_focus = window.focused(cx);
+        }
         self.sidebar_selected_tag_ids = self
             .snapshot
             .workspace(&target_id)
@@ -370,6 +373,12 @@ impl AleraApp {
         self.sidebar_parent_dropdown_open = false;
         let storage_workspace_id = target_id.clone();
         self.sidebar_dialog = Some(SidebarDialog { kind, target_id });
+        if matches!(kind, SidebarDialogKind::RenameProject | SidebarDialogKind::RenameWorkspace) {
+            self.sidebar_action_input.update(cx, |input, cx| {
+                input.focus(window, cx);
+                input.select_all(window, cx);
+            });
+        }
         self.sidebar_menu = None;
         self.error = None;
         self.sidebar_storage_impact = None;
@@ -410,7 +419,7 @@ impl AleraApp {
         cx.notify();
     }
 
-    pub(super) fn close_sidebar_dialog(&mut self, cx: &mut Context<Self>) {
+    pub(super) fn close_sidebar_dialog(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         if self.sidebar_action_busy {
             return;
         }
@@ -419,10 +428,11 @@ impl AleraApp {
         self.sidebar_tag_delete_armed = None;
         self.sidebar_parent_dropdown_open = false;
         self.error = None;
+        self.restore_sidebar_dialog_focus(window, cx);
         cx.notify();
     }
 
-    pub(super) fn submit_sidebar_dialog(&mut self, cx: &mut Context<Self>) {
+    pub(super) fn submit_sidebar_dialog(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         if self.sidebar_action_busy {
             return;
         }
@@ -435,7 +445,7 @@ impl AleraApp {
                 .as_ref()
                 .is_none_or(|impact| !impact.safe_to_clean)
         {
-            self.close_sidebar_dialog(cx);
+            self.close_sidebar_dialog(window, cx);
             return;
         }
         let name = self
@@ -447,7 +457,7 @@ impl AleraApp {
         let operation = match dialog.kind {
             SidebarDialogKind::RenameProject => {
                 if name.is_empty() {
-                    self.error = Some("Project Name Is Required".into());
+                    self.error = Some("Project Name is required".into());
                     cx.notify();
                     return;
                 }
@@ -461,7 +471,7 @@ impl AleraApp {
             }
             SidebarDialogKind::RenameWorkspace => {
                 if name.is_empty() {
-                    self.error = Some("Workspace Name Is Required".into());
+                    self.error = Some("Workspace Name is required".into());
                     cx.notify();
                     return;
                 }
@@ -514,6 +524,7 @@ impl AleraApp {
         // mutation starts, then reports failures through the global toast.
         self.sidebar_dialog = None;
         self.error = None;
+        self.restore_sidebar_dialog_focus(window, cx);
         cx.notify();
         cx.spawn(async move |this, cx| {
             let result = run_sidebar_operation(&bridge, operation).await;

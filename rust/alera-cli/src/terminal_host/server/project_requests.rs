@@ -160,7 +160,7 @@ impl ServerActor {
             .await
             .map_err(state_error)?;
         let (cancel_tx, cancel_rx) = oneshot::channel();
-        self.project_clone_jobs.insert(job.id.clone(), cancel_tx);
+        self.project_clone_jobs.insert(job.id.clone(), Some(cancel_tx));
         self.cancel_shutdown_timer();
         let store = self.runtime_store.clone();
         let inbox = self.inbox.clone();
@@ -191,7 +191,10 @@ impl ServerActor {
         payload: &Value,
     ) -> HostResult<Value> {
         let id = string_key(payload, "id")?;
-        let Some(cancel) = self.project_clone_jobs.remove(&id) else {
+        let Some(cancel) = self.project_clone_jobs.get_mut(&id).and_then(Option::take) else {
+            if self.project_clone_jobs.contains_key(&id) {
+                return Ok(json!({ "id": id, "cancelling": true }));
+            }
             let job = self
                 .runtime_store
                 .find_project_clone_job(&id)
