@@ -6,10 +6,12 @@ use serde_json::json;
 
 use super::*;
 
+mod durable_receipt_regressions;
 mod fixture;
 mod receipt_and_report_regressions;
 mod regressions;
 mod review_regressions;
+mod snapshot_regressions;
 mod stale_registration_regressions;
 use fixture::Fixture;
 

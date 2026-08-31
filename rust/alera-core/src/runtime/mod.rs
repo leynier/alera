@@ -126,6 +126,7 @@ mod workflow_source_identity;
 mod workflow_workspace;
 mod workflow_workspace_eligibility;
 mod workflow_workspace_schema;
+mod workflow_workspace_snapshot;
 mod workflow_workspace_store;
 #[cfg(test)]
 mod workflow_workspace_tests;
@@ -185,6 +186,7 @@ pub use workflow_catalog::{WorkflowCatalog, WorkflowCatalogEntry, WorkflowCatalo
 pub use workflow_plan::*;
 pub use workflow_recipe::*;
 pub use workflow_workspace::*;
+pub use workflow_workspace_snapshot::*;
 pub use workflow_yaml::{parse_workflow_yaml, WORKFLOW_DOCUMENT_MAX_BYTES};
 pub use worktree_setup_models::*;
 

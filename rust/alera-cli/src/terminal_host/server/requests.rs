@@ -651,7 +651,11 @@ impl ServerActor {
             "workspace.list" => {
                 self.require_auth(client_id)?;
                 let project_id = require_string_key(payload, "projectId")?;
-                json_result(self.runtime_store.list_workspaces(&project_id).await)
+                json_result(
+                    self.runtime_store
+                        .list_workspace_snapshots(&project_id)
+                        .await,
+                )
             }
             "workspace.listAll" => {
                 self.require_auth(client_id)?;

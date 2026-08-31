@@ -8,6 +8,9 @@ use git2::{ErrorCode, Oid, Repository, WorktreeAddOptions};
 
 use super::{open_repo, GitError, GitErrorKind};
 
+mod receipt;
+use receipt::WorkflowWorktreeReceipt;
+
 pub fn is_registered_workflow_worktree(
     repo_path: &str,
     path: &str,
@@ -44,19 +47,20 @@ pub fn ensure_workflow_worktree(
     repo.find_commit(oid).map_err(GitError::from_git2)?;
     let reference_name = format!("refs/heads/alera/workflows/{id}");
     let receipt = format!("alera workflow {id} at {base_sha}");
+    let ownership = WorkflowWorktreeReceipt::new(&repo, path, base_sha, id)?;
     let existing = match repo.find_reference(&reference_name) {
         Ok(reference) => Some(reference),
         Err(error) if error.code() == ErrorCode::NotFound => None,
         Err(error) => return Err(GitError::from_git2(error)),
     };
     let reference = if let Some(reference) = existing {
-        verify_reference_receipt(&repo, &reference_name, &receipt)?;
+        ownership.verify(&repo)?;
         if reference.target() != Some(oid) {
             return Err(invalid("workflow branch moved from its reserved base"));
         }
         reference
     } else {
-        if occupied(path)? || repo.find_worktree(id).is_ok() {
+        if ownership.exists(&repo)? || occupied(path)? || repo.find_worktree(id).is_ok() {
             return Err(invalid(
                 "workflow destination already exists without its branch receipt",
             ));
@@ -78,6 +82,7 @@ pub fn ensure_workflow_worktree(
             "workflow destination is occupied; existing files were preserved",
         ));
     }
+    ownership.persist(&repo)?;
     let parent = Path::new(path)
         .parent()
         .ok_or_else(|| invalid("workflow destination has no parent"))?;
@@ -113,11 +118,8 @@ pub fn verify_workflow_worktree(
     uuid::Uuid::parse_str(id).map_err(|_| invalid("invalid workflow resource id"))?;
     let repo = open_repo(repo_path)?;
     let reference_name = format!("refs/heads/alera/workflows/{id}");
-    verify_reference_receipt(
-        &repo,
-        &reference_name,
-        &format!("alera workflow {id} at {base_sha}"),
-    )?;
+    let ownership = WorkflowWorktreeReceipt::new(&repo, path, base_sha, id)?;
+    ownership.verify(&repo)?;
     let worktree = repo.find_worktree(id).map_err(GitError::from_git2)?;
     worktree.validate().map_err(GitError::from_git2)?;
     let metadata = std::fs::symlink_metadata(path).map_err(|error| invalid(error.to_string()))?;
@@ -144,26 +146,7 @@ pub fn verify_workflow_worktree(
             "workflow repository, branch or base identity changed",
         ));
     }
-    Ok(())
-}
-
-fn verify_reference_receipt(
-    repo: &Repository,
-    reference: &str,
-    receipt: &str,
-) -> Result<(), GitError> {
-    let log = repo.reflog(reference).map_err(GitError::from_git2)?;
-    let first = log
-        .len()
-        .checked_sub(1)
-        .and_then(|index| log.get(index))
-        .ok_or_else(|| invalid("workflow branch has no ownership receipt"))?;
-    if first.id_old() != Oid::ZERO_SHA1
-        || first.message().map_err(GitError::from_git2)? != Some(receipt)
-    {
-        return Err(invalid("workflow branch belongs to another resource"));
-    }
-    Ok(())
+    ownership.persist(&repo)
 }
 
 fn canonical(path: &Path) -> Result<std::path::PathBuf, GitError> {

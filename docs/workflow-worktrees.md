@@ -18,7 +18,7 @@ The additive `workflowManagedWorktreesV1` capability is required. The local-auth
 
 ## Recovery and retries
 
-A transaction reserves identities and request receipts before Git runs. Stable OS file locks serialize each resource. A Git branch-creation reflog receipt plus registered worktree identity lets recovery reconcile completed Git work before workspace metadata was committed. Missing/foreign receipts, replaced identities, moved branches or occupied destinations are not adopted or overwritten.
+A transaction reserves identities and request receipts before Git runs. Stable OS file locks serialize each resource. A Git branch-creation reflog receipt is promoted into an immutable blob anchored by a private `refs/alera/workflow-resources/<workspace-uuid>` ref. This repository-local receipt binds the repository, destination, branch and base SHA and survives reflog expiry and garbage collection. Recovery can promote the authentic creation reflog after interruption, but never overwrites a conflicting receipt. The registered worktree identity lets recovery reconcile completed Git work before workspace metadata was committed. Missing/foreign receipts, replaced identities, moved branches or occupied destinations are not adopted or overwritten.
 
 Client disconnects and request timeouts do not cancel preparation. Retry the same request ID and contents; changing contents under that ID is rejected. Listing returns retained records in bounded pages, with `nextBeforeRow` for `--before-row`. Preparation holds the host alive and runs outside its actor.
 
@@ -28,7 +28,7 @@ On startup, one paginated recovery sweep reconciles unfinished preparations. Set
 alera orchestration workspaces prepare --run <run-id> --revision <revision> --request-id <new-stable-id> --task <task-id> --retry-of <latest-attempt-workspace-id>
 ```
 
-Every retry receives a new branch and worktree. No automatic reset, rebase or cleanup is performed. Generic managed-workspace removal and setup replay reject workflow-owned resources, including worktrees re-registered under another metadata ID. Cancellation and legacy orchestration resets preserve resource ownership records and Git data. Reviewed cleanup belongs to the later Run Board lifecycle surface.
+Every retry receives a new branch and worktree. No automatic reset, rebase or cleanup is performed. Generic managed-workspace removal and setup replay reject workflow-owned resources, including worktrees re-registered under another metadata ID. The desktop's generic project reconciliation also retains workflow identities when a checkout is missing, detached or on another branch; `workspace.list` includes a runtime-derived `workflowOwned` flag from one bulk ownership query, never from client input. Cancellation and legacy orchestration resets preserve resource ownership records and Git data. Reviewed cleanup belongs to the later Run Board lifecycle surface, including the retained ownership refs.
 
 ## Validation boundary
 

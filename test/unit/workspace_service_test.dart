@@ -21,6 +21,7 @@ import 'fake_git_backend.dart';
 part 'workspace_service_core_test_cases.dart';
 part 'workspace_service_removal_test_cases.dart';
 part 'workspace_service_test_harness.dart';
+part 'workspace_service_workflow_test_cases.dart';
 
 late Directory tempDir;
 late _FakeWorkbenchRepository repository;
@@ -61,5 +62,6 @@ void main() {
 
     _registerWorkspaceServiceCoreTests();
     _registerWorkspaceServiceRemovalTests();
+    _registerWorkspaceServiceWorkflowTests();
   });
 }

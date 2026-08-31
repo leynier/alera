@@ -25,10 +25,12 @@ import 'package:flutter_test/flutter_test.dart';
 
 part 'runtime_managed_workspace_client_test_cases.dart';
 part 'runtime_tab_title_test_cases.dart';
+part 'runtime_workflow_workspace_test_cases.dart';
 
 void main() {
   _registerRuntimeTabTitleTests();
   _registerRuntimeManagedWorkspaceClientTests();
+  _registerRuntimeWorkflowWorkspaceTests();
 
   test(
     'RuntimeProjectRepository refreshes project stream from runtime events',

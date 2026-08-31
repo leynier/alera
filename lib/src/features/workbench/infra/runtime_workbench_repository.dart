@@ -260,6 +260,7 @@ Workspace _workspaceFromJson(Map<String, Object?> json) {
     sectionId: _emptyToNull(json['sectionId']),
     parentWorkspaceId: _emptyToNull(json['parentWorkspaceId']),
     childCount: (json['childCount'] as num?)?.toInt() ?? 0,
+    workflowOwned: json['workflowOwned'] == true,
   );
 }
 

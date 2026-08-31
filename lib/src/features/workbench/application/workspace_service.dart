@@ -314,7 +314,7 @@ class WorkspaceService._(
     if (!project.supportsLinkedWorkspaces) {
       final workspaces = await _repository.listWorkspaces(project.id);
       for (final workspace in workspaces) {
-        if (workspace.id == mainWorkspace.id) {
+        if (workspace.id == mainWorkspace.id || workspace.workflowOwned) {
           continue;
         }
         await _repository.removeWorkspace(workspace.id, cascadeTabs: true);
@@ -330,7 +330,9 @@ class WorkspaceService._(
         liveWorktrees != null &&
         liveWorktrees.containsKey(_canonicalPath(mainWorkspace.path));
     for (final workspace in workspaces) {
-      if (workspace.id == mainWorkspace.id) {
+      // Workflow identity and missing resources are reconciled by the host.
+      // Generic refresh must not rewrite or prune a retained task attempt.
+      if (workspace.id == mainWorkspace.id || workspace.workflowOwned) {
         continue;
       }
       final live = liveWorktrees?[_canonicalPath(workspace.path)];
