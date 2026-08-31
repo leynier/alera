@@ -31,6 +31,7 @@ List<PopupMenuEntry<String>> workspaceContextMenuEntries({
   required bool hasClearParent,
   required bool canRemove,
   required bool isPinned,
+  bool hasDescendants = false,
 }) {
   return <PopupMenuEntry<String>>[
     const AleraDropdownEntry<String>(
@@ -43,16 +44,18 @@ List<PopupMenuEntry<String>> workspaceContextMenuEntries({
       leading: Icon(isPinned ? AleraIcons.pinOff : AleraIcons.pin, size: 16),
       label: isPinned ? 'Unpin Workspace' : 'Pin Workspace',
     ),
-    const AleraDropdownEntry<String>(
-      value: _pinWorkspaceTreeAction,
-      leading: Icon(AleraIcons.pin, size: 16),
-      label: 'Pin Workspace Tree',
-    ),
-    const AleraDropdownEntry<String>(
-      value: _unpinWorkspaceTreeAction,
-      leading: Icon(AleraIcons.pinOff, size: 16),
-      label: 'Unpin Workspace Tree',
-    ),
+    if (hasDescendants)
+      const AleraDropdownEntry<String>(
+        value: _pinWorkspaceTreeAction,
+        leading: Icon(AleraIcons.pin, size: 16),
+        label: 'Pin Workspace Tree',
+      ),
+    if (hasDescendants)
+      const AleraDropdownEntry<String>(
+        value: _unpinWorkspaceTreeAction,
+        leading: Icon(AleraIcons.pinOff, size: 16),
+        label: 'Unpin Workspace Tree',
+      ),
     const AleraDropdownEntry<String>(
       value: _manageTagsAction,
       leading: Icon(AleraIcons.tag, size: 16),

@@ -123,16 +123,19 @@ void _registerAleraShellPinningTests() {
   });
 
   testWidgets('workspace context menu pins the workspace tree', (tester) async {
-    final controller = _PinningShellTestWorkbenchController(
-      _linkedWorkbenchState(),
+    final seeded = _linkedWorkbenchState();
+    final workspaces = seeded.workspacesFor('project-1');
+    final parent = workspaces.first;
+    final child = workspaces.last.copyWith(parentWorkspaceId: parent.id);
+    final state = seeded.copyWith(
+      workspacesByProject: <String, List<Workspace>>{
+        'project-1': <Workspace>[parent, child],
+      },
     );
-    await _pumpShell(
-      tester,
-      state: _linkedWorkbenchState(),
-      controller: controller,
-    );
+    final controller = _PinningShellTestWorkbenchController(state);
+    await _pumpShell(tester, state: state, controller: controller);
     final regular = find.byKey(
-      const ValueKey<String>('workspace-row:regular:workspace-2'),
+      ValueKey<String>('workspace-row:regular:${parent.id}'),
     );
 
     await tester.tapAt(
@@ -140,12 +143,27 @@ void _registerAleraShellPinningTests() {
       buttons: kSecondaryMouseButton,
     );
     await tester.pumpAndSettle();
+    expect(find.text('Pin Workspace Tree'), findsOneWidget);
     await tester.tap(find.text('Pin Workspace Tree'));
     await tester.pumpAndSettle();
 
     expect(controller.treePinUpdates, <({String workspaceId, bool isPinned})>[
-      (workspaceId: 'workspace-2', isPinned: true),
+      (workspaceId: parent.id, isPinned: true),
     ]);
+  });
+
+  testWidgets('leaf workspaces omit tree pin actions', (tester) async {
+    await _pumpShell(tester, state: _linkedWorkbenchState());
+    await tester.tapAt(
+      tester.getCenter(
+        find.byKey(const ValueKey<String>('workspace-row:regular:workspace-2')),
+      ),
+      buttons: kSecondaryMouseButton,
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Pin Workspace Tree'), findsNothing);
+    expect(find.text('Unpin Workspace Tree'), findsNothing);
   });
 
   testWidgets('view preference hides the regular pinned workspace copy', (

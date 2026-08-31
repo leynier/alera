@@ -4,6 +4,7 @@ import 'package:alera_mobile/src/design_system/chips/alera_chip.dart';
 import 'package:alera_mobile/src/design_system/icons/alera_icons.dart';
 import 'package:alera_mobile/src/features/runtime/domain/workspace_summary.dart';
 import 'package:alera_mobile/src/features/workbench/application/workspace_list_controller.dart';
+import 'package:alera_mobile/src/features/workbench/application/workspace_listing_tree.dart';
 import 'package:alera_mobile/src/features/workbench/presentation/delete_workspace_dialog.dart';
 import 'package:alera_mobile/src/features/workbench/presentation/parent_picker_sheet.dart';
 import 'package:alera_mobile/src/features/workbench/presentation/sleep_workspace_dialog.dart';
@@ -42,6 +43,10 @@ Future<void> showWorkspaceActionsSheet(
   if (!data.supportsMutations) {
     return;
   }
+  final hasDescendants = workspaceDescendantIds(
+    data.workspaces,
+    workspace.id,
+  ).isNotEmpty;
   final action = await showModalBottomSheet<_WorkspaceAction>(
     context: context,
     isScrollControlled: true,
@@ -79,18 +84,20 @@ Future<void> showWorkspaceActionsSheet(
                           : _WorkspaceAction.pin,
                     ),
                   ),
-                  ListTile(
-                    leading: const Icon(AleraIcons.pin, size: 20),
-                    title: const Text('Pin Workspace Tree'),
-                    onTap: () =>
-                        Navigator.of(context).pop(_WorkspaceAction.pinTree),
-                  ),
-                  ListTile(
-                    leading: const Icon(AleraIcons.pinOff, size: 20),
-                    title: const Text('Unpin Workspace Tree'),
-                    onTap: () =>
-                        Navigator.of(context).pop(_WorkspaceAction.unpinTree),
-                  ),
+                  if (hasDescendants)
+                    ListTile(
+                      leading: const Icon(AleraIcons.pin, size: 20),
+                      title: const Text('Pin Workspace Tree'),
+                      onTap: () =>
+                          Navigator.of(context).pop(_WorkspaceAction.pinTree),
+                    ),
+                  if (hasDescendants)
+                    ListTile(
+                      leading: const Icon(AleraIcons.pinOff, size: 20),
+                      title: const Text('Unpin Workspace Tree'),
+                      onTap: () =>
+                          Navigator.of(context).pop(_WorkspaceAction.unpinTree),
+                    ),
                   ListTile(
                     leading: const Icon(AleraIcons.tag, size: 20),
                     title: const Text('Manage Tags'),

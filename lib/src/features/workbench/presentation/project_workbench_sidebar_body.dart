@@ -105,6 +105,7 @@ class const _SidebarBody({
     }
     if (row is WorkbenchWorkspaceRow) {
       final leftPadding = _indentPadding(row.indent);
+      final hasDescendants = _workspaceHasDescendants(state, row.workspace);
       return Padding(
         padding: EdgeInsets.only(left: leftPadding, right: AleraTokens.space8),
         child: _WorkspaceRow(
@@ -139,10 +140,12 @@ class const _SidebarBody({
           onRename: () => onRenameWorkspace(row.workspace),
           onSetPinned: () =>
               onSetWorkspacePinned(row.workspace, !row.workspace.isPinned),
-          onPinWorkspaceTree: () =>
-              onSetWorkspaceTreePinned(row.workspace, true),
-          onUnpinWorkspaceTree: () =>
-              onSetWorkspaceTreePinned(row.workspace, false),
+          onPinWorkspaceTree: hasDescendants
+              ? () => onSetWorkspaceTreePinned(row.workspace, true)
+              : null,
+          onUnpinWorkspaceTree: hasDescendants
+              ? () => onSetWorkspaceTreePinned(row.workspace, false)
+              : null,
           onManageTags: () => onManageWorkspaceTags(row.workspace),
           onSetSection: state.supportsSections
               ? () => showWorkspaceSectionDialog(
@@ -168,6 +171,12 @@ class const _SidebarBody({
       );
     }
     return const SizedBox.shrink();
+  }
+
+  bool _workspaceHasDescendants(WorkbenchState state, Workspace workspace) {
+    return workspaceIdsDescendedFrom([
+      for (final group in state.workspacesByProject.values) ...group,
+    ], workspace.id).isNotEmpty;
   }
 
   /// Base sidebar padding plus one row-content step per nesting level, clamped
