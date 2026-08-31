@@ -101,7 +101,7 @@ async fn workflow_catalog_rpc_save_emits_local_event_and_rejects_stale_overwrite
     let dir = tempfile::tempdir().unwrap();
     let (handle, mut rx) = ClientHandle::test_channels();
     let (mobile, mut mobile_rx) = ClientHandle::test_channels();
-    let actor = test_actor(
+    let mut actor = test_actor(
         &dir,
         HashMap::from([
             (1, local_client(handle)),
@@ -110,15 +110,18 @@ async fn workflow_catalog_rpc_save_emits_local_event_and_rejects_stale_overwrite
         HashMap::new(),
     )
     .await;
+    let (inbox, mut inbox_rx) = tokio::sync::mpsc::unbounded_channel();
+    actor.inbox = inbox;
     let payload = json!({"document":builtin_workflow_recipes()[0].portable_document().unwrap()});
     actor
         .start_workflow_catalog_request(1, 9, "workflows.savePersonalRecipe", &payload)
         .unwrap();
+    assert_eq!(response(&mut rx).await["ok"], true);
+    complete_save(&mut actor, &mut inbox_rx).await;
     let event = response(&mut rx).await;
     assert_eq!(event["event"], "workflowCatalogChanged");
     assert_eq!(event["payload"]["catalogRevision"], 1);
     assert_eq!(event["payload"]["source"]["origin"], "personal");
-    assert_eq!(response(&mut rx).await["ok"], true);
     assert!(mobile_rx.try_recv().is_err());
     actor
         .start_workflow_catalog_request(1, 10, "workflows.savePersonalRecipe", &payload)
@@ -127,7 +130,143 @@ async fn workflow_catalog_rpc_save_emits_local_event_and_rejects_stale_overwrite
     assert_eq!(error["id"], 10);
     assert_eq!(error["ok"], false);
     assert!(rx.try_recv().is_err());
+    assert!(inbox_rx.try_recv().is_err());
     assert!(actor.coordinators.is_empty());
+}
+
+#[tokio::test]
+async fn workflow_catalog_timed_out_save_does_not_emit_a_success_event() {
+    let dir = tempfile::tempdir().unwrap();
+    let (handle, mut rx) = ClientHandle::test_channels();
+    let mut actor = test_actor(
+        &dir,
+        HashMap::from([(1, local_client(handle))]),
+        HashMap::new(),
+    )
+    .await;
+    let (inbox, mut inbox_rx) = tokio::sync::mpsc::unbounded_channel();
+    actor.inbox = inbox;
+    // Exhaust this test's pool so no save can reach SQLite before the real RPC deadline.
+    let mut connections = Vec::new();
+    for _ in 0..actor.runtime_store.pool().options().get_max_connections() {
+        connections.push(actor.runtime_store.pool().acquire().await.unwrap());
+    }
+    actor
+        .start_workflow_catalog_request(
+            1,
+            1,
+            "workflows.savePersonalRecipe",
+            &json!({"document":builtin_workflow_recipes()[0].portable_document().unwrap()}),
+        )
+        .unwrap();
+    let error = tokio::time::timeout(Duration::from_secs(35), rx.recv())
+        .await
+        .unwrap()
+        .unwrap()
+        .as_json()
+        .unwrap();
+    assert_eq!(error["ok"], false);
+    assert!(error.to_string().contains("timed out"), "{error}");
+    assert!(inbox_rx.try_recv().is_err());
+    drop(connections);
+    assert_eq!(
+        actor
+            .runtime_store
+            .workflow_catalog(None)
+            .await
+            .unwrap()
+            .entries
+            .len(),
+        2
+    );
+    assert!(rx.try_recv().is_err());
+}
+
+#[tokio::test]
+async fn workflow_catalog_save_notifies_clients_connected_while_persistence_is_pending() {
+    pending_save_notifies_current_clients(false).await;
+}
+
+#[tokio::test]
+async fn workflow_catalog_save_notifies_survivors_after_the_initiator_disconnects() {
+    pending_save_notifies_current_clients(true).await;
+}
+
+async fn pending_save_notifies_current_clients(disconnect_initiator: bool) {
+    let dir = tempfile::tempdir().unwrap();
+    let (handle, mut initiating_rx) = ClientHandle::test_channels();
+    let mut actor = test_actor(
+        &dir,
+        HashMap::from([(1, local_client(handle))]),
+        HashMap::new(),
+    )
+    .await;
+    let (inbox, mut inbox_rx) = tokio::sync::mpsc::unbounded_channel();
+    actor.inbox = inbox;
+    let transaction = actor
+        .runtime_store
+        .pool()
+        .begin_with("BEGIN IMMEDIATE")
+        .await
+        .unwrap();
+    actor
+        .start_workflow_catalog_request(
+            1,
+            1,
+            "workflows.savePersonalRecipe",
+            &json!({"document":builtin_workflow_recipes()[0].portable_document().unwrap()}),
+        )
+        .unwrap();
+    let (late, mut late_rx) = ClientHandle::test_channels();
+    actor.clients.insert(2, local_client(late));
+    actor
+        .start_workflow_catalog_request(2, 2, "workflows.catalog", &json!({}))
+        .unwrap();
+    let old_catalog = response(&mut late_rx).await;
+    assert_eq!(old_catalog["ok"], true);
+    assert_eq!(
+        old_catalog["payload"]["entries"].as_array().unwrap().len(),
+        2
+    );
+    assert!(inbox_rx.try_recv().is_err());
+    if disconnect_initiator {
+        actor.clients.remove(&1);
+        initiating_rx.close();
+    }
+    transaction.commit().await.unwrap();
+    if !disconnect_initiator {
+        assert_eq!(response(&mut initiating_rx).await["ok"], true);
+    }
+    complete_save(&mut actor, &mut inbox_rx).await;
+    let event = response(&mut late_rx).await;
+    assert_eq!(event["event"], "workflowCatalogChanged");
+    assert_eq!(event["payload"]["catalogRevision"], 1);
+    assert_eq!(
+        event["payload"]["source"],
+        json!({"origin":"personal", "id":"quick-fix"})
+    );
+    if !disconnect_initiator {
+        assert_eq!(
+            response(&mut initiating_rx).await["event"],
+            "workflowCatalogChanged"
+        );
+    }
+    assert!(inbox_rx.try_recv().is_err());
+}
+
+async fn complete_save(
+    actor: &mut super::ServerActor,
+    inbox: &mut tokio::sync::mpsc::UnboundedReceiver<super::ServerCommand>,
+) {
+    let command = tokio::time::timeout(Duration::from_secs(10), inbox.recv())
+        .await
+        .unwrap()
+        .unwrap();
+    assert!(matches!(
+        command,
+        super::ServerCommand::WorkflowCatalogChanged { .. }
+    ));
+    actor.handle(command).await;
 }
 
 async fn response(

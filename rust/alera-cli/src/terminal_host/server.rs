@@ -634,6 +634,12 @@ impl ServerActor {
             ServerCommand::RuntimeMutationFinished(finished) => {
                 self.handle_runtime_mutation_finished(finished).await
             }
+            ServerCommand::WorkflowCatalogChanged {
+                source,
+                catalog_revision,
+            } => {
+                self.broadcast_workflow_catalog_changed(&source, catalog_revision);
+            }
             ServerCommand::PrepareRuntimeMutation {
                 request,
                 completion,

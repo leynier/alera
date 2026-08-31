@@ -10,9 +10,9 @@ use tokio::sync::Semaphore;
 
 use crate::terminal_host::client::ClientFrame;
 use crate::terminal_host::host_error::{HostError, HostResult};
-use crate::terminal_host::protocol::{error_response, event, ok_response};
+use crate::terminal_host::protocol::{error_response, ok_response};
 
-use super::{ClientKind, ServerActor};
+use super::{ClientKind, ServerActor, ServerCommand};
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
@@ -44,6 +44,11 @@ enum CatalogRequest {
     Get(RecipeQuery),
     Validate(ValidateRecipe),
     Save(SaveRecipe),
+}
+
+struct CatalogResponse {
+    value: Value,
+    changed: Option<(WorkflowRecipeSource, i64)>,
 }
 
 impl ServerActor {
@@ -84,15 +89,7 @@ impl ServerActor {
             .clone()
             .try_acquire_owned()
             .map_err(|_| HostError::state("workflow catalog is busy; retry shortly"))?;
-        let recipients = if matches!(request, CatalogRequest::Save(_)) {
-            self.clients
-                .values()
-                .filter(|client| client.authenticated && client.kind == ClientKind::Local)
-                .map(|client| client.handle.clone())
-                .collect::<Vec<_>>()
-        } else {
-            Vec::new()
-        };
+        let inbox = self.inbox.clone();
         let store = self.runtime_store.clone();
         let client = client.handle.clone();
         tokio::spawn(async move {
@@ -104,14 +101,18 @@ impl ServerActor {
                         "workflow catalog request timed out; refresh before retrying a save",
                     ))
                 });
-            if let Ok(value) = &result {
-                for recipient in recipients {
-                    let _ = recipient.send_control(ClientFrame::Json(event("workflowCatalogChanged",
-                        json!({"source": value["source"], "catalogRevision": value["catalogRevision"]}))));
-                }
-            }
             let response = match result {
-                Ok(value) => ok_response(request_id, value),
+                Ok(response) => {
+                    if let Some((source, catalog_revision)) = response.changed {
+                        // Resolve recipients in the actor after persistence, even if
+                        // the initiating client disconnected while the save ran.
+                        let _ = inbox.send(ServerCommand::WorkflowCatalogChanged {
+                            source,
+                            catalog_revision,
+                        });
+                    }
+                    ok_response(request_id, response.value)
+                }
                 Err(error) => error_response(request_id, &error),
             };
             let _ = client.send_control(ClientFrame::Json(response));
@@ -121,7 +122,7 @@ impl ServerActor {
 }
 
 impl CatalogRequest {
-    async fn execute(self, store: RuntimeStore) -> HostResult<Value> {
+    async fn execute(self, store: RuntimeStore) -> HostResult<CatalogResponse> {
         let value = match self {
             Self::List(query) => serde_json::to_value(
                 store
@@ -135,12 +136,21 @@ impl CatalogRequest {
                     .await
                     .map_err(state)?,
             ),
-            Self::Save(query) => serde_json::to_value(
-                store
+            Self::Save(query) => {
+                let saved = store
                     .save_personal_workflow_recipe(query.document, query.expected_revision)
                     .await
-                    .map_err(state)?,
-            ),
+                    .map_err(state)?;
+                return Ok(CatalogResponse {
+                    value: serde_json::to_value(&saved).map_err(state)?,
+                    changed: Some((
+                        saved.source,
+                        saved.catalog_revision.ok_or_else(|| {
+                            HostError::state("saved personal recipe has no catalog revision")
+                        })?,
+                    )),
+                });
+            }
             Self::Validate(query) => {
                 let recipe = compile_workflow_recipe(query.document)
                     .await
@@ -150,7 +160,10 @@ impl CatalogRequest {
                 )
             }
         };
-        value.map_err(state)
+        Ok(CatalogResponse {
+            value: value.map_err(state)?,
+            changed: None,
+        })
     }
 }
 

@@ -61,6 +61,29 @@ fn workflow_recipe_compilation_rejects_unknown_fields_and_executable_extensions(
 }
 
 #[test]
+fn workflow_recipe_schema_diagnostics_do_not_disclose_values_or_property_names() {
+    for schema in [
+        json!({"type":"string", "minLength":"private-secret-marker"}),
+        json!({"type":"private-secret-marker"}),
+        json!({"type":"string", "private-secret-marker":true}),
+        json!({"type":"object", "required":["private-secret-marker"]}),
+    ] {
+        let mut recipe = builtin_workflow_recipes()[0].clone();
+        recipe.contracts[0].input_schema = json!({
+            "type":"object", "properties":{"private-secret-marker":schema}
+        });
+        let error = WorkflowRecipeV1::from_yaml(&serde_json::to_string(&recipe).unwrap())
+            .unwrap_err()
+            .to_string();
+        assert!(!error.contains("private-secret-marker"), "{error}");
+        assert!(
+            error.contains("contract schema") || error == "required property has no definition",
+            "{error}"
+        );
+    }
+}
+
+#[test]
 fn workflow_recipe_compilation_rejects_missing_references_duplicates_and_cycles() {
     let recipe = builtin_workflow_recipes()[0].clone();
     let mut variants = Vec::new();

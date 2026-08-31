@@ -68,13 +68,13 @@ pub(super) fn compile_schema(schema: &Value) -> Result<jsonschema::Validator> {
             "string" => &["minLength", "maxLength"],
             "integer" | "number" => &["minimum", "maximum", "exclusiveMinimum", "exclusiveMaximum"],
             "boolean" | "null" => &[],
-            _ => bail!("unsupported contract schema type: {kind}"),
+            _ => bail!("unsupported contract schema type"),
         };
         for key in object.keys() {
             if !["type", "title", "description", "enum", "const"].contains(&key.as_str())
                 && !keywords.contains(&key.as_str())
             {
-                bail!("unsupported contract schema keyword: {key}");
+                bail!("unsupported contract schema keyword");
             }
         }
         if kind == "object" {
@@ -94,7 +94,7 @@ pub(super) fn compile_schema(schema: &Value) -> Result<jsonschema::Validator> {
                         .and_then(|props| props.get(name))
                         .is_none()
                     {
-                        bail!("required property has no definition: {name}");
+                        bail!("required property has no definition");
                     }
                 }
             }
@@ -115,7 +115,8 @@ pub(super) fn compile_schema(schema: &Value) -> Result<jsonschema::Validator> {
     jsonschema::options()
         .with_draft(jsonschema::Draft::Draft202012)
         .build(schema)
-        .map_err(|error| anyhow::anyhow!("invalid contract schema: {error}"))
+        // Compiler diagnostics can quote schema values, including private data.
+        .map_err(|_| anyhow::anyhow!("invalid contract schema: a keyword value is invalid"))
 }
 
 pub(super) fn validate_instance(schema: &Value, instance: &Value, label: &str) -> Result<()> {

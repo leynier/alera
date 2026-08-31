@@ -72,6 +72,34 @@ async fn workflow_catalog_keeps_homonymous_origins_and_invalid_project_entries_e
 }
 
 #[tokio::test]
+async fn workflow_catalog_schema_diagnostics_do_not_echo_private_values() {
+    let (_dir, store) = store().await;
+    let project = tempfile::tempdir().unwrap();
+    workspace(&store, project.path()).await;
+    let mut recipe = builtin_workflow_recipes()[0].clone();
+    recipe.contracts[0].input_schema = serde_json::json!({
+        "type":"object", "properties":{"secret":{"type":"string", "minLength":"private-secret-marker"}}
+    });
+    let catalog = project.path().join(".alera/workflows");
+    fs::create_dir_all(&catalog).unwrap();
+    fs::write(
+        catalog.join("invalid.yaml"),
+        serde_json::to_string(&recipe).unwrap(),
+    )
+    .unwrap();
+    let result = store.workflow_catalog(Some("workspace")).await.unwrap();
+    let error = result
+        .entries
+        .iter()
+        .find_map(|entry| entry.error.as_deref())
+        .unwrap();
+    assert!(error.contains("invalid contract schema"), "{error}");
+    assert!(!serde_json::to_string(&result)
+        .unwrap()
+        .contains("private-secret-marker"));
+}
+
+#[tokio::test]
 async fn workflow_catalog_saves_are_compare_and_swap_and_do_not_mutate_frozen_snapshots() {
     let (_dir, store) = store().await;
     let recipe = builtin_workflow_recipes()[0].clone();
