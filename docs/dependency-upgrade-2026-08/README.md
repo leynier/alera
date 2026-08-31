@@ -37,14 +37,14 @@ The obsolete `sqlite3_flutter_libs` package was removed: its selected EOL releas
 
 ## Migration details
 
-- The Rust pin is synchronized in both toolchain files, Cargokit configurations, CI, the Windows setup script and the Cloud build image. The Rust edition and profiles are unchanged.
+- The Rust pin is synchronized in both toolchain files, Cargokit configurations, CI, the Linux agent provisioning script, the Windows setup script and the Cloud build image. The Rust edition and profiles are unchanged.
 - FRB was generated with version 2.13.0. The generated content hash remains `1213617933`, matching the original functional bridge API.
 - New crypto APIs use fixed-size nonce conversions and `UnwrapErr(SysRng)`, retaining OS-backed randomness and the previous failure behavior. SHA-256 fingerprints remain lowercase hex. The existing cross-language known-answer vectors were not rewritten.
 - Cloud enables reqwest's newly separate `form` feature and uses the current SQLx runtime/rustls feature names. System TLS is not introduced. Existing HTTP and PostgreSQL contracts remain the acceptance boundary.
 - Firebase's new `deniedPermanently` authorization state maps to the existing denied permission state. A service-level test covers both denial variants.
 - Native Firebase initialization can report missing configuration as `PlatformException`, not only `FirebaseException`. Startup and the background notification handler now tolerate both, preserving offline builds without Firebase resources. Two channel-level regression tests fail before the fix and pass afterward; this was exposed by the APK smoke test, not established as a newly introduced upstream regression.
 - Android only changes `compileSdk`; existing minimum and target SDK expressions remain intact. Kotlin's generated local cache is ignored.
-- The internal credential-entry adapter keeps existing service/user identifiers and recreates the Linux store on each attempt, so an initially unavailable store can recover. The private Linux fallback implementation and file permissions are unchanged.
+- The internal credential-entry adapter keeps existing service/user identifiers and the v3 `target=default` search filter, and recreates the Linux store on each attempt, so an initially unavailable store can recover. The private Linux fallback implementation and file permissions are unchanged.
 
 ## Intentional exceptions
 
@@ -116,6 +116,14 @@ After collecting the results, `.github/workflows/dependency-upgrade-validation.y
 The newer native keyring ecosystem on macOS and Windows is a deferred dependency migration, not a partially applied change: the existing 3.6.3 backends remain in use. Paid-provider dictation, live production push and signed device deployment are not substitutes for these isolated acceptance checks and were not performed.
 
 The first hosted Windows attempts stopped before executing tests because of temporary workflow configuration: a global Ninja override prevented Flutter from locating the C++ compiler, and Git Bash converted the MSVC `/Z7` flag into a filesystem path for the Rust job. The successful retries retain Flutter's existing build environment and run the Rust command from PowerShell. These are harness failures, not passing tests or identified dependency regressions; no product code was changed to address them. The successful clipboard builds still log upstream media CMake policy warnings, a non-fatal Windows Cargokit symlink lookup error, and macOS updater privacy-manifest and foregrounding warnings; neither job suppressed test failures.
+
+## PR review follow-up
+
+The normal PR checks passed on `b7486f09`, including `pr-ready`, `cloud-ready`, Android/iOS builds, Windows PTY tests and all CodeQL languages. Review of PR #601 subsequently identified the omitted Rust pin in `.agents/setup`; it now uses 1.98.0, and `bash -n .agents/setup` passes. The separate portable_pty hook toolchain remains unchanged.
+
+Review also identified that a modifier-free Secret Service entry searches more broadly than keyring v3. The adapter now explicitly supplies `target=default`, matching the backend used since Alera introduced keyring 3.6.3 in commit `88757e2c`. A new regression test creates an original entry plus an unrelated entry with identical service/user attributes and a different target. It fails with `Error::Ambiguous` before the fix and passes afterward, proving that reads, updates and deletion affect only the original entry. A separate v3-write/new-read/new-write/v3-read probe also passes after the fix.
+
+These credential probes used a private `dbus-run-session` with disposable XDG data/config/cache/runtime directories and an unpacked GNOME Keyring daemon, not the user's active wallet. Both daemon and temporary data directories were removed afterward. Logs are `keyring-target-before.log`, `keyring-target-after.log` and `keyring-target-old-new.log` under the local evidence directory. The regression test is ignored in ordinary workspace runs and additionally requires `ALERA_KEYRING_TEST_DISPOSABLE=1`; only run `cargo test --manifest-path rust/Cargo.toml -p alera-cli native_credential_entry::tests::default_target_ignores_unrelated_credentials --locked -- --ignored --exact` inside that isolated session. The earlier hosted source-tree hashes describe the original validation commits; these subsequent provisioning and credential-filter corrections receive their own PR checks.
 
 ## Security audit
 
