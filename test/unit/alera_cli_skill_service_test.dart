@@ -34,7 +34,7 @@ void main() {
       );
 
       expect(command.split('; '), <String>[
-        for (final skill in AleraAgentSkill.values)
+        for (final skill in coreAleraAgentSkills)
           'bunx skills add https://github.com/leynier/alera --skill ${skill.name} --agent codex --global --yes',
       ]);
       expect(command, isNot(contains('\n')));
@@ -50,7 +50,7 @@ void main() {
       expect(command, isNot(contains('\n')));
       expect(
         RegExp(r'if \(Get-Command npx').allMatches(command),
-        hasLength(AleraAgentSkill.values.length),
+        hasLength(coreAleraAgentSkills.length),
       );
     });
 
@@ -95,6 +95,24 @@ void main() {
         aleraCliSkillInstallCommand(runner: .npx, skill: .agentCanvas),
         'npx skills add https://github.com/leynier/alera --skill alera-agent-canvas --agent codex --global --yes',
       );
+    });
+
+    test('builds the optional Agent Profiles skill command', () {
+      expect(
+        aleraCliSkillInstallCommand(runner: .bunx, skill: .agentProfiles),
+        'bunx skills add https://github.com/leynier/alera --skill alera-agent-profiles --agent codex --global --yes',
+      );
+      expect(
+        coreAleraAgentSkills,
+        isNot(contains(AleraAgentSkill.agentProfiles)),
+      );
+      expect(extraAleraAgentSkills, <AleraAgentSkill>[
+        AleraAgentSkill.agentProfiles,
+      ]);
+      expect(<AleraAgentSkill>{
+        ...coreAleraAgentSkills,
+        ...extraAleraAgentSkills,
+      }, AleraAgentSkill.values.toSet());
     });
 
     test('passes hydrated environment to npx', () async {

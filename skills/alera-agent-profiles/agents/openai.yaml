@@ -1,0 +1,3 @@
+interface:
+  display_name: "Alera Agent Profiles"
+  short_description: "Research models and design, manage, and validate quota-aware Alera Agent Profiles."

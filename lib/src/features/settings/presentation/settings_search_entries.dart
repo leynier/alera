@@ -141,7 +141,7 @@ final List<SettingsSearchEntry>
 agentsSearchEntries = buildSettingsSearchEntryCatalog(const {
   'cliSkill': {
     'All Alera Skills': SettingsSearchEntryDetails(
-      description: 'Install or update every Alera agent skill.',
+      description: 'Install or update every core Alera agent skill.',
       keywords: <String>[
         'all',
         'install',
@@ -188,6 +188,21 @@ agentsSearchEntries = buildSettingsSearchEntryCatalog(const {
         'agent',
         'click',
         'window',
+      ],
+    ),
+  },
+  'extraSkills': {
+    'Agent Profiles Skill': SettingsSearchEntryDetails(
+      description:
+          'Install specialized instructions for Agent Profile catalogs.',
+      keywords: <String>[
+        'agent profile',
+        'managed',
+        'model',
+        'quota',
+        'routing',
+        'smoke test',
+        'skill',
       ],
     ),
   },

@@ -17,13 +17,13 @@ void main() {
       hookReconciliationService: hookReconciler,
     ).installOrUpdate(hooks: hooks, runner: .bunx);
 
-    expect(skillService.skills, AleraAgentSkill.values);
+    expect(skillService.skills, coreAleraAgentSkills);
     expect(skillService.runners, everyElement(AleraCliSkillRunner.bunx));
     expect(hookReconciler.settings, hooks);
     expect(result.succeeded, isTrue);
     expect(result.needsAttention, isFalse);
     expect(result.summary, 'All 5 Alera skills installed / updated');
-    for (final skill in AleraAgentSkill.values) {
+    for (final skill in coreAleraAgentSkills) {
       expect(result.detail, contains(skill.name));
     }
   });
@@ -35,7 +35,7 @@ void main() {
       hookReconciliationService: _RecordingHookReconciler(),
     ).installOrUpdate(hooks: const AgentStatusHookSettings());
 
-    expect(skillService.skills, AleraAgentSkill.values);
+    expect(skillService.skills, coreAleraAgentSkills);
     expect(result.succeeded, isFalse);
     expect(result.needsAttention, isTrue);
     expect(result.succeededCount, 4);

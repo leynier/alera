@@ -1,0 +1,18 @@
+import 'package:alera/src/features/command_terminal/presentation/command_terminal_launcher.dart';
+import 'package:alera/src/features/settings/infra/alera_cli_skill_service.dart';
+import 'package:alera/src/features/settings/presentation/panes/alera_skill_terminal_install_control.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+class const AleraAgentProfilesSkillControl({super.key}) extends ConsumerWidget {
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return AleraSkillTerminalInstallControl(
+      dialogTitle: 'Install Agent Profiles Skill',
+      commandFor: (runner) =>
+          aleraCliSkillInstallCommand(runner: runner, skill: .agentProfiles),
+      runCommand: (context, request) =>
+          showCommandTerminalDialog(context, ref, request),
+    );
+  }
+}

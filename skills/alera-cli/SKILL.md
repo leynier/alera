@@ -1,6 +1,6 @@
 ---
 name: alera-cli
-description: Use when operating Alera-managed projects, workspaces, worktrees, tabs, tags, SSH targets, or runtime state from an Alera terminal. Prefer this skill over raw git worktree commands when the task touches Alera workspace lifecycle or runtime metadata.
+description: Use when operating Alera-managed projects, workspaces, worktrees, tabs, tags, Agent Profiles, SSH targets, or runtime state from an Alera terminal. Prefer this skill over raw git worktree commands when the task touches Alera workspace lifecycle or runtime metadata.
 ---
 
 # Alera CLI
@@ -270,6 +270,8 @@ alera agent-profile remove --profile-id <profile-id> --confirm
 ```
 
 Use `alera agent-profile reorder --id <id> --id <id>` with every current profile id exactly once to replace the persisted order. Keep `alera orchestration agent-profiles` for coordinator discovery; it does not mutate the catalog.
+
+For model research, quota-aware catalog design, adapter-specific Managed configuration, or profile launch smoke tests, invoke the `alera-agent-profiles` skill. Keep ordinary list, show, and narrowly specified mutations here.
 
 ## Agent Rules
 
