@@ -98,6 +98,9 @@ pub(crate) async fn run_workspace_setup(
     workspace_id: &str,
     copies_only: bool,
 ) -> Result<WorktreeSetupReport> {
+    if store.workflow_workspace_owned(workspace_id).await? {
+        anyhow::bail!("Workflow setup belongs to its attempt and cannot be replayed");
+    }
     let workspace = store
         .find_workspace(workspace_id)
         .await?

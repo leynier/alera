@@ -23,6 +23,15 @@ impl ServerActor {
             return Ok(true);
         }
         match request_type {
+            "workflows.prepareWorkspace" | "workflows.workspaces" => {
+                self.start_workflow_workspace_request(
+                    client_id,
+                    request_id,
+                    request_type,
+                    payload,
+                )?;
+                Ok(true)
+            }
             "workflows.preparePlan"
             | "workflows.plan"
             | "workflows.approvalChallenge"

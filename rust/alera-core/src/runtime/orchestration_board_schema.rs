@@ -28,6 +28,7 @@ impl RuntimeStore {
             "workflowDecisions",
             "workflowStageGates",
             "workflowTaskEvidence",
+            "workflowWorkspaces",
         ] {
             for operation in ["INSERT", "UPDATE", "DELETE"] {
                 sqlx::query(sqlx::AssertSqlSafe(format!(
@@ -101,7 +102,13 @@ const BOARD_SCHEMA: &[&str] = &[
                  OR COALESCE(t.failed_count, 0) > 0
                  OR COALESCE(t.stalled_count, 0) > 0
                  OR COALESCE(t.blocked_count, 0) > 0
-                 OR COALESCE(g.pending_gate_count, 0) > 0 THEN 'attention'
+                 OR COALESCE(g.pending_gate_count, 0) > 0
+                 OR EXISTS(SELECT 1 FROM workflowWorkspaces x JOIN workflowRuns wr ON wr.run_id = x.run_id
+                     WHERE x.run_id = r.id AND x.phase = 'attention'
+                       AND (x.task_id IS NULL OR x.revision = wr.revision)
+                       AND NOT EXISTS(SELECT 1 FROM workflowWorkspaces newer
+                           WHERE newer.run_id = x.run_id AND newer.task_id IS x.task_id AND newer.attempt > x.attempt))
+                 THEN 'attention'
              ELSE 'active'
          END AS bucket
      FROM orchestrationCoordinatorRuns r

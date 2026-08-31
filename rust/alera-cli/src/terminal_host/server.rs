@@ -205,6 +205,7 @@ mod workflow_catalog_tests;
 mod workflow_plan_requests;
 #[cfg(test)]
 mod workflow_plan_tests;
+mod workflow_workspace_requests;
 mod workspace_pinning;
 mod workspace_section_requests;
 #[cfg(test)]
@@ -644,6 +645,18 @@ impl ServerActor {
                 self.broadcast_workflow_catalog_changed(&source, catalog_revision);
             }
             ServerCommand::WorkflowPlanChanged => self.broadcast_orchestration_board_change().await,
+            ServerCommand::WorkflowWorkspaceRecoveryFinished => {
+                self.handle_workflow_workspace_recovery_finished().await;
+            }
+            ServerCommand::WorkflowWorkspaceFinished {
+                client_id,
+                request_id,
+                result,
+                mutated,
+            } => {
+                self.handle_workflow_workspace_finished(client_id, request_id, result, mutated)
+                    .await;
+            }
             ServerCommand::PrepareRuntimeMutation {
                 request,
                 completion,

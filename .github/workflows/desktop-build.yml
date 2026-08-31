@@ -122,6 +122,11 @@ jobs:
           cargo test --manifest-path rust/Cargo.toml --locked
           -p alera-core --features workflow-approval --lib workflow_approval::
 
+      - name: Verify native workflow worktree recovery
+        run: >-
+          cargo test --manifest-path rust/Cargo.toml --locked
+          -p alera-cli workflow_worktrees -- --nocapture
+
       # Cargokit contains fully linked alera_native and code_forge outputs, so
       # restoring it remains faster than compiler caching alone. Only the
       # warm-cache workflow saves, so pull requests never write a private copy.
