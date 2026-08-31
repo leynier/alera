@@ -210,8 +210,28 @@ class _WorkflowOutcome extends StatelessWidget {
         'This attempt needs inspection before execution or integration can continue.',
         AleraTokens.warning,
       ),
-      _ => (
+      'ready' => (
+        'The isolated workspace is ready. Launch the reviewed task when you are ready.',
+        AleraTokens.foregroundMuted,
+      ),
+      'reserved' => (
+        'The isolated attempt is reserved and has not started yet.',
+        AleraTokens.foregroundMuted,
+      ),
+      'starting' => (
+        'The worker is starting in its isolated workspace.',
+        AleraTokens.foregroundMuted,
+      ),
+      'started' => (
+        'The worker is running in its isolated workspace.',
+        AleraTokens.foregroundMuted,
+      ),
+      'result_ready' || 'resultReady' => (
         'The worker result passed its contract and is waiting for local integration.',
+        AleraTokens.foregroundMuted,
+      ),
+      _ => (
+        'Workflow state is available for inspection.',
         AleraTokens.foregroundMuted,
       ),
     };

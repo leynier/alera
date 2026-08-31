@@ -8,7 +8,8 @@ use sha2::{Digest, Sha256};
 
 use super::*;
 use crate::managed_workspace::workflow::{launch, tests::fixture::Fixture};
-use crate::terminal_host::server::actor_test_harness::test_actor;
+use crate::terminal_host::client::ClientHandle;
+use crate::terminal_host::server::actor_test_harness::{local_client, test_actor};
 
 async fn prepared(fixture: &Fixture) -> (LaunchWorkflowTask, PreparedLaunch) {
     fixture.integration().await;
@@ -39,7 +40,13 @@ async fn workflow_launch_claim_restore_and_restart_never_duplicate_a_worker() {
         panic!("fresh launch required")
     };
     let dir = tempfile::tempdir().unwrap();
-    let mut actor = test_actor(&dir, HashMap::new(), HashMap::new()).await;
+    let (client, _responses) = ClientHandle::test_channels();
+    let mut actor = test_actor(
+        &dir,
+        HashMap::from([(1, local_client(client))]),
+        HashMap::new(),
+    )
+    .await;
     actor.runtime_store = fixture.store.clone();
     actor.runtime_dir = fixture.runtime.clone();
     let (inbox, mut events) = tokio::sync::mpsc::unbounded_channel();
@@ -64,6 +71,18 @@ async fn workflow_launch_claim_restore_and_restart_never_duplicate_a_worker() {
         actor.sessions[&record.terminal_handle].instance_id(),
         instance
     );
+    let close_error = actor
+        .try_start_deferred_request(1, 1, "tab.remove", &json!({"id": record.terminal_handle}))
+        .await
+        .unwrap_err();
+    assert!(close_error.wire_message().contains("reviewed cleanup"));
+    assert!(fixture
+        .store
+        .find_workspace_tab(&record.terminal_handle)
+        .await
+        .unwrap()
+        .is_some());
+    assert!(actor.sessions[&record.terminal_handle].running());
     let restart = json!({"sessionId":record.terminal_handle,"workspaceId":input.workspace_id,
         "tabId":record.terminal_handle,"workingDirectory":fixture.store.workflow_workspace(&input.workspace_id).await.unwrap().identity.workspace.path});
     assert!(actor.restart_terminal(1, &restart).await.is_err());
@@ -111,9 +130,10 @@ async fn workflow_launch_claim_restore_and_restart_never_duplicate_a_worker() {
         .as_str()
         .unwrap()
         .contains("Commit the task changes"));
-    actor
-        .terminate_sessions_for_tab(&record.terminal_handle)
-        .await;
+    assert!(actor
+        .remove_terminal_session_tab(&record.terminal_handle)
+        .await
+        .unwrap());
     assert!(actor.sessions.is_empty());
     let attached = actor
         .attach_workflow_terminal(

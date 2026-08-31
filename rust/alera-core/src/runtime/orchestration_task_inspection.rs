@@ -252,7 +252,8 @@ async fn inspect_workflow_task(
     run: &str,
     task: &str,
 ) -> Result<Option<TaskWorkflowInspection>> {
-    let Some(row) = sqlx::query("SELECT x.id AS workspace_id, w.path, w.branch,
+    let Some(row) = sqlx::query("SELECT x.id AS workspace_id, x.phase AS workspace_phase,
+            x.error AS workspace_error, w.path, w.branch,
             json_extract(x.identity, '$.baseSha') AS base_sha,
             l.id AS launch_id, l.status AS launch_status, l.error AS launch_error,
             i.id AS integration_id, i.state AS integration_state, i.receipt,
@@ -268,6 +269,7 @@ async fn inspect_workflow_task(
         .bind(run).bind(task).fetch_optional(&mut **tx).await? else { return Ok(None); };
     let integration_state: Option<String> = row.try_get("integration_state")?;
     let launch_state: Option<String> = row.try_get("launch_status")?;
+    let workspace_phase: String = row.try_get("workspace_phase")?;
     let task_state: String = row.try_get("task_status")?;
     let has_result: bool = row.try_get("has_result")?;
     let state = if integration_state.as_deref() == Some("integrated")
@@ -288,7 +290,10 @@ async fn inspect_workflow_task(
     } else {
         match launch_state.as_deref() {
             Some(state @ ("reserved" | "starting" | "started")) => state,
-            _ => return Ok(None),
+            Some(_) => return Ok(None),
+            None if workspace_phase == "attention" => "attention",
+            None if workspace_phase == "ready" => "ready",
+            None => "reserved",
         }
     };
     let receipt: Option<String> = row.try_get("receipt")?;
@@ -315,7 +320,8 @@ async fn inspect_workflow_task(
             .unwrap_or(false),
         error: row
             .try_get::<Option<String>, _>("integration_error")?
-            .or(row.try_get("launch_error")?),
+            .or(row.try_get("launch_error")?)
+            .or(row.try_get("workspace_error")?),
     }))
 }
 

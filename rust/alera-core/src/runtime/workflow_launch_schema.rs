@@ -38,6 +38,9 @@ const SCHEMA: &[&str] = &[
           AND (NEW.id IS NOT OLD.id OR l.workspace_id IS NOT NEW.workspaceId OR NEW.kind <> 'terminal'
             OR json_extract(NEW.payloadJson,'$.terminalSessionId') IS NOT l.terminal_handle))
         BEGIN SELECT RAISE(ABORT, 'workflow terminal identity is immutable'); END",
+    "CREATE TRIGGER IF NOT EXISTS workflowLaunchTabRetained BEFORE DELETE ON workspaceTabs
+        WHEN EXISTS(SELECT 1 FROM workflowLaunches l WHERE l.terminal_handle = OLD.id)
+        BEGIN SELECT RAISE(ABORT, 'workflow terminals require reviewed cleanup'); END",
     "CREATE TRIGGER IF NOT EXISTS workflowCompletedTaskRetained BEFORE UPDATE OF status ON orchestrationTasks
         WHEN OLD.status = 'completed' AND NEW.status <> 'completed'
           AND EXISTS(SELECT 1 FROM workflowPlanTasks WHERE task_id = OLD.id)

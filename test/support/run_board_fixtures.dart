@@ -107,6 +107,8 @@ TaskInspection boardTask({
   String taskId = 'task-2',
   String status = 'completed',
   String workflowState = 'result_ready',
+  String? workflowError,
+  String? terminalHandle = 'session-1',
   List<TaskHistoryEntry>? history,
   TaskHistoryCursor? nextCursor,
 }) => TaskInspection(
@@ -122,7 +124,7 @@ TaskInspection boardTask({
   workspacePath: '/projects/alera/workflow-delivery',
   branch: 'feature/review-surface',
   profile: 'Implementation',
-  terminalHandle: 'session-1',
+  terminalHandle: terminalHandle,
   workflow: TaskWorkflowInspection(
     state: workflowState,
     executionWorkspaceId: 'workflow-attempt-2',
@@ -130,6 +132,7 @@ TaskInspection boardTask({
     worktree: '/projects/alera/workflow-attempt-2',
     branch: 'alera/workflows/workflow-attempt-2',
     baseSha: '1234567890abcdef1234567890abcdef12345678',
+    error: workflowError,
   ),
   dependencies: const ['task-1'],
   result: const TaskResultInspection(

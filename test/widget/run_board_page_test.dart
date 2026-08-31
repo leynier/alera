@@ -199,6 +199,10 @@ void main() {
     navigation.selectTask('task-2');
     await tester.pumpAndSettle();
     expect(find.text('Started'), findsWidgets);
+    expect(
+      find.text('The worker is running in its isolated workspace.'),
+      findsOneWidget,
+    );
     await tester.tap(find.text('Open Terminal'));
     await tester.pumpAndSettle();
     expect(workbench.actions, [
@@ -210,6 +214,47 @@ void main() {
     await tester.tap(find.text('Open Diff'));
     await tester.pumpAndSettle();
     expect(workbench.actions.last, 'diff:workflow-attempt-2');
+  });
+
+  testWidgets('prepared workflow attempts explain readiness and setup errors', (
+    tester,
+  ) async {
+    final f = await mount(tester);
+    f.repository.task = boardTask(
+      status: 'pending',
+      workflowState: 'ready',
+      terminalHandle: null,
+    );
+    final navigation = f.container.read(runBoardNavigationProvider.notifier);
+    navigation.selectRun('run-1');
+    navigation.selectTask('task-2');
+    await tester.pumpAndSettle();
+    expect(find.text('Ready'), findsWidgets);
+    expect(
+      find.text(
+        'The isolated workspace is ready. Launch the reviewed task when you are ready.',
+      ),
+      findsOneWidget,
+    );
+    expect(
+      tester
+          .widget<OutlinedButton>(
+            find.widgetWithText(OutlinedButton, 'Open Terminal'),
+          )
+          .onPressed,
+      isNull,
+    );
+
+    f.repository.task = boardTask(
+      status: 'pending',
+      workflowState: 'attention',
+      workflowError: 'Project setup failed',
+      terminalHandle: null,
+    );
+    f.repository.events.add(null);
+    await tester.pumpAndSettle();
+    expect(find.text('Attention'), findsWidgets);
+    expect(find.text('Project setup failed'), findsOneWidget);
   });
 
   testWidgets('runtime events retain search focus and typing is debounced', (

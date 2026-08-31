@@ -171,6 +171,113 @@ async fn workflow_launch_uses_approved_profile_and_preserves_owner_execution_spl
 }
 
 #[tokio::test]
+async fn workflow_prepared_attempts_project_the_execution_workspace_before_launch() {
+    let (_dir, store, request) = prepared().await;
+    let workspace = store
+        .workflow_workspace(&request.workspace_id)
+        .await
+        .unwrap();
+    let inspect = || async {
+        store
+            .orchestration_task_inspection(&OrchestrationTaskInspectionQuery {
+                run_id: request.run_id.clone(),
+                task_id: request.task_id.clone(),
+                cursor: None,
+                limit: None,
+            })
+            .await
+            .unwrap()
+            .workflow
+            .unwrap()
+    };
+
+    let ready = inspect().await;
+    assert_eq!(ready.state, "ready");
+    assert_eq!(ready.execution_workspace_id, request.workspace_id);
+    assert_eq!(
+        ready.worktree.as_deref(),
+        Some(workspace.identity.workspace.path.as_str())
+    );
+    assert_eq!(ready.branch, workspace.identity.workspace.branch);
+    assert_eq!(
+        ready.base_sha.as_deref(),
+        Some(workspace.identity.base_sha.as_str())
+    );
+    assert!(ready.error.is_none());
+
+    store
+        .transition_workflow_workspace(
+            &request.workspace_id,
+            request.revision,
+            WorkflowWorkspacePhase::Ready,
+            WorkflowWorkspacePhase::Attention,
+            None,
+            Some("Project setup failed"),
+        )
+        .await
+        .unwrap();
+    let attention = inspect().await;
+    assert_eq!(attention.state, "attention");
+    assert_eq!(attention.execution_workspace_id, request.workspace_id);
+    assert_eq!(attention.error.as_deref(), Some("Project setup failed"));
+}
+
+#[tokio::test]
+async fn workflow_terminal_tabs_require_reviewed_cleanup() {
+    let (_dir, store, request) = prepared().await;
+    let (launch, _) = store
+        .reserve_workflow_launch(&request, &"a".repeat(64))
+        .await
+        .unwrap();
+    store.claim_workflow_launch(&launch.id).await.unwrap();
+    let now = chrono::Utc::now();
+    store
+        .upsert_workspace_tab(WorkspaceTabRecord {
+            id: launch.terminal_handle.clone(),
+            workspace_id: request.workspace_id,
+            kind: "terminal".into(),
+            title: "Workflow Worker".into(),
+            created_at: now,
+            updated_at: now,
+            payload: serde_json::json!({
+                "terminalSessionId": launch.terminal_handle,
+            }),
+        })
+        .await
+        .unwrap();
+
+    let error = store
+        .remove_workspace_tab(&launch.terminal_handle)
+        .await
+        .unwrap_err();
+    assert!(error.to_string().contains("reviewed cleanup"));
+    assert!(store
+        .find_workspace_tab(&launch.terminal_handle)
+        .await
+        .unwrap()
+        .is_some());
+
+    store
+        .upsert_workspace_tab(WorkspaceTabRecord {
+            id: "ordinary-tab".into(),
+            workspace_id: "owner".into(),
+            kind: "terminal".into(),
+            title: "Ordinary".into(),
+            created_at: now,
+            updated_at: now,
+            payload: serde_json::json!({"terminalSessionId": "ordinary-tab"}),
+        })
+        .await
+        .unwrap();
+    store.remove_workspace_tab("ordinary-tab").await.unwrap();
+    assert!(store
+        .find_workspace_tab("ordinary-tab")
+        .await
+        .unwrap()
+        .is_none());
+}
+
+#[tokio::test]
 async fn workflow_launch_projects_active_attempts_without_masking_a_ready_result() {
     let (_dir, store, request) = prepared().await;
     let frozen = store.validate_workflow_launch(&request).await.unwrap();
