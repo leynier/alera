@@ -6,12 +6,45 @@ use crate::git::{
     apply_workflow_integration, prepare_workflow_integration, WorkflowGitPreparation,
 };
 
-mod fixture;
+pub(super) mod fixture;
 use fixture::Fixture;
 
 #[tokio::test]
 async fn workflow_integration_store_defers_dependencies_until_git_and_evidence_commit() {
     let fixture = Fixture::new().await;
+    let snapshot = fixture
+        .store
+        .orchestration_run_snapshot(&OrchestrationRunSnapshotQuery {
+            run_id: fixture.plan.run_id.clone(),
+            after_task_id: None,
+            revision: None,
+            limit: None,
+        })
+        .await
+        .unwrap();
+    assert_eq!(
+        snapshot
+            .tasks
+            .iter()
+            .find(|task| task.id == fixture.input.task_id)
+            .unwrap()
+            .workflow_state
+            .as_deref(),
+        Some("result_ready")
+    );
+    let inspection = fixture
+        .store
+        .orchestration_task_inspection(&OrchestrationTaskInspectionQuery {
+            run_id: fixture.plan.run_id.clone(),
+            task_id: fixture.input.task_id.clone(),
+            cursor: None,
+            limit: None,
+        })
+        .await
+        .unwrap();
+    let workflow = inspection.workflow.unwrap();
+    assert_eq!(workflow.state, "result_ready");
+    assert_eq!(workflow.execution_workspace_id, fixture.input.workspace_id);
     let record = fixture.reserve().await;
     fixture.assert_dependent_blocked().await;
     assert_eq!(record.state, WorkflowIntegrationState::Pending);
@@ -30,6 +63,25 @@ async fn workflow_integration_store_defers_dependencies_until_git_and_evidence_c
         .await
         .unwrap();
     assert_eq!(done.state, WorkflowIntegrationState::Integrated);
+    let inspection = fixture
+        .store
+        .orchestration_task_inspection(&OrchestrationTaskInspectionQuery {
+            run_id: fixture.plan.run_id.clone(),
+            task_id: fixture.input.task_id.clone(),
+            cursor: None,
+            limit: None,
+        })
+        .await
+        .unwrap();
+    assert_eq!(inspection.workflow.unwrap().state, "integrated");
+    assert!(inspection
+        .history
+        .iter()
+        .any(|entry| entry.kind == "workflowLaunch" && entry.status == "started"));
+    assert!(inspection
+        .history
+        .iter()
+        .any(|entry| entry.kind == "workflowIntegration" && entry.status == "integrated"));
     let mut tx = fixture.store.pool().begin().await.unwrap();
     eligible_task(
         &mut tx,
@@ -67,6 +119,44 @@ async fn workflow_integration_store_defers_dependencies_until_git_and_evidence_c
         .unwrap_err()
         .to_string()
         .contains("already integrated"));
+    sqlx::query("UPDATE orchestrationTasks SET result = ? WHERE id = ?")
+        .bind(json!({"summary":"changed after integration"}).to_string())
+        .bind(&fixture.input.task_id)
+        .execute(fixture.store.pool())
+        .await
+        .unwrap();
+    let evidence: i64 =
+        sqlx::query_scalar("SELECT COUNT(*) FROM workflowTaskEvidence WHERE task_id = ?")
+            .bind(&fixture.input.task_id)
+            .fetch_one(fixture.store.pool())
+            .await
+            .unwrap();
+    assert_eq!(evidence, 0);
+    fixture.assert_dependent_blocked().await;
+    let inspection = fixture
+        .store
+        .orchestration_task_inspection(&OrchestrationTaskInspectionQuery {
+            run_id: fixture.plan.run_id.clone(),
+            task_id: fixture.input.task_id.clone(),
+            cursor: None,
+            limit: None,
+        })
+        .await
+        .unwrap();
+    assert_eq!(inspection.workflow.unwrap().state, "attention");
+    let board = fixture
+        .store
+        .orchestration_board_snapshot(&OrchestrationBoardQuery {
+            bucket: None,
+            project_id: None,
+            workspace_id: None,
+            search: None,
+            cursor: None,
+            limit: None,
+        })
+        .await
+        .unwrap();
+    assert_eq!(board.items[0].bucket, OrchestrationBoardBucket::Attention);
 }
 
 #[tokio::test]
@@ -242,16 +332,18 @@ async fn workflow_integration_store_rejects_foreign_attempt_and_dispatch() {
         .reserve_workflow_integration(&wrong, &fixture.source_sha)
         .await
         .is_err());
-    sqlx::query("UPDATE orchestrationDispatchContexts SET workspace_id = 'workspace' WHERE id = ?")
-        .bind(&fixture.dispatch)
-        .execute(fixture.store.pool())
-        .await
-        .unwrap();
+    assert!(sqlx::query(
+        "UPDATE orchestrationDispatchContexts SET workspace_id = 'workspace' WHERE id = ?"
+    )
+    .bind(&fixture.dispatch)
+    .execute(fixture.store.pool())
+    .await
+    .is_err());
     assert!(fixture
         .store
         .reserve_workflow_integration(&fixture.input, &fixture.source_sha)
         .await
-        .is_err());
+        .is_ok());
 }
 
 #[tokio::test]

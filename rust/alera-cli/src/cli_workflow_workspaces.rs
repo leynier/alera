@@ -8,6 +8,26 @@ pub struct WorkflowWorkspacesArgs {
 
 #[derive(Debug, Subcommand)]
 pub enum WorkflowWorkspacesAction {
+    /// Inspect retained one-shot launches without loading private profile inputs.
+    Launches {
+        #[arg(long)]
+        run: String,
+        #[arg(long)]
+        after_row: Option<i64>,
+    },
+    /// Launch one approved task in its ready isolated attempt, at most once.
+    Launch {
+        #[arg(long)]
+        run: String,
+        #[arg(long)]
+        revision: i64,
+        #[arg(long)]
+        request_id: String,
+        #[arg(long)]
+        task: String,
+        #[arg(long)]
+        workspace_id: String,
+    },
     /// Squash a completed task result into its run's local integration workspace.
     Integrate {
         #[arg(long)]

@@ -37,5 +37,5 @@ if ($executables.Count -ne 1 -or -not (Test-Path -LiteralPath $executables[0] -P
     throw 'Expected exactly one compiled alera test executable.'
 }
 
-& $executables[0] workflow_worktrees --nocapture
+& $executables[0] workflow_ --nocapture
 exit $LASTEXITCODE

@@ -88,7 +88,7 @@ class RunBoardPageFooter extends StatelessWidget {
 }
 
 String runBoardStatusLabel(String status) => switch (status) {
-  'result_ready' => 'Result Ready',
+  'result_ready' || 'resultReady' => 'Result Ready',
   'integrated' => 'Integrated',
   'conflict' => 'Conflict',
   'completed' => 'Completed',
@@ -114,7 +114,11 @@ String runBoardStatusLabel(String status) => switch (status) {
 
 Color runBoardStatusColor(String status) => switch (status) {
   'failed' || 'conflict' => AleraTokens.error,
-  'blocked' || 'stalled' || 'pending' || 'rejected' => AleraTokens.warning,
+  'blocked' ||
+  'stalled' ||
+  'pending' ||
+  'rejected' ||
+  'attention' => AleraTokens.warning,
   'completed' || 'integrated' => AleraTokens.success,
   _ => AleraTokens.foregroundMuted,
 };

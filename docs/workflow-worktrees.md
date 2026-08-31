@@ -1,6 +1,6 @@
 # Managed workflow worktrees
 
-An approved workflow owns an integration workspace and lazily prepared task attempts. The run and its tasks retain their original owner workspace scope; an attempt records its separate execution workspace, instance, branch and base SHA. Its dispatch ID remains null until the launch layer is implemented. This layer does not dispatch workers. Serial integration and dependent dispatch are added separately.
+An approved workflow owns an integration workspace and lazily prepared task attempts. The run and its tasks retain their original owner workspace scope; an attempt records its separate execution workspace, instance, branch and base SHA. Launch binds its dispatch to that execution workspace. [Local result integration](workflow-integration.md) controls when dependents become eligible.
 
 ## Preparation
 
@@ -32,4 +32,4 @@ Every retry receives a new branch and worktree. No automatic reset, rebase or cl
 
 ## Validation boundary
 
-These APIs prepare resources only after human plan approval. A completed worker result alone will not make a dependent eligible: integrated evidence is required. Until the integration layer is available, the existing workflow dispatch barrier remains in place across all legacy paths.
+These APIs prepare resources only after human plan approval. A completed worker result alone will not make a dependent eligible: integrated evidence is required. Legacy dispatch remains blocked; only a one-shot workflow reservation can launch a task in its owned attempt. Opening or restoring the retained terminal never repeats that launch.

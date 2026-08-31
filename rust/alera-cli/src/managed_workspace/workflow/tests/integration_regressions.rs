@@ -7,6 +7,40 @@ async fn completed(
 ) -> (IntegrateWorkflowResult, String) {
     let workspace = fixture.task(logical).await;
     assert_eq!(workspace.phase, Phase::Ready);
+    let task = fixture.task_id(logical).await;
+    let (launch, _) = fixture
+        .store
+        .reserve_workflow_launch(
+            &LaunchWorkflowTask {
+                request_id: Uuid::new_v4().to_string(),
+                run_id: fixture.plan.run_id.clone(),
+                revision: 1,
+                task_id: task.clone(),
+                workspace_id: workspace.identity.workspace.id.clone(),
+            },
+            &"a".repeat(64),
+        )
+        .await
+        .unwrap();
+    fixture
+        .store
+        .claim_workflow_launch(&launch.id)
+        .await
+        .unwrap();
+    fixture
+        .store
+        .mark_workflow_launch_started(&launch.id)
+        .await
+        .unwrap();
+    fixture
+        .store
+        .accept_orchestration_dispatch(
+            &launch.dispatch_id,
+            &launch.terminal_handle,
+            &"a".repeat(64),
+        )
+        .await
+        .unwrap();
     let repo = git2::Repository::open(&workspace.identity.workspace.path).unwrap();
     std::fs::write(
         Path::new(&workspace.identity.workspace.path).join("shared.txt"),
@@ -30,37 +64,7 @@ async fn completed(
         )
         .unwrap()
         .to_string();
-    let task = fixture.task_id(logical).await;
-    let dispatch = format!("ctx_{}", Uuid::new_v4());
-    // Model the completed-launch boundary independently; production generic
-    // dispatch keeps its fail-closed trigger throughout this implementation.
-    let trigger: String =
-        sqlx::query_scalar("SELECT sql FROM sqlite_schema WHERE name = 'workflowDispatchBlocked'")
-            .fetch_one(fixture.store.pool())
-            .await
-            .unwrap();
-    let mut tx = fixture.store.pool().begin().await.unwrap();
-    sqlx::query("DROP TRIGGER workflowDispatchBlocked")
-        .persistent(false)
-        .execute(&mut *tx)
-        .await
-        .unwrap();
-    sqlx::query("INSERT INTO orchestrationDispatchContexts(id,task_id,assignee_handle,status,run_id,workspace_id,coordinator_handle)
-        VALUES(?,?,'fixture-worker','dispatched',?,?,'')")
-        .bind(&dispatch).bind(&task).bind(&fixture.plan.run_id).bind(&workspace.identity.workspace.id)
-        .execute(&mut *tx).await.unwrap();
-    sqlx::query(sqlx::AssertSqlSafe(trigger))
-        .persistent(false)
-        .execute(&mut *tx)
-        .await
-        .unwrap();
-    tx.commit().await.unwrap();
-    sqlx::query("UPDATE workflowWorkspaces SET dispatch_id = ? WHERE id = ?")
-        .bind(&dispatch)
-        .bind(&workspace.identity.workspace.id)
-        .execute(fixture.store.pool())
-        .await
-        .unwrap();
+    let dispatch = launch.dispatch_id;
     let contract = &fixture
         .plan
         .plan
@@ -75,7 +79,7 @@ async fn completed(
             .map(|c| json!({"id":c.id,"passed":true,"evidence":"focused checks passed"})).collect::<Vec<_>>()});
     fixture
         .store
-        .complete_orchestration_dispatch(&dispatch, "fixture-worker", &result.to_string())
+        .complete_orchestration_dispatch(&dispatch, &launch.terminal_handle, &result.to_string())
         .await
         .unwrap();
     (

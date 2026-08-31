@@ -38,6 +38,32 @@ impl Fixture {
         .await
         .unwrap();
         let workspace = ready_workspace(&directory, &store, &plan, Some(task.clone())).await;
+        let (launch, _) = store
+            .reserve_workflow_launch(
+                &LaunchWorkflowTask {
+                    request_id: "launch-result".into(),
+                    run_id: plan.run_id.clone(),
+                    revision: 1,
+                    task_id: task.clone(),
+                    workspace_id: workspace.identity.workspace.id.clone(),
+                },
+                &"a".repeat(64),
+            )
+            .await
+            .unwrap();
+        store.claim_workflow_launch(&launch.id).await.unwrap();
+        store
+            .mark_workflow_launch_started(&launch.id)
+            .await
+            .unwrap();
+        store
+            .accept_orchestration_dispatch(
+                &launch.dispatch_id,
+                &launch.terminal_handle,
+                &"a".repeat(64),
+            )
+            .await
+            .unwrap();
         let repo = git2::Repository::open(&workspace.identity.workspace.path).unwrap();
         let mut config = repo.config().unwrap();
         config.set_str("user.name", "Workflow Test").unwrap();
@@ -66,24 +92,7 @@ impl Fixture {
             )
             .unwrap()
             .to_string();
-        let dispatch = uuid::Uuid::new_v4().to_string();
-        // This store fixture starts after isolated launch. Production dispatch
-        // remains blocked until its dedicated reservation path is wired.
-        sqlx::query("DROP TRIGGER workflowDispatchBlocked")
-            .execute(store.pool())
-            .await
-            .unwrap();
-        sqlx::query("INSERT INTO orchestrationDispatchContexts(id,task_id,assignee_handle,status,run_id,workspace_id,coordinator_handle)
-            VALUES(?,?,'worker','dispatched',?,?,'')")
-            .bind(&dispatch).bind(&task).bind(&plan.run_id).bind(&workspace.identity.workspace.id)
-            .execute(store.pool()).await.unwrap();
-        store.migrate_workflow_plans().await.unwrap();
-        sqlx::query("UPDATE workflowWorkspaces SET dispatch_id = ? WHERE id = ?")
-            .bind(&dispatch)
-            .bind(&workspace.identity.workspace.id)
-            .execute(store.pool())
-            .await
-            .unwrap();
+        let dispatch = launch.dispatch_id;
         let contract = &plan
             .plan
             .tasks
@@ -96,7 +105,11 @@ impl Fixture {
             "filesModified":["result.txt"], "validation":contract.checklist.iter()
                 .map(|c| json!({"id":c.id,"passed":true,"evidence":"focused checks passed"})).collect::<Vec<_>>()});
         store
-            .complete_orchestration_dispatch(&dispatch, "worker", &result.to_string())
+            .complete_orchestration_dispatch(
+                &dispatch,
+                &launch.terminal_handle,
+                &result.to_string(),
+            )
             .await
             .unwrap();
         let input = IntegrateWorkflowResult {
@@ -145,7 +158,7 @@ impl Fixture {
     }
 }
 
-async fn ready_workspace(
+pub(in crate::runtime) async fn ready_workspace(
     directory: &tempfile::TempDir,
     store: &RuntimeStore,
     plan: &WorkflowPlanRevision,

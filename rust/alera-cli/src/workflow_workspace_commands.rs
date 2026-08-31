@@ -11,6 +11,8 @@ pub(crate) async fn run(runtime: &RuntimeDirArgs, args: WorkflowWorkspacesArgs) 
     let capability = if matches!(
         &args.action,
         WorkflowWorkspacesAction::Integrate { .. }
+            | WorkflowWorkspacesAction::Launch { .. }
+            | WorkflowWorkspacesAction::Launches { .. }
             | WorkflowWorkspacesAction::Integrations { .. }
             | WorkflowWorkspacesAction::Integration { .. }
     ) {
@@ -19,6 +21,20 @@ pub(crate) async fn run(runtime: &RuntimeDirArgs, args: WorkflowWorkspacesArgs) 
         RUNTIME_HOST_WORKFLOW_WORKSPACES_CAPABILITY
     };
     let (verb, payload) = match args.action {
+        WorkflowWorkspacesAction::Launches { run, after_row } => (
+            "workflows.launches",
+            json!({"runId":run,"afterRow":after_row}),
+        ),
+        WorkflowWorkspacesAction::Launch {
+            run,
+            revision,
+            request_id,
+            task,
+            workspace_id,
+        } => (
+            "workflows.launchTask",
+            json!({"runId":run,"revision":revision,"requestId":request_id,"taskId":task,"workspaceId":workspace_id}),
+        ),
         WorkflowWorkspacesAction::Integrate {
             run,
             revision,

@@ -31,9 +31,12 @@ void registerRunBoardTerminalFocusTests() {
       workbench: BoardTestWorkbench(seed: seed),
       terminalRuntime: runtime,
     );
+    final executionWorkspace = seed
+        .workspacesFor('project-1')
+        .singleWhere((workspace) => workspace.id == 'workflow-attempt-2');
     final session = runtime.sessionFor(
-      workspace: seed.activeWorkspace!,
-      tab: seed.tabsFor('ws-1').single,
+      workspace: executionWorkspace,
+      tab: seed.tabsFor(executionWorkspace.id).single,
     );
     final focus = terminalFocusNodeForTesting(session);
     final keys = <LogicalKeyboardKey>[];

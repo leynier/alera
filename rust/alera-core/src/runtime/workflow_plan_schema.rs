@@ -67,6 +67,10 @@ const SCHEMA: &[&str] = &[
         WHEN OLD.status = 'completed' AND (OLD.result IS NOT NEW.result OR NEW.status <> 'completed')
         BEGIN UPDATE workflowStageGates SET status = 'pending', decision_id = NULL
           WHERE run_id = (SELECT run_id FROM workflowPlanTasks WHERE task_id = NEW.id); END",
+    "CREATE TRIGGER IF NOT EXISTS workflowResultChangeInvalidatesEvidence AFTER UPDATE OF result ON orchestrationTasks
+        WHEN OLD.result IS NOT NEW.result
+          AND EXISTS(SELECT 1 FROM workflowTaskEvidence WHERE task_id = NEW.id)
+        BEGIN DELETE FROM workflowTaskEvidence WHERE task_id = NEW.id; END",
     // PR6 deliberately has no executable workflow path. The managed isolation
     // and integration layers replace this barrier only when both are available.
     "CREATE TRIGGER IF NOT EXISTS workflowDispatchBlocked BEFORE INSERT ON orchestrationDispatchContexts

@@ -163,15 +163,25 @@ void main() {
     navigation.selectRun('run-1');
     navigation.selectTask('task-2');
     await tester.pumpAndSettle();
+    expect(find.text('Result Ready'), findsWidgets);
+    expect(
+      find.text(
+        'The worker result passed its contract and is waiting for local integration.',
+      ),
+      findsOneWidget,
+    );
     await tester.tap(find.text('Open Terminal'));
     await tester.pumpAndSettle();
-    expect(workbench.actions, ['workspace:ws-1', 'terminal:session-1']);
+    expect(workbench.actions, [
+      'workspace:workflow-attempt-2',
+      'terminal:session-1',
+    ]);
     expect(f.container.read(runBoardNavigationProvider).visible, isFalse);
     navigation.open();
     await tester.pumpAndSettle();
     await tester.tap(find.text('Open Diff'));
     await tester.pumpAndSettle();
-    expect(workbench.actions.last, 'diff:ws-1');
+    expect(workbench.actions.last, 'diff:workflow-attempt-2');
     expect(f.container.read(runBoardNavigationProvider).taskId, 'task-2');
   });
 

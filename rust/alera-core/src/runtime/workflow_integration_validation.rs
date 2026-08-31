@@ -131,7 +131,7 @@ fn resource(record: &WorkflowWorkspaceRecord) -> WorkflowGitResource {
     }
 }
 
-async fn require_resource(
+pub(super) async fn require_resource(
     tx: &mut Transaction<'_, Sqlite>,
     record: &WorkflowWorkspaceRecord,
 ) -> Result<()> {

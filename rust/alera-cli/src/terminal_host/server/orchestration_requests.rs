@@ -1267,6 +1267,9 @@ impl ServerActor {
 
     async fn orchestration_context(&mut self, payload: &Value) -> HostResult<Value> {
         let dispatch = self.active_worker_dispatch(payload).await?;
+        if let Some(context) = self.workflow_worker_context(&dispatch).await? {
+            return Ok(context);
+        }
         let mut task = self
             .runtime_store
             .orchestration_task_by_id(&dispatch.task_id)
@@ -1359,6 +1362,18 @@ impl ServerActor {
     async fn orchestration_escalate(&mut self, payload: &Value) -> HostResult<Value> {
         let dispatch = self.active_worker_dispatch(payload).await?;
         let assignee = dispatch.assignee_handle.clone().unwrap_or_default();
+        if let Some(launch) = self
+            .runtime_store
+            .workflow_launch_for_terminal(&assignee)
+            .await
+            .map_err(state_error)?
+        {
+            self.runtime_store
+                .workflow_launch_attention(&launch.id, &require_string(payload, "subject")?)
+                .await
+                .map_err(state_error)?;
+            self.broadcast_orchestration_board_change().await;
+        }
         let message = self
             .runtime_store
             .insert_orchestration_message(NewOrchestrationMessage {
@@ -1441,6 +1456,9 @@ impl ServerActor {
                 .fail_orchestration_dispatch_with_result(&dispatch.id, summary, Some(&result_json))
                 .await
                 .map_err(state_error)?;
+            if self.is_workflow_terminal(&assignee).await {
+                self.terminate_sessions_for_tab(&assignee).await;
+            }
             return Ok(json!({
                 "lifecycleAccepted": true,
                 "taskId": dispatch.task_id,

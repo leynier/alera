@@ -13,6 +13,8 @@ async fn workflow_worktrees_rpc_rejects_mobile_unauthenticated_and_unbounded_pay
     let mut actor = test_actor(&dir, HashMap::new(), HashMap::new()).await;
     for verb in [
         "workflows.prepareWorkspace",
+        "workflows.launchTask",
+        "workflows.launches",
         "workflows.workspaces",
         "workflows.integrateResult",
         "workflows.integrations",
@@ -161,4 +163,39 @@ fn workflow_worktrees_integration_cli_cannot_select_git_contents_or_identity() {
         "receipt",
     ])
     .unwrap();
+}
+
+#[test]
+fn workflow_launch_cli_cannot_override_reviewed_profile_or_private_context() {
+    use clap::Parser;
+    let args = [
+        "alera",
+        "orchestration",
+        "workspaces",
+        "launch",
+        "--run",
+        "run",
+        "--revision",
+        "1",
+        "--request-id",
+        "request",
+        "--task",
+        "task",
+        "--workspace-id",
+        "attempt",
+    ];
+    crate::cli::Cli::try_parse_from(args).unwrap();
+    for forbidden in [
+        "--path",
+        "--actor",
+        "--approve",
+        "--profile",
+        "--command",
+        "--context-token",
+    ] {
+        assert!(
+            crate::cli::Cli::try_parse_from(args.into_iter().chain([forbidden, "foreign"]))
+                .is_err()
+        );
+    }
 }

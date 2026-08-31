@@ -9,7 +9,7 @@ use crate::terminal_host::orchestration::agent_startup_command::{
     append_initial_prompt_argument_for, command_with_initial_prompt_for,
 };
 use crate::terminal_host::protocol::TerminalHostLaunch;
-use crate::terminal_host::session::{PtyWriteCompletion, Session};
+use crate::terminal_host::session::Session;
 
 use super::pty_event_forwarder::forward_pty_event;
 use super::terminal_launch_defaults::default_terminal_launch;
@@ -19,12 +19,11 @@ use super::terminal_startup_commands::{
     initial_delivery_mechanism as mechanism, initial_managed_agent_launch, initial_prompt,
     pending_agent_type, tab_agent_type, terminal_session_id,
 };
-use super::{ServerActor, ServerCommand};
+use super::workflow_launch_requests::WorkflowLaunchPermit;
+use super::ServerActor;
 
 const DEFAULT_TERMINAL_COLS: u16 = 80;
 const DEFAULT_TERMINAL_ROWS: u16 = 24;
-const STARTUP_INPUT_DELAY_MS: u64 = 120;
-const STARTUP_SUBMIT_DELAY_MS: u64 = 500;
 
 impl ServerActor {
     pub(super) async fn reconcile_spawn_on_create_tabs(&mut self) {
@@ -87,11 +86,32 @@ impl ServerActor {
         &mut self,
         tab: &WorkspaceTabRecord,
     ) -> HostResult<Option<WorkspaceTabRecord>> {
+        self.ensure_spawn_on_create_terminal_with_permit(tab, None)
+            .await
+    }
+
+    pub(super) async fn ensure_spawn_on_create_terminal_with_permit(
+        &mut self,
+        tab: &WorkspaceTabRecord,
+        permit: Option<&WorkflowLaunchPermit>,
+    ) -> HostResult<Option<WorkspaceTabRecord>> {
         if !spawns_on_create(tab) {
             return Ok(None);
         }
         let session_id = terminal_session_id(tab);
         if self.sessions.get(&session_id).is_some_and(Session::running) {
+            return Ok(None);
+        }
+        if permit.is_none()
+            && self
+                .runtime_store
+                .workflow_launch_for_terminal(&tab.id)
+                .await
+                .map_err(|error| HostError::state(error.to_string()))?
+                .is_some()
+        {
+            // Restoration retains the tab and its diagnostics without replaying
+            // an uncertain, failed or completed worker's bootstrap.
             return Ok(None);
         }
         let rearmed = self.rearm_terminal_after_ready_prompt(tab).await?;
@@ -117,7 +137,7 @@ impl ServerActor {
             .await;
         let default_launch =
             default_terminal_launch(&workspace.path, self.config.login_shell).await;
-        self.start_new_terminal_session(
+        self.start_new_terminal_session_with_permit(
             session_id.clone(),
             workspace.id,
             tab.id.clone(),
@@ -128,6 +148,7 @@ impl ServerActor {
             initial_scrollback,
             initial_output_stream_bytes,
             pending_agent_type(tab),
+            permit,
         )
         .await?;
         let managed_launch = initial_managed_agent_launch(tab)?;
@@ -167,7 +188,21 @@ impl ServerActor {
         };
         let command = match (prompt_arguments, command) {
             (Some((AgentInitialDeliveryMechanismV1::StdinScript, prompt)), Some(command)) => {
-                Some(self.stdin_prompt_command(&session_id, &command, prompt))
+                Some(if permit.is_some() {
+                    let directory = self.setup_script_directory().ok_or_else(|| {
+                        HostError::state("workflow prompt directory is unavailable")
+                    })?;
+                    crate::agent_prompt_stdin_script::write_agent_prompt_stdin_script(
+                        &directory,
+                        &session_id,
+                        &command,
+                        prompt,
+                    )
+                    .map_err(|error| HostError::state(error.to_string()))?
+                    .command
+                } else {
+                    self.stdin_prompt_command(&session_id, &command, prompt)
+                })
             }
             (_, command) => command,
         };
@@ -268,13 +303,46 @@ impl ServerActor {
         workspace_id: String,
         tab_id: String,
         working_directory: String,
-        mut launch: TerminalHostLaunch,
+        launch: TerminalHostLaunch,
         cols: u16,
         rows: u16,
         initial_scrollback: Vec<u8>,
         initial_output_stream_bytes: u64,
         forced_agent_hook: Option<&str>,
     ) -> HostResult<()> {
+        self.start_new_terminal_session_with_permit(
+            session_id,
+            workspace_id,
+            tab_id,
+            working_directory,
+            launch,
+            cols,
+            rows,
+            initial_scrollback,
+            initial_output_stream_bytes,
+            forced_agent_hook,
+            None,
+        )
+        .await
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    async fn start_new_terminal_session_with_permit(
+        &mut self,
+        session_id: String,
+        workspace_id: String,
+        tab_id: String,
+        working_directory: String,
+        mut launch: TerminalHostLaunch,
+        cols: u16,
+        rows: u16,
+        initial_scrollback: Vec<u8>,
+        initial_output_stream_bytes: u64,
+        forced_agent_hook: Option<&str>,
+        permit: Option<&WorkflowLaunchPermit>,
+    ) -> HostResult<()> {
+        self.require_workflow_spawn_permit(&session_id, &workspace_id, &tab_id, permit)
+            .await?;
         // This is the final owner-creation boundary for client, automation,
         // and orchestration launches. Runtime mutations perform filesystem
         // cleanup concurrently with the actor, so no new terminal owner may
@@ -401,95 +469,6 @@ impl ServerActor {
             return (restored.buffer.to_bytes(), restored.output_stream_range().1);
         }
         (Vec::new(), 0)
-    }
-
-    fn schedule_terminal_startup_input(
-        &self,
-        session_id: String,
-        session_instance_id: u64,
-        interactive_shell: String,
-        command: String,
-    ) {
-        let inbox = self.inbox.clone();
-        tokio::spawn(async move {
-            tokio::time::sleep(std::time::Duration::from_millis(STARTUP_INPUT_DELAY_MS)).await;
-            let _ = inbox.send(ServerCommand::TerminalStartupInput {
-                session_id,
-                session_instance_id,
-                interactive_shell,
-                command,
-            });
-        });
-    }
-
-    pub(super) fn handle_terminal_startup_input(
-        &mut self,
-        session_id: String,
-        session_instance_id: u64,
-        interactive_shell: String,
-        command: String,
-    ) {
-        let Some(session) = self.sessions.get_mut(&session_id) else {
-            return;
-        };
-        if session.instance_id() != session_instance_id || !session.running() {
-            return;
-        }
-        let uses_paste = crate::terminal_host::orchestration::agent_prompt_injection::should_use_bracketed_paste_for_startup(&command)
-            && crate::terminal_host::orchestration::agent_prompt_injection::shell_supports_bracketed_paste(&interactive_shell);
-        let bytes = if uses_paste {
-            crate::terminal_host::orchestration::agent_prompt_injection::build_agent_prompt_paste_bytes(&command)
-        } else {
-            crate::terminal_host::orchestration::agent_prompt_injection::build_plain_startup_command_bytes(&command)
-        };
-        let completion = if uses_paste {
-            PtyWriteCompletion::StartupPaste {
-                session_instance_id,
-            }
-        } else {
-            PtyWriteCompletion::StartupPlain {
-                session_instance_id,
-            }
-        };
-        if let Err(error) = session.queue_write(completion, &bytes) {
-            self.broadcast_terminal_error(&session_id, error.wire_message());
-        }
-    }
-
-    pub(super) fn schedule_terminal_startup_submit(
-        &self,
-        session_id: String,
-        session_instance_id: u64,
-    ) {
-        let inbox = self.inbox.clone();
-        tokio::spawn(async move {
-            tokio::time::sleep(std::time::Duration::from_millis(STARTUP_SUBMIT_DELAY_MS)).await;
-            let _ = inbox.send(ServerCommand::TerminalStartupSubmit {
-                session_id,
-                session_instance_id,
-            });
-        });
-    }
-
-    pub(super) fn handle_terminal_startup_submit(
-        &mut self,
-        session_id: String,
-        session_instance_id: u64,
-    ) {
-        let Some(session) = self.sessions.get_mut(&session_id) else {
-            return;
-        };
-        if session.instance_id() != session_instance_id || !session.running() {
-            return;
-        }
-        if let Err(error) = session.queue_write(
-            PtyWriteCompletion::StartupSubmit {
-                session_instance_id,
-            },
-            crate::terminal_host::orchestration::agent_prompt_injection::AGENT_PROMPT_SUBMIT,
-        ) {
-            self.broadcast_terminal_error(&session_id, error.wire_message());
-        }
     }
 }
 

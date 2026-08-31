@@ -24,6 +24,8 @@ impl ServerActor {
         }
         match request_type {
             "workflows.prepareWorkspace"
+            | "workflows.launchTask"
+            | "workflows.launches"
             | "workflows.workspaces"
             | "workflows.integrateResult"
             | "workflows.integrations"

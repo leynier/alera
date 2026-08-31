@@ -9,6 +9,7 @@ use alera_core::runtime::{
 use super::*;
 mod destination;
 pub(crate) mod integration;
+pub(crate) mod launch;
 pub(crate) mod ownership;
 pub(crate) mod recovery;
 
@@ -322,4 +323,4 @@ fn resource_lock(runtime_dir: &Path, id: &str) -> Result<Option<File>> {
 }
 
 #[cfg(test)]
-mod tests;
+pub(crate) mod tests;

@@ -24,6 +24,7 @@ pub struct OrchestrationTaskSummary {
     pub workspace_id: String,
     pub dependencies: Vec<String>,
     pub dependencies_truncated: bool,
+    pub workflow_state: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -77,11 +78,24 @@ impl RuntimeStore {
         let objective = row.try_get("objective")?;
         let objective_truncated = row.try_get("truncated")?;
         let rows = sqlx::query(
-            "SELECT id, substr(COALESCE(display_name, task_title, spec), 1, 256) AS title,
-                status, stage_id, workspace_id,
+            "SELECT t.id, substr(COALESCE(t.display_name, t.task_title, t.spec), 1, 256) AS title,
+                t.status, t.stage_id, t.workspace_id,
                 CASE WHEN length(deps) <= 16384 THEN deps END AS deps
-             FROM orchestrationTasks WHERE run_id = ? AND (? IS NULL OR id > ?)
-             ORDER BY id LIMIT ?",
+                ,CASE WHEN p.task_id IS NULL THEN NULL
+                  WHEN i.state = 'integrated' AND e.task_id IS NOT NULL THEN 'integrated'
+                  WHEN i.state = 'integrated' THEN 'attention'
+                  WHEN i.state = 'conflict' THEN 'conflict'
+                  WHEN i.state = 'attention' OR l.status = 'attention' OR x.phase = 'attention' THEN 'attention'
+                  WHEN t.status = 'completed' AND t.result IS NOT NULL THEN 'result_ready'
+                 END AS workflow_state
+             FROM orchestrationTasks t
+             LEFT JOIN workflowPlanTasks p ON p.task_id = t.id
+             LEFT JOIN workflowWorkspaces x ON x.sequence = (SELECT MAX(sequence) FROM workflowWorkspaces WHERE task_id = t.id)
+             LEFT JOIN workflowLaunches l ON l.workspace_id = x.id
+             LEFT JOIN workflowIntegrations i ON i.sequence = (SELECT MAX(sequence) FROM workflowIntegrations WHERE task_id = t.id)
+             LEFT JOIN workflowTaskEvidence e ON e.task_id = t.id
+             WHERE t.run_id = ? AND (? IS NULL OR t.id > ?)
+             ORDER BY t.id LIMIT ?",
         )
         .bind(&query.run_id)
         .bind(&query.after_task_id)
@@ -107,6 +121,7 @@ impl RuntimeStore {
                     workspace_id: row.try_get("workspace_id")?,
                     dependencies,
                     dependencies_truncated,
+                    workflow_state: row.try_get("workflow_state")?,
                 })
             })
             .collect::<Result<Vec<_>>>()?;

@@ -365,8 +365,15 @@ impl ServerActor {
             self.flush_all_output(&session_id);
             self.await_output_writes(&session_id).await;
             if let Some(mut session) = self.sessions.remove(&session_id) {
-                session.terminate(true, &store).await;
+                session
+                    .terminate(!self.is_workflow_terminal(&session_id).await, &store)
+                    .await;
             }
+            self.settle_closed_workflow_terminal(
+                &session_id,
+                "The terminal was explicitly terminated. Retry in a new attempt.",
+            )
+            .await;
         }
         self.schedule_shutdown_if_idle();
     }

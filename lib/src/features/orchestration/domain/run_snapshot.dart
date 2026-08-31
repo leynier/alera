@@ -9,6 +9,7 @@ class RunTaskSummary {
     this.stageId,
     this.dependencies = const [],
     this.dependenciesTruncated = false,
+    this.workflowState,
   });
 
   factory RunTaskSummary.fromJson(Map<String, Object?> json) => RunTaskSummary(
@@ -21,6 +22,7 @@ class RunTaskSummary {
       (json['dependencies'] as List? ?? const []).cast<String>(),
     ),
     dependenciesTruncated: json['dependencies_truncated'] as bool? ?? false,
+    workflowState: json['workflow_state'] as String?,
   );
 
   final String id;
@@ -30,6 +32,7 @@ class RunTaskSummary {
   final String? stageId;
   final List<String> dependencies;
   final bool dependenciesTruncated;
+  final String? workflowState;
 }
 
 class RunSnapshot {

@@ -173,6 +173,7 @@ pub enum ServerCommand {
     },
     WorkflowPlanChanged,
     WorkflowWorkspaceRecoveryFinished,
+    WorkflowLaunch(super::workflow_launch_requests::WorkflowLaunchCommand),
     WorkflowWorkspaceFinished {
         client_id: u64,
         request_id: i64,

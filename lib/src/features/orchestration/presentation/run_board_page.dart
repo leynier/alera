@@ -240,6 +240,8 @@ class _RunBoardSelection extends ConsumerWidget {
         );
       }
       final task = data.data.inspection;
+      final executionWorkspaceId =
+          task.workflow?.executionWorkspaceId ?? task.workspaceId;
       return RunTaskInspector(
         task: task,
         history: data.data.history,
@@ -247,20 +249,20 @@ class _RunBoardSelection extends ConsumerWidget {
         onOpenWorkspace: runBoardWorkspaceAction(
           context,
           ref,
-          task.workspaceId,
+          executionWorkspaceId,
           RunBoardWorkspaceAction.workspace,
         ),
         onOpenTerminal: runBoardWorkspaceAction(
           context,
           ref,
-          task.workspaceId,
+          executionWorkspaceId,
           RunBoardWorkspaceAction.terminal,
           terminalHandle: task.terminalHandle,
         ),
         onOpenDiff: runBoardWorkspaceAction(
           context,
           ref,
-          task.workspaceId,
+          executionWorkspaceId,
           RunBoardWorkspaceAction.diff,
         ),
         footer: RunBoardPageFooter(
