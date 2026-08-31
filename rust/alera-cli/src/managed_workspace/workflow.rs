@@ -3,7 +3,7 @@ use std::path::Path;
 
 use alera_core::runtime::{
     open_private_runtime_file, prepare_private_runtime_directory, PrepareWorkflowWorkspace,
-    WorkflowWorkspacePhase as Phase, WorkflowWorkspaceRecord,
+    WorkflowWorkspacePhase as Phase, WorkflowWorkspaceRecord, WorktreeSetupReport,
 };
 
 use super::*;
@@ -184,11 +184,48 @@ async fn advance(
         )
         .await?;
     let report = run_worktree_setup(store, &project, &record.identity.workspace).await;
+    finish_setup(store, record, revision, report).await
+}
+
+async fn finish_setup(
+    store: &RuntimeStore,
+    record: WorkflowWorkspaceRecord,
+    revision: i64,
+    report: WorktreeSetupReport,
+) -> Result<WorkflowWorkspaceRecord> {
+    let result = finish_validated_setup(store, &record, revision, &report).await;
+    match result {
+        Ok(record) => Ok(record),
+        Err(error) => {
+            let current = store
+                .workflow_workspace(&record.identity.workspace.id)
+                .await?;
+            let message = error.to_string().chars().take(1000).collect::<String>();
+            store
+                .transition_workflow_workspace(
+                    &current.identity.workspace.id,
+                    revision,
+                    current.phase,
+                    Phase::Attention,
+                    Some(&report),
+                    Some(&message),
+                )
+                .await
+        }
+    }
+}
+
+async fn finish_validated_setup(
+    store: &RuntimeStore,
+    record: &WorkflowWorkspaceRecord,
+    revision: i64,
+    report: &WorktreeSetupReport,
+) -> Result<WorkflowWorkspaceRecord> {
     let succeeded = report.steps.iter().all(|step| step.succeeded);
-    verify_registered(store, &record).await?;
+    verify_registered(store, record).await?;
     store
         .transition_workflow_workspace(
-            &id,
+            &record.identity.workspace.id,
             revision,
             Phase::SetupRunning,
             if succeeded {
@@ -196,7 +233,7 @@ async fn advance(
             } else {
                 Phase::Attention
             },
-            Some(&report),
+            Some(report),
             if succeeded {
                 None
             } else {

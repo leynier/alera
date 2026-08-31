@@ -6,9 +6,11 @@ use git2::{Branch, BranchType, ErrorCode, Repository, WorktreePruneOptions};
 use crate::git_cli::git_in_dir;
 pub mod hosted_review;
 mod repository_metadata;
+#[cfg(feature = "runtime")]
 mod workflow_worktree;
 mod worktree_creation;
 pub use repository_metadata::{current_branch, is_worktree_clean, repository_remote_url};
+#[cfg(feature = "runtime")]
 pub use workflow_worktree::{
     ensure_workflow_worktree, is_registered_workflow_worktree, verify_workflow_worktree,
 };

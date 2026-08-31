@@ -7,6 +7,7 @@ use serde_json::json;
 use super::*;
 
 mod fixture;
+mod receipt_and_report_regressions;
 mod regressions;
 mod review_regressions;
 use fixture::Fixture;

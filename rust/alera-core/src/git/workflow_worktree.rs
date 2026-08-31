@@ -1,6 +1,7 @@
 //! Exact-commit creation for a durably reserved workflow resource. No refresh,
 //! rollback, deletion or branch reset is safe here: partial work is retained.
 
+use std::io::Write;
 use std::path::Path;
 
 use git2::{ErrorCode, Oid, Repository, WorktreeAddOptions};
@@ -32,6 +33,7 @@ pub fn ensure_workflow_worktree(
 ) -> Result<(), GitError> {
     uuid::Uuid::parse_str(id).map_err(|_| invalid("invalid workflow resource id"))?;
     let repo = open_repo(repo_path)?;
+    let _receipt_config = receipt_config(&repo)?;
     let oid = Oid::from_str(base_sha).map_err(GitError::from_git2)?;
     repo.find_commit(oid).map_err(GitError::from_git2)?;
     let reference_name = format!("refs/heads/alera/workflows/{id}");
@@ -53,8 +55,8 @@ pub fn ensure_workflow_worktree(
                 "workflow destination already exists without its branch receipt",
             ));
         }
-        // The receipt is written with the ref creation, including when the
-        // repository disables ordinary reflogs. Never force an existing ref.
+        // The handle-local config forces the receipt with ref creation, even
+        // when ordinary reflogs are disabled. Never force an existing ref.
         repo.reference_ensure_log(&reference_name)
             .map_err(GitError::from_git2)?;
         repo.reference(&reference_name, oid, false, &receipt)
@@ -79,6 +81,21 @@ pub fn ensure_workflow_worktree(
     repo.worktree(id, Path::new(path), Some(&options))
         .map_err(GitError::from_git2)?;
     verify_workflow_worktree(repo_path, path, base_sha, id)
+}
+
+fn receipt_config(repo: &Repository) -> Result<tempfile::NamedTempFile, GitError> {
+    // git2 exposes file-backed config overlays, not libgit2's memory backend.
+    // This private temporary override never changes repository/user config and
+    // contains no copied settings or credentials. Keep it alive with the handle.
+    let mut file = tempfile::NamedTempFile::new().map_err(|error| invalid(error.to_string()))?;
+    file.write_all(b"[core]\nlogAllRefUpdates = true\n")
+        .map_err(|error| invalid(error.to_string()))?;
+    let mut config = repo.config().map_err(GitError::from_git2)?;
+    config
+        .add_file(file.path(), git2::ConfigLevel::App, true)
+        .map_err(GitError::from_git2)?;
+    repo.set_config(&config).map_err(GitError::from_git2)?;
+    Ok(file)
 }
 
 pub fn verify_workflow_worktree(
