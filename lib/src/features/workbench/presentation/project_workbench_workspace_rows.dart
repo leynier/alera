@@ -22,6 +22,8 @@ class const _WorkspaceRow({
   required final String fileManagerLabel,
   required final VoidCallback onRename,
   required final VoidCallback onSetPinned,
+  final VoidCallback? onPinWorkspaceTree,
+  final VoidCallback? onUnpinWorkspaceTree,
   required final VoidCallback onManageTags,
   required final VoidCallback onSetParent,
   required final _TerminalTabCallback onSelectTerminal,

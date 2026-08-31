@@ -95,7 +95,6 @@ class _WorkbenchSidebarRowBuilder(
         baseIndent: 0,
         showProjectChip: true,
         isPinnedCopy: true,
-        collapsedParentIds: const <String>{},
       );
     }
     return workspaceCount;
@@ -123,7 +122,6 @@ class _WorkbenchSidebarRowBuilder(
       baseIndent: 0,
       showProjectChip: true,
       isPinnedCopy: true,
-      collapsedParentIds: const <String>{},
     );
     return pinned.length;
   }

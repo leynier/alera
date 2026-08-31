@@ -4,6 +4,7 @@ import 'package:alera_mobile/src/design_system/chips/alera_chip.dart';
 import 'package:alera_mobile/src/design_system/icons/alera_icons.dart';
 import 'package:alera_mobile/src/features/runtime/domain/workspace_summary.dart';
 import 'package:alera_mobile/src/features/workbench/application/workspace_list_controller.dart';
+import 'package:alera_mobile/src/features/workbench/application/workspace_listing_tree.dart';
 import 'package:alera_mobile/src/features/workbench/presentation/delete_workspace_dialog.dart';
 import 'package:alera_mobile/src/features/workbench/presentation/parent_picker_sheet.dart';
 import 'package:alera_mobile/src/features/workbench/presentation/sleep_workspace_dialog.dart';
@@ -17,6 +18,8 @@ enum _WorkspaceAction {
   rename,
   pin,
   unpin,
+  pinTree,
+  unpinTree,
   tags,
   configureParent,
   unlinkParent,
@@ -40,6 +43,10 @@ Future<void> showWorkspaceActionsSheet(
   if (!data.supportsMutations) {
     return;
   }
+  final hasDescendants = workspaceDescendantIds(
+    data.workspaces,
+    workspace.id,
+  ).isNotEmpty;
   final action = await showModalBottomSheet<_WorkspaceAction>(
     context: context,
     isScrollControlled: true,
@@ -77,6 +84,20 @@ Future<void> showWorkspaceActionsSheet(
                           : _WorkspaceAction.pin,
                     ),
                   ),
+                  if (hasDescendants)
+                    ListTile(
+                      leading: const Icon(AleraIcons.pin, size: 20),
+                      title: const Text('Pin Workspace Tree'),
+                      onTap: () =>
+                          Navigator.of(context).pop(_WorkspaceAction.pinTree),
+                    ),
+                  if (hasDescendants)
+                    ListTile(
+                      leading: const Icon(AleraIcons.pinOff, size: 20),
+                      title: const Text('Unpin Workspace Tree'),
+                      onTap: () =>
+                          Navigator.of(context).pop(_WorkspaceAction.unpinTree),
+                    ),
                   ListTile(
                     leading: const Icon(AleraIcons.tag, size: 20),
                     title: const Text('Manage Tags'),
@@ -100,12 +121,14 @@ Future<void> showWorkspaceActionsSheet(
                     ),
                   if (data.supportsSections)
                     ListTile(
+                      leading: const Icon(AleraIcons.folder, size: 20),
                       title: const Text('Set Section'),
                       onTap: () =>
                           Navigator.pop(context, _WorkspaceAction.setSection),
                     ),
                   if (data.supportsSections && workspace.sectionId != null)
                     ListTile(
+                      leading: const Icon(AleraIcons.folderOff, size: 20),
                       title: const Text('Clear Section'),
                       onTap: () =>
                           Navigator.pop(context, _WorkspaceAction.clearSection),
@@ -166,6 +189,10 @@ Future<void> showWorkspaceActionsSheet(
         await controller.setPinned(workspace.id, true);
       case _WorkspaceAction.unpin:
         await controller.setPinned(workspace.id, false);
+      case _WorkspaceAction.pinTree:
+        await controller.setTreePinned(workspace.id, true);
+      case _WorkspaceAction.unpinTree:
+        await controller.setTreePinned(workspace.id, false);
       case _WorkspaceAction.configureParent:
         final parentId = await showParentPickerSheet(
           context,

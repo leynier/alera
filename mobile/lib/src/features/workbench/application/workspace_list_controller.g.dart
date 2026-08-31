@@ -52,7 +52,7 @@ final class WorkspaceListControllerProvider
 }
 
 String _$workspaceListControllerHash() =>
-    r'd6093105716b80b16c26eb1f4c75c63c08a622c1';
+    r'5ebe9317cb1f78eca3906a4897b0fb7ec5f3306c';
 
 final class WorkspaceListControllerFamily extends $Family
     with

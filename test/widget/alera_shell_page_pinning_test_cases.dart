@@ -4,6 +4,8 @@ class _PinningShellTestWorkbenchController(super.bootstrapState)
     extends _ShellTestWorkbenchController {
   final List<({String workspaceId, bool isPinned})> pinUpdates =
       <({String workspaceId, bool isPinned})>[];
+  final List<({String workspaceId, bool isPinned})> treePinUpdates =
+      <({String workspaceId, bool isPinned})>[];
 
   @override
   Future<void> setWorkspacePinned({
@@ -22,6 +24,14 @@ class _PinningShellTestWorkbenchController(super.bootstrapState)
           ],
       },
     );
+  }
+
+  @override
+  Future<void> setWorkspaceTreePinned({
+    required String workspaceId,
+    required bool isPinned,
+  }) async {
+    treePinUpdates.add((workspaceId: workspaceId, isPinned: isPinned));
   }
 }
 
@@ -92,6 +102,68 @@ void _registerAleraShellPinningTests() {
 
     expect(controller.pinUpdates.last.isPinned, isFalse);
     expect(find.text('Pinned'), findsNothing);
+  });
+
+  testWidgets('workspace context menu shows Set Section when supported', (
+    tester,
+  ) async {
+    await _pumpShell(
+      tester,
+      state: _linkedWorkbenchState().copyWith(supportsSections: true),
+    );
+    await tester.tapAt(
+      tester.getCenter(
+        find.byKey(const ValueKey<String>('workspace-row:regular:workspace-2')),
+      ),
+      buttons: kSecondaryMouseButton,
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Set Section'), findsOneWidget);
+  });
+
+  testWidgets('workspace context menu pins the workspace tree', (tester) async {
+    final seeded = _linkedWorkbenchState();
+    final workspaces = seeded.workspacesFor('project-1');
+    final parent = workspaces.first;
+    final child = workspaces.last.copyWith(parentWorkspaceId: parent.id);
+    final state = seeded.copyWith(
+      workspacesByProject: <String, List<Workspace>>{
+        'project-1': <Workspace>[parent, child],
+      },
+    );
+    final controller = _PinningShellTestWorkbenchController(state);
+    await _pumpShell(tester, state: state, controller: controller);
+    final regular = find.byKey(
+      ValueKey<String>('workspace-row:regular:${parent.id}'),
+    );
+
+    await tester.tapAt(
+      tester.getCenter(regular),
+      buttons: kSecondaryMouseButton,
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Pin Workspace Tree'), findsOneWidget);
+    await tester.tap(find.text('Pin Workspace Tree'));
+    await tester.pumpAndSettle();
+
+    expect(controller.treePinUpdates, <({String workspaceId, bool isPinned})>[
+      (workspaceId: parent.id, isPinned: true),
+    ]);
+  });
+
+  testWidgets('leaf workspaces omit tree pin actions', (tester) async {
+    await _pumpShell(tester, state: _linkedWorkbenchState());
+    await tester.tapAt(
+      tester.getCenter(
+        find.byKey(const ValueKey<String>('workspace-row:regular:workspace-2')),
+      ),
+      buttons: kSecondaryMouseButton,
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Pin Workspace Tree'), findsNothing);
+    expect(find.text('Unpin Workspace Tree'), findsNothing);
   });
 
   testWidgets('view preference hides the regular pinned workspace copy', (
@@ -171,5 +243,30 @@ void _registerAleraShellPinningTests() {
     await tester.pumpAndSettle();
     expect(harness.controller.state.viewPrefs.pinnedSectionCollapsed, isFalse);
     expect(pinnedCopy, findsOneWidget);
+  });
+
+  testWidgets('pinned copies keep the child collapse control', (tester) async {
+    final seeded = _linkedWorkbenchState(linkedExpanded: true);
+    final workspaces = seeded.workspacesFor('project-1');
+    final parent = workspaces.first.copyWith(childCount: 1, isPinned: true);
+    final child = workspaces.last.copyWith(
+      parentWorkspaceId: parent.id,
+      isPinned: true,
+    );
+
+    await _pumpShell(
+      tester,
+      state: seeded.copyWith(
+        workspacesByProject: <String, List<Workspace>>{
+          'project-1': <Workspace>[parent, child],
+        },
+      ),
+    );
+
+    expect(
+      find.byKey(const Key('workspace-tray-children')),
+      findsAtLeastNWidgets(2),
+    );
+    expect(find.byTooltip('Hide Child Workspaces'), findsAtLeastNWidgets(2));
   });
 }

@@ -28,6 +28,8 @@ class _ProjectWorkbenchSidebarState
           activeTabIdByWorkspace: state.activeTabIdByWorkspace,
           activeWorkspaceId: state.activeWorkspaceId,
           collapsed: state.collapsed,
+          supportsSections: state.supportsSections,
+          sections: state.sections,
           projects: state.projects,
           searchQuery: state.searchQuery,
           tabsByWorkspace: state.tabsByWorkspace,
@@ -37,6 +39,8 @@ class _ProjectWorkbenchSidebarState
       ),
     );
     final state = WorkbenchState(
+      supportsSections: sidebar.supportsSections,
+      sections: sidebar.sections,
       projects: sidebar.projects,
       workspacesByProject: sidebar.workspacesByProject,
       tabsByWorkspace: sidebar.tabsByWorkspace,
@@ -118,6 +122,8 @@ class _ProjectWorkbenchSidebarState
                                 onRemoveProject: _removeProject,
                                 onRenameWorkspace: _renameWorkspace,
                                 onSetWorkspacePinned: _setWorkspacePinned,
+                                onSetWorkspaceTreePinned:
+                                    _setWorkspaceTreePinned,
                                 onManageWorkspaceTags: _manageWorkspaceTags,
                                 onSetWorkspaceParent: _setWorkspaceParent,
                                 onClearWorkspaceParent: _clearWorkspaceParent,

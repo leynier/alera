@@ -5,6 +5,8 @@ enum _WorkbenchSidebarMutation(final String successMessage) {
   renameWorkspace('Workspace renamed'),
   pinWorkspace('Workspace pinned'),
   unpinWorkspace('Workspace unpinned'),
+  pinWorkspaceTree('Workspace tree pinned'),
+  unpinWorkspaceTree('Workspace tree unpinned'),
   removeWorkspace('Workspace removed'),
   updateWorkspaceTags('Workspace tags updated'),
   updateWorkspaceParent('Workspace parent updated'),
@@ -105,6 +107,26 @@ mixin _ProjectWorkbenchSidebarActions
         await ref
             .read(workbenchControllerProvider.notifier)
             .setWorkspacePinned(workspaceId: workspace.id, isPinned: isPinned);
+        return _WorkbenchSidebarMutationResult.applied;
+      },
+    );
+  }
+
+  Future<void> _setWorkspaceTreePinned(
+    Workspace workspace,
+    bool isPinned,
+  ) async {
+    await _runWorkbenchSidebarMutation(
+      mutation: isPinned
+          ? _WorkbenchSidebarMutation.pinWorkspaceTree
+          : _WorkbenchSidebarMutation.unpinWorkspaceTree,
+      execute: () async {
+        await ref
+            .read(workbenchControllerProvider.notifier)
+            .setWorkspaceTreePinned(
+              workspaceId: workspace.id,
+              isPinned: isPinned,
+            );
         return _WorkbenchSidebarMutationResult.applied;
       },
     );

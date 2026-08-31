@@ -13,8 +13,12 @@ const String _openInBrowserAction = 'open-in-browser';
 const String _sleepAction = 'sleep';
 const String _manageTagsAction = 'manage-tags';
 const String _togglePinAction = 'toggle-pin';
+const String _pinWorkspaceTreeAction = 'pin-workspace-tree';
+const String _unpinWorkspaceTreeAction = 'unpin-workspace-tree';
 const String _setParentAction = 'set-parent';
 const String _clearParentAction = 'clear-parent';
+const String _setSectionAction = 'set-section';
+const String _clearSectionAction = 'clear-section';
 const String _removeAction = 'remove';
 
 /// Builds the right-click menu entries for a workspace row. [hasClearParent]
@@ -27,6 +31,7 @@ List<PopupMenuEntry<String>> workspaceContextMenuEntries({
   required bool hasClearParent,
   required bool canRemove,
   required bool isPinned,
+  bool hasDescendants = false,
 }) {
   return <PopupMenuEntry<String>>[
     const AleraDropdownEntry<String>(
@@ -39,6 +44,18 @@ List<PopupMenuEntry<String>> workspaceContextMenuEntries({
       leading: Icon(isPinned ? AleraIcons.pinOff : AleraIcons.pin, size: 16),
       label: isPinned ? 'Unpin Workspace' : 'Pin Workspace',
     ),
+    if (hasDescendants)
+      const AleraDropdownEntry<String>(
+        value: _pinWorkspaceTreeAction,
+        leading: Icon(AleraIcons.pin, size: 16),
+        label: 'Pin Workspace Tree',
+      ),
+    if (hasDescendants)
+      const AleraDropdownEntry<String>(
+        value: _unpinWorkspaceTreeAction,
+        leading: Icon(AleraIcons.pinOff, size: 16),
+        label: 'Unpin Workspace Tree',
+      ),
     const AleraDropdownEntry<String>(
       value: _manageTagsAction,
       leading: Icon(AleraIcons.tag, size: 16),
@@ -57,12 +74,14 @@ List<PopupMenuEntry<String>> workspaceContextMenuEntries({
       ),
     if (supportsSections)
       const AleraDropdownEntry<String>(
-        value: 'set-section',
+        value: _setSectionAction,
+        leading: Icon(AleraIcons.folder, size: 16),
         label: 'Set Section',
       ),
     if (supportsSections && hasSection)
       const AleraDropdownEntry<String>(
-        value: 'clear-section',
+        value: _clearSectionAction,
+        leading: Icon(AleraIcons.folderOff, size: 16),
         label: 'Clear Section',
       ),
     const PopupMenuDivider(height: AleraTokens.space8),

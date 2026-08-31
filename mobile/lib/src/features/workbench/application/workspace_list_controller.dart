@@ -9,6 +9,7 @@ import 'package:alera_mobile/src/features/runtime/domain/workspace_sidebar_snaps
 import 'package:alera_mobile/src/features/terminal/application/terminal_providers.dart';
 import 'package:alera_mobile/src/features/workbench/application/deferred_workspace_setup_launcher.dart';
 import 'package:alera_mobile/src/features/workbench/application/workbench_providers.dart';
+import 'package:alera_mobile/src/features/workbench/application/workspace_listing_tree.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:logging/logging.dart';
 
@@ -135,6 +136,25 @@ class WorkspaceListController extends _$WorkspaceListController {
   Future<void> setPinned(String workspaceId, bool isPinned) async {
     final client = await ref.read(workspaceClientProvider(hostId).future);
     await client.setWorkspacePinned(workspaceId, isPinned);
+    _invalidateIfMounted();
+  }
+
+  /// Pins or unpins every descendant of [workspaceId], leaving the workspace
+  /// itself unchanged. Reloads once after the last mutation.
+  Future<void> setTreePinned(String workspaceId, bool isPinned) async {
+    final data = state.value;
+    if (data == null) {
+      return;
+    }
+    final descendantIds = workspaceDescendantIds(data.workspaces, workspaceId);
+    final client = await ref.read(workspaceClientProvider(hostId).future);
+    for (final id in descendantIds) {
+      final workspace = data.workspaceById(id);
+      if (workspace == null || workspace.isPinned == isPinned) {
+        continue;
+      }
+      await client.setWorkspacePinned(id, isPinned);
+    }
     _invalidateIfMounted();
   }
 

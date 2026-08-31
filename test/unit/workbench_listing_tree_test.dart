@@ -1,4 +1,5 @@
 import 'package:alera/src/features/workbench/application/workbench_listing_tree.dart';
+import 'package:alera/src/features/workbench/application/workspace_descendants.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -87,6 +88,28 @@ void main() {
     );
 
     expect(tree.last.depth, maxWorkspaceTreeDepth);
+  });
+
+  test('descendant ids walk the parent relation transitively', () {
+    final workspaces = <Workspace>[
+      _workspace('a'),
+      _workspace('b', parentId: 'a'),
+      _workspace('c', parentId: 'b'),
+      _workspace('d'),
+    ];
+
+    expect(workspaceIdsDescendedFrom(workspaces, 'a'), <String>{'b', 'c'});
+    expect(workspaceIdsDescendedFrom(workspaces, 'd'), isEmpty);
+  });
+
+  test('a parent cycle does not treat the root as its own descendant', () {
+    final workspaces = <Workspace>[
+      _workspace('a', parentId: 'b'),
+      _workspace('b', parentId: 'a'),
+    ];
+
+    expect(workspaceIdsDescendedFrom(workspaces, 'a'), <String>{'b'});
+    expect(workspaceIdsDescendedFrom(workspaces, 'b'), <String>{'a'});
   });
 
   test('a stale relation cycle terminates and keeps every workspace', () {

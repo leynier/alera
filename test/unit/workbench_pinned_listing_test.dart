@@ -170,6 +170,47 @@ void main() {
       pinned.firstWhere((row) => row.workspace.id == orphanedPin.id).indent,
       0,
     );
+    expect(
+      pinned
+          .firstWhere((row) => row.workspace.id == parent.id)
+          .visibleChildCount,
+      1,
+    );
+  });
+
+  test('collapsing a pinned parent hides its pinned children', () {
+    final project = _project('alera');
+    final parent = _workspace(
+      'parent',
+      project.id,
+      name: 'Parent',
+      isPinned: true,
+    );
+    final child = _workspace(
+      'child',
+      project.id,
+      name: 'Child',
+      isPinned: true,
+      parentWorkspaceId: parent.id,
+    );
+    final state = WorkbenchState(
+      projects: <Project>[project],
+      workspacesByProject: <String, List<Workspace>>{
+        project.id: <Workspace>[parent, child],
+      },
+      viewPrefs: WorkbenchViewPrefs.defaults.copyWith(
+        collapsedParentWorkspaceIds: <String>{parent.id},
+      ),
+    );
+
+    final pinned = buildSidebarRows(state)
+        .whereType<WorkbenchWorkspaceRow>()
+        .where((row) => row.isPinnedCopy)
+        .toList();
+
+    expect(pinned.map((row) => row.workspace.id), <String>[parent.id]);
+    expect(pinned.single.childrenCollapsed, isTrue);
+    expect(pinned.single.visibleChildCount, 1);
   });
 
   group('collapsible sections', () {

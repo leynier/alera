@@ -42,6 +42,59 @@ void _registerWorkbenchControllerPinningTests() {
     expect(_controller.state.error, isNull);
   });
 
+  test('pins every descendant without changing the parent pin', () async {
+    await _controller.bootstrap();
+    final parent = await _selectMainWorkspace(_controller, _harness);
+    final child = await _harness.workbenchRepository.upsertWorkspace(
+      parent.copyWith(
+        id: 'child-1',
+        kind: WorkspaceKind.linked,
+        isPinned: false,
+        parentWorkspaceId: parent.id,
+      ),
+    );
+    final grandchild = await _harness.workbenchRepository.upsertWorkspace(
+      parent.copyWith(
+        id: 'grandchild-1',
+        kind: WorkspaceKind.linked,
+        isPinned: false,
+        parentWorkspaceId: child.id,
+      ),
+    );
+    await _flushUntil(
+      () => _controller.state
+          .workspacesFor(parent.projectId)
+          .any((workspace) => workspace.id == grandchild.id),
+    );
+
+    await _controller.setWorkspaceTreePinned(
+      workspaceId: parent.id,
+      isPinned: true,
+    );
+
+    expect(
+      _controller.state
+          .workspacesFor(parent.projectId)
+          .firstWhere((workspace) => workspace.id == parent.id)
+          .isPinned,
+      isFalse,
+    );
+    expect(
+      _controller.state
+          .workspacesFor(parent.projectId)
+          .firstWhere((workspace) => workspace.id == child.id)
+          .isPinned,
+      isTrue,
+    );
+    expect(
+      _controller.state
+          .workspacesFor(parent.projectId)
+          .firstWhere((workspace) => workspace.id == grandchild.id)
+          .isPinned,
+      isTrue,
+    );
+  });
+
   test('surfaces workspace pin failures without changing state', () async {
     await _controller.bootstrap();
     final workspace = await _selectMainWorkspace(_controller, _harness);

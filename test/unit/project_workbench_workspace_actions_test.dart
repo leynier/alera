@@ -14,16 +14,20 @@ void main() {
                 isPinned: true,
                 supportsSections: true,
                 hasSection: true,
+                hasDescendants: true,
               )
               .whereType<AleraDropdownEntry<String>>()
               .map((entry) => entry.label)
               .toList();
       expect(
         labels.sublist(
-          labels.indexOf('Set Parent Workspace'),
+          labels.indexOf('Pin Workspace Tree'),
           labels.indexOf('Clear Section') + 1,
         ),
         [
+          'Pin Workspace Tree',
+          'Unpin Workspace Tree',
+          'Manage Tags',
           'Set Parent Workspace',
           'Clear Parent Workspace',
           'Set Section',
@@ -39,6 +43,8 @@ void main() {
       ).whereType<AleraDropdownEntry<String>>().map((entry) => entry.label);
       expect(unassigned, contains('Set Section'));
       expect(unassigned, isNot(contains('Clear Section')));
+      expect(unassigned, isNot(contains('Pin Workspace Tree')));
+      expect(unassigned, isNot(contains('Unpin Workspace Tree')));
     },
   );
 

@@ -248,6 +248,30 @@ mixin _WorkbenchControllerProjects
     }
   }
 
+  /// Pins or unpins every descendant of [workspaceId], leaving the workspace
+  /// itself unchanged. No-ops descendants that already match [isPinned].
+  Future<void> setWorkspaceTreePinned({
+    required String workspaceId,
+    required bool isPinned,
+  }) async {
+    final workspaces = <Workspace>[
+      for (final group in state.workspacesByProject.values) ...group,
+    ];
+    for (final id in workspaceIdsDescendedFrom(workspaces, workspaceId)) {
+      Workspace? current;
+      for (final workspace in workspaces) {
+        if (workspace.id == id) {
+          current = workspace;
+          break;
+        }
+      }
+      if (current == null || current.isPinned == isPinned) {
+        continue;
+      }
+      await setWorkspacePinned(workspaceId: id, isPinned: isPinned);
+    }
+  }
+
   Future<List<WorkspaceTag>> listWorkspaceTags() async {
     try {
       final tags = await _workspaceGraphRepository.listTags();
