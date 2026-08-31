@@ -29,6 +29,92 @@ fn runtime_clear_parses_force_as_an_explicit_live_host_override() {
 }
 
 #[test]
+fn agent_profile_commands_parse_administrative_contract() {
+    use crate::cli::{AgentProfileAction, AgentProfileLaunchModeArg};
+
+    let create = Cli::try_parse_from([
+        "alera",
+        "agent-profile",
+        "--runtime-dir",
+        "/tmp/alera-runtime",
+        "--json",
+        "create",
+        "--name",
+        "Codex Sol",
+        "--agent-type",
+        "codex",
+        "--launch-mode",
+        "managed",
+        "--managed-config",
+        r#"{"model":"gpt-5.6-sol"}"#,
+    ])
+    .unwrap();
+
+    assert!(matches!(
+        create.command,
+        Command::AgentProfile(crate::cli::AgentProfileCommand {
+            action: AgentProfileAction::Create(args),
+            ..
+        }) if matches!(args.launch_mode, AgentProfileLaunchModeArg::Managed)
+            && args.managed.managed_config.as_deref() == Some(r#"{"model":"gpt-5.6-sol"}"#)
+    ));
+
+    let update = Cli::try_parse_from([
+        "alera",
+        "agent-profile",
+        "update",
+        "--profile-name",
+        "Codex Sol",
+        "--expected-revision",
+        "4",
+        "--clear-quota-group",
+    ])
+    .unwrap();
+    assert!(matches!(
+        update.command,
+        Command::AgentProfile(crate::cli::AgentProfileCommand {
+            action: AgentProfileAction::Update(args),
+            ..
+        }) if args.target.selector.profile_name.as_deref() == Some("Codex Sol")
+            && args.target.expected_revision == Some(4)
+            && args.clear_quota_group
+    ));
+}
+
+#[test]
+fn agent_profile_cli_rejects_ambiguous_or_unconfirmed_input() {
+    for args in [
+        vec![
+            "alera",
+            "agent-profile",
+            "show",
+            "--profile-id",
+            "prof_1",
+            "--profile-name",
+            "Codex",
+        ],
+        vec![
+            "alera",
+            "agent-profile",
+            "create",
+            "--name",
+            "Codex",
+            "--agent-type",
+            "codex",
+            "--launch-mode",
+            "managed",
+            "--managed-config",
+            "{}",
+            "--managed-config-file",
+            "profile.json",
+        ],
+        vec!["alera", "agent-profile", "remove", "--profile-id", "prof_1"],
+    ] {
+        assert!(Cli::try_parse_from(args).is_err());
+    }
+}
+
+#[test]
 fn workspace_pin_commands_parse_workspace_ids() {
     let pin = Cli::try_parse_from(["alera", "workspace", "pin", "--id", "workspace-1"]).unwrap();
     let unpin =

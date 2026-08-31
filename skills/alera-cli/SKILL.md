@@ -244,6 +244,33 @@ alera terminal write --handle <terminal-handle> --stdin --enter
 
 JSON list commands return a consistent `{ "kind": "...", "items": [...], "filters": {...} }` envelope. Read `items` rather than relying on a resource-specific top-level array.
 
+## Agent Profiles
+
+Inspect the user-approved launch catalog:
+
+```bash
+alera agent-profile list
+alera agent-profile --json show --profile-name "Codex Sol"
+```
+
+Create Command or Managed profiles through the authenticated runtime host:
+
+```bash
+alera agent-profile create --name "Codex Sol" --agent-type codex --launch-mode command --command "codex --search"
+alera agent-profile create --name "Managed Codex" --agent-type codex --launch-mode managed --managed-config-file profile.json
+```
+
+Updates patch only the supplied fields. Use `--expected-revision` when a script must pin the revision it previously observed. Changing `--agent-type` on an existing Managed profile requires a new configuration through `--managed-config`, `--managed-config-file`, or `--managed-config-stdin`. Settings that newly reduce protections require `--confirm-reduced-protections`.
+
+Preview removal impact before explicitly confirming deletion:
+
+```bash
+alera agent-profile removal-impact --profile-id <profile-id>
+alera agent-profile remove --profile-id <profile-id> --confirm
+```
+
+Use `alera agent-profile reorder --id <id> --id <id>` with every current profile id exactly once to replace the persisted order. Keep `alera orchestration agent-profiles` for coordinator discovery; it does not mutate the catalog.
+
 ## Agent Rules
 
 - Prefer `alera workspace add/remove` over raw Git when operating Alera-managed workspaces.

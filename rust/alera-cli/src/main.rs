@@ -1,3 +1,5 @@
+mod agent_profile_commands;
+mod agent_profile_input;
 mod agent_prompt_stdin_script;
 mod agent_quota;
 mod agent_status;
@@ -136,6 +138,7 @@ async fn run(cli: Cli) -> i32 {
         Command::Emulator(command) => emulator_commands::run(command).await,
         Command::Canvas(command) => canvas_commands::run(command).await,
         Command::Automation(command) => automation_commands::run(command).await,
+        Command::AgentProfile(command) => agent_profile_commands::run(command).await,
         Command::Orchestration(command) => {
             orchestration_commands::run_orchestration_command(command).await
         }
