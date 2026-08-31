@@ -29,11 +29,15 @@ extension _WorkspaceContextMenu on _WorkspaceRowState {
       widget.onRename();
     } else if (selected == _togglePinAction) {
       widget.onSetPinned();
+    } else if (selected == _pinWorkspaceTreeAction) {
+      widget.onPinWorkspaceTree();
+    } else if (selected == _unpinWorkspaceTreeAction) {
+      widget.onUnpinWorkspaceTree();
     } else if (selected == _manageTagsAction) {
       widget.onManageTags();
-    } else if (selected == 'set-section') {
+    } else if (selected == _setSectionAction) {
       widget.onSetSection?.call();
-    } else if (selected == 'clear-section') {
+    } else if (selected == _clearSectionAction) {
       widget.onClearSection?.call();
     } else if (selected == _setParentAction) {
       widget.onSetParent();

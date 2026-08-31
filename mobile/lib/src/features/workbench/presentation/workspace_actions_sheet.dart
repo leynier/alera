@@ -17,6 +17,8 @@ enum _WorkspaceAction {
   rename,
   pin,
   unpin,
+  pinTree,
+  unpinTree,
   tags,
   configureParent,
   unlinkParent,
@@ -78,6 +80,18 @@ Future<void> showWorkspaceActionsSheet(
                     ),
                   ),
                   ListTile(
+                    leading: const Icon(AleraIcons.pin, size: 20),
+                    title: const Text('Pin Workspace Tree'),
+                    onTap: () =>
+                        Navigator.of(context).pop(_WorkspaceAction.pinTree),
+                  ),
+                  ListTile(
+                    leading: const Icon(AleraIcons.pinOff, size: 20),
+                    title: const Text('Unpin Workspace Tree'),
+                    onTap: () =>
+                        Navigator.of(context).pop(_WorkspaceAction.unpinTree),
+                  ),
+                  ListTile(
                     leading: const Icon(AleraIcons.tag, size: 20),
                     title: const Text('Manage Tags'),
                     onTap: () =>
@@ -100,12 +114,14 @@ Future<void> showWorkspaceActionsSheet(
                     ),
                   if (data.supportsSections)
                     ListTile(
+                      leading: const Icon(AleraIcons.folder, size: 20),
                       title: const Text('Set Section'),
                       onTap: () =>
                           Navigator.pop(context, _WorkspaceAction.setSection),
                     ),
                   if (data.supportsSections && workspace.sectionId != null)
                     ListTile(
+                      leading: const Icon(AleraIcons.folderOff, size: 20),
                       title: const Text('Clear Section'),
                       onTap: () =>
                           Navigator.pop(context, _WorkspaceAction.clearSection),
@@ -166,6 +182,10 @@ Future<void> showWorkspaceActionsSheet(
         await controller.setPinned(workspace.id, true);
       case _WorkspaceAction.unpin:
         await controller.setPinned(workspace.id, false);
+      case _WorkspaceAction.pinTree:
+        await controller.setTreePinned(workspace.id, true);
+      case _WorkspaceAction.unpinTree:
+        await controller.setTreePinned(workspace.id, false);
       case _WorkspaceAction.configureParent:
         final parentId = await showParentPickerSheet(
           context,

@@ -202,19 +202,12 @@ void _appendPinnedSection(
   if (prefs.pinnedSectionCollapsed) {
     return;
   }
-  for (final workspace in pinned) {
-    rows.add(
-      MobileWorkspaceEntryRow(
-        entry: WorkspaceTreeEntry(
-          workspace: workspace,
-          depth: 0,
-          visibleChildCount: 0,
-          childrenCollapsed: false,
-        ),
-        isPinnedCopy: true,
-      ),
-    );
-  }
+  _appendWorkspaceTreeRows(
+    rows,
+    pinned,
+    prefs.collapsedParentWorkspaceIds,
+    isPinnedCopy: true,
+  );
 }
 
 void _appendProjectSections({
@@ -290,13 +283,14 @@ void _appendFlatSection({
 void _appendWorkspaceTreeRows(
   List<MobileWorkspaceRow> rows,
   List<WorkspaceSummary> workspaces,
-  Set<String> collapsedParentWorkspaceIds,
-) {
+  Set<String> collapsedParentWorkspaceIds, {
+  bool isPinnedCopy = false,
+}) {
   for (final entry in buildWorkspaceTree(
     entries: workspaces,
     collapsedParentIds: collapsedParentWorkspaceIds,
   )) {
-    rows.add(MobileWorkspaceEntryRow(entry: entry));
+    rows.add(MobileWorkspaceEntryRow(entry: entry, isPinnedCopy: isPinnedCopy));
   }
 }
 

@@ -40,9 +40,9 @@ class const MobileWorkspaceListRow({
     final entry = row.entry;
     final workspace = entry.workspace;
     final tags = _tagLabels(workspace);
-    final depthPad = (row.isPinnedCopy ? 0 : entry.depth) * AleraTokens.space12;
+    final depthPad = entry.depth * AleraTokens.space12;
     final rowLeft = AleraTokens.space12 + depthPad;
-    final canToggleChildren = !row.isPinnedCopy && entry.hasVisibleChildren;
+    final canToggleChildren = entry.hasVisibleChildren;
     final hasAgents = agentPresence.isNotEmpty;
     final metadataIcons = <Widget>[
       if (showProjectIcon &&

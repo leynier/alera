@@ -20,10 +20,13 @@ void main() {
               .toList();
       expect(
         labels.sublist(
-          labels.indexOf('Set Parent Workspace'),
+          labels.indexOf('Pin Workspace Tree'),
           labels.indexOf('Clear Section') + 1,
         ),
         [
+          'Pin Workspace Tree',
+          'Unpin Workspace Tree',
+          'Manage Tags',
           'Set Parent Workspace',
           'Clear Parent Workspace',
           'Set Section',
@@ -57,6 +60,8 @@ void main() {
       <String>[
         'Rename',
         'Pin Workspace',
+        'Pin Workspace Tree',
+        'Unpin Workspace Tree',
         'Manage Tags',
         'Set Parent Workspace',
         'Open in Browser',

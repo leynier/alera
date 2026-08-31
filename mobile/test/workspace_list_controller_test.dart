@@ -94,7 +94,13 @@ void main() {
   );
 
   test('Mutations call the runtime and refresh the list', () async {
-    final client = _FakeWorkspaceClient();
+    final client = _FakeWorkspaceClient()
+      ..workspaces = <WorkspaceSummary>[
+        _workspace('a'),
+        _workspace('child', parent: 'a'),
+        _workspace('grandchild', parent: 'child'),
+        _workspace('b'),
+      ];
     final container = _container(client);
     final notifier = container.read(
       workspaceListControllerProvider('host-1').notifier,
@@ -103,6 +109,14 @@ void main() {
 
     await notifier.setPinned('a', true);
     expect(client.calls, contains('setPinned a true'));
+
+    await notifier.setTreePinned('a', true);
+    expect(client.calls, contains('setPinned child true'));
+    expect(client.calls, contains('setPinned grandchild true'));
+    expect(
+      client.calls.where((call) => call == 'setPinned a true'),
+      hasLength(1),
+    );
 
     await notifier.linkParent(childWorkspaceId: 'a', parentWorkspaceId: 'b');
     expect(client.calls, contains('link b a'));

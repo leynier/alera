@@ -21,6 +21,8 @@ class const _SidebarBody({
   required final Future<void> Function(Workspace workspace) onRenameWorkspace,
   required final Future<void> Function(Workspace workspace, bool isPinned)
   onSetWorkspacePinned,
+  required final Future<void> Function(Workspace workspace, bool isPinned)
+  onSetWorkspaceTreePinned,
   required final Future<void> Function(Workspace workspace)
   onManageWorkspaceTags,
   required final Future<void> Function(Workspace workspace)
@@ -119,7 +121,7 @@ class const _SidebarBody({
           visibleChildCount: row.visibleChildCount,
           childrenCollapsed: row.childrenCollapsed,
           isPinnedCopy: row.isPinnedCopy,
-          onToggleChildren: row.hasVisibleChildren && !row.isPinnedCopy
+          onToggleChildren: row.hasVisibleChildren
               ? () =>
                     controller.toggleParentWorkspaceCollapsed(row.workspace.id)
               : null,
@@ -137,6 +139,10 @@ class const _SidebarBody({
           onRename: () => onRenameWorkspace(row.workspace),
           onSetPinned: () =>
               onSetWorkspacePinned(row.workspace, !row.workspace.isPinned),
+          onPinWorkspaceTree: () =>
+              onSetWorkspaceTreePinned(row.workspace, true),
+          onUnpinWorkspaceTree: () =>
+              onSetWorkspaceTreePinned(row.workspace, false),
           onManageTags: () => onManageWorkspaceTags(row.workspace),
           onSetSection: state.supportsSections
               ? () => showWorkspaceSectionDialog(

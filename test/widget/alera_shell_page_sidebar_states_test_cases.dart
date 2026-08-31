@@ -306,6 +306,31 @@ void _registerAleraShellSidebarStateTests() {
     expect(find.byTooltip('Hide Child Workspaces'), findsOneWidget);
   });
 
+  testWidgets('pinned copies keep the child collapse control', (tester) async {
+    final seeded = _linkedWorkbenchState(linkedExpanded: true);
+    final workspaces = seeded.workspacesFor('project-1');
+    final parent = workspaces.first.copyWith(childCount: 1, isPinned: true);
+    final child = workspaces.last.copyWith(
+      parentWorkspaceId: parent.id,
+      isPinned: true,
+    );
+
+    await _pumpShell(
+      tester,
+      state: seeded.copyWith(
+        workspacesByProject: <String, List<Workspace>>{
+          'project-1': <Workspace>[parent, child],
+        },
+      ),
+    );
+
+    expect(
+      find.byKey(const Key('workspace-tray-children')),
+      findsAtLeastNWidgets(2),
+    );
+    expect(find.byTooltip('Hide Child Workspaces'), findsAtLeastNWidgets(2));
+  });
+
   testWidgets('collapse all closes projects, child workspaces, and agents', (
     tester,
   ) async {

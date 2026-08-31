@@ -89,9 +89,61 @@ void main() {
       });
       expect(workspaceDescendantIds(workspaces, 'other'), isEmpty);
     });
+
+    test('A parent cycle does not treat the root as its own descendant', () {
+      final workspaces = <WorkspaceSummary>[
+        _workspace('a', parent: 'b'),
+        _workspace('b', parent: 'a'),
+      ];
+
+      expect(workspaceDescendantIds(workspaces, 'a'), <String>{'b'});
+      expect(workspaceDescendantIds(workspaces, 'b'), <String>{'a'});
+    });
   });
 
   group('buildMobileWorkspaceRows', () {
+    test('Nests pinned copies and honors child collapse', () {
+      final expanded = buildMobileWorkspaceRows(
+        workspaces: <WorkspaceSummary>[
+          _workspace('parent', project: 'p1', pinned: true),
+          _workspace('child', project: 'p1', parent: 'parent', pinned: true),
+        ],
+        projects: <ProjectSummary>[_project('p1')],
+        prefs: const MobileViewPrefs(groupBy: .none),
+      );
+      final pinned = expanded
+          .whereType<MobileWorkspaceEntryRow>()
+          .where((row) => row.isPinnedCopy)
+          .toList();
+      expect(pinned.map((row) => row.entry.workspace.id), <String>[
+        'parent',
+        'child',
+      ]);
+      expect(pinned.first.entry.depth, 0);
+      expect(pinned.last.entry.depth, 1);
+      expect(pinned.first.entry.visibleChildCount, 1);
+
+      final collapsed = buildMobileWorkspaceRows(
+        workspaces: <WorkspaceSummary>[
+          _workspace('parent', project: 'p1', pinned: true),
+          _workspace('child', project: 'p1', parent: 'parent', pinned: true),
+        ],
+        projects: <ProjectSummary>[_project('p1')],
+        prefs: const MobileViewPrefs(
+          groupBy: .none,
+          collapsedParentWorkspaceIds: <String>{'parent'},
+        ),
+      );
+      final collapsedPinned = collapsed
+          .whereType<MobileWorkspaceEntryRow>()
+          .where((row) => row.isPinnedCopy)
+          .toList();
+      expect(collapsedPinned.map((row) => row.entry.workspace.id), <String>[
+        'parent',
+      ]);
+      expect(collapsedPinned.single.entry.childrenCollapsed, isTrue);
+    });
+
     test('Renders the pinned section first with flat copies', () {
       final rows = buildMobileWorkspaceRows(
         workspaces: <WorkspaceSummary>[

@@ -4,6 +4,8 @@ class _PinningShellTestWorkbenchController(super.bootstrapState)
     extends _ShellTestWorkbenchController {
   final List<({String workspaceId, bool isPinned})> pinUpdates =
       <({String workspaceId, bool isPinned})>[];
+  final List<({String workspaceId, bool isPinned})> treePinUpdates =
+      <({String workspaceId, bool isPinned})>[];
 
   @override
   Future<void> setWorkspacePinned({
@@ -22,6 +24,14 @@ class _PinningShellTestWorkbenchController(super.bootstrapState)
           ],
       },
     );
+  }
+
+  @override
+  Future<void> setWorkspaceTreePinned({
+    required String workspaceId,
+    required bool isPinned,
+  }) async {
+    treePinUpdates.add((workspaceId: workspaceId, isPinned: isPinned));
   }
 }
 
@@ -92,6 +102,50 @@ void _registerAleraShellPinningTests() {
 
     expect(controller.pinUpdates.last.isPinned, isFalse);
     expect(find.text('Pinned'), findsNothing);
+  });
+
+  testWidgets('workspace context menu shows Set Section when supported', (
+    tester,
+  ) async {
+    await _pumpShell(
+      tester,
+      state: _linkedWorkbenchState().copyWith(supportsSections: true),
+    );
+    await tester.tapAt(
+      tester.getCenter(
+        find.byKey(const ValueKey<String>('workspace-row:regular:workspace-2')),
+      ),
+      buttons: kSecondaryMouseButton,
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Set Section'), findsOneWidget);
+  });
+
+  testWidgets('workspace context menu pins the workspace tree', (tester) async {
+    final controller = _PinningShellTestWorkbenchController(
+      _linkedWorkbenchState(),
+    );
+    await _pumpShell(
+      tester,
+      state: _linkedWorkbenchState(),
+      controller: controller,
+    );
+    final regular = find.byKey(
+      const ValueKey<String>('workspace-row:regular:workspace-2'),
+    );
+
+    await tester.tapAt(
+      tester.getCenter(regular),
+      buttons: kSecondaryMouseButton,
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Pin Workspace Tree'));
+    await tester.pumpAndSettle();
+
+    expect(controller.treePinUpdates, <({String workspaceId, bool isPinned})>[
+      (workspaceId: 'workspace-2', isPinned: true),
+    ]);
   });
 
   testWidgets('view preference hides the regular pinned workspace copy', (
