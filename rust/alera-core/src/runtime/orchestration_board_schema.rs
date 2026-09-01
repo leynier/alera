@@ -109,7 +109,11 @@ const BOARD_SCHEMA: &[&str] = &[
                      WHERE l.run_id = r.id AND l.revision = wr.revision AND l.status = 'attention'
                        AND NOT EXISTS(SELECT 1 FROM workflowTaskEvidence e WHERE e.task_id = l.task_id)
                        AND NOT EXISTS(SELECT 1 FROM workflowLaunches newer
-                           WHERE newer.task_id = l.task_id AND newer.sequence > l.sequence))
+                           WHERE newer.task_id = l.task_id AND newer.sequence > l.sequence)
+                       AND NOT EXISTS(SELECT 1 FROM workflowWorkspaces newer
+                           WHERE newer.run_id = l.run_id AND newer.task_id IS l.task_id
+                             AND newer.attempt > (SELECT attempt FROM workflowWorkspaces
+                                 WHERE id = l.workspace_id)))
                  OR EXISTS(SELECT 1 FROM workflowIntegrations i JOIN workflowRuns wr ON wr.run_id = i.run_id
                      WHERE i.run_id = r.id AND i.state IN ('conflict','attention')
                        AND (i.state = 'attention' OR i.revision = wr.revision)

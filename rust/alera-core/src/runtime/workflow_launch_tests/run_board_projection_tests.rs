@@ -35,6 +35,15 @@ async fn snapshot_workflow_state(store: &RuntimeStore, request: &LaunchWorkflowT
         .unwrap()
 }
 
+async fn board_bucket(store: &RuntimeStore) -> OrchestrationBoardBucket {
+    store
+        .orchestration_board_snapshot(&OrchestrationBoardQuery::default())
+        .await
+        .unwrap()
+        .items[0]
+        .bucket
+}
+
 #[tokio::test]
 async fn workflow_prepared_attempts_project_the_execution_workspace_before_launch() {
     let (_dir, store, request) = prepared().await;
@@ -74,6 +83,118 @@ async fn workflow_prepared_attempts_project_the_execution_workspace_before_launc
     assert_eq!(attention.execution_workspace_id, request.workspace_id);
     assert_eq!(attention.error.as_deref(), Some("Project setup failed"));
     assert_eq!(snapshot_workflow_state(&store, &request).await, "attention");
+}
+
+#[tokio::test]
+async fn workflow_retry_workspace_supersedes_attention_from_its_failed_launch() {
+    let (dir, store, request) = prepared().await;
+    let (launch, _) = store
+        .reserve_workflow_launch(&request, &"a".repeat(64))
+        .await
+        .unwrap();
+    store.claim_workflow_launch(&launch.id).await.unwrap();
+    store
+        .mark_workflow_launch_started(&launch.id)
+        .await
+        .unwrap();
+    store
+        .settle_workflow_launch_without_session(&launch.terminal_handle, "host restarted")
+        .await
+        .unwrap();
+    assert_eq!(
+        board_bucket(&store).await,
+        OrchestrationBoardBucket::Attention
+    );
+
+    let previous = store
+        .workflow_workspace(&request.workspace_id)
+        .await
+        .unwrap();
+    let other_task: String = sqlx::query_scalar(
+        "SELECT task_id FROM workflowPlanTasks WHERE run_id = ? AND logical_id = 'verify'",
+    )
+    .bind(&request.run_id)
+    .fetch_one(store.pool())
+    .await
+    .unwrap();
+    let mut unrelated = previous.identity.clone();
+    unrelated.workspace.id = uuid::Uuid::new_v4().to_string();
+    unrelated.workspace.path = dir
+        .path()
+        .join(&unrelated.workspace.id)
+        .to_string_lossy()
+        .into_owned();
+    unrelated.task_id = Some(other_task.clone());
+    unrelated.attempt = previous.identity.attempt + 1;
+    sqlx::query(
+        "INSERT INTO workflowWorkspaces(id, run_id, revision, task_id, attempt, path, identity, phase)
+         VALUES(?, ?, ?, ?, ?, ?, ?, 'ready')",
+    )
+    .bind(&unrelated.workspace.id)
+    .bind(&request.run_id)
+    .bind(request.revision)
+    .bind(&other_task)
+    .bind(unrelated.attempt)
+    .bind(&unrelated.workspace.path)
+    .bind(serde_json::to_string(&unrelated).unwrap())
+    .execute(store.pool())
+    .await
+    .unwrap();
+    assert_eq!(
+        board_bucket(&store).await,
+        OrchestrationBoardBucket::Attention
+    );
+
+    let mut candidate = store.find_workspace("workspace").await.unwrap().unwrap();
+    candidate.id = uuid::Uuid::new_v4().to_string();
+    candidate.instance_id = uuid::Uuid::new_v4().to_string();
+    candidate.path = dir
+        .path()
+        .join(&candidate.id)
+        .to_string_lossy()
+        .into_owned();
+    candidate.branch = Some(format!("alera/workflows/{}", candidate.id));
+    candidate.kind = WorkspaceKind::Linked;
+    let retry = store
+        .reserve_workflow_workspace(
+            &PrepareWorkflowWorkspace {
+                request_id: "prepare-retry".into(),
+                run_id: request.run_id,
+                revision: request.revision,
+                task_id: Some(request.task_id),
+                retry_of: Some(previous.identity.workspace.id),
+            },
+            candidate,
+        )
+        .await
+        .unwrap();
+    for (old, new) in [
+        (
+            WorkflowWorkspacePhase::Reserved,
+            WorkflowWorkspacePhase::Creating,
+        ),
+        (
+            WorkflowWorkspacePhase::Creating,
+            WorkflowWorkspacePhase::Created,
+        ),
+        (
+            WorkflowWorkspacePhase::Created,
+            WorkflowWorkspacePhase::Ready,
+        ),
+    ] {
+        store
+            .transition_workflow_workspace(
+                &retry.identity.workspace.id,
+                retry.identity.revision,
+                old,
+                new,
+                None,
+                None,
+            )
+            .await
+            .unwrap();
+    }
+    assert_eq!(board_bucket(&store).await, OrchestrationBoardBucket::Active);
 }
 
 #[tokio::test]
