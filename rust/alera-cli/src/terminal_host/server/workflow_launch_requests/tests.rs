@@ -12,6 +12,7 @@ use crate::terminal_host::client::ClientHandle;
 use crate::terminal_host::server::actor_test_harness::{local_client, test_actor};
 
 mod completion;
+mod final_preflight;
 mod recovery;
 
 async fn prepared(fixture: &Fixture) -> (LaunchWorkflowTask, PreparedLaunch) {
@@ -54,7 +55,13 @@ async fn workflow_launch_claim_restore_and_restart_never_duplicate_a_worker() {
     actor.runtime_dir = fixture.runtime.clone();
     let (inbox, mut events) = tokio::sync::mpsc::unbounded_channel();
     actor.inbox = inbox;
-    let started = actor.spawn_workflow_launch(&record, &token).await.unwrap();
+    let frozen = launch::claim_and_validate(&fixture.store, &record)
+        .await
+        .unwrap();
+    let started = actor
+        .spawn_workflow_launch(&record, &token, frozen)
+        .await
+        .unwrap();
     drop(locks);
     assert_eq!(started.status, WorkflowLaunchStatus::Started);
     let instance = actor.sessions[&record.terminal_handle].instance_id();
@@ -68,7 +75,9 @@ async fn workflow_launch_claim_restore_and_restart_never_duplicate_a_worker() {
             .unwrap(),
         PreparedLaunch::Replay(_)
     ));
-    assert!(actor.spawn_workflow_launch(&record, &token).await.is_err());
+    assert!(launch::claim_and_validate(&fixture.store, &record)
+        .await
+        .is_err());
     actor.reconcile_spawn_on_create_tabs().await;
     assert_eq!(
         actor.sessions[&record.terminal_handle].instance_id(),
@@ -394,7 +403,13 @@ async fn workflow_launch_acceptance_timeout_retains_the_attempt_without_relaunch
     let mut actor = test_actor(&dir, HashMap::new(), HashMap::new()).await;
     actor.runtime_store = fixture.store.clone();
     actor.runtime_dir = fixture.runtime.clone();
-    actor.spawn_workflow_launch(&record, &token).await.unwrap();
+    let frozen = launch::claim_and_validate(&fixture.store, &record)
+        .await
+        .unwrap();
+    actor
+        .spawn_workflow_launch(&record, &token, frozen)
+        .await
+        .unwrap();
     drop(locks);
     sqlx::query(
         "UPDATE orchestrationDispatchContexts SET dispatched_at = '2020-01-01 00:00:00' WHERE id = ?",

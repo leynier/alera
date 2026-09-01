@@ -1,4 +1,4 @@
-use alera_core::runtime::{LaunchWorkflowTask, WorkflowLaunchRecord};
+use alera_core::runtime::{LaunchWorkflowTask, WorkflowLaunchInputs, WorkflowLaunchRecord};
 use sha2::{Digest, Sha256};
 
 use super::*;
@@ -60,4 +60,40 @@ pub(crate) async fn prepare(
         token,
         locks: [integration_lock, attempt_lock],
     })
+}
+
+/// Revalidates Git after the durable claim and before the actor can create a
+/// tab or process. The caller keeps both resource locks for the whole launch.
+pub(crate) async fn claim_and_validate(
+    store: &RuntimeStore,
+    record: &WorkflowLaunchRecord,
+) -> Result<WorkflowLaunchInputs> {
+    let frozen = store.claim_workflow_launch(&record.id).await?;
+    let source = store
+        .workflow_workspace(&record.request.workspace_id)
+        .await?;
+    let integration = store
+        .workflow_integration_workspace(&record.request.run_id)
+        .await?;
+    if integration.phase != Phase::Ready {
+        bail!("workflow integration workspace is not ready");
+    }
+    verify_registered(store, &integration).await?;
+    verify_registered(store, &source).await?;
+    let source_tip = core_git::verify_workflow_worktree_tip(
+        &source.identity.repo_path,
+        &source.identity.workspace.path,
+        &source.identity.base_sha,
+        &source.identity.workspace.id,
+    )?;
+    if source_tip != source.identity.base_sha {
+        bail!("workflow attempt tip changed after launch reservation; inspect it before retrying");
+    }
+    if !core_git::is_worktree_clean(&integration.identity.workspace.path)? {
+        bail!("integration workspace changed after launch reservation; inspect it before retrying");
+    }
+    if !core_git::is_worktree_clean(&source.identity.workspace.path)? {
+        bail!("workflow attempt changed after launch reservation; inspect it before retrying");
+    }
+    Ok(frozen)
 }

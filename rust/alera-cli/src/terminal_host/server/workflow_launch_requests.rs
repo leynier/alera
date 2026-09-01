@@ -1,4 +1,8 @@
-use alera_core::runtime::{WorkflowLaunchRecord, WorkflowLaunchStatus, WorkspaceTabRecord};
+use std::fs::File;
+
+use alera_core::runtime::{
+    WorkflowLaunchInputs, WorkflowLaunchRecord, WorkflowLaunchStatus, WorkspaceTabRecord,
+};
 use serde_json::json;
 
 use crate::managed_workspace::workflow::launch::PreparedLaunch;
@@ -21,6 +25,14 @@ pub(crate) enum WorkflowLaunchCommand {
         client_id: u64,
         request_id: i64,
         result: HostResult<Box<PreparedLaunch>>,
+    },
+    Claimed {
+        client_id: u64,
+        request_id: i64,
+        record: WorkflowLaunchRecord,
+        token: String,
+        locks: [File; 2],
+        result: Box<HostResult<WorkflowLaunchInputs>>,
     },
     AcceptanceTimeout(String),
 }
@@ -51,6 +63,19 @@ impl ServerActor {
                 self.handle_workflow_launch_prepared(client_id, request_id, result)
                     .await;
             }
+            WorkflowLaunchCommand::Claimed {
+                client_id,
+                request_id,
+                record,
+                token,
+                locks,
+                result,
+            } => {
+                self.handle_workflow_launch_claimed(
+                    client_id, request_id, record, token, locks, *result,
+                )
+                .await;
+            }
             WorkflowLaunchCommand::AcceptanceTimeout(id) => {
                 self.handle_workflow_launch_acceptance_timeout(&id).await
             }
@@ -62,40 +87,100 @@ impl ServerActor {
         request_id: i64,
         result: HostResult<Box<PreparedLaunch>>,
     ) {
-        let result = match result {
-            Err(error) => Err(error),
+        match result {
+            Err(error) => {
+                self.handle_workflow_workspace_finished(client_id, request_id, Err(error), true)
+                    .await;
+            }
             Ok(prepared) => match *prepared {
-                PreparedLaunch::Replay(record) => Ok(json!(record)),
+                PreparedLaunch::Replay(record) => {
+                    self.handle_workflow_workspace_finished(
+                        client_id,
+                        request_id,
+                        Ok(json!(record)),
+                        true,
+                    )
+                    .await;
+                }
                 PreparedLaunch::Fresh {
                     record,
                     token,
                     locks,
-                } => {
-                    let result = self.spawn_workflow_launch(&record, &token).await;
-                    // Process teardown finishes before releasing the resource fences.
-                    let result = match result {
-                        Ok(record) => Ok(json!(record)),
-                        Err(error) => {
-                            self.terminate_sessions_for_tab(&record.terminal_handle)
-                                .await;
-                            self.remove_dispatch_context(&record.terminal_handle);
-                            self.settle_closed_workflow_terminal(
-                                &record.terminal_handle,
-                                &error.wire_message(),
-                            )
-                            .await;
-                            self.runtime_store
-                                .workflow_launch_attention(&record.id, &error.wire_message())
-                                .await
-                                .map(|record| json!(record))
-                                .map_err(|error| HostError::state(error.to_string()))
-                        }
-                    };
-                    drop(locks);
-                    result
-                }
+                } => self.start_workflow_launch_claim(client_id, request_id, record, token, locks),
             },
+        }
+    }
+
+    fn start_workflow_launch_claim(
+        &self,
+        client_id: u64,
+        request_id: i64,
+        record: WorkflowLaunchRecord,
+        token: String,
+        locks: [File; 2],
+    ) {
+        let store = self.runtime_store.clone();
+        let inbox = self.inbox.clone();
+        let runtime = tokio::runtime::Handle::current();
+        let validation_record = record.clone();
+        tokio::spawn(async move {
+            let result = tokio::task::spawn_blocking(move || {
+                runtime.block_on(
+                    crate::managed_workspace::workflow::launch::claim_and_validate(
+                        &store,
+                        &validation_record,
+                    ),
+                )
+            })
+            .await
+            .map_err(|error| HostError::state(error.to_string()))
+            .and_then(|result| result.map_err(|error| HostError::state(error.to_string())));
+            let _ = inbox.send(super::ServerCommand::WorkflowLaunch(
+                WorkflowLaunchCommand::Claimed {
+                    client_id,
+                    request_id,
+                    record,
+                    token,
+                    locks,
+                    result: Box::new(result),
+                },
+            ));
+        });
+    }
+
+    async fn handle_workflow_launch_claimed(
+        &mut self,
+        client_id: u64,
+        request_id: i64,
+        record: WorkflowLaunchRecord,
+        token: String,
+        locks: [File; 2],
+        result: HostResult<WorkflowLaunchInputs>,
+    ) {
+        let result = match result {
+            Ok(frozen) => self.spawn_workflow_launch(&record, &token, frozen).await,
+            Err(error) => Err(error),
         };
+        // Process teardown and durable settlement finish before releasing the fences.
+        let result = match result {
+            Ok(record) => Ok(json!(record)),
+            Err(error) => {
+                self.terminate_sessions_for_tab(&record.terminal_handle)
+                    .await;
+                self.remove_dispatch_context(&record.terminal_handle);
+                self.settle_closed_workflow_terminal(
+                    &record.terminal_handle,
+                    &error.wire_message(),
+                )
+                .await;
+                self.runtime_store
+                    .workflow_launch_attention(&record.id, &error.wire_message())
+                    .await
+                    .map(|record| json!(record))
+                    .map_err(|error| HostError::state(error.to_string()))
+            }
+        };
+        drop(locks);
         self.handle_workflow_workspace_finished(client_id, request_id, result, true)
             .await;
     }
@@ -104,12 +189,8 @@ impl ServerActor {
         &mut self,
         record: &WorkflowLaunchRecord,
         token: &str,
+        frozen: WorkflowLaunchInputs,
     ) -> HostResult<WorkflowLaunchRecord> {
-        let frozen = self
-            .runtime_store
-            .claim_workflow_launch(&record.id)
-            .await
-            .map_err(|error| HostError::state(error.to_string()))?;
         let profile = &frozen.profile;
         let adapter = adapter_for(&profile.agent_type)
             .ok_or_else(|| HostError::state("frozen workflow adapter is unavailable"))?;
