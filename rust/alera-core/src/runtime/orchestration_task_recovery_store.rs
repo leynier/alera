@@ -5,6 +5,20 @@ use super::{OrchestrationTask, OrchestrationTaskStatus, RuntimeStore};
 impl RuntimeStore {
     pub async fn reset_orchestration_tasks(&self) -> Result<()> {
         let mut tx = self.pool().begin().await?;
+        sqlx::query("UPDATE orchestrationBoardRevision SET revision = revision WHERE id = 1")
+            .execute(&mut *tx)
+            .await?;
+        let active_workflow: bool = sqlx::query_scalar(
+            "SELECT EXISTS(SELECT 1 FROM workflowLaunches l
+            LEFT JOIN orchestrationDispatchContexts d ON d.id = l.dispatch_id
+            WHERE l.status IN ('reserved','starting','started')
+              OR d.status IN ('pending','awaiting_acceptance','dispatched','stalled'))",
+        )
+        .fetch_one(&mut *tx)
+        .await?;
+        if active_workflow {
+            bail!("settle active workflow workers before resetting orchestration");
+        }
         sqlx::query("DELETE FROM orchestrationTasks")
             .execute(&mut *tx)
             .await?;

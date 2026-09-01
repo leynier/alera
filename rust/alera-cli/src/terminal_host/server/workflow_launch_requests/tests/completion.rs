@@ -3,6 +3,8 @@ use std::path::Path;
 use alera_core::runtime::{OrchestrationTaskStatus, WorkflowLaunchRecord};
 use serde_json::{json, Value};
 
+use crate::terminal_host::server::ServerCommand;
+
 use super::*;
 
 async fn accepted_workflow() -> (Fixture, WorkflowLaunchRecord, String) {
@@ -83,9 +85,15 @@ fn result(fixture: &Fixture) -> Value {
     })
 }
 
-async fn actor_for(fixture: &Fixture) -> ServerActor {
+async fn actor_for(
+    fixture: &Fixture,
+) -> (
+    ServerActor,
+    tokio::sync::mpsc::UnboundedReceiver<ServerCommand>,
+    tokio::sync::mpsc::UnboundedReceiver<crate::terminal_host::client::ClientFrame>,
+) {
     let directory = tempfile::tempdir().unwrap();
-    let (client, _responses) = ClientHandle::test_channels();
+    let (client, responses) = ClientHandle::test_channels();
     let mut actor = test_actor(
         &directory,
         HashMap::from([(1, local_client(client))]),
@@ -94,7 +102,31 @@ async fn actor_for(fixture: &Fixture) -> ServerActor {
     .await;
     actor.runtime_store = fixture.store.clone();
     actor.runtime_dir = fixture.runtime.clone();
-    actor
+    let (inbox, commands) = tokio::sync::mpsc::unbounded_channel();
+    actor.inbox = inbox;
+    (actor, commands, responses)
+}
+
+async fn finish_deferred_completion(
+    actor: &mut ServerActor,
+    commands: &mut tokio::sync::mpsc::UnboundedReceiver<ServerCommand>,
+    responses: &mut tokio::sync::mpsc::UnboundedReceiver<crate::terminal_host::client::ClientFrame>,
+) -> Value {
+    let command = tokio::time::timeout(std::time::Duration::from_secs(10), commands.recv())
+        .await
+        .unwrap()
+        .unwrap();
+    assert!(matches!(
+        &command,
+        ServerCommand::OrchestrationCompletionFinished(_)
+    ));
+    actor.handle(command).await;
+    tokio::time::timeout(std::time::Duration::from_secs(10), responses.recv())
+        .await
+        .unwrap()
+        .unwrap()
+        .as_json()
+        .unwrap()
 }
 
 #[tokio::test]
@@ -107,7 +139,7 @@ async fn workflow_completion_endpoints_capture_the_task_tip() {
             .await
             .unwrap();
         let sha = commit_result(&workspace.identity.workspace.path);
-        let mut actor = actor_for(&fixture).await;
+        let (mut actor, mut commands, mut responses) = actor_for(&fixture).await;
         let response = actor
             .handle_orchestration_request(
                 1,
@@ -122,9 +154,21 @@ async fn workflow_completion_endpoints_capture_the_task_tip() {
                 }),
             )
             .await
+            .unwrap();
+        assert!(response.is_none());
+        let inspection = actor
+            .handle_orchestration_request(
+                1,
+                2,
+                "orchestration.taskShow",
+                &json!({"id": launch.request.task_id}),
+            )
+            .await
             .unwrap()
             .unwrap();
-        assert_eq!(response["lifecycleAccepted"], true);
+        assert_eq!(inspection["task"]["status"], "dispatched");
+        let response = finish_deferred_completion(&mut actor, &mut commands, &mut responses).await;
+        assert_eq!(response["payload"]["lifecycleAccepted"], true);
         let completed = fixture
             .store
             .orchestration_dispatch_by_id(&launch.dispatch_id)
@@ -168,8 +212,8 @@ async fn workflow_completion_rejects_missing_invalid_or_dirty_result_sha_without
         "dirty\n",
     )
     .unwrap();
-    let mut actor = actor_for(&fixture).await;
-    let error = actor
+    let (mut actor, mut commands, mut responses) = actor_for(&fixture).await;
+    let response = actor
         .handle_orchestration_request(
             1,
             1,
@@ -181,8 +225,14 @@ async fn workflow_completion_rejects_missing_invalid_or_dirty_result_sha_without
             }),
         )
         .await
-        .unwrap_err();
-    assert!(error.wire_message().contains("pending changes"));
+        .unwrap();
+    assert!(response.is_none());
+    let response = finish_deferred_completion(&mut actor, &mut commands, &mut responses).await;
+    assert_eq!(response["ok"], false);
+    assert!(response["error"]
+        .as_str()
+        .unwrap()
+        .contains("pending changes"));
     let dispatch = fixture
         .store
         .orchestration_dispatch_by_id(&launch.dispatch_id)
@@ -201,4 +251,51 @@ async fn workflow_completion_rejects_missing_invalid_or_dirty_result_sha_without
             .status,
         OrchestrationTaskStatus::Dispatched
     );
+}
+
+#[tokio::test]
+async fn workflow_completion_rechecks_dispatch_after_deferred_git_work() {
+    let (fixture, launch, token) = accepted_workflow().await;
+    let workspace = fixture
+        .store
+        .workflow_workspace(&launch.request.workspace_id)
+        .await
+        .unwrap();
+    commit_result(&workspace.identity.workspace.path);
+    let (mut actor, mut commands, mut responses) = actor_for(&fixture).await;
+
+    let response = actor
+        .handle_orchestration_request(
+            1,
+            1,
+            "orchestration.complete",
+            &json!({
+                "terminal": launch.terminal_handle,
+                "contextToken": token,
+                "result": result(&fixture),
+            }),
+        )
+        .await
+        .unwrap();
+    assert!(response.is_none());
+    fixture
+        .store
+        .cancel_orchestration_task(&launch.request.task_id, "cancel while verifying")
+        .await
+        .unwrap();
+
+    let response = finish_deferred_completion(&mut actor, &mut commands, &mut responses).await;
+    assert_eq!(response["ok"], false);
+    assert!(response["error"]
+        .as_str()
+        .unwrap()
+        .contains("no longer active"));
+    let dispatch = fixture
+        .store
+        .orchestration_dispatch_by_id(&launch.dispatch_id)
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(dispatch.status, OrchestrationDispatchStatus::Cancelled);
+    assert!(dispatch.completion_sha.is_none());
 }

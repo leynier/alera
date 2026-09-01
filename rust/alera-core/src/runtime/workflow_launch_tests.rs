@@ -91,6 +91,86 @@ async fn workflow_launch_replay_is_bound_and_never_claims_a_second_worker() {
 }
 
 #[tokio::test]
+async fn workflow_launch_spawn_revalidation_rejects_cancelled_dispatch() {
+    let (_dir, store, request) = prepared().await;
+    let (launch, _) = store
+        .reserve_workflow_launch(&request, &"a".repeat(64))
+        .await
+        .unwrap();
+    store.claim_workflow_launch(&launch.id).await.unwrap();
+
+    store
+        .cancel_orchestration_task(&request.task_id, "cancel before spawn")
+        .await
+        .unwrap();
+
+    let error = store
+        .require_workflow_launch_spawnable(&launch.id)
+        .await
+        .unwrap_err();
+    assert!(error
+        .to_string()
+        .contains("workflow task is not awaiting execution"));
+}
+
+#[tokio::test]
+async fn workflow_launch_spawn_revalidation_rejects_obsolete_plan() {
+    let (_dir, store, request) = prepared().await;
+    let (launch, _) = store
+        .reserve_workflow_launch(&request, &"a".repeat(64))
+        .await
+        .unwrap();
+    store.claim_workflow_launch(&launch.id).await.unwrap();
+
+    sqlx::query("UPDATE workflowRuns SET status = 'changesRequested' WHERE run_id = ?")
+        .bind(&request.run_id)
+        .execute(store.pool())
+        .await
+        .unwrap();
+
+    let error = store
+        .require_workflow_launch_spawnable(&launch.id)
+        .await
+        .unwrap_err();
+    assert!(error
+        .to_string()
+        .contains("current approved plan and an active run"));
+}
+
+#[tokio::test]
+async fn orchestration_reset_requires_workflow_launch_settlement() {
+    let (_dir, store, request) = prepared().await;
+    let (launch, _) = store
+        .reserve_workflow_launch(&request, &"a".repeat(64))
+        .await
+        .unwrap();
+
+    let error = store.reset_orchestration_tasks().await.unwrap_err();
+    assert!(error.to_string().contains("settle active workflow workers"));
+    assert!(store
+        .orchestration_task_by_id(&request.task_id)
+        .await
+        .unwrap()
+        .is_some());
+    assert!(store
+        .orchestration_dispatch_by_id(&launch.dispatch_id)
+        .await
+        .unwrap()
+        .is_some());
+
+    store
+        .settle_workflow_launch_without_session(&launch.terminal_handle, "worker stopped")
+        .await
+        .unwrap();
+    store.reset_orchestration_tasks().await.unwrap();
+    assert!(store
+        .orchestration_task_by_id(&request.task_id)
+        .await
+        .unwrap()
+        .is_none());
+}
+
+#[tokio::test]
 async fn workflow_launch_uses_approved_profile_and_preserves_owner_execution_split() {
     let (_dir, store, request) = prepared().await;
     let approved = store.validate_workflow_launch(&request).await.unwrap();

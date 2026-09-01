@@ -163,3 +163,60 @@ async fn workflow_launch_rechecks_dirty_integration_after_reservation() {
         "pending integration change"
     );
 }
+
+#[tokio::test]
+async fn workflow_launch_does_not_spawn_after_claim_is_cancelled() {
+    let fixture = Fixture::new("").await;
+    let (input, prepared) = prepared(&fixture).await;
+    let PreparedLaunch::Fresh {
+        record,
+        token,
+        locks,
+    } = prepared
+    else {
+        panic!("fresh launch required")
+    };
+    let frozen = launch::claim_and_validate(&fixture.store, &record)
+        .await
+        .unwrap();
+    fixture
+        .store
+        .cancel_orchestration_task(&input.task_id, "cancel after claim")
+        .await
+        .unwrap();
+    let dir = tempfile::tempdir().unwrap();
+    let mut actor = test_actor(&dir, HashMap::new(), HashMap::new()).await;
+    actor.runtime_store = fixture.store.clone();
+    actor.runtime_dir = fixture.runtime.clone();
+
+    actor
+        .handle_workflow_launch_claimed(1, 1, record.clone(), token, locks, Ok(frozen))
+        .await;
+
+    assert!(actor.sessions.is_empty());
+    assert!(fixture
+        .store
+        .find_workspace_tab(&record.terminal_handle)
+        .await
+        .unwrap()
+        .is_none());
+    assert_eq!(
+        fixture
+            .store
+            .workflow_launch(&record.id)
+            .await
+            .unwrap()
+            .status,
+        WorkflowLaunchStatus::Attention
+    );
+    assert_eq!(
+        fixture
+            .store
+            .orchestration_dispatch_by_id(&record.dispatch_id)
+            .await
+            .unwrap()
+            .unwrap()
+            .status,
+        OrchestrationDispatchStatus::Cancelled
+    );
+}

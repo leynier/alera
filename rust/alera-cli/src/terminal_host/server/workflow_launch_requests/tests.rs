@@ -14,6 +14,7 @@ use crate::terminal_host::server::actor_test_harness::{local_client, test_actor}
 mod completion;
 mod final_preflight;
 mod recovery;
+mod reset;
 
 async fn prepared(fixture: &Fixture) -> (LaunchWorkflowTask, PreparedLaunch) {
     fixture.integration().await;

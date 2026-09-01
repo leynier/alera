@@ -656,6 +656,10 @@ impl ServerActor {
             ServerCommand::WorkflowLaunch(command) => {
                 self.handle_workflow_launch_command(command).await
             }
+            ServerCommand::OrchestrationCompletionFinished(completion) => {
+                self.handle_orchestration_completion_finished(completion)
+                    .await
+            }
             ServerCommand::WorkflowWorkspaceFinished {
                 client_id,
                 request_id,

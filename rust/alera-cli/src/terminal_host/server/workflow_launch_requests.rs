@@ -191,6 +191,10 @@ impl ServerActor {
         token: &str,
         frozen: WorkflowLaunchInputs,
     ) -> HostResult<WorkflowLaunchRecord> {
+        self.runtime_store
+            .require_workflow_launch_spawnable(&record.id)
+            .await
+            .map_err(|error| HostError::state(error.to_string()))?;
         let profile = &frozen.profile;
         let adapter = adapter_for(&profile.agent_type)
             .ok_or_else(|| HostError::state("frozen workflow adapter is unavailable"))?;
@@ -269,6 +273,10 @@ impl ServerActor {
             {
                 return Err(HostError::state("workflow workers require a fresh approved attempt; automatic restart is disabled"));
             }
+            self.runtime_store
+                .require_workflow_launch_spawnable(&record.id)
+                .await
+                .map_err(|error| HostError::state(error.to_string()))?;
         }
         Ok(())
     }
