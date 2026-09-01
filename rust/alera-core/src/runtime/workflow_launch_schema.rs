@@ -45,6 +45,10 @@ const SCHEMA: &[&str] = &[
         WHEN OLD.status = 'completed' AND NEW.status <> 'completed'
           AND EXISTS(SELECT 1 FROM workflowPlanTasks WHERE task_id = OLD.id)
         BEGIN SELECT RAISE(ABORT, 'completed workflow tasks require a correction revision'); END",
+    "CREATE TRIGGER IF NOT EXISTS workflowStalledTaskRequiresSettlement BEFORE UPDATE OF status ON orchestrationTasks
+        WHEN OLD.status = 'stalled' AND NEW.status IN ('ready','failed')
+          AND EXISTS(SELECT 1 FROM workflowPlanTasks WHERE task_id = OLD.id)
+        BEGIN SELECT RAISE(ABORT, 'stalled workflow tasks require terminal settlement and a fresh attempt'); END",
     "CREATE TRIGGER IF NOT EXISTS workflowDispatchAcceptance BEFORE UPDATE OF status ON orchestrationDispatchContexts
         WHEN NEW.status = 'dispatched' AND OLD.status <> 'dispatched'
           AND EXISTS(SELECT 1 FROM workflowLaunches WHERE dispatch_id = OLD.id)

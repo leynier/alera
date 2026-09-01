@@ -1,9 +1,35 @@
 use super::ServerActor;
 use crate::terminal_host::host_error::{HostError, HostResult};
 use crate::terminal_host::session::Session;
+use alera_core::runtime::OrchestrationDispatchContext;
 use serde_json::Value;
 
 impl ServerActor {
+    pub(super) async fn settle_stalled_workflow_dispatch(
+        &mut self,
+        dispatch: &OrchestrationDispatchContext,
+        reason: &str,
+    ) -> anyhow::Result<bool> {
+        let Some(terminal) = dispatch.assignee_handle.as_deref() else {
+            return Ok(false);
+        };
+        if self
+            .runtime_store
+            .workflow_launch_for_terminal(terminal)
+            .await?
+            .is_none()
+        {
+            return Ok(false);
+        }
+        self.terminate_sessions_for_tab(terminal).await;
+        self.remove_dispatch_context(terminal);
+        self.runtime_store
+            .settle_workflow_launch_without_session(terminal, reason)
+            .await?;
+        self.broadcast_orchestration_board_change().await;
+        Ok(true)
+    }
+
     pub(super) fn schedule_workflow_launch_acceptance_timeout(&self, id: &str) {
         let inbox = self.inbox.clone();
         let id = id.to_owned();

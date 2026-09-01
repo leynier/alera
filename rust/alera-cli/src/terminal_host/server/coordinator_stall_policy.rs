@@ -2,8 +2,10 @@
 //!
 //! The runtime never auto-redispatches stalled work, because the worker may
 //! still be alive and two agents in one worktree corrupt each other. Failover
-//! is therefore always confirm, kill, then respawn. This module adds the
-//! confirmation step and the two policies that skip or defer it.
+//! is therefore always confirm and stop the old worker before recovery. A
+//! workflow attempt stays retained and requires an explicit fresh attempt;
+//! legacy tasks can return to ready. This module adds the confirmation step
+//! and the two policies that skip or defer it.
 
 use alera_core::runtime::{OrchestrationDispatchContext, OrchestrationTaskStatus};
 use serde_json::Value;
@@ -15,7 +17,7 @@ use super::ServerActor;
 pub(super) enum StallPolicy {
     /// Open a gate and wait for the user. The default under a policy.
     Ask,
-    /// Kill and respawn without asking.
+    /// Stop the old worker and begin the appropriate recovery without asking.
     AutoFailover,
     /// Leave the task stalled for manual recovery. The historical behavior and
     /// the default for runs without a policy.
@@ -198,20 +200,51 @@ impl ServerActor {
         }
     }
 
-    /// Confirm, kill, then respawn. The interrupt happens first so the old
-    /// worker cannot keep writing to the worktree the replacement will use.
-    async fn failover_stalled_dispatch(&mut self, task_id: &str) {
-        let dispatch = self
+    /// Stops the old worker before recovery. Workflow attempts stay retained
+    /// for an explicit retry, while legacy tasks return to ready.
+    pub(super) async fn failover_stalled_dispatch(&mut self, task_id: &str) {
+        let dispatch = match self
             .runtime_store
             .stalled_orchestration_dispatch_for_task(task_id)
             .await
-            .ok()
-            .flatten();
-        if let Some(handle) = dispatch
-            .as_ref()
-            .and_then(|dispatch| dispatch.assignee_handle.clone())
         {
-            self.interrupt_stalled_worker(&handle).await;
+            Ok(Some(dispatch)) => dispatch,
+            Ok(None) => {
+                self.coordinator_log(&format!(
+                    "could not fail over task {task_id}: no stalled dispatch remains"
+                ));
+                return;
+            }
+            Err(error) => {
+                self.coordinator_log(&format!(
+                    "could not inspect stalled task {task_id}: {error}"
+                ));
+                return;
+            }
+        };
+        match self
+            .settle_stalled_workflow_dispatch(
+                &dispatch,
+                "The stalled workflow worker was terminated. Inspect the retained attempt and retry explicitly in a new attempt.",
+            )
+            .await
+        {
+            Ok(true) => {
+                self.coordinator_log(&format!(
+                    "stalled workflow task {task_id} was retained for an explicit fresh attempt"
+                ));
+                return;
+            }
+            Ok(false) => {}
+            Err(error) => {
+                self.coordinator_log(&format!(
+                    "could not settle stalled workflow task {task_id}: {error}"
+                ));
+                return;
+            }
+        }
+        if let Some(handle) = dispatch.assignee_handle.as_deref() {
+            self.interrupt_stalled_worker(handle).await;
         }
         if let Err(error) = self
             .runtime_store

@@ -78,6 +78,7 @@ mod orchestration_store_tests;
 mod orchestration_task_inspection;
 #[cfg(test)]
 mod orchestration_task_inspection_tests;
+mod orchestration_task_recovery_store;
 mod orchestration_task_store;
 mod project_clone_job_store;
 mod project_clone_models;
