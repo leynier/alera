@@ -91,7 +91,10 @@ impl RuntimeStore {
             LEFT JOIN orchestrationDispatchContexts d ON d.id = l.dispatch_id
             WHERE l.sequence > ? AND (
               (l.status IN ('reserved','starting','started') AND (
-                d.id IS NULL OR d.status IN ('pending','awaiting_acceptance','dispatched','stalled')
+                d.id IS NULL OR d.status IN (
+                  'pending','awaiting_acceptance','dispatched','stalled',
+                  'failed','startup_failed','cancelled','superseded','circuit_broken'
+                )
               )) OR (l.status = 'attention'
                 AND d.status IN ('pending','awaiting_acceptance','dispatched','stalled'))
             )

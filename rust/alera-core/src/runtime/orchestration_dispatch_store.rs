@@ -590,7 +590,9 @@ impl RuntimeStore {
     ) -> Result<Vec<OrchestrationDispatchContext>> {
         let rows = sqlx::query(sqlx::AssertSqlSafe(format!(
             "SELECT {DISPATCH_COLUMNS} FROM orchestrationDispatchContexts \
-             WHERE status = 'awaiting_acceptance' AND dispatched_at < ?"
+             WHERE status = 'awaiting_acceptance' AND dispatched_at < ? \
+             AND NOT EXISTS(SELECT 1 FROM workflowLaunches l \
+                 WHERE l.dispatch_id = orchestrationDispatchContexts.id)"
         )))
         .bind(threshold_iso)
         .fetch_all(self.pool())

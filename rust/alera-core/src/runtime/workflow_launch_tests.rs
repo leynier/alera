@@ -284,6 +284,68 @@ async fn workflow_launch_recovery_page_excludes_terminal_history() {
 }
 
 #[tokio::test]
+async fn workflow_launch_recovery_page_includes_unsettled_terminal_failures() {
+    for status in [
+        "failed",
+        "startup_failed",
+        "cancelled",
+        "superseded",
+        "circuit_broken",
+    ] {
+        let (_dir, store, request) = prepared().await;
+        let (launch, _) = store
+            .reserve_workflow_launch(&request, &"a".repeat(64))
+            .await
+            .unwrap();
+        store.claim_workflow_launch(&launch.id).await.unwrap();
+        store
+            .mark_workflow_launch_started(&launch.id)
+            .await
+            .unwrap();
+        sqlx::query("UPDATE orchestrationDispatchContexts SET status = ? WHERE id = ?")
+            .bind(status)
+            .bind(&launch.dispatch_id)
+            .execute(store.pool())
+            .await
+            .unwrap();
+
+        let page = store.workflow_launch_recovery_page(0).await.unwrap();
+        assert_eq!(page.len(), 1, "dispatch state {status}");
+        assert_eq!(page[0].1.id, launch.id);
+        store
+            .settle_workflow_launch_without_session(&launch.terminal_handle, "host restarted")
+            .await
+            .unwrap();
+        assert!(store
+            .workflow_launch_recovery_page(0)
+            .await
+            .unwrap()
+            .is_empty());
+        assert_eq!(
+            store.workflow_launch(&launch.id).await.unwrap().status,
+            WorkflowLaunchStatus::Attention
+        );
+        assert_eq!(
+            store
+                .workflow_workspace(&request.workspace_id)
+                .await
+                .unwrap()
+                .phase,
+            WorkflowWorkspacePhase::Attention
+        );
+        assert_eq!(
+            store
+                .orchestration_task_by_id(&request.task_id)
+                .await
+                .unwrap()
+                .unwrap()
+                .status,
+            OrchestrationTaskStatus::Pending
+        );
+    }
+}
+
+#[tokio::test]
 async fn workflow_launch_refuses_stale_approval_and_keeps_uncertain_attempt_reserved() {
     let (_dir, store, request) = prepared().await;
     let (launch, _) = store

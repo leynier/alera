@@ -12,6 +12,7 @@ use crate::terminal_host::client::ClientHandle;
 use crate::terminal_host::server::actor_test_harness::{local_client, test_actor};
 
 mod completion;
+mod recovery;
 
 async fn prepared(fixture: &Fixture) -> (LaunchWorkflowTask, PreparedLaunch) {
     fixture.integration().await;
@@ -394,6 +395,29 @@ async fn workflow_launch_acceptance_timeout_retains_the_attempt_without_relaunch
     actor.runtime_dir = fixture.runtime.clone();
     actor.spawn_workflow_launch(&record, &token).await.unwrap();
     drop(locks);
+    sqlx::query(
+        "UPDATE orchestrationDispatchContexts SET dispatched_at = '2020-01-01 00:00:00' WHERE id = ?",
+    )
+    .bind(&record.dispatch_id)
+    .execute(fixture.store.pool())
+    .await
+    .unwrap();
+    assert!(fixture
+        .store
+        .expire_unaccepted_orchestration_dispatches("2021-01-01 00:00:00")
+        .await
+        .unwrap()
+        .is_empty());
+    assert_eq!(
+        fixture
+            .store
+            .orchestration_dispatch_by_id(&record.dispatch_id)
+            .await
+            .unwrap()
+            .unwrap()
+            .status,
+        OrchestrationDispatchStatus::AwaitingAcceptance
+    );
     actor
         .handle_workflow_launch_acceptance_timeout(&record.id)
         .await;
