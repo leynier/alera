@@ -10,9 +10,8 @@ impl RuntimeStore {
             .await?;
         let active_workflow: bool = sqlx::query_scalar(
             "SELECT EXISTS(SELECT 1 FROM workflowLaunches l
-            LEFT JOIN orchestrationDispatchContexts d ON d.id = l.dispatch_id
-            WHERE l.status IN ('reserved','starting','started')
-              OR d.status IN ('pending','awaiting_acceptance','dispatched','stalled'))",
+            JOIN orchestrationDispatchContexts d ON d.id = l.dispatch_id
+            WHERE d.status IN ('pending','awaiting_acceptance','dispatched','stalled'))",
         )
         .fetch_one(&mut *tx)
         .await?;

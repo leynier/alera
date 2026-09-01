@@ -171,6 +171,48 @@ async fn orchestration_reset_requires_workflow_launch_settlement() {
 }
 
 #[tokio::test]
+async fn orchestration_reset_ignores_a_completed_workflow_launch_receipt() {
+    let (_dir, store, request) = prepared().await;
+    let (launch, _) = store
+        .reserve_workflow_launch(&request, &"a".repeat(64))
+        .await
+        .unwrap();
+    store.claim_workflow_launch(&launch.id).await.unwrap();
+    store
+        .mark_workflow_launch_started(&launch.id)
+        .await
+        .unwrap();
+    store
+        .accept_orchestration_dispatch(
+            &launch.dispatch_id,
+            &launch.terminal_handle,
+            &"a".repeat(64),
+        )
+        .await
+        .unwrap();
+    store
+        .complete_workflow_orchestration_dispatch(
+            &launch.dispatch_id,
+            &launch.terminal_handle,
+            r#"{"summary":"Done","completionKind":"success","artifacts":["shared.txt"],"filesModified":["shared.txt"],"validation":[{"id":"regression","passed":true,"evidence":"regression covered"},{"id":"checks","passed":true,"evidence":"focused checks passed"}]}"#,
+            &"b".repeat(40),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(
+        store.workflow_launch(&launch.id).await.unwrap().status,
+        WorkflowLaunchStatus::Started
+    );
+    store.reset_orchestration_tasks().await.unwrap();
+    assert!(store
+        .orchestration_task_by_id(&request.task_id)
+        .await
+        .unwrap()
+        .is_none());
+}
+
+#[tokio::test]
 async fn workflow_launch_uses_approved_profile_and_preserves_owner_execution_split() {
     let (_dir, store, request) = prepared().await;
     let approved = store.validate_workflow_launch(&request).await.unwrap();

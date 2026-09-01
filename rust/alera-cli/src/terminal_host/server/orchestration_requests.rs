@@ -1752,7 +1752,12 @@ impl ServerActor {
         let all =
             (!tasks && !messages) || payload.get("all").and_then(Value::as_bool).unwrap_or(false);
         if all || tasks {
-            let live_terminals = self.sessions.keys().cloned().collect::<Vec<_>>();
+            let live_terminals = self
+                .sessions
+                .iter()
+                .filter(|(_, session)| session.running())
+                .map(|(terminal, _)| terminal.clone())
+                .collect::<Vec<_>>();
             for terminal in live_terminals {
                 if self.is_workflow_terminal(&terminal).await {
                     return Err(HostError::state(

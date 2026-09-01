@@ -86,6 +86,32 @@ async fn workflow_prepared_attempts_project_the_execution_workspace_before_launc
 }
 
 #[tokio::test]
+async fn workflow_cancellation_overrides_ready_and_started_attempt_projections() {
+    for after_launch in [false, true] {
+        let (_dir, store, request) = prepared().await;
+        if after_launch {
+            let (launch, _) = store
+                .reserve_workflow_launch(&request, &"a".repeat(64))
+                .await
+                .unwrap();
+            store.claim_workflow_launch(&launch.id).await.unwrap();
+            store
+                .mark_workflow_launch_started(&launch.id)
+                .await
+                .unwrap();
+        }
+        store
+            .cancel_orchestration_task(&request.task_id, "cancelled by user")
+            .await
+            .unwrap();
+
+        assert_eq!(inspect_workflow(&store, &request).await.state, "cancelled");
+        assert_eq!(snapshot_workflow_state(&store, &request).await, "cancelled");
+        assert!(store.validate_workflow_launch(&request).await.is_err());
+    }
+}
+
+#[tokio::test]
 async fn workflow_retry_workspace_supersedes_attention_from_its_failed_launch() {
     let (dir, store, request) = prepared().await;
     let (launch, _) = store
