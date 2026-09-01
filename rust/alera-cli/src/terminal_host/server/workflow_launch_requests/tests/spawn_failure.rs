@@ -46,7 +46,7 @@ async fn workflow_launch_spawn_failure_broadcasts_the_retained_tab() {
         .await
         .unwrap();
     let (_dir, mut actor, mut responses) = actor_with_client(&fixture).await;
-    let (inbox, _commands) = tokio::sync::mpsc::unbounded_channel();
+    let (inbox, mut commands) = tokio::sync::mpsc::unbounded_channel();
     actor.inbox = inbox;
     actor.start_runtime_mutation_after_codex_cleanup(
         1,
@@ -60,6 +60,24 @@ async fn workflow_launch_spawn_failure_broadcasts_the_retained_tab() {
     actor
         .handle_workflow_launch_claimed(1, 1, record.clone(), token, locks, Ok(frozen))
         .await;
+    let deadline = tokio::time::Instant::now() + std::time::Duration::from_secs(10);
+    loop {
+        let command = tokio::time::timeout_at(deadline, commands.recv())
+            .await
+            .unwrap()
+            .unwrap();
+        if matches!(
+            &command,
+            crate::terminal_host::server::ServerCommand::WorkflowLaunch(
+                WorkflowLaunchCommand::SpawnValidated(_)
+            )
+        ) {
+            actor.handle(command).await;
+            break;
+        }
+        // Keep the runtime mutation pending so the spawn boundary fails after
+        // the workflow tab has been inserted.
+    }
 
     assert!(json_frames(&mut responses).iter().any(|frame| {
         frame["event"] == "workspaceTabsChanged"
@@ -109,10 +127,13 @@ async fn workflow_launch_failure_before_tab_insert_does_not_broadcast_tabs() {
         .unwrap();
     frozen.profile.agent_type = "unsupported-workflow-agent".into();
     let (_dir, mut actor, mut responses) = actor_with_client(&fixture).await;
+    let (inbox, mut commands) = tokio::sync::mpsc::unbounded_channel();
+    actor.inbox = inbox;
 
     actor
         .handle_workflow_launch_claimed(1, 1, record.clone(), token, locks, Ok(frozen))
         .await;
+    finish_spawn_validation(&mut actor, &mut commands).await;
 
     assert!(!json_frames(&mut responses)
         .iter()

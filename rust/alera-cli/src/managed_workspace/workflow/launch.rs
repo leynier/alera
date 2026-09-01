@@ -69,6 +69,17 @@ pub(crate) async fn claim_and_validate(
     record: &WorkflowLaunchRecord,
 ) -> Result<WorkflowLaunchInputs> {
     let frozen = store.claim_workflow_launch(&record.id).await?;
+    revalidate_at_spawn_boundary(store, record).await?;
+    Ok(frozen)
+}
+
+/// Repeats the native checks after the actor receives the durable claim. The
+/// Alera resource locks do not prevent an IDE or another Git process from
+/// changing either checkout while the claim is in flight.
+pub(crate) async fn revalidate_at_spawn_boundary(
+    store: &RuntimeStore,
+    record: &WorkflowLaunchRecord,
+) -> Result<()> {
     let source = store
         .workflow_workspace(&record.request.workspace_id)
         .await?;
@@ -95,5 +106,5 @@ pub(crate) async fn claim_and_validate(
     if !core_git::is_worktree_clean(&source.identity.workspace.path)? {
         bail!("workflow attempt changed after launch reservation; inspect it before retrying");
     }
-    Ok(frozen)
+    Ok(())
 }

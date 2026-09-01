@@ -188,10 +188,13 @@ async fn workflow_launch_does_not_spawn_after_claim_is_cancelled() {
     let mut actor = test_actor(&dir, HashMap::new(), HashMap::new()).await;
     actor.runtime_store = fixture.store.clone();
     actor.runtime_dir = fixture.runtime.clone();
+    let (inbox, mut commands) = tokio::sync::mpsc::unbounded_channel();
+    actor.inbox = inbox;
 
     actor
         .handle_workflow_launch_claimed(1, 1, record.clone(), token, locks, Ok(frozen))
         .await;
+    finish_spawn_validation(&mut actor, &mut commands).await;
 
     assert!(actor.sessions.is_empty());
     assert!(fixture
@@ -218,5 +221,136 @@ async fn workflow_launch_does_not_spawn_after_claim_is_cancelled() {
             .unwrap()
             .status,
         OrchestrationDispatchStatus::Cancelled
+    );
+}
+
+#[tokio::test]
+async fn workflow_launch_rechecks_attempt_commit_at_spawn_boundary() {
+    let fixture = Fixture::new("").await;
+    let (input, prepared) = prepared(&fixture).await;
+    let PreparedLaunch::Fresh {
+        record,
+        token,
+        locks,
+    } = prepared
+    else {
+        panic!("fresh launch required")
+    };
+    let frozen = launch::claim_and_validate(&fixture.store, &record)
+        .await
+        .unwrap();
+    let attempt = fixture
+        .store
+        .workflow_workspace(&input.workspace_id)
+        .await
+        .unwrap();
+    let external_sha = commit_external_change(&attempt.identity.workspace.path);
+    let dir = tempfile::tempdir().unwrap();
+    let mut actor = test_actor(&dir, HashMap::new(), HashMap::new()).await;
+    actor.runtime_store = fixture.store.clone();
+    actor.runtime_dir = fixture.runtime.clone();
+    let (inbox, mut commands) = tokio::sync::mpsc::unbounded_channel();
+    actor.inbox = inbox;
+
+    actor
+        .handle_workflow_launch_claimed(1, 1, record.clone(), token, locks, Ok(frozen))
+        .await;
+    finish_spawn_validation(&mut actor, &mut commands).await;
+
+    assert!(actor.sessions.is_empty());
+    assert!(fixture
+        .store
+        .find_workspace_tab(&record.terminal_handle)
+        .await
+        .unwrap()
+        .is_none());
+    assert_eq!(
+        git2::Repository::open(&attempt.identity.workspace.path)
+            .unwrap()
+            .head()
+            .unwrap()
+            .target()
+            .unwrap()
+            .to_string(),
+        external_sha
+    );
+    assert_rejected_spawn(&fixture, &input, &record, "attempt tip changed").await;
+}
+
+#[tokio::test]
+async fn workflow_launch_rechecks_dirty_attempt_at_spawn_boundary() {
+    let fixture = Fixture::new("").await;
+    let (input, prepared) = prepared(&fixture).await;
+    let PreparedLaunch::Fresh {
+        record,
+        token,
+        locks,
+    } = prepared
+    else {
+        panic!("fresh launch required")
+    };
+    let frozen = launch::claim_and_validate(&fixture.store, &record)
+        .await
+        .unwrap();
+    let attempt = fixture
+        .store
+        .workflow_workspace(&input.workspace_id)
+        .await
+        .unwrap();
+    let change = std::path::Path::new(&attempt.identity.workspace.path).join("external.txt");
+    std::fs::write(&change, "pending external change").unwrap();
+    let dir = tempfile::tempdir().unwrap();
+    let mut actor = test_actor(&dir, HashMap::new(), HashMap::new()).await;
+    actor.runtime_store = fixture.store.clone();
+    actor.runtime_dir = fixture.runtime.clone();
+    let (inbox, mut commands) = tokio::sync::mpsc::unbounded_channel();
+    actor.inbox = inbox;
+
+    actor
+        .handle_workflow_launch_claimed(1, 1, record.clone(), token, locks, Ok(frozen))
+        .await;
+    finish_spawn_validation(&mut actor, &mut commands).await;
+
+    assert!(actor.sessions.is_empty());
+    assert!(fixture
+        .store
+        .find_workspace_tab(&record.terminal_handle)
+        .await
+        .unwrap()
+        .is_none());
+    assert_eq!(
+        std::fs::read_to_string(&change).unwrap(),
+        "pending external change"
+    );
+    assert_rejected_spawn(&fixture, &input, &record, "attempt changed").await;
+}
+
+async fn assert_rejected_spawn(
+    fixture: &Fixture,
+    input: &LaunchWorkflowTask,
+    record: &WorkflowLaunchRecord,
+    expected_error: &str,
+) {
+    let launch = fixture.store.workflow_launch(&record.id).await.unwrap();
+    assert_eq!(launch.status, WorkflowLaunchStatus::Attention);
+    assert!(launch.error.unwrap().contains(expected_error));
+    assert_eq!(
+        fixture
+            .store
+            .workflow_workspace(&input.workspace_id)
+            .await
+            .unwrap()
+            .phase,
+        WorkflowWorkspacePhase::Attention
+    );
+    assert_eq!(
+        fixture
+            .store
+            .orchestration_dispatch_by_id(&record.dispatch_id)
+            .await
+            .unwrap()
+            .unwrap()
+            .status,
+        OrchestrationDispatchStatus::StartupFailed
     );
 }

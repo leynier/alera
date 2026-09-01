@@ -34,12 +34,23 @@ pub(crate) enum WorkflowLaunchCommand {
         locks: [File; 2],
         result: Box<HostResult<WorkflowLaunchInputs>>,
     },
+    SpawnValidated(Box<ValidatedWorkflowLaunch>),
     AcceptanceTimeout(String),
 }
 
 /// Constructed only after the durable one-shot claim. No payload grants this.
 pub(super) struct WorkflowLaunchPermit {
     record: WorkflowLaunchRecord,
+}
+
+pub(crate) struct ValidatedWorkflowLaunch {
+    client_id: u64,
+    request_id: i64,
+    record: WorkflowLaunchRecord,
+    token: String,
+    locks: [File; 2],
+    frozen: WorkflowLaunchInputs,
+    result: HostResult<()>,
 }
 
 impl WorkflowLaunchPermit {
@@ -75,6 +86,10 @@ impl ServerActor {
                     client_id, request_id, record, token, locks, *result,
                 )
                 .await;
+            }
+            WorkflowLaunchCommand::SpawnValidated(validated) => {
+                self.handle_workflow_launch_spawn_validated(*validated)
+                    .await;
             }
             WorkflowLaunchCommand::AcceptanceTimeout(id) => {
                 self.handle_workflow_launch_acceptance_timeout(&id).await
@@ -157,10 +172,82 @@ impl ServerActor {
         locks: [File; 2],
         result: HostResult<WorkflowLaunchInputs>,
     ) {
-        let result = match result {
-            Ok(frozen) => self.spawn_workflow_launch(&record, &token, frozen).await,
+        match result {
+            Ok(frozen) => self.start_workflow_launch_spawn_validation(
+                client_id, request_id, record, token, locks, frozen,
+            ),
+            Err(error) => {
+                self.finish_workflow_launch(client_id, request_id, record, locks, Err(error))
+                    .await;
+            }
+        }
+    }
+
+    fn start_workflow_launch_spawn_validation(
+        &self,
+        client_id: u64,
+        request_id: i64,
+        record: WorkflowLaunchRecord,
+        token: String,
+        locks: [File; 2],
+        frozen: WorkflowLaunchInputs,
+    ) {
+        let store = self.runtime_store.clone();
+        let inbox = self.inbox.clone();
+        let runtime = tokio::runtime::Handle::current();
+        let validation_record = record.clone();
+        tokio::spawn(async move {
+            let result = tokio::task::spawn_blocking(move || {
+                runtime.block_on(
+                    crate::managed_workspace::workflow::launch::revalidate_at_spawn_boundary(
+                        &store,
+                        &validation_record,
+                    ),
+                )
+            })
+            .await
+            .map_err(|error| HostError::state(error.to_string()))
+            .and_then(|result| result.map_err(|error| HostError::state(error.to_string())));
+            let _ = inbox.send(super::ServerCommand::WorkflowLaunch(
+                WorkflowLaunchCommand::SpawnValidated(Box::new(ValidatedWorkflowLaunch {
+                    client_id,
+                    request_id,
+                    record,
+                    token,
+                    locks,
+                    frozen,
+                    result,
+                })),
+            ));
+        });
+    }
+
+    async fn handle_workflow_launch_spawn_validated(&mut self, validated: ValidatedWorkflowLaunch) {
+        let result = match validated.result {
+            Ok(()) => {
+                self.spawn_workflow_launch(&validated.record, &validated.token, validated.frozen)
+                    .await
+            }
             Err(error) => Err(error),
         };
+        self.finish_workflow_launch(
+            validated.client_id,
+            validated.request_id,
+            validated.record,
+            validated.locks,
+            result,
+        )
+        .await;
+    }
+
+    async fn finish_workflow_launch(
+        &mut self,
+        client_id: u64,
+        request_id: i64,
+        record: WorkflowLaunchRecord,
+        locks: [File; 2],
+        result: HostResult<WorkflowLaunchRecord>,
+    ) {
         // Process teardown and durable settlement finish before releasing the fences.
         let result = match result {
             Ok(record) => Ok(json!(record)),
