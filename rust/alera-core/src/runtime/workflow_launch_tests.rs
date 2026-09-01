@@ -3,6 +3,7 @@ use super::workflow_plan_tests::{decision, fixture, valid_profile};
 use super::*;
 use crate::workflow_approval::WorkflowDecision;
 
+mod cancellation_capacity_tests;
 mod run_board_projection_tests;
 mod stall_recovery_tests;
 

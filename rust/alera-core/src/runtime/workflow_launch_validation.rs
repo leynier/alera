@@ -74,11 +74,16 @@ pub(super) async fn inputs(
     if !dispatched && source.dispatch_id.is_some() {
         bail!("workflow attempt was already dispatched");
     }
-    let active: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM workflowWorkspaces x
+    let active: i64 = sqlx::query_scalar(
+        "SELECT COUNT(*) FROM workflowWorkspaces x
         WHERE x.run_id = ? AND x.revision = ? AND x.task_id IS NOT NULL AND x.phase <> 'attention'
           AND NOT EXISTS(SELECT 1 FROM orchestrationDispatchContexts d WHERE d.id = x.dispatch_id
-            AND d.status IN ('completed','failed','startup_failed','cancelled','superseded','circuit_broken'))")
-        .bind(&request.run_id).bind(request.revision).fetch_one(&mut **tx).await?;
+            AND d.status IN ('completed','failed','startup_failed','superseded','circuit_broken'))",
+    )
+    .bind(&request.run_id)
+    .bind(request.revision)
+    .fetch_one(&mut **tx)
+    .await?;
     if active > i64::from(plan.max_concurrent) {
         bail!("workflow concurrency limit reached");
     }

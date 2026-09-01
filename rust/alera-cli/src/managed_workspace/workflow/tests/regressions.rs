@@ -44,6 +44,82 @@ async fn workflow_worktrees_reservations_are_idempotent_and_concurrency_is_bound
 }
 
 #[tokio::test]
+async fn workflow_worktrees_count_cancelled_workers_until_settlement() {
+    let fixture = Fixture::new("").await;
+    fixture.integration().await;
+    let first = fixture.task("fix").await;
+    let first_task = fixture.task_id("fix").await;
+    let request = LaunchWorkflowTask {
+        request_id: "launch-cancelled-worker".into(),
+        run_id: fixture.plan.run_id.clone(),
+        revision: fixture.plan.revision,
+        task_id: first_task.clone(),
+        workspace_id: first.identity.workspace.id.clone(),
+    };
+    let (launch, _) = fixture
+        .store
+        .reserve_workflow_launch(&request, &"a".repeat(64))
+        .await
+        .unwrap();
+    fixture
+        .store
+        .claim_workflow_launch(&launch.id)
+        .await
+        .unwrap();
+    fixture
+        .store
+        .mark_workflow_launch_started(&launch.id)
+        .await
+        .unwrap();
+    fixture
+        .store
+        .accept_orchestration_dispatch(
+            &launch.dispatch_id,
+            &launch.terminal_handle,
+            &"a".repeat(64),
+        )
+        .await
+        .unwrap();
+    fixture
+        .store
+        .cancel_orchestration_task(&first_task, "cancelled by user")
+        .await
+        .unwrap();
+    assert_eq!(
+        fixture
+            .store
+            .workflow_workspace(&first.identity.workspace.id)
+            .await
+            .unwrap()
+            .phase,
+        Phase::Ready
+    );
+
+    fixture.task("other").await;
+    let blocked = fixture.request(Some("spare"), None).await.unwrap_err();
+    assert!(blocked.to_string().contains("concurrency"));
+
+    fixture
+        .store
+        .settle_workflow_launch_without_session(
+            &launch.terminal_handle,
+            "The cancelled worker was terminated.",
+        )
+        .await
+        .unwrap();
+    assert_eq!(
+        fixture
+            .store
+            .workflow_workspace(&first.identity.workspace.id)
+            .await
+            .unwrap()
+            .phase,
+        Phase::Attention
+    );
+    assert_eq!(fixture.task("spare").await.phase, Phase::Ready);
+}
+
+#[tokio::test]
 async fn workflow_worktrees_attention_is_aggregated_and_ownership_survives_reset() {
     let fixture = Fixture::new("exit 7").await;
     let integration = fixture.integration().await;
