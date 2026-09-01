@@ -247,3 +247,55 @@ async fn workflow_launch_projects_active_attempts_without_masking_a_ready_result
         "result_ready"
     );
 }
+
+#[tokio::test]
+async fn workflow_stalls_override_the_started_launch_in_task_projections() {
+    let (_dir, store, request) = prepared().await;
+    let (launch, _) = store
+        .reserve_workflow_launch(&request, &"a".repeat(64))
+        .await
+        .unwrap();
+    store.claim_workflow_launch(&launch.id).await.unwrap();
+    store
+        .mark_workflow_launch_started(&launch.id)
+        .await
+        .unwrap();
+    store
+        .accept_orchestration_dispatch(
+            &launch.dispatch_id,
+            &launch.terminal_handle,
+            &"a".repeat(64),
+        )
+        .await
+        .unwrap();
+
+    let stalled = store
+        .stall_expired_orchestration_dispatches("2999-01-01 00:00:00")
+        .await
+        .unwrap();
+    assert_eq!(stalled.len(), 1);
+    assert_eq!(
+        store.workflow_launch(&launch.id).await.unwrap().status,
+        WorkflowLaunchStatus::Started
+    );
+    assert_eq!(
+        store
+            .orchestration_task_by_id(&request.task_id)
+            .await
+            .unwrap()
+            .unwrap()
+            .status,
+        OrchestrationTaskStatus::Stalled
+    );
+    assert_eq!(
+        store
+            .orchestration_dispatch_by_id(&launch.dispatch_id)
+            .await
+            .unwrap()
+            .unwrap()
+            .status,
+        OrchestrationDispatchStatus::Stalled
+    );
+    assert_eq!(inspect_workflow(&store, &request).await.state, "stalled");
+    assert_eq!(snapshot_workflow_state(&store, &request).await, "stalled");
+}

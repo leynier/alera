@@ -287,6 +287,8 @@ async fn inspect_workflow_task(
         "attention"
     } else if task_state == "completed" && has_result {
         "result_ready"
+    } else if task_state == "stalled" {
+        "stalled"
     } else {
         match launch_state.as_deref() {
             Some(state @ ("reserved" | "starting" | "started")) => state,
