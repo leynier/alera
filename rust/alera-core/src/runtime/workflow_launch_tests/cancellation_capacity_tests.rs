@@ -1,6 +1,57 @@
 use super::*;
 
 #[tokio::test]
+async fn cancelled_prepared_workflow_attempt_releases_capacity_before_launch() {
+    let (dir, store, mut proposal) = fixture(false).await;
+    proposal.proposal.max_concurrent = 1;
+    let mut other = proposal.proposal.tasks[0].clone();
+    other.id = "other".into();
+    other.title = "Other independent task".into();
+    proposal.proposal.tasks.insert(1, other);
+    let plan = store
+        .prepare_workflow_plan(proposal, valid_profile)
+        .await
+        .unwrap();
+    decision(dir.path(), &store, &plan, WorkflowDecision::Approve).await;
+    ready_workspace(&dir, &store, &plan, None).await;
+    let first_task: String = sqlx::query_scalar(
+        "SELECT task_id FROM workflowPlanTasks WHERE run_id = ? AND logical_id = 'fix'",
+    )
+    .bind(&plan.run_id)
+    .fetch_one(store.pool())
+    .await
+    .unwrap();
+    let other_task: String = sqlx::query_scalar(
+        "SELECT task_id FROM workflowPlanTasks WHERE run_id = ? AND logical_id = 'other'",
+    )
+    .bind(&plan.run_id)
+    .fetch_one(store.pool())
+    .await
+    .unwrap();
+    let first_workspace = ready_workspace(&dir, &store, &plan, Some(first_task.clone())).await;
+    store
+        .cancel_orchestration_task(&first_task, "cancelled before launch")
+        .await
+        .unwrap();
+    let first_workspace = store
+        .workflow_workspace(&first_workspace.identity.workspace.id)
+        .await
+        .unwrap();
+    assert_eq!(first_workspace.phase, WorkflowWorkspacePhase::Ready);
+    assert!(first_workspace.dispatch_id.is_none());
+
+    let other_workspace = ready_workspace(&dir, &store, &plan, Some(other_task.clone())).await;
+    let other_request = LaunchWorkflowTask {
+        request_id: "launch-other".into(),
+        run_id: plan.run_id,
+        revision: plan.revision,
+        task_id: other_task,
+        workspace_id: other_workspace.identity.workspace.id,
+    };
+    assert!(store.validate_workflow_launch(&other_request).await.is_ok());
+}
+
+#[tokio::test]
 async fn cancelled_workflow_attempt_holds_capacity_until_settlement() {
     let (dir, store, mut proposal) = fixture(false).await;
     proposal.proposal.max_concurrent = 1;

@@ -173,11 +173,21 @@ impl ServerActor {
                     &error.wire_message(),
                 )
                 .await;
-                self.runtime_store
+                let result = self
+                    .runtime_store
                     .workflow_launch_attention(&record.id, &error.wire_message())
                     .await
                     .map(|record| json!(record))
-                    .map_err(|error| HostError::state(error.to_string()))
+                    .map_err(|error| HostError::state(error.to_string()));
+                if self
+                    .runtime_store
+                    .find_workspace_tab(&record.terminal_handle)
+                    .await
+                    .is_ok_and(|tab| tab.is_some())
+                {
+                    self.broadcast_workspace_tabs_changed(Some(&record.request.workspace_id));
+                }
+                result
             }
         };
         drop(locks);

@@ -149,6 +149,8 @@ impl RuntimeStore {
             if existing_id.is_none() {
                 let active: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM workflowWorkspaces x
                     WHERE x.run_id = ? AND x.revision = ? AND x.task_id IS NOT NULL AND x.phase <> 'attention'
+                      AND NOT (x.dispatch_id IS NULL AND EXISTS(SELECT 1 FROM orchestrationTasks t
+                        WHERE t.id = x.task_id AND t.status = 'cancelled'))
                       AND NOT EXISTS(SELECT 1 FROM orchestrationDispatchContexts d WHERE d.id = x.dispatch_id
                         AND d.status IN ('completed','failed','startup_failed','superseded','circuit_broken'))")
                     .bind(&request.run_id).bind(request.revision).fetch_one(&mut *tx).await?;

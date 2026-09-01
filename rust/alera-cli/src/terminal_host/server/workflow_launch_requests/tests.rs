@@ -15,6 +15,7 @@ mod completion;
 mod final_preflight;
 mod recovery;
 mod reset;
+mod spawn_failure;
 
 async fn prepared(fixture: &Fixture) -> (LaunchWorkflowTask, PreparedLaunch) {
     fixture.integration().await;
