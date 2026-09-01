@@ -263,6 +263,37 @@ fn workflow_integration_rejects_dirty_source_and_target_without_staging() {
 }
 
 #[test]
+fn workflow_integration_rejects_dirty_source_after_receipt_persisted() {
+    let fixture = Fixture::new();
+    let request = fixture.request(&[("result.txt", "done\n")]);
+    prepared(&request);
+    let integration = Repository::open(&fixture.integration.path).unwrap();
+    fs::write(
+        Path::new(&fixture.source.path).join("uncommitted.txt"),
+        "retain",
+    )
+    .unwrap();
+
+    for error in [
+        prepare_workflow_integration(&request).unwrap_err(),
+        apply_workflow_integration(&request).unwrap_err(),
+    ] {
+        assert!(error.to_string().contains("pending changes"));
+    }
+    assert_eq!(
+        head_oid(&integration).unwrap().to_string(),
+        request.expected_sha
+    );
+    assert!(!Path::new(&fixture.integration.path)
+        .join("result.txt")
+        .exists());
+    assert_eq!(
+        fs::read_to_string(Path::new(&fixture.source.path).join("uncommitted.txt")).unwrap(),
+        "retain"
+    );
+}
+
+#[test]
 fn workflow_integration_rejects_head_drift_and_changed_receipt_identity() {
     let fixture = Fixture::new();
     let request = fixture.request(&[("result.txt", "done\n")]);

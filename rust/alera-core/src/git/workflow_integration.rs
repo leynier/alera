@@ -67,6 +67,11 @@ pub fn prepare_workflow_integration(
     request.validate()?;
     let repo = Repository::open(&request.integration.path).map_err(GitError::from_git2)?;
     request.verify_resources()?;
+    if !is_worktree_clean(&request.source.path)? {
+        return Err(invalid(
+            "commit or inspect pending changes before integrating",
+        ));
+    }
     if let Some(receipt) = receipt::load(&repo, request)? {
         return Ok(WorkflowGitPreparation::Ready {
             receipt: Box::new(receipt),
@@ -75,10 +80,7 @@ pub fn prepare_workflow_integration(
     if head_oid(&repo)? != oid(&request.expected_sha)? {
         return Err(invalid("integration head differs from its reserved SHA"));
     }
-    if repo.state() != RepositoryState::Clean
-        || !is_worktree_clean(&request.integration.path)?
-        || !is_worktree_clean(&request.source.path)?
-    {
+    if repo.state() != RepositoryState::Clean || !is_worktree_clean(&request.integration.path)? {
         return Err(invalid(
             "commit or inspect pending changes before integrating",
         ));
@@ -185,6 +187,11 @@ pub fn apply_workflow_integration(
 ) -> Result<WorkflowIntegrationReceipt, GitError> {
     request.validate()?;
     request.verify_resources()?;
+    if !is_worktree_clean(&request.source.path)? {
+        return Err(invalid(
+            "commit or inspect pending changes before integrating",
+        ));
+    }
     let repo = Repository::open(&request.integration.path).map_err(GitError::from_git2)?;
     let receipt = receipt::load(&repo, request)?
         .ok_or_else(|| invalid("integration has no durable Git receipt"))?;

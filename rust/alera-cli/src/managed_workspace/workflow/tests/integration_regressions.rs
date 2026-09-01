@@ -176,6 +176,66 @@ async fn workflow_integration_rejects_uncommitted_changes_added_after_completion
 }
 
 #[tokio::test]
+async fn workflow_integration_does_not_apply_prepared_receipt_after_source_becomes_dirty() {
+    let fixture = Fixture::new("").await;
+    let target = fixture.integration().await;
+    let (input, _) = completed(&fixture, "fix", "completed\n").await;
+    let source = fixture
+        .store
+        .workflow_workspace(&input.workspace_id)
+        .await
+        .unwrap();
+    let record = fixture
+        .store
+        .reserve_workflow_integration(&input)
+        .await
+        .unwrap();
+    let outcome = core_git::prepare_workflow_integration(&record.request).unwrap();
+    fixture
+        .store
+        .record_workflow_integration_preparation(&record.request.id, &outcome)
+        .await
+        .unwrap();
+    std::fs::write(
+        Path::new(&source.identity.workspace.path).join("uncommitted.txt"),
+        "retain",
+    )
+    .unwrap();
+
+    let result = integration::integrate(&fixture.store, &fixture.runtime, input)
+        .await
+        .unwrap();
+    assert_eq!(result.state, WorkflowIntegrationState::Attention);
+    assert!(result.error.unwrap().contains("pending changes"));
+    let target_repo = git2::Repository::open(&target.identity.workspace.path).unwrap();
+    assert_eq!(
+        target_repo
+            .head()
+            .unwrap()
+            .peel_to_commit()
+            .unwrap()
+            .id()
+            .to_string(),
+        record.request.expected_sha
+    );
+    assert_eq!(
+        fixture
+            .store
+            .orchestration_task_by_id(&fixture.task_id("verify").await)
+            .await
+            .unwrap()
+            .unwrap()
+            .status,
+        OrchestrationTaskStatus::Pending
+    );
+    assert_eq!(
+        std::fs::read_to_string(Path::new(&source.identity.workspace.path).join("uncommitted.txt"))
+            .unwrap(),
+        "retain"
+    );
+}
+
+#[tokio::test]
 async fn workflow_integration_service_replays_and_prepares_dependents_at_the_integrated_sha() {
     let fixture = Fixture::new("").await;
     fixture.integration().await;
