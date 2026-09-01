@@ -121,6 +121,57 @@ fn commit_shared(path: &str, content: &str, message: &str) -> String {
 }
 
 #[tokio::test]
+async fn workflow_task_preparation_waits_for_integration_before_reserving() {
+    let fixture = Fixture::new("").await;
+    let target = fixture.integration().await;
+    let (input, _) = completed(&fixture, "fix", "fixed\n").await;
+    let other_task = fixture.task_id("other").await;
+    let request = PrepareWorkflowWorkspace {
+        request_id: Uuid::new_v4().to_string(),
+        run_id: fixture.plan.run_id.clone(),
+        revision: 1,
+        task_id: Some(other_task.clone()),
+        retry_of: None,
+    };
+    let integration_lock = resource_lock(&fixture.runtime, &target.identity.workspace.id)
+        .unwrap()
+        .unwrap();
+
+    assert!(prepare(&fixture.store, &fixture.runtime, request.clone())
+        .await
+        .unwrap_err()
+        .to_string()
+        .contains("integration is busy"));
+    let reserved: i64 =
+        sqlx::query_scalar("SELECT COUNT(*) FROM workflowWorkspaces WHERE task_id = ?")
+            .bind(&other_task)
+            .fetch_one(fixture.store.pool())
+            .await
+            .unwrap();
+    assert_eq!(reserved, 0);
+
+    drop(integration_lock);
+    let integrated = integration::integrate(&fixture.store, &fixture.runtime, input)
+        .await
+        .unwrap();
+    let integrated_sha = integrated.receipt.unwrap().integrated_sha;
+    let attempt = prepare(&fixture.store, &fixture.runtime, request)
+        .await
+        .unwrap();
+    assert_eq!(attempt.identity.base_sha, integrated_sha);
+    assert_eq!(
+        core_git::verify_workflow_worktree_tip(
+            &attempt.identity.repo_path,
+            &attempt.identity.workspace.path,
+            &attempt.identity.base_sha,
+            &attempt.identity.workspace.id,
+        )
+        .unwrap(),
+        integrated_sha
+    );
+}
+
+#[tokio::test]
 async fn workflow_integration_rejects_a_commit_added_after_result_completion() {
     let fixture = Fixture::new("").await;
     let target = fixture.integration().await;

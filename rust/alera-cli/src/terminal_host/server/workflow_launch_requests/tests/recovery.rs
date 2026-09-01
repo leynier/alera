@@ -4,9 +4,10 @@ use super::*;
 async fn workflow_launch_restart_settles_a_dispatch_that_already_failed() {
     let fixture = Fixture::new("").await;
     let (input, prepared) = prepared(&fixture).await;
-    let PreparedLaunch::Fresh { record, .. } = prepared else {
+    let PreparedLaunch::Fresh { record, locks, .. } = prepared else {
         panic!("fresh launch required")
     };
+    drop(locks);
     fixture
         .store
         .claim_workflow_launch(&record.id)

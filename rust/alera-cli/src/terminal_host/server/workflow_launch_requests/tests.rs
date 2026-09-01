@@ -196,9 +196,10 @@ async fn workflow_launch_claim_restore_and_restart_never_duplicate_a_worker() {
 async fn workflow_launch_restart_before_spawn_retains_attention_and_requires_fresh_attempt() {
     let fixture = Fixture::new("").await;
     let (input, prepared) = prepared(&fixture).await;
-    let PreparedLaunch::Fresh { record, .. } = prepared else {
+    let PreparedLaunch::Fresh { record, locks, .. } = prepared else {
         panic!("fresh launch required")
     };
+    drop(locks);
     let dir = tempfile::tempdir().unwrap();
     let mut actor = test_actor(&dir, HashMap::new(), HashMap::new()).await;
     actor.runtime_store = fixture.store.clone();

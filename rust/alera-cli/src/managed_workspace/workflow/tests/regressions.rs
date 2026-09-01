@@ -270,3 +270,40 @@ async fn workflow_worktrees_recovery_skips_live_setup_and_does_not_repeat_comman
         Phase::Attention
     );
 }
+
+#[tokio::test]
+async fn workflow_worktrees_recovery_waits_for_the_integration_lock() {
+    let fixture = Fixture::new("").await;
+    let integration = fixture.integration().await;
+    let record = fixture.reserve("fix").await;
+    let integration_lock = resource_lock(&fixture.runtime, &integration.identity.workspace.id)
+        .unwrap()
+        .unwrap();
+
+    recovery::reconcile(&fixture.store, &fixture.runtime)
+        .await
+        .unwrap();
+    assert_eq!(
+        fixture
+            .store
+            .workflow_workspace(&record.identity.workspace.id)
+            .await
+            .unwrap()
+            .phase,
+        Phase::Reserved
+    );
+
+    drop(integration_lock);
+    recovery::reconcile(&fixture.store, &fixture.runtime)
+        .await
+        .unwrap();
+    assert_eq!(
+        fixture
+            .store
+            .workflow_workspace(&record.identity.workspace.id)
+            .await
+            .unwrap()
+            .phase,
+        Phase::Ready
+    );
+}
