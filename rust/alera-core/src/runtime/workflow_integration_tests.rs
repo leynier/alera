@@ -10,6 +10,79 @@ pub(super) mod fixture;
 use fixture::Fixture;
 
 #[tokio::test]
+async fn workflow_completion_retains_one_exact_result_sha_across_retries_and_restart() {
+    let fixture = Fixture::new().await;
+    let completed = fixture
+        .store
+        .orchestration_dispatch_by_id(&fixture.dispatch)
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(
+        completed.completion_sha.as_deref(),
+        Some(fixture.source_sha.as_str())
+    );
+    let result: String = sqlx::query_scalar("SELECT result FROM orchestrationTasks WHERE id = ?")
+        .bind(&fixture.input.task_id)
+        .fetch_one(fixture.store.pool())
+        .await
+        .unwrap();
+    let repeated = fixture
+        .store
+        .complete_workflow_orchestration_dispatch(
+            &fixture.dispatch,
+            completed.assignee_handle.as_deref().unwrap(),
+            &result,
+            &fixture.source_sha,
+        )
+        .await
+        .unwrap();
+    assert_eq!(repeated.completion_sha, completed.completion_sha);
+    assert!(fixture
+        .store
+        .complete_workflow_orchestration_dispatch(
+            &fixture.dispatch,
+            completed.assignee_handle.as_deref().unwrap(),
+            &result,
+            &"f".repeat(40),
+        )
+        .await
+        .unwrap_err()
+        .to_string()
+        .contains("committed result SHA changed"));
+    assert!(fixture
+        .store
+        .complete_orchestration_dispatch(
+            &fixture.dispatch,
+            completed.assignee_handle.as_deref().unwrap(),
+            &result,
+        )
+        .await
+        .unwrap_err()
+        .to_string()
+        .contains("must include its exact result SHA"));
+    assert!(sqlx::query(
+        "UPDATE orchestrationDispatchContexts SET completion_sha = ? WHERE id = ?",
+    )
+    .bind("f".repeat(40))
+    .bind(&fixture.dispatch)
+    .execute(fixture.store.pool())
+    .await
+    .is_err());
+    let reopened = RuntimeStore::open(fixture.directory.path()).await.unwrap();
+    assert_eq!(
+        reopened
+            .orchestration_dispatch_by_id(&fixture.dispatch)
+            .await
+            .unwrap()
+            .unwrap()
+            .completion_sha
+            .as_deref(),
+        Some(fixture.source_sha.as_str())
+    );
+}
+
+#[tokio::test]
 async fn workflow_integration_store_defers_dependencies_until_git_and_evidence_commit() {
     let fixture = Fixture::new().await;
     let snapshot = fixture
@@ -119,7 +192,7 @@ async fn workflow_integration_store_defers_dependencies_until_git_and_evidence_c
     other_id.request_id = "second integration".into();
     assert!(fixture
         .store
-        .reserve_workflow_integration(&other_id, &fixture.source_sha)
+        .reserve_workflow_integration(&other_id)
         .await
         .unwrap_err()
         .to_string()
@@ -172,7 +245,7 @@ async fn workflow_integration_store_reconciles_git_before_database_after_restart
     let receipt = apply_workflow_integration(&record.request).unwrap();
     let reopened = RuntimeStore::open(fixture.directory.path()).await.unwrap();
     let recovered = reopened
-        .reserve_workflow_integration(&fixture.input, &fixture.source_sha)
+        .reserve_workflow_integration(&fixture.input)
         .await
         .unwrap();
     assert_eq!(recovered.state, WorkflowIntegrationState::Pending);
@@ -198,12 +271,8 @@ async fn workflow_integration_store_reconciles_git_before_database_after_restart
 async fn workflow_integration_store_serializes_and_binds_request_replay() {
     let fixture = Fixture::new().await;
     let (first, second) = tokio::join!(
-        fixture
-            .store
-            .reserve_workflow_integration(&fixture.input, &fixture.source_sha),
-        fixture
-            .store
-            .reserve_workflow_integration(&fixture.input, &fixture.source_sha),
+        fixture.store.reserve_workflow_integration(&fixture.input),
+        fixture.store.reserve_workflow_integration(&fixture.input),
     );
     let first = first.unwrap();
     assert_eq!(first.request, second.unwrap().request);
@@ -211,7 +280,7 @@ async fn workflow_integration_store_serializes_and_binds_request_replay() {
     changed.revision = 2;
     assert!(fixture
         .store
-        .reserve_workflow_integration(&changed, &fixture.source_sha)
+        .reserve_workflow_integration(&changed)
         .await
         .unwrap_err()
         .to_string()
@@ -220,7 +289,7 @@ async fn workflow_integration_store_serializes_and_binds_request_replay() {
     changed.request_id = "another operation".into();
     assert!(fixture
         .store
-        .reserve_workflow_integration(&changed, &fixture.source_sha)
+        .reserve_workflow_integration(&changed)
         .await
         .is_err());
     fixture
@@ -230,7 +299,7 @@ async fn workflow_integration_store_serializes_and_binds_request_replay() {
         .unwrap();
     assert!(fixture
         .store
-        .reserve_workflow_integration(&changed, &fixture.source_sha)
+        .reserve_workflow_integration(&changed)
         .await
         .is_err());
 }
@@ -334,7 +403,7 @@ async fn workflow_integration_store_rejects_foreign_attempt_and_dispatch() {
     wrong.task_id = fixture.dependent.clone();
     assert!(fixture
         .store
-        .reserve_workflow_integration(&wrong, &fixture.source_sha)
+        .reserve_workflow_integration(&wrong)
         .await
         .is_err());
     assert!(sqlx::query(
@@ -346,7 +415,7 @@ async fn workflow_integration_store_rejects_foreign_attempt_and_dispatch() {
     .is_err());
     assert!(fixture
         .store
-        .reserve_workflow_integration(&fixture.input, &fixture.source_sha)
+        .reserve_workflow_integration(&fixture.input)
         .await
         .is_ok());
 }

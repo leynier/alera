@@ -11,6 +11,8 @@ use crate::managed_workspace::workflow::{launch, tests::fixture::Fixture};
 use crate::terminal_host::client::ClientHandle;
 use crate::terminal_host::server::actor_test_harness::{local_client, test_actor};
 
+mod completion;
+
 async fn prepared(fixture: &Fixture) -> (LaunchWorkflowTask, PreparedLaunch) {
     fixture.integration().await;
     let workspace = fixture.task("fix").await;

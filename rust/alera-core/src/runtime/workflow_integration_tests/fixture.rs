@@ -105,10 +105,11 @@ impl Fixture {
             "filesModified":["result.txt"], "validation":contract.checklist.iter()
                 .map(|c| json!({"id":c.id,"passed":true,"evidence":"focused checks passed"})).collect::<Vec<_>>()});
         store
-            .complete_orchestration_dispatch(
+            .complete_workflow_orchestration_dispatch(
                 &dispatch,
                 &launch.terminal_handle,
                 &result.to_string(),
+                &source_sha,
             )
             .await
             .unwrap();
@@ -132,7 +133,7 @@ impl Fixture {
 
     pub async fn reserve(&self) -> WorkflowIntegrationRecord {
         self.store
-            .reserve_workflow_integration(&self.input, &self.source_sha)
+            .reserve_workflow_integration(&self.input)
             .await
             .unwrap()
     }

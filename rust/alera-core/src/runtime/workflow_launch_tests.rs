@@ -259,11 +259,14 @@ async fn workflow_launch_recovery_page_excludes_terminal_history() {
             .status,
         WorkflowLaunchStatus::Started
     );
-    sqlx::query("UPDATE orchestrationDispatchContexts SET status = 'completed' WHERE id = ?")
-        .bind(&launch.dispatch_id)
-        .execute(store.pool())
-        .await
-        .unwrap();
+    sqlx::query(
+        "UPDATE orchestrationDispatchContexts SET status = 'completed', completion_sha = ? WHERE id = ?",
+    )
+    .bind("0".repeat(40))
+    .bind(&launch.dispatch_id)
+    .execute(store.pool())
+    .await
+    .unwrap();
     assert!(store
         .workflow_launch_recovery_page(0)
         .await

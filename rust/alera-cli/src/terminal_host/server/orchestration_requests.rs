@@ -1472,10 +1472,8 @@ impl ServerActor {
             ));
         }
         let completed = self
-            .runtime_store
-            .complete_orchestration_dispatch(&dispatch.id, &assignee, &result_json)
-            .await
-            .map_err(state_error)?;
+            .complete_dispatch_result(&dispatch, &assignee, &result_json)
+            .await?;
         self.apply_terminal_completion_policy(&assignee, &completed.terminal_policy)
             .await?;
         Ok(json!({
@@ -1538,10 +1536,8 @@ impl ServerActor {
         let result_json =
             serde_json::to_string(result).map_err(|error| HostError::format(error.to_string()))?;
         let completed = self
-            .runtime_store
-            .complete_orchestration_dispatch(&dispatch_id, &terminal, &result_json)
-            .await
-            .map_err(state_error)?;
+            .complete_dispatch_result(&dispatch, &terminal, &result_json)
+            .await?;
         self.apply_terminal_completion_policy(&terminal, &completed.terminal_policy)
             .await?;
         Ok(json!({

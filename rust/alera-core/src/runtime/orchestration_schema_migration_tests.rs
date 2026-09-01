@@ -136,6 +136,7 @@ async fn legacy_orchestration_schema_migrates_without_losing_records() {
         .unwrap()
         .unwrap();
     assert_eq!(dispatch.workspace_id, "global");
+    assert!(dispatch.completion_sha.is_none());
     assert_eq!(
         dispatch.accepted_at.as_deref(),
         dispatch.dispatched_at.as_deref()

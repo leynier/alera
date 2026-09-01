@@ -79,4 +79,11 @@ const SCHEMA: &[&str] = &[
             OR OLD.workspace_id IS NOT NEW.workspace_id OR OLD.assignee_handle IS NOT NEW.assignee_handle
             OR OLD.coordinator_handle IS NOT NEW.coordinator_handle OR OLD.context_token_hash IS NOT NEW.context_token_hash)
         BEGIN SELECT RAISE(ABORT, 'workflow dispatch identity is immutable'); END",
+    "CREATE TRIGGER IF NOT EXISTS workflowCompletionShaImmutable BEFORE UPDATE OF completion_sha ON orchestrationDispatchContexts
+        WHEN OLD.completion_sha IS NOT NULL AND NEW.completion_sha IS NOT OLD.completion_sha
+        BEGIN SELECT RAISE(ABORT, 'workflow completion SHA is immutable'); END",
+    "CREATE TRIGGER IF NOT EXISTS workflowCompletionShaRequired BEFORE UPDATE OF status ON orchestrationDispatchContexts
+        WHEN NEW.status = 'completed' AND EXISTS(SELECT 1 FROM workflowLaunches WHERE dispatch_id = OLD.id)
+          AND NEW.completion_sha IS NULL
+        BEGIN SELECT RAISE(ABORT, 'workflow completion requires its exact result SHA'); END",
 ];

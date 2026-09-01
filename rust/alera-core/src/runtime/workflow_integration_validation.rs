@@ -12,7 +12,6 @@ use crate::git::{WorkflowGitResource, WorkflowIntegrationRequest};
 pub(super) async fn capture(
     tx: &mut Transaction<'_, Sqlite>,
     input: &IntegrateWorkflowResult,
-    source_sha: &str,
     id: String,
 ) -> Result<WorkflowIntegrationRequest> {
     let (plan, expected_sha) = approved_plan(tx, &input.run_id, input.revision).await?;
@@ -48,7 +47,7 @@ pub(super) async fn capture(
         .as_ref()
         .ok_or_else(|| anyhow!("workflow attempt has not been dispatched"))?;
     let row = sqlx::query(
-        "SELECT t.result, p.frozen_task FROM workflowPlanTasks p
+        "SELECT t.result, p.frozen_task, d.completion_sha FROM workflowPlanTasks p
         JOIN orchestrationTasks t ON t.id = p.task_id
         JOIN orchestrationDispatchContexts d ON d.task_id = t.id
         WHERE p.run_id = ? AND p.revision = ? AND p.task_id = ?
@@ -67,6 +66,16 @@ pub(super) async fn capture(
         anyhow!("integration requires a completed result from this isolated dispatch")
     })?;
     let result: Option<String> = row.try_get("result")?;
+    let source_sha: String = row
+        .try_get::<Option<String>, _>("completion_sha")?
+        .ok_or_else(|| anyhow!("workflow completion is missing its committed result SHA"))?;
+    if source_sha.len() != 40
+        || !source_sha
+            .bytes()
+            .all(|byte| byte.is_ascii_hexdigit() && !byte.is_ascii_uppercase())
+    {
+        bail!("workflow completion has an invalid committed result SHA");
+    }
     let raw = result
         .as_ref()
         .ok_or_else(|| anyhow!("workflow result is missing"))?;
@@ -94,7 +103,7 @@ pub(super) async fn capture(
         integration: resource(&integration),
         source: resource(&source),
         expected_sha,
-        source_sha: source_sha.into(),
+        source_sha,
         result_digest: workflow_digest(&result)?,
         artifacts,
     })
@@ -113,7 +122,6 @@ pub(super) async fn require_current(
             task_id: request.task_id.clone(),
             workspace_id: request.source.id.clone(),
         },
-        &request.source_sha,
         request.id.clone(),
     )
     .await?;

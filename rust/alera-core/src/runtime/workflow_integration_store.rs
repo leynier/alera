@@ -56,11 +56,10 @@ impl RuntimeStore {
             .map(|row| Ok((row.try_get("sequence")?, decode(row)?))).collect()
     }
 
-    /// `source_sha` is captured by the native Git boundary, never accepted from RPC.
+    /// The source SHA comes from the immutable workflow completion receipt.
     pub async fn reserve_workflow_integration(
         &self,
         input: &IntegrateWorkflowResult,
-        source_sha: &str,
     ) -> Result<WorkflowIntegrationRecord> {
         for value in [
             &input.request_id,
@@ -69,13 +68,6 @@ impl RuntimeStore {
             &input.workspace_id,
         ] {
             workflow_text(value, 160)?;
-        }
-        if source_sha.len() != 40
-            || !source_sha
-                .bytes()
-                .all(|b| b.is_ascii_hexdigit() && !b.is_ascii_uppercase())
-        {
-            bail!("integration requires an exact committed result SHA");
         }
         let digest = workflow_digest(input)?;
         let mut tx = self.pool().begin().await?;
@@ -101,7 +93,7 @@ impl RuntimeStore {
         if done {
             bail!("workflow task is already integrated");
         }
-        let request = capture(&mut tx, input, source_sha, uuid::Uuid::new_v4().to_string()).await?;
+        let request = capture(&mut tx, input, uuid::Uuid::new_v4().to_string()).await?;
         sqlx::query("INSERT INTO workflowIntegrations(id,request_id,request_digest,run_id,revision,task_id,workspace_id,request,state)
             VALUES(?,?,?,?,?,?,?,?,'pending')")
             .bind(&request.id).bind(&input.request_id).bind(digest).bind(&input.run_id).bind(input.revision)

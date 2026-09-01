@@ -179,6 +179,8 @@ impl RuntimeStore {
             .await?;
         self.ensure_column("orchestrationDispatchContexts", "agent_quota_group", "TEXT")
             .await?;
+        self.ensure_column("orchestrationDispatchContexts", "completion_sha", "TEXT")
+            .await?;
         for statement in super::runtime_schema::AGENT_PROFILE_REFERENCE_TRIGGERS {
             sqlx::query(*statement).execute(&self.pool).await?;
         }

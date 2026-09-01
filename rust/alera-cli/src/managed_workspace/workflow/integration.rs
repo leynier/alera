@@ -23,14 +23,7 @@ pub(crate) async fn integrate(
     let integration = store.workflow_integration_workspace(&input.run_id).await?;
     let _lock = resource_lock(runtime_dir, &integration.identity.workspace.id)?
         .ok_or_else(|| anyhow!("workflow integration is busy; inspect or retry shortly"))?;
-    let source = store.workflow_workspace(&input.workspace_id).await?;
-    let sha = core_git::verify_workflow_worktree_tip(
-        &source.identity.repo_path,
-        &source.identity.workspace.path,
-        &source.identity.base_sha,
-        &source.identity.workspace.id,
-    )?;
-    let record = store.reserve_workflow_integration(&input, &sha).await?;
+    let record = store.reserve_workflow_integration(&input).await?;
     resume(store, record).await
 }
 

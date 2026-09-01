@@ -79,7 +79,12 @@ async fn completed(
             .map(|c| json!({"id":c.id,"passed":true,"evidence":"focused checks passed"})).collect::<Vec<_>>()});
     fixture
         .store
-        .complete_orchestration_dispatch(&dispatch, &launch.terminal_handle, &result.to_string())
+        .complete_workflow_orchestration_dispatch(
+            &dispatch,
+            &launch.terminal_handle,
+            &result.to_string(),
+            &sha,
+        )
         .await
         .unwrap();
     (
@@ -92,6 +97,82 @@ async fn completed(
         },
         sha,
     )
+}
+
+fn commit_shared(path: &str, content: &str, message: &str) -> String {
+    let repo = git2::Repository::open(path).unwrap();
+    std::fs::write(Path::new(path).join("shared.txt"), content).unwrap();
+    let mut index = repo.index().unwrap();
+    index.add_path(Path::new("shared.txt")).unwrap();
+    index.write().unwrap();
+    let tree = repo.find_tree(index.write_tree().unwrap()).unwrap();
+    let signature = repo.signature().unwrap();
+    let parent = repo.head().unwrap().peel_to_commit().unwrap();
+    repo.commit(
+        Some("HEAD"),
+        &signature,
+        &signature,
+        message,
+        &tree,
+        &[&parent],
+    )
+    .unwrap()
+    .to_string()
+}
+
+#[tokio::test]
+async fn workflow_integration_rejects_a_commit_added_after_result_completion() {
+    let fixture = Fixture::new("").await;
+    let target = fixture.integration().await;
+    let (input, completion_sha) = completed(&fixture, "fix", "completed\n").await;
+    let source = fixture
+        .store
+        .workflow_workspace(&input.workspace_id)
+        .await
+        .unwrap();
+    let late_sha = commit_shared(
+        &source.identity.workspace.path,
+        "late change\n",
+        "test: late change",
+    );
+    assert_ne!(completion_sha, late_sha);
+    let record = integration::integrate(&fixture.store, &fixture.runtime, input)
+        .await
+        .unwrap();
+    assert_eq!(record.state, WorkflowIntegrationState::Attention);
+    assert_eq!(record.request.source_sha, completion_sha);
+    assert!(record
+        .error
+        .unwrap()
+        .contains("changed after result capture"));
+    assert_eq!(
+        std::fs::read_to_string(Path::new(&target.identity.workspace.path).join("shared.txt"))
+            .unwrap(),
+        "initial"
+    );
+}
+
+#[tokio::test]
+async fn workflow_integration_rejects_uncommitted_changes_added_after_completion() {
+    let fixture = Fixture::new("").await;
+    fixture.integration().await;
+    let (input, completion_sha) = completed(&fixture, "fix", "completed\n").await;
+    let source = fixture
+        .store
+        .workflow_workspace(&input.workspace_id)
+        .await
+        .unwrap();
+    std::fs::write(
+        Path::new(&source.identity.workspace.path).join("shared.txt"),
+        "uncommitted late change\n",
+    )
+    .unwrap();
+    let record = integration::integrate(&fixture.store, &fixture.runtime, input)
+        .await
+        .unwrap();
+    assert_eq!(record.state, WorkflowIntegrationState::Attention);
+    assert_eq!(record.request.source_sha, completion_sha);
+    assert!(record.error.unwrap().contains("pending changes"));
 }
 
 #[tokio::test]
@@ -184,10 +265,10 @@ async fn workflow_integration_service_conflict_is_attention_and_preserves_parall
 async fn workflow_integration_service_recovers_git_receipt_after_restart_without_reapplying() {
     let fixture = Fixture::new("").await;
     fixture.integration().await;
-    let (input, sha) = completed(&fixture, "fix", "fixed\n").await;
+    let (input, _) = completed(&fixture, "fix", "fixed\n").await;
     let record = fixture
         .store
-        .reserve_workflow_integration(&input, &sha)
+        .reserve_workflow_integration(&input)
         .await
         .unwrap();
     core_git::prepare_workflow_integration(&record.request).unwrap();
@@ -211,10 +292,10 @@ async fn workflow_integration_service_recovers_git_receipt_after_restart_without
 async fn workflow_integration_service_skips_live_operation_and_retains_dirty_failure() {
     let fixture = Fixture::new("").await;
     let target = fixture.integration().await;
-    let (input, sha) = completed(&fixture, "fix", "fixed\n").await;
+    let (input, _) = completed(&fixture, "fix", "fixed\n").await;
     let record = fixture
         .store
-        .reserve_workflow_integration(&input, &sha)
+        .reserve_workflow_integration(&input)
         .await
         .unwrap();
     let lock = resource_lock(&fixture.runtime, &target.identity.workspace.id)

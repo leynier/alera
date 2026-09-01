@@ -16,7 +16,7 @@ pub const ORCHESTRATION_CIRCUIT_BREAKER_THRESHOLD: i64 = 3;
 const DISPATCH_COLUMNS: &str = "id, task_id, assignee_handle, status, failure_count, \
      last_failure, dispatched_at, completed_at, created_at, last_heartbeat_at, run_id, workspace_id, \
      coordinator_handle, accepted_at, last_activity_at, context_token_hash, completion_policy, \
-     terminal_policy, startup_error, agent_profile, agent_quota_group";
+     terminal_policy, startup_error, completion_sha, agent_profile, agent_quota_group";
 
 const GATE_COLUMNS: &str =
     "id, task_id, question, options, status, resolution, created_at, resolved_at";
@@ -44,6 +44,7 @@ fn dispatch_from_row(row: SqliteRow) -> Result<OrchestrationDispatchContext> {
         completion_policy: row.try_get("completion_policy")?,
         terminal_policy: row.try_get("terminal_policy")?,
         startup_error: row.try_get("startup_error")?,
+        completion_sha: row.try_get("completion_sha")?,
         agent_profile: row.try_get("agent_profile")?,
         agent_quota_group: row.try_get("agent_quota_group")?,
     })
@@ -434,6 +435,40 @@ impl RuntimeStore {
         assignee_handle: &str,
         result: &str,
     ) -> Result<OrchestrationDispatchContext> {
+        self.complete_orchestration_dispatch_at_sha(dispatch_id, assignee_handle, result, None)
+            .await
+    }
+
+    pub async fn complete_workflow_orchestration_dispatch(
+        &self,
+        dispatch_id: &str,
+        assignee_handle: &str,
+        result: &str,
+        completion_sha: &str,
+    ) -> Result<OrchestrationDispatchContext> {
+        if completion_sha.len() != 40
+            || !completion_sha
+                .bytes()
+                .all(|byte| byte.is_ascii_hexdigit() && !byte.is_ascii_uppercase())
+        {
+            bail!("workflow completion requires an exact committed result SHA");
+        }
+        self.complete_orchestration_dispatch_at_sha(
+            dispatch_id,
+            assignee_handle,
+            result,
+            Some(completion_sha),
+        )
+        .await
+    }
+
+    async fn complete_orchestration_dispatch_at_sha(
+        &self,
+        dispatch_id: &str,
+        assignee_handle: &str,
+        result: &str,
+        completion_sha: Option<&str>,
+    ) -> Result<OrchestrationDispatchContext> {
         let mut tx = self.pool().begin().await?;
         let row = sqlx::query(sqlx::AssertSqlSafe(format!(
             "SELECT {DISPATCH_COLUMNS} FROM orchestrationDispatchContexts WHERE id = ?"
@@ -445,6 +480,15 @@ impl RuntimeStore {
             .map(dispatch_from_row)
             .transpose()?
             .ok_or_else(|| anyhow!("dispatch context not found: {dispatch_id}"))?;
+        let workflow_dispatch: bool = sqlx::query_scalar(
+            "SELECT EXISTS(SELECT 1 FROM workflowLaunches WHERE dispatch_id = ?)",
+        )
+        .bind(dispatch_id)
+        .fetch_one(&mut *tx)
+        .await?;
+        if workflow_dispatch != completion_sha.is_some() {
+            bail!("workflow dispatch completion must include its exact result SHA");
+        }
         if ctx.status == OrchestrationDispatchStatus::Completed {
             if ctx.assignee_handle.as_deref() != Some(assignee_handle) {
                 bail!("dispatch completion rejected: inactive context or wrong assignee");
@@ -458,6 +502,9 @@ impl RuntimeStore {
                     .transpose()?;
             if task_status.as_deref() != Some("completed") {
                 bail!("dispatch completion rejected: dispatch closed without task completion");
+            }
+            if ctx.completion_sha.as_deref() != completion_sha {
+                bail!("dispatch completion rejected: committed result SHA changed");
             }
             return Ok(ctx);
         }
@@ -474,8 +521,10 @@ impl RuntimeStore {
         .await?;
         sqlx::query(
             "UPDATE orchestrationDispatchContexts SET status = 'completed', \
-             completed_at = datetime('now'), last_activity_at = datetime('now') WHERE id = ?",
+             completed_at = datetime('now'), last_activity_at = datetime('now'), \
+             completion_sha = ? WHERE id = ?",
         )
+        .bind(completion_sha)
         .bind(dispatch_id)
         .execute(&mut *tx)
         .await?;
