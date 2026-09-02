@@ -161,6 +161,36 @@ class _AiPullRequestButtonState extends State<_AiPullRequestButton> {
   }
 }
 
+class const _ShipPullRequestButton({
+  required final bool shipping,
+  required final bool aiEnabled,
+  required final bool enabled,
+  required final VoidCallback onPressed,
+}) extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: aiEnabled
+          ? 'Commit staged changes and create a pull request'
+          : 'Enable AI Assist to ship staged changes',
+      child: SizedBox(
+        height: _CreatePullRequestButton._height,
+        child: OutlinedButton.icon(
+          key: const Key('pull-request-ship-button'),
+          onPressed: enabled ? onPressed : null,
+          icon: shipping
+              ? const SizedBox.square(
+                  dimension: 14,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : const Icon(AleraIcons.send, size: 16),
+          label: Text(shipping ? 'Shipping' : 'Ship'),
+        ),
+      ),
+    );
+  }
+}
+
 /// Split primary action button matching Source Control (Fetch / Commit).
 ///
 /// Main segment runs the selected create action; the chevron opens a menu with

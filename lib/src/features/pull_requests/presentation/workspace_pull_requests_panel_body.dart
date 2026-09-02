@@ -4,6 +4,7 @@ class const _PullRequestBody({
   required final String repoPath,
   required final WorkspacePullRequestState state,
   required final PullRequestCreateAction createAction,
+  required final AiAssistSettings aiAssistSettings,
   required final WorkspacePullRequestController controller,
   required final Set<String> localWorkspaceBranches,
   required final List<ReviewStackWorkspaceCandidate> stackWorkspaceCandidates,
@@ -104,6 +105,7 @@ class const _PullRequestBody({
       createAction: createAction,
       canCreateStack: canCreateStack,
       creatingStack: state.action == PullRequestAction.createStack,
+      shipping: state.action == PullRequestAction.ship,
       onCreate: (draft) {
         final identity = state.identity;
         final head = state.currentBranch;
@@ -119,6 +121,13 @@ class const _PullRequestBody({
             body: draft.body,
             draft: draft.draft,
           ),
+        );
+      },
+      onShip: ({required String baseBranch, required bool draft}) async {
+        await controller.ship(
+          baseBranch: baseBranch,
+          draft: draft,
+          settings: aiAssistSettings,
         );
       },
       onCreateStack: (draft) =>

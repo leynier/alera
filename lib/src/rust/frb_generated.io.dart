@@ -7,6 +7,7 @@ import 'api/agent_hooks.dart';
 import 'api/ai_dictation.dart';
 import 'api/clipboard.dart';
 import 'api/git.dart';
+import 'api/git/git_branch.dart';
 import 'api/git/git_hosted_review.dart';
 import 'api/git_diff_blob.dart';
 import 'api/git_explorer_status.dart';

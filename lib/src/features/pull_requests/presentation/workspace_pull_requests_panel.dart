@@ -3,6 +3,7 @@ import 'package:alera/src/design_system/buttons/alera_icon_button.dart';
 import 'package:alera/src/design_system/feedback/alera_empty_state.dart';
 import 'package:alera/src/design_system/feedback/alera_toast.dart';
 import 'package:alera/src/design_system/icons/alera_icons.dart';
+import 'package:alera/src/features/ai_assist/domain/ai_assist_settings.dart';
 import 'package:alera/src/features/pull_requests/application/pull_request_providers.dart';
 import 'package:alera/src/features/pull_requests/application/workspace_pull_request_controller.dart';
 import 'package:alera/src/features/pull_requests/application/workspace_pull_request_state.dart';
@@ -15,6 +16,7 @@ import 'package:alera/src/features/pull_requests/presentation/pull_request_compo
 import 'package:alera/src/features/pull_requests/presentation/pull_request_review_view.dart';
 import 'package:alera/src/features/pull_requests/presentation/pull_request_stack_workspace_dialog.dart';
 import 'package:alera/src/features/pull_requests/presentation/workspace_pull_request_stack_candidates.dart';
+import 'package:alera/src/features/settings/application/settings_controller.dart';
 import 'package:alera/src/features/workbench/application/workbench_controller.dart';
 import 'package:alera/src/features/projects/domain/project.dart';
 import 'package:alera/src/features/workbench/domain/workbench_view_prefs.dart';
@@ -166,6 +168,9 @@ class _VisiblePullRequestsPanelState
         (state) => state.viewPrefs.pullRequestCreateAction,
       ),
     );
+    final aiAssistSettings = ref.watch(
+      settingsControllerProvider.select((settings) => settings.aiAssist),
+    );
     return async.when(
       loading: WorkspacePullRequestsPanel._loading,
       error: (error, _) =>
@@ -179,6 +184,7 @@ class _VisiblePullRequestsPanelState
           repoPath: widget.repoPath,
           state: state,
           createAction: createAction,
+          aiAssistSettings: aiAssistSettings,
           controller: _controller,
           localWorkspaceBranches: widget.workspaceByBranch.keys.toSet(),
           stackWorkspaceCandidates: candidates,
