@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 
 import 'package:alera/src/rust/api/git.dart' as rust;
+import 'package:alera/src/rust/api/git/git_branch.dart' as rust_branch;
 import 'package:alera/src/rust/api/git/git_hosted_review.dart'
     as hosted_review_rust;
 import 'package:alera/src/rust/api/git_diff_blob.dart' as rust_blob;
@@ -26,21 +27,24 @@ class const RustGitBackend()
 
   @override
   Future<List<String>> listBranches(String path) =>
-      _guard(() => rust.listBranches(path: path));
+      _guard(() => rust_branch.listBranches(path: path));
 
   @override
   Future<String> currentBranch(String path) =>
-      _guard(() => rust.currentBranch(path: path));
+      _guard(() => rust_branch.currentBranch(path: path));
 
   @override
   Future<void> createAndCheckoutBranch({
     required String path,
     required String branch,
-  }) => _guard(() => rust.createAndCheckoutBranch(path: path, branch: branch));
+  }) => _guard(
+    () => rust_branch.createAndCheckoutBranch(path: path, branch: branch),
+  );
 
   @override
-  Future<bool> branchExists(String repoPath, String branch) =>
-      _guard(() => rust.branchExists(repoPath: repoPath, branch: branch));
+  Future<bool> branchExists(String repoPath, String branch) => _guard(
+    () => rust_branch.branchExists(repoPath: repoPath, branch: branch),
+  );
 
   @override
   Future<bool> isAncestor({
@@ -57,7 +61,7 @@ class const RustGitBackend()
 
   @override
   Future<bool> isValidBranchName(String name) =>
-      _guard(() => rust.isValidBranchName(name: name));
+      _guard(() => rust_branch.isValidBranchName(name: name));
 
   @override
   Future<void> createWorktree({
@@ -81,7 +85,7 @@ class const RustGitBackend()
     required String repoPath,
     required String sourceBranch,
   }) => _guard(
-    () => rust.refreshSourceBranch(
+    () => rust_branch.refreshSourceBranch(
       repoPath: repoPath,
       sourceBranch: sourceBranch,
     ),

@@ -13,26 +13,6 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 Future<bool> isGitRepository({required String path}) =>
     RustLib.instance.api.crateApiGitIsGitRepository(path: path);
 
-Future<List<String>> listBranches({required String path}) =>
-    RustLib.instance.api.crateApiGitListBranches(path: path);
-
-Future<String> currentBranch({required String path}) =>
-    RustLib.instance.api.crateApiGitCurrentBranch(path: path);
-
-Future<void> createAndCheckoutBranch({
-  required String path,
-  required String branch,
-}) => RustLib.instance.api.crateApiGitCreateAndCheckoutBranch(
-  path: path,
-  branch: branch,
-);
-
-Future<bool> branchExists({required String repoPath, required String branch}) =>
-    RustLib.instance.api.crateApiGitBranchExists(
-      repoPath: repoPath,
-      branch: branch,
-    );
-
 Future<bool> isAncestor({
   required String path,
   required String ancestorRef,
@@ -42,9 +22,6 @@ Future<bool> isAncestor({
   ancestorRef: ancestorRef,
   descendantRef: descendantRef,
 );
-
-Future<bool> isValidBranchName({required String name}) =>
-    RustLib.instance.api.crateApiGitIsValidBranchName(name: name);
 
 Future<GitStatusResult> gitStatus({required String path}) =>
     RustLib.instance.api.crateApiGitGitStatus(path: path);
@@ -184,14 +161,6 @@ Future<void> gitFetch({required String path}) =>
 
 Future<void> gitPull({required String path}) =>
     RustLib.instance.api.crateApiGitGitPull(path: path);
-
-Future<void> refreshSourceBranch({
-  required String repoPath,
-  required String sourceBranch,
-}) => RustLib.instance.api.crateApiGitRefreshSourceBranch(
-  repoPath: repoPath,
-  sourceBranch: sourceBranch,
-);
 
 Future<void> gitPush({required String path}) =>
     RustLib.instance.api.crateApiGitGitPush(path: path);

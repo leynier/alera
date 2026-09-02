@@ -36,6 +36,7 @@ class FakeGitBackend
   /// Branches reported by [listBranches] and treated as existing by
   /// [branchExists]. The real backend sorts and de-duplicates; the fake does
   /// too so callers observe the same shape.
+  @override
   List<String> sourceBranches = <String>['main'];
 
   bool listBranchesFails = false;
@@ -45,8 +46,6 @@ class FakeGitBackend
 
   @override
   bool headBranchFails = false;
-
-  GitException? createAndCheckoutBranchError;
 
   /// Per-ref ancestry responses. Unspecified pairs default to true so tests
   /// that do not care about graph shape preserve their existing behavior.
@@ -164,28 +163,6 @@ class FakeGitBackend
     }
     final unique = sourceBranches.toSet().toList()..sort();
     return unique;
-  }
-
-  @override
-  Future<void> createAndCheckoutBranch({
-    required String path,
-    required String branch,
-  }) async {
-    calls.add(
-      GitBackendCall('createAndCheckoutBranch', <String, Object?>{
-        'path': path,
-        'branch': branch,
-      }),
-    );
-    final error = createAndCheckoutBranchError;
-    if (error != null) {
-      throw error;
-    }
-    headBranch = branch;
-    currentBranchesByPath[path] = branch;
-    if (!sourceBranches.contains(branch)) {
-      sourceBranches.add(branch);
-    }
   }
 
   @override

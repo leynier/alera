@@ -10,6 +10,8 @@ use git2::{
 
 #[path = "git_ancestry_impl.rs"]
 mod git_ancestry_impl;
+#[path = "git_branch.rs"]
+pub mod git_branch;
 #[path = "git_commit_state_impl.rs"]
 mod git_commit_state_impl;
 #[path = "git_diff_impl.rs"]
@@ -390,32 +392,12 @@ pub fn is_git_repository(path: String) -> Result<bool, GitError> {
     }
 }
 
-pub fn list_branches(path: String) -> Result<Vec<String>, GitError> {
-    core_git::list_branches(&path).map_err(Into::into)
-}
-
-pub fn current_branch(path: String) -> Result<String, GitError> {
-    core_git::current_branch(&path).map_err(Into::into)
-}
-
-pub fn create_and_checkout_branch(path: String, branch: String) -> Result<(), GitError> {
-    core_git::create_and_checkout_branch(&path, &branch).map_err(Into::into)
-}
-
-pub fn branch_exists(repo_path: String, branch: String) -> Result<bool, GitError> {
-    core_git::branch_exists(&repo_path, &branch).map_err(Into::into)
-}
-
 pub fn is_ancestor(
     path: String,
     ancestor_ref: String,
     descendant_ref: String,
 ) -> Result<bool, GitError> {
     git_ancestry_impl::is_ancestor(path, ancestor_ref, descendant_ref)
-}
-
-pub fn is_valid_branch_name(name: String) -> Result<bool, GitError> {
-    core_git::is_valid_branch_name(&name).map_err(Into::into)
 }
 
 pub fn git_status(path: String) -> Result<GitStatusResult, GitError> {
@@ -804,10 +786,6 @@ pub fn git_fetch(path: String) -> Result<(), GitError> {
 
 pub fn git_pull(path: String) -> Result<(), GitError> {
     git_cli_in_path(&path, &["pull"])
-}
-
-pub fn refresh_source_branch(repo_path: String, source_branch: String) -> Result<(), GitError> {
-    core_git::refresh_source_branch(&repo_path, &source_branch).map_err(Into::into)
 }
 
 pub fn git_push(path: String) -> Result<(), GitError> {

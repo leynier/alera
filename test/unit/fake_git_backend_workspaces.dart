@@ -3,10 +3,13 @@ part of 'fake_git_backend.dart';
 mixin _FakeGitBackendWorkspaceState {
   List<GitBackendCall> get calls;
   String get headBranch;
+  set headBranch(String value);
   bool get headBranchFails;
+  List<String> get sourceBranches;
   Map<String, String?> get remotesByName;
   bool get listRemotesFails;
 
+  GitException? createAndCheckoutBranchError;
   final Map<String, String> currentBranchesByPath = <String, String>{};
   final Map<String, Map<String, String?>> remotesByPath =
       <String, Map<String, String?>>{};
@@ -17,6 +20,27 @@ mixin _FakeGitBackendWorkspaceState {
       throw const GitInternalException('no head');
     }
     return currentBranchesByPath[path] ?? headBranch;
+  }
+
+  Future<void> createAndCheckoutBranch({
+    required String path,
+    required String branch,
+  }) async {
+    calls.add(
+      GitBackendCall('createAndCheckoutBranch', <String, Object?>{
+        'path': path,
+        'branch': branch,
+      }),
+    );
+    final error = createAndCheckoutBranchError;
+    if (error != null) {
+      throw error;
+    }
+    headBranch = branch;
+    currentBranchesByPath[path] = branch;
+    if (!sourceBranches.contains(branch)) {
+      sourceBranches.add(branch);
+    }
   }
 
   Future<List<GitRemote>> listRemotes(String path) async {

@@ -7,6 +7,7 @@ import 'api/agent_hooks.dart';
 import 'api/ai_dictation.dart';
 import 'api/clipboard.dart';
 import 'api/git.dart';
+import 'api/git/git_branch.dart';
 import 'api/git/git_hosted_review.dart';
 import 'api/git_diff_blob.dart';
 import 'api/git_explorer_status.dart';
@@ -81,7 +82,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.13.0';
 
   @override
-  int get rustContentHash => 1446833408;
+  int get rustContentHash => -1813879261;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -93,7 +94,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
 }
 
 abstract class RustLibApi extends BaseApi {
-  Future<bool> crateApiGitBranchExists({
+  Future<bool> crateApiGitGitBranchBranchExists({
     required String repoPath,
     required String branch,
   });
@@ -121,7 +122,7 @@ abstract class RustLibApi extends BaseApi {
     required String targetParentRelativePath,
   });
 
-  Future<void> crateApiGitCreateAndCheckoutBranch({
+  Future<void> crateApiGitGitBranchCreateAndCheckoutBranch({
     required String path,
     required String branch,
   });
@@ -146,7 +147,7 @@ abstract class RustLibApi extends BaseApi {
     required bool reuseExistingBranch,
   });
 
-  Future<String> crateApiGitCurrentBranch({required String path});
+  Future<String> crateApiGitGitBranchCurrentBranch({required String path});
 
   Future<void> crateApiGitDeleteBranch({
     required String repoPath,
@@ -318,11 +319,11 @@ abstract class RustLibApi extends BaseApi {
 
   Future<bool> crateApiGitIsGitRepository({required String path});
 
-  Future<bool> crateApiGitIsValidBranchName({required String name});
+  Future<bool> crateApiGitGitBranchIsValidBranchName({required String name});
 
   Future<KeepAliveStatusDto> crateApiKeepAliveKeepAliveStatus();
 
-  Future<List<String>> crateApiGitListBranches({required String path});
+  Future<List<String>> crateApiGitGitBranchListBranches({required String path});
 
   Future<List<CodexSavedPrompt>> crateApiWorkspaceFilesListCodexSavedPrompts({
     required String workspacePath,
@@ -411,7 +412,7 @@ abstract class RustLibApi extends BaseApi {
     required String relativePath,
   });
 
-  Future<void> crateApiGitRefreshSourceBranch({
+  Future<void> crateApiGitGitBranchRefreshSourceBranch({
     required String repoPath,
     required String sourceBranch,
   });
@@ -550,7 +551,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   });
 
   @override
-  Future<bool> crateApiGitBranchExists({
+  Future<bool> crateApiGitGitBranchBranchExists({
     required String repoPath,
     required String branch,
   }) {
@@ -571,17 +572,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           decodeSuccessData: sse_decode_bool,
           decodeErrorData: sse_decode_git_error,
         ),
-        constMeta: kCrateApiGitBranchExistsConstMeta,
+        constMeta: kCrateApiGitGitBranchBranchExistsConstMeta,
         argValues: [repoPath, branch],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateApiGitBranchExistsConstMeta => const TaskConstMeta(
-    debugName: "branch_exists",
-    argNames: ["repoPath", "branch"],
-  );
+  TaskConstMeta get kCrateApiGitGitBranchBranchExistsConstMeta =>
+      const TaskConstMeta(
+        debugName: "branch_exists",
+        argNames: ["repoPath", "branch"],
+      );
 
   @override
   Future<void> crateApiAiDictationCancelWhisper({required String requestId}) {
@@ -753,7 +755,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
-  Future<void> crateApiGitCreateAndCheckoutBranch({
+  Future<void> crateApiGitGitBranchCreateAndCheckoutBranch({
     required String path,
     required String branch,
   }) {
@@ -774,14 +776,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           decodeSuccessData: sse_decode_unit,
           decodeErrorData: sse_decode_git_error,
         ),
-        constMeta: kCrateApiGitCreateAndCheckoutBranchConstMeta,
+        constMeta: kCrateApiGitGitBranchCreateAndCheckoutBranchConstMeta,
         argValues: [path, branch],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateApiGitCreateAndCheckoutBranchConstMeta =>
+  TaskConstMeta get kCrateApiGitGitBranchCreateAndCheckoutBranchConstMeta =>
       const TaskConstMeta(
         debugName: "create_and_checkout_branch",
         argNames: ["path", "branch"],
@@ -914,7 +916,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   );
 
   @override
-  Future<String> crateApiGitCurrentBranch({required String path}) {
+  Future<String> crateApiGitGitBranchCurrentBranch({required String path}) {
     return handler.executeNormal(
       NormalTask(
         callFfi: (port_) {
@@ -931,14 +933,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           decodeSuccessData: sse_decode_String,
           decodeErrorData: sse_decode_git_error,
         ),
-        constMeta: kCrateApiGitCurrentBranchConstMeta,
+        constMeta: kCrateApiGitGitBranchCurrentBranchConstMeta,
         argValues: [path],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateApiGitCurrentBranchConstMeta =>
+  TaskConstMeta get kCrateApiGitGitBranchCurrentBranchConstMeta =>
       const TaskConstMeta(debugName: "current_branch", argNames: ["path"]);
 
   @override
@@ -2200,7 +2202,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(debugName: "is_git_repository", argNames: ["path"]);
 
   @override
-  Future<bool> crateApiGitIsValidBranchName({required String name}) {
+  Future<bool> crateApiGitGitBranchIsValidBranchName({required String name}) {
     return handler.executeNormal(
       NormalTask(
         callFfi: (port_) {
@@ -2217,14 +2219,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           decodeSuccessData: sse_decode_bool,
           decodeErrorData: sse_decode_git_error,
         ),
-        constMeta: kCrateApiGitIsValidBranchNameConstMeta,
+        constMeta: kCrateApiGitGitBranchIsValidBranchNameConstMeta,
         argValues: [name],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateApiGitIsValidBranchNameConstMeta =>
+  TaskConstMeta get kCrateApiGitGitBranchIsValidBranchNameConstMeta =>
       const TaskConstMeta(
         debugName: "is_valid_branch_name",
         argNames: ["name"],
@@ -2258,7 +2260,9 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(debugName: "keep_alive_status", argNames: []);
 
   @override
-  Future<List<String>> crateApiGitListBranches({required String path}) {
+  Future<List<String>> crateApiGitGitBranchListBranches({
+    required String path,
+  }) {
     return handler.executeNormal(
       NormalTask(
         callFfi: (port_) {
@@ -2275,14 +2279,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           decodeSuccessData: sse_decode_list_String,
           decodeErrorData: sse_decode_git_error,
         ),
-        constMeta: kCrateApiGitListBranchesConstMeta,
+        constMeta: kCrateApiGitGitBranchListBranchesConstMeta,
         argValues: [path],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateApiGitListBranchesConstMeta =>
+  TaskConstMeta get kCrateApiGitGitBranchListBranchesConstMeta =>
       const TaskConstMeta(debugName: "list_branches", argNames: ["path"]);
 
   @override
@@ -2908,7 +2912,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
-  Future<void> crateApiGitRefreshSourceBranch({
+  Future<void> crateApiGitGitBranchRefreshSourceBranch({
     required String repoPath,
     required String sourceBranch,
   }) {
@@ -2929,14 +2933,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           decodeSuccessData: sse_decode_unit,
           decodeErrorData: sse_decode_git_error,
         ),
-        constMeta: kCrateApiGitRefreshSourceBranchConstMeta,
+        constMeta: kCrateApiGitGitBranchRefreshSourceBranchConstMeta,
         argValues: [repoPath, sourceBranch],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateApiGitRefreshSourceBranchConstMeta =>
+  TaskConstMeta get kCrateApiGitGitBranchRefreshSourceBranchConstMeta =>
       const TaskConstMeta(
         debugName: "refresh_source_branch",
         argNames: ["repoPath", "sourceBranch"],
