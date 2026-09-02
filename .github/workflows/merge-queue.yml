@@ -59,6 +59,8 @@ jobs:
       # ("Unable to start the app on the device"), so a directory run can only
       # ever hold one desktop integration test.
       - name: Desktop E2E
+        env:
+          ALERA_NATIVE_TEST_CLIPBOARD: '1'
         run: |
           set -euo pipefail
           for suite in integration_test/*_test.dart; do
