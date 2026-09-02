@@ -8,7 +8,7 @@ mixin _WorkspacePullRequestShipActions on _$WorkspacePullRequestController {
       this as WorkspacePullRequestController;
 
   /// Commits the staged index with an AI-generated message and creates a pull
-  /// request. A checkout on `main` is first moved onto a new local branch.
+  /// request. A checkout on a shared or selected base branch is moved first.
   Future<CreateReviewResult> ship({
     required String baseBranch,
     required bool draft,
