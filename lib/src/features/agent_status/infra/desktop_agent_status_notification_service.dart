@@ -19,6 +19,8 @@ class DesktopAgentStatusNotificationService({
   this : _plugin = plugin ?? FlutterLocalNotificationsPlugin();
 
   final FlutterLocalNotificationsPlugin _plugin;
+  final List<AgentStatusNotificationSelectionHandler> _selectionHandlers =
+      <AgentStatusNotificationSelectionHandler>[];
   Future<void>? _initializing;
   bool _initialized = false;
 
@@ -26,15 +28,16 @@ class DesktopAgentStatusNotificationService({
   Future<void> initialize({
     required AgentStatusNotificationSelectionHandler onSelected,
   }) {
+    if (!_selectionHandlers.contains(onSelected)) {
+      _selectionHandlers.add(onSelected);
+    }
     if (_initialized) {
       return Future<void>.value();
     }
-    return _initializing ??= _initialize(onSelected);
+    return _initializing ??= _initialize();
   }
 
-  Future<void> _initialize(
-    AgentStatusNotificationSelectionHandler onSelected,
-  ) async {
+  Future<void> _initialize() async {
     await _plugin.initialize(
       settings: const InitializationSettings(
         macOS: DarwinInitializationSettings(
@@ -56,7 +59,12 @@ class DesktopAgentStatusNotificationService({
         if (payload == null || payload.isEmpty) {
           return;
         }
-        onSelected(payload);
+        for (final handler
+            in List<AgentStatusNotificationSelectionHandler>.from(
+              _selectionHandlers,
+            )) {
+          handler(payload);
+        }
       },
     );
     _initialized = true;

@@ -156,6 +156,7 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
       SettingsGroupSpec(id: 'storage', title: 'Storage'),
       SettingsGroupSpec(id: 'safety', title: 'Safety'),
       SettingsGroupSpec(id: 'desktop', title: 'Desktop'),
+      SettingsGroupSpec(id: 'pullRequests', title: 'Pull Requests'),
       SettingsGroupSpec(id: 'runtime', title: 'Runtime'),
       SettingsGroupSpec(id: 'diagnostics', title: 'Diagnostics'),
       SettingsGroupSpec(id: 'updates', title: 'Updates'),

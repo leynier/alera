@@ -205,6 +205,32 @@ class _WorkspaceRowState extends State<_WorkspaceRow> {
                                     key: Key('workspace-tray-branch'),
                                   ),
                                 ),
+                                Consumer(
+                                  builder: (context, ref, child) {
+                                    final summary = ref.watch(
+                                      workspacePullRequestSummaryProvider(
+                                        widget.workspace.id,
+                                      ),
+                                    );
+                                    if (summary == null) {
+                                      return const SizedBox.shrink();
+                                    }
+                                    return Row(
+                                      mainAxisSize: .min,
+                                      children: <Widget>[
+                                        const SizedBox(
+                                          width: AleraTokens.space6,
+                                        ),
+                                        WorkspacePullRequestStatusIndicator(
+                                          key: const Key(
+                                            'workspace-tray-pull-request',
+                                          ),
+                                          summary: summary,
+                                        ),
+                                      ],
+                                    );
+                                  },
+                                ),
                                 if (tags.isNotEmpty) ...<Widget>[
                                   const SizedBox(width: AleraTokens.space6),
                                   Tooltip(

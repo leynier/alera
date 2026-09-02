@@ -192,6 +192,34 @@ class SettingsController extends _$SettingsController {
     );
   });
 
+  Future<void> setShowPullRequestStatusInSidebar(bool value) =>
+      _serialize(() async {
+        if (state.general.showPullRequestStatusInSidebar == value) {
+          return;
+        }
+        await _save(
+          state.copyWith(
+            general: state.general.copyWith(
+              showPullRequestStatusInSidebar: value,
+            ),
+          ),
+        );
+      });
+
+  Future<void> setPullRequestFailureNotificationsEnabled(bool value) =>
+      _serialize(() async {
+        if (state.general.pullRequestFailureNotificationsEnabled == value) {
+          return;
+        }
+        await _save(
+          state.copyWith(
+            general: state.general.copyWith(
+              pullRequestFailureNotificationsEnabled: value,
+            ),
+          ),
+        );
+      });
+
   Future<void> setAgentStatusHookEnabled(AgentType agentType, bool value) =>
       _serialize(() async {
         final current = state.agents.agentStatusHooks;

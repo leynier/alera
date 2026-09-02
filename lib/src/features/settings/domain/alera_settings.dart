@@ -292,6 +292,8 @@ class const GeneralSettings({
   this.showTrayIcon = true,
   this.showDockBadge = true,
   this.showTrayBadge = true,
+  this.showPullRequestStatusInSidebar = true,
+  this.pullRequestFailureNotificationsEnabled = false,
 }) with GeneralSettingsMappable {
   /// User-configured root directory where new linked workspaces are created.
   /// `null` falls back to the platform default (`~/.alera/workspaces`).
@@ -317,6 +319,13 @@ class const GeneralSettings({
 
   /// Pending-review count drawn onto the tray icon itself.
   final bool showTrayBadge;
+
+  /// Show compact hosted pull-request and check state beside each workspace.
+  final bool showPullRequestStatusInSidebar;
+
+  /// Keep monitoring while hidden and notify when checks enter a failed state.
+  final bool pullRequestFailureNotificationsEnabled;
+
   static const GeneralSettings defaults = GeneralSettings();
 
   factory fromJson(Map<String, Object?> json) =>

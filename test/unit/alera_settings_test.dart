@@ -45,6 +45,8 @@ void main() {
       expect(general.showTrayIcon, isTrue);
       expect(general.showDockBadge, isTrue);
       expect(general.showTrayBadge, isTrue);
+      expect(general.showPullRequestStatusInSidebar, isTrue);
+      expect(general.pullRequestFailureNotificationsEnabled, isFalse);
     });
 
     test('agent defaults are conservative', () {
@@ -158,6 +160,8 @@ void main() {
       expect(general.starClicked, isTrue);
       expect(general.showTrayIcon, isTrue);
       expect(general.showDockBadge, isTrue);
+      expect(general.showPullRequestStatusInSidebar, isTrue);
+      expect(general.pullRequestFailureNotificationsEnabled, isFalse);
       expect(agents.agentStatusHooks.codex, isTrue);
       expect(agents.agentStatusHooks.claude, isFalse);
       expect(agents.agentStatusHooks.copilot, isTrue);

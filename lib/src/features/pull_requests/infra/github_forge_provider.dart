@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:alera/src/features/pull_requests/application/forge_exception.dart';
 import 'package:alera/src/features/pull_requests/application/forge_provider.dart';
+import 'package:alera/src/features/pull_requests/application/forge_review_batch_provider.dart';
 import 'package:alera/src/features/pull_requests/application/forge_stack_provider.dart';
 import 'package:alera/src/features/pull_requests/domain/create_review_input.dart';
 import 'package:alera/src/features/pull_requests/domain/create_review_result.dart';
@@ -22,6 +23,7 @@ import 'package:alera/src/features/pull_requests/infra/github_stack_mappers.dart
 import 'package:alera/src/shared/infra/process/process_runner.dart';
 
 part 'github_review_actions.dart';
+part 'github_review_batch.dart';
 part 'github_stack_actions.dart';
 part 'github_review_comments.dart';
 
@@ -29,9 +31,13 @@ part 'github_review_comments.dart';
 /// relies on the user being logged in via `gh auth login`. Follows the
 /// `GitHubStarService` pattern: constructor-injected [ProcessRunner], typed
 /// errors instead of leaked stderr.
-class const GitHubForgeProvider(final ProcessRunner _processRunner)
-    with _GitHubReviewActions, _GitHubReviewComments, _GitHubStackActions
-    implements ForgeProvider, ForgeStackProvider {
+class const GitHubForgeProvider(@override final ProcessRunner _processRunner)
+    with
+        _GitHubReviewActions,
+        _GitHubReviewBatch,
+        _GitHubReviewComments,
+        _GitHubStackActions
+    implements ForgeProvider, ForgeReviewBatchProvider, ForgeStackProvider {
   static const List<String> _reviewJsonFields = <String>[
     'number',
     'title',
@@ -96,6 +102,7 @@ class const GitHubForgeProvider(final ProcessRunner _processRunner)
     return 'https://${identity.host}/${identity.owner}/${identity.repo}';
   }
 
+  @override
   void _ensureSupportedHost(GitRemoteIdentity identity) {
     if (Uri.parse('https://${identity.host}').hasPort) {
       throw const ForgeRequestFailed(
@@ -419,6 +426,7 @@ class const GitHubForgeProvider(final ProcessRunner _processRunner)
     _throwClassified(result);
   }
 
+  @override
   Never _throwClassified(ProcessRunOutput result) {
     final stderr = result.stderr.toLowerCase();
     if (stderr.contains('not logged') ||
@@ -431,6 +439,7 @@ class const GitHubForgeProvider(final ProcessRunner _processRunner)
     );
   }
 
+  @override
   Object? _decodeJson(String? raw) {
     if (raw == null) {
       return null;

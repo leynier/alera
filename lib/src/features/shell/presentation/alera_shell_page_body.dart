@@ -19,6 +19,8 @@ class _AleraShellPageBodyState extends ConsumerState<_AleraShellPageBody> {
     ref.watch(runtimeAgentStatusSyncProvider);
     ref.watch(agentCanvasRuntimeSyncProvider);
     ref.watch(agentStatusNotificationCoordinatorProvider);
+    ref.watch(workspacePullRequestMonitorControllerProvider.notifier);
+    ref.watch(workspacePullRequestFailureNotificationCoordinatorProvider);
     ref.watch(agentAwakeCoordinatorProvider);
     ref.watch(keepAliveCoordinatorProvider);
     ref.watch(terminalRuntimeExitCoordinatorProvider);
