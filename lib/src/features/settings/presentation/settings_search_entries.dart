@@ -1,5 +1,6 @@
 import 'package:alera/src/features/settings/presentation/settings_sections.dart';
 import 'package:alera/src/features/settings/presentation/settings_search_entry_catalog.dart';
+import 'package:alera/src/features/settings/presentation/settings_search_entries_pull_requests.dart';
 import 'package:alera/src/features/settings/presentation/settings_search_entries_reading_diff.dart';
 
 final List<SettingsSearchEntry>
@@ -61,31 +62,7 @@ applicationSearchEntries = buildSettingsSearchEntryCatalog(const {
       ],
     ),
   },
-  'pullRequests': {
-    'Show Pull Request Status': SettingsSearchEntryDetails(
-      description: 'Show hosted review and CI state beside each workspace.',
-      keywords: <String>[
-        'pull request',
-        'pr',
-        'checks',
-        'ci',
-        'sidebar',
-        'draft',
-        'merged',
-      ],
-    ),
-    'Notify When Checks Fail': SettingsSearchEntryDetails(
-      description: 'Show a native notification when PR checks start failing.',
-      keywords: <String>[
-        'pull request',
-        'pr',
-        'checks',
-        'ci',
-        'failure',
-        'notification',
-      ],
-    ),
-  },
+  ...pullRequestApplicationSearchGroups,
   'runtime': {
     'Keep Computer Awake': SettingsSearchEntryDetails(
       description:
