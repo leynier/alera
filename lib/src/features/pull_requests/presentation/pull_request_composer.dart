@@ -29,6 +29,11 @@ class const CreateReviewDraft({
   required final bool draft,
 });
 
+typedef PullRequestShipCallback = Future<void> Function({
+  required String baseBranch,
+  required bool draft,
+});
+
 enum _ComposerMode { create, link }
 
 /// Inline create / link form for the Checks panel when no review is linked.
@@ -43,10 +48,12 @@ class const PullRequestComposer({
   required final HostedReview? suggestedReview,
   required final PullRequestCreateAction createAction,
   required final ValueChanged<CreateReviewDraft> onCreate,
+  required final PullRequestShipCallback onShip,
   required final ValueChanged<String> onLink,
   required final ValueChanged<PullRequestCreateAction> onCreateActionChanged,
   final bool canCreateStack = false,
   final bool creatingStack = false,
+  final bool shipping = false,
   final Future<void> Function(CreateReviewDraft draft)? onCreateStack,
 }) extends ConsumerStatefulWidget {
   @override
@@ -158,6 +165,19 @@ class _PullRequestComposerState extends ConsumerState<PullRequestComposer> {
     if (draft != null) {
       widget.onCreate(draft);
     }
+  }
+
+  Future<void> _submitShip() async {
+    final base = _baseBranch.trim();
+    if (base.isEmpty) {
+      setState(() => _errorText = 'Base branch is required');
+      return;
+    }
+    setState(() => _errorText = null);
+    await widget.onShip(
+      baseBranch: base,
+      draft: widget.createAction == PullRequestCreateAction.draft,
+    );
   }
 
   Future<void> _submitCreateStack() async {
@@ -332,15 +352,26 @@ class _PullRequestComposerState extends ConsumerState<PullRequestComposer> {
                   ),
                 ],
                 const SizedBox(height: AleraTokens.space16),
-                if (_mode == _ComposerMode.create)
+                if (_mode == _ComposerMode.create) ...<Widget>[
+                  _ShipPullRequestButton(
+                    shipping: widget.shipping,
+                    aiEnabled: aiEnabled,
+                    enabled:
+                        !widget.busy &&
+                        widget.canCreate &&
+                        !_generating &&
+                        aiEnabled,
+                    onPressed: () => unawaited(_submitShip()),
+                  ),
+                  const SizedBox(height: AleraTokens.space8),
                   _CreatePullRequestButton(
                     action: widget.createAction,
-                    busy: widget.busy,
+                    busy: widget.busy && !widget.shipping,
                     enabled: !widget.busy && widget.canCreate && !_generating,
                     onPressed: _submitCreate,
                     onSelected: widget.onCreateActionChanged,
-                  )
-                else
+                  ),
+                ] else
                   FilledButton.icon(
                     onPressed: widget.busy ? null : _submitLink,
                     icon: widget.busy

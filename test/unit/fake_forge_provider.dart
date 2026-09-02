@@ -32,6 +32,7 @@ class FakeForgeProvider implements ForgeProvider {
     message: 'not set',
   );
   int createCalls = 0;
+  CreateReviewInput? lastCreateInput;
   Object? createError;
   ReviewCheckDetails? details;
   ReviewCheck? lastDetailsCheck;
@@ -211,6 +212,7 @@ class FakeForgeProvider implements ForgeProvider {
     required CreateReviewInput input,
   }) async {
     createCalls++;
+    lastCreateInput = input;
     final error = createError;
     if (error != null) {
       throw error;
