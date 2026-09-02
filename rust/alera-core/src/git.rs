@@ -1,11 +1,18 @@
 use std::fmt;
 use std::path::Path;
 
-use git2::{Branch, BranchType, ErrorCode, Repository, WorktreeAddOptions, WorktreePruneOptions};
+use git2::{BranchType, ErrorCode, Repository, WorktreeAddOptions, WorktreePruneOptions};
 
 use crate::git_cli::git_in_dir;
+mod branch_operations;
+#[cfg(test)]
+#[path = "git_branch_tests.rs"]
+mod branch_tests;
 pub mod hosted_review;
 mod repository_metadata;
+pub use branch_operations::{
+    branch_exists, create_and_checkout_branch, delete_branch, is_valid_branch_name, list_branches,
+};
 pub use repository_metadata::{current_branch, is_worktree_clean, repository_remote_url};
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -24,6 +31,7 @@ pub enum GitErrorKind {
     WorktreeAlreadyExists,
     WorktreeNotFound,
     GitCli,
+    DetachedHead,
     Conflict,
     RemoteNotFound,
     Internal,
@@ -68,38 +76,6 @@ impl fmt::Display for GitError {
 }
 
 impl std::error::Error for GitError {}
-
-pub fn list_branches(path: &str) -> Result<Vec<String>, GitError> {
-    let repo = open_repo(path)?;
-    let mut names = Vec::new();
-    let branches = repo.branches(None).map_err(GitError::from_git2)?;
-    for entry in branches {
-        let (branch, _) = entry.map_err(GitError::from_git2)?;
-        if let Some(name) = branch.name().map_err(GitError::from_git2)? {
-            if name.ends_with("/HEAD") {
-                continue;
-            }
-            names.push(name.to_string());
-        }
-    }
-    names.sort();
-    names.dedup();
-    Ok(names)
-}
-
-pub fn branch_exists(repo_path: &str, branch: &str) -> Result<bool, GitError> {
-    let repo = open_repo(repo_path)?;
-    let result = match repo.find_branch(branch, BranchType::Local) {
-        Ok(_) => Ok(true),
-        Err(error) if error.code() == ErrorCode::NotFound => Ok(false),
-        Err(error) => Err(GitError::from_git2(error)),
-    };
-    result
-}
-
-pub fn is_valid_branch_name(name: &str) -> Result<bool, GitError> {
-    Branch::name_is_valid(name).map_err(GitError::from_git2)
-}
 
 pub fn refresh_source_branch(repo_path: &str, source_branch: &str) -> Result<(), GitError> {
     let repo = open_repo(repo_path)?;
@@ -253,18 +229,6 @@ pub fn remove_worktree(repo_path: &str, path: &str, force: bool) -> Result<(), G
             .prune(Some(&mut metadata_options))
             .map_err(GitError::from_git2)?;
     }
-    Ok(())
-}
-
-pub fn delete_branch(repo_path: &str, branch: &str, _force: bool) -> Result<(), GitError> {
-    let repo = open_repo(repo_path)?;
-    let mut target = repo
-        .find_branch(branch, BranchType::Local)
-        .map_err(|error| match error.code() {
-            ErrorCode::NotFound => GitError::new(GitErrorKind::BranchNotFound, branch),
-            _ => GitError::from_git2(error),
-        })?;
-    target.delete().map_err(GitError::from_git2)?;
     Ok(())
 }
 

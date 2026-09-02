@@ -1,5 +1,9 @@
 import 'dart:async';
 
+import 'package:alera/src/features/ai_assist/application/ai_assist_prompt.dart';
+import 'package:alera/src/features/ai_assist/application/ai_assist_providers.dart';
+import 'package:alera/src/features/ai_assist/application/ai_assist_service.dart';
+import 'package:alera/src/features/ai_assist/domain/ai_assist_settings.dart';
 import 'package:alera/src/features/pull_requests/application/forge_exception.dart';
 import 'package:alera/src/features/pull_requests/application/forge_provider.dart';
 import 'package:alera/src/features/pull_requests/application/forge_provider_registry.dart';
@@ -34,6 +38,7 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 part 'workspace_pull_request_controller.g.dart';
 part 'workspace_pull_request_review_actions.dart';
 part 'workspace_pull_request_review_editing.dart';
+part 'workspace_pull_request_ship_actions.dart';
 part 'workspace_pull_request_stack_actions.dart';
 part 'workspace_pull_request_stack_validation.dart';
 
@@ -42,6 +47,7 @@ class WorkspacePullRequestController extends _$WorkspacePullRequestController
     with
         _WorkspacePullRequestReviewActions,
         _WorkspacePullRequestReviewEditing,
+        _WorkspacePullRequestShipActions,
         _WorkspacePullRequestStackActions {
   static const Duration _minPollInterval = Duration(seconds: 30);
   static const Duration _maxPollInterval = Duration(seconds: 120);

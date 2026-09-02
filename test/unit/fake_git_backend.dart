@@ -36,6 +36,7 @@ class FakeGitBackend
   /// Branches reported by [listBranches] and treated as existing by
   /// [branchExists]. The real backend sorts and de-duplicates; the fake does
   /// too so callers observe the same shape.
+  @override
   List<String> sourceBranches = <String>['main'];
 
   bool listBranchesFails = false;
