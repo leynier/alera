@@ -25,6 +25,10 @@ pub mod git_hosted_review;
 #[path = "git_range_impl.rs"]
 mod git_range_impl;
 
+#[cfg(test)]
+use git_branch::{
+    branch_exists, current_branch, is_valid_branch_name, list_branches, refresh_source_branch,
+};
 use git_commit_state_impl::{commit_parent_commits, current_head_commit, repository_has_conflicts};
 
 pub struct GitWorktreeEntry {
