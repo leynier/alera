@@ -23,14 +23,18 @@ const _scope = WorkspacePullRequestScope(
   branch: 'main',
 );
 
-HostedReview _review(int number, {required String headBranch}) => HostedReview(
+HostedReview _review(
+  int number, {
+  required String headBranch,
+  String baseBranch = 'main',
+}) => HostedReview(
   provider: .github,
   number: number,
   title: 'feat: shipped changes',
   state: .open,
   url: 'https://github.com/leynier/alera/pull/$number',
   headBranch: headBranch,
-  baseBranch: 'main',
+  baseBranch: baseBranch,
 );
 
 ProviderContainer _container({
@@ -150,8 +154,99 @@ void main() {
     expect(state.review?.number, 701);
   });
 
+  for (final scenario
+      in const <
+        ({
+          String label,
+          String currentBranch,
+          String baseBranch,
+          int reviewNumber,
+        })
+      >[
+        (
+          label: 'master default branch',
+          currentBranch: 'master',
+          baseBranch: 'develop',
+          reviewNumber: 703,
+        ),
+        (
+          label: 'selected base branch',
+          currentBranch: 'release/2026',
+          baseBranch: 'release/2026',
+          reviewNumber: 704,
+        ),
+      ]) {
+    test('reroutes from ${scenario.label} before committing', () async {
+      const shipBranch = 'ship/protect-pull-request-base';
+      final git = FakeGitBackend()
+        ..headBranch = scenario.currentBranch
+        ..sourceBranches = <String>[scenario.currentBranch, scenario.baseBranch]
+        ..remotesByName = <String, String?>{
+          'origin': 'https://github.com/leynier/alera.git',
+        }
+        ..gitStatusResult = const GitStatusResult(
+          entries: <GitChangeEntry>[
+            GitChangeEntry(
+              path: 'lib/ship.dart',
+              area: .staged,
+              status: .modified,
+            ),
+          ],
+        );
+      final review = _review(
+        scenario.reviewNumber,
+        headBranch: shipBranch,
+        baseBranch: scenario.baseBranch,
+      );
+      final forge = FakeForgeProvider()
+        ..createResult = CreateReviewSuccess(review)
+        ..byNumber[scenario.reviewNumber] = review;
+      final container = _container(
+        git: git,
+        forge: forge,
+        linkedReviews: FakeLinkedReviewRepository(),
+        aiAssist: _FakeAiAssistService(<Object>[
+          const AiAssistResult(
+            text: 'fix: protect pull request base',
+            agentLabel: 'Codex',
+          ),
+          const AiAssistResult(
+            text:
+                'Protect pull request base\n\nCommit from an isolated branch.',
+            agentLabel: 'Codex',
+          ),
+        ]),
+      );
+      addTearDown(container.dispose);
+      await container.read(
+        workspacePullRequestControllerProvider(_scope).future,
+      );
+
+      final result = await container
+          .read(workspacePullRequestControllerProvider(_scope).notifier)
+          .ship(
+            baseBranch: scenario.baseBranch,
+            draft: false,
+            settings: AiAssistSettings.defaults,
+          );
+
+      expect(result, isA<CreateReviewSuccess>());
+      final methods = git.calls.map((call) => call.method).toList();
+      expect(
+        methods.indexOf('createAndCheckoutBranch'),
+        lessThan(methods.indexOf('commit')),
+      );
+      final branchCall = git.calls.singleWhere(
+        (call) => call.method == 'createAndCheckoutBranch',
+      );
+      expect(branchCall.args['branch'], shipBranch);
+      expect(forge.lastCreateInput?.headBranch, shipBranch);
+      expect(forge.lastCreateInput?.baseBranch, scenario.baseBranch);
+    });
+  }
+
   test(
-    'ships directly from a feature branch and falls back to commit text',
+    'ships directly and falls back when PR context generation fails',
     () async {
       const headBranch = 'feat/already-started';
       final git = FakeGitBackend()
@@ -178,7 +273,7 @@ void main() {
           text: 'fix: keep staged scope\n\nDo not include unstaged files.',
           agentLabel: 'Claude Code',
         ),
-        const AiAssistException('PR detail generation failed.'),
+        const GitInternalException('PR context generation failed.'),
       ]);
       final container = _container(
         git: git,
@@ -354,7 +449,7 @@ class _FakeAiAssistService implements AiAssistService {
   Future<AiAssistResult> generate(AiAssistRequest request) async {
     requests.add(request);
     final response = _responses.removeAt(0);
-    if (response is AiAssistException) {
+    if (response is Exception) {
       throw response;
     }
     return response as AiAssistResult;

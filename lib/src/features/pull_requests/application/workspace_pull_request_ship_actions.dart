@@ -63,7 +63,7 @@ mixin _WorkspacePullRequestShipActions on _$WorkspacePullRequestController {
         throw const _ActionError('AI Assist returned an empty commit message.');
       }
 
-      if (headBranch == 'main') {
+      if (_requiresShipBranch(headBranch, normalizedBase)) {
         headBranch = await _availableShipBranchName(
           backend: backend,
           repoPath: controller.scope.repoPath,
@@ -176,6 +176,11 @@ mixin _WorkspacePullRequestShipActions on _$WorkspacePullRequestController {
     return CreateReviewFailure(code: code, message: message);
   }
 
+  bool _requiresShipBranch(String headBranch, String baseBranch) =>
+      headBranch == baseBranch ||
+      headBranch == 'main' ||
+      headBranch == 'master';
+
   Future<String> _availableShipBranchName({
     required GitBackend backend,
     required String repoPath,
@@ -239,9 +244,9 @@ mixin _WorkspacePullRequestShipActions on _$WorkspacePullRequestController {
         return parseGeneratedPullRequestDetails(commitMessage);
       }
       return parseGeneratedPullRequestDetails(generated.text);
-    } on AiAssistException {
+    } on Object {
       // The AI-generated commit already gives us safe deterministic PR text,
-      // so an optional second generation must not strand a completed commit.
+      // so optional PR-detail generation must never strand a completed commit.
       return parseGeneratedPullRequestDetails(commitMessage);
     }
   }
