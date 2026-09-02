@@ -46,6 +46,8 @@ class FakeGitBackend
   @override
   bool headBranchFails = false;
 
+  GitException? createAndCheckoutBranchError;
+
   /// Per-ref ancestry responses. Unspecified pairs default to true so tests
   /// that do not care about graph shape preserve their existing behavior.
   final Map<(String, String), bool> ancestorResults =
@@ -162,6 +164,28 @@ class FakeGitBackend
     }
     final unique = sourceBranches.toSet().toList()..sort();
     return unique;
+  }
+
+  @override
+  Future<void> createAndCheckoutBranch({
+    required String path,
+    required String branch,
+  }) async {
+    calls.add(
+      GitBackendCall('createAndCheckoutBranch', <String, Object?>{
+        'path': path,
+        'branch': branch,
+      }),
+    );
+    final error = createAndCheckoutBranchError;
+    if (error != null) {
+      throw error;
+    }
+    headBranch = branch;
+    currentBranchesByPath[path] = branch;
+    if (!sourceBranches.contains(branch)) {
+      sourceBranches.add(branch);
+    }
   }
 
   @override

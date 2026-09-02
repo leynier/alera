@@ -323,6 +323,7 @@ impl From<core_git::GitError> for GitError {
             core_git::GitErrorKind::WorktreeAlreadyExists => GitErrorKind::WorktreeAlreadyExists,
             core_git::GitErrorKind::WorktreeNotFound => GitErrorKind::WorktreeNotFound,
             core_git::GitErrorKind::GitCli => GitErrorKind::GitCli,
+            core_git::GitErrorKind::DetachedHead => GitErrorKind::DetachedHead,
             core_git::GitErrorKind::Conflict => GitErrorKind::Conflict,
             core_git::GitErrorKind::RemoteNotFound => GitErrorKind::RemoteNotFound,
             core_git::GitErrorKind::Internal => GitErrorKind::Internal,
@@ -395,6 +396,10 @@ pub fn list_branches(path: String) -> Result<Vec<String>, GitError> {
 
 pub fn current_branch(path: String) -> Result<String, GitError> {
     core_git::current_branch(&path).map_err(Into::into)
+}
+
+pub fn create_and_checkout_branch(path: String, branch: String) -> Result<(), GitError> {
+    core_git::create_and_checkout_branch(&path, &branch).map_err(Into::into)
 }
 
 pub fn branch_exists(repo_path: String, branch: String) -> Result<bool, GitError> {

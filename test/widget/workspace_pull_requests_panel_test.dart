@@ -115,6 +115,7 @@ void main() {
                 suggestedReview: null,
                 createAction: .publish,
                 onCreate: (_) {},
+                onShip: ({required baseBranch, required draft}) async {},
                 onLink: (_) {},
                 onCreateActionChanged: (_) {},
               ),
@@ -125,6 +126,10 @@ void main() {
     );
     await tester.pump();
 
+    expect(
+      find.byKey(const ValueKey<String>('pull-request-ship-button')),
+      findsOneWidget,
+    );
     final titleField = tester.getRect(
       find.byKey(const ValueKey<String>('pull-request-title-field')),
     );

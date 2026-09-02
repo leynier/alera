@@ -15,6 +15,7 @@ enum PullRequestAction {
   link,
   unlink,
   create,
+  ship,
   update,
   createStack,
   linkStack,

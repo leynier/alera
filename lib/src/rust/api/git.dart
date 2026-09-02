@@ -19,6 +19,14 @@ Future<List<String>> listBranches({required String path}) =>
 Future<String> currentBranch({required String path}) =>
     RustLib.instance.api.crateApiGitCurrentBranch(path: path);
 
+Future<void> createAndCheckoutBranch({
+  required String path,
+  required String branch,
+}) => RustLib.instance.api.crateApiGitCreateAndCheckoutBranch(
+  path: path,
+  branch: branch,
+);
+
 Future<bool> branchExists({required String repoPath, required String branch}) =>
     RustLib.instance.api.crateApiGitBranchExists(
       repoPath: repoPath,

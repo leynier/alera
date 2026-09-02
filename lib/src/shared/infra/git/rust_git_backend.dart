@@ -33,6 +33,12 @@ class const RustGitBackend()
       _guard(() => rust.currentBranch(path: path));
 
   @override
+  Future<void> createAndCheckoutBranch({
+    required String path,
+    required String branch,
+  }) => _guard(() => rust.createAndCheckoutBranch(path: path, branch: branch));
+
+  @override
   Future<bool> branchExists(String repoPath, String branch) =>
       _guard(() => rust.branchExists(repoPath: repoPath, branch: branch));
 
