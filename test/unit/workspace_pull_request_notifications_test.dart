@@ -30,6 +30,7 @@ void main() {
       expect(summary.pendingCheckCount, 1);
       expect(summary.failedCheckCount, 4);
       expect(summary.failingCheckNames, <String>['linux', 'macos', 'windows']);
+      expect(summary.hashCode, summary.signature.hashCode);
     });
 
     test('reports merge conflicts only for open pull requests', () {
