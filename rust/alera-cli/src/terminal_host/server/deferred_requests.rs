@@ -29,6 +29,10 @@ impl ServerActor {
             return Ok(true);
         }
         match request_type {
+            "orchestration.boardSnapshot" | "orchestration.runSnapshot" => {
+                self.start_orchestration_board_read(client_id, request_id, request_type, payload)?;
+                Ok(true)
+            }
             "mobile.status.get"
                 if payload.get("includeNetworkStatus").and_then(Value::as_bool) != Some(false) =>
             {

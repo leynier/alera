@@ -45,6 +45,12 @@ mod mobile_access_settings_row;
 mod mobile_store_tests;
 mod models;
 mod orchestration_audit_store;
+mod orchestration_board_models;
+mod orchestration_board_notifications;
+mod orchestration_board_schema;
+mod orchestration_board_store;
+#[cfg(test)]
+mod orchestration_board_tests;
 mod orchestration_dispatch_store;
 mod orchestration_message_store;
 mod orchestration_models;
@@ -53,7 +59,10 @@ mod orchestration_policy_store;
 mod orchestration_policy_store_tests;
 #[cfg(test)]
 mod orchestration_profile_attempt_tests;
+mod orchestration_run_snapshot;
 mod orchestration_run_store;
+#[cfg(test)]
+mod orchestration_schema_migration_tests;
 mod orchestration_stall_store;
 #[cfg(test)]
 mod orchestration_stall_store_tests;
@@ -104,6 +113,7 @@ pub use browser_privacy::{
 };
 pub use codex_chat_store::*;
 pub use models::*;
+pub use orchestration_board_models::*;
 pub use orchestration_dispatch_store::ORCHESTRATION_CIRCUIT_BREAKER_THRESHOLD;
 pub use orchestration_message_store::{
     NewOrchestrationMessage, ORCHESTRATION_BODY_MAX_BYTES, ORCHESTRATION_HANDLE_MAX_BYTES,
@@ -111,6 +121,7 @@ pub use orchestration_message_store::{
     ORCHESTRATION_SUBJECT_MAX_BYTES, ORCHESTRATION_THREAD_ID_MAX_BYTES,
 };
 pub use orchestration_models::*;
+pub use orchestration_run_snapshot::*;
 pub use orchestration_task_store::NewOrchestrationTask;
 pub use project_clone_models::*;
 pub use runtime_file_security::*;

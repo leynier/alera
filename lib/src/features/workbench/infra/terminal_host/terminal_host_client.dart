@@ -533,6 +533,11 @@ final class SocketTerminalHostClient._(
       _emitConnectionError(closedError);
     }
     if (identical(_runtimeConnection, connection)) {
+      if (!_disposed && !_appQuitInProgress) {
+        _runtimeEvents.add(
+          const RuntimeHostEvent(aleraRuntimeHostDisconnectedEvent, {}),
+        );
+      }
       CrashReporting.clearRuntimeContext();
       _runtimeConnection = null;
       _runtimeConnectionFuture = null;

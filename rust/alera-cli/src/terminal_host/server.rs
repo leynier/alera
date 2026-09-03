@@ -164,6 +164,9 @@ mod mobile_terminal_viewport_tests;
 mod mobile_workspace_file_paths;
 mod mobile_workspace_file_requests;
 mod orchestration_agent_spawn_requests;
+mod orchestration_board_requests;
+#[cfg(test)]
+mod orchestration_board_tests;
 mod orchestration_owned_spawn;
 mod orchestration_policy_requests;
 mod orchestration_profile_spawn;
@@ -521,7 +524,7 @@ impl ServerActor {
             }
             ServerCommand::RequestedShutdown => self.dispose().await,
             ServerCommand::RequestedRestart => self.dispose().await,
-            ServerCommand::AgentHookEvent { event } => self.handle_agent_hook_event(event).await,
+            ServerCommand::AgentHookEvent { event } => self.handle_board_agent_hook(event).await,
             ServerCommand::SshBootstrapProgress { progress } => {
                 self.handle_ssh_bootstrap_progress(progress)
             }
@@ -725,7 +728,9 @@ impl ServerActor {
             ServerCommand::ProjectCloneFinished { job_id } => {
                 self.handle_project_clone_finished(job_id).await
             }
-            ServerCommand::CoordinatorTick { run_id } => self.handle_coordinator_tick(run_id).await,
+            ServerCommand::CoordinatorTick { run_id } => {
+                self.handle_board_coordinator_tick(run_id).await
+            }
             ServerCommand::ResourceSampleTick => self.handle_resource_sample_tick(),
             ServerCommand::ResourceSampleReady { snapshot } => {
                 self.handle_resource_sample_ready(snapshot)

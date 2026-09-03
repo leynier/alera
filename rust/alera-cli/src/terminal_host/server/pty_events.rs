@@ -358,6 +358,7 @@ impl ServerActor {
         self.orchestration_delivery_backpressured.remove(session_id);
         self.fail_active_dispatch_for_closed_session(session_id, reason)
             .await;
+        self.broadcast_orchestration_board_change().await;
     }
 
     pub(super) fn handle_output_batch_tick(&mut self, session_id: String, generation: u64) {
