@@ -4,6 +4,10 @@ updates:
     directory: /
     schedule:
       interval: monthly
+    ignore:
+      - dependency-name: "*"
+        update-types:
+          - "version-update:semver-major"
     cooldown:
       default-days: 7
     commit-message:
@@ -25,6 +29,10 @@ updates:
       - /tool/release/runtime_packager
     schedule:
       interval: monthly
+    ignore:
+      - dependency-name: "*"
+        update-types:
+          - "version-update:semver-major"
     cooldown:
       default-days: 7
     commit-message:
@@ -42,6 +50,10 @@ updates:
       - /rust
     schedule:
       interval: monthly
+    ignore:
+      - dependency-name: "*"
+        update-types:
+          - "version-update:semver-major"
     cooldown:
       default-days: 7
     commit-message:
@@ -59,6 +71,10 @@ updates:
       - /landing
     schedule:
       interval: monthly
+    ignore:
+      - dependency-name: "*"
+        update-types:
+          - "version-update:semver-major"
     cooldown:
       default-days: 7
     commit-message:
@@ -77,6 +93,10 @@ updates:
       - /rust_builder/android
     schedule:
       interval: monthly
+    ignore:
+      - dependency-name: "*"
+        update-types:
+          - "version-update:semver-major"
     cooldown:
       default-days: 7
     commit-message:
@@ -94,6 +114,10 @@ updates:
       - /infra/production
     schedule:
       interval: monthly
+    ignore:
+      - dependency-name: "*"
+        update-types:
+          - "version-update:semver-major"
     cooldown:
       default-days: 7
     commit-message:
@@ -109,6 +133,10 @@ updates:
     directory: /cloud
     schedule:
       interval: monthly
+    ignore:
+      - dependency-name: "*"
+        update-types:
+          - "version-update:semver-major"
     cooldown:
       default-days: 7
     commit-message:
@@ -123,6 +151,10 @@ updates:
     directory: /cloud
     schedule:
       interval: monthly
+    ignore:
+      - dependency-name: "*"
+        update-types:
+          - "version-update:semver-major"
     cooldown:
       default-days: 7
     commit-message:
@@ -139,6 +171,10 @@ updates:
       - /rust
     schedule:
       interval: monthly
+    ignore:
+      - dependency-name: "*"
+        update-types:
+          - "version-update:semver-major"
     cooldown:
       default-days: 7
     commit-message:
