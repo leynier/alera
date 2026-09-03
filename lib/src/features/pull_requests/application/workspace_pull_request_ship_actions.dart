@@ -31,7 +31,7 @@ mixin _WorkspacePullRequestShipActions on _$WorkspacePullRequestController {
       );
     }
     if (!settings.enabled) {
-      return _blockedShip('Enable AI Assist before shipping staged changes.');
+      return _blockedShip('Enable AI Assist before shipping changes.');
     }
     final normalizedBase = baseBranch.trim();
     if (normalizedBase.isEmpty) {
@@ -166,7 +166,7 @@ mixin _WorkspacePullRequestShipActions on _$WorkspacePullRequestController {
   }) => changesCommitted ? _afterCommitFailure(message) : message;
 
   String _afterCommitFailure(String message) =>
-      'The staged changes were committed, but Ship could not finish: $message';
+      'The changes were committed, but Ship could not finish: $message';
 
   Future<CreateReviewFailure> _finishShipFailure({
     required WorkspacePullRequestState previous,

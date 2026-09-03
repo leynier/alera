@@ -15,3 +15,15 @@ WidgetBuilder aleraChoiceDialogPreview() =>
       secondaryValue: 'force',
       destructiveSecondary: true,
     );
+
+@AleraPreview(name: 'Stacked', group: 'Choice Dialog', size: Size(480, 360))
+WidgetBuilder aleraChoiceDialogStackedPreview() =>
+    (context) => const AleraChoiceDialog<String>(
+      title: 'Ship Changes?',
+      message: 'Ship only staged changes, or stage all changes first and include them in the commit.',
+      primaryLabel: 'Ship Staged Changes',
+      primaryValue: 'staged',
+      secondaryLabel: 'Ship All Changes',
+      secondaryValue: 'all',
+      stackedActions: true,
+    );

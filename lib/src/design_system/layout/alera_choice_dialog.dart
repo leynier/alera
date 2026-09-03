@@ -8,6 +8,9 @@ import 'package:flutter/material.dart';
 /// Pops [primaryValue] / [secondaryValue] / `null` (cancel) from the
 /// [Navigator]. Pass [destructiveSecondary] when the secondary action removes
 /// or terminates work so it uses the error button style.
+///
+/// Pass [stackedActions] to stack primary, secondary, then cancel vertically
+/// instead of the default secondary-on-top plus cancel/primary footer row.
 class const AleraChoiceDialog<T>({
   super.key,
   required final String title,
@@ -18,6 +21,7 @@ class const AleraChoiceDialog<T>({
   final String? secondaryLabel,
   final T? secondaryValue,
   final bool destructiveSecondary = false,
+  final bool stackedActions = false,
 }) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
@@ -29,6 +33,19 @@ class const AleraChoiceDialog<T>({
           )
         : null;
     final hasSecondary = secondaryLabel != null && secondaryValue != null;
+    final primaryAction = FilledButton(
+      onPressed: () => Navigator.of(context).pop(primaryValue),
+      child: Text(primaryLabel, maxLines: 1, overflow: .ellipsis),
+    );
+    final secondaryAction = FilledButton(
+      onPressed: () => Navigator.of(context).pop(secondaryValue as T),
+      style: secondaryStyle,
+      child: Text(secondaryLabel ?? '', maxLines: 1, overflow: .ellipsis),
+    );
+    final cancelAction = TextButton(
+      onPressed: () => Navigator.of(context).pop(),
+      child: Text(cancelLabel, maxLines: 1, overflow: .ellipsis),
+    );
     return AleraDialog(
       maxWidth: 440,
       child: Padding(
@@ -46,39 +63,27 @@ class const AleraChoiceDialog<T>({
               ),
             ),
             const SizedBox(height: AleraTokens.space20),
-            if (hasSecondary) ...<Widget>[
-              SizedBox(
-                width: .infinity,
-                child: FilledButton(
-                  onPressed: () =>
-                      Navigator.of(context).pop(secondaryValue as T),
-                  style: secondaryStyle,
-                  child: Text(
-                    secondaryLabel!,
-                    maxLines: 1,
-                    overflow: .ellipsis,
-                  ),
-                ),
-              ),
-              const SizedBox(height: AleraTokens.space8),
-            ],
-            Row(
-              children: <Widget>[
-                Expanded(
-                  child: TextButton(
-                    onPressed: () => Navigator.of(context).pop(),
-                    child: Text(cancelLabel, maxLines: 1, overflow: .ellipsis),
-                  ),
-                ),
-                const SizedBox(width: AleraTokens.space8),
-                Expanded(
-                  child: FilledButton(
-                    onPressed: () => Navigator.of(context).pop(primaryValue),
-                    child: Text(primaryLabel, maxLines: 1, overflow: .ellipsis),
-                  ),
-                ),
+            if (stackedActions) ...<Widget>[
+              SizedBox(width: .infinity, child: primaryAction),
+              if (hasSecondary) ...<Widget>[
+                const SizedBox(height: AleraTokens.space8),
+                SizedBox(width: .infinity, child: secondaryAction),
               ],
-            ),
+              const SizedBox(height: AleraTokens.space8),
+              SizedBox(width: .infinity, child: cancelAction),
+            ] else ...<Widget>[
+              if (hasSecondary) ...<Widget>[
+                SizedBox(width: .infinity, child: secondaryAction),
+                const SizedBox(height: AleraTokens.space8),
+              ],
+              Row(
+                children: <Widget>[
+                  Expanded(child: cancelAction),
+                  const SizedBox(width: AleraTokens.space8),
+                  Expanded(child: primaryAction),
+                ],
+              ),
+            ],
           ],
         ),
       ),

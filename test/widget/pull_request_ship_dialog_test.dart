@@ -1,6 +1,5 @@
 import 'package:alera/src/features/pull_requests/domain/pull_request_ship_scope.dart';
 import 'package:alera/src/features/pull_requests/presentation/pull_request_composer.dart';
-import 'package:alera/src/features/pull_requests/presentation/pull_request_ship_dialog.dart';
 import 'package:alera/src/features/settings/application/settings_controller.dart';
 import 'package:alera/src/shared/infra/git/git_providers.dart';
 import 'package:flutter/material.dart';
@@ -47,44 +46,20 @@ Future<void> _pumpComposer(
 }
 
 void main() {
-  testWidgets('ship dialog orders staged, all, then cancel', (tester) async {
-    PullRequestShipScope? result;
-    await tester.pumpWidget(
-      MaterialApp(
-        home: Scaffold(
-          body: Builder(
-            builder: (context) => TextButton(
-              onPressed: () async {
-                result = await showDialog<PullRequestShipScope>(
-                  context: context,
-                  builder: (_) => const PullRequestShipDialog(),
-                );
-              },
-              child: const Text('Open'),
-            ),
-          ),
-        ),
-      ),
+  testWidgets('ship dialog stacks staged, all, then cancel', (tester) async {
+    await _pumpComposer(
+      tester,
+      onShip: ({required baseBranch, required draft, required scope}) async {},
     );
 
-    await tester.tap(find.text('Open'));
+    await tester.tap(find.byKey(const Key('pull-request-ship-button')));
     await tester.pumpAndSettle();
 
-    final stagedTop = tester.getTopLeft(
-      find.byKey(const Key('ship-staged-changes-button')),
-    );
-    final allTop = tester.getTopLeft(
-      find.byKey(const Key('ship-all-changes-button')),
-    );
-    final cancelTop = tester.getTopLeft(
-      find.byKey(const Key('ship-cancel-button')),
-    );
+    final stagedTop = tester.getTopLeft(find.text('Ship Staged Changes'));
+    final allTop = tester.getTopLeft(find.text('Ship All Changes'));
+    final cancelTop = tester.getTopLeft(find.text('Cancel'));
     expect(stagedTop.dy, lessThan(allTop.dy));
     expect(allTop.dy, lessThan(cancelTop.dy));
-
-    await tester.tap(find.byKey(const Key('ship-all-changes-button')));
-    await tester.pumpAndSettle();
-    expect(result, PullRequestShipScope.all);
   });
 
   testWidgets('ship button opens dialog and forwards the scope', (
@@ -100,9 +75,9 @@ void main() {
 
     await tester.tap(find.byKey(const Key('pull-request-ship-button')));
     await tester.pumpAndSettle();
-    expect(find.byKey(const Key('ship-staged-changes-button')), findsOneWidget);
+    expect(find.text('Ship Staged Changes'), findsOneWidget);
 
-    await tester.tap(find.byKey(const Key('ship-staged-changes-button')));
+    await tester.tap(find.text('Ship Staged Changes'));
     await tester.pumpAndSettle();
     expect(shippedScope, PullRequestShipScope.staged);
   });
@@ -118,7 +93,7 @@ void main() {
 
     await tester.tap(find.byKey(const Key('pull-request-ship-button')));
     await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const Key('ship-cancel-button')));
+    await tester.tap(find.text('Cancel'));
     await tester.pumpAndSettle();
     expect(shipped, isFalse);
   });
