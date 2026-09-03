@@ -70,4 +70,49 @@ void main() {
 
     expect(result, _Choice.force);
   });
+
+  testWidgets('stacked orders primary, secondary, then cancel', (tester) async {
+    _Choice? result;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Builder(
+          builder: (context) {
+            return Scaffold(
+              body: FilledButton(
+                onPressed: () async {
+                  result = await showDialog<_Choice>(
+                    context: context,
+                    builder: (_) => const AleraChoiceDialog<_Choice>(
+                      title: 'Ship Changes?',
+                      message: 'Pick a scope.',
+                      primaryLabel: 'Ship Staged Changes',
+                      primaryValue: .leave,
+                      secondaryLabel: 'Ship All Changes',
+                      secondaryValue: .force,
+                      stackedActions: true,
+                    ),
+                  );
+                },
+                child: const Text('Open'),
+              ),
+            );
+          },
+        ),
+      ),
+    );
+    await tester.tap(find.text('Open'));
+    await tester.pumpAndSettle();
+
+    final primaryTop = tester.getTopLeft(find.text('Ship Staged Changes'));
+    final secondaryTop = tester.getTopLeft(find.text('Ship All Changes'));
+    final cancelTop = tester.getTopLeft(find.text('Cancel'));
+    expect(primaryTop.dy, lessThan(secondaryTop.dy));
+    expect(secondaryTop.dy, lessThan(cancelTop.dy));
+
+    await tester.tap(find.text('Ship All Changes'));
+    await tester.pumpAndSettle();
+
+    expect(result, _Choice.force);
+  });
 }

@@ -5,12 +5,14 @@ import 'package:alera/src/design_system/feedback/alera_toast.dart';
 import 'package:alera/src/design_system/forms/alera_text_actions_scope.dart';
 import 'package:alera/src/design_system/forms/alera_dropdown_field.dart';
 import 'package:alera/src/design_system/icons/alera_icons.dart';
+import 'package:alera/src/design_system/layout/alera_choice_dialog.dart';
 import 'package:alera/src/design_system/menus/alera_dropdown_entry.dart';
 import 'package:alera/src/features/ai_assist/application/ai_assist_prompt.dart';
 import 'package:alera/src/features/ai_assist/application/ai_assist_providers.dart';
 import 'package:alera/src/features/ai_assist/application/ai_assist_service.dart';
 import 'package:alera/src/features/ai_dictation/presentation/ai_dictation_field_overlay.dart';
 import 'package:alera/src/features/pull_requests/domain/hosted_review.dart';
+import 'package:alera/src/features/pull_requests/domain/pull_request_ship_scope.dart';
 import 'package:alera/src/features/pull_requests/presentation/pull_request_field_decoration.dart';
 import 'package:alera/src/features/pull_requests/presentation/pull_request_link_form.dart';
 import 'package:alera/src/features/settings/application/settings_controller.dart';
@@ -32,6 +34,7 @@ class const CreateReviewDraft({
 typedef PullRequestShipCallback = Future<void> Function({
   required String baseBranch,
   required bool draft,
+  required PullRequestShipScope scope,
 });
 
 enum _ComposerMode { create, link }
@@ -173,10 +176,26 @@ class _PullRequestComposerState extends ConsumerState<PullRequestComposer> {
       setState(() => _errorText = 'Base branch is required');
       return;
     }
+    final scope = await showDialog<PullRequestShipScope>(
+      context: context,
+      builder: (_) => const AleraChoiceDialog<PullRequestShipScope>(
+        title: 'Ship Changes?',
+        message: 'Ship only staged changes, or stage all changes first and include them in the commit.',
+        primaryLabel: 'Ship Staged Changes',
+        primaryValue: .staged,
+        secondaryLabel: 'Ship All Changes',
+        secondaryValue: .all,
+        stackedActions: true,
+      ),
+    );
+    if (!mounted || scope == null) {
+      return;
+    }
     setState(() => _errorText = null);
     await widget.onShip(
       baseBranch: base,
       draft: widget.createAction == PullRequestCreateAction.draft,
+      scope: scope,
     );
   }
 

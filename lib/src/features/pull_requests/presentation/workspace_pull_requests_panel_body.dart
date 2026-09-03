@@ -123,13 +123,19 @@ class const _PullRequestBody({
           ),
         );
       },
-      onShip: ({required String baseBranch, required bool draft}) async {
-        await controller.ship(
-          baseBranch: baseBranch,
-          draft: draft,
-          settings: aiAssistSettings,
-        );
-      },
+      onShip:
+          ({
+            required String baseBranch,
+            required bool draft,
+            required PullRequestShipScope scope,
+          }) async {
+            await controller.ship(
+              baseBranch: baseBranch,
+              draft: draft,
+              settings: aiAssistSettings,
+              scope: scope,
+            );
+          },
       onCreateStack: (draft) =>
           _openWorkspaceStackDialog(context, currentDraft: draft),
       onLink: controller.link,
