@@ -1437,6 +1437,24 @@ class GeneralSettingsMapper extends ClassMapperBase<GeneralSettings> {
     opt: true,
     def: true,
   );
+  static bool _$showPullRequestStatusInSidebar(GeneralSettings v) =>
+      v.showPullRequestStatusInSidebar;
+  static const Field<GeneralSettings, bool> _f$showPullRequestStatusInSidebar =
+      Field(
+        'showPullRequestStatusInSidebar',
+        _$showPullRequestStatusInSidebar,
+        opt: true,
+        def: true,
+      );
+  static bool _$pullRequestFailureNotificationsEnabled(GeneralSettings v) =>
+      v.pullRequestFailureNotificationsEnabled;
+  static const Field<GeneralSettings, bool>
+  _f$pullRequestFailureNotificationsEnabled = Field(
+    'pullRequestFailureNotificationsEnabled',
+    _$pullRequestFailureNotificationsEnabled,
+    opt: true,
+    def: false,
+  );
 
   @override
   final MappableFields<GeneralSettings> fields = const {
@@ -1448,6 +1466,9 @@ class GeneralSettingsMapper extends ClassMapperBase<GeneralSettings> {
     #showTrayIcon: _f$showTrayIcon,
     #showDockBadge: _f$showDockBadge,
     #showTrayBadge: _f$showTrayBadge,
+    #showPullRequestStatusInSidebar: _f$showPullRequestStatusInSidebar,
+    #pullRequestFailureNotificationsEnabled:
+        _f$pullRequestFailureNotificationsEnabled,
   };
 
   static GeneralSettings _instantiate(DecodingData data) {
@@ -1460,6 +1481,12 @@ class GeneralSettingsMapper extends ClassMapperBase<GeneralSettings> {
       showTrayIcon: data.dec(_f$showTrayIcon),
       showDockBadge: data.dec(_f$showDockBadge),
       showTrayBadge: data.dec(_f$showTrayBadge),
+      showPullRequestStatusInSidebar: data.dec(
+        _f$showPullRequestStatusInSidebar,
+      ),
+      pullRequestFailureNotificationsEnabled: data.dec(
+        _f$pullRequestFailureNotificationsEnabled,
+      ),
     );
   }
 
@@ -1534,6 +1561,8 @@ abstract class GeneralSettingsCopyWith<$R, $In extends GeneralSettings, $Out>
     bool? showTrayIcon,
     bool? showDockBadge,
     bool? showTrayBadge,
+    bool? showPullRequestStatusInSidebar,
+    bool? pullRequestFailureNotificationsEnabled,
   });
   GeneralSettingsCopyWith<$R2, $In, $Out2> $chain<$R2, $Out2>(
     Then<$Out2, $R2> t,
@@ -1558,6 +1587,8 @@ class _GeneralSettingsCopyWithImpl<$R, $Out>
     bool? showTrayIcon,
     bool? showDockBadge,
     bool? showTrayBadge,
+    bool? showPullRequestStatusInSidebar,
+    bool? pullRequestFailureNotificationsEnabled,
   }) => $apply(
     FieldCopyWithData({
       if (workspaceDirectory != $none) #workspaceDirectory: workspaceDirectory,
@@ -1570,6 +1601,11 @@ class _GeneralSettingsCopyWithImpl<$R, $Out>
       if (showTrayIcon != null) #showTrayIcon: showTrayIcon,
       if (showDockBadge != null) #showDockBadge: showDockBadge,
       if (showTrayBadge != null) #showTrayBadge: showTrayBadge,
+      if (showPullRequestStatusInSidebar != null)
+        #showPullRequestStatusInSidebar: showPullRequestStatusInSidebar,
+      if (pullRequestFailureNotificationsEnabled != null)
+        #pullRequestFailureNotificationsEnabled:
+            pullRequestFailureNotificationsEnabled,
     }),
   );
   @override
@@ -1591,6 +1627,14 @@ class _GeneralSettingsCopyWithImpl<$R, $Out>
     showTrayIcon: data.get(#showTrayIcon, or: $value.showTrayIcon),
     showDockBadge: data.get(#showDockBadge, or: $value.showDockBadge),
     showTrayBadge: data.get(#showTrayBadge, or: $value.showTrayBadge),
+    showPullRequestStatusInSidebar: data.get(
+      #showPullRequestStatusInSidebar,
+      or: $value.showPullRequestStatusInSidebar,
+    ),
+    pullRequestFailureNotificationsEnabled: data.get(
+      #pullRequestFailureNotificationsEnabled,
+      or: $value.pullRequestFailureNotificationsEnabled,
+    ),
   );
 
   @override

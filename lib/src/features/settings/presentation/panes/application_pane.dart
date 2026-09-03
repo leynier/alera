@@ -94,6 +94,30 @@ class const ApplicationSettingsPane({
         ),
         const SizedBox(height: AleraTokens.space16),
         KeyedSubtree(
+          key: groupKeys['pullRequests'],
+          child: AleraSettingsGroup(
+            title: 'Pull Requests',
+            description: 'Compact review and CI status for workspaces backed by a hosted Git repository.',
+            children: <Widget>[
+              SettingsSwitchRow(
+                title: 'Show Pull Request Status',
+                description: 'Show draft, ready, running, failed, merged, and closed state beside each workspace. Alera batches GitHub workspaces into one refresh per repository.',
+                value: general.showPullRequestStatusInSidebar,
+                onChanged: (value) =>
+                    controller.setShowPullRequestStatusInSidebar(value),
+              ),
+              SettingsSwitchRow(
+                title: 'Notify When Checks Fail',
+                description: 'Show one native notification when a pull request enters a failed-check state. Enabling this keeps the lightweight monitor active while Alera is hidden.',
+                value: general.pullRequestFailureNotificationsEnabled,
+                onChanged: (value) =>
+                    controller.setPullRequestFailureNotificationsEnabled(value),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: AleraTokens.space16),
+        KeyedSubtree(
           key: groupKeys['runtime'],
           child: AleraSettingsGroup(
             title: 'Runtime',

@@ -13,9 +13,11 @@ import 'package:logging/logging.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 part 'settings_controller.g.dart';
+part 'settings_controller_pull_requests.dart';
 
 @Riverpod(keepAlive: true)
-class SettingsController extends _$SettingsController {
+class SettingsController extends _$SettingsController
+    with _SettingsControllerPullRequestSettings {
   bool _loadStarted = false;
 
   SettingsRepository get _repository => ref.read(settingsRepositoryProvider);

@@ -1,5 +1,6 @@
 import 'package:alera/src/features/settings/presentation/settings_sections.dart';
 import 'package:alera/src/features/settings/presentation/settings_search_entry_catalog.dart';
+import 'package:alera/src/features/settings/presentation/settings_search_entries_pull_requests.dart';
 import 'package:alera/src/features/settings/presentation/settings_search_entries_reading_diff.dart';
 
 final List<SettingsSearchEntry>
@@ -61,6 +62,7 @@ applicationSearchEntries = buildSettingsSearchEntryCatalog(const {
       ],
     ),
   },
+  ...pullRequestApplicationSearchGroups,
   'runtime': {
     'Keep Computer Awake': SettingsSearchEntryDetails(
       description:

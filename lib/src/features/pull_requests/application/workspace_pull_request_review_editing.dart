@@ -74,6 +74,7 @@ mixin _WorkspacePullRequestReviewEditing on _$WorkspacePullRequestController {
           url: result.review.url,
         ),
       );
+      controller._refreshWorkspacePullRequestMonitor();
     }
     controller._applyActionOutcome(
       failureMessage: result is CreateReviewFailure ? result.message : null,
@@ -159,6 +160,9 @@ mixin _WorkspacePullRequestReviewEditing on _$WorkspacePullRequestController {
     controller._applyActionOutcome(
       failureMessage: result is UpdateReviewFailure ? result.message : null,
     );
+    if (result is UpdateReviewSuccess) {
+      controller._refreshWorkspacePullRequestMonitor();
+    }
     // Reload only on success; the refresh path would clear the error message.
     if (!controller._disposed &&
         controller._visible &&

@@ -21,6 +21,8 @@ import 'package:alera/src/features/browser/presentation/browser_native_callback_
 import 'package:alera/src/features/keyboard/presentation/keyboard_shortcuts_scope.dart';
 import 'package:alera/src/features/mobile_emulator/presentation/mobile_emulator_device_picker.dart';
 import 'package:alera/src/features/projects/domain/project.dart';
+import 'package:alera/src/features/pull_requests/application/workspace_pull_request_monitor_providers.dart';
+import 'package:alera/src/features/pull_requests/application/workspace_pull_request_notification_providers.dart';
 import 'package:alera/src/features/workbench/application/workspace_file_service.dart';
 import 'package:alera/src/features/workbench/application/workspace_source_control_controller.dart';
 import 'package:alera/src/features/workbench/application/workbench_tab_attention.dart';

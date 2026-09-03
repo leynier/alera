@@ -13,6 +13,7 @@ import 'package:alera/src/features/pull_requests/application/pull_request_provid
 import 'package:alera/src/features/pull_requests/application/review_reference_parser.dart';
 import 'package:alera/src/features/pull_requests/application/workspace_pull_request_state.dart';
 import 'package:alera/src/features/pull_requests/application/workspace_pull_request_loader.dart';
+import 'package:alera/src/features/pull_requests/application/workspace_pull_request_refresh_signal.dart';
 import 'package:alera/src/features/pull_requests/domain/create_review_input.dart';
 import 'package:alera/src/features/pull_requests/domain/create_review_result.dart';
 import 'package:alera/src/features/pull_requests/domain/forge_auth_status.dart';
@@ -222,6 +223,12 @@ class WorkspacePullRequestController extends _$WorkspacePullRequestController
     );
   }
 
+  void _refreshWorkspacePullRequestMonitor() {
+    ref
+        .read(workspacePullRequestRefreshSignalProvider.notifier)
+        .requestRefresh();
+  }
+
   /// Clears the in-flight action; a non-null [failureMessage] surfaces it.
   void _applyActionOutcome({String? failureMessage}) {
     if (_disposed) {
@@ -297,6 +304,7 @@ class WorkspacePullRequestController extends _$WorkspacePullRequestController
       if (!_disposed) {
         state = AsyncData(_applyPendingCommentBodies(reloaded));
         _resetPollInterval();
+        _refreshWorkspacePullRequestMonitor();
       }
     } on _ActionError catch (error) {
       await _recordActionFailure(

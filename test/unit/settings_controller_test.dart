@@ -243,6 +243,8 @@ void main() {
         await controller.setShowTrayIcon(false);
         await controller.setShowDockBadge(false);
         await controller.setShowTrayBadge(false);
+        await controller.setShowPullRequestStatusInSidebar(false);
+        await controller.setPullRequestFailureNotificationsEnabled(true);
 
         final restored = await repository.load();
         expect(
@@ -278,6 +280,8 @@ void main() {
         expect(restored.general.showTrayIcon, isFalse);
         expect(restored.general.showDockBadge, isFalse);
         expect(restored.general.showTrayBadge, isFalse);
+        expect(restored.general.showPullRequestStatusInSidebar, isFalse);
+        expect(restored.general.pullRequestFailureNotificationsEnabled, isTrue);
       },
     );
 

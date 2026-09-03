@@ -31,7 +31,7 @@ void main() {
 
     expect(
       _catalogFingerprint(catalogs),
-      '99cdaa6c91977c947d2b099c764031db9f8063bda46b9256f0106da1c7469ada',
+      '3f5bcd1ea73ed8210cdd50a9f4de90b15f1b9a019a9d6842d3637a20631edc22',
     );
   });
 
@@ -82,6 +82,14 @@ void main() {
         entries: applicationSearchEntries,
         query: 'taskbar',
         expected: <(String, String?)>[('Show Dock Badge', 'desktop')],
+      ),
+      (
+        entries: applicationSearchEntries,
+        query: 'pull request',
+        expected: <(String, String?)>[
+          ('Show Pull Request Status', 'pullRequests'),
+          ('Notify When Checks Fail', 'pullRequests'),
+        ],
       ),
       (
         entries: agentsSearchEntries,
