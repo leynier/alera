@@ -7,6 +7,7 @@ import 'package:alera/src/features/pull_requests/application/pull_request_provid
 import 'package:alera/src/features/pull_requests/application/workspace_pull_request_controller.dart';
 import 'package:alera/src/features/pull_requests/domain/create_review_result.dart';
 import 'package:alera/src/features/pull_requests/domain/hosted_review.dart';
+import 'package:alera/src/features/pull_requests/domain/pull_request_ship_scope.dart';
 import 'package:alera/src/features/pull_requests/domain/workspace_pull_request_scope.dart';
 import 'package:alera/src/shared/infra/git/git_diff_models.dart';
 import 'package:alera/src/shared/infra/git/git_exception.dart';
@@ -109,10 +110,12 @@ void main() {
           baseBranch: 'main',
           draft: false,
           settings: AiAssistSettings.defaults,
+          scope: PullRequestShipScope.staged,
         );
 
     expect(result, isA<CreateReviewSuccess>());
     final methods = git.calls.map((call) => call.method).toList();
+    expect(methods, isNot(contains('stage')));
     expect(
       methods,
       containsAll(<String>[
@@ -228,6 +231,7 @@ void main() {
             baseBranch: scenario.baseBranch,
             draft: false,
             settings: AiAssistSettings.defaults,
+            scope: PullRequestShipScope.staged,
           );
 
       expect(result, isA<CreateReviewSuccess>());
@@ -292,6 +296,7 @@ void main() {
             baseBranch: 'main',
             draft: true,
             settings: AiAssistSettings.defaults,
+            scope: PullRequestShipScope.staged,
           );
 
       expect(result, isA<CreateReviewSuccess>());
@@ -354,6 +359,7 @@ void main() {
             baseBranch: 'main',
             draft: false,
             settings: AiAssistSettings.defaults,
+            scope: PullRequestShipScope.staged,
           );
 
       expect(result, isA<CreateReviewFailure>());
@@ -410,6 +416,7 @@ void main() {
             baseBranch: 'main',
             draft: false,
             settings: AiAssistSettings.defaults,
+            scope: PullRequestShipScope.staged,
           );
 
       expect(result, isA<CreateReviewFailure>());
@@ -436,6 +443,89 @@ void main() {
       expect(state.errorMessage, 'Stage at least one change before shipping.');
     },
   );
+
+  test('stages all changes before shipping when scope is all', () async {
+    const headBranch = 'feat/ship-all';
+    final git = FakeGitBackend()
+      ..headBranch = headBranch
+      ..sourceBranches = <String>['main', headBranch]
+      ..remotesByName = <String, String?>{
+        'origin': 'https://github.com/leynier/alera.git',
+      }
+      ..gitStatusResult = const GitStatusResult(
+        entries: <GitChangeEntry>[
+          GitChangeEntry(path: 'README.md', area: .unstaged, status: .modified),
+        ],
+      );
+    final review = _review(705, headBranch: headBranch);
+    final forge = FakeForgeProvider()
+      ..createResult = CreateReviewSuccess(review)
+      ..byNumber[705] = review;
+    final aiAssist = _FakeAiAssistService(<Object>[
+      const AiAssistResult(text: 'feat: ship all changes', agentLabel: 'Codex'),
+      const AiAssistResult(
+        text: 'Ship all changes\n\nStage everything first.',
+        agentLabel: 'Codex',
+      ),
+    ]);
+    final container = _container(
+      git: git,
+      forge: forge,
+      linkedReviews: FakeLinkedReviewRepository(),
+      aiAssist: aiAssist,
+    );
+    addTearDown(container.dispose);
+    await container.read(workspacePullRequestControllerProvider(_scope).future);
+
+    final result = await container
+        .read(workspacePullRequestControllerProvider(_scope).notifier)
+        .ship(
+          baseBranch: 'main',
+          draft: false,
+          settings: AiAssistSettings.defaults,
+          scope: PullRequestShipScope.all,
+        );
+
+    expect(result, isA<CreateReviewSuccess>());
+    final methods = git.calls.map((call) => call.method).toList();
+    expect(methods, contains('stage'));
+    expect(methods.indexOf('stage'), lessThan(methods.indexOf('commit')));
+    expect(forge.lastCreateInput?.headBranch, headBranch);
+  });
+
+  test('blocks Ship All when there are no changes at all', () async {
+    final git = FakeGitBackend()
+      ..headBranch = 'feat/ship-all'
+      ..remotesByName = <String, String?>{
+        'origin': 'https://github.com/leynier/alera.git',
+      }
+      ..gitStatusResult = const GitStatusResult(entries: []);
+    final forge = FakeForgeProvider();
+    final aiAssist = _FakeAiAssistService(const <Object>[]);
+    final container = _container(
+      git: git,
+      forge: forge,
+      linkedReviews: FakeLinkedReviewRepository(),
+      aiAssist: aiAssist,
+    );
+    addTearDown(container.dispose);
+    await container.read(workspacePullRequestControllerProvider(_scope).future);
+
+    final result = await container
+        .read(workspacePullRequestControllerProvider(_scope).notifier)
+        .ship(
+          baseBranch: 'main',
+          draft: false,
+          settings: AiAssistSettings.defaults,
+          scope: PullRequestShipScope.all,
+        );
+
+    expect(result, isA<CreateReviewFailure>());
+    expect((result as CreateReviewFailure).message, 'No changes to ship.');
+    expect(aiAssist.requests, isEmpty);
+    expect(git.calls.where((call) => call.method == 'stage'), isEmpty);
+    expect(git.calls.where((call) => call.method == 'commit'), isEmpty);
+  });
 }
 
 class _FakeAiAssistService implements AiAssistService {

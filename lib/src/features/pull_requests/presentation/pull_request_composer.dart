@@ -11,8 +11,10 @@ import 'package:alera/src/features/ai_assist/application/ai_assist_providers.dar
 import 'package:alera/src/features/ai_assist/application/ai_assist_service.dart';
 import 'package:alera/src/features/ai_dictation/presentation/ai_dictation_field_overlay.dart';
 import 'package:alera/src/features/pull_requests/domain/hosted_review.dart';
+import 'package:alera/src/features/pull_requests/domain/pull_request_ship_scope.dart';
 import 'package:alera/src/features/pull_requests/presentation/pull_request_field_decoration.dart';
 import 'package:alera/src/features/pull_requests/presentation/pull_request_link_form.dart';
+import 'package:alera/src/features/pull_requests/presentation/pull_request_ship_dialog.dart';
 import 'package:alera/src/features/settings/application/settings_controller.dart';
 import 'package:alera/src/features/workbench/domain/workbench_view_prefs.dart';
 import 'package:flutter/material.dart';
@@ -32,6 +34,7 @@ class const CreateReviewDraft({
 typedef PullRequestShipCallback = Future<void> Function({
   required String baseBranch,
   required bool draft,
+  required PullRequestShipScope scope,
 });
 
 enum _ComposerMode { create, link }
@@ -173,10 +176,18 @@ class _PullRequestComposerState extends ConsumerState<PullRequestComposer> {
       setState(() => _errorText = 'Base branch is required');
       return;
     }
+    final scope = await showDialog<PullRequestShipScope>(
+      context: context,
+      builder: (_) => const PullRequestShipDialog(),
+    );
+    if (!mounted || scope == null) {
+      return;
+    }
     setState(() => _errorText = null);
     await widget.onShip(
       baseBranch: base,
       draft: widget.createAction == PullRequestCreateAction.draft,
+      scope: scope,
     );
   }
 

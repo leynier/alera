@@ -7,12 +7,15 @@ mixin _WorkspacePullRequestShipActions on _$WorkspacePullRequestController {
   WorkspacePullRequestController get _shipController =>
       this as WorkspacePullRequestController;
 
-  /// Commits the staged index with an AI-generated message and creates a pull
-  /// request. A checkout on a shared or selected base branch is moved first.
+  /// Commits staged changes with an AI-generated message and creates a pull
+  /// request. When [scope] is [PullRequestShipScope.all], all working-tree
+  /// changes are staged first. A checkout on a shared or selected base branch
+  /// is moved first.
   Future<CreateReviewResult> ship({
     required String baseBranch,
     required bool draft,
     required AiAssistSettings settings,
+    required PullRequestShipScope scope,
   }) async {
     final controller = _shipController;
     final previous = state.value ?? const WorkspacePullRequestState();
@@ -41,7 +44,12 @@ mixin _WorkspacePullRequestShipActions on _$WorkspacePullRequestController {
     try {
       final backend = controller._gitBackend;
       final status = await backend.status(controller.scope.repoPath);
-      if (!status.entries.any((entry) => entry.area == .staged)) {
+      if (scope == PullRequestShipScope.all) {
+        if (status.entries.isEmpty) {
+          throw const _ActionError('No changes to ship.');
+        }
+        await backend.stage(path: controller.scope.repoPath);
+      } else if (!status.entries.any((entry) => entry.area == .staged)) {
         throw const _ActionError('Stage at least one change before shipping.');
       }
 

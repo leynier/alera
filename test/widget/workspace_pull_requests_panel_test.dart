@@ -115,7 +115,11 @@ void main() {
                 suggestedReview: null,
                 createAction: .publish,
                 onCreate: (_) {},
-                onShip: ({required baseBranch, required draft}) async {},
+                onShip: ({
+                  required baseBranch,
+                  required draft,
+                  required scope,
+                }) async {},
                 onLink: (_) {},
                 onCreateActionChanged: (_) {},
               ),
